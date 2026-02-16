@@ -15,59 +15,74 @@ use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::PBSOrder;
 use tfhe_csprng::generators::DefaultRandomGenerator;
 
+#[derive(Clone, Copy)]
+pub enum CudaReRandomizationKey<'key> {
+    LegacyDedicatedCPK {
+        cpk: &'key CompactPublicKey,
+        ksk: &'key CudaKeySwitchingKeyMaterial,
+    },
+    // For now the GPU only supports the LegacyDedicatedCPK case, see the CPU key in integer for
+    // no keyswitch management
+}
+
 impl CudaUnsignedRadixCiphertext {
     pub fn re_randomize(
         &mut self,
-        compact_public_key: &CompactPublicKey,
-        key_switching_key_material: &CudaKeySwitchingKeyMaterial,
+        re_randomization_key: CudaReRandomizationKey<'_>,
         seed: ReRandomizationSeed,
         streams: &CudaStreams,
     ) -> crate::Result<()> {
-        self.ciphertext.re_randomize(
-            compact_public_key,
-            key_switching_key_material,
-            seed,
-            streams,
-        )
+        self.ciphertext
+            .re_randomize(re_randomization_key, seed, streams)
     }
 }
 
 impl CudaSignedRadixCiphertext {
     pub fn re_randomize(
         &mut self,
-        compact_public_key: &CompactPublicKey,
-        key_switching_key_material: &CudaKeySwitchingKeyMaterial,
+        re_randomization_key: CudaReRandomizationKey<'_>,
         seed: ReRandomizationSeed,
         streams: &CudaStreams,
     ) -> crate::Result<()> {
-        self.ciphertext.re_randomize(
-            compact_public_key,
-            key_switching_key_material,
-            seed,
-            streams,
-        )
+        self.ciphertext
+            .re_randomize(re_randomization_key, seed, streams)
     }
 }
 
 impl CudaBooleanBlock {
     pub fn re_randomize(
         &mut self,
-        compact_public_key: &CompactPublicKey,
-        key_switching_key_material: &CudaKeySwitchingKeyMaterial,
+        re_randomization_key: CudaReRandomizationKey<'_>,
         seed: ReRandomizationSeed,
         streams: &CudaStreams,
     ) -> crate::Result<()> {
-        self.0.re_randomize(
-            compact_public_key,
-            key_switching_key_material,
-            seed,
-            streams,
-        )
+        self.0.re_randomize(re_randomization_key, seed, streams)
     }
 }
 
 impl CudaRadixCiphertext {
     pub fn re_randomize(
+        &mut self,
+        re_randomization_key: CudaReRandomizationKey<'_>,
+        seed: ReRandomizationSeed,
+        streams: &CudaStreams,
+    ) -> crate::Result<()> {
+        // For now the match has a single arm, but this structure will allow adding the no keyswitch
+        // variant easily
+        match re_randomization_key {
+            CudaReRandomizationKey::LegacyDedicatedCPK {
+                cpk: compact_public_key,
+                ksk: key_switching_key_material,
+            } => self.legacy_re_randomize(
+                compact_public_key,
+                key_switching_key_material,
+                seed,
+                streams,
+            ),
+        }
+    }
+
+    fn legacy_re_randomize(
         &mut self,
         compact_public_key: &CompactPublicKey,
         key_switching_key_material: &CudaKeySwitchingKeyMaterial,

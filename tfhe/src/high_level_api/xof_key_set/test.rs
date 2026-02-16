@@ -9,6 +9,84 @@ mod cpu {
     use super::*;
 
     #[test]
+    fn test_xof_key_set_legacy_rerand_classic_params() {
+        let config = Config::from(
+            TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        );
+
+        let mut seeder = new_seeder();
+        let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
+        let security_bits = 128;
+        let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
+        let tag = Tag::from("classic_2_2");
+
+        let (cks, compressed_key_set) = CompressedXofKeySet::generate(
+            config,
+            private_seed_bytes,
+            security_bits,
+            max_norm_hwt,
+            tag.clone(),
+        )
+        .unwrap();
+
+        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
+        assert_eq!(cks.tag(), &tag);
+        test_xof_key_set(&compressed_key_set, config, Device::Cpu, &cks);
+    }
+
+    #[test]
+    fn test_xof_key_set_legacy_rerand_ks32_params_big_pke() {
+        let config = Config::from(
+            TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+        );
+
+        let mut seeder = new_seeder();
+        let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
+        let security_bits = 128;
+        let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
+        let tag = Tag::from("ks32 big pke");
+
+        let (cks, compressed_key_set) = CompressedXofKeySet::generate(
+            config,
+            private_seed_bytes,
+            security_bits,
+            max_norm_hwt,
+            tag.clone(),
+        )
+        .unwrap();
+
+        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
+        assert_eq!(cks.tag(), &tag);
+        test_xof_key_set(&compressed_key_set, config, Device::Cpu, &cks);
+    }
+
+    #[test]
+    fn test_xof_key_set_legacy_rerand_ks32_params_small_pke() {
+        let config = Config::from(
+            TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        );
+
+        let mut seeder = new_seeder();
+        let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
+        let security_bits = 128;
+        let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
+        let tag = Tag::from("ks32 small pke");
+
+        let (cks, compressed_key_set) = CompressedXofKeySet::generate(
+            config,
+            private_seed_bytes,
+            security_bits,
+            max_norm_hwt,
+            tag.clone(),
+        )
+        .unwrap();
+
+        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
+        assert_eq!(cks.tag(), &tag);
+        test_xof_key_set(&compressed_key_set, config, Device::Cpu, &cks);
+    }
+
+    #[test]
     fn test_xof_key_set_classic_params() {
         let config = Config::from(TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
 
@@ -90,9 +168,9 @@ mod gpu {
     use super::*;
 
     #[test]
-    fn test_xof_key_set_multibit_group_4_small_pke() {
+    fn test_xof_key_set_legacy_rerand_multibit_group_4_small_pke() {
         let config = Config::from(
-            TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+            TEST_LEGACY_RERAND_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
         );
 
         let mut seeder = new_seeder();
@@ -117,9 +195,9 @@ mod gpu {
     }
 
     #[test]
-    fn test_xof_key_set_multibit_group_4_big_pke() {
+    fn test_xof_key_set_legacy_rerand_multibit_group_4_big_pke() {
         let config = Config::from(
-            TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+            TEST_LEGACY_RERAND_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
         );
 
         let mut seeder = new_seeder();
@@ -144,8 +222,10 @@ mod gpu {
     }
 
     #[test]
-    fn test_xof_key_set_with_cpu_params() {
-        let config = Config::from(TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
+    fn test_xof_key_set_legacy_rerand_with_cpu_params() {
+        let config = Config::from(
+            TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        );
 
         let mut seeder = new_seeder();
         let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
@@ -204,12 +284,12 @@ fn test_xof_key_set(
         crate::safe_serialization::safe_deserialize(data.as_slice(), compressed_size_limit)
             .unwrap();
 
-    let expected_pk_tag = compressed_key_set.compressed_public_key.tag().clone();
+    let expected_cpk_tag = compressed_key_set.compressed_public_key.tag().clone();
     let expected_sk_tag = compressed_key_set.compressed_server_key.tag().clone();
 
     assert!(compressed_key_set.is_conformant(&config));
 
-    let pk = match device {
+    let cpk = match device {
         Device::Cpu => {
             let key_set = compressed_key_set.decompress().unwrap();
             let size_limit = 1 << 32; // 4GB
@@ -238,7 +318,8 @@ fn test_xof_key_set(
         }
     };
 
-    assert_eq!(pk.tag(), &expected_pk_tag);
+    assert_eq!(cpk.tag(), &expected_cpk_tag);
+    let cpk = &cpk;
 
     let clear_a = rand::random::<u32>();
     let clear_b = rand::random::<u32>();
@@ -263,7 +344,7 @@ fn test_xof_key_set(
             continue;
         }
 
-        let mut builder = CompactCiphertextList::builder(&pk);
+        let mut builder = CompactCiphertextList::builder(cpk);
         builder.push(clear_a).push(clear_b);
         let list = if build_packed {
             builder.build_packed()
@@ -276,7 +357,7 @@ fn test_xof_key_set(
         let mut b = expander.get::<FheUint32>(1).unwrap().unwrap();
 
         // Test re-randomization
-        if config.inner.cpk_re_randomization_ksk_params.is_some() {
+        if config.inner.cpk_re_randomization_params.is_some() {
             // Simulate a 256 bits nonce
             let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
             let compact_public_encryption_domain_separator = *b"TFHE_Enc";
@@ -294,9 +375,35 @@ fn test_xof_key_set(
 
             let mut seed_gen = re_rand_context.finalize();
 
-            a.re_randomize(&pk, seed_gen.next_seed().unwrap()).unwrap();
-
-            b.re_randomize(&pk, seed_gen.next_seed().unwrap()).unwrap();
+            match ServerKey::current_server_key_re_randomization_support().unwrap() {
+                ReRandomizationSupport::NoSupport => {
+                    panic!("This test runs rerand, the current ServerKey does not support it")
+                }
+                ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch => {
+                    a.re_randomize(
+                        ReRandomizationMode::UseLegacyCPKIfNeeded { cpk },
+                        seed_gen.next_seed().unwrap(),
+                    )
+                    .unwrap();
+                    b.re_randomize(
+                        ReRandomizationMode::UseLegacyCPKIfNeeded { cpk },
+                        seed_gen.next_seed().unwrap(),
+                    )
+                    .unwrap();
+                }
+                ReRandomizationSupport::DerivedCPKWithoutKeySwitch => {
+                    a.re_randomize(
+                        ReRandomizationMode::UseAvailableMode,
+                        seed_gen.next_seed().unwrap(),
+                    )
+                    .unwrap();
+                    b.re_randomize(
+                        ReRandomizationMode::UseAvailableMode,
+                        seed_gen.next_seed().unwrap(),
+                    )
+                    .unwrap();
+                }
+            }
         }
 
         let c = &a * &b;
