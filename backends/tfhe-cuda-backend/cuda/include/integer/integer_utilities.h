@@ -385,7 +385,6 @@ struct int_radix_lut_custom_input_output {
   uint64_t *max_degrees = nullptr;
 
   CudaStreams active_streams;
-  bool mem_reuse = false;
 
   // Tracking for runtime consistency checks
   uint32_t last_broadcast_num_radix_blocks = 0;
@@ -583,29 +582,6 @@ struct int_radix_lut_custom_input_output {
     }
   }
 
-  void setup_mem_reuse(uint32_t num_radix_blocks,
-                       int_radix_lut_custom_input_output *base_lut_object) {
-    // base lut object should have bigger or equal memory than current one
-    if (num_radix_blocks > base_lut_object->num_blocks)
-      PANIC("Cuda error: lut does not have enough blocks")
-    // pbs
-    buffer = base_lut_object->buffer;
-    // Keyswitch
-    tmp_lwe_before_ks = base_lut_object->tmp_lwe_before_ks;
-
-    /// With multiple GPUs we allocate arrays to be pushed to the vectors and
-    /// copy data on each GPU then when we gather data to GPU 0 we can copy back
-    /// to the original indexing
-    lwe_array_in_vec = base_lut_object->lwe_array_in_vec;
-    lwe_after_ks_vec = base_lut_object->lwe_after_ks_vec;
-    lwe_after_pbs_vec = base_lut_object->lwe_after_pbs_vec;
-    lwe_trivial_indexes_vec = base_lut_object->lwe_trivial_indexes_vec;
-
-    ks_tmp_buf_vec = base_lut_object->ks_tmp_buf_vec;
-
-    mem_reuse = true;
-  }
-
   void setup_lwe_trivial_indices(uint32_t num_radix_blocks,
                                  bool allocate_gpu_memory,
                                  uint64_t &size_tracker) {
@@ -650,10 +626,8 @@ struct int_radix_lut_custom_input_output {
 
   void setup_multi_gpu(int_radix_params params, uint32_t num_radix_blocks,
                        bool allocate_gpu_memory, uint64_t &size_tracker) {
-
-    if (!mem_reuse)
-      alloc_and_init_multi_gpu_buffers(params, num_radix_blocks,
-                                       allocate_gpu_memory, size_tracker);
+    alloc_and_init_multi_gpu_buffers(params, num_radix_blocks,
+                                     allocate_gpu_memory, size_tracker);
 
     if (active_streams.count() > 1) {
       multi_gpu_gather_barrier.create_on(active_streams);
@@ -705,29 +679,6 @@ struct int_radix_lut_custom_input_output {
 
     allocate_pbs_buffers(params, num_radix_blocks, allocate_gpu_memory,
                          size_tracker);
-
-    allocate_luts_and_indexes(num_radix_blocks, size_tracker);
-
-    setup_lwe_trivial_indices(num_radix_blocks, allocate_gpu_memory,
-                              size_tracker);
-
-    setup_multi_gpu(params, num_radix_blocks, allocate_gpu_memory,
-                    size_tracker);
-  }
-
-  // constructor to reuse memory
-  int_radix_lut_custom_input_output(
-      CudaStreams streams, int_radix_params params, uint32_t num_luts,
-      uint32_t num_radix_blocks,
-      int_radix_lut_custom_input_output *base_lut_object,
-      bool allocate_gpu_memory, uint64_t &size_tracker) {
-    setup_config_and_degrees(streams, params.big_lwe_dimension, params,
-                             num_luts, 1, num_radix_blocks, num_radix_blocks,
-                             allocate_gpu_memory);
-
-    setup_degrees();
-
-    setup_mem_reuse(num_radix_blocks, base_lut_object);
 
     allocate_luts_and_indexes(num_radix_blocks, size_tracker);
 
@@ -1223,58 +1174,55 @@ public:
       multi_gpu_scatter_barrier.release();
     }
 
-    if (!mem_reuse) {
-      release_radix_ciphertext_async(active_streams.stream(0),
-                                     active_streams.gpu_index(0),
-                                     tmp_lwe_before_ks, gpu_memory_allocated);
-      for (int i = 0; i < buffer.size(); i++) {
-        switch (params.pbs_type) {
-        case MULTI_BIT:
-          cleanup_cuda_multi_bit_programmable_bootstrap(
-              active_streams.stream(i), active_streams.gpu_index(i),
-              &buffer[i]);
-          break;
-        case CLASSICAL:
-          cleanup_cuda_programmable_bootstrap(active_streams.stream(i),
-                                              active_streams.gpu_index(i),
-                                              &buffer[i]);
-          break;
-        default:
-          PANIC("Cuda error (PBS): unknown PBS type. ")
-        }
-        cuda_synchronize_stream(active_streams.stream(i),
-                                active_streams.gpu_index(i));
+    release_radix_ciphertext_async(active_streams.stream(0),
+                                   active_streams.gpu_index(0),
+                                   tmp_lwe_before_ks, gpu_memory_allocated);
+    for (int i = 0; i < buffer.size(); i++) {
+      switch (params.pbs_type) {
+      case MULTI_BIT:
+        cleanup_cuda_multi_bit_programmable_bootstrap(
+            active_streams.stream(i), active_streams.gpu_index(i), &buffer[i]);
+        break;
+      case CLASSICAL:
+        cleanup_cuda_programmable_bootstrap(
+            active_streams.stream(i), active_streams.gpu_index(i), &buffer[i]);
+        break;
+      default:
+        PANIC("Cuda error (PBS): unknown PBS type. ")
       }
-      delete tmp_lwe_before_ks;
-      tmp_lwe_before_ks = nullptr;
-      buffer.clear();
-
-      if (gpu_memory_allocated) {
-        multi_gpu_release_async(active_streams, lwe_array_in_vec);
-        multi_gpu_release_async(active_streams, lwe_after_ks_vec);
-        multi_gpu_release_async(active_streams, lwe_after_pbs_vec);
-        multi_gpu_release_async(active_streams, lwe_trivial_indexes_vec);
-      }
-      lwe_array_in_vec.clear();
-      lwe_after_ks_vec.clear();
-      lwe_after_pbs_vec.clear();
-      lwe_trivial_indexes_vec.clear();
-      if (lwe_aligned_vec.size() > 0) {
-        for (uint i = 0; i < active_streams.count(); i++) {
-          cuda_drop_with_size_tracking_async(
-              lwe_aligned_vec[i], active_streams.stream(0),
-              active_streams.gpu_index(0), gpu_memory_allocated);
-        }
-        lwe_aligned_vec.clear();
-      }
-
-      for (auto i = 0; i < ks_tmp_buf_vec.size(); i++) {
-        cleanup_cuda_keyswitch(active_streams.stream(i),
-                               active_streams.gpu_index(i), ks_tmp_buf_vec[i],
-                               gpu_memory_allocated);
-      }
-      ks_tmp_buf_vec.clear();
+      cuda_synchronize_stream(active_streams.stream(i),
+                              active_streams.gpu_index(i));
     }
+    delete tmp_lwe_before_ks;
+    tmp_lwe_before_ks = nullptr;
+    buffer.clear();
+
+    if (gpu_memory_allocated) {
+      multi_gpu_release_async(active_streams, lwe_array_in_vec);
+      multi_gpu_release_async(active_streams, lwe_after_ks_vec);
+      multi_gpu_release_async(active_streams, lwe_after_pbs_vec);
+      multi_gpu_release_async(active_streams, lwe_trivial_indexes_vec);
+    }
+    lwe_array_in_vec.clear();
+    lwe_after_ks_vec.clear();
+    lwe_after_pbs_vec.clear();
+    lwe_trivial_indexes_vec.clear();
+    if (lwe_aligned_vec.size() > 0) {
+      for (uint i = 0; i < active_streams.count(); i++) {
+        cuda_drop_with_size_tracking_async(
+            lwe_aligned_vec[i], active_streams.stream(0),
+            active_streams.gpu_index(0), gpu_memory_allocated);
+      }
+      lwe_aligned_vec.clear();
+    }
+
+    for (auto i = 0; i < ks_tmp_buf_vec.size(); i++) {
+      cleanup_cuda_keyswitch(active_streams.stream(i),
+                             active_streams.gpu_index(i), ks_tmp_buf_vec[i],
+                             gpu_memory_allocated);
+    }
+    ks_tmp_buf_vec.clear();
+
     free(h_lut_indexes);
     h_lut_indexes = nullptr;
     free(degrees);
