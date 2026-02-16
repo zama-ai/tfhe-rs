@@ -9,3 +9,4 @@ extern crate rustc_span;
 
 mod serialize_without_versionize;
 mod utils;
+mod versions_variants_order;
