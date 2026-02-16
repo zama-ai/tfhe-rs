@@ -17,8 +17,23 @@ use tfhe::integer::key_switching_key::{KeySwitchingKey, KeySwitchingKeyMaterial}
 use tfhe::integer::{gen_keys_radix, CompactPrivateKey, CompactPublicKey, RadixCiphertext};
 use tfhe::keycache::NamedParam;
 
-fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize) {
-    let bench_name = "integer::re_randomize";
+enum ReRandomizeMode {
+    LegacyWithKeyswitch,
+    NoKeyswitch,
+}
+
+impl std::fmt::Display for ReRandomizeMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReRandomizeMode::LegacyWithKeyswitch => f.write_str("legacykeyswitch"),
+            ReRandomizeMode::NoKeyswitch => f.write_str("nokeyswitch"),
+        }
+    }
+}
+
+fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize, rerand_mode: ReRandomizeMode) {
+    let bench_name = format!("integer::re_randomize_{rerand_mode}");
+    let bench_name = &bench_name;
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
@@ -41,12 +56,30 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize) {
     let compression_key = compressed_compression_key.decompress();
     let decompression_key = compressed_decompression_key.decompress();
 
-    let cpk_private_key = CompactPrivateKey::new(cpk_param);
+    let tmp_cpk_private_key;
+
+    let cpk_private_key = match rerand_mode {
+        ReRandomizeMode::LegacyWithKeyswitch => {
+            tmp_cpk_private_key = CompactPrivateKey::new(cpk_param);
+            tmp_cpk_private_key.as_view()
+        }
+        ReRandomizeMode::NoKeyswitch => cks.try_into().unwrap(),
+    };
     let cpk = CompactPublicKey::new(&cpk_private_key);
-    let ksk = KeySwitchingKey::new((&cpk_private_key, None), ((&cks), (&sks)), ks_param);
-    let ksk = ksk.into_raw_parts();
-    let (ksk_material, _, _) = ksk.into_raw_parts();
-    let ksk_material = KeySwitchingKeyMaterial::from_raw_parts(ksk_material);
+    let ksk = match rerand_mode {
+        ReRandomizeMode::LegacyWithKeyswitch => Some(KeySwitchingKey::new(
+            (&cpk_private_key, None),
+            ((&cks), (&sks)),
+            ks_param,
+        )),
+        ReRandomizeMode::NoKeyswitch => None,
+    };
+    let ksk = ksk.map(|ksk| ksk.into_raw_parts());
+    let ksk_material = ksk.map(|ksk| {
+        let (ksk_material, _, _) = ksk.into_raw_parts();
+        ksk_material
+    });
+    let ksk_material = ksk_material.map(KeySwitchingKeyMaterial::from_raw_parts);
 
     let rerand_domain_separator = *b"TFHE_Rrd";
     let compact_public_encryption_domain_separator = *b"TFHE_Enc";
@@ -85,7 +118,10 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize) {
                         d_re_randomized
                             .re_randomize(
                                 &cpk,
-                                &ksk_material.as_view(),
+                                ksk_material
+                                    .as_ref()
+                                    .map(|ksk_material| ksk_material.as_view())
+                                    .as_ref(),
                                 seed_gen.next_seed().unwrap(),
                             )
                             .unwrap();
@@ -144,7 +180,14 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize) {
                             .zip(seeds.into_par_iter())
                             .for_each(|(d_re_randomized, seed)| {
                                 d_re_randomized
-                                    .re_randomize(&cpk, &ksk_material.as_view(), seed)
+                                    .re_randomize(
+                                        &cpk,
+                                        ksk_material
+                                            .as_ref()
+                                            .map(|ksk_material| ksk_material.as_view())
+                                            .as_ref(),
+                                        seed,
+                                    )
                                     .unwrap();
 
                                 _ = black_box(&d_re_randomized);
@@ -173,7 +216,8 @@ fn cpu_re_randomize(c: &mut Criterion) {
     let bit_sizes = [2, 4, 8, 16, 32, 64, 128, 256];
 
     for bit_size in bit_sizes.iter() {
-        execute_cpu_re_randomize(c, *bit_size);
+        execute_cpu_re_randomize(c, *bit_size, ReRandomizeMode::LegacyWithKeyswitch);
+        execute_cpu_re_randomize(c, *bit_size, ReRandomizeMode::NoKeyswitch);
     }
 }
 
