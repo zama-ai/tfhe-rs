@@ -6,6 +6,9 @@ use super::{
     CompressionParameters, KeySwitch32PBSParameters, MetaParameters, MultiBitPBSParameters,
     NoiseSquashingCompressionParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
 };
+// Some older parameters are required to still test some code paths, v1.5 is the "reference" legacy
+// version for those
+use super::v1_5 as legacy;
 
 /// Alias for the type of parameters used by tests
 pub type TestParameters = AtomicPatternParameters;
@@ -243,6 +246,19 @@ pub const TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128: MetaP
 pub const TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128: MetaParameters =
     V1_6_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128;
 
+// Legacy ReRand metaparam
+pub const TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128:
+    MetaParameters =
+    legacy::meta::cpu::V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+
+pub const TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128:
+    MetaParameters =
+    legacy::meta::cpu::V1_5_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+
+pub const TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128:
+    MetaParameters =
+    legacy::meta::cpu::V1_5_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+
 // GPU params we want to check for full scenario
 pub const TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128:
     MetaParameters =
@@ -251,3 +267,11 @@ pub const TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUN
 pub const TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128:
     MetaParameters =
     V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+
+pub const TEST_LEGACY_RERAND_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128:
+    MetaParameters =
+    legacy::meta::gpu::V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+
+pub const TEST_LEGACY_RERAND_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128:
+    MetaParameters =
+    legacy::meta::gpu::V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;

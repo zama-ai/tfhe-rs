@@ -174,7 +174,7 @@ impl BooleanBlock {
     pub fn re_randomize(
         &mut self,
         compact_public_key: &CompactPublicKey,
-        key_switching_key_material: &KeySwitchingKeyMaterialView,
+        key_switching_key_material: Option<&KeySwitchingKeyMaterialView>,
         seed: ReRandomizationSeed,
     ) -> crate::Result<()> {
         re_randomize_ciphertext_blocks(

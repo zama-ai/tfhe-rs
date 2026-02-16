@@ -56,7 +56,7 @@ pub struct CompactPublicKeyEncryptionParameters {
 }
 
 impl CompactPublicKeyEncryptionParameters {
-    pub fn try_new(
+    pub const fn try_new(
         encryption_lwe_dimension: LweDimension,
         encryption_noise_distribution: DynamicDistribution<u64>,
         message_modulus: MessageModulus,
@@ -64,7 +64,7 @@ impl CompactPublicKeyEncryptionParameters {
         ciphertext_modulus: CiphertextModulus,
         output_ciphertext_kind: CompactCiphertextListExpansionKind,
         zk_scheme: SupportedCompactPkeZkScheme,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, &'static str> {
         let parameters = Self {
             encryption_lwe_dimension,
             encryption_noise_distribution,
@@ -76,11 +76,8 @@ impl CompactPublicKeyEncryptionParameters {
         };
 
         if !parameters.is_valid() {
-            return Err(Error::new(format!(
-                "Invalid CompactPublicKeyEncryptionParameters, \
-                encryption_lwe_dimension ({:?}) is not a power of 2, which is required.",
-                parameters.encryption_lwe_dimension
-            )));
+            return Err("Invalid CompactPublicKeyEncryptionParameters, \
+                        encryption_lwe_dimension is not a power of 2, which is required.");
         }
 
         Ok(parameters)
@@ -111,17 +108,14 @@ impl CompactPublicKeyEncryptionParameters {
             padding_bit: PaddingBit::Yes,
         }
     }
-}
 
-impl TryFrom<ShortintParameterSet> for CompactPublicKeyEncryptionParameters {
-    type Error = Error;
-
-    #[track_caller]
-    fn try_from(parameters: ShortintParameterSet) -> Result<Self, Self::Error> {
+    pub const fn from_shortint_parameter_set(
+        parameters: ShortintParameterSet,
+    ) -> Result<Self, &'static str> {
         if parameters.wopbs_only() {
-            return Err(Error::new(String::from(
+            return Err(
                 "Cannot convert Wopbs only parameters to CompactPublicKeyEncryption parameters.",
-            )));
+            );
         }
 
         let encryption_lwe_dimension = parameters.encryption_lwe_dimension();
@@ -130,7 +124,7 @@ impl TryFrom<ShortintParameterSet> for CompactPublicKeyEncryptionParameters {
         let carry_modulus = parameters.carry_modulus();
         let ciphertext_modulus = parameters.ciphertext_modulus();
         let output_ciphertext_kind = CompactCiphertextListExpansionKind::NoCasting(
-            parameters.encryption_key_choice().into(),
+            parameters.encryption_key_choice().into_pbs_order(),
         );
 
         Self::try_new(
@@ -143,6 +137,15 @@ impl TryFrom<ShortintParameterSet> for CompactPublicKeyEncryptionParameters {
             // Zk needs specific pke parameters
             SupportedCompactPkeZkScheme::ZkNotSupported,
         )
+    }
+}
+
+impl TryFrom<ShortintParameterSet> for CompactPublicKeyEncryptionParameters {
+    type Error = Error;
+
+    #[track_caller]
+    fn try_from(parameters: ShortintParameterSet) -> Result<Self, Self::Error> {
+        Self::from_shortint_parameter_set(parameters).map_err(|e| crate::error!("{e}"))
     }
 }
 

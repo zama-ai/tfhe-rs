@@ -11,7 +11,7 @@ use crate::integer::compression_keys::CompressionKey;
 
 use crate::shortint::noise_squashing::atomic_pattern::compressed::CompressedAtomicPatternNoiseSquashingKey;
 
-use crate::high_level_api::keys::cpk_re_randomization::ReRandomizationKeySwitchingKey;
+use crate::high_level_api::keys::cpk_re_randomization::ReRandomizationKey;
 use crate::integer::compression_keys::CompressedDecompressionKey;
 use crate::integer::noise_squashing::CompressedNoiseSquashingKey;
 
@@ -38,7 +38,7 @@ pub struct IntegerExpandedServerKey {
     pub decompression_key: Option<ExpandedDecompressionKey>,
     pub noise_squashing_key: Option<ExpandedNoiseSquashingKey>,
     pub noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
-    pub cpk_re_randomization_key_switching_key_material: Option<ReRandomizationKeySwitchingKey>,
+    pub cpk_re_randomization_key: Option<ReRandomizationKey>,
 }
 
 impl IntegerExpandedServerKey {
@@ -58,7 +58,7 @@ impl IntegerExpandedServerKey {
             decompression_key,
             noise_squashing_key,
             noise_squashing_compression_key,
-            cpk_re_randomization_key_switching_key_material,
+            cpk_re_randomization_key,
         } = self;
 
         let atomic_pattern_key = match compute_key.atomic_pattern {
@@ -141,7 +141,7 @@ impl IntegerExpandedServerKey {
             decompression_key,
             noise_squashing_key,
             noise_squashing_compression_key,
-            cpk_re_randomization_key_switching_key_material,
+            cpk_re_randomization_key,
         }
     }
 }
@@ -170,7 +170,7 @@ impl IntegerExpandedServerKey {
             decompression_key,
             noise_squashing_key,
             noise_squashing_compression_key,
-            cpk_re_randomization_key_switching_key_material,
+            cpk_re_randomization_key,
         } = self;
 
         let key = CudaServerKey::from_expanded_server_key(compute_key, streams)?;
@@ -209,22 +209,28 @@ impl IntegerExpandedServerKey {
                 )
             });
 
-        let cpk_re_randomization_key_switching_key_material =
-            cpk_re_randomization_key_switching_key_material
-                .as_ref()
-                .map(|re_rand_ksk| match re_rand_ksk {
+        let cpk_re_randomization_key_switching_key_material = cpk_re_randomization_key
+            .as_ref()
+            .map(|re_rand_key| match re_rand_key {
+                ReRandomizationKey::LegacyDedicatedCPK { ksk } => match ksk {
                     ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {
-                        CudaReRandomizationKeySwitchingKey::UseCPKEncryptionKSK
+                        Ok(CudaReRandomizationKeySwitchingKey::UseCPKEncryptionKSK)
                     }
                     ReRandomizationKeySwitchingKey::DedicatedKSK(ksk) => {
-                        CudaReRandomizationKeySwitchingKey::DedicatedKSK(
+                        Ok(CudaReRandomizationKeySwitchingKey::DedicatedKSK(
                             CudaKeySwitchingKeyMaterial::from_key_switching_key_material(
                                 &ksk.as_view(),
                                 streams,
                             ),
-                        )
+                        ))
                     }
-                });
+                },
+                ReRandomizationKey::DerivedCPK { .. } => Err(crate::error!(
+                    "CUDA currently does not support ReRandomization \
+                            with DerivedCPK and no keyswitch"
+                )),
+            })
+            .transpose()?;
 
         Ok(crate::high_level_api::keys::inner::IntegerCudaServerKey {
             key,

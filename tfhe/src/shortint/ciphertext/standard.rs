@@ -267,7 +267,7 @@ impl Ciphertext {
     pub fn re_randomize_with_compact_public_key_encryption(
         &mut self,
         compact_public_key: &CompactPublicKey,
-        key_switching_key_material: &KeySwitchingKeyMaterialView<'_>,
+        key_switching_key_material: Option<&KeySwitchingKeyMaterialView<'_>>,
         seed: ReRandomizationSeed,
     ) -> crate::Result<()> {
         compact_public_key.re_randomize_ciphertexts(
@@ -459,7 +459,7 @@ mod tests {
 
             let mut re_randomized = decompressed.clone();
             re_randomized
-                .re_randomize_with_compact_public_key_encryption(&cpk, &ksk_material, seed)
+                .re_randomize_with_compact_public_key_encryption(&cpk, Some(&ksk_material), seed)
                 .unwrap();
 
             assert_ne!(decompressed, re_randomized);
