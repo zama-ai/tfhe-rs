@@ -38,6 +38,12 @@ impl<C: Container<Element = u64>> CompactPrivateKey<C> {
     pub fn parameters(&self) -> CompactPublicKeyEncryptionParameters {
         self.key.parameters()
     }
+
+    pub fn as_view(&self) -> CompactPrivateKey<&[u64]> {
+        CompactPrivateKey {
+            key: self.key.as_view(),
+        }
+    }
 }
 
 impl CompactPrivateKey<Vec<u64>> {

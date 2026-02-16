@@ -1,18 +1,32 @@
 use crate::high_level_api::backward_compatibility::keys::{
-    CompressedReRandomizationKeySwitchingKeyVersions, ReRandomizationKeySwitchingKeyVersions,
+    CompressedReRandomizationKeySwitchingKeyVersions, CompressedReRandomizationKeyVersions,
+    ReRandomizationKeySwitchingKeyVersions, ReRandomizationKeyVersions,
 };
 use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use tfhe_versionable::Versionize;
 
 #[derive(Debug, Clone)]
-pub(crate) enum ReRandomizationKeyGenerationInfo<'a> {
+pub(crate) enum ReRandomizationKeySwitchingKeyGenInfo<'a> {
+    /// The rerand process uses a CPK that needs a keyswitch, the KSK used is the one already
+    /// available to keyswitch to compute params after encryption.
     UseCPKEncryptionKSK,
+    /// The rerand process uses a CPK that needs a keyswitch, the KSK used is a dedicated one.
     DedicatedKSK(
         (
             &'a crate::integer::CompactPrivateKey<Vec<u64>>,
             ShortintKeySwitchingParameters,
         ),
     ),
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum ReRandomizationKeyGenInfo<'a> {
+    LegacyDedicatedCPKWithKeySwitch {
+        ksk_gen_info: ReRandomizationKeySwitchingKeyGenInfo<'a>,
+    },
+    DerivedCPKWithoutKeySwitch {
+        derived_compact_private_key: crate::integer::CompactPrivateKey<&'a [u64]>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
@@ -42,8 +56,81 @@ impl CompressedReRandomizationKeySwitchingKey {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(ReRandomizationKeyVersions)]
+pub enum ReRandomizationKey {
+    /// Previous way of performing re-randomization: the encryption
+    /// [`super::public::CompactPublicKey`] is used to generate the required encryptions of zero,
+    /// they are then keyswitched to be compatible with the compute keys before being used to
+    /// re-randomize the ciphertexts. Prefer [`Self::DerivedCPKWithoutKeySwitch`].
+    LegacyDedicatedCPK {
+        // Legacy code did not have the CPK in the ServerKey
+        ksk: ReRandomizationKeySwitchingKey,
+    },
+    /// Recommended way of performing re-randomization: a specific
+    /// [`super::public::CompactPublicKey`] is generated from the compute private keys, meaning
+    /// it can be used to generate the required encryptions of zero without needing a keyswitch to
+    /// be usable, making it much more efficient than the [`Self::LegacyDedicatedCPK`] mode.
+    DerivedCPKWithoutKeySwitch {
+        cpk: crate::integer::CompactPublicKey,
+    },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompressedReRandomizationKeyVersions)]
+pub enum CompressedReRandomizationKey {
+    LegacyDedicatedCPK {
+        // Legacy code did not have the CPK in the ServerKey
+        ksk: CompressedReRandomizationKeySwitchingKey,
+    },
+    DerivedCPKWithoutKeySwitch {
+        cpk: crate::integer::CompressedCompactPublicKey,
+    },
+}
+
+impl CompressedReRandomizationKey {
+    pub fn decompress(&self) -> ReRandomizationKey {
+        match self {
+            Self::LegacyDedicatedCPK { ksk } => ReRandomizationKey::LegacyDedicatedCPK {
+                ksk: ksk.decompress(),
+            },
+            Self::DerivedCPKWithoutKeySwitch { cpk } => {
+                ReRandomizationKey::DerivedCPKWithoutKeySwitch {
+                    cpk: cpk.decompress(),
+                }
+            }
+        }
+    }
+}
+
+/// This enum is to enforce correct invariants at runtime, since the legacy case does not let us
+/// properly use the [`ReRandomizationKey`], this enum will be built just in time at runtime.
+#[derive(Clone, Copy)]
+pub(in crate::high_level_api) enum ReRandomizationExecKey<'key> {
+    LegacyDedicatedCPK {
+        cpk: &'key crate::integer::CompactPublicKey,
+        ksk: crate::integer::key_switching_key::KeySwitchingKeyMaterialView<'key>,
+    },
+    DerivedCPKWithoutKeySwitch {
+        cpk: &'key crate::integer::CompactPublicKey,
+    },
+}
+
 #[cfg(feature = "gpu")]
 pub(crate) enum CudaReRandomizationKeySwitchingKey {
     UseCPKEncryptionKSK,
     DedicatedKSK(crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial),
+}
+
+/// This enum is to enforce correct invariants at runtime. For now Cuda only has the legacy case,
+/// but when adding new modes this allows to make sure the proper keys are available in the future
+#[cfg(feature = "gpu")]
+#[derive(Clone, Copy)]
+pub(in crate::high_level_api) enum CudaReRandomizationExecKey<'key> {
+    LegacyDedicatedCPK {
+        cpk: &'key crate::integer::CompactPublicKey,
+        ksk: &'key crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial,
+    },
+    // For now the GPU only supports the LegacyDedicatedCPK case, see the CPU exec Key above for
+    // how we handle it
 }

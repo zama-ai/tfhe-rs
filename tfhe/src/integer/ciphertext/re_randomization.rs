@@ -143,12 +143,12 @@ impl ReRandomizationSeedGen {
 pub(crate) fn re_randomize_ciphertext_blocks(
     blocks: &mut [Ciphertext],
     compact_public_key: &CompactPublicKey,
-    key_switching_key_material: &KeySwitchingKeyMaterialView,
+    key_switching_key_material: Option<&KeySwitchingKeyMaterialView>,
     seed: ReRandomizationSeed,
 ) -> crate::Result<()> {
     compact_public_key.key.re_randomize_ciphertexts(
         blocks,
-        &key_switching_key_material.material,
+        key_switching_key_material.map(|k| &k.material),
         seed,
     )
 }
