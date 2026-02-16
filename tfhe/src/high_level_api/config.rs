@@ -5,7 +5,7 @@ use crate::high_level_api::keys::IntegerConfig;
 use crate::shortint::parameters::list_compression::CompressionParameters;
 use crate::shortint::parameters::{
     MetaParameters, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
-    ShortintKeySwitchingParameters,
+    ReRandomizationParameters,
 };
 
 /// The config type
@@ -98,9 +98,9 @@ impl ConfigBuilder {
     /// [Self::use_dedicated_compact_public_key_parameters].
     ///
     /// The given parameters must target the `EncryptionKeyChoice::Big`
-    pub fn enable_ciphertext_re_randomization(
+    pub fn enable_ciphertext_re_randomization<P: Into<ReRandomizationParameters>>(
         mut self,
-        cpk_re_randomization_ksk_params: ShortintKeySwitchingParameters,
+        cpk_re_randomization_ksk_params: P,
     ) -> Self {
         self.config
             .inner
@@ -166,9 +166,7 @@ impl From<MetaParameters> for Config {
                 noise_squashing_compression_parameters: meta_params
                     .noise_squashing_parameters
                     .and_then(|ns_p| ns_p.compression_parameters),
-                cpk_re_randomization_ksk_params: meta_params
-                    .dedicated_compact_public_key_parameters
-                    .and_then(|params| params.re_randomization_parameters),
+                cpk_re_randomization_params: meta_params.rerandomization_parameters(),
             },
         }
     }

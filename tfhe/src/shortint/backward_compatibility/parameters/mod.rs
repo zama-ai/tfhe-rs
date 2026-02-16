@@ -3,15 +3,19 @@ pub mod key_switching;
 pub mod list_compression;
 pub mod modulus_switch_noise_reduction;
 pub mod noise_squashing;
+pub mod re_randomization;
 
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
     LweDimension, PolynomialSize,
 };
-use crate::shortint::parameters::meta::{DedicatedCompactPublicKeyParameters, MetaParameters};
+use crate::shortint::parameters::meta::{
+    DedicatedCompactPublicKeyParameters, MetaParameters, ReRandomizationConfiguration,
+};
 use crate::shortint::parameters::{
-    Backend, CiphertextModulus32, MetaNoiseSquashingParameters, ModulusSwitchNoiseReductionParams,
-    ModulusSwitchType, ShortintParameterSetInner, SupportedCompactPkeZkScheme,
+    Backend, CiphertextModulus32, CompressionParameters, MetaNoiseSquashingParameters,
+    ModulusSwitchNoiseReductionParams, ModulusSwitchType, ShortintParameterSetInner,
+    SupportedCompactPkeZkScheme,
 };
 use crate::shortint::*;
 use parameters::KeySwitch32PBSParameters;
@@ -278,7 +282,64 @@ pub enum DedicatedCompactPublicKeyParametersVersions {
     V0(DedicatedCompactPublicKeyParameters),
 }
 
+#[derive(Version)]
+pub struct MetaParametersV0 {
+    pub backend: Backend,
+    /// The parameters used by ciphertext when doing computations
+    pub compute_parameters: AtomicPatternParameters,
+    /// Parameters when using a dedicated compact public key
+    /// (For smaller and more efficient CompactCiphertextList)
+    pub dedicated_compact_public_key_parameters: Option<DedicatedCompactPublicKeyParameters>,
+    /// Parameters for compression CompressedCiphertextList
+    pub compression_parameters: Option<CompressionParameters>,
+    /// Parameters for noise squashing
+    pub noise_squashing_parameters: Option<MetaNoiseSquashingParameters>,
+}
+
+impl Upgrade<MetaParameters> for MetaParametersV0 {
+    type Error = crate::Error;
+
+    fn upgrade(self) -> Result<MetaParameters, Self::Error> {
+        let Self {
+            backend,
+            compute_parameters,
+            dedicated_compact_public_key_parameters,
+            compression_parameters,
+            noise_squashing_parameters,
+        } = self;
+        let rerand_configuration = dedicated_compact_public_key_parameters.and_then(|params| {
+            if params.re_randomization_parameters.is_some() {
+                Some(ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch)
+            } else {
+                None
+            }
+        });
+
+        let result = MetaParameters {
+            backend,
+            compute_parameters,
+            dedicated_compact_public_key_parameters,
+            compression_parameters,
+            noise_squashing_parameters,
+            rerand_configuration,
+        };
+
+        // Check the MetaParameters think they are consistent
+        if result.is_valid() {
+            Ok(result)
+        } else {
+            Err(crate::error!("Invalid MetaParameters during upgrade"))
+        }
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum MetaParametersVersions {
-    V0(MetaParameters),
+    V0(MetaParametersV0),
+    V1(MetaParameters),
+}
+
+#[derive(VersionsDispatch)]
+pub enum ReRandomizationConfigurationVersions {
+    V0(ReRandomizationConfiguration),
 }
