@@ -39,7 +39,10 @@ use crate::high_level_api::keys::expanded::{
     ExpandedAtomicPatternNoiseSquashingKey, ExpandedDecompressionKey, ExpandedNoiseSquashingKey,
     IntegerExpandedServerKey, ShortintExpandedBootstrappingKey, ShortintExpandedServerKey,
 };
-use crate::high_level_api::keys::{CompactPrivateKey, ReRandomizationKeyGenerationInfo};
+use crate::high_level_api::keys::{
+    CompactPrivateKey, CompressedReRandomizationKey, ReRandomizationKey,
+    ReRandomizationKeySwitchingKeyGenInfo,
+};
 use crate::shortint::atomic_pattern::expanded::{
     ExpandedAtomicPatternServerKey, ExpandedKS32AtomicPatternServerKey,
     ExpandedStandardAtomicPatternServerKey,
@@ -285,23 +288,23 @@ impl ClientKey {
                 noise_squashing_private_key: integer_private_noise_squashing_key,
                 noise_squashing_compression_private_key:
                     integer_private_noise_squashing_compression_key,
-                cpk_re_randomization_ksk_params: config.inner.cpk_re_randomization_ksk_params,
+                cpk_re_randomization_params: config.inner.cpk_re_randomization_params,
             },
             tag,
         })
     }
 }
 
-impl CompressedCompactPublicKey {
-    pub(super) fn generate_with_pre_seeded_generator<Gen>(
-        private_key: &CompactPrivateKey,
-        tag: Tag,
+impl integer::CompressedCompactPublicKey {
+    pub(super) fn generate_with_pre_seeded_generator<C, Gen>(
+        private_key: &integer::CompactPrivateKey<C>,
         generator: &mut EncryptionRandomGenerator<Gen>,
     ) -> Self
     where
+        C: Container<Element = u64>,
         Gen: ByteRandomGenerator,
     {
-        let public_key_parameters = private_key.0.key.parameters();
+        let public_key_parameters = private_key.parameters();
 
         let mut core_pk = SeededLweCompactPublicKeyOwned::new(
             0u64,
@@ -311,31 +314,26 @@ impl CompressedCompactPublicKey {
         );
 
         generate_seeded_lwe_compact_public_key_with_pre_seeded_generator(
-            &private_key.0.key.key(),
+            &private_key.key.key(),
             &mut core_pk,
             public_key_parameters.encryption_noise_distribution,
             generator,
         );
 
-        Self::from_raw_parts(
-            integer::CompressedCompactPublicKey::from_raw_parts(
-                shortint::CompressedCompactPublicKey::from_raw_parts(
-                    core_pk,
-                    private_key.0.key.parameters(),
-                ),
-            ),
-            tag,
-        )
+        Self::from_raw_parts(shortint::CompressedCompactPublicKey::from_raw_parts(
+            core_pk,
+            public_key_parameters,
+        ))
     }
 
     pub(super) fn decompress_with_pre_seeded_generator<Gen>(
         &self,
         generator: &mut MaskRandomGenerator<Gen>,
-    ) -> CompactPublicKey
+    ) -> integer::CompactPublicKey
     where
         Gen: ByteRandomGenerator,
     {
-        let shortint_cpk = &self.key.key.key;
+        let shortint_cpk = &self.key;
         let compressed_pk = &shortint_cpk.key;
         let mut pk = LweCompactPublicKey::new(
             0u64,
@@ -350,7 +348,36 @@ impl CompressedCompactPublicKey {
         );
 
         let shortint_pk = shortint::CompactPublicKey::from_raw_parts(pk, shortint_cpk.parameters);
-        let integer_pk = integer::CompactPublicKey::from_raw_parts(shortint_pk);
+        integer::CompactPublicKey::from_raw_parts(shortint_pk)
+    }
+}
+
+impl CompressedCompactPublicKey {
+    pub(super) fn generate_with_pre_seeded_generator<Gen>(
+        private_key: &CompactPrivateKey,
+        tag: Tag,
+        generator: &mut EncryptionRandomGenerator<Gen>,
+    ) -> Self
+    where
+        Gen: ByteRandomGenerator,
+    {
+        Self::from_raw_parts(
+            integer::CompressedCompactPublicKey::generate_with_pre_seeded_generator(
+                &private_key.0,
+                generator,
+            ),
+            tag,
+        )
+    }
+
+    pub(super) fn decompress_with_pre_seeded_generator<Gen>(
+        &self,
+        generator: &mut MaskRandomGenerator<Gen>,
+    ) -> CompactPublicKey
+    where
+        Gen: ByteRandomGenerator,
+    {
+        let integer_pk = self.key.key.decompress_with_pre_seeded_generator(generator);
         CompactPublicKey::from_raw_parts(integer_pk, self.tag.clone())
     }
 }
@@ -402,20 +429,33 @@ impl crate::CompressedServerKey {
             .as_ref()
             .map(|k| k.decompress_with_pre_seeded_generator(generator));
 
-        let cpk_re_randomization_key_switching_key_material = self
-            .integer_key
-            .cpk_re_randomization_key_switching_key_material
-            .as_ref()
-            .map(|k| match k {
-                crate::CompressedReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {
-                    ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK
-                }
-                crate::CompressedReRandomizationKeySwitchingKey::DedicatedKSK(key) => {
-                    ReRandomizationKeySwitchingKey::DedicatedKSK(
-                        key.decompress_with_pre_seeded_generator(generator),
-                    )
-                }
-            });
+        let cpk_re_randomization_key =
+            self.integer_key
+                .cpk_re_randomization_key
+                .as_ref()
+                .map(|k| match k {
+                    CompressedReRandomizationKey::LegacyDedicatedCPK { ksk } => {
+                        let decompressed_ksk = match ksk {
+                            CompressedReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {
+                                ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK
+                            }
+                            CompressedReRandomizationKeySwitchingKey::DedicatedKSK(key) => {
+                                ReRandomizationKeySwitchingKey::DedicatedKSK(
+                                    key.decompress_with_pre_seeded_generator(generator),
+                                )
+                            }
+                        };
+
+                        ReRandomizationKey::LegacyDedicatedCPK {
+                            ksk: decompressed_ksk,
+                        }
+                    }
+                    CompressedReRandomizationKey::DerivedCPK { cpk } => {
+                        ReRandomizationKey::DerivedCPK {
+                            cpk: cpk.decompress_with_pre_seeded_generator(generator),
+                        }
+                    }
+                });
 
         let noise_squashing_compression_key = self
             .integer_key
@@ -430,7 +470,7 @@ impl crate::CompressedServerKey {
             decompression_key,
             noise_squashing_key,
             noise_squashing_compression_key,
-            cpk_re_randomization_key_switching_key_material,
+            cpk_re_randomization_key,
         }
     }
 }
@@ -1333,15 +1373,15 @@ impl CompressedReRandomizationKeySwitchingKey {
         noise_distribution: DynamicDistribution<u64>,
         ciphertext_modulus: CiphertextModulus<u64>,
         destination_atomic_pattern: KeySwitchingKeyDestinationAtomicPattern,
-        key_gen_info: &ReRandomizationKeyGenerationInfo<'_>,
+        key_gen_info: &ReRandomizationKeySwitchingKeyGenInfo<'_>,
         generator: &mut EncryptionRandomGenerator<Gen>,
     ) -> Self
     where
         Gen: ByteRandomGenerator,
     {
         match key_gen_info {
-            ReRandomizationKeyGenerationInfo::UseCPKEncryptionKSK => Self::UseCPKEncryptionKSK,
-            ReRandomizationKeyGenerationInfo::DedicatedKSK((
+            ReRandomizationKeySwitchingKeyGenInfo::UseCPKEncryptionKSK => Self::UseCPKEncryptionKSK,
+            ReRandomizationKeySwitchingKeyGenInfo::DedicatedKSK((
                 input_cpk,
                 cpk_re_randomization_ksk_params,
             )) => {

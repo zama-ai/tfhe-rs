@@ -277,8 +277,22 @@ impl CompactPublicKey {
     /// Re-randomize a list of ciphertexts using the provided seed and compact public key
     ///
     /// The key and seed are used to generate encryptions of zero that will be added to the input
-    /// ciphertexts
+    /// ciphertexts.
     pub fn re_randomize_ciphertexts(
+        &self,
+        cts: &mut [Ciphertext],
+        key_switching_key_material: Option<&KeySwitchingKeyMaterialView>,
+        seed: ReRandomizationSeed,
+    ) -> crate::Result<()> {
+        match key_switching_key_material {
+            Some(key_switching_key_material) => {
+                self.re_randomize_ciphertexts_with_keyswitch(cts, key_switching_key_material, seed)
+            }
+            None => self.re_randomize_ciphertexts_without_keyswitch(cts, seed),
+        }
+    }
+
+    pub fn re_randomize_ciphertexts_with_keyswitch(
         &self,
         cts: &mut [Ciphertext],
         key_switching_key_material: &KeySwitchingKeyMaterialView,
@@ -370,33 +384,127 @@ impl CompactPublicKey {
 
         Ok(())
     }
+
+    pub fn re_randomize_ciphertexts_without_keyswitch(
+        &self,
+        cts: &mut [Ciphertext],
+        seed: ReRandomizationSeed,
+    ) -> crate::Result<()> {
+        if let Some(msg) = cts.iter().find_map(|ct| {
+            let key_lwe_size = self.key.lwe_dimension().to_lwe_size();
+            if key_lwe_size != ct.ct.lwe_size() {
+                Some(
+                    "Mismatched LweSwize between Ciphertext being re-randomized and provided \
+                KeySwitchingKeyMaterialView.",
+                )
+            } else if ct.noise_level() > NoiseLevel::NOMINAL {
+                Some("Tried to re-randomize a Ciphertext with non-nominal NoiseLevel.")
+            } else {
+                None
+            }
+        }) {
+            return Err(crate::error!("{}", msg));
+        }
+
+        let encryption_of_zero =
+            self.prepare_cpk_zero_for_rerand(seed, LweCiphertextCount(cts.len()));
+
+        let zero_lwes = encryption_of_zero.expand_into_lwe_ciphertext_list();
+
+        cts.iter_mut()
+            .zip(zero_lwes.iter())
+            .for_each(|(ct, lwe_randomizer_cpk)| {
+                lwe_ciphertext_add_assign(&mut ct.ct, &lwe_randomizer_cpk);
+
+                // We take ciphertexts whose noise level is Nominal or less i.e. Zero, so we can
+                // unconditionally set the noise
+                ct.set_noise_level_to_nominal();
+            });
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod test {
 
     use super::*;
+    use crate::shortint::key_switching_key::{KeySwitchingKeyBuildHelper, KeySwitchingKeyMaterial};
     use crate::shortint::parameters::test_params::{
         TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
     };
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    use crate::shortint::{gen_keys, CompactPrivateKey, KeySwitchingKey};
+    use crate::shortint::parameters::{
+        AtomicPatternParameters, CompactPublicKeyEncryptionParameters, ReRandomizationParameters,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    };
+    use crate::shortint::{gen_keys, CompactPrivateKey};
 
     /// Test the case where we rerand more ciphertexts that what can be stored in one cpk lwe
     /// Test the trivial case
     #[test]
-    fn test_rerand_ci_run_filter() {
+    fn test_rerand_with_dedicated_cpk_ci_run_filter() {
         let compute_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-        let pke_params = TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
-        let ks_params = TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let cpk_params = TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+        let rerand_ksk_params =
+            TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
+        let rerand_params =
+            ReRandomizationParameters::LegacyDedicatedCPKWithKeySwitch { rerand_ksk_params };
+
+        test_rerand_impl(compute_params.into(), Some(cpk_params), rerand_params);
+    }
+
+    #[test]
+    fn test_rerand_with_derived_cpk_ci_run_filter() {
+        let compute_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        let rerand_params = ReRandomizationParameters::DerivedCPKWithoutKeySwitch;
+
+        test_rerand_impl(compute_params.into(), None, rerand_params);
+    }
+
+    fn test_rerand_impl(
+        compute_params: AtomicPatternParameters,
+        cpk_params: Option<CompactPublicKeyEncryptionParameters>,
+        rerand_params: ReRandomizationParameters,
+    ) {
         let (cks, sks) = gen_keys(compute_params);
-        let privk = CompactPrivateKey::new(pke_params);
-        let pubk = CompactPublicKey::new(&privk);
-        let ksk = KeySwitchingKey::new((&privk, None), (&cks, &sks), ks_params);
 
-        let pke_lwe_dim = pke_params.encryption_lwe_dimension.0;
+        let dedicated_compact_private_key;
+        let (privk, ksk_material): (CompactPrivateKey<&[u64]>, Option<KeySwitchingKeyMaterial>) =
+            match (cpk_params, rerand_params) {
+                (
+                    Some(cpk_params),
+                    ReRandomizationParameters::LegacyDedicatedCPKWithKeySwitch {
+                        rerand_ksk_params,
+                    },
+                ) => {
+                    dedicated_compact_private_key = CompactPrivateKey::new(cpk_params);
+                    (
+                        (&dedicated_compact_private_key).into(),
+                        Some(
+                            KeySwitchingKeyBuildHelper::new(
+                                (&dedicated_compact_private_key, None),
+                                (&cks, &sks),
+                                rerand_ksk_params,
+                            )
+                            .key_switching_key_material,
+                        ),
+                    )
+                }
+                // For this test we use the cks directly which is instantiated from the compute
+                // params, we need the secret key to be the same otherwise we would have
+                // inconsistencies in the encryptions being used
+                (None, ReRandomizationParameters::DerivedCPKWithoutKeySwitch) => {
+                    ((&cks).try_into().unwrap(), None)
+                }
+                _ => panic!("Inconsistent rerand test setup"),
+            };
+
+        let pubk = CompactPublicKey::new(&privk);
+        let ksk_material = ksk_material.as_ref().map(|k| k.as_view());
+
+        let pke_lwe_dim = pubk.parameters().encryption_lwe_dimension.0;
 
         let msg1 = 1;
         let msg2 = 2;
@@ -420,12 +528,8 @@ mod test {
             re_rand_context.add_bytes(&nonce);
             let mut seeder = re_rand_context.finalize();
 
-            pubk.re_randomize_ciphertexts(
-                &mut cts,
-                &ksk.key_switching_key_material.as_view(),
-                seeder.next_seed(),
-            )
-            .unwrap();
+            pubk.re_randomize_ciphertexts(&mut cts, ksk_material.as_ref(), seeder.next_seed())
+                .unwrap();
 
             cts.par_chunks(2).for_each(|pair| {
                 let sum = sks.add(&pair[0], &pair[1]);
@@ -449,7 +553,7 @@ mod test {
 
             pubk.re_randomize_ciphertexts(
                 core::slice::from_mut(&mut trivial),
-                &ksk.key_switching_key_material.as_view(),
+                ksk_material.as_ref(),
                 seeder.next_seed(),
             )
             .unwrap();
