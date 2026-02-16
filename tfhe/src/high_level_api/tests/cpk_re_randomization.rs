@@ -1,13 +1,12 @@
 use crate::high_level_api::prelude::*;
 use crate::high_level_api::{
-    CompactPublicKey, CompressedCiphertextListBuilder, ConfigBuilder, FheBool, FheInt8, FheUint64,
+    CompactPublicKey, CompressedCiphertextListBuilder, FheBool, FheInt8, FheUint64,
     ReRandomizationContext,
 };
+use crate::shortint::parameters::v1_5::meta::cpu::V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
 use crate::shortint::parameters::v1_6::meta::cpu::V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
-#[cfg(feature = "gpu")]
-use crate::shortint::parameters::v1_6::meta::gpu::V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
-use crate::shortint::parameters::{MetaParameters, ShortintKeySwitchingParameters};
-use crate::{set_server_key, ClientKey, CompressedServerKey};
+use crate::shortint::parameters::MetaParameters;
+use crate::{set_server_key, ClientKey, CompressedServerKey, ReRandomizationSupport, ServerKey};
 
 fn execute_re_rand_test(cks: &ClientKey, cpk: &CompactPublicKey) {
     let compact_public_encryption_domain_separator = *b"TFHE_Enc";
@@ -53,10 +52,25 @@ fn execute_re_rand_test(cks: &ClientKey, cpk: &CompactPublicKey) {
 
         let mut seed_gen = re_rand_context.finalize();
 
-        a.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
-        assert!(a.re_randomization_metadata().data().is_empty());
+        match ServerKey::current_server_key_re_randomization_support().unwrap() {
+            ReRandomizationSupport::NoSupport => {
+                panic!("This test runs rerand, the current ServerKey does not support it")
+            }
+            ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch => {
+                #[allow(deprecated)]
+                a.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
+                #[allow(deprecated)]
+                b.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
+            }
+            ReRandomizationSupport::DerivedCPKWithoutKeySwitch => {
+                a.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
+                    .unwrap();
+                b.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
+                    .unwrap();
+            }
+        }
 
-        b.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
+        assert!(a.re_randomization_metadata().data().is_empty());
         assert!(b.re_randomization_metadata().data().is_empty());
 
         let c = a + b;
@@ -107,10 +121,25 @@ fn execute_re_rand_test(cks: &ClientKey, cpk: &CompactPublicKey) {
 
         let mut seed_gen = re_rand_context.finalize();
 
-        a.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
-        assert!(a.re_randomization_metadata().data().is_empty());
+        match ServerKey::current_server_key_re_randomization_support().unwrap() {
+            ReRandomizationSupport::NoSupport => {
+                panic!("This test runs rerand, the current ServerKey does not support it")
+            }
+            ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch => {
+                #[allow(deprecated)]
+                a.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
+                #[allow(deprecated)]
+                b.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
+            }
+            ReRandomizationSupport::DerivedCPKWithoutKeySwitch => {
+                a.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
+                    .unwrap();
+                b.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
+                    .unwrap();
+            }
+        }
 
-        b.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
+        assert!(a.re_randomization_metadata().data().is_empty());
         assert!(b.re_randomization_metadata().data().is_empty());
 
         let c = a + b;
@@ -160,10 +189,25 @@ fn execute_re_rand_test(cks: &ClientKey, cpk: &CompactPublicKey) {
 
                 let mut seed_gen = re_rand_context.finalize();
 
-                a.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
-                assert!(a.re_randomization_metadata().data().is_empty());
+                match ServerKey::current_server_key_re_randomization_support().unwrap() {
+                    ReRandomizationSupport::NoSupport => {
+                        panic!("This test runs rerand, the current ServerKey does not support it")
+                    }
+                    ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch => {
+                        #[allow(deprecated)]
+                        a.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
+                        #[allow(deprecated)]
+                        b.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
+                    }
+                    ReRandomizationSupport::DerivedCPKWithoutKeySwitch => {
+                        a.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
+                            .unwrap();
+                        b.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
+                            .unwrap();
+                    }
+                }
 
-                b.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
+                assert!(a.re_randomization_metadata().data().is_empty());
                 assert!(b.re_randomization_metadata().data().is_empty());
 
                 let c = a & b;
@@ -176,37 +220,26 @@ fn execute_re_rand_test(cks: &ClientKey, cpk: &CompactPublicKey) {
 }
 
 fn setup_re_rand_test(
-    params: MetaParameters,
+    mut params: MetaParameters,
 ) -> (crate::ClientKey, CompressedServerKey, CompactPublicKey) {
-    let cpk_params = (
-        params
-            .dedicated_compact_public_key_parameters
-            .unwrap()
-            .pke_params,
-        params
-            .dedicated_compact_public_key_parameters
-            .unwrap()
-            .ksk_params,
-    );
-    let comp_params = params.compression_parameters.unwrap();
-    let compute_params = params.compute_parameters;
-    let ksk_params = ShortintKeySwitchingParameters::new(
-        compute_params.ks_base_log(),
-        compute_params.ks_level(),
-        compute_params.encryption_key_choice(),
-    );
+    // we don't use noise squashing
+    params.noise_squashing_parameters = None;
 
-    let config = ConfigBuilder::with_custom_parameters(compute_params)
-        .use_dedicated_compact_public_key_parameters(cpk_params)
-        .enable_compression(comp_params)
-        .enable_ciphertext_re_randomization(ksk_params)
-        .build();
-
-    let cks = crate::ClientKey::generate(config);
+    let cks = crate::ClientKey::generate(params);
     let sks = cks.generate_compressed_server_key();
     let cpk = CompactPublicKey::new(&cks);
 
     (cks, sks, cpk)
+}
+
+#[test]
+fn test_legacy_re_rand() {
+    let params = V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+    let (cks, sks, cpk) = setup_re_rand_test(params);
+
+    set_server_key(sks.decompress());
+
+    execute_re_rand_test(&cks, &cpk);
 }
 
 #[test]
@@ -220,12 +253,19 @@ fn test_re_rand() {
 }
 
 #[cfg(feature = "gpu")]
-#[test]
-fn test_gpu_re_rand() {
-    let params = V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
-    let (cks, sks, cpk) = setup_re_rand_test(params);
+mod gpu {
+    use super::*;
+    // for legacy params
+    use crate::shortint::parameters::v1_5::meta::gpu::V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
 
-    set_server_key(sks.decompress_to_gpu());
+    #[test]
+    fn test_gpu_legacy_re_rand() {
+        let params =
+            V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+        let (cks, sks, cpk) = setup_re_rand_test(params);
 
-    execute_re_rand_test(&cks, &cpk);
+        set_server_key(sks.decompress_to_gpu());
+
+        execute_re_rand_test(&cks, &cpk);
+    }
 }

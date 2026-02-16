@@ -74,7 +74,7 @@ impl Display for UninitializedReRandKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "No keyswitching key available to perform \
+            "No key available to perform \
               CompactPublicKey re-randomization. Did you forget to call \
               enable_ciphertext_re_randomization on your Config?"
         )

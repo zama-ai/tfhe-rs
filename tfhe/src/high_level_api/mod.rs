@@ -68,7 +68,7 @@ pub use keys::CudaServerKey;
 pub use keys::{
     generate_keys, ClientKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey,
     CompressedReRandomizationKeySwitchingKey, CompressedServerKey, KeySwitchingKey, PublicKey,
-    ReRandomizationKeySwitchingKey, ServerKey,
+    ReRandomizationKeySwitchingKey, ReRandomizationSupport, ServerKey,
 };
 use strum::FromRepr;
 

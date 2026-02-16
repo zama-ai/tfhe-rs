@@ -1,4 +1,6 @@
-use super::super::super::meta::{DedicatedCompactPublicKeyParameters, MetaParameters};
+use super::super::super::meta::{
+    DedicatedCompactPublicKeyParameters, MetaParameters, ReRandomizationConfiguration,
+};
 use super::super::compact_public_key_only::p_fail_2_minus_128::ks_pbs::*;
 use super::super::key_switching::p_fail_2_minus_128::ks_pbs_gpu::*;
 use super::super::list_compression::p_fail_2_minus_128::*;
@@ -22,7 +24,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaParameters =
     MetaParameters {
@@ -33,7 +37,9 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaParameters =
     MetaParameters {
@@ -44,7 +50,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaParameters =
     MetaParameters {
@@ -55,7 +63,9 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaParameters =
     MetaParameters {
@@ -66,7 +76,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaParameters =
     MetaParameters {
@@ -77,7 +89,9 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaParameters =
     MetaParameters {
@@ -88,7 +102,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaParameters =
     MetaParameters {
@@ -99,7 +115,9 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaParameters =
     MetaParameters {
@@ -110,7 +128,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaParameters =
     MetaParameters {
@@ -121,7 +141,9 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaParameters =
     MetaParameters {
@@ -132,7 +154,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaParameters =
     MetaParameters {
@@ -143,7 +167,9 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaParameters =
     MetaParameters {
@@ -154,7 +180,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaParameters =
     MetaParameters {
@@ -165,7 +193,9 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaParameters =
     MetaParameters {
@@ -176,7 +206,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaParameters =
     MetaParameters {
@@ -187,7 +219,9 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaParameters =
     MetaParameters {
@@ -198,7 +232,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaParameters =
     MetaParameters {
@@ -209,7 +245,9 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaParameters =
     MetaParameters {
@@ -220,7 +258,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaParameters =
     MetaParameters {
@@ -231,7 +271,9 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaParameters =
     MetaParameters {
@@ -242,7 +284,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaParameters =
     MetaParameters {
@@ -253,7 +297,9 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaParameters =
     MetaParameters {
@@ -264,7 +310,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaParameters =
     MetaParameters {
@@ -275,7 +323,9 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaParameters =
     MetaParameters {
@@ -286,7 +336,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaParameters =
     MetaParameters {
@@ -297,7 +349,9 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaParameters =
     MetaParameters {
@@ -308,7 +362,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaParameters =
     MetaParameters {
@@ -319,7 +375,9 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaParameters =
     MetaParameters {
@@ -330,7 +388,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaParameters =
     MetaParameters {
@@ -341,7 +401,9 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaParameters =
     MetaParameters {
@@ -352,7 +414,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaParameters =
     MetaParameters {
@@ -363,7 +427,9 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaParameters =
     MetaParameters {
@@ -374,7 +440,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaParameters =
     MetaParameters {
@@ -387,7 +455,9 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaP
             V1_6_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
         ),
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaParameters =
     MetaParameters {
@@ -398,7 +468,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaParameters =
     MetaParameters {
@@ -409,7 +481,9 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaParameters =
     MetaParameters {
@@ -420,7 +494,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaParameters =
     MetaParameters {
@@ -431,7 +507,9 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaParameters =
     MetaParameters {
@@ -442,7 +520,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaParameters =
     MetaParameters {
@@ -453,7 +533,9 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaParameters =
     MetaParameters {
@@ -464,7 +546,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaParameters =
     MetaParameters {
@@ -475,7 +559,9 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaParameters =
     MetaParameters {
@@ -486,7 +572,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaParameters =
     MetaParameters {
@@ -497,7 +585,9 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaParameters =
     MetaParameters {
@@ -508,7 +598,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaParameters =
     MetaParameters {
@@ -519,7 +611,9 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaParameters =
     MetaParameters {
@@ -530,7 +624,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaParameters =
     MetaParameters {
@@ -541,7 +637,9 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaParameters =
     MetaParameters {
@@ -552,7 +650,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaParameters =
     MetaParameters {
@@ -563,7 +663,9 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaParameters =
     MetaParameters {
@@ -574,7 +676,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaParameters =
     MetaParameters {
@@ -585,7 +689,9 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaParameters =
     MetaParameters {
@@ -596,7 +702,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaParameters =
     MetaParameters {
@@ -607,7 +715,9 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaParameters =
     MetaParameters {
@@ -618,7 +728,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaParameters =
     MetaParameters {
@@ -629,7 +741,9 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaParameters =
     MetaParameters {
@@ -640,7 +754,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaParameters =
     MetaParameters {
@@ -651,7 +767,9 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaParameters =
     MetaParameters {
@@ -662,7 +780,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaParameters =
     MetaParameters {
@@ -673,7 +793,9 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaPa
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaParameters =
     MetaParameters {
@@ -684,7 +806,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaParameters =
     MetaParameters {
@@ -695,7 +819,9 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaParameters =
     MetaParameters {
@@ -706,7 +832,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaParameters =
     MetaParameters {
@@ -717,7 +845,9 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaParameters =
     MetaParameters {
@@ -728,7 +858,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaParameters =
     MetaParameters {
@@ -739,7 +871,9 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaParameters =
     MetaParameters {
@@ -750,7 +884,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaParameters =
     MetaParameters {
@@ -761,7 +897,9 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaParameters =
     MetaParameters {
@@ -772,7 +910,9 @@ pub const V1_6_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128: MetaParameters =
     MetaParameters {
@@ -785,7 +925,6 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIF
             ksk_params:
                 V1_6_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             re_randomization_parameters: Some(V1_6_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
-
         }),
         compression_parameters: Some(
             V1_6_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -796,7 +935,10 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIF
                 V1_6_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             ),
         }),
-    };
+        rerand_configuration: Some(
+            ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch
+        ),
+    }.validate();
 
 pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128: MetaParameters =
     MetaParameters {
@@ -819,7 +961,10 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUN
                 V1_6_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             ),
         }),
-    };
+        rerand_configuration: Some(
+            ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch
+        ),
+    }.validate();
 
 pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaParameters =
     MetaParameters {
@@ -830,7 +975,9 @@ pub const V1_6_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();
 
 pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaParameters =
     MetaParameters {
@@ -841,4 +988,6 @@ pub const V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaP
         dedicated_compact_public_key_parameters: None,
         compression_parameters: None,
         noise_squashing_parameters: None,
-    };
+        rerand_configuration: None,
+    }
+    .validate();

@@ -8,10 +8,12 @@ use crate::core_crypto::prelude::{CastInto, UnsignedInteger};
 use crate::named::Named;
 use crate::shortint::backward_compatibility::parameters::{
     DedicatedCompactPublicKeyParametersVersions, MetaParametersVersions,
+    ReRandomizationConfigurationVersions,
 };
 use crate::shortint::parameters::{
     Backend, CompactPublicKeyEncryptionParameters, CompressionParameters,
-    MetaNoiseSquashingParameters, ShortintKeySwitchingParameters, SupportedCompactPkeZkScheme,
+    MetaNoiseSquashingParameters, ReRandomizationParameters, ShortintKeySwitchingParameters,
+    SupportedCompactPkeZkScheme,
 };
 use crate::shortint::{
     AtomicPatternParameters, CarryModulus, EncryptionKeyChoice, MessageModulus,
@@ -31,6 +33,22 @@ pub struct DedicatedCompactPublicKeyParameters {
     pub re_randomization_parameters: Option<ShortintKeySwitchingParameters>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[versionize(ReRandomizationConfigurationVersions)]
+/// An enum to indicate how the [`MetaParameters`] should resolve [`ReRandomizationParameters`].
+pub enum ReRandomizationConfiguration {
+    /// Use a provided [`DedicatedCompactPublicKeyParameters`] as long as the
+    /// [`ShortintKeySwitchingParameters`] parameters allow to go to the compute parameters under
+    /// the correct key. In the KS_PBS case (which is the only supported case) it means going to
+    /// ciphertexts encrypted under the large key.
+    LegacyDedicatedCompactPublicKeyWithKeySwitch,
+    /// [`CompactPublicKeyEncryptionParameters`]
+    /// will be derived from the available compute parameters and the corresponding secret key
+    /// should correspond to the encryption key of the compute parameters. The parameters are
+    /// restricted to the KS_PBS case (encryption under the large key).
+    DerivedCompactPublicKeyWithoutKeySwitch,
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(MetaParametersVersions)]
 pub struct MetaParameters {
@@ -44,6 +62,8 @@ pub struct MetaParameters {
     pub compression_parameters: Option<CompressionParameters>,
     /// Parameters for noise squashing
     pub noise_squashing_parameters: Option<MetaNoiseSquashingParameters>,
+    /// Configuration to use for re-randomization
+    pub rerand_configuration: Option<ReRandomizationConfiguration>,
 }
 
 impl Named for MetaParameters {
@@ -67,6 +87,77 @@ impl MetaParameters {
 
     pub fn failure_probability(&self) -> Log2PFail {
         Log2PFail(self.compute_parameters.log2_p_fail())
+    }
+
+    pub fn rerandomization_parameters(&self) -> Option<ReRandomizationParameters> {
+        match (
+            self.rerand_configuration,
+            self.dedicated_compact_public_key_parameters,
+        ) {
+            (
+                Some(ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch),
+                Some(DedicatedCompactPublicKeyParameters {
+                    pke_params: _,
+                    ksk_params: _,
+                    re_randomization_parameters: Some(re_randomization_parameters),
+                }),
+            ) => Some(ReRandomizationParameters::LegacyDedicatedCPKWithKeySwitch {
+                rerand_ksk_params: re_randomization_parameters,
+            }),
+            // Irrespective of the presence of dedicated CPK params if we ask for derived CPK for
+            // rerand we should generate one
+            (Some(ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch), _) => {
+                Some(ReRandomizationParameters::DerivedCPKWithoutKeySwitch)
+            }
+            _ => None,
+        }
+    }
+
+    pub const fn is_valid(&self) -> bool {
+        match (
+            self.dedicated_compact_public_key_parameters,
+            self.rerand_configuration,
+        ) {
+            (
+                Some(params),
+                Some(ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch),
+            ) => {
+                let pke_valid = params.pke_params.is_valid();
+                // Legacy case, KSK needs to be present and target the big key for rerand
+                match params.re_randomization_parameters {
+                    Some(rerand_ksk) => {
+                        pke_valid && matches!(rerand_ksk.destination_key, EncryptionKeyChoice::Big)
+                    }
+                    None => false,
+                }
+            }
+            (
+                Some(params),
+                None | Some(ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch),
+            ) => {
+                let pke_valid = params.pke_params.is_valid();
+                // for the new rerand config/no config, the old params should be None
+                pke_valid && params.re_randomization_parameters.is_none()
+            }
+            (None, Some(ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch)) => {
+                // let pke_params =
+                //
+                // CompactPublicKeyEncryptionParameters::try_from(self.compute_parameters);
+                //                 pke_params.is_ok_and(|pke_params| pke_params.is_valid())
+
+                true
+            }
+            (None, None) => true,
+            _ => false,
+        }
+    }
+
+    pub const fn validate(self) -> Self {
+        if self.is_valid() {
+            return self;
+        }
+
+        panic!("Invalid MetaParameters",);
     }
 }
 

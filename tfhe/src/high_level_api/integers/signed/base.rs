@@ -5,7 +5,6 @@ use crate::backward_compatibility::integers::FheIntVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::SignedNumeric;
 use crate::high_level_api::details::MaybeCloned;
-use crate::high_level_api::errors::UninitializedReRandKey;
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::{FheIntegerType, FheUint, FheUintId, IntegerId};
 use crate::high_level_api::keys::{CompactPublicKey, InternalServerKey};
@@ -1190,44 +1189,67 @@ where
         compact_public_key: &CompactPublicKey,
         seed: ReRandomizationSeed,
     ) -> crate::Result<()> {
-        global_state::with_internal_keys(|key| match key {
-            InternalServerKey::Cpu(key) => {
-                let Some(re_randomization_key) = key.re_randomization_cpk_casting_key() else {
-                    return Err(UninitializedReRandKey.into());
-                };
+        global_state::with_internal_keys(|key| {
+            match key {
+                InternalServerKey::Cpu(key) => {
+                    let re_randomization_key = key.legacy_re_randomization_cpk_casting_key()?;
 
-                self.ciphertext.as_cpu_mut().re_randomize(
-                    &compact_public_key.key.key,
-                    &re_randomization_key,
-                    seed,
-                )?;
+                    self.ciphertext.as_cpu_mut().re_randomize(
+                        &compact_public_key.key.key,
+                        re_randomization_key.as_ref(),
+                        seed,
+                    )?;
+                }
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let Some(re_randomization_key) = cuda_key.re_randomization_cpk_casting_key()
+                    else {
+                        return Err(crate::high_level_api::errors::UninitializedReRandKey.into());
+                    };
 
-                self.re_randomization_metadata_mut().clear();
-
-                Ok(())
+                    let streams = &cuda_key.streams;
+                    self.ciphertext.as_gpu_mut(streams).re_randomize(
+                        &compact_public_key.key.key,
+                        re_randomization_key,
+                        seed,
+                        streams,
+                    )?;
+                }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    panic!("HPU does not support re_randomize.")
+                }
             }
-            #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => {
-                let Some(re_randomization_key) = cuda_key.re_randomization_cpk_casting_key() else {
-                    return Err(UninitializedReRandKey.into());
-                };
 
-                let streams = &cuda_key.streams;
-                self.ciphertext.as_gpu_mut(streams).re_randomize(
-                    &compact_public_key.key.key,
-                    re_randomization_key,
-                    seed,
-                    streams,
-                )?;
+            self.re_randomization_metadata_mut().clear();
 
-                self.re_randomization_metadata_mut().clear();
+            Ok(())
+        })
+    }
 
-                Ok(())
+    fn re_randomize_without_keyswitch(&mut self, seed: ReRandomizationSeed) -> crate::Result<()> {
+        global_state::with_internal_keys(|key| {
+            match key {
+                InternalServerKey::Cpu(key) => {
+                    let re_randomization_key = key.cpk_for_re_randomization_without_keyswitch()?;
+
+                    self.ciphertext
+                        .as_cpu_mut()
+                        .re_randomize(re_randomization_key, None, seed)?;
+                }
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(_cuda_key) => {
+                    panic!("GPU does not support re_randomize_without_keyswitch.")
+                }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    panic!("HPU does not support re_randomize_without_keyswitch.")
+                }
             }
-            #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("HPU does not support CPKReRandomize.")
-            }
+
+            self.re_randomization_metadata_mut().clear();
+
+            Ok(())
         })
     }
 }
