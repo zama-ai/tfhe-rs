@@ -10,6 +10,8 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  SLACKIFY_MARKDOWN: true
+  PULL_REQUEST_MD_LINK: ""
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
   # Secrets will be available only to zama-ai organization members
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
@@ -27,9 +29,39 @@ permissions:
 # zizmor: ignore[concurrency-limits] concurrency is managed after instance setup to ensure safe provisioning
 
 jobs:
+  should-run:
+    name: csprng_randomness_tests/should-run
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.label.name, 'approved')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read  # Needed to check for file change
+    outputs:
+      csprng_test: ${{ github.event_name == 'workflow_dispatch' ||
+        steps.changed-files.outputs.csprng_any_changed }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          persist-credentials: 'false'
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      - name: Check for file changes
+        id: changed-files
+        uses: tj-actions/changed-files@e0021407031f5be11a464abee9a0776171c79891 # v47.0.1
+        with:
+          files_yaml: |
+            csprng:
+              - tfhe/Cargo.toml
+              - tfhe-csprng/**
+              - utils/tfhe-versionable/**
+              - .github/workflows/csprng_randomness_tests.yml
+
   setup-instance:
     name: csprng_randomness_tests/setup-instance
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.label.name, 'approved') }}
+    needs: should-run
+    if: github.event_name == 'workflow_dispatch' ||
+      (contains(github.event.label.name, 'approved') && needs.should-run.outputs.csprng_test == 'true')
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
@@ -76,13 +108,21 @@ jobs:
         run: |
           make dieharder_csprng
 
+      - name: Set pull-request URL
+        if: ${{ failure() && github.event_name == 'pull_request' }}
+        run: |
+          echo "PULL_REQUEST_MD_LINK=[pull-request](${PR_BASE_URL}${PR_NUMBER}), "  >> "${GITHUB_ENV}"
+        env:
+          PR_BASE_URL: ${{ vars.PR_BASE_URL }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+
       - name: Slack Notification
         if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "tfhe-csprng randomness check finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "tfhe-csprng randomness check finished with status: ${{ job.status }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
     name: csprng_randomness_tests/teardown-instance
