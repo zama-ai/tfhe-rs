@@ -7,6 +7,7 @@ env:
   RUSTFLAGS: "-C target-cpu=native"
   # Secrets will be available only to zama-ai organization members
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
+  SAGEMATH_VERSION: 10.8
 
 on:
   pull_request:
@@ -47,14 +48,31 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           repository: malb/lattice-estimator
-          path: lattice_estimator
+          path: lattice-estimator
           ref: '352ddaf4a288a0543f5d9eb588d2f89c7acec463'
           persist-credentials: 'false'
 
-      - name: Install Sage
+      - name: Restore Docker sagemath image from cache
+        id: docker-cache
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 #v5.0.3
+        with:
+          path: /tmp/sagemath_image
+          key: sagemath-image-${{ env.SAGEMATH_VERSION }}-${{ github.sha }}
+          restore-keys: sagemath-image-
+
+      - name: Load cached Docker sagemath image
+        if: steps.docker-cache.outputs.cache-hit == 'true'
         run: |
-          sudo apt update
-          sudo apt install -y sagemath
+          docker load -i /tmp/sagemath_image/sagemath.tar
+
+      - name: Pull Docker sagemath image
+        if: steps.docker-cache.outputs.cache-hit != 'true'
+        run: |
+          docker pull sagemath/sagemath:"${VERSION}"
+          mkdir -p /tmp/sagemath_image
+          docker save sagemath/sagemath:"${VERSION}" -o /tmp/sagemath_image/sagemath.tar
+        env:
+          VERSION: ${{ env.SAGEMATH_VERSION }}
 
       - name: Collect parameters
         run: |
@@ -68,7 +86,10 @@ jobs:
 
       - name: Perform security check
         run: |
-          PYTHONPATH=lattice_estimator sage ci/lattice_estimator.sage
+          docker run \
+          -e PYTHONPATH=lattice_estimator \
+          -v "${PWD}":/repo_src \
+          sagemath/sagemath:10.8 /bin/bash /repo_src/scripts/execute_lattice_estimator.sh           
 
       - name: Get time elapsed
         if: ${{ always() }}
@@ -88,6 +109,14 @@ jobs:
           
           with open(env_file, "a") as f:
             f.write(f"TIME_ELAPSED={total_minutes}\n")
+
+      - name: Store Docker image in cache
+        if: steps.docker-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 #v5.0.3
+        with:
+          path: /tmp/sagemath_image
+          key: sagemath-image-${{ env.SAGEMATH_VERSION }}-${{ github.sha }}
 
       - name: Slack Notification
         if: ${{ always() }}
