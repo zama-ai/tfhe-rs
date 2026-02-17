@@ -33,29 +33,33 @@ impl ProofConfig {
 }
 
 fn default_proof_config() -> Vec<ProofConfig> {
-    match env::var("__TFHE_RS_BENCH_OP_FLAVOR").as_deref() {
-        Ok("fast_default") | Ok("fast") => {
-            vec![ProofConfig::new(2048, &[64, 4 * 64])]
+    let conf = vec![
+        ProofConfig::new(64, &[64]),
+        ProofConfig::new(2048, &[64, 4 * 64, 2048]),
+        ProofConfig::new(4096, &[4096]),
+    ];
+
+    if let Ok(val) = env::var("__TFHE_RS_BENCH_OP_FLAVOR").as_deref() {
+        match val.to_lowercase().as_str() {
+            "fast_default" | "fast" => return vec![ProofConfig::new(2048, &[64, 4 * 64])],
+            _ => (),
         }
-        _ => {
-            vec![
-                ProofConfig::new(64, &[64]),
-                ProofConfig::new(2048, &[64, 4 * 64, 2048]),
-                ProofConfig::new(4096, &[4096]),
-            ]
-        }
-    }
+    };
+
+    conf
 }
 
 fn compute_load_config() -> Vec<ZkComputeLoad> {
-    match env::var("__TFHE_RS_BENCH_OP_FLAVOR").as_deref() {
-        Ok("fast_default") | Ok("fast") => {
-            vec![ZkComputeLoad::Verify]
+    let conf = vec![ZkComputeLoad::Proof, ZkComputeLoad::Verify];
+
+    if let Ok(val) = env::var("__TFHE_RS_BENCH_OP_FLAVOR").as_deref() {
+        match val.to_lowercase().as_str() {
+            "fast_default" | "fast" => return vec![ZkComputeLoad::Verify],
+            _ => (),
         }
-        _ => {
-            vec![ZkComputeLoad::Proof, ZkComputeLoad::Verify]
-        }
-    }
+    };
+
+    conf
 }
 
 fn write_result(file: &mut File, name: &str, value: usize) {
