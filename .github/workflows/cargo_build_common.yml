@@ -57,8 +57,7 @@ env:
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
   SLACKIFY_MARKDOWN: true
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
-  # Secrets will be available only to zama-ai organization members
-  SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
+
   LINELINT_VERSION: 0.0.6
   LINELINT_CHECKSUM: "16b70fb7b471d6f95cbdc0b4e5dc2b0ac9e84ba9ecdc488f7bdf13df823aca4b"
 
@@ -131,10 +130,34 @@ jobs:
           chmod +x linelint-linux-amd64
           ln -s "$(pwd)/linelint-linux-amd64" /usr/local/bin/linelint
 
+      - name: Get Node version
+        if: inputs.run-pcc-cpu-batch == 'pcc_batch_2'
+        run: |
+          echo "NODE_VERSION=$(make node_version)" >> "${GITHUB_ENV}"
+
+      - name: Node cache restoration
+        if: inputs.run-pcc-cpu-batch == 'pcc_batch_2'
+        id: node-cache
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 #v5.0.3
+        with:
+          path: |
+            ~/.nvm
+            ~/.npm
+          key: node-${{ env.NODE_VERSION }}
+
       - name: Install Node
         if: inputs.run-pcc-cpu-batch == 'pcc_batch_2'
         run: |
           make install_node
+
+      - name: Node cache save
+        uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 #v5.0.3
+        if: inputs.run-pcc-cpu-batch == 'pcc_batch_2' && steps.node-cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ~/.nvm
+            ~/.npm
+          key: node-${{ env.NODE_VERSION }}
 
       - name: Run pcc checks batch
         if: inputs.run-pcc-cpu-batch

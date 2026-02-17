@@ -1924,7 +1924,7 @@ pcc_batch_1:
 pcc_batch_2:
 	$(call run_recipe_with_details,clippy)
 	$(call run_recipe_with_details,clippy_all_targets)
-	$(call run_recipe_with_details,check_fmt_js)
+	$(call run_recipe_with_details,check_fmt_js)  # This needs to stay there, CI pipeline rely on this recipe to conditionally install Node
 	$(call run_recipe_with_details,clippy_test_vectors)
 	$(call run_recipe_with_details,check_test_vectors)
 
