@@ -66,7 +66,6 @@ jobs:
               - 'tfhe/docs/**/**.md'
               - '.github/workflows/gpu_signed_integer_h100_tests.yml'
               - scripts/integer-tests.sh
-              - ci/slab.toml
 
   setup-instance:
     name: gpu_signed_integer_h100_tests/setup-instance
