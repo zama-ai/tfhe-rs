@@ -13,8 +13,7 @@ env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
-  # Secrets will be available only to zama-ai organization members
-  SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
+
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
