@@ -59,7 +59,7 @@ edition = "2021"
 Then add the following configuration to include **TFHE-rs**:
 
 ```toml
-tfhe = { version = "~1.5.3", features = ["integer"] }
+tfhe = { version = "~1.5.4", features = ["integer"] }
 ```
 
 Your updated `Cargo.toml` file should look like this:
@@ -71,7 +71,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tfhe = { version = "~1.5.3", features = ["integer"] }
+tfhe = { version = "~1.5.4", features = ["integer"] }
 ```
 
 If you are on a different platform please refer to the [installation documentation](installation.md) for configuration options of other supported platforms.

@@ -9,7 +9,7 @@ Welcome to this tutorial about `TFHE-rs` `core_crypto` module.
 To use `TFHE-rs`, it first has to be added as a dependency in the `Cargo.toml`:
 
 ```toml
-tfhe = { version = "~1.5.3" }
+tfhe = { version = "~1.5.4" }
 ```
 
 ### Commented code to double a 2-bit message in a leveled fashion and using a PBS with the `core_crypto` module.

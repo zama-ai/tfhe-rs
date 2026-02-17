@@ -17,7 +17,7 @@ This guide explains how to update your existing program to leverage HPU accelera
 To use the **TFHE-rs** HPU backend in your project, add the following dependency in your `Cargo.toml`.
 
 ```toml
-tfhe = { version = "~1.5.3", features = ["integer", "hpu-v80"] }
+tfhe = { version = "~1.5.4", features = ["integer", "hpu-v80"] }
 ```
 
 {% hint style="success" %}
