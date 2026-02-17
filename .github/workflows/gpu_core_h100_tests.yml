@@ -64,8 +64,6 @@ jobs:
               - tfhe/src/c_api/**
               - 'tfhe/docs/**/**.md'
               - '.github/workflows/gpu_core_h100_tests.yml'
-              - scripts/integer-tests.sh
-              - ci/slab.toml
 
   setup-instance:
     name: gpu_core_h100_tests/setup-instance
