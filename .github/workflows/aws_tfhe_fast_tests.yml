@@ -15,8 +15,7 @@ env:
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
   PULL_REQUEST_MD_LINK: ""
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
-  # Secrets will be available only to zama-ai organization members
-  SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
+
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
