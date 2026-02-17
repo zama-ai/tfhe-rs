@@ -31,11 +31,43 @@ permissions:
 # zizmor: ignore[concurrency-limits] concurrency is managed after instance setup to ensure safe provisioning
 
 jobs:
+  should-run:
+    name: gpu_memory_sanitizer_h100/should-run
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read  # Needed to check for file change
+    outputs:
+      gpu_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.gpu_any_changed }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          persist-credentials: 'false'
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      - name: Check for file changes
+        id: changed-files
+        uses: tj-actions/changed-files@e0021407031f5be11a464abee9a0776171c79891 # v47.0.1
+        with:
+          files_yaml: |
+            gpu:
+              - Cargo.toml
+              - tfhe/Cargo.toml
+              - tfhe/build.rs
+              - backends/tfhe-cuda-backend/**
+              - tfhe/src/core_crypto/gpu/**
+              - tfhe/src/integer/gpu/**
+              - tfhe/src/shortint/parameters/**
+              - tfhe/src/high_level_api/**
+              - '.github/workflows/gpu_memory_sanitizer_h100.yml'
+
   setup-instance:
     name: gpu_memory_sanitizer/setup-instance
+    needs: should-run
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' ||
-      (github.event.action == 'labeled' && github.event.label.name == 'approved')
+    if: github.event_name == 'workflow_dispatch' ||
+      (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true')
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
     steps:
