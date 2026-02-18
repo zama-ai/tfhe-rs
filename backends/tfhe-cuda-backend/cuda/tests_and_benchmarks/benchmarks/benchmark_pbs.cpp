@@ -340,28 +340,6 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, DefaultPBS)
   cleanup_cuda_programmable_bootstrap_64(stream, gpu_index, &buffer);
 }
 
-BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, AmortizedPBS)
-(benchmark::State &st) {
-
-  scratch_cuda_programmable_bootstrap_amortized_64_async(
-      stream, gpu_index, &buffer, glwe_dimension, polynomial_size,
-      input_lwe_ciphertext_count, true);
-
-  for (auto _ : st) {
-    // Execute PBS
-    cuda_programmable_bootstrap_amortized_64_async(
-        stream, gpu_index, (void *)d_lwe_ct_out_array,
-        (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
-        (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in_array,
-        (void *)d_lwe_input_indexes, (void *)d_fourier_bsk, buffer,
-        lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        input_lwe_ciphertext_count);
-    cuda_synchronize_stream(stream, gpu_index);
-  }
-
-  cleanup_cuda_programmable_bootstrap_amortized_64(stream, gpu_index, &buffer);
-}
-
 static void
 MultiBitPBSBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
   // Define the parameters to benchmark
@@ -443,11 +421,6 @@ BENCHMARK_REGISTER_F(ClassicalBootstrap_u64, DefaultPBS)
                 "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count"});
 
 BENCHMARK_REGISTER_F(ClassicalBootstrap_u64, CgPBS)
-    ->Apply(BootstrapBenchmarkGenerateParams)
-    ->ArgNames({"lwe_dimension", "glwe_dimension", "polynomial_size",
-                "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count"});
-
-BENCHMARK_REGISTER_F(ClassicalBootstrap_u64, AmortizedPBS)
     ->Apply(BootstrapBenchmarkGenerateParams)
     ->ArgNames({"lwe_dimension", "glwe_dimension", "polynomial_size",
                 "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count"});

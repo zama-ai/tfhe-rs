@@ -404,10 +404,11 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
        lwe_offset += lwe_chunk_size) {
 
     // Compute a keybundle
-    execute_compute_keybundle<Torus, params>(
+    execute_compute_keybundle_with_mode<Torus, params>(
         stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
         buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, level_count, lwe_offset);
+        grouping_factor, level_count, lwe_offset,
+        MultiBitKeybundleLaunchMode::GENERIC);
 
     // Accumulate
     execute_cg_external_product_loop<Torus, params>(

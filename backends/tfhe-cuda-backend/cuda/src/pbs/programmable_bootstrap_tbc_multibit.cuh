@@ -18,6 +18,12 @@
 #include "types/complex/operations.cuh"
 #include <vector>
 
+enum class MultiBitTbcLaunchMode {
+  AUTO,            // Heuristic-based selection based on parameters
+  GENERIC,         // Force-fallback to the generic implementation
+  SPECIALIZED_2_2, // Force-select the 2.2 specialized variant
+};
+
 template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void __launch_bounds__(params::degree / params::opt)
     device_multi_bit_programmable_bootstrap_tbc_accumulate(
@@ -530,7 +536,7 @@ __host__ void execute_tbc_external_product_loop(
     uint32_t num_samples, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
     uint32_t level_count, uint32_t lwe_offset, uint32_t num_many_lut,
-    uint32_t lut_stride) {
+    uint32_t lut_stride, MultiBitTbcLaunchMode launch_mode) {
 
   PANIC_IF_FALSE(
       sizeof(Torus) == 8,
@@ -590,6 +596,9 @@ __host__ void execute_tbc_external_product_loop(
   config.stream = stream;
 
   if (max_shared_memory < partial_dm + minimum_dm) {
+    PANIC_IF_FALSE(
+        launch_mode != MultiBitTbcLaunchMode::SPECIALIZED_2_2,
+        "Cuda error (multi-bit PBS): specialized TBC 2_2 requires FULLSM.");
     config.dynamicSmemBytes = minimum_dm;
     check_cuda_error(cudaLaunchKernelEx(
         &config,
@@ -602,6 +611,9 @@ __host__ void execute_tbc_external_product_loop(
         keybundle_size_per_input, d_mem, full_dm, supports_dsm, num_many_lut,
         lut_stride));
   } else if (max_shared_memory < full_dm + minimum_dm) {
+    PANIC_IF_FALSE(
+        launch_mode != MultiBitTbcLaunchMode::SPECIALIZED_2_2,
+        "Cuda error (multi-bit PBS): specialized TBC 2_2 requires FULLSM.");
     config.dynamicSmemBytes = partial_dm + minimum_dm;
     check_cuda_error(cudaLaunchKernelEx(
         &config,
@@ -615,8 +627,21 @@ __host__ void execute_tbc_external_product_loop(
         lut_stride));
   } else {
     config.dynamicSmemBytes = full_dm + minimum_dm;
-    if (polynomial_size == 2048 && grouping_factor == 4 && level_count == 1 &&
-        glwe_dimension == 1 && base_log == 22) {
+    bool can_use_specialized = polynomial_size == 2048 &&
+                               grouping_factor == 4 && level_count == 1 &&
+                               glwe_dimension == 1 && base_log == 22;
+    if (launch_mode == MultiBitTbcLaunchMode::SPECIALIZED_2_2) {
+      PANIC_IF_FALSE(
+          can_use_specialized,
+          "Cuda error (multi-bit PBS): specialized TBC 2_2 requires "
+          "(N=2048, grouping_factor=4, level_count=1, glwe_dimension=1, "
+          "base_log=22).");
+    }
+
+    bool use_specialized =
+        launch_mode == MultiBitTbcLaunchMode::SPECIALIZED_2_2 ||
+        (launch_mode == MultiBitTbcLaunchMode::AUTO && can_use_specialized);
+    if (use_specialized) {
 
       config.dynamicSmemBytes = full_dm + 2 * minimum_dm;
       check_cuda_error(cudaFuncSetAttribute(
@@ -665,7 +690,8 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
-    uint32_t num_many_lut, uint32_t lut_stride) {
+    uint32_t num_many_lut, uint32_t lut_stride,
+    MultiBitTbcLaunchMode launch_mode) {
   cuda_set_device(gpu_index);
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
@@ -673,10 +699,27 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
        lwe_offset += lwe_chunk_size) {
 
     // Compute a keybundle
-    execute_compute_keybundle<Torus, params>(
-        stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-        buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, level_count, lwe_offset);
+    switch (launch_mode) {
+    case MultiBitTbcLaunchMode::GENERIC:
+      execute_compute_keybundle_generic<Torus, params>(
+          stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+          buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+          grouping_factor, level_count, lwe_offset);
+      break;
+    case MultiBitTbcLaunchMode::SPECIALIZED_2_2:
+      execute_compute_keybundle_2_2_specialized<Torus, params>(
+          stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+          buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+          grouping_factor, level_count, lwe_offset);
+      break;
+    case MultiBitTbcLaunchMode::AUTO:
+    default:
+      execute_compute_keybundle<Torus, params>(
+          stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+          buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+          grouping_factor, level_count, lwe_offset);
+      break;
+    }
 
     // Accumulate
     execute_tbc_external_product_loop<Torus, params>(
@@ -684,8 +727,62 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
         lwe_input_indexes, lwe_array_out, lwe_output_indexes, buffer,
         num_samples, lwe_dimension, glwe_dimension, polynomial_size,
         grouping_factor, base_log, level_count, lwe_offset, num_many_lut,
-        lut_stride);
+        lut_stride, launch_mode);
   }
+}
+
+template <typename Torus, class params>
+__host__ void host_tbc_multi_bit_programmable_bootstrap(
+    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
+    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t num_many_lut, uint32_t lut_stride) {
+  host_tbc_multi_bit_programmable_bootstrap<Torus, params>(
+      stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
+      lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+      buffer, glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
+      base_log, level_count, num_samples, num_many_lut, lut_stride,
+      MultiBitTbcLaunchMode::AUTO);
+}
+
+template <typename Torus, class params>
+__host__ void host_tbc_multi_bit_programmable_bootstrap_generic(
+    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
+    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t num_many_lut, uint32_t lut_stride) {
+  host_tbc_multi_bit_programmable_bootstrap<Torus, params>(
+      stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
+      lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+      buffer, glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
+      base_log, level_count, num_samples, num_many_lut, lut_stride,
+      MultiBitTbcLaunchMode::GENERIC);
+}
+
+template <typename Torus, class params>
+__host__ void host_tbc_multi_bit_programmable_bootstrap_2_2_specialized(
+    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
+    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t num_many_lut, uint32_t lut_stride) {
+  host_tbc_multi_bit_programmable_bootstrap<Torus, params>(
+      stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
+      lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+      buffer, glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
+      base_log, level_count, num_samples, num_many_lut, lut_stride,
+      MultiBitTbcLaunchMode::SPECIALIZED_2_2);
 }
 
 template <typename Torus>

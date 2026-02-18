@@ -106,6 +106,10 @@ jobs:
         run: |
           make test_high_level_api_gpu_valgrind
 
+      - name: Run CUDA backend racecheck tests
+        run: |
+          make test_cuda_backend_race_check
+
   slack-notify:
     name: gpu_code_validation_tests/slack-notify
     needs: [ setup-instance, cuda-tests-linux ]
