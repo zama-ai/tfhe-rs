@@ -658,13 +658,20 @@ __host__ uint64_t scratch_multi_bit_programmable_bootstrap(
   return size_tracker;
 }
 
+enum class MultiBitKeybundleLaunchMode {
+  AUTO,
+  GENERIC,
+  SPECIALIZED_2_2,
+};
+
 template <typename Torus, class params>
-__host__ void execute_compute_keybundle(
+__host__ void execute_compute_keybundle_with_mode(
     cudaStream_t stream, uint32_t gpu_index, Torus const *lwe_array_in,
     Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
+    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset,
+    MultiBitKeybundleLaunchMode launch_mode) {
   cuda_set_device(gpu_index);
   PANIC_IF_FALSE(sizeof(Torus) == 8,
                  "Error: PBS keybundle only supports 64-bit "
@@ -691,6 +698,9 @@ __host__ void execute_compute_keybundle(
   dim3 thds(polynomial_size / params::opt, 1, 1);
 
   if (max_shared_memory < full_sm_keybundle) {
+    PANIC_IF_FALSE(launch_mode != MultiBitKeybundleLaunchMode::SPECIALIZED_2_2,
+                   "Cuda error (multi-bit PBS): specialized keybundle 2_2 "
+                   "requires FULLSM.");
     device_multi_bit_programmable_bootstrap_keybundle<Torus, params, NOSM>
         <<<grid_keybundle, thds, 0, stream>>>(
             lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
@@ -703,8 +713,21 @@ __host__ void execute_compute_keybundle(
             num_samples, glwe_dimension, polynomial_size, level_count,
             cuda_get_max_shared_memory(gpu_index));
 
-    if (supports_tbc && polynomial_size == 2048 && grouping_factor == 4 &&
-        level_count == 1 && glwe_dimension == 1) {
+    bool can_use_specialized = supports_tbc && polynomial_size == 2048 &&
+                               grouping_factor == 4 && level_count == 1 &&
+                               glwe_dimension == 1;
+    if (launch_mode == MultiBitKeybundleLaunchMode::SPECIALIZED_2_2) {
+      PANIC_IF_FALSE(
+          can_use_specialized,
+          "Cuda error (multi-bit PBS): specialized keybundle 2_2 requires "
+          "(N=2048, grouping_factor=4, level_count=1, glwe_dimension=1).");
+    }
+
+    bool use_specialized =
+        launch_mode == MultiBitKeybundleLaunchMode::SPECIALIZED_2_2 ||
+        (launch_mode == MultiBitKeybundleLaunchMode::AUTO &&
+         can_use_specialized);
+    if (use_specialized) {
       dim3 thds_new_keybundle(512, 1, 1);
       check_cuda_error(cudaFuncSetAttribute(
           device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
@@ -730,6 +753,48 @@ __host__ void execute_compute_keybundle(
     }
   }
   check_cuda_error(cudaGetLastError());
+}
+
+template <typename Torus, class params>
+__host__ void execute_compute_keybundle(
+    cudaStream_t stream, uint32_t gpu_index, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
+    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
+  execute_compute_keybundle_with_mode<Torus, params>(
+      stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+      buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+      grouping_factor, level_count, lwe_offset,
+      MultiBitKeybundleLaunchMode::AUTO);
+}
+
+template <typename Torus, class params>
+__host__ void execute_compute_keybundle_generic(
+    cudaStream_t stream, uint32_t gpu_index, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
+    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
+  execute_compute_keybundle_with_mode<Torus, params>(
+      stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+      buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+      grouping_factor, level_count, lwe_offset,
+      MultiBitKeybundleLaunchMode::GENERIC);
+}
+
+template <typename Torus, class params>
+__host__ void execute_compute_keybundle_2_2_specialized(
+    cudaStream_t stream, uint32_t gpu_index, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
+    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
+  execute_compute_keybundle_with_mode<Torus, params>(
+      stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+      buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+      grouping_factor, level_count, lwe_offset,
+      MultiBitKeybundleLaunchMode::SPECIALIZED_2_2);
 }
 
 template <typename Torus, class params, bool is_first_iter>
@@ -851,10 +916,11 @@ __host__ void host_multi_bit_programmable_bootstrap(
        lwe_offset += lwe_chunk_size) {
 
     // Compute a keybundle
-    execute_compute_keybundle<Torus, params>(
+    execute_compute_keybundle_with_mode<Torus, params>(
         stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
         buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, level_count, lwe_offset);
+        grouping_factor, level_count, lwe_offset,
+        MultiBitKeybundleLaunchMode::GENERIC);
     // Accumulate
     uint32_t chunk_size =
         std::min((uint32_t)lwe_chunk_size,

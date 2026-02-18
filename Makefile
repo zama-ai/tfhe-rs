@@ -742,6 +742,15 @@ test_cuda_backend:
 		"$(MAKE)" -j "$(CPU_COUNT)" && \
 		"$(MAKE)" test
 
+.PHONY: test_cuda_backend_race_check # Build and run selected CUDA backend tests with Compute Sanitizer racecheck
+test_cuda_backend_race_check:
+	mkdir -p "$(TFHECUDA_BUILD)" && \
+		cd "$(TFHECUDA_BUILD)" && \
+		cmake .. -DCMAKE_BUILD_TYPE=Release -DTFHE_CUDA_BACKEND_BUILD_TESTS=ON && \
+		"$(MAKE)" -j "$(CPU_COUNT)" test_tfhe_cuda_backend && \
+		compute-sanitizer --tool racecheck --target-processes all ./tests_and_benchmarks/tests/test_tfhe_cuda_backend \
+			--gtest_filter="*ClassicalProgrammableBootstrap*:*MultiBitProgrammableBootstrap*"
+
 .PHONY: test_zk_cuda_backend # Run the internal tests of the CUDA ZK backend
 test_zk_cuda_backend:
 	mkdir -p "$(ZKCUDA_BUILD)" && \

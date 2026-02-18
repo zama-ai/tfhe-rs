@@ -22,6 +22,12 @@
 using namespace cooperative_groups;
 namespace cg = cooperative_groups;
 
+enum class ClassicalTbcLaunchMode {
+  AUTO,            // Heuristic-based selection based on parameters
+  GENERIC,         // Force-fallback to the generic implementation
+  SPECIALIZED_2_2, // Force-select the 2.2 specialized variant
+};
+
 /*
  * Kernel that computes the classical PBS using cooperative groups
  *
@@ -455,7 +461,7 @@ __host__ uint64_t scratch_programmable_bootstrap_tbc(
  * Host wrapper
  */
 template <typename Torus, class params>
-__host__ void host_programmable_bootstrap_tbc(
+__host__ void host_programmable_bootstrap_tbc_with_mode(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -463,7 +469,8 @@ __host__ void host_programmable_bootstrap_tbc(
     pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    uint32_t num_many_lut, uint32_t lut_stride) {
+    uint32_t num_many_lut, uint32_t lut_stride,
+    ClassicalTbcLaunchMode launch_mode) {
   cuda_set_device(gpu_index);
 
   PANIC_IF_FALSE(sizeof(Torus) == 8,
@@ -514,6 +521,9 @@ __host__ void host_programmable_bootstrap_tbc(
   config.stream = stream;
 
   if (max_shared_memory < partial_sm + minimum_sm_tbc) {
+    PANIC_IF_FALSE(
+        launch_mode != ClassicalTbcLaunchMode::SPECIALIZED_2_2,
+        "Cuda error (classical PBS): specialized TBC 2_2 requires FULLSM.");
     config.dynamicSmemBytes = minimum_sm_tbc;
 
     check_cuda_error(cudaLaunchKernelEx(
@@ -523,6 +533,9 @@ __host__ void host_programmable_bootstrap_tbc(
         lwe_dimension, polynomial_size, base_log, level_count, d_mem, full_dm,
         supports_dsm, num_many_lut, lut_stride, noise_reduction_type));
   } else if (max_shared_memory < full_sm + minimum_sm_tbc) {
+    PANIC_IF_FALSE(
+        launch_mode != ClassicalTbcLaunchMode::SPECIALIZED_2_2,
+        "Cuda error (classical PBS): specialized TBC 2_2 requires FULLSM.");
     config.dynamicSmemBytes = partial_sm + minimum_sm_tbc;
 
     check_cuda_error(cudaLaunchKernelEx(
@@ -533,8 +546,19 @@ __host__ void host_programmable_bootstrap_tbc(
         partial_dm, supports_dsm, num_many_lut, lut_stride,
         noise_reduction_type));
   } else {
-    if (polynomial_size == 2048 && level_count == 1 && glwe_dimension == 1 &&
-        base_log == 23) {
+    bool can_use_specialized = polynomial_size == 2048 && level_count == 1 &&
+                               glwe_dimension == 1 && base_log == 23;
+    if (launch_mode == ClassicalTbcLaunchMode::SPECIALIZED_2_2) {
+      PANIC_IF_FALSE(can_use_specialized,
+                     "Cuda error (classical PBS): specialized TBC 2_2 requires "
+                     "(N=2048, level_count=1, glwe_dimension=1, base_log=23).");
+    }
+
+    bool use_specialized =
+        launch_mode == ClassicalTbcLaunchMode::SPECIALIZED_2_2 ||
+        (launch_mode == ClassicalTbcLaunchMode::AUTO && can_use_specialized);
+
+    if (use_specialized) {
       uint64_t full_sm_2_2 =
           get_buffer_size_full_sm_programmable_bootstrap_tbc_2_2_params<Torus>(
               polynomial_size);
@@ -568,6 +592,60 @@ __host__ void host_programmable_bootstrap_tbc(
           buffer->noise_reduction_type));
     }
   }
+}
+
+template <typename Torus, class params>
+__host__ void host_programmable_bootstrap_tbc(
+    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, double2 const *bootstrapping_key,
+    pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    uint32_t num_many_lut, uint32_t lut_stride) {
+  host_programmable_bootstrap_tbc_with_mode<Torus, params>(
+      stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
+      lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+      buffer, glwe_dimension, lwe_dimension, polynomial_size, base_log,
+      level_count, input_lwe_ciphertext_count, num_many_lut, lut_stride,
+      ClassicalTbcLaunchMode::AUTO);
+}
+
+template <typename Torus, class params>
+__host__ void host_programmable_bootstrap_tbc_generic(
+    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, double2 const *bootstrapping_key,
+    pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    uint32_t num_many_lut, uint32_t lut_stride) {
+  host_programmable_bootstrap_tbc_with_mode<Torus, params>(
+      stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
+      lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+      buffer, glwe_dimension, lwe_dimension, polynomial_size, base_log,
+      level_count, input_lwe_ciphertext_count, num_many_lut, lut_stride,
+      ClassicalTbcLaunchMode::GENERIC);
+}
+
+template <typename Torus, class params>
+__host__ void host_programmable_bootstrap_tbc_2_2_specialized(
+    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, double2 const *bootstrapping_key,
+    pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    uint32_t num_many_lut, uint32_t lut_stride) {
+  host_programmable_bootstrap_tbc_with_mode<Torus, params>(
+      stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
+      lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+      buffer, glwe_dimension, lwe_dimension, polynomial_size, base_log,
+      level_count, input_lwe_ciphertext_count, num_many_lut, lut_stride,
+      ClassicalTbcLaunchMode::SPECIALIZED_2_2);
 }
 
 // Verify if the grid size satisfies the cooperative group constraints

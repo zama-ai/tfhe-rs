@@ -195,6 +195,81 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
           " in the interval [256..16384].")
   }
 }
+
+template <typename Torus>
+void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_generic(
+    void *stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, double2 const *bootstrapping_key,
+    pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
+    uint32_t lut_stride) {
+
+  switch (polynomial_size) {
+  case 256:
+    host_programmable_bootstrap_tbc_generic<Torus, AmortizedDegree<256>>(
+        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+        lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
+        lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, base_log, level_count, num_samples,
+        num_many_lut, lut_stride);
+    break;
+  case 512:
+    host_programmable_bootstrap_tbc_generic<Torus, AmortizedDegree<512>>(
+        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+        lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
+        lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, base_log, level_count, num_samples,
+        num_many_lut, lut_stride);
+    break;
+  case 1024:
+    host_programmable_bootstrap_tbc_generic<Torus, AmortizedDegree<1024>>(
+        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+        lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
+        lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, base_log, level_count, num_samples,
+        num_many_lut, lut_stride);
+    break;
+  case 2048:
+    host_programmable_bootstrap_tbc_generic<Torus, Degree<2048>>(
+        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+        lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
+        lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, base_log, level_count, num_samples,
+        num_many_lut, lut_stride);
+    break;
+  case 4096:
+    host_programmable_bootstrap_tbc_generic<Torus, AmortizedDegree<4096>>(
+        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+        lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
+        lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, base_log, level_count, num_samples,
+        num_many_lut, lut_stride);
+    break;
+  case 8192:
+    host_programmable_bootstrap_tbc_generic<Torus, AmortizedDegree<8192>>(
+        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+        lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
+        lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, base_log, level_count, num_samples,
+        num_many_lut, lut_stride);
+    break;
+  case 16384:
+    host_programmable_bootstrap_tbc_generic<Torus, AmortizedDegree<16384>>(
+        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+        lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
+        lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, base_log, level_count, num_samples,
+        num_many_lut, lut_stride);
+    break;
+  default:
+    PANIC("Cuda error (classical PBS): unsupported polynomial size. "
+          "Supported N's are powers of two"
+          " in the interval [256..16384].")
+  }
+}
 #endif
 
 template <typename Torus>
@@ -331,6 +406,46 @@ uint64_t scratch_cuda_programmable_bootstrap_64_async(
         stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+}
+
+uint64_t scratch_cuda_programmable_bootstrap_tbc_generic_64_async(
+    void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
+#if (CUDA_ARCH >= 900)
+  return scratch_cuda_programmable_bootstrap_tbc<uint64_t>(
+      stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer,
+      lwe_dimension, glwe_dimension, polynomial_size, level_count,
+      input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+#else
+  (void)stream;
+  (void)gpu_index;
+  (void)buffer;
+  (void)lwe_dimension;
+  (void)glwe_dimension;
+  (void)polynomial_size;
+  (void)level_count;
+  (void)input_lwe_ciphertext_count;
+  (void)allocate_gpu_memory;
+  (void)noise_reduction_type;
+  PANIC("Cuda error (classical PBS): TBC pbs is not supported.")
+#endif
+}
+
+uint64_t scratch_cuda_programmable_bootstrap_tbc_2_2_64_async(
+    void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
+  PANIC_IF_FALSE(
+      polynomial_size == 2048 && level_count == 1 && glwe_dimension == 1,
+      "Cuda error (classical PBS): specialized TBC 2_2 scratch requires "
+      "(N=2048, level_count=1, glwe_dimension=1).");
+  return scratch_cuda_programmable_bootstrap_tbc_generic_64_async(
+      stream, gpu_index, buffer, lwe_dimension, glwe_dimension, polynomial_size,
+      level_count, input_lwe_ciphertext_count, allocate_gpu_memory,
+      noise_reduction_type);
 }
 
 template <typename Torus>
@@ -667,6 +782,102 @@ void cuda_programmable_bootstrap_64_async(
   default:
     PANIC("Cuda error (PBS): unknown pbs variant.")
   }
+}
+
+void cuda_programmable_bootstrap_tbc_64_generic_async(
+    void *stream, uint32_t gpu_index, void *lwe_array_out,
+    void const *lwe_output_indexes, void const *lut_vector,
+    void const *lut_vector_indexes, void const *lwe_array_in,
+    void const *lwe_input_indexes, void const *bootstrapping_key,
+    int8_t *mem_ptr, uint32_t lwe_dimension, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
+    uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride) {
+  if (base_log > 64)
+    PANIC("Cuda error (classical PBS): base log should be <= 64")
+
+  pbs_buffer<uint64_t, CLASSICAL> *buffer =
+      (pbs_buffer<uint64_t, CLASSICAL> *)mem_ptr;
+  PANIC_IF_FALSE(buffer->pbs_variant == PBS_VARIANT::TBC,
+                 "Cuda error (classical PBS): expected a TBC buffer.");
+
+#if (CUDA_ARCH >= 900)
+  cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_generic<uint64_t>(
+      stream, gpu_index, static_cast<uint64_t *>(lwe_array_out),
+      static_cast<const uint64_t *>(lwe_output_indexes),
+      static_cast<const uint64_t *>(lut_vector),
+      static_cast<const uint64_t *>(lut_vector_indexes),
+      static_cast<const uint64_t *>(lwe_array_in),
+      static_cast<const uint64_t *>(lwe_input_indexes),
+      static_cast<const double2 *>(bootstrapping_key), buffer, lwe_dimension,
+      glwe_dimension, polynomial_size, base_log, level_count, num_samples,
+      num_many_lut, lut_stride);
+#else
+  (void)stream;
+  (void)gpu_index;
+  (void)lwe_array_out;
+  (void)lwe_output_indexes;
+  (void)lut_vector;
+  (void)lut_vector_indexes;
+  (void)lwe_array_in;
+  (void)lwe_input_indexes;
+  (void)bootstrapping_key;
+  (void)lwe_dimension;
+  (void)glwe_dimension;
+  (void)polynomial_size;
+  (void)level_count;
+  (void)num_samples;
+  (void)num_many_lut;
+  (void)lut_stride;
+  PANIC("Cuda error (classical PBS): TBC pbs is not supported.")
+#endif
+}
+
+void cuda_programmable_bootstrap_tbc_64_2_2_async(
+    void *stream, uint32_t gpu_index, void *lwe_array_out,
+    void const *lwe_output_indexes, void const *lut_vector,
+    void const *lut_vector_indexes, void const *lwe_array_in,
+    void const *lwe_input_indexes, void const *bootstrapping_key,
+    int8_t *mem_ptr, uint32_t lwe_dimension, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
+    uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride) {
+  PANIC_IF_FALSE(polynomial_size == 2048 && level_count == 1 &&
+                     glwe_dimension == 1 && base_log == 23,
+                 "Cuda error (classical PBS): specialized TBC 2_2 requires "
+                 "(N=2048, level_count=1, glwe_dimension=1, base_log=23).");
+
+  pbs_buffer<uint64_t, CLASSICAL> *buffer =
+      (pbs_buffer<uint64_t, CLASSICAL> *)mem_ptr;
+  PANIC_IF_FALSE(buffer->pbs_variant == PBS_VARIANT::TBC,
+                 "Cuda error (classical PBS): expected a TBC buffer.");
+
+#if (CUDA_ARCH >= 900)
+  host_programmable_bootstrap_tbc_2_2_specialized<uint64_t, Degree<2048>>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      static_cast<uint64_t *>(lwe_array_out),
+      static_cast<const uint64_t *>(lwe_output_indexes),
+      static_cast<const uint64_t *>(lut_vector),
+      static_cast<const uint64_t *>(lut_vector_indexes),
+      static_cast<const uint64_t *>(lwe_array_in),
+      static_cast<const uint64_t *>(lwe_input_indexes),
+      static_cast<const double2 *>(bootstrapping_key), buffer, glwe_dimension,
+      lwe_dimension, polynomial_size, base_log, level_count, num_samples,
+      num_many_lut, lut_stride);
+#else
+  (void)stream;
+  (void)gpu_index;
+  (void)lwe_array_out;
+  (void)lwe_output_indexes;
+  (void)lut_vector;
+  (void)lut_vector_indexes;
+  (void)lwe_array_in;
+  (void)lwe_input_indexes;
+  (void)bootstrapping_key;
+  (void)lwe_dimension;
+  (void)num_samples;
+  (void)num_many_lut;
+  (void)lut_stride;
+  PANIC("Cuda error (classical PBS): TBC pbs is not supported.")
+#endif
 }
 
 /*
