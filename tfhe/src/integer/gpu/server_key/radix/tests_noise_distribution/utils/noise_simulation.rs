@@ -1431,3 +1431,214 @@ impl LweKeyswitch<CudaDynLwe, CudaDynLwe> for CudaKeySwitchingKey<'_> {
         }
     }
 }
+
+// Trait implementations for CudaDecompressionKey to enable noise distribution tests
+impl LweClassicFftBootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u64>>
+    for crate::integer::gpu::list_compression::server_keys::CudaDecompressionKey
+{
+    type SideResources = CudaSideResources;
+
+    fn lwe_classic_fft_pbs(
+        &self,
+        input: &CudaDynLwe,
+        output: &mut CudaDynLwe,
+        accumulator: &CudaGlweCiphertextList<u64>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        use crate::core_crypto::gpu::algorithms::lwe_programmable_bootstrapping::cuda_programmable_bootstrap_lwe_ciphertext;
+        use crate::core_crypto::gpu::vec::CudaVec;
+        use crate::core_crypto::prelude::CastInto;
+        use crate::integer::gpu::server_key::CudaBootstrappingKey;
+
+        match (input, output) {
+            (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U64(output_cuda_lwe)) => {
+                // Get the bootstrap key from the decompression key
+                let bsk = match &self.blind_rotate_key {
+                    CudaBootstrappingKey::Classic(d_bsk) => d_bsk,
+                    CudaBootstrappingKey::MultiBit(_) => {
+                        panic!("MultiBit bootstrapping keys are not supported for decompression key PBS");
+                    }
+                };
+
+                // Create indexes for PBS
+                let num_ct_blocks = 1;
+                let lwe_indexes: Vec<u64> = (0..num_ct_blocks)
+                    .map(<usize as CastInto<u64>>::cast_into)
+                    .collect();
+                let mut d_lut_vector_indexes =
+                    unsafe { CudaVec::<u64>::new_async(num_ct_blocks, &side_resources.streams, 0) };
+                let mut d_input_indexes =
+                    unsafe { CudaVec::<u64>::new_async(num_ct_blocks, &side_resources.streams, 0) };
+                let mut d_output_indexes =
+                    unsafe { CudaVec::<u64>::new_async(num_ct_blocks, &side_resources.streams, 0) };
+
+                unsafe {
+                    d_lut_vector_indexes.copy_from_cpu_async(
+                        &lwe_indexes,
+                        &side_resources.streams,
+                        0,
+                    );
+                    d_input_indexes.copy_from_cpu_async(&lwe_indexes, &side_resources.streams, 0);
+                    d_output_indexes.copy_from_cpu_async(&lwe_indexes, &side_resources.streams, 0);
+                }
+
+                cuda_programmable_bootstrap_lwe_ciphertext(
+                    input_cuda_lwe,
+                    output_cuda_lwe,
+                    accumulator,
+                    &d_lut_vector_indexes,
+                    &d_output_indexes,
+                    &d_input_indexes,
+                    bsk,
+                    &side_resources.streams,
+                );
+            }
+            (CudaDynLwe::U32(_), CudaDynLwe::U32(_)) => {
+                panic!("U32 PBS not implemented for CudaDecompressionKey - only U64 is supported");
+            }
+            (CudaDynLwe::U128(_), CudaDynLwe::U128(_)) => {
+                panic!("U128 PBS not implemented for CudaDecompressionKey - only U64 is supported");
+            }
+            _ => panic!("Inconsistent input/output types for CudaDynLwe PBS"),
+        }
+    }
+}
+
+impl LweGenericBootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u64>>
+    for crate::integer::gpu::list_compression::server_keys::CudaDecompressionKey
+{
+    type SideResources = CudaSideResources;
+
+    fn lwe_generic_bootstrap(
+        &self,
+        input: &CudaDynLwe,
+        output: &mut CudaDynLwe,
+        accumulator: &CudaGlweCiphertextList<u64>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        use crate::integer::gpu::server_key::CudaBootstrappingKey;
+        match &self.blind_rotate_key {
+            CudaBootstrappingKey::Classic(_) => {
+                self.lwe_classic_fft_pbs(input, output, accumulator, side_resources);
+            }
+            CudaBootstrappingKey::MultiBit(mb_bsk) => {
+                use crate::core_crypto::gpu::vec::CudaVec;
+                match (input, output) {
+                    (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U64(output_cuda_lwe)) => {
+                        let num_samples = 1u32;
+                        let zero_index = vec![0u64];
+                        let mut output_indexes = unsafe {
+                            CudaVec::<u64>::new_async(1, &side_resources.streams, 0)
+                        };
+                        let mut test_vector_indexes = unsafe {
+                            CudaVec::<u64>::new_async(1, &side_resources.streams, 0)
+                        };
+                        let mut input_indexes = unsafe {
+                            CudaVec::<u64>::new_async(1, &side_resources.streams, 0)
+                        };
+                        unsafe {
+                            output_indexes.copy_from_cpu_async(
+                                &zero_index,
+                                &side_resources.streams,
+                                0,
+                            );
+                            test_vector_indexes.copy_from_cpu_async(
+                                &zero_index,
+                                &side_resources.streams,
+                                0,
+                            );
+                            input_indexes.copy_from_cpu_async(
+                                &zero_index,
+                                &side_resources.streams,
+                                0,
+                            );
+                        }
+                        side_resources.streams.synchronize();
+                        unsafe {
+                            programmable_bootstrap_multi_bit(
+                                &side_resources.streams,
+                                &mut output_cuda_lwe.0.d_vec,
+                                &output_indexes,
+                                &accumulator.0.d_vec,
+                                &test_vector_indexes,
+                                &input_cuda_lwe.0.d_vec,
+                                &input_indexes,
+                                &mb_bsk.d_vec,
+                                mb_bsk.input_lwe_dimension(),
+                                mb_bsk.glwe_dimension(),
+                                mb_bsk.polynomial_size(),
+                                mb_bsk.decomp_base_log(),
+                                mb_bsk.decomp_level_count(),
+                                mb_bsk.grouping_factor(),
+                                num_samples,
+                            );
+                        }
+                    }
+                    _ => panic!(
+                        "Multi-bit PBS for CudaDecompressionKey is only supported for U64 CudaDynLwe"
+                    ),
+                }
+            }
+        }
+    }
+}
+
+impl<'rhs>
+    crate::core_crypto::commons::noise_formulas::noise_simulation::traits::LweUncorrelatedAdd<
+        &'rhs Self,
+    > for CudaDynLwe
+{
+    type Output = Self;
+    type SideResources = CudaSideResources;
+
+    fn lwe_uncorrelated_add(
+        &self,
+        rhs: &'rhs Self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
+        use crate::integer::gpu::server_key::radix::CudaRadixCiphertextInfo;
+
+        match (self, rhs) {
+            (Self::U64(lhs_cuda_lwe), Self::U64(rhs_cuda_lwe)) => {
+                // Create a CudaRadixCiphertext wrapper for the left operand
+                let mut lhs_radix = CudaRadixCiphertext::new(
+                    lhs_cuda_lwe.duplicate(&side_resources.streams),
+                    CudaRadixCiphertextInfo {
+                        blocks: vec![side_resources.block_info],
+                    },
+                );
+
+                // Create a CudaRadixCiphertext wrapper for the right operand
+                let rhs_radix = CudaRadixCiphertext::new(
+                    rhs_cuda_lwe.duplicate(&side_resources.streams),
+                    CudaRadixCiphertextInfo {
+                        blocks: vec![side_resources.block_info],
+                    },
+                );
+
+                // Perform the addition using the cuda backend function
+                unsafe {
+                    crate::integer::gpu::cuda_backend_unchecked_add_assign(
+                        &side_resources.streams,
+                        &mut lhs_radix,
+                        &rhs_radix,
+                    );
+                }
+
+                Self::U64(lhs_radix.d_blocks)
+            }
+            (Self::U32(_), Self::U32(_)) => {
+                panic!(
+                    "U32 uncorrelated add not implemented for CudaDynLwe - only U64 is supported"
+                );
+            }
+            (Self::U128(_), Self::U128(_)) => {
+                panic!(
+                    "U128 uncorrelated add not implemented for CudaDynLwe - only U64 is supported"
+                );
+            }
+            _ => panic!("Inconsistent lhs and rhs types for CudaDynLwe uncorrelated add"),
+        }
+    }
+}
