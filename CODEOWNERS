@@ -8,31 +8,31 @@
 
 /tfhe/examples/hpu                      @zama-ai/hardware
 
-/tfhe/src/core_crypto/                  @IceTDrinker
+/tfhe/src/core_crypto/                  @IceTDrinker @mayeul-zama
 /tfhe/src/core_crypto/gpu               @zama-ai/gpu
 /tfhe/src/core_crypto/hpu               @zama-ai/hardware
 
 /tfhe/src/shortint/                     @mayeul-zama @nsarlin-zama
 
-/tfhe/src/integer/                      @tmontaigu
+/tfhe/src/integer/                      @tmontaigu @nsarlin-zama
 /tfhe/src/integer/gpu                   @zama-ai/gpu
 /tfhe/src/integer/hpu                   @zama-ai/hardware
 
-/tfhe/src/high_level_api/               @tmontaigu
+/tfhe/src/high_level_api/               @tmontaigu @nsarlin-zama
 
-/tfhe-zk-pok/                           @nsarlin-zama
+/tfhe-zk-pok/                           @nsarlin-zama @tmontaigu
 /tfhe-zk-pok/src/gpu                    @zama-ai/gpu
 
-/tfhe-benchmark/                        @soonum
+/tfhe-benchmark/                        @soonum @SouchonTheo
 
-/utils/                                 @nsarlin-zama
+/utils/                                 @nsarlin-zama @SouchonTheo
 
 /Makefile                               @IceTDrinker @soonum
 
 /mockups/tfhe-hpu-mockup                @zama-ai/hardware
 
-/.github/                               @soonum
-/ci/                                    @soonum
-/scripts/                               @soonum
+/.github/                               @soonum @SouchonTheo
+/ci/                                    @soonum @SouchonTheo
+/scripts/                               @soonum @SouchonTheo
 
-/CODEOWNERS                             @IceTDrinker
+/CODEOWNERS                             @IceTDrinker @nsarlin-zama
