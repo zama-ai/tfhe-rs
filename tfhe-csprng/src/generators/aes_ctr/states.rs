@@ -24,18 +24,6 @@ pub enum ShiftAction {
 }
 
 impl State {
-    /// Creates a new state from the initial table index.
-    ///
-    /// Note:
-    /// ------
-    ///
-    /// The `table_index` input is the __first__ table index that will be outputted on the next
-    /// call to `increment`. Put differently, the current table index of the newly created state
-    /// is the predecessor of this one.
-    pub fn new(table_index: TableIndex) -> Self {
-        Self::with_offset(table_index, AesIndex(0))
-    }
-
     /// Creates a new state from the initial table index and offset
     ///
     /// The `offset` AesIndex will be applied to all AES encryption.
@@ -49,7 +37,7 @@ impl State {
     /// The `table_index` input is the __first__ table index that will be outputted on the next
     /// call to `increment`. Put differently, the current table index of the newly created state
     /// is the predecessor of this one.
-    pub fn with_offset(table_index: TableIndex, offset: AesIndex) -> Self {
+    pub fn new(table_index: TableIndex, offset: AesIndex) -> Self {
         // We ensure that the table index is not the first one, to prevent wrapping on `decrement`,
         // and outputting `RefreshBatchAndOutputByte(AesIndex::MAX, ...)` on the first increment
         // (which would lead to loading a non-continuous batch).
@@ -89,11 +77,9 @@ impl State {
     pub fn table_index(&self) -> TableIndex {
         self.table_index
     }
-}
 
-impl Default for State {
-    fn default() -> Self {
-        State::new(TableIndex::FIRST)
+    pub fn offset(&self) -> AesIndex {
+        self.offset
     }
 }
 
@@ -123,19 +109,25 @@ mod test {
         std::iter::repeat_with(|| thread_rng().gen())
     }
 
+    fn any_aes_index() -> impl Iterator<Item = AesIndex> {
+        std::iter::repeat_with(|| AesIndex(thread_rng().gen()))
+    }
+
     #[test]
     /// Check the property:
     ///     For all table indices t,
     ///         State::new(t).increment() = RefreshBatchAndOutputByte(t.aes_index, t.byte_index)
     fn prop_state_new_increment() {
         for _ in 0..REPEATS {
-            let (t, mut s) = any_table_index()
-                .map(|t| (t, State::new(t)))
+            let (t, mut s, offset) = any_table_index()
+                .zip(any_aes_index())
+                .map(|(t, offset)| (t, State::new(t, offset), offset))
                 .next()
                 .unwrap();
             assert!(matches!(
                 s.increment(),
-                ShiftAction::RefreshBatchAndOutputByte(t_, BufferPointer(p_)) if t_ == t.aes_index && p_ == t.byte_index.0
+                ShiftAction::RefreshBatchAndOutputByte(t_, BufferPointer(p_))
+                    if t_ == AesIndex(t.aes_index.0.wrapping_add(offset.0)) && p_ == t.byte_index.0
             ))
         }
     }
@@ -148,7 +140,8 @@ mod test {
         for _ in 0..REPEATS {
             let (t, mut s, i) = any_table_index()
                 .zip(any_u128())
-                .map(|(t, i)| (t, State::new(t), i))
+                .zip(any_aes_index())
+                .map(|((t, i), offset)| (t, State::new(t, offset), i))
                 .next()
                 .unwrap();
             s.increase(i);
@@ -165,7 +158,8 @@ mod test {
         for _ in 0..REPEATS {
             let (t, mut s, i) = any_table_index()
                 .zip(any_usize())
-                .map(|(t, i)| (t, State::new(t), i % BYTES_PER_BATCH))
+                .zip(any_aes_index())
+                .map(|((t, i), offset)| (t, State::new(t, offset), i % BYTES_PER_BATCH))
                 .find(|(t, _, i)| t.byte_index.0 + i < BYTES_PER_BATCH - 1)
                 .unwrap();
             s.increment();
@@ -185,16 +179,18 @@ mod test {
     ///             t.increased(i).byte_index).
     fn prop_state_increase_large() {
         for _ in 0..REPEATS {
-            let (t, mut s, i) = any_table_index()
+            let (t, mut s, i, offset) = any_table_index()
                 .zip(any_usize())
-                .map(|(t, i)| (t, State::new(t), i))
-                .find(|(t, _, i)| t.byte_index.0 + i >= BYTES_PER_BATCH - 1)
+                .zip(any_aes_index())
+                .map(|((t, i), offset)| (t, State::new(t, offset), i, offset))
+                .find(|(t, _, i, _)| t.byte_index.0 + i >= BYTES_PER_BATCH - 1)
                 .unwrap();
             s.increment();
             assert!(matches!(
                 s.increase(i as u128),
                 ShiftAction::RefreshBatchAndOutputByte(t_, BufferPointer(p_))
-                    if t_ == t.increased(i as u128).aes_index && p_ == t.increased(i as u128).byte_index.0
+                    if t_ == AesIndex(t.increased(i as u128).aes_index.0.wrapping_add(offset.0))
+                        && p_ == t.increased(i as u128).byte_index.0
             ));
         }
     }
