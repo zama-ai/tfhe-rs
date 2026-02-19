@@ -20,6 +20,7 @@ pub use classic::gaussian::p_fail_2_minus_128::pbs_ks::*;
 pub use classic::gaussian::p_fail_2_minus_40::ks_pbs::*;
 pub use classic::gaussian::p_fail_2_minus_64::ks_pbs::*;
 pub use classic::tuniform::p_fail_2_minus_128::ks_pbs::*;
+pub use classic::tuniform::p_fail_2_minus_128::ks_pbs_gpu::*;
 pub use classic::tuniform::p_fail_2_minus_40::ks_pbs::*;
 pub use classic::tuniform::p_fail_2_minus_64::ks_pbs::*;
 pub use compact_public_key_only::p_fail_2_minus_128::ks_pbs::*;
@@ -50,7 +51,7 @@ use crate::shortint::parameters::{
 };
 
 /// All [`ClassicPBSParameters`] in this module.
-pub const VEC_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 141] = [
+pub const VEC_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 142] = [
     (
         &V1_6_PARAM_MESSAGE_1_CARRY_0_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
         "V1_6_PARAM_MESSAGE_1_CARRY_0_COMPACT_PK_KS_PBS_GAUSSIAN_2M64",
@@ -614,6 +615,10 @@ pub const VEC_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 141] =
     (
         &V1_6_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
         "V1_6_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128",
+    ),
+    (
+        &V1_6_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+        "V1_6_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128",
     ),
 ];
 
