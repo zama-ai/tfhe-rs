@@ -124,7 +124,7 @@ impl Deprecable for ServerKey {
 }
 
 #[derive(Version)]
-pub struct ServerKeyV1 {
+pub struct GenericServerKeyV1 {
     key_switching_key: LweKeyswitchKeyOwned<u64>,
     bootstrapping_key: ShortintBootstrappingKey<u64>,
     message_modulus: MessageModulus,
@@ -135,7 +135,7 @@ pub struct ServerKeyV1 {
     pbs_order: PBSOrder,
 }
 
-impl<AP: 'static> Upgrade<GenericServerKey<AP>> for ServerKeyV1 {
+impl<AP: 'static> Upgrade<GenericServerKey<AP>> for GenericServerKeyV1 {
     type Error = Error;
 
     fn upgrade(self) -> Result<GenericServerKey<AP>, Self::Error> {
@@ -179,9 +179,9 @@ Atomic Pattern"
 }
 
 #[derive(VersionsDispatch)]
-pub enum ServerKeyVersions<AP> {
+pub enum GenericServerKeyVersions<AP> {
     V0(Deprecated<ServerKey>),
-    V1(ServerKeyV1),
+    V1(GenericServerKeyV1),
     V2(GenericServerKey<AP>),
 }
 
