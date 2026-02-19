@@ -61,6 +61,7 @@ Atomic Pattern"
 }
 
 #[derive(VersionsDispatch)]
+#[cfg_attr(dylint_lib = "tfhe_lints", allow(versionize_dispatch_enum))]
 pub enum ClientKeyVersions<AP> {
     V0(ClientKeyV0),
     V1(GenericClientKey<AP>),

@@ -179,6 +179,7 @@ Atomic Pattern"
 }
 
 #[derive(VersionsDispatch)]
+#[cfg_attr(dylint_lib = "tfhe_lints", allow(versionize_dispatch_enum))]
 pub enum ServerKeyVersions<AP> {
     V0(Deprecated<ServerKey>),
     V1(ServerKeyV1),

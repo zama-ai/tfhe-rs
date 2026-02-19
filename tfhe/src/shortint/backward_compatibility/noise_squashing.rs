@@ -146,6 +146,7 @@ Atomic Pattern"
 }
 
 #[derive(VersionsDispatch)]
+#[cfg_attr(dylint_lib = "tfhe_lints", allow(versionize_dispatch_enum))]
 pub enum NoiseSquashingKeyVersions<AP> {
     V0(NoiseSquashingKeyV0),
     V1(NoiseSquashingKeyV1),

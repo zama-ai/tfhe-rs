@@ -41,3 +41,8 @@ harness = false
 [[bench]]
 name = "pke_v2"
 harness = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(dylint_lib, values(any()))',
+] }

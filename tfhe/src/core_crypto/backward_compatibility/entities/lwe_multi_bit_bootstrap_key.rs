@@ -36,6 +36,7 @@ pub enum FourierLweMultiBitBootstrapKeyVersions<C: Container<Element = c64>> {
 }
 
 #[derive(VersionsDispatch)]
+#[cfg_attr(dylint_lib = "tfhe_lints", allow(versionize_dispatch_enum))]
 pub enum Fourier128MultiBitLweBootstrapKeyVersions<C: Container<Element = f64>> {
     V0(Fourier128LweMultiBitBootstrapKey<C>),
 }

@@ -1,0 +1,75 @@
+warning: Invalid variant for dispatch enum BadVariantVersions
+  --> $DIR/main.rs:82:5
+   |
+LL |     First(BadVariantV0),
+   |     ^^^^^ help: Consider renaming it to: `V0`
+   |
+   = note: Variants should be named V0, V1, ... and defined in order
+   = note: `#[warn(versionize_dispatch_enum)]` on by default
+
+warning: Invalid variant for dispatch enum BadVariantVersions
+  --> $DIR/main.rs:83:5
+   |
+LL |     Second(BadVariant),
+   |     ^^^^^^ help: Consider renaming it to: `V1`
+   |
+   = note: Variants should be named V0, V1, ... and defined in order
+
+warning: Invalid variant for dispatch enum BadInnerVariantNameVersions
+  --> $DIR/main.rs:89:8
+   |
+LL |     V0(BadVariantV0),
+   |        ^^^^^^^^^^^^ help: Consider renaming it to: `BadInnerVariantNameV0`
+   |
+   = note: The inner type of the last variant should be named like the enum without the 'Versions' suffix, i.e. BadInnerVariantName
+
+warning: Invalid variant for dispatch enum BadInnerVariantNameVersions
+  --> $DIR/main.rs:90:8
+   |
+LL |     V1(BadVariant),
+   |        ^^^^^^^^^^ help: Consider renaming it to: `BadInnerVariantName`
+   |
+   = note: The inner type of the last variant should be named like the enum without the 'Versions' suffix, i.e. BadInnerVariantName
+
+warning: Enum GoodVer should end with 'Versions'
+  --> $DIR/main.rs:95:6
+   |
+LL | enum GoodVer {
+   |      ^^^^^^^ help: Consider renaming it to: `GoodVersions`
+   |
+   = note: This is a convention to easily identify dispatch enums
+
+warning: Invalid variant for dispatch enum WrongOrderVersions<F>
+  --> $DIR/main.rs:103:5
+   |
+LL |     V1(WrongOrderV0),
+   |     ^^ help: Consider renaming it to: `V0`
+   |
+   = note: Variants should be named V0, V1, ... and defined in order
+
+warning: Invalid variant for dispatch enum WrongOrderVersions<F>
+  --> $DIR/main.rs:104:5
+   |
+LL |     V0(WrongOrder<F>),
+   |     ^^ help: Consider renaming it to: `V1`
+   |
+   = note: Variants should be named V0, V1, ... and defined in order
+
+warning: Invalid variant for dispatch enum WrongInnerVariantOrderVersions
+  --> $DIR/main.rs:110:8
+   |
+LL |     V0(WrongOrder<u32>),
+   |        ^^^^^^^^^^ help: Consider renaming it to: `WrongInnerVariantOrderV0`
+   |
+   = note: The inner type of the last variant should be named like the enum without the 'Versions' suffix, i.e. WrongInnerVariantOrder
+
+warning: Invalid variant for dispatch enum WrongInnerVariantOrderVersions
+  --> $DIR/main.rs:111:8
+   |
+LL |     V1(WrongOrderV0),
+   |        ^^^^^^^^^^^^ help: Consider renaming it to: `WrongInnerVariantOrder`
+   |
+   = note: The inner type of the last variant should be named like the enum without the 'Versions' suffix, i.e. WrongInnerVariantOrder
+
+warning: 9 warnings emitted
+
