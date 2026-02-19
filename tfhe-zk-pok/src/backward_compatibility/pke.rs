@@ -49,7 +49,8 @@ pub enum ProofVersions<G: Curve> {
 }
 
 #[derive(VersionsDispatch)]
-pub(crate) enum ComputeLoadProofFieldVersions<G: Curve> {
+#[allow(unknown_lints)]
+pub(crate) enum ComputeLoadProofFieldsVersions<G: Curve> {
     #[allow(dead_code)]
     V0(ComputeLoadProofFields<G>),
 }

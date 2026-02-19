@@ -30,7 +30,7 @@ pub enum NoiseSquashingPrivateKeyVersions {
 }
 
 #[derive(Version)]
-pub struct NoiseSquashingKeyV0 {
+pub struct GenericNoiseSquashingKeyV0 {
     bootstrapping_key: Fourier128LweBootstrapKeyOwned,
     modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey<u64>>,
     message_modulus: MessageModulus,
@@ -38,10 +38,10 @@ pub struct NoiseSquashingKeyV0 {
     output_ciphertext_modulus: CoreCiphertextModulus<u128>,
 }
 
-impl Upgrade<NoiseSquashingKeyV1> for NoiseSquashingKeyV0 {
+impl Upgrade<GenericNoiseSquashingKeyV1> for GenericNoiseSquashingKeyV0 {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<NoiseSquashingKeyV1, Self::Error> {
+    fn upgrade(self) -> Result<GenericNoiseSquashingKeyV1, Self::Error> {
         let Self {
             bootstrapping_key,
             modulus_switch_noise_reduction_key,
@@ -50,7 +50,7 @@ impl Upgrade<NoiseSquashingKeyV1> for NoiseSquashingKeyV0 {
             output_ciphertext_modulus,
         } = self;
 
-        Ok(NoiseSquashingKeyV1 {
+        Ok(GenericNoiseSquashingKeyV1 {
             bootstrapping_key,
             modulus_switch_noise_reduction_key: modulus_switch_noise_reduction_key.map_or(
                 ModulusSwitchConfiguration::Standard,
@@ -68,7 +68,7 @@ impl Upgrade<NoiseSquashingKeyV1> for NoiseSquashingKeyV0 {
 }
 
 #[derive(Version)]
-pub struct NoiseSquashingKeyV1 {
+pub struct GenericNoiseSquashingKeyV1 {
     bootstrapping_key: Fourier128LweBootstrapKeyOwned,
     modulus_switch_noise_reduction_key: ModulusSwitchConfiguration<u64>,
     message_modulus: MessageModulus,
@@ -76,10 +76,10 @@ pub struct NoiseSquashingKeyV1 {
     output_ciphertext_modulus: CoreCiphertextModulus<u128>,
 }
 
-impl Upgrade<NoiseSquashingKeyV2> for NoiseSquashingKeyV1 {
+impl Upgrade<GenericNoiseSquashingKeyV2> for GenericNoiseSquashingKeyV1 {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<NoiseSquashingKeyV2, Self::Error> {
+    fn upgrade(self) -> Result<GenericNoiseSquashingKeyV2, Self::Error> {
         let Self {
             bootstrapping_key,
             modulus_switch_noise_reduction_key,
@@ -93,7 +93,7 @@ impl Upgrade<NoiseSquashingKeyV2> for NoiseSquashingKeyV1 {
             modulus_switch_noise_reduction_key,
         };
 
-        Ok(NoiseSquashingKeyV2 {
+        Ok(GenericNoiseSquashingKeyV2 {
             bootstrapping_key,
             message_modulus,
             carry_modulus,
@@ -103,14 +103,14 @@ impl Upgrade<NoiseSquashingKeyV2> for NoiseSquashingKeyV1 {
 }
 
 #[derive(Version)]
-pub struct NoiseSquashingKeyV2 {
+pub struct GenericNoiseSquashingKeyV2 {
     bootstrapping_key: Shortint128BootstrappingKey<u64>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     output_ciphertext_modulus: CoreCiphertextModulus<u128>,
 }
 
-impl<AP: 'static> Upgrade<GenericNoiseSquashingKey<AP>> for NoiseSquashingKeyV2 {
+impl<AP: 'static> Upgrade<GenericNoiseSquashingKey<AP>> for GenericNoiseSquashingKeyV2 {
     type Error = Error;
 
     fn upgrade(self) -> Result<GenericNoiseSquashingKey<AP>, Self::Error> {
@@ -146,10 +146,10 @@ Atomic Pattern"
 }
 
 #[derive(VersionsDispatch)]
-pub enum NoiseSquashingKeyVersions<AP> {
-    V0(NoiseSquashingKeyV0),
-    V1(NoiseSquashingKeyV1),
-    V2(NoiseSquashingKeyV2),
+pub enum GenericNoiseSquashingKeyVersions<AP> {
+    V0(GenericNoiseSquashingKeyV0),
+    V1(GenericNoiseSquashingKeyV1),
+    V2(GenericNoiseSquashingKeyV2),
     V3(GenericNoiseSquashingKey<AP>),
 }
 

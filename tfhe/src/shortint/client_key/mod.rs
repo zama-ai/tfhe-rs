@@ -12,7 +12,7 @@ use super::server_key::UnsupportedOperation;
 use super::{AtomicPatternParameters, PaddingBit, ShortintEncoding};
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::decrypt_lwe_ciphertext;
-use crate::shortint::backward_compatibility::client_key::ClientKeyVersions;
+use crate::shortint::backward_compatibility::client_key::GenericClientKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{DynamicDistribution, MessageModulus, ShortintParameterSet};
@@ -30,7 +30,7 @@ use std::fmt::{Debug, Display};
 ///   switching keys.
 /// * `parameters` - the cryptographic parameter set.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
-#[versionize(ClientKeyVersions)]
+#[versionize(GenericClientKeyVersions)]
 pub struct GenericClientKey<AP> {
     pub atomic_pattern: AP,
 }

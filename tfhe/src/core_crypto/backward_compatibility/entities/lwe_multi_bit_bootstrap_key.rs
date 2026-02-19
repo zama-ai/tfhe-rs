@@ -36,6 +36,6 @@ pub enum FourierLweMultiBitBootstrapKeyVersions<C: Container<Element = c64>> {
 }
 
 #[derive(VersionsDispatch)]
-pub enum Fourier128MultiBitLweBootstrapKeyVersions<C: Container<Element = f64>> {
+pub enum Fourier128LweMultiBitBootstrapKeyVersions<C: Container<Element = f64>> {
     V0(Fourier128LweMultiBitBootstrapKey<C>),
 }
