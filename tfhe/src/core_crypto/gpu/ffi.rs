@@ -1,3 +1,4 @@
+#![deny(clippy::cast_possible_truncation)]
 use super::{CudaStreams, PBSMSNoiseReductionType};
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaModulusSwitchNoiseReductionConfiguration;
 use crate::core_crypto::gpu::vec::CudaVec;
@@ -49,10 +50,10 @@ pub unsafe fn programmable_bootstrap<T: UnsignedInteger>(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
         std::ptr::addr_of_mut!(pbs_buffer),
-        lwe_dimension.0 as u32,
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        level.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(level.0).unwrap(),
         num_samples,
         true,
         noise_reduction_type as u32,
@@ -69,11 +70,11 @@ pub unsafe fn programmable_bootstrap<T: UnsignedInteger>(
         lwe_in_indexes.as_c_ptr(0),
         bootstrapping_key.as_c_ptr(0),
         pbs_buffer,
-        lwe_dimension.0 as u32,
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        base_log.0 as u32,
-        level.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(base_log.0).unwrap(),
+        u32::try_from(level.0).unwrap(),
         num_samples,
         num_many_lut,
         lut_stride,
@@ -106,10 +107,10 @@ pub fn get_programmable_bootstrap_size_on_gpu(
             streams.ptr[0],
             streams.gpu_indexes[0].get(),
             std::ptr::addr_of_mut!(pbs_buffer),
-            lwe_dimension.0 as u32,
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            level.0 as u32,
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(level.0).unwrap(),
             num_samples,
             false,
             noise_reduction_type as u32,
@@ -160,10 +161,10 @@ pub unsafe fn programmable_bootstrap_128<T: UnsignedInteger>(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
         std::ptr::addr_of_mut!(pbs_buffer),
-        lwe_dimension.0 as u32,
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        level.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(level.0).unwrap(),
         num_samples,
         true,
         noise_reduction_type as u32,
@@ -177,11 +178,11 @@ pub unsafe fn programmable_bootstrap_128<T: UnsignedInteger>(
         lwe_array_in.as_c_ptr(0),
         bootstrapping_key.as_c_ptr(0),
         pbs_buffer,
-        lwe_dimension.0 as u32,
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        base_log.0 as u32,
-        level.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(base_log.0).unwrap(),
+        u32::try_from(level.0).unwrap(),
         num_samples,
     );
 
@@ -225,9 +226,9 @@ pub unsafe fn programmable_bootstrap_multi_bit<T: UnsignedInteger, B: Any + Unsi
             streams.ptr[0],
             streams.gpu_indexes[0].get(),
             std::ptr::addr_of_mut!(pbs_buffer),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            level.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(level.0).unwrap(),
             num_samples,
             true,
         );
@@ -241,12 +242,12 @@ pub unsafe fn programmable_bootstrap_multi_bit<T: UnsignedInteger, B: Any + Unsi
             input_indexes.as_c_ptr(0),
             bootstrapping_key.as_c_ptr(0),
             pbs_buffer,
-            lwe_dimension.0 as u32,
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            grouping_factor.0 as u32,
-            base_log.0 as u32,
-            level.0 as u32,
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
+            u32::try_from(base_log.0).unwrap(),
+            u32::try_from(level.0).unwrap(),
             num_samples,
             num_many_lut,
             lut_stride,
@@ -261,9 +262,9 @@ pub unsafe fn programmable_bootstrap_multi_bit<T: UnsignedInteger, B: Any + Unsi
             streams.ptr[0],
             streams.gpu_indexes[0].get(),
             std::ptr::addr_of_mut!(pbs_buffer),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            level.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(level.0).unwrap(),
             num_samples,
             true,
         );
@@ -278,12 +279,12 @@ pub unsafe fn programmable_bootstrap_multi_bit<T: UnsignedInteger, B: Any + Unsi
             input_indexes.as_c_ptr(0),
             bootstrapping_key.as_c_ptr(0),
             pbs_buffer,
-            lwe_dimension.0 as u32,
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            grouping_factor.0 as u32,
-            base_log.0 as u32,
-            level.0 as u32,
+            u32::try_from(lwe_dimension.0).unwrap(),
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(grouping_factor.0).unwrap(),
+            u32::try_from(base_log.0).unwrap(),
+            u32::try_from(level.0).unwrap(),
             num_samples,
             num_many_lut,
             lut_stride,
@@ -312,9 +313,9 @@ pub fn get_programmable_bootstrap_multi_bit_size_on_gpu(
             streams.ptr[0],
             streams.gpu_indexes[0].get(),
             std::ptr::addr_of_mut!(pbs_buffer),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            level.0 as u32,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
+            u32::try_from(level.0).unwrap(),
             num_samples,
             false,
         )
@@ -362,8 +363,8 @@ pub unsafe fn keyswitch_gemm<T: UnsignedInteger, KST: UnsignedInteger>(
             streams.ptr[0],
             streams.gpu_indexes[0].get(),
             std::ptr::addr_of_mut!(ks_tmp_buffer),
-            input_lwe_dimension.0 as u32,
-            output_lwe_dimension.0 as u32,
+            u32::try_from(input_lwe_dimension.0).unwrap(),
+            u32::try_from(output_lwe_dimension.0).unwrap(),
             num_samples,
             true,
         );
@@ -375,10 +376,10 @@ pub unsafe fn keyswitch_gemm<T: UnsignedInteger, KST: UnsignedInteger>(
             lwe_array_in.as_c_ptr(0),
             lwe_in_indexes.as_c_ptr(0),
             keyswitch_key.as_c_ptr(0),
-            input_lwe_dimension.0 as u32,
-            output_lwe_dimension.0 as u32,
-            base_log.0 as u32,
-            l_gadget.0 as u32,
+            u32::try_from(input_lwe_dimension.0).unwrap(),
+            u32::try_from(output_lwe_dimension.0).unwrap(),
+            u32::try_from(base_log.0).unwrap(),
+            u32::try_from(l_gadget.0).unwrap(),
             num_samples,
             ks_tmp_buffer,
             uses_trivial_indices,
@@ -394,8 +395,8 @@ pub unsafe fn keyswitch_gemm<T: UnsignedInteger, KST: UnsignedInteger>(
             streams.ptr[0],
             streams.gpu_indexes[0].get(),
             std::ptr::addr_of_mut!(ks_tmp_buffer),
-            input_lwe_dimension.0 as u32,
-            output_lwe_dimension.0 as u32,
+            u32::try_from(input_lwe_dimension.0).unwrap(),
+            u32::try_from(output_lwe_dimension.0).unwrap(),
             num_samples,
             true,
         );
@@ -407,10 +408,10 @@ pub unsafe fn keyswitch_gemm<T: UnsignedInteger, KST: UnsignedInteger>(
             lwe_array_in.as_c_ptr(0),
             lwe_in_indexes.as_c_ptr(0),
             keyswitch_key.as_c_ptr(0),
-            input_lwe_dimension.0 as u32,
-            output_lwe_dimension.0 as u32,
-            base_log.0 as u32,
-            l_gadget.0 as u32,
+            u32::try_from(input_lwe_dimension.0).unwrap(),
+            u32::try_from(output_lwe_dimension.0).unwrap(),
+            u32::try_from(base_log.0).unwrap(),
+            u32::try_from(l_gadget.0).unwrap(),
             num_samples,
             ks_tmp_buffer,
             uses_trivial_indices,
@@ -457,10 +458,10 @@ pub unsafe fn keyswitch_async<T: UnsignedInteger, KT: UnsignedInteger>(
             lwe_array_in.as_c_ptr(0),
             lwe_in_indexes.as_c_ptr(0),
             keyswitch_key.as_c_ptr(0),
-            input_lwe_dimension.0 as u32,
-            output_lwe_dimension.0 as u32,
-            base_log.0 as u32,
-            l_gadget.0 as u32,
+            u32::try_from(input_lwe_dimension.0).unwrap(),
+            u32::try_from(output_lwe_dimension.0).unwrap(),
+            u32::try_from(base_log.0).unwrap(),
+            u32::try_from(l_gadget.0).unwrap(),
             num_samples,
         );
     } else if TypeId::of::<KT>() == TypeId::of::<u64>() {
@@ -472,10 +473,10 @@ pub unsafe fn keyswitch_async<T: UnsignedInteger, KT: UnsignedInteger>(
             lwe_array_in.as_c_ptr(0),
             lwe_in_indexes.as_c_ptr(0),
             keyswitch_key.as_c_ptr(0),
-            input_lwe_dimension.0 as u32,
-            output_lwe_dimension.0 as u32,
-            base_log.0 as u32,
-            l_gadget.0 as u32,
+            u32::try_from(input_lwe_dimension.0).unwrap(),
+            u32::try_from(output_lwe_dimension.0).unwrap(),
+            u32::try_from(base_log.0).unwrap(),
+            u32::try_from(l_gadget.0).unwrap(),
             num_samples,
         );
     } else {
@@ -524,10 +525,10 @@ pub unsafe fn packing_keyswitch_list_64<T: UnsignedInteger>(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
         std::ptr::addr_of_mut!(fp_ks_buffer),
-        input_lwe_dimension.0 as u32,
-        output_glwe_dimension.0 as u32,
-        output_polynomial_size.0 as u32,
-        num_lwes.0 as u32,
+        u32::try_from(input_lwe_dimension.0).unwrap(),
+        u32::try_from(output_glwe_dimension.0).unwrap(),
+        u32::try_from(output_polynomial_size.0).unwrap(),
+        u32::try_from(num_lwes.0).unwrap(),
         true,
     );
     cuda_packing_keyswitch_lwe_list_to_glwe_64_async(
@@ -537,12 +538,12 @@ pub unsafe fn packing_keyswitch_list_64<T: UnsignedInteger>(
         lwe_array_in.as_c_ptr(0),
         packing_keyswitch_key.as_c_ptr(0),
         fp_ks_buffer,
-        input_lwe_dimension.0 as u32,
-        output_glwe_dimension.0 as u32,
-        output_polynomial_size.0 as u32,
-        base_log.0 as u32,
-        l_gadget.0 as u32,
-        num_lwes.0 as u32,
+        u32::try_from(input_lwe_dimension.0).unwrap(),
+        u32::try_from(output_glwe_dimension.0).unwrap(),
+        u32::try_from(output_polynomial_size.0).unwrap(),
+        u32::try_from(base_log.0).unwrap(),
+        u32::try_from(l_gadget.0).unwrap(),
+        u32::try_from(num_lwes.0).unwrap(),
     );
     cleanup_cuda_packing_keyswitch_lwe_list_to_glwe_64(
         streams.ptr[0],
@@ -578,10 +579,10 @@ pub unsafe fn packing_keyswitch_list_128<T: UnsignedInteger>(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
         std::ptr::addr_of_mut!(fp_ks_buffer),
-        input_lwe_dimension.0 as u32,
-        output_glwe_dimension.0 as u32,
-        output_polynomial_size.0 as u32,
-        num_lwes.0 as u32,
+        u32::try_from(input_lwe_dimension.0).unwrap(),
+        u32::try_from(output_glwe_dimension.0).unwrap(),
+        u32::try_from(output_polynomial_size.0).unwrap(),
+        u32::try_from(num_lwes.0).unwrap(),
         true,
     );
     cuda_packing_keyswitch_lwe_list_to_glwe_128_async(
@@ -591,12 +592,12 @@ pub unsafe fn packing_keyswitch_list_128<T: UnsignedInteger>(
         lwe_array_in.as_c_ptr(0),
         packing_keyswitch_key.as_c_ptr(0),
         fp_ks_buffer,
-        input_lwe_dimension.0 as u32,
-        output_glwe_dimension.0 as u32,
-        output_polynomial_size.0 as u32,
-        base_log.0 as u32,
-        l_gadget.0 as u32,
-        num_lwes.0 as u32,
+        u32::try_from(input_lwe_dimension.0).unwrap(),
+        u32::try_from(output_glwe_dimension.0).unwrap(),
+        u32::try_from(output_polynomial_size.0).unwrap(),
+        u32::try_from(base_log.0).unwrap(),
+        u32::try_from(l_gadget.0).unwrap(),
+        u32::try_from(num_lwes.0).unwrap(),
     );
     cleanup_cuda_packing_keyswitch_lwe_list_to_glwe_128(
         streams.ptr[0],
@@ -627,23 +628,23 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
             cuda_convert_lwe_programmable_bootstrap_key_128_async(
                 stream_ptr,
                 streams.gpu_indexes[i].get(),
-                dest.as_mut_c_ptr(i as u32),
+                dest.as_mut_c_ptr(u32::try_from(i).unwrap()),
                 src.as_ptr().cast(),
-                input_lwe_dim.0 as u32,
-                glwe_dim.0 as u32,
-                l_gadget.0 as u32,
-                polynomial_size.0 as u32,
+                u32::try_from(input_lwe_dim.0).unwrap(),
+                u32::try_from(glwe_dim.0).unwrap(),
+                u32::try_from(l_gadget.0).unwrap(),
+                u32::try_from(polynomial_size.0).unwrap(),
             );
         } else if size_of::<T>() == 8 {
             cuda_convert_lwe_programmable_bootstrap_key_64_async(
                 stream_ptr,
                 streams.gpu_indexes[i].get(),
-                dest.as_mut_c_ptr(i as u32),
+                dest.as_mut_c_ptr(u32::try_from(i).unwrap()),
                 src.as_ptr().cast(),
-                input_lwe_dim.0 as u32,
-                glwe_dim.0 as u32,
-                l_gadget.0 as u32,
-                polynomial_size.0 as u32,
+                u32::try_from(input_lwe_dim.0).unwrap(),
+                u32::try_from(glwe_dim.0).unwrap(),
+                u32::try_from(l_gadget.0).unwrap(),
+                u32::try_from(polynomial_size.0).unwrap(),
             );
         } else {
             panic!("Unsupported torus size for bsk conversion")
@@ -676,25 +677,25 @@ pub unsafe fn convert_lwe_multi_bit_programmable_bootstrap_key_async<T: Any + Un
             cuda_convert_lwe_multi_bit_programmable_bootstrap_key_128_async(
                 stream_ptr,
                 streams.gpu_indexes[i].get(),
-                dest.as_mut_c_ptr(i as u32),
+                dest.as_mut_c_ptr(u32::try_from(i).unwrap()),
                 src.as_ptr().cast(),
-                input_lwe_dim.0 as u32,
-                glwe_dim.0 as u32,
-                l_gadget.0 as u32,
-                polynomial_size.0 as u32,
-                grouping_factor.0 as u32,
+                u32::try_from(input_lwe_dim.0).unwrap(),
+                u32::try_from(glwe_dim.0).unwrap(),
+                u32::try_from(l_gadget.0).unwrap(),
+                u32::try_from(polynomial_size.0).unwrap(),
+                u32::try_from(grouping_factor.0).unwrap(),
             );
         } else if TypeId::of::<T>() == TypeId::of::<u64>() {
             cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64_async(
                 stream_ptr,
                 streams.gpu_indexes[i].get(),
-                dest.as_mut_c_ptr(i as u32),
+                dest.as_mut_c_ptr(u32::try_from(i).unwrap()),
                 src.as_ptr().cast(),
-                input_lwe_dim.0 as u32,
-                glwe_dim.0 as u32,
-                l_gadget.0 as u32,
-                polynomial_size.0 as u32,
-                grouping_factor.0 as u32,
+                u32::try_from(input_lwe_dim.0).unwrap(),
+                u32::try_from(glwe_dim.0).unwrap(),
+                u32::try_from(l_gadget.0).unwrap(),
+                u32::try_from(polynomial_size.0).unwrap(),
+                u32::try_from(grouping_factor.0).unwrap(),
             );
         } else {
             panic!("Unsupported torus size for bsk conversion")
@@ -713,7 +714,8 @@ pub unsafe fn extract_lwe_samples_from_glwe_ciphertext_list_async<T: UnsignedInt
     glwe_array_in: &CudaVec<T>,
     nth_array: &CudaVec<u32>,
     num_nths: u32,
-    lwe_per_glwe: u32,
+    num_lwes_to_extract_per_glwe: u32,
+    num_lwes_stored_per_glwe: u32,
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
 ) {
@@ -725,9 +727,10 @@ pub unsafe fn extract_lwe_samples_from_glwe_ciphertext_list_async<T: UnsignedInt
             glwe_array_in.as_c_ptr(0),
             nth_array.as_c_ptr(0).cast::<u32>(),
             num_nths,
-            lwe_per_glwe,
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
+            num_lwes_to_extract_per_glwe,
+            num_lwes_stored_per_glwe,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
         );
     } else if size_of::<T>() == 8 {
         cuda_glwe_sample_extract_64_async(
@@ -737,9 +740,10 @@ pub unsafe fn extract_lwe_samples_from_glwe_ciphertext_list_async<T: UnsignedInt
             glwe_array_in.as_c_ptr(0),
             nth_array.as_c_ptr(0).cast::<u32>(),
             num_nths,
-            lwe_per_glwe,
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
+            num_lwes_to_extract_per_glwe,
+            num_lwes_stored_per_glwe,
+            u32::try_from(glwe_dimension.0).unwrap(),
+            u32::try_from(polynomial_size.0).unwrap(),
         );
     } else {
         panic!("Unsupported torus size for glwe sample extraction")
@@ -761,7 +765,7 @@ pub unsafe fn cuda_modulus_switch_ciphertext_async<T: UnsignedInteger>(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
         lwe_array_out.as_mut_c_ptr(0),
-        lwe_array_out.len() as u32,
+        u32::try_from(lwe_array_out.len()).unwrap(),
         log_modulus,
     );
 }
@@ -806,7 +810,7 @@ pub unsafe fn add_lwe_ciphertext_vector_async<T: UnsignedInteger>(
         noise_levels: output_noise_levels_vec.as_mut_ptr(),
         num_radix_blocks: num_samples,
         max_num_radix_blocks: num_samples,
-        lwe_dimension: lwe_dimension.0 as u32,
+        lwe_dimension: u32::try_from(lwe_dimension.0).unwrap(),
     };
     let lwe_array_in_1_data = CudaRadixCiphertextFFI {
         ptr: lwe_array_in_1.get_mut_c_ptr(0),
@@ -814,7 +818,7 @@ pub unsafe fn add_lwe_ciphertext_vector_async<T: UnsignedInteger>(
         noise_levels: input_1_noise_levels_vec.as_mut_ptr(),
         num_radix_blocks: num_samples,
         max_num_radix_blocks: num_samples,
-        lwe_dimension: lwe_dimension.0 as u32,
+        lwe_dimension: u32::try_from(lwe_dimension.0).unwrap(),
     };
     let lwe_array_in_2_data = CudaRadixCiphertextFFI {
         ptr: lwe_array_in_2.get_mut_c_ptr(0),
@@ -822,7 +826,7 @@ pub unsafe fn add_lwe_ciphertext_vector_async<T: UnsignedInteger>(
         noise_levels: input_2_noise_levels_vec.as_mut_ptr(),
         num_radix_blocks: num_samples,
         max_num_radix_blocks: num_samples,
-        lwe_dimension: lwe_dimension.0 as u32,
+        lwe_dimension: u32::try_from(lwe_dimension.0).unwrap(),
     };
     cuda_add_lwe_ciphertext_vector_64(
         streams.ptr[0],
@@ -857,7 +861,7 @@ pub unsafe fn add_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
         noise_levels: output_noise_levels_vec.as_mut_ptr(),
         num_radix_blocks: num_samples,
         max_num_radix_blocks: num_samples,
-        lwe_dimension: lwe_dimension.0 as u32,
+        lwe_dimension: u32::try_from(lwe_dimension.0).unwrap(),
     };
     let lwe_array_in_data = CudaRadixCiphertextFFI {
         ptr: lwe_array_in.get_mut_c_ptr(0),
@@ -865,7 +869,7 @@ pub unsafe fn add_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
         noise_levels: input_noise_levels_vec.as_mut_ptr(),
         num_radix_blocks: num_samples,
         max_num_radix_blocks: num_samples,
-        lwe_dimension: lwe_dimension.0 as u32,
+        lwe_dimension: u32::try_from(lwe_dimension.0).unwrap(),
     };
     cuda_add_lwe_ciphertext_vector_64(
         streams.ptr[0],
@@ -897,7 +901,7 @@ pub unsafe fn add_lwe_ciphertext_vector_plaintext_vector_async<T: UnsignedIntege
         lwe_array_out.as_mut_c_ptr(0),
         lwe_array_in.as_c_ptr(0),
         plaintext_in.as_c_ptr(0),
-        lwe_dimension.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
         num_samples,
     );
 }
@@ -923,7 +927,7 @@ pub unsafe fn add_lwe_ciphertext_vector_plaintext_scalar_async<T: UnsignedIntege
         lwe_array_out.as_mut_c_ptr(0),
         lwe_array_in.as_c_ptr(0),
         plaintext_in,
-        lwe_dimension.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
         num_samples,
     );
 }
@@ -948,7 +952,7 @@ pub unsafe fn add_lwe_ciphertext_vector_plaintext_vector_assign_async<T: Unsigne
         lwe_array_out.as_mut_c_ptr(0),
         lwe_array_out.as_c_ptr(0),
         plaintext_in.as_c_ptr(0),
-        lwe_dimension.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
         num_samples,
     );
 }
@@ -972,7 +976,7 @@ pub unsafe fn negate_lwe_ciphertext_vector_async<T: UnsignedInteger>(
         streams.gpu_indexes[0].get(),
         lwe_array_out.as_mut_c_ptr(0),
         lwe_array_in.as_c_ptr(0),
-        lwe_dimension.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
         num_samples,
     );
 }
@@ -995,7 +999,7 @@ pub unsafe fn negate_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
         streams.gpu_indexes[0].get(),
         lwe_array_out.as_mut_c_ptr(0),
         lwe_array_out.as_c_ptr(0),
-        lwe_dimension.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
         num_samples,
     );
 }
@@ -1020,7 +1024,7 @@ pub unsafe fn mult_lwe_ciphertext_vector_cleartext_vector_assign_async<T: Unsign
         lwe_array.as_mut_c_ptr(0),
         lwe_array.as_c_ptr(0),
         cleartext_array_in.as_c_ptr(0),
-        lwe_dimension.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
         num_samples,
     );
 }
@@ -1047,7 +1051,7 @@ pub unsafe fn mult_lwe_ciphertext_vector_cleartext_vector<T: UnsignedInteger>(
         lwe_array_out.as_mut_c_ptr(0),
         lwe_array_in.as_c_ptr(0),
         cleartext_array_in.as_c_ptr(0),
-        lwe_dimension.0 as u32,
+        u32::try_from(lwe_dimension.0).unwrap(),
         num_samples,
     );
 }
@@ -1158,10 +1162,10 @@ pub fn get_packing_keyswitch_list_64_size_on_gpu(
             streams.ptr[0],
             streams.gpu_indexes[0].get(),
             std::ptr::addr_of_mut!(fp_ks_buffer),
-            input_lwe_dimension.0 as u32,
-            output_glwe_dimension.0 as u32,
-            output_polynomial_size.0 as u32,
-            num_lwes.0 as u32,
+            u32::try_from(input_lwe_dimension.0).unwrap(),
+            u32::try_from(output_glwe_dimension.0).unwrap(),
+            u32::try_from(output_polynomial_size.0).unwrap(),
+            u32::try_from(num_lwes.0).unwrap(),
             false,
         )
     };
