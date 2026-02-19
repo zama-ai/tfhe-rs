@@ -1,0 +1,84 @@
+warning: Invalid variant for dispatch enum BadVariantVersions
+  --> $DIR/main.rs:101:5
+   |
+LL |     First(BadVariantV0),
+   |     ^^^^^ help: Consider renaming it to: `V0`
+   |
+   = note: Variants should be named V0, V1, ... and defined in order
+   = note: If you want to ignore this rule, you can add `#[cfg_attr(dylint_lib = "tfhe_lints", allow(invalid_dispatch_enum))]` to the enum definition
+   = note: `#[warn(invalid_versionize_dispatch)]` on by default
+
+warning: Invalid variant for dispatch enum BadVariantVersions
+  --> $DIR/main.rs:102:5
+   |
+LL |     Second(BadVariant),
+   |     ^^^^^^ help: Consider renaming it to: `V1`
+   |
+   = note: Variants should be named V0, V1, ... and defined in order
+   = note: If you want to ignore this rule, you can add `#[cfg_attr(dylint_lib = "tfhe_lints", allow(invalid_dispatch_enum))]` to the enum definition
+
+warning: Invalid variant for dispatch enum BadInnerVariantNameVersions
+  --> $DIR/main.rs:108:8
+   |
+LL |     V0(BadVariantV0),
+   |        ^^^^^^^^^^^^ help: Consider renaming it to: `BadInnerVariantNameV0`
+   |
+   = note: The inner type of all variants except the last should be named like the enum without the 'Versions' suffix followed by a version suffix, i.e. BadInnerVariantNameV0
+   = note: If you want to ignore this rule, you can add `#[cfg_attr(dylint_lib = "tfhe_lints", allow(invalid_dispatch_enum))]` to the enum definition
+
+warning: Invalid variant for dispatch enum BadInnerVariantNameVersions
+  --> $DIR/main.rs:109:8
+   |
+LL |     V1(BadVariant),
+   |        ^^^^^^^^^^ help: Consider renaming it to: `BadInnerVariantName`
+   |
+   = note: The inner type of the last variant should be named like the enum without the 'Versions' suffix, i.e. BadInnerVariantName
+   = note: If you want to ignore this rule, you can add `#[cfg_attr(dylint_lib = "tfhe_lints", allow(invalid_dispatch_enum))]` to the enum definition
+
+warning: Enum BadVer should end with 'Versions'
+  --> $DIR/main.rs:114:6
+   |
+LL | enum BadVer {
+   |      ^^^^^^ help: Consider renaming it to: `BadVersions`
+   |
+   = note: This is a convention to easily identify dispatch enums
+   = note: If you want to ignore this rule, you can add `#[cfg_attr(dylint_lib = "tfhe_lints", allow(invalid_dispatch_enum))]` to the enum definition
+
+warning: Invalid variant for dispatch enum WrongOrderVersions<F>
+  --> $DIR/main.rs:122:5
+   |
+LL |     V1(WrongOrderV0),
+   |     ^^ help: Consider renaming it to: `V0`
+   |
+   = note: Variants should be named V0, V1, ... and defined in order
+   = note: If you want to ignore this rule, you can add `#[cfg_attr(dylint_lib = "tfhe_lints", allow(invalid_dispatch_enum))]` to the enum definition
+
+warning: Invalid variant for dispatch enum WrongOrderVersions<F>
+  --> $DIR/main.rs:123:5
+   |
+LL |     V0(WrongOrder<F>),
+   |     ^^ help: Consider renaming it to: `V1`
+   |
+   = note: Variants should be named V0, V1, ... and defined in order
+   = note: If you want to ignore this rule, you can add `#[cfg_attr(dylint_lib = "tfhe_lints", allow(invalid_dispatch_enum))]` to the enum definition
+
+warning: Invalid variant for dispatch enum WrongInnerVariantOrderVersions
+  --> $DIR/main.rs:129:8
+   |
+LL |     V0(WrongOrder<u32>),
+   |        ^^^^^^^^^^ help: Consider renaming it to: `WrongInnerVariantOrderV0`
+   |
+   = note: The inner type of all variants except the last should be named like the enum without the 'Versions' suffix followed by a version suffix, i.e. WrongInnerVariantOrderV0
+   = note: If you want to ignore this rule, you can add `#[cfg_attr(dylint_lib = "tfhe_lints", allow(invalid_dispatch_enum))]` to the enum definition
+
+warning: Invalid variant for dispatch enum WrongInnerVariantOrderVersions
+  --> $DIR/main.rs:130:8
+   |
+LL |     V1(WrongOrderV0),
+   |        ^^^^^^^^^^^^ help: Consider renaming it to: `WrongInnerVariantOrder`
+   |
+   = note: The inner type of the last variant should be named like the enum without the 'Versions' suffix, i.e. WrongInnerVariantOrder
+   = note: If you want to ignore this rule, you can add `#[cfg_attr(dylint_lib = "tfhe_lints", allow(invalid_dispatch_enum))]` to the enum definition
+
+warning: 9 warnings emitted
+
