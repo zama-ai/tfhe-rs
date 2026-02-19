@@ -1,12 +1,5 @@
-use crate::high_level_api::bench_wait::BenchWait;
-use crate::high_level_api::benchmark_op::BenchmarkOp;
 use cpu_time::ProcessTime;
-use criterion::black_box;
-use rand::thread_rng;
-use rayon::prelude::*;
 use std::time::{Duration, Instant};
-use tfhe::prelude::FheWait;
-use tfhe::ClientKey;
 
 struct MeasureConfig {
     pub target_ratio: f64,
@@ -29,28 +22,17 @@ impl MeasureConfig {
 }
 
 #[inline(never)]
-fn measure_batch<FheType, Op>(
-    op: &Op,
-    client_key: &ClientKey,
-    batch: usize,
+fn measure_batch<F, S, R>(
+    run: F,
+    setup: S,
+    batch_size: usize,
     minimum_time_per_batch: Duration,
 ) -> (f64, Duration)
 where
-    Op: BenchmarkOp<FheType> + Sync,
-    FheType: FheWait + Send + Sync,
+    F: Fn(&R, usize) + Sync,
+    S: Fn(usize) -> R,
 {
-    let inputs = (0..batch)
-        .into_par_iter()
-        .map(|_| op.setup_inputs(client_key, &mut thread_rng()))
-        .collect::<Vec<_>>();
-
-    let run = || {
-        inputs.par_iter().take(batch).for_each(|input| {
-            let res = op.execute(input);
-            res.wait_bench();
-            black_box(res);
-        });
-    };
+    let input = setup(batch_size);
 
     // The method to compute CPU usage is based on the ratio between CPU time and wall-clock time.
     // During the function’s execution, this allows us to determine the optimal batch size.
@@ -59,7 +41,7 @@ where
     // At least run for 3 seconds (like warmup time of criterion) to get a stable measurement,
     // especially for smaller batches like add or gt for example
     while wall_start.elapsed() < minimum_time_per_batch {
-        run();
+        run(&input, batch_size);
     }
     let wall = wall_start.elapsed();
     let cpu = cpu_start.elapsed();
@@ -68,10 +50,10 @@ where
 }
 
 #[inline(never)]
-pub fn find_optimal_batch<FheType, Op>(op: &Op, client_key: &ClientKey) -> usize
+pub fn find_optimal_batch<F, S, R>(run: F, setup: S) -> usize
 where
-    Op: BenchmarkOp<FheType> + Sync,
-    FheType: FheWait + Send + Sync,
+    F: Fn(&R, usize) + Sync + Clone,
+    S: Fn(usize) -> R + Clone,
 {
     let cores = num_cpus::get() as f64;
     let measure_config = MeasureConfig::default();
@@ -86,8 +68,12 @@ where
     let mut last_usage = 0.0;
 
     loop {
-        let (usage, duration) =
-            measure_batch(op, client_key, high, measure_config.minimum_time_per_batch);
+        let (usage, duration) = measure_batch(
+            run.clone(),
+            setup.clone(),
+            high,
+            measure_config.minimum_time_per_batch,
+        );
 
         println!(
             "Batch {:>4} → {:.2}% CPU in {:?}",

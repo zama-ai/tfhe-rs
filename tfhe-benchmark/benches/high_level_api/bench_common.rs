@@ -133,7 +133,20 @@ pub fn bench_fhe_type_op<FheType, Op>(
                 #[cfg(not(any(feature = "gpu", feature = "hpu")))]
                 {
                     use benchmark::high_level_api::find_optimal_batch::find_optimal_batch;
-                    find_optimal_batch(&op, client_key) as u64
+                    let setup = |batch_size: usize| {
+                        (0..batch_size)
+                            .into_par_iter()
+                            .map(|_| op.setup_inputs(client_key, &mut thread_rng()))
+                            .collect::<Vec<_>>()
+                    };
+                    let run = |inputs: &Vec<_>, batch_size: usize| {
+                        inputs.par_iter().take(batch_size).for_each(|input| {
+                            let res = op.execute(input);
+                            res.wait_bench();
+                            black_box(res);
+                        });
+                    };
+                    find_optimal_batch(run, setup) as u64
                 }
             } else {
                 0
