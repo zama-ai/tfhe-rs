@@ -1,6 +1,6 @@
 use super::fourier_lwe_multi_bit_bootstrap_key_size;
 use crate::conformance::ParameterSetConformant;
-use crate::core_crypto::backward_compatibility::entities::lwe_multi_bit_bootstrap_key::Fourier128MultiBitLweBootstrapKeyVersions;
+use crate::core_crypto::backward_compatibility::entities::lwe_multi_bit_bootstrap_key::Fourier128LweMultiBitBootstrapKeyVersions;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweBskGroupingFactor, LweDimension,
     PolynomialSize,
@@ -14,7 +14,7 @@ use aligned_vec::{avec, ABox};
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
-#[versionize(Fourier128MultiBitLweBootstrapKeyVersions)]
+#[versionize(Fourier128LweMultiBitBootstrapKeyVersions)]
 pub struct Fourier128LweMultiBitBootstrapKey<C: Container<Element = f64>> {
     data_re0: C,
     data_re1: C,

@@ -13,13 +13,13 @@ use crate::shortint::ShortintParameterSet;
 use crate::Error;
 
 #[derive(Version)]
-pub struct ClientKeyV0 {
+pub struct GenericClientKeyV0 {
     glwe_secret_key: GlweSecretKeyOwned<u64>,
     lwe_secret_key: LweSecretKeyOwned<u64>,
     parameters: ShortintParameterSet,
 }
 
-impl<AP: 'static> Upgrade<GenericClientKey<AP>> for ClientKeyV0 {
+impl<AP: 'static> Upgrade<GenericClientKey<AP>> for GenericClientKeyV0 {
     type Error = Error;
 
     fn upgrade(self) -> Result<GenericClientKey<AP>, Self::Error> {
@@ -61,7 +61,7 @@ Atomic Pattern"
 }
 
 #[derive(VersionsDispatch)]
-pub enum ClientKeyVersions<AP> {
-    V0(ClientKeyV0),
+pub enum GenericClientKeyVersions<AP> {
+    V0(GenericClientKeyV0),
     V1(GenericClientKey<AP>),
 }
