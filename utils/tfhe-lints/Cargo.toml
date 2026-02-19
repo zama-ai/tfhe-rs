@@ -26,5 +26,10 @@ name = "serialize_without_versionize"
 path = "tests/serialize_without_versionize/main.rs"
 
 [[example]]
-name = "versions_variants_order"
-path = "tests/versions_variants_order/main.rs"
+name = "invalid_versionize_dispatch"
+path = "tests/invalid_versionize_dispatch/main.rs"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(dylint_lib, values(any()))',
+] }
