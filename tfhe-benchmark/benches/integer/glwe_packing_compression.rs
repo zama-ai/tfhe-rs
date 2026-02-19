@@ -1,6 +1,7 @@
 use benchmark::params_aliases::*;
 use benchmark::utilities::{
-    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, OperatorType,
+    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, BitSizesSet, EnvConfig,
+    OperatorType,
 };
 use criterion::{black_box, criterion_group, Criterion, Throughput};
 use rayon::prelude::*;
@@ -8,7 +9,34 @@ use std::cmp::max;
 use tfhe::integer::ciphertext::CompressedCiphertextListBuilder;
 use tfhe::integer::{ClientKey, RadixCiphertext};
 use tfhe::keycache::NamedParam;
+use tfhe::shortint::parameters::LweCiphertextCount;
+use tfhe::shortint::MessageModulus;
 use tfhe::{get_pbs_count, reset_pbs_count};
+
+fn default_config(
+    lwe_per_glwe: &LweCiphertextCount,
+    message_modulus: &MessageModulus,
+) -> Vec<usize> {
+    let env_config = EnvConfig::new();
+
+    match env_config.bit_sizes_set {
+        BitSizesSet::Fast => {
+            vec![64]
+        }
+        _ => {
+            vec![
+                2,
+                8,
+                16,
+                32,
+                64,
+                128,
+                256,
+                lwe_per_glwe.0 * message_modulus.0.ilog2() as usize,
+            ]
+        }
+    }
+}
 
 fn cpu_glwe_packing(c: &mut Criterion) {
     let bench_name = "integer::packing_compression";
@@ -29,16 +57,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
 
     let log_message_modulus = param.message_modulus.0.ilog2() as usize;
 
-    for bit_size in [
-        2,
-        8,
-        16,
-        32,
-        64,
-        128,
-        256,
-        comp_param.lwe_per_glwe().0 * log_message_modulus,
-    ] {
+    for bit_size in default_config(&comp_param.lwe_per_glwe(), &param.message_modulus) {
         assert_eq!(bit_size % log_message_modulus, 0);
         let num_blocks = bit_size / log_message_modulus;
 
@@ -481,8 +500,6 @@ mod cuda {
         let cks = ClientKey::new(param);
         let private_compression_key = cks.new_compression_private_key(comp_param);
 
-        let log_message_modulus = param.message_modulus().0.ilog2() as usize;
-
         let mut config = BenchConfig {
             param,
             comp_param,
@@ -490,16 +507,7 @@ mod cuda {
             private_compression_key,
             bit_size: 0,
         };
-        for bit_size in [
-            2,
-            8,
-            16,
-            32,
-            64,
-            128,
-            256,
-            comp_param.lwe_per_glwe().0 * log_message_modulus,
-        ] {
+        for bit_size in default_config(&comp_param.lwe_per_glwe(), &param.message_modulus()) {
             config.bit_size = bit_size;
             execute_gpu_glwe_packing(c, config.clone());
         }
@@ -520,8 +528,6 @@ mod cuda {
             ),
         };
 
-        let log_message_modulus = param.message_modulus().0.ilog2() as usize;
-
         let cks = ClientKey::new(param);
         let private_compression_key = cks.new_compression_private_key(comp_param);
 
@@ -532,16 +538,7 @@ mod cuda {
             cks,
             private_compression_key,
         };
-        for bit_size in [
-            2,
-            8,
-            16,
-            32,
-            64,
-            128,
-            256,
-            comp_param.lwe_per_glwe().0 * log_message_modulus,
-        ] {
+        for bit_size in default_config(&comp_param.lwe_per_glwe(), &param.message_modulus()) {
             config.bit_size = bit_size;
             execute_gpu_glwe_unpacking(c, config.clone());
         }

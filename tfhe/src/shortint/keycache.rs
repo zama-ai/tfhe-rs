@@ -466,6 +466,7 @@ fn ks_params_default_name(params: &ShortintKeySwitchingParameters) -> String {
 
 named_params_impl!(CompressionParameters =>
     COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    V1_6_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     ; fallback => comp_params_default_name
 );
 
