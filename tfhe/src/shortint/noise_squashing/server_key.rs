@@ -16,7 +16,7 @@ use crate::core_crypto::prelude::{
 };
 use crate::shortint::atomic_pattern::AtomicPatternParameters;
 use crate::shortint::backward_compatibility::noise_squashing::{
-    NoiseSquashingKeyVersions, Shortint128BootstrappingKeyVersions,
+    GenericNoiseSquashingKeyVersions, Shortint128BootstrappingKeyVersions,
 };
 use crate::shortint::ciphertext::{Ciphertext, SquashedNoiseCiphertext};
 use crate::shortint::client_key::ClientKey;
@@ -245,7 +245,7 @@ where
 
 /// A server key that can be used for any noise squashing atomic patterns
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Versionize)]
-#[versionize(NoiseSquashingKeyVersions)]
+#[versionize(GenericNoiseSquashingKeyVersions)]
 pub struct GenericNoiseSquashingKey<AP> {
     atomic_pattern: AP,
     message_modulus: MessageModulus,
