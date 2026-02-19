@@ -3,6 +3,7 @@ use std::sync::{Arc, OnceLock};
 use rustc_hir::def_id::DefId;
 use rustc_hir::{Impl, Item, ItemKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
+use rustc_session::{declare_lint, impl_lint_pass};
 
 use crate::utils::{get_def_id_from_ty, is_allowed_lint, symbols_list_from_str};
 
@@ -37,7 +38,7 @@ impl SerializeWithoutVersionizeInner {
 #[derive(Default, Clone)]
 pub struct SerializeWithoutVersionize(pub Arc<SerializeWithoutVersionizeInner>);
 
-dylint_linting::impl_late_lint! {
+declare_lint! {
     /// ### What it does
     /// For every type that implements `Serialize`, checks that it also implement `Versionize`
     ///
@@ -58,9 +59,10 @@ dylint_linting::impl_late_lint! {
     /// ```
     pub SERIALIZE_WITHOUT_VERSIONIZE,
     Warn,
-    "Detects types that implement Serialize without implementing Versionize",
-    SerializeWithoutVersionize::default()
+    "Detects types that implement Serialize without implementing Versionize"
 }
+
+impl_lint_pass!(SerializeWithoutVersionize => [SERIALIZE_WITHOUT_VERSIONIZE]);
 
 impl<'tcx> LateLintPass<'tcx> for SerializeWithoutVersionize {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'_>) {
@@ -128,5 +130,5 @@ impl<'tcx> LateLintPass<'tcx> for SerializeWithoutVersionize {
 
 #[test]
 fn ui() {
-    dylint_testing::ui_test_example(env!("CARGO_PKG_NAME"), "ui");
+    dylint_testing::ui_test_example(env!("CARGO_PKG_NAME"), "serialize_without_versionize");
 }

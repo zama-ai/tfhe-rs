@@ -4,16 +4,17 @@ version = "0.1.0"
 description = "Project specific lints for TFHE-rs"
 edition = "2021"
 publish = false
+autotests = false
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-clippy_utils = { git = "https://github.com/rust-lang/rust-clippy", rev = "c936595d17413c1f08e162e117e504fb4ed126e4" }
-dylint_linting = "4.1.0"
+clippy_utils = { git = "https://github.com/rust-lang/rust-clippy", rev = "54482290b5f32e6c6b57cc9e0a17153f432b0036" }
+dylint_linting = "5.0.0"
 
 [dev-dependencies]
-dylint_testing = "4.1.0"
+dylint_testing = "5.0.0"
 serde = { version = "1.0", features = ["derive"] }
 tfhe-versionable = { version = "0.7.0", path = "../tfhe-versionable" }
 
@@ -21,5 +22,9 @@ tfhe-versionable = { version = "0.7.0", path = "../tfhe-versionable" }
 rustc_private = true
 
 [[example]]
-name = "ui"
-path = "ui/main.rs"
+name = "serialize_without_versionize"
+path = "tests/serialize_without_versionize/main.rs"
+
+[[example]]
+name = "versions_variants_order"
+path = "tests/versions_variants_order/main.rs"
