@@ -2,7 +2,7 @@
 
 use crate::backward_compatibility::pke::{
     CompressedComputeLoadProofFieldsVersions, CompressedProofVersions,
-    ComputeLoadProofFieldVersions, ProofVersions,
+    ComputeLoadProofFieldsVersions, ProofVersions,
 };
 use crate::serialization::{
     InvalidSerializedAffineError, InvalidSerializedPublicParamsError, SerializableGroupElements,
@@ -330,7 +330,7 @@ impl<G: Curve> Proof<G> {
     deserialize = "G: Curve, G::G1: serde::Deserialize<'de>, G::G2: serde::Deserialize<'de>",
     serialize = "G: Curve, G::G1: serde::Serialize, G::G2: serde::Serialize"
 ))]
-#[versionize(ComputeLoadProofFieldVersions)]
+#[versionize(ComputeLoadProofFieldsVersions)]
 pub(crate) struct ComputeLoadProofFields<G: Curve> {
     pub(crate) c_hat_t: G::G2,
     pub(crate) c_h: G::G1,
