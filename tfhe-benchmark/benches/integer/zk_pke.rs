@@ -41,7 +41,7 @@ fn default_proof_config() -> Vec<ProofConfig> {
 
     if let Ok(val) = env::var("__TFHE_RS_BENCH_OP_FLAVOR").as_deref() {
         match val.to_lowercase().as_str() {
-            "fast_default" | "fast" => return vec![ProofConfig::new(2048, &[64, 4 * 64])],
+            "fast_default" | "fast" => return vec![ProofConfig::new(2048, &[64])],
             _ => (),
         }
     };
