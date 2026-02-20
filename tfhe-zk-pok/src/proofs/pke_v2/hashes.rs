@@ -337,13 +337,13 @@ struct RInputs<'a> {
     mode: PkeV2HashMode,
 }
 
-pub(super) struct RHash<'a> {
+pub(crate) struct RHash<'a> {
     R_inputs: RInputs<'a>,
     R_bytes: Box<[u8]>,
 }
 
 impl<'a> RHash<'a> {
-    pub(super) fn new<G: Curve>(
+    pub(crate) fn new<G: Curve>(
         public: (&'a PublicParams<G>, &PublicCommit<G>),
         metadata: &'a [u8],
         C_hat_e_bytes: &'a [u8],
@@ -502,7 +502,7 @@ impl<'a> RHash<'a> {
         ]
     }
 
-    pub(super) fn gen_phi<Zp: FieldOps>(self, C_R_bytes: &'a [u8]) -> ([Zp; 128], PhiHash<'a>) {
+    pub(crate) fn gen_phi<Zp: FieldOps>(self, C_R_bytes: &'a [u8]) -> ([Zp; 128], PhiHash<'a>) {
         let mode = self.R_inputs.mode;
         let phi_inputs = PhiInputs { C_R_bytes };
 
@@ -526,7 +526,7 @@ struct PhiInputs<'a> {
     C_R_bytes: &'a [u8],
 }
 
-pub(super) struct PhiHash<'a> {
+pub(crate) struct PhiHash<'a> {
     R_inputs: RInputs<'a>,
     R_bytes: Box<[u8]>,
     phi_inputs: PhiInputs<'a>,
@@ -572,7 +572,7 @@ impl<'a> PhiHash<'a> {
         }
     }
 
-    pub(super) fn gen_xi<Zp: FieldOps>(self, C_hat_bin_bytes: &'a [u8]) -> ([Zp; 128], XiHash<'a>) {
+    pub(crate) fn gen_xi<Zp: FieldOps>(self, C_hat_bin_bytes: &'a [u8]) -> ([Zp; 128], XiHash<'a>) {
         let mode = self.R_inputs.mode;
         let xi_inputs = XiInputs { C_hat_bin_bytes };
 
@@ -598,7 +598,7 @@ struct XiInputs<'a> {
     C_hat_bin_bytes: &'a [u8],
 }
 
-pub(super) struct XiHash<'a> {
+pub(crate) struct XiHash<'a> {
     R_inputs: RInputs<'a>,
     R_bytes: Box<[u8]>,
     phi_inputs: PhiInputs<'a>,
@@ -650,7 +650,7 @@ impl<'a> XiHash<'a> {
         }
     }
 
-    pub(super) fn gen_y<Zp: FieldOps>(self) -> (Vec<Zp>, YHash<'a>) {
+    pub(crate) fn gen_y<Zp: FieldOps>(self) -> (Vec<Zp>, YHash<'a>) {
         let mode = self.R_inputs.mode;
 
         let mut y = vec![Zp::ZERO; self.R_inputs.D + 128 * self.R_inputs.m];
@@ -671,7 +671,7 @@ impl<'a> XiHash<'a> {
     }
 }
 
-pub(super) struct YHash<'a> {
+pub(crate) struct YHash<'a> {
     R_inputs: RInputs<'a>,
     R_bytes: Box<[u8]>,
     phi_inputs: PhiInputs<'a>,
@@ -729,7 +729,7 @@ impl<'a> YHash<'a> {
         }
     }
 
-    pub(super) fn gen_t<Zp: FieldOps>(self, C_y_bytes: &'a [u8]) -> (Vec<Zp>, THash<'a>) {
+    pub(crate) fn gen_t<Zp: FieldOps>(self, C_y_bytes: &'a [u8]) -> (Vec<Zp>, THash<'a>) {
         let mode = self.R_inputs.mode;
         let t_inputs = TInputs { C_y_bytes };
 
@@ -761,7 +761,7 @@ struct TInputs<'a> {
     C_y_bytes: &'a [u8],
 }
 
-pub(super) struct THash<'a> {
+pub(crate) struct THash<'a> {
     R_inputs: RInputs<'a>,
     R_bytes: Box<[u8]>,
     phi_inputs: PhiInputs<'a>,
@@ -825,7 +825,7 @@ impl<'a> THash<'a> {
         }
     }
 
-    pub(super) fn gen_theta<Zp: FieldOps>(self) -> (Vec<Zp>, ThetaHash<'a>) {
+    pub(crate) fn gen_theta<Zp: FieldOps>(self) -> (Vec<Zp>, ThetaHash<'a>) {
         let mode = self.R_inputs.mode;
 
         let mut theta = vec![Zp::ZERO; self.R_inputs.d + self.R_inputs.k];
@@ -849,7 +849,7 @@ impl<'a> THash<'a> {
     }
 }
 
-pub(super) struct ThetaHash<'a> {
+pub(crate) struct ThetaHash<'a> {
     R_inputs: RInputs<'a>,
     R_bytes: Box<[u8]>,
     phi_inputs: PhiInputs<'a>,
@@ -917,7 +917,7 @@ impl<'a> ThetaHash<'a> {
         }
     }
 
-    pub(super) fn gen_omega<Zp: FieldOps>(self) -> (Vec<Zp>, OmegaHash<'a>) {
+    pub(crate) fn gen_omega<Zp: FieldOps>(self) -> (Vec<Zp>, OmegaHash<'a>) {
         let mode = self.R_inputs.mode;
 
         let mut omega = vec![Zp::ZERO; self.R_inputs.n];
@@ -946,7 +946,7 @@ impl<'a> ThetaHash<'a> {
     }
 }
 
-pub(super) struct OmegaHash<'a> {
+pub(crate) struct OmegaHash<'a> {
     R_inputs: RInputs<'a>,
     R_bytes: Box<[u8]>,
     phi_inputs: PhiInputs<'a>,
@@ -1018,7 +1018,7 @@ impl<'a> OmegaHash<'a> {
         }
     }
 
-    pub(super) fn gen_delta<Zp: FieldOps>(self) -> ([Zp; 7], DeltaHash<'a>) {
+    pub(crate) fn gen_delta<Zp: FieldOps>(self) -> ([Zp; 7], DeltaHash<'a>) {
         let mut delta = [Zp::ZERO; 7];
 
         // Delta does not use the compact hash optimization
@@ -1048,7 +1048,7 @@ impl<'a> OmegaHash<'a> {
     }
 }
 
-pub(super) struct DeltaHash<'a> {
+pub(crate) struct DeltaHash<'a> {
     R_inputs: RInputs<'a>,
     R_bytes: Box<[u8]>,
     phi_inputs: PhiInputs<'a>,
@@ -1161,7 +1161,7 @@ impl<'a> DeltaHash<'a> {
         }
     }
 
-    pub(super) fn gen_z<Zp: FieldOps>(
+    pub(crate) fn gen_z<Zp: FieldOps>(
         self,
         C_h1_bytes: &'a [u8],
         C_h2_bytes: &'a [u8],
@@ -1210,7 +1210,7 @@ struct ZInputs<'a> {
     C_hat_omega_bytes: &'a [u8],
 }
 
-pub(super) struct ZHash<'a> {
+pub(crate) struct ZHash<'a> {
     R_inputs: RInputs<'a>,
     R_bytes: Box<[u8]>,
     phi_inputs: PhiInputs<'a>,
@@ -1351,7 +1351,7 @@ impl<'a> ZHash<'a> {
         }
     }
 
-    pub(super) fn gen_chi<Zp: FieldOps>(
+    pub(crate) fn gen_chi<Zp: FieldOps>(
         self,
         p_h1: Zp,
         p_h2: Zp,
