@@ -51,7 +51,12 @@ jobs:
         with:
           files_yaml: |
             gpu:
+              - tfhe/Cargo.toml
+              - tfhe/build.rs
               - backends/zk-cuda-backend/**
+              - tfhe/src/integer/gpu/zk/**
+              - tfhe-zk-pok/**
+              - 'tfhe/docs/**/**.md'
               - '.github/workflows/gpu_zk_tests.yml'
               - ci/slab.toml
 
@@ -126,6 +131,9 @@ jobs:
       - name: Run zk-cuda-backend integration tests
         run: |
           make test_zk_cuda_backend
+          make test_zk_pok_gpu
+          make test_integer_zk_gpu
+          make test_integer_zk_experimental_gpu
 
   slack-notify:
     name: gpu_zk_tests/slack-notify
