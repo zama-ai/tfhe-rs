@@ -1,6 +1,9 @@
 // to follow the notation of the paper
 #![allow(non_snake_case)]
 
+#[cfg(feature = "gpu-experimental")]
+pub mod gpu;
+
 use super::*;
 use crate::backward_compatibility::pke_v2::*;
 use crate::backward_compatibility::BoundVersions;
@@ -16,13 +19,13 @@ use core::marker::PhantomData;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
-mod hashes;
+pub(crate) mod hashes;
 
 use hashes::RHash;
 
 pub use hashes::*;
 
-fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
+pub(crate) fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
     (0..nbits).map(move |idx| ((x >> idx) & 1) != 0)
 }
 
@@ -436,7 +439,7 @@ pub(crate) struct ComputeLoadProofFields<G: Curve> {
 }
 
 impl<G: Curve> ComputeLoadProofFields<G> {
-    fn to_le_bytes(fields: &Option<Self>) -> (Box<[u8]>, Box<[u8]>) {
+    pub(crate) fn to_le_bytes(fields: &Option<Self>) -> (Box<[u8]>, Box<[u8]>) {
         if let Some(ComputeLoadProofFields { C_hat_h3, C_hat_w }) = fields.as_ref() {
             (
                 Box::from(G::G2::to_le_bytes(*C_hat_h3).as_ref()),
@@ -589,13 +592,13 @@ where
 #[derive(Clone, Debug)]
 pub struct PublicCommit<G: Curve> {
     /// Mask of the public key
-    a: Vec<i64>,
+    pub(crate) a: Vec<i64>,
     /// Body of the public key
-    b: Vec<i64>,
+    pub(crate) b: Vec<i64>,
     /// Mask of the ciphertexts
-    c1: Vec<i64>,
+    pub(crate) c1: Vec<i64>,
     /// Bodies of the ciphertexts
-    c2: Vec<i64>,
+    pub(crate) c2: Vec<i64>,
     __marker: PhantomData<G>,
 }
 
@@ -614,13 +617,13 @@ impl<G: Curve> PublicCommit<G> {
 #[derive(Clone, Debug)]
 pub struct PrivateCommit<G: Curve> {
     /// Public key sampling vector
-    r: Vec<i64>,
+    pub(crate) r: Vec<i64>,
     /// Error vector associated with the masks
-    e1: Vec<i64>,
+    pub(crate) e1: Vec<i64>,
     /// Input messages
-    m: Vec<i64>,
+    pub(crate) m: Vec<i64>,
     /// Error vector associated with the bodies
-    e2: Vec<i64>,
+    pub(crate) e2: Vec<i64>,
     __marker: PhantomData<G>,
 }
 
@@ -697,7 +700,7 @@ The computed m parameter is {m_bound} > 64. Please select a smaller B, d and/or 
 ///
 /// Use the relationship: `||x||_2 <= sqrt(dim)*||x||_inf`. Since we are only interested in the
 /// squared bound, we avoid the sqrt by returning dim*(||x||_inf)^2.
-fn inf_norm_bound_to_euclidean_squared(B_inf: u64, dim: usize) -> u128 {
+pub(crate) fn inf_norm_bound_to_euclidean_squared(B_inf: u64, dim: usize) -> u128 {
     let norm_squared = sqr(B_inf);
     norm_squared
         .checked_mul(dim as u128)
@@ -1812,7 +1815,7 @@ fn precompute_xi_powers<Zp: FieldOps>(xi: &[Zp; 128], m: usize) -> Box<[Zp]> {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn compute_a_theta<G: Curve>(
+pub(crate) fn compute_a_theta<G: Curve>(
     a_theta: &mut [G::Zp],
     theta: &[G::Zp],
     a: &[i64],
@@ -1931,23 +1934,23 @@ pub enum VerificationPairingMode {
     Batched,
 }
 
-struct GeneratedScalars<G: Curve> {
-    phi: [G::Zp; 128],
-    xi: [G::Zp; 128],
-    theta: Vec<G::Zp>,
-    omega: Vec<G::Zp>,
-    delta: [G::Zp; 7],
-    chi_powers: [G::Zp; 4],
-    z: G::Zp,
-    t_theta: G::Zp,
+pub(crate) struct GeneratedScalars<G: Curve> {
+    pub(crate) phi: [G::Zp; 128],
+    pub(crate) xi: [G::Zp; 128],
+    pub(crate) theta: Vec<G::Zp>,
+    pub(crate) omega: Vec<G::Zp>,
+    pub(crate) delta: [G::Zp; 7],
+    pub(crate) chi_powers: [G::Zp; 4],
+    pub(crate) z: G::Zp,
+    pub(crate) t_theta: G::Zp,
 }
 
-struct EvaluationPoints<G: Curve> {
-    p_h1: G::Zp,
-    p_h2: G::Zp,
-    p_h3: G::Zp,
-    p_t: G::Zp,
-    p_omega: G::Zp,
+pub(crate) struct EvaluationPoints<G: Curve> {
+    pub(crate) p_h1: G::Zp,
+    pub(crate) p_h2: G::Zp,
+    pub(crate) p_h3: G::Zp,
+    pub(crate) p_t: G::Zp,
+    pub(crate) p_omega: G::Zp,
 }
 
 #[allow(clippy::result_unit_err)]
@@ -2655,7 +2658,7 @@ fn pairing_check_batched<G: Curve>(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use crate::curve_api::{self, bls12_446};
 
     use super::super::test::*;
@@ -2667,7 +2670,7 @@ mod tests {
     type Curve = curve_api::Bls12_446;
 
     /// Compact key params used with pkev2
-    pub(super) const PKEV2_TEST_PARAMS: PkeTestParameters = PkeTestParameters {
+    pub(crate) const PKEV2_TEST_PARAMS: PkeTestParameters = PkeTestParameters {
         d: 2048,
         k: 320,
         B: 131072, // 2**17
