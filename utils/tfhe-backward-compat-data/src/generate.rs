@@ -321,6 +321,19 @@ pub const INSECURE_DEDICATED_CPK_TEST_PARAMS: TestCompactPublicKeyEncryptionPara
         zk_scheme: Cow::Borrowed("zkv2"),
     };
 
+pub const INSECURE_TEST_META_PARAMS: TestMetaParameters = TestMetaParameters {
+    compute_parameters: INSECURE_SMALL_TEST_PARAMS_MS_NOISE_REDUCTION,
+    dedicated_compact_public_key_parameters: Some(TestDedicatedCompactPublicKeyParameters {
+        pke_params: INSECURE_DEDICATED_CPK_TEST_PARAMS,
+        ksk_params: KS_TO_SMALL_TEST_PARAMS,
+        re_randomization_parameters: Some(KS_TO_BIG_TEST_PARAMS),
+    }),
+    compression_parameters: Some(VALID_TEST_PARAMS_TUNIFORM_COMPRESSION),
+    noise_squashing_parameters: Some(TestMetaNoiseSquashingParameters {
+        parameters: INSECURE_SMALL_TEST_NOISE_SQUASHING_PARAMS_MS_NOISE_REDUCTION,
+        compression_parameters: Some(TEST_PARAMS_NOISE_SQUASHING_COMPRESSION),
+    }),
+};
 pub fn save_cbor<Data: Serialize, P: AsRef<Path>>(msg: &Data, path: P) {
     let path = path.as_ref();
     if path.exists() {

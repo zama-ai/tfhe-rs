@@ -1215,7 +1215,7 @@ gen_backward_compat_data:
 # Instantiate a new backward data crate for the current TFHE-rs version, if it does not already exists
 .PHONY: new_backward_compat_crate
 new_backward_compat_crate:
-	cd $(BACKWARD_COMPAT_DATA_DIR) && cargo run -p add_new_version -- --tfhe-version $(CURRENT_TFHE_VERSION)
+	cd $(BACKWARD_COMPAT_DATA_DIR) && cargo run --manifest-path crates/add_new_version/Cargo.toml -- $(CURRENT_TFHE_VERSION)
 
 .PHONY: test_backward_compatibility_ci
 test_backward_compatibility_ci:

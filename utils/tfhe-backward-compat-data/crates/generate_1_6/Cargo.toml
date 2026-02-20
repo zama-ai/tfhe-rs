@@ -1,0 +1,32 @@
+[package]
+name = "generate_1_6"
+edition = "2024"
+version = "0.9.0"
+license = "BSD-3-Clause-Clear"
+
+[workspace]
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+
+# TFHE-rs
+tfhe = { features = [
+    "boolean",
+    "integer",
+    "shortint",
+    "zk-pok",
+    "experimental-force_fft_algo_dif4",
+], path = "../../../../tfhe" }
+tfhe-versionable = { path = "../../../tfhe-versionable" }
+
+# Uncomment this and remove the lines above once the current tfhe-rs version has been released
+# tfhe = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.6.0", features = [
+#     "boolean",
+#     "integer",
+#     "shortint",
+#     "zk-pok",
+#     "experimental-force_fft_algo_dif4",
+# ] }
+# tfhe-versionable = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.6.0" }
+
+tfhe-backward-compat-data = { path = "../.." }
