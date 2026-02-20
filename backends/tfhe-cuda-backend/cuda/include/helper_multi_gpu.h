@@ -9,8 +9,11 @@
 extern std::mutex m;
 extern bool p2p_enabled;
 extern const int THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS;
-extern const int THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS;
 extern const int THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128;
+
+// Returns the threshold for multi-GPU with classical params.
+// Computed once based on GPU 0's compute capability and SM count.
+int get_threshold_multi_gpu_classical();
 // Define a variant type that can be either a vector or a single pointer
 template <typename Torus>
 using LweArrayVariant = std::variant<std::vector<Torus *>, Torus *>;
