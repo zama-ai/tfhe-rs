@@ -1,3 +1,6 @@
+#[cfg(feature = "gpu-experimental")]
+pub mod gpu;
+
 // TODO: refactor copy-pasted code in proof/verify
 
 use crate::backward_compatibility::pke::{
@@ -15,7 +18,7 @@ use core::marker::PhantomData;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
-fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
+pub(crate) fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
     (0..nbits).map(move |idx| ((x >> idx) & 1) != 0)
 }
 
@@ -441,10 +444,10 @@ where
 
 #[derive(Clone, Debug)]
 pub struct PublicCommit<G: Curve> {
-    a: Vec<i64>,
-    b: Vec<i64>,
-    c1: Vec<i64>,
-    c2: Vec<i64>,
+    pub(crate) a: Vec<i64>,
+    pub(crate) b: Vec<i64>,
+    pub(crate) c1: Vec<i64>,
+    pub(crate) c2: Vec<i64>,
     __marker: PhantomData<G>,
 }
 
@@ -462,10 +465,10 @@ impl<G: Curve> PublicCommit<G> {
 
 #[derive(Clone, Debug)]
 pub struct PrivateCommit<G: Curve> {
-    r: Vec<i64>,
-    e1: Vec<i64>,
-    m: Vec<i64>,
-    e2: Vec<i64>,
+    pub(crate) r: Vec<i64>,
+    pub(crate) e1: Vec<i64>,
+    pub(crate) m: Vec<i64>,
+    pub(crate) e2: Vec<i64>,
     __marker: PhantomData<G>,
 }
 
@@ -932,7 +935,7 @@ fn prove_impl<G: Curve>(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn compute_a_theta<G: Curve>(
+pub(crate) fn compute_a_theta<G: Curve>(
     theta0: &[G::Zp],
     d: usize,
     a: &[i64],
@@ -1353,7 +1356,7 @@ pub fn verify<G: Curve>(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use crate::curve_api::{self, bls12_446};
 
     use super::super::test::*;
@@ -1364,7 +1367,7 @@ mod tests {
     type Curve = curve_api::Bls12_446;
 
     /// Compact key params used with pkev1
-    pub(super) const PKEV1_TEST_PARAMS: PkeTestParameters = PkeTestParameters {
+    pub(crate) const PKEV1_TEST_PARAMS: PkeTestParameters = PkeTestParameters {
         d: 1024,
         k: 320,
         B: 4398046511104, // 2**42

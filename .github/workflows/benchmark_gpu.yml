@@ -31,6 +31,8 @@ on:
           - pbs128
           - ks
           - ks_pbs
+          - tfhe_zk_pok
+          - msm_zk
           - integer_zk
           - integer_aes
           - integer_aes256
