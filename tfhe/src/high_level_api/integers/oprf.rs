@@ -826,7 +826,10 @@ mod test {
         use crate::core_crypto::gpu::get_number_of_gpus;
         use crate::prelude::check_valid_cuda_malloc_assert_oom;
         use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        use crate::{ClientKey, CompressedServerKey, FheInt128, FheUint32, FheUint64, GpuIndex};
+        use crate::{
+            unset_server_key, ClientKey, CompressedServerKey, FheInt128, FheUint32, FheUint64,
+            GpuIndex,
+        };
         use rayon::iter::IndexedParallelIterator;
         use rayon::prelude::{IntoParallelRefIterator, ParallelSlice};
         use rayon::ThreadPoolBuilder;
@@ -899,6 +902,7 @@ mod test {
                     let idx: Vec<usize> = (0..sample_count).collect();
                     let pool = ThreadPoolBuilder::new()
                         .num_threads(8 * num_gpus)
+                        .exit_handler(|_| unset_server_key())
                         .build()
                         .unwrap();
                     let real_values: Vec<u64> = pool.install(|| {
