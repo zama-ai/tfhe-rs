@@ -6,15 +6,50 @@
 
 std::mutex m;
 bool p2p_enabled = false;
+// The thresholds for multi-gpu were calculated based on performance
+// measurements. For multi-bit the threshold is determined by the keybundle
+// scaling, because the blind rotation scales perfectly until spreads over all
+// the SMs. For classical the threshold depends only on the number of SMs, so we
+// calculate it with a function. For pbs 128 classical we need a different
+// threshold because the parameters are different and spread over the SMs 4.5x
+// faster than the 2_2 params.
 const int THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS = 12;
-const int THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS = 68;
 const int THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128 = 12;
+
+// Returns the threshold for multi-GPU with classical params.
+// Computed once based on GPU 0's compute capability and SM count.
+// We are assuming that 2_2 params are going to be used.
+int get_threshold_multi_gpu_classical() {
+  static int threshold = -1;
+  static std::once_flag init_flag;
+
+  std::call_once(init_flag, []() {
+    cudaDeviceProp deviceProp;
+    check_cuda_error(cudaGetDeviceProperties(&deviceProp, 0));
+    int num_sms = deviceProp.multiProcessorCount;
+    int major = deviceProp.major;
+    int minor = deviceProp.minor;
+
+    // For cc70 and cc80 we can scale up to the number of SMs
+    // because the default specialized pbs is triggered
+    // for other compute capabilities each lwe use 2 SMs, so we can only scale
+    // up to half the number of SMs the +2 is added so the multi-gpu is enabled
+    // only when we have more than the number of SMs.
+    if ((major == 7 && minor == 0) || (major == 8 && minor == 0)) {
+      threshold = num_sms + 2;
+    } else {
+      threshold = num_sms / 2 + 2;
+    }
+  });
+
+  return threshold;
+}
 
 uint32_t get_active_gpu_count(uint32_t num_inputs, uint32_t gpu_count,
                               PBS_TYPE pbs_type) {
   int threshold = (pbs_type == MULTI_BIT)
                       ? THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS
-                      : THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS;
+                      : get_threshold_multi_gpu_classical();
   uint32_t ceil_div_inputs =
       std::max((uint32_t)1, CEIL_DIV(num_inputs, (uint32_t)threshold));
   uint32_t active_gpu_count = std::min(ceil_div_inputs, gpu_count);
