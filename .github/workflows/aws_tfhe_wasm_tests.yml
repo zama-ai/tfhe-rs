@@ -27,9 +27,49 @@ permissions:
 # zizmor: ignore[concurrency-limits] concurrency is managed after instance setup to ensure safe provisioning
 
 jobs:
+  should-run:
+    name: aws_tfhe_wasm_tests/should-run
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.label.name, 'approved')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read  # Needed to check for file change
+    outputs:
+      wasm_test: ${{ github.event_name == 'workflow_dispatch' ||
+          steps.changed-files.outputs.wasm_any_changed }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          persist-credentials: 'false'
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      - name: Check for file changes
+        id: changed-files
+        uses: tj-actions/changed-files@e0021407031f5be11a464abee9a0776171c79891 # v47.0.1
+        with:
+          files_yaml: |
+            wasm:
+                - Cargo.toml
+                - tfhe/Cargo.toml
+                - tfhe-csprng/**
+                - tfhe-fft/**
+                - tfhe-zk-pok/**
+                - tfhe/src/core_crypto/**
+                - tfhe/src/shortint/**
+                - tfhe/src/integer/**
+                - tfhe/src/high_level_api/**
+                - tfhe/src/js_on_wasm_api/**
+                - tfhe/js_on_wasm_tests/**
+                - tfhe/web_wasm_parallel_tests/**
+                - utils/tfhe-versionable/**
+                - .github/workflows/aws_tfhe_wasm_tests.yml
+
   wasm-tests:
     name: aws_tfhe_wasm_tests/wasm-tests
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.label.name, 'approved') }}
+    needs: should-run
+    if: github.event_name == 'workflow_dispatch' ||
+      (contains(github.event.label.name, 'approved') && needs.should-run.outputs.wasm_test == 'true')
     concurrency:
       group: ${{ github.workflow_ref }}_${{github.event_name}}
       cancel-in-progress: true
