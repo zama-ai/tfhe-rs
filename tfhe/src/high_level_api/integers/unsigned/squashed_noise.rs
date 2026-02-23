@@ -122,6 +122,7 @@ impl InnerSquashedNoiseRadixCiphertext {
             }
         }
     }
+
     fn current_device(&self) -> crate::Device {
         match self {
             Self::Cpu(_) => crate::Device::Cpu,
