@@ -48,20 +48,20 @@ pub struct Proof<G: Curve> {
     pi: G::G1,
 }
 
-pub fn crs_gen<G: Curve>(message_len: usize, rng: &mut dyn RngCore) -> PublicParams<G> {
+pub fn crs_gen<G: Curve>(message_len: usize, rng: &mut impl RngExt) -> PublicParams<G> {
     let alpha = G::Zp::rand(rng);
     PublicParams {
         g_lists: GroupElements::new(message_len, alpha),
-        hash: core::array::from_fn(|_| rng.gen()),
-        hash_t: core::array::from_fn(|_| rng.gen()),
-        hash_agg: core::array::from_fn(|_| rng.gen()),
+        hash: core::array::from_fn(|_| rng.random()),
+        hash_t: core::array::from_fn(|_| rng.random()),
+        hash_agg: core::array::from_fn(|_| rng.random()),
     }
 }
 
 pub fn commit<G: Curve>(
     message: &[u64],
     public: &PublicParams<G>,
-    rng: &mut dyn RngCore,
+    rng: &mut impl RngExt,
 ) -> (PublicCommit<G>, PrivateCommit<G>) {
     let g_hat = G::G2::GENERATOR;
     let n = message.len();
@@ -91,7 +91,7 @@ pub fn commit<G: Curve>(
 pub fn prove<G: Curve>(
     public: (&PublicParams<G>, &PublicCommit<G>),
     private_commit: &PrivateCommit<G>,
-    rng: &mut dyn RngCore,
+    rng: &mut impl RngExt,
 ) -> Proof<G> {
     let n = private_commit.message.len();
     let g = G::G1::GENERATOR;

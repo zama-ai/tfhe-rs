@@ -22,7 +22,7 @@ fn write_result(file: &mut File, name: &str, value: usize) {
 }
 
 pub fn ct_sizes(results_file: &Path) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     File::create(results_file).expect("create results file failed");
     let mut file = OpenOptions::new()
@@ -172,7 +172,7 @@ pub fn ct_sizes(results_file: &Path) {
 pub fn cpk_and_cctl_sizes(results_file: &Path) {
     const NB_CTXT: usize = 5;
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     File::create(results_file).expect("create results file failed");
     let mut file = OpenOptions::new()

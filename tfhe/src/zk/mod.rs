@@ -9,7 +9,7 @@ use crate::named::Named;
 #[cfg(feature = "shortint")]
 use crate::shortint::parameters::CompactPublicKeyEncryptionParameters;
 use backward_compatibility::*;
-use rand_core::RngCore;
+use rand_core::Rng;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::Bound;
@@ -520,7 +520,7 @@ impl CompactPkeCrs {
         ciphertext_modulus: CiphertextModulus<Scalar>,
         plaintext_modulus: Scalar,
         msbs_zero_padding_bit_count: ZkMSBZeroPaddingBitCount,
-        rng: &mut impl RngCore,
+        rng: &mut impl Rng,
     ) -> crate::Result<Self>
     where
         Scalar: UnsignedInteger + CastInto<u64> + Debug,
@@ -555,7 +555,7 @@ impl CompactPkeCrs {
         ciphertext_modulus: CiphertextModulus<Scalar>,
         plaintext_modulus: Scalar,
         msbs_zero_padding_bit_count: ZkMSBZeroPaddingBitCount,
-        rng: &mut impl RngCore,
+        rng: &mut impl Rng,
     ) -> crate::Result<Self>
     where
         Scalar: UnsignedInteger + CastInto<u64> + Debug,
@@ -901,7 +901,7 @@ mod test {
         bad_params.carry_modulus = CarryModulus(8);
         bad_params.message_modulus = MessageModulus(8);
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let crs = CompactPkeCrs::new(
             params.encryption_lwe_dimension,
@@ -934,7 +934,7 @@ mod test {
     fn test_crs_serialization() {
         let params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let crs = CompactPkeCrs::new(
             params.encryption_lwe_dimension,

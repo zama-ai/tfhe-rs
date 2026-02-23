@@ -1466,7 +1466,7 @@ mod tests {
     fn test_arihtmetic_shr_split_u128() {
         use rand::prelude::*;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for _ in 0..1000 {
             let positive = rng.gen_range(0i128..=i128::MAX);
             let negative = rng.gen_range(i128::MIN..0);
@@ -1506,7 +1506,7 @@ mod tests {
             return;
         };
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for _ in 0..1000 {
             for shift in 0..63 {
                 let shift = [shift as u64; 4];

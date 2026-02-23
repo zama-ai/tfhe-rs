@@ -163,7 +163,7 @@ fn test_compact_public_key_small_gpu() {
 fn test_gpu_get_add_sub_size_on_gpu() {
     for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
         let client_key = setup_fn();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let clear_a = rng.gen_range(1..=i32::MAX);
         let clear_b = rng.gen_range(1..=i32::MAX);
         let mut a = FheInt32::try_encrypt(clear_a, &client_key).unwrap();
@@ -193,7 +193,7 @@ fn test_gpu_get_add_sub_size_on_gpu() {
 fn test_gpu_get_bitops_size_on_gpu() {
     for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
         let client_key = setup_fn();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let clear_a = rng.gen_range(1..=i32::MAX);
         let clear_b = rng.gen_range(1..=i32::MAX);
         let mut a = FheInt32::try_encrypt(clear_a, &client_key).unwrap();
@@ -223,7 +223,7 @@ fn test_gpu_get_bitops_size_on_gpu() {
 fn test_gpu_get_comparisons_size_on_gpu() {
     for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
         let client_key = setup_fn();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let clear_a = rng.gen_range(1..=i32::MAX);
         let clear_b = rng.gen_range(1..=i32::MAX);
         let mut a = FheInt32::try_encrypt(clear_a, &client_key).unwrap();
@@ -272,7 +272,7 @@ fn test_gpu_get_comparisons_size_on_gpu() {
 fn test_gpu_get_shift_rotate_size_on_gpu() {
     for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
         let client_key = setup_fn();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let clear_a = rng.gen_range(1..=i32::MAX);
         let clear_b = rng.gen_range(1..=u32::MAX);
         let mut a = FheInt32::try_encrypt(clear_a, &client_key).unwrap();
@@ -305,7 +305,7 @@ fn test_gpu_get_shift_rotate_size_on_gpu() {
 fn test_gpu_get_if_then_else_size_on_gpu() {
     for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
         let client_key = setup_fn();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let clear_a = rng.gen_range(1..=i32::MAX);
         let clear_b = rng.gen_range(1..=i32::MAX);
         let clear_c = rng.gen_range(0..=1);
@@ -329,7 +329,7 @@ fn test_gpu_get_if_then_else_size_on_gpu() {
 fn test_gpu_get_mul_size_on_gpu() {
     for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
         let client_key = setup_fn();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let clear_a = rng.gen_range(1..=i32::MAX);
         let clear_b = rng.gen_range(1..=i32::MAX);
         let mut a = FheInt32::try_encrypt(clear_a, &client_key).unwrap();
@@ -349,7 +349,7 @@ fn test_gpu_get_mul_size_on_gpu() {
 fn test_gpu_get_div_size_on_gpu() {
     for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
         let client_key = setup_fn();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let clear_a = rng.gen_range(1..=i32::MAX);
         let clear_b = rng.gen_range(1..=i32::MAX);
         let mut a = FheInt32::try_encrypt(clear_a, &client_key).unwrap();

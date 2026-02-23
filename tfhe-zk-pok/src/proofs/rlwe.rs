@@ -97,7 +97,7 @@ pub fn crs_gen<G: Curve>(
     big_m: usize,
     b_i: u64,
     q: u64,
-    rng: &mut dyn RngCore,
+    rng: &mut impl RngExt,
 ) -> PublicParams<G> {
     let alpha = G::Zp::rand(rng);
     let b_r = ((d * big_m) as u64 * b_i) / 2;
@@ -110,12 +110,12 @@ pub fn crs_gen<G: Curve>(
         big_m,
         b_i,
         q,
-        hash: core::array::from_fn(|_| rng.gen()),
-        hash_t: core::array::from_fn(|_| rng.gen()),
-        hash_agg: core::array::from_fn(|_| rng.gen()),
-        hash_lmap: core::array::from_fn(|_| rng.gen()),
-        hash_z: core::array::from_fn(|_| rng.gen()),
-        hash_w: core::array::from_fn(|_| rng.gen()),
+        hash: core::array::from_fn(|_| rng.random()),
+        hash_t: core::array::from_fn(|_| rng.random()),
+        hash_agg: core::array::from_fn(|_| rng.random()),
+        hash_lmap: core::array::from_fn(|_| rng.random()),
+        hash_z: core::array::from_fn(|_| rng.random()),
+        hash_w: core::array::from_fn(|_| rng.random()),
     }
 }
 
@@ -190,7 +190,7 @@ pub fn commit<G: Curve>(
     c: Vector<i64>,
     s: Vector<i64>,
     public: &PublicParams<G>,
-    rng: &mut dyn RngCore,
+    rng: &mut impl RngExt,
 ) -> (PublicCommit<G>, PrivateCommit<G>) {
     let _ = (public, rng);
     (
@@ -210,7 +210,7 @@ pub fn prove<G: Curve>(
     public: (&PublicParams<G>, &PublicCommit<G>),
     private_commit: &PrivateCommit<G>,
     load: ComputeLoad,
-    rng: &mut dyn RngCore,
+    rng: &mut impl RngExt,
 ) -> Proof<G> {
     let &PublicParams {
         ref g_lists,
@@ -932,7 +932,7 @@ pub fn verify<G: Curve>(
 mod tests {
     use super::*;
     use rand::rngs::StdRng;
-    use rand::{Rng, SeedableRng};
+    use rand::{RngExt, SeedableRng};
 
     fn time<R>(f: impl FnOnce() -> R) -> R {
         let time = std::time::Instant::now();
@@ -957,14 +957,14 @@ mod tests {
 
         for i in 0..big_m {
             for k in 0..d {
-                s[i + 1][k] = (rng.gen::<u64>() % (2 * b_i)) as i64 - b_i as i64;
+                s[i + 1][k] = (rng.random::<u64>() % (2 * b_i)) as i64 - b_i as i64;
             }
         }
 
         for i in 0..big_m {
             for j in 0..big_n {
                 for k in 0..d {
-                    let mut x = (rng.gen::<u64>() % q) as i64;
+                    let mut x = (rng.random::<u64>() % q) as i64;
                     if x >= q as i64 / 2 {
                         x -= q as i64;
                     }

@@ -4,7 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use serde::Serialize;
 use tfhe_zk_pok::proofs::pke::{commit, crs_gen, PrivateCommit, PublicCommit, PublicParams};
 
@@ -229,27 +229,27 @@ impl PkeTestcase {
 
         let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
 
-        let a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
+        let a = (0..d).map(|_| rng.random::<i64>()).collect::<Vec<_>>();
 
         let s = (0..d)
-            .map(|_| (rng.gen::<u64>() % 2) as i64)
+            .map(|_| (rng.random::<u64>() % 2) as i64)
             .collect::<Vec<_>>();
 
         let e = (0..d)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+            .map(|_| (rng.random::<u64>() % (2 * B)) as i64 - B as i64)
             .collect::<Vec<_>>();
         let e1 = (0..d)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+            .map(|_| (rng.random::<u64>() % (2 * B)) as i64 - B as i64)
             .collect::<Vec<_>>();
         let e2 = (0..k)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+            .map(|_| (rng.random::<u64>() % (2 * B)) as i64 - B as i64)
             .collect::<Vec<_>>();
 
         let r = (0..d)
-            .map(|_| (rng.gen::<u64>() % 2) as i64)
+            .map(|_| (rng.random::<u64>() % 2) as i64)
             .collect::<Vec<_>>();
         let m = (0..k)
-            .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64)
+            .map(|_| (rng.random::<u64>() % effective_cleartext_t) as i64)
             .collect::<Vec<_>>();
         let b = polymul_rev(&a, &s)
             .into_iter()
@@ -258,7 +258,7 @@ impl PkeTestcase {
             .collect::<Vec<_>>();
 
         let mut metadata = [0u8; METADATA_LEN];
-        metadata.fill_with(|| rng.gen::<u8>());
+        metadata.fill_with(|| rng.random::<u8>());
 
         Self {
             a,

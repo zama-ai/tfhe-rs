@@ -56,7 +56,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
@@ -109,7 +109,7 @@ where
 
     let mut clear;
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for num_blocks in 1..MAX_NB_CTXT {
         // message_modulus^vec_length
@@ -157,7 +157,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 

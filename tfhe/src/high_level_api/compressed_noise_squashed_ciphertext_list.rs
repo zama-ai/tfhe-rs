@@ -647,7 +647,7 @@ mod tests {
 
         let (cks, sks) = generate_keys(config);
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let clear_a = rng.gen::<i32>();
         let clear_b = rng.gen::<u32>();
@@ -708,7 +708,7 @@ mod tests {
 
         set_server_key(sks.decompress_to_gpu());
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let clear_a = rng.gen::<i32>();
         let clear_b = rng.gen::<u32>();
@@ -770,7 +770,7 @@ mod tests {
 
         set_server_key(sks.decompress_to_gpu());
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let clear_a = rng.gen::<i32>();
         let clear_b = rng.gen::<u32>();

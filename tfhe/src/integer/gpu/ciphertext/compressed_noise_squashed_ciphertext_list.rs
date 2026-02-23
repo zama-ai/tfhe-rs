@@ -483,7 +483,7 @@ mod test {
                 &streams,
             );
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let clear_a = rng.gen_range(0..=i32::MAX);
         let clear_b = rng.gen_range(i32::MIN..=-1);
@@ -585,7 +585,7 @@ mod test {
 
             let decryption_key = noise_squashing_compression_private_key.private_key_view();
 
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
 
             // How many uints of NUM_BLOCKS we have to push in the list to ensure it
             // internally has more than one packed GLWE

@@ -8,7 +8,7 @@ where
     Standard: Distribution<T>,
     T: Numeric,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     loop {
         let v: T = rng.gen();
@@ -23,7 +23,7 @@ where
     Standard: Distribution<T>,
     T: ScalarMultiplier,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     loop {
         let v: T = rng.gen();

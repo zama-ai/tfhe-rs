@@ -116,7 +116,7 @@ impl<
     > RandomOpSequenceDataGenerator<P, C>
 {
     pub(crate) fn new(total_num_ops: usize, cks: &RadixClientKey) -> Self {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let seed: u128 = rng.gen();
         Self::new_with_seed(total_num_ops, Seed(seed), cks)

@@ -19,7 +19,7 @@ fn test_integer_noise_squashing_decrypt_auto_cast_and_bool() {
     let noise_squashing_private_key = NoiseSquashingPrivateKey::new(noise_squashing_parameters);
     let noise_squashing_key = NoiseSquashingKey::new(&cks, &noise_squashing_private_key);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let num_blocks = 32u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
 

@@ -1088,17 +1088,15 @@ mod zp {
             }
         }
 
-        pub fn rand(rng: &mut dyn rand::RngCore) -> Self {
-            use rand::Rng;
-
+        pub fn rand(rng: &mut impl rand::RngExt) -> Self {
             Self::from_raw_u64x7([
-                rng.gen::<u64>(),
-                rng.gen::<u64>(),
-                rng.gen::<u64>(),
-                rng.gen::<u64>(),
-                rng.gen::<u64>(),
-                rng.gen::<u64>(),
-                rng.gen::<u64>(),
+                rng.random::<u64>(),
+                rng.random::<u64>(),
+                rng.random::<u64>(),
+                rng.random::<u64>(),
+                rng.random::<u64>(),
+                rng.random::<u64>(),
+                rng.random::<u64>(),
             ])
         }
 
@@ -1289,9 +1287,7 @@ mod zp {
         }
 
         /// Replace the content of the provided element with a random but valid one
-        pub fn rand_in_place(&mut self, rng: &mut dyn rand::RngCore) {
-            use rand::Rng;
-
+        pub fn rand_in_place(&mut self, rng: &mut impl rand::RngExt) {
             let mut values = [0; 7];
             rng.fill(&mut values);
             Self::reduce_from_raw_u64x7(&mut values, &mut self.inner.0 .0);
@@ -1333,7 +1329,7 @@ pub use zp::{ZeroizeZp, Zp};
 mod tests {
     use super::*;
     use rand::rngs::StdRng;
-    use rand::{thread_rng, Rng, SeedableRng};
+    use rand::{rng, RngExt, SeedableRng};
     use std::collections::HashMap;
 
     #[test]
@@ -1489,7 +1485,7 @@ mod tests {
     /// Test that ZeroizeZp is equivalent to Zp
     #[test]
     fn test_zeroize_equivalency() {
-        let seed = thread_rng().gen();
+        let seed = rng().random();
         println!("zeroize_equivalency seed: {seed:x}");
         let rng = &mut StdRng::seed_from_u64(seed);
 

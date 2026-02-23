@@ -36,7 +36,7 @@ pub(crate) fn test_unchecked_function<P, T, ClearF, Scalar>(
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_bits_per_block = cks.parameters().message_modulus().0.ilog2() as usize;
@@ -96,7 +96,7 @@ pub(crate) fn test_smart_function<P, T, ClearF, Scalar>(
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
@@ -183,7 +183,7 @@ pub(crate) fn test_default_function<P, T, ClearF, Scalar>(
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
@@ -416,7 +416,7 @@ pub(crate) fn test_unchecked_minmax<P, T, ClearF, Scalar>(
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_bits_per_block = cks.parameters().message_modulus().0.ilog2() as usize;
@@ -479,7 +479,7 @@ pub(crate) fn test_smart_minmax<P, T, ClearF, Scalar>(
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
@@ -566,7 +566,7 @@ pub(crate) fn test_default_minmax<P, T, ClearF, Scalar>(
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);

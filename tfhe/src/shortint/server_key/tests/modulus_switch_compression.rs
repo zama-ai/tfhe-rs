@@ -14,7 +14,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus_sup = cks.parameters().message_modulus().0 * cks.parameters().carry_modulus().0;
 

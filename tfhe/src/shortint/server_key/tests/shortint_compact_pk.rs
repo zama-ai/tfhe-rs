@@ -100,7 +100,7 @@ fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::CompactPublicKey::new(cks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -154,7 +154,7 @@ fn shortint_compact_public_key_base_list_smart_sub(params: ClassicPBSParameters)
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::CompactPublicKey::new(cks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 

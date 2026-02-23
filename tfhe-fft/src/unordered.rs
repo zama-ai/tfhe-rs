@@ -1056,7 +1056,7 @@ mod tests {
     use alloc::vec;
     use dyn_stack::PodBuffer;
     use num_complex::ComplexFloat;
-    use rand::random;
+    use rand::{random, random_range};
 
     extern crate alloc;
 
@@ -1102,7 +1102,7 @@ mod tests {
             for base_n in [32, n, n / 2, n / 4, n / 8] {
                 for _ in 0..10 {
                     let mut z = vec![c64::default(); n];
-                    let degree = random::<usize>() % n;
+                    let degree = random_range(0..n);
                     z[degree] = c64 { re: 1.0, im: 0.0 };
 
                     let plan = Plan::new(

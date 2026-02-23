@@ -616,7 +616,7 @@ mod tests {
         // internally has more than one packed GLWE
         let max_nb_messages: usize = 1 + 2 * comp_params.lwe_per_glwe().0 / NUM_BLOCKS;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let message_modulus: u128 = radix_cks.parameters().message_modulus().0 as u128;
         let modulus = message_modulus.pow(NUM_BLOCKS as u32);
         let messages = (0..max_nb_messages)
@@ -756,7 +756,7 @@ mod tests {
 
             let max_nb_messages: usize = 2 * comp_params.lwe_per_glwe().0 / NUM_BLOCKS;
 
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
 
             let message_modulus: u128 = cks.parameters().message_modulus().0 as u128;
 

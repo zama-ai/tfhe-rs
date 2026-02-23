@@ -739,7 +739,7 @@ mod test {
                     .into_par_iter()
                     .map(|_| {
                         let img = FheUint8::generate_oblivious_pseudo_random_custom_range(
-                            Seed(rand::thread_rng().gen::<u128>()),
+                            Seed(rand::rng().gen::<u128>()),
                             &range,
                             Some(max_distance),
                         );
@@ -918,7 +918,7 @@ mod test {
                                         move || {
                                             // runs once per Rayon worker thread used for this chunk
                                             set_server_key(sks.clone());
-                                            rand::thread_rng()
+                                            rand::rng()
                                         },
                                         |rng, _| {
                                             let img = FheUint8::generate_oblivious_pseudo_random_custom_range(

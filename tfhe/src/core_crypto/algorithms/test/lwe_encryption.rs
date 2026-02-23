@@ -1130,7 +1130,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
     let msb_zero_padding_bit_count = ZkMSBZeroPaddingBitCount(1);
     let message_modulus = 1u64 << (64 - (delta_log + msb_zero_padding_bit_count.0));
     let plaintext_modulus = 1u64 << (64 - delta_log);
-    let mut thread_rng = rand::thread_rng();
+    let mut thread_rng = rand::rng();
 
     let max_num_body = 512;
     let crs = CompactPkeCrs::new(

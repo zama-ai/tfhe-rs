@@ -3281,7 +3281,7 @@ mod test {
         let mut secret_random_generator = test_tools::new_secret_random_generator();
         let mut encryption_random_generator = test_tools::new_encryption_random_generator();
 
-        let mut thread_rng = rand::thread_rng();
+        let mut thread_rng = rand::rng();
 
         for _ in 0..10_000 {
             let lwe_sk =
@@ -3339,7 +3339,7 @@ mod test {
         );
         let ciphertext_modulus = CiphertextModulus::new_native();
 
-        let mut thread_rng = rand::thread_rng();
+        let mut thread_rng = rand::rng();
 
         for _ in 0..100 {
             // We'll encrypt between 1 and 4 * lwe_dimension ciphertexts
@@ -3501,7 +3501,7 @@ mod test {
         let glwe_noise_distribution = TUniform::new(17);
         let ciphertext_modulus = CiphertextModulus::new_native();
 
-        let mut thread_rng = rand::thread_rng();
+        let mut thread_rng = rand::rng();
 
         let cleartext_bits_without_padding = 4;
         let cleartext_modulus = 1 << cleartext_bits_without_padding;

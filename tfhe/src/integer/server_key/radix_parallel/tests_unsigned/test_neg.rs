@@ -70,7 +70,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
@@ -130,7 +130,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
@@ -187,7 +187,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks.clone());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     neg.setup(&cks, sks.clone());
 
@@ -250,7 +250,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     overflowing_neg.setup(&cks, sks);
 

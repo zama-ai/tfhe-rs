@@ -42,7 +42,7 @@ fn test_ciphertext_re_randomization_after_compression() {
     let compact_public_encryption_domain_separator = *b"TFHE_Enc";
     let metadata = b"lol".as_slice();
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let message_modulus: u128 = cks.parameters().message_modulus().0 as u128;
 

@@ -162,7 +162,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -191,7 +191,7 @@ where
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::CompressedPublicKey::new(cks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -227,7 +227,7 @@ where
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::PublicKey::new(cks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -261,7 +261,7 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -289,7 +289,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -317,7 +317,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -345,7 +345,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
     let mod_scalar = cks.parameters().carry_modulus().0 as u8;
@@ -380,7 +380,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
     let mod_scalar = cks.parameters().carry_modulus().0 as u8;
@@ -415,7 +415,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
     let mod_scalar = cks.parameters().carry_modulus().0 as u8;
@@ -450,7 +450,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
     let mod_scalar = cks.parameters().carry_modulus().0 as u8;
@@ -485,7 +485,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
     let mod_scalar = cks.parameters().carry_modulus().0 as u8;
@@ -520,7 +520,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
     let mod_scalar = cks.parameters().carry_modulus().0 as u8;
@@ -555,7 +555,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -582,7 +582,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -609,7 +609,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -636,7 +636,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -663,7 +663,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
     let mod_scalar = cks.parameters().carry_modulus().0 as u8;
@@ -698,7 +698,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
     let mod_scalar = cks.parameters().carry_modulus().0 as u8;
@@ -733,7 +733,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -760,7 +760,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
     let mod_scalar = cks.parameters().carry_modulus().0 as u8;
@@ -795,7 +795,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
     let mod_scalar = cks.parameters().carry_modulus().0 as u8;
@@ -830,7 +830,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -857,7 +857,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -884,7 +884,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
     let mod_scalar = cks.parameters().carry_modulus().0 as u8;
@@ -919,7 +919,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
     let mod_scalar = cks.parameters().carry_modulus().0 as u8;
@@ -954,7 +954,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -981,7 +981,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
     let mod_scalar = cks.parameters().carry_modulus().0 as u8;
@@ -1016,7 +1016,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
     let mod_scalar = cks.parameters().carry_modulus().0 as u8;
@@ -1051,7 +1051,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let msg_modulus = cks.parameters().message_modulus().0;
     let modulus = cks.parameters().message_modulus().0 * cks.parameters().carry_modulus().0;
@@ -1078,7 +1078,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let msg_modulus = cks.parameters().message_modulus().0;
     let modulus = cks.parameters().message_modulus().0 * cks.parameters().carry_modulus().0;
@@ -1105,7 +1105,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let msg_modulus = cks.parameters().message_modulus().0;
     let modulus = cks.parameters().message_modulus().0 * cks.parameters().carry_modulus().0;
@@ -1132,7 +1132,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let msg_modulus = cks.parameters().message_modulus().0;
     let modulus = cks.parameters().message_modulus().0 * cks.parameters().carry_modulus().0;
@@ -1159,7 +1159,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let msg_modulus = cks.parameters().message_modulus().0;
     let modulus = cks.parameters().message_modulus().0 * cks.parameters().carry_modulus().0;
@@ -1186,7 +1186,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -1225,7 +1225,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -1250,7 +1250,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -1275,7 +1275,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -1302,7 +1302,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -1329,7 +1329,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 
@@ -1368,7 +1368,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters().message_modulus().0;
 

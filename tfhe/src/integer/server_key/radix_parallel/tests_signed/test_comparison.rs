@@ -40,7 +40,7 @@ pub(crate) fn test_signed_unchecked_function<P, T, ClearF, Scalar>(
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
@@ -128,7 +128,7 @@ pub(crate) fn test_signed_smart_function<P, T, ClearF, Scalar>(
     let cks = RadixClientKey::from((cks, num_block));
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
@@ -218,7 +218,7 @@ pub(crate) fn test_signed_default_function<P, T, ClearF, Scalar>(
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, num_block));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
@@ -449,7 +449,7 @@ pub(crate) fn test_signed_unchecked_minmax<P, T, ClearF, Scalar>(
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
@@ -537,7 +537,7 @@ pub(crate) fn test_signed_smart_minmax<P, T, ClearF, Scalar>(
     let cks = RadixClientKey::from((cks, num_block));
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
@@ -627,7 +627,7 @@ pub(crate) fn test_signed_default_minmax<P, T, ClearF, Scalar>(
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, num_block));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 

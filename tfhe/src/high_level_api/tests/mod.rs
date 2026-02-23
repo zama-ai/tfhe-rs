@@ -95,7 +95,7 @@ fn test_small_uint256() {
     let pks = PublicKey::new(&cks);
 
     use rand::prelude::*;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let value = rng.gen::<U256>();
     assert_that_public_key_encryption_is_decrypted_by_client_key::<FheUint256, U256>(
         value, &pks, &cks,

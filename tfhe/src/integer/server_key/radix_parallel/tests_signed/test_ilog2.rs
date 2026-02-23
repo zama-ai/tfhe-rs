@@ -101,7 +101,7 @@ pub(crate) fn signed_default_count_consecutive_bits_test<P, T>(
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
@@ -256,7 +256,7 @@ where
     let sks = Arc::new(sks);
     executor.setup(&cks, sks.clone());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
@@ -389,7 +389,7 @@ where
 
     sks.set_deterministic_pbs_execution(true);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let sks = Arc::new(sks);
     executor.setup(&cks, sks.clone());
 

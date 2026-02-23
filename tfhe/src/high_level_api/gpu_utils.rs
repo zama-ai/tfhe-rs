@@ -13,7 +13,7 @@ use crate::GpuIndex;
 /// let csks = CompressedServerKey::new(&client_key);
 /// let server_key = csks.decompress_to_gpu();
 /// set_server_key(server_key);
-/// let mut rng = rand::thread_rng();
+/// let mut rng = rand::rng();
 /// let clear_a = rng.gen_range(1..=i32::MAX);
 /// let clear_b = rng.gen_range(1..=i32::MAX);
 /// let mut a = FheInt32::try_encrypt(clear_a, &client_key).unwrap();

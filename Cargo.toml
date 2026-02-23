@@ -34,11 +34,13 @@ dyn-stack = { version = "0.13", default-features = false }
 itertools = "0.14"
 num-complex = "0.4"
 pulp = { version = "0.22", default-features = false }
-rand = "0.8"
+rand = "0.10"
+rand_core = "0.10"
+rand_distr = "0.6"
 rayon = "1.11"
 serde = { version = "1.0", default-features = false }
 wasm-bindgen = "0.2.101"
-getrandom = "0.2.8"
+getrandom = "0.4.1"
 # The project maintainers consider that this is the last version of the 1.3 branch, any newer version should not be trusted
 bindgen = "0.71"
 bincode = "=1.3.3"

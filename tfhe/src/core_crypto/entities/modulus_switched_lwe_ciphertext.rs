@@ -207,7 +207,7 @@ mod test {
 
     #[test]
     fn test_modswitched_to_lwe() {
-        let root_seed = rand::thread_rng().gen();
+        let root_seed = rand::rng().gen();
         println!("test_modswitched_to_lwe seed: 0x{root_seed:x}");
 
         let seed = Seed(root_seed);

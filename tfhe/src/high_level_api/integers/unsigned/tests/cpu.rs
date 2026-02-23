@@ -188,7 +188,7 @@ fn test_small_uint128() {
 
     let (cks, sks) = generate_keys(config);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let clear_a = rng.gen::<u128>();
     let clear_b = rng.gen::<u128>();
 
@@ -296,7 +296,7 @@ fn test_integer_casting() {
 
     set_server_key(server_key);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let clear = rng.gen::<u16>();
 
     // Downcasting then Upcasting
@@ -579,7 +579,7 @@ fn test_cpk_encrypt_cast_compute_hl() {
     set_server_key(server_key);
 
     use rand::Rng;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let input_msg: u64 = rng.gen_range(0..modulus);
 
@@ -631,7 +631,7 @@ fn test_compressed_cpk_encrypt_cast_compute_hl() {
     set_server_key(server_key);
 
     use rand::Rng;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let input_msg: u64 = rng.gen_range(0..modulus);
 

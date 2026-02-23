@@ -29,7 +29,7 @@ where
     bench_group.sample_size(10);
 
     let mut kv_store = KVStore::new();
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let format_id_bench = |op_name: &str| -> String {
         format!(

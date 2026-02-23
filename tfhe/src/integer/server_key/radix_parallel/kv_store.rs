@@ -484,7 +484,7 @@ mod tests {
         let num_blocks = 32;
         let num_keys = 100;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut clear_store = BTreeMap::new();
         let mut kv_store = KVStore::new();
@@ -551,7 +551,7 @@ mod tests {
         let num_blocks = 32;
         let num_keys = 100;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut clear_store = BTreeMap::new();
         let mut kv_store = KVStore::new();

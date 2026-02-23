@@ -6,7 +6,7 @@ use crate::serialization::{
     SerializableGroupElements,
 };
 use core::ops::{Index, IndexMut};
-use rand::{Rng, RngCore};
+use rand::RngExt;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::fmt::Display;
@@ -310,8 +310,8 @@ pub const LEGACY_HASH_DS_LEN_BYTES: usize = 256;
 pub(crate) struct Sid(pub(crate) Option<u128>);
 
 impl Sid {
-    fn new(rng: &mut dyn RngCore) -> Self {
-        Self(Some(rng.gen()))
+    fn new(rng: &mut impl RngExt) -> Self {
+        Self(Some(rng.random()))
     }
 
     fn to_le_bytes(self) -> SidBytes {
@@ -431,8 +431,7 @@ mod test {
     use ark_ec::{short_weierstrass, CurveConfig};
     use ark_ff::UniformRand;
     use bincode::ErrorKind;
-    use rand::rngs::StdRng;
-    use rand::Rng;
+    use rand::RngExt;
     use serde::{Deserialize, Serialize};
 
     use crate::curve_api::Compressible;
@@ -532,7 +531,10 @@ mod test {
     }
 
     impl PkeTestcase {
-        pub(super) fn gen(rng: &mut StdRng, params: PkeTestParameters) -> Self {
+        pub(super) fn gen(
+            rng: &mut ark_std::rand::rngs::StdRng,
+            params: PkeTestParameters,
+        ) -> Self {
             let PkeTestParameters {
                 d,
                 k,
@@ -544,27 +546,27 @@ mod test {
 
             let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
 
-            let a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
+            let a = (0..d).map(|_| rng.random::<i64>()).collect::<Vec<_>>();
 
             let s = (0..d)
-                .map(|_| (rng.gen::<u64>() % 2) as i64)
+                .map(|_| (rng.random::<u64>() % 2) as i64)
                 .collect::<Vec<_>>();
 
             let e = (0..d)
-                .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+                .map(|_| (rng.random::<u64>() % (2 * B)) as i64 - B as i64)
                 .collect::<Vec<_>>();
             let e1 = (0..d)
-                .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+                .map(|_| (rng.random::<u64>() % (2 * B)) as i64 - B as i64)
                 .collect::<Vec<_>>();
             let e2 = (0..k)
-                .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+                .map(|_| (rng.random::<u64>() % (2 * B)) as i64 - B as i64)
                 .collect::<Vec<_>>();
 
             let r = (0..d)
-                .map(|_| (rng.gen::<u64>() % 2) as i64)
+                .map(|_| (rng.random::<u64>() % 2) as i64)
                 .collect::<Vec<_>>();
             let m = (0..k)
-                .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64)
+                .map(|_| (rng.random::<u64>() % effective_cleartext_t) as i64)
                 .collect::<Vec<_>>();
             let b = polymul_rev(&a, &s)
                 .into_iter()
@@ -573,7 +575,7 @@ mod test {
                 .collect::<Vec<_>>();
 
             let mut metadata = [0u8; METADATA_LEN];
-            metadata.fill_with(|| rng.gen::<u8>());
+            metadata.fill_with(|| rng.random::<u8>());
 
             Self {
                 a,
@@ -590,7 +592,7 @@ mod test {
         pub(super) fn sk_encrypt_zero(
             &self,
             params: PkeTestParameters,
-            rng: &mut StdRng,
+            rng: &mut ark_std::rand::rngs::StdRng,
         ) -> Vec<i64> {
             let PkeTestParameters {
                 d,
@@ -601,9 +603,9 @@ mod test {
                 msbs_zero_padding_bit_count: _msbs_zero_padding_bit_count,
             } = params;
 
-            let e = (rng.gen::<u64>() % (2 * B)) as i64 - B as i64;
+            let e = (rng.random::<u64>() % (2 * B)) as i64 - B as i64;
 
-            let mut a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
+            let mut a = (0..d).map(|_| rng.random::<i64>()).collect::<Vec<_>>();
 
             let b = a
                 .iter()
@@ -725,7 +727,7 @@ mod test {
 
     /// Return a point with coordinates (x, y) that is randomly chosen and not on the curve
     pub(super) fn point_not_on_curve<Config: short_weierstrass::SWCurveConfig>(
-        rng: &mut StdRng,
+        rng: &mut ark_std::rand::rngs::StdRng,
     ) -> short_weierstrass::Affine<Config> {
         loop {
             let fake_x = <Config as CurveConfig>::BaseField::rand(rng);
@@ -741,7 +743,7 @@ mod test {
 
     /// Return a random point on the curve
     pub(super) fn point_on_curve<Config: short_weierstrass::SWCurveConfig>(
-        rng: &mut StdRng,
+        rng: &mut ark_std::rand::rngs::StdRng,
     ) -> short_weierstrass::Affine<Config> {
         loop {
             let x = <Config as CurveConfig>::BaseField::rand(rng);
@@ -756,7 +758,7 @@ mod test {
 
     /// Return a random point that is on the curve but not in the correct subgroup
     pub(super) fn point_on_curve_wrong_subgroup<Config: short_weierstrass::SWCurveConfig>(
-        rng: &mut StdRng,
+        rng: &mut ark_std::rand::rngs::StdRng,
     ) -> short_weierstrass::Affine<Config> {
         loop {
             let point = point_on_curve(rng);

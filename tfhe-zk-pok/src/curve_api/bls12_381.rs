@@ -812,16 +812,14 @@ mod zp {
             }
         }
 
-        pub fn rand(rng: &mut dyn rand::RngCore) -> Self {
-            use rand::Rng;
-
+        pub fn rand(rng: &mut impl rand::RngExt) -> Self {
             Self::from_raw_u64x6([
-                rng.gen::<u64>(),
-                rng.gen::<u64>(),
-                rng.gen::<u64>(),
-                rng.gen::<u64>(),
-                rng.gen::<u64>(),
-                rng.gen::<u64>(),
+                rng.random::<u64>(),
+                rng.random::<u64>(),
+                rng.random::<u64>(),
+                rng.random::<u64>(),
+                rng.random::<u64>(),
+                rng.random::<u64>(),
             ])
         }
 

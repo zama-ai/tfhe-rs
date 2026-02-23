@@ -456,7 +456,7 @@ mod tests {
 
     #[test]
     fn test_small_vec_u64_u128() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut vec = SmallVec::default();
         {

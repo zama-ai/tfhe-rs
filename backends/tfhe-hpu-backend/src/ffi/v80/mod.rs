@@ -148,7 +148,7 @@ impl HpuHw {
         tracing::debug!("Load stage1 through JTAG");
         let pdi_stg1_tmp = format!(
             "hpu_stg1_{}.pdi",
-            rand::thread_rng()
+            rand::rng()
                 .sample_iter(rand::distributions::Alphanumeric)
                 .take(5)
                 .map(char::from)

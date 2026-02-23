@@ -31,7 +31,7 @@ pub(crate) fn test_signed_unchecked_scalar_function<P, T, ClearF, Scalar>(
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
@@ -114,7 +114,7 @@ pub(crate) fn test_signed_smart_scalar_function<P, T, ClearF, Scalar>(
 
     executor.setup(&cks, sks.clone());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..num_test {
         let mut clear_0 = rng.gen::<Scalar>();
@@ -181,7 +181,7 @@ pub(crate) fn test_signed_default_scalar_function<P, T, ClearF, Scalar>(
 
     executor.setup(&cks, sks.clone());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..num_test {
         let mut clear_0 = rng.gen::<Scalar>();
@@ -320,7 +320,7 @@ fn integer_signed_is_scalar_out_of_bounds(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let clear_0 = rng.gen::<i128>();
     let ct = cks.encrypt_signed_radix(clear_0, num_block);
@@ -390,7 +390,7 @@ pub(crate) fn test_signed_unchecked_scalar_minmax<P, T, ClearF, Scalar>(
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
@@ -469,7 +469,7 @@ pub(crate) fn test_signed_smart_scalar_minmax<P, T, ClearF, Scalar>(
 
     executor.setup(&cks, sks.clone());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..num_test {
         let mut clear_0 = rng.gen::<Scalar>();
@@ -532,7 +532,7 @@ pub(crate) fn test_signed_default_scalar_minmax<P, T, ClearF, Scalar>(
 
     executor.setup(&cks, sks.clone());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..num_test {
         let mut clear_0 = rng.gen::<Scalar>();

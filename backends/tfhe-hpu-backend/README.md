@@ -163,7 +163,7 @@ Following code snippet shows how to instantiate and configure a `HpuDevice`:
 Following code snippet shows how to convert CPU ciphertext in HPU one:
 ``` rust
     // Draw random value as input
-    let a = rand::thread_rng().gen_range(0..u8::MAX);
+    let a = rand::rng().gen_range(0..u8::MAX);
 
     // Encrypt them on Cpu side
     let a_fhe = FheUint8::encrypt(a, &cks);

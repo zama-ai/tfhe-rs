@@ -242,7 +242,7 @@ fn test_uint32_div_rem_gpu() {
 fn test_small_uint128_gpu() {
     for setup_fn in GPU_SETUP_FN {
         let cks = setup_fn();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let clear_a = rng.gen::<u128>();
         let clear_b = rng.gen::<u128>();
 
@@ -302,7 +302,7 @@ fn test_trivial_uint256_small_gpu() {
 
 #[test]
 fn test_integer_casting_gpu() {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for setup_fn in GPU_SETUP_FN {
         let client_key = setup_fn();
         let clear = rng.gen::<u16>();
@@ -646,7 +646,7 @@ fn test_cpk_encrypt_cast_compute_hl_gpu() {
     set_server_key(server_key);
 
     use rand::Rng;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let input_msg: u64 = rng.gen_range(0..modulus);
 
@@ -697,7 +697,7 @@ fn test_compressed_cpk_encrypt_cast_compute_hl_gpu() {
     set_server_key(server_key);
 
     use rand::Rng;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let input_msg: u64 = rng.gen_range(0..modulus);
 
@@ -731,7 +731,7 @@ fn test_compressed_cpk_encrypt_cast_compute_hl_gpu() {
 fn test_gpu_get_add_and_sub_size_on_gpu() {
     for setup_fn in GPU_SETUP_FN {
         let cks = setup_fn();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let clear_a = rng.gen_range(1..=u32::MAX);
         let clear_b = rng.gen_range(1..=u32::MAX);
         let mut a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
@@ -761,7 +761,7 @@ fn test_gpu_get_add_and_sub_size_on_gpu() {
 fn test_gpu_get_bitops_size_on_gpu() {
     for setup_fn in GPU_SETUP_FN {
         let cks = setup_fn();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let clear_a = rng.gen_range(1..=u32::MAX);
         let clear_b = rng.gen_range(1..=u32::MAX);
         let mut a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
@@ -792,7 +792,7 @@ fn test_gpu_get_bitops_size_on_gpu() {
 fn test_gpu_get_comparisons_size_on_gpu() {
     for setup_fn in GPU_SETUP_FN {
         let cks = setup_fn();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let clear_a = rng.gen_range(1..=u32::MAX);
         let clear_b = rng.gen_range(1..=u32::MAX);
         let mut a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
@@ -841,7 +841,7 @@ fn test_gpu_get_comparisons_size_on_gpu() {
 fn test_gpu_get_shift_rotate_size_on_gpu() {
     for setup_fn in GPU_SETUP_FN {
         let cks = setup_fn();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let clear_a = rng.gen_range(1..=u32::MAX);
         let clear_b = rng.gen_range(1..=u32::MAX);
         let mut a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
@@ -874,7 +874,7 @@ fn test_gpu_get_shift_rotate_size_on_gpu() {
 fn test_gpu_get_if_then_else_size_on_gpu() {
     for setup_fn in GPU_SETUP_FN {
         let cks = setup_fn();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let clear_a = rng.gen_range(1..=u32::MAX);
         let clear_b = rng.gen_range(1..=u32::MAX);
         let clear_c = rng.gen_range(0..=1);
@@ -898,7 +898,7 @@ fn test_gpu_get_if_then_else_size_on_gpu() {
 fn test_gpu_get_mul_size_on_gpu() {
     for setup_fn in GPU_SETUP_FN {
         let cks = setup_fn();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let clear_a = rng.gen_range(1..=u32::MAX);
         let clear_b = rng.gen_range(1..=u32::MAX);
         let mut a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
@@ -919,7 +919,7 @@ fn test_gpu_get_mul_size_on_gpu() {
 fn test_gpu_get_div_size_on_gpu() {
     for setup_fn in GPU_SETUP_FN {
         let cks = setup_fn();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let clear_a = rng.gen_range(1..=u32::MAX);
         let clear_b = rng.gen_range(1..=u32::MAX);
         let mut a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
@@ -949,7 +949,7 @@ fn test_gpu_get_div_size_on_gpu() {
 fn test_gpu_get_match_value_size_on_gpu() {
     for setup_fn in GPU_SETUP_FN {
         let cks = setup_fn();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let clear_a = rng.gen::<u32>();
         let mut a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
         a.move_to_current_device();
@@ -982,7 +982,7 @@ fn test_match_value_or_gpu_multibit() {
 fn test_gpu_get_match_value_or_size_on_gpu() {
     for setup_fn in GPU_SETUP_FN {
         let cks = setup_fn();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let clear_a = rng.gen::<u32>();
         let or_value = rng.gen::<u32>();
 

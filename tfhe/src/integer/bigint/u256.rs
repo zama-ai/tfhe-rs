@@ -122,7 +122,7 @@ mod tests {
         let expected = u64::MAX as u128 * u64::MAX as u128;
         assert_eq!(u64_max * u64_max, U256::from(expected));
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for _ in 0..5 {
             let a = rng.gen::<u64>();
             let b = rng.gen::<u64>();
@@ -166,7 +166,7 @@ mod tests {
         assert_eq!(u64_max / u64_max, U256::from(expected_q));
         assert_eq!(u64_max % u64_max, U256::from(expected_r));
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for _ in 0..5 {
             let a = rng.gen::<u128>();
             let b = rng.gen::<u128>();

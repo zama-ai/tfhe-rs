@@ -28,7 +28,7 @@ fn test_case_uint8_quickstart(client_key: &ClientKey) {
 }
 
 fn test_case_uint32_quickstart(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let clear_a = rng.gen::<u32>();
     let clear_b = rng.gen::<u32>();
 
@@ -48,7 +48,7 @@ fn test_case_uint32_quickstart(cks: &ClientKey) {
 
 // TODO make generic
 fn test_case_uint64_quickstart(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let clear_a = rng.gen::<u64>();
     let clear_b = rng.gen::<u64>();
 
@@ -62,7 +62,7 @@ fn test_case_uint64_quickstart(cks: &ClientKey) {
 }
 
 fn test_case_clone(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let clear_a = rng.gen::<u32>();
     let clear_b = rng.gen::<u32>();
 
@@ -106,7 +106,7 @@ fn test_case_uint8_trivial(client_key: &ClientKey) {
 }
 
 fn test_case_uint32_arith(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let clear_a = rng.gen::<u32>();
     let clear_b = rng.gen::<u32>();
 
@@ -127,7 +127,7 @@ fn test_case_uint32_arith(cks: &ClientKey) {
 }
 
 fn test_case_uint32_arith_assign(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut clear_a = rng.gen::<u32>();
     let clear_b = rng.gen::<u32>();
 
@@ -151,7 +151,7 @@ fn test_case_uint32_arith_assign(cks: &ClientKey) {
 }
 
 fn test_case_uint32_scalar_arith(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let clear_a = rng.gen::<u32>();
     let clear_b = rng.gen::<u32>();
 
@@ -171,7 +171,7 @@ fn test_case_uint32_scalar_arith(cks: &ClientKey) {
 }
 
 fn test_case_uint32_scalar_arith_assign(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut clear_a = rng.gen::<u32>();
     let clear_b = rng.gen::<u32>();
 
@@ -202,7 +202,7 @@ fn test_case_uint256_trivial(client_key: &ClientKey) {
 
 #[allow(clippy::eq_op)]
 fn test_case_uint8_compare(client_key: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let clear_a = rng.gen::<u8>();
     let clear_b = rng.gen::<u8>();
 
@@ -252,7 +252,7 @@ fn test_case_uint8_compare(client_key: &ClientKey) {
 
 #[allow(clippy::eq_op)]
 fn test_case_uint8_compare_scalar(client_key: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let clear_a = rng.gen::<u8>();
     let clear_b = rng.gen::<u8>();
 
@@ -300,7 +300,7 @@ fn test_case_uint8_compare_scalar(client_key: &ClientKey) {
 }
 
 fn test_case_uint32_shift(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let clear_a = rng.gen::<u32>();
     let clear_b = rng.gen_range(0u32..32u32);
 
@@ -354,7 +354,7 @@ fn test_case_uint32_shift(cks: &ClientKey) {
 }
 
 fn test_case_uint32_bitwise(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let clear_a = rng.gen::<u32>();
     let clear_b = rng.gen::<u32>();
 
@@ -375,7 +375,7 @@ fn test_case_uint32_bitwise(cks: &ClientKey) {
 }
 
 fn test_case_uint32_bitwise_assign(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut clear_a = rng.gen::<u32>();
     let clear_b = rng.gen::<u32>();
 
@@ -399,7 +399,7 @@ fn test_case_uint32_bitwise_assign(cks: &ClientKey) {
 }
 
 fn test_case_uint32_scalar_bitwise(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let clear_a = rng.gen::<u32>();
     let clear_b = rng.gen::<u32>();
 
@@ -430,7 +430,7 @@ fn test_case_uint32_scalar_bitwise(cks: &ClientKey) {
 }
 
 fn test_case_uint32_rotate(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let clear_a = rng.gen::<u32>();
     let clear_b = rng.gen_range(0u32..32u32);
 
@@ -484,7 +484,7 @@ fn test_case_uint32_rotate(cks: &ClientKey) {
 }
 
 fn test_case_uint32_div_rem(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let clear_a = rng.gen::<u32>();
     let clear_b = rng.gen_range(1u32..=u32::MAX);
 
@@ -632,7 +632,7 @@ fn test_case_scalar_flip(client_key: &ClientKey) {
 }
 
 fn test_case_leading_trailing_zeros_ones(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..5 {
         let clear_a = rng.gen::<u32>();
         let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
@@ -652,7 +652,7 @@ fn test_case_leading_trailing_zeros_ones(cks: &ClientKey) {
 }
 
 fn test_case_ilog2(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..5 {
         let clear_a = rng.gen_range(1..=u32::MAX);
         let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
@@ -681,7 +681,7 @@ fn test_case_ilog2(cks: &ClientKey) {
 }
 
 fn test_case_bitslice(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..5 {
         // clear is a u64 so that `clear % (1 << 32)` does not overflow
         let clear = rng.gen::<u32>() as u64;
@@ -747,7 +747,7 @@ fn test_case_sum(client_key: &ClientKey) {
 }
 
 fn test_case_is_even_is_odd(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     // This operation is cheap
     for _ in 0..50 {
         let clear_a = rng.gen_range(1..=u32::MAX);
@@ -781,7 +781,7 @@ fn test_case_is_even_is_odd(cks: &ClientKey) {
 }
 
 fn test_case_min_max(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let a_val: u8 = rng.gen();
     let b_val: u8 = rng.gen();
 

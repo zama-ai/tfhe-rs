@@ -324,7 +324,7 @@ mod test {
     #[test]
     fn test_wrapping_add_custom_mod() {
         use rand::Rng;
-        let mut thread_rng = rand::thread_rng();
+        let mut thread_rng = rand::rng();
 
         let moduli_to_test = vec![
             (1u128 << 64) - (1 << 32) + 1,
@@ -365,7 +365,7 @@ mod test {
     #[test]
     fn test_wrapping_sub_custom_mod() {
         use rand::Rng;
-        let mut thread_rng = rand::thread_rng();
+        let mut thread_rng = rand::rng();
 
         let moduli_to_test = vec![
             (1u128 << 64) - (1 << 32) + 1,
@@ -413,7 +413,7 @@ mod test {
     #[test]
     fn test_wrapping_mul_custom_mod() {
         use rand::Rng;
-        let mut thread_rng = rand::thread_rng();
+        let mut thread_rng = rand::rng();
 
         let moduli_to_test = vec![
             (1u128 << 64) - (1 << 32) + 1,

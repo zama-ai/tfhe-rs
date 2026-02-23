@@ -236,7 +236,7 @@ where
     let num_runs = 1;
     let num_steps = 64 * 50;
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..num_runs {
         let mut key_bits = vec![0u64; 128];

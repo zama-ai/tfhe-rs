@@ -1381,7 +1381,7 @@ mod test {
 
     fn test_multiply_divide_unit_monomial<T: UnsignedTorus>() {
         //! tests if multiply_by_monomial and divide_by_monomial cancel each other
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut generator = new_random_generator();
 
         // settings
@@ -1432,7 +1432,7 @@ mod test {
         // 50 times the test
         for _ in 0..50 {
             // random source
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
 
             // random settings settings
             let polynomial_log = (rng.gen::<usize>() % 7) + 6;

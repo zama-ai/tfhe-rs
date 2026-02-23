@@ -142,15 +142,15 @@ pub mod generator_generic_test {
     const REPEATS: usize = 1_000;
 
     fn any_seed() -> impl Iterator<Item = Seed> {
-        std::iter::repeat_with(|| Seed(rand::thread_rng().gen()))
+        std::iter::repeat_with(|| Seed(rand::rng().gen()))
     }
 
     fn some_children_count() -> impl Iterator<Item = ChildrenCount> {
-        std::iter::repeat_with(|| ChildrenCount(rand::thread_rng().gen::<u64>() % 16 + 1))
+        std::iter::repeat_with(|| ChildrenCount(rand::rng().gen::<u64>() % 16 + 1))
     }
 
     fn some_bytes_per_child() -> impl Iterator<Item = BytesPerChild> {
-        std::iter::repeat_with(|| BytesPerChild(rand::thread_rng().gen::<u64>() % 128 + 1))
+        std::iter::repeat_with(|| BytesPerChild(rand::rng().gen::<u64>() % 128 + 1))
     }
 
     /// Checks that the PRNG roughly generates uniform numbers.

@@ -205,7 +205,7 @@ fn test_case_cpk_encrypt_cast_compute(
     );
 
     use rand::Rng;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let input_msg: u64 = rng.gen_range(0..modulus);
 

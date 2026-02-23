@@ -14,7 +14,7 @@ fn test_gpu_selection() {
     let keys = ClientKey::generate(config);
     let compressed_server_keys = CompressedServerKey::new(&keys);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let last_gpu = GpuIndex::new(get_number_of_gpus() - 1);
 
@@ -73,7 +73,7 @@ fn test_gpu_selection_2() {
     let keys = ClientKey::generate(config);
     let compressed_server_keys = CompressedServerKey::new(&keys);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let first_gpu = GpuIndex::new(0);
     let last_gpu = GpuIndex::new(get_number_of_gpus() - 1);
@@ -126,7 +126,7 @@ fn test_specific_gpu_selection() {
     let keys = ClientKey::generate(config);
     let compressed_server_keys = CompressedServerKey::new(&keys);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let total_gpus = get_number_of_gpus() as usize;
     // There are 2^total_gpus possible subsets, excluding the empty one

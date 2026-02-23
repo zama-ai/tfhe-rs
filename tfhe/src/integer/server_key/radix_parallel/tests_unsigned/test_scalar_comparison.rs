@@ -31,7 +31,7 @@ pub(crate) fn test_unchecked_scalar_function<P, T, ClearF, Scalar>(
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
@@ -88,7 +88,7 @@ pub(crate) fn test_smart_scalar_function<P, T, ClearF, Scalar>(
         "bit width must be a multiple of number of bit in a block"
     );
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, num_block));
@@ -155,7 +155,7 @@ pub(crate) fn test_default_scalar_function<P, T, ClearF, Scalar>(
         "bit width must be a multiple of number of bit in a block"
     );
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, num_block));
@@ -297,7 +297,7 @@ macro_rules! define_scalar_comparison_test_functions {
 /// work when the scalar type used is either bigger or smaller (in bit size)
 /// compared to the ciphertext
 fn integer_unchecked_scalar_comparisons_edge(param: ClassicPBSParameters) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
@@ -403,7 +403,7 @@ fn integer_unchecked_scalar_comparisons_edge(param: ClassicPBSParameters) {
 }
 
 fn integer_unchecked_scalar_comparisons_edge_one_block(param: ClassicPBSParameters) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let num_block = 1;
 
@@ -487,7 +487,7 @@ fn integer_unchecked_scalar_comparisons_edge_one_block(param: ClassicPBSParamete
 // Given a ciphertext that consists of empty blocks,
 // the function tests whether comparisons still hold.
 fn integer_comparisons_for_empty_blocks(param: ClassicPBSParameters) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let scalar = rng.gen::<u64>();
@@ -601,7 +601,7 @@ pub(crate) fn test_unchecked_scalar_minmax<P, T, ClearF, Scalar>(
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
@@ -654,7 +654,7 @@ pub(crate) fn test_smart_scalar_minmax<P, T, ClearF, Scalar>(
         "bit width must be a multiple of number of bit in a block"
     );
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, num_block));
@@ -717,7 +717,7 @@ pub(crate) fn test_default_scalar_minmax<P, T, ClearF, Scalar>(
         "bit width must be a multiple of number of bit in a block"
     );
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, num_block));

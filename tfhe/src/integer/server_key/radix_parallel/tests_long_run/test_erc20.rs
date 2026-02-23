@@ -121,7 +121,7 @@ pub(crate) fn safe_erc20_test<P, T1, T2, T3, T4>(
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT_LONG_RUN));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     overflowing_add_executor.setup(&cks, sks.clone());
     overflowing_sub_executor.setup(&cks, sks.clone());
@@ -258,7 +258,7 @@ pub(crate) fn whitepaper_erc20_test<P, T1, T2, T3, T4>(
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT_LONG_RUN));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     ge_executor.setup(&cks, sks.clone());
     add_executor.setup(&cks, sks.clone());
@@ -349,7 +349,7 @@ pub(crate) fn no_cmux_erc20_test<P, T1, T2, T3, T4>(
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT_LONG_RUN));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     ge_executor.setup(&cks, sks.clone());
     mul_executor.setup(&cks, sks.clone());
@@ -440,7 +440,7 @@ pub(crate) fn overflow_erc20_test<P, T1, T2, T3, T4, T5>(
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT_LONG_RUN));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     overflowing_sub_executor.setup(&cks, sks.clone());
     if_then_else_executor.setup(&cks, sks.clone());

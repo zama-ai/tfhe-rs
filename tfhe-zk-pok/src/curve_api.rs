@@ -48,7 +48,7 @@ pub trait FieldOps:
     fn from_u64(n: u64) -> Self;
     fn from_i64(n: i64) -> Self;
     fn to_le_bytes(self) -> impl AsRef<[u8]>;
-    fn rand(rng: &mut dyn rand::RngCore) -> Self;
+    fn rand(rng: &mut impl rand::RngExt) -> Self;
     fn hash(values: &mut [Self], data: &[&[u8]]);
     fn hash_128bit(values: &mut [Self], data: &[&[u8]]);
     fn poly_mul(p: &[Self], q: &[Self]) -> Vec<Self>;
@@ -175,7 +175,7 @@ impl FieldOps for bls12_381::Zp {
     fn to_le_bytes(self) -> impl AsRef<[u8]> {
         self.to_le_bytes()
     }
-    fn rand(rng: &mut dyn rand::RngCore) -> Self {
+    fn rand(rng: &mut impl rand::RngExt) -> Self {
         Self::rand(rng)
     }
     fn hash(values: &mut [Self], data: &[&[u8]]) {
@@ -315,7 +315,7 @@ impl FieldOps for bls12_446::Zp {
     fn to_le_bytes(self) -> impl AsRef<[u8]> {
         self.to_le_bytes()
     }
-    fn rand(rng: &mut dyn rand::RngCore) -> Self {
+    fn rand(rng: &mut impl rand::RngExt) -> Self {
         Self::rand(rng)
     }
     fn hash(values: &mut [Self], data: &[&[u8]]) {

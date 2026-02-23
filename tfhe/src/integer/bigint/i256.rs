@@ -120,7 +120,7 @@ mod tests {
         assert_eq!(i64_max / i64_max, I256::from(expected_q));
         assert_eq!(i64_max % i64_max, I256::from(expected_r));
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for _ in 0..5 {
             let a = rng.gen::<i128>();
             let b = rng.gen::<i128>();

@@ -206,8 +206,8 @@ pub fn four_squares(v: u128, sanity_check_mode: ProofSanityCheckMode) -> [u64; 4
         let b = v.isqrt() as u64;
 
         'main_loop: loop {
-            let x: u64 = rng.gen_range(0..=b);
-            let y: u64 = rng.gen_range(0..=b);
+            let x: u64 = rng.random_range(0..=b);
+            let y: u64 = rng.random_range(0..=b);
 
             let (sum, o) = u128::overflowing_add(sqr(x), sqr(y));
             if o || sum > v {
@@ -234,7 +234,7 @@ pub fn four_squares(v: u128, sanity_check_mode: ProofSanityCheckMode) -> [u64; 4
             let s = s;
 
             let mont = Montgomery::new(p);
-            let a = 2 + (rng.gen::<u128>() % (p - 3));
+            let a = 2 + (rng.random::<u128>() % (p - 3));
 
             let mut sqrt = 0;
             {
@@ -313,7 +313,7 @@ pub fn four_squares(v: u128, sanity_check_mode: ProofSanityCheckMode) -> [u64; 4
 #[cfg(test)]
 mod test {
     use rand::rngs::StdRng;
-    use rand::{thread_rng, Rng, SeedableRng};
+    use rand::{rng, RngExt, SeedableRng};
 
     use super::*;
 
@@ -328,7 +328,7 @@ mod test {
     fn test_four_squares() {
         const RAND_TESTS_COUNT: usize = 1000;
 
-        let seed = thread_rng().gen();
+        let seed = rng().random();
         println!("four_squares seed: {seed:x}");
         let rng = &mut StdRng::seed_from_u64(seed);
 
@@ -347,7 +347,7 @@ mod test {
         }
 
         for _ in 0..RAND_TESTS_COUNT {
-            let v: u128 = rng.gen_range(0..(u128::MAX / 2));
+            let v: u128 = rng.random_range(0..(u128::MAX / 2));
             assert_four_squares(v);
         }
     }

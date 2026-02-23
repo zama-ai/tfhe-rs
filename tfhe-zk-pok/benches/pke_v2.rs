@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use rand::Rng;
+use rand::RngExt;
 use tfhe_zk_pok::proofs::pke_v2::{prove, verify, Bound, VerificationPairingMode};
 use tfhe_zk_pok::proofs::ComputeLoad;
 use utils::{init_params_v2, write_to_json, PKEV1_TEST_PARAMS, PKEV2_TEST_PARAMS};
@@ -15,7 +15,7 @@ fn bench_pke_v2_prove(c: &mut Criterion) {
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    let rng = &mut rand::thread_rng();
+    let rng = &mut rand::rng();
 
     for ((params, param_name), load, bound) in itertools::iproduct!(
         [
@@ -32,7 +32,7 @@ fn bench_pke_v2_prove(c: &mut Criterion) {
         let bench_id = format!("{bench_name}::{param_name}_{bits}_bits_packed_{load}_{bound:?}");
         println!("{bench_id}");
 
-        let seed: u128 = rng.gen();
+        let seed: u128 = rng.random();
 
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
@@ -58,7 +58,7 @@ fn bench_pke_v2_verify(c: &mut Criterion) {
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    let rng = &mut rand::thread_rng();
+    let rng = &mut rand::rng();
 
     for ((params, param_name), load, bound, pairing_mode) in itertools::iproduct!(
         [
@@ -81,7 +81,7 @@ fn bench_pke_v2_verify(c: &mut Criterion) {
         );
         println!("{bench_id}");
 
-        let seed: u128 = rng.gen();
+        let seed: u128 = rng.random();
 
         let proof = prove(
             (&public_param, &public_commit),

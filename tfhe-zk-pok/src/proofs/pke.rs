@@ -51,15 +51,15 @@ pub(crate) enum PKEv1DomainSeparators {
 }
 
 impl PKEv1DomainSeparators {
-    pub(crate) fn new(rng: &mut dyn RngCore) -> Self {
+    pub(crate) fn new(rng: &mut impl RngExt) -> Self {
         let ds = ShortPKEv1DomainSeparators {
-            hash: core::array::from_fn(|_| rng.gen()),
-            hash_t: core::array::from_fn(|_| rng.gen()),
-            hash_agg: core::array::from_fn(|_| rng.gen()),
-            hash_lmap: core::array::from_fn(|_| rng.gen()),
-            hash_z: core::array::from_fn(|_| rng.gen()),
-            hash_w: core::array::from_fn(|_| rng.gen()),
-            hash_gamma: core::array::from_fn(|_| rng.gen()),
+            hash: core::array::from_fn(|_| rng.random()),
+            hash_t: core::array::from_fn(|_| rng.random()),
+            hash_agg: core::array::from_fn(|_| rng.random()),
+            hash_lmap: core::array::from_fn(|_| rng.random()),
+            hash_z: core::array::from_fn(|_| rng.random()),
+            hash_w: core::array::from_fn(|_| rng.random()),
+            hash_gamma: core::array::from_fn(|_| rng.random()),
         };
 
         Self::Short(ds)
@@ -498,7 +498,7 @@ pub fn crs_gen<G: Curve>(
     q: u64,
     t: u64,
     msbs_zero_padding_bit_count: u64,
-    rng: &mut dyn RngCore,
+    rng: &mut impl RngExt,
 ) -> PublicParams<G> {
     let alpha = G::Zp::rand(rng);
     let (n, big_d, b_r) = compute_crs_params(d, k, b, q, t, msbs_zero_padding_bit_count);
@@ -1358,8 +1358,8 @@ mod tests {
 
     use super::super::test::*;
     use super::*;
-    use rand::rngs::StdRng;
-    use rand::{thread_rng, Rng, SeedableRng};
+    use ark_std::rand::rngs::StdRng;
+    use rand::{rng, RngExt, SeedableRng};
 
     type Curve = curve_api::Bls12_446;
 
@@ -1397,7 +1397,7 @@ mod tests {
 
         let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
 
-        let seed = thread_rng().gen();
+        let seed = rng().random();
         println!("pke seed: {seed:x}");
         let rng = &mut StdRng::seed_from_u64(seed);
 
@@ -1406,25 +1406,25 @@ mod tests {
         let ct = testcase.encrypt(PKEV1_TEST_PARAMS);
 
         let fake_e1 = (0..d)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+            .map(|_| (rng.random::<u64>() % (2 * B)) as i64 - B as i64)
             .collect::<Vec<_>>();
         let fake_e2 = (0..k)
-            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+            .map(|_| (rng.random::<u64>() % (2 * B)) as i64 - B as i64)
             .collect::<Vec<_>>();
 
         let fake_r = (0..d)
-            .map(|_| (rng.gen::<u64>() % 2) as i64)
+            .map(|_| (rng.random::<u64>() % 2) as i64)
             .collect::<Vec<_>>();
 
         let fake_m = (0..k)
-            .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64)
+            .map(|_| (rng.random::<u64>() % effective_cleartext_t) as i64)
             .collect::<Vec<_>>();
 
         let mut fake_metadata = [255u8; METADATA_LEN];
-        fake_metadata.fill_with(|| rng.gen::<u8>());
+        fake_metadata.fill_with(|| rng.random::<u8>());
 
         // To check management of bigger k_max from CRS during test
-        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+        let crs_k = rng.random_range((k + 1)..d);
 
         let original_public_param =
             crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
@@ -1573,7 +1573,7 @@ mod tests {
             msbs_zero_padding_bit_count,
         } = PKEV1_TEST_PARAMS;
 
-        let seed = thread_rng().gen();
+        let seed = rng().random();
         println!("pke_bad_noise seed: {seed:x}");
         let rng = &mut StdRng::seed_from_u64(seed);
 
@@ -1583,23 +1583,23 @@ mod tests {
         let crs = crs_gen::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng);
 
         // A CRS where the number of slots is bigger than the number of messages to encrypt
-        let big_crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+        let big_crs_k = rng.random_range(k + 1..=d);
         let crs_bigger_k =
             crs_gen::<Curve>(d, big_crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
 
         // ==== Generate test noise vectors with random coeffs and one completely out of bounds ===
         let mut testcase_bad_e1 = testcase.clone();
-        let bad_idx = rng.gen::<usize>() % d;
+        let bad_idx = rng.random_range(0..d);
         // Generate a value between B + 1 and i64::MAX to make sure that it is out of bounds
-        let bad_term = (rng.gen::<u64>() % (i64::MAX as u64 - (B + 1))) + (B + 1);
+        let bad_term = (rng.random::<u64>() % (i64::MAX as u64 - (B + 1))) + (B + 1);
         let bad_term = bad_term as i64;
 
-        testcase_bad_e1.e1[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
+        testcase_bad_e1.e1[bad_idx] = if rng.random() { bad_term } else { -bad_term };
 
         let mut testcase_bad_e2 = testcase.clone();
-        let bad_idx = rng.gen::<usize>() % k;
+        let bad_idx = rng.random_range(0..k);
 
-        testcase_bad_e2.e2[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
+        testcase_bad_e2.e2[bad_idx] = if rng.random() { bad_term } else { -bad_term };
 
         // ==== Generate test noise vectors with random coeffs and one just around the bound  ===
 
@@ -1607,35 +1607,35 @@ mod tests {
         let bad_term = (B + 1) as i64;
 
         let mut testcase_after_bound_e1 = testcase.clone();
-        let bad_idx = rng.gen::<usize>() % d;
+        let bad_idx = rng.random_range(0..d);
 
-        testcase_after_bound_e1.e1[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
+        testcase_after_bound_e1.e1[bad_idx] = if rng.random() { bad_term } else { -bad_term };
 
         let mut testcase_after_bound_e2 = testcase.clone();
-        let bad_idx = rng.gen::<usize>() % k;
+        let bad_idx = rng.random_range(0..k);
 
-        testcase_after_bound_e2.e2[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
+        testcase_after_bound_e2.e2[bad_idx] = if rng.random() { bad_term } else { -bad_term };
 
         // Check noise right on the bound
         let bad_term = B as i64;
 
         let mut testcase_on_bound_positive_e1 = testcase.clone();
-        let bad_idx = rng.gen::<usize>() % d;
+        let bad_idx = rng.random_range(0..d);
 
         testcase_on_bound_positive_e1.e1[bad_idx] = bad_term;
 
         let mut testcase_on_bound_positive_e2 = testcase.clone();
-        let bad_idx = rng.gen::<usize>() % k;
+        let bad_idx = rng.random_range(0..k);
 
         testcase_on_bound_positive_e2.e2[bad_idx] = bad_term;
 
         let mut testcase_on_bound_negative_e1 = testcase.clone();
-        let bad_idx = rng.gen::<usize>() % d;
+        let bad_idx = rng.random_range(0..d);
 
         testcase_on_bound_negative_e1.e1[bad_idx] = -bad_term;
 
         let mut testcase_on_bound_negative_e2 = testcase.clone();
-        let bad_idx = rng.gen::<usize>() % k;
+        let bad_idx = rng.random_range(0..k);
 
         testcase_on_bound_negative_e2.e2[bad_idx] = -bad_term;
 
@@ -1643,14 +1643,14 @@ mod tests {
         let bad_term = (B - 1) as i64;
 
         let mut testcase_before_bound_e1 = testcase.clone();
-        let bad_idx = rng.gen::<usize>() % d;
+        let bad_idx = rng.random_range(0..d);
 
-        testcase_before_bound_e1.e1[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
+        testcase_before_bound_e1.e1[bad_idx] = if rng.random() { bad_term } else { -bad_term };
 
         let mut testcase_before_bound_e2 = testcase;
-        let bad_idx = rng.gen::<usize>() % k;
+        let bad_idx = rng.random_range(0..k);
 
-        testcase_before_bound_e2.e2[bad_idx] = if rng.gen() { bad_term } else { -bad_term };
+        testcase_before_bound_e2.e2[bad_idx] = if rng.random() { bad_term } else { -bad_term };
 
         for (testcase, name, expected_result) in [
             (
@@ -1741,7 +1741,7 @@ mod tests {
 
         let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
 
-        let seed = thread_rng().gen();
+        let seed = rng().random();
         println!("pke_w_padding_fail_verify seed: {seed:x}");
         let rng = &mut StdRng::seed_from_u64(seed);
 
@@ -1750,10 +1750,10 @@ mod tests {
         // Generate messages with padding set to fail verification
         testcase.m = {
             let mut tmp = (0..k)
-                .map(|_| (rng.gen::<u64>() % t) as i64)
+                .map(|_| (rng.random::<u64>() % t) as i64)
                 .collect::<Vec<_>>();
             while tmp.iter().all(|&x| (x as u64) < effective_cleartext_t) {
-                tmp.fill_with(|| (rng.gen::<u64>() % t) as i64);
+                tmp.fill_with(|| (rng.random::<u64>() % t) as i64);
             }
 
             tmp
@@ -1762,7 +1762,7 @@ mod tests {
         let ct = testcase.encrypt(PKEV1_TEST_PARAMS);
 
         // To check management of bigger k_max from CRS during test
-        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+        let crs_k = rng.random_range(k + 1..=d);
 
         let original_public_param =
             crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
@@ -1804,14 +1804,14 @@ mod tests {
             msbs_zero_padding_bit_count,
         } = PKEV1_TEST_PARAMS;
 
-        let seed = thread_rng().gen();
+        let seed = rng().random();
         println!("pke_wrong_pk_size seed: {seed:x}");
         let rng = &mut StdRng::seed_from_u64(seed);
 
         let testcase = PkeTestcase::gen(rng, PKEV1_TEST_PARAMS);
 
         let ct = testcase.encrypt(PKEV1_TEST_PARAMS);
-        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+        let crs_k = rng.random_range(k + 1..=d);
 
         let crs = crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
 
@@ -1858,7 +1858,7 @@ mod tests {
                 let mut public_commit = public_commit.clone();
 
                 match a_size_kind {
-                    InputSizeVariation::Oversized => public_commit.a.push(rng.gen()),
+                    InputSizeVariation::Oversized => public_commit.a.push(rng.random()),
                     InputSizeVariation::Undersized => {
                         public_commit.a.pop();
                     }
@@ -1866,7 +1866,7 @@ mod tests {
                 };
 
                 match b_size_kind {
-                    InputSizeVariation::Oversized => public_commit.b.push(rng.gen()),
+                    InputSizeVariation::Oversized => public_commit.b.push(rng.random()),
                     InputSizeVariation::Undersized => {
                         public_commit.b.pop();
                     }
@@ -1893,7 +1893,7 @@ mod tests {
 
         let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
 
-        let seed = thread_rng().gen();
+        let seed = rng().random();
         println!("pke_bad_ct seed: {seed:x}");
         let rng = &mut StdRng::seed_from_u64(seed);
 
@@ -1925,7 +1925,7 @@ mod tests {
         };
 
         // If trivial is 0 the ct is not modified so the proof will be accepted
-        let trivial = rng.gen_range(1..effective_cleartext_t);
+        let trivial = rng.random_range(1..effective_cleartext_t);
 
         let trivial_pt = trivial * delta;
         let c2_plus_trivial = vec![ct.c2[0].wrapping_add(trivial_pt as i64)];
@@ -2017,7 +2017,7 @@ mod tests {
 
         let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
 
-        let seed = thread_rng().gen();
+        let seed = rng().random();
         println!("pke_bad_delta seed: {seed:x}");
         let rng = &mut StdRng::seed_from_u64(seed);
 
@@ -2027,7 +2027,7 @@ mod tests {
         // Make sure that the messages lower bit is set so the change of delta has an impact on the
         // validity of the ct
         testcase_bad_delta.m = (0..k)
-            .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64 | 1)
+            .map(|_| (rng.random::<u64>() % effective_cleartext_t) as i64 | 1)
             .collect::<Vec<_>>();
 
         let mut params_bad_delta = PKEV1_TEST_PARAMS;
@@ -2062,14 +2062,14 @@ mod tests {
             msbs_zero_padding_bit_count,
         } = PKEV1_TEST_PARAMS;
 
-        let seed = thread_rng().gen();
+        let seed = rng().random();
         println!("pke_proof_compression seed: {seed:x}");
         let rng = &mut StdRng::seed_from_u64(seed);
 
         let testcase = PkeTestcase::gen(rng, PKEV1_TEST_PARAMS);
         let ct = testcase.encrypt(PKEV1_TEST_PARAMS);
 
-        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+        let crs_k = rng.random_range(k + 1..=d);
 
         let public_param = crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
 
@@ -2114,14 +2114,14 @@ mod tests {
             msbs_zero_padding_bit_count,
         } = PKEV1_TEST_PARAMS;
 
-        let seed = thread_rng().gen();
+        let seed = rng().random();
         println!("pke_proof_usable seed: {seed:x}");
         let rng = &mut StdRng::seed_from_u64(seed);
 
         let testcase = PkeTestcase::gen(rng, PKEV1_TEST_PARAMS);
         let ct = testcase.encrypt(PKEV1_TEST_PARAMS);
 
-        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+        let crs_k = rng.random_range(k + 1..=d);
 
         let public_param = crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
 

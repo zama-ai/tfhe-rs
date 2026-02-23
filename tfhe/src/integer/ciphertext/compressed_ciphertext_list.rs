@@ -288,7 +288,7 @@ mod tests {
             let (compression_key, decompression_key) =
                 cks.new_compression_decompression_keys(&private_compression_key);
 
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
 
             let message_modulus: u128 = cks.parameters().message_modulus().0 as u128;
 

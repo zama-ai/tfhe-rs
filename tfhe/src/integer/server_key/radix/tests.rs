@@ -139,7 +139,7 @@ create_parameterized_test!(integer_unchecked_min {
 fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
@@ -157,7 +157,7 @@ fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
 fn integer_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let num_block = 128u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
     for _ in 0..10 {
         let clear = rng.gen::<u128>();
@@ -245,7 +245,7 @@ fn integer_encrypt_decrypt_256_bits_specific_values(param: ClassicPBSParameters)
 fn integer_encrypt_decrypt_256_bits(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let num_block = 256u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
 
     for _ in 0..10 {
@@ -268,7 +268,7 @@ fn integer_encrypt_auto_cast(param: ClassicPBSParameters) {
     // radix properly applies upcasting/downcasting
 
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let num_blocks = 32u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
 
@@ -314,7 +314,7 @@ fn integer_encrypt_auto_cast(param: ClassicPBSParameters) {
 fn integer_smart_add_128_bits(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let num_block = 128u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
 
     for _ in 0..100 {
@@ -407,7 +407,7 @@ where
 fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
@@ -433,7 +433,7 @@ fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
 fn integer_smart_small_scalar_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
@@ -466,7 +466,7 @@ fn integer_smart_small_scalar_mul(param: ClassicPBSParameters) {
 fn integer_blockshift(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
@@ -493,7 +493,7 @@ fn integer_blockshift(param: ClassicPBSParameters) {
 fn integer_blockshift_right(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
@@ -520,7 +520,7 @@ fn integer_blockshift_right(param: ClassicPBSParameters) {
 fn integer_smart_scalar_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
@@ -594,7 +594,7 @@ where
 fn integer_smart_block_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
@@ -681,7 +681,7 @@ fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) 
     // The purpose here is to check the behaviour when the scalar value has less bits
     // than the ciphertext.
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let num_block = (128_f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
@@ -718,7 +718,7 @@ fn integer_smart_scalar_mul_decomposition_overflow() {
     // Since smart_scalar_mul is a slow operation, we test against only one parameters set.
     // If overflow occurs the test case will panic.
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let param = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
 

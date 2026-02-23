@@ -103,7 +103,7 @@ where
 
     let (cks, sks) = gen_keys_gpu(p, &stream);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..4 {
         let clear_a = rng.gen_range((u128::from(u64::MAX) + 1)..=u128::MAX);
@@ -234,7 +234,7 @@ where
     let (cks, sks) = gen_keys_gpu(p, &stream);
     let message_modulus = cks.parameters().message_modulus().0;
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..4 {
         let clear_a = rng.gen_range(0..message_modulus);

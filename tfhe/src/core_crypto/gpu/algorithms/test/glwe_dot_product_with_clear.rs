@@ -130,7 +130,7 @@ where
 fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
     _params: ClassicTestParams<Scalar>,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let poly_size = 2 << rng.gen_range(8usize..12);
     let n_polys_rhs = if rng.gen_range(0..2) == 0 {
@@ -277,7 +277,7 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 fn poly_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
     _params: ClassicTestParams<Scalar>,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let poly_size = 2 << rng.gen_range(8usize..12);
     let n_polys_rhs = if rng.gen_range(0..2) == 0 {
         poly_size

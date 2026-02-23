@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use rand::Rng;
+use rand::RngExt;
 use tfhe_zk_pok::proofs::pke::{prove, verify};
 use tfhe_zk_pok::proofs::ComputeLoad;
 use utils::{write_to_json, PKEV1_TEST_PARAMS, PKEV2_TEST_PARAMS};
@@ -17,7 +17,7 @@ fn bench_pke_v1_prove(c: &mut Criterion) {
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    let rng = &mut rand::thread_rng();
+    let rng = &mut rand::rng();
 
     for (params, param_name) in [
         (PKEV1_TEST_PARAMS, "PKEV1_TEST_PARAMS"),
@@ -30,7 +30,7 @@ fn bench_pke_v1_prove(c: &mut Criterion) {
         for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
             let bench_id = format!("{bench_name}::{param_name}_{bits}_bits_packed_{load}");
 
-            let seed: u128 = rng.gen();
+            let seed: u128 = rng.random();
 
             bench_group.bench_function(&bench_id, |b| {
                 b.iter(|| {
@@ -57,7 +57,7 @@ fn bench_pke_v1_verify(c: &mut Criterion) {
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    let rng = &mut rand::thread_rng();
+    let rng = &mut rand::rng();
 
     for (params, param_name) in [
         (PKEV1_TEST_PARAMS, "PKEV1_TEST_PARAMS"),
@@ -70,7 +70,7 @@ fn bench_pke_v1_verify(c: &mut Criterion) {
         for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
             let bench_id = format!("{bench_name}::{param_name}_{bits}_bits_packed_{load}");
 
-            let seed: u128 = rng.gen();
+            let seed: u128 = rng.random();
 
             let proof = prove(
                 (&public_param, &public_commit),

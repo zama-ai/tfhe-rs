@@ -53,14 +53,14 @@ pub struct Proof<G: Curve> {
     pi: G::G1,
 }
 
-pub fn crs_gen<G: Curve>(max_nbits: usize, rng: &mut dyn RngCore) -> PublicParams<G> {
+pub fn crs_gen<G: Curve>(max_nbits: usize, rng: &mut impl RngExt) -> PublicParams<G> {
     let alpha = G::Zp::rand(rng);
     PublicParams {
         g_lists: GroupElements::new(max_nbits, alpha),
-        hash: core::array::from_fn(|_| rng.gen()),
-        hash_s: core::array::from_fn(|_| rng.gen()),
-        hash_t: core::array::from_fn(|_| rng.gen()),
-        hash_agg: core::array::from_fn(|_| rng.gen()),
+        hash: core::array::from_fn(|_| rng.random()),
+        hash_s: core::array::from_fn(|_| rng.random()),
+        hash_t: core::array::from_fn(|_| rng.random()),
+        hash_agg: core::array::from_fn(|_| rng.random()),
     }
 }
 
@@ -68,7 +68,7 @@ pub fn commit<G: Curve>(
     x: u64,
     l: usize,
     public: &PublicParams<G>,
-    rng: &mut dyn RngCore,
+    rng: &mut impl RngExt,
 ) -> (PublicCommit<G>, PrivateCommit<G>) {
     let g_hat = G::G2::GENERATOR;
 
@@ -82,7 +82,7 @@ pub fn commit<G: Curve>(
 pub fn prove<G: Curve>(
     public: (&PublicParams<G>, &PublicCommit<G>),
     private_commit: &PrivateCommit<G>,
-    rng: &mut dyn RngCore,
+    rng: &mut impl RngExt,
 ) -> Proof<G> {
     let &PrivateCommit { x, r } = private_commit;
     let &PublicCommit { l, v_hat } = public.1;
@@ -386,7 +386,7 @@ pub fn verify<G: Curve>(
 mod tests {
     use super::*;
     use rand::rngs::StdRng;
-    use rand::{Rng, SeedableRng};
+    use rand::{RngExt, SeedableRng};
 
     #[test]
     fn test_range() {
@@ -394,7 +394,7 @@ mod tests {
 
         let max_nbits = 10;
         let l = 6;
-        let x = rng.gen::<u64>() % (1 << l);
+        let x = rng.random::<u64>() % (1 << l);
         let public_params = crs_gen::<crate::curve_api::Bls12_446>(max_nbits, rng);
         let (public_commit, private_commit) = commit(x, l, &public_params, rng);
         let proof = prove((&public_params, &public_commit), &private_commit, rng);

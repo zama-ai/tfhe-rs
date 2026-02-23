@@ -38,7 +38,7 @@ where
     let param = param.into();
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
 

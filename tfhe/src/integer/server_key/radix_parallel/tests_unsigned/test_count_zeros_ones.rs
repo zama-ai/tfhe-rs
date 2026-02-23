@@ -52,7 +52,7 @@ pub(crate) fn default_count_zeros_ones_test<P, E1, E2>(
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     count_zeros_executor.setup(&cks, sks.clone());
     count_ones_executor.setup(&cks, sks);
@@ -110,7 +110,7 @@ pub(crate) fn extensive_trivial_default_count_zeros_ones_test<P, E1, E2>(
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     count_zeros_executor.setup(&cks, sks.clone());
     count_ones_executor.setup(&cks, sks.clone());

@@ -221,7 +221,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks
@@ -288,7 +288,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
@@ -343,7 +343,7 @@ where
     // 2_2 uses a faster algorithm
     let num_test_per_block_size: usize = if bits_in_blocks == 2 { 25 } else { 5 };
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for num_blocks in 1usize..=(128 / bits_in_blocks) {
         let max = u128::MAX >> (128 - (num_blocks * bits_in_blocks));
@@ -389,7 +389,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
@@ -435,7 +435,7 @@ where
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
@@ -478,7 +478,7 @@ where
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
@@ -517,7 +517,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);

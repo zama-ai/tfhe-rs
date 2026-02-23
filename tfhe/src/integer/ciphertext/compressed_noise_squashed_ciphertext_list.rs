@@ -440,7 +440,7 @@ mod test {
         let compression_key = noise_squashing_private_key
             .new_noise_squashing_compression_key(&noise_squashing_compression_private_key);
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         const NUM_BLOCKS: usize = 16;
 

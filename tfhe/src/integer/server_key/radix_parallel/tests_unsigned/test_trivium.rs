@@ -281,7 +281,7 @@ where
     let num_steps = 512;
 
     for i in 0..num_runs {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let plain_key: Vec<u8> = (0..80).map(|_| rng.gen_range(0..=1)).collect();
         let plain_iv: Vec<u8> = (0..80).map(|_| rng.gen_range(0..=1)).collect();
 

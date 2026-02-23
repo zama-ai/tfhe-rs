@@ -9,7 +9,7 @@ mod hpu_test {
     use std::str::FromStr;
 
     use rand::rngs::StdRng;
-    use rand::{Rng, RngCore, SeedableRng};
+    use rand::{Rng, SeedableRng};
     use tfhe::core_crypto::commons::generators::DeterministicSeeder;
     use tfhe::core_crypto::prelude::DefaultRandomGenerator;
 
@@ -42,8 +42,8 @@ mod hpu_test {
             .unwrap_or_else(|_| panic!("{name} env variable {var} couldn't be casted in u128")),
             _ => {
                 // Use tread_rng to generate the seed
-                let lsb = rand::thread_rng().next_u64() as u128;
-                let msb = rand::thread_rng().next_u64() as u128;
+                let lsb = rand::rng().next_u64() as u128;
+                let msb = rand::rng().next_u64() as u128;
                 (msb << u64::BITS) | lsb
             }
         }

@@ -50,7 +50,7 @@ fn bench_server_key_binary_function_dirty_inputs<F>(
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -120,7 +120,7 @@ fn bench_server_key_binary_function_clean_inputs<F>(
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -224,7 +224,7 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -291,7 +291,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -382,7 +382,7 @@ fn bench_server_key_binary_scalar_function_dirty_inputs<F, G>(
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -454,7 +454,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         if bit_size > ScalarType::BITS as usize {
@@ -587,7 +587,7 @@ fn if_then_else_parallelized(c: &mut Criterion) {
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -695,7 +695,7 @@ fn flip_parallelized(c: &mut Criterion) {
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -803,7 +803,7 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -1526,7 +1526,7 @@ mod cuda {
         bench_group
             .sample_size(15)
             .measurement_time(std::time::Duration::from_secs(30));
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
@@ -1644,7 +1644,7 @@ mod cuda {
         bench_group
             .sample_size(15)
             .measurement_time(std::time::Duration::from_secs(30));
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
@@ -1780,7 +1780,7 @@ mod cuda {
         H: Fn(&mut ThreadRng, usize) -> ScalarType,
     {
         let mut bench_group = c.benchmark_group(bench_name);
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             if bit_size > ScalarType::BITS as usize {
@@ -1912,7 +1912,7 @@ mod cuda {
         bench_group
             .sample_size(15)
             .measurement_time(std::time::Duration::from_secs(30));
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             if bit_size > ScalarType::BITS as usize {
@@ -2876,7 +2876,7 @@ mod cuda {
         bench_group
             .sample_size(15)
             .measurement_time(std::time::Duration::from_secs(30));
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let env_config = EnvConfig::new();
         let stream = CudaStreams::new_multi_gpu();
@@ -2978,7 +2978,7 @@ mod hpu {
         bench_group
             .sample_size(15)
             .measurement_time(std::time::Duration::from_secs(60));
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             if bit_size > ScalarType::BITS as usize {
@@ -3674,7 +3674,7 @@ fn bench_server_key_cast_function<F>(
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(30));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let env_config = EnvConfig::new();
 

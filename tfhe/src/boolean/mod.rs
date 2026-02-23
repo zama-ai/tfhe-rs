@@ -81,7 +81,7 @@ pub(crate) const PLAINTEXT_FALSE: u32 = 7 << (32 - PLAINTEXT_LOG_SCALING_FACTOR)
 #[cfg(test)]
 pub(crate) fn random_boolean() -> bool {
     // create a random generator
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // generate a random bit
     let n: u32 = (rng.gen::<u32>()) % 2;
@@ -94,7 +94,7 @@ pub(crate) fn random_boolean() -> bool {
 #[cfg(test)]
 pub(crate) fn random_integer() -> u32 {
     // create a random generator
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // generate a random u32
     rng.gen::<u32>()

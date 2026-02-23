@@ -533,7 +533,7 @@ mod test {
         FheType: FheIntegerType + FheEncrypt<V, ClientKey>,
     {
         assert!((K::MAX).cast_into() >= num_keys);
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut kv_store = KVStore::new();
         let mut clear_store = BTreeMap::new();
@@ -557,7 +557,7 @@ mod test {
         let num_tests = 10;
 
         let (kv_store, clear_store) = create_kv_store::<u8, u32, FheUint32>(num_keys, ck);
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for _ in 0..num_tests {
             let k = rng.gen::<u8>();
@@ -582,7 +582,7 @@ mod test {
         let num_tests = 10;
 
         let (mut kv_store, mut clear_store) = create_kv_store::<u8, u32, FheUint32>(num_keys, ck);
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for _ in 0..num_tests {
             let k = rng.gen::<u8>();
@@ -617,7 +617,7 @@ mod test {
         let num_tests = 10;
 
         let (mut kv_store, mut clear_store) = create_kv_store::<u8, u32, FheUint32>(num_keys, ck);
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for _ in 0..num_tests {
             let k = rng.gen::<u8>();

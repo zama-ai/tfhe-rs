@@ -22,7 +22,7 @@ fn test_compressed_list_with_strings() {
 
     let cks = StringClientKey::new(cks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let printable_ascii_range = 32..=126u8; // Range of printable chars
 

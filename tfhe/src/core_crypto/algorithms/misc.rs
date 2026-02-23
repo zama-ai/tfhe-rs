@@ -215,7 +215,7 @@ mod test {
     fn test_divide_funcs() {
         use rand::Rng;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         const SCALING: f64 = u64::MAX as f64;
         for _ in 0..NB_TESTS {
@@ -291,7 +291,7 @@ mod test {
         }
         {
             use rand::Rng;
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
 
             for _ in 0..1_000_000_000 {
                 let value: u64 = rng.gen();

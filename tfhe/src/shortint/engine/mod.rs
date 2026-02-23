@@ -405,7 +405,7 @@ mod test {
     /// Test the case where a thread is reused by rayon and thread engine will be already borrowed
     #[test]
     fn test_engine_thread_reuse_ci_run_filter() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let param_pke = TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let packed_modulus = param_pke.message_modulus.0 * param_pke.carry_modulus.0;
 

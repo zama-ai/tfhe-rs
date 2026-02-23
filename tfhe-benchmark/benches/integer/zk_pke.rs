@@ -112,7 +112,7 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
 
         // We have a use case with 320 bits of metadata
         let mut metadata = [0u8; (320 / u8::BITS) as usize];
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         metadata.fill_with(|| rng.gen());
 
         let zk_vers = param_pke.zk_scheme;
@@ -240,7 +240,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
 
         // We have a use case with 320 bits of metadata
         let mut metadata = [0u8; (320 / u8::BITS) as usize];
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         metadata.fill_with(|| rng.gen());
 
         let zk_vers = param_pke.zk_scheme;
@@ -528,7 +528,7 @@ mod cuda {
 
         // We have a use case with 320 bits of metadata
         let mut metadata = [0u8; (320 / u8::BITS) as usize];
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         metadata.fill_with(|| rng.gen());
 
         let zk_vers = param_pke.zk_scheme;
@@ -545,7 +545,7 @@ mod cuda {
             .unwrap();
 
             use rand::Rng;
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
 
             for bits in proof_config.bits_to_prove.iter() {
                 assert_eq!(bits % 64, 0);

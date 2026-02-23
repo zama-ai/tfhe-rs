@@ -104,7 +104,7 @@ fn test_case_int32_compare(cks: &ClientKey) {
 }
 
 fn test_case_int32_bitwise(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let clear_a = rng.gen::<i32>();
     let clear_b = rng.gen::<i32>();
 
@@ -224,7 +224,7 @@ fn test_case_int64_rotate(cks: &ClientKey) {
 }
 
 fn test_case_int32_div_rem(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let clear_a = rng.gen::<i32>();
     let clear_b = loop {
         let value = rng.gen::<i32>();
@@ -292,7 +292,7 @@ fn test_case_int32_div_rem(cks: &ClientKey) {
 }
 
 fn test_case_integer_casting(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Ensure casting works for both negative and positive values
     for clear in [rng.gen_range(i16::MIN..0), rng.gen_range(0..=i16::MAX)] {
@@ -367,7 +367,7 @@ fn test_case_integer_casting(cks: &ClientKey) {
 }
 
 fn test_case_if_then_else(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let clear_a = rng.gen::<i8>();
     let clear_b = rng.gen::<i8>();
@@ -432,7 +432,7 @@ fn test_case_scalar_flip(client_key: &ClientKey) {
 }
 
 fn test_case_abs(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for clear in [rng.gen_range(i64::MIN..0), rng.gen_range(0..=i64::MAX)] {
         let a = FheInt64::encrypt(clear, cks);
@@ -496,7 +496,7 @@ fn test_case_ilog2(cks: &ClientKey) {
 }
 
 fn test_case_min_max(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let a_val: i8 = rng.gen();
     let b_val: i8 = rng.gen();
 

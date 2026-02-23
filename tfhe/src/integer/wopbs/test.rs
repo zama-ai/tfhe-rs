@@ -56,7 +56,7 @@ create_parameterized_test!(wopbs_radix);
 
 // test wopbs fake crt with different degree for each Ct
 pub fn wopbs_crt(params: (ClassicPBSParameters, WopbsParameters)) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let basis = make_basis(params.1.message_modulus.0);
 
@@ -102,7 +102,7 @@ pub fn wopbs_crt(params: (ClassicPBSParameters, WopbsParameters)) {
 // This checks we do not generate a LUT constant equal to 0, as used to be the case with this
 // threshold-like LUT
 pub fn wopbs_crt_non_reg(params: (ClassicPBSParameters, WopbsParameters)) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let basis = make_basis(params.1.message_modulus.0);
 
@@ -151,7 +151,7 @@ pub fn wopbs_crt_non_reg(params: (ClassicPBSParameters, WopbsParameters)) {
 
 // test wopbs radix with different degree for each Ct
 pub fn wopbs_radix(params: (ClassicPBSParameters, WopbsParameters)) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let nb_block = 2;
 
@@ -187,7 +187,7 @@ pub fn wopbs_radix(params: (ClassicPBSParameters, WopbsParameters)) {
 
 // test wopbs radix with different degree for each Ct
 pub fn wopbs_bivariate_radix(params: (ClassicPBSParameters, WopbsParameters)) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let nb_block = 2;
 
@@ -227,7 +227,7 @@ pub fn wopbs_bivariate_radix(params: (ClassicPBSParameters, WopbsParameters)) {
 
 // test wopbs bivariate fake crt with different degree for each Ct
 pub fn wopbs_bivariate_crt(params: (ClassicPBSParameters, WopbsParameters)) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let basis = make_basis(params.1.message_modulus.0);
     let modulus = basis.iter().product::<u64>();

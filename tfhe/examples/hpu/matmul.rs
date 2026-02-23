@@ -71,14 +71,14 @@ fn main() {
     let random_matrix_a = (0..args.m)
         .map(|_| {
             (0..args.n)
-                .map(|_| rand::thread_rng().gen::<u64>())
+                .map(|_| rand::rng().gen::<u64>())
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<Vec<_>>>();
     let random_matrix_b = (0..args.n)
         .map(|_| {
             (0..args.p)
-                .map(|_| rand::thread_rng().gen::<u64>())
+                .map(|_| rand::rng().gen::<u64>())
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<Vec<_>>>();

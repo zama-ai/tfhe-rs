@@ -23,7 +23,7 @@ rust-version.workspace = true
 
 [dev-dependencies]
 rand = { workspace = true }
-rand_distr = "0.4.3"
+rand_distr = { workspace = true }
 criterion = "0.5.1"
 doc-comment = "0.3.3"
 serde_json = "1.0.94"
@@ -76,7 +76,7 @@ sha3 = { version = "0.10", optional = true }
 blake3 = { version = "1.8", optional = true }
 
 itertools = { workspace = true }
-rand_core = { version = "0.6.4", features = ["std"] }
+rand_core = { workspace = true }
 strum = { version = "0.27", features = ["derive"], optional = true }
 tfhe-zk-pok = { version = "0.8.0", path = "../tfhe-zk-pok", optional = true }
 tfhe-versionable = { version = "0.7.0", path = "../utils/tfhe-versionable" }
@@ -141,7 +141,7 @@ __wasm_api = [
     "dep:console_error_panic_hook",
     "dep:serde-wasm-bindgen",
     "dep:getrandom",
-    "getrandom/js",
+    "getrandom/wasm_js",
 ]
 boolean-client-js-wasm-api = ["boolean", "__wasm_api"]
 shortint-client-js-wasm-api = ["shortint", "__wasm_api"]
