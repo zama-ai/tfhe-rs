@@ -1,5 +1,5 @@
 use tfhe::prelude::FheWait;
-use tfhe::{FheBool, FheInt, FheIntId, FheUint, FheUintId};
+use tfhe::{FheBool, FheInt, FheIntId, FheUint, FheUintId, SquashedNoiseFheUint};
 
 pub trait BenchWait {
     fn wait_bench(&self);
@@ -18,6 +18,12 @@ impl<Id: FheIntId> BenchWait for FheInt<Id> {
 }
 
 impl BenchWait for FheBool {
+    fn wait_bench(&self) {
+        self.wait()
+    }
+}
+
+impl BenchWait for SquashedNoiseFheUint {
     fn wait_bench(&self) {
         self.wait()
     }

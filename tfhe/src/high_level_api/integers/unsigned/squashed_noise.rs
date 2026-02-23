@@ -17,6 +17,7 @@ use crate::integer::block_decomposition::RecomposableFrom;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseRadixCiphertext;
 use crate::named::Named;
+use crate::prelude::FheWait;
 use crate::{ClientKey, Device, Tag};
 use serde::{Deserializer, Serializer};
 use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
@@ -120,6 +121,14 @@ impl InnerSquashedNoiseRadixCiphertext {
                     MaybeCloned::Cloned(ct.to_squashed_noise_radix_ciphertext(streams))
                 })
             }
+        }
+    }
+
+    pub(crate) fn wait(&self) {
+        match self {
+            Self::Cpu(_) => {}
+            #[cfg(feature = "gpu")]
+            Self::Cuda(_) => {}
         }
     }
     fn current_device(&self) -> crate::Device {
@@ -252,6 +261,12 @@ impl Tagged for SquashedNoiseFheUint {
 
     fn tag_mut(&mut self) -> &mut Tag {
         &mut self.tag
+    }
+}
+
+impl FheWait for SquashedNoiseFheUint {
+    fn wait(&self) {
+        self.inner.wait()
     }
 }
 

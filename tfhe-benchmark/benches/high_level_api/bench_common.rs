@@ -1,7 +1,7 @@
 use benchmark::high_level_api::bench_wait::*;
 use benchmark::high_level_api::benchmark_op::*;
 use benchmark::utilities::{
-    get_bench_type, write_to_json, BenchmarkType, OperandType, OperatorType,
+    get_bench_type, will_this_bench_run, write_to_json, BenchmarkType, OperandType, OperatorType,
 };
 use criterion::{black_box, Criterion, Throughput};
 use rand::prelude::*;
@@ -16,34 +16,6 @@ pub struct BenchConfig<'a> {
     pub operand_type: OperandType,
     pub func_name: &'a str,
     pub bit_size: usize,
-}
-
-/// This function aims to prevent the setup function from running.
-/// `Gag` is used here to suppress the temporary output noise from Criterion.
-/// We use a minimal Criterion configuration to retrieve information about the current filter setup.
-/// The function returns a boolean indicating whether the current `bench_id` should be executed or
-/// not.
-pub fn will_this_bench_run(bench_group: &str, bench_id: &str) -> bool {
-    let mut c = Criterion::default()
-        .configure_from_args()
-        .sample_size(10)
-        .output_directory(&std::env::temp_dir())
-        .warm_up_time(std::time::Duration::from_nanos(1))
-        .measurement_time(std::time::Duration::from_nanos(1))
-        .without_plots();
-    let mut will_run = false;
-    {
-        use gag::Gag;
-        let _print_gag = Gag::stdout().unwrap();
-        let _err_gag = Gag::stderr().unwrap();
-        c.benchmark_group(bench_group)
-            .bench_function(bench_id, |b| {
-                b.iter(|| {
-                    will_run = true;
-                });
-            });
-    }
-    will_run
 }
 
 #[inline(never)]

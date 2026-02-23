@@ -1,6 +1,7 @@
 #[cfg(not(feature = "hpu"))]
 use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
+use benchmark::high_level_api::bench_wait::BenchWait;
 use benchmark::params_aliases::{
     BENCH_COMP_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -15,7 +16,7 @@ use benchmark::params_aliases::{
 #[cfg(feature = "gpu")]
 use benchmark::utilities::configure_gpu;
 use benchmark::utilities::{
-    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, BitSizesSet, EnvConfig,
+    get_bench_type, will_this_bench_run, write_to_json, BenchmarkType, BitSizesSet, EnvConfig,
     OperatorType,
 };
 use criterion::{Criterion, Throughput};
@@ -51,8 +52,8 @@ fn bench_sns_only_fhe_type<FheType>(
     type_name: &str,
     num_bits: usize,
 ) where
-    FheType: FheEncrypt<u128, ClientKey> + Send + Sync,
-    FheType: SquashNoise,
+    FheType: FheEncrypt<u128, ClientKey> + Send + Sync + FheWait + SquashNoise,
+    <FheType as SquashNoise>::Output: BenchWait,
 {
     let (param, noise_param, _, _) = params;
 
@@ -103,13 +104,47 @@ fn bench_sns_only_fhe_type<FheType>(
         }
         BenchmarkType::Throughput => {
             bench_id = format!("{bench_id_prefix}::throughput::{bench_id_suffix}");
-            let params = client_key.computation_parameters();
-            let num_blocks = num_bits
-                .div_ceil((params.message_modulus().0 * params.carry_modulus().0).ilog2() as usize);
+
+            let elements = if will_this_bench_run(type_name, &bench_id) {
+                #[cfg(feature = "gpu")]
+                {
+                    use benchmark::utilities::throughput_num_threads;
+
+                    let params = client_key.computation_parameters();
+                    let num_blocks = num_bits.div_ceil(
+                        (params.message_modulus().0 * params.carry_modulus().0).ilog2() as usize,
+                    );
+
+                    throughput_num_threads(num_blocks, 4)
+                }
+                #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                {
+                    use benchmark::high_level_api::find_optimal_batch::find_optimal_batch;
+
+                    let _ = num_bits; // Avoid clippy warning since FheType::num_bits() is not available.
+
+                    let setup = |batch_size: usize| {
+                        (0..batch_size)
+                            .map(|_| FheType::encrypt(random(), &client_key))
+                            .collect::<Vec<_>>()
+                    };
+                    let run = |inputs: &Vec<_>, batch_size: usize| {
+                        inputs
+                            .par_iter()
+                            .take(batch_size)
+                            .for_each(|input: &FheType| {
+                                let _ = input.squash_noise();
+                            });
+                    };
+
+                    find_optimal_batch(run, setup) as u64
+                }
+            } else {
+                0
+            };
 
             #[cfg(feature = "gpu")]
             {
-                let elements = throughput_num_threads(num_blocks, 4);
                 bench_group.throughput(Throughput::Elements(elements));
                 println!("elements: {elements}");
                 let gpu_count = get_number_of_gpus() as usize;
@@ -143,7 +178,6 @@ fn bench_sns_only_fhe_type<FheType>(
 
             #[cfg(all(not(feature = "hpu"), not(feature = "gpu")))]
             {
-                let elements = throughput_num_threads(num_blocks, 1);
                 bench_group.throughput(Throughput::Elements(elements));
                 println!("elements: {elements}");
                 bench_group.bench_function(&bench_id, |b| {
@@ -190,9 +224,9 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
     type_name: &str,
     num_bits: usize,
 ) where
-    FheType: FheEncrypt<u128, ClientKey> + Send + Sync,
+    FheType: FheEncrypt<u128, ClientKey> + Send + Sync + FheWait,
     FheType: SquashNoise + Tagged + HlExpandable + HlCompressible,
-    <FheType as SquashNoise>::Output: HlSquashedNoiseCompressible,
+    <FheType as SquashNoise>::Output: HlSquashedNoiseCompressible + BenchWait,
 {
     let (param, noise_param, comp_noise_param, comp_param) = params;
 
@@ -253,13 +287,51 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
         }
         BenchmarkType::Throughput => {
             bench_id = format!("{bench_id_prefix}::throughput::{bench_id_suffix}");
-            let params = client_key.computation_parameters();
-            let num_blocks = num_bits
-                .div_ceil((params.message_modulus().0 * params.carry_modulus().0).ilog2() as usize);
+
+            let elements = if will_this_bench_run(type_name, &bench_id) {
+                #[cfg(feature = "gpu")]
+                {
+                    use benchmark::utilities::throughput_num_threads;
+
+                    let params = client_key.computation_parameters();
+                    let num_blocks = num_bits.div_ceil(
+                        (params.message_modulus().0 * params.carry_modulus().0).ilog2() as usize,
+                    );
+
+                    throughput_num_threads(num_blocks, 4)
+                }
+                #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                {
+                    use benchmark::high_level_api::find_optimal_batch::find_optimal_batch;
+
+                    let _ = num_bits; // Avoid clippy warning since FheType::num_bits() is not available.
+
+                    // Noise squashing is the current bottleneck.
+                    // Measuring CPU load with decompression and compression operations alongside
+                    // the noise squash would just increase the batch size. Then benchmark execution
+                    // duration would increase dramatically (from ~1.000 seconds to ~6.000 seconds).
+                    let setup = |batch_size: usize| {
+                        (0..batch_size)
+                            .map(|_| FheType::encrypt(random(), &client_key))
+                            .collect::<Vec<_>>()
+                    };
+                    let run = |inputs: &Vec<_>, batch_size: usize| {
+                        inputs
+                            .par_iter()
+                            .take(batch_size)
+                            .for_each(|input: &FheType| {
+                                let _ = input.squash_noise();
+                            });
+                    };
+
+                    find_optimal_batch(run, setup) as u64
+                }
+            } else {
+                0
+            };
 
             #[cfg(feature = "gpu")]
             {
-                let elements = throughput_num_threads(num_blocks, 4);
                 bench_group.throughput(Throughput::Elements(elements));
                 println!("elements: {elements}");
                 let gpu_count = get_number_of_gpus() as usize;
@@ -306,7 +378,6 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
 
             #[cfg(all(not(feature = "hpu"), not(feature = "gpu")))]
             {
-                let elements = throughput_num_threads(num_blocks, 1);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
                     let compressed_values = || {
