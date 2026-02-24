@@ -1,0 +1,18 @@
+# Run WASM client benchmarks on an instance and return parsed results to Slab CI bot.
+name: benchmark_wasm_client_common
+
+on:
+  workflow_call:
+
+permissions: {}
+
+# zizmor: ignore[concurrency-limits] only Zama organization members and GitHub can trigger this workflow
+
+jobs:
+  placeholder:
+    name: benchmark_wasm_client_common/placeholder
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          echo "Hello this is a placeholder job"
