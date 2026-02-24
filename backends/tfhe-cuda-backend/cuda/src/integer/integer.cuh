@@ -546,9 +546,9 @@ __host__ void integer_radix_apply_univariate_lookup_table(
 
   // Verify consistency between set_lut_indexes and apply_lookup_table
   GPU_ASSERT(
-      (lut->num_luts == 1 &&
-       lut->last_broadcast_num_radix_blocks == num_radix_blocks) ||
-          num_radix_blocks <= lut->last_broadcast_num_radix_blocks,
+      lut->num_luts == 1
+          ? num_radix_blocks <= lut->last_broadcast_num_radix_blocks
+          : num_radix_blocks == lut->last_broadcast_num_radix_blocks,
       "num_radix_blocks (%u) must match last_broadcast_num_radix_blocks (%u)",
       num_radix_blocks, lut->last_broadcast_num_radix_blocks);
   GPU_ASSERT(active_streams.count() <= lut->last_broadcast_streams.count(),
@@ -658,10 +658,11 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
     PANIC("Cuda error: input and output radix ciphertexts should have the same "
           "lwe dimension")
   GPU_ASSERT(
-      (lut->num_luts == 1 && lut->last_broadcast_num_radix_blocks ==
-                                 lwe_array_in->num_radix_blocks) ||
-          lwe_array_in->num_radix_blocks <=
-              lut->last_broadcast_num_radix_blocks,
+      lut->num_luts == 1
+          ? lwe_array_in->num_radix_blocks <=
+                lut->last_broadcast_num_radix_blocks
+          : lwe_array_in->num_radix_blocks ==
+                lut->last_broadcast_num_radix_blocks,
       "num_radix_blocks (%u) must match last_broadcast_num_radix_blocks (%u)",
       lwe_array_in->num_radix_blocks, lut->last_broadcast_num_radix_blocks);
 
@@ -757,9 +758,9 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
     PANIC("Cuda error: num radix blocks on which lut is applied should be "
           "smaller or equal to the number of lut radix blocks")
   GPU_ASSERT(
-      (lut->num_luts == 1 &&
-       lut->last_broadcast_num_radix_blocks == num_radix_blocks) ||
-          num_radix_blocks <= lut->last_broadcast_num_radix_blocks,
+      lut->num_luts == 1
+          ? num_radix_blocks <= lut->last_broadcast_num_radix_blocks
+          : num_radix_blocks == lut->last_broadcast_num_radix_blocks,
       "num_radix_blocks (%u) must match last_broadcast_num_radix_blocks (%u)",
       num_radix_blocks, lut->last_broadcast_num_radix_blocks);
   if (num_radix_blocks > lwe_array_out->num_radix_blocks ||
