@@ -39,6 +39,8 @@ ZIZMOR_VERSION=1.22.0
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
 
+include utils/tfhe-lints/Makefile
+
 ifeq ($(GEN_KEY_CACHE_MULTI_BIT_ONLY),TRUE)
 		MULTI_BIT_ONLY=--multi-bit-only
 else
@@ -604,10 +606,11 @@ check_rust_bindings_did_not_change:
 
 .PHONY: tfhe_lints # Run custom tfhe-rs lints
 tfhe_lints: install_cargo_dylint
-	RUSTFLAGS="$(RUSTFLAGS) -Dwarnings" cargo dylint --all -p tfhe --no-deps -- \
+	RUSTFLAGS="$(RUSTFLAGS) -Dwarnings" cargo dylint --lib tfhe_lints -p tfhe --no-deps -- \
 		--features=boolean,shortint,integer,strings,zk-pok
-	RUSTFLAGS="$(RUSTFLAGS) -Dwarnings" cargo dylint --all -p tfhe-zk-pok --no-deps -- \
+	RUSTFLAGS="$(RUSTFLAGS) -Dwarnings" cargo dylint --lib tfhe_lints -p tfhe-zk-pok --no-deps -- \
 		--features=experimental
+	RUSTFLAGS="$(RUSTFLAGS) -Dwarnings" cargo dylint --lib tfhe_lints -p tfhe-csprng --no-deps --
 
 .PHONY: audit_dependencies # Run cargo audit to check vulnerable dependencies
 audit_dependencies: install_cargo_audit
@@ -2359,4 +2362,11 @@ bench_ntt: install_rs_check_toolchain
 
 .PHONY: help # Generate list of targets with descriptions
 help:
-	@grep '^\.PHONY: .* #' Makefile | sed 's/\.PHONY: \(.*\) # \(.*\)/\1\t\2/' | expand -t30 | sort
+	@find . \( -name 'Makefile' -o -name '*.mk' \) | sort | while read f; do \
+		matches=$$(grep '^\.PHONY: .* #' "$$f" || true); \
+		if [ -n "$$matches" ]; then \
+			echo ""; \
+			echo "--- $$f ---"; \
+			echo "$$matches" | sed 's/\.PHONY: \(.*\) # \(.*\)/\1\t\2/' | expand -t30 | sort; \
+		fi \
+	done
