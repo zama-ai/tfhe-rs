@@ -101,10 +101,7 @@ use tfhe_versionable::Versionize;
 ///
 /// assert_eq!(clear_a.wrapping_add(clear_b), dec);
 /// ```
-pub trait ReRandomize
-where
-    Self: Sized,
-{
+pub trait ReRandomize {
     fn add_to_re_randomization_context(&self, context: &mut ReRandomizationContext);
 
     /// Re-randomize the ciphertext using the provided public key and seed.
@@ -178,7 +175,7 @@ impl ReRandomizationContext {
     }
 
     /// Adds a new ciphertext to the re-randomization context
-    pub fn add_ciphertext<Data: ReRandomize>(&mut self, data: &Data) {
+    pub fn add_ciphertext<Data: ReRandomize + ?Sized>(&mut self, data: &Data) {
         data.add_to_re_randomization_context(self);
     }
 
