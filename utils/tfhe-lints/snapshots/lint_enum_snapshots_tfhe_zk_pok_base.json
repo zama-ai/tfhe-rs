@@ -1,0 +1,394 @@
+[
+  {
+    "enum_name": "backward_compatibility::pke::ProofVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "backward_compatibility::pke::ProofV0",
+        "inner_type_display": "backward_compatibility::pke::ProofV0<G>",
+        "struct_hash": "f742aabadbcb20092113e7c1ab31bfe6e679400d341a05281205c49cd21edbf4"
+      },
+      {
+        "index": 1,
+        "inner_type_def_path": "proofs::pke::Proof",
+        "inner_type_display": "proofs::pke::Proof<G>",
+        "struct_hash": "afcc4dac07f967708da65fe4c4ca55bc7479660b517ba96105954dfb1cd79742"
+      }
+    ],
+    "upgrades": [
+      {
+        "source_def_path": "backward_compatibility::pke::ProofV0",
+        "target_def_path": "proofs::pke::Proof",
+        "body_hash": "b3dc72a9bfa7827a6c4860e31420e1d5e23e75f4609313c5175e4a991108331e"
+      }
+    ]
+  },
+  {
+    "enum_name": "backward_compatibility::pke::ComputeLoadProofFieldsVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "proofs::pke::ComputeLoadProofFields",
+        "inner_type_display": "proofs::pke::ComputeLoadProofFields<G>",
+        "struct_hash": "f1dbceb181f99578271625eed529b15e8f681c8effbe5213889e2557da9602f3"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "backward_compatibility::pke::CompressedProofVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "backward_compatibility::pke::CompressedProofV0",
+        "inner_type_display": "backward_compatibility::pke::CompressedProofV0<G>",
+        "struct_hash": "664f178759c84913e0573f585d9661b639f3ac5d2e9604c00d03b21ec401bb9b"
+      },
+      {
+        "index": 1,
+        "inner_type_def_path": "proofs::pke::CompressedProof",
+        "inner_type_display": "proofs::pke::CompressedProof<G>",
+        "struct_hash": "ff0a92f716378f0e6f0af6a5a645ddc768849f0db4f9ba0551d665ec2d4c1f8a"
+      }
+    ],
+    "upgrades": [
+      {
+        "source_def_path": "backward_compatibility::pke::CompressedProofV0",
+        "target_def_path": "proofs::pke::CompressedProof",
+        "body_hash": "166514340e028ca280c085a681e5d7bf56465b51ce54f6890a7f0fc29b0ac8be"
+      }
+    ]
+  },
+  {
+    "enum_name": "backward_compatibility::pke::CompressedComputeLoadProofFieldsVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "proofs::pke::CompressedComputeLoadProofFields",
+        "inner_type_display": "proofs::pke::CompressedComputeLoadProofFields<G>",
+        "struct_hash": "7d294092be60895d9bfe3a735811d0c70d2bd01ce0f194ebf4fdb84312fcf424"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "backward_compatibility::pke_v2::ProofVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "backward_compatibility::pke_v2::ProofV0",
+        "inner_type_display": "backward_compatibility::pke_v2::ProofV0<G>",
+        "struct_hash": "83542a4c74b4d19cf6dfb4718a56eb18bd82fa1e0a0bdedd5650f8f40de13936"
+      },
+      {
+        "index": 1,
+        "inner_type_def_path": "backward_compatibility::pke_v2::ProofV1",
+        "inner_type_display": "backward_compatibility::pke_v2::ProofV1<G>",
+        "struct_hash": "7398e5b68baa69532a863bf606ca1159135467845dafdafae9655738f308a684"
+      },
+      {
+        "index": 2,
+        "inner_type_def_path": "backward_compatibility::pke_v2::ProofV2",
+        "inner_type_display": "backward_compatibility::pke_v2::ProofV2<G>",
+        "struct_hash": "724e37838751741c4d279fab2ac5e07771d732c9b7aac267305f06a3134e5095"
+      },
+      {
+        "index": 3,
+        "inner_type_def_path": "proofs::pke_v2::Proof",
+        "inner_type_display": "proofs::pke_v2::Proof<G>",
+        "struct_hash": "cd0c1e655a708b3346267b3831570f00fe695a5d87353f3c8af490f4ab53583c"
+      }
+    ],
+    "upgrades": [
+      {
+        "source_def_path": "backward_compatibility::pke_v2::ProofV0",
+        "target_def_path": "backward_compatibility::pke_v2::ProofV1",
+        "body_hash": "12f3f82abc5a08f1ea4a15c66f5eb405b67a7d5be338e094df1b2c2c4337173f"
+      },
+      {
+        "source_def_path": "backward_compatibility::pke_v2::ProofV1",
+        "target_def_path": "backward_compatibility::pke_v2::ProofV2",
+        "body_hash": "3a75da9433daabb28b7b154d1283ddf0e2226668d01ff0f3b9795af988096b48"
+      },
+      {
+        "source_def_path": "backward_compatibility::pke_v2::ProofV2",
+        "target_def_path": "proofs::pke_v2::Proof",
+        "body_hash": "b5b4fee95768e279e59396a6efc5bc3b3e60b88aed6c9678e4b4302aba788e26"
+      }
+    ]
+  },
+  {
+    "enum_name": "backward_compatibility::pke_v2::ComputeLoadProofFieldsVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "proofs::pke_v2::ComputeLoadProofFields",
+        "inner_type_display": "proofs::pke_v2::ComputeLoadProofFields<G>",
+        "struct_hash": "5bd53f0109cb1ef133736d00dca66c4c8b55250e382de2661b1eab2526bef922"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "backward_compatibility::pke_v2::CompressedProofVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "backward_compatibility::pke_v2::CompressedProofV0",
+        "inner_type_display": "backward_compatibility::pke_v2::CompressedProofV0<G>",
+        "struct_hash": "a4ce61ce3d2313785fe4d8621a9684ec8510e7ad1fda4aab1154c1b2c8469e55"
+      },
+      {
+        "index": 1,
+        "inner_type_def_path": "backward_compatibility::pke_v2::CompressedProofV1",
+        "inner_type_display": "backward_compatibility::pke_v2::CompressedProofV1<G>",
+        "struct_hash": "b3298b53d6527e7eb5cfc1e1af56a54ce6ce90f1838437a15961879e6fdefb1d"
+      },
+      {
+        "index": 2,
+        "inner_type_def_path": "backward_compatibility::pke_v2::CompressedProofV2",
+        "inner_type_display": "backward_compatibility::pke_v2::CompressedProofV2<G>",
+        "struct_hash": "80e986e4ccca03cc7dd787c40437ab7d9a169838ed58457f8d10936b53feee4a"
+      },
+      {
+        "index": 3,
+        "inner_type_def_path": "proofs::pke_v2::CompressedProof",
+        "inner_type_display": "proofs::pke_v2::CompressedProof<G>",
+        "struct_hash": "d43c43a97eb7204b39b5f75b2efe383505d59a4552850f7c30dba4055b620cdd"
+      }
+    ],
+    "upgrades": [
+      {
+        "source_def_path": "backward_compatibility::pke_v2::CompressedProofV0",
+        "target_def_path": "backward_compatibility::pke_v2::CompressedProofV1",
+        "body_hash": "788c6832a0a942da210e38820b34073fe7f70d8d0555646ee04b6db0d9cc01bd"
+      },
+      {
+        "source_def_path": "backward_compatibility::pke_v2::CompressedProofV1",
+        "target_def_path": "backward_compatibility::pke_v2::CompressedProofV2",
+        "body_hash": "3a75da9433daabb28b7b154d1283ddf0e2226668d01ff0f3b9795af988096b48"
+      },
+      {
+        "source_def_path": "backward_compatibility::pke_v2::CompressedProofV2",
+        "target_def_path": "proofs::pke_v2::CompressedProof",
+        "body_hash": "b5b4fee95768e279e59396a6efc5bc3b3e60b88aed6c9678e4b4302aba788e26"
+      }
+    ]
+  },
+  {
+    "enum_name": "backward_compatibility::pke_v2::CompressedComputeLoadProofFieldsVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "proofs::pke_v2::CompressedComputeLoadProofFields",
+        "inner_type_display": "proofs::pke_v2::CompressedComputeLoadProofFields<G>",
+        "struct_hash": "b2dc31416c2347223d933759680c660e0ba7962683acdfa40b0bbb1a8c8c2025"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "backward_compatibility::pke_v2::PkeV2HashModeVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "proofs::pke_v2::hashes::PkeV2HashMode",
+        "inner_type_display": "proofs::pke_v2::hashes::PkeV2HashMode",
+        "struct_hash": "3eff2a5c4c59536d5ac23d9c9ea4da7e746cf4077f414dea7996f00cd560c0d1"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "backward_compatibility::pke_v2::PkeV2SupportedHashConfigVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "proofs::pke_v2::hashes::PkeV2SupportedHashConfig",
+        "inner_type_display": "proofs::pke_v2::hashes::PkeV2SupportedHashConfig",
+        "struct_hash": "8ae15ca0057b9e405c497eeb938bbb6c0bfdc6d5ad6866bdf756091d1d5f234d"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "backward_compatibility::SerializableAffineVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "serialization::SerializableAffine",
+        "inner_type_display": "serialization::SerializableAffine<F>",
+        "struct_hash": "6733241f15f4850bcf32db80bb2a20e2f4ec84cbb13daf1f8bf46f4f4623a739"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "backward_compatibility::SerializableFpVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "serialization::SerializableFp",
+        "inner_type_display": "serialization::SerializableFp",
+        "struct_hash": "334ee5d33fabf23a2206d59cdb9a95143e1471f4b2b4ba774567533a66df5d41"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "backward_compatibility::SerializableQuadExtFieldVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "serialization::SerializableQuadExtField",
+        "inner_type_display": "serialization::SerializableQuadExtField<F>",
+        "struct_hash": "29f7e3b0991f8d9abc5c674f9cc4e62af6a7f7784f3ca6731963efff7dd49e13"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "backward_compatibility::SerializableCubicExtFieldVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "serialization::SerializableCubicExtField",
+        "inner_type_display": "serialization::SerializableCubicExtField<F>",
+        "struct_hash": "6e219c9f5e8f0e96034afdf6a101b3411f2bf937e8e9812543aefc1d4fd02de3"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "backward_compatibility::GroupElementsVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "proofs::GroupElements",
+        "inner_type_display": "proofs::GroupElements<G>",
+        "struct_hash": "0b83212d391f6d1f65884bfe69e8693de4a2091248a1427ac5246f97ee7a6dbb"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "backward_compatibility::SerializableGroupElementsVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "serialization::SerializableGroupElements",
+        "inner_type_display": "serialization::SerializableGroupElements",
+        "struct_hash": "888d7224558d9f24d3ee02c087d7e44ebd4e7acef8245af5a486f0b47e451a58"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "backward_compatibility::SerializablePKEv2PublicParamsVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "backward_compatibility::SerializablePKEv2PublicParamsV0",
+        "inner_type_display": "backward_compatibility::SerializablePKEv2PublicParamsV0",
+        "struct_hash": "3a62e3a52411228706f7a1c9e61a1ccaffcdc5099f2f09ed23458fb722249f2b"
+      },
+      {
+        "index": 1,
+        "inner_type_def_path": "serialization::SerializablePKEv2PublicParams",
+        "inner_type_display": "serialization::SerializablePKEv2PublicParams",
+        "struct_hash": "d4adae69d78dd5b20464205e3823447f6893ae5507a7331b480b947d892606a8"
+      }
+    ],
+    "upgrades": [
+      {
+        "source_def_path": "backward_compatibility::SerializablePKEv2PublicParamsV0",
+        "target_def_path": "serialization::SerializablePKEv2PublicParams",
+        "body_hash": "2e6bc5ec2db2d986e56acddab5498776e63c9d65a509743830bc258c800c3354"
+      }
+    ]
+  },
+  {
+    "enum_name": "backward_compatibility::SerializablePKEv2DomainSeparatorsVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "backward_compatibility::SerializablePKEv2DomainSeparatorsV0",
+        "inner_type_display": "backward_compatibility::SerializablePKEv2DomainSeparatorsV0",
+        "struct_hash": "dd452b2e03d6d9064ba681eca9d04ace97dd0023f2fefebadca2d2b22ee65532"
+      },
+      {
+        "index": 1,
+        "inner_type_def_path": "serialization::SerializablePKEv2DomainSeparators",
+        "inner_type_display": "serialization::SerializablePKEv2DomainSeparators",
+        "struct_hash": "c7c2ac96c932449bf34596f560761c42e6a5a36ba021aeecb344b92d5aaee04b"
+      }
+    ],
+    "upgrades": [
+      {
+        "source_def_path": "backward_compatibility::SerializablePKEv2DomainSeparatorsV0",
+        "target_def_path": "serialization::SerializablePKEv2DomainSeparators",
+        "body_hash": "2f3d1a95059f12f86c2c8c5969a76d085f37880310060ce4a36cc26efc52e163"
+      }
+    ]
+  },
+  {
+    "enum_name": "backward_compatibility::SerializablePKEv1PublicParamsVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "backward_compatibility::SerializablePKEv1PublicParamsV0",
+        "inner_type_display": "backward_compatibility::SerializablePKEv1PublicParamsV0",
+        "struct_hash": "f90d27f591c0c397c1c393d3abf08c54a695a702a5f1932bdc2f16f1348b061c"
+      },
+      {
+        "index": 1,
+        "inner_type_def_path": "serialization::SerializablePKEv1PublicParams",
+        "inner_type_display": "serialization::SerializablePKEv1PublicParams",
+        "struct_hash": "7c95fafb147675d37924c18ddd7ac8c2f51c50ad65cf8ea67dfa7fb47b5c1e66"
+      }
+    ],
+    "upgrades": [
+      {
+        "source_def_path": "backward_compatibility::SerializablePKEv1PublicParamsV0",
+        "target_def_path": "serialization::SerializablePKEv1PublicParams",
+        "body_hash": "f748ef447aa23f5b5ea23e4e0d54e7fe12f440f3e4368c13dda41aa76d792aad"
+      }
+    ]
+  },
+  {
+    "enum_name": "backward_compatibility::SerializablePKEv1DomainSeparatorsVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "backward_compatibility::SerializablePKEv1DomainSeparatorsV0",
+        "inner_type_display": "backward_compatibility::SerializablePKEv1DomainSeparatorsV0",
+        "struct_hash": "a09377ab649858999c4d1092a4cb29540f5f3c7667c6206112191803fe6a7373"
+      },
+      {
+        "index": 1,
+        "inner_type_def_path": "serialization::SerializablePKEv1DomainSeparators",
+        "inner_type_display": "serialization::SerializablePKEv1DomainSeparators",
+        "struct_hash": "08077d9dcdff3d7d67b0983d9bf555c6079ee6f63378839b135a64c6008a1fc8"
+      }
+    ],
+    "upgrades": [
+      {
+        "source_def_path": "backward_compatibility::SerializablePKEv1DomainSeparatorsV0",
+        "target_def_path": "serialization::SerializablePKEv1DomainSeparators",
+        "body_hash": "4cf9e502ef849c0f10050db8151c998bd987346a2a107a7cbf7c07bc6be3a240"
+      }
+    ]
+  },
+  {
+    "enum_name": "backward_compatibility::BoundVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "proofs::pke_v2::Bound",
+        "inner_type_display": "proofs::pke_v2::Bound",
+        "struct_hash": "7cde8e2b57eeba5598c4658030d4764923aa094af623021a9e3c3dadcb2a9a02"
+      }
+    ],
+    "upgrades": []
+  }
+]

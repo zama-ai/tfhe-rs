@@ -1,6 +1,15 @@
+#![feature(rustc_private)]
+#![warn(unused_extern_crates)]
+
+extern crate rustc_ast;
+extern crate rustc_hir;
+extern crate rustc_lint;
+extern crate rustc_middle;
+extern crate rustc_span;
+
 use rustc_ast::tokenstream::TokenTree;
-use rustc_hir::def_id::DefId;
 use rustc_hir::AttrArgs;
+use rustc_hir::def_id::DefId;
 use rustc_lint::LateContext;
 use rustc_middle::ty::{Ty, TyKind};
 use rustc_span::Symbol;
