@@ -1731,6 +1731,7 @@ extract_n_bits(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
           num_radix_blocks);
     }
   }
+  bit_extract->prepare_lut_for_blocks(effective_num_radix_blocks);
   integer_radix_apply_univariate_lookup_table<Torus>(
       streams, lwe_array_out, lwe_array_out, bsks, ksks, bit_extract->lut,
       effective_num_radix_blocks);

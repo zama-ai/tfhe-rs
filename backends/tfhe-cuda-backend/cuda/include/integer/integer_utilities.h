@@ -881,6 +881,39 @@ public:
     broadcast_lut(streams, false);
   }
 
+  // TODO: add comment
+  template <typename IndexGenerator>
+  void prepare_to_apply_to_block_subset(uint32_t num_radix_blocks_subset,
+                                        IndexGenerator generator) {
+    // TODO: add comment
+    GPU_ASSERT(num_radix_blocks_subset <= num_blocks,
+               "num_radix_blocks_subset (%u) must not exceed num_blocks (%u)",
+               num_radix_blocks_subset, num_blocks);
+
+    if constexpr (!std::is_same_v<IndexGenerator, std::nullptr_t>) {
+      // TODO: add comment
+      std::vector<InputTorus> expected(num_blocks);
+      generator(expected.data(), num_blocks);
+      for (uint32_t i = 0; i < num_blocks; i++) {
+        // TODO: add comment
+        GPU_ASSERT(expected[i] == h_lut_indexes[i],
+                   "LUT index mismatch at block %u: expected %llu, stored %llu",
+                   i, (unsigned long long)expected[i],
+                   (unsigned long long)h_lut_indexes[i]);
+      }
+    } else {
+      // TODO: add comment
+      for (uint32_t i = 0; i < num_blocks; i++) {
+        GPU_ASSERT(h_lut_indexes[i] == 0,
+                   "LUT index mismatch at block %u: expected 0, stored %llu", i,
+                   (unsigned long long)h_lut_indexes[i]);
+      }
+    }
+
+    // TODO: add comment
+    last_broadcast_num_radix_blocks = num_radix_blocks_subset;
+  }
+
   // Broadcast luts from device gpu_indexes[0] to all active gpus
   void broadcast_lut(CudaStreams new_active_streams,
                      bool broadcast_lut_values = true) {
@@ -1268,6 +1301,8 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
   int_radix_params params;
   int_radix_lut<Torus> *lut;
   bool gpu_memory_allocated;
+  uint32_t bits_per_block = 0;
+  uint32_t num_radix_blocks = 0;
 
   // With offset
   int_bit_extract_luts_buffer(CudaStreams streams, int_radix_params params,
@@ -1277,6 +1312,8 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
                               uint64_t &size_tracker) {
     this->params = params;
     gpu_memory_allocated = allocate_gpu_memory;
+    this->bits_per_block = bits_per_block;
+    this->num_radix_blocks = num_radix_blocks;
 
     lut = new int_radix_lut<Torus>(streams, params, bits_per_block,
                                    bits_per_block * num_radix_blocks,
@@ -1303,10 +1340,8 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
 
     auto lut_index_generator =
         [num_radix_blocks, bits_per_block](Torus *h_lut_indexes, uint32_t) {
-          for (int j = 0; j < num_radix_blocks; j++) {
-            for (int i = 0; i < bits_per_block; i++)
-              h_lut_indexes[i + j * bits_per_block] = i;
-          }
+          compute_bit_extract_lut_indexes(h_lut_indexes, num_radix_blocks,
+                                          bits_per_block);
         };
 
     lut->generate_and_broadcast_lut(active_streams, lut_indices, lut_funs,
@@ -1354,10 +1389,27 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
                                     num_radix_blocks, allocate_gpu_memory,
                                     size_tracker) {}
 
+  // TODO: add comment
+  void prepare_lut_for_blocks(uint32_t effective_num_blocks) {
+    auto generator = [this](Torus *h, uint32_t) {
+      compute_bit_extract_lut_indexes(h, num_radix_blocks, bits_per_block);
+    };
+    lut->prepare_to_apply_to_block_subset(effective_num_blocks, generator);
+  }
+
   void release(CudaStreams streams) {
     lut->release(streams);
     delete (lut);
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+
+private:
+  static void compute_bit_extract_lut_indexes(Torus *h,
+                                              uint32_t num_radix_blocks,
+                                              uint32_t bits_per_block) {
+    for (int j = 0; j < num_radix_blocks; j++)
+      for (int i = 0; i < bits_per_block; i++)
+        h[i + j * bits_per_block] = i;
   }
 };
 
