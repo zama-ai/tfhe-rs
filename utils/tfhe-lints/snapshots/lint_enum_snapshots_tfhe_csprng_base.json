@@ -1,0 +1,86 @@
+[
+  {
+    "enum_name": "generators::backward_compatibility::AesIndexVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "generators::aes_ctr::index::AesIndex",
+        "inner_type_display": "generators::aes_ctr::index::AesIndex",
+        "struct_hash": "923080edce7f6ce44eaf6688f154ac9c387ae9cfd0ae5a4175054c0dbb7853bb"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "generators::backward_compatibility::ByteIndexVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "generators::aes_ctr::index::ByteIndex",
+        "inner_type_display": "generators::aes_ctr::index::ByteIndex",
+        "struct_hash": "fdb69cdd0f9806a094c499c99b20a813c33617848ceae0c6b5541bd577efe233"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "generators::backward_compatibility::TableIndexVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "generators::aes_ctr::index::TableIndex",
+        "inner_type_display": "generators::aes_ctr::index::TableIndex",
+        "struct_hash": "aea4703686fe8256dfaf65298b7e1440f2575f89635e2e87f00fcec26ce72216"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "generators::backward_compatibility::AesCtrParamsVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "generators::aes_ctr::AesCtrParams",
+        "inner_type_display": "generators::aes_ctr::AesCtrParams",
+        "struct_hash": "79d1a15ca681e296620b7bb21227d9299ac5fbf972cefca3f78811765ac16dde"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "seeders::backward_compatibility::XofSeedVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "seeders::XofSeed",
+        "inner_type_display": "seeders::XofSeed",
+        "struct_hash": "305744cc57a2c156864201458784ddbcfa22d28f1f119c6a0489a7dc75e718c9"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "seeders::backward_compatibility::SeedVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "seeders::Seed",
+        "inner_type_display": "seeders::Seed",
+        "struct_hash": "12f4eac820dbfc1ab347547f601c115b845df0bbefa98f01463a77f838c6838e"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "seeders::backward_compatibility::SeedKindVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "seeders::SeedKind",
+        "inner_type_display": "seeders::SeedKind",
+        "struct_hash": "52193df6dd1e0efcefd9c27ae1f1ceb7e28056fcb3351f2cdd29aa5af595f71d"
+      }
+    ],
+    "upgrades": []
+  }
+]
