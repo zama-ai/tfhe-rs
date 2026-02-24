@@ -865,4 +865,12 @@
             ],
         )),
     ),
+    (
+        tfhe_version_min: "1.6",
+        tfhe_module: "high_level_api",
+        metadata: HlCompressedXofKeySet((
+            compressed_xof_key_set_file_name: "compressed_xof_key_set",
+            client_key_file_name: "xof_client_key",
+        )),
+    ),
 ]
