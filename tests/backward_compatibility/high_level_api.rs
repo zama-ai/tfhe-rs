@@ -361,10 +361,10 @@ pub fn test_hl_pubkey(
 }
 
 enum CPKWithReRandMode<'a> {
-    /// Used for legacy test which took the presence of CPK as making rerand test necessary
+    /// Used for legacy test which interpreted the presence of CPK as making rerand test necessary
     ExpectsLegacyReRand(&'a CompactPublicKey),
     /// Use for other cases, the rerand support is checked
-    NoReRandExpectation(&'a CompactPublicKey),
+    NoLegacyReRandExpectation(&'a CompactPublicKey),
 }
 
 /// Shared feature-testing logic for server keys: computation, re-randomization, noise squashing,
@@ -407,7 +407,7 @@ fn test_hl_key_features(
     // Remove the rerand mode check to keep logic simpler moving forward
     let compact_public_key = compact_public_key.map(|pk| match pk {
         CPKWithReRandMode::ExpectsLegacyReRand(compact_public_key) => compact_public_key,
-        CPKWithReRandMode::NoReRandExpectation(compact_public_key) => compact_public_key,
+        CPKWithReRandMode::NoLegacyReRandExpectation(compact_public_key) => compact_public_key,
     });
 
     let clear_a = 278120u32;
@@ -852,7 +852,7 @@ fn test_hl_compressed_xof_key_set_test(
     test_hl_key_features(
         &client_key,
         server_key,
-        Some(CPKWithReRandMode::NoReRandExpectation(&pk)),
+        Some(CPKWithReRandMode::NoLegacyReRandExpectation(&pk)),
         test,
         format,
     )?;
