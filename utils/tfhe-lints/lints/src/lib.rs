@@ -1,7 +1,6 @@
 #![feature(rustc_private)]
 #![warn(unused_extern_crates)]
 
-extern crate rustc_ast;
 extern crate rustc_errors;
 extern crate rustc_hir;
 extern crate rustc_lint;
@@ -11,8 +10,6 @@ extern crate rustc_span;
 
 mod invalid_versionize_dispatch;
 mod serialize_without_versionize;
-
-mod utils;
 
 dylint_linting::dylint_library!();
 

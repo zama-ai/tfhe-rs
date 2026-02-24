@@ -8,7 +8,7 @@ use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::{declare_lint, impl_lint_pass};
 use rustc_span::{Ident, Symbol};
 
-use crate::utils::{get_def_id_from_ty, is_allowed_lint, symbols_list_from_str};
+use tfhe_lints_common::{get_def_id_from_ty, is_allowed_lint, symbols_list_from_str};
 
 #[derive(Default)]
 pub struct InvalidVersionizeDispatchInner {

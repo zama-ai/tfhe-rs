@@ -1,0 +1,67 @@
+# Warn on PR when backward-compat snapshot base files are modified
+name: pr_snapshot_change_warning
+
+on:
+  pull_request:
+    paths:
+      - 'utils/tfhe-lints/snapshots/lint_enum_snapshots_*_base.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  snapshot-change-warning:
+    name: pr_snapshot_change_warning/snapshot-change-warning
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write # To send and modify message in the PR
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: 'false'
+          path: head
+
+      - name: Checkout base branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: 'false'
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs]
+        with:
+          toolchain: stable
+
+      - name: Generate diff report
+        id: report
+        working-directory: head
+        run: |
+          make lint-generate-report HEAD_FILE=base
+
+          if [ -s ../report.md ]; then
+            echo "has_report=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_report=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Find existing comment
+        id: find-comment
+        uses: peter-evans/find-comment@3eae4d37986fb5a8592848f6a574fdf654e61f9e # v3.1.0
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: '**Backward-compat snapshot base files'
+
+      - name: Comment on PR
+        if: steps.report.outputs.has_report == 'true'
+        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5.0.0
+        with:
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: report.md
+          edit-mode: replace
