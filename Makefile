@@ -1,4 +1,7 @@
 SHELL:=$(shell /usr/bin/env which bash)
+# Enable stop on error, no undefined variables
+# the c flag is to run the script inline
+.SHELLFLAGS := -eu -c
 OS:=$(shell uname)
 RS_CHECK_TOOLCHAIN:=$(shell cat nightly-toolchain.txt | tr -d '\n')
 CARGO_RS_CHECK_TOOLCHAIN:=+$(RS_CHECK_TOOLCHAIN)
@@ -536,11 +539,10 @@ clippy_param_dedup: install_rs_check_toolchain
 
 .PHONY: clippy_backward_compat_data # Run clippy lints on tfhe-backward-compat-data
 clippy_backward_compat_data: install_rs_check_toolchain # the toolchain is selected with toolchain.toml
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p tfhe-backward-compat-data -- --no-deps -D warnings
 	@# Some old crates are x86 specific, only run in that case
 	@if uname -a | grep -q x86; then \
-		RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options \
-			-C $(BACKWARD_COMPAT_DATA_DIR) clippy --all --all-targets \
-			-- --no-deps -D warnings; \
 		for crate in `ls -1 $(BACKWARD_COMPAT_DATA_DIR)/crates/ | grep generate_`; do \
 			echo "checking $$crate"; \
 			RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options \
@@ -803,7 +805,7 @@ test_integer_hl_test_gpu_check_warnings:
 		--features=integer,internal-keycache,gpu-debug,zk-pok -vv -p tfhe &> /tmp/gpu_compile_output
 	WARNINGS=$$(cat /tmp/gpu_compile_output | grep ": warning #" | grep "\[tfhe-cuda-backend" | grep -v "inline qualifier" || true) && \
 	if [[ "$${WARNINGS}" != "" ]]; then \
-	    echo "FAILING BECAUSE CUDA COMPILATION WARNINGS WERE DETECTED: " && \
+		echo "FAILING BECAUSE CUDA COMPILATION WARNINGS WERE DETECTED: " && \
 		echo "$${WARNINGS}" && exit 1; \
 	fi
 
@@ -1754,14 +1756,14 @@ bench_hlapi_erc20: install_rs_check_toolchain
 .PHONY: bench_hlapi_erc20_gpu # Run benchmarks for ERC20 operations on GPU
 bench_hlapi_erc20_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
-    cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc20 \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_hlapi_erc20_gpu_classical # Run benchmarks for ERC20 operations on GPU with classical parameters
 bench_hlapi_erc20_gpu_classical: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=classical \
-    cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc20 \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
