@@ -1,0 +1,4 @@
+# This one is for local dev purposes
+snapshots/head/*
+# This line is for the test in the snapshot crate
+snapshot/**/*.json
