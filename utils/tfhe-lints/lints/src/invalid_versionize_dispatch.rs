@@ -8,7 +8,7 @@ use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_session::{declare_lint, impl_lint_pass};
 use rustc_span::{Ident, Symbol};
 
-use crate::utils::{get_def_id_from_ty, is_allowed_lint, symbols_list_from_str};
+use tfhe_lints_common::{get_def_id_from_ty, is_allowed_lint, symbols_list_from_str};
 
 #[derive(Default)]
 pub struct InvalidVersionizeDispatchInner {
@@ -27,12 +27,10 @@ impl InvalidVersionizeDispatchInner {
     pub fn versions_dispatch_trait(&self, cx: &LateContext<'_>) -> Option<DefId> {
         self.versions_dispatch_trait
             .get_or_init(|| {
-                let versionize_trait = cx.tcx.all_traits_including_private().find(|def_id| {
+                cx.tcx.all_traits_including_private().find(|def_id| {
                     let path = cx.get_def_path(*def_id);
                     path == symbols_list_from_str(&VERSIONS_DISPATCH_TRAIT)
-                });
-
-                versionize_trait
+                })
             })
             .to_owned()
     }
