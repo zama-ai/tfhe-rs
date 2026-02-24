@@ -55,7 +55,7 @@ impl TfhersVersion for V1_6 {
             let security_bits = 128;
             let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
             let (hl_client_key, hl_xof_key_set) = CompressedXofKeySet::generate(
-                INSECURE_TEST_META_PARAMS.convert().into(),
+                INSECURE_TEST_NO_KS_RERAND_META_PARAMS.convert().into(),
                 seed_bytes,
                 security_bits,
                 max_norm_hwt,
@@ -77,7 +77,7 @@ impl TfhersVersion for V1_6 {
 
         {
             // The CSPRNG had a bug fix in 1.6, so we generate a complete ServerKey
-            let meta_params = INSECURE_TEST_META_PARAMS.convert();
+            let meta_params = INSECURE_TEST_NO_KS_RERAND_META_PARAMS.convert();
             let client_key = ClientKey::generate(meta_params);
             let compressed_server_key = CompressedServerKey::new(&client_key);
             let cpk = CompressedCompactPublicKey::new(&client_key);
