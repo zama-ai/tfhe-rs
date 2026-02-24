@@ -10,6 +10,7 @@ tfhe-versionable = { path = "../utils/tfhe-versionable" }
 tfhe-backward-compat-data = { path = "../utils/tfhe-backward-compat-data" }
 rand = { workspace = true }
 cargo_toml = "0.22"
+semver = "1.0"
 
 
 [[test]]

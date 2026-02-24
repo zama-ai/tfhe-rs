@@ -362,10 +362,10 @@ pub fn test_hl_pubkey(
 }
 
 enum CPKWithReRandMode<'a> {
-    /// Used for legacy test which took the presence of CPK as making rerand test necessary
+    /// Used for legacy test which interpreted the presence of CPK as making rerand test necessary
     ExpectsLegacyReRand(&'a CompactPublicKey),
     /// Use for other cases, the rerand support is checked
-    NoReRandExpectation(&'a CompactPublicKey),
+    NoLegacyReRandExpectation(&'a CompactPublicKey),
 }
 
 /// Shared feature-testing logic for server keys: computation, re-randomization, noise squashing,
@@ -408,7 +408,7 @@ fn test_hl_key_features(
     // Remove the rerand mode check to keep logic simpler moving forward
     let compact_public_key = compact_public_key.map(|pk| match pk {
         CPKWithReRandMode::ExpectsLegacyReRand(compact_public_key) => compact_public_key,
-        CPKWithReRandMode::NoReRandExpectation(compact_public_key) => compact_public_key,
+        CPKWithReRandMode::NoLegacyReRandExpectation(compact_public_key) => compact_public_key,
     });
 
     let clear_a = 278120u32;
@@ -591,6 +591,7 @@ pub fn test_hl_serverkey(
     dir: &Path,
     test: &HlServerKeyTest,
     format: DataFormat,
+    test_version: &str,
 ) -> Result<TestSuccess, TestFailure> {
     let client_key_file = dir.join(&*test.client_key_filename);
     let client_key = ClientKey::unversionize(
@@ -618,17 +619,42 @@ pub fn test_hl_serverkey(
         })
         .transpose()?;
 
+    const SINCE_VERSION_1_6_0: &str = ">=1.6.0";
+    let version_components: Vec<u64> = test_version
+        .split('.')
+        .map(|x| x.parse().unwrap())
+        .collect();
+
+    // backward data stores only major.minor today, if you are reading this you may want to update
+    // the logic below
+    if version_components.len() != 2 {
+        return Err(test.failure(
+            format!(
+                "Error while parsing test version: {test_version}, \
+                expected only 'major.minor'"
+            ),
+            format,
+        ));
+    }
+
+    let test_version = semver::Version::new(version_components[0], version_components[1], 0);
+
     // This test previously took the presence of the rerand cpk as a signal to indicate rerand test
-    // had to run
-    test_hl_key_features(
-        &client_key,
-        key,
-        compact_public_key
-            .as_ref()
-            .map(CPKWithReRandMode::ExpectsLegacyReRand),
-        test,
-        format,
-    )?;
+    // had to run, since 1.6.0 it's not mandatory anymore
+    let compact_public_key = compact_public_key.as_ref().map(|cpk| {
+        if semver::VersionReq::parse(SINCE_VERSION_1_6_0)
+            .unwrap()
+            .matches(&test_version)
+        {
+            // Since 1.6.0 having a CompactPublicKey does not make legacy rerand mandatory
+            CPKWithReRandMode::NoLegacyReRandExpectation(cpk)
+        } else {
+            // Before 1.6.0 having a CPK made legacy rerand mandatory
+            CPKWithReRandMode::ExpectsLegacyReRand(cpk)
+        }
+    });
+
+    test_hl_key_features(&client_key, key, compact_public_key, test, format)?;
 
     Ok(test.success(format))
 }
@@ -864,7 +890,7 @@ fn test_hl_compressed_xof_key_set_test(
     test_hl_key_features(
         &client_key,
         server_key,
-        Some(CPKWithReRandMode::NoReRandExpectation(&pk)),
+        Some(CPKWithReRandMode::NoLegacyReRandExpectation(&pk)),
         test,
         format,
     )?;
@@ -902,7 +928,8 @@ impl TestedModule for Hl {
                 test_hl_pubkey(test_dir.as_ref(), test, format).into()
             }
             TestMetadata::HlServerKey(test) => {
-                test_hl_serverkey(test_dir.as_ref(), test, format).into()
+                test_hl_serverkey(test_dir.as_ref(), test, format, &testcase.tfhe_version_min)
+                    .into()
             }
             TestMetadata::ZkPkePublicParams(test) => {
                 test_zk_params(test_dir.as_ref(), test, format).into()
