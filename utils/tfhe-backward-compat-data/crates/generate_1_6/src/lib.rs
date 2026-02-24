@@ -48,7 +48,7 @@ impl TfhersVersion for V1_6 {
             let security_bits = 128;
             let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
             let (hl_client_key, hl_xof_key_set) = CompressedXofKeySet::generate(
-                INSECURE_TEST_META_PARAMS.convert().into(),
+                INSECURE_TEST_NO_KS_RERAND_META_PARAMS.convert().into(),
                 seed_bytes,
                 security_bits,
                 max_norm_hwt,
