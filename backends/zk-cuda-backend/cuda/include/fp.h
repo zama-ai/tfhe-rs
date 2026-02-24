@@ -269,6 +269,13 @@ __host__ __device__ bool fp_sqrt(Fp &c, const Fp &a);
 // Uses Euler's criterion: a is a quadratic residue if a^((p-1)/2) = 1 mod p
 __host__ __device__ bool fp_is_quadratic_residue(const Fp &a);
 
+// Small-constant multiplication via addition chains (much cheaper than
+// fp_mont_mul). MONTGOMERY: input and output must be in Montgomery form.
+__host__ __device__ void fp_double(Fp &c, const Fp &a);
+__host__ __device__ void fp_mul3(Fp &c, const Fp &a);
+__host__ __device__ void fp_mul4(Fp &c, const Fp &a);
+__host__ __device__ void fp_mul8(Fp &c, const Fp &a);
+
 // Conditional assignment: if condition, dst = src, else dst unchanged
 __host__ __device__ void fp_cmov(Fp &dst, const Fp &src, uint64_t condition);
 

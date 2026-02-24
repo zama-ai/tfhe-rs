@@ -252,6 +252,30 @@ __host__ __device__ void fp_sub(Fp &c, const Fp &a, const Fp &b) {
   }
 }
 
+// Small-constant multiplication via addition chains.
+// These replace full Montgomery multiplications by 2, 3, 4, 8 with a few
+// modular additions, each ~25 instructions vs ~200+ for CIOS Montgomery mul.
+
+__host__ __device__ void fp_double(Fp &c, const Fp &a) { fp_add(c, a, a); }
+
+__host__ __device__ void fp_mul3(Fp &c, const Fp &a) {
+  Fp t;
+  fp_add(t, a, a);
+  fp_add(c, t, a);
+}
+
+__host__ __device__ void fp_mul4(Fp &c, const Fp &a) {
+  Fp t;
+  fp_add(t, a, a);
+  fp_add(c, t, t);
+}
+
+__host__ __device__ void fp_mul8(Fp &c, const Fp &a) {
+  Fp t;
+  fp_mul4(t, a);
+  fp_add(c, t, t);
+}
+
 // Helper function for limb multiplication: LIMB_BITS x LIMB_BITS -> 2*LIMB_BITS
 // Returns (hi, lo) via output parameters
 __host__ __device__ inline void mul_limbs(UNSIGNED_LIMB a, UNSIGNED_LIMB b,
