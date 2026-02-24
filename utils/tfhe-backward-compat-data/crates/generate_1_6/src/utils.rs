@@ -443,6 +443,19 @@ impl ConvertParams<MetaNoiseSquashingParameters> for TestMetaNoiseSquashingParam
     }
 }
 
+impl ConvertParams<ReRandomizationConfiguration> for TestReRandomizationConfiguration {
+    fn convert(self) -> ReRandomizationConfiguration {
+        match self {
+            Self::LegacyDedicatedCompactPublicKeyWithKeySwitch => {
+                ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch
+            }
+            Self::DerivedCompactPublicKeyWithoutKeySwitch => {
+                ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch
+            }
+        }
+    }
+}
+
 impl ConvertParams<MetaParameters> for TestMetaParameters {
     fn convert(self) -> MetaParameters {
         MetaParameters {
@@ -453,6 +466,7 @@ impl ConvertParams<MetaParameters> for TestMetaParameters {
                 .map(ConvertParams::convert),
             compression_parameters: self.compression_parameters.map(ConvertParams::convert),
             noise_squashing_parameters: self.noise_squashing_parameters.map(ConvertParams::convert),
+            rerand_configuration: self.rerand_configuration.map(ConvertParams::convert),
         }
     }
 }
