@@ -1,0 +1,17 @@
+[package]
+name = "tfhe-lints-common"
+version = "0.1.0"
+description = "Shared utilities for TFHE-rs lints"
+edition = "2024"
+publish = false
+
+[lib]
+test = false
+doctest = false
+
+[dependencies]
+clippy_utils = { workspace = true }
+dylint_linting = "5.0.0"
+
+[package.metadata.rust-analyzer]
+rustc_private = true
