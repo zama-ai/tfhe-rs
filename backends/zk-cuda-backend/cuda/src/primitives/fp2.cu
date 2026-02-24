@@ -74,6 +74,30 @@ __host__ __device__ void fp2_sub(Fp2 &c, const Fp2 &a, const Fp2 &b) {
   fp_sub(c.c1, a.c1, b.c1);
 }
 
+// Small-constant multiplication via addition chains.
+// These replace full Fp2 Montgomery multiplications by 2, 3, 4, 8 with
+// modular additions on each component.
+
+__host__ __device__ void fp2_double(Fp2 &c, const Fp2 &a) {
+  fp_double(c.c0, a.c0);
+  fp_double(c.c1, a.c1);
+}
+
+__host__ __device__ void fp2_mul3(Fp2 &c, const Fp2 &a) {
+  fp_mul3(c.c0, a.c0);
+  fp_mul3(c.c1, a.c1);
+}
+
+__host__ __device__ void fp2_mul4(Fp2 &c, const Fp2 &a) {
+  fp_mul4(c.c0, a.c0);
+  fp_mul4(c.c1, a.c1);
+}
+
+__host__ __device__ void fp2_mul8(Fp2 &c, const Fp2 &a) {
+  fp_mul8(c.c0, a.c0);
+  fp_mul8(c.c1, a.c1);
+}
+
 // Multiplication: c = a * b
 // (a0 + a1*i) * (b0 + b1*i) = (a0*b0 - a1*b1) + (a0*b1 + a1*b0)*i
 // Optimized: converts to Montgomery once at start, operates, converts back at
