@@ -39,6 +39,8 @@ ZIZMOR_VERSION=1.22.0
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
 
+include utils/tfhe-lints/Makefile
+
 ifeq ($(GEN_KEY_CACHE_MULTI_BIT_ONLY),TRUE)
 		MULTI_BIT_ONLY=--multi-bit-only
 else
@@ -169,10 +171,6 @@ install_tarpaulin:
 	@cargo tarpaulin --version > /dev/null 2>&1 || \
 	cargo install cargo-tarpaulin --locked || \
 	( echo "Unable to install cargo tarpaulin, unknown error." && exit 1 )
-
-.PHONY: install_cargo_dylint # Install custom tfhe-rs lints
-install_cargo_dylint:
-	cargo install --locked cargo-dylint dylint-link
 
 .PHONY: install_cargo_audit # Check dependencies
 install_cargo_audit:
@@ -535,12 +533,6 @@ clippy_versionable: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-versionable -- --no-deps -D warnings
 
-.PHONY: clippy_tfhe_lints # Run clippy lints on tfhe-lints
-clippy_tfhe_lints: install_cargo_dylint # the toolchain is selected with toolchain.toml
-	cd utils/tfhe-lints && \
-	rustup toolchain install && \
-	cargo clippy --all-targets -- --no-deps -D warnings
-
 .PHONY: clippy_param_dedup # Run clippy lints on param_dedup tool
 clippy_param_dedup: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
@@ -606,18 +598,9 @@ check_rust_bindings_did_not_change:
 	( echo "Generated bindings have changed! Please run 'git add backends/tfhe-cuda-backend/src/bindings.rs' \
 	and commit the changes." && exit 1 )
 
-
-.PHONY: tfhe_lints # Run custom tfhe-rs lints
-tfhe_lints: install_cargo_dylint
-	RUSTFLAGS="$(RUSTFLAGS) -Dwarnings" cargo dylint --all -p tfhe --no-deps -- \
-		--features=boolean,shortint,integer,strings,zk-pok
-	RUSTFLAGS="$(RUSTFLAGS) -Dwarnings" cargo dylint --all -p tfhe-zk-pok --no-deps -- \
-		--features=experimental
-
 .PHONY: audit_dependencies # Run cargo audit to check vulnerable dependencies
 audit_dependencies: install_cargo_audit
 	cargo audit
-
 
 .PHONY: build_core # Build core_crypto without experimental features
 build_core:
@@ -1238,12 +1221,6 @@ test_zk_wasm_x86_compat: build_node_js_api
 test_versionable:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--all-targets -p tfhe-versionable
-
-.PHONY: test_tfhe_lints # Run test on tfhe-lints
-test_tfhe_lints: install_cargo_dylint
-	cd utils/tfhe-lints && \
-	rustup toolchain install && \
-	cargo test
 
 # The backward compat data folder holds historical binary data but also rust code to generate and load them.
 .PHONY: gen_backward_compat_data # Re-generate backward compatibility data
