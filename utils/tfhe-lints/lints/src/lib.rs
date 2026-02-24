@@ -1,7 +1,6 @@
 #![feature(rustc_private)]
 #![warn(unused_extern_crates)]
 
-extern crate rustc_ast;
 extern crate rustc_errors;
 extern crate rustc_hir;
 extern crate rustc_lint;
@@ -12,12 +11,10 @@ extern crate rustc_span;
 mod invalid_versionize_dispatch;
 mod serialize_without_versionize;
 
-mod utils;
-
 dylint_linting::dylint_library!();
 
 #[allow(clippy::no_mangle_with_rust_abi)]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn register_lints(_sess: &rustc_session::Session, lint_store: &mut rustc_lint::LintStore) {
     lint_store.register_lints(&[
         serialize_without_versionize::SERIALIZE_WITHOUT_VERSIONIZE,
