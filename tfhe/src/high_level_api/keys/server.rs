@@ -153,6 +153,14 @@ impl ServerKey {
         self.noise_squashing_key().is_some()
     }
 
+    pub fn supports_noise_squashing_compression(&self) -> bool {
+        self.key.noise_squashing_compression_key.is_some()
+    }
+
+    pub fn supports_compression(&self) -> bool {
+        self.key.compression_key.is_some()
+    }
+
     pub(in crate::high_level_api) fn message_modulus(&self) -> MessageModulus {
         self.key.message_modulus()
     }
