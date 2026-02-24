@@ -823,6 +823,10 @@ private:
     generate_lut_indexes<InputTorus>(streams, generator, get_lut_indexes(0, 0),
                                      num_indexes, num_luts, index_buffer,
                                      gpu_memory_allocated);
+
+    if (h_buffer != nullptr) {
+      memcpy(h_lut_indexes, h_buffer, num_indexes * sizeof(h_lut_indexes[0]));
+    }
   }
 
   /// Sets all LUT indexes to a constant value on both CPU and GPU.

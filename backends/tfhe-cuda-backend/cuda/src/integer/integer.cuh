@@ -1391,10 +1391,18 @@ void host_resolve_group_carries_sequentially(
 
       // Apply the lut
       auto luts_sequential = mem->lut_sequential_algorithm;
+      auto lut_index_generator = [](Torus *h_lut_indexes,
+                                    uint32_t num_indexes) {
+        for (uint32_t i = 0; i < num_indexes; i++)
+          h_lut_indexes[i] = i;
+      };
+      luts_sequential->prepare_to_apply_to_block_subset(blocks_to_solve,
+                                                        lut_index_generator);
       CudaRadixCiphertextFFI shifted_group_resolved_carries;
       as_radix_ciphertext_slice<Torus>(&shifted_group_resolved_carries,
                                        group_resolved_carries, 1,
                                        blocks_to_solve + 1);
+
       integer_radix_apply_univariate_lookup_table<Torus>(
           streams, &shifted_group_resolved_carries,
           &shifted_group_resolved_carries, bsks, ksks, luts_sequential,
