@@ -1,6 +1,15 @@
+#![feature(rustc_private)]
+#![warn(unused_extern_crates)]
+
+extern crate rustc_ast;
+extern crate rustc_hir;
+extern crate rustc_lint;
+extern crate rustc_middle;
+extern crate rustc_span;
+
 use rustc_ast::tokenstream::TokenTree;
-use rustc_hir::def_id::DefId;
 use rustc_hir::AttrArgs;
+use rustc_hir::def_id::DefId;
 use rustc_lint::LateContext;
 use rustc_middle::ty::{Ty, TyKind};
 use rustc_span::Symbol;
@@ -20,10 +29,10 @@ pub fn is_allowed_lint(cx: &LateContext<'_>, target: DefId, lint_name: &str) -> 
             let len = args.tokens.len();
 
             for id in 0..len {
-                if let Some(TokenTree::Token(tool_token, _)) = args.tokens.get(id) {
-                    if tool_token.is_ident_named(Symbol::intern(lint_name)) {
-                        return true;
-                    }
+                if let Some(TokenTree::Token(tool_token, _)) = args.tokens.get(id)
+                    && tool_token.is_ident_named(Symbol::intern(lint_name))
+                {
+                    return true;
                 }
             }
         }
