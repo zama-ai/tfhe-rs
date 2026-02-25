@@ -2,10 +2,24 @@
 #include "device.h"
 #include "fp.h"
 #include "fp2.h"
+#include "msm.h"
 #include <cstdint>
 #include <cstring>
 #include <cuda_runtime.h>
 #include <gtest/gtest.h>
+
+// Convenience wrapper that allocates scratch, runs G1 MSM, and frees scratch.
+static void test_point_msm_g1(cudaStream_t stream, uint32_t gpu_index,
+                              G1Projective *d_result, const G1Affine *d_points,
+                              const Scalar *d_scalars, uint32_t n,
+                              uint64_t &size_tracker) {
+  size_t scratch_bytes = pippenger_scratch_size_g1(n, gpu_index);
+  void *d_scratch = cuda_malloc_with_size_tracking_async(
+      scratch_bytes, stream, gpu_index, size_tracker, true);
+  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, n, d_scratch,
+               size_tracker);
+  cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
+}
 
 // Test fixture for scalar multiplication tests
 class ScalarMulTest : public ::testing::Test {
@@ -75,19 +89,10 @@ TEST_F(ScalarMulTest, G1ScalarMulOne) {
 
   // Test scalar multiplication using MSM with single point (tests
   // projective_scalar_mul)
-  int threadsPerBlock = 256;
-  int num_blocks = 1;
-  size_t scratch_size =
-      (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
-  auto *d_scratch =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          scratch_size, stream, gpu_index, size_tracker, true));
 
-  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1,
-               size_tracker);
+  test_point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, 1,
+                    size_tracker);
   check_cuda_error(cudaGetLastError());
-
-  cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
 
   // Copy result back
   G1Projective h_result;
@@ -108,9 +113,9 @@ TEST_F(ScalarMulTest, G1ScalarMulOne) {
   // Check: result should be the same as input (scalar = 1)
   EXPECT_FALSE(result_normal.infinity)
       << "Result should not be at infinity for scalar=1";
-  EXPECT_EQ(fp_cmp(result_normal.x, G.x), FpComparison::Equal)
+  EXPECT_EQ(fp_cmp(result_normal.x, G.x), ComparisonType::Equal)
       << "x-coordinate should match input point";
-  EXPECT_EQ(fp_cmp(result_normal.y, G.y), FpComparison::Equal)
+  EXPECT_EQ(fp_cmp(result_normal.y, G.y), ComparisonType::Equal)
       << "y-coordinate should match input point";
 
   // Cleanup
@@ -153,19 +158,10 @@ TEST_F(ScalarMulTest, G1ScalarMulZero) {
 
   // Test scalar multiplication using MSM with single point (tests
   // projective_scalar_mul)
-  int threadsPerBlock = 256;
-  int num_blocks = 1;
-  size_t scratch_size =
-      (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
-  auto *d_scratch =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          scratch_size, stream, gpu_index, size_tracker, true));
 
-  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1,
-               size_tracker);
+  test_point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, 1,
+                    size_tracker);
   check_cuda_error(cudaGetLastError());
-
-  cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
 
   // Copy result back
   G1Projective h_result;
@@ -223,19 +219,10 @@ TEST_F(ScalarMulTest, G1ScalarMulTwo) {
 
   // Test scalar multiplication using MSM with single point (tests
   // projective_scalar_mul)
-  int threadsPerBlock = 256;
-  int num_blocks = 1;
-  size_t scratch_size =
-      (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
-  auto *d_scratch =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          scratch_size, stream, gpu_index, size_tracker, true));
 
-  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1,
-               size_tracker);
+  test_point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, 1,
+                    size_tracker);
   check_cuda_error(cudaGetLastError());
-
-  cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
 
   // Compute expected result: 2*G using point doubling
   single_point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_point, 2);
@@ -267,9 +254,9 @@ TEST_F(ScalarMulTest, G1ScalarMulTwo) {
   EXPECT_EQ(result_normal.infinity, expected_normal.infinity)
       << "Infinity flag should match";
   if (!result_normal.infinity && !expected_normal.infinity) {
-    EXPECT_EQ(fp_cmp(result_normal.x, expected_normal.x), FpComparison::Equal)
+    EXPECT_EQ(fp_cmp(result_normal.x, expected_normal.x), ComparisonType::Equal)
         << "x-coordinate should match 2*G";
-    EXPECT_EQ(fp_cmp(result_normal.y, expected_normal.y), FpComparison::Equal)
+    EXPECT_EQ(fp_cmp(result_normal.y, expected_normal.y), ComparisonType::Equal)
         << "y-coordinate should match 2*G";
   }
 
@@ -321,19 +308,10 @@ TEST_F(ScalarMulTest, G1ScalarMulThree) {
 
   // Test scalar multiplication using MSM with single point (tests
   // projective_scalar_mul)
-  int threadsPerBlock = 256;
-  int num_blocks = 1;
-  size_t scratch_size =
-      (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
-  auto *d_scratch =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          scratch_size, stream, gpu_index, size_tracker, true));
 
-  point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, d_scratch, 1,
-               size_tracker);
+  test_point_msm_g1(stream, gpu_index, d_result, d_point, d_scalar, 1,
+                    size_tracker);
   check_cuda_error(cudaGetLastError());
-
-  cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
 
   // Compute expected result: 3*G using u64 scalar multiplication
   single_point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_point, 3);
@@ -365,9 +343,9 @@ TEST_F(ScalarMulTest, G1ScalarMulThree) {
   EXPECT_EQ(result_normal.infinity, expected_normal.infinity)
       << "Infinity flag should match";
   if (!result_normal.infinity && !expected_normal.infinity) {
-    EXPECT_EQ(fp_cmp(result_normal.x, expected_normal.x), FpComparison::Equal)
+    EXPECT_EQ(fp_cmp(result_normal.x, expected_normal.x), ComparisonType::Equal)
         << "x-coordinate should match 3*G";
-    EXPECT_EQ(fp_cmp(result_normal.y, expected_normal.y), FpComparison::Equal)
+    EXPECT_EQ(fp_cmp(result_normal.y, expected_normal.y), ComparisonType::Equal)
         << "y-coordinate should match 3*G";
   }
 

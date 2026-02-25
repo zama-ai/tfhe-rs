@@ -3,238 +3,9 @@
 #include "fp.h"
 #include "fp2.h"
 #include "msm.h"
+#include "point_traits.h"
 #include <cstdio>
 #include <cstring>
-
-// ============================================================================
-// Template Traits System for Affine Operations
-// ============================================================================
-// This traits system allows us to write generic point operations that work
-// for both G1 (Fp) and G2 (Fp2) points using the same algorithm.
-
-template <typename PointType> struct Affine;
-
-// Specialization for G1Point (uses Fp)
-template <> struct Affine<G1Affine> {
-  using Field = Fp;
-
-  __host__ __device__ static void field_zero(Field &a) { fp_zero(a); }
-  __host__ __device__ static void field_copy(Field &dst, const Field &src) {
-    dst = src;
-  }
-  __host__ __device__ static void field_neg(Field &c, const Field &a) {
-    c = -a;
-  }
-  __host__ __device__ static void field_add(Field &c, const Field &a,
-                                            const Field &b) {
-    c = a + b;
-  }
-  __host__ __device__ static void field_sub(Field &c, const Field &a,
-                                            const Field &b) {
-    c = a - b;
-  }
-  __host__ __device__ static void field_mul(Field &c, const Field &a,
-                                            const Field &b) {
-    fp_mont_mul(c, a, b);
-  }
-  __host__ __device__ static void field_inv(Field &c, const Field &a) {
-    fp_mont_inv(c, a);
-  }
-  __host__ __device__ static ComparisonType field_cmp(const Field &a,
-                                                      const Field &b) {
-    return fp_cmp(a, b);
-  }
-  __host__ __device__ static bool field_is_zero(const Field &a) {
-    return fp_is_zero(a);
-  }
-  __host__ __device__ static void field_to_montgomery(Field &c,
-                                                      const Field &a) {
-    fp_to_montgomery(c, a);
-  }
-  __host__ __device__ static void field_from_montgomery(Field &c,
-                                                        const Field &a) {
-    fp_from_montgomery(c, a);
-  }
-
-  __host__ __device__ static void point_at_infinity(G1Affine &point) {
-    g1_point_at_infinity(point);
-  }
-  __host__ __device__ static bool is_infinity(const G1Affine &point) {
-    return g1_is_infinity(point);
-  }
-  __host__ __device__ static const Field &curve_b() { return curve_b_g1(); }
-  __host__ __device__ static void point_copy(G1Affine &dst,
-                                             const G1Affine &src) {
-    dst = src;
-  }
-};
-
-// Specialization for G2Affine (uses Fp2)
-template <> struct Affine<G2Affine> {
-  using Field = Fp2;
-
-  __host__ __device__ static void field_zero(Field &a) { fp2_zero(a); }
-  __host__ __device__ static void field_copy(Field &dst, const Field &src) {
-    dst = src;
-  }
-  __host__ __device__ static void field_neg(Field &c, const Field &a) {
-    c = -a;
-  }
-  __host__ __device__ static void field_add(Field &c, const Field &a,
-                                            const Field &b) {
-    c = a + b;
-  }
-  __host__ __device__ static void field_sub(Field &c, const Field &a,
-                                            const Field &b) {
-    c = a - b;
-  }
-  __host__ __device__ static void field_mul(Field &c, const Field &a,
-                                            const Field &b) {
-    fp2_mont_mul(c, a, b);
-  }
-  __host__ __device__ static void field_inv(Field &c, const Field &a) {
-    fp2_mont_inv(c, a);
-  }
-  __host__ __device__ static ComparisonType field_cmp(const Field &a,
-                                                      const Field &b) {
-    return fp2_cmp(a, b);
-  }
-  __host__ __device__ static bool field_is_zero(const Field &a) {
-    return fp2_is_zero(a);
-  }
-  __host__ __device__ static void field_to_montgomery(Field &c,
-                                                      const Field &a) {
-    fp_to_montgomery(c.c0, a.c0);
-    fp_to_montgomery(c.c1, a.c1);
-  }
-  __host__ __device__ static void field_from_montgomery(Field &c,
-                                                        const Field &a) {
-    fp_from_montgomery(c.c0, a.c0);
-    fp_from_montgomery(c.c1, a.c1);
-  }
-
-  __host__ __device__ static void point_at_infinity(G2Affine &point) {
-    g2_point_at_infinity(point);
-  }
-  __host__ __device__ static bool is_infinity(const G2Affine &point) {
-    return g2_is_infinity(point);
-  }
-  __host__ __device__ static const Field &curve_b() { return curve_b_g2(); }
-  __host__ __device__ static void point_copy(G2Affine &dst,
-                                             const G2Affine &src) {
-    dst = src;
-  }
-};
-
-// Forward declarations for projective point operations (needed by Projective)
-__host__ __device__ void projective_point_add(G1Projective &result,
-                                              const G1Projective &p1,
-                                              const G1Projective &p2);
-__host__ __device__ void projective_point_add(G2Projective &result,
-                                              const G2Projective &p1,
-                                              const G2Projective &p2);
-__host__ __device__ void projective_point_double(G1Projective &result,
-                                                 const G1Projective &p);
-__host__ __device__ void projective_point_double(G2Projective &result,
-                                                 const G2Projective &p);
-
-// ============================================================================
-// Template Traits System for Projective Points
-// ============================================================================
-
-template <typename PointType> struct Projective;
-
-// Specialization for G1Projective (uses Fp)
-template <> struct Projective<G1Projective> {
-  using Field = Fp;
-  using Affine = G1Affine;
-
-  __host__ __device__ static void field_zero(Field &a) { fp_zero(a); }
-  __host__ __device__ static void field_copy(Field &dst, const Field &src) {
-    dst = src;
-  }
-  __host__ __device__ static bool field_is_zero(const Field &a) {
-    return fp_is_zero(a);
-  }
-  __host__ __device__ static void field_mul(Field &c, const Field &a,
-                                            const Field &b) {
-    fp_mont_mul(c, a, b);
-  }
-  __host__ __device__ static void field_sub(Field &c, const Field &a,
-                                            const Field &b) {
-    c = a - b;
-  }
-
-  __host__ __device__ static void point_at_infinity(G1Projective &point) {
-    g1_projective_point_at_infinity(point);
-  }
-  __host__ __device__ static bool is_infinity(const G1Projective &point) {
-    return fp_is_zero(point.Z);
-  }
-  __host__ __device__ static void affine_to_projective(G1Projective &proj,
-                                                       const G1Affine &affine) {
-    affine_to_projective(proj, affine);
-  }
-  __host__ __device__ static void projective_add(G1Projective &result,
-                                                 const G1Projective &p1,
-                                                 const G1Projective &p2) {
-    projective_point_add(result, p1, p2);
-  }
-  __host__ __device__ static void projective_double(G1Projective &result,
-                                                    const G1Projective &p) {
-    projective_point_double(result, p);
-  }
-  __host__ __device__ static void point_copy(G1Projective &dst,
-                                             const G1Projective &src) {
-    dst = src;
-  }
-};
-
-// Specialization for G2Projective (uses Fp2)
-template <> struct Projective<G2Projective> {
-  using Field = Fp2;
-  using Affine = G2Affine;
-
-  __host__ __device__ static void field_zero(Field &a) { fp2_zero(a); }
-  __host__ __device__ static void field_copy(Field &dst, const Field &src) {
-    dst = src;
-  }
-  __host__ __device__ static bool field_is_zero(const Field &a) {
-    return fp2_is_zero(a);
-  }
-  __host__ __device__ static void field_mul(Field &c, const Field &a,
-                                            const Field &b) {
-    fp2_mont_mul(c, a, b);
-  }
-  __host__ __device__ static void field_sub(Field &c, const Field &a,
-                                            const Field &b) {
-    c = a - b;
-  }
-
-  __host__ __device__ static void point_at_infinity(G2Projective &point) {
-    g2_projective_point_at_infinity(point);
-  }
-  __host__ __device__ static bool is_infinity(const G2Projective &point) {
-    return fp2_is_zero(point.Z);
-  }
-  __host__ __device__ static void affine_to_projective(G2Projective &proj,
-                                                       const G2Affine &affine) {
-    affine_to_projective(proj, affine);
-  }
-  __host__ __device__ static void projective_add(G2Projective &result,
-                                                 const G2Projective &p1,
-                                                 const G2Projective &p2) {
-    projective_point_add(result, p1, p2);
-  }
-  __host__ __device__ static void projective_double(G2Projective &result,
-                                                    const G2Projective &p) {
-    projective_point_double(result, p);
-  }
-  __host__ __device__ static void point_copy(G2Projective &dst,
-                                             const G2Projective &src) {
-    dst = src;
-  }
-};
 
 // ============================================================================
 // Template Scalar Multiplication for Projective Points
@@ -523,7 +294,7 @@ __host__ __device__ void point_neg(PointType &result, const PointType &p) {
 template <typename PointType>
 __host__ __device__ void point_double(PointType &result, const PointType &p) {
   using AffinePoint = Affine<PointType>;
-  using FieldType = typename AffinePoint::Field;
+  using FieldType = typename AffinePoint::FieldType;
 
   if (AffinePoint::is_infinity(p) || AffinePoint::field_is_zero(p.y)) {
     AffinePoint::point_at_infinity(result);
@@ -562,7 +333,7 @@ template <typename PointType>
 __host__ __device__ void point_add(PointType &result, const PointType &p1,
                                    const PointType &p2) {
   using AffinePoint = Affine<PointType>;
-  using Field = typename AffinePoint::Field;
+  using FieldType = typename AffinePoint::FieldType;
 
   // Handle infinity cases
   if (AffinePoint::is_infinity(p1)) {
@@ -575,7 +346,7 @@ __host__ __device__ void point_add(PointType &result, const PointType &p1,
   }
 
   // Check if p1 == -p2 (same x, opposite y)
-  Field neg_y2;
+  FieldType neg_y2;
   AffinePoint::field_neg(neg_y2, p2.y);
   if (AffinePoint::field_cmp(p1.x, p2.x) == ComparisonType::Equal &&
       AffinePoint::field_cmp(p1.y, neg_y2) == ComparisonType::Equal) {
@@ -591,7 +362,7 @@ __host__ __device__ void point_add(PointType &result, const PointType &p1,
   }
 
   // Standard addition: lambda = (y2 - y1) / (x2 - x1)
-  Field dx, dy, lambda, lambda_squared, x_result;
+  FieldType dx, dy, lambda, lambda_squared, x_result;
   AffinePoint::field_sub(dx, p2.x, p1.x);
   AffinePoint::field_sub(dy, p2.y, p1.y);
   AffinePoint::field_inv(lambda, dx);         // 1 / (x2 - x1)
@@ -603,7 +374,7 @@ __host__ __device__ void point_add(PointType &result, const PointType &p1,
   AffinePoint::field_sub(x_result, x_result, p2.x);
 
   // y_result = lambda * (x1 - x_result) - y1
-  Field x1_minus_xr, y_result;
+  FieldType x1_minus_xr, y_result;
   AffinePoint::field_sub(x1_minus_xr, p1.x, x_result);
   AffinePoint::field_mul(y_result, lambda, x1_minus_xr);
   AffinePoint::field_sub(y_result, y_result, p1.y);

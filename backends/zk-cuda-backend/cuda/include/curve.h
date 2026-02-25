@@ -332,22 +332,9 @@ void point_to_montgomery_batch(cudaStream_t stream, uint32_t gpu_index,
                                PointType *d_points, uint32_t n);
 
 // ============================================================================
-// Refactored MSM API (device pointers only, no allocations/copies/frees)
+// MSM Traits (maps projective to affine point types, used by msm.h)
 // ============================================================================
-// All pointers are device pointers (already allocated by caller)
-// Temporary buffer must be provided by caller:
-//   - d_scratch: buffer of size (num_blocks + 1) * MSM_G1_BUCKET_COUNT *
-//   sizeof(G1Point/G2Affine)
-//     where num_blocks = CEIL_DIV(n, threadsPerBlock) (typically
-//     256 threads per block) This provides space for:
-//       * num_blocks * MSM_G1_BUCKET_COUNT points for per-block bucket
-//       accumulations
-//       * MSM_G1_BUCKET_COUNT points for final buckets
-//     MSM_G1_BUCKET_COUNT is typically 16 (for 4-bit windows)
-// Uses Pippenger algorithm (bucket method) with sppark-style single-pass
-// accumulation
 
-// Simple traits for MSM template (maps projective to affine point types)
 template <typename ProjectivePointType> struct MSMTraits;
 
 template <> struct MSMTraits<G1Projective> {
@@ -358,40 +345,4 @@ template <> struct MSMTraits<G2Projective> {
   using AffinePointType = G2Affine;
 };
 
-// ============================================================================
-// MSM with BigInt5 scalars (default MSM implementation)
-// ============================================================================
-// These functions accept BigInt5* scalars (320-bit scalars, 5 limbs)
-// BigInt5 represents a scalar as 5 limbs of 64 bits (320 bits total)
-// Uses projective coordinates internally (no inversions!)
-
-// MSM with BigInt scalars for G1 (projective result)
-void point_msm_async_g1(cudaStream_t stream, uint32_t gpu_index,
-                        G1Projective *d_result, const G1Affine *d_points,
-                        const Scalar *d_scalars, G1Projective *d_scratch,
-                        uint32_t n);
-void point_msm_g1(cudaStream_t stream, uint32_t gpu_index,
-                  G1Projective *d_result, const G1Affine *d_points,
-                  const Scalar *d_scalars, G1Projective *d_scratch, uint32_t n);
-
-// MSM with BigInt scalars for G2 (projective result)
-void point_msm_async_g2(cudaStream_t stream, uint32_t gpu_index,
-                        G2Projective *d_result, const G2Affine *d_points,
-                        const Scalar *d_scalars, G2Projective *d_scratch,
-                        uint32_t n);
-void point_msm_g2(cudaStream_t stream, uint32_t gpu_index,
-                  G2Projective *d_result, const G2Affine *d_points,
-                  const Scalar *d_scalars, G2Projective *d_scratch, uint32_t n);
-
-// Template MSM with BigInt scalars (works for both G1 and G2)
-template <typename ProjectivePointType>
-void point_msm_async(
-    cudaStream_t stream, uint32_t gpu_index, ProjectivePointType *d_result,
-    const typename MSMTraits<ProjectivePointType>::AffinePointType *d_points,
-    const Scalar *d_scalars, ProjectivePointType *d_scratch, uint32_t n);
-
-template <typename ProjectivePointType>
-void point_msm(
-    cudaStream_t stream, uint32_t gpu_index, ProjectivePointType *d_result,
-    const typename MSMTraits<ProjectivePointType>::AffinePointType *d_points,
-    const Scalar *d_scalars, ProjectivePointType *d_scratch, uint32_t n);
+// MSM function declarations are in msm.h

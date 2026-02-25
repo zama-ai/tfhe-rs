@@ -6,6 +6,8 @@
 #include "fp.h"
 #include <cuda_runtime.h>
 
+#include "checked_arithmetic.h"
+
 // ============================================================================
 // CUDA Kernels for parallel Fp operations (test-only)
 // ============================================================================
@@ -173,17 +175,22 @@ void fp_add_batch_on_host(cudaStream_t stream, uint32_t gpu_index, Fp *c,
 
   // Allocate device memory (asynchronous with stream)
   auto *d_c = static_cast<Fp *>(cuda_malloc_with_size_tracking_async(
-      n * sizeof(Fp), stream, gpu_index, size_tracker, true));
+      safe_mul_sizeof<Fp>(static_cast<size_t>(n)), stream, gpu_index,
+      size_tracker, true));
   auto *d_a = static_cast<Fp *>(cuda_malloc_with_size_tracking_async(
-      n * sizeof(Fp), stream, gpu_index, size_tracker, true));
+      safe_mul_sizeof<Fp>(static_cast<size_t>(n)), stream, gpu_index,
+      size_tracker, true));
   auto *d_b = static_cast<Fp *>(cuda_malloc_with_size_tracking_async(
-      n * sizeof(Fp), stream, gpu_index, size_tracker, true));
+      safe_mul_sizeof<Fp>(static_cast<size_t>(n)), stream, gpu_index,
+      size_tracker, true));
 
   // Copy to device (asynchronous with stream)
-  cuda_memcpy_with_size_tracking_async_to_gpu(d_a, a, n * sizeof(Fp), stream,
-                                              gpu_index, true);
-  cuda_memcpy_with_size_tracking_async_to_gpu(d_b, b, n * sizeof(Fp), stream,
-                                              gpu_index, true);
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      d_a, a, safe_mul_sizeof<Fp>(static_cast<size_t>(n)), stream, gpu_index,
+      true);
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      d_b, b, safe_mul_sizeof<Fp>(static_cast<size_t>(n)), stream, gpu_index,
+      true);
 
   // Launch kernel (with stream)
   kernel_fp_add_array<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(d_c, d_a,
@@ -196,7 +203,8 @@ void fp_add_batch_on_host(cudaStream_t stream, uint32_t gpu_index, Fp *c,
   cuda_synchronize_stream(stream, gpu_index);
 
   // Copy back (synchronous after stream sync)
-  cuda_memcpy_async_to_cpu(c, d_c, n * sizeof(Fp), stream, gpu_index);
+  cuda_memcpy_async_to_cpu(c, d_c, safe_mul_sizeof<Fp>(static_cast<size_t>(n)),
+                           stream, gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
 
   // Free device memory (asynchronous with stream)
@@ -232,17 +240,22 @@ void fp_mul_batch_on_host(cudaStream_t stream, uint32_t gpu_index, Fp *c,
 
   // Allocate device memory (asynchronous with stream)
   auto *d_c = static_cast<Fp *>(cuda_malloc_with_size_tracking_async(
-      n * sizeof(Fp), stream, gpu_index, size_tracker, true));
+      safe_mul_sizeof<Fp>(static_cast<size_t>(n)), stream, gpu_index,
+      size_tracker, true));
   auto *d_a = static_cast<Fp *>(cuda_malloc_with_size_tracking_async(
-      n * sizeof(Fp), stream, gpu_index, size_tracker, true));
+      safe_mul_sizeof<Fp>(static_cast<size_t>(n)), stream, gpu_index,
+      size_tracker, true));
   auto *d_b = static_cast<Fp *>(cuda_malloc_with_size_tracking_async(
-      n * sizeof(Fp), stream, gpu_index, size_tracker, true));
+      safe_mul_sizeof<Fp>(static_cast<size_t>(n)), stream, gpu_index,
+      size_tracker, true));
 
   // Copy to device (asynchronous with stream)
-  cuda_memcpy_with_size_tracking_async_to_gpu(d_a, a, n * sizeof(Fp), stream,
-                                              gpu_index, true);
-  cuda_memcpy_with_size_tracking_async_to_gpu(d_b, b, n * sizeof(Fp), stream,
-                                              gpu_index, true);
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      d_a, a, safe_mul_sizeof<Fp>(static_cast<size_t>(n)), stream, gpu_index,
+      true);
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      d_b, b, safe_mul_sizeof<Fp>(static_cast<size_t>(n)), stream, gpu_index,
+      true);
 
   // Launch kernel (with stream)
   kernel_fp_mul_array<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(d_c, d_a,
@@ -255,7 +268,8 @@ void fp_mul_batch_on_host(cudaStream_t stream, uint32_t gpu_index, Fp *c,
   cuda_synchronize_stream(stream, gpu_index);
 
   // Copy back (synchronous after stream sync)
-  cuda_memcpy_async_to_cpu(c, d_c, n * sizeof(Fp), stream, gpu_index);
+  cuda_memcpy_async_to_cpu(c, d_c, safe_mul_sizeof<Fp>(static_cast<size_t>(n)),
+                           stream, gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
 
   // Free device memory (asynchronous with stream)

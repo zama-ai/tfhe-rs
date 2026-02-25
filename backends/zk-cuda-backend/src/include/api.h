@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -99,17 +100,17 @@ bool g1_is_infinity_wrapper(const G1Point* point);
 bool g2_is_infinity_wrapper(const G2Point* point);
 
 // Unmanaged MSM wrappers (assumes all data is already on device)
-// If points_in_montgomery is false, a temporary copy will be made and converted.
-// For best performance, provide points already in Montgomery form to avoid allocation overhead.
+// Points MUST be in Montgomery form. Caller provides a scratch buffer.
+// Zero internal allocations — all device memory is caller-provided.
 void g1_msm_unmanaged_wrapper(
     cudaStream_t stream,
     uint32_t gpu_index,
     G1ProjectivePoint* d_result,
     const G1Point* d_points,
     const Scalar* d_scalars,
-    G1ProjectivePoint* d_scratch,
     uint32_t n,
-    bool points_in_montgomery,
+    void* d_scratch,
+    bool gpu_memory_allocated,
     uint64_t* size_tracker
 );
 
@@ -119,11 +120,16 @@ void g2_msm_unmanaged_wrapper(
     G2ProjectivePoint* d_result,
     const G2Point* d_points,
     const Scalar* d_scalars,
-    G2ProjectivePoint* d_scratch,
     uint32_t n,
-    bool points_in_montgomery,
+    void* d_scratch,
+    bool gpu_memory_allocated,
     uint64_t* size_tracker
 );
+
+// Scratch size queries for Pippenger MSM
+// Returns the exact scratch buffer size in bytes needed for a given input count.
+size_t pippenger_scratch_size_g1_wrapper(uint32_t n, uint32_t gpu_index);
+size_t pippenger_scratch_size_g2_wrapper(uint32_t n, uint32_t gpu_index);
 
 // Managed MSM wrappers with BigInt scalars (320-bit scalars)
 // Handles memory allocation and transfers internally.

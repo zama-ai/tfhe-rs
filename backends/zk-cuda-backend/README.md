@@ -11,7 +11,7 @@ This project implements a CUDA backend for BLS12-446 elliptic curve operations, 
 - Quadratic extension field (Fp2) operations
 - Elliptic curve operations for G1 and G2 groups
 - High-performance Multi-Scalar Multiplication (MSM) using Pippenger's algorithm
-- Comprehensive test suite with 100+ tests
+- Comprehensive test suite
 - Performance benchmarks
 - Rust API bindings
 
@@ -19,32 +19,50 @@ This project implements a CUDA backend for BLS12-446 elliptic curve operations, 
 
 ```
 zk-cuda-backend/
-├── include/              # Header files
-│   ├── fp.h              # Fp (finite field) declarations
-│   ├── fp2.h             # Fp2 (quadratic extension) declarations
-│   ├── curve.h           # Elliptic curve point operations
-│   └── msm.h             # Multi-scalar multiplication API
-│   # Note: device.h comes from tfhe-cuda-backend
-├── src/                  # CUDA source files
-│   ├── primitives/
-│   │   ├── fp.cu         # Fp implementation
-│   │   └── fp2.cu        # Fp2 implementation
-│   ├── curve.cu          # Curve operations
-│   └── msm/              # MSM implementation
-│       └── pippenger/    # Pippenger's algorithm
-├── tests/                # Test suite
-│   ├── primitives/       # Fp and Fp2 tests
-│   ├── test_msm.cu       # MSM tests
-│   ├── test_point_ops.cu # Point operation tests
-│   └── test_scalar_mul.cu # Scalar multiplication tests
-├── benchmarks/          # Performance benchmarks
-│   ├── benchmark_fp.cu   # Fp benchmarks
-│   ├── benchmark_fp2.cu  # Fp2 benchmarks
-│   └── benchmark_msm.cu  # MSM benchmarks
-├── src/                  # Rust bindings
-│   ├── src/             # Rust source code
-│   └── include/         # C wrapper headers
-└── utils/               # Utility scripts
+├── cuda/                         # Core CUDA/C++ implementation
+│   ├── include/                  # Public header files
+│   │   ├── fp.h                  # Fp (finite field) declarations
+│   │   ├── fp2.h                 # Fp2 (quadratic extension) declarations
+│   │   ├── fp_kernels.h          # Fp kernel launchers
+│   │   ├── fp2_kernels.h         # Fp2 kernel launchers
+│   │   ├── curve.h               # Elliptic curve point operations
+│   │   ├── point_traits.h        # Unified trait structs (Affine<T>, Projective<T>)
+│   │   ├── msm.h                 # Multi-scalar multiplication API
+│   │   └── bls12_446_params.h    # Curve parameters
+│   ├── src/                      # CUDA source files
+│   │   ├── primitives/
+│   │   │   ├── fp.cu             # Fp implementation
+│   │   │   └── fp2.cu            # Fp2 implementation
+│   │   ├── curve.cu              # Curve operations
+│   │   └── msm/                  # MSM implementation
+│   │       ├── common.cuh        # Shared MSM utilities
+│   │       └── pippenger/        # Pippenger's algorithm
+│   ├── tests_and_benchmarks/     # Test suite and benchmarks
+│   │   ├── tests/
+│   │   │   ├── primitives/       # Fp and Fp2 tests
+│   │   │   ├── test_msm.cu       # MSM tests
+│   │   │   ├── test_point_ops.cu # Point operation tests
+│   │   │   ├── test_projective.cu # Projective point tests
+│   │   │   └── test_scalar_mul.cu # Scalar multiplication tests
+│   │   └── benchmarks/
+│   │       ├── benchmark_fp.cu   # Fp benchmarks
+│   │       ├── benchmark_fp2.cu  # Fp2 benchmarks
+│   │       └── benchmark_msm.cu  # MSM benchmarks
+│   └── CMakeLists.txt            # CMake build configuration
+├── src/                          # Rust FFI bindings layer
+│   ├── lib.rs                    # Main module exports and public API
+│   ├── bindings.rs               # Auto-generated bindgen bindings (not committed)
+│   ├── conversions.rs            # Arkworks <-> native type conversions
+│   ├── c_wrapper.cu              # CUDA wrapper for C FFI
+│   ├── include/
+│   │   └── api.h                 # C header for FFI
+│   └── types/                    # Wrapper types for BLS12-446 curve elements
+│       ├── mod.rs                # Fp impl blocks, re-exports, tests
+│       ├── g1.rs                 # G1Affine + G1Projective
+│       ├── g2.rs                 # G2Affine + G2Projective
+│       └── scalar.rs             # Scalar (320-bit, 5 limbs) + modulus helpers
+├── build.rs                      # Cargo build script (CMake integration)
+└── Cargo.toml                    # Rust package manifest
 ```
 
 ## BLS12-446 Curve
@@ -102,17 +120,17 @@ Complete implementation for both G1 and G2 groups:
   - Comparison: `==`, `!=`
   - Assignment: `=` (replaces `point_copy()`)
 
-- **Template API**: Generic functions that work for both G1 and G2 points
+- **Template API**: Generic functions that work for both G1 and G2 points, dispatched via `Affine<T>` and `Projective<T>` trait structs in `point_traits.h`
 - **Generator Points**: Hardcoded G1 and G2 generators for BLS12-446
 
 ### Multi-Scalar Multiplication (MSM)
 
 High-performance MSM implementation:
 
-- **Algorithm**: Pippenger's bucket method with configurable window sizes
+- **Algorithm**: Pippenger's bucket method with dynamic window sizes
 - **Window Sizes**:
-  - **G1**: 4-bit windows (16 buckets: 0-15)
-  - **G2**: 5-bit windows (32 buckets: 0-31) - larger windows reduce Horner doublings for more expensive Fp2 operations
+  - **G1**: Dynamic selection based on input size — 4-bit windows for n <= 256, 5-bit for n <= 4096, larger for bigger inputs
+  - **G2**: 5-bit windows (32 buckets: 0-31) — larger windows reduce Horner doublings for more expensive Fp2 operations
 - **Features**:
   - Supports both G1 and G2 groups
   - Uses projective coordinates internally (no inversions)
@@ -131,7 +149,7 @@ High-performance MSM implementation:
 
 ### Dependencies
 
-**Disclaimer**: Compilation on Windows/Mac is not supported yet. Only Nvidia GPUs are supported. 
+**Disclaimer**: Compilation on Windows/Mac is not supported yet. Only Nvidia GPUs are supported.
 
 - nvidia driver - for example, if you're running Ubuntu 20.04 check this [page](https://linuxconfig.org/how-to-install-the-nvidia-drivers-on-ubuntu-20-04-focal-fossa-linux) for installation. You need an Nvidia GPU with Compute Capability >= 3.0
 - [nvcc](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html) >= 10.0
@@ -146,12 +164,13 @@ Dependencies (automatically fetched by CMake):
 ### Build Instructions
 
 ```bash
-# Create build directory
+# Create build directory (from cuda/)
+cd cuda
 mkdir -p build
 cd build
 
 # Configure
-cmake .. 
+cmake ..
 
 # Build
 cmake --build .
@@ -173,17 +192,6 @@ This will:
 1. Automatically configure and build the CUDA library in `cuda/build/` if needed
 2. Compile the Rust bindings
 3. Link everything together
-
-**Manual CUDA build** (if you need to build the CUDA library separately):
-
-```bash
-# Build the C++/CUDA library manually
-cd cuda
-mkdir -p build
-cd build
-cmake ..
-make
-```
 
 ## Usage
 
@@ -261,27 +269,27 @@ point_scalar_mul(affine_result, affine_point, scalar, 5);
 G1Affine* d_points;
 Scalar* d_scalars;  // BigInt (320-bit scalars, 5 limbs)
 G1Projective* d_result;
-G1Projective* d_scratch;
 
-// Calculate scratch space size
 uint32_t n = 1000;  // number of points
-uint32_t num_blocks = (n + 255) / 256;
-size_t scratch_size = (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
-
-// Allocate memory using device wrappers
 uint32_t gpu_index = 0;
+uint64_t size_tracker = 0;
+
+// Use pippenger_scratch_size_g1() to compute the required scratch size
+size_t scratch_bytes = pippenger_scratch_size_g1(n, gpu_index);
+void* d_scratch = cuda_malloc(scratch_bytes, gpu_index);
+
 d_points = (G1Affine*)cuda_malloc(n * sizeof(G1Affine), gpu_index);
 d_scalars = (Scalar*)cuda_malloc(n * sizeof(Scalar), gpu_index);
 d_result = (G1Projective*)cuda_malloc(sizeof(G1Projective), gpu_index);
-d_scratch = (G1Projective*)cuda_malloc(scratch_size, gpu_index);
 
 // Create stream and copy data to device
 cudaStream_t stream = cuda_create_stream(gpu_index);
 cuda_memcpy_async_to_gpu(d_points, h_points, n * sizeof(G1Affine), stream, gpu_index);
 cuda_memcpy_async_to_gpu(d_scalars, h_scalars, n * sizeof(Scalar), stream, gpu_index);
 
-// Perform MSM
-point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, n);
+// Perform MSM (d_scratch is caller-managed, gpu_memory_allocated=true)
+point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, n, d_scratch,
+             size_tracker, true);
 
 // Copy result back and synchronize
 G1Projective result;
@@ -297,8 +305,6 @@ cuda_destroy_stream(stream, gpu_index);
 ```
 
 ### Rust API
-
-See the [Rust API README](src/README.md) for detailed usage examples.
 
 ```rust
 use zk_cuda_backend::{G1Affine, G1Projective, Scalar};
@@ -340,8 +346,8 @@ The project includes a comprehensive test suite using Google Test.
 ### Running Tests
 
 ```bash
-# Run all tests
-cd build
+# Run all tests (from cuda/build/)
+cd cuda/build
 ctest --output-on-failure
 
 # Run with verbose output
@@ -352,6 +358,7 @@ ctest --verbose
 ./test_fp2
 ./test_msm
 ./test_point_ops
+./test_projective
 
 # Run specific test cases
 ./test_fp --gtest_filter="*Montgomery*"
@@ -377,6 +384,10 @@ ctest --verbose
   - Coordinate conversions
   - Infinity point handling
 
+- **Projective Tests** (`test_projective`): Verification of:
+  - Projective point arithmetic
+  - Mixed addition (affine + projective)
+
 - **MSM Tests** (`test_msm`): End-to-end verification:
   - G1 and G2 MSM correctness
   - Various batch sizes
@@ -387,7 +398,7 @@ ctest --verbose
 Performance benchmarks are available using Google Benchmark:
 
 ```bash
-cd build
+cd cuda/build
 ./benchmark_fp
 ./benchmark_fp2
 ./benchmark_msm
@@ -410,9 +421,9 @@ Benchmarks measure:
 
 ### MSM Algorithm
 
-- **Pippenger's algorithm**: Bucket method with configurable window sizes
-  - **G1**: 4-bit windows (16 buckets)
-  - **G2**: 5-bit windows (32 buckets) - larger windows reduce expensive Fp2 field operations
+- **Pippenger's algorithm**: Bucket method with dynamic window sizes
+  - **G1**: Dynamic selection — 4-bit windows (n <= 256), 5-bit (n <= 4096), larger for bigger inputs
+  - **G2**: 5-bit windows (32 buckets) — larger windows reduce expensive Fp2 field operations
 - **Projective coordinates**: Avoids expensive field inversions
 - **Memory layout**: Optimized for coalesced memory access
 - **Thread configuration**: 128 threads/block for both G1 and G2 (optimized for H100 SM occupancy)
@@ -422,21 +433,19 @@ Benchmarks measure:
 
 The library provides two MSM API variants:
 
-- **Unmanaged API** (`point_msm_*_unmanaged_wrapper`):
+- **Unmanaged API** (`point_msm_g1`, `point_msm_g2`):
   - Assumes all data (points, scalars, scratch space) is already on device
   - Caller manages all memory allocation and transfers
   - Best for performance-critical applications where data is already on GPU
   - Supports `points_in_montgomery` flag to avoid redundant conversions
 
-- **Managed API** (`point_msm_*_managed_wrapper`):
+- **Managed API** (via Rust `G1Projective::msm()`, `G2Projective::msm()`):
   - Handles memory allocation and transfers internally
   - Copies data from host to device, runs MSM, copies result back
   - Convenient for Rust bindings and host-side code
   - Automatically manages scratch space allocation
 
-- **Scratch space**: Required size is `(num_blocks + 1) * BUCKET_COUNT * sizeof(ProjectivePoint)`
-  - G1: `(num_blocks + 1) * 16 * sizeof(G1Projective)`
-  - G2: `(num_blocks + 1) * 32 * sizeof(G2Projective)`
+- **Scratch space**: Use `pippenger_scratch_size_g1(n, gpu_index)` / `pippenger_scratch_size_g2(n, gpu_index)` to compute the required allocation size
 - **Stream support**: Async operations with CUDA streams (all operations are async internally)
 
 ### CUDA Optimizations
@@ -446,6 +455,10 @@ The library provides two MSM API variants:
 - **Coalesced access**: Memory access patterns optimized for GPU
 - **Separable compilation**: Enabled for better optimization
 
+## Naming Conventions
+
+See [NAMING_CONVENTIONS.md](NAMING_CONVENTIONS.md) for the full naming convention reference covering types, functions, variables, constants, and files.
+
 ## Template Functions
 
 Many functions are templated to work with both G1 and G2 points:
@@ -454,12 +467,14 @@ template<typename PointType>
 void point_add(PointType& result, const PointType& p1, const PointType& p2);
 ```
 
+Type dispatch is handled by `Affine<T>` and `Projective<T>` trait structs defined in `point_traits.h`, which provide field-specific operations for each group.
+
 ## Security
 
 ### Side-Channel Resistance
 
-This implementation assumes **scalars are public** and is NOT constant-time. 
-The MSM and scalar multiplication operations have timing variations that depend 
+This implementation assumes **scalars are public** and is NOT constant-time.
+The MSM and scalar multiplication operations have timing variations that depend
 on scalar values (bit length, Hamming weight, specific bit patterns).
 
 For ZK proof generation, this is acceptable if:
@@ -470,17 +485,14 @@ For ZK proof generation, this is acceptable if:
 
 ### Input Validation
 
-- **Point validation**: Point on-curve validation is optional and controlled by the 
-  `validate_points` feature flag. When disabled (default), malformed points may cause 
+- **Point validation**: Point on-curve validation is optional and controlled by the
+  `validate_points` feature flag. When disabled (default), malformed points may cause
   undefined behavior in curve operations. Enable this feature for untrusted inputs:
   ```toml
   zk-cuda-backend = { version = "...", features = ["validate_points"] }
   ```
-- **Scalar validation**: `Scalar::is_valid()` and `Scalar::reduce_once()` methods available
-- **Input size limits**: MSM operations are limited to 100,000 points maximum
+- **Scalar validation**: `Scalar::is_valid()` and `Scalar::reduce_once()` methods available in the Rust API
 - **Division by zero**: Caller must ensure division by zero does not occur (checks must be done at host side)
-
-For detailed security information, see [SECURITY.md](SECURITY.md).
 
 ## References
 

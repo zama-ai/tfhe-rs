@@ -40,7 +40,7 @@
 // - G1 with 128 threads: 15.6KB shared mem, allows 3 blocks per SM
 // - G2 with 128 threads: 29.8KB shared mem, allows 1 block per SM
 // Testing showed 64 threads is worse (25% slower for G2/4096).
-template <typename PointType> int get_msm_threads_per_block(uint32_t n) {
+template <typename PointType> uint32_t msm_threads_per_block(uint32_t n) {
   (void)n;
   return 128;
 }
@@ -66,38 +66,52 @@ template <> struct MSMWindowSize<G2ProjectivePoint> {
 };
 
 // ============================================================================
+// Scratch Size Helpers
+// ============================================================================
+// Compute the exact scratch buffer size (in bytes) needed by the Pippenger MSM
+// implementation for a given input count. These match the internal scratch
+// partitioning exactly: all_block_buckets + all_final_buckets + window_sums.
+// The gpu_index is needed to query device shared memory limits, which affect
+// the per-window block count.
+
+size_t pippenger_scratch_size_g1(uint32_t n, uint32_t gpu_index);
+size_t pippenger_scratch_size_g2(uint32_t n, uint32_t gpu_index);
+
+// ============================================================================
 // MSM with BigInt Scalars (320-bit scalars, default implementation)
 // ============================================================================
 
 // MSM for G1 points with BigInt scalars (projective result)
 // Computes: result = sum(scalars[i] * points[i])
+// Scratch space must be pre-allocated by the caller and passed via d_scratch.
+// Use the scratch size helpers or allocate generously (the implementation
+// partitions it internally for bucket arrays and window sums).
 // Arguments:
 //   stream: CUDA stream for async execution
 //   gpu_index: GPU device index
 //   d_result: Device pointer to output (projective G1 point)
 //   d_points: Device pointer to input affine G1 points (array of n points)
 //   d_scalars: Device pointer to input BigInt scalars (array of n scalars)
-//   d_scratch: Device pointer to scratch buffer for intermediate results
-//              Required size: (num_blocks + 1) * MSM_G1_BUCKET_COUNT *
-//              sizeof(G1Projective)
 //   n: Number of points/scalars
+//   d_scratch: Caller-provided device scratch buffer for intermediate results
+//   size_tracker: Reference for tracking GPU memory allocation sizes
 void point_msm_async_g1(cudaStream_t stream, uint32_t gpu_index,
                         G1Projective *d_result, const G1Affine *d_points,
-                        const Scalar *d_scalars, G1Projective *d_scratch,
-                        uint32_t n, uint64_t &size_tracker);
+                        const Scalar *d_scalars, uint32_t n, void *d_scratch,
+                        uint64_t &size_tracker, bool gpu_memory_allocated);
 
 void point_msm_g1(cudaStream_t stream, uint32_t gpu_index,
                   G1Projective *d_result, const G1Affine *d_points,
-                  const Scalar *d_scalars, G1Projective *d_scratch, uint32_t n,
-                  uint64_t &size_tracker);
+                  const Scalar *d_scalars, uint32_t n, void *d_scratch,
+                  uint64_t &size_tracker, bool gpu_memory_allocated);
 
 // MSM for G2 points with BigInt scalars (projective result)
 void point_msm_async_g2(cudaStream_t stream, uint32_t gpu_index,
                         G2ProjectivePoint *d_result, const G2Point *d_points,
-                        const Scalar *d_scalars, G2ProjectivePoint *d_scratch,
-                        uint32_t n, uint64_t &size_tracker);
+                        const Scalar *d_scalars, uint32_t n, void *d_scratch,
+                        uint64_t &size_tracker, bool gpu_memory_allocated);
 
 void point_msm_g2(cudaStream_t stream, uint32_t gpu_index,
                   G2ProjectivePoint *d_result, const G2Point *d_points,
-                  const Scalar *d_scalars, G2ProjectivePoint *d_scratch,
-                  uint32_t n, uint64_t &size_tracker);
+                  const Scalar *d_scalars, uint32_t n, void *d_scratch,
+                  uint64_t &size_tracker, bool gpu_memory_allocated);
