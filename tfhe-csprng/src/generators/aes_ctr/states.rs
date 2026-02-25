@@ -59,6 +59,8 @@ pub(crate) enum State {
 /// A structure representing the action to be taken by the generator after shifting its state.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ShiftAction {
+    /// All the bytes that could be generated were generated,
+    /// there are no more bytes.
     NoOutput,
     /// Outputs the byte pointed to by the 0-th field.
     OutputByte(BufferPointer),
@@ -69,7 +71,7 @@ pub enum ShiftAction {
 
 impl State {
     /// Creates a new state that will generate bytes from `next_table_index` through `last`
-    /// (inclusive).
+    /// (inclusive), i.e., the State generates bytes in range `next_table_index..=last`
     ///
     /// The `offset` AesIndex is applied to all AES encryption: AES(Key, counter + offset).
     /// This allows starting the AES counter at a specific value.
