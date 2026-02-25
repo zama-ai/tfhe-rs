@@ -1,3 +1,5 @@
+use std::ops::Bound;
+
 use crate::generators::aes_ctr::index::{AesIndex, TableIndex};
 use crate::generators::aes_ctr::BYTES_PER_BATCH;
 use crate::generators::{widening_mul, ByteCount, BytesPerChild, ChildrenCount, ForkError};
@@ -9,7 +11,10 @@ pub struct BufferPointer(pub usize);
 /// State from which we can at least generate 1 byte
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Consumable {
+    // Stores the index preceding the index of the value
+    // to be generated on the next call to next
     table_index: TableIndex,
+    // **INCLUSIVE** last valid index
     last: TableIndex,
     buffer_pointer: BufferPointer,
     offset: AesIndex,
@@ -23,9 +28,18 @@ impl Consumable {
 
     #[cfg(test)]
     fn skip_bytes(&mut self, amount: ByteCount) {
-        self.table_index.increase(amount.0);
+        let (mut increased, overflowed) = self.table_index.overflowing_increased(amount.0);
+
+        // Saturate the increased value
+        if overflowed {
+            increased = TableIndex::LAST;
+        } else if increased > self.last {
+            increased = self.last;
+        }
+
         let new_ptr = (self.buffer_pointer.0 as u128).saturating_add(amount.0);
         self.buffer_pointer.0 = new_ptr.min(BYTES_PER_BATCH as u128) as usize;
+        self.table_index = increased;
     }
 
     #[inline]
@@ -51,7 +65,7 @@ impl Consumable {
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum State {
     /// The generator is fully consumed
-    Consumed { last: TableIndex },
+    Consumed,
     /// The generator can produce at least 1 more byte
     NotConsumed(Consumable),
 }
@@ -59,6 +73,8 @@ pub(crate) enum State {
 /// A structure representing the action to be taken by the generator after shifting its state.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ShiftAction {
+    /// All the bytes that could be generated were generated,
+    /// there are no more bytes.
     NoOutput,
     /// Outputs the byte pointed to by the 0-th field.
     OutputByte(BufferPointer),
@@ -68,17 +84,35 @@ pub enum ShiftAction {
 }
 
 impl State {
-    /// Creates a new state that will generate bytes from `next_table_index` through `last`
-    /// (inclusive).
+    /// Creates a new state that will generate bytes starting from `next_table_index`
+    /// up to the given `end` bound.
+    ///
+    /// - `Bound::Included(x)` — last valid byte is at `x`
+    /// - `Bound::Excluded(x)` — last valid byte is at `x.decremented()`
+    /// - `Bound::Unbounded` — last valid byte is at `TableIndex::LAST`
     ///
     /// The `offset` AesIndex is applied to all AES encryption: AES(Key, counter + offset).
-    /// This allows starting the AES counter at a specific value.
-    ///
-    /// If `next_table_index > last`, the state is immediately `Consumed`.
-    pub(crate) fn new(next_table_index: TableIndex, last: TableIndex, offset: AesIndex) -> Self {
+    pub(crate) fn new(
+        next_table_index: TableIndex,
+        end: Bound<TableIndex>,
+        offset: AesIndex,
+    ) -> Self {
+        let last = match end {
+            Bound::Included(x) => x,
+            Bound::Excluded(x) => {
+                // Excluded(FIRST) means the range is empty, no matter next_table_index
+                // we cant just decrement it as it would wrap to LAST, leading to an Unbounded
+                // range
+                if x == TableIndex::FIRST {
+                    return Self::Consumed;
+                }
+                x.decremented()
+            }
+            Bound::Unbounded => TableIndex::LAST,
+        };
         // Strict `>` is correct: `next_table_index == last` means one byte remains (at `last`).
         if next_table_index > last {
-            State::Consumed { last }
+            State::Consumed
         } else {
             State::NotConsumed(Consumable {
                 table_index: next_table_index.decremented(),
@@ -91,13 +125,11 @@ impl State {
 
     pub(crate) fn next(&mut self) -> ShiftAction {
         match self {
-            State::Consumed { .. } => ShiftAction::NoOutput,
+            State::Consumed => ShiftAction::NoOutput,
             State::NotConsumed(consumable) => {
                 let action = consumable.increment();
                 if consumable.table_index == consumable.last {
-                    *self = State::Consumed {
-                        last: consumable.last,
-                    };
+                    *self = State::Consumed;
                 }
                 action
             }
@@ -106,14 +138,14 @@ impl State {
 
     pub(crate) fn next_table_index(&self) -> Option<TableIndex> {
         match self {
-            State::Consumed { .. } => None,
+            State::Consumed => None,
             State::NotConsumed(consumable) => Some(consumable.table_index.incremented()),
         }
     }
 
     pub(crate) fn remaining_bytes(self) -> ByteCount {
         match self {
-            State::Consumed { .. } => ByteCount(0),
+            State::Consumed => ByteCount(0),
             State::NotConsumed(state) => {
                 let next = state.table_index.incremented();
                 let dist = TableIndex::distance(&state.last, &next)
@@ -135,31 +167,67 @@ impl State {
             return Err(ForkError::ZeroBytesPerChild);
         }
         match self {
-            State::Consumed { .. } => Err(ForkError::ForkTooLarge),
+            State::Consumed => Err(ForkError::ForkTooLarge),
             State::NotConsumed(consumable) => {
-                let end = consumable
-                    .table_index
-                    .increased(widening_mul(n_children.0, n_bytes.0));
-                if end <= consumable.last {
-                    let first_index = consumable.table_index.incremented();
-                    let child_bytes = widening_mul(n_bytes.0, n_children.0);
-                    let new_parent_state = State::new(
-                        first_index.increased(child_bytes),
-                        consumable.last,
-                        consumable.offset,
-                    );
-                    Ok((first_index, consumable.offset, new_parent_state))
-                } else {
-                    Err(ForkError::ForkTooLarge)
+                // Always valid (no overflow) as NotConsumed guarantees at least one byte remains
+                let first_index = consumable.table_index.incremented();
+
+                // Children occupy [first_index, first_index + fork_amount).
+                // `increased` uses wrapping arithmetic on aes_index, so this may wrap past LAST
+                // back to [FIRST, first_index). The overflow is detected below.
+                // If no wrap, the result is in (first_index, LAST].
+                let children_excluded_bound =
+                    first_index.increased(widening_mul(n_children.0, n_bytes.0));
+
+                // Convert excluded bound to inclusive last. If children_excluded_bound == FIRST
+                // (the fork wrapped exactly to the start), FIRST.decremented() == LAST, which
+                // correctly represents the last included byte of the children's range.
+                //
+                // The fork amount is non-zero (both n_children and n_bytes are >= 1), so the
+                // minimum fork is 1 byte, giving children_included_last >= first_index at worst
+                let children_included_last = children_excluded_bound.decremented();
+
+                // Overflow detection: if children_included_last < first_index, the excluded
+                // bound wrapped past LAST.
+                //
+                // This check has no false negatives: a wrap cannot land back at or past
+                // first_index because the fork amount (u64 * u64 < 2^128) is strictly less
+                // than the table index cycle (2^132 values). A full cycle would require
+                // a shift >= 2^132, which is impossible with a < 2^128 fork amount (it is even
+                // impossible with a TableIndex value as its max representable value is (2^132 -1))
+                //
+                // We use `increased` + some checks instead of `overflowing_increased` because
+                // the latter would still need correction for the excluded-to-inclusive
+                // conversion (e.g., excluded bound overflows to FIRST, inclusive last is LAST).
+                if children_included_last < first_index || children_included_last > consumable.last
+                {
+                    return Err(ForkError::ForkTooLarge);
                 }
+
+                // Children may consume all parent bytes (parent becomes Consumed)
+                let new_parent_state = if children_included_last == consumable.last {
+                    // Cannot call Self::new with children_included_last.incremented() here:
+                    // if last == LAST, incrementing wraps to FIRST, and Self::new would create
+                    // a fresh iterator over the entire space instead of an empty one.
+                    State::Consumed
+                } else {
+                    let parent_first_index = children_included_last.incremented();
+                    Self::new(
+                        parent_first_index,
+                        Bound::Included(consumable.last),
+                        consumable.offset,
+                    )
+                };
+                Ok((first_index, consumable.offset, new_parent_state))
             }
         }
     }
 
-    pub(crate) fn bound(&self) -> TableIndex {
+    #[cfg(test)]
+    pub(crate) fn last(&self) -> Option<TableIndex> {
         match self {
-            State::Consumed { last } => last.incremented(),
-            State::NotConsumed(consumable) => consumable.last.incremented(),
+            State::Consumed => None,
+            State::NotConsumed(consumable) => Some(consumable.last),
         }
     }
 
@@ -168,22 +236,24 @@ impl State {
         if let State::NotConsumed(state) = self {
             state.skip_bytes(amount);
             if state.table_index >= state.last {
-                *self = State::Consumed { last: state.last };
+                *self = State::Consumed;
             }
         }
     }
 
-    /// Advances by `n` positions: skips `n - 1` bytes, then returns the nth.
+    /// Advances by `n` positions: skips `n` bytes, then returns the next.
+    /// Matches `Iterator::nth` semantics: nth(0) returns the next element.
     #[cfg(test)]
-    fn advance(&mut self, n: ByteCount) -> ShiftAction {
-        assert!(n.0 > 0, "advance(0) is not meaningful");
-        self.skip_bytes(ByteCount(n.0 - 1));
+    fn nth(&mut self, n: ByteCount) -> ShiftAction {
+        self.skip_bytes(ByteCount(n.0));
         self.next()
     }
 }
 
 #[cfg(test)]
 mod test {
+    use std::ops::Bound;
+
     use super::*;
     use crate::generators::aes_ctr::index::ByteIndex;
     use crate::generators::aes_ctr::BYTES_PER_AES_CALL;
@@ -222,7 +292,13 @@ mod test {
         for _ in 0..REPEATS {
             let (t, mut s, offset) = any_table_index()
                 .zip(any_aes_index())
-                .map(|(t, offset)| (t, State::new(t, TableIndex::LAST, offset), offset))
+                .map(|(t, offset)| {
+                    (
+                        t,
+                        State::new(t, Bound::Included(TableIndex::LAST), offset),
+                        offset,
+                    )
+                })
                 .next()
                 .unwrap();
             assert!(matches!(
@@ -243,21 +319,33 @@ mod test {
             let (t, mut s, i) = any_table_index()
                 .zip(any_u128())
                 .zip(any_aes_index())
-                .map(|((t, i), offset)| (t, State::new(t, TableIndex::LAST, offset), i))
+                .map(|((t, i), offset)| {
+                    (
+                        t,
+                        State::new(t, Bound::Included(TableIndex::LAST), offset),
+                        i,
+                    )
+                })
                 .next()
                 .unwrap();
             s.skip_bytes(ByteCount(i));
-            assert_eq!(s.next_table_index().unwrap(), t.increased(i))
+            match s.next_table_index() {
+                // The increase is in range
+                Some(idx) => assert_eq!(idx, t.increased(i)),
+                // No next index means the state is consumed
+                // Since the bound is LAST is means there was an overflow
+                None => assert!(t.overflowing_increased(i).1),
+            }
         }
     }
 
     #[test]
-    /// Check the property:
-    ///     For all table indices t, positive integer i such that
-    ///     t.byte_index + i < BYTES_PER_BATCH - 1,
-    ///         if s = State::new(t, LAST, offset), and s.next() was called,
-    ///         s.advance(i) = OutputByte(t.byte_index + i).
-    fn prop_state_increase_small() {
+    /// For all table indices t, offsets, and non-negative integers i,
+    ///     State::new(t, LAST, offset).nth(i)
+    ///         = RefreshBatchAndOutputByte(
+    ///             t.increased(i).aes_index + offset,
+    ///             t.increased(i).byte_index)
+    fn prop_state_nth() {
         for _ in 0..REPEATS {
             let (t, mut s, i, offset) = any_table_index()
                 .zip(any_usize())
@@ -265,55 +353,23 @@ mod test {
                 .map(|((t, i), offset)| {
                     (
                         t,
-                        State::new(t, TableIndex::LAST, offset),
-                        i % BYTES_PER_BATCH,
+                        State::new(t, Bound::Included(TableIndex::LAST), offset),
+                        i,
                         offset,
                     )
                 })
-                .find(|(t, _, i, _)| *i > 0 && t.byte_index.0 + i < BYTES_PER_BATCH - 1)
+                .next()
                 .unwrap();
-            assert!(matches!(
-                    s.next(),
-                    ShiftAction::RefreshBatchAndOutputByte(index, BufferPointer(p))
-                    if index == AesIndex(t.aes_index.0.wrapping_add(offset.0)) && p == t.byte_index.0 ));
-            let action = s.advance(ByteCount(i as u128));
-            assert!(
-                matches!(
-                action,
-                ShiftAction::OutputByte(BufferPointer(p_)) if p_ == t.byte_index.0 + i),
-                "Action is {action:?}, expected ShiftAction::OutputByte(BufferPointer({:?}))",
-                t.byte_index.0 + i
-            );
-        }
-    }
-    #[test]
-    /// Check the property:
-    ///     For all table indices t,
-    ///     positive integer i such that t.byte_index + i >= BYTES_PER_BATCH - 1,
-    ///         if s = State::new(t, LAST, offset), and s.next() was called,
-    ///         s.advance(i) = RefreshBatchAndOutputByte(
-    ///             t.increased(i).aes_index + offset, t.increased(i).byte_index).
-    fn prop_state_increase_large() {
-        for _ in 0..REPEATS {
-            let (t, mut s, i, offset) = any_table_index()
-                .zip(any_usize())
-                .zip(any_aes_index())
-                .map(|((t, i), offset)| (t, State::new(t, TableIndex::LAST, offset), i, offset))
-                .find(|(t, _, i, _)| *i > 0 && t.byte_index.0 + i >= BYTES_PER_BATCH - 1)
-                .unwrap();
-            s.next();
-            let expected_index = t.increased(i as u128);
-            let action = s.advance(ByteCount(i as u128));
+            let expected = t.increased(i as u128);
+            let action = s.nth(ByteCount(i as u128));
             assert!(
                 matches!(
                     action,
-                    ShiftAction::RefreshBatchAndOutputByte(t_, BufferPointer(p_))
-                        if t_ == AesIndex(expected_index.aes_index.0.wrapping_add(offset.0))
-                            && p_ == expected_index.byte_index.0
+                    ShiftAction::RefreshBatchAndOutputByte(idx, BufferPointer(p))
+                        if idx == AesIndex(expected.aes_index.0.wrapping_add(offset.0))
+                            && p == expected.byte_index.0
                 ),
-                "Action is {action:?}, expected RefreshBatchAndOutputByte(AesIndex({:?}), BufferPointer({:?}))",
-                expected_index.aes_index.0.wrapping_add(offset.0),
-                expected_index.byte_index.0
+                "nth({i}): got {action:?}, expected RefreshBatch at {expected:?}+{offset:?}",
             );
         }
     }
@@ -322,7 +378,7 @@ mod test {
     fn prop_state_first_is_last() {
         for (first, offset) in any_table_index().zip(any_aes_index()).take(REPEATS) {
             let last = first;
-            let mut s = State::new(first, last, offset);
+            let mut s = State::new(first, Bound::Included(last), offset);
 
             assert_eq!(s.remaining_bytes().0, 1);
             assert_ne!(s.next(), ShiftAction::NoOutput, "Expected a byte");
@@ -344,7 +400,7 @@ mod test {
 
             let first = TableIndex::FIRST;
             let last = first.increased(n);
-            let mut s = State::new(first, last, offset);
+            let mut s = State::new(first, Bound::Included(last), offset);
 
             assert_eq!(s.remaining_bytes().0, n + 1);
 
@@ -379,7 +435,7 @@ mod test {
             let n = distance_to_last.min(rng.gen_range(0..=u16::MAX as u128));
 
             let last = first_index.increased(n as u128);
-            let mut s = State::new(first_index, last, offset);
+            let mut s = State::new(first_index, Bound::Included(last), offset);
             for i in 0..n + 1 {
                 assert_ne!(
                     s.next(),
@@ -397,36 +453,22 @@ mod test {
 
     #[test]
     /// Check the property:
-    ///     For a full-range state, after skipping so that exactly n
-    ///     bytes remain, the state is exhausted after n calls to next().
+    ///     For a state spanning exactly u128::MAX+1 bytes near the end of the
+    ///     table, after skipping so that exactly n+1 bytes remain, the state is
+    ///     exhausted after n+1 calls to next().
     fn prop_state_consumed_skip_to_end() {
         let mut rng = rand::thread_rng();
         for offset in any_aes_index().take(SMALLER_REPEATS) {
             let n = rng.gen_range(0..=u16::MAX) as u128;
 
-            let mut s = State::new(TableIndex::FIRST, TableIndex::LAST, offset);
+            // Range of exactly u128::MAX+1 bytes: [LAST - u128::MAX, LAST]
+            let first = TableIndex::LAST.decreased(u128::MAX);
+            let mut s = State::new(first, Bound::Unbounded, offset);
 
-            // Internal table_index starts at FIRST.decremented() == LAST (wrapping).
-            // We want table_index == LAST.decreased(n) after skipping, so that
-            // n calls to next() bring it to LAST.
-            // Forward distance from LAST to LAST.decreased(n) wrapping
-            // the full 2^132 table is 2^132 - n bytes.
-            // We split into u128-sized chunks since ByteCount holds u128.
-            // 2^132 = 16 * 2^128, so 2^132 - n = (16 * 2^128) - n
-            // = (16 * 2^128-1) + 16 - n
-            if n < BYTES_PER_AES_CALL as u128 {
-                for _ in 0..BYTES_PER_AES_CALL {
-                    s.skip_bytes(ByteCount(u128::MAX));
-                }
-                s.skip_bytes(ByteCount(BYTES_PER_AES_CALL as u128 - n));
-            } else {
-                for _ in 0..(BYTES_PER_AES_CALL - 1) {
-                    s.skip_bytes(ByteCount(u128::MAX));
-                }
-                s.skip_bytes(ByteCount(u128::MAX - (n - BYTES_PER_AES_CALL as u128)));
-            }
+            // Single skip: u128::MAX - n leaves n+1 bytes remaining
+            s.skip_bytes(ByteCount(u128::MAX - n));
 
-            for i in 0..n {
+            for i in 0..n + 1 {
                 assert_ne!(
                     s.next(),
                     ShiftAction::NoOutput,
@@ -436,8 +478,270 @@ mod test {
             assert_eq!(
                 s.next(),
                 ShiftAction::NoOutput,
-                "State should be consumed after {n} calls"
+                "State should be consumed after {} calls",
+                n + 1,
             );
+        }
+    }
+
+    #[test]
+    fn test_excluded_first_is_immediately_consumed() {
+        for first in any_table_index().take(10) {
+            let s = State::new(
+                first,
+                Bound::Excluded(TableIndex::FIRST),
+                AesIndex(rand::random()),
+            );
+            assert!(matches!(s, State::Consumed));
+            assert_eq!(s.remaining_bytes().0, 0);
+        }
+    }
+
+    #[test]
+    fn test_start_past_end_is_immediately_consumed() {
+        let mut rng = rand::thread_rng();
+        for (offset, last) in any_aes_index().zip(any_table_index()).take(SMALLER_REPEATS) {
+            let gap = rng.gen_range(1..=u16::MAX) as u128;
+            let (first, overflowed) = last.overflowing_increased(gap);
+            if overflowed {
+                continue;
+            }
+
+            let s = State::new(first, Bound::Included(last), offset);
+            assert!(matches!(s, State::Consumed));
+            assert_eq!(s.remaining_bytes().0, 0);
+        }
+    }
+
+    #[test]
+    fn test_check_fork_on_consumed_state() {
+        for offset in any_aes_index().take(SMALLER_REPEATS) {
+            let s = State::new(
+                TableIndex::FIRST,
+                Bound::Excluded(TableIndex::FIRST),
+                offset,
+            );
+            assert!(matches!(s, State::Consumed));
+            assert!(matches!(
+                s.check_fork(ChildrenCount(1), BytesPerChild(1)),
+                Err(ForkError::ForkTooLarge),
+            ));
+        }
+    }
+
+    #[test]
+    fn test_check_fork_zero_children_or_bytes() {
+        for offset in any_aes_index().take(SMALLER_REPEATS) {
+            let s = State::new(TableIndex::FIRST, Bound::Unbounded, offset);
+            assert!(matches!(
+                s.check_fork(ChildrenCount(0), BytesPerChild(1)),
+                Err(ForkError::ZeroChildrenCount),
+            ));
+            assert!(matches!(
+                s.check_fork(ChildrenCount(1), BytesPerChild(0)),
+                Err(ForkError::ZeroBytesPerChild),
+            ));
+        }
+    }
+
+    #[test]
+    fn test_check_fork_boundary() {
+        let mut rng = rand::thread_rng();
+
+        // Test where first=FIRST and last=FIRST+something
+        for offset in any_aes_index().take(SMALLER_REPEATS) {
+            let n_children = rng.gen_range(1..=16_u64);
+            let n_bytes = rng.gen_range(1..=16_u64);
+            let total = widening_mul(n_children, n_bytes);
+
+            let first = TableIndex::FIRST;
+
+            {
+                // State with exactly total+1 bytes: fork takes `total`, parent keeps 1
+                let last = first.increased(total);
+                let s = State::new(first, Bound::Included(last), offset);
+                assert_eq!(s.remaining_bytes().0, total + 1);
+
+                let result = s.check_fork(ChildrenCount(n_children), BytesPerChild(n_bytes));
+                assert!(result.is_ok(), "Fork leaving 1 parent byte should succeed");
+                let (fork_first, _, parent_state) = result.unwrap();
+                assert_eq!(fork_first, first);
+                assert_eq!(parent_state.remaining_bytes().0, 1);
+            }
+
+            {
+                // State with exactly total bytes: fork takes all, no parent bytes left
+                let last = first.increased(total - 1);
+                let s = State::new(first, Bound::Included(last), offset);
+                assert_eq!(s.remaining_bytes().0, total);
+
+                let result = s.check_fork(ChildrenCount(n_children), BytesPerChild(n_bytes));
+                assert!(
+                    result.is_ok(),
+                    "Fork consuming all parent bytes should be ok"
+                );
+                let (ret_first_index, ret_offset, new_parent_state) = result.unwrap();
+                assert_eq!(ret_first_index, first);
+                assert_eq!(ret_offset, offset);
+                assert!(matches!(new_parent_state, State::Consumed));
+            }
+
+            {
+                // Another way to express fork takes all
+                let last = first.increased(total);
+                let s = State::new(first, Bound::Excluded(last), offset);
+                assert_eq!(s.remaining_bytes().0, total);
+
+                let result = s.check_fork(ChildrenCount(n_children), BytesPerChild(n_bytes));
+                assert!(
+                    result.is_ok(),
+                    "Fork consuming all parent bytes should be ok"
+                );
+                let (ret_first_index, ret_offset, new_parent_state) = result.unwrap();
+                assert_eq!(ret_first_index, first);
+                assert_eq!(ret_offset, offset);
+                assert!(matches!(new_parent_state, State::Consumed));
+            }
+        }
+
+        // Test where last=LAST and first=LAST-something (exercises wrapping in increased())
+        for offset in any_aes_index().take(SMALLER_REPEATS) {
+            let n_children = rng.gen_range(1..=16_u64);
+            let n_bytes = rng.gen_range(1..=16_u64);
+            let total = widening_mul(n_children, n_bytes);
+
+            let last = TableIndex::LAST;
+
+            {
+                let first = last.decreased(total);
+                let s = State::new(first, Bound::Included(last), offset);
+                assert_eq!(s.remaining_bytes().0, total + 1);
+
+                let result = s.check_fork(ChildrenCount(n_children), BytesPerChild(n_bytes));
+                assert!(result.is_ok(), "Fork leaving 1 parent byte should succeed");
+                let (fork_first, _, parent_state) = result.unwrap();
+                assert_eq!(fork_first, first);
+                assert_eq!(parent_state.remaining_bytes().0, 1);
+            }
+
+            {
+                // State with exactly total bytes: fork takes all, no parent bytes left
+                let first = last.decreased(total - 1);
+                let s = State::new(first, Bound::Included(last), offset);
+                assert_eq!(s.remaining_bytes().0, total);
+
+                let result = s.check_fork(ChildrenCount(n_children), BytesPerChild(n_bytes));
+                assert!(
+                    result.is_ok(),
+                    "Fork consuming all parent bytes should be ok"
+                );
+                let (ret_first_index, ret_offset, new_parent_state) = result.unwrap();
+                assert_eq!(ret_first_index, first);
+                assert_eq!(ret_offset, offset);
+                assert!(matches!(new_parent_state, State::Consumed));
+            }
+
+            {
+                // Another way to express fork takes all
+                let first = last.decreased(total);
+                let s = State::new(first, Bound::Excluded(last), offset);
+                assert_eq!(s.remaining_bytes().0, total);
+
+                let result = s.check_fork(ChildrenCount(n_children), BytesPerChild(n_bytes));
+                assert!(
+                    result.is_ok(),
+                    "Fork consuming all parent bytes should be ok"
+                );
+                let (ret_first_index, ret_offset, new_parent_state) = result.unwrap();
+                assert_eq!(ret_first_index, first);
+                assert_eq!(ret_offset, offset);
+                assert!(matches!(new_parent_state, State::Consumed));
+            }
+        }
+    }
+
+    #[test]
+    fn test_check_fork_overflow() {
+        for offset in any_aes_index().take(SMALLER_REPEATS) {
+            let s = State::new(TableIndex::LAST, Bound::Unbounded, offset);
+            assert_eq!(s.remaining_bytes().0, 1);
+
+            // 2 children * u64::MAX bytes each overflows the table index space
+            assert!(matches!(
+                s.check_fork(ChildrenCount(2), BytesPerChild(u64::MAX)),
+                Err(ForkError::ForkTooLarge),
+            ));
+        }
+    }
+
+    // Test that skipping by an amount >= than the number of bytes possible
+    // saturates and more importantly, consumes the state
+    #[test]
+    fn prop_state_skip_saturates() {
+        let mut rng = rand::thread_rng();
+        for offset in any_aes_index().take(SMALLER_REPEATS) {
+            let n = rng.gen_range(0..=u128::MAX - 1) as u128;
+
+            // Check when the end is unbounded, as this relies on overflow detection
+            {
+                // to create a state with n+1 bytes remaining
+                let first = TableIndex::LAST.decreased(n);
+
+                let mut s = State::new(first, Bound::Unbounded, offset);
+                s.skip_bytes(ByteCount(n));
+                assert_ne!(s.next(), ShiftAction::NoOutput); // One valid byte
+                assert_eq!(s.next(), ShiftAction::NoOutput);
+
+                let mut s = State::new(first, Bound::Unbounded, offset);
+                s.skip_bytes(ByteCount(n + 1));
+                assert_eq!(s.next(), ShiftAction::NoOutput); // Not even one valid byte
+
+                let mut s = State::new(first, Bound::Unbounded, offset);
+                let skip = rng.gen_range(n + 1..=u128::MAX);
+                s.skip_bytes(ByteCount(skip));
+                assert_eq!(s.next(), ShiftAction::NoOutput); // Not even one valid byte
+            }
+
+            // Test with a bounded (Inclusive)
+            {
+                // to create a state with n+1 bytes remaining
+                let last = TableIndex::LAST.decreased(n);
+                let first = last.decreased(n);
+
+                let mut s = State::new(first, Bound::Included(last), offset);
+                s.skip_bytes(ByteCount(n));
+                assert_ne!(s.next(), ShiftAction::NoOutput); // One valid byte
+                assert_eq!(s.next(), ShiftAction::NoOutput);
+
+                let mut s = State::new(first, Bound::Included(last), offset);
+                s.skip_bytes(ByteCount(n + 1));
+                assert_eq!(s.next(), ShiftAction::NoOutput); // Not even one valid byte
+
+                let mut s = State::new(first, Bound::Included(last), offset);
+                let skip = rng.gen_range(n + 1..=u128::MAX);
+                s.skip_bytes(ByteCount(skip));
+                assert_eq!(s.next(), ShiftAction::NoOutput); // Not even one valid byte
+            }
+
+            // Test with a bounded (Exclusive)
+            {
+                // to create a state with n+1 bytes remaining
+                let last = TableIndex::LAST.decreased(n);
+                let first = last.decreased(n);
+
+                let mut s = State::new(first, Bound::Excluded(last), offset);
+                s.skip_bytes(ByteCount(n));
+                assert_eq!(s.next(), ShiftAction::NoOutput); // Not even one valid byte
+
+                let mut s = State::new(first, Bound::Excluded(last), offset);
+                s.skip_bytes(ByteCount(n + 1));
+                assert_eq!(s.next(), ShiftAction::NoOutput); // Not even one valid byte
+
+                let mut s = State::new(first, Bound::Excluded(last), offset);
+                let skip = rng.gen_range(n + 1..=u128::MAX);
+                s.skip_bytes(ByteCount(skip));
+                assert_eq!(s.next(), ShiftAction::NoOutput); // Not even one valid byte
+            }
         }
     }
 }
