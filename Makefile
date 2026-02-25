@@ -523,6 +523,12 @@ clippy_zk_pok: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-zk-pok --features=experimental -- --no-deps -D warnings
 
+.PHONY: clippy_zk_pok_wasm # Run clippy lints on tfhe-zk-pok for wasm32 target
+clippy_zk_pok_wasm: install_rs_check_toolchain install_build_wasm32_target
+	RUSTFLAGS="$(WASM_RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		--target wasm32-unknown-unknown \
+		-p tfhe-zk-pok -- --no-deps -D warnings
+
 .PHONY: clippy_versionable # Run clippy lints on tfhe-versionable
 clippy_versionable: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
@@ -568,7 +574,7 @@ clippy_test_vectors: install_rs_check_toolchain
 
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
-clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_trivium \
+clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_zk_pok_wasm clippy_trivium \
 clippy_versionable clippy_tfhe_lints clippy_ws_tests clippy_bench clippy_param_dedup \
 clippy_test_vectors clippy_backward_compat_data clippy_wasm_par_mq
 
@@ -689,6 +695,7 @@ build_web_js_api: install_wasm_pack
 	cd tfhe && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS)" wasm-pack build --release --target=web \
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok,extended-types
+	cp utils/wasm-par-mq/js/coordinator.js tfhe/pkg/
 
 .PHONY: build_web_js_api_parallel # Build the js API targeting the web browser with parallelism support
 # parallel wasm requires specific build options, see https://github.com/rust-lang/rust/pull/147225
@@ -1376,6 +1383,18 @@ run_web_js_api_parallel: build_web_js_api_parallel setup_venv
 	--server-workdir "$(WEB_SERVER_DIR)" \
 	--id-pattern $(filter)
 
+# This is an internal target, not meant to be called on its own.
+run_web_js_api_cross_origin: build_web_js_api setup_venv
+	cd $(WEB_SERVER_DIR) && npm install && npm run build
+	source venv/bin/activate && \
+	python ci/webdriver.py \
+	--browser-path $(browser_path) \
+	--driver-path $(driver_path) \
+	--browser-kind  $(browser_kind) \
+	--server-cmd $(server_cmd) \
+	--server-workdir "$(WEB_SERVER_DIR)" \
+	--id-pattern $(filter)
+
 test_web_js_api_parallel_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
 test_web_js_api_parallel_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
 test_web_js_api_parallel_chrome: browser_kind = chrome
@@ -1407,6 +1426,38 @@ test_web_js_api_parallel_firefox_ci: setup_venv
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) test_web_js_api_parallel_firefox
+
+test_web_js_api_cross_origin_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
+test_web_js_api_cross_origin_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
+test_web_js_api_cross_origin_chrome: browser_kind = chrome
+test_web_js_api_cross_origin_chrome: server_cmd = "npm run server:cross-origin"
+test_web_js_api_cross_origin_chrome: filter = Test
+
+.PHONY: test_web_js_api_cross_origin_chrome # Run tests for the web wasm api in cross-origin mode on Chrome
+test_web_js_api_cross_origin_chrome: run_web_js_api_cross_origin
+
+.PHONY: test_web_js_api_cross_origin_chrome_ci # Run tests for the web wasm api in cross-origin mode on Chrome
+test_web_js_api_cross_origin_chrome_ci: setup_venv
+	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
+	$(MAKE) test_web_js_api_cross_origin_chrome
+
+test_web_js_api_cross_origin_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
+test_web_js_api_cross_origin_firefox: driver_path = "$(WEB_RUNNER_DIR)/firefox/geckodriver"
+test_web_js_api_cross_origin_firefox: browser_kind = firefox
+test_web_js_api_cross_origin_firefox: server_cmd = "npm run server:cross-origin"
+test_web_js_api_cross_origin_firefox: filter = Test
+
+.PHONY: test_web_js_api_cross_origin_firefox # Run tests for the web wasm api in cross-origin mode on Firefox
+test_web_js_api_cross_origin_firefox: run_web_js_api_cross_origin
+
+.PHONY: test_web_js_api_cross_origin_firefox_ci # Run tests for the web wasm api in cross-origin mode on Firefox
+test_web_js_api_cross_origin_firefox_ci: setup_venv
+	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
+	$(MAKE) test_web_js_api_cross_origin_firefox
 
 WASM_PAR_MQ_TEST_DIR=utils/wasm-par-mq/web_tests
 
@@ -1747,7 +1798,7 @@ bench_web_js_api_cross_origin_chrome: server_cmd = "npm run server:cross-origin"
 bench_web_js_api_cross_origin_chrome: filter = ZeroKnowledgeBench # Only bench zk with cross-origin workers
 
 .PHONY: bench_web_js_api_cross_origin_chrome # Run benchmarks for the web wasm api without cross-origin isolation
-bench_web_js_api_cross_origin_chrome: run_web_js_api_parallel
+bench_web_js_api_cross_origin_chrome: run_web_js_api_cross_origin
 
 .PHONY: bench_web_js_api_cross_origin_chrome_ci # Run benchmarks for the web wasm api without cross-origin isolation
 bench_web_js_api_cross_origin_chrome_ci: setup_venv
@@ -1763,7 +1814,7 @@ bench_web_js_api_cross_origin_firefox: server_cmd = "npm run server:cross-origin
 bench_web_js_api_cross_origin_firefox: filter = ZeroKnowledgeBench # Only bench zk with cross-origin workers
 
 .PHONY: bench_web_js_api_cross_origin_firefox # Run benchmarks for the web wasm api without cross-origin isolation
-bench_web_js_api_cross_origin_firefox: run_web_js_api_parallel
+bench_web_js_api_cross_origin_firefox: run_web_js_api_cross_origin
 
 .PHONY: bench_web_js_api_cross_origin_firefox_ci # Run benchmarks for the web wasm api without cross-origin isolation
 bench_web_js_api_cross_origin_firefox_ci: setup_venv
@@ -2131,6 +2182,7 @@ pcc_batch_6:
 	$(call run_recipe_with_details,clippy_tasks)
 	$(call run_recipe_with_details,clippy_tfhe_csprng)
 	$(call run_recipe_with_details,clippy_zk_pok)
+	$(call run_recipe_with_details,clippy_zk_pok_wasm)
 	$(call run_recipe_with_details,clippy_trivium)
 	$(call run_recipe_with_details,clippy_versionable)
 	$(call run_recipe_with_details,clippy_param_dedup)

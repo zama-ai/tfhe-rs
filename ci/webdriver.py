@@ -142,11 +142,14 @@ class Driver:
                         "Script is running as root, running browser with --no-sandbox for compatibility"
                     )
                 self.options.add_argument("--no-sandbox")
+                self.options.add_argument("--headless=new")
+                # Needed for wasm-par-mq sync executor mode
+                self.options.add_argument("--enable-features=ServiceWorker")
             case BrowserKind.firefox:
                 self.options = FirefoxOptions()
+                self.options.add_argument("-headless")
 
         self.options.binary_location = self.browser_path
-        self.options.add_argument("--headless")
 
         self._driver = None
 

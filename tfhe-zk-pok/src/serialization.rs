@@ -8,9 +8,10 @@ use crate::backward_compatibility::{
     SerializableAffineVersions, SerializableCubicExtFieldVersions, SerializableFpVersions,
     SerializableGroupElementsVersions, SerializablePKEv1DomainSeparatorsVersions,
     SerializablePKEv1PublicParamsVersions, SerializablePKEv2DomainSeparatorsVersions,
-    SerializablePKEv2PublicParamsVersions, SerializableQuadExtFieldVersions,
+    SerializablePKEv2PublicParamsVersions, SerializableProjectiveVersions,
+    SerializableQuadExtFieldVersions,
 };
-use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
+use ark_ec::short_weierstrass::{Affine, Projective, SWCurveConfig};
 use ark_ec::AffineRepr;
 use ark_ff::{
     BigInt, Field, Fp, Fp2, Fp6, Fp6Config, FpConfig, PrimeField, QuadExtConfig, QuadExtField,
@@ -837,5 +838,44 @@ impl TryFrom<SerializablePKEv1DomainSeparators> for PKEv1DomainSeparators {
                 found_len: len,
             }),
         }
+    }
+}
+
+#[derive(Serialize, Deserialize, Versionize)]
+#[versionize(SerializableProjectiveVersions)]
+pub struct SerializableProjective<F> {
+    x: F,
+    y: F,
+    z: F,
+}
+
+pub type SerializableG1Projective = SerializableProjective<SerializableFp>;
+pub type SerializableG2Projective = SerializableProjective<SerializableFp2>;
+
+impl<F, C: SWCurveConfig> From<Projective<C>> for SerializableProjective<F>
+where
+    C::BaseField: Into<F>,
+{
+    fn from(value: Projective<C>) -> Self {
+        Self {
+            x: value.x.into(),
+            y: value.y.into(),
+            z: value.z.into(),
+        }
+    }
+}
+
+impl<F, C: SWCurveConfig> TryFrom<SerializableProjective<F>> for Projective<C>
+where
+    F: TryInto<C::BaseField, Error = InvalidFpError>,
+{
+    type Error = InvalidFpError;
+
+    fn try_from(value: SerializableProjective<F>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            x: value.x.try_into()?,
+            y: value.y.try_into()?,
+            z: value.z.try_into()?,
+        })
     }
 }

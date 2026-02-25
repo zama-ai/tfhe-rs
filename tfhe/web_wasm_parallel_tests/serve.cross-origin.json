@@ -7,7 +7,7 @@
         { "key": "Cross-Origin-Opener-Policy", "value": "unsafe-none" },
         {
           "key": "Content-Security-Policy",
-          "value": "script-src 'self' 'wasm-unsafe-eval';"
+          "value": "script-src 'self' 'wasm-unsafe-eval' blob:;"
         }
       ]
     },
