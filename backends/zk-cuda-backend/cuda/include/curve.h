@@ -231,13 +231,6 @@ __host__ __device__ const G2Affine &g2_generator();
 // points, significantly reducing the number of point operations compared to
 // naive methods
 
-// Pippenger algorithm constants
-#define MSM_WINDOW_SIZE 4 // 4-bit windows
-#define MSM_G1_BUCKET_COUNT                                                    \
-  16 // 2^MSM_WINDOW_SIZE buckets (0-15) - legacy, kept for compatibility
-#define MSM_SIGNED_BUCKET_COUNT                                                \
-  8 // With signed recoding: buckets 1-8 (half the buckets)
-
 // ============================================================================
 // Template Async/Sync API for curve operations
 // ============================================================================

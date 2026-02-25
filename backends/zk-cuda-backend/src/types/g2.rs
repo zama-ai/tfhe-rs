@@ -275,7 +275,7 @@ impl G2Projective {
         // NOTE: This method uses the managed API (g2_msm_managed_wrapper) which handles
         // memory allocation and transfers internally. For a pure-GPU verify/proof implementation
         // where all data is already on the device and memory is managed externally, use the
-        // unmanaged API (g2_msm_unmanaged_wrapper) instead — it performs zero internal
+        // unmanaged API (g2_msm_unmanaged_wrapper_async) instead — it performs zero internal
         // allocations (caller provides d_scratch via pippenger_scratch_size_g2_wrapper).
         //
         // SAFETY:

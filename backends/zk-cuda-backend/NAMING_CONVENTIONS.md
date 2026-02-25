@@ -100,7 +100,7 @@ The CUDA template batch functions (`point_to_montgomery_batch`) are also in-plac
 
 ### MSM Functions
 
-Internal: `point_msm_async_g1`, `point_msm_g1`, `pippenger_scratch_size_g1` (group suffix).
+Internal: `point_msm_g1_async`, `point_msm_g1`, `pippenger_scratch_size_g1` (group suffix).
 
 ### CUDA Kernels
 
@@ -112,7 +112,7 @@ Internal: `point_msm_async_g1`, `point_msm_g1`, `pippenger_scratch_size_g1` (gro
 
 **Rule: `*_wrapper` suffix.** Group position follows the underlying function's convention:
 
-- Group prefix: `g1_msm_managed_wrapper`, `g1_from_montgomery_wrapper`
+- Group prefix: `g1_msm_managed_wrapper`, `g1_msm_unmanaged_wrapper_async`, `g1_from_montgomery_wrapper`
 - Group suffix: `affine_to_projective_g1_wrapper`, `is_on_curve_g1_wrapper`, `pippenger_scratch_size_g1_wrapper`
 - No group: `fp_to_montgomery_wrapper`, `scalar_modulus_limbs_wrapper`
 
@@ -170,3 +170,6 @@ Module-level conversions: `g1_affine_from_montgomery()`, `g1_affine_from_arkwork
 ```
 
 **`_async` suffix** for non-blocking; **no suffix** for synchronizing.
+
+**Rule: `_async` is always the last component of the name**, even on `_wrapper` functions.
+For example: `point_msm_g1_async` (not `point_msm_async_g1`), `g1_msm_unmanaged_wrapper_async` (not `g1_msm_unmanaged_async_wrapper`).

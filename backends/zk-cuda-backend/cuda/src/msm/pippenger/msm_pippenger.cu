@@ -78,7 +78,7 @@ template <typename ProjectiveType> struct Phase2KernelLaunchParams {
 
     // Cap threads to respect shared memory limit
     uint32_t threads = std::min(requested_threads, max_threads_for_shared);
-    threads = std::min(threads, (uint32_t)KERNEL_THREADS_MAX);
+    threads = std::min(threads, static_cast<uint32_t>(KERNEL_THREADS_MAX));
 
     // Round up to nearest power of 2 (required for tree reduction)
     uint32_t pow2_threads = 1;
@@ -489,11 +489,12 @@ void horner_combine_cpu(ProjectiveType &result,
 // window sums. The caller is responsible for allocating and freeing this
 // buffer.
 template <typename AffineType, typename ProjectiveType>
-void point_msm_async_pippenger_impl(
+void point_msm_pippenger_impl_async(
     cudaStream_t stream, uint32_t gpu_index, ProjectiveType *d_result,
     const AffineType *d_points, const Scalar *d_scalars, uint32_t n,
     uint32_t threads_per_block, uint32_t window_size, uint32_t bucket_count,
-    void *d_scratch, uint64_t &size_tracker, bool gpu_memory_allocated) {
+    ProjectiveType *d_scratch, uint64_t &size_tracker,
+    bool gpu_memory_allocated) {
   using ProjectivePoint = Projective<ProjectiveType>;
 
   if (n == 0) {
@@ -503,10 +504,9 @@ void point_msm_async_pippenger_impl(
     return;
   }
 
-  PANIC_IF_FALSE(n > 0, "point_msm_async_pippenger_impl: invalid size n=%u", n);
   PANIC_IF_FALSE(d_result != nullptr && d_points != nullptr &&
                      d_scalars != nullptr && d_scratch != nullptr,
-                 "point_msm_async_pippenger_impl: null pointer argument");
+                 "point_msm_pippenger_impl_async: null pointer argument");
 
   cuda_set_device(gpu_index);
 
@@ -534,10 +534,8 @@ void point_msm_async_pippenger_impl(
       all_block_buckets_size + all_final_buckets_size + num_windows;
 
   // Partition the caller-provided scratch buffer into sub-regions
-  auto *d_scratch_typed = static_cast<ProjectiveType *>(d_scratch);
-  ProjectiveType *d_all_block_buckets = d_scratch_typed;
-  ProjectiveType *d_all_final_buckets =
-      d_scratch_typed + all_block_buckets_size;
+  ProjectiveType *d_all_block_buckets = d_scratch;
+  ProjectiveType *d_all_final_buckets = d_scratch + all_block_buckets_size;
   ProjectiveType *d_window_sums = d_all_final_buckets + all_final_buckets_size;
 
   // Clear all scratch space
@@ -548,7 +546,7 @@ void point_msm_async_pippenger_impl(
                  static_cast<size_t>(clear_blocks) * KERNEL_THREADS_MAX,
                  total_scratch);
   kernel_clear_buckets<ProjectiveType>
-      <<<clear_blocks, KERNEL_THREADS_MAX, 0, stream>>>(d_scratch_typed,
+      <<<clear_blocks, KERNEL_THREADS_MAX, 0, stream>>>(d_scratch,
                                                         total_scratch);
   check_cuda_error(cudaGetLastError());
 
@@ -660,7 +658,7 @@ inline void get_g2_window_params(uint32_t n, uint32_t &window_size,
 // Scratch Size Computation
 // ============================================================================
 // Computes the exact scratch buffer size (in bytes) needed by
-// point_msm_async_pippenger_impl for a given input count n. The formula must
+// point_msm_pippenger_impl_async for a given input count n. The formula must
 // stay in sync with the scratch partitioning inside that function:
 //   all_block_buckets: num_windows * num_blocks_per_window * bucket_count
 //   all_final_buckets: num_windows * bucket_count
@@ -711,16 +709,17 @@ size_t pippenger_scratch_size_g2(uint32_t n, uint32_t gpu_index) {
 }
 
 // MSM with BigInt scalars for G1 (projective coordinates internally)
-void point_msm_async_g1_pippenger(cudaStream_t stream, uint32_t gpu_index,
+void point_msm_g1_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
                                   G1Projective *d_result,
                                   const G1Affine *d_points,
                                   const Scalar *d_scalars, uint32_t n,
-                                  void *d_scratch, uint64_t &size_tracker,
+                                  G1Projective *d_scratch,
+                                  uint64_t &size_tracker,
                                   bool gpu_memory_allocated) {
   uint32_t window_size, bucket_count;
   get_g1_window_params(n, window_size, bucket_count);
 
-  point_msm_async_pippenger_impl<G1Affine, G1Projective>(
+  point_msm_pippenger_impl_async<G1Affine, G1Projective>(
       stream, gpu_index, d_result, d_points, d_scalars, n,
       msm_threads_per_block<G1Affine>(n), window_size, bucket_count, d_scratch,
       size_tracker, gpu_memory_allocated);
@@ -729,16 +728,17 @@ void point_msm_async_g1_pippenger(cudaStream_t stream, uint32_t gpu_index,
 // MSM with BigInt scalars for G2 (projective coordinates internally)
 // Uses larger window size to reduce Horner doublings (G2 ops are 2x more
 // expensive)
-void point_msm_async_g2_pippenger(cudaStream_t stream, uint32_t gpu_index,
+void point_msm_g2_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
                                   G2ProjectivePoint *d_result,
                                   const G2Point *d_points,
                                   const Scalar *d_scalars, uint32_t n,
-                                  void *d_scratch, uint64_t &size_tracker,
+                                  G2ProjectivePoint *d_scratch,
+                                  uint64_t &size_tracker,
                                   bool gpu_memory_allocated) {
   uint32_t window_size, bucket_count;
   get_g2_window_params(n, window_size, bucket_count);
 
-  point_msm_async_pippenger_impl<G2Point, G2ProjectivePoint>(
+  point_msm_pippenger_impl_async<G2Point, G2ProjectivePoint>(
       stream, gpu_index, d_result, d_points, d_scalars, n,
       msm_threads_per_block<G2Point>(n), window_size, bucket_count, d_scratch,
       size_tracker, gpu_memory_allocated);

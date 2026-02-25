@@ -20,8 +20,9 @@ static void test_point_msm_g1(cudaStream_t stream, uint32_t gpu_index,
                               const Scalar *d_scalars, uint32_t n,
                               uint64_t &size_tracker) {
   size_t scratch_bytes = pippenger_scratch_size_g1(n, gpu_index);
-  void *d_scratch = cuda_malloc_with_size_tracking_async(
-      scratch_bytes, stream, gpu_index, size_tracker, true);
+  auto *d_scratch =
+      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
+          scratch_bytes, stream, gpu_index, size_tracker, true));
   point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, n, d_scratch,
                size_tracker, true);
   cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
@@ -32,8 +33,9 @@ static void test_point_msm_g2(cudaStream_t stream, uint32_t gpu_index,
                               const Scalar *d_scalars, uint32_t n,
                               uint64_t &size_tracker) {
   size_t scratch_bytes = pippenger_scratch_size_g2(n, gpu_index);
-  void *d_scratch = cuda_malloc_with_size_tracking_async(
-      scratch_bytes, stream, gpu_index, size_tracker, true);
+  auto *d_scratch =
+      static_cast<G2Projective *>(cuda_malloc_with_size_tracking_async(
+          scratch_bytes, stream, gpu_index, size_tracker, true));
   point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, n, d_scratch,
                size_tracker, true);
   cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);

@@ -106,7 +106,7 @@ fn main() {
             let bindings = bindgen::Builder::default()
                 .header(header_path.to_str().unwrap())
                 // Allow only the wrapper functions (C FFI interface)
-                .allowlist_function(".*_wrapper")
+                .allowlist_function(".*_wrapper(_async)?")
                 // Allow the core types needed for FFI
                 .allowlist_type("G1Point")
                 .allowlist_type("G2Point")

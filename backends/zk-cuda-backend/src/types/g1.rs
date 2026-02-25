@@ -267,7 +267,7 @@ impl G1Projective {
         // NOTE: This method uses the managed API (g1_msm_managed_wrapper) which handles
         // memory allocation and transfers internally. For a pure-GPU verify/proof implementation
         // where all data is already on the device and memory is managed externally, use the
-        // unmanaged API (g1_msm_unmanaged_wrapper) instead — it performs zero internal
+        // unmanaged API (g1_msm_unmanaged_wrapper_async) instead — it performs zero internal
         // allocations (caller provides d_scratch via pippenger_scratch_size_g1_wrapper).
         //
         // SAFETY:

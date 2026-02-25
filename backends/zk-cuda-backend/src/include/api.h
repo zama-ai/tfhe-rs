@@ -102,26 +102,26 @@ bool g2_is_infinity_wrapper(const G2Point* point);
 // Unmanaged MSM wrappers (assumes all data is already on device)
 // Points MUST be in Montgomery form. Caller provides a scratch buffer.
 // Zero internal allocations — all device memory is caller-provided.
-void g1_msm_unmanaged_wrapper(
+void g1_msm_unmanaged_wrapper_async(
     cudaStream_t stream,
     uint32_t gpu_index,
     G1ProjectivePoint* d_result,
     const G1Point* d_points,
     const Scalar* d_scalars,
     uint32_t n,
-    void* d_scratch,
+    G1ProjectivePoint* d_scratch,
     bool gpu_memory_allocated,
     uint64_t* size_tracker
 );
 
-void g2_msm_unmanaged_wrapper(
+void g2_msm_unmanaged_wrapper_async(
     cudaStream_t stream,
     uint32_t gpu_index,
     G2ProjectivePoint* d_result,
     const G2Point* d_points,
     const Scalar* d_scalars,
     uint32_t n,
-    void* d_scratch,
+    G2ProjectivePoint* d_scratch,
     bool gpu_memory_allocated,
     uint64_t* size_tracker
 );
