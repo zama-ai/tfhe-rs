@@ -9,6 +9,58 @@ pub fn init_panic_hook() {
     console_error_panic_hook::set_once();
 }
 
+/// Initialize a cross-origin worker pool for parallel computation.
+///
+/// This is an alternative to `initThreadPool` for environments where
+/// cross-origin isolation headers (COOP/COEP) cannot be set.
+/// It registers the coordinator Service Worker and starts the worker pool.
+/// If `num_workers` is `None`, the number of workers is determined automatically.
+#[cfg(feature = "zk-pok")]
+#[wasm_bindgen]
+pub async fn init_cross_origin_worker_pool(
+    wasm_url: &str,
+    bindgen_url: &str,
+    coordinator_url: &str,
+    num_workers: Option<u32>,
+) -> Result<(), JsValue> {
+    wasm_par_mq::register_coordinator(coordinator_url)
+        .await
+        .map_err(|e| JsValue::from_str(&e))?;
+    wasm_par_mq::init_pool_sync(num_workers, wasm_url, bindgen_url)
+        .await
+        .map_err(|e| JsValue::from_str(&e))
+}
+
+/// Register the coordinator Service Worker for cross-origin parallelism.
+///
+/// This must be called from the main thread before using
+/// [`init_cross_origin_worker_pool_from_worker`].
+#[cfg(feature = "zk-pok")]
+#[wasm_bindgen]
+pub async fn register_cross_origin_coordinator(coordinator_url: &str) -> Result<(), JsValue> {
+    wasm_par_mq::register_coordinator(coordinator_url)
+        .await
+        .map_err(|e| JsValue::from_str(&e))
+}
+
+/// Initialize a cross-origin worker pool from within a Web Worker context
+/// (e.g., a Comlink worker).
+///
+/// The coordinator Service Worker must already be registered from the main
+/// thread via [`register_cross_origin_coordinator`] before calling this.
+/// If `num_workers` is `None`, the number of workers is determined automatically.
+#[cfg(feature = "zk-pok")]
+#[wasm_bindgen]
+pub async fn init_cross_origin_worker_pool_from_worker(
+    wasm_url: &str,
+    bindgen_url: &str,
+    num_workers: Option<u32>,
+) -> Result<(), JsValue> {
+    wasm_par_mq::init_pool_sync_from_worker(num_workers, wasm_url, bindgen_url)
+        .await
+        .map_err(|e| JsValue::from_str(&e))
+}
+
 #[wasm_bindgen]
 pub struct TfheClientKey(pub(crate) hlapi::ClientKey);
 

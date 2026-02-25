@@ -152,9 +152,9 @@ jobs:
         env:
           BROWSER: ${{ matrix.browser }}
 
-      - name: Run benchmarks (unsafe coop)
+      - name: Run benchmarks (cross-origin)
         run: |
-          make bench_web_js_api_unsafe_coop_"${BROWSER}"_ci
+          make bench_web_js_api_cross_origin_"${BROWSER}"_ci
         env:
           BROWSER: ${{ matrix.browser }}
 

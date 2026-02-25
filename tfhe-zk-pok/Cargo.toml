@@ -24,6 +24,8 @@ serde = { workspace = true, features = ["default", "derive"] }
 zeroize = "1.7.0"
 num-bigint = "0.4.5"
 tfhe-versionable = { version = "0.7.0", path = "../utils/tfhe-versionable" }
+[target.'cfg(target_family = "wasm")'.dependencies]
+wasm-par-mq = { version = "0.1.0", path = "../utils/wasm-par-mq", features = ["sync-api"] }
 
 [features]
 experimental = []

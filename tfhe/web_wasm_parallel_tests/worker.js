@@ -3,6 +3,7 @@ import { threads } from "wasm-feature-detect";
 import init, {
   initThreadPool,
   init_panic_hook,
+  init_cross_origin_worker_pool_from_worker,
   set_server_key,
   shortint_params_name,
   ShortintParametersName,
@@ -716,7 +717,7 @@ async function compactPublicKeyZeroKnowledgeBench() {
             params.zk_scheme;
 
           if (!supportsThreads) {
-            common_bench_str += "_unsafe_coop";
+            common_bench_str += "_cross_origin";
           }
 
           const bench_str_1 = common_bench_str + "_mean";
@@ -739,9 +740,18 @@ async function main() {
   let supportsThreads = await threads();
   if (supportsThreads) {
     await initThreadPool(navigator.hardwareConcurrency);
+  } else {
+    console.warn("This browser does not support threads, using cross-origin workers");
+    const baseUrl = new URL('.', import.meta.url).href;
+    const wasmUrl = new URL("pkg/tfhe_bg.wasm", baseUrl).href;
+    const bindgenUrl = new URL("pkg/tfhe.js", baseUrl).href;
+    // We are already in a web Worker, from_worker will reuse it as SyncExecutor
+    await init_cross_origin_worker_pool_from_worker(wasmUrl, bindgenUrl);
   }
   await init_panic_hook();
 
+  // Use Comlink.proxy() to ensure the object is proxied, not copied
+  // This allows functions to be called across the worker boundary
   return Comlink.proxy({
     publicKeyTest,
     compressedPublicKeyTest,
@@ -760,6 +770,7 @@ async function main() {
   });
 }
 
+// When loaded as a worker, expose via Comlink
 Comlink.expose({
   demos: main(),
 });
