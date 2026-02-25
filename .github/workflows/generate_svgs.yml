@@ -51,7 +51,7 @@ jobs:
       DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
 
   cpu-integer-throughput-table:
-    name: generate_documentation_svgs/cpu-integer-latency-table
+    name: generate_documentation_svgs/cpu-integer-throughput-table
     uses: ./.github/workflows/generate_svg_common.yml
     if: inputs.generate-cpu-svgs
     with:
@@ -145,6 +145,65 @@ jobs:
       backend_comparison: true
       time_span_days: ${{ inputs.time_span_days }}
       output_filename: cpu-gpu-hpu-integer-benchmark-fheuint64-tuniform-2m128-ciphertext
+    secrets:
+      DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
+      DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
+      DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
+
+  # -----------------------------------------------------------
+  # ZK benchmarks tables
+  # -----------------------------------------------------------
+
+  cpu-zk-server-latency-table:
+    name: generate_documentation_svgs/cpu-zk-server-latency-table
+    uses: ./.github/workflows/generate_svg_common.yml
+    if: inputs.generate-cpu-svgs
+    with:
+      backend: cpu
+      hardware_name: hpc7a.96xlarge
+      layer: integer
+      bench_subset: zk
+      pbs_kind: classical
+      bench_type: latency
+      time_span_days: ${{ inputs.time_span_days }}
+      output_filename: cpu-zk-benchmark-latency
+    secrets:
+      DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
+      DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
+      DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
+
+  cpu-zk-server-throughput-table:
+    name: generate_documentation_svgs/cpu-zk-server-throughput-table
+    uses: ./.github/workflows/generate_svg_common.yml
+    if: inputs.generate-cpu-svgs
+    with:
+      backend: cpu
+      hardware_name: hpc7a.96xlarge
+      layer: integer
+      bench_subset: zk
+      pbs_kind: classical
+      bench_type: throughput
+      time_span_days: ${{ inputs.time_span_days }}
+      output_filename: cpu-zk-benchmark-throughput
+    secrets:
+      DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
+      DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
+      DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
+
+  cpu-zk-client-latency-table:
+    name: generate_documentation_svgs/cpu-zk-client-latency-table
+    uses: ./.github/workflows/generate_svg_common.yml
+    if: inputs.generate-cpu-svgs
+    with:
+      backend: cpu
+      hardware_name: m6i.4xlarge
+      layer: wasm
+      bench_subset: zk
+      pbs_kind: classical
+      bench_type: latency
+      name_suffix: _chrome_mean
+      time_span_days: ${{ inputs.time_span_days }}
+      output_filename: cpu-zk-wasm-benchmark-latency
     secrets:
       DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
       DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}

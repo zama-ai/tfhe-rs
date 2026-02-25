@@ -50,6 +50,40 @@ jobs:
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
+  run-benchmarks-cpu-zk-server:
+    name: benchmark_documentation/run-benchmarks-cpu-zk-server
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    if: inputs.run-cpu-benchmarks
+    with:
+      command: integer_zk
+      op_flavor: default
+      bench_type: both
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  run-benchmarks-cpu-zk-client:
+    name: benchmark_documentation/run-benchmarks-cpu-zk-client
+    uses: ./.github/workflows/benchmark_wasm_client_common.yml
+    if: inputs.run-cpu-benchmarks
+    with:
+      browser: chrome
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
   run-benchmarks-gpu-integer:
     name: benchmark_documentation/run-benchmarks-gpu-integer
     uses: ./.github/workflows/benchmark_gpu_common.yml
@@ -138,6 +172,7 @@ jobs:
       inputs.generate-svgs }}
     needs: [
       run-benchmarks-cpu-integer, run-benchmarks-gpu-integer, run-benchmarks-hpu-integer,
+      run-benchmarks-cpu-zk-server, run-benchmarks-cpu-zk-client,
       run-benchmarks-cpu-core-crypto, run-benchmarks-gpu-core-crypto
     ]
     uses: ./.github/workflows/generate_svgs.yml
