@@ -1013,8 +1013,8 @@ impl<T> HlCompactable for T where
 }
 
 pub struct CompactCiphertextListBuilder {
-    inner: crate::integer::ciphertext::CompactCiphertextListBuilder,
-    tag: Tag,
+    pub(crate) inner: crate::integer::ciphertext::CompactCiphertextListBuilder,
+    pub(crate) tag: Tag,
 }
 
 impl CompactCiphertextListBuilder {
