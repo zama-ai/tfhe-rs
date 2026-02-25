@@ -434,7 +434,7 @@ __global__ void kernel_compute_window_sums(
 }
 
 // ============================================================================
-// CPU Horner Combination + GPU Result Upload
+// CPU Horner Combination
 // ============================================================================
 
 // Combines window sums using Horner's method on the CPU. A single CPU core
@@ -483,27 +483,18 @@ void horner_combine_cpu(ProjectiveType &result,
   ProjectivePoint::point_copy(result, acc);
 }
 
-// Tiny kernel: writes a point passed by value (via kernel args) to a device
-// pointer. CUDA copies kernel arguments to GPU-accessible memory before
-// launch, so the host-side source variable can safely go out of scope after
-// the launch call returns -- no second stream sync needed.
-template <typename ProjectiveType>
-__global__ void kernel_write_point(ProjectiveType *__restrict__ dst,
-                                   ProjectiveType value) {
-  *dst = value;
-}
-
 // ============================================================================
 // Pippenger MSM Implementation Functions
 // ============================================================================
 
 // Template MSM with BigInt scalars - ALL WINDOWS PARALLEL
+// Result is written directly to a host pointer -- no device round-trip needed.
 // d_scratch: caller-provided device buffer for intermediate bucket arrays and
 // window sums. The caller is responsible for allocating and freeing this
 // buffer.
 template <typename AffineType, typename ProjectiveType>
 void point_msm_pippenger_impl_async(
-    cudaStream_t stream, uint32_t gpu_index, ProjectiveType *d_result,
+    cudaStream_t stream, uint32_t gpu_index, ProjectiveType *h_result,
     const AffineType *d_points, const Scalar *d_scalars, uint32_t n,
     uint32_t threads_per_block, uint32_t window_size, uint32_t bucket_count,
     ProjectiveType *d_scratch, uint64_t &size_tracker,
@@ -511,13 +502,11 @@ void point_msm_pippenger_impl_async(
   using ProjectivePoint = Projective<ProjectiveType>;
 
   if (n == 0) {
-    cuda_set_device(gpu_index);
-    kernel_clear_buckets<ProjectiveType><<<1, 1, 0, stream>>>(d_result, 1);
-    check_cuda_error(cudaGetLastError());
+    ProjectivePoint::point_at_infinity(*h_result);
     return;
   }
 
-  PANIC_IF_FALSE(d_result != nullptr && d_points != nullptr &&
+  PANIC_IF_FALSE(h_result != nullptr && d_points != nullptr &&
                      d_scalars != nullptr && d_scratch != nullptr,
                  "point_msm_pippenger_impl_async: null pointer argument");
 
@@ -610,11 +599,11 @@ void point_msm_pippenger_impl_async(
           d_window_sums, d_all_final_buckets, num_windows, bucket_count);
   check_cuda_error(cudaGetLastError());
 
-  // Phase 4: CPU Horner combine with kernel-arg upload
+  // Phase 4: CPU Horner combine, result written directly to host pointer
   //
-  // The Horner loop is inherently sequential. A
-  // single CPU core much faster than a single GPU thread for
-  // this workload, so we run the Horner on the CPU.
+  // The Horner loop is inherently sequential. A single CPU core is much faster
+  // than a single GPU thread for this workload, so we run Horner on the CPU
+  // and write the result directly to the caller's host pointer.
   std::vector<ProjectiveType> h_window_sums(num_windows);
   cuda_memcpy_async_to_cpu(
       h_window_sums.data(), d_window_sums,
@@ -622,14 +611,7 @@ void point_msm_pippenger_impl_async(
       gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
 
-  ProjectiveType h_result;
-  horner_combine_cpu(h_result, h_window_sums.data(), num_windows, window_size);
-
-  // Upload result to device via kernel argument. We do this so we don't need a
-  // sync to ensure h_result is still there during copy. This will take the data
-  // we need and protect it from the function end of life
-  kernel_write_point<ProjectiveType><<<1, 1, 0, stream>>>(d_result, h_result);
-  check_cuda_error(cudaGetLastError());
+  horner_combine_cpu(*h_result, h_window_sums.data(), num_windows, window_size);
 }
 
 // ============================================================================
@@ -720,7 +702,7 @@ size_t pippenger_scratch_size_g2(uint32_t n, uint32_t gpu_index) {
 
 // MSM with BigInt scalars for G1 (projective coordinates internally)
 void point_msm_g1_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
-                                  G1Projective *d_result,
+                                  G1Projective *h_result,
                                   const G1Affine *d_points,
                                   const Scalar *d_scalars, uint32_t n,
                                   G1Projective *d_scratch,
@@ -730,7 +712,7 @@ void point_msm_g1_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
   get_g1_window_params(n, window_size, bucket_count);
 
   point_msm_pippenger_impl_async<G1Affine, G1Projective>(
-      stream, gpu_index, d_result, d_points, d_scalars, n,
+      stream, gpu_index, h_result, d_points, d_scalars, n,
       msm_threads_per_block<G1Affine>(n), window_size, bucket_count, d_scratch,
       size_tracker, gpu_memory_allocated);
 }
@@ -739,7 +721,7 @@ void point_msm_g1_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
 // Uses larger window size to reduce Horner doublings (G2 ops are 2x more
 // expensive)
 void point_msm_g2_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
-                                  G2ProjectivePoint *d_result,
+                                  G2ProjectivePoint *h_result,
                                   const G2Point *d_points,
                                   const Scalar *d_scalars, uint32_t n,
                                   G2ProjectivePoint *d_scratch,
@@ -749,7 +731,7 @@ void point_msm_g2_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
   get_g2_window_params(n, window_size, bucket_count);
 
   point_msm_pippenger_impl_async<G2Point, G2ProjectivePoint>(
-      stream, gpu_index, d_result, d_points, d_scalars, n,
+      stream, gpu_index, h_result, d_points, d_scalars, n,
       msm_threads_per_block<G2Point>(n), window_size, bucket_count, d_scratch,
       size_tracker, gpu_memory_allocated);
 }

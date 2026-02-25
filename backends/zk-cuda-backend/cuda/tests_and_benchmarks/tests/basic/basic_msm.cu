@@ -63,9 +63,6 @@ int main() {
       static_cast<G1Affine *>(cuda_malloc(n * sizeof(G1Affine), gpu_index));
   auto *d_scalars =
       static_cast<Scalar *>(cuda_malloc(n * sizeof(Scalar), gpu_index));
-  auto *d_result =
-      static_cast<G1Projective *>(cuda_malloc(sizeof(G1Projective), gpu_index));
-
   // Use pippenger_scratch_size_g1() to compute the required scratch allocation.
   size_t scratch_bytes = pippenger_scratch_size_g1(n, gpu_index);
   auto *d_scratch =
@@ -77,17 +74,10 @@ int main() {
   cuda_memcpy_async_to_gpu(d_scalars, h_scalars.data(), n * sizeof(Scalar),
                            stream, gpu_index);
 
-  // ---- Run MSM (synchronous wrapper; internally async) ----
-  // gpu_memory_allocated=true signals that all device pointers are already
-  // allocated (i.e. d_points, d_scalars, d_result, d_scratch are on device).
-  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, n, d_scratch,
-               size_tracker, true);
-
-  // ---- Read the result back ----
+  // ---- Run MSM (synchronous wrapper; result written directly to host) ----
   G1Projective h_result;
-  cuda_memcpy_async_to_cpu(&h_result, d_result, sizeof(G1Projective), stream,
-                           gpu_index);
-  cuda_synchronize_stream(stream, gpu_index);
+  point_msm_g1(stream, gpu_index, &h_result, d_points, d_scalars, n, d_scratch,
+               size_tracker, true);
 
   // ---- Verify against naive sequential computation on the host ----
   // Expected = sum over i of (scalar[i] * point[i]).
@@ -111,7 +101,6 @@ int main() {
   // ---- Cleanup ----
   cuda_drop(d_points, gpu_index);
   cuda_drop(d_scalars, gpu_index);
-  cuda_drop(d_result, gpu_index);
   cuda_drop(d_scratch, gpu_index);
   cuda_destroy_stream(stream, gpu_index);
 
