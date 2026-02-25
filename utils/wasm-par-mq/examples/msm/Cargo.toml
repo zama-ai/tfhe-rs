@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 [dependencies]
 wasm-par-mq = { path = "../..", features = ["sync-api"] }
 wasm-bindgen = { workspace = true }
-wasm-bindgen-futures = "0.4"
+wasm-bindgen-futures = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 console_error_panic_hook = "0.1"
 
