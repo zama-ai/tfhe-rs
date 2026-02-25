@@ -1,6 +1,6 @@
-use ark_ec::short_weierstrass::Affine;
+use ark_ec::short_weierstrass::{Affine, Projective, SWCurveConfig};
 use ark_ec::AffineRepr;
-use ark_ff::{AdditiveGroup, BigInteger, Field, Fp, PrimeField};
+use ark_ff::{AdditiveGroup, BigInteger, Field, PrimeField};
 use rayon::prelude::*;
 
 fn make_digits(a: &impl BigInteger, w: usize, num_bits: usize) -> impl Iterator<Item = i64> + '_ {
@@ -45,19 +45,35 @@ fn make_digits(a: &impl BigInteger, w: usize, num_bits: usize) -> impl Iterator<
     })
 }
 
-pub fn compute_window(
+trait MsmAffine: Copy + Send + Sync {
+    type Config: SWCurveConfig;
+    fn to_ark_affine(&self) -> &Affine<Self::Config>;
+}
+
+impl MsmAffine for super::bls12_446::G1Affine {
+    type Config = crate::curve_446::g1::Config;
+    fn to_ark_affine(&self) -> &Affine<Self::Config> {
+        &self.inner
+    }
+}
+
+impl MsmAffine for super::bls12_446::G2Affine {
+    type Config = crate::curve_446::g2::Config;
+    fn to_ark_affine(&self) -> &Affine<Self::Config> {
+        &self.inner
+    }
+}
+
+fn compute_window_sw<Aff: MsmAffine>(
     i: usize,
-    bases: &[super::bls12_446::G1Affine],
+    bases: &[Aff],
     scalar_digits: &[i64],
     digits_count: usize,
-) -> super::bls12_446::G1 {
-    use super::bls12_446::*;
+) -> Projective<Aff::Config> {
+    type BaseField<Aff> = <<Aff as MsmAffine>::Config as ark_ec::CurveConfig>::BaseField;
 
-    type BaseField = Fp<ark_ff::MontBackend<crate::curve_446::FqConfig, 7>, 7>;
+    let zero = Affine::<Aff::Config>::zero();
 
-    let zero = G1Affine {
-        inner: Affine::zero(),
-    };
     let size = bases.len();
 
     let c = if size < 32 {
@@ -69,12 +85,11 @@ pub fn compute_window(
 
     let n = 1 << c;
     let mut indices = vec![vec![]; n];
-    let mut d = vec![BaseField::ZERO; n + 1];
-    let mut e = vec![BaseField::ZERO; n + 1];
+    let mut d = vec![BaseField::<Aff>::ZERO; n + 1];
+    let mut e = vec![BaseField::<Aff>::ZERO; n + 1];
 
     for (idx, digits) in scalar_digits.chunks(digits_count).enumerate() {
         use core::cmp::Ordering;
-        // digits is the digits thing of the first scalar?
         let scalar = digits[i];
         match 0.cmp(&scalar) {
             Ordering::Less => indices[(scalar - 1) as usize].push(idx),
@@ -83,26 +98,33 @@ pub fn compute_window(
         }
     }
 
+    let get_base = |idx: usize| -> Affine<Aff::Config> {
+        if idx >> (usize::BITS - 1) == 1 {
+            let base = bases[!idx].to_ark_affine();
+            Affine::<Aff::Config> {
+                x: base.x,
+                y: -base.y,
+                infinity: base.infinity,
+            }
+        } else {
+            *bases[idx].to_ark_affine()
+        }
+    };
+
     let mut buckets = vec![zero; 1 << c];
 
     loop {
-        d[0] = BaseField::ONE;
+        d[0] = BaseField::<Aff>::ONE;
         for (k, (bucket, idx)) in core::iter::zip(&mut buckets, &mut indices).enumerate() {
-            if let Some(idx) = idx.last().copied() {
-                let value = if idx >> (usize::BITS - 1) == 1 {
-                    let mut val = bases[!idx];
-                    val.inner.y = -val.inner.y;
-                    val
-                } else {
-                    bases[idx]
-                };
+            if let Some(&idx) = idx.last() {
+                let value = get_base(idx);
 
-                if !bucket.inner.infinity {
-                    let a = value.inner.x - bucket.inner.x;
-                    if a != BaseField::ZERO {
+                if !bucket.infinity {
+                    let a = value.x - bucket.x;
+                    if a != BaseField::<Aff>::ZERO {
                         d[k + 1] = d[k] * a;
-                    } else if value.inner.y == bucket.inner.y {
-                        d[k + 1] = d[k] * value.inner.y.double();
+                    } else if value.y == bucket.y {
+                        d[k + 1] = d[k] * value.y.double();
                     } else {
                         d[k + 1] = d[k];
                     }
@@ -117,21 +139,15 @@ pub fn compute_window(
             .enumerate()
             .rev()
         {
-            if let Some(idx) = idx.last().copied() {
-                let value = if idx >> (usize::BITS - 1) == 1 {
-                    let mut val = bases[!idx];
-                    val.inner.y = -val.inner.y;
-                    val
-                } else {
-                    bases[idx]
-                };
+            if let Some(&idx) = idx.last() {
+                let value = get_base(idx);
 
-                if !bucket.inner.infinity {
-                    let a = value.inner.x - bucket.inner.x;
-                    if a != BaseField::ZERO {
+                if !bucket.infinity {
+                    let a = value.x - bucket.x;
+                    if a != BaseField::<Aff>::ZERO {
                         e[k] = e[k + 1] * a;
-                    } else if value.inner.y == bucket.inner.y {
-                        e[k] = e[k + 1] * value.inner.y.double();
+                    } else if value.y == bucket.y {
+                        e[k] = e[k + 1] * value.y.double();
                     } else {
                         e[k] = e[k + 1];
                     }
@@ -151,24 +167,18 @@ pub fn compute_window(
         ) {
             empty &= idx.len() <= 1;
             if let Some(idx) = idx.pop() {
-                let value = if idx >> (usize::BITS - 1) == 1 {
-                    let mut val = bases[!idx];
-                    val.inner.y = -val.inner.y;
-                    val
-                } else {
-                    bases[idx]
-                };
+                let value = get_base(idx);
 
-                if !bucket.inner.infinity {
-                    let x1: BaseField = bucket.inner.x;
-                    let x2 = value.inner.x;
-                    let y1 = bucket.inner.y;
-                    let y2 = value.inner.y;
+                if !bucket.infinity {
+                    let x1 = bucket.x;
+                    let x2 = value.x;
+                    let y1 = bucket.y;
+                    let y2 = value.y;
 
                     let eq_x = x1 == x2;
 
                     if eq_x && y1 != y2 {
-                        bucket.inner.infinity = true;
+                        bucket.infinity = true;
                     } else {
                         let r = d * e;
                         let m = if eq_x {
@@ -181,8 +191,8 @@ pub fn compute_window(
 
                         let x3 = m.square() - x1 - x2;
                         let y3 = m * (x1 - x3) - y1;
-                        bucket.inner.x = x3;
-                        bucket.inner.y = y3;
+                        bucket.x = x3;
+                        bucket.y = y3;
                     }
                 } else {
                     *bucket = value;
@@ -195,22 +205,19 @@ pub fn compute_window(
         }
     }
 
-    let mut running_sum = G1::ZERO;
-    let mut res = G1::ZERO;
+    let mut running_sum = Projective::<Aff::Config>::ZERO;
+    let mut res = Projective::<Aff::Config>::ZERO;
     buckets.into_iter().rev().for_each(|b| {
-        running_sum.inner += b.inner;
+        running_sum += b;
         res += running_sum;
     });
     res
 }
 
-// Compute msm using windowed non-adjacent form
-#[track_caller]
-pub fn msm_wnaf_g1_446(
-    bases: &[super::bls12_446::G1Affine],
+fn msm_wnaf_sw<A: MsmAffine>(
+    bases: &[A],
     scalars: &[super::bls12_446::Zp],
-) -> super::bls12_446::G1 {
-    use super::bls12_446::*;
+) -> Projective<A::Config> {
     let num_bits = 299usize;
 
     assert_eq!(bases.len(), scalars.len());
@@ -224,7 +231,6 @@ pub fn msm_wnaf_g1_446(
     let c = if size < 32 {
         3
     } else {
-        // natural log approx
         (size.ilog2() as usize * 69 / 100) + 2
     };
 
@@ -236,24 +242,42 @@ pub fn msm_wnaf_g1_446(
 
     let window_sums: Vec<_> = (0..digits_count)
         .into_par_iter()
-        .map(|i| compute_window(i, bases, &scalar_digits, digits_count))
+        .map(|i| compute_window_sw::<A>(i, bases, &scalar_digits, digits_count))
         .collect();
 
-    // We store the sum for the lowest window.
     let lowest = *window_sums.first().unwrap();
 
-    // We're traversing windows from high to low.
     lowest
         + window_sums[1..]
             .iter()
             .rev()
-            .fold(G1::ZERO, |mut total, &sum_i| {
+            .fold(Projective::<A::Config>::ZERO, |mut total, &sum_i| {
                 total += sum_i;
                 for _ in 0..c {
-                    total = total.double();
+                    total.double_in_place();
                 }
                 total
             })
+}
+
+#[track_caller]
+pub fn msm_wnaf_g1_446(
+    bases: &[super::bls12_446::G1Affine],
+    scalars: &[super::bls12_446::Zp],
+) -> super::bls12_446::G1 {
+    super::bls12_446::G1 {
+        inner: msm_wnaf_sw(bases, scalars),
+    }
+}
+
+#[track_caller]
+pub fn msm_wnaf_g2_446(
+    bases: &[super::bls12_446::G2Affine],
+    scalars: &[super::bls12_446::Zp],
+) -> super::bls12_446::G2 {
+    super::bls12_446::G2 {
+        inner: msm_wnaf_sw(bases, scalars),
+    }
 }
 
 #[cfg(target_family = "wasm")]
@@ -326,7 +350,7 @@ pub mod cross_origin {
 
     use crate::curve_api::bls12_446::{G1Affine, Zp, G1 as G1Projective};
 
-    use super::msm_wnaf_g1_446;
+    use super::{msm_wnaf_g1_446, msm_wnaf_g2_446};
 
     /// Input for parallel MSM: a chunk of bases and scalars
     /// Each worker computes a partial MSM on its subset, then results are summed.
@@ -379,7 +403,7 @@ pub mod cross_origin {
             .map(|s| s.try_into().unwrap())
             .collect();
 
-        let result = G2Affine::multi_mul_scalar(&bases, &scalars);
+        let result = msm_wnaf_g2_446(&bases, &scalars);
         result.into()
     }
     register_fn!(
@@ -418,7 +442,7 @@ pub mod cross_origin {
             .expect("worker returned invalid projective point")
     }
 
-    pub fn msm_g2_cross_origin(bases: &[G2Affine], scalars: &[Zp]) -> G2Projective {
+    pub fn msm_wnaf_g2_446_cross_origin(bases: &[G2Affine], scalars: &[Zp]) -> G2Projective {
         assert_eq!(bases.len(), scalars.len());
 
         let num_workers = wasm_par_mq::num_workers().max(1);
