@@ -83,39 +83,42 @@ size_t pippenger_scratch_size_g2(uint32_t n, uint32_t gpu_index);
 
 // MSM for G1 points with BigInt scalars (projective result)
 // Computes: result = sum(scalars[i] * points[i])
-// Scratch space must be pre-allocated by the caller and passed via d_scratch
-// as a typed projective pointer (G1Projective* for G1, G2ProjectivePoint* for
-// G2). Use the scratch size helpers to query the required allocation size in
-// bytes, then cast the allocation to the appropriate projective type.
+// Result is written directly to a host pointer (no device allocation needed for
+// the result). Scratch space must be pre-allocated by the caller and passed via
+// d_scratch as a typed projective pointer (G1Projective* for G1,
+// G2ProjectivePoint* for G2). Use the scratch size helpers to query the
+// required allocation size in bytes, then cast the allocation to the
+// appropriate projective type.
 // Arguments:
 //   stream: CUDA stream for async execution
 //   gpu_index: GPU device index
-//   d_result: Device pointer to output (projective G1 point)
+//   h_result: Host pointer to output (projective G1 point)
 //   d_points: Device pointer to input affine G1 points (array of n points)
 //   d_scalars: Device pointer to input BigInt scalars (array of n scalars)
 //   n: Number of points/scalars
 //   d_scratch: Caller-provided device scratch buffer for intermediate results
 //   size_tracker: Reference for tracking GPU memory allocation sizes
 void point_msm_g1_async(cudaStream_t stream, uint32_t gpu_index,
-                        G1Projective *d_result, const G1Affine *d_points,
+                        G1Projective *h_result, const G1Affine *d_points,
                         const Scalar *d_scalars, uint32_t n,
                         G1Projective *d_scratch, uint64_t &size_tracker,
                         bool gpu_memory_allocated);
 
 void point_msm_g1(cudaStream_t stream, uint32_t gpu_index,
-                  G1Projective *d_result, const G1Affine *d_points,
+                  G1Projective *h_result, const G1Affine *d_points,
                   const Scalar *d_scalars, uint32_t n, G1Projective *d_scratch,
                   uint64_t &size_tracker, bool gpu_memory_allocated);
 
 // MSM for G2 points with BigInt scalars (projective result)
+// Result is written directly to a host pointer.
 void point_msm_g2_async(cudaStream_t stream, uint32_t gpu_index,
-                        G2ProjectivePoint *d_result, const G2Point *d_points,
+                        G2ProjectivePoint *h_result, const G2Point *d_points,
                         const Scalar *d_scalars, uint32_t n,
                         G2ProjectivePoint *d_scratch, uint64_t &size_tracker,
                         bool gpu_memory_allocated);
 
 void point_msm_g2(cudaStream_t stream, uint32_t gpu_index,
-                  G2ProjectivePoint *d_result, const G2Point *d_points,
+                  G2ProjectivePoint *h_result, const G2Point *d_points,
                   const Scalar *d_scalars, uint32_t n,
                   G2ProjectivePoint *d_scratch, uint64_t &size_tracker,
                   bool gpu_memory_allocated);
