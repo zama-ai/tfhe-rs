@@ -91,6 +91,27 @@ impl TableIndex {
         self.aes_index.0 = self.aes_index.0.wrapping_add(full_aes_shifts);
     }
 
+    /// Shifts the table index forward of `shift` bytes.
+    pub fn overflowing_increased(&self, shift: u128) -> (Self, bool) {
+        // Compute full shifts to avoid overflows
+        let full_aes_shifts = shift / BYTES_PER_AES_CALL as u128;
+        let shift_remainder = (shift % BYTES_PER_AES_CALL as u128) as usize;
+
+        // Get the additional shift if any
+        let new_byte_index = self.byte_index.0 + shift_remainder;
+        let full_aes_shifts = full_aes_shifts + (new_byte_index / BYTES_PER_AES_CALL) as u128;
+
+        let (new_index, overflowed) = self.aes_index.0.overflowing_add(full_aes_shifts);
+
+        (
+            Self {
+                aes_index: AesIndex(new_index),
+                byte_index: ByteIndex(new_byte_index % BYTES_PER_AES_CALL),
+            },
+            overflowed,
+        )
+    }
+
     /// Shifts the table index backward of `shift` bytes.
     pub fn decrease(&mut self, shift: u128) {
         let remainder = (shift % BYTES_PER_AES_CALL as u128) as usize;
@@ -409,5 +430,66 @@ mod test {
             big_increase,
             TableIndex::new(AesIndex(total_full_aes_shifts), ByteIndex(0))
         );
+    }
+
+    // Test that the overflow detection of overflowing_increased works
+    #[test]
+    fn prop_test_overflowing_increased() {
+        for i in 0..BYTES_PER_AES_CALL as u128 {
+            assert!(TableIndex::LAST.decreased(i).overflowing_increased(i + 1).1);
+        }
+
+        // Test with some byte index that is not BYTES_PER_AES_CALL-1
+        for i in 0..BYTES_PER_AES_CALL as u128 {
+            assert!(
+                TableIndex {
+                    aes_index: AesIndex(u128::MAX),
+                    byte_index: ByteIndex(i as usize)
+                }
+                .overflowing_increased(BYTES_PER_AES_CALL as u128 - i)
+                .1
+            );
+        }
+
+        assert!(
+            !TableIndex::LAST
+                .decreased(u128::MAX)
+                .overflowing_increased(u128::MAX)
+                .1
+        );
+        assert!(
+            TableIndex::LAST
+                .decreased(u128::MAX - 1)
+                .overflowing_increased(u128::MAX)
+                .1
+        );
+
+        let mut rng = thread_rng();
+
+        // decrease by something < u128::MAX, then increase by u128::MAX overflows
+        for _ in 0..REPEATS {
+            let dec = rng.gen_range(0..=u128::MAX - 1);
+            assert!(
+                TableIndex::LAST
+                    .decreased(dec)
+                    .overflowing_increased(u128::MAX)
+                    .1
+            );
+        }
+
+        // decrease by some random value `dec` and then increase by some random value
+        // `inc` which inc > dec creates an overflow
+        for _ in 0..REPEATS {
+            const MID: u128 = u128::MAX / 2;
+            let n = rng.gen::<u128>();
+            let (dec, inc) = if n <= MID {
+                (n, u128::MAX - n)
+            } else {
+                (u128::MAX - n, n)
+            };
+
+            assert!(inc > dec);
+            assert!(TableIndex::LAST.decreased(dec).overflowing_increased(inc).1);
+        }
     }
 }

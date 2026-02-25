@@ -10,13 +10,20 @@ use tfhe::core_crypto::commons::generators::DeterministicSeeder;
 use tfhe::core_crypto::prelude::{DefaultRandomGenerator, NormalizedHammingWeightBound};
 use tfhe::shortint::engine::ShortintEngine;
 use tfhe::xof_key_set::CompressedXofKeySet;
-use tfhe::{Seed, Tag};
+use tfhe::{ClientKey, CompressedCompactPublicKey, CompressedServerKey, Seed, Tag};
 use tfhe_backward_compat_data::generate::*;
 use tfhe_backward_compat_data::*;
 
 const HL_COMPRESSED_XOF_KEY_SET_TEST: HlCompressedXofKeySetTest = HlCompressedXofKeySetTest {
     compressed_xof_key_set_file_name: Cow::Borrowed("compressed_xof_key_set"),
     client_key_file_name: Cow::Borrowed("xof_client_key"),
+};
+
+const HL_SERVER_KEY_TEST: HlServerKeyTest = HlServerKeyTest {
+    test_filename: Cow::Borrowed("server_key_complete"),
+    client_key_filename: Cow::Borrowed("client_key_complete"),
+    rerand_cpk_filename: Some(Cow::Borrowed("cpk_rerand_complete")),
+    compressed: true,
 };
 
 pub struct V1_6;
@@ -68,8 +75,25 @@ impl TfhersVersion for V1_6 {
             );
         }
 
-        vec![TestMetadata::HlCompressedXofKeySet(
-            HL_COMPRESSED_XOF_KEY_SET_TEST,
-        )]
+        {
+            // The CSPRNG had a bug fix in 1.6, so we generate a complete ServerKey
+            let meta_params = INSECURE_TEST_META_PARAMS.convert();
+            let client_key = ClientKey::generate(meta_params);
+            let compressed_server_key = CompressedServerKey::new(&client_key);
+            let cpk = CompressedCompactPublicKey::new(&client_key);
+
+            store_versioned_auxiliary(&client_key, &dir, &HL_SERVER_KEY_TEST.client_key_filename);
+            store_versioned_auxiliary(&cpk, &dir, &HL_SERVER_KEY_TEST.rerand_cpk_filename.unwrap());
+            store_versioned_test(
+                &compressed_server_key,
+                &dir,
+                &HL_SERVER_KEY_TEST.test_filename(),
+            );
+        }
+
+        vec![
+            TestMetadata::HlCompressedXofKeySet(HL_COMPRESSED_XOF_KEY_SET_TEST),
+            TestMetadata::HlServerKey(HL_SERVER_KEY_TEST),
+        ]
     }
 }

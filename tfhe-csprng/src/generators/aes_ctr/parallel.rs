@@ -1,3 +1,5 @@
+use std::ops::Bound;
+
 use crate::generators::aes_ctr::{AesBlockCipher, AesCtrGenerator, AesIndex, TableIndex};
 use crate::generators::{widening_mul, BytesPerChild, ChildrenCount, ForkError};
 
@@ -69,7 +71,7 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
                     AesCtrGenerator::from_block_cipher(
                         block_cipher,
                         child_first_index,
-                        child_bound_index,
+                        Bound::Excluded(child_bound_index),
                         offset,
                     )
                 }) as ParallelChildrenClosure<BlockCipher>,
@@ -83,11 +85,14 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
 #[cfg(test)]
 pub mod aes_ctr_parallel_generic_tests {
 
+    use std::ops::Bound;
+
     use super::*;
     use crate::generators::aes_ctr::aes_ctr_generic_test::{
         any_key, any_valid_fork, assert_generator_matches_cipher, make_ctr_pair,
     };
     use crate::generators::aes_ctr::index::AesIndex;
+    use crate::generators::aes_ctr::states::AesBound;
     use crate::generators::aes_ctr::{AesKey, BYTES_PER_AES_CALL};
     use rand::prelude::*;
     use rand::rngs::ThreadRng;
@@ -107,7 +112,7 @@ pub mod aes_ctr_parallel_generic_tests {
             let original_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
-                Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                Bound::Excluded(t.increased(widening_mul(nc.0, nb.0) + i)),
                 offset,
             );
             let mut forked_generator = original_generator.clone();
@@ -135,7 +140,7 @@ pub mod aes_ctr_parallel_generic_tests {
             let mut parent_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
-                Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                Bound::Excluded(t.increased(widening_mul(nc.0, nb.0) + i)),
                 offset,
             );
             let last_child = parent_generator
@@ -143,10 +148,14 @@ pub mod aes_ctr_parallel_generic_tests {
                 .unwrap()
                 .find_last(|_| true)
                 .unwrap();
-            assert_eq!(
-                parent_generator.next_table_index().unwrap(),
-                last_child.get_bound(),
-                "key={k:?}, t={t:?}, offset={offset:?}"
+
+            // Check that the bound is inclusive and that it is the index before the next index
+            // of the parent
+            let bound = last_child.get_bound();
+            let next = parent_generator.next_table_index().unwrap();
+            assert!(
+                matches!(bound, AesBound::Included(last) if last == next.decremented()),
+                "last_child.bound={bound:?}, parent_generator.next={next:?}\nkey={k:?}, t={t:?}, offset={offset:?}"
             );
         }
     }
@@ -161,7 +170,7 @@ pub mod aes_ctr_parallel_generic_tests {
             let original_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
-                Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                Bound::Excluded(t.increased(widening_mul(nc.0, nb.0) + i)),
                 offset,
             );
             let mut forked_generator = original_generator.clone();
@@ -189,7 +198,7 @@ pub mod aes_ctr_parallel_generic_tests {
             let original_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
-                Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                Bound::Excluded(t.increased(widening_mul(nc.0, nb.0) + i)),
                 offset,
             );
             let mut forked_generator = original_generator.clone();
@@ -218,7 +227,7 @@ pub mod aes_ctr_parallel_generic_tests {
             let original_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
-                Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                Bound::Excluded(t.increased(widening_mul(nc.0, nb.0) + i)),
                 offset,
             );
             let mut forked_generator = original_generator.clone();
@@ -248,7 +257,7 @@ pub mod aes_ctr_parallel_generic_tests {
             let mut generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
-                Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                Bound::Excluded(t.increased(widening_mul(nc.0, nb.0) + i)),
                 offset,
             );
             assert!(
@@ -273,8 +282,12 @@ pub mod aes_ctr_parallel_generic_tests {
             let total_bytes = fork_bytes.saturating_add(num_extra_bytes);
 
             let offset = AesIndex(rand::random());
-            let mut gen1 =
-                AesCtrGenerator::<G>::new(k, Some(t), Some(t.increased(total_bytes)), offset);
+            let mut gen1 = AesCtrGenerator::<G>::new(
+                k,
+                Some(t),
+                Bound::Excluded(t.increased(total_bytes)),
+                offset,
+            );
             let mut forked_gen = gen1.clone();
 
             // Non forked amounts of bytes to pull before and after
@@ -323,7 +336,7 @@ pub mod aes_ctr_parallel_generic_tests {
             let mut generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
-                Some(t.increased(widening_mul(nc.0, nb.0) + i)),
+                Bound::Excluded(t.increased(widening_mul(nc.0, nb.0) + i)),
                 offset,
             );
             let before_remaining_bytes = generator.remaining_bytes();
