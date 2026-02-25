@@ -840,32 +840,24 @@ __host__ __device__ Fp operator-(const Fp &a, const Fp &b) {
   return c;
 }
 
-// TODO: This operator returns Montgomery form while operator+ and operator-
-// preserve the input form. This inconsistency means expressions like
-// `a + (b * c)` produce incorrect results. Verify all call sites and decide
-// whether to convert the result back to normal form or remove this operator.
-//
 // Binary multiplication: a * b
-// EXTERNAL API: Accepts normal form inputs, converts to Montgomery, and returns
-// Montgomery form result. For internal operations where inputs are already in
-// Montgomery form, use fp_mont_mul() directly.
+// MONTGOMERY: Both inputs must be in Montgomery form, result is in Montgomery
+// form. This is consistent with operator+ and operator- which also require
+// Montgomery-form inputs.
 __host__ __device__ Fp operator*(const Fp &a, const Fp &b) {
-  Fp a_mont, b_mont, result;
-
-  // Convert from normal form to Montgomery form for computation
-  fp_to_montgomery(a_mont, a);
-  fp_to_montgomery(b_mont, b);
-
-  // Multiply in Montgomery form - result stays in Montgomery form
-  fp_mont_mul(result, a_mont, b_mont);
-
+  Fp result;
+  fp_mont_mul(result, a, b);
   return result;
 }
 
 // Binary division: a / b
+// MONTGOMERY: Both inputs must be in Montgomery form, result is in Montgomery
+// form. Computes a * b^{-1} entirely in Montgomery representation.
 __host__ __device__ Fp operator/(const Fp &a, const Fp &b) {
+  Fp b_inv;
+  fp_mont_inv(b_inv, b);
   Fp c;
-  fp_div(c, a, b);
+  fp_mont_mul(c, a, b_inv);
   return c;
 }
 
@@ -899,16 +891,23 @@ __host__ __device__ Fp &operator-=(Fp &a, const Fp &b) {
 }
 
 // Compound multiplication: a *= b
+// MONTGOMERY: Both inputs must be in Montgomery form, result is in Montgomery
+// form.
 __host__ __device__ Fp &operator*=(Fp &a, const Fp &b) {
-  Fp temp = a * b;
+  Fp temp;
+  fp_mont_mul(temp, a, b);
   fp_copy(a, temp);
   return a;
 }
 
 // Compound division: a /= b
+// MONTGOMERY: Both inputs must be in Montgomery form, result is in Montgomery
+// form.
 __host__ __device__ Fp &operator/=(Fp &a, const Fp &b) {
+  Fp b_inv;
+  fp_mont_inv(b_inv, b);
   Fp temp;
-  fp_div(temp, a, b);
+  fp_mont_mul(temp, a, b_inv);
   fp_copy(a, temp);
   return a;
 }

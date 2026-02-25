@@ -355,9 +355,11 @@ TEST_F(FpArithmeticTest, Multiplication) {
   fp_mul_gpu(stream, gpu_index, &result, &five, &three);
 
   // Also test on CPU for comparison
-  // operator* returns result in Montgomery form, convert to normal for
-  // comparison
-  Fp result_cpu_mont = five * three;
+  // operator* expects Montgomery-form inputs and returns Montgomery form
+  Fp five_m, three_m;
+  fp_to_montgomery(five_m, five);
+  fp_to_montgomery(three_m, three);
+  Fp result_cpu_mont = five_m * three_m;
   Fp result_cpu;
   fp_from_montgomery(result_cpu, result_cpu_mont);
 
@@ -572,9 +574,11 @@ TEST_F(FpArithmeticTest, MultiplicationByZero) {
   fp_mul_gpu(stream, gpu_index, &result, &a, &zero);
 
   // Also test on CPU for comparison
-  // operator* returns result in Montgomery form, convert to normal for
-  // comparison
-  Fp result_cpu_mont = a * zero;
+  // operator* expects Montgomery-form inputs and returns Montgomery form
+  Fp a_m, zero_m;
+  fp_to_montgomery(a_m, a);
+  fp_to_montgomery(zero_m, zero);
+  Fp result_cpu_mont = a_m * zero_m;
   fp_from_montgomery(result_cpu, result_cpu_mont);
 
   EXPECT_TRUE(fp_is_zero_gpu(stream, gpu_index, &result));
@@ -598,10 +602,13 @@ TEST_F(FpArithmeticTest, Inversion) {
   fp_mul_gpu(stream, gpu_index, &result, &a, &a_inv);
 
   // Also test on CPU for comparison
+  // fp_inv returns normal form, convert both operands to Montgomery for
+  // operator*
   fp_inv(a_inv_cpu, a);
-  // operator* returns result in Montgomery form, convert to normal for
-  // comparison
-  Fp result_cpu_mont = a * a_inv_cpu;
+  Fp a_m, a_inv_cpu_m;
+  fp_to_montgomery(a_m, a);
+  fp_to_montgomery(a_inv_cpu_m, a_inv_cpu);
+  Fp result_cpu_mont = a_m * a_inv_cpu_m;
   Fp result_cpu;
   fp_from_montgomery(result_cpu, result_cpu_mont);
 
@@ -650,11 +657,13 @@ TEST_F(FpArithmeticTest, Division) {
   fp_div_gpu(stream, gpu_index, &quotient, &a, &b);
   fp_mul_gpu(stream, gpu_index, &result, &quotient, &b);
 
-  // Also test on CPU for comparison
-  Fp quotient_cpu = a / b;
-  // operator* returns result in Montgomery form, convert to normal for
-  // comparison
-  Fp result_cpu_mont = quotient_cpu * b;
+  // operator/ now expects Montgomery-form inputs and returns Montgomery form
+  Fp a_m, b_m;
+  fp_to_montgomery(a_m, a);
+  fp_to_montgomery(b_m, b);
+  Fp quotient_cpu_m = a_m / b_m;
+  // quotient_cpu_m * b_m should give a_m back
+  Fp result_cpu_mont = quotient_cpu_m * b_m;
   Fp result_cpu;
   fp_from_montgomery(result_cpu, result_cpu_mont);
 
@@ -679,8 +688,13 @@ TEST_F(FpArithmeticTest, DivisionByOne) {
   // Test on GPU
   fp_div_gpu(stream, gpu_index, &result, &a, &one);
 
-  // Also test on CPU for comparison
-  Fp result_cpu = a / one;
+  // operator/ expects Montgomery-form inputs, returns Montgomery form
+  Fp a_m, one_m;
+  fp_to_montgomery(a_m, a);
+  fp_to_montgomery(one_m, one);
+  Fp result_cpu_m = a_m / one_m;
+  Fp result_cpu;
+  fp_from_montgomery(result_cpu, result_cpu_m);
 
   EXPECT_EQ(fp_cmp_gpu(stream, gpu_index, &result, &a), ComparisonType::Equal)
       << "a / 1 should equal a";
@@ -817,9 +831,10 @@ TEST_F(FpArithmeticTest, SquareRoot) {
   fp_mul_gpu(stream, gpu_index, &square, &a, &a);
 
   // Also test on CPU for comparison
-  // operator* returns result in Montgomery form, convert to normal for
-  // comparison
-  Fp square_cpu_mont = a * a;
+  // operator* expects Montgomery-form inputs and returns Montgomery form
+  Fp a_m;
+  fp_to_montgomery(a_m, a);
+  Fp square_cpu_mont = a_m * a_m;
   fp_from_montgomery(square_cpu, square_cpu_mont);
 
   // Verify that square is a quadratic residue (on GPU)
@@ -838,10 +853,11 @@ TEST_F(FpArithmeticTest, SquareRoot) {
     cuda_synchronize_stream(stream, gpu_index);
 
     // Also test on CPU for comparison
+    // fp_sqrt returns normal form; convert to Montgomery for operator*
     fp_sqrt(sqrt_result_cpu, square_cpu);
-    // operator* returns result in Montgomery form, convert to normal for
-    // comparison
-    Fp verify_cpu_mont = sqrt_result_cpu * sqrt_result_cpu;
+    Fp sqrt_result_cpu_m;
+    fp_to_montgomery(sqrt_result_cpu_m, sqrt_result_cpu);
+    Fp verify_cpu_mont = sqrt_result_cpu_m * sqrt_result_cpu_m;
     fp_from_montgomery(verify_cpu, verify_cpu_mont);
 
     EXPECT_EQ(fp_cmp_gpu(stream, gpu_index, &verify, &square),
@@ -930,9 +946,10 @@ TEST_F(FpArithmeticTest, IsQuadraticResidue) {
   fp_mul_gpu(stream, gpu_index, &square, &a, &a);
 
   // Also test on CPU for comparison
-  // operator* returns result in Montgomery form, convert to normal for
-  // comparison
-  Fp square_cpu_mont = a * a;
+  // operator* expects Montgomery-form inputs and returns Montgomery form
+  Fp a_m;
+  fp_to_montgomery(a_m, a);
+  Fp square_cpu_mont = a_m * a_m;
   fp_from_montgomery(square_cpu, square_cpu_mont);
 
   EXPECT_TRUE(fp_is_quadratic_residue_gpu(stream, gpu_index, &square))
@@ -1147,9 +1164,11 @@ TEST_F(FpArithmeticTest, LargeMultiplication1) {
   fp_mul_gpu(stream, gpu_index, &verify, &result, &one);
 
   // Also test on CPU for comparison
-  // operator* returns result in Montgomery form, convert to normal for
-  // comparison
-  Fp result_cpu_mont = a * b;
+  // operator* expects Montgomery-form inputs and returns Montgomery form
+  Fp a_m, b_m;
+  fp_to_montgomery(a_m, a);
+  fp_to_montgomery(b_m, b);
+  Fp result_cpu_mont = a_m * b_m;
   fp_from_montgomery(result_cpu, result_cpu_mont);
 
   EXPECT_EQ(fp_cmp_gpu(stream, gpu_index, &result, &verify),
@@ -1190,9 +1209,11 @@ TEST_F(FpArithmeticTest, LargeMultiplication2ModulusMinus1) {
   fp_mul_gpu(stream, gpu_index, &result, &a, &b);
 
   // Also test on CPU for comparison
-  // operator* returns result in Montgomery form, convert to normal for
-  // comparison
-  Fp result_cpu_mont = a * b;
+  // operator* expects Montgomery-form inputs and returns Montgomery form
+  Fp a_m, b_m;
+  fp_to_montgomery(a_m, a);
+  fp_to_montgomery(b_m, b);
+  Fp result_cpu_mont = a_m * b_m;
   fp_from_montgomery(result_cpu, result_cpu_mont);
 
   EXPECT_EQ(fp_cmp_gpu(stream, gpu_index, &result, &expected),
@@ -1227,9 +1248,11 @@ TEST_F(FpArithmeticTest, LargeMultiplication3Half) {
   fp_add_gpu(stream, gpu_index, &expected, &a, &a);
 
   // Also test on CPU for comparison
-  // operator* returns result in Montgomery form, convert to normal for
-  // comparison
-  Fp result_cpu_mont = a * b;
+  // operator* expects Montgomery-form inputs and returns Montgomery form
+  Fp a_m, b_m;
+  fp_to_montgomery(a_m, a);
+  fp_to_montgomery(b_m, b);
+  Fp result_cpu_mont = a_m * b_m;
   fp_from_montgomery(result_cpu, result_cpu_mont);
   expected_cpu = a + a;
 
@@ -1259,9 +1282,10 @@ TEST_F(FpArithmeticTest, LargeMultiplication4Square) {
   fp_mul_gpu(stream, gpu_index, &verify, &result, &one);
 
   // Also test on CPU for comparison
-  // operator* returns result in Montgomery form, convert to normal for
-  // comparison
-  Fp result_cpu_mont = a * a;
+  // operator* expects Montgomery-form inputs and returns Montgomery form
+  Fp a_m;
+  fp_to_montgomery(a_m, a);
+  Fp result_cpu_mont = a_m * a_m;
   fp_from_montgomery(result_cpu, result_cpu_mont);
 
   EXPECT_EQ(fp_cmp_gpu(stream, gpu_index, &result, &verify),
@@ -1330,9 +1354,11 @@ TEST_F(FpArithmeticTest, LargeMultiplication5Complex) {
   fp_mul_gpu(stream, gpu_index, &verify, &result, &one);
 
   // Also test on CPU for comparison
-  // operator* returns result in Montgomery form, convert to normal for
-  // comparison
-  Fp result_cpu_mont = a * b;
+  // operator* expects Montgomery-form inputs and returns Montgomery form
+  Fp a_m, b_m;
+  fp_to_montgomery(a_m, a);
+  fp_to_montgomery(b_m, b);
+  Fp result_cpu_mont = a_m * b_m;
   fp_from_montgomery(result_cpu, result_cpu_mont);
 
   EXPECT_EQ(fp_cmp_gpu(stream, gpu_index, &result, &verify),
@@ -2112,9 +2138,11 @@ TEST_F(FpCudaKernelTest, CudaKernelArrayMul) {
     h_a[i] = test_utils::random_fp(rng);
     h_b[i] = test_utils::random_fp(rng);
     // Compute expected result on host
-    // operator* returns result in Montgomery form, convert to normal for
-    // comparison
-    Fp expected_mont = h_a[i] * h_b[i];
+    // operator* expects Montgomery-form inputs and returns Montgomery form
+    Fp a_m, b_m;
+    fp_to_montgomery(a_m, h_a[i]);
+    fp_to_montgomery(b_m, h_b[i]);
+    Fp expected_mont = a_m * b_m;
     fp_from_montgomery(h_expected[i], expected_mont);
   }
 
@@ -2215,9 +2243,11 @@ TEST_F(FpCudaKernelTest, CudaKernelArrayMulEdgeCases) {
       h_b[i] = test_utils::random_fp(rng);
     }
     // Compute expected result on host
-    // operator* returns result in Montgomery form, convert to normal for
-    // comparison
-    Fp expected_mont = h_a[i] * h_b[i];
+    // operator* expects Montgomery-form inputs and returns Montgomery form
+    Fp a_m, b_m;
+    fp_to_montgomery(a_m, h_a[i]);
+    fp_to_montgomery(b_m, h_b[i]);
+    Fp expected_mont = a_m * b_m;
     fp_from_montgomery(h_expected[i], expected_mont);
   }
 
@@ -2368,9 +2398,11 @@ TEST_F(FpCudaKernelTest, CudaKernelDeviceConstants) {
   for (int i = 0; i < n; i++) {
     h_a[i] = test_utils::random_fp(rng);
     h_b[i] = test_utils::random_fp(rng);
-    // operator* returns result in Montgomery form, convert to normal for
-    // comparison
-    Fp expected_mont = h_a[i] * h_b[i];
+    // operator* expects Montgomery-form inputs and returns Montgomery form
+    Fp a_m, b_m;
+    fp_to_montgomery(a_m, h_a[i]);
+    fp_to_montgomery(b_m, h_b[i]);
+    Fp expected_mont = a_m * b_m;
     fp_from_montgomery(h_expected[i], expected_mont);
   }
 

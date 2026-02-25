@@ -124,8 +124,11 @@ static_assert(sizeof(Fp) == FP_LIMBS * sizeof(UNSIGNED_LIMB),
 // Binary arithmetic operators
 __host__ __device__ Fp operator+(const Fp &a, const Fp &b);
 __host__ __device__ Fp operator-(const Fp &a, const Fp &b);
-// Binary multiplication: returns result in Montgomery form
+// MONTGOMERY: Both inputs must be in Montgomery form, result is in Montgomery
+// form.
 __host__ __device__ Fp operator*(const Fp &a, const Fp &b);
+// MONTGOMERY: Both inputs must be in Montgomery form, result is in Montgomery
+// form. Computes a * b^{-1} in Montgomery representation.
 __host__ __device__ Fp operator/(const Fp &a, const Fp &b);
 
 // Unary negation operator
@@ -139,6 +142,7 @@ __host__ __device__ bool operator!=(const Fp &a, const Fp &b);
 __host__ __device__ Fp &operator+=(Fp &a, const Fp &b);
 __host__ __device__ Fp &operator-=(Fp &a, const Fp &b);
 __host__ __device__ Fp &operator*=(Fp &a, const Fp &b);
+// MONTGOMERY: Both inputs must be in Montgomery form.
 __host__ __device__ Fp &operator/=(Fp &a, const Fp &b);
 
 // Prime modulus p for BLS12-446

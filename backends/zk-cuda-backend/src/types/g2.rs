@@ -84,6 +84,8 @@ impl G2Affine {
     }
 }
 
+/// Displays coordinates in decimal. Assumes the point is in Montgomery form (e.g., from MSM
+/// output).
 impl fmt::Display for G2Affine {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_infinity() {
@@ -272,8 +274,9 @@ impl G2Projective {
         let mut size_tracker: u64 = 0;
         // NOTE: This method uses the managed API (g2_msm_managed_wrapper) which handles
         // memory allocation and transfers internally. For a pure-GPU verify/proof implementation
-        // where all data is already on the device and memory is managed externally, consider
-        // using the unmanaged API (g2_msm_unmanaged_wrapper) instead for better performance.
+        // where all data is already on the device and memory is managed externally, use the
+        // unmanaged API (g2_msm_unmanaged_wrapper_async) instead — it performs zero internal
+        // allocations (caller provides d_scratch via pippenger_scratch_size_g2_wrapper).
         //
         // SAFETY:
         // - `stream` was validated as non-null above and must be a valid `cudaStream_t` obtained
@@ -286,6 +289,10 @@ impl G2Projective {
         // - `points_ffi` and `scalars_ffi` are valid Vec slices with matching length `n`
         // - `result` and `size_tracker` are valid stack-allocated outputs
         // - The managed wrapper handles all device memory allocation/deallocation internally
+        // - Failure: The C++ managed wrapper validates all inputs via PANIC_IF_FALSE and checks
+        //   CUDA errors via cudaGetLastError() after each kernel launch.
+        // - Success: The C++ managed wrapper calls cuda_synchronize_stream before returning,
+        //   ensuring `result` contains the final MSM output.
         unsafe {
             crate::bindings::g2_msm_managed_wrapper(
                 stream as crate::bindings::cudaStream_t,
@@ -303,6 +310,7 @@ impl G2Projective {
     }
 }
 
+/// Converts to affine and displays. Assumes coordinates are in Montgomery form.
 impl fmt::Display for G2Projective {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let affine = self.to_affine();

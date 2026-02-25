@@ -6,6 +6,8 @@
 #include "fp2.h"
 #include <cuda_runtime.h>
 
+#include "checked_arithmetic.h"
+
 // ============================================================================
 // CUDA Kernels for parallel Fp2 operations (test-only)
 // ============================================================================
@@ -111,16 +113,21 @@ void fp2_add_batch_on_host(cudaStream_t stream, uint32_t gpu_index, Fp2 *c,
   const uint32_t blocksPerGrid = CEIL_DIV(n, threadsPerBlock);
 
   auto *d_c = static_cast<Fp2 *>(cuda_malloc_with_size_tracking_async(
-      n * sizeof(Fp2), stream, gpu_index, size_tracker, true));
+      safe_mul_sizeof<Fp2>(static_cast<size_t>(n)), stream, gpu_index,
+      size_tracker, true));
   auto *d_a = static_cast<Fp2 *>(cuda_malloc_with_size_tracking_async(
-      n * sizeof(Fp2), stream, gpu_index, size_tracker, true));
+      safe_mul_sizeof<Fp2>(static_cast<size_t>(n)), stream, gpu_index,
+      size_tracker, true));
   auto *d_b = static_cast<Fp2 *>(cuda_malloc_with_size_tracking_async(
-      n * sizeof(Fp2), stream, gpu_index, size_tracker, true));
+      safe_mul_sizeof<Fp2>(static_cast<size_t>(n)), stream, gpu_index,
+      size_tracker, true));
 
-  cuda_memcpy_with_size_tracking_async_to_gpu(d_a, a, n * sizeof(Fp2), stream,
-                                              gpu_index, true);
-  cuda_memcpy_with_size_tracking_async_to_gpu(d_b, b, n * sizeof(Fp2), stream,
-                                              gpu_index, true);
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      d_a, a, safe_mul_sizeof<Fp2>(static_cast<size_t>(n)), stream, gpu_index,
+      true);
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      d_b, b, safe_mul_sizeof<Fp2>(static_cast<size_t>(n)), stream, gpu_index,
+      true);
 
   kernel_fp2_add_array<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(d_c, d_a,
                                                                       d_b, n);
@@ -129,7 +136,8 @@ void fp2_add_batch_on_host(cudaStream_t stream, uint32_t gpu_index, Fp2 *c,
 
   cuda_synchronize_stream(stream, gpu_index);
 
-  cuda_memcpy_async_to_cpu(c, d_c, n * sizeof(Fp2), stream, gpu_index);
+  cuda_memcpy_async_to_cpu(c, d_c, safe_mul_sizeof<Fp2>(static_cast<size_t>(n)),
+                           stream, gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
 
   if (d_c != nullptr) {
@@ -159,16 +167,21 @@ void fp2_mul_batch_on_host(cudaStream_t stream, uint32_t gpu_index, Fp2 *c,
   const uint32_t blocksPerGrid = CEIL_DIV(n, threadsPerBlock);
 
   auto *d_c = static_cast<Fp2 *>(cuda_malloc_with_size_tracking_async(
-      n * sizeof(Fp2), stream, gpu_index, size_tracker, true));
+      safe_mul_sizeof<Fp2>(static_cast<size_t>(n)), stream, gpu_index,
+      size_tracker, true));
   auto *d_a = static_cast<Fp2 *>(cuda_malloc_with_size_tracking_async(
-      n * sizeof(Fp2), stream, gpu_index, size_tracker, true));
+      safe_mul_sizeof<Fp2>(static_cast<size_t>(n)), stream, gpu_index,
+      size_tracker, true));
   auto *d_b = static_cast<Fp2 *>(cuda_malloc_with_size_tracking_async(
-      n * sizeof(Fp2), stream, gpu_index, size_tracker, true));
+      safe_mul_sizeof<Fp2>(static_cast<size_t>(n)), stream, gpu_index,
+      size_tracker, true));
 
-  cuda_memcpy_with_size_tracking_async_to_gpu(d_a, a, n * sizeof(Fp2), stream,
-                                              gpu_index, true);
-  cuda_memcpy_with_size_tracking_async_to_gpu(d_b, b, n * sizeof(Fp2), stream,
-                                              gpu_index, true);
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      d_a, a, safe_mul_sizeof<Fp2>(static_cast<size_t>(n)), stream, gpu_index,
+      true);
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      d_b, b, safe_mul_sizeof<Fp2>(static_cast<size_t>(n)), stream, gpu_index,
+      true);
 
   kernel_fp2_mul_array<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(d_c, d_a,
                                                                       d_b, n);
@@ -177,7 +190,8 @@ void fp2_mul_batch_on_host(cudaStream_t stream, uint32_t gpu_index, Fp2 *c,
 
   cuda_synchronize_stream(stream, gpu_index);
 
-  cuda_memcpy_async_to_cpu(c, d_c, n * sizeof(Fp2), stream, gpu_index);
+  cuda_memcpy_async_to_cpu(c, d_c, safe_mul_sizeof<Fp2>(static_cast<size_t>(n)),
+                           stream, gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
 
   if (d_c != nullptr) {

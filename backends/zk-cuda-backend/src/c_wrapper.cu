@@ -1,6 +1,7 @@
 // C wrapper functions for Rust FFI
 // These functions provide a C-compatible interface to the C++ functions
 
+#include "checked_arithmetic.h"
 #include "curve.h"
 #include "device.h"
 #include "msm.h"
@@ -63,20 +64,21 @@ bool g2_is_infinity_wrapper(const G2Affine* point) {
 }
 
 // Unmanaged MSM wrapper for G1 (assumes all data is already on device)
-// If points_in_montgomery is false, a temporary copy will be made and converted.
-// For best performance, provide points already in Montgomery form to avoid allocation overhead.
-// NOTE: This wrapper synchronizes the stream before returning — callers do not need to sync.
-void g1_msm_unmanaged_wrapper(
+// Points MUST be in Montgomery form. Caller provides scratch buffer and
+// controls allocation tracking via gpu_memory_allocated.
+// Zero internal allocations — this is a thin validation + dispatch layer.
+void g1_msm_unmanaged_wrapper_async(
     cudaStream_t stream,
     uint32_t gpu_index,
     G1Projective* d_result,
     const G1Affine* d_points,
     const Scalar* d_scalars,
-    G1Projective* d_scratch,
     uint32_t n,
-    bool points_in_montgomery,
+    G1Projective* d_scratch,
+    bool gpu_memory_allocated,
     uint64_t* size_tracker
 ) {
+    PANIC_IF_FALSE(size_tracker != nullptr, "G1 MSM error: size_tracker is null");
     uint64_t& size_tracker_ref = *size_tracker;
     PANIC_IF_FALSE(n > 0, "G1 MSM error: n must be positive, got %u", n);
     PANIC_IF_FALSE(stream != nullptr, "G1 MSM error: stream is null");
@@ -84,51 +86,31 @@ void g1_msm_unmanaged_wrapper(
     PANIC_IF_FALSE(d_points != nullptr, "G1 MSM error: d_points is null");
     PANIC_IF_FALSE(d_scalars != nullptr, "G1 MSM error: d_scalars is null");
     PANIC_IF_FALSE(d_scratch != nullptr, "G1 MSM error: d_scratch is null");
-    PANIC_IF_FALSE(gpu_index < (uint32_t)cuda_get_number_of_gpus(),
+    PANIC_IF_FALSE(gpu_index < static_cast<uint32_t>(cuda_get_number_of_gpus()),
                    "G1 MSM error: invalid gpu_index=%u (gpu_count=%d)", gpu_index,
                    cuda_get_number_of_gpus());
 
-    const G1Affine* points_to_use = d_points;
-    G1Affine* d_points_converted = nullptr;
-
-    if (!points_in_montgomery) {
-        size_t points_bytes = 0;
-        bool overflow = __builtin_mul_overflow((size_t)n, sizeof(G1Affine), &points_bytes);
-        PANIC_IF_FALSE(!overflow,
-                       "G1 MSM unmanaged error: points byte size overflow (n=%u)", n);
-        d_points_converted = static_cast<G1Affine*>(cuda_malloc_with_size_tracking_async(points_bytes, stream, gpu_index, size_tracker_ref, true));
-        PANIC_IF_FALSE(d_points_converted != nullptr, "G1 MSM error: failed to allocate memory for Montgomery conversion");
-        cuda_memcpy_with_size_tracking_async_gpu_to_gpu(d_points_converted, d_points, points_bytes, stream, gpu_index, true);
-        convert_g1_points_to_montgomery(stream, gpu_index, d_points_converted, n);
-        check_cuda_error(cudaGetLastError());
-        points_to_use = d_points_converted;
-    }
-
-    point_msm_async_g1(stream, gpu_index, d_result, points_to_use, d_scalars, d_scratch, n, size_tracker_ref);
+    point_msm_g1_async(stream, gpu_index, d_result, d_points, d_scalars, n,
+                       d_scratch, size_tracker_ref, gpu_memory_allocated);
     check_cuda_error(cudaGetLastError());
-
-    if (d_points_converted != nullptr) {
-        cuda_drop_with_size_tracking_async(d_points_converted, stream, gpu_index, true);
-    }
-
-    cuda_synchronize_stream(stream, gpu_index);
 }
 
 // Unmanaged MSM wrapper for G2 (assumes all data is already on device)
-// If points_in_montgomery is false, a temporary copy will be made and converted.
-// For best performance, provide points already in Montgomery form to avoid allocation overhead.
-// NOTE: This wrapper synchronizes the stream before returning — callers do not need to sync.
-void g2_msm_unmanaged_wrapper(
+// Points MUST be in Montgomery form. Caller provides scratch buffer and
+// controls allocation tracking via gpu_memory_allocated.
+// Zero internal allocations — this is a thin validation + dispatch layer.
+void g2_msm_unmanaged_wrapper_async(
     cudaStream_t stream,
     uint32_t gpu_index,
     G2Projective* d_result,
     const G2Affine* d_points,
     const Scalar* d_scalars,
-    G2Projective* d_scratch,
     uint32_t n,
-    bool points_in_montgomery,
+    G2Projective* d_scratch,
+    bool gpu_memory_allocated,
     uint64_t* size_tracker
 ) {
+    PANIC_IF_FALSE(size_tracker != nullptr, "G2 MSM error: size_tracker is null");
     uint64_t& size_tracker_ref = *size_tracker;
     PANIC_IF_FALSE(n > 0, "G2 MSM error: n must be positive, got %u", n);
     PANIC_IF_FALSE(stream != nullptr, "G2 MSM error: stream is null");
@@ -136,35 +118,22 @@ void g2_msm_unmanaged_wrapper(
     PANIC_IF_FALSE(d_points != nullptr, "G2 MSM error: d_points is null");
     PANIC_IF_FALSE(d_scalars != nullptr, "G2 MSM error: d_scalars is null");
     PANIC_IF_FALSE(d_scratch != nullptr, "G2 MSM error: d_scratch is null");
-    PANIC_IF_FALSE(gpu_index < (uint32_t)cuda_get_number_of_gpus(),
+    PANIC_IF_FALSE(gpu_index < static_cast<uint32_t>(cuda_get_number_of_gpus()),
                    "G2 MSM error: invalid gpu_index=%u (gpu_count=%d)", gpu_index,
                    cuda_get_number_of_gpus());
 
-    const G2Affine* points_to_use = d_points;
-    G2Affine* d_points_converted = nullptr;
-
-    if (!points_in_montgomery) {
-        size_t points_bytes = 0;
-        bool overflow = __builtin_mul_overflow((size_t)n, sizeof(G2Affine), &points_bytes);
-        PANIC_IF_FALSE(!overflow,
-                       "G2 MSM unmanaged error: points byte size overflow (n=%u)", n);
-        d_points_converted = static_cast<G2Affine*>(cuda_malloc_with_size_tracking_async(points_bytes, stream, gpu_index, size_tracker_ref, true));
-        PANIC_IF_FALSE(d_points_converted != nullptr, "G2 MSM error: failed to allocate memory for Montgomery conversion");
-        cuda_memcpy_with_size_tracking_async_gpu_to_gpu(d_points_converted, d_points, points_bytes, stream, gpu_index, true);
-        convert_g2_points_to_montgomery(stream, gpu_index, d_points_converted, n);
-        check_cuda_error(cudaGetLastError());
-        points_to_use = d_points_converted;
-    }
-
-    point_msm_async_g2(stream, gpu_index, d_result, points_to_use, d_scalars, d_scratch, n, size_tracker_ref);
+    point_msm_g2_async(stream, gpu_index, d_result, d_points, d_scalars, n,
+                       d_scratch, size_tracker_ref, gpu_memory_allocated);
     check_cuda_error(cudaGetLastError());
+}
 
-    // Free temporary memory if allocated
-    if (d_points_converted != nullptr) {
-        cuda_drop_with_size_tracking_async(d_points_converted, stream, gpu_index, true);
-    }
+// Scratch size query wrappers (needed for bindgen `.*_wrapper` allowlist)
+size_t pippenger_scratch_size_g1_wrapper(uint32_t n, uint32_t gpu_index) {
+    return pippenger_scratch_size_g1(n, gpu_index);
+}
 
-    cuda_synchronize_stream(stream, gpu_index);
+size_t pippenger_scratch_size_g2_wrapper(uint32_t n, uint32_t gpu_index) {
+    return pippenger_scratch_size_g2(n, gpu_index);
 }
 
 // Managed MSM wrapper for G1 (handles memory management internally)
@@ -185,74 +154,53 @@ void g1_msm_managed_wrapper(
     PANIC_IF_FALSE(stream != nullptr, "G1 MSM error: stream is null");
     PANIC_IF_FALSE(points != nullptr, "G1 MSM error: points is null");
     PANIC_IF_FALSE(scalars != nullptr, "G1 MSM error: scalars is null");
-    PANIC_IF_FALSE(gpu_index < (uint32_t)cuda_get_number_of_gpus(),
+    PANIC_IF_FALSE(gpu_index < static_cast<uint32_t>(cuda_get_number_of_gpus()),
                    "G1 MSM error: invalid gpu_index=%u (gpu_count=%d)", gpu_index,
                    cuda_get_number_of_gpus());
-    
+
     cuda_set_device(gpu_index);
 
-    /////////////////////////////////
-    // TODO: Move this check closer to the kernels
-    const auto threadsPerBlock = get_msm_threads_per_block<G1Affine>(n);
-    const auto num_blocks = CEIL_DIV(n, threadsPerBlock);
-    /////////////////////////////////
-
     // Compute buffer sizes with overflow checking.
-    size_t scratch_elems = 0;
-    bool scratch_elems_overflow = __builtin_mul_overflow(
-        (size_t)(num_blocks + 1), (size_t)MSM_G1_BUCKET_COUNT, &scratch_elems);
-    PANIC_IF_FALSE(!scratch_elems_overflow,
-                   "G1 MSM error: scratch element count overflow (num_blocks=%u)",
-                   num_blocks);
-
-    size_t scratch_size = 0;
-    bool scratch_size_overflow =
-        __builtin_mul_overflow(scratch_elems, sizeof(G1Projective), &scratch_size);
-    PANIC_IF_FALSE(!scratch_size_overflow,
-                   "G1 MSM error: scratch size overflow (scratch_elems=%zu)",
-                   scratch_elems);
-
-    size_t points_bytes = 0;
-    bool points_bytes_overflow =
-        __builtin_mul_overflow((size_t)n, sizeof(G1Affine), &points_bytes);
-    PANIC_IF_FALSE(!points_bytes_overflow,
-                   "G1 MSM error: points byte size overflow (n=%u)", n);
-
-    size_t scalars_bytes = 0;
-    bool scalars_bytes_overflow =
-        __builtin_mul_overflow((size_t)n, sizeof(Scalar), &scalars_bytes);
-    PANIC_IF_FALSE(!scalars_bytes_overflow,
-                   "G1 MSM error: scalars byte size overflow (n=%u)", n);
+    size_t points_bytes = safe_mul_sizeof<G1Affine>(static_cast<size_t>(n));
+    size_t scalars_bytes = safe_mul_sizeof<Scalar>(static_cast<size_t>(n));
 
     // TODO: We should migrate to _unmanaged_ methods and have scratch/cleanup functions as tfhe-cuda-backend
     auto* d_points = static_cast<G1Affine*>(cuda_malloc_with_size_tracking_async(points_bytes, stream, gpu_index, size_tracker_ref, true));
     auto* d_scalars = static_cast<Scalar*>(cuda_malloc_with_size_tracking_async(scalars_bytes, stream, gpu_index, size_tracker_ref, true));
     auto* d_result = static_cast<G1Projective*>(cuda_malloc_with_size_tracking_async(sizeof(G1Projective), stream, gpu_index, size_tracker_ref, true));
-    auto* d_scratch = static_cast<G1Projective*>(cuda_malloc_with_size_tracking_async(scratch_size, stream, gpu_index, size_tracker_ref, true));
-    
-    PANIC_IF_FALSE(d_points && d_scalars && d_result && d_scratch, 
-                   "G1 MSM error: device memory allocation failed");
-    
+
     // Always copy points to GPU first
     cuda_memcpy_with_size_tracking_async_to_gpu(d_points, points, points_bytes, stream, gpu_index, true);
     cuda_memcpy_with_size_tracking_async_to_gpu(d_scalars, scalars, scalars_bytes, stream, gpu_index, true);
-    
+
     // Convert to Montgomery form on GPU if not already in Montgomery form
     if (!points_in_montgomery) {
         convert_g1_points_to_montgomery(stream, gpu_index, d_points, n);
         check_cuda_error(cudaGetLastError());
     }
 
-    point_msm_async_g1(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, n, size_tracker_ref);
+    // Allocate scratch buffer sized to match the pippenger internal partitioning
+    size_t scratch_bytes = pippenger_scratch_size_g1(n, gpu_index);
+    auto* d_scratch = static_cast<G1Projective*>(cuda_malloc_with_size_tracking_async(
+        scratch_bytes, stream, gpu_index, size_tracker_ref, true));
+
+    PANIC_IF_FALSE(d_points && d_scalars && d_result && d_scratch,
+                   "G1 MSM error: device memory allocation failed");
+
+    point_msm_g1_async(stream, gpu_index, d_result, d_points, d_scalars, n,
+                       d_scratch, size_tracker_ref, true);
     check_cuda_error(cudaGetLastError());
 
     cuda_memcpy_async_to_cpu(result, d_result, sizeof(G1Projective), stream, gpu_index);
 
+    cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
     cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
     cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
     cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
-    cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
 
+    // The pippenger implementation syncs internally for its CPU-side Horner
+    // combine, but we still need to sync here for the final D2H memcpy of
+    // the result and the async frees above.
     cuda_synchronize_stream(stream, gpu_index);
 }
 
@@ -275,69 +223,51 @@ void g2_msm_managed_wrapper(
     PANIC_IF_FALSE(stream != nullptr, "G2 MSM error: stream is null");
     PANIC_IF_FALSE(points != nullptr, "G2 MSM error: points is null");
     PANIC_IF_FALSE(scalars != nullptr, "G2 MSM error: scalars is null");
-    PANIC_IF_FALSE(gpu_index < (uint32_t)cuda_get_number_of_gpus(),
+    PANIC_IF_FALSE(gpu_index < static_cast<uint32_t>(cuda_get_number_of_gpus()),
                    "G2 MSM error: invalid gpu_index=%u (gpu_count=%d)", gpu_index,
                    cuda_get_number_of_gpus());
-    
+
     cuda_set_device(gpu_index);
-    
-    const auto threadsPerBlock = get_msm_threads_per_block<G2Affine>(n);
-    const auto num_blocks = CEIL_DIV(n, threadsPerBlock);
 
     // Compute buffer sizes with overflow checking.
-    size_t scratch_elems = 0;
-    bool scratch_elems_overflow = __builtin_mul_overflow(
-        (size_t)(num_blocks + 1), (size_t)MSM_G2_BUCKET_COUNT, &scratch_elems);
-    PANIC_IF_FALSE(!scratch_elems_overflow,
-                   "G2 MSM error: scratch element count overflow (num_blocks=%u)",
-                   num_blocks);
+    size_t points_bytes = safe_mul_sizeof<G2Affine>(static_cast<size_t>(n));
+    size_t scalars_bytes = safe_mul_sizeof<Scalar>(static_cast<size_t>(n));
 
-    size_t scratch_size = 0;
-    bool scratch_size_overflow =
-        __builtin_mul_overflow(scratch_elems, sizeof(G2Projective), &scratch_size);
-    PANIC_IF_FALSE(!scratch_size_overflow,
-                   "G2 MSM error: scratch size overflow (scratch_elems=%zu)",
-                   scratch_elems);
-
-    size_t points_bytes = 0;
-    bool points_bytes_overflow =
-        __builtin_mul_overflow((size_t)n, sizeof(G2Affine), &points_bytes);
-    PANIC_IF_FALSE(!points_bytes_overflow,
-                   "G2 MSM error: points byte size overflow (n=%u)", n);
-
-    size_t scalars_bytes = 0;
-    bool scalars_bytes_overflow =
-        __builtin_mul_overflow((size_t)n, sizeof(Scalar), &scalars_bytes);
-    PANIC_IF_FALSE(!scalars_bytes_overflow,
-                   "G2 MSM error: scalars byte size overflow (n=%u)", n);
-    
+    // TODO: We should migrate to _unmanaged_ methods and have scratch/cleanup functions as tfhe-cuda-backend
     auto* d_points = static_cast<G2Affine*>(cuda_malloc_with_size_tracking_async(points_bytes, stream, gpu_index, size_tracker_ref, true));
     auto* d_scalars = static_cast<Scalar*>(cuda_malloc_with_size_tracking_async(scalars_bytes, stream, gpu_index, size_tracker_ref, true));
     auto* d_result = static_cast<G2Projective*>(cuda_malloc_with_size_tracking_async(sizeof(G2Projective), stream, gpu_index, size_tracker_ref, true));
-    auto* d_scratch = static_cast<G2Projective*>(cuda_malloc_with_size_tracking_async(scratch_size, stream, gpu_index, size_tracker_ref, true));
-    
-    PANIC_IF_FALSE(d_points && d_scalars && d_result && d_scratch, 
-                   "G2 MSM error: device memory allocation failed");
-    
+
     cuda_memcpy_with_size_tracking_async_to_gpu(d_points, points, points_bytes, stream, gpu_index, true);
     cuda_memcpy_with_size_tracking_async_to_gpu(d_scalars, scalars, scalars_bytes, stream, gpu_index, true);
-    
+
     if (!points_in_montgomery) {
         convert_g2_points_to_montgomery(stream, gpu_index, d_points, n);
         check_cuda_error(cudaGetLastError());
     }
 
-    point_msm_async_g2(stream, gpu_index, d_result, d_points, d_scalars, d_scratch, n, size_tracker_ref);
-    check_cuda_error(cudaGetLastError());
+    // Allocate scratch buffer sized to match the pippenger internal partitioning
+    size_t scratch_bytes = pippenger_scratch_size_g2(n, gpu_index);
+    auto* d_scratch = static_cast<G2Projective*>(cuda_malloc_with_size_tracking_async(
+        scratch_bytes, stream, gpu_index, size_tracker_ref, true));
 
+    PANIC_IF_FALSE(d_points && d_scalars && d_result && d_scratch,
+                   "G2 MSM error: device memory allocation failed");
+
+    point_msm_g2_async(stream, gpu_index, d_result, d_points, d_scalars, n,
+                       d_scratch, size_tracker_ref, true);
+    check_cuda_error(cudaGetLastError());
 
     cuda_memcpy_async_to_cpu(result, d_result, sizeof(G2Projective), stream, gpu_index);
 
+    cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
     cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
     cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
     cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
-    cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
 
+    // The pippenger implementation syncs internally for its CPU-side Horner
+    // combine, but we still need to sync here for the final D2H memcpy of
+    // the result and the async frees above.
     cuda_synchronize_stream(stream, gpu_index);
 }
 

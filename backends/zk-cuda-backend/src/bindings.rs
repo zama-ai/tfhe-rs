@@ -139,30 +139,36 @@ unsafe extern "C" {
     pub fn g2_is_infinity_wrapper(point: *const G2Point) -> bool;
 }
 unsafe extern "C" {
-    pub fn g1_msm_unmanaged_wrapper(
+    pub fn g1_msm_unmanaged_wrapper_async(
         stream: cudaStream_t,
         gpu_index: u32,
         d_result: *mut G1ProjectivePoint,
         d_points: *const G1Point,
         d_scalars: *const Scalar,
-        d_scratch: *mut G1ProjectivePoint,
         n: u32,
-        points_in_montgomery: bool,
+        d_scratch: *mut G1ProjectivePoint,
+        gpu_memory_allocated: bool,
         size_tracker: *mut u64,
     );
 }
 unsafe extern "C" {
-    pub fn g2_msm_unmanaged_wrapper(
+    pub fn g2_msm_unmanaged_wrapper_async(
         stream: cudaStream_t,
         gpu_index: u32,
         d_result: *mut G2ProjectivePoint,
         d_points: *const G2Point,
         d_scalars: *const Scalar,
-        d_scratch: *mut G2ProjectivePoint,
         n: u32,
-        points_in_montgomery: bool,
+        d_scratch: *mut G2ProjectivePoint,
+        gpu_memory_allocated: bool,
         size_tracker: *mut u64,
     );
+}
+unsafe extern "C" {
+    pub fn pippenger_scratch_size_g1_wrapper(n: u32, gpu_index: u32) -> usize;
+}
+unsafe extern "C" {
+    pub fn pippenger_scratch_size_g2_wrapper(n: u32, gpu_index: u32) -> usize;
 }
 unsafe extern "C" {
     pub fn g1_msm_managed_wrapper(

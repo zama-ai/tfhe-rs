@@ -77,3 +77,6 @@ gtest_discover_tests(test_fp)
 gtest_discover_tests(test_fp2)
 gtest_discover_tests(test_msm)
 gtest_discover_tests(test_point_ops)
+
+# Basic usage examples (standalone programs, not registered with CTest)
+add_subdirectory(basic)
