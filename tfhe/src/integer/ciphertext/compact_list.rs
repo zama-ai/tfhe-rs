@@ -1,9 +1,11 @@
 use super::{DataKind, Expandable};
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::prelude::{LweCiphertextListConformanceParams, Numeric};
-use crate::integer::backward_compatibility::ciphertext::CompactCiphertextListVersions;
 #[cfg(feature = "zk-pok")]
 use crate::integer::backward_compatibility::ciphertext::ProvenCompactCiphertextListVersions;
+use crate::integer::backward_compatibility::ciphertext::{
+    CompactCiphertextListBuilderVersions, CompactCiphertextListVersions,
+};
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::encryption::{create_clear_radix_block_iterator, KnowsMessageModulus};
 use crate::integer::parameters::CompactCiphertextListConformanceParams;
@@ -153,6 +155,8 @@ where
     }
 }
 
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(CompactCiphertextListBuilderVersions)]
 pub struct CompactCiphertextListBuilder {
     pub(crate) messages: Vec<u64>,
     pub(crate) info: Vec<DataKind>,
