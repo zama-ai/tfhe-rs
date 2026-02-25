@@ -1157,7 +1157,7 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
       return current;
     };
     this->prefix_sum_lut = new int_radix_lut<Torus>(
-        streams, params, 2, num_inputs, allocate_gpu_memory, size_tracker);
+        streams, params, 1, num_inputs, allocate_gpu_memory, size_tracker);
 
     this->prefix_sum_lut->generate_and_broadcast_bivariate_lut(
         streams.active_gpu_subset(num_inputs, params.pbs_type), {0},
