@@ -716,7 +716,7 @@ async function compactPublicKeyZeroKnowledgeBench() {
             params.zk_scheme;
 
           if (!supportsThreads) {
-            common_bench_str += "_unsafe_coop";
+            common_bench_str += "_cross_origin";
           }
 
           const bench_str_1 = common_bench_str + "_mean";
