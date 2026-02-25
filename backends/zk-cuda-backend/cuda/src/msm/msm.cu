@@ -9,11 +9,11 @@
 
 // Forward declarations for Pippenger implementations
 void point_msm_g1_pippenger_async(
-    cudaStream_t stream, uint32_t gpu_index, G1Projective *d_result,
+    cudaStream_t stream, uint32_t gpu_index, G1Projective *h_result,
     const G1Affine *d_points, const Scalar *d_scalars, uint32_t n,
     G1Projective *d_scratch, uint64_t &size_tracker, bool gpu_memory_allocated);
 void point_msm_g2_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
-                                  G2ProjectivePoint *d_result,
+                                  G2ProjectivePoint *h_result,
                                   const G2Point *d_points,
                                   const Scalar *d_scalars, uint32_t n,
                                   G2ProjectivePoint *d_scratch,
@@ -25,42 +25,47 @@ void point_msm_g2_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
 // ============================================================================
 
 // MSM with BigInt scalars for G1 (projective coordinates internally)
+// Result is written directly to the host pointer h_result.
 void point_msm_g1_async(cudaStream_t stream, uint32_t gpu_index,
-                        G1Projective *d_result, const G1Affine *d_points,
+                        G1Projective *h_result, const G1Affine *d_points,
                         const Scalar *d_scalars, uint32_t n,
                         G1Projective *d_scratch, uint64_t &size_tracker,
                         bool gpu_memory_allocated) {
-  point_msm_g1_pippenger_async(stream, gpu_index, d_result, d_points, d_scalars,
+  point_msm_g1_pippenger_async(stream, gpu_index, h_result, d_points, d_scalars,
                                n, d_scratch, size_tracker,
                                gpu_memory_allocated);
 }
 
 // MSM with BigInt scalars for G2 (projective coordinates internally)
+// Result is written directly to the host pointer h_result.
 void point_msm_g2_async(cudaStream_t stream, uint32_t gpu_index,
-                        G2ProjectivePoint *d_result, const G2Point *d_points,
+                        G2ProjectivePoint *h_result, const G2Point *d_points,
                         const Scalar *d_scalars, uint32_t n,
                         G2ProjectivePoint *d_scratch, uint64_t &size_tracker,
                         bool gpu_memory_allocated) {
-  point_msm_g2_pippenger_async(stream, gpu_index, d_result, d_points, d_scalars,
+  point_msm_g2_pippenger_async(stream, gpu_index, h_result, d_points, d_scalars,
                                n, d_scratch, size_tracker,
                                gpu_memory_allocated);
 }
 
 void point_msm_g1(cudaStream_t stream, uint32_t gpu_index,
-                  G1Projective *d_result, const G1Affine *d_points,
+                  G1Projective *h_result, const G1Affine *d_points,
                   const Scalar *d_scalars, uint32_t n, G1Projective *d_scratch,
                   uint64_t &size_tracker, bool gpu_memory_allocated) {
-  point_msm_g1_async(stream, gpu_index, d_result, d_points, d_scalars, n,
+  point_msm_g1_async(stream, gpu_index, h_result, d_points, d_scalars, n,
                      d_scratch, size_tracker, gpu_memory_allocated);
+  // The async impl already syncs internally before the CPU-side Horner phase,
+  // so the stream is idle here. This sync is kept for defensive correctness.
   cuda_synchronize_stream(stream, gpu_index);
 }
 
 void point_msm_g2(cudaStream_t stream, uint32_t gpu_index,
-                  G2ProjectivePoint *d_result, const G2Point *d_points,
+                  G2ProjectivePoint *h_result, const G2Point *d_points,
                   const Scalar *d_scalars, uint32_t n,
                   G2ProjectivePoint *d_scratch, uint64_t &size_tracker,
                   bool gpu_memory_allocated) {
-  point_msm_g2_async(stream, gpu_index, d_result, d_points, d_scalars, n,
+  point_msm_g2_async(stream, gpu_index, h_result, d_points, d_scalars, n,
                      d_scratch, size_tracker, gpu_memory_allocated);
+  // See comment in point_msm_g1 above.
   cuda_synchronize_stream(stream, gpu_index);
 }

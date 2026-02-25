@@ -142,7 +142,7 @@ unsafe extern "C" {
     pub fn g1_msm_unmanaged_wrapper_async(
         stream: cudaStream_t,
         gpu_index: u32,
-        d_result: *mut G1ProjectivePoint,
+        h_result: *mut G1ProjectivePoint,
         d_points: *const G1Point,
         d_scalars: *const Scalar,
         n: u32,
@@ -155,7 +155,7 @@ unsafe extern "C" {
     pub fn g2_msm_unmanaged_wrapper_async(
         stream: cudaStream_t,
         gpu_index: u32,
-        d_result: *mut G2ProjectivePoint,
+        h_result: *mut G2ProjectivePoint,
         d_points: *const G2Point,
         d_scalars: *const Scalar,
         n: u32,

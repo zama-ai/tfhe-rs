@@ -544,11 +544,11 @@ __host__ __device__ bool is_on_curve_g2(const G2Affine &point) {
 
   // Compute y^2 in Montgomery form
   Fp2 y_squared_mont;
-  fp2_mont_mul(y_squared_mont, y_mont, y_mont);
+  fp2_mont_square(y_squared_mont, y_mont);
 
   // Compute x^3 in Montgomery form
   Fp2 x_squared_mont, x_cubed_mont;
-  fp2_mont_mul(x_squared_mont, x_mont, x_mont);
+  fp2_mont_square(x_squared_mont, x_mont);
   fp2_mont_mul(x_cubed_mont, x_squared_mont, x_mont);
 
   // Compute x^3 + b' in Montgomery form
@@ -1483,7 +1483,7 @@ __host__ __device__ void projective_point_add(G2Projective &result,
   fp2_mont_mul(Y2Z1, p2.Y, p1.Z);
   u = Y2Z1 - Y1Z2;
 
-  fp2_mont_mul(uu, u, u);
+  fp2_mont_square(uu, u);
 
   Fp2 X2Z1;
   fp2_mont_mul(X2Z1, p2.X, p1.Z);
@@ -1495,7 +1495,7 @@ __host__ __device__ void projective_point_add(G2Projective &result,
     return;
   }
 
-  fp2_mont_mul(vv, v, v);
+  fp2_mont_square(vv, v);
   fp2_mont_mul(vvv, v, vv);
 
   fp2_mont_mul(R, vv, X1Z2);
@@ -1647,8 +1647,8 @@ __host__ __device__ void projective_mixed_add(G2Projective &result,
   }
 
   // uu = u^2, vv = v^2, vvv = v * vv
-  fp2_mont_mul(uu, u, u);
-  fp2_mont_mul(vv, v, v);
+  fp2_mont_square(uu, u);
+  fp2_mont_square(vv, v);
   fp2_mont_mul(vvv, v, vv);
 
   // R = vv * X1
@@ -1749,7 +1749,7 @@ __host__ __device__ void projective_point_double(G2Projective &result,
 
   // A = 3 * X^2
   Fp2 X_sq, A;
-  fp2_mont_mul(X_sq, p.X, p.X);
+  fp2_mont_square(X_sq, p.X);
   fp2_mul3(A, X_sq);
 
   // B = Y * Z
@@ -1763,7 +1763,7 @@ __host__ __device__ void projective_point_double(G2Projective &result,
 
   // D = A^2 - 8*C
   Fp2 A_sq, eight_C;
-  fp2_mont_mul(A_sq, A, A);
+  fp2_mont_square(A_sq, A);
   fp2_mul8(eight_C, C);
   Fp2 D = A_sq - eight_C;
 
@@ -1779,8 +1779,8 @@ __host__ __device__ void projective_point_double(G2Projective &result,
   fp2_mont_mul(A_times_diff, A, four_C_minus_D);
 
   Fp2 Y_sq, B_sq, Y_sq_B_sq, eight_Y_sq_B_sq;
-  fp2_mont_mul(Y_sq, p.Y, p.Y);
-  fp2_mont_mul(B_sq, B, B);
+  fp2_mont_square(Y_sq, p.Y);
+  fp2_mont_square(B_sq, B);
   fp2_mont_mul(Y_sq_B_sq, Y_sq, B_sq);
   fp2_mul8(eight_Y_sq_B_sq, Y_sq_B_sq);
   result.Y = A_times_diff - eight_Y_sq_B_sq;
