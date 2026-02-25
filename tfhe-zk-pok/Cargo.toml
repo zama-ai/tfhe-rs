@@ -24,9 +24,13 @@ serde = { workspace = true, features = ["default", "derive"] }
 zeroize = "1.7.0"
 num-bigint = "0.4.5"
 tfhe-versionable = { version = "0.7.0", path = "../utils/tfhe-versionable" }
+[target.'cfg(target_family = "wasm")'.dependencies]
+getrandom = { workspace = true, features = ["js"] }
+wasm-par-mq = { version = "0.1.0", path = "../utils/wasm-par-mq", features = ["sync-api"], optional = true }
 
 [features]
 experimental = []
+cross-origin = ["dep:wasm-par-mq"]
 
 [dev-dependencies]
 serde_json = "~1.0"

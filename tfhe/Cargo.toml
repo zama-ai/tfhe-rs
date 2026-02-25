@@ -87,6 +87,12 @@ wasm-bindgen = { workspace = true, features = [
 ], optional = true }
 wasm-bindgen-rayon = { version = "1.3.0", optional = true }
 js-sys = { workspace = true, optional = true }
+wasm-bindgen-futures = { workspace = true, optional = true }
+
+wasm-par-mq = { version = "0.1.0", path = "../utils/wasm-par-mq", features = [
+    "sync-api",
+], optional = true }
+
 console_error_panic_hook = { version = "0.1.7", optional = true }
 serde-wasm-bindgen = { workspace = true, optional = true }
 getrandom = { workspace = true, optional = true }
@@ -142,6 +148,7 @@ __wasm_api = [
     "dep:serde-wasm-bindgen",
     "dep:getrandom",
     "getrandom/js",
+    "dep:wasm-bindgen-futures",
 ]
 boolean-client-js-wasm-api = ["boolean", "__wasm_api"]
 shortint-client-js-wasm-api = ["shortint", "__wasm_api"]
@@ -151,6 +158,7 @@ high-level-client-js-wasm-api = [
     "integer-client-js-wasm-api",
 ]
 parallel-wasm-api = ["dep:wasm-bindgen-rayon"]
+cross-origin-wasm-api = ["dep:wasm-par-mq", "tfhe-zk-pok?/cross-origin"]
 
 avx512 = ["tfhe-fft/avx512", "tfhe-ntt/avx512", "pulp/x86-v4"]
 # Kept for backward compatibility
