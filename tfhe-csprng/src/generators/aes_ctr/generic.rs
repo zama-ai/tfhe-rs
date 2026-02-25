@@ -51,7 +51,7 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
     ) -> AesCtrGenerator<BlockCipher> {
         AesCtrGenerator::from_block_cipher(
             Box::new(BlockCipher::new(key)),
-            start_index.unwrap_or(TableIndex::SECOND),
+            start_index.unwrap_or(TableIndex::FIRST),
             bound_index.unwrap_or(TableIndex::LAST),
             offset,
         )

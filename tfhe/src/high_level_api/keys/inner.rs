@@ -158,7 +158,12 @@ impl IntegerClientKey {
             (config.block_parameters.message_modulus().0) == 2 || config.block_parameters.message_modulus().0 == 4,
             "This API only supports parameters for which the MessageModulus is 2 or 4 (1 or 2 bits per block)",
         );
-        let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
+        let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(
+            tfhe_csprng::generators::aes_ctr::AesCtrParams {
+                seed: tfhe_csprng::seeders::SeedKind::Ctr(seed),
+                first_index: tfhe_csprng::generators::aes_ctr::TableIndex::SECOND,
+            },
+        );
         let cks = crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
             .new_client_key(config.block_parameters);
 
