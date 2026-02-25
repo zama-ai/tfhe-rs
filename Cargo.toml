@@ -44,6 +44,7 @@ rand = "0.8"
 rayon = "1.11"
 serde = { version = "1.0", default-features = false }
 wasm-bindgen = { version = "0.2.114" }
+wasm-bindgen-futures = { version = "0.4.56" }
 # js-sys (at this point in time) automatically enables the unsafe-eval feature which we do not want
 # this does not prevent other deps from enabling it, but it at least conveys our need to not have it
 # we still enable std, which was part of default before

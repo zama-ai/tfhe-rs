@@ -390,5 +390,29 @@
       }
     ],
     "upgrades": []
+  },
+  {
+    "enum_name": "backward_compatibility::SerializableProjectiveVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "serialization::SerializableProjective",
+        "inner_type_display": "serialization::SerializableProjective<F>",
+        "type_hash": "f3b4d4d8c70dca78dadbf38cf16b6d22f2cda77e73cfde6f888781c8173dcefc"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "backward_compatibility::ComputeLoadVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "proofs::ComputeLoad",
+        "inner_type_display": "proofs::ComputeLoad",
+        "type_hash": "7ddffee20a47ba90ae9fc04954fa85eac96d7f5a47e83f8a9a29753d140efb74"
+      }
+    ],
+    "upgrades": []
   }
 ]

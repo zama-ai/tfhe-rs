@@ -86,6 +86,11 @@ parser.add_argument(
     help="Pattern to use to filter HTML button value displayed on web page",
 )
 parser.add_argument(
+    "--id-exclude-pattern",
+    dest="id_exclude_pattern",
+    help="Pattern to use to exclude HTML button IDs from the filtered set",
+)
+parser.add_argument(
     "-f",
     "--fail-fast",
     dest="fail_fast",
@@ -142,11 +147,14 @@ class Driver:
                         "Script is running as root, running browser with --no-sandbox for compatibility"
                     )
                 self.options.add_argument("--no-sandbox")
+                self.options.add_argument("--headless=new")
+                # Needed for wasm-par-mq sync executor mode
+                self.options.add_argument("--enable-features=ServiceWorker")
             case BrowserKind.firefox:
                 self.options = FirefoxOptions()
+                self.options.add_argument("-headless")
 
         self.options.binary_location = self.browser_path
-        self.options.add_argument("--headless")
 
         self._driver = None
 
@@ -279,7 +287,14 @@ class Cases:
         self._cases.append(use_case)
 
     def _filter(self, field, pattern):
-        return [case for case in self._cases if pattern in getattr(case, field)]
+        result = Cases()
+        result._cases = [case for case in self._cases if pattern in getattr(case, field)]
+        return result
+
+    def _exclude(self, field, pattern):
+        result = Cases()
+        result._cases = [case for case in self._cases if pattern not in getattr(case, field)]
+        return result
 
     def filter_by_id(self, pattern):
         """
@@ -287,7 +302,7 @@ class Cases:
 
         :param pattern: :class:`str` that would be included in `id`
 
-        :return: :class:`list` comprehension of :class:`UseCase`
+        :return: :class:`Cases` containing matching use cases
         """
         return self._filter("id", pattern)
 
@@ -297,9 +312,19 @@ class Cases:
 
         :param pattern: :class:`str` that would be included in `value`
 
-        :return: :class:`list` comprehension of :class:`UseCase`
+        :return: :class:`Cases` containing matching use cases
         """
         return self._filter("value", pattern)
+
+    def exclude_by_id(self, pattern):
+        """
+        Exclude use cases whose HTML `id` attribute contains the pattern.
+
+        :param pattern: :class:`str` that would be excluded from `id`
+
+        :return: :class:`Cases` with matching use cases removed
+        """
+        return self._exclude("id", pattern)
 
 
 def parse_html_index(filepath):
@@ -471,6 +496,8 @@ def main():
         cases = cases.filter_by_id(args.id_filter_pattern)
     elif args.value_filter_pattern:
         cases = cases.filter_by_value(args.value_filter_pattern)
+    if args.id_exclude_pattern:
+        cases = cases.exclude_by_id(args.id_exclude_pattern)
 
     server_process = None
     if args.server_cmd:
