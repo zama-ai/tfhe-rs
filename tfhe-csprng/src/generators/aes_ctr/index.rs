@@ -191,16 +191,40 @@ impl TableIndex {
     /// table indices is in ⟦0;2¹³² -1⟧. When the distance is greater than 2¹²⁸ - 1, we saturate
     /// the count at 2¹²⁸ - 1.
     pub fn distance(larger: &Self, smaller: &Self) -> Option<ByteCount> {
-        match std::cmp::Ord::cmp(larger, smaller) {
-            Ordering::Less => None,
-            Ordering::Equal => Some(ByteCount(0)),
-            Ordering::Greater => {
-                let mut result = larger.aes_index.0 - smaller.aes_index.0;
-                result = result.saturating_mul(BYTES_PER_AES_CALL as u128);
-                result = result.saturating_add(larger.byte_index.0 as u128);
-                result = result.saturating_sub(smaller.byte_index.0 as u128);
-                Some(ByteCount(result))
+        match larger.aes_index.cmp(&smaller.aes_index) {
+            Ordering::Equal => {
+                if larger.byte_index >= smaller.byte_index {
+                    Some(ByteCount(
+                        (larger.byte_index.0 - smaller.byte_index.0) as u128,
+                    ))
+                } else {
+                    None
+                }
             }
+            Ordering::Greater => {
+                let index_diff = larger.aes_index.0 - smaller.aes_index.0;
+                if larger.byte_index.0 >= smaller.byte_index.0 {
+                    let result = index_diff.saturating_mul(BYTES_PER_AES_CALL as u128);
+                    let byte_diff = larger.byte_index.0 - smaller.byte_index.0;
+                    Some(ByteCount(result.saturating_add(byte_diff as u128)))
+                } else {
+                    // The byte_diff needs to be subtracted from the result of the
+                    // index_diff * BYTES_PER_AES_CALL operation, however to be precise
+                    // we have to split the computation in two parts as the multiplication
+                    // may slightly overflow to some value that the byte_diff would have
+                    // put back into the representable range of u128
+                    let byte_diff = smaller.byte_index.0 - larger.byte_index.0;
+                    const CUTOFF_INDEX: u128 = u128::MAX / BYTES_PER_AES_CALL as u128;
+                    let result1 = (CUTOFF_INDEX.min(index_diff) * BYTES_PER_AES_CALL as u128)
+                        - byte_diff as u128;
+                    let result2 = index_diff
+                        .saturating_sub(CUTOFF_INDEX)
+                        .saturating_mul(BYTES_PER_AES_CALL as u128);
+
+                    Some(ByteCount(result1.saturating_add(result2)))
+                }
+            }
+            Ordering::Less => None,
         }
     }
 }
@@ -478,6 +502,239 @@ mod test {
 
             assert!(inc > dec);
             assert!(TableIndex::LAST.decreased(dec).overflowing_increased(inc).1);
+        }
+    }
+
+    #[test]
+    fn test_distance_first_to_second() {
+        assert_eq!(
+            TableIndex::distance(&TableIndex::SECOND, &TableIndex::FIRST),
+            Some(ByteCount(1))
+        );
+    }
+
+    #[test]
+    fn test_distance_same_aes_index_different_byte() {
+        for i in 0..BYTES_PER_AES_CALL {
+            for j in i..BYTES_PER_AES_CALL {
+                let larger = TableIndex::new(AesIndex(42), ByteIndex(j));
+                let smaller = TableIndex::new(AesIndex(42), ByteIndex(i));
+                assert_eq!(
+                    TableIndex::distance(&larger, &smaller),
+                    Some(ByteCount((j - i) as u128)),
+                    "larger: {larger:?}, smaller: {smaller:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_distance_same_aes_index_wrong_order() {
+        let smaller = TableIndex::new(AesIndex(42), ByteIndex(3));
+        let larger = TableIndex::new(AesIndex(42), ByteIndex(11));
+        assert_eq!(TableIndex::distance(&smaller, &larger), None);
+    }
+
+    #[test]
+    fn test_distance_across_aes_boundary() {
+        // byte 15 of aes block N to byte 0 of aes block N+1 = 1 byte
+        let a = TableIndex::new(AesIndex(5), ByteIndex(BYTES_PER_AES_CALL - 1));
+        let b = a.incremented();
+        assert_eq!(TableIndex::distance(&b, &a), Some(ByteCount(1)));
+    }
+
+    #[test]
+    fn test_distance_larger_byte_index_smaller_than_smaller_byte_index() {
+        // aes_index differs, but larger.byte_index < smaller.byte_index
+        let smaller = TableIndex::new(AesIndex(10), ByteIndex(12));
+        let larger = TableIndex::new(AesIndex(11), ByteIndex(3));
+        // distance = (11 - 10) * 16 + 3 - 12 = 16 - 9 = 7
+        assert_eq!(TableIndex::distance(&larger, &smaller), Some(ByteCount(7)));
+    }
+
+    #[test]
+    fn test_distance_near_saturation() {
+        for byte_index in 0..BYTES_PER_AES_CALL {
+            let smaller = TableIndex {
+                aes_index: AesIndex(0),
+                byte_index: ByteIndex(byte_index),
+            };
+            let larger = smaller.increased(u128::MAX);
+            let dist = TableIndex::distance(&larger, &smaller).unwrap().0;
+            assert_eq!(dist, u128::MAX);
+
+            for inc in 1..BYTES_PER_AES_CALL {
+                let larger = larger.increased(inc as u128);
+                let dist = TableIndex::distance(&larger, &smaller).unwrap().0;
+                assert_eq!(dist, u128::MAX, "larger: {larger:?}, smaller: {smaller:?}");
+            }
+        }
+
+        for byte_index in 0..BYTES_PER_AES_CALL {
+            let smaller = TableIndex {
+                aes_index: AesIndex(0),
+                byte_index: ByteIndex(byte_index),
+            };
+            let larger = smaller.increased(u128::MAX - 1);
+            let dist = TableIndex::distance(&larger, &smaller).unwrap().0;
+            assert_eq!(
+                dist,
+                u128::MAX - 1,
+                "larger: {larger:?}, smaller: {smaller:?}"
+            );
+        }
+
+        // Test when the distance correctly subracts from "saturated" value
+        for byte_index in 1..BYTES_PER_AES_CALL {
+            let larger = TableIndex::FIRST.increased(u128::MAX).increased(1);
+            let smaller = TableIndex::FIRST.increased(byte_index as u128);
+
+            let dist = TableIndex::distance(&larger, &smaller).unwrap().0;
+            assert_eq!(
+                dist,
+                u128::MAX - (byte_index as u128 - 1),
+                "larger: {larger:?}, smaller: {smaller:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_distance_near_cutoff() {
+        // aes_index diff just below the cutoff: result should be exact
+        let cutoff = u128::MAX / (BYTES_PER_AES_CALL as u128);
+        for i in 0..BYTES_PER_AES_CALL {
+            let smaller = TableIndex::new(AesIndex(0), ByteIndex(i));
+            for j in 0..i {
+                let larger = TableIndex::new(AesIndex(cutoff), ByteIndex(j));
+                let dist = TableIndex::distance(&larger, &smaller).unwrap().0;
+                assert_eq!(
+                    dist,
+                    (cutoff * BYTES_PER_AES_CALL as u128) - (i - j) as u128
+                );
+            }
+
+            for j in i..BYTES_PER_AES_CALL {
+                let larger = TableIndex::new(AesIndex(cutoff), ByteIndex(j));
+                let dist = TableIndex::distance(&larger, &smaller).unwrap().0;
+                assert_eq!(
+                    dist,
+                    (cutoff * BYTES_PER_AES_CALL as u128).saturating_add((j - i) as u128)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_distance_max_aes_index_diff_saturates() {
+        let smaller = TableIndex::new(AesIndex(0), ByteIndex(0));
+        let larger = TableIndex::new(AesIndex(u128::MAX), ByteIndex(0));
+        assert_eq!(
+            TableIndex::distance(&larger, &smaller),
+            Some(ByteCount(u128::MAX))
+        );
+    }
+
+    #[test]
+    /// Check the property:
+    ///     For all table indices larger > smaller such that
+    ///     distance(larger, smaller) < u128::MAX (not saturated),
+    ///         smaller.increased(distance(larger, smaller)) = larger.
+    fn prop_table_index_distance_roundtrip() {
+        for _ in 0..REPEATS {
+            let (larger, smaller) = any_table_index()
+                .zip(any_table_index())
+                .find(|(a, b)| TableIndex::distance(a, b).is_some_and(|d| d.0 < u128::MAX))
+                .unwrap();
+            let dist = TableIndex::distance(&larger, &smaller).unwrap().0;
+            if dist < u128::MAX {
+                assert_eq!(
+                    smaller.increased(dist),
+                    larger,
+                    "smaller: {smaller:?}, larger: {larger:?}, dist: {dist}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    /// Check the property (targets the else branch where larger.byte_index < smaller.byte_index):
+    ///     For all table indices larger, smaller such that
+    ///     larger.aes_index > smaller.aes_index and larger.byte_index < smaller.byte_index,
+    ///         smaller.increased(distance(larger, smaller)) = larger (when not saturated).
+    fn prop_table_index_distance_cross_byte_boundary() {
+        for _ in 0..REPEATS {
+            let (larger, smaller) = any_table_index()
+                .zip(any_table_index())
+                .find(|(a, b)| a.aes_index > b.aes_index && a.byte_index.0 < b.byte_index.0)
+                .unwrap();
+            let dist = TableIndex::distance(&larger, &smaller).unwrap().0;
+            if dist < u128::MAX {
+                assert_eq!(
+                    smaller.increased(dist),
+                    larger,
+                    "smaller: {smaller:?}, larger: {larger:?}, dist: {dist}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    /// Check the property:
+    ///     For all table indices a > b > c such that neither distance saturates,
+    ///         distance(a, b) + distance(b, c) = distance(a, c).
+    fn prop_table_index_distance_additivity() {
+        for _ in 0..REPEATS {
+            let (a, b, c) = any_table_index()
+                .zip(any_table_index())
+                .zip(any_table_index())
+                .map(|((x, y), z)| {
+                    let mut sorted = [x, y, z];
+                    sorted.sort();
+                    (sorted[2], sorted[1], sorted[0])
+                })
+                .find(|(a, b, c)| {
+                    a > b && b > c && TableIndex::distance(a, c).unwrap().0 < u128::MAX
+                })
+                .unwrap();
+            let d_ab = TableIndex::distance(&a, &b).unwrap().0;
+            let d_bc = TableIndex::distance(&b, &c).unwrap().0;
+            let d_ac = TableIndex::distance(&a, &c).unwrap().0;
+            assert_eq!(d_ab + d_bc, d_ac, "a: {a:?}, b: {b:?}, c: {c:?}");
+        }
+    }
+
+    #[test]
+    /// Check the property:
+    ///     For all table indices a, b,
+    ///         distance agrees with derived Ord:
+    ///         a > b => distance(a, b) = Some(v) with v > 0
+    ///         a < b => distance(a, b) = None
+    ///         a == b => distance(a, b) = Some(0)
+    fn prop_table_index_distance_consistent_with_ord() {
+        for _ in 0..REPEATS {
+            let (a, b) = any_table_index().zip(any_table_index()).next().unwrap();
+            let dist = TableIndex::distance(&a, &b);
+            match a.cmp(&b) {
+                Ordering::Greater => {
+                    assert!(
+                        matches!(dist, Some(ByteCount(v)) if v > 0),
+                        "a > b but distance is {dist:?}, a: {a:?}, b: {b:?}"
+                    );
+                }
+                Ordering::Less => {
+                    assert!(
+                        dist.is_none(),
+                        "a < b but distance is {dist:?}, a: {a:?}, b: {b:?}"
+                    );
+                }
+                Ordering::Equal => {
+                    assert_eq!(
+                        dist,
+                        Some(ByteCount(0)),
+                        "a == b but distance is {dist:?}, a: {a:?}, b: {b:?}"
+                    );
+                }
+            }
         }
     }
 }
