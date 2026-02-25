@@ -416,9 +416,9 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G2 {
         #[cfg(target_family = "wasm")]
         {
             if wasm_par_mq::is_pool_initialized() {
-                return msm::cross_origin::msm_g2_cross_origin(bases, scalars);
+                return msm::cross_origin::msm_wnaf_g2_446_cross_origin(bases, scalars);
             }
-            return Self::Affine::multi_mul_scalar(bases, scalars);
+            return msm::msm_wnaf_g2_446_cross_origin(bases, scalars);
         }
         #[cfg(not(target_family = "wasm"))]
         Self::Affine::multi_mul_scalar(bases, scalars)
