@@ -95,40 +95,37 @@ protected:
   cudaStream_t stream;
 
   // Helper to check if a point is on the curve y^2 = x^3 + b
+  // All arithmetic stays in Montgomery form (point coordinates are already
+  // Montgomery), converted to normal only for debug output.
   bool is_on_curve(const G1Affine &point) {
     if (point.infinity) {
       return true; // Point at infinity is on the curve
     }
 
-    // Convert from Montgomery form to normal form for verification
-    Fp x_normal, y_normal;
-    fp_from_montgomery(x_normal, point.x);
-    fp_from_montgomery(y_normal, point.y);
+    // Coordinates are already in Montgomery form
+    const Fp &x_m = point.x;
+    const Fp &y_m = point.y;
 
-    // Compute y^2 (operator* returns Montgomery form, convert to normal)
-    Fp y_squared_mont = y_normal * y_normal;
-    Fp y_squared;
-    fp_from_montgomery(y_squared, y_squared_mont);
+    // Compute y^2 in Montgomery form
+    Fp y_squared_m = y_m * y_m;
 
-    // Compute x^3 (operator* returns Montgomery form, convert to normal)
-    Fp x_squared_mont = x_normal * x_normal;
-    Fp x_squared;
-    fp_from_montgomery(x_squared, x_squared_mont);
-    Fp x_cubed_mont = x_squared * x_normal;
-    Fp x_cubed;
-    fp_from_montgomery(x_cubed, x_cubed_mont);
+    // Compute x^3 in Montgomery form
+    Fp x_squared_m = x_m * x_m;
+    Fp x_cubed_m = x_squared_m * x_m;
 
-    // Compute x^3 + b (b = 1)
-    Fp b;
-    fp_zero(b);
-    b.limb[0] = 1;
-    Fp x_cubed_plus_b = x_cubed + b;
+    // Compute x^3 + b in Montgomery form (b = 1)
+    Fp b_m;
+    fp_one_montgomery(b_m);
+    Fp x_cubed_plus_b_m = x_cubed_m + b_m;
 
-    // Check if y^2 == x^3 + b
-    bool on_curve = y_squared == x_cubed_plus_b;
+    // Check if y^2 == x^3 + b (comparison works directly in Montgomery form)
+    bool on_curve = y_squared_m == x_cubed_plus_b_m;
 
-    // Debug output if not on curve
+    // Debug output if not on curve (convert to normal form for printing)
     if (!on_curve) {
+      Fp y_squared, x_cubed_plus_b;
+      fp_from_montgomery(y_squared, y_squared_m);
+      fp_from_montgomery(x_cubed_plus_b, x_cubed_plus_b_m);
       std::cout << "WARNING: Point is NOT on the curve!" << std::endl;
       print_fp("  y^2", y_squared);
       print_fp("  x^3 + b", x_cubed_plus_b);

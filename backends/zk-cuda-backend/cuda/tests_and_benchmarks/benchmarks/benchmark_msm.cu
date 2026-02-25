@@ -8,6 +8,8 @@
 #include <cuda_runtime.h>
 #include <random>
 
+#include "checked_arithmetic.h"
+
 // Helper to get modulus (use fp_modulus() from the library)
 static Fp get_modulus() { return fp_modulus(); }
 
@@ -92,26 +94,17 @@ static void BM_G1_MSM(benchmark::State &state) {
   const auto n = static_cast<int>(state.range(0));
   std::mt19937_64 rng(42);
 
-  // Calculate required scratch space
-  const int threadsPerBlock =
-      get_msm_threads_per_block<G1Affine>(n); // Must match MSM implementation
-  const auto num_blocks = CEIL_DIV(n, threadsPerBlock);
-  const auto scratch_size =
-      (num_blocks + 1) * MSM_G1_BUCKET_COUNT * sizeof(G1Projective);
-
   // Allocate device memory
   auto *d_points = static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
-      n * sizeof(G1Affine), g_benchmark_stream, g_gpu_index, size_tracker,
-      true));
+      safe_mul_sizeof<G1Affine>(static_cast<size_t>(n)), g_benchmark_stream,
+      g_gpu_index, size_tracker, true));
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
-      n * sizeof(Scalar), g_benchmark_stream, g_gpu_index, size_tracker, true));
+      safe_mul_sizeof<Scalar>(static_cast<size_t>(n)), g_benchmark_stream,
+      g_gpu_index, size_tracker, true));
   auto *d_result =
       static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
           sizeof(G1Projective), g_benchmark_stream, g_gpu_index, size_tracker,
           true));
-  auto *d_scratch =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          scratch_size, g_benchmark_stream, g_gpu_index, size_tracker, true));
 
   // Prepare host data
   auto *h_points = new G1Affine[n];
@@ -125,11 +118,11 @@ static void BM_G1_MSM(benchmark::State &state) {
 
   // Copy to device (once, before benchmark loop)
   cuda_memcpy_with_size_tracking_async_to_gpu(
-      d_points, h_points, n * sizeof(G1Affine), g_benchmark_stream, g_gpu_index,
-      true);
+      d_points, h_points, safe_mul_sizeof<G1Affine>(static_cast<size_t>(n)),
+      g_benchmark_stream, g_gpu_index, true);
   cuda_memcpy_with_size_tracking_async_to_gpu(
-      d_scalars, h_scalars, n * sizeof(Scalar), g_benchmark_stream, g_gpu_index,
-      true);
+      d_scalars, h_scalars, safe_mul_sizeof<Scalar>(static_cast<size_t>(n)),
+      g_benchmark_stream, g_gpu_index, true);
 
   // Convert points to Montgomery form (required for performance - all
   // operations use Montgomery)
@@ -137,10 +130,14 @@ static void BM_G1_MSM(benchmark::State &state) {
                                       n);
   check_cuda_error(cudaGetLastError());
 
-  // Initialize result and scratch memory to zero (once, before benchmark loop)
+  // Allocate scratch buffer sized to match the pippenger internal partitioning
+  size_t g1_scratch_bytes = pippenger_scratch_size_g1(n, g_gpu_index);
+  auto *d_scratch = static_cast<G1Projective *>(
+      cuda_malloc_with_size_tracking_async(g1_scratch_bytes, g_benchmark_stream,
+                                           g_gpu_index, size_tracker, true));
+
+  // Initialize result memory to zero (once, before benchmark loop)
   cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G1Projective),
-                                       g_benchmark_stream, g_gpu_index, true);
-  cuda_memset_with_size_tracking_async(d_scratch, 0, scratch_size,
                                        g_benchmark_stream, g_gpu_index, true);
 
   // Synchronize once before benchmark loop to ensure all setup is complete
@@ -148,15 +145,15 @@ static void BM_G1_MSM(benchmark::State &state) {
 
   // Warm-up iterations
   for (int i = 0; i < WARMUP_ITERATIONS; i++) {
-    point_msm_async_g1(g_benchmark_stream, g_gpu_index, d_result, d_points,
-                       d_scalars, d_scratch, n, size_tracker);
+    point_msm_g1_async(g_benchmark_stream, g_gpu_index, d_result, d_points,
+                       d_scalars, n, d_scratch, size_tracker, true);
   }
   cuda_synchronize_stream(g_benchmark_stream, g_gpu_index);
 
   // Benchmark loop: only measure the MSM computation, no memory operations
   for (auto _ : state) {
-    point_msm_async_g1(g_benchmark_stream, g_gpu_index, d_result, d_points,
-                       d_scalars, d_scratch, n, size_tracker);
+    point_msm_g1_async(g_benchmark_stream, g_gpu_index, d_result, d_points,
+                       d_scalars, n, d_scratch, size_tracker, true);
     benchmark::ClobberMemory();
   }
 
@@ -168,13 +165,13 @@ static void BM_G1_MSM(benchmark::State &state) {
 
   delete[] h_points;
   delete[] h_scalars;
+  cuda_drop_with_size_tracking_async(d_scratch, g_benchmark_stream, g_gpu_index,
+                                     true);
   cuda_drop_with_size_tracking_async(d_points, g_benchmark_stream, g_gpu_index,
                                      true);
   cuda_drop_with_size_tracking_async(d_scalars, g_benchmark_stream, g_gpu_index,
                                      true);
   cuda_drop_with_size_tracking_async(d_result, g_benchmark_stream, g_gpu_index,
-                                     true);
-  cuda_drop_with_size_tracking_async(d_scratch, g_benchmark_stream, g_gpu_index,
                                      true);
 }
 
@@ -186,26 +183,17 @@ static void BM_G2_MSM(benchmark::State &state) {
   const auto n = static_cast<int>(state.range(0));
   std::mt19937_64 rng(42);
 
-  // Calculate required scratch space
-  const int threadsPerBlock =
-      get_msm_threads_per_block<G2Affine>(n); // Must match MSM implementation
-  const auto num_blocks = CEIL_DIV(n, threadsPerBlock);
-  const auto scratch_size =
-      (num_blocks + 1) * MSM_G2_BUCKET_COUNT * sizeof(G2Projective);
-
   // Allocate device memory
   auto *d_points = static_cast<G2Affine *>(cuda_malloc_with_size_tracking_async(
-      n * sizeof(G2Affine), g_benchmark_stream, g_gpu_index, size_tracker,
-      true));
+      safe_mul_sizeof<G2Affine>(static_cast<size_t>(n)), g_benchmark_stream,
+      g_gpu_index, size_tracker, true));
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
-      n * sizeof(Scalar), g_benchmark_stream, g_gpu_index, size_tracker, true));
+      safe_mul_sizeof<Scalar>(static_cast<size_t>(n)), g_benchmark_stream,
+      g_gpu_index, size_tracker, true));
   auto *d_result =
       static_cast<G2Projective *>(cuda_malloc_with_size_tracking_async(
           sizeof(G2Projective), g_benchmark_stream, g_gpu_index, size_tracker,
           true));
-  auto *d_scratch =
-      static_cast<G2Projective *>(cuda_malloc_with_size_tracking_async(
-          scratch_size, g_benchmark_stream, g_gpu_index, size_tracker, true));
 
   // Prepare host data
   auto *h_points = new G2Affine[n];
@@ -219,11 +207,11 @@ static void BM_G2_MSM(benchmark::State &state) {
 
   // Copy to device (once, before benchmark loop)
   cuda_memcpy_with_size_tracking_async_to_gpu(
-      d_points, h_points, n * sizeof(G2Affine), g_benchmark_stream, g_gpu_index,
-      true);
+      d_points, h_points, safe_mul_sizeof<G2Affine>(static_cast<size_t>(n)),
+      g_benchmark_stream, g_gpu_index, true);
   cuda_memcpy_with_size_tracking_async_to_gpu(
-      d_scalars, h_scalars, n * sizeof(Scalar), g_benchmark_stream, g_gpu_index,
-      true);
+      d_scalars, h_scalars, safe_mul_sizeof<Scalar>(static_cast<size_t>(n)),
+      g_benchmark_stream, g_gpu_index, true);
 
   // Convert points to Montgomery form (required for performance - all
   // operations use Montgomery)
@@ -231,10 +219,14 @@ static void BM_G2_MSM(benchmark::State &state) {
                                       n);
   check_cuda_error(cudaGetLastError());
 
-  // Initialize result and scratch memory to zero (once, before benchmark loop)
+  // Allocate scratch buffer sized to match the pippenger internal partitioning
+  size_t g2_scratch_bytes = pippenger_scratch_size_g2(n, g_gpu_index);
+  auto *d_scratch = static_cast<G2Projective *>(
+      cuda_malloc_with_size_tracking_async(g2_scratch_bytes, g_benchmark_stream,
+                                           g_gpu_index, size_tracker, true));
+
+  // Initialize result memory to zero (once, before benchmark loop)
   cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G2Projective),
-                                       g_benchmark_stream, g_gpu_index, true);
-  cuda_memset_with_size_tracking_async(d_scratch, 0, scratch_size,
                                        g_benchmark_stream, g_gpu_index, true);
 
   // Synchronize once before benchmark loop to ensure all setup is complete
@@ -242,15 +234,15 @@ static void BM_G2_MSM(benchmark::State &state) {
 
   // Warm-up iterations
   for (int i = 0; i < WARMUP_ITERATIONS; i++) {
-    point_msm_async_g2(g_benchmark_stream, g_gpu_index, d_result, d_points,
-                       d_scalars, d_scratch, n, size_tracker);
+    point_msm_g2_async(g_benchmark_stream, g_gpu_index, d_result, d_points,
+                       d_scalars, n, d_scratch, size_tracker, true);
   }
   cuda_synchronize_stream(g_benchmark_stream, g_gpu_index);
 
   // Benchmark loop: only measure the MSM computation, no memory operations
   for (auto _ : state) {
-    point_msm_async_g2(g_benchmark_stream, g_gpu_index, d_result, d_points,
-                       d_scalars, d_scratch, n, size_tracker);
+    point_msm_g2_async(g_benchmark_stream, g_gpu_index, d_result, d_points,
+                       d_scalars, n, d_scratch, size_tracker, true);
     benchmark::ClobberMemory();
   }
 
@@ -262,13 +254,13 @@ static void BM_G2_MSM(benchmark::State &state) {
 
   delete[] h_points;
   delete[] h_scalars;
+  cuda_drop_with_size_tracking_async(d_scratch, g_benchmark_stream, g_gpu_index,
+                                     true);
   cuda_drop_with_size_tracking_async(d_points, g_benchmark_stream, g_gpu_index,
                                      true);
   cuda_drop_with_size_tracking_async(d_scalars, g_benchmark_stream, g_gpu_index,
                                      true);
   cuda_drop_with_size_tracking_async(d_result, g_benchmark_stream, g_gpu_index,
-                                     true);
-  cuda_drop_with_size_tracking_async(d_scratch, g_benchmark_stream, g_gpu_index,
                                      true);
 }
 
