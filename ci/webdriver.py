@@ -146,7 +146,9 @@ class Driver:
                 self.options = FirefoxOptions()
 
         self.options.binary_location = self.browser_path
-        self.options.add_argument("--headless")
+        # Needed for wasm-par-mq sync executor mode
+        self.options.add_argument("--headless=new")
+        self.options.add_argument("--enable-features=ServiceWorker")
 
         self._driver = None
 

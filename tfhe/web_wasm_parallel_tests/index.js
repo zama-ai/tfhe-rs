@@ -1,5 +1,8 @@
 import { threads } from "wasm-feature-detect";
 import * as Comlink from "comlink";
+import init, {
+  register_cross_origin_coordinator
+} from "./pkg/tfhe.js";
 
 function setButtonsDisabledState(buttonIds, state) {
   for (let id of buttonIds) {
@@ -12,7 +15,6 @@ function setButtonsDisabledState(buttonIds, state) {
 
 async function setup() {
   let supportsThreads = await threads();
-  // This variable is set to true if we are using the `serve.multithreaded.json` config
   if (crossOriginIsolated) {
     if (supportsThreads) {
       console.info("Running in multithreaded mode");
@@ -21,10 +23,13 @@ async function setup() {
       return;
     }
   } else {
-    console.warn("Running in unsafe coop mode");
+    // Register the coordinator Service Worker for cross-origin parallelism
+    console.info("Running in cross-origin worker mode");
+    await init();
+    await register_cross_origin_coordinator("/sw.js");
   }
 
-  const worker = new Worker(new URL("worker.js", import.meta.url), {
+  const worker = new Worker(new URL("./worker.js", import.meta.url), {
     type: "module",
   });
 
@@ -48,9 +53,6 @@ async function setup() {
   ];
 
   function setupBtn(id) {
-    // Handlers are named in the same way as buttons.
-    let fn = demos[id];
-
     let button = document.getElementById(id);
     if (button === null) {
       console.error(`button with id: ${id} not found`);
@@ -58,29 +60,28 @@ async function setup() {
     }
 
     // Assign onclick handler + enable the button.
-    Object.assign(button, {
-      onclick: async () => {
-        document.getElementById("loader").hidden = false;
-        document.getElementById("testSuccess").checked = false;
-        setButtonsDisabledState(demoNames, true);
+    button.onclick = async () => {
+      document.getElementById("loader").hidden = false;
+      document.getElementById("testSuccess").checked = false;
+      setButtonsDisabledState(demoNames, true);
 
-        console.log(`Running: ${id}`);
-        try {
-          let results = await fn();
-          document.getElementById("testSuccess").checked = true;
-          if (results !== undefined) {
-            document.getElementById("benchmarkResults").value =
-              JSON.stringify(results);
-          }
-        } catch (error) {
-          console.error(`Test Failed: ${error}`);
-          document.getElementById("testSuccess").checked = false;
+      let fn = demos[id];
+      console.log(`Running: ${id}`);
+      try {
+        let results = await fn();
+        document.getElementById("testSuccess").checked = true;
+        if (results !== undefined) {
+          document.getElementById("benchmarkResults").value =
+            JSON.stringify(results);
         }
-        document.getElementById("loader").hidden = true;
-        setButtonsDisabledState(demoNames, false);
-      },
-      disabled: false,
-    });
+      } catch (error) {
+        console.error(`Test Failed: ${error}`);
+        document.getElementById("testSuccess").checked = false;
+      }
+      document.getElementById("loader").hidden = true;
+      setButtonsDisabledState(demoNames, false);
+    };
+    button.disabled = false;
 
     return button;
   }

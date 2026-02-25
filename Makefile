@@ -670,6 +670,7 @@ build_web_js_api: install_wasm_pack
 	cd tfhe && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS)" wasm-pack build --release --target=web \
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok,extended-types
+	cp utils/wasm-par-mq/js/coordinator.js tfhe/pkg/
 
 .PHONY: build_web_js_api_parallel # Build the js API targeting the web browser with parallelism support
 # parallel wasm requires specific build options, see https://github.com/rust-lang/rust/pull/147225
@@ -1348,6 +1349,18 @@ run_web_js_api_parallel: build_web_js_api_parallel setup_venv
 	--server-workdir "$(WEB_SERVER_DIR)" \
 	--id-pattern $(filter)
 
+# This is an internal target, not meant to be called on its own.
+run_web_js_api_cross_origin: build_web_js_api setup_venv
+	cd $(WEB_SERVER_DIR) && npm install && npm run build
+	source venv/bin/activate && \
+	python ci/webdriver.py \
+	--browser-path $(browser_path) \
+	--driver-path $(driver_path) \
+	--browser-kind  $(browser_kind) \
+	--server-cmd $(server_cmd) \
+	--server-workdir "$(WEB_SERVER_DIR)" \
+	--id-pattern $(filter)
+
 test_web_js_api_parallel_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
 test_web_js_api_parallel_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
 test_web_js_api_parallel_chrome: browser_kind = chrome
@@ -1718,7 +1731,7 @@ bench_web_js_api_cross_origin_chrome: server_cmd = "npm run server:cross-origin"
 bench_web_js_api_cross_origin_chrome: filter = ZeroKnowledgeBench # Only bench zk with cross-origin workers
 
 .PHONY: bench_web_js_api_cross_origin_chrome # Run benchmarks for the web wasm api without cross-origin isolation
-bench_web_js_api_cross_origin_chrome: run_web_js_api_parallel
+bench_web_js_api_cross_origin_chrome: run_web_js_api_cross_origin
 
 .PHONY: bench_web_js_api_cross_origin_chrome_ci # Run benchmarks for the web wasm api without cross-origin isolation
 bench_web_js_api_cross_origin_chrome_ci: setup_venv
@@ -1734,7 +1747,7 @@ bench_web_js_api_cross_origin_firefox: server_cmd = "npm run server:cross-origin
 bench_web_js_api_cross_origin_firefox: filter = ZeroKnowledgeBench # Only bench zk with cross-origin workers
 
 .PHONY: bench_web_js_api_cross_origin_firefox # Run benchmarks for the web wasm api without cross-origin isolation
-bench_web_js_api_cross_origin_firefox: run_web_js_api_parallel
+bench_web_js_api_cross_origin_firefox: run_web_js_api_cross_origin
 
 .PHONY: bench_web_js_api_cross_origin_firefox_ci # Run benchmarks for the web wasm api without cross-origin isolation
 bench_web_js_api_cross_origin_firefox_ci: setup_venv

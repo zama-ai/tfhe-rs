@@ -360,12 +360,16 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G1 {
 
     #[track_caller]
     fn multi_mul_scalar(bases: &[Self::Affine], scalars: &[bls12_446::Zp]) -> Self {
-        // overhead seems to not be worth it outside of wasm
-        if cfg!(target_family = "wasm") {
-            msm::msm_wnaf_g1_446(bases, scalars)
-        } else {
-            Self::Affine::multi_mul_scalar(bases, scalars)
+        // wnaf overhead seems to not be worth it outside of wasm
+        #[cfg(target_family = "wasm")]
+        {
+            if wasm_par_mq::is_pool_initialized() {
+                return msm::cross_origin::msm_wnaf_g1_446_cross_origin(bases, scalars);
+            }
+            return msm::msm_wnaf_g1_446(bases, scalars);
         }
+        #[cfg(not(target_family = "wasm"))]
+        Self::Affine::multi_mul_scalar(bases, scalars)
     }
 
     fn to_le_bytes(self) -> impl AsRef<[u8]> {
@@ -409,6 +413,14 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G2 {
 
     #[track_caller]
     fn multi_mul_scalar(bases: &[Self::Affine], scalars: &[bls12_446::Zp]) -> Self {
+        #[cfg(target_family = "wasm")]
+        {
+            if wasm_par_mq::is_pool_initialized() {
+                return msm::cross_origin::msm_g2_cross_origin(bases, scalars);
+            }
+            return msm::msm_wnaf_g2_446(bases, scalars);
+        }
+        #[cfg(not(target_family = "wasm"))]
         Self::Affine::multi_mul_scalar(bases, scalars)
     }
 
