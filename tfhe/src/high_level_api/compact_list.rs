@@ -26,6 +26,7 @@ use crate::high_level_api::global_state::with_cuda_internal_keys;
 use crate::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::{CompactPublicKey, Tag};
 
+use super::backward_compatibility::compact_list::CompactCiphertextListBuilderVersions;
 #[cfg(feature = "strings")]
 use super::ClearString;
 
@@ -994,6 +995,8 @@ impl<T> HlCompactable for T where
 {
 }
 
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(CompactCiphertextListBuilderVersions)]
 pub struct CompactCiphertextListBuilder {
     inner: crate::integer::ciphertext::CompactCiphertextListBuilder,
     tag: Tag,

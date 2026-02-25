@@ -1,7 +1,7 @@
 use crate::integer::ciphertext::{
     BaseCrtCiphertext, BaseRadixCiphertext, BaseSignedRadixCiphertext, CompactCiphertextList,
-    CompressedCiphertextList, CompressedModulusSwitchedRadixCiphertext,
-    CompressedModulusSwitchedRadixCiphertextGeneric,
+    CompactCiphertextListBuilder, CompressedCiphertextList,
+    CompressedModulusSwitchedRadixCiphertext, CompressedModulusSwitchedRadixCiphertextGeneric,
     CompressedModulusSwitchedSignedRadixCiphertext, DataKind, SquashedNoiseBooleanBlock,
     SquashedNoiseRadixCiphertext, SquashedNoiseSignedRadixCiphertext,
 };
@@ -134,4 +134,9 @@ pub enum SquashedNoiseBooleanBlockVersions {
 #[derive(VersionsDispatch)]
 pub enum CompressedKVStoreVersions<K, V> {
     V0(CompressedKVStore<K, V>),
+}
+
+#[derive(VersionsDispatch)]
+pub enum CompactCiphertextListBuilderVersions {
+    V0(CompactCiphertextListBuilder),
 }
