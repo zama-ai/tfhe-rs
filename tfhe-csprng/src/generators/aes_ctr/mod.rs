@@ -213,8 +213,7 @@ impl From<SeedKind> for AesCtrParams {
     fn from(seed: SeedKind) -> Self {
         Self {
             seed,
-            // Keep bugged behavior
-            first_index: TableIndex::SECOND,
+            first_index: TableIndex::FIRST,
         }
     }
 }
