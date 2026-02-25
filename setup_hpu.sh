@@ -1,4 +1,4 @@
-#! /usr/bin/env/ bash
+#! /usr/bin/env bash
 
 # Find current script directory. This should be PROJECT_DIR
 CUR_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
@@ -15,7 +15,11 @@ HPU_CONFIG="sim"
 RUST_LOG="info"
 
 # Setting PCI device variable: depends on the machine
-mapfile -t DEVICE< <(lspci -d 10ee:50b5)
+if command -v lscpi &> /dev/null; then
+    mapfile -t DEVICE< <(lspci -d 10ee:50b5)
+else
+    DEVICE=()
+fi
 V80_PCIE_DEV="unselected"
 
 # V80 bitstream refresh rely on XilinxVivado tools
@@ -29,7 +33,7 @@ opt_short="hc:l:p:"
 opt_long="help,config:,rust-log:pcie-dev"
 OPTS=$(getopt -o "$opt_short" -l "$opt_long" -- "$@")
 
-while true
+while [ $# -gt 0 ]
 do
     case "$1" in
         -h|--help)
@@ -59,7 +63,7 @@ do
             shift 2
             ;;
         -p|--pcie-dev)
-            if [ -n "${2}" ] && [[ ! ${2} =~ ^- ]]; then
+            if [ -n "${2:-}" ] && [[ ! ${2:-} =~ ^- ]]; then
                 V80_PCIE_DEV="${2}"
                 ((i++))
                 shift 1
