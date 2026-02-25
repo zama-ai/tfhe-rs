@@ -7,6 +7,7 @@ use crate::shortint::noise_squashing::Shortint128BootstrappingKey;
 pub type ShortintExpandedServerKey = GenericServerKey<ExpandedAtomicPatternServerKey>;
 
 /// Bootstrapping Key with elements in the standard (i.e not fourier) domain
+#[derive(PartialEq)]
 pub enum ShortintExpandedBootstrappingKey<Scalar, ModSwitchScalar>
 where
     Scalar: UnsignedInteger,

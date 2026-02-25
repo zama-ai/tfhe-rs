@@ -14,6 +14,7 @@ pub struct SecretRandomGenerator<G: ByteRandomGenerator>(RandomGenerator<G>);
 impl<G: ByteRandomGenerator> SecretRandomGenerator<G> {
     /// Create a new generator, optionally seeding it with the given value.
     pub fn new(seed: impl Into<SeedKind>) -> Self {
+        let seed: SeedKind = seed.into();
         Self(RandomGenerator::new(seed))
     }
 

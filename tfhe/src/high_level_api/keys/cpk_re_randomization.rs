@@ -15,7 +15,7 @@ pub(crate) enum ReRandomizationKeyGenerationInfo<'a> {
     ),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Versionize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(ReRandomizationKeySwitchingKeyVersions)]
 pub enum ReRandomizationKeySwitchingKey {
     UseCPKEncryptionKSK,

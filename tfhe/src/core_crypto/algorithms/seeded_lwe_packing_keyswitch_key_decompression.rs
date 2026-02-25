@@ -40,7 +40,7 @@ pub fn decompress_seeded_lwe_packing_keyswitch_key<Scalar, InputCont, OutputCont
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    let mut generator = MaskRandomGenerator::<Gen>::new(input_pksk.compression_seed().seed);
+    let mut generator = MaskRandomGenerator::<Gen>::new(input_pksk.compression_seed());
     decompress_seeded_lwe_packing_keyswitch_key_with_pre_seeded_generator::<_, _, _, Gen>(
         output_pksk,
         input_pksk,

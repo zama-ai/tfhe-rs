@@ -212,9 +212,7 @@ where
         Scalar::ZERO,
         lwe_secret_key.lwe_dimension().to_lwe_size(),
         zero_encryption_count,
-        CompressionSeed {
-            seed: noise_seeder.seed(),
-        },
+        CompressionSeed::from(noise_seeder.seed()),
         ciphertext_modulus,
     );
 
@@ -290,9 +288,7 @@ where
         Scalar::ZERO,
         lwe_secret_key.lwe_dimension().to_lwe_size(),
         zero_encryption_count,
-        CompressionSeed {
-            seed: noise_seeder.seed(),
-        },
+        CompressionSeed::from(noise_seeder.seed()),
         ciphertext_modulus,
     );
 

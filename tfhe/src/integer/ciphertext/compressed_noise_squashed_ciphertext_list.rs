@@ -106,7 +106,7 @@ impl Named for CompressedNoiseSquashingCompressionKey {
     const NAME: &'static str = "integer::CompressedNoiseSquashingCompressionKey";
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
 #[versionize(NoiseSquashingCompressionKeyVersions)]
 pub struct NoiseSquashingCompressionKey {
     pub(crate) key: ShortintNoiseSquashingCompressionKey,

@@ -57,7 +57,7 @@ impl CompressedCiphertext {
         } = self;
 
         Ciphertext::new(
-            ct.decompress_into_lwe_ciphertext(),
+            ct.clone().decompress_into_lwe_ciphertext(),
             *degree,
             *noise_level,
             *message_modulus,

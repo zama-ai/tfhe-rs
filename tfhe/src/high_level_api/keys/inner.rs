@@ -736,7 +736,7 @@ impl IntegerCompressedServerKey {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(IntegerCompactPublicKeyVersions)]
 pub(in crate::high_level_api) struct IntegerCompactPublicKey {
     pub(in crate::high_level_api) key: CompactPublicKey,

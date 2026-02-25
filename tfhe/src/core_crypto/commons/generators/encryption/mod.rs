@@ -17,8 +17,8 @@ use crate::core_crypto::commons::parameters::{
 use mask_random_generator::{MaskRandomGenerator, MaskRandomGeneratorForkConfig};
 use noise_random_generator::{NoiseRandomGenerator, NoiseRandomGeneratorForkConfig};
 use rayon::prelude::*;
+use tfhe_csprng::generators::aes_ctr::AesCtrParams;
 use tfhe_csprng::generators::ForkError;
-use tfhe_csprng::seeders::SeedKind;
 
 pub const PER_SAMPLE_TARGET_FAILURE_PROBABILITY_LOG2: f64 = -128.;
 
@@ -96,16 +96,20 @@ pub struct EncryptionRandomGenerator<G: ByteRandomGenerator> {
 }
 
 impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
-    /// Create a new [`EncryptionRandomGenerator`], using the provided [`Seed`] or [`XofSeed`]
-    /// to seed the public mask generator and using the provided [`Seeder`] to privately seed the
-    /// noise generator.
+    /// Create a new [`EncryptionRandomGenerator`], using the provided seed to seed the public
+    /// mask generator and using the provided [`Seeder`] to privately seed the noise generator.
+    ///
+    /// Accepts any type that converts to [`AesCtrParams`], including [`Seed`], [`XofSeed`],
+    /// [`SeedKind`], and [`CompressionSeed`].
     ///
     /// [`Seed`]: crate::core_crypto::commons::math::random::Seed
     /// [`XofSeed`]: crate::core_crypto::commons::math::random::XofSeed
+    /// [`SeedKind`]: tfhe_csprng::seeders::SeedKind
+    /// [`CompressionSeed`]: crate::core_crypto::commons::math::random::CompressionSeed
     // S is ?Sized to allow Box<dyn Seeder> to be passed.
-    pub fn new<S: Seeder + ?Sized>(seed: impl Into<SeedKind>, seeder: &mut S) -> Self {
+    pub fn new<S: Seeder + ?Sized>(params: impl Into<AesCtrParams>, seeder: &mut S) -> Self {
         Self {
-            mask: MaskRandomGenerator::new(seed),
+            mask: MaskRandomGenerator::new(params),
             noise: NoiseRandomGenerator::new(seeder),
         }
     }
@@ -125,6 +129,10 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
 
     pub fn noise_generator_mut(&mut self) -> &mut NoiseRandomGenerator<G> {
         &mut self.noise
+    }
+
+    pub fn mask_generator(&self) -> &MaskRandomGenerator<G> {
+        &self.mask
     }
 
     pub fn mask_generator_mut(&mut self) -> &mut MaskRandomGenerator<G> {

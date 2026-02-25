@@ -68,7 +68,7 @@ pub fn decompress_seeded_ggsw_ciphertext<Scalar, InputCont, OutputCont, Gen>(
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    let mut generator = MaskRandomGenerator::<Gen>::new(input_seeded_ggsw.compression_seed().seed);
+    let mut generator = MaskRandomGenerator::<Gen>::new(input_seeded_ggsw.compression_seed());
     decompress_seeded_ggsw_ciphertext_with_pre_seeded_generator::<_, _, _, Gen>(
         output_ggsw,
         input_seeded_ggsw,
@@ -135,9 +135,9 @@ pub fn par_decompress_seeded_ggsw_ciphertext<Scalar, InputCont, OutputCont, Gen>
     Scalar: UnsignedTorus + Send + Sync,
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
-    Gen: ParallelByteRandomGenerator,
+    Gen: ParallelByteRandomGenerator + ByteRandomGenerator,
 {
-    let mut generator = MaskRandomGenerator::<Gen>::new(input_seeded_ggsw.compression_seed().seed);
+    let mut generator = MaskRandomGenerator::<Gen>::new(input_seeded_ggsw.compression_seed());
     par_decompress_seeded_ggsw_ciphertext_with_pre_seeded_generator::<_, _, _, Gen>(
         output_ggsw,
         input_seeded_ggsw,

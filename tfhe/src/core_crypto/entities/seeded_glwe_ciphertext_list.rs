@@ -149,7 +149,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGlweCipherte
     ///
     /// See [`SeededGlweCiphertextList::from_container`] for usage.
     pub fn compression_seed(&self) -> CompressionSeed {
-        self.compression_seed
+        self.compression_seed.clone()
     }
 
     /// Return the [`CiphertextModulus`] of the [`SeededGlweCiphertextList`].
@@ -264,7 +264,7 @@ impl<Scalar: UnsignedInteger> SeededGlweCiphertextListOwned<Scalar> {
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`SeededGlweCiphertextList`]
 /// entities.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct SeededGlweCiphertextListCreationMetadata<Scalar: UnsignedInteger> {
     pub glwe_size: GlweSize,
     pub polynomial_size: PolynomialSize,

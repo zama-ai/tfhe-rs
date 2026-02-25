@@ -200,6 +200,36 @@ pub const AES_CALLS_PER_BATCH: usize = 8;
 pub const BYTES_PER_AES_CALL: usize = 128 / 8;
 pub const BYTES_PER_BATCH: usize = BYTES_PER_AES_CALL * AES_CALLS_PER_BATCH;
 
+#[derive(
+    Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, tfhe_versionable::Versionize,
+)]
+#[versionize(AesCtrParamsVersions)]
+pub struct AesCtrParams {
+    pub seed: SeedKind,
+    pub first_index: TableIndex,
+}
+
+impl From<SeedKind> for AesCtrParams {
+    fn from(seed: SeedKind) -> Self {
+        Self {
+            seed,
+            first_index: TableIndex::SECOND,
+        }
+    }
+}
+
+impl From<Seed> for AesCtrParams {
+    fn from(seed: Seed) -> Self {
+        Self::from(SeedKind::Ctr(seed))
+    }
+}
+
+impl From<XofSeed> for AesCtrParams {
+    fn from(seed: XofSeed) -> Self {
+        Self::from(SeedKind::Xof(seed))
+    }
+}
+
 /// A module containing structures to manage table indices.
 mod index;
 
@@ -220,7 +250,8 @@ pub use generic::*;
 #[cfg(feature = "parallel")]
 mod parallel;
 
-use crate::seeders::XofSeed;
+use crate::generators::backward_compatibility::AesCtrParamsVersions;
+use crate::seeders::{Seed, SeedKind, XofSeed};
 #[cfg(feature = "parallel")]
 pub use parallel::*;
 

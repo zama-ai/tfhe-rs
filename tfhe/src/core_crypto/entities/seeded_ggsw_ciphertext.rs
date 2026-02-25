@@ -218,7 +218,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
     ///
     /// See [`SeededGgswCiphertext::from_container`] for usage.
     pub fn compression_seed(&self) -> CompressionSeed {
-        self.compression_seed
+        self.compression_seed.clone()
     }
 
     /// Return the [`CiphertextModulus`] of the [`SeededGgswCiphertext`].
@@ -447,7 +447,7 @@ impl<Scalar: UnsignedInteger> SeededGgswCiphertextOwned<Scalar> {
 }
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`SeededGgswCiphertext`] entities.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct SeededGgswCiphertextCreationMetadata<Scalar: UnsignedInteger> {
     pub glwe_size: GlweSize,
     pub polynomial_size: PolynomialSize,
@@ -585,7 +585,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswLevelMat
             self.data.as_ref(),
             self.glwe_size,
             self.polynomial_size,
-            self.compression_seed,
+            self.compression_seed.clone(),
             self.ciphertext_modulus,
         )
     }
@@ -643,14 +643,14 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededGgswLevel
             self.data.as_mut(),
             self.glwe_size,
             self.polynomial_size,
-            self.compression_seed,
+            self.compression_seed.clone(),
             self.ciphertext_modulus,
         )
     }
 }
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`SeededGgswLevelMatrix`] entities.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct SeededGgswLevelMatrixCreationMetadata<Scalar: UnsignedInteger> {
     pub glwe_size: GlweSize,
     pub polynomial_size: PolynomialSize,
@@ -704,7 +704,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         SeededGgswLevelMatrixCreationMetadata {
             glwe_size: self.glwe_size,
             polynomial_size: self.polynomial_size,
-            compression_seed: self.compression_seed,
+            compression_seed: self.compression_seed.clone(),
             ciphertext_modulus: self.ciphertext_modulus,
         }
     }
