@@ -30,6 +30,8 @@ pub struct AesCtrGenerator<BlockCipher: AesBlockCipher> {
     pub(crate) block_cipher: Box<BlockCipher>,
     // The buffer containing the current batch of aes calls.
     pub(crate) buffer: [u8; BYTES_PER_BATCH],
+    // The state managing when to refresh the buffer
+    // and knows when no more bytes are generable
     pub(crate) state: State,
 }
 
@@ -38,11 +40,11 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
     /// Generates a new csprng.
     ///
     /// The `start_index` given as input, points to the first byte that will be outputted by the
-    /// generator. If not given, defaults to `TableIndex::SECOND` for legacy compatibility.
+    /// generator. If not given, defaults to `TableIndex::FIRST`.
     ///
     /// The `bound_index` given as input, points to the first byte that can __not__ be legally
-    /// outputted by the generator. If not given, the bound is automatically set to the last
-    /// table index.
+    /// outputted by the generator, i.e one past the last. If not given, the bound is automatically
+    /// set such that the last valid is LAST (inclusive).
     pub(crate) fn new(
         key: AesKey,
         start_index: Option<TableIndex>,
@@ -51,21 +53,24 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
     ) -> AesCtrGenerator<BlockCipher> {
         AesCtrGenerator::from_block_cipher(
             Box::new(BlockCipher::new(key)),
-            start_index.unwrap_or(TableIndex::SECOND),
-            bound_index.unwrap_or(TableIndex::LAST),
+            start_index.unwrap_or(TableIndex::FIRST),
+            bound_index.unwrap_or(TableIndex::LAST.incremented()),
             offset,
         )
     }
 
     /// Generates a csprng from an existing block cipher.
+    ///
+    /// start_index is inclusive, bound_index is exclusive, i.e., it generates bytes in the range
+    /// start..bound
     pub(crate) fn from_block_cipher(
         block_cipher: Box<BlockCipher>,
         start_index: TableIndex,
         bound_index: TableIndex,
         offset: AesIndex,
     ) -> AesCtrGenerator<BlockCipher> {
-        assert!(start_index < bound_index);
         let last = bound_index.decremented();
+        assert!(start_index <= last);
         let buffer = [0u8; BYTES_PER_BATCH];
         let state = State::new(start_index, last, offset);
         AesCtrGenerator {
@@ -91,14 +96,14 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
     }
 
     /// Returns the table index of the next byte to be generated, or `None` if exhausted.
-    pub fn next_table_index(&self) -> Option<TableIndex> {
+    pub(crate) fn next_table_index(&self) -> Option<TableIndex> {
         self.state.next_table_index()
     }
 
     /// Returns the bound of the generator if any.
     ///
     /// The bound is the table index of the first byte that can not be outputted by the generator.
-    pub fn get_bound(&self) -> TableIndex {
+    pub(crate) fn get_bound(&self) -> TableIndex {
         self.state.bound()
     }
 
@@ -110,7 +115,7 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
     /// Note that `ByteCount` uses the `u128` datatype to store the byte count. Unfortunately, the
     /// number of remaining bytes is in ⟦0;2¹³² -1⟧. When the number is greater than 2¹²⁸ - 1,
     /// we saturate the count at 2¹²⁸ - 1.
-    pub fn remaining_bytes(&self) -> ByteCount {
+    pub(crate) fn remaining_bytes(&self) -> ByteCount {
         self.state.remaining_bytes()
     }
 

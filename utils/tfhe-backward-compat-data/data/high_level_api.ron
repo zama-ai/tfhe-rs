@@ -873,4 +873,14 @@
             client_key_file_name: "xof_client_key",
         )),
     ),
+    (
+        tfhe_version_min: "1.6",
+        tfhe_module: "high_level_api",
+        metadata: HlServerKey((
+            test_filename: "server_key_complete",
+            client_key_filename: "client_key_complete",
+            rerand_cpk_filename: Some("cpk_rerand_complete"),
+            compressed: true,
+        )),
+    ),
 ]
