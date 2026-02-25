@@ -1,6 +1,5 @@
 import collections
 import enum
-from idlelib import browser
 
 from benchmark_specs import ZKOperation
 from formatters.common import ZKGenericFormatter
