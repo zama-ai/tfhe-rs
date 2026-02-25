@@ -15,28 +15,29 @@
 
 // Convenience wrappers that allocate scratch, run MSM, and free scratch.
 // Tests use these to avoid repeating scratch management at every call site.
+// Result is written directly to the host pointer h_result.
 static void test_point_msm_g1(cudaStream_t stream, uint32_t gpu_index,
-                              G1Projective *d_result, const G1Affine *d_points,
+                              G1Projective *h_result, const G1Affine *d_points,
                               const Scalar *d_scalars, uint32_t n,
                               uint64_t &size_tracker) {
   size_t scratch_bytes = pippenger_scratch_size_g1(n, gpu_index);
   auto *d_scratch =
       static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
           scratch_bytes, stream, gpu_index, size_tracker, true));
-  point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, n, d_scratch,
+  point_msm_g1(stream, gpu_index, h_result, d_points, d_scalars, n, d_scratch,
                size_tracker, true);
   cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
 }
 
 static void test_point_msm_g2(cudaStream_t stream, uint32_t gpu_index,
-                              G2Projective *d_result, const G2Affine *d_points,
+                              G2Projective *h_result, const G2Affine *d_points,
                               const Scalar *d_scalars, uint32_t n,
                               uint64_t &size_tracker) {
   size_t scratch_bytes = pippenger_scratch_size_g2(n, gpu_index);
   auto *d_scratch =
       static_cast<G2Projective *>(cuda_malloc_with_size_tracking_async(
           scratch_bytes, stream, gpu_index, size_tracker, true));
-  point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, n, d_scratch,
+  point_msm_g2(stream, gpu_index, h_result, d_points, d_scalars, n, d_scratch,
                size_tracker, true);
   cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
 }
@@ -238,9 +239,6 @@ TEST_F(MSMTest, G1MSMWithGenerator) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G1Projective), stream, gpu_index, size_tracker, true));
   // Scratch is managed by the test helper wrappers
   auto *d_expected =
       static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
@@ -249,8 +247,6 @@ TEST_F(MSMTest, G1MSMWithGenerator) {
       sizeof(G1Affine), stream, gpu_index, size_tracker, true));
 
   // Initialize allocated memory to zero to avoid uninitialized access warnings
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G1Projective),
-                                       stream, gpu_index, true);
   cuda_memset_with_size_tracking_async(d_expected, 0, sizeof(G1Affine), stream,
                                        gpu_index, true);
   cuda_memset_with_size_tracking_async(d_G, 0, sizeof(G1Affine), stream,
@@ -289,8 +285,9 @@ TEST_F(MSMTest, G1MSMWithGenerator) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G1Affine),
                                               stream, gpu_index, true);
 
-  // Compute MSM on device (returns projective point)
-  test_point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, N,
+  // Compute MSM (result written directly to host)
+  G1Projective h_result_proj;
+  test_point_msm_g1(stream, gpu_index, &h_result_proj, d_points, d_scalars, N,
                     size_tracker);
 
   // Compute expected result on device: G * (N * (N+1) / 2)
@@ -299,12 +296,9 @@ TEST_F(MSMTest, G1MSMWithGenerator) {
   single_point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_G,
                                     expected_scalar);
 
-  // Copy results to host and compare on CPU (avoids GPU->CPU->GPU round-trip)
+  // Copy expected result to host for comparison
   cuda_synchronize_stream(stream, gpu_index);
-  G1Projective h_result_proj;
   G1Affine expected_result;
-  cuda_memcpy_async_to_cpu(&h_result_proj, d_result, sizeof(G1Projective),
-                           stream, gpu_index);
   cuda_memcpy_async_to_cpu(&expected_result, d_expected, sizeof(G1Affine),
                            stream, gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
@@ -332,7 +326,6 @@ TEST_F(MSMTest, G1MSMWithGenerator) {
   free(h_scalars);
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
   // Scratch freed by test helper
   cuda_drop_with_size_tracking_async(d_expected, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
@@ -364,9 +357,6 @@ TEST_F(MSMTest, G2MSMWithGenerator) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G2Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G2Projective), stream, gpu_index, size_tracker, true));
   // Scratch is managed by the test helper wrappers
   auto *d_expected =
       static_cast<G2Affine *>(cuda_malloc_with_size_tracking_async(
@@ -375,8 +365,6 @@ TEST_F(MSMTest, G2MSMWithGenerator) {
       sizeof(G2Affine), stream, gpu_index, size_tracker, true));
 
   // Initialize allocated memory to zero to avoid uninitialized access warnings
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G2Projective),
-                                       stream, gpu_index, true);
   cuda_memset_with_size_tracking_async(d_expected, 0, sizeof(G2Affine), stream,
                                        gpu_index, true);
   cuda_memset_with_size_tracking_async(d_G, 0, sizeof(G2Affine), stream,
@@ -415,8 +403,9 @@ TEST_F(MSMTest, G2MSMWithGenerator) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G2Affine),
                                               stream, gpu_index, true);
 
-  // Compute MSM on device (returns projective point)
-  test_point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, N,
+  // Compute MSM (result written directly to host)
+  G2Projective h_result_proj;
+  test_point_msm_g2(stream, gpu_index, &h_result_proj, d_points, d_scalars, N,
                     size_tracker);
 
   // Compute expected result on device: G * (N * (N+1) / 2)
@@ -425,12 +414,9 @@ TEST_F(MSMTest, G2MSMWithGenerator) {
   single_point_scalar_mul<G2Affine>(stream, gpu_index, d_expected, d_G,
                                     expected_scalar);
 
-  // Copy results to host and compare on CPU (avoids GPU->CPU->GPU round-trip)
+  // Copy expected result to host for comparison
   cuda_synchronize_stream(stream, gpu_index);
-  G2Projective h_result_proj;
   G2Affine expected_result;
-  cuda_memcpy_async_to_cpu(&h_result_proj, d_result, sizeof(G2Projective),
-                           stream, gpu_index);
   cuda_memcpy_async_to_cpu(&expected_result, d_expected, sizeof(G2Affine),
                            stream, gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
@@ -462,7 +448,6 @@ TEST_F(MSMTest, G2MSMWithGenerator) {
   free(h_scalars);
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
   // Scratch freed by test helper
   cuda_drop_with_size_tracking_async(d_expected, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
@@ -488,9 +473,6 @@ TEST_F(MSMTest, G1MSMLargeN) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(MAX_N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G1Projective), stream, gpu_index, size_tracker, true));
   auto *d_expected =
       static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
           sizeof(G1Affine), stream, gpu_index, size_tracker, true));
@@ -523,10 +505,8 @@ TEST_F(MSMTest, G1MSMLargeN) {
         d_scalars, h_scalars, safe_mul_sizeof<Scalar>(static_cast<size_t>(N)),
         stream, gpu_index, true);
 
-    cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G1Projective),
-                                         stream, gpu_index, true);
-
-    test_point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, N,
+    G1Projective h_result_proj;
+    test_point_msm_g1(stream, gpu_index, &h_result_proj, d_points, d_scalars, N,
                       size_tracker);
 
     UNSIGNED_LIMB expected_scalar =
@@ -534,12 +514,9 @@ TEST_F(MSMTest, G1MSMLargeN) {
     single_point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_G,
                                       expected_scalar);
 
-    // Copy results to host and compare on CPU
+    // Copy expected result to host for comparison
     cuda_synchronize_stream(stream, gpu_index);
-    G1Projective h_result_proj;
     G1Affine expected_result;
-    cuda_memcpy_async_to_cpu(&h_result_proj, d_result, sizeof(G1Projective),
-                             stream, gpu_index);
     cuda_memcpy_async_to_cpu(&expected_result, d_expected, sizeof(G1Affine),
                              stream, gpu_index);
     cuda_synchronize_stream(stream, gpu_index);
@@ -577,7 +554,6 @@ TEST_F(MSMTest, G1MSMLargeN) {
   free(h_scalars);
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_expected, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
 }
@@ -602,9 +578,6 @@ TEST_F(MSMTest, G2MSMLargeN) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(MAX_N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G2Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G2Projective), stream, gpu_index, size_tracker, true));
   auto *d_expected =
       static_cast<G2Affine *>(cuda_malloc_with_size_tracking_async(
           sizeof(G2Affine), stream, gpu_index, size_tracker, true));
@@ -637,10 +610,8 @@ TEST_F(MSMTest, G2MSMLargeN) {
         d_scalars, h_scalars, safe_mul_sizeof<Scalar>(static_cast<size_t>(N)),
         stream, gpu_index, true);
 
-    cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G2Projective),
-                                         stream, gpu_index, true);
-
-    test_point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, N,
+    G2Projective h_result_proj;
+    test_point_msm_g2(stream, gpu_index, &h_result_proj, d_points, d_scalars, N,
                       size_tracker);
 
     UNSIGNED_LIMB expected_scalar =
@@ -648,12 +619,9 @@ TEST_F(MSMTest, G2MSMLargeN) {
     single_point_scalar_mul<G2Affine>(stream, gpu_index, d_expected, d_G,
                                       expected_scalar);
 
-    // Copy results to host and compare on CPU
+    // Copy expected result to host for comparison
     cuda_synchronize_stream(stream, gpu_index);
-    G2Projective h_result_proj;
     G2Affine expected_result;
-    cuda_memcpy_async_to_cpu(&h_result_proj, d_result, sizeof(G2Projective),
-                             stream, gpu_index);
     cuda_memcpy_async_to_cpu(&expected_result, d_expected, sizeof(G2Affine),
                              stream, gpu_index);
     cuda_synchronize_stream(stream, gpu_index);
@@ -691,7 +659,6 @@ TEST_F(MSMTest, G2MSMLargeN) {
   free(h_scalars);
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_expected, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
 }
@@ -735,9 +702,6 @@ TEST_F(MSMTest, G1MSMWithBigIntScalars) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G1Projective), stream, gpu_index, size_tracker, true));
   // Scratch is managed by the test helper wrappers
   auto *d_expected =
       static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
@@ -745,8 +709,6 @@ TEST_F(MSMTest, G1MSMWithBigIntScalars) {
   auto *d_G = static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
       sizeof(G1Affine), stream, gpu_index, size_tracker, true));
 
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G1Projective),
-                                       stream, gpu_index, true);
   cuda_memset_with_size_tracking_async(d_expected, 0, sizeof(G1Affine), stream,
                                        gpu_index, true);
   cuda_memset_with_size_tracking_async(d_G, 0, sizeof(G1Affine), stream,
@@ -777,7 +739,8 @@ TEST_F(MSMTest, G1MSMWithBigIntScalars) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G1Affine),
                                               stream, gpu_index, true);
 
-  test_point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, N,
+  G1Projective h_result_proj;
+  test_point_msm_g1(stream, gpu_index, &h_result_proj, d_points, d_scalars, N,
                     size_tracker);
 
   UNSIGNED_LIMB expected_scalar =
@@ -785,12 +748,9 @@ TEST_F(MSMTest, G1MSMWithBigIntScalars) {
   single_point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_G,
                                     expected_scalar);
 
-  // Copy results to host and compare on CPU (avoids GPU->CPU->GPU round-trip)
+  // Copy expected result to host for comparison
   cuda_synchronize_stream(stream, gpu_index);
-  G1Projective h_result_proj;
   G1Affine expected_result;
-  cuda_memcpy_async_to_cpu(&h_result_proj, d_result, sizeof(G1Projective),
-                           stream, gpu_index);
   cuda_memcpy_async_to_cpu(&expected_result, d_expected, sizeof(G1Affine),
                            stream, gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
@@ -816,7 +776,6 @@ TEST_F(MSMTest, G1MSMWithBigIntScalars) {
   free(h_scalars);
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
   // Scratch freed by test helper
   cuda_drop_with_size_tracking_async(d_expected, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
@@ -844,9 +803,6 @@ TEST_F(MSMTest, G2MSMWithBigIntScalars) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G2Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G2Projective), stream, gpu_index, size_tracker, true));
   // Scratch is managed by the test helper wrappers
   auto *d_expected =
       static_cast<G2Affine *>(cuda_malloc_with_size_tracking_async(
@@ -854,8 +810,6 @@ TEST_F(MSMTest, G2MSMWithBigIntScalars) {
   auto *d_G = static_cast<G2Affine *>(cuda_malloc_with_size_tracking_async(
       sizeof(G2Affine), stream, gpu_index, size_tracker, true));
 
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G2Projective),
-                                       stream, gpu_index, true);
   cuda_memset_with_size_tracking_async(d_expected, 0, sizeof(G2Affine), stream,
                                        gpu_index, true);
   cuda_memset_with_size_tracking_async(d_G, 0, sizeof(G2Affine), stream,
@@ -886,7 +840,8 @@ TEST_F(MSMTest, G2MSMWithBigIntScalars) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G2Affine),
                                               stream, gpu_index, true);
 
-  test_point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, N,
+  G2Projective h_result_proj;
+  test_point_msm_g2(stream, gpu_index, &h_result_proj, d_points, d_scalars, N,
                     size_tracker);
 
   UNSIGNED_LIMB expected_scalar =
@@ -894,12 +849,9 @@ TEST_F(MSMTest, G2MSMWithBigIntScalars) {
   single_point_scalar_mul<G2Affine>(stream, gpu_index, d_expected, d_G,
                                     expected_scalar);
 
-  // Copy results to host and compare on CPU (avoids GPU->CPU->GPU round-trip)
+  // Copy expected result to host for comparison
   cuda_synchronize_stream(stream, gpu_index);
-  G2Projective h_result_proj;
   G2Affine expected_result;
-  cuda_memcpy_async_to_cpu(&h_result_proj, d_result, sizeof(G2Projective),
-                           stream, gpu_index);
   cuda_memcpy_async_to_cpu(&expected_result, d_expected, sizeof(G2Affine),
                            stream, gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
@@ -929,7 +881,6 @@ TEST_F(MSMTest, G2MSMWithBigIntScalars) {
   free(h_scalars);
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
   // Scratch freed by test helper
   cuda_drop_with_size_tracking_async(d_expected, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
@@ -979,9 +930,6 @@ TEST_F(MSMTest, G1MSMWithBigIntTwoLimbScalar) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G1Projective), stream, gpu_index, size_tracker, true));
   // Scratch is managed by the test helper wrappers
   auto *d_expected =
       static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
@@ -989,8 +937,6 @@ TEST_F(MSMTest, G1MSMWithBigIntTwoLimbScalar) {
   auto *d_G = static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
       sizeof(G1Affine), stream, gpu_index, size_tracker, true));
 
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G1Projective),
-                                       stream, gpu_index, true);
   cuda_memset_with_size_tracking_async(d_expected, 0, sizeof(G1Affine), stream,
                                        gpu_index, true);
   cuda_memset_with_size_tracking_async(d_G, 0, sizeof(G1Affine), stream,
@@ -1019,7 +965,8 @@ TEST_F(MSMTest, G1MSMWithBigIntTwoLimbScalar) {
                                               stream, gpu_index, true);
 
   // Compute MSM
-  test_point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, N,
+  G1Projective h_result_proj;
+  test_point_msm_g1(stream, gpu_index, &h_result_proj, d_points, d_scalars, N,
                     size_tracker);
 
   // Compute expected: G * 2^64 using multi-limb scalar multiplication
@@ -1038,10 +985,7 @@ TEST_F(MSMTest, G1MSMWithBigIntTwoLimbScalar) {
   // Convert results for comparison
   // Copy results to host and compare on CPU (avoids GPU->CPU->GPU round-trip)
   cuda_synchronize_stream(stream, gpu_index);
-  G1Projective h_result_proj;
   G1Affine expected_result;
-  cuda_memcpy_async_to_cpu(&h_result_proj, d_result, sizeof(G1Projective),
-                           stream, gpu_index);
   cuda_memcpy_async_to_cpu(&expected_result, d_expected, sizeof(G1Affine),
                            stream, gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
@@ -1067,7 +1011,6 @@ TEST_F(MSMTest, G1MSMWithBigIntTwoLimbScalar) {
   free(h_scalars);
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
   // Scratch freed by test helper
   cuda_drop_with_size_tracking_async(d_expected, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
@@ -1095,9 +1038,6 @@ TEST_F(MSMTest, G1MSMWithBigIntMultiLimbScalars) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G1Projective), stream, gpu_index, size_tracker, true));
   // Scratch is managed by the test helper wrappers
   auto *d_expected =
       static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
@@ -1105,8 +1045,6 @@ TEST_F(MSMTest, G1MSMWithBigIntMultiLimbScalars) {
   auto *d_G = static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
       sizeof(G1Affine), stream, gpu_index, size_tracker, true));
 
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G1Projective),
-                                       stream, gpu_index, true);
   cuda_memset_with_size_tracking_async(d_expected, 0, sizeof(G1Affine), stream,
                                        gpu_index, true);
   cuda_memset_with_size_tracking_async(d_G, 0, sizeof(G1Affine), stream,
@@ -1141,7 +1079,8 @@ TEST_F(MSMTest, G1MSMWithBigIntMultiLimbScalars) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G1Affine),
                                               stream, gpu_index, true);
 
-  test_point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, N,
+  G1Projective h_result_proj;
+  test_point_msm_g1(stream, gpu_index, &h_result_proj, d_points, d_scalars, N,
                     size_tracker);
 
   // Compute expected result by summing individual scalar multiplications
@@ -1189,10 +1128,7 @@ TEST_F(MSMTest, G1MSMWithBigIntMultiLimbScalars) {
 
   // Copy results to host and compare on CPU (avoids GPU->CPU->GPU round-trip)
   cuda_synchronize_stream(stream, gpu_index);
-  G1Projective h_result_proj;
   G1Affine expected_result;
-  cuda_memcpy_async_to_cpu(&h_result_proj, d_result, sizeof(G1Projective),
-                           stream, gpu_index);
   cuda_memcpy_async_to_cpu(&expected_result, d_expected, sizeof(G1Affine),
                            stream, gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
@@ -1218,7 +1154,6 @@ TEST_F(MSMTest, G1MSMWithBigIntMultiLimbScalars) {
   free(h_scalars);
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
   // Scratch freed by test helper
   cuda_drop_with_size_tracking_async(d_expected, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
@@ -1246,9 +1181,6 @@ TEST_F(MSMTest, G1MSMWithBigInt5MaxValueScalars) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G1Projective), stream, gpu_index, size_tracker, true));
   // Scratch is managed by the test helper wrappers
   auto *d_expected =
       static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
@@ -1256,8 +1188,6 @@ TEST_F(MSMTest, G1MSMWithBigInt5MaxValueScalars) {
   auto *d_G = static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
       sizeof(G1Affine), stream, gpu_index, size_tracker, true));
 
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G1Projective),
-                                       stream, gpu_index, true);
   cuda_memset_with_size_tracking_async(d_expected, 0, sizeof(G1Affine), stream,
                                        gpu_index, true);
   cuda_memset_with_size_tracking_async(d_G, 0, sizeof(G1Affine), stream,
@@ -1294,7 +1224,8 @@ TEST_F(MSMTest, G1MSMWithBigInt5MaxValueScalars) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G1Affine),
                                               stream, gpu_index, true);
 
-  test_point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, N,
+  G1Projective h_result_proj;
+  test_point_msm_g1(stream, gpu_index, &h_result_proj, d_points, d_scalars, N,
                     size_tracker);
 
   // Compute expected result by summing individual scalar multiplications
@@ -1335,10 +1266,7 @@ TEST_F(MSMTest, G1MSMWithBigInt5MaxValueScalars) {
 
   // Copy results to host and compare on CPU (avoids GPU->CPU->GPU round-trip)
   cuda_synchronize_stream(stream, gpu_index);
-  G1Projective h_result_proj;
   G1Affine expected_result;
-  cuda_memcpy_async_to_cpu(&h_result_proj, d_result, sizeof(G1Projective),
-                           stream, gpu_index);
   cuda_memcpy_async_to_cpu(&expected_result, d_expected, sizeof(G1Affine),
                            stream, gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
@@ -1364,7 +1292,6 @@ TEST_F(MSMTest, G1MSMWithBigInt5MaxValueScalars) {
   free(h_scalars);
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
   // Scratch freed by test helper
   cuda_drop_with_size_tracking_async(d_expected, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
@@ -1392,9 +1319,6 @@ TEST_F(MSMTest, G2MSMWithBigInt5MultiLimbScalars) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G2Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G2Projective), stream, gpu_index, size_tracker, true));
   // Scratch is managed by the test helper wrappers
   auto *d_expected =
       static_cast<G2Affine *>(cuda_malloc_with_size_tracking_async(
@@ -1402,8 +1326,6 @@ TEST_F(MSMTest, G2MSMWithBigInt5MultiLimbScalars) {
   auto *d_G = static_cast<G2Affine *>(cuda_malloc_with_size_tracking_async(
       sizeof(G2Affine), stream, gpu_index, size_tracker, true));
 
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G2Projective),
-                                       stream, gpu_index, true);
   cuda_memset_with_size_tracking_async(d_expected, 0, sizeof(G2Affine), stream,
                                        gpu_index, true);
   cuda_memset_with_size_tracking_async(d_G, 0, sizeof(G2Affine), stream,
@@ -1438,7 +1360,8 @@ TEST_F(MSMTest, G2MSMWithBigInt5MultiLimbScalars) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G2Affine),
                                               stream, gpu_index, true);
 
-  test_point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, N,
+  G2Projective h_result_proj;
+  test_point_msm_g2(stream, gpu_index, &h_result_proj, d_points, d_scalars, N,
                     size_tracker);
 
   // Compute expected result by summing individual scalar multiplications
@@ -1479,10 +1402,7 @@ TEST_F(MSMTest, G2MSMWithBigInt5MultiLimbScalars) {
 
   // Copy results to host and compare on CPU (avoids GPU->CPU->GPU round-trip)
   cuda_synchronize_stream(stream, gpu_index);
-  G2Projective h_result_proj;
   G2Affine expected_result;
-  cuda_memcpy_async_to_cpu(&h_result_proj, d_result, sizeof(G2Projective),
-                           stream, gpu_index);
   cuda_memcpy_async_to_cpu(&expected_result, d_expected, sizeof(G2Affine),
                            stream, gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
@@ -1512,7 +1432,6 @@ TEST_F(MSMTest, G2MSMWithBigInt5MultiLimbScalars) {
   free(h_scalars);
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
   // Scratch freed by test helper
   cuda_drop_with_size_tracking_async(d_expected, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
@@ -1540,9 +1459,6 @@ TEST_F(MSMTest, G1MSMWithBigInt5ThreeLimbScalar) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G1Projective), stream, gpu_index, size_tracker, true));
   // Scratch is managed by the test helper wrappers
   auto *d_expected =
       static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
@@ -1550,8 +1466,6 @@ TEST_F(MSMTest, G1MSMWithBigInt5ThreeLimbScalar) {
   auto *d_G = static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
       sizeof(G1Affine), stream, gpu_index, size_tracker, true));
 
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G1Projective),
-                                       stream, gpu_index, true);
   cuda_memset_with_size_tracking_async(d_expected, 0, sizeof(G1Affine), stream,
                                        gpu_index, true);
   cuda_memset_with_size_tracking_async(d_G, 0, sizeof(G1Affine), stream,
@@ -1579,7 +1493,8 @@ TEST_F(MSMTest, G1MSMWithBigInt5ThreeLimbScalar) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G1Affine),
                                               stream, gpu_index, true);
 
-  test_point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, N,
+  G1Projective h_result_proj;
+  test_point_msm_g1(stream, gpu_index, &h_result_proj, d_points, d_scalars, N,
                     size_tracker);
 
   auto *d_scalar_temp =
@@ -1596,10 +1511,7 @@ TEST_F(MSMTest, G1MSMWithBigInt5ThreeLimbScalar) {
 
   // Copy results to host and compare on CPU (avoids GPU->CPU->GPU round-trip)
   cuda_synchronize_stream(stream, gpu_index);
-  G1Projective h_result_proj;
   G1Affine expected_result;
-  cuda_memcpy_async_to_cpu(&h_result_proj, d_result, sizeof(G1Projective),
-                           stream, gpu_index);
   cuda_memcpy_async_to_cpu(&expected_result, d_expected, sizeof(G1Affine),
                            stream, gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
@@ -1625,7 +1537,6 @@ TEST_F(MSMTest, G1MSMWithBigInt5ThreeLimbScalar) {
   free(h_scalars);
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
   // Scratch freed by test helper
   cuda_drop_with_size_tracking_async(d_expected, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
@@ -1653,9 +1564,6 @@ TEST_F(MSMTest, G1MSMWithBigInt5FourLimbScalar) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G1Projective), stream, gpu_index, size_tracker, true));
   // Scratch is managed by the test helper wrappers
   auto *d_expected =
       static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
@@ -1663,8 +1571,6 @@ TEST_F(MSMTest, G1MSMWithBigInt5FourLimbScalar) {
   auto *d_G = static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
       sizeof(G1Affine), stream, gpu_index, size_tracker, true));
 
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G1Projective),
-                                       stream, gpu_index, true);
   cuda_memset_with_size_tracking_async(d_expected, 0, sizeof(G1Affine), stream,
                                        gpu_index, true);
   cuda_memset_with_size_tracking_async(d_G, 0, sizeof(G1Affine), stream,
@@ -1692,7 +1598,8 @@ TEST_F(MSMTest, G1MSMWithBigInt5FourLimbScalar) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G1Affine),
                                               stream, gpu_index, true);
 
-  test_point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, N,
+  G1Projective h_result_proj;
+  test_point_msm_g1(stream, gpu_index, &h_result_proj, d_points, d_scalars, N,
                     size_tracker);
 
   auto *d_scalar_temp =
@@ -1709,10 +1616,7 @@ TEST_F(MSMTest, G1MSMWithBigInt5FourLimbScalar) {
 
   // Copy results to host and compare on CPU (avoids GPU->CPU->GPU round-trip)
   cuda_synchronize_stream(stream, gpu_index);
-  G1Projective h_result_proj;
   G1Affine expected_result;
-  cuda_memcpy_async_to_cpu(&h_result_proj, d_result, sizeof(G1Projective),
-                           stream, gpu_index);
   cuda_memcpy_async_to_cpu(&expected_result, d_expected, sizeof(G1Affine),
                            stream, gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
@@ -1738,7 +1642,6 @@ TEST_F(MSMTest, G1MSMWithBigInt5FourLimbScalar) {
   free(h_scalars);
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
   // Scratch freed by test helper
   cuda_drop_with_size_tracking_async(d_expected, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
@@ -1766,9 +1669,6 @@ TEST_F(MSMTest, G1MSMWithBigInt5FiveLimbScalar) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G1Projective), stream, gpu_index, size_tracker, true));
   // Scratch is managed by the test helper wrappers
   auto *d_expected =
       static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
@@ -1776,8 +1676,6 @@ TEST_F(MSMTest, G1MSMWithBigInt5FiveLimbScalar) {
   auto *d_G = static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
       sizeof(G1Affine), stream, gpu_index, size_tracker, true));
 
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G1Projective),
-                                       stream, gpu_index, true);
   cuda_memset_with_size_tracking_async(d_expected, 0, sizeof(G1Affine), stream,
                                        gpu_index, true);
   cuda_memset_with_size_tracking_async(d_G, 0, sizeof(G1Affine), stream,
@@ -1805,7 +1703,8 @@ TEST_F(MSMTest, G1MSMWithBigInt5FiveLimbScalar) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G1Affine),
                                               stream, gpu_index, true);
 
-  test_point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, N,
+  G1Projective h_result_proj;
+  test_point_msm_g1(stream, gpu_index, &h_result_proj, d_points, d_scalars, N,
                     size_tracker);
 
   auto *d_scalar_temp =
@@ -1822,10 +1721,7 @@ TEST_F(MSMTest, G1MSMWithBigInt5FiveLimbScalar) {
 
   // Copy results to host and compare on CPU (avoids GPU->CPU->GPU round-trip)
   cuda_synchronize_stream(stream, gpu_index);
-  G1Projective h_result_proj;
   G1Affine expected_result;
-  cuda_memcpy_async_to_cpu(&h_result_proj, d_result, sizeof(G1Projective),
-                           stream, gpu_index);
   cuda_memcpy_async_to_cpu(&expected_result, d_expected, sizeof(G1Affine),
                            stream, gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
@@ -1851,7 +1747,6 @@ TEST_F(MSMTest, G1MSMWithBigInt5FiveLimbScalar) {
   free(h_scalars);
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
   // Scratch freed by test helper
   cuda_drop_with_size_tracking_async(d_expected, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
@@ -1880,9 +1775,6 @@ TEST_F(MSMTest, G1MSMWithBigInt5Max320BitScalar) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G1Projective), stream, gpu_index, size_tracker, true));
   // Scratch is managed by the test helper wrappers
   auto *d_expected =
       static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
@@ -1890,8 +1782,6 @@ TEST_F(MSMTest, G1MSMWithBigInt5Max320BitScalar) {
   auto *d_G = static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
       sizeof(G1Affine), stream, gpu_index, size_tracker, true));
 
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G1Projective),
-                                       stream, gpu_index, true);
   cuda_memset_with_size_tracking_async(d_expected, 0, sizeof(G1Affine), stream,
                                        gpu_index, true);
   cuda_memset_with_size_tracking_async(d_G, 0, sizeof(G1Affine), stream,
@@ -1924,7 +1814,8 @@ TEST_F(MSMTest, G1MSMWithBigInt5Max320BitScalar) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G1Affine),
                                               stream, gpu_index, true);
 
-  test_point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, N,
+  G1Projective h_result_proj;
+  test_point_msm_g1(stream, gpu_index, &h_result_proj, d_points, d_scalars, N,
                     size_tracker);
 
   auto *d_scalar_temp =
@@ -1941,10 +1832,7 @@ TEST_F(MSMTest, G1MSMWithBigInt5Max320BitScalar) {
 
   // Copy results to host and compare on CPU (avoids GPU->CPU->GPU round-trip)
   cuda_synchronize_stream(stream, gpu_index);
-  G1Projective h_result_proj;
   G1Affine expected_result;
-  cuda_memcpy_async_to_cpu(&h_result_proj, d_result, sizeof(G1Projective),
-                           stream, gpu_index);
   cuda_memcpy_async_to_cpu(&expected_result, d_expected, sizeof(G1Affine),
                            stream, gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
@@ -1970,7 +1858,6 @@ TEST_F(MSMTest, G1MSMWithBigInt5Max320BitScalar) {
   free(h_scalars);
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
   // Scratch freed by test helper
   cuda_drop_with_size_tracking_async(d_expected, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
@@ -1998,13 +1885,6 @@ TEST_F(MSMTest, G1MSMZeroScalarsReturnsInfinity) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G1Projective), stream, gpu_index, size_tracker, true));
-
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G1Projective),
-                                       stream, gpu_index, true);
-
   // N copies of the generator, all scalars zero
   auto *h_points = static_cast<G1Affine *>(
       malloc(safe_mul_sizeof<G1Affine>(static_cast<size_t>(N))));
@@ -2025,14 +1905,9 @@ TEST_F(MSMTest, G1MSMZeroScalarsReturnsInfinity) {
   point_to_montgomery_batch<G1Affine>(stream, gpu_index, d_points, N);
   check_cuda_error(cudaGetLastError());
 
-  test_point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, N,
-                    size_tracker);
-
-  cuda_synchronize_stream(stream, gpu_index);
   G1Projective h_result;
-  cuda_memcpy_async_to_cpu(&h_result, d_result, sizeof(G1Projective), stream,
-                           gpu_index);
-  cuda_synchronize_stream(stream, gpu_index);
+  test_point_msm_g1(stream, gpu_index, &h_result, d_points, d_scalars, N,
+                    size_tracker);
 
   EXPECT_TRUE(fp_is_zero(h_result.Z))
       << "0*G + 0*G + ... should be the identity (Z == 0)";
@@ -2041,7 +1916,6 @@ TEST_F(MSMTest, G1MSMZeroScalarsReturnsInfinity) {
   free(h_scalars);
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
 }
 
 TEST_F(MSMTest, G2MSMZeroScalarsReturnsInfinity) {
@@ -2060,13 +1934,6 @@ TEST_F(MSMTest, G2MSMZeroScalarsReturnsInfinity) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G2Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G2Projective), stream, gpu_index, size_tracker, true));
-
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G2Projective),
-                                       stream, gpu_index, true);
-
   auto *h_points = static_cast<G2Affine *>(
       malloc(safe_mul_sizeof<G2Affine>(static_cast<size_t>(N))));
   auto *h_scalars = static_cast<Scalar *>(
@@ -2086,14 +1953,9 @@ TEST_F(MSMTest, G2MSMZeroScalarsReturnsInfinity) {
   point_to_montgomery_batch<G2Affine>(stream, gpu_index, d_points, N);
   check_cuda_error(cudaGetLastError());
 
-  test_point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, N,
-                    size_tracker);
-
-  cuda_synchronize_stream(stream, gpu_index);
   G2Projective h_result;
-  cuda_memcpy_async_to_cpu(&h_result, d_result, sizeof(G2Projective), stream,
-                           gpu_index);
-  cuda_synchronize_stream(stream, gpu_index);
+  test_point_msm_g2(stream, gpu_index, &h_result, d_points, d_scalars, N,
+                    size_tracker);
 
   EXPECT_TRUE(fp2_is_zero(h_result.Z))
       << "0*G + 0*G + ... should be the identity (Z.c0 == 0 && Z.c1 == 0)";
@@ -2102,7 +1964,6 @@ TEST_F(MSMTest, G2MSMZeroScalarsReturnsInfinity) {
   free(h_scalars);
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
 }
 
 // Scalars [1, r-1] on two copies of G cancel: 1*G + (r-1)*G = r*G = O.
@@ -2123,13 +1984,6 @@ TEST_F(MSMTest, G1MSMCancelingScalarsReturnsInfinity) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G1Projective), stream, gpu_index, size_tracker, true));
-
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G1Projective),
-                                       stream, gpu_index, true);
-
   G1Affine h_points[N] = {G, G};
   Scalar h_scalars[N];
   h_scalars[0] = scalar_from_limbs(1, 0, 0, 0, 0);
@@ -2147,21 +2001,15 @@ TEST_F(MSMTest, G1MSMCancelingScalarsReturnsInfinity) {
   point_to_montgomery_batch<G1Affine>(stream, gpu_index, d_points, N);
   check_cuda_error(cudaGetLastError());
 
-  test_point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, N,
-                    size_tracker);
-
-  cuda_synchronize_stream(stream, gpu_index);
   G1Projective h_result;
-  cuda_memcpy_async_to_cpu(&h_result, d_result, sizeof(G1Projective), stream,
-                           gpu_index);
-  cuda_synchronize_stream(stream, gpu_index);
+  test_point_msm_g1(stream, gpu_index, &h_result, d_points, d_scalars, N,
+                    size_tracker);
 
   EXPECT_TRUE(fp_is_zero(h_result.Z))
       << "1*G + (r-1)*G should be the identity (Z == 0)";
 
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
 }
 
 TEST_F(MSMTest, G2MSMCancelingScalarsReturnsInfinity) {
@@ -2180,13 +2028,6 @@ TEST_F(MSMTest, G2MSMCancelingScalarsReturnsInfinity) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G2Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G2Projective), stream, gpu_index, size_tracker, true));
-
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G2Projective),
-                                       stream, gpu_index, true);
-
   G2Affine h_points[N] = {G, G};
   Scalar h_scalars[N];
   h_scalars[0] = scalar_from_limbs(1, 0, 0, 0, 0);
@@ -2204,21 +2045,15 @@ TEST_F(MSMTest, G2MSMCancelingScalarsReturnsInfinity) {
   point_to_montgomery_batch<G2Affine>(stream, gpu_index, d_points, N);
   check_cuda_error(cudaGetLastError());
 
-  test_point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, N,
-                    size_tracker);
-
-  cuda_synchronize_stream(stream, gpu_index);
   G2Projective h_result;
-  cuda_memcpy_async_to_cpu(&h_result, d_result, sizeof(G2Projective), stream,
-                           gpu_index);
-  cuda_synchronize_stream(stream, gpu_index);
+  test_point_msm_g2(stream, gpu_index, &h_result, d_points, d_scalars, N,
+                    size_tracker);
 
   EXPECT_TRUE(fp2_is_zero(h_result.Z))
       << "1*G + (r-1)*G should be the identity (Z.c0 == 0 && Z.c1 == 0)";
 
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
 }
 
 // Points [O, G, O] with scalars [5, 3, 7]. Infinity inputs contribute nothing,
@@ -2242,17 +2077,12 @@ TEST_F(MSMTest, G1MSMInfinityPointInput) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G1Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G1Projective), stream, gpu_index, size_tracker, true));
   auto *d_expected =
       static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
           sizeof(G1Affine), stream, gpu_index, size_tracker, true));
   auto *d_G = static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
       sizeof(G1Affine), stream, gpu_index, size_tracker, true));
 
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G1Projective),
-                                       stream, gpu_index, true);
   cuda_memset_with_size_tracking_async(d_expected, 0, sizeof(G1Affine), stream,
                                        gpu_index, true);
   cuda_memset_with_size_tracking_async(d_G, 0, sizeof(G1Affine), stream,
@@ -2281,19 +2111,13 @@ TEST_F(MSMTest, G1MSMInfinityPointInput) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G1Affine),
                                               stream, gpu_index, true);
 
-  test_point_msm_g1(stream, gpu_index, d_result, d_points, d_scalars, N,
+  G1Projective h_result_proj;
+  test_point_msm_g1(stream, gpu_index, &h_result_proj, d_points, d_scalars, N,
                     size_tracker);
 
   // Expected: 3 * G
   single_point_scalar_mul<G1Affine>(stream, gpu_index, d_expected, d_G,
                                     static_cast<UNSIGNED_LIMB>(3));
-
-  // Convert MSM projective result to affine
-  cuda_synchronize_stream(stream, gpu_index);
-  G1Projective h_result_proj;
-  cuda_memcpy_async_to_cpu(&h_result_proj, d_result, sizeof(G1Projective),
-                           stream, gpu_index);
-  cuda_synchronize_stream(stream, gpu_index);
 
   auto *d_result_affine =
       static_cast<G1Affine *>(cuda_malloc_with_size_tracking_async(
@@ -2336,7 +2160,6 @@ TEST_F(MSMTest, G1MSMInfinityPointInput) {
 
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_expected, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
 }
@@ -2360,17 +2183,12 @@ TEST_F(MSMTest, G2MSMInfinityPointInput) {
   auto *d_scalars = static_cast<Scalar *>(cuda_malloc_with_size_tracking_async(
       safe_mul_sizeof<Scalar>(static_cast<size_t>(N)), stream, gpu_index,
       size_tracker, true));
-  auto *d_result =
-      static_cast<G2Projective *>(cuda_malloc_with_size_tracking_async(
-          sizeof(G2Projective), stream, gpu_index, size_tracker, true));
   auto *d_expected =
       static_cast<G2Affine *>(cuda_malloc_with_size_tracking_async(
           sizeof(G2Affine), stream, gpu_index, size_tracker, true));
   auto *d_G = static_cast<G2Affine *>(cuda_malloc_with_size_tracking_async(
       sizeof(G2Affine), stream, gpu_index, size_tracker, true));
 
-  cuda_memset_with_size_tracking_async(d_result, 0, sizeof(G2Projective),
-                                       stream, gpu_index, true);
   cuda_memset_with_size_tracking_async(d_expected, 0, sizeof(G2Affine), stream,
                                        gpu_index, true);
   cuda_memset_with_size_tracking_async(d_G, 0, sizeof(G2Affine), stream,
@@ -2398,19 +2216,13 @@ TEST_F(MSMTest, G2MSMInfinityPointInput) {
   cuda_memcpy_with_size_tracking_async_to_gpu(d_G, &G_mont, sizeof(G2Affine),
                                               stream, gpu_index, true);
 
-  test_point_msm_g2(stream, gpu_index, d_result, d_points, d_scalars, N,
+  G2Projective h_result_proj;
+  test_point_msm_g2(stream, gpu_index, &h_result_proj, d_points, d_scalars, N,
                     size_tracker);
 
   // Expected: 3 * G
   single_point_scalar_mul<G2Affine>(stream, gpu_index, d_expected, d_G,
                                     static_cast<UNSIGNED_LIMB>(3));
-
-  // Convert MSM projective result to affine
-  cuda_synchronize_stream(stream, gpu_index);
-  G2Projective h_result_proj;
-  cuda_memcpy_async_to_cpu(&h_result_proj, d_result, sizeof(G2Projective),
-                           stream, gpu_index);
-  cuda_synchronize_stream(stream, gpu_index);
 
   auto *d_result_affine =
       static_cast<G2Affine *>(cuda_malloc_with_size_tracking_async(
@@ -2453,7 +2265,6 @@ TEST_F(MSMTest, G2MSMInfinityPointInput) {
 
   cuda_drop_with_size_tracking_async(d_points, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
-  cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_expected, stream, gpu_index, true);
   cuda_drop_with_size_tracking_async(d_G, stream, gpu_index, true);
 }
