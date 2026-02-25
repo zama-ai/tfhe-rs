@@ -1439,6 +1439,28 @@ impl CompactCiphertextListBuilder {
                 .map(ProvenCompactCiphertextList)
         })
     }
+
+    #[cfg(feature = "zk-pok")]
+    pub fn build_with_proof_packed_seeded(
+        &self,
+        crs: &CompactPkeCrs,
+        metadata: &[u8],
+        compute_load: ZkComputeLoad,
+        seed: &[u8],
+    ) -> Result<ProvenCompactCiphertextList, JsError> {
+        catch_panic_result(|| {
+            if seed.len() != 16 {
+                return Err(into_js_error("seed must be exactly 16 bytes"));
+            }
+            let seed_value = crate::core_crypto::commons::math::random::Seed(
+                u128::from_le_bytes(seed.try_into().unwrap()),
+            );
+            self.0
+                .build_with_proof_packed_seeded(&crs.0, metadata, compute_load.into(), seed_value)
+                .map_err(into_js_error)
+                .map(ProvenCompactCiphertextList)
+        })
+    }
 }
 
 #[cfg(feature = "extended-types")]

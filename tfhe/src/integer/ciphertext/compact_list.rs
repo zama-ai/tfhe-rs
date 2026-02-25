@@ -9,6 +9,8 @@ use crate::integer::encryption::{create_clear_radix_block_iterator, KnowsMessage
 use crate::integer::parameters::CompactCiphertextListConformanceParams;
 pub use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use crate::integer::{CompactPublicKey, ServerKey};
+#[cfg(feature = "zk-pok")]
+use crate::core_crypto::commons::math::random::Seed;
 use crate::shortint::ciphertext::Degree;
 #[cfg(feature = "zk-pok")]
 use crate::shortint::ciphertext::ProvenCompactCiphertextListConformanceParams;
@@ -328,6 +330,42 @@ impl CompactCiphertextListBuilder {
             metadata,
             load,
             msg_mod * msg_mod,
+        )?;
+        Ok(ProvenCompactCiphertextList {
+            ct_list,
+            info: self.info.clone(),
+        })
+    }
+
+    #[cfg(feature = "zk-pok")]
+    pub fn build_with_proof_packed_seeded(
+        &self,
+        crs: &CompactPkeCrs,
+        metadata: &[u8],
+        load: ZkComputeLoad,
+        seed: Seed,
+    ) -> crate::Result<ProvenCompactCiphertextList> {
+        if self.pk.key.parameters.carry_modulus.0 < self.pk.key.parameters.message_modulus.0 {
+            return Err(crate::Error::new(
+                "In order to build a packed ProvenCompactCiphertextList, \
+                parameters must have CarryModulus >= MessageModulus"
+                    .to_string(),
+            ));
+        }
+
+        let msg_mod = self.pk.key.parameters.message_modulus.0;
+        let packed_messages = self
+            .messages
+            .chunks(2)
+            .map(|two_values| (two_values.get(1).copied().unwrap_or(0) * msg_mod) + two_values[0])
+            .collect::<Vec<_>>();
+        let ct_list = self.pk.key.encrypt_and_prove_slice_seeded(
+            packed_messages.as_slice(),
+            crs,
+            metadata,
+            load,
+            msg_mod * msg_mod,
+            seed,
         )?;
         Ok(ProvenCompactCiphertextList {
             ct_list,
