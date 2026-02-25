@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "cp -r ../../tfhe/pkg ./ && webpack build ./index.js --mode production -o dist --output-filename index.js && cp index.html dist/ && cp favicon.ico dist/",
+    "build": "cp -r ../../tfhe/pkg ./ && webpack build ./index.js --mode production -o dist --output-filename index.js && cp index.html dist/ && cp favicon.ico dist/ && cp -r pkg dist/ && cp sw.js dist/",
     "server": "npm run server:multithreaded",
     "server:multithreaded": "serve --config ../serve.multithreaded.json dist/",
     "server:cross-origin": "serve --config ../serve.cross-origin.json dist/",

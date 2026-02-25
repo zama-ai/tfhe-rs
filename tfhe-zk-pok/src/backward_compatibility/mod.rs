@@ -302,3 +302,8 @@ pub enum SerializablePKEv1DomainSeparatorsVersions {
 pub enum BoundVersions {
     V0(Bound),
 }
+
+#[derive(VersionsDispatch)]
+pub enum SerializableProjectiveVersions<F> {
+    V0(SerializableProjective<F>),
+}
