@@ -24,28 +24,31 @@ export const SYNC_EXECUTOR_NAME = "wasm_par_mq_sync_executor";
 // === Purpose 1: Worker bootstrap (runs only when loaded as a Worker) ===
 
 // Compute worker
-if (self.name === WORKER_NAME) {
-  addEventListener(
-    "message",
-    async () => {
-      const mod = await import("../../..");
-      await mod.default();
-      mod.start_worker(self.location.origin);
-    },
-    { once: true },
-  );
+// `self` is not defined in Node.js. Skip worker bootstrap here.
+if (typeof self !== "undefined") {
+  if (self.name === WORKER_NAME) {
+    addEventListener(
+      "message",
+      async () => {
+        const mod = await import("../../..");
+        await mod.default();
+        mod.start_worker(self.location.origin);
+      },
+      { once: true },
+    );
 
-  // Sync executor
-} else if (self.name === SYNC_EXECUTOR_NAME) {
-  addEventListener(
-    "message",
-    async ({ data: { numWorkers } }) => {
-      const mod = await import("../../..");
-      await mod.default();
-      mod.start_sync_executor(numWorkers);
-    },
-    { once: true },
-  );
+    // Sync executor
+  } else if (self.name === SYNC_EXECUTOR_NAME) {
+    addEventListener(
+      "message",
+      async ({ data: { numWorkers } }) => {
+        const mod = await import("../../..");
+        await mod.default();
+        mod.start_sync_executor(numWorkers);
+      },
+      { once: true },
+    );
+  }
 }
 
 // === Purpose 2: Utils for rust bindings (imported as a module) ===

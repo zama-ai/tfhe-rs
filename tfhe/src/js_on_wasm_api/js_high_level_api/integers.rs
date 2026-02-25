@@ -11,6 +11,9 @@ use crate::js_on_wasm_api::js_high_level_api::{catch_panic, catch_panic_result, 
 use js_sys::BigInt;
 use wasm_bindgen::prelude::*;
 
+#[cfg(feature = "zk-pok")]
+use wasm_par_mq::{execute_async, register_fn, sync_fn};
+
 const U128_MAX_AS_STR: &str = "340282366920938463463374607431768211455";
 
 impl<const N: usize> From<StaticUnsignedBigInt<N>> for JsValue {
@@ -1444,6 +1447,7 @@ impl CompactCiphertextListBuilder {
     }
 
     #[cfg(feature = "zk-pok")]
+    #[wasm_bindgen]
     pub fn build_with_proof_packed(
         &self,
         crs: &CompactPkeCrs,
@@ -1473,6 +1477,107 @@ impl CompactCiphertextListBuilder {
                 .map(ProvenCompactCiphertextList)
         })
     }
+
+    /// This function is like build_with_proof_packed, but can be called in cross origin
+    /// from the main thread
+    #[cfg(feature = "zk-pok")]
+    #[wasm_bindgen]
+    pub async fn build_with_proof_packed_async(
+        &self,
+        crs: &CompactPkeCrs,
+        metadata: &[u8],
+        compute_load: ZkComputeLoad,
+    ) -> Result<ProvenCompactCiphertextList, JsError> {
+        use sync_executor::*;
+
+        let input = ProofInput {
+            builder: (&self.0).into(),
+            crs: crs.0.clone(),
+            metadata: metadata.to_vec(),
+            compute_load: compute_load.into(),
+        };
+
+        execute_async(sync_fn!(build_with_proof_packed_sync_fn), &input)
+            .await
+            .flatten()
+            .map_err(into_js_error)
+            .map(ProvenCompactCiphertextList)
+    }
+}
+
+/// Helper module for the sync-executor mode of wasm-par-mq.
+/// This allows users to run the encryption code from the main js thread without blocking it
+#[cfg(feature = "zk-pok")]
+mod sync_executor {
+    use serde::{Deserialize, Serialize};
+
+    use crate::integer::ciphertext::DataKind;
+    use crate::integer::CompactPublicKey;
+    use crate::Tag;
+
+    use super::*;
+
+    // These short lived types are only made serializable to be sent between threads of the same
+    // binary, running the same tfhe-rs version.
+    // There is no point in making them versionable.
+    #[derive(Serialize, Deserialize)]
+    #[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
+    pub struct ProofInput {
+        pub(super) builder: SerializableCompactCiphertextListBuilder,
+        pub(super) crs: crate::core_crypto::entities::CompactPkeCrs,
+        pub(super) metadata: Vec<u8>,
+        pub(super) compute_load: crate::zk::ZkComputeLoad,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    #[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
+    pub(super) struct SerializableCompactCiphertextListBuilder {
+        messages: Vec<u64>,
+        info: Vec<DataKind>,
+        pk: CompactPublicKey,
+        tag: Tag,
+    }
+
+    impl From<&crate::CompactCiphertextListBuilder> for SerializableCompactCiphertextListBuilder {
+        fn from(value: &crate::CompactCiphertextListBuilder) -> Self {
+            SerializableCompactCiphertextListBuilder {
+                messages: value.inner.messages.clone(),
+                info: value.inner.info.clone(),
+                pk: value.inner.pk.clone(),
+                tag: value.tag.clone(),
+            }
+        }
+    }
+
+    impl From<SerializableCompactCiphertextListBuilder> for crate::CompactCiphertextListBuilder {
+        fn from(value: SerializableCompactCiphertextListBuilder) -> Self {
+            Self {
+                inner: crate::integer::ciphertext::CompactCiphertextListBuilder {
+                    messages: value.messages,
+                    info: value.info,
+                    pk: value.pk,
+                },
+                tag: value.tag,
+            }
+        }
+    }
+
+    /// Wrapper function used to be able to call build_with_proof_packed on the sync executor
+    #[allow(clippy::needless_pass_by_value)] // Required by the sync executor
+    pub(super) fn build_with_proof_packed_sync_fn(
+        input: ProofInput,
+    ) -> Result<crate::high_level_api::ProvenCompactCiphertextList, String> {
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let builder = crate::CompactCiphertextListBuilder::from(input.builder);
+            builder
+                .build_with_proof_packed(&input.crs, &input.metadata, input.compute_load)
+                .map_err(|e| e.to_string())
+        }))
+        .map_err(|_| "Operation Failed".to_string())
+        .flatten()
+    }
+    register_fn!(build_with_proof_packed_sync_fn, ProofInput,
+    Result<crate::high_level_api::ProvenCompactCiphertextList, String>);
 }
 
 #[cfg(feature = "extended-types")]
