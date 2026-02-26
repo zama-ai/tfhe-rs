@@ -93,6 +93,9 @@ jobs:
 
       - name: Find tools
         run: |
+          # Disable unattended-upgrades to avoid lock issues
+          sudo systemctl disable --now unattended-upgrades
+
           sudo apt update && sudo apt install -y valgrind 
           find /usr -executable -name "compute-sanitizer"
           which valgrind
