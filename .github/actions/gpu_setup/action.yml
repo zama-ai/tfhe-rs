@@ -68,6 +68,10 @@ runs:
         echo "${CUDA_KEYRING_SHA} ${CUDA_KEYRING_PACKAGE}" > checksum
         sha256sum -c checksum
         sudo dpkg -i "${CUDA_KEYRING_PACKAGE}"
+
+        # Disable unattended-upgrades to avoid lock issues
+        sudo systemctl disable --now unattended-upgrades
+
         sudo apt update
         sudo apt -y install cuda-toolkit-"${TOOLKIT_VERSION}"
 
