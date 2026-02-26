@@ -38,8 +38,12 @@ pulp = { version = "0.22", default-features = false }
 rand = "0.8"
 rayon = "1.11"
 serde = { version = "1.0", default-features = false }
-wasm-bindgen = "0.2.101"
-getrandom = "0.2.8"
+wasm-bindgen = { version = "0.2.114" }
+# js-sys (at this point in time) automatically enables the unsafe-eval feature which we do not want
+# this does not prevent other deps from enabling it, but it at least conveys our need to not have it
+# we still enable std, which was part of default before
+js-sys = { version = "0.3.91", default-features = false, features = ["std"] }
+getrandom = "0.2.17"
 bindgen = "0.71"
 # The project maintainers consider that this is the last version of the 1.3 branch, any newer version should not be trusted
 bincode = "=1.3.3"
