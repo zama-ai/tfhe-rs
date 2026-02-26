@@ -207,6 +207,284 @@ __device__ void negacyclic_backward_fft_f128(double *dt_re_hi, double *dt_re_lo,
   __syncthreads();
 }
 
+// Specialized version of fft-128 for tbc that applies same improvements than in
+// 64-bit one. In theory it can be applied to other flavors, but we want to test
+// it first on tbc
+template <class params>
+__device__ void
+negacyclic_forward_fft_f128_tbc(double *dt_re_hi, double *dt_re_lo,
+                                double *dt_im_hi, double *dt_im_lo) {
+
+  __syncthreads();
+  constexpr Index BUTTERFLY_DEPTH = params::opt >> 1;
+  constexpr Index LOG2_DEGREE = params::log2_degree;
+  constexpr Index HALF_DEGREE = params::degree >> 1;
+  constexpr Index STRIDE = params::degree / params::opt;
+
+  f128x2 u[BUTTERFLY_DEPTH], v[BUTTERFLY_DEPTH], w;
+
+  Index tid = threadIdx.x;
+
+  // load into registers
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    F64x4_TO_F128x2(u[i], tid);
+    F64x4_TO_F128x2(v[i], tid + HALF_DEGREE);
+    tid += STRIDE;
+  }
+
+  // level 1
+  // we don't make actual complex multiplication on level1 since we have only
+  // one twiddle, it's real and image parts are equal, so we can multiply
+  // it with simpler operations
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    auto ww = NEG_TWID(1);
+    f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, NEG_TWID(1).re,
+                               NEG_TWID(1).im);
+    f128::cplx_f128_sub_assign(v[i].re, v[i].im, u[i].re, u[i].im, w.re, w.im);
+    f128::cplx_f128_add_assign(u[i].re, u[i].im, u[i].re, u[i].im, w.re, w.im);
+  }
+
+  Index twiddle_shift = 1;
+  // Part 1: Levels LOG2_DEGREE-1 down to 5 using shared memory and
+  // __syncthreads()
+  for (Index l = LOG2_DEGREE - 1; l >= 5; --l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    twiddle_shift <<= 1;
+
+    tid = threadIdx.x;
+    __syncthreads();
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      if (u_stays_in_register) {
+        F128x2_TO_F64x4(v[i], tid);
+      } else {
+        F128x2_TO_F64x4(u[i], tid);
+      }
+      tid = tid + STRIDE;
+    }
+    __syncthreads();
+
+    tid = threadIdx.x;
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      F64x4_TO_F128x2(w, tid ^ lane_mask);
+      if (u_stays_in_register) {
+        v[i] = w;
+      } else {
+        u[i] = w;
+      }
+      w = NEG_TWID(tid / lane_mask + twiddle_shift);
+      f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, w.re, w.im);
+      f128::cplx_f128_sub_assign(v[i].re, v[i].im, u[i].re, u[i].im, w.re,
+                                 w.im);
+      f128::cplx_f128_add_assign(u[i].re, u[i].im, u[i].re, u[i].im, w.re,
+                                 w.im);
+      tid = tid + STRIDE;
+    }
+  }
+
+  // Part 2: Levels 4 down to 1 using warp shuffles and __syncwarp()
+  for (Index l = 4; l >= 1; --l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    twiddle_shift <<= 1;
+
+    tid = threadIdx.x;
+    __syncwarp();
+    f128x2 reg_A[BUTTERFLY_DEPTH];
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      if (u_stays_in_register) {
+        reg_A[i] = v[i];
+      } else {
+        reg_A[i] = u[i];
+      }
+      tid = tid + STRIDE;
+    }
+    __syncwarp();
+
+    tid = threadIdx.x;
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      w = shfl_xor_f128x2(reg_A[i], 1 << (l - 1), 0xFFFFFFFF);
+      if (u_stays_in_register) {
+        v[i] = w;
+      } else {
+        u[i] = w;
+      }
+      w = NEG_TWID(tid / lane_mask + twiddle_shift);
+      f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, w.re, w.im);
+      f128::cplx_f128_sub_assign(v[i].re, v[i].im, u[i].re, u[i].im, w.re,
+                                 w.im);
+      f128::cplx_f128_add_assign(u[i].re, u[i].im, u[i].re, u[i].im, w.re,
+                                 w.im);
+      tid = tid + STRIDE;
+    }
+  }
+
+  //   store registers in SM
+  tid = threadIdx.x;
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+    F128x2_TO_F64x4(u[i], tid * 2);
+    F128x2_TO_F64x4(v[i], (tid * 2 + 1));
+    tid = tid + STRIDE;
+  }
+  __syncthreads();
+}
+
+// Specialized version of ifft-128 for tbc that applies same improvements than
+// in 64-bit one. In theory it can be applied to other flavors, but we want to
+// test it first on tbc
+template <class params>
+__device__ void
+negacyclic_backward_fft_f128_tbc(double *dt_re_hi, double *dt_re_lo,
+                                 double *dt_im_hi, double *dt_im_lo) {
+  __syncthreads();
+  constexpr Index BUTTERFLY_DEPTH = params::opt >> 1;
+  constexpr Index LOG2_DEGREE = params::log2_degree;
+  constexpr Index DEGREE = params::degree;
+  constexpr Index HALF_DEGREE = params::degree >> 1;
+  constexpr Index STRIDE = params::degree / params::opt;
+
+  size_t tid = threadIdx.x;
+  f128x2 u[BUTTERFLY_DEPTH], v[BUTTERFLY_DEPTH], w;
+
+  // load into registers and divide by compressed polynomial size
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    F64x4_TO_F128x2(u[i], 2 * tid);
+    F64x4_TO_F128x2(v[i], 2 * tid + 1);
+    tid += STRIDE;
+  }
+
+  Index twiddle_shift = DEGREE;
+  // Part 1: Levels 1 to 4 using warp shuffles and __syncwarp()
+  for (Index l = 1; l <= 4; ++l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    tid = threadIdx.x;
+    twiddle_shift >>= 1;
+
+    // at this point registers are ready for the butterfly
+    tid = threadIdx.x;
+    __syncwarp();
+    f128x2 reg_A[BUTTERFLY_DEPTH];
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      w = (u[i] - v[i]);
+      u[i] += v[i];
+      v[i] = w * NEG_TWID(tid / lane_mask + twiddle_shift).conjugate();
+
+      // keep one of the register for next iteration and store another one in
+      // register
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      if (u_stays_in_register) {
+        reg_A[i] = v[i];
+      } else {
+        reg_A[i] = u[i];
+      }
+
+      tid = tid + STRIDE;
+    }
+    __syncwarp();
+
+    // prepare registers for next butterfly iteration
+    tid = threadIdx.x;
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      w = shfl_xor_f128x2(reg_A[i], 1 << (l - 1), 0xFFFFFFFF);
+
+      if (u_stays_in_register) {
+        v[i] = w;
+      } else {
+        u[i] = w;
+      }
+
+      tid = tid + STRIDE;
+    }
+  }
+
+  // Part 2: Levels 5 to LOG2_DEGREE-1 using shared memory and __syncthreads()
+  for (Index l = 5; l <= LOG2_DEGREE - 1; ++l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    tid = threadIdx.x;
+    twiddle_shift >>= 1;
+
+    // at this point registers are ready for the  butterfly
+    tid = threadIdx.x;
+    __syncthreads();
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      w = (u[i] - v[i]);
+      u[i] += v[i];
+      v[i] = w * NEG_TWID(tid / lane_mask + twiddle_shift).conjugate();
+
+      // keep one of the register for next iteration and store another one in sm
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      if (u_stays_in_register) {
+        F128x2_TO_F64x4(v[i], tid);
+      } else {
+        F128x2_TO_F64x4(u[i], tid);
+      }
+
+      tid = tid + STRIDE;
+    }
+    __syncthreads();
+
+    // prepare registers for next butterfly iteration
+    tid = threadIdx.x;
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      F64x4_TO_F128x2(w, tid ^ lane_mask);
+
+      if (u_stays_in_register) {
+        v[i] = w;
+      } else {
+        u[i] = w;
+      }
+
+      tid = tid + STRIDE;
+    }
+  }
+
+  // last iteration
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    w = (u[i] - v[i]);
+    u[i] = u[i] + v[i];
+    v[i] = w * NEG_TWID(1).conjugate();
+  }
+  __syncthreads();
+  // store registers in SM
+  tid = threadIdx.x;
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+    F128x2_TO_F64x4(u[i], tid);
+    F128x2_TO_F64x4(v[i], tid + HALF_DEGREE);
+
+    tid = tid + STRIDE;
+  }
+  __syncthreads();
+}
+
 // params is expected to be full degree not half degree
 template <class params>
 __device__ void convert_u128_to_f128_as_integer(

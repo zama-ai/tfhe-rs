@@ -186,3 +186,52 @@ __device__ Torus decompose_one(Torus &state, Torus mask_mod_b, int base_log) {
   res -= carry << base_log;
   return res;
 }
+
+// Follows the same logic than 2_2 params decomposition but for 128-bit
+// we require the level loop.
+template <typename T, class params, uint32_t base_log, uint32_t level_count>
+__device__ void decompose_and_compress_level_128_tbc(double *result, T *state,
+                                                     int level) {
+  constexpr T mask_mod_b = (1ll << base_log) - 1ll;
+
+  uint32_t tid = threadIdx.x;
+  for (int i = 0; i < params::opt / 2; i++) {
+    T res_re, res_im;
+    T carry_im, carry_re;
+    for (int l = 0; l < level_count - level; l++) {
+      auto input1 = state[i];
+      auto input2 = state[i + params::opt / 2];
+      res_re = input1 & mask_mod_b;
+      res_im = input2 & mask_mod_b;
+
+      input1 = signed_shift_right<T>(input1, base_log); // Update state
+      input2 = signed_shift_right<T>(input2, base_log); // Update state
+
+      carry_re = ((res_re - 1ll) | input1) & res_re;
+      carry_im = ((res_im - 1ll) | input2) & res_im;
+      carry_re >>= (base_log - 1);
+      carry_im >>= (base_log - 1);
+
+      state[i] = input1 + carry_re;                   // Update state
+      state[i + params::opt / 2] = input2 + carry_im; // Update state
+    }
+
+    res_re -= carry_re << base_log;
+    res_im -= carry_im << base_log;
+    auto out_re = u128_to_signed_to_f128(res_re);
+    auto out_im = u128_to_signed_to_f128(res_im);
+
+    auto out_re_hi = result + 0 * params::degree / 2;
+    auto out_re_lo = result + 1 * params::degree / 2;
+    auto out_im_hi = result + 2 * params::degree / 2;
+    auto out_im_lo = result + 3 * params::degree / 2;
+
+    out_re_hi[tid] = out_re.hi;
+    out_re_lo[tid] = out_re.lo;
+    out_im_hi[tid] = out_im.hi;
+    out_im_lo[tid] = out_im.lo;
+
+    tid += params::degree / params::opt;
+  }
+  __syncthreads();
+}

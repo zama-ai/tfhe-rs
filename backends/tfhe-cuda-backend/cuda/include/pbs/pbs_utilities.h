@@ -78,6 +78,13 @@ get_buffer_size_partial_sm_programmable_bootstrap_cg(uint32_t polynomial_size) {
   return safe_mul_sizeof<double>((size_t)polynomial_size,
                                  double_count); // accumulator fft mask & body
 }
+template <typename Torus>
+uint64_t get_buffer_size_full_sm_programmable_bootstrap_128_tbc(
+    uint32_t polynomial_size) {
+  return sizeof(Torus) * polynomial_size + // accumulator_rotated
+         sizeof(Torus) * polynomial_size + // accumulator
+         sizeof(Torus) * polynomial_size;  // accumulator fft
+}
 
 template <typename Torus>
 bool supports_distributed_shared_memory_on_classic_programmable_bootstrap(
@@ -379,7 +386,7 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>
               __uint128_t>(polynomial_size, max_shared_memory);
 
       uint64_t full_sm =
-          get_buffer_size_full_sm_programmable_bootstrap_tbc<__uint128_t>(
+          get_buffer_size_full_sm_programmable_bootstrap_128_tbc<__uint128_t>(
               polynomial_size);
       uint64_t partial_sm =
           get_buffer_size_partial_sm_programmable_bootstrap_tbc<__uint128_t>(
@@ -539,6 +546,10 @@ bool has_support_to_cuda_programmable_bootstrap_tbc(uint32_t num_samples,
 bool has_support_to_cuda_programmable_bootstrap_128_cg(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t num_samples, uint32_t max_shared_memory);
+
+bool has_support_to_cuda_programmable_bootstrap_128_tbc(
+    uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t base_log, uint32_t max_shared_memory);
 
 #ifdef __CUDACC__
 __device__ inline int get_start_ith_ggsw(int i, uint32_t polynomial_size,

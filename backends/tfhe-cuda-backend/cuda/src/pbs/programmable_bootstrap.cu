@@ -50,4 +50,17 @@ get_join_buffer_element(int level_id, int glwe_id, cluster_group &cluster,
   }
   return buffer_slice;
 }
+
+template <>
+__device__ double *get_join_buffer_element_128_tbc(int level_id, int glwe_id,
+                                                   cluster_group &cluster,
+                                                   double *shared_memory_buffer,
+                                                   uint32_t polynomial_size,
+                                                   uint32_t glwe_dimension) {
+  double *buffer_slice;
+
+  buffer_slice = cluster.map_shared_rank(
+      shared_memory_buffer, glwe_id + level_id * (glwe_dimension + 1));
+  return buffer_slice;
+}
 #endif
