@@ -198,9 +198,7 @@ void g1_msm_managed_wrapper(
     cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
     cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
 
-    // The pippenger implementation syncs internally for its CPU-side Horner
-    // combine, but we still need to sync here for the final D2H memcpy of
-    // the result and the async frees above.
+    // Sync for the D2H memcpy of the result and the async frees above.
     cuda_synchronize_stream(stream, gpu_index);
 }
 
@@ -265,9 +263,7 @@ void g2_msm_managed_wrapper(
     cuda_drop_with_size_tracking_async(d_scalars, stream, gpu_index, true);
     cuda_drop_with_size_tracking_async(d_result, stream, gpu_index, true);
 
-    // The pippenger implementation syncs internally for its CPU-side Horner
-    // combine, but we still need to sync here for the final D2H memcpy of
-    // the result and the async frees above.
+    // Sync for the D2H memcpy of the result and the async frees above.
     cuda_synchronize_stream(stream, gpu_index);
 }
 
