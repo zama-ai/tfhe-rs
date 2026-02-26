@@ -288,7 +288,10 @@ def get_formatter(layer: Layer, bench_subset: BenchSubset):
         case BenchSubset.Erc20:
             return formatters.hlapi.Erc20Formatter
         case BenchSubset.Zk:
-            return formatters.wasm.ZKFormatter
+            if layer == Layer.Wasm:
+                return formatters.wasm.ZKFormatter
+            else:
+                return formatters.integer.ZKFormatter
 
     match layer:
         case Layer.Integer:
