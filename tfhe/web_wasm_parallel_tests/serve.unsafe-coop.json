@@ -4,7 +4,20 @@
       "source": "**/*.@(js|html)",
       "headers": [
         { "key": "Cross-Origin-Embedder-Policy", "value": "unsafe-none" },
-        { "key": "Cross-Origin-Opener-Policy", "value": "unsafe-none" }
+        { "key": "Cross-Origin-Opener-Policy", "value": "unsafe-none" },
+        {
+          "key": "Content-Security-Policy",
+          "value": "script-src 'self' 'wasm-unsafe-eval';"
+        }
+      ]
+    },
+    {
+      "source": "**/*.wasm",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/wasm"
+        }
       ]
     }
   ]
