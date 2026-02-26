@@ -18,7 +18,7 @@ jobs:
       - name: Check first line
         uses: gsactions/commit-message-checker@16fa2d5de096ae0d35626443bcd24f1e756cafee
         with:
-          pattern: '^((feat|fix|chore|refactor|style|test|docs|doc)(\([\w\-_]+\))?\!?\:) .+$'
+          pattern: '^((feat|fix|chore|refactor|style|test|docs|doc|perf)(\([\w\-_]+\))?\!?\:) .+$'
           flags: "gs"
           error: 'Your first line has to contain a commit type and scope like "feat(my_feature): msg".'
           excludeDescription: "true" # optional: this excludes the description body of a pull request
