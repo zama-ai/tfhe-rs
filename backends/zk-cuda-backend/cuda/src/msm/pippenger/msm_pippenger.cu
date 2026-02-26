@@ -6,7 +6,6 @@
 #include "fp2.h"
 #include "msm.h"
 #include <algorithm>
-#include <cstring>
 #include <type_traits>
 #include <vector>
 
@@ -435,13 +434,17 @@ __global__ void kernel_compute_window_sums(
 }
 
 // ============================================================================
-// CPU-side Horner Combination (faster than single-thread GPU)
+// CPU Horner Combination + GPU Result Upload
 // ============================================================================
 
-// CPU Horner: combine window sums using Horner's method on host
-// Single-threaded CPU execution is faster than single-threaded GPU for this
-// sequential operation. The memcpy overhead is smaller than the GPU's memory
-// latency penalty for sequential access patterns.
+// Combines window sums using Horner's method on the CPU. A single CPU core
+// native 64-bit multiply is much faster than a single GPU thread for this
+// workload. The CPU path takes ~0.1 ms; a <<<1,1>>> GPU kernel takes ~10-12 ms.
+//
+// Horner evaluation (MSB-first):
+//   acc = window_sums[0]
+//   for w = 1 .. num_windows-1:
+//     acc = acc * 2^window_size + window_sums[w]
 template <typename ProjectiveType>
 void horner_combine_cpu(ProjectiveType &result,
                         const ProjectiveType *window_sums, uint32_t num_windows,
@@ -469,7 +472,7 @@ void horner_combine_cpu(ProjectiveType &result,
         ProjectivePoint::point_copy(acc, temp);
       }
     } else if (!ProjectivePoint::is_infinity(acc)) {
-      // Window sum is zero, but still need to shift
+      // Window sum is infinity but accumulator is not -- still shift left
       for (uint32_t i = 0; i < window_size; i++) {
         ProjectivePoint::projective_double(temp, acc);
         ProjectivePoint::point_copy(acc, temp);
@@ -478,6 +481,16 @@ void horner_combine_cpu(ProjectiveType &result,
   }
 
   ProjectivePoint::point_copy(result, acc);
+}
+
+// Tiny kernel: writes a point passed by value (via kernel args) to a device
+// pointer. CUDA copies kernel arguments to GPU-accessible memory before
+// launch, so the host-side source variable can safely go out of scope after
+// the launch call returns -- no second stream sync needed.
+template <typename ProjectiveType>
+__global__ void kernel_write_point(ProjectiveType *__restrict__ dst,
+                                   ProjectiveType value) {
+  *dst = value;
 }
 
 // ============================================================================
@@ -597,11 +610,11 @@ void point_msm_pippenger_impl_async(
           d_window_sums, d_all_final_buckets, num_windows, bucket_count);
   check_cuda_error(cudaGetLastError());
 
-  // Phase 4: CPU-side Horner combine (faster than single GPU thread!)
-  // Download window sums to host. These are scratch sub-regions, not
-  // caller-owned buffers, so use the always-copy variants — the
-  // size-tracking variants would skip the copy when gpu_memory_allocated
-  // is false, leaving the host buffer uninitialized.
+  // Phase 4: CPU Horner combine with kernel-arg upload
+  //
+  // The Horner loop is inherently sequential. A
+  // single CPU core much faster than a single GPU thread for
+  // this workload, so we run the Horner on the CPU.
   std::vector<ProjectiveType> h_window_sums(num_windows);
   cuda_memcpy_async_to_cpu(
       h_window_sums.data(), d_window_sums,
@@ -609,17 +622,14 @@ void point_msm_pippenger_impl_async(
       gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
 
-  // Perform Horner combination on CPU
   ProjectiveType h_result;
   horner_combine_cpu(h_result, h_window_sums.data(), num_windows, window_size);
 
-  // Upload result back to device (stack variable, not a caller buffer)
-  cuda_memcpy_async_to_gpu(d_result, &h_result, sizeof(ProjectiveType), stream,
-                           gpu_index);
-
-  // Sync to ensure the upload of h_result (a stack variable) completes
-  // before this function returns
-  cuda_synchronize_stream(stream, gpu_index);
+  // Upload result to device via kernel argument. We do this so we don't need a
+  // sync to ensure h_result is still there during copy. This will take the data
+  // we need and protect it from the function end of life
+  kernel_write_point<ProjectiveType><<<1, 1, 0, stream>>>(d_result, h_result);
+  check_cuda_error(cudaGetLastError());
 }
 
 // ============================================================================
