@@ -10,7 +10,7 @@
 <hr/>
 
 <p align="center">
-  <a href="https://github.com/zama-ai/tfhe-rs-handbook/blob/main/tfhe-rs-handbook.pdf"> 📃 Read Handbook</a> |<a href="https://docs.zama.ai/tfhe-rs"> 📒 Documentation</a> | <a href="https://zama.ai/community"> 💛 Community support</a> | <a href="https://github.com/zama-ai/awesome-zama"> 📚 FHE resources by Zama</a>
+  <a href="https://github.com/zama-ai/tfhe-rs-handbook/blob/main/tfhe-rs-handbook.pdf"> 📃 Read Handbook</a> |<a href="https://docs.zama.org/tfhe-rs"> 📒 Documentation</a> | <a href="https://www.zama.org/community-channels"> 💛 Community support</a> | <a href="https://github.com/zama-ai/awesome-zama"> 📚 FHE resources by Zama</a>
 </p>
 
 
@@ -47,7 +47,7 @@ production-ready library for all the advanced features of TFHE.
 - **Ciphertext and server key compression** for efficient data transfer
 - **Full Rust API, C bindings to the Rust High-Level API, and client-side JavaScript API using WASM**.
 
-*Learn more about TFHE-rs features in the [documentation](https://docs.zama.ai/tfhe-rs/readme).*
+*Learn more about TFHE-rs features in the [documentation](https://docs.zama.org/tfhe-rs).*
 <br></br>
 
 ## Table of Contents
@@ -149,7 +149,7 @@ To run this code, use the following command:
 > Note that when running code that uses `TFHE-rs`, it is highly recommended
 to run in release mode with cargo's `--release` flag to have the best performance possible.
 
-*Find an example with more explanations in [this part of the documentation](https://docs.zama.ai/tfhe-rs/get-started/quick-start)*
+*Find an example with more explanations in [this part of the documentation](https://docs.zama.org/tfhe-rs/get-started/quick-start)*
 
 <p align="right">
   <a href="#about" > ↑ Back to top </a>
@@ -163,25 +163,25 @@ to run in release mode with cargo's `--release` flag to have the best performanc
 A document containing scientific and technical details about algorithms implemented into the library is available here: [TFHE-rs: A (Practical) Handbook](https://github.com/zama-ai/tfhe-rs-handbook/blob/main/tfhe-rs-handbook.pdf).
 
 ### TFHE deep dive
-- [TFHE Deep Dive - Part I - Ciphertext types](https://www.zama.ai/post/tfhe-deep-dive-part-1)
-- [TFHE Deep Dive - Part II - Encodings and linear leveled operations](https://www.zama.ai/post/tfhe-deep-dive-part-2)
-- [TFHE Deep Dive - Part III - Key switching and leveled multiplications](https://www.zama.ai/post/tfhe-deep-dive-part-3)
-- [TFHE Deep Dive - Part IV - Programmable Bootstrapping](https://www.zama.ai/post/tfhe-deep-dive-part-4)
+- [TFHE Deep Dive - Part I - Ciphertext types](https://www.zama.org/post/tfhe-deep-dive-part-1)
+- [TFHE Deep Dive - Part II - Encodings and linear leveled operations](https://www.zama.org/post/tfhe-deep-dive-part-2)
+- [TFHE Deep Dive - Part III - Key switching and leveled multiplications](https://www.zama.org/post/tfhe-deep-dive-part-3)
+- [TFHE Deep Dive - Part IV - Programmable Bootstrapping](https://www.zama.org/post/tfhe-deep-dive-part-4)
 <br></br>
 
 ### Tutorials
-- [[Video tutorial] Implement signed integers using TFHE-rs ](https://www.zama.ai/post/video-tutorial-implement-signed-integers-sing-tfhe-rs)
-- [Homomorphic parity bit](https://docs.zama.ai/tfhe-rs/tutorials/parity-bit)
-- [Homomorphic case changing on Ascii string](https://docs.zama.ai/tfhe-rs/tutorials/ascii-fhe-string)
-- [Boolean SHA256 with TFHE-rs](https://www.zama.ai/post/boolean-sha256-tfhe-rs)
-- [Dark market with TFHE-rs](https://www.zama.ai/post/dark-market-tfhe-rs)
-- [Regular expression engine with TFHE-rs](https://www.zama.ai/post/regex-engine-tfhe-rs)
+- [Video tutorial: Implement signed integers using TFHE-rs](https://www.zama.org/post/video-tutorial-implement-signed-integers-sing-tfhe-rs)
+- [Homomorphic parity bit](https://docs.zama.org/tfhe-rs/tutorials/parity-bit)
+- [Homomorphic case changing on Ascii string](https://docs.zama.org/tfhe-rs/tutorials/ascii-fhe-string)
+- [Boolean SHA256 with TFHE-rs](https://www.zama.org/post/boolean-sha256-tfhe-rs)
+- [Dark market with TFHE-rs](https://www.zama.org/post/dark-market-tfhe-rs)
+- [Regular expression engine with TFHE-rs](https://www.zama.org/post/regex-engine-tfhe-rs)
 
-*Explore more useful resources in [TFHE-rs tutorials](https://docs.zama.ai/tfhe-rs/tutorials) and [Awesome Zama repo](https://github.com/zama-ai/awesome-zama)*
+*Explore more useful resources in [TFHE-rs tutorials](https://docs.zama.org/tfhe-rs/tutorials) and [Awesome Zama repo](https://github.com/zama-ai/awesome-zama)*
 <br></br>
 ### Documentation
 
-Full, comprehensive documentation is available here: [https://docs.zama.ai/tfhe-rs](https://docs.zama.ai/tfhe-rs).
+Full, comprehensive documentation is available here: [https://docs.zama.org/tfhe-rs](https://docs.zama.org/tfhe-rs).
 <p align="right">
   <a href="#about" > ↑ Back to top </a>
 </p>
@@ -202,7 +202,7 @@ When a new update is published in the Lattice Estimator, we update parameters ac
 ### Security model
 
 By default, the parameter sets used in the High-Level API have a failure probability $\le 2^{-128}$ to securely work in the IND-CPA^D model using the algorithmic techniques provided in our code base [1].
-If you want to work within the IND-CPA security model, which is less strict than the IND-CPA-D model, the parameter sets can easily be changed and would have slightly better performance. More details can be found in the [TFHE-rs documentation](https://docs.zama.ai/tfhe-rs).
+If you want to work within the IND-CPA security model, which is less strict than the IND-CPA-D model, the parameter sets can easily be changed and would have slightly better performance. More details can be found in the [TFHE-rs documentation](https://docs.zama.org/tfhe-rs).
 
 [1] Bernard, Olivier, et al. "Drifting Towards Better Error Probabilities in Fully Homomorphic Encryption Schemes". https://eprint.iacr.org/2024/1718.pdf
 
@@ -231,7 +231,7 @@ To cite TFHE-rs in academic papers, please use the following entry:
 There are two ways to contribute to TFHE-rs:
 
 - [Open issues](https://github.com/zama-ai/tfhe-rs/issues/new/choose) to report bugs and typos, or to suggest new ideas
-- Request to become an official contributor by emailing [hello@zama.ai](mailto:hello@zama.ai).
+- Request to become an official contributor by emailing [hello@zama.org](mailto:hello@zama.org).
 
 Becoming an approved contributor involves signing our Contributor License Agreement (CLA). Only approved contributors can send pull requests, so please make sure to get in touch before you do!
 <br></br>
@@ -243,16 +243,16 @@ This software is distributed under the **BSD-3-Clause-Clear** license. Read [thi
 **Is Zama’s technology free to use?**
 >Zama’s libraries are free to use under the BSD 3-Clause Clear license only for development, research, prototyping, and experimentation purposes. However, for any commercial use of Zama's open source code, companies must purchase Zama’s commercial patent license.
 >
->Everything we do is open source and we are very transparent on what it means for our users, you can read more about how we monetize our open source products at Zama in [this blogpost](https://www.zama.ai/post/open-source).
+>Everything we do is open source and we are very transparent on what it means for our users, you can read more about how we monetize our open source products at Zama in [this blogpost](https://www.zama.org/post/open-source).
 
 **What do I need to do if I want to use Zama’s technology for commercial purposes?**
->To commercially use Zama’s technology you need to be granted Zama’s patent license. Please contact us hello@zama.ai for more information.
+>To commercially use Zama’s technology you need to be granted Zama’s patent license. Please contact us hello@zama.org for more information.
 
 **Do you file IP on your technology?**
 >Yes, all Zama’s technologies are patented.
 
 **Can you customize a solution for my specific use case?**
->We are open to collaborating and advancing the FHE space with our partners. If you have specific needs, please email us at hello@zama.ai.
+>We are open to collaborating and advancing the FHE space with our partners. If you have specific needs, please email us at hello@zama.org.
 
 <p align="right">
   <a href="#about" > ↑ Back to top </a>
@@ -261,7 +261,7 @@ This software is distributed under the **BSD-3-Clause-Clear** license. Read [thi
 
 ## Support
 
-<a target="_blank" href="https://community.zama.ai">
+<a target="_blank" href="https://community.zama.org">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://github.com/zama-ai/tfhe-rs/assets/157474013/08656d0a-3f44-4126-b8b6-8c601dff5380">
   <source media="(prefers-color-scheme: light)" srcset="https://github.com/zama-ai/tfhe-rs/assets/157474013/1c9c9308-50ac-4aab-a4b9-469bb8c536a4">

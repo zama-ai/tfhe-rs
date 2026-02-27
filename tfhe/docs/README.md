@@ -58,7 +58,7 @@ Take a deep dive into TFHE-rs, exploring APIs from the highest to the lowest lev
 
 Ask technical questions and discuss with the community. Our team of experts usually answers within 24 hours during working days.
 
-* [Community forum](https://community.zama.ai/)
+* [Community forum](https://community.zama.org/)
 * [Discord channel](https://discord.com/invite/fhe-org)
 
 ### Developers
