@@ -11,6 +11,7 @@ use crate::integer::BooleanBlock;
 use crate::integer::ProvenCompactCiphertextList;
 use crate::shortint::ciphertext::CompressedModulusSwitchedCiphertext;
 use std::num::NonZero;
+use tfhe_versionable::deprecation::{Deprecable, Deprecated};
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 #[derive(VersionsDispatch)]
@@ -28,42 +29,14 @@ pub enum BaseCrtCiphertextVersions<Block> {
     V0(BaseCrtCiphertext<Block>),
 }
 
-#[derive(Version)]
-pub struct CompactCiphertextListV0 {
-    pub(crate) ct_list: crate::shortint::ciphertext::CompactCiphertextList,
-    pub(crate) num_blocks_per_integer: usize,
-}
-
-impl Upgrade<CompactCiphertextList> for CompactCiphertextListV0 {
-    type Error = crate::Error;
-
-    fn upgrade(self) -> Result<CompactCiphertextList, Self::Error> {
-        let lwe_count = self.ct_list.ct_list.lwe_ciphertext_count().0;
-
-        if !lwe_count.is_multiple_of(self.num_blocks_per_integer) {
-            return Err(crate::error!("Invalid CompactCiphertextListV0, the total lwe count should be a multiple of num_blocks_per_integer"));
-        }
-
-        let radix_count = lwe_count
-            .checked_div(self.num_blocks_per_integer)
-            .ok_or_else(|| {
-                crate::error!("Invalid CompactCiphertextListV0, num_blocks_per_integer is 0")
-            })?;
-
-        // Since we can't guess the type of data here, we set them by default as unsigned integer.
-        // Since it this data comes from 0.6, if it is included in a homogeneous compact list it
-        // will be converted to the right type at expand time.
-        let info = NonZero::new(self.num_blocks_per_integer)
-            .map(|n| vec![DataKind::Unsigned(n); radix_count])
-            .unwrap_or_default();
-
-        Ok(CompactCiphertextList::from_raw_parts(self.ct_list, info))
-    }
+impl Deprecable for CompactCiphertextList {
+    const TYPE_NAME: &'static str = "CompactCiphertextList";
+    const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.7";
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompactCiphertextListVersions {
-    V0(CompactCiphertextListV0),
+    V0(Deprecated<CompactCiphertextList>),
     V1(CompactCiphertextList),
 }
 
