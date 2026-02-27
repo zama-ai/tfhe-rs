@@ -81,6 +81,12 @@ __host__ __device__ void fp2_mul(Fp2 &c, const Fp2 &a, const Fp2 &b);
 // NOTE: All inputs and outputs are in Montgomery form (no conversions)
 __host__ __device__ void fp2_mont_mul(Fp2 &c, const Fp2 &a, const Fp2 &b);
 
+// Montgomery squaring: c = a^2 (all in Montgomery form)
+// Uses the complex-squaring identity: c0 = (a0+a1)(a0-a1), c1 = 2*a0*a1
+// Only 2 Fp multiplications vs 3 for fp2_mont_mul(c, a, a).
+// NOTE: All inputs and outputs are in Montgomery form (no conversions)
+__host__ __device__ void fp2_mont_square(Fp2 &c, const Fp2 &a);
+
 // Squaring: c = a^2
 // (a0 + a1*i)^2 = (a0^2 - a1^2) + 2*a0*a1*i
 // Optimized version that uses fewer multiplications
@@ -102,6 +108,13 @@ __host__ __device__ void fp2_mont_inv(Fp2 &c, const Fp2 &a);
 
 // Division: c = a / b = a * b^(-1)
 __host__ __device__ void fp2_div(Fp2 &c, const Fp2 &a, const Fp2 &b);
+
+// Small-constant multiplication via addition chains (much cheaper than
+// fp2_mont_mul). MONTGOMERY: input and output must be in Montgomery form.
+__host__ __device__ void fp2_double(Fp2 &c, const Fp2 &a);
+__host__ __device__ void fp2_mul3(Fp2 &c, const Fp2 &a);
+__host__ __device__ void fp2_mul4(Fp2 &c, const Fp2 &a);
+__host__ __device__ void fp2_mul8(Fp2 &c, const Fp2 &a);
 
 __host__ __device__ void fp2_cmov(Fp2 &dst, const Fp2 &src, uint64_t condition);
 

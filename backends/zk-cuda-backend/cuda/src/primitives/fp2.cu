@@ -74,6 +74,30 @@ __host__ __device__ void fp2_sub(Fp2 &c, const Fp2 &a, const Fp2 &b) {
   fp_sub(c.c1, a.c1, b.c1);
 }
 
+// Small-constant multiplication via addition chains.
+// These replace full Fp2 Montgomery multiplications by 2, 3, 4, 8 with
+// modular additions on each component.
+
+__host__ __device__ void fp2_double(Fp2 &c, const Fp2 &a) {
+  fp_double(c.c0, a.c0);
+  fp_double(c.c1, a.c1);
+}
+
+__host__ __device__ void fp2_mul3(Fp2 &c, const Fp2 &a) {
+  fp_mul3(c.c0, a.c0);
+  fp_mul3(c.c1, a.c1);
+}
+
+__host__ __device__ void fp2_mul4(Fp2 &c, const Fp2 &a) {
+  fp_mul4(c.c0, a.c0);
+  fp_mul4(c.c1, a.c1);
+}
+
+__host__ __device__ void fp2_mul8(Fp2 &c, const Fp2 &a) {
+  fp_mul8(c.c0, a.c0);
+  fp_mul8(c.c1, a.c1);
+}
+
 // Multiplication: c = a * b
 // (a0 + a1*i) * (b0 + b1*i) = (a0*b0 - a1*b1) + (a0*b1 + a1*b0)*i
 // Optimized: converts to Montgomery once at start, operates, converts back at
@@ -142,29 +166,40 @@ __host__ __device__ void fp2_mont_mul(Fp2 &c, const Fp2 &a, const Fp2 &b) {
   fp_sub(c.c1, c.c1, t1);
 }
 
-// Optimized: converts to Montgomery once at start, operates, converts back at
-// end (4 conversions instead of 9)
+// Montgomery squaring: c = a^2 (all in Montgomery form)
+// Uses the complex-squaring identity for Fp2 = Fp[i]/(i^2+1):
+//   c0 = (a0 + a1)(a0 - a1)   [since a0^2 - a1^2 = (a0+a1)(a0-a1)]
+//   c1 = 2 * a0 * a1
+// This requires only 2 Fp multiplications vs 3 for general fp2_mont_mul.
+// NOTE: All inputs and outputs are in Montgomery form
+// Safe when c aliases a: all reads of a complete before any write to c.
+__host__ __device__ void fp2_mont_square(Fp2 &c, const Fp2 &a) {
+  Fp sum, diff, c0_tmp, prod;
+
+  fp_add(sum, a.c0, a.c1);
+  fp_sub(diff, a.c0, a.c1);
+  fp_mont_mul(c0_tmp, sum, diff);
+
+  fp_mont_mul(prod, a.c0, a.c1);
+  fp_double(c.c1, prod);
+  fp_copy(c.c0, c0_tmp);
+}
+
+// Squaring with Montgomery conversion: c = a^2
+// Converts to Montgomery form, uses the 2-mul complex-squaring formula,
+// and converts back.
 __host__ __device__ void fp2_square(Fp2 &c, const Fp2 &a) {
-  // Convert inputs to Montgomery form once
   Fp a0_m, a1_m;
   fp_to_montgomery(a0_m, a.c0);
   fp_to_montgomery(a1_m, a.c1);
 
-  // Operate in Montgomery form
-  Fp t0, t1, t2;
-  fp_mont_mul(t0, a0_m, a0_m); // t0 = a0^2
-  fp_mont_mul(t1, a1_m, a1_m); // t1 = a1^2
-  fp_add(t2, a0_m, a1_m);      // t2 = a0 + a1
-  fp_mont_mul(t2, t2, t2);     // t2 = (a0 + a1)^2
+  // Use the 2-mul complex-squaring identity in Montgomery form
+  Fp2 a_m = {a0_m, a1_m};
+  Fp2 c_m;
+  fp2_mont_square(c_m, a_m);
 
-  Fp c0_m, c1_m;
-  fp_sub(c0_m, t0, t1);   // c0 = a0^2 - a1^2
-  fp_sub(c1_m, t2, t0);   // c1 = (a0+a1)^2 - a0^2
-  fp_sub(c1_m, c1_m, t1); // c1 = (a0+a1)^2 - a0^2 - a1^2 = 2*a0*a1
-
-  // Convert outputs back from Montgomery form
-  fp_from_montgomery(c.c0, c0_m);
-  fp_from_montgomery(c.c1, c1_m);
+  fp_from_montgomery(c.c0, c_m.c0);
+  fp_from_montgomery(c.c1, c_m.c1);
 }
 
 __host__ __device__ void fp2_neg(Fp2 &c, const Fp2 &a) {

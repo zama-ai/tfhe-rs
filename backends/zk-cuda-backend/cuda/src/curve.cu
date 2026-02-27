@@ -494,76 +494,6 @@ __host__ __device__ const Fp2 &curve_b_g2() {
 #endif
 }
 
-// ============================================================================
-// Cached Montgomery Form Constants for Curve Operations
-// ============================================================================
-// These functions return references to cached Montgomery form constants
-// to avoid recomputing them on every projective point operation call.
-// For host code: uses static locals (thread-safe in C++11)
-// For device code: computes once per call (cached via output parameter)
-
-// Helper struct to hold cached Fp Montgomery constants
-struct FpMontConstants {
-  Fp two;
-  Fp three;
-  Fp four;
-  Fp eight;
-};
-
-// Helper struct to hold cached Fp2 Montgomery constants
-struct Fp2MontConstants {
-  Fp2 two;
-  Fp2 three;
-  Fp2 four;
-  Fp2 eight;
-};
-
-// Get cached Fp Montgomery constants (for host code)
-__host__ const FpMontConstants &get_fp_mont_constants_host() {
-  static FpMontConstants constants = []() {
-    FpMontConstants c;
-    fp_two_montgomery(c.two);
-    fp_three_montgomery(c.three);
-    fp_four_montgomery(c.four);
-    fp_eight_montgomery(c.eight);
-    return c;
-  }();
-  return constants;
-}
-
-// Get cached Fp2 Montgomery constants (for host code)
-__host__ const Fp2MontConstants &get_fp2_mont_constants_host() {
-  static Fp2MontConstants constants = []() {
-    Fp2MontConstants c;
-    fp2_two_montgomery(c.two);
-    fp2_three_montgomery(c.three);
-    fp2_four_montgomery(c.four);
-    fp2_eight_montgomery(c.eight);
-    return c;
-  }();
-  return constants;
-}
-
-// Initialize Fp Montgomery constants (for device code, called once per
-// function)
-__device__ void init_fp_mont_constants(Fp &two, Fp &three, Fp &four,
-                                       Fp &eight) {
-  fp_two_montgomery(two);
-  fp_three_montgomery(three);
-  fp_four_montgomery(four);
-  fp_eight_montgomery(eight);
-}
-
-// Initialize Fp2 Montgomery constants (for device code, called once per
-// function)
-__device__ void init_fp2_mont_constants(Fp2 &two, Fp2 &three, Fp2 &four,
-                                        Fp2 &eight) {
-  fp2_two_montgomery(two);
-  fp2_three_montgomery(three);
-  fp2_four_montgomery(four);
-  fp2_eight_montgomery(eight);
-}
-
 // Check if a G1 point is on the curve: y^2 = x^3 + b
 // Uses Montgomery form internally for efficiency
 __host__ __device__ bool is_on_curve_g1(const G1Affine &point) {
@@ -614,11 +544,11 @@ __host__ __device__ bool is_on_curve_g2(const G2Affine &point) {
 
   // Compute y^2 in Montgomery form
   Fp2 y_squared_mont;
-  fp2_mont_mul(y_squared_mont, y_mont, y_mont);
+  fp2_mont_square(y_squared_mont, y_mont);
 
   // Compute x^3 in Montgomery form
   Fp2 x_squared_mont, x_cubed_mont;
-  fp2_mont_mul(x_squared_mont, x_mont, x_mont);
+  fp2_mont_square(x_squared_mont, x_mont);
   fp2_mont_mul(x_cubed_mont, x_squared_mont, x_mont);
 
   // Compute x^3 + b' in Montgomery form
@@ -1509,14 +1439,7 @@ __host__ __device__ void projective_point_add(G1Projective &result,
   Fp temp1, two_R;
   fp_mont_mul(temp1, uu, Z1Z2);
   Fp temp2 = temp1 - vvv;
-  // Compute 2*R using cached Montgomery constant
-  Fp two_mont;
-#ifdef __CUDA_ARCH__
-  fp_two_montgomery(two_mont);
-#else
-  two_mont = get_fp_mont_constants_host().two;
-#endif
-  fp_mont_mul(two_R, two_mont, R);
+  fp_double(two_R, R);
   A = temp2 - two_R;
 
   // X3 = v * A
@@ -1560,7 +1483,7 @@ __host__ __device__ void projective_point_add(G2Projective &result,
   fp2_mont_mul(Y2Z1, p2.Y, p1.Z);
   u = Y2Z1 - Y1Z2;
 
-  fp2_mont_mul(uu, u, u);
+  fp2_mont_square(uu, u);
 
   Fp2 X2Z1;
   fp2_mont_mul(X2Z1, p2.X, p1.Z);
@@ -1572,7 +1495,7 @@ __host__ __device__ void projective_point_add(G2Projective &result,
     return;
   }
 
-  fp2_mont_mul(vv, v, v);
+  fp2_mont_square(vv, v);
   fp2_mont_mul(vvv, v, vv);
 
   fp2_mont_mul(R, vv, X1Z2);
@@ -1581,14 +1504,7 @@ __host__ __device__ void projective_point_add(G2Projective &result,
   Fp2 temp1, two_R;
   fp2_mont_mul(temp1, uu, Z1Z2);
   Fp2 temp2 = temp1 - vvv;
-  // Compute 2*R using cached Montgomery constant
-  Fp2 two_mont;
-#ifdef __CUDA_ARCH__
-  fp2_two_montgomery(two_mont);
-#else
-  two_mont = get_fp2_mont_constants_host().two;
-#endif
-  fp2_mont_mul(two_R, two_mont, R);
+  fp2_double(two_R, R);
   A = temp2 - two_R;
 
   fp2_mont_mul(result.X, v, A);
@@ -1665,14 +1581,7 @@ __host__ __device__ void projective_mixed_add(G1Projective &result,
   Fp temp1, two_R;
   fp_mont_mul(temp1, uu, p1.Z);
   Fp temp2 = temp1 - vvv;
-  // Compute 2*R
-  Fp two_mont;
-#ifdef __CUDA_ARCH__
-  fp_two_montgomery(two_mont);
-#else
-  two_mont = get_fp_mont_constants_host().two;
-#endif
-  fp_mont_mul(two_R, two_mont, R);
+  fp_double(two_R, R);
   A = temp2 - two_R;
 
   // X3 = v * A
@@ -1738,8 +1647,8 @@ __host__ __device__ void projective_mixed_add(G2Projective &result,
   }
 
   // uu = u^2, vv = v^2, vvv = v * vv
-  fp2_mont_mul(uu, u, u);
-  fp2_mont_mul(vv, v, v);
+  fp2_mont_square(uu, u);
+  fp2_mont_square(vv, v);
   fp2_mont_mul(vvv, v, vv);
 
   // R = vv * X1
@@ -1749,13 +1658,7 @@ __host__ __device__ void projective_mixed_add(G2Projective &result,
   Fp2 temp1, two_R;
   fp2_mont_mul(temp1, uu, p1.Z);
   Fp2 temp2 = temp1 - vvv;
-  Fp2 two_mont;
-#ifdef __CUDA_ARCH__
-  fp2_two_montgomery(two_mont);
-#else
-  two_mont = get_fp2_mont_constants_host().two;
-#endif
-  fp2_mont_mul(two_R, two_mont, R);
+  fp2_double(two_R, R);
   A = temp2 - two_R;
 
   // X3 = v * A
@@ -1787,22 +1690,10 @@ __host__ __device__ void projective_point_double(G1Projective &result,
   // G1 projective doubling using hyperelliptic.org formula
   // For curves y^2 = x^3 + a_4*x + b with a_4 = 0
 
-  // Get Montgomery constants (cached for host, computed once for device)
-  Fp two_mont, three_mont, four_mont, eight_mont;
-#ifdef __CUDA_ARCH__
-  init_fp_mont_constants(two_mont, three_mont, four_mont, eight_mont);
-#else
-  const FpMontConstants &c = get_fp_mont_constants_host();
-  two_mont = c.two;
-  three_mont = c.three;
-  four_mont = c.four;
-  eight_mont = c.eight;
-#endif
-
   // A = 3 * X^2
   Fp X_sq, A;
   fp_mont_mul(X_sq, p.X, p.X);
-  fp_mont_mul(A, three_mont, X_sq);
+  fp_mul3(A, X_sq);
 
   // B = Y * Z
   Fp B;
@@ -1816,17 +1707,17 @@ __host__ __device__ void projective_point_double(G1Projective &result,
   // D = A^2 - 8*C
   Fp A_sq, eight_C;
   fp_mont_mul(A_sq, A, A);
-  fp_mont_mul(eight_C, eight_mont, C);
+  fp_mul8(eight_C, C);
   Fp D = A_sq - eight_C;
 
-  // X₃ = 2 * B * D
+  // X3 = 2 * B * D
   Fp BD;
   fp_mont_mul(BD, B, D);
-  fp_mont_mul(result.X, two_mont, BD);
+  fp_double(result.X, BD);
 
-  // Y₃ = A * (4*C - D) - 8 * Y^2 * B^2
+  // Y3 = A * (4*C - D) - 8 * Y^2 * B^2
   Fp four_C, A_times_diff;
-  fp_mont_mul(four_C, four_mont, C);
+  fp_mul4(four_C, C);
   Fp four_C_minus_D = four_C - D;
   fp_mont_mul(A_times_diff, A, four_C_minus_D);
 
@@ -1834,13 +1725,13 @@ __host__ __device__ void projective_point_double(G1Projective &result,
   fp_mont_mul(Y_sq, p.Y, p.Y);
   fp_mont_mul(B_sq, B, B);
   fp_mont_mul(Y_sq_B_sq, Y_sq, B_sq);
-  fp_mont_mul(eight_Y_sq_B_sq, eight_mont, Y_sq_B_sq);
+  fp_mul8(eight_Y_sq_B_sq, Y_sq_B_sq);
   result.Y = A_times_diff - eight_Y_sq_B_sq;
 
-  // Z₃ = 8 * B^3
+  // Z3 = 8 * B^3
   Fp B_cu;
   fp_mont_mul(B_cu, B_sq, B);
-  fp_mont_mul(result.Z, eight_mont, B_cu);
+  fp_mul8(result.Z, B_cu);
 }
 
 // Projective point doubling: result = 2 * p (no inversions!) - G2
@@ -1856,22 +1747,10 @@ __host__ __device__ void projective_point_double(G2Projective &result,
 
   // G2 projective doubling (same as G1 but with Fp2)
 
-  // Get Montgomery constants (cached for host, computed once for device)
-  Fp2 two_mont, three_mont, four_mont, eight_mont;
-#ifdef __CUDA_ARCH__
-  init_fp2_mont_constants(two_mont, three_mont, four_mont, eight_mont);
-#else
-  const Fp2MontConstants &c = get_fp2_mont_constants_host();
-  two_mont = c.two;
-  three_mont = c.three;
-  four_mont = c.four;
-  eight_mont = c.eight;
-#endif
-
   // A = 3 * X^2
   Fp2 X_sq, A;
-  fp2_mont_mul(X_sq, p.X, p.X);
-  fp2_mont_mul(A, three_mont, X_sq);
+  fp2_mont_square(X_sq, p.X);
+  fp2_mul3(A, X_sq);
 
   // B = Y * Z
   Fp2 B;
@@ -1884,32 +1763,32 @@ __host__ __device__ void projective_point_double(G2Projective &result,
 
   // D = A^2 - 8*C
   Fp2 A_sq, eight_C;
-  fp2_mont_mul(A_sq, A, A);
-  fp2_mont_mul(eight_C, eight_mont, C);
+  fp2_mont_square(A_sq, A);
+  fp2_mul8(eight_C, C);
   Fp2 D = A_sq - eight_C;
 
-  // X₃ = 2 * B * D
+  // X3 = 2 * B * D
   Fp2 BD;
   fp2_mont_mul(BD, B, D);
-  fp2_mont_mul(result.X, two_mont, BD);
+  fp2_double(result.X, BD);
 
-  // Y₃ = A * (4*C - D) - 8 * Y^2 * B^2
+  // Y3 = A * (4*C - D) - 8 * Y^2 * B^2
   Fp2 four_C, A_times_diff;
-  fp2_mont_mul(four_C, four_mont, C);
+  fp2_mul4(four_C, C);
   Fp2 four_C_minus_D = four_C - D;
   fp2_mont_mul(A_times_diff, A, four_C_minus_D);
 
   Fp2 Y_sq, B_sq, Y_sq_B_sq, eight_Y_sq_B_sq;
-  fp2_mont_mul(Y_sq, p.Y, p.Y);
-  fp2_mont_mul(B_sq, B, B);
+  fp2_mont_square(Y_sq, p.Y);
+  fp2_mont_square(B_sq, B);
   fp2_mont_mul(Y_sq_B_sq, Y_sq, B_sq);
-  fp2_mont_mul(eight_Y_sq_B_sq, eight_mont, Y_sq_B_sq);
+  fp2_mul8(eight_Y_sq_B_sq, Y_sq_B_sq);
   result.Y = A_times_diff - eight_Y_sq_B_sq;
 
-  // Z₃ = 8 * B^3
+  // Z3 = 8 * B^3
   Fp2 B_cu;
   fp2_mont_mul(B_cu, B_sq, B);
-  fp2_mont_mul(result.Z, eight_mont, B_cu);
+  fp2_mul8(result.Z, B_cu);
 }
 
 // Explicit template instantiations for projective_scalar_mul (needed by MSM)

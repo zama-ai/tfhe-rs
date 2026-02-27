@@ -6,7 +6,6 @@
 #include "fp2.h"
 #include "msm.h"
 #include <algorithm>
-#include <cstring>
 #include <type_traits>
 #include <vector>
 
@@ -435,13 +434,17 @@ __global__ void kernel_compute_window_sums(
 }
 
 // ============================================================================
-// CPU-side Horner Combination (faster than single-thread GPU)
+// CPU Horner Combination
 // ============================================================================
 
-// CPU Horner: combine window sums using Horner's method on host
-// Single-threaded CPU execution is faster than single-threaded GPU for this
-// sequential operation. The memcpy overhead is smaller than the GPU's memory
-// latency penalty for sequential access patterns.
+// Combines window sums using Horner's method on the CPU. A single CPU core
+// native 64-bit multiply is much faster than a single GPU thread for this
+// workload. The CPU path takes ~0.1 ms; a <<<1,1>>> GPU kernel takes ~10-12 ms.
+//
+// Horner evaluation (MSB-first):
+//   acc = window_sums[0]
+//   for w = 1 .. num_windows-1:
+//     acc = acc * 2^window_size + window_sums[w]
 template <typename ProjectiveType>
 void horner_combine_cpu(ProjectiveType &result,
                         const ProjectiveType *window_sums, uint32_t num_windows,
@@ -469,7 +472,7 @@ void horner_combine_cpu(ProjectiveType &result,
         ProjectivePoint::point_copy(acc, temp);
       }
     } else if (!ProjectivePoint::is_infinity(acc)) {
-      // Window sum is zero, but still need to shift
+      // Window sum is infinity but accumulator is not -- still shift left
       for (uint32_t i = 0; i < window_size; i++) {
         ProjectivePoint::projective_double(temp, acc);
         ProjectivePoint::point_copy(acc, temp);
@@ -485,12 +488,13 @@ void horner_combine_cpu(ProjectiveType &result,
 // ============================================================================
 
 // Template MSM with BigInt scalars - ALL WINDOWS PARALLEL
+// Result is written directly to a host pointer -- no device round-trip needed.
 // d_scratch: caller-provided device buffer for intermediate bucket arrays and
 // window sums. The caller is responsible for allocating and freeing this
 // buffer.
 template <typename AffineType, typename ProjectiveType>
 void point_msm_pippenger_impl_async(
-    cudaStream_t stream, uint32_t gpu_index, ProjectiveType *d_result,
+    cudaStream_t stream, uint32_t gpu_index, ProjectiveType *h_result,
     const AffineType *d_points, const Scalar *d_scalars, uint32_t n,
     uint32_t threads_per_block, uint32_t window_size, uint32_t bucket_count,
     ProjectiveType *d_scratch, uint64_t &size_tracker,
@@ -498,13 +502,11 @@ void point_msm_pippenger_impl_async(
   using ProjectivePoint = Projective<ProjectiveType>;
 
   if (n == 0) {
-    cuda_set_device(gpu_index);
-    kernel_clear_buckets<ProjectiveType><<<1, 1, 0, stream>>>(d_result, 1);
-    check_cuda_error(cudaGetLastError());
+    ProjectivePoint::point_at_infinity(*h_result);
     return;
   }
 
-  PANIC_IF_FALSE(d_result != nullptr && d_points != nullptr &&
+  PANIC_IF_FALSE(h_result != nullptr && d_points != nullptr &&
                      d_scalars != nullptr && d_scratch != nullptr,
                  "point_msm_pippenger_impl_async: null pointer argument");
 
@@ -597,11 +599,11 @@ void point_msm_pippenger_impl_async(
           d_window_sums, d_all_final_buckets, num_windows, bucket_count);
   check_cuda_error(cudaGetLastError());
 
-  // Phase 4: CPU-side Horner combine (faster than single GPU thread!)
-  // Download window sums to host. These are scratch sub-regions, not
-  // caller-owned buffers, so use the always-copy variants — the
-  // size-tracking variants would skip the copy when gpu_memory_allocated
-  // is false, leaving the host buffer uninitialized.
+  // Phase 4: CPU Horner combine, result written directly to host pointer
+  //
+  // The Horner loop is inherently sequential. A single CPU core is much faster
+  // than a single GPU thread for this workload, so we run Horner on the CPU
+  // and write the result directly to the caller's host pointer.
   std::vector<ProjectiveType> h_window_sums(num_windows);
   cuda_memcpy_async_to_cpu(
       h_window_sums.data(), d_window_sums,
@@ -609,17 +611,7 @@ void point_msm_pippenger_impl_async(
       gpu_index);
   cuda_synchronize_stream(stream, gpu_index);
 
-  // Perform Horner combination on CPU
-  ProjectiveType h_result;
-  horner_combine_cpu(h_result, h_window_sums.data(), num_windows, window_size);
-
-  // Upload result back to device (stack variable, not a caller buffer)
-  cuda_memcpy_async_to_gpu(d_result, &h_result, sizeof(ProjectiveType), stream,
-                           gpu_index);
-
-  // Sync to ensure the upload of h_result (a stack variable) completes
-  // before this function returns
-  cuda_synchronize_stream(stream, gpu_index);
+  horner_combine_cpu(*h_result, h_window_sums.data(), num_windows, window_size);
 }
 
 // ============================================================================
@@ -710,7 +702,7 @@ size_t pippenger_scratch_size_g2(uint32_t n, uint32_t gpu_index) {
 
 // MSM with BigInt scalars for G1 (projective coordinates internally)
 void point_msm_g1_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
-                                  G1Projective *d_result,
+                                  G1Projective *h_result,
                                   const G1Affine *d_points,
                                   const Scalar *d_scalars, uint32_t n,
                                   G1Projective *d_scratch,
@@ -720,7 +712,7 @@ void point_msm_g1_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
   get_g1_window_params(n, window_size, bucket_count);
 
   point_msm_pippenger_impl_async<G1Affine, G1Projective>(
-      stream, gpu_index, d_result, d_points, d_scalars, n,
+      stream, gpu_index, h_result, d_points, d_scalars, n,
       msm_threads_per_block<G1Affine>(n), window_size, bucket_count, d_scratch,
       size_tracker, gpu_memory_allocated);
 }
@@ -729,7 +721,7 @@ void point_msm_g1_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
 // Uses larger window size to reduce Horner doublings (G2 ops are 2x more
 // expensive)
 void point_msm_g2_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
-                                  G2ProjectivePoint *d_result,
+                                  G2ProjectivePoint *h_result,
                                   const G2Point *d_points,
                                   const Scalar *d_scalars, uint32_t n,
                                   G2ProjectivePoint *d_scratch,
@@ -739,7 +731,7 @@ void point_msm_g2_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
   get_g2_window_params(n, window_size, bucket_count);
 
   point_msm_pippenger_impl_async<G2Point, G2ProjectivePoint>(
-      stream, gpu_index, d_result, d_points, d_scalars, n,
+      stream, gpu_index, h_result, d_points, d_scalars, n,
       msm_threads_per_block<G2Point>(n), window_size, bucket_count, d_scratch,
       size_tracker, gpu_memory_allocated);
 }
