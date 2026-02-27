@@ -1526,6 +1526,13 @@ bench_integer_zk_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-zk-pke \
+	--features=integer,internal-keycache,gpu,pbs-stats,zk-pok -p tfhe-benchmark --profile release --
+
+.PHONY: bench_integer_zk_experimental_gpu
+bench_integer_zk_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-zk-pke \
 	--features=integer,internal-keycache,gpu,gpu-experimental-zk,pbs-stats,zk-pok -p tfhe-benchmark --profile release --
 
 .PHONY: bench_integer_aes_gpu # Run benchmarks for AES on GPU backend
