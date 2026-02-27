@@ -72,6 +72,8 @@ runs:
         # Disable unattended-upgrades to avoid lock issues
         sudo systemctl disable --now unattended-upgrades
 
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
         sudo apt update
         sudo apt -y install cuda-toolkit-"${TOOLKIT_VERSION}"
 

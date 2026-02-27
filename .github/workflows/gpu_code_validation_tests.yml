@@ -96,6 +96,8 @@ jobs:
           # Disable unattended-upgrades to avoid lock issues
           sudo systemctl disable --now unattended-upgrades
 
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
           sudo apt update && sudo apt install -y valgrind 
           find /usr -executable -name "compute-sanitizer"
           which valgrind

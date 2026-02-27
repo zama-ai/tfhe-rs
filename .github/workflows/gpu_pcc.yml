@@ -94,6 +94,8 @@ jobs:
           # Disable unattended-upgrades to avoid lock issues
           sudo systemctl disable --now unattended-upgrades
 
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
           sudo apt update
           sudo apt -y install "cuda-toolkit-${TOOLKIT_VERSION}" cmake-format
         env:
@@ -139,7 +141,10 @@ jobs:
           # Disable unattended-upgrades to avoid lock issues
           sudo systemctl disable --now unattended-upgrades
 
-          sudo apt update && sudo apt -y install python3-venv
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo apt update
+          sudo apt -y install python3-venv
           make semgrep_and_lint_gpu_code
 
       - name: Check build with hpu enabled
