@@ -29,6 +29,7 @@ rand = { workspace = true }
 rayon = { workspace = true }
 tfhe = { path = "../tfhe", default-features = false }
 tfhe-csprng = { path = "../tfhe-csprng" }
+tfhe-zk-pok = { path = "../tfhe-zk-pok", optional = true }
 cpu-time = "1.0"
 num_cpus = "1.17"
 gag = "1.0.0"
@@ -39,12 +40,14 @@ boolean = ["tfhe/boolean"]
 shortint = ["tfhe/shortint"]
 integer = ["shortint", "tfhe/integer"]
 gpu = ["tfhe/gpu"]
+# gpu enables tfhe-cuda-backend which provides CUDA stream management used by tfhe-zk-pok
+gpu-experimental-zk = ["gpu", "zk-pok", "tfhe/gpu-experimental-zk", "tfhe-zk-pok/gpu-experimental"]
 hpu = ["tfhe/hpu"]
 hpu-v80 = ["tfhe/hpu-v80"]
 internal-keycache = ["tfhe/internal-keycache"]
 avx512 = ["tfhe/avx512"]
 pbs-stats = ["tfhe/pbs-stats"]
-zk-pok = ["tfhe/zk-pok"]
+zk-pok = ["tfhe/zk-pok", "dep:tfhe-zk-pok"]
 
 [[bench]]
 name = "boolean"
@@ -195,6 +198,12 @@ name = "core_crypto-pbs128"
 path = "benches/core_crypto/pbs128_bench.rs"
 harness = false
 required-features = ["shortint", "internal-keycache"]
+
+[[bench]]
+name = "zk-msm"
+path = "benches/zk/msm.rs"
+harness = false
+required-features = ["zk-pok"]
 
 [[bin]]
 name = "boolean_key_sizes"
