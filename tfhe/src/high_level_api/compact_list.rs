@@ -23,6 +23,8 @@ pub use zk::ProvenCompactCiphertextList;
 use crate::high_level_api::global_state::with_cuda_internal_keys;
 
 #[cfg(feature = "zk-pok")]
+use crate::core_crypto::commons::math::random::Seed;
+#[cfg(feature = "zk-pok")]
 use crate::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::{CompactPublicKey, Tag};
 
@@ -1074,6 +1076,25 @@ impl CompactCiphertextListBuilder {
     ) -> crate::Result<ProvenCompactCiphertextList> {
         self.inner
             .build_with_proof_packed(crs, metadata, compute_load)
+            .map(|proved_list| ProvenCompactCiphertextList {
+                inner:
+                    crate::high_level_api::compact_list::zk::InnerProvenCompactCiphertextList::Cpu(
+                        proved_list,
+                    ),
+                tag: self.tag.clone(),
+            })
+    }
+
+    #[cfg(feature = "zk-pok")]
+    pub fn build_with_proof_packed_seeded(
+        &self,
+        crs: &CompactPkeCrs,
+        metadata: &[u8],
+        compute_load: ZkComputeLoad,
+        seed: Seed,
+    ) -> crate::Result<ProvenCompactCiphertextList> {
+        self.inner
+            .build_with_proof_packed_seeded(crs, metadata, compute_load, seed)
             .map(|proved_list| ProvenCompactCiphertextList {
                 inner:
                     crate::high_level_api::compact_list::zk::InnerProvenCompactCiphertextList::Cpu(

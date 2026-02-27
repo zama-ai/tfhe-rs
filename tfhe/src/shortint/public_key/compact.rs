@@ -14,6 +14,10 @@ use crate::shortint::ciphertext::ProvenCompactCiphertextList;
 use crate::shortint::ciphertext::{CompactCiphertextList, Degree};
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::engine::ShortintEngine;
+#[cfg(feature = "zk-pok")]
+use crate::core_crypto::commons::generators::DeterministicSeeder;
+#[cfg(feature = "zk-pok")]
+use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, Seed};
 use crate::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
 use crate::shortint::ClientKey;
 #[cfg(feature = "zk-pok")]
@@ -463,6 +467,91 @@ impl CompactPublicKey {
                         load,
                     )
                 })
+            }?;
+
+            let message_modulus = self.parameters.message_modulus;
+            let ciphertext = CompactCiphertextList {
+                ct_list,
+                degree: Degree::new(encryption_modulus - 1),
+                message_modulus,
+                carry_modulus: self.parameters.carry_modulus,
+                expansion_kind: self.parameters.expansion_kind,
+            };
+
+            proved_lists.push((ciphertext, proof));
+        }
+
+        Ok(ProvenCompactCiphertextList { proved_lists })
+    }
+
+    #[cfg(feature = "zk-pok")]
+    pub fn encrypt_and_prove_slice_seeded(
+        &self,
+        messages: &[u64],
+        crs: &CompactPkeCrs,
+        metadata: &[u8],
+        load: ZkComputeLoad,
+        encryption_modulus: u64,
+        seed: Seed,
+    ) -> crate::Result<ProvenCompactCiphertextList> {
+        let plaintext_modulus = self.parameters.message_modulus.0 * self.parameters.carry_modulus.0;
+        assert!(encryption_modulus <= plaintext_modulus);
+        let delta = self.encoding().delta();
+
+        let max_ciphertext_per_bin = self.key.lwe_dimension().0;
+        let max_num_messages = crs.max_num_messages().0;
+        let message_chunk_size = max_num_messages.min(max_ciphertext_per_bin);
+
+        let mut deterministic_seeder =
+            DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
+        let mut engine = ShortintEngine::new_from_seeder(&mut deterministic_seeder);
+
+        let num_lists = messages.len().div_ceil(message_chunk_size);
+        let mut proved_lists = Vec::with_capacity(num_lists);
+        for message_chunk in messages.chunks(message_chunk_size) {
+            let mut ct_list = LweCompactCiphertextListOwned::new(
+                0u64,
+                self.key.lwe_dimension().to_lwe_size(),
+                LweCiphertextCount(message_chunk.len()),
+                self.parameters.ciphertext_modulus,
+            );
+
+            let encryption_noise_distribution = self.parameters.encryption_noise_distribution;
+
+            #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
+            let proof = {
+                use crate::core_crypto::prelude::encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key;
+                encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key(
+                    &self.key,
+                    &mut ct_list,
+                    &message_chunk,
+                    delta,
+                    encryption_noise_distribution,
+                    encryption_noise_distribution,
+                    engine.encryption_generator.noise_generator_mut(),
+                    &mut engine.random_generator,
+                    crs,
+                    metadata,
+                    load,
+                )
+            }?;
+
+            #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
+            let proof = {
+                use crate::core_crypto::prelude::par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key;
+                par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key(
+                    &self.key,
+                    &mut ct_list,
+                    &message_chunk,
+                    delta,
+                    encryption_noise_distribution,
+                    encryption_noise_distribution,
+                    engine.encryption_generator.noise_generator_mut(),
+                    &mut engine.random_generator,
+                    crs,
+                    metadata,
+                    load,
+                )
             }?;
 
             let message_modulus = self.parameters.message_modulus;
