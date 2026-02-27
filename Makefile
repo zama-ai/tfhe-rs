@@ -228,19 +228,19 @@ install_chrome_web_driver: decompress_cmd = unzip
 .PHONY: install_chrome_web_driver # Install Chrome web driver for Linux
 install_chrome_web_driver: install_web_resource
 
-install_firefox_browser: url = "https://download-installer.cdn.mozilla.net/pub/firefox/releases/131.0/linux-x86_64/en-US/firefox-131.0.tar.bz2"
-install_firefox_browser: checksum = "4ca8504a62a31472ecb8c3a769d4301dd4ac692d4cc5d51b8fe2cf41e7b11106"
+install_firefox_browser: url = "https://download-installer.cdn.mozilla.net/pub/firefox/releases/147.0/linux-x86_64/en-US/firefox-147.0.tar.xz"
+install_firefox_browser: checksum = "f055b9c0d7346a10d22edc7f10e08679af2ea495367381ab2be9cab3ec6add97"
 install_firefox_browser: dest = "$(WEB_RUNNER_DIR)/firefox"
-install_firefox_browser: filename = "firefox-131.0.tar.bz2"
+install_firefox_browser: filename = "firefox-147.0.tar.xz"
 install_firefox_browser: decompress_cmd = tar -xvf
 
 .PHONY: install_firefox_browser # Install firefox browser for Linux
 install_firefox_browser: install_web_resource
 
-install_firefox_web_driver: url = "https://github.com/mozilla/geckodriver/releases/download/v0.35.0/geckodriver-v0.35.0-linux64.tar.gz"
-install_firefox_web_driver: checksum = "ac26e9ba8f3b8ce0fbf7339b9c9020192f6dcfcbf04a2bcd2af80dfe6bb24260"
+install_firefox_web_driver: url = "https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz"
+install_firefox_web_driver: checksum = "0bde38707eb0a686a20c6bd50f4adcc7d60d4f73c60eb83ee9e0db8f65823e04"
 install_firefox_web_driver: dest = "$(WEB_RUNNER_DIR)/firefox"
-install_firefox_web_driver: filename = "geckodriver-v0.35.0-linux64.tar.gz"
+install_firefox_web_driver: filename = "geckodriver-v0.36.0-linux64.tar.gz"
 install_firefox_web_driver: decompress_cmd = tar -xvf
 
 .PHONY: install_firefox_web_driver # Install firefox web driver for Linux
