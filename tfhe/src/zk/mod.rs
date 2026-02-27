@@ -17,23 +17,20 @@ use std::fmt::Debug;
 use tfhe_versionable::Versionize;
 
 use tfhe_zk_pok::proofs::pke::{
-    commit as commit_v1, crs_gen as crs_gen_v1,verify as verify_v1,
-    Proof as ProofV1, PublicCommit as PublicCommitV1,
+    commit as commit_v1, crs_gen as crs_gen_v1, verify as verify_v1, Proof as ProofV1,
+    PublicCommit as PublicCommitV1,
 };
 
 use tfhe_zk_pok::proofs::pke_v2::{
-    commit as commit_v2, crs_gen as crs_gen_v2,
-    PkeV2SupportedHashConfig, Proof as ProofV2, PublicCommit as PublicCommitV2,
-    VerificationPairingMode,
+    commit as commit_v2, crs_gen as crs_gen_v2, PkeV2SupportedHashConfig, Proof as ProofV2,
+    PublicCommit as PublicCommitV2, VerificationPairingMode,
 };
 
 #[cfg(not(feature = "gpu-experimental-zk"))]
 use tfhe_zk_pok::proofs::pke::prove as prove_v1;
 
 #[cfg(not(feature = "gpu-experimental-zk"))]
-use tfhe_zk_pok::proofs::pke_v2::{
-    prove as prove_v2, verify as verify_v2
-};
+use tfhe_zk_pok::proofs::pke_v2::{prove as prove_v2, verify as verify_v2};
 
 pub use tfhe_zk_pok::curve_api::Compressible;
 pub use tfhe_zk_pok::proofs::pke_v2::PkeV2SupportedHashConfig as ZkPkeV2SupportedHashConfig;
