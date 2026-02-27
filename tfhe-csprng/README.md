@@ -20,4 +20,4 @@ RUSTFLAGS="-Ctarget-cpu=native" cargo bench
 ## License
 
 This software is distributed under the BSD-3-Clause-Clear license. If you have any questions,
-please contact us at `hello@zama.ai`.
+please contact us at `hello@zama.org`.

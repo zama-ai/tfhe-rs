@@ -34,7 +34,7 @@ FHE allows to compute on ciphertexts without revealing the content of the messag
 
 Zama's variant of TFHE is a fully homomorphic scheme that takes fixed-precision numbers as messages. It implements all homomorphic operations needed, such as addition and function evaluation via Programmable Bootstrapping.
 
-Refer to the [preliminary whitepaper](https://whitepaper.zama.ai/) for more details.
+Refer to the [preliminary whitepaper](https://whitepaper.zama.org/) for more details.
 
 Using **TFHE-rs** in Rust includes the following steps:
 
@@ -45,4 +45,4 @@ Using **TFHE-rs** in Rust includes the following steps:
 3. **Homomorphic operation**: perform operations on ciphertexts using the server key.
 4. **Decryption**: decrypt the resulting ciphertexts back to plaintexts using the client key.
 
-To understand more about FHE applications, see the [6-minute introduction to homomorphic encryption](https://6min.zama.ai/).
+To understand more about FHE applications, see the [6-minute introduction to homomorphic encryption](https://6min.zama.org/).
