@@ -1,6 +1,6 @@
 # Noise squashing
 
-In the context of confidential blockchain protocols, like the [Zama protocol](https://docs.zama.ai/protocol), for security reasons the threshold decryption requires to hide the intrinsic noise of FHE operations. This can be achieved by the MPC nodes by adding large amounts of random noise before they perform the actual decryption. In order to have enough room for that large noise that needs to be added before decryption, the noise squashing operation is performed.
+In the context of confidential blockchain protocols, like the [Zama protocol](https://docs.zama.org/protocol), for security reasons the threshold decryption requires to hide the intrinsic noise of FHE operations. This can be achieved by the MPC nodes by adding large amounts of random noise before they perform the actual decryption. In order to have enough room for that large noise that needs to be added before decryption, the noise squashing operation is performed.
 
 **TFHE-rs**' High Level API provides APIs to do just that, here is how one would use those primitives:
 

@@ -6,7 +6,7 @@ description = "tfhe-ntt is a pure Rust high performance number theoretic transfo
 readme = "README.md"
 repository = "https://github.com/zama-ai/tfhe-rs"
 license = "BSD-3-Clause-Clear"
-homepage = "https://zama.ai/"
+homepage = "https://zama.org/"
 keywords = ["ntt"]
 rust-version.workspace = true
 
