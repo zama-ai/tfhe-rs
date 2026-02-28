@@ -9,6 +9,9 @@ on:
         type: string
       layer:
         type: string
+      bench_subset:
+        type: string
+        default: all
       pbs_kind: # Valid values are 'classical', 'multi_bit' or 'any'
         type: string
       grouping_factor: # Valid values are 2, 3, or 4
@@ -16,6 +19,9 @@ on:
         default: 4
       bench_type: # Valid values are 'latency', 'throughput'
         type: string
+      name_suffix:
+        type: string
+        default: _mean_avx512
       backend_comparison:
         type: boolean
         default: false
@@ -60,6 +66,8 @@ jobs:
           --pbs-kind "${PBS_KIND}" \
           --grouping-factor "${GROUPING_FACTOR}" \
           --bench-type "${BENCH_TYPE}" \
+          --bench-subset "${BENCH_SUBSET}" \
+          --name-suffix "${NAME_SUFFIX}" \
           --time-span-days "${TIME_SPAN}"
         env:
           OUTPUT_FILENAME: ${{ inputs.output_filename }}
@@ -70,6 +78,8 @@ jobs:
           PBS_KIND: ${{ inputs.pbs_kind }}
           GROUPING_FACTOR: ${{ inputs.grouping_factor }}
           BENCH_TYPE: ${{ inputs.bench_type }}
+          BENCH_SUBSET: ${{ inputs.bench_subset }}
+          NAME_SUFFIX: ${{ inputs.name_suffix }}
           TIME_SPAN: ${{ inputs.time_span_days }}
           DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
           DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
@@ -79,7 +89,7 @@ jobs:
         if: inputs.backend_comparison == false
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: ${{ github.sha }}_${{ inputs.backend }}_${{ inputs.layer }}_${{ inputs.pbs_kind }}_${{ inputs.bench_type }}_tables
+          name: ${{ github.sha }}_${{ inputs.backend }}_${{ inputs.layer }}_subset_${{inputs.bench_subset}}_${{ inputs.pbs_kind }}_${{ inputs.bench_type }}_tables
           # This will upload all the file generated
           path: ${{ inputs.output_filename }}*.svg
           retention-days: 60

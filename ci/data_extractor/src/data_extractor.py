@@ -288,7 +288,10 @@ def get_formatter(layer: Layer, bench_subset: BenchSubset):
         case BenchSubset.Erc20:
             return formatters.hlapi.Erc20Formatter
         case BenchSubset.Zk:
-            return formatters.wasm.ZKFormatter
+            if layer == Layer.Wasm:
+                return formatters.wasm.ZKFormatter
+            else:
+                return formatters.integer.ZKFormatter
 
     match layer:
         case Layer.Integer:
@@ -433,6 +436,7 @@ def generate_files_from_arrays(
 
 def get_operands_types(layer: Layer, bench_subset: BenchSubset = None):
     ciphertext_only = (OperandType.CipherText,)
+    ciphertext_and_plaintext = (OperandType.CipherText, OperandType.PlainText)
 
     if layer == Layer.CoreCrypto:
         return ciphertext_only
@@ -440,12 +444,14 @@ def get_operands_types(layer: Layer, bench_subset: BenchSubset = None):
         match bench_subset:
             case BenchSubset.Zk | BenchSubset.Erc20:
                 return ciphertext_only
+            case BenchSubset.All:
+                return ciphertext_and_plaintext
             case _:
                 raise NotImplementedError(
                     f"operand types cannot be defined for bench subset '{bench_subset}'"
                 )
     else:
-        return OperandType.CipherText, OperandType.PlainText
+        return ciphertext_and_plaintext
 
 
 if __name__ == "__main__":
