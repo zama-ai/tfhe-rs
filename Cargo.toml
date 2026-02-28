@@ -38,8 +38,9 @@ pulp = { version = "0.22", default-features = false }
 rand = "0.8"
 rayon = "1.11"
 serde = { version = "1.0", default-features = false }
-wasm-bindgen = "0.2.101"
-getrandom = "0.2.8"
+# wasm-bindgen (at this point in time) automatically enables the unsafe-eval feature
+wasm-bindgen = { version = "0.2.113", default-features = false }
+getrandom = "0.2.17"
 # The project maintainers consider that this is the last version of the 1.3 branch, any newer version should not be trusted
 bindgen = "0.71"
 bincode = "=1.3.3"
