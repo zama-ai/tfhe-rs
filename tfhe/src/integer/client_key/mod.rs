@@ -143,7 +143,7 @@ impl ClientKey {
     }
 
     pub fn parameters(&self) -> crate::shortint::AtomicPatternParameters {
-        self.key.parameters().ap_parameters().unwrap()
+        self.key.parameters().ap_parameters()
     }
 
     #[cfg(test)]

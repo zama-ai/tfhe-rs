@@ -67,8 +67,6 @@ pub mod parameters;
 pub mod prelude;
 pub mod public_key;
 pub mod server_key;
-#[cfg(feature = "experimental")]
-pub mod wopbs;
 
 #[cfg(feature = "gpu")]
 pub mod gpu;
@@ -79,7 +77,6 @@ pub mod hpu;
 #[cfg(feature = "zk-pok")]
 pub use ciphertext::ProvenCompactCiphertextList;
 
-use crate::shortint::parameters::ModulusSwitchType;
 pub use bigint::i256::I256;
 pub use bigint::i512::I512;
 pub use bigint::u256::U256;
@@ -119,68 +116,19 @@ where
     let shortint_parameters_set: crate::shortint::parameters::ShortintParameterSet =
         parameters_set.try_into().unwrap();
 
-    let is_wopbs_only_params = shortint_parameters_set.wopbs_only();
-
-    // TODO
-    // Manually manage the wopbs only case as a workaround pending wopbs rework
-    // WOPBS used for PBS have no known failure probability at the moment, putting 1.0 for now
-    let shortint_parameters_set = if is_wopbs_only_params {
-        let wopbs_params = shortint_parameters_set.wopbs_parameters().unwrap();
-        let pbs_params = crate::shortint::parameters::ClassicPBSParameters {
-            lwe_dimension: wopbs_params.lwe_dimension,
-            glwe_dimension: wopbs_params.glwe_dimension,
-            polynomial_size: wopbs_params.polynomial_size,
-            lwe_noise_distribution: wopbs_params.lwe_noise_distribution,
-            glwe_noise_distribution: wopbs_params.glwe_noise_distribution,
-            pbs_base_log: wopbs_params.pbs_base_log,
-            pbs_level: wopbs_params.pbs_level,
-            ks_base_log: wopbs_params.ks_base_log,
-            ks_level: wopbs_params.ks_level,
-            message_modulus: wopbs_params.message_modulus,
-            carry_modulus: wopbs_params.carry_modulus,
-            max_noise_level: crate::shortint::parameters::MaxNoiseLevel::from_msg_carry_modulus(
-                wopbs_params.message_modulus,
-                wopbs_params.carry_modulus,
-            ),
-            log2_p_fail: 1.0,
-            ciphertext_modulus: wopbs_params.ciphertext_modulus,
-            encryption_key_choice: wopbs_params.encryption_key_choice,
-            modulus_switch_noise_reduction_params: ModulusSwitchType::Standard,
-        };
-
-        crate::shortint::parameters::ShortintParameterSet::try_new_pbs_and_wopbs_param_set((
-            pbs_params,
-            wopbs_params,
-        ))
-        .unwrap()
-    } else {
-        shortint_parameters_set
-    };
-
-    let gen_keys_inner = |parameters_set| {
-        let cks = ClientKey::new(parameters_set);
+    #[cfg(any(test, feature = "internal-keycache"))]
+    {
+        keycache::KEY_CACHE.get_from_params(shortint_parameters_set.ap_parameters(), key_kind)
+    }
+    #[cfg(all(not(test), not(feature = "internal-keycache")))]
+    {
+        let cks = ClientKey::new(shortint_parameters_set);
         let sks = match key_kind {
             IntegerKeyKind::Radix => ServerKey::new_radix_server_key(&cks),
             IntegerKeyKind::CRT => ServerKey::new_crt_server_key(&cks),
         };
 
         (cks, sks)
-    };
-
-    #[cfg(any(test, feature = "internal-keycache"))]
-    {
-        if is_wopbs_only_params {
-            // TODO
-            // Keycache is broken for the wopbs only case, so generate keys instead
-            gen_keys_inner(shortint_parameters_set)
-        } else {
-            keycache::KEY_CACHE
-                .get_from_params(shortint_parameters_set.ap_parameters().unwrap(), key_kind)
-        }
-    }
-    #[cfg(all(not(test), not(feature = "internal-keycache")))]
-    {
-        gen_keys_inner(shortint_parameters_set)
     }
 }
 

@@ -34,7 +34,6 @@ impl<AP: 'static> Upgrade<GenericClientKey<AP>> for GenericClientKeyV0 {
             self.glwe_secret_key,
             self.lwe_secret_key,
             ap_params,
-            self.parameters.wopbs_parameters(),
         );
 
         if TypeId::of::<AP>() == TypeId::of::<AtomicPatternClientKey>() {

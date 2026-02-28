@@ -1,9 +1,5 @@
-#[cfg(feature = "experimental")]
-use crate::integer::wopbs::WopbsKey;
 use crate::integer::{ClientKey, IntegerKeyKind, ServerKey};
 use crate::shortint::atomic_pattern::AtomicPatternParameters;
-#[cfg(feature = "experimental")]
-use crate::shortint::{PBSParameters, WopbsParameters};
 
 #[cfg(feature = "hpu")]
 use std::sync::{Mutex, OnceLock};
@@ -94,33 +90,4 @@ impl IntegerKeyCache {
     }
 }
 
-#[derive(Default)]
-#[cfg(feature = "experimental")]
-pub struct WopbsKeyCache;
-
-#[cfg(feature = "experimental")]
-impl WopbsKeyCache {
-    pub fn get_from_params<P>(&self, (pbs_params, wopbs_params): (P, WopbsParameters)) -> WopbsKey
-    where
-        P: Into<PBSParameters>,
-    {
-        let cache = &crate::shortint::keycache::KEY_CACHE_WOPBS;
-        let shortint_wops_key = cache.get_from_param((pbs_params, wopbs_params));
-
-        // For cargo nextest which runs in separate processes we load keys once per process, this
-        // allows to remove the copy loaded in the keycache to avoid OOM errors, the nice effect of
-        // linux file caching is that the keys will still be in RAM most likely, not requiring re
-        // re-reading from file for all processes.
-        if let Ok(val) = std::env::var("TFHE_RS_CLEAR_IN_MEMORY_KEY_CACHE") {
-            if val == "1" {
-                cache.clear_in_memory_cache()
-            }
-        }
-
-        WopbsKey::from(shortint_wops_key.wopbs_key().clone())
-    }
-}
-
 pub static KEY_CACHE: IntegerKeyCache = IntegerKeyCache::new();
-#[cfg(feature = "experimental")]
-pub static KEY_CACHE_WOPBS: WopbsKeyCache = WopbsKeyCache;

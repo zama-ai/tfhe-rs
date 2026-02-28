@@ -118,12 +118,6 @@ impl TryFrom<ShortintParameterSet> for CompactPublicKeyEncryptionParameters {
 
     #[track_caller]
     fn try_from(parameters: ShortintParameterSet) -> Result<Self, Self::Error> {
-        if parameters.wopbs_only() {
-            return Err(Error::new(String::from(
-                "Cannot convert Wopbs only parameters to CompactPublicKeyEncryption parameters.",
-            )));
-        }
-
         let encryption_lwe_dimension = parameters.encryption_lwe_dimension();
         let encryption_noise_distribution = parameters.encryption_noise_distribution();
         let message_modulus = parameters.message_modulus();

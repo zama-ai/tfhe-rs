@@ -63,13 +63,6 @@ pub mod parameters;
 pub mod prelude;
 pub mod public_key;
 pub mod server_key;
-#[cfg(feature = "experimental")]
-pub mod wopbs;
-#[cfg(all(
-    not(feature = "experimental"),
-    any(test, doctest, feature = "internal-keycache")
-))]
-pub(crate) mod wopbs;
 
 pub use ciphertext::{Ciphertext, CompressedCiphertext, PBSOrder};
 pub use client_key::ClientKey;
@@ -78,7 +71,7 @@ pub use key_switching_key::{CompressedKeySwitchingKey, KeySwitchingKey, KeySwitc
 pub use parameters::{
     AtomicPatternKind, AtomicPatternParameters, CarryModulus, CiphertextModulus,
     ClassicPBSParameters, EncryptionKeyChoice, MaxNoiseLevel, MessageModulus,
-    MultiBitPBSParameters, PBSParameters, ShortintParameterSet, WopbsParameters,
+    MultiBitPBSParameters, PBSParameters, ShortintParameterSet,
 };
 pub use public_key::{
     CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
