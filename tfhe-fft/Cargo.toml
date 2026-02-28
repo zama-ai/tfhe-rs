@@ -6,7 +6,7 @@ description = "tfhe-fft is a pure Rust high performance fast Fourier transform l
 readme = "README.md"
 repository = "https://github.com/zama-ai/tfhe-rs"
 license = "BSD-3-Clause-Clear"
-homepage = "https://zama.ai/"
+homepage = "https://zama.org/"
 keywords = ["fft"]
 
 [dependencies]

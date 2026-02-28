@@ -10,9 +10,9 @@
 
 #### Blog tutorials and articles
 
-* [Dark Market with TFHE-rs](https://www.zama.ai/post/dark-market-tfhe-rs) - July 7, 2023
-* [Regular Expression Engine with TFHE-rs](https://www.zama.ai/post/regex-engine-tfhe-rs) - June 30, 2023
+* [Dark Market with TFHE-rs](https://www.zama.org/post/dark-market-tfhe-rs) - July 7, 2023
+* [Regular Expression Engine with TFHE-rs](https://www.zama.org/post/regex-engine-tfhe-rs) - June 30, 2023
 
 #### Video tutorials
-* [Implement GPU acceleration on homomorphic computation using TFHE-rs](https://www.zama.ai/post/video-tutorial-implement-gpu-acceleration-on-homomorphic-computation-using-tfhe-rs) - May 2024
+* [Implement GPU acceleration on homomorphic computation using TFHE-rs](https://www.zama.org/post/video-tutorial-implement-gpu-acceleration-on-homomorphic-computation-using-tfhe-rs) - May 2024
 * [Implement signed integers using TFHE-rs](https://www.youtube.com/watch?v=O0aGj\_xUo40) - Nov 8, 2023
