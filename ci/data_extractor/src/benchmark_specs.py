@@ -22,7 +22,7 @@ class Backend(enum.StrEnum):
             case "hpu":
                 return Backend.HPU
             case _:
-                raise NotImplementedError
+                raise NotImplementedError(f"backend '{backend_name}' not supported")
 
 
 class Layer(enum.StrEnum):
@@ -251,7 +251,12 @@ class ErrorFailureProbability(enum.IntEnum):
             if not part.startswith("2M"):
                 continue
 
-            match int(part.lstrip("2M")):
+            try:
+                pfail_int_value = int(part.lstrip("2M"))
+            except ValueError:
+                raise ValueError(f"Could not parse p-fail value as integer in '{name}'")
+
+            match pfail_int_value:
                 case 40:
                     return ErrorFailureProbability.TWO_MINUS_40
                 case 64:
@@ -297,7 +302,7 @@ class BenchType(enum.StrEnum):
             case "both":
                 return BenchType.Both
             case _:
-                raise ValueError(f"BenchType '{bench_type}' not supported")
+                raise NotImplementedError(f"BenchType '{bench_type}' not supported")
 
 
 class BenchSubset(enum.StrEnum):
@@ -607,14 +612,14 @@ class BenchDetails:
                 self.operation_name = parts[2] if parts[1] == "cuda" else parts[1]
             case Layer.HLApi:
                 if parts[1] in ["cuda", "hpu"]:
-                    if "_PARAM_" in parts[-2]:
+                    if "PARAM_" in parts[-2]:
                         # Case for arithmetic operations (add, sub, mul,...)
                         self.operation_name = "::".join(parts[2:-2])
                     else:
                         # Case for higher-level operation (erc20 transfer, dex,...)
                         self.operation_name = "::".join(parts[2:-1])
                 else:
-                    if "_PARAM_" in parts[-2]:
+                    if "PARAM_" in parts[-2]:
                         # Case for arithmetic operations (add, sub, mul,...)
                         self.operation_name = "::".join(parts[1:-2])
                     else:
