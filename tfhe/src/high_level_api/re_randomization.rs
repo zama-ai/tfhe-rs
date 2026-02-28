@@ -41,25 +41,16 @@ use tfhe_versionable::Versionize;
 /// ```rust
 /// use tfhe::prelude::*;
 /// use tfhe::shortint::parameters::*;
-/// use tfhe::{
-///     generate_keys, set_server_key, CompactPublicKey, ConfigBuilder, FheUint64,
-///     ReRandomizationContext,
-/// };
+/// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint64, ReRandomizationContext};
 ///
 /// let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-/// let cpk_params = (
-///     PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-///     PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-/// );
-/// let re_rand_ks_params = PARAM_KEYSWITCH_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+/// let re_rand_params = ReRandomizationParameters::DerivedCPKWithoutKeySwitch;
 ///
 /// let config = ConfigBuilder::with_custom_parameters(params)
-///     .use_dedicated_compact_public_key_parameters(cpk_params)
-///     .enable_ciphertext_re_randomization(re_rand_ks_params)
+///     .enable_ciphertext_re_randomization(re_rand_params)
 ///     .build();
 ///
 /// let (cks, sks) = generate_keys(config);
-/// let cpk = CompactPublicKey::new(&cks);
 ///
 /// let compact_public_encryption_domain_separator = *b"TFHE_Enc";
 /// let rerand_domain_separator = *b"TFHE_Rrd";
@@ -93,29 +84,40 @@ use tfhe_versionable::Versionize;
 ///
 /// let mut seed_gen = re_rand_context.finalize();
 ///
-/// a.re_randomize(&cpk, seed_gen.next_seed().unwrap()).unwrap();
-/// b.re_randomize(&cpk, seed_gen.next_seed().unwrap()).unwrap();
+/// a.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
+///     .unwrap();
+/// b.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
+///     .unwrap();
 ///
 /// let c = a + b;
 /// let dec: u64 = c.decrypt(&cks);
 ///
 /// assert_eq!(clear_a.wrapping_add(clear_b), dec);
 /// ```
-pub trait ReRandomize
-where
-    Self: Sized,
-{
+pub trait ReRandomize {
     fn add_to_re_randomization_context(&self, context: &mut ReRandomizationContext);
 
     /// Re-randomize the ciphertext using the provided public key and seed.
     ///
     /// The random elements of the ciphertexts will be changed but it will still encrypt the same
     /// value.
+    #[deprecated(
+        since = "1.6.0",
+        note = "re_randomize requiring a separate CompactPublicKey \
+                has been deprecated: use re_randomize_without_keyswitch"
+    )]
     fn re_randomize(
         &mut self,
         compact_public_key: &CompactPublicKey,
         seed: ReRandomizationSeed,
     ) -> crate::Result<()>;
+
+    /// Re-randomize the ciphertext using the provided seed and currently set
+    /// [`ServerKey`](`crate::ServerKey`).
+    ///
+    /// The random elements of the ciphertexts will be changed but it will still encrypt the same
+    /// value.
+    fn re_randomize_without_keyswitch(&mut self, seed: ReRandomizationSeed) -> crate::Result<()>;
 }
 
 /// The context in which the ciphertexts to re-randomized will be used.
@@ -178,7 +180,7 @@ impl ReRandomizationContext {
     }
 
     /// Adds a new ciphertext to the re-randomization context
-    pub fn add_ciphertext<Data: ReRandomize>(&mut self, data: &Data) {
+    pub fn add_ciphertext<Data: ReRandomize + ?Sized>(&mut self, data: &Data) {
         data.add_to_re_randomization_context(self);
     }
 

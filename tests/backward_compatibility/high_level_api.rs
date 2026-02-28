@@ -22,8 +22,8 @@ use tfhe::{
     CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
     CompressedKVStore, CompressedPublicKey, CompressedServerKey,
     CompressedSquashedNoiseCiphertextList, CompressedSquashedNoiseCiphertextListBuilder, FheBool,
-    FheInt8, FheUint32, FheUint64, FheUint8, ReRandomizationContext, ServerKey,
-    SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint,
+    FheInt8, FheUint32, FheUint64, FheUint8, ReRandomizationContext, ReRandomizationSupport,
+    ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint,
 };
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
@@ -360,16 +360,55 @@ pub fn test_hl_pubkey(
     }
 }
 
+enum CPKWithReRandMode<'a> {
+    /// Used for legacy test which interpreted the presence of CPK as making rerand test necessary
+    ExpectsLegacyReRand(&'a CompactPublicKey),
+    /// Use for other cases, the rerand support is checked
+    NoLegacyReRandExpectation(&'a CompactPublicKey),
+}
+
 /// Shared feature-testing logic for server keys: computation, re-randomization, noise squashing,
 /// compression, and compressed noise-squashed lists.
 fn test_hl_key_features(
     client_key: &ClientKey,
     server_key: ServerKey,
-    compact_public_key: Option<&CompactPublicKey>,
+    compact_public_key: Option<CPKWithReRandMode<'_>>,
     test: &impl TestType,
     format: DataFormat,
 ) -> Result<(), TestFailure> {
     set_server_key(server_key.clone());
+
+    let rerand_support = ServerKey::current_server_key_re_randomization_support().map_err(|e| {
+        test.failure(
+            format!("Test encountered an error while querying rerand support: {e}"),
+            format,
+        )
+    })?;
+
+    // Legacy tests for rerand were deriving needing rerandomization capability from the presence of
+    // a CompactPublicKey, this is now captured by the rerand mode to indicate whether it was such
+    // a legacy test, the order of the tests is important here
+    if matches!(
+        compact_public_key,
+        Some(CPKWithReRandMode::ExpectsLegacyReRand(_))
+    ) {
+        // Nested ifs to capture the original logic
+        if !matches!(
+            rerand_support,
+            ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch
+        ) {
+            return Err(test.failure(
+                "Test requires legacy rerand support but ServerKey does not have it".to_string(),
+                format,
+            ));
+        }
+    }
+
+    // Remove the rerand mode check to keep logic simpler moving forward
+    let compact_public_key = compact_public_key.map(|pk| match pk {
+        CPKWithReRandMode::ExpectsLegacyReRand(compact_public_key) => compact_public_key,
+        CPKWithReRandMode::NoLegacyReRandExpectation(compact_public_key) => compact_public_key,
+    });
 
     let clear_a = 278120u32;
     let clear_b = 839412u32;
@@ -395,27 +434,52 @@ fn test_hl_key_features(
         }
     };
 
-    // Re-randomization
-    if let (Some(pk), true) = (
-        compact_public_key,
-        server_key.supports_ciphertext_re_randomization(),
-    ) {
-        let nonce: [u8; 256 / 8] = core::array::from_fn(|i| i as u8);
-        let mut re_rand_context = ReRandomizationContext::new(
-            *b"TFHE_Rrd",
-            [b"FheUint32 bin ops".as_slice(), nonce.as_slice()],
-            *b"TFHE_Enc",
-        );
+    match (compact_public_key, rerand_support) {
+        (Some(pk), ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch) => {
+            let nonce: [u8; 256 / 8] = core::array::from_fn(|i| i as u8);
+            let mut re_rand_context = ReRandomizationContext::new(
+                *b"TFHE_Rrd",
+                [b"FheUint32 bin ops".as_slice(), nonce.as_slice()],
+                *b"TFHE_Enc",
+            );
 
-        re_rand_context.add_ciphertext(&a);
-        re_rand_context.add_ciphertext(&b);
+            re_rand_context.add_ciphertext(&a);
+            re_rand_context.add_ciphertext(&b);
 
-        let mut seed_gen = re_rand_context.finalize();
+            let mut seed_gen = re_rand_context.finalize();
 
-        a.re_randomize(pk, seed_gen.next_seed().unwrap())
-            .map_err(|e| test.failure(format!("Failed to re-randomize a: {e}"), format))?;
-        b.re_randomize(pk, seed_gen.next_seed().unwrap())
-            .map_err(|e| test.failure(format!("Failed to re-randomize b: {e}"), format))?;
+            #[allow(deprecated)]
+            a.re_randomize(pk, seed_gen.next_seed().unwrap())
+                .map_err(|e| test.failure(format!("Failed to re-randomize a: {e}"), format))?;
+            #[allow(deprecated)]
+            b.re_randomize(pk, seed_gen.next_seed().unwrap())
+                .map_err(|e| test.failure(format!("Failed to re-randomize b: {e}"), format))?;
+        }
+        (_, ReRandomizationSupport::DerivedCPKWithoutKeySwitch) => {
+            let nonce: [u8; 256 / 8] = core::array::from_fn(|i| i as u8);
+            let mut re_rand_context = ReRandomizationContext::new(
+                *b"TFHE_Rrd",
+                [b"FheUint32 bin ops".as_slice(), nonce.as_slice()],
+                *b"TFHE_Enc",
+            );
+
+            re_rand_context.add_ciphertext(&a);
+            re_rand_context.add_ciphertext(&b);
+
+            let mut seed_gen = re_rand_context.finalize();
+
+            a.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
+                .map_err(|e| test.failure(format!("Failed to re-randomize a: {e}"), format))?;
+            b.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
+                .map_err(|e| test.failure(format!("Failed to re-randomize b: {e}"), format))?;
+        }
+        (None, ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch) => {
+            return Err(test.failure(
+                "Found ServerKey with legacy rerand support but no associated CPK was provided",
+                format,
+            ))
+        }
+        _ => (),
     }
 
     // Computation
@@ -542,7 +606,17 @@ pub fn test_hl_serverkey(
         })
         .transpose()?;
 
-    test_hl_key_features(&client_key, key, compact_public_key.as_ref(), test, format)?;
+    // This test previously took the presence of the rerand cpk as a signal to indicate rerand test
+    // had to run
+    test_hl_key_features(
+        &client_key,
+        key,
+        compact_public_key
+            .as_ref()
+            .map(CPKWithReRandMode::ExpectsLegacyReRand),
+        test,
+        format,
+    )?;
 
     Ok(test.success(format))
 }
@@ -775,7 +849,13 @@ fn test_hl_compressed_xof_key_set_test(
 
     let (pk, server_key) = xof_key_set.into_raw_parts();
 
-    test_hl_key_features(&client_key, server_key, Some(&pk), test, format)?;
+    test_hl_key_features(
+        &client_key,
+        server_key,
+        Some(CPKWithReRandMode::NoLegacyReRandExpectation(&pk)),
+        test,
+        format,
+    )?;
 
     Ok(test.success(format))
 }

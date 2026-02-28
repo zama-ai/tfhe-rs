@@ -2,18 +2,16 @@ use std::path::Path;
 use tfhe::core_crypto::prelude::{
     CiphertextModulusLog, LweCiphertextCount, TUniform, UnsignedInteger,
 };
-use tfhe::shortint::MultiBitPBSParameters;
 use tfhe::shortint::parameters::list_compression::{
     ClassicCompressionParameters, MultiBitCompressionParameters,
 };
-use tfhe::shortint::parameters::meta::{
-    DedicatedCompactPublicKeyParameters, MetaParameters,
-};
+use tfhe::shortint::parameters::meta::{DedicatedCompactPublicKeyParameters, MetaParameters};
 use tfhe::shortint::parameters::noise_squashing::{
     MetaNoiseSquashingParameters, NoiseSquashingMultiBitParameters,
 };
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::prelude::ModulusSwitchType;
+use tfhe::shortint::MultiBitPBSParameters;
 use tfhe_backward_compat_data::generate::*;
 use tfhe_backward_compat_data::*;
 use tfhe_versionable::Versionize;
@@ -440,9 +438,20 @@ impl ConvertParams<MetaNoiseSquashingParameters> for TestMetaNoiseSquashingParam
     fn convert(self) -> MetaNoiseSquashingParameters {
         MetaNoiseSquashingParameters {
             parameters: self.parameters.convert(),
-            compression_parameters: self
-                .compression_parameters
-                .map(ConvertParams::convert),
+            compression_parameters: self.compression_parameters.map(ConvertParams::convert),
+        }
+    }
+}
+
+impl ConvertParams<ReRandomizationConfiguration> for TestReRandomizationConfiguration {
+    fn convert(self) -> ReRandomizationConfiguration {
+        match self {
+            Self::LegacyDedicatedCompactPublicKeyWithKeySwitch => {
+                ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch
+            }
+            Self::DerivedCompactPublicKeyWithoutKeySwitch => {
+                ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch
+            }
         }
     }
 }
@@ -455,12 +464,9 @@ impl ConvertParams<MetaParameters> for TestMetaParameters {
             dedicated_compact_public_key_parameters: self
                 .dedicated_compact_public_key_parameters
                 .map(ConvertParams::convert),
-            compression_parameters: self
-                .compression_parameters
-                .map(ConvertParams::convert),
-            noise_squashing_parameters: self
-                .noise_squashing_parameters
-                .map(ConvertParams::convert),
+            compression_parameters: self.compression_parameters.map(ConvertParams::convert),
+            noise_squashing_parameters: self.noise_squashing_parameters.map(ConvertParams::convert),
+            rerand_configuration: self.rerand_configuration.map(ConvertParams::convert),
         }
     }
 }
