@@ -440,4 +440,15 @@ __host__ __device__ inline __uint128_t u128_from_torus_f128(const f128 &a) {
   return x0 + x1;
 }
 
+// Warp shuffle for f128x2 complex numbers
+__device__ inline f128x2 shfl_xor_f128x2(const f128x2 &val, int laneMask,
+                                         unsigned mask = 0xFFFFFFFF) {
+  f128x2 result;
+  result.re.hi = __shfl_xor_sync(mask, val.re.hi, laneMask);
+  result.re.lo = __shfl_xor_sync(mask, val.re.lo, laneMask);
+  result.im.hi = __shfl_xor_sync(mask, val.im.hi, laneMask);
+  result.im.lo = __shfl_xor_sync(mask, val.im.lo, laneMask);
+  return result;
+}
+
 #endif

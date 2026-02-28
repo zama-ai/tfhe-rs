@@ -165,6 +165,7 @@ pub unsafe fn programmable_bootstrap_128<T: UnsignedInteger>(
         u32::try_from(glwe_dimension.0).unwrap(),
         u32::try_from(polynomial_size.0).unwrap(),
         u32::try_from(level.0).unwrap(),
+        u32::try_from(base_log.0).unwrap(),
         num_samples,
         true,
         noise_reduction_type as u32,

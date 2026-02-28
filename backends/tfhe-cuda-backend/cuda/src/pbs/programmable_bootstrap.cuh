@@ -39,6 +39,13 @@ __device__ double *get_join_buffer_element_128(
     int level_id, int glwe_id, G &group, double *global_memory_buffer,
     uint32_t polynomial_size, uint32_t glwe_dimension, bool support_dsm);
 
+template <typename G>
+__device__ double *get_join_buffer_element_128_tbc(int level_id, int glwe_id,
+                                                   G &group,
+                                                   double *shared_memory_buffer,
+                                                   uint32_t polynomial_size,
+                                                   uint32_t glwe_dimension);
+
 /** Perform the matrix multiplication between the GGSW and the GLWE,
  * each block operating on a single level for mask and body.
  * Both operands should be at fourier domain
@@ -148,6 +155,56 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_128(
                                                         l == 0);
   }
 
+  __syncthreads();
+}
+
+template <typename G, class params>
+__device__ void mul_ggsw_glwe_in_fourier_domain_128_tbc(
+    double *fft, double *join_buffer,
+    const double *__restrict__ bootstrapping_key, int iteration, G &group,
+    int this_block_rank) {
+  const uint32_t polynomial_size = params::degree;
+  const uint32_t glwe_dimension = gridDim.y - 1;
+  const uint32_t level_count = gridDim.z;
+
+  // We apply the same idea than in 64-bit specialized pbs, Each cuda thread
+  // block from the cluster calculates its fft, and then is placed in dsm. Here
+  // we synchronize the cluster to ensure every block has written its fft. Then
+  // each block can perform its accumulation reading others fft without further
+  // synchronizations.
+  group.sync();
+  for (int j = 0; j < glwe_dimension + 1; j++) {
+    int idx = (j + this_block_rank) % (glwe_dimension + 1);
+
+    auto bsk_slice = get_ith_mask_kth_block_128(
+        bootstrapping_key, iteration, idx, blockIdx.z, polynomial_size,
+        glwe_dimension, level_count);
+
+    auto bsk_poly = bsk_slice + blockIdx.y * polynomial_size / 2 * 4;
+    auto fft_slice = get_join_buffer_element_128_tbc<G>(
+        blockIdx.z, idx, group, join_buffer, polynomial_size, glwe_dimension);
+
+    polynomial_product_accumulate_in_fourier_domain_128<params>(
+        join_buffer, fft_slice + 4096, bsk_poly, j == 0);
+  }
+
+  // -----------------------------------------------------------------
+  // All blocks are synchronized here; after this sync, Join buffer lives
+  // in shared memory and has the values needed from every other block
+  // that's why we need to synchronize the cluster before reading from it.
+  group.sync();
+  // At this point we no longer need the fft buffer so we can accumulate
+  // the results in that buffer and thus save some shared memory.
+  for (int l = 0; l < level_count; l++) {
+    auto cur_src_acc = get_join_buffer_element_128_tbc<G>(
+        l, blockIdx.y, group, join_buffer, polynomial_size, glwe_dimension);
+
+    polynomial_accumulate_in_fourier_domain_128<params>(fft, cur_src_acc,
+                                                        l == 0);
+  }
+
+  // We only need to synchronize threads within the block, no need to sync
+  //  the cluster because it will be synced in the next iteration,or at exit.
   __syncthreads();
 }
 
@@ -440,7 +497,8 @@ template <typename Torus>
 void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
                          int8_t **pbs_buffer, uint32_t glwe_dimension,
                          uint32_t lwe_dimension, uint32_t polynomial_size,
-                         uint32_t level_count, uint32_t grouping_factor,
+                         uint32_t level_count, uint32_t base_log,
+                         uint32_t grouping_factor,
                          uint32_t input_lwe_ciphertext_count, PBS_TYPE pbs_type,
                          bool allocate_gpu_memory,
                          PBS_MS_REDUCTION_T noise_reduction_type,
@@ -481,7 +539,7 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
     case CLASSICAL:
       size_tracker = scratch_cuda_programmable_bootstrap_128_async(
           stream, gpu_index, pbs_buffer, lwe_dimension, glwe_dimension,
-          polynomial_size, level_count, input_lwe_ciphertext_count,
+          polynomial_size, level_count, base_log, input_lwe_ciphertext_count,
           allocate_gpu_memory, noise_reduction_type);
       break;
     default:
