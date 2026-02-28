@@ -1,5 +1,14 @@
 #ifndef CUDA_TBC_PBS_CUH
 #define CUDA_TBC_PBS_CUH
+// This macro is needed because in debug mode the compiler doesn't apply all
+// optimizations
+//  and the register count is higher, which can lead to launch bounds conflicts.
+#ifdef __CUDACC_DEBUG__
+#define SPECIALIZED_TBC_CLASSICAL_2_2_PARAMS_LAUNCH_BOUNDS
+#else
+#define SPECIALIZED_TBC_CLASSICAL_2_2_PARAMS_LAUNCH_BOUNDS                     \
+  __launch_bounds__(512, 2)
+#endif
 
 #ifdef __CDT_PARSER__
 #undef __CUDA_RUNTIME_H__
@@ -211,8 +220,9 @@ __global__ void device_programmable_bootstrap_tbc(
   cluster.sync();
 }
 
-template <typename Torus, class params, sharedMemDegree SMD>
-__global__ void device_programmable_bootstrap_tbc_2_2_params(
+template <typename Torus, class params, uint32_t base_log>
+__global__ SPECIALIZED_TBC_CLASSICAL_2_2_PARAMS_LAUNCH_BOUNDS void
+device_programmable_bootstrap_tbc_2_2_params(
     Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
     const Torus *__restrict__ lut_vector,
     const Torus *__restrict__ lut_vector_indexes,
@@ -225,7 +235,6 @@ __global__ void device_programmable_bootstrap_tbc_2_2_params(
   constexpr uint32_t level_count = 1;
   constexpr uint32_t polynomial_size = 2048;
   constexpr uint32_t glwe_dimension = 1;
-  constexpr uint32_t base_log = 23;
   constexpr bool support_dsm = true;
   cluster_group cluster = this_cluster();
   auto this_block_rank = cluster.block_index().y;
@@ -329,7 +338,7 @@ __global__ void device_programmable_bootstrap_tbc_2_2_params(
 
     double2 buffer_regs[params::opt / 2];
     // Perform G^-1(ACC) * GGSW -> GLWE
-    mul_ggsw_glwe_in_fourier_domain_2_2_params_classical<
+    mul_ggsw_glwe_in_fourier_domain_2_2_params<
         cluster_group, params, polynomial_size, glwe_dimension, level_count>(
         accumulator_fft, fft_out_regs, buffer_regs, bootstrapping_key, i,
         cluster, this_block_rank);
@@ -547,11 +556,13 @@ __host__ void host_programmable_bootstrap_tbc_with_mode(
         noise_reduction_type));
   } else {
     bool can_use_specialized = polynomial_size == 2048 && level_count == 1 &&
-                               glwe_dimension == 1 && base_log == 23;
+                               glwe_dimension == 1 &&
+                               (base_log == 23 || base_log == 22);
     if (launch_mode == ClassicalTbcLaunchMode::SPECIALIZED_2_2) {
-      PANIC_IF_FALSE(can_use_specialized,
-                     "Cuda error (classical PBS): specialized TBC 2_2 requires "
-                     "(N=2048, level_count=1, glwe_dimension=1, base_log=23).");
+      PANIC_IF_FALSE(
+          can_use_specialized,
+          "Cuda error (classical PBS): specialized TBC 2_2 requires "
+          "(N=2048, level_count=1, glwe_dimension=1, base_log=23 or 22).");
     }
 
     bool use_specialized =
@@ -564,22 +575,62 @@ __host__ void host_programmable_bootstrap_tbc_with_mode(
               polynomial_size);
       config.dynamicSmemBytes = full_sm_2_2;
 
-      check_cuda_error(cudaFuncSetAttribute(
-          device_programmable_bootstrap_tbc_2_2_params<Torus, params, FULLSM>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_2_2));
-      check_cuda_error(cudaFuncSetAttribute(
-          device_programmable_bootstrap_tbc_2_2_params<Torus, params, FULLSM>,
-          cudaFuncAttributePreferredSharedMemoryCarveout,
-          cudaSharedmemCarveoutMaxShared));
-      check_cuda_error(cudaFuncSetCacheConfig(
-          device_programmable_bootstrap_tbc_2_2_params<Torus, params, FULLSM>,
-          cudaFuncCachePreferShared));
-      check_cuda_error(cudaLaunchKernelEx(
-          &config,
-          device_programmable_bootstrap_tbc_2_2_params<Torus, params, FULLSM>,
-          lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
-          lwe_array_in, lwe_input_indexes, bootstrapping_key, lwe_dimension,
-          num_many_lut, lut_stride, noise_reduction_type));
+      if (base_log == 22) {
+        check_cuda_error(cudaFuncSetAttribute(
+            device_programmable_bootstrap_tbc_2_2_params<Torus, params, 22>,
+            cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_2_2));
+        check_cuda_error(cudaFuncSetAttribute(
+            device_programmable_bootstrap_tbc_2_2_params<Torus, params, 22>,
+            cudaFuncAttributePreferredSharedMemoryCarveout,
+            cudaSharedmemCarveoutMaxShared));
+        check_cuda_error(cudaFuncSetCacheConfig(
+            device_programmable_bootstrap_tbc_2_2_params<Torus, params, 22>,
+            cudaFuncCachePreferShared));
+        check_cuda_error(cudaLaunchKernelEx(
+            &config,
+            device_programmable_bootstrap_tbc_2_2_params<Torus, params, 22>,
+            lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
+            lwe_array_in, lwe_input_indexes, bootstrapping_key, lwe_dimension,
+            num_many_lut, lut_stride, noise_reduction_type));
+      } else if (base_log == 23) {
+        check_cuda_error(cudaFuncSetAttribute(
+            device_programmable_bootstrap_tbc_2_2_params<Torus, params, 23>,
+            cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_2_2));
+        check_cuda_error(cudaFuncSetAttribute(
+            device_programmable_bootstrap_tbc_2_2_params<Torus, params, 23>,
+            cudaFuncAttributePreferredSharedMemoryCarveout,
+            cudaSharedmemCarveoutMaxShared));
+        check_cuda_error(cudaFuncSetCacheConfig(
+            device_programmable_bootstrap_tbc_2_2_params<Torus, params, 23>,
+            cudaFuncCachePreferShared));
+        check_cuda_error(cudaLaunchKernelEx(
+            &config,
+            device_programmable_bootstrap_tbc_2_2_params<Torus, params, 23>,
+            lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
+            lwe_array_in, lwe_input_indexes, bootstrapping_key, lwe_dimension,
+            num_many_lut, lut_stride, noise_reduction_type));
+      } else if (base_log == 24) {
+        check_cuda_error(cudaFuncSetAttribute(
+            device_programmable_bootstrap_tbc_2_2_params<Torus, params, 24>,
+            cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_2_2));
+        check_cuda_error(cudaFuncSetAttribute(
+            device_programmable_bootstrap_tbc_2_2_params<Torus, params, 24>,
+            cudaFuncAttributePreferredSharedMemoryCarveout,
+            cudaSharedmemCarveoutMaxShared));
+        check_cuda_error(cudaFuncSetCacheConfig(
+            device_programmable_bootstrap_tbc_2_2_params<Torus, params, 24>,
+            cudaFuncCachePreferShared));
+        check_cuda_error(cudaLaunchKernelEx(
+            &config,
+            device_programmable_bootstrap_tbc_2_2_params<Torus, params, 24>,
+            lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
+            lwe_array_in, lwe_input_indexes, bootstrapping_key, lwe_dimension,
+            num_many_lut, lut_stride, noise_reduction_type));
+      } else {
+        PANIC("Cuda error (TBC PBS 2_2_params): base_log must be 22 or 23 or "
+              "24, got %d",
+              base_log);
+      }
     } else {
       config.dynamicSmemBytes = full_sm + minimum_sm_tbc;
 
@@ -764,12 +815,14 @@ __host__ bool supports_thread_block_clusters_on_classic_programmable_bootstrap(
         device_programmable_bootstrap_tbc<Torus, params, PARTIALSM>, &config));
   } else {
     if (polynomial_size == 2048 && level_count == 1 && glwe_dimension == 1) {
+      // For cluster size check, we use base_log 23 as representative
+      // (both 22 and 23 have similar resource requirements)
       check_cuda_error(cudaFuncSetAttribute(
-          device_programmable_bootstrap_tbc_2_2_params<Torus, params, FULLSM>,
+          device_programmable_bootstrap_tbc_2_2_params<Torus, params, 23>,
           cudaFuncAttributeNonPortableClusterSizeAllowed, false));
       check_cuda_error(cudaOccupancyMaxPotentialClusterSize(
           &cluster_size,
-          device_programmable_bootstrap_tbc_2_2_params<Torus, params, FULLSM>,
+          device_programmable_bootstrap_tbc_2_2_params<Torus, params, 23>,
           &config));
     } else {
       check_cuda_error(cudaFuncSetAttribute(

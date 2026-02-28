@@ -346,7 +346,9 @@ uint64_t scratch_cuda_programmable_bootstrap(
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
   case 2048:
-    return scratch_programmable_bootstrap<Torus, AmortizedDegree<2048>>(
+    // For polynomial size 2048, we know Degree is better than AmortizedDegree,
+    //  other sizes require further evaluation.
+    return scratch_programmable_bootstrap<Torus, Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
@@ -560,7 +562,9 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector(
         num_many_lut, lut_stride);
     break;
   case 2048:
-    host_programmable_bootstrap<Torus, AmortizedDegree<2048>>(
+    // For polynomial size 2048, we know Degree is better than AmortizedDegree,
+    //  other sizes require further evaluation.
+    host_programmable_bootstrap<Torus, Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
         lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
