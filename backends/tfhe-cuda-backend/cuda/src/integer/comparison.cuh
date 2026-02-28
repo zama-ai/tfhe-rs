@@ -128,32 +128,22 @@ __host__ void are_all_comparisons_block_true(
       // is_non_zero_lut_buffer LUT
       lut = mem_ptr->eq_buffer->is_non_zero_lut;
     } else {
-      if (chunk_lengths[num_chunks - 1] != max_value) {
-        // LUT needs to be computed
-        uint32_t chunk_length = chunk_lengths[num_chunks - 1];
-        auto is_equal_to_num_blocks_lut_f = [chunk_length](Torus x) -> Torus {
-          return x == chunk_length;
-        };
-
-        auto num_blocks = is_max_value_lut->num_blocks;
-        auto active_streams =
-            streams.active_gpu_subset(num_chunks, params.pbs_type);
-
-        // Index generator: last chunk uses LUT 1, others use LUT 0
-        auto index_gen = [num_chunks, num_blocks](Torus *h_lut_indexes,
-                                                  uint32_t) {
-          for (uint32_t index = 0; index < num_blocks; index++) {
-            if (index == num_chunks - 1) {
-              h_lut_indexes[index] = 1;
-            } else if (index < num_chunks - 1 || index >= num_chunks) {
-              h_lut_indexes[index] = 0;
-            }
-          }
-        };
-
-        is_max_value_lut->generate_and_broadcast_lut(
-            active_streams, {1}, {is_equal_to_num_blocks_lut_f}, index_gen,
-            true, {are_all_block_true_buffer->preallocated_h_lut});
+      // Pad the last chunk's accumulator block up to max_value by adding
+      // trivial plaintext 1s, so that all chunks can use the same
+      // is_max_value LUT uniformly.
+      uint32_t last_chunk_length = chunk_lengths[num_chunks - 1];
+      if (last_chunk_length != max_value) {
+        uint32_t pad = max_value - last_chunk_length;
+        GPU_ASSERT(pad < max_value,
+                   "pad (%u) must be strictly less than max_value (%u)", pad,
+                   max_value);
+        Torus delta = (Torus(1) << (sizeof(Torus) * 8 - 1)) /
+                      (message_modulus * carry_modulus);
+        Torus *last_block_ptr = (Torus *)accumulator->ptr +
+                                (num_chunks - 1) * (big_lwe_dimension + 1);
+        device_add_scalar_one_inplace<<<1, 1, 0, streams.stream(0)>>>(
+            last_block_ptr, 1, big_lwe_dimension, pad * delta);
+        check_cuda_error(cudaGetLastError());
       }
       lut = is_max_value_lut;
     }
@@ -163,13 +153,6 @@ __host__ void are_all_comparisons_block_true(
       // In the last iteration we copy the output to the final address
       integer_radix_apply_univariate_lookup_table<Torus>(
           streams, lwe_array_out, accumulator, bsks, ksks, lut, 1);
-      // Reset max_value_lut_indexes before returning, otherwise if the lut is
-      // reused the lut indexes will be wrong
-      auto active_gpu_count_is_max = streams.active_gpu_subset(
-          is_max_value_lut->num_blocks, params.pbs_type);
-      is_max_value_lut->set_lut_indexes_and_broadcast_constant(
-          active_gpu_count_is_max, 0);
-
       reset_radix_ciphertext_blocks(lwe_array_out, 1);
       return;
     } else {

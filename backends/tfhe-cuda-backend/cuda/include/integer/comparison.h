@@ -14,7 +14,6 @@ template <typename Torus> struct int_are_all_block_true_buffer {
   // of interest in are_all_block_true(), as with max_value (the maximum message
   // value).
   int_radix_lut<Torus> *is_max_value;
-  Torus *preallocated_h_lut;
   bool gpu_memory_allocated;
 
   int_are_all_block_true_buffer(CudaStreams streams, COMPARISON_TYPE op,
@@ -40,10 +39,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
         max_chunks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    preallocated_h_lut = (Torus *)malloc(safe_mul_sizeof<Torus>(
-        params.glwe_dimension + 1, params.polynomial_size));
-
-    is_max_value = new int_radix_lut<Torus>(streams, params, 2, max_chunks,
+    is_max_value = new int_radix_lut<Torus>(streams, params, 1, max_chunks,
                                             allocate_gpu_memory, size_tracker);
 
     auto active_streams =
@@ -67,7 +63,6 @@ template <typename Torus> struct int_are_all_block_true_buffer {
     delete tmp_out;
     delete tmp_block_accumulated;
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-    free(preallocated_h_lut);
   }
 };
 
