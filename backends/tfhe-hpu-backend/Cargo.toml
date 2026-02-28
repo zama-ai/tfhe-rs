@@ -31,7 +31,7 @@ tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 serde = { version = "1", features = ["derive"] }
 toml = { version = "0.8", features = [] }
-paste = "1.0.15"
+paste = { workspace = true }
 thiserror = "1.0.61"
 bytemuck = { workspace = true }
 anyhow = "1.0.82"
