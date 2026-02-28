@@ -368,7 +368,7 @@ pub fn generate_seeded_lwe_packing_keyswitch_key<
     NoiseSeeder: Seeder + ?Sized,
 {
     let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-        lwe_packing_keyswitch_key.compression_seed().seed,
+        lwe_packing_keyswitch_key.compression_seed(),
         noise_seeder,
     );
 

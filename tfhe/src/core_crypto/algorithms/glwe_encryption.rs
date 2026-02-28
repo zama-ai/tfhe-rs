@@ -1303,7 +1303,7 @@ pub fn encrypt_seeded_glwe_ciphertext<
     NoiseSeeder: Seeder + ?Sized,
 {
     let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-        output_glwe_ciphertext.compression_seed().seed,
+        output_glwe_ciphertext.compression_seed(),
         noise_seeder,
     );
 
@@ -1497,7 +1497,7 @@ pub fn encrypt_seeded_glwe_ciphertext_list<
     NoiseSeeder: Seeder + ?Sized,
 {
     let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-        output.compression_seed().seed,
+        output.compression_seed(),
         noise_seeder,
     );
 

@@ -807,7 +807,7 @@ impl ModulusSwitchType {
                         engine,
                         ciphertext_modulus,
                         noise_distribution,
-                        CompressionSeed { seed },
+                        CompressionSeed::from(seed),
                     ),
                 )
             }

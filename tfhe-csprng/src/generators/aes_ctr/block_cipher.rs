@@ -10,7 +10,7 @@ use crate::generators::aes_ctr::{AES_CALLS_PER_BATCH, BYTES_PER_AES_CALL, BYTES_
 /// endianness), the rest of the code should use the [`AesKey`] with native endian ordering such
 /// that the internal u128 is equivalent to [u8; 16].
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct AesKey(pub(crate) u128);
+pub struct AesKey(pub(crate) u128);
 
 /// A trait for AES block ciphers.
 ///

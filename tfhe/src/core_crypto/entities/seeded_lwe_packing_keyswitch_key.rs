@@ -249,7 +249,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
     ///
     /// See [`SeededLwePackingKeyswitchKey::from_container`] for usage.
     pub fn compression_seed(&self) -> CompressionSeed {
-        self.compression_seed
+        self.compression_seed.clone()
     }
 
     /// Return the number of elements in an encryption of an input [`LweSecretKey`] element of the
@@ -270,7 +270,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
             self.decomp_level_count,
             self.output_glwe_size,
             self.output_polynomial_size,
-            self.compression_seed,
+            self.compression_seed.clone(),
             self.ciphertext_modulus,
         )
     }
@@ -357,7 +357,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededLwePackin
         let decomp_level_count = self.decomp_level_count;
         let output_glwe_size = self.output_glwe_size;
         let output_polynomial_size = self.output_polynomial_size;
-        let compression_seed = self.compression_seed;
+        let compression_seed = self.compression_seed.clone();
         let ciphertext_modulus = self.ciphertext_modulus;
         SeededLwePackingKeyswitchKey::from_container(
             self.as_mut(),

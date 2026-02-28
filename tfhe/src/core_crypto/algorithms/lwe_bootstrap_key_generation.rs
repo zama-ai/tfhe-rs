@@ -11,7 +11,6 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use rayon::prelude::*;
-use tfhe_csprng::seeders::Seed;
 
 /// Fill an [`LWE bootstrap key`](`LweBootstrapKey`) with an actual bootstrapping key constructed
 /// from an input key [`LWE secret key`](`LweSecretKey`) and an output key
@@ -393,7 +392,7 @@ pub fn generate_seeded_lwe_bootstrap_key<
     NoiseSeeder: Seeder + ?Sized,
 {
     let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-        output.compression_seed().seed,
+        output.compression_seed(),
         noise_seeder,
     );
 
@@ -551,7 +550,7 @@ where
         decomp_base_log,
         decomp_level_count,
         input_lwe_secret_key.lwe_dimension(),
-        CompressionSeed::from(Seed(0)),
+        generator.mask_generator().current_compression_seed(),
         ciphertext_modulus,
     );
 
@@ -617,7 +616,7 @@ pub fn par_generate_seeded_lwe_bootstrap_key<
     );
 
     let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-        output.compression_seed().seed,
+        output.compression_seed(),
         noise_seeder,
     );
 
@@ -1125,9 +1124,7 @@ where
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
-/// let compression_seed = CompressionSeed {
-///     seed: seeder.seed(),
-/// };
+/// let compression_seed = CompressionSeed::from(seeder.seed());
 /// let input_lwe_secret_key =
 ///     allocate_and_generate_new_binary_lwe_secret_key(input_lwe_dimension, &mut secret_generator);
 /// let output_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
@@ -1206,7 +1203,7 @@ where
     {
         assert!(chunk_size.0 <= lwe_dim.0);
         let enc_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-            compression_seed.seed,
+            compression_seed.clone(),
             noise_seeder,
         );
         Self {
@@ -1256,7 +1253,7 @@ where
             self.decomposition_base_log,
             self.decomposition_level_count,
             chunk_size,
-            self.compression_seed,
+            self.compression_seed.clone(),
             self.ciphertext_modulus,
         );
 

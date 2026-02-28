@@ -25,11 +25,13 @@ pub use crate::shortint::server_key::expanded::{
     ShortintExpandedBootstrappingKey, ShortintExpandedServerKey,
 };
 
+#[derive(PartialEq)]
 pub struct ExpandedDecompressionKey {
     pub bsk: ShortintExpandedBootstrappingKey<u64, u64>,
     pub lwe_per_glwe: LweCiphertextCount,
 }
 
+#[derive(PartialEq)]
 pub struct IntegerExpandedServerKey {
     pub compute_key: ShortintExpandedServerKey,
     pub cpk_key_switching_key_material:

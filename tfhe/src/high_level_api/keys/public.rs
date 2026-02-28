@@ -130,7 +130,7 @@ impl Named for CompressedPublicKey {
 ///
 /// Compared to the  [PublicKey], this one is much smaller
 /// however it supports less parameters.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompactPublicKeyVersions)]
 pub struct CompactPublicKey {
     pub(in crate::high_level_api) key: IntegerCompactPublicKey,

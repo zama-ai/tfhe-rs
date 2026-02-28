@@ -1,7 +1,6 @@
-use crate::generators::aes_ctr::{AesCtrGenerator, ChildrenIterator};
+use crate::generators::aes_ctr::{AesCtrGenerator, AesCtrParams, ChildrenIterator};
 use crate::generators::implem::soft::block_cipher::SoftwareBlockCipher;
 use crate::generators::{ByteCount, BytesPerChild, ChildrenCount, ForkError, RandomGenerator};
-use crate::seeders::SeedKind;
 
 /// A random number generator using a software implementation.
 pub struct SoftwareRandomGenerator(pub(super) AesCtrGenerator<SoftwareBlockCipher>);
@@ -21,11 +20,15 @@ impl Iterator for SoftwareChildrenIterator {
 
 impl RandomGenerator for SoftwareRandomGenerator {
     type ChildrenIter = SoftwareChildrenIterator;
-    fn new(seed: impl Into<SeedKind>) -> Self {
-        SoftwareRandomGenerator(AesCtrGenerator::from_seed(seed))
+
+    fn new(params: impl Into<AesCtrParams>) -> Self {
+        SoftwareRandomGenerator(AesCtrGenerator::from_params(params))
     }
     fn remaining_bytes(&self) -> ByteCount {
         self.0.remaining_bytes()
+    }
+    fn next_table_index(&self) -> crate::generators::aes_ctr::TableIndex {
+        self.0.next_table_index()
     }
     fn try_fork(
         &mut self,

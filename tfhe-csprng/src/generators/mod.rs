@@ -1,7 +1,7 @@
 //! A module containing random generators objects.
 //!
 //! See [crate-level](`crate`) explanations.
-use crate::seeders::SeedKind;
+use crate::generators::aes_ctr::AesCtrParams;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
@@ -63,11 +63,11 @@ pub trait RandomGenerator: Iterator<Item = u8> {
     /// The iterator over children generators, returned by `try_fork` in case of success.
     type ChildrenIter: Iterator<Item = Self>;
 
-    /// Creates a new generator from a seed.
+    /// Creates a new generator from parameters (seed + optional state).
     ///
     /// This operation is usually costly to perform, as the aes round keys need to be generated from
     /// the seed.
-    fn new(seed: impl Into<SeedKind>) -> Self;
+    fn new(params: impl Into<AesCtrParams>) -> Self;
 
     /// Returns the number of bytes that can still be outputted by the generator before reaching its
     /// bound.
@@ -81,6 +81,9 @@ pub trait RandomGenerator: Iterator<Item = u8> {
     /// effectively return the number of remaining bytes, but instead
     /// `min(2¹²⁸-1, remaining_bytes)`.
     fn remaining_bytes(&self) -> ByteCount;
+
+    /// Returns the table index of the next byte to be generated
+    fn next_table_index(&self) -> crate::generators::aes_ctr::TableIndex;
 
     /// Returns the next byte of the stream, if the generator did not yet reach its bound.
     fn next_byte(&mut self) -> Option<u8> {
@@ -123,7 +126,8 @@ pub trait ParallelRandomGenerator: RandomGenerator + Send {
     ) -> Result<Self::ParChildrenIter, ForkError>;
 }
 
-mod aes_ctr;
+pub mod aes_ctr;
+pub mod backward_compatibility;
 
 mod implem;
 pub use implem::*;

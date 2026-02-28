@@ -498,7 +498,7 @@ pub fn generate_seeded_lwe_multi_bit_bootstrap_key<
     NoiseSeeder: Seeder + ?Sized,
 {
     let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-        output.compression_seed().seed,
+        output.compression_seed(),
         noise_seeder,
     );
 
@@ -709,7 +709,7 @@ pub fn par_generate_seeded_lwe_multi_bit_bootstrap_key<
     NoiseSeeder: Seeder + ?Sized,
 {
     let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-        output.compression_seed().seed,
+        output.compression_seed(),
         noise_seeder,
     );
 

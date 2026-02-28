@@ -536,7 +536,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext<
     );
 
     let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-        output.compression_seed().seed,
+        output.compression_seed(),
         noise_seeder,
     );
 
@@ -714,7 +714,7 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext<
     );
 
     let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-        output.compression_seed().seed,
+        output.compression_seed(),
         noise_seeder,
     );
 
