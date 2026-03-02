@@ -1,4 +1,5 @@
 use std::convert::Infallible;
+use tfhe_csprng::generators::aes_ctr::{AesCtrParams, TableIndex};
 use tfhe_versionable::{Upgrade, VersionsDispatch};
 
 use crate::core_crypto::commons::math::random::*;
@@ -85,7 +86,12 @@ impl Upgrade<CompressionSeed> for CompressionSeedV0 {
 
     fn upgrade(self) -> Result<CompressionSeed, Self::Error> {
         let Self { seed } = self;
-        Ok(CompressionSeed { seed })
+        Ok(CompressionSeed {
+            inner: AesCtrParams {
+                seed: seed.into(),
+                first_index: TableIndex::SECOND,
+            },
+        })
     }
 }
 

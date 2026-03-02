@@ -404,11 +404,22 @@ mod test {
             for i in 0..num_blocks {
                 *ct_clone.seeded_blocks_mut()[i].ct.get_mut_data() = rng.gen::<u64>();
 
-                ct_clone.seeded_blocks_mut()[i]
+                match &mut ct_clone.seeded_blocks_mut()[i]
                     .ct
                     .get_mut_compressed_seed()
+                    .inner
                     .seed
-                    .0 = rng.gen::<u128>();
+                {
+                    tfhe_csprng::seeders::SeedKind::Ctr(seed) => {
+                        seed.0 = rng.gen::<u128>();
+                    }
+                    tfhe_csprng::seeders::SeedKind::Xof(xof_seed) => {
+                        *xof_seed = tfhe_csprng::seeders::XofSeed::new_u128(
+                            rng.gen::<u128>(),
+                            *b"TFHEtest",
+                        );
+                    }
+                }
             }
             assert!(
                 ct_clone.is_conformant(&CompressedFheUintConformanceParams::from(

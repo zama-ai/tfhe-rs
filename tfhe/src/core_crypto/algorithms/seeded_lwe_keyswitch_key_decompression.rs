@@ -40,7 +40,7 @@ pub fn decompress_seeded_lwe_keyswitch_key<Scalar, InputCont, OutputCont, Gen>(
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    let mut generator = MaskRandomGenerator::<Gen>::new(input_ksk.compression_seed().seed);
+    let mut generator = MaskRandomGenerator::<Gen>::new(input_ksk.compression_seed());
     decompress_seeded_lwe_keyswitch_key_with_pre_seeded_generator::<_, _, _, Gen>(
         output_ksk,
         input_ksk,
@@ -81,7 +81,7 @@ pub fn par_decompress_seeded_lwe_keyswitch_key<Scalar, InputCont, OutputCont, Ge
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ParallelByteRandomGenerator,
 {
-    let mut generator = MaskRandomGenerator::<Gen>::new(input_ksk.compression_seed().seed);
+    let mut generator = MaskRandomGenerator::<Gen>::new(input_ksk.compression_seed());
     par_decompress_seeded_lwe_keyswitch_key_with_pre_seeded_generator::<_, _, _, Gen>(
         output_ksk,
         input_ksk,

@@ -6,26 +6,40 @@ use crate::core_crypto::commons::math::torus::{UnsignedInteger, UnsignedTorus};
 use crate::core_crypto::commons::numeric::{CastInto, FloatingPoint};
 use crate::core_crypto::commons::parameters::CiphertextModulus;
 use rayon::prelude::*;
+use tfhe_csprng::generators::aes_ctr::AesCtrParams;
 use tfhe_csprng::generators::{BytesPerChild, ChildrenCount, ForkError};
 
 use serde::{Deserialize, Serialize};
 pub use tfhe_csprng::generators::{
     ParallelRandomGenerator as ParallelByteRandomGenerator, RandomGenerator as ByteRandomGenerator,
 };
-use tfhe_csprng::seeders::SeedKind;
 pub use tfhe_csprng::seeders::{Seed, Seeder, XofSeed};
 use tfhe_versionable::Versionize;
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize, Versionize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Versionize)]
 #[versionize(CompressionSeedVersions)]
 /// New type to manage seeds used for compressed/seeded types.
 pub struct CompressionSeed {
-    pub seed: Seed,
+    pub inner: AesCtrParams,
 }
 
 impl From<Seed> for CompressionSeed {
     fn from(seed: Seed) -> Self {
-        Self { seed }
+        Self {
+            inner: AesCtrParams::from(seed),
+        }
+    }
+}
+
+impl From<AesCtrParams> for CompressionSeed {
+    fn from(params: AesCtrParams) -> Self {
+        Self { inner: params }
+    }
+}
+
+impl From<CompressionSeed> for AesCtrParams {
+    fn from(cs: CompressionSeed) -> Self {
+        cs.inner
     }
 }
 
@@ -81,8 +95,12 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use tfhe_csprng::seeders::Seed;
     /// let generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// ```
-    pub fn new(seed: impl Into<SeedKind>) -> Self {
-        Self(G::new(seed))
+    pub fn new(params: impl Into<AesCtrParams>) -> Self {
+        Self(G::new(params))
+    }
+
+    pub fn next_table_index(&self) -> tfhe_csprng::generators::aes_ctr::TableIndex {
+        self.0.next_table_index()
     }
 
     /// Return the number of bytes that can still be generated, if the generator is bounded.

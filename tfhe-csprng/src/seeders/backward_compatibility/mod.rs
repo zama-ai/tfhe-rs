@@ -1,6 +1,6 @@
 use tfhe_versionable::VersionsDispatch;
 
-use crate::seeders::{Seed, XofSeed};
+use crate::seeders::{Seed, SeedKind, XofSeed};
 
 #[derive(VersionsDispatch)]
 pub enum XofSeedVersions {
@@ -10,4 +10,9 @@ pub enum XofSeedVersions {
 #[derive(VersionsDispatch)]
 pub enum SeedVersions {
     V0(Seed),
+}
+
+#[derive(VersionsDispatch)]
+pub enum SeedKindVersions {
+    V0(SeedKind),
 }

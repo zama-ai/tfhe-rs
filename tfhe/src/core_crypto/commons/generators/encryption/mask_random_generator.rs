@@ -2,14 +2,15 @@
 
 use super::PER_SAMPLE_TARGET_FAILURE_PROBABILITY_LOG2;
 use crate::core_crypto::commons::math::random::{
-    ByteRandomGenerator, Distribution, ParallelByteRandomGenerator, RandomGenerable,
-    RandomGenerator, Uniform,
+    ByteRandomGenerator, CompressionSeed, Distribution, ParallelByteRandomGenerator,
+    RandomGenerable, RandomGenerator, Uniform,
 };
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus, EncryptionMaskByteCount, EncryptionMaskSampleCount,
 };
 use rayon::prelude::*;
+use tfhe_csprng::generators::aes_ctr::AesCtrParams;
 use tfhe_csprng::generators::ForkError;
 use tfhe_csprng::seeders::SeedKind;
 
@@ -94,18 +95,31 @@ impl MaskRandomGeneratorForkConfig {
 /// values for non power of 2 moduli) which may require rejection sampling, having the primitives
 /// properly separate in their respective types is preferable.
 pub struct MaskRandomGenerator<G: ByteRandomGenerator> {
+    seed: SeedKind,
     gen: RandomGenerator<G>,
 }
 
 impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
-    pub fn new(seed: impl Into<SeedKind>) -> Self {
+    pub fn new(params: impl Into<AesCtrParams>) -> Self {
+        let params = params.into();
+        let seed = params.seed.clone();
         Self {
-            gen: RandomGenerator::new(seed),
+            gen: RandomGenerator::new(params),
+            seed,
         }
     }
 
     pub fn remaining_bytes(&self) -> Option<usize> {
         self.gen.remaining_bytes()
+    }
+
+    pub fn current_compression_seed(&self) -> CompressionSeed {
+        CompressionSeed {
+            inner: AesCtrParams {
+                seed: self.seed.clone(),
+                first_index: self.gen.next_table_index(),
+            },
+        }
     }
 
     // Fills the slice with random uniform values, using the mask generator.
@@ -133,11 +147,13 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
         n_child: usize,
         mask_bytes: EncryptionMaskByteCount,
     ) -> Result<impl Iterator<Item = Self>, ForkError> {
-        // We try to fork the generators
+        let seed = self.seed.clone();
         let mask_iter = self.gen.try_fork(n_child, mask_bytes.0)?;
 
-        // We return a proper iterator.
-        Ok(mask_iter.map(|gen| Self { gen }))
+        Ok(mask_iter.map(move |gen| Self {
+            seed: seed.clone(),
+            gen,
+        }))
     }
 
     pub(crate) fn try_fork_from_config(
@@ -152,17 +168,18 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
 }
 
 impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {
-    // Forks both generators into a parallel iterator.
     pub(crate) fn par_try_fork(
         &mut self,
         n_child: usize,
         mask_bytes: EncryptionMaskByteCount,
     ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
-        // We try to fork the generators
+        let seed = self.seed.clone();
         let mask_iter = self.gen.par_try_fork(n_child, mask_bytes.0)?;
 
-        // We return a proper iterator.
-        Ok(mask_iter.map(|gen| Self { gen }))
+        Ok(mask_iter.map(move |gen| Self {
+            seed: seed.clone(),
+            gen,
+        }))
     }
 
     pub(crate) fn par_try_fork_from_config(

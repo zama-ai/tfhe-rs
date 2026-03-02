@@ -114,6 +114,7 @@ impl<G: ByteRandomGenerator> NoiseRandomGenerator<G> {
 
     /// Create a new [`NoiseRandomGenerator`], using the provided seed
     pub fn new_from_seed(seed: impl Into<SeedKind>) -> Self {
+        let seed: SeedKind = seed.into();
         Self {
             gen: RandomGenerator::new(seed),
         }

@@ -208,7 +208,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
     ///
     /// See [`SeededLweKeyswitchKey::from_container`] for usage.
     pub fn compression_seed(&self) -> CompressionSeed {
-        self.compression_seed
+        self.compression_seed.clone()
     }
 
     /// Return the number of elements in an encryption of an input [`LweSecretKey`] element of the
@@ -225,7 +225,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
             self.decomp_base_log,
             self.decomp_level_count,
             self.output_lwe_size,
-            self.compression_seed,
+            self.compression_seed.clone(),
             self.ciphertext_modulus,
         )
     }
@@ -301,7 +301,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededLweKeyswi
         let decomp_base_log = self.decomp_base_log;
         let decomp_level_count = self.decomp_level_count;
         let output_lwe_size = self.output_lwe_size;
-        let compression_seed = self.compression_seed;
+        let compression_seed = self.compression_seed.clone();
         let ciphertext_modulus = self.ciphertext_modulus;
         SeededLweKeyswitchKey::from_container(
             self.as_mut(),

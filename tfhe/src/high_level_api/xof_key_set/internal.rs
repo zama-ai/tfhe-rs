@@ -1,5 +1,5 @@
 use crate::core_crypto::commons::generators::MaskRandomGenerator;
-use crate::core_crypto::commons::math::random::{CompressionSeed, Distribution, Uniform};
+use crate::core_crypto::commons::math::random::{Distribution, Uniform};
 use crate::core_crypto::prelude::*;
 
 use crate::integer::ciphertext::{
@@ -51,7 +51,6 @@ use crate::shortint::prelude::ModulusSwitchType;
 use crate::shortint::{
     ClassicPBSParameters, MultiBitPBSParameters, PBSParameters, ShortintParameterSet,
 };
-use tfhe_csprng::seeders::Seed;
 
 impl crate::integer::CompactPrivateKey<Vec<u64>> {
     pub(super) fn generate_with_pre_seeded_generator<G>(
@@ -306,7 +305,7 @@ impl CompressedCompactPublicKey {
         let mut core_pk = SeededLweCompactPublicKeyOwned::new(
             0u64,
             public_key_parameters.encryption_lwe_dimension,
-            CompressionSeed::from(Seed(0)), // This is not the seed that is actually used
+            generator.mask_generator().current_compression_seed(),
             public_key_parameters.ciphertext_modulus,
         );
 
@@ -453,7 +452,7 @@ impl integer::compression_keys::CompressedCompressionKey {
             glwe_secret_key.as_lwe_secret_key().lwe_dimension(),
             compression_params.packing_ks_glwe_dimension(),
             compression_params.packing_ks_polynomial_size(),
-            CompressionSeed::from(Seed(0)),
+            generator.mask_generator().current_compression_seed(),
             ciphertext_modulus,
         );
 
@@ -542,7 +541,7 @@ impl integer::compression_keys::CompressedDecompressionKey {
                     multi_bit.br_level,
                     input_lwe_sk.lwe_dimension(),
                     multi_bit.decompression_grouping_factor,
-                    CompressionSeed::from(Seed(0)),
+                    generator.mask_generator().current_compression_seed(),
                     computation_parameters.ciphertext_modulus(),
                 );
 
@@ -766,7 +765,7 @@ where
                     params.decomp_level_count,
                     lwe_secret_key.lwe_dimension(),
                     params.grouping_factor,
-                    CompressionSeed::from(Seed(0)),
+                    generator.mask_generator().current_compression_seed(),
                     params.ciphertext_modulus,
                 );
 
@@ -822,7 +821,7 @@ impl ShortintMultibitCompressedBootstrappingKeyParts {
             multibit_params.pbs_level,
             client_key.lwe_secret_key.lwe_dimension(),
             multibit_params.grouping_factor,
-            CompressionSeed::from(Seed(0)),
+            generator.mask_generator().current_compression_seed(),
             multibit_params.ciphertext_modulus,
         );
 
@@ -1249,7 +1248,7 @@ impl CompressedNoiseSquashingCompressionKey {
                 .lwe_dimension(),
             compression_params.packing_ks_glwe_dimension,
             compression_params.packing_ks_polynomial_size,
-            CompressionSeed::from(Seed(0)),
+            generator.mask_generator().current_compression_seed(),
             compression_params.ciphertext_modulus,
         );
 
@@ -1398,7 +1397,7 @@ where
             Scalar::ZERO,
             lwe_secret_key.lwe_dimension().to_lwe_size(),
             params.modulus_switch_zeros_count,
-            CompressionSeed { seed: Seed(0) },
+            generator.mask_generator().current_compression_seed(),
             ciphertext_modulus,
         );
         let plaintext_list = PlaintextList::new(

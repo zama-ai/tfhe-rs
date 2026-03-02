@@ -7,6 +7,7 @@ use crate::*;
 
 mod cpu {
     use super::*;
+
     #[test]
     fn test_xof_key_set_classic_params() {
         let config = Config::from(TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
@@ -29,6 +30,7 @@ mod cpu {
         assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
         assert_eq!(cks.tag(), &tag);
         test_xof_key_set(&compressed_key_set, config, Device::Cpu, &cks);
+        test_xof_expansion_is_same_as_classic(compressed_key_set);
     }
 
     #[test]
@@ -53,6 +55,7 @@ mod cpu {
         assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
         assert_eq!(cks.tag(), &tag);
         test_xof_key_set(&compressed_key_set, config, Device::Cpu, &cks);
+        test_xof_expansion_is_same_as_classic(compressed_key_set);
     }
 
     #[test]
@@ -78,6 +81,7 @@ mod cpu {
         assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
         assert_eq!(cks.tag(), &tag);
         test_xof_key_set(&compressed_key_set, config, Device::Cpu, &cks);
+        test_xof_expansion_is_same_as_classic(compressed_key_set);
     }
 }
 
@@ -109,6 +113,7 @@ mod gpu {
         assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
         assert_eq!(cks.tag(), &tag);
         test_xof_key_set(&compressed_key_set, config, Device::CudaGpu, &cks);
+        test_xof_expansion_is_same_as_classic(compressed_key_set);
     }
 
     #[test]
@@ -135,6 +140,7 @@ mod gpu {
         assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
         assert_eq!(cks.tag(), &tag);
         test_xof_key_set(&compressed_key_set, config, Device::CudaGpu, &cks);
+        test_xof_expansion_is_same_as_classic(compressed_key_set);
     }
 
     #[test]
@@ -159,7 +165,29 @@ mod gpu {
         assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
         assert_eq!(cks.tag(), &tag);
         test_xof_key_set(&compressed_key_set, config, Device::CudaGpu, &cks);
+        test_xof_expansion_is_same_as_classic(compressed_key_set);
     }
+}
+
+/// Check that expanding a CompressedXofKeySet by first splitting it into a Pk and
+/// CompressedServerKey, thus not using the dedicated function for decompression/expansion
+/// yields the same thing as using the dedicated expand (used by decompress) method of
+/// CompressedXofKeySet
+fn test_xof_expansion_is_same_as_classic(key_set: CompressedXofKeySet) {
+    let (xof_pk, xof_sk) = key_set.expand();
+    let (_seed, cpk, csk) = key_set.into_raw_parts();
+    let pk = cpk.decompress();
+
+    let sk = csk.integer_key.expand();
+
+    #[allow(
+        clippy::manual_assert,
+        reason = "The type does not impl Debug, and if it did, the output would be unreadable"
+    )]
+    if sk != xof_sk {
+        panic!("Expanded server keys are not equal");
+    }
+    assert_eq!(pk, xof_pk);
 }
 
 fn test_xof_key_set(
@@ -209,6 +237,7 @@ fn test_xof_key_set(
             panic!("HPU not supported in this test")
         }
     };
+
     assert_eq!(pk.tag(), &expected_pk_tag);
 
     let clear_a = rand::random::<u32>();

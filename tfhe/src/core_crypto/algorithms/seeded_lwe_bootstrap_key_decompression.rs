@@ -56,7 +56,7 @@ pub fn decompress_seeded_lwe_bootstrap_key<Scalar, InputCont, OutputCont, Gen>(
         output_bsk.ciphertext_modulus(),
     );
 
-    let mut generator = MaskRandomGenerator::<Gen>::new(input_bsk.compression_seed().seed);
+    let mut generator = MaskRandomGenerator::<Gen>::new(input_bsk.compression_seed());
     decompress_seeded_lwe_bootstrap_key_with_pre_seeded_generator::<_, _, _, Gen>(
         output_bsk,
         input_bsk,
@@ -113,7 +113,7 @@ pub fn par_decompress_seeded_lwe_bootstrap_key<Scalar, InputCont, OutputCont, Ge
         output_bsk.ciphertext_modulus(),
     );
 
-    let mut generator = MaskRandomGenerator::<Gen>::new(input_bsk.compression_seed().seed);
+    let mut generator = MaskRandomGenerator::<Gen>::new(input_bsk.compression_seed());
     par_decompress_seeded_lwe_bootstrap_key_with_pre_seeded_generator::<_, _, _, Gen>(
         output_bsk,
         input_bsk,
