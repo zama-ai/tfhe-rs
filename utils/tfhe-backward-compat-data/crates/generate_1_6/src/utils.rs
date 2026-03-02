@@ -6,9 +6,7 @@ use tfhe::shortint::MultiBitPBSParameters;
 use tfhe::shortint::parameters::list_compression::{
     ClassicCompressionParameters, MultiBitCompressionParameters,
 };
-use tfhe::shortint::parameters::meta::{
-    DedicatedCompactPublicKeyParameters, MetaParameters,
-};
+use tfhe::shortint::parameters::meta::{DedicatedCompactPublicKeyParameters, MetaParameters};
 use tfhe::shortint::parameters::noise_squashing::{
     MetaNoiseSquashingParameters, NoiseSquashingMultiBitParameters,
 };
@@ -440,9 +438,7 @@ impl ConvertParams<MetaNoiseSquashingParameters> for TestMetaNoiseSquashingParam
     fn convert(self) -> MetaNoiseSquashingParameters {
         MetaNoiseSquashingParameters {
             parameters: self.parameters.convert(),
-            compression_parameters: self
-                .compression_parameters
-                .map(ConvertParams::convert),
+            compression_parameters: self.compression_parameters.map(ConvertParams::convert),
         }
     }
 }
@@ -455,12 +451,8 @@ impl ConvertParams<MetaParameters> for TestMetaParameters {
             dedicated_compact_public_key_parameters: self
                 .dedicated_compact_public_key_parameters
                 .map(ConvertParams::convert),
-            compression_parameters: self
-                .compression_parameters
-                .map(ConvertParams::convert),
-            noise_squashing_parameters: self
-                .noise_squashing_parameters
-                .map(ConvertParams::convert),
+            compression_parameters: self.compression_parameters.map(ConvertParams::convert),
+            noise_squashing_parameters: self.noise_squashing_parameters.map(ConvertParams::convert),
         }
     }
 }
