@@ -24,15 +24,15 @@ impl MeasureConfig {
 #[inline(never)]
 fn measure_batch<F, S, R>(
     run: F,
-    setup: S,
+    mut setup: S,
     batch_size: usize,
     minimum_time_per_batch: Duration,
 ) -> (f64, Duration)
 where
-    F: Fn(&R, usize) + Sync,
-    S: Fn(usize) -> R,
+    F: Fn(&mut R, usize) + Sync,
+    S: FnMut(usize) -> R,
 {
-    let input = setup(batch_size);
+    let mut input = setup(batch_size);
 
     // The method to compute CPU usage is based on the ratio between CPU time and wall-clock time.
     // During the function’s execution, this allows us to determine the optimal batch size.
@@ -41,7 +41,7 @@ where
     // At least run for 3 seconds (like warmup time of criterion) to get a stable measurement,
     // especially for smaller batches like add or gt for example
     while wall_start.elapsed() < minimum_time_per_batch {
-        run(&input, batch_size);
+        run(&mut input, batch_size);
     }
     let wall = wall_start.elapsed();
     let cpu = cpu_start.elapsed();
@@ -50,10 +50,10 @@ where
 }
 
 #[inline(never)]
-pub fn find_optimal_batch<F, S, R>(run: F, setup: S) -> usize
+pub fn find_optimal_batch<F, S, R>(run: F, mut setup: S) -> usize
 where
-    F: Fn(&R, usize) + Sync + Clone,
-    S: Fn(usize) -> R + Clone,
+    F: Fn(&mut R, usize) + Sync + Clone,
+    S: FnMut(usize) -> R,
 {
     let cores = num_cpus::get() as f64;
     let measure_config = MeasureConfig::default();
@@ -70,7 +70,7 @@ where
     loop {
         let (usage, duration) = measure_batch(
             run.clone(),
-            setup.clone(),
+            &mut setup,
             high,
             measure_config.minimum_time_per_batch,
         );
