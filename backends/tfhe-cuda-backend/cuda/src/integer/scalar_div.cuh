@@ -58,17 +58,17 @@ __host__ void host_integer_unsigned_scalar_div_radix(
       PANIC("shift_post should be > 0");
     }
 
-    CudaRadixCiphertextFFI *numerator_cpy = mem_ptr->tmp_ffi;
+    CudaRadixCiphertextFFI *numerator_copy = mem_ptr->tmp_ffi;
 
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
-                                       numerator_cpy, numerator_ct);
+                                       numerator_copy, numerator_ct);
 
-    host_scalar_mul_high<Torus>(streams, numerator_cpy,
+    host_scalar_mul_high<Torus>(streams, numerator_copy,
                                 mem_ptr->scalar_mul_high_mem, ksks, bsks,
                                 scalar_divisor_ffi);
 
     host_sub_and_propagate_single_carry<Torus>(
-        streams, numerator_ct, numerator_cpy, nullptr, nullptr,
+        streams, numerator_ct, numerator_copy, nullptr, nullptr,
         mem_ptr->sub_and_propagate_mem, bsks, ksks, FLAG_NONE, (uint32_t)0);
 
     host_logical_scalar_shift_inplace<Torus>(
@@ -76,7 +76,7 @@ __host__ void host_integer_unsigned_scalar_div_radix(
         bsks, ksks, numerator_ct->num_radix_blocks);
 
     host_add_and_propagate_single_carry<Torus>(
-        streams, numerator_ct, numerator_cpy, nullptr, nullptr,
+        streams, numerator_ct, numerator_copy, nullptr, nullptr,
         mem_ptr->scp_mem, bsks, ksks, FLAG_NONE, (uint32_t)0);
 
     host_logical_scalar_shift_inplace<Torus>(
