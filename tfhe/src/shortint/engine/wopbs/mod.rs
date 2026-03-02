@@ -40,14 +40,14 @@ impl ShortintEngine {
             &mut self.encryption_generator,
         );
 
-        let sks_cpy = sks.owned();
+        let sks_copy = sks.owned();
 
         let wopbs_key = WopbsKey {
-            wopbs_server_key: sks_cpy.clone(),
+            wopbs_server_key: sks_copy.clone(),
             cbs_pfpksk,
             ksk_pbs_to_wopbs: sks.atomic_pattern.key_switching_key.clone(),
             param: wop_params,
-            pbs_server_key: sks_cpy,
+            pbs_server_key: sks_copy,
         };
         Ok(wopbs_key)
     }
