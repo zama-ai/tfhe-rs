@@ -29,7 +29,7 @@ pub struct CompressedCiphertext {
 
 impl CompressedCiphertext {
     pub fn decompress(&self) -> Ciphertext {
-        Ciphertext::Encrypted(self.ciphertext.decompress_into_lwe_ciphertext())
+        Ciphertext::Encrypted(self.ciphertext.clone().decompress_into_lwe_ciphertext())
     }
 
     /// Deconstruct a [`CompressedCiphertext`] into its constituents.

@@ -92,7 +92,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
     type Element;
 
     /// Concrete type of the metadata used to create a [`Self::EntityView`].
-    type EntityViewMetadata: Clone + Copy;
+    type EntityViewMetadata: Clone;
 
     /// Entity stored in the container that can be a complex type (like an
     /// [`LweCiphertext`](crate::core_crypto::entities::LweCiphertext)) using a reference to a
@@ -102,7 +102,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         Self: 'this;
 
     /// Concrete type of the metadata used to create a [`Self::SelfView`].
-    type SelfViewMetadata: Clone + Copy;
+    type SelfViewMetadata: Clone;
 
     /// Concrete immutable view type of the current container type, used to create sub containers.
     type SelfView<'this>: CreateFrom<&'this [Self::Element], Metadata = Self::SelfViewMetadata>
@@ -147,7 +147,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         let (container_left, container_right) = self.as_ref().split_at(mid);
 
         (
-            Self::SelfView::<'_>::create_from(container_left, self_meta),
+            Self::SelfView::<'_>::create_from(container_left, self_meta.clone()),
             Self::SelfView::<'_>::create_from(container_right, self_meta),
         )
     }
@@ -359,7 +359,7 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
         let (container_left, container_right) = self.as_mut().split_at_mut(mid);
 
         (
-            Self::SelfMutView::<'_>::create_from(container_left, self_meta),
+            Self::SelfMutView::<'_>::create_from(container_left, self_meta.clone()),
             Self::SelfMutView::<'_>::create_from(container_right, self_meta),
         )
     }

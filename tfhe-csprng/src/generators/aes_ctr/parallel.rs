@@ -123,7 +123,7 @@ pub mod aes_ctr_parallel_generic_tests {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
-            let offset = Some(AesIndex(rand::random()));
+            let offset = AesIndex(rand::random());
             let original_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
@@ -151,7 +151,7 @@ pub mod aes_ctr_parallel_generic_tests {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
-            let offset = Some(AesIndex(rand::random()));
+            let offset = AesIndex(rand::random());
             let mut parent_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
@@ -177,7 +177,7 @@ pub mod aes_ctr_parallel_generic_tests {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
-            let offset = Some(AesIndex(rand::random()));
+            let offset = AesIndex(rand::random());
             let original_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
@@ -205,7 +205,7 @@ pub mod aes_ctr_parallel_generic_tests {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
-            let offset = Some(AesIndex(rand::random()));
+            let offset = AesIndex(rand::random());
             let original_generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
@@ -234,7 +234,7 @@ pub mod aes_ctr_parallel_generic_tests {
         for _ in 0..1000 {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
-            let offset = Some(AesIndex(rand::random()));
+            let offset = AesIndex(rand::random());
             let bytes_to_go = nc.0 * nb.0;
             let original_generator = AesCtrGenerator::<G>::new(
                 k,
@@ -265,7 +265,7 @@ pub mod aes_ctr_parallel_generic_tests {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
-            let offset = Some(AesIndex(rand::random()));
+            let offset = AesIndex(rand::random());
             let mut generator = AesCtrGenerator::<G>::new(
                 k,
                 Some(t),
@@ -293,7 +293,7 @@ pub mod aes_ctr_parallel_generic_tests {
             let fork_bytes = widening_mul(nc.0, nb.0);
             let total_bytes = fork_bytes.saturating_add(num_extra_bytes);
 
-            let offset = Some(AesIndex(rand::random()));
+            let offset = AesIndex(rand::random());
             let mut gen1 =
                 AesCtrGenerator::<G>::new(k, Some(t), Some(t.increased(total_bytes)), offset);
             let mut forked_gen = gen1.clone();
@@ -339,7 +339,7 @@ pub mod aes_ctr_parallel_generic_tests {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
-            let offset = Some(AesIndex(rand::random()));
+            let offset = AesIndex(rand::random());
             let bytes_to_go = nc.0 * nb.0;
             let mut generator = AesCtrGenerator::<G>::new(
                 k,

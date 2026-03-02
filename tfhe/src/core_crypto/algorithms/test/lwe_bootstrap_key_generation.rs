@@ -196,7 +196,7 @@ fn test_parallel_and_seeded_and_chunked_bsk_gen_equivalence<T: UnsignedTorus + S
 
         let mut noise_seeder =
             DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seeder_seed);
-        let compression_seed = CompressionSeed { seed: mask_seed };
+        let compression_seed = CompressionSeed::from(mask_seed);
         let seeded_chunk_generator = SeededLweBootstrapKeyChunkGenerator::new(
             ChunkSize(crate::core_crypto::commons::test_tools::random_usize_between(1..5)),
             lwe_dim,
@@ -208,7 +208,7 @@ fn test_parallel_and_seeded_and_chunked_bsk_gen_equivalence<T: UnsignedTorus + S
             &lwe_sk,
             &glwe_sk,
             noise_distribution,
-            compression_seed,
+            compression_seed.clone(),
             &mut noise_seeder,
             false,
         );

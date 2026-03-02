@@ -12,7 +12,7 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::misc::check_encrypted_content_respects_mod;
 
 /// A [`seeded GLWE ciphertext`](`SeededLweCiphertext`).
-#[derive(Copy, Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(SeededLweCiphertextVersions)]
 pub struct SeededLweCiphertext<Scalar: UnsignedInteger> {
     data: Scalar,
@@ -146,7 +146,7 @@ impl<Scalar: UnsignedInteger> SeededLweCiphertext<Scalar> {
     ///
     /// See [`SeededLweCiphertext::from_scalar`] for usage.
     pub fn compression_seed(&self) -> CompressionSeed {
-        self.compression_seed
+        self.compression_seed.clone()
     }
 
     /// Return an immutable view to the [`LweBody`] of a [`SeededLweCiphertext`].

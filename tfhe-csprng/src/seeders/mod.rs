@@ -95,6 +95,8 @@ impl XofSeed {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(SeedKindVersions)]
 pub enum SeedKind {
     /// Initializes the Aes-Ctr with a counter starting at 0
     /// and uses the seed as the Aes key.
@@ -139,7 +141,7 @@ mod implem;
 pub use implem::*;
 use tfhe_versionable::Versionize;
 
-use crate::seeders::backward_compatibility::{SeedVersions, XofSeedVersions};
+use crate::seeders::backward_compatibility::{SeedKindVersions, SeedVersions, XofSeedVersions};
 
 #[cfg(test)]
 mod generic_tests {

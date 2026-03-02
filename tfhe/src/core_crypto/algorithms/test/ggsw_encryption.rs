@@ -57,7 +57,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
             DeterministicSeeder::<DefaultRandomGenerator>::new(main_seed);
 
         let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-            compression_seed.seed,
+            compression_seed.clone(),
             &mut deterministic_seeder,
         );
 
@@ -82,7 +82,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
             DeterministicSeeder::<DefaultRandomGenerator>::new(main_seed);
 
         let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-            compression_seed.seed,
+            compression_seed.clone(),
             &mut deterministic_seeder,
         );
 
@@ -103,7 +103,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
             polynomial_size,
             decomp_base_log,
             decomp_level_count,
-            compression_seed,
+            compression_seed.clone(),
             ciphertext_modulus,
         );
 

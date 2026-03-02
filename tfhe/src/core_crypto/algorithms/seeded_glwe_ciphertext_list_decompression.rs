@@ -63,7 +63,7 @@ pub fn decompress_seeded_glwe_ciphertext_list<Scalar, InputCont, OutputCont, Gen
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    let mut generator = MaskRandomGenerator::<Gen>::new(input_seeded_list.compression_seed().seed);
+    let mut generator = MaskRandomGenerator::<Gen>::new(input_seeded_list.compression_seed());
     decompress_seeded_glwe_ciphertext_list_with_pre_seeded_generator::<_, _, _, Gen>(
         output_list,
         input_seeded_list,

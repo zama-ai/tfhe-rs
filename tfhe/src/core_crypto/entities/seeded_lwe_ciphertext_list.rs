@@ -133,7 +133,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
     ///
     /// See [`SeededLweCiphertextList::from_container`] for usage.
     pub fn compression_seed(&self) -> CompressionSeed {
-        self.compression_seed
+        self.compression_seed.clone()
     }
 
     /// Return the [`LweCiphertextCount`] of the [`SeededLweCiphertextList`].
@@ -302,7 +302,7 @@ impl<Scalar: UnsignedInteger> SeededLweCiphertextListOwned<Scalar> {
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`SeededLweCiphertextList`]
 /// entities.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct SeededLweCiphertextListCreationMetadata<Scalar: UnsignedInteger> {
     pub lwe_size: LweSize,
     pub compression_seed: CompressionSeed,

@@ -11,7 +11,7 @@ pub struct CompressionPrivateKeys {
     pub(crate) key: crate::shortint::list_compression::CompressionPrivateKeys,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
 #[versionize(CompressionKeyVersions)]
 pub struct CompressionKey {
     pub(crate) key: crate::shortint::list_compression::CompressionKey,
