@@ -1,0 +1,286 @@
+module_name="hpu_regif_core_eth_2in3"
+description="HPU ethernet configuration register interface. Will be accessed by RPU to define registers."
+word_size_b = 32
+offset = 0x50000
+range = 0x10000
+ext_pkg = ["axi_if_common_param_pkg", "axi_if_shell_axil_pkg"]
+
+# =====================================================================================================================
+[section.mhdma_system]
+description="system configuration"
+offset= 0x0
+
+[section.mhdma_system.register.lane]
+  description="Different parameters for qsfp lines"
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  field.select    = {size_b=2, offset_b=0,  default={Cst=0x0}, description="line selection"}
+  field.loopback  = {size_b=3, offset_b=2,  default={Cst=0x0}, description="line loopback configurations"}
+  field.rate      = {size_b=8, offset_b=5,  default={Cst=0x0}, description="line rates"}
+  field.debug     = {size_b=1, offset_b=31, default={Cst=0x0}, description="States whether we are in debug mode"}
+
+[section.mhdma_system.register.timeout_notify]
+  description="Timeout: time before re-launching a request, in clock cycles"
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  field.notify_timeout_dur  = {size_b=32, offset_b=0,  default={Cst=0x48000000}, description="notify request timeout duration"}
+
+[section.mhdma_system.register.timeout_read_req]
+  description="Timeout: time before re-launching a request, in clock cycles"
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  field.read_req_timeout_dur = {size_b=32, offset_b=0, default={Cst=0x48000000}, description="read request timeout duration"}
+
+[section.mhdma_system.register.fsm_value]
+  description="fsm status of the module"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x0}
+
+[section.mhdma_system.register.errors]
+  description="errors of mhdma"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  default={Cst=0x0}
+
+[section.mhdma_system.register.hpu_id]
+  description="HPU ID, MSB is identifier 24b lsb is MAC address"
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  default={Cst=0x0}
+  duplicate=["_0", "_1", "_2", "_3", "_4", "_5", "_6", "_7"]
+
+# =====================================================================================================================
+[section.mhdma_reset]
+offset= 0x90
+description="Controllable resets for transceivers"
+
+[section.mhdma_reset.register.datapath]
+  description="GTM datapath resets"
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  field.rx_rst={size_b=4, offset_b=8, default={Cst=0x0}, description="resets on rx lane"}
+  field.tx_rst={size_b=4, offset_b=4, default={Cst=0x0}, description="resets on tx lane"}
+  field.gt_all={size_b=4, offset_b=0, default={Cst=0x0}, description="reset controlling both rx and tx at the same time"}
+
+[section.mhdma_reset.register.monitor]
+  description="Reset done flag for monitoring"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  field.rst_done={size_b=8, offset_b=0, default={Cst=0x0}, description="rst done monitoring"}
+
+# =====================================================================================================================
+[section.mhdma_request]
+description="Request registers interface"
+offset= 0x100
+
+[section.mhdma_request.register.req_id]
+  description="Different parameters for qsfp lines"
+  owner="User"
+  read_access="Read"
+  write_access="WriteNotify"
+  field.rsvd    = {size_b=8, offset_b=0,  default={Cst=0x0}, description="Unused : reserved for latter "}
+  field.flag    = {size_b=6, offset_b=8,  default={Cst=0x0}, description="flag "}
+  field.mode    = {size_b=2, offset_b=14, default={Cst=0x0}, description="mode "}
+  field.node_id = {size_b=4, offset_b=16, default={Cst=0x0}, description="node id or HPU id"}
+  field.req_id  = {size_b=4, offset_b=20, default={Cst=0x0}, description="request identifier"}
+  field.iop_id  = {size_b=8, offset_b=24, default={Cst=0x0}, description="IOP id from software point of view"}
+
+[section.mhdma_request.register.req_addr]
+  description="request address"
+  owner="User"
+  read_access="Read"
+  write_access="WriteNotify"
+  field.src = {size_b=16, offset_b=0,  default={Cst=0x0}, description="ciphertext source address"}
+  field.dst = {size_b=16, offset_b=16, default={Cst=0x0}, description="ciphertext destination address"}
+
+[section.mhdma_request.register.notify_req_id]
+  description="When a notify is received, this register will be updated"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  field.rsvd    = {size_b=8, offset_b=0,   default={Cst=0x0},    description="Unused : reserved for latter "}
+  field.flag    = {size_b=6, offset_b=8,   default={Cst=0x0},    description="flag "}
+  field.mode    = {size_b=2, offset_b=14,  default={Cst=0x0},    description="mode "}
+  field.node_id = {size_b=4,  offset_b=16, default={Cst=0x0},    description="node id or HPU id"}
+  field.req_id  = {size_b=4,  offset_b=20, default={Cst=0x0},    description="request identifier"}
+  field.iop_id  = {size_b=8,  offset_b=24, default={Cst=0x0},    description="IOP id from software point of view"}
+
+[section.mhdma_request.register.notify_req_addr]
+  description="When a notify is received, this register will be updated"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  field.src = {size_b=16, offset_b=0,  default={Cst=0x0}, description="ciphertext source address"}
+  field.dst = {size_b=16, offset_b=16, default={Cst=0x0}, description="ciphertext destination address"}
+
+[section.mhdma_request.register.read_request_req_id]
+  description="When a read request has bneen processed, this register will be updated"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  field.rsvd    = {size_b=8, offset_b=0,   default={Cst=0x0},    description="Unused : reserved for latter "}
+  field.flag    = {size_b=6, offset_b=8,   default={Cst=0x0},    description="flag "}
+  field.mode    = {size_b=2, offset_b=14,  default={Cst=0x0},    description="mode "}
+  field.node_id = {size_b=4,  offset_b=16, default={Cst=0x0},    description="node id or HPU id"}
+  field.req_id  = {size_b=4,  offset_b=20, default={Cst=0x0},    description="request identifier"}
+  field.iop_id  = {size_b=8,  offset_b=24, default={Cst=0x0},    description="IOP id from software point of view"}
+
+[section.mhdma_request.register.read_request]
+  description="When a read request has bneen processed, this register will be updated"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  field.src = {size_b=16, offset_b=0,  default={Cst=0x0}, description="ciphertext source address"}
+  field.dst = {size_b=16, offset_b=16, default={Cst=0x0}, description="ciphertext destination address"}
+
+[section.mhdma_request.register.stat_notify]
+  description="Number of notify that have been sent"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  default={Cst=0x0}
+[section.mhdma_request.register.stat_notify_ack]
+  description="Number of notify ack that have been received"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  default={Cst=0x0}
+[section.mhdma_request.register.stat_notify_timeout_retry]
+  description="Number of retries that have been done"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  default={Cst=0x0}
+[section.mhdma_request.register.stat_read_req_timeout_retry]
+  description="Number of retries that have been done"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  default={Cst=0x0}
+
+[section.mhdma_request.register.stat_nb_nack_received]
+  description="timeout counter on notify"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  default={Cst=0x0}
+[section.mhdma_request.register.stat_nb_notify_received]
+  description="timeout counter on notify"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  default={Cst=0x0}
+[section.mhdma_request.register.stat_nb_read_req_received]
+  description="timeout counter on notify"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  default={Cst=0x0}
+[section.mhdma_request.register.stat_nb_ce_received]
+  description="timeout counter on notify"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  default={Cst=0x0}
+[section.mhdma_request.register.stat_nb_read_to_hbm]
+  description="counter of number of reads to HBM executed"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  default={Cst=0x0}
+[section.mhdma_request.register.stat_nb_words_received_pc]
+  description="counter of number of words received by HBM"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  default={Cst=0x0}
+  duplicate=["_pc0", "_pc1"]
+[section.mhdma_request.register.stat_nb_ce_words_received]
+  description="number of words received during ciphertext reception"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  default={Cst=0x0}
+
+[section.mhdma_request.register.stat_t_notify_to_ack]
+  description="time between notify tlast and ack reception in decoder"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x0}
+[section.mhdma_request.register.stat_t_rr_to_ce_received]
+  description="time between read request tlast and all pkt received from ce"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x0}
+[section.mhdma_request.register.stat_t_ce_first_to_last_pkt]
+  description="time between first and last pkt on ce"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x0}
+[section.mhdma_request.register.stat_t_rr_wait_words_pc]
+  description="time spent waiting for reads in hbm"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x0}
+  duplicate=["_pc0", "_pc1"]
+
+[section.mhdma_request.register.stat_notify_timeout]
+  description="timeout counter on notify"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  default={Cst=0x0}
+
+[section.mhdma_request.register.stat_physical_addr]
+  description="timeout counter on notify"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x0}
+  duplicate=["_pc0_lsb", "_pc0_msb","_pc1_lsb", "_pc1_msb"]
+
+[section.mhdma_request.register.stat_cnt_nb_write_complete]
+  description="timeout counter on notify"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x0}
+
+# =====================================================================================================================
+[section.mhdma_lane]
+offset= 0x200
+description="Line parameter sections"
+
+[section.mhdma_lane.register.debug]
+  description="Different parameters for debugging qsfp lines"
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  field.rx_to_tx        = {size_b=1, offset_b=29, default={Cst=0x0}, description="a"}
+  field.tx_loop         = {size_b=1, offset_b=30, default={Cst=0x0}, description="b"}
+  field.reset_registers = {size_b=1, offset_b=31, default={Cst=0x0}, description="c"}
+
+# =====================================================================================================================
+[section.mhdma_hbm_axi4_addr_2in3]
+offset= 0x1000
+description="HBM AXI4 connection address offset"
+
+[section.mhdma_hbm_axi4_addr_2in3.register.ct]
+  description="Address offset for each ciphertext HBM AXI4 connection"
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  duplicate=["_pc0_lsb", "_pc0_msb","_pc1_lsb", "_pc1_msb"]
