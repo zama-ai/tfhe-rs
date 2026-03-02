@@ -196,7 +196,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
     ///
     /// See [`SeededGgswCiphertextList::from_container`] for usage.
     pub fn compression_seed(&self) -> CompressionSeed {
-        self.compression_seed
+        self.compression_seed.clone()
     }
 
     /// Return the [`CiphertextModulus`] of the [`SeededGgswCiphertextList`].
@@ -371,7 +371,7 @@ impl<Scalar: UnsignedInteger> SeededGgswCiphertextListOwned<Scalar> {
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`SeededGgswCiphertextList`]
 /// entities.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct SeededGgswCiphertextListCreationMetadata<Scalar: UnsignedInteger> {
     pub glwe_size: GlweSize,
     pub polynomial_size: PolynomialSize,
@@ -432,7 +432,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             glwe_size: self.glwe_size,
             polynomial_size: self.polynomial_size,
             decomp_base_log: self.decomp_base_log,
-            compression_seed: self.compression_seed,
+            compression_seed: self.compression_seed.clone(),
             ciphertext_modulus: self.ciphertext_modulus,
         }
     }
@@ -453,7 +453,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             polynomial_size: self.polynomial_size,
             decomp_base_log: self.decomp_base_log,
             decomp_level_count: self.decomp_level_count,
-            compression_seed: self.compression_seed,
+            compression_seed: self.compression_seed.clone(),
             ciphertext_modulus: self.ciphertext_modulus,
         }
     }

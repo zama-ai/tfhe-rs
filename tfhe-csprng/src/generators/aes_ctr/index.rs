@@ -1,17 +1,46 @@
 use crate::generators::aes_ctr::BYTES_PER_AES_CALL;
+use crate::generators::backward_compatibility::{
+    AesIndexVersions, ByteIndexVersions, TableIndexVersions,
+};
 use crate::generators::ByteCount;
 use std::cmp::Ordering;
+use tfhe_versionable::Versionize;
 
 /// A structure representing an [aes index](#coarse-grained-pseudo-random-table-lookup).
-#[derive(Clone, Copy, Debug, PartialOrd, Ord, PartialEq, Eq)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialOrd,
+    Ord,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    Versionize,
+)]
+#[versionize(AesIndexVersions)]
 pub struct AesIndex(pub u128);
 
 /// A structure representing a [byte index](#fine-grained-pseudo-random-table-lookup).
-#[derive(Clone, Copy, Debug, PartialOrd, Ord, PartialEq, Eq)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialOrd,
+    Ord,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    Versionize,
+)]
+#[versionize(ByteIndexVersions)]
 pub struct ByteIndex(pub usize);
 
 /// A structure representing a [table index](#fine-grained-pseudo-random-table-lookup)
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(TableIndexVersions)]
 pub struct TableIndex {
     pub(crate) aes_index: AesIndex,
     pub(crate) byte_index: ByteIndex,

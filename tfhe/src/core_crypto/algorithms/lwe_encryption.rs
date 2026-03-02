@@ -1224,7 +1224,7 @@ pub fn encrypt_lwe_ciphertext_iterator_with_seeded_public_key<Scalar, KeyCont, O
     );
 
     let mut random_generator =
-        RandomGenerator::<DefaultRandomGenerator>::new(lwe_public_key.compression_seed().seed);
+        RandomGenerator::<DefaultRandomGenerator>::new(lwe_public_key.compression_seed());
 
     // Add the public encryption of zeros to get the zero encryption
     for public_encryption_of_zero_body in lwe_public_key.iter() {
@@ -1413,7 +1413,7 @@ pub fn encrypt_seeded_lwe_ciphertext_list<
     NoiseSeeder: Seeder + ?Sized,
 {
     let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-        output.compression_seed().seed,
+        output.compression_seed(),
         noise_seeder,
     );
 
@@ -1584,7 +1584,7 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list<
     NoiseSeeder: Seeder + ?Sized,
 {
     let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-        output.compression_seed().seed,
+        output.compression_seed(),
         noise_seeder,
     );
 
@@ -1711,7 +1711,7 @@ pub fn encrypt_seeded_lwe_ciphertext<Scalar, NoiseDistribution, KeyCont, NoiseSe
     NoiseSeeder: Seeder + ?Sized,
 {
     let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-        output.compression_seed().seed,
+        output.compression_seed(),
         noise_seeder,
     );
 

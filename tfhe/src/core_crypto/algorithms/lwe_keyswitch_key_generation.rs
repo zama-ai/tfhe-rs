@@ -13,7 +13,6 @@ use crate::core_crypto::commons::math::random::{
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use tfhe_csprng::seeders::Seed;
 
 /// Fill an [`LWE keyswitch key`](`LweKeyswitchKey`) with an actual keyswitching key constructed
 /// from an input and an output key [`LWE secret key`](`LweSecretKey`).
@@ -410,7 +409,7 @@ pub fn generate_seeded_lwe_keyswitch_key<
     NoiseSeeder: Seeder + ?Sized,
 {
     let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-        lwe_keyswitch_key.compression_seed().seed,
+        lwe_keyswitch_key.compression_seed(),
         noise_seeder,
     );
 
@@ -586,7 +585,7 @@ where
         decomp_level_count,
         input_lwe_secret_key.lwe_dimension(),
         output_lwe_secret_key.lwe_dimension(),
-        CompressionSeed::from(Seed(0)),
+        generator.mask_generator().current_compression_seed(),
         ciphertext_modulus,
     );
 
@@ -1115,9 +1114,7 @@ where
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
-/// let compression_seed = CompressionSeed {
-///     seed: seeder.seed(),
-/// };
+/// let compression_seed = CompressionSeed::from(seeder.seed());
 ///
 /// // Create the LweSecretKey
 /// let input_lwe_secret_key: LweSecretKeyOwned<u64> =
@@ -1212,7 +1209,7 @@ where
         NoiseSeeder: Seeder + ?Sized,
     {
         let enc_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-            compression_seed.seed,
+            compression_seed.clone(),
             noise_seeder,
         );
         assert!(
@@ -1273,7 +1270,7 @@ where
             self.decomposition_level_count,
             chunk_size,
             self.output_lwe_sk.lwe_dimension(),
-            self.compression_seed,
+            self.compression_seed.clone(),
             self.ciphertext_modulus,
         );
 

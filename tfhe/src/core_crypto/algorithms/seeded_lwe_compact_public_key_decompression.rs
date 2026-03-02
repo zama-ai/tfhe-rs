@@ -40,7 +40,7 @@ pub fn decompress_seeded_lwe_compact_public_key<Scalar, InputCont, OutputCont, G
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    let mut generator = MaskRandomGenerator::<Gen>::new(input_seeded_cpk.compression_seed().seed);
+    let mut generator = MaskRandomGenerator::<Gen>::new(input_seeded_cpk.compression_seed());
     decompress_seeded_lwe_compact_public_key_with_pre_seeded_generator::<_, _, _, Gen>(
         output_cpk,
         input_seeded_cpk,
