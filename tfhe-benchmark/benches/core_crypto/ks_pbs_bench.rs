@@ -1,9 +1,10 @@
 use benchmark::params::{
     benchmark_parameters, multi_bit_benchmark_parameters_with_grouping, multi_bit_num_threads,
 };
+
 use benchmark::utilities::{
-    get_bench_type, get_param_type, throughput_num_threads, write_to_json, BenchmarkType,
-    CryptoParametersRecord, OperatorType, ParamType,
+    get_bench_type, get_param_type, write_to_json, BenchmarkType, CryptoParametersRecord,
+    OperatorType, ParamType,
 };
 use criterion::{black_box, Criterion, Throughput};
 use rayon::prelude::*;
@@ -133,64 +134,60 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
             }
             BenchmarkType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{name}");
-                let blocks: usize = 1;
-                let elements = throughput_num_threads(blocks, 1);
-                println!("Number of elements: {elements}"); // DEBUG
-                bench_group.throughput(Throughput::Elements(elements));
-                bench_group.bench_function(&bench_id, |b| {
-                    let fft = Fft::new(fourier_bsk.polynomial_size());
+                let fft = Fft::new(fourier_bsk.polynomial_size());
+                let mut setup = |batch_size: usize| {
+                    let input_ks_cts = (0..batch_size)
+                        .map(|_| {
+                            allocate_and_encrypt_new_lwe_ciphertext(
+                                &output_lwe_secret_key,
+                                Plaintext(Scalar::ONE),
+                                params.lwe_noise_distribution.unwrap(),
+                                params.ciphertext_modulus.unwrap(),
+                                &mut encryption_generator,
+                            )
+                        })
+                        .collect::<Vec<LweCiphertextOwned<Scalar>>>();
 
-                    let setup_encrypted_values = || {
-                        let input_ks_cts = (0..elements)
-                            .map(|_| {
-                                allocate_and_encrypt_new_lwe_ciphertext(
-                                    &output_lwe_secret_key,
-                                    Plaintext(Scalar::ONE),
-                                    params.lwe_noise_distribution.unwrap(),
-                                    params.ciphertext_modulus.unwrap(),
-                                    &mut encryption_generator,
-                                )
-                            })
-                            .collect::<Vec<LweCiphertextOwned<Scalar>>>();
+                    let output_ks_cts = (0..batch_size)
+                        .map(|_| {
+                            LweCiphertext::new(
+                                Scalar::ZERO,
+                                input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                                params.ciphertext_modulus.unwrap(),
+                            )
+                        })
+                        .collect::<Vec<LweCiphertextOwned<Scalar>>>();
 
-                        let output_ks_cts = (0..elements)
-                            .map(|_| {
-                                LweCiphertext::new(
-                                    Scalar::ZERO,
-                                    input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-                                    params.ciphertext_modulus.unwrap(),
-                                )
-                            })
-                            .collect::<Vec<LweCiphertextOwned<Scalar>>>();
+                    let accumulators = (0..batch_size)
+                        .map(|_| {
+                            GlweCiphertext::new(
+                                Scalar::ZERO,
+                                params.glwe_dimension.unwrap().to_glwe_size(),
+                                params.polynomial_size.unwrap(),
+                                params.ciphertext_modulus.unwrap(),
+                            )
+                        })
+                        .collect::<Vec<_>>();
 
-                        let accumulators = (0..elements)
-                            .map(|_| {
-                                GlweCiphertext::new(
-                                    Scalar::ZERO,
-                                    params.glwe_dimension.unwrap().to_glwe_size(),
-                                    params.polynomial_size.unwrap(),
-                                    params.ciphertext_modulus.unwrap(),
-                                )
-                            })
-                            .collect::<Vec<_>>();
+                    // Allocate the LweCiphertext to store the result of the PBS
+                    let output_pbs_cts = (0..batch_size)
+                        .map(|_| {
+                            LweCiphertext::new(
+                                Scalar::ZERO,
+                                output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                                params.ciphertext_modulus.unwrap(),
+                            )
+                        })
+                        .collect::<Vec<_>>();
 
-                        // Allocate the LweCiphertext to store the result of the PBS
-                        let output_pbs_cts = (0..elements)
-                            .map(|_| {
-                                LweCiphertext::new(
-                                    Scalar::ZERO,
-                                    output_lwe_secret_key.lwe_dimension().to_lwe_size(),
-                                    params.ciphertext_modulus.unwrap(),
-                                )
-                            })
-                            .collect::<Vec<_>>();
+                    let buffers = (0..batch_size)
+                        .map(|_| {
+                            let mut buffer = ComputationBuffers::new();
 
-                        let buffers = (0..elements)
-                            .map(|_| {
-                                let mut buffer = ComputationBuffers::new();
-
-                                buffer.resize(
-                                    programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
+                            buffer.resize(
+                                programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<
+                                    Scalar,
+                                >(
                                     fourier_bsk.glwe_size(),
                                     fourier_bsk.polynomial_size(),
                                     fft.as_view(),
@@ -198,58 +195,74 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                                 .unaligned_bytes_required(),
                             );
 
-                                buffer
-                            })
-                            .collect::<Vec<_>>();
+                            buffer
+                        })
+                        .collect::<Vec<_>>();
 
-                        (
-                            input_ks_cts,
-                            output_ks_cts,
-                            output_pbs_cts,
-                            accumulators,
-                            buffers,
+                    (
+                        input_ks_cts,
+                        output_ks_cts,
+                        output_pbs_cts,
+                        accumulators,
+                        buffers,
+                    )
+                };
+                type Res<Scalar> = (
+                    Vec<LweCiphertext<Vec<Scalar>>>,
+                    Vec<LweCiphertext<Vec<Scalar>>>,
+                    Vec<LweCiphertext<Vec<Scalar>>>,
+                    Vec<GlweCiphertext<Vec<Scalar>>>,
+                    Vec<ComputationBuffers>,
+                );
+                let run = |inputs: &mut Res<Scalar>| {
+                    inputs
+                        .0
+                        .par_iter()
+                        .zip(inputs.1.par_iter_mut())
+                        .zip(inputs.2.par_iter_mut())
+                        .zip(inputs.3.par_iter())
+                        .zip(inputs.4.par_iter_mut())
+                        .for_each(
+                            |(
+                                (((input_ks_ct, output_ks_ct), output_pbs_ct), accumulator),
+                                buffer,
+                            )| {
+                                keyswitch_lwe_ciphertext(
+                                    &ksk_big_to_small,
+                                    input_ks_ct,
+                                    output_ks_ct,
+                                );
+                                programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                                    output_ks_ct,
+                                    output_pbs_ct,
+                                    &accumulator.as_view(),
+                                    &fourier_bsk,
+                                    fft.as_view(),
+                                    buffer.stack(),
+                                );
+                            },
                         )
-                    };
-
+                };
+                let elements = {
+                    #[cfg(any(feature = "gpu", feature = "hpu"))]
+                    {
+                        use benchmark::utilities::throughput_num_threads;
+                        let blocks: usize = 1;
+                        throughput_num_threads(blocks, 1) // FIXME This number of element do not
+                                                          // staturate the target machine
+                    }
+                    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                    {
+                        use benchmark::find_optimal_batch::find_optimal_batch;
+                        find_optimal_batch(|inputs, _batch_size| run(inputs), &mut setup) as u64
+                    }
+                };
+                println!("Number of elements: {elements}"); // DEBUG
+                bench_group.throughput(Throughput::Elements(elements));
+                bench_group.bench_function(&bench_id, |b| {
                     b.iter_batched(
-                        setup_encrypted_values,
-                        |(
-                            input_ks_cts,
-                            mut output_ks_cts,
-                            mut output_pbs_cts,
-                            accumulators,
-                            mut buffers,
-                        )| {
-                            input_ks_cts
-                                .par_iter()
-                                .zip(output_ks_cts.par_iter_mut())
-                                .zip(output_pbs_cts.par_iter_mut())
-                                .zip(accumulators.par_iter())
-                                .zip(buffers.par_iter_mut())
-                                .for_each(
-                                    |(
-                                        (
-                                            ((input_ks_ct, output_ks_ct), output_pbs_ct),
-                                            accumulator,
-                                        ),
-                                        buffer,
-                                    )| {
-                                        keyswitch_lwe_ciphertext(
-                                            &ksk_big_to_small,
-                                            input_ks_ct,
-                                            output_ks_ct,
-                                        );
-                                        programmable_bootstrap_lwe_ciphertext_mem_optimized(
-                                            output_ks_ct,
-                                            output_pbs_ct,
-                                            &accumulator.as_view(),
-                                            &fourier_bsk,
-                                            fft.as_view(),
-                                            buffer.stack(),
-                                        );
-                                    },
-                                )
-                        },
+                        || setup(elements as usize),
+                        |mut inputs| run(&mut inputs),
                         criterion::BatchSize::SmallInput,
                     )
                 });
@@ -389,88 +402,105 @@ fn multi_bit_ks_pbs<
             }
             BenchmarkType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{name}");
-                let blocks: usize = 1;
-                let elements = throughput_num_threads(blocks, 1);
+                let mut setup = |batch_size: usize| {
+                    let input_ks_cts = (0..batch_size)
+                        .map(|_| {
+                            allocate_and_encrypt_new_lwe_ciphertext(
+                                &output_lwe_secret_key,
+                                Plaintext(Scalar::ONE),
+                                params.lwe_noise_distribution.unwrap(),
+                                params.ciphertext_modulus.unwrap(),
+                                &mut encryption_generator,
+                            )
+                        })
+                        .collect::<Vec<LweCiphertextOwned<Scalar>>>();
+
+                    let output_ks_cts = (0..batch_size)
+                        .map(|_| {
+                            LweCiphertext::new(
+                                Scalar::ZERO,
+                                input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                                params.ciphertext_modulus.unwrap(),
+                            )
+                        })
+                        .collect::<Vec<LweCiphertextOwned<Scalar>>>();
+
+                    let accumulators = (0..batch_size)
+                        .map(|_| {
+                            GlweCiphertext::new(
+                                Scalar::ZERO,
+                                params.glwe_dimension.unwrap().to_glwe_size(),
+                                params.polynomial_size.unwrap(),
+                                params.ciphertext_modulus.unwrap(),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+
+                    // Allocate the LweCiphertext to store the result of the PBS
+                    let output_pbs_cts = (0..batch_size)
+                        .map(|_| {
+                            LweCiphertext::new(
+                                Scalar::ZERO,
+                                output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                                params.ciphertext_modulus.unwrap(),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+
+                    (input_ks_cts, output_ks_cts, output_pbs_cts, accumulators)
+                };
+                type Res<Scalar> = (
+                    Vec<LweCiphertext<Vec<Scalar>>>,
+                    Vec<LweCiphertext<Vec<Scalar>>>,
+                    Vec<LweCiphertext<Vec<Scalar>>>,
+                    Vec<GlweCiphertext<Vec<Scalar>>>,
+                );
+                let run = |inputs: &mut Res<Scalar>| {
+                    inputs
+                        .0
+                        .par_iter()
+                        .zip(inputs.1.par_iter_mut())
+                        .zip(inputs.2.par_iter_mut())
+                        .zip(inputs.3.par_iter())
+                        .for_each(
+                            |(((input_ks_ct, output_ks_ct), output_pbs_ct), accumulator)| {
+                                keyswitch_lwe_ciphertext(
+                                    &ksk_big_to_small,
+                                    input_ks_ct,
+                                    output_ks_ct,
+                                );
+                                multi_bit_programmable_bootstrap_lwe_ciphertext(
+                                    output_ks_ct,
+                                    output_pbs_ct,
+                                    &accumulator.as_view(),
+                                    &multi_bit_bsk,
+                                    ThreadCount(thread_count),
+                                    deterministic_pbs,
+                                );
+                            },
+                        )
+                };
+                let elements = {
+                    #[cfg(any(feature = "gpu", feature = "hpu"))]
+                    {
+                        use benchmark::utilities::throughput_num_threads;
+                        let blocks: usize = 1;
+                        throughput_num_threads(blocks, 1) // FIXME This number of element do not
+                                                          // staturate the target machine
+                    }
+                    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                    {
+                        use benchmark::find_optimal_batch::find_optimal_batch;
+                        find_optimal_batch(|inputs, _batch_size| run(inputs), &mut setup) as u64
+                    }
+                };
+
                 println!("Number of elements: {elements}"); // DEBUG
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let setup_encrypted_values = || {
-                        let input_ks_cts = (0..elements)
-                            .map(|_| {
-                                allocate_and_encrypt_new_lwe_ciphertext(
-                                    &output_lwe_secret_key,
-                                    Plaintext(Scalar::ONE),
-                                    params.lwe_noise_distribution.unwrap(),
-                                    params.ciphertext_modulus.unwrap(),
-                                    &mut encryption_generator,
-                                )
-                            })
-                            .collect::<Vec<LweCiphertextOwned<Scalar>>>();
-
-                        let output_ks_cts = (0..elements)
-                            .map(|_| {
-                                LweCiphertext::new(
-                                    Scalar::ZERO,
-                                    input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-                                    params.ciphertext_modulus.unwrap(),
-                                )
-                            })
-                            .collect::<Vec<LweCiphertextOwned<Scalar>>>();
-
-                        let accumulators = (0..elements)
-                            .map(|_| {
-                                GlweCiphertext::new(
-                                    Scalar::ZERO,
-                                    params.glwe_dimension.unwrap().to_glwe_size(),
-                                    params.polynomial_size.unwrap(),
-                                    params.ciphertext_modulus.unwrap(),
-                                )
-                            })
-                            .collect::<Vec<_>>();
-
-                        // Allocate the LweCiphertext to store the result of the PBS
-                        let output_pbs_cts = (0..elements)
-                            .map(|_| {
-                                LweCiphertext::new(
-                                    Scalar::ZERO,
-                                    output_lwe_secret_key.lwe_dimension().to_lwe_size(),
-                                    params.ciphertext_modulus.unwrap(),
-                                )
-                            })
-                            .collect::<Vec<_>>();
-
-                        (input_ks_cts, output_ks_cts, output_pbs_cts, accumulators)
-                    };
-
                     b.iter_batched(
-                        setup_encrypted_values,
-                        |(input_ks_cts, mut output_ks_cts, mut output_pbs_cts, accumulators)| {
-                            input_ks_cts
-                                .par_iter()
-                                .zip(output_ks_cts.par_iter_mut())
-                                .zip(output_pbs_cts.par_iter_mut())
-                                .zip(accumulators.par_iter())
-                                .for_each(
-                                    |(
-                                        ((input_ks_ct, output_ks_ct), output_pbs_ct),
-                                        accumulator,
-                                    )| {
-                                        keyswitch_lwe_ciphertext(
-                                            &ksk_big_to_small,
-                                            input_ks_ct,
-                                            output_ks_ct,
-                                        );
-                                        multi_bit_programmable_bootstrap_lwe_ciphertext(
-                                            output_ks_ct,
-                                            output_pbs_ct,
-                                            &accumulator.as_view(),
-                                            &multi_bit_bsk,
-                                            ThreadCount(thread_count),
-                                            deterministic_pbs,
-                                        );
-                                    },
-                                )
-                        },
+                        || setup(elements as usize),
+                        |mut inputs| run(&mut inputs),
                         criterion::BatchSize::SmallInput,
                     )
                 });

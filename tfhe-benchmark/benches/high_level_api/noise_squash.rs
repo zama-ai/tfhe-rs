@@ -117,7 +117,7 @@ fn bench_sns_only_fhe_type<FheType>(
                 }
                 #[cfg(not(any(feature = "gpu", feature = "hpu")))]
                 {
-                    use benchmark::high_level_api::find_optimal_batch::find_optimal_batch;
+                    use benchmark::find_optimal_batch::find_optimal_batch;
 
                     let _ = num_bits; // Avoid clippy warning since FheType::num_bits() is not available.
 
@@ -126,7 +126,7 @@ fn bench_sns_only_fhe_type<FheType>(
                             .map(|_| FheType::encrypt(random(), &client_key))
                             .collect::<Vec<_>>()
                     };
-                    let run = |inputs: &Vec<_>, batch_size: usize| {
+                    let run = |inputs: &mut Vec<_>, batch_size: usize| {
                         inputs
                             .par_iter()
                             .take(batch_size)
@@ -300,7 +300,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
                 }
                 #[cfg(not(any(feature = "gpu", feature = "hpu")))]
                 {
-                    use benchmark::high_level_api::find_optimal_batch::find_optimal_batch;
+                    use benchmark::find_optimal_batch::find_optimal_batch;
 
                     let _ = num_bits; // Avoid clippy warning since FheType::num_bits() is not available.
 
@@ -313,7 +313,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
                             .map(|_| FheType::encrypt(random(), &client_key))
                             .collect::<Vec<_>>()
                     };
-                    let run = |inputs: &Vec<_>, batch_size: usize| {
+                    let run = |inputs: &mut Vec<_>, batch_size: usize| {
                         inputs
                             .par_iter()
                             .take(batch_size)

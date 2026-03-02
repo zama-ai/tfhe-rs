@@ -4,8 +4,8 @@ use benchmark::params::{
     benchmark_compression_parameters, benchmark_parameters, multi_bit_benchmark_parameters,
 };
 use benchmark::utilities::{
-    get_bench_type, get_param_type, throughput_num_threads, write_to_json, BenchmarkType,
-    CryptoParametersRecord, OperatorType, ParamType,
+    get_bench_type, get_param_type, write_to_json, BenchmarkType, CryptoParametersRecord,
+    OperatorType, ParamType,
 };
 use criterion::{black_box, Criterion, Throughput};
 use itertools::Itertools;
@@ -84,50 +84,61 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
             }
             BenchmarkType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{name}");
-                let blocks: usize = 1;
-                let elements = throughput_num_threads(blocks, 1); // FIXME This number of element do not staturate the target machine
+                let mut setup = |batch_size: usize| {
+                    let input_cts = (0..batch_size)
+                        .map(|_| {
+                            allocate_and_encrypt_new_lwe_ciphertext(
+                                &big_lwe_sk,
+                                Plaintext(Scalar::ONE),
+                                params.lwe_noise_distribution.unwrap(),
+                                params.ciphertext_modulus.unwrap(),
+                                &mut encryption_generator,
+                            )
+                        })
+                        .collect::<Vec<_>>();
+
+                    let output_cts = (0..batch_size)
+                        .map(|_| {
+                            LweCiphertext::new(
+                                Scalar::ZERO,
+                                lwe_sk.lwe_dimension().to_lwe_size(),
+                                params.ciphertext_modulus.unwrap(),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+
+                    (input_cts, output_cts)
+                };
+                type Res<Scalar> = (
+                    Vec<LweCiphertext<Vec<Scalar>>>,
+                    Vec<LweCiphertext<Vec<Scalar>>>,
+                );
+                let run = |inputs: &mut Res<Scalar>| {
+                    inputs.0.par_iter().zip(inputs.1.par_iter_mut()).for_each(
+                        |(input_ct, output_ct)| {
+                            keyswitch_lwe_ciphertext(&ksk_big_to_small, input_ct, output_ct);
+                        },
+                    )
+                };
+                let elements = {
+                    #[cfg(any(feature = "gpu", feature = "hpu"))]
+                    {
+                        use benchmark::utilities::throughput_num_threads;
+                        let blocks: usize = 1;
+                        throughput_num_threads(blocks, 1) // FIXME This number of element do not
+                                                          // staturate the target machine
+                    }
+                    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                    {
+                        use benchmark::find_optimal_batch::find_optimal_batch;
+                        find_optimal_batch(|inputs, _batch_size| run(inputs), &mut setup) as u64
+                    }
+                };
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let setup_encrypted_values = || {
-                        let input_cts = (0..elements)
-                            .map(|_| {
-                                allocate_and_encrypt_new_lwe_ciphertext(
-                                    &big_lwe_sk,
-                                    Plaintext(Scalar::ONE),
-                                    params.lwe_noise_distribution.unwrap(),
-                                    params.ciphertext_modulus.unwrap(),
-                                    &mut encryption_generator,
-                                )
-                            })
-                            .collect::<Vec<_>>();
-
-                        let output_cts = (0..elements)
-                            .map(|_| {
-                                LweCiphertext::new(
-                                    Scalar::ZERO,
-                                    lwe_sk.lwe_dimension().to_lwe_size(),
-                                    params.ciphertext_modulus.unwrap(),
-                                )
-                            })
-                            .collect::<Vec<_>>();
-
-                        (input_cts, output_cts)
-                    };
-
                     b.iter_batched(
-                        setup_encrypted_values,
-                        |(input_cts, mut output_cts)| {
-                            input_cts
-                                .par_iter()
-                                .zip(output_cts.par_iter_mut())
-                                .for_each(|(input_ct, output_ct)| {
-                                    keyswitch_lwe_ciphertext(
-                                        &ksk_big_to_small,
-                                        input_ct,
-                                        output_ct,
-                                    );
-                                })
-                        },
+                        || setup(elements as usize),
+                        |mut inputs| run(&mut inputs),
                         criterion::BatchSize::SmallInput,
                     )
                 });
@@ -242,61 +253,76 @@ fn packing_keyswitch<Scalar, F>(
             }
             BenchmarkType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{name}");
-                let blocks: usize = 1;
-                let elements = throughput_num_threads(blocks, 1);
+                let mut setup = |batch_size: usize| {
+                    let input_lwe_lists = (0..batch_size)
+                        .map(|_| {
+                            let mut input_lwe_list = LweCiphertextList::new(
+                                Scalar::ZERO,
+                                lwe_sk.lwe_dimension().to_lwe_size(),
+                                count,
+                                ciphertext_modulus,
+                            );
+
+                            let plaintext_list = PlaintextList::new(
+                                Scalar::ZERO,
+                                PlaintextCount(input_lwe_list.lwe_ciphertext_count().0),
+                            );
+
+                            encrypt_lwe_ciphertext_list(
+                                &lwe_sk,
+                                &mut input_lwe_list,
+                                &plaintext_list,
+                                params.lwe_noise_distribution.unwrap(),
+                                &mut encryption_generator,
+                            );
+
+                            input_lwe_list
+                        })
+                        .collect::<Vec<_>>();
+
+                    let output_glwes = (0..batch_size)
+                        .map(|_| {
+                            GlweCiphertext::new(
+                                Scalar::ZERO,
+                                glwe_sk.glwe_dimension().to_glwe_size(),
+                                glwe_sk.polynomial_size(),
+                                ciphertext_modulus,
+                            )
+                        })
+                        .collect::<Vec<_>>();
+
+                    (input_lwe_lists, output_glwes)
+                };
+                type Res<Scalar> = (
+                    Vec<LweCiphertextList<Vec<Scalar>>>,
+                    Vec<GlweCiphertext<Vec<Scalar>>>,
+                );
+                let run = |inputs: &mut Res<Scalar>| {
+                    inputs.0.par_iter().zip(inputs.1.par_iter_mut()).for_each(
+                        |(input_lwe_list, output_glwe)| {
+                            ks_op(&pksk, input_lwe_list, output_glwe);
+                        },
+                    )
+                };
+                let elements = {
+                    #[cfg(any(feature = "gpu", feature = "hpu"))]
+                    {
+                        use benchmark::utilities::throughput_num_threads;
+                        let blocks: usize = 1;
+                        throughput_num_threads(blocks, 1) // FIXME This number of element do not
+                                                          // staturate the target machine
+                    }
+                    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                    {
+                        use benchmark::find_optimal_batch::find_optimal_batch;
+                        find_optimal_batch(|inputs, _batch_size| run(inputs), &mut setup) as u64
+                    }
+                };
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let setup_encrypted_values = || {
-                        let input_lwe_lists = (0..elements)
-                            .map(|_| {
-                                let mut input_lwe_list = LweCiphertextList::new(
-                                    Scalar::ZERO,
-                                    lwe_sk.lwe_dimension().to_lwe_size(),
-                                    count,
-                                    ciphertext_modulus,
-                                );
-
-                                let plaintext_list = PlaintextList::new(
-                                    Scalar::ZERO,
-                                    PlaintextCount(input_lwe_list.lwe_ciphertext_count().0),
-                                );
-
-                                encrypt_lwe_ciphertext_list(
-                                    &lwe_sk,
-                                    &mut input_lwe_list,
-                                    &plaintext_list,
-                                    params.lwe_noise_distribution.unwrap(),
-                                    &mut encryption_generator,
-                                );
-
-                                input_lwe_list
-                            })
-                            .collect::<Vec<_>>();
-
-                        let output_glwes = (0..elements)
-                            .map(|_| {
-                                GlweCiphertext::new(
-                                    Scalar::ZERO,
-                                    glwe_sk.glwe_dimension().to_glwe_size(),
-                                    glwe_sk.polynomial_size(),
-                                    ciphertext_modulus,
-                                )
-                            })
-                            .collect::<Vec<_>>();
-
-                        (input_lwe_lists, output_glwes)
-                    };
-
                     b.iter_batched(
-                        setup_encrypted_values,
-                        |(input_lwe_lists, mut output_glwes)| {
-                            input_lwe_lists
-                                .par_iter()
-                                .zip(output_glwes.par_iter_mut())
-                                .for_each(|(input_lwe_list, output_glwe)| {
-                                    ks_op(&pksk, input_lwe_list, output_glwe);
-                                })
-                        },
+                        || setup(elements as usize),
+                        |mut inputs| run(&mut inputs),
                         criterion::BatchSize::SmallInput,
                     )
                 });
