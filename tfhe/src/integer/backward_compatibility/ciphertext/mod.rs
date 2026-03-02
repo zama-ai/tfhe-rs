@@ -38,6 +38,12 @@ impl Upgrade<CompactCiphertextList> for CompactCiphertextListV0 {
     type Error = crate::Error;
 
     fn upgrade(self) -> Result<CompactCiphertextList, Self::Error> {
+        if self.ct_list.is_packed() {
+            return Err(crate::error!(
+                "Upgrade from packed CompactCiphertextListV0 is not supported"
+            ));
+        }
+
         let lwe_count = self.ct_list.ct_list.lwe_ciphertext_count().0;
 
         if !lwe_count.is_multiple_of(self.num_blocks_per_integer) {
