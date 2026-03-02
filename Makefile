@@ -270,12 +270,23 @@ install_mlc:
 	cargo install mlc --locked || \
 	( echo "Unable to install mlc, unknown error." && exit 1 )
 
+fmt: FMT_CHECK =
 .PHONY: fmt # Format rust code
-fmt: install_rs_check_toolchain
-	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
-	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C $(BACKWARD_COMPAT_DATA_DIR) fmt
-	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C utils/tfhe-lints fmt
-	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C apps/trivium fmt
+fmt: fmt_internal
+
+check_fmt: FMT_CHECK = --check
+.PHONY: check_fmt # Check rust code format
+check_fmt: fmt_internal
+
+.PHONY: fmt_internal # internal recipe for fmt
+fmt_internal: install_rs_check_toolchain
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt $(FMT_CHECK)
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C utils/tfhe-lints fmt $(FMT_CHECK)
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C apps/trivium fmt $(FMT_CHECK)
+	for crate in `ls -1 $(BACKWARD_COMPAT_DATA_DIR)/crates/ | grep generate_`; do \
+		echo "fmt $$crate"; \
+		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C $(BACKWARD_COMPAT_DATA_DIR)/crates/$$crate fmt $(FMT_CHECK); \
+	done
 
 .PHONY: fmt_js # Format javascript code
 fmt_js: check_nvm_installed
@@ -311,13 +322,6 @@ fmt_c_tests:
 .PHONY: fmt_toml # Format TOML files
 fmt_toml: install_taplo
 	taplo fmt
-
-.PHONY: check_fmt # Check rust code format
-check_fmt: install_rs_check_toolchain
-	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt --check
-	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C $(BACKWARD_COMPAT_DATA_DIR) fmt --check
-	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C utils/tfhe-lints fmt --check
-	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C apps/trivium fmt --check
 
 .PHONY: check_fmt_c_tests  # Check C tests format
 check_fmt_c_tests:
