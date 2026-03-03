@@ -262,11 +262,13 @@ template <typename Torus> struct zk_expand_mem {
         h_indexes_out[lwe_index] =
             num_packed_msgs * h_indexes_in[lwe_index] + i / num_lwes_in_kth;
         PANIC_IF_FALSE(h_indexes_in[lwe_index] < num_packed_msgs * num_lwes,
-                       "Cuda error: index %d is beyond the max value %d",
-                       h_indexes_in[lwe_index], num_packed_msgs * num_lwes);
+                       "Cuda error: index %lu is beyond the max value %lu",
+                       (unsigned long)h_indexes_in[lwe_index],
+                       (unsigned long)(num_packed_msgs * num_lwes));
         PANIC_IF_FALSE(h_indexes_out[lwe_index] < num_packed_msgs * num_lwes,
-                       "Cuda error: index %d is beyond the max value %d",
-                       h_indexes_out[lwe_index], num_packed_msgs * num_lwes);
+                       "Cuda error: index %lu is beyond the max value %lu",
+                       (unsigned long)h_indexes_out[lwe_index],
+                       (unsigned long)(num_packed_msgs * num_lwes));
         // is_boolean_array tells us which input is a boolean and thus the
         // related output needs boolean sanitization. It naturally has
         // total_blocks entries, but h_indexes_out reaches
@@ -276,9 +278,10 @@ template <typename Torus> struct zk_expand_mem {
         // memory instead of a real LUT. Rust pads is_boolean_array with FALSE
         // to match.
         PANIC_IF_FALSE(h_indexes_out[lwe_index] < is_boolean_array_len,
-                       "Cuda error: index %d for is_boolean_array is out of "
-                       "bounds (len is %d)",
-                       h_indexes_out[lwe_index], is_boolean_array_len);
+                       "Cuda error: index %lu for is_boolean_array is out of "
+                       "bounds (len is %lu)",
+                       (unsigned long)h_indexes_out[lwe_index],
+                       (unsigned long)is_boolean_array_len);
       }
       offset += num_lwes_in_kth;
     }
