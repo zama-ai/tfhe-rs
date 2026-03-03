@@ -83,7 +83,7 @@ pub trait RandomGenerator: Iterator<Item = u8> {
     fn remaining_bytes(&self) -> ByteCount;
 
     /// Returns the table index of the next byte to be generated
-    fn next_table_index(&self) -> TableIndex;
+    fn next_table_index(&self) -> Option<TableIndex>;
 
     /// Returns the next byte of the stream, if the generator did not yet reach its bound.
     fn next_byte(&mut self) -> Option<u8> {

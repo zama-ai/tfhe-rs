@@ -117,7 +117,10 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
         CompressionSeed {
             inner: AesCtrParams {
                 seed: self.seed.clone(),
-                first_index: self.gen.next_table_index(),
+                first_index: self
+                    .gen
+                    .next_table_index()
+                    .expect("cannot create compression seed from an exhausted generator"),
             },
         }
     }
