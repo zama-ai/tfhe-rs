@@ -14,11 +14,11 @@ use tfhe::prelude::*;
 use tfhe::shortint::parameters::v1_6::meta::cpu::V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
 use tfhe::{
     generate_keys, set_server_key, CompressedCiphertextListBuilder, FheUint64,
-    ReRandomizationContext,
+    ReRandomizationContext, ReRandomizationMode
 };
 
 pub fn main() {
-    // The chosen parameters have re-rand enabled
+    // The chosen parameters have re-rand enabled and don't require an extra CompactPublicKey
     let (cks, sks) = generate_keys(V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
 
     let compact_public_encryption_domain_separator = *b"TFHE_Enc";
@@ -62,8 +62,9 @@ pub fn main() {
         let mut seed_gen = re_rand_context.finalize();
 
         // Re-Randomize a and b
-        a.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap()).unwrap();
-        b.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap()).unwrap();
+        // We can use the default mode which does not require an additional CompactPublicKey
+        a.re_randomize(ReRandomizationMode::default(), seed_gen.next_seed().unwrap()).unwrap();
+        b.re_randomize(ReRandomizationMode::default(), seed_gen.next_seed().unwrap()).unwrap();
 
         // Compute our function F
         a + b
@@ -107,7 +108,7 @@ use tfhe::shortint::parameters::v1_6::meta::cpu::V1_6_META_PARAM_CPU_2_2_KS_PBS_
 use tfhe::shortint::parameters::ReRandomizationConfiguration;
 use tfhe::{
     generate_keys, set_server_key, ClientKey, CompactPublicKey, CompressedCiphertextListBuilder,
-    FheUint64, ReRandomizationContext, ReRandomizationSupport, ServerKey,
+    FheUint64, ReRandomizationContext, ReRandomizationMode, ReRandomizationSupport, ServerKey
 };
 
 pub fn main() {
@@ -156,22 +157,22 @@ pub fn main() {
             // Get the seeds for the rerandomization
             let mut seed_gen = re_rand_context.finalize();
 
-            // Manage the case of legacy rerand APIs
+            // Explicit management for code bases needing to manage both legacy and new keys
             match ServerKey::current_server_key_re_randomization_support().unwrap() {
                 ReRandomizationSupport::NoSupport => {
                     panic!("This test runs rerand, the current ServerKey does not support it")
                 }
                 ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch => {
                     let pk = legacy_cpk.unwrap();
-                    #[allow(deprecated)]
+                    // In this case the public key is interpreted as the legacy mode
                     a.re_randomize(&pk, seed_gen.next_seed().unwrap()).unwrap();
-                    #[allow(deprecated)]
                     b.re_randomize(&pk, seed_gen.next_seed().unwrap()).unwrap();
                 }
                 ReRandomizationSupport::DerivedCPKWithoutKeySwitch => {
-                    a.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
+                    // In case we don't have a public key we can use the (new) default mode
+                    a.re_randomize(ReRandomizationMode::default(), seed_gen.next_seed().unwrap())
                         .unwrap();
-                    b.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
+                    b.re_randomize(ReRandomizationMode::default(), seed_gen.next_seed().unwrap())
                         .unwrap();
                 }
             }

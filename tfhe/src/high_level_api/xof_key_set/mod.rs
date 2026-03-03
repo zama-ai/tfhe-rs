@@ -300,7 +300,7 @@ impl CompressedXofKeySet {
                     derived_compact_private_key,
                 } => {
                     use integer::CompressedCompactPublicKey;
-                    CompressedReRandomizationKey::DerivedCPK {
+                    CompressedReRandomizationKey::DerivedCPKWithoutKeySwitch {
                         cpk: CompressedCompactPublicKey::generate_with_pre_seeded_generator(
                             derived_compact_private_key,
                             &mut encryption_rand_gen,

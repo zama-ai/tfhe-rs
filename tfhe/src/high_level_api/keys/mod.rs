@@ -9,6 +9,9 @@ mod key_switching_key;
 
 use crate::high_level_api::config::Config;
 pub use client::ClientKey;
+#[cfg(feature = "gpu")]
+pub(in crate::high_level_api) use cpk_re_randomization::CudaReRandomizationExecKey;
+pub(in crate::high_level_api) use cpk_re_randomization::ReRandomizationExecKey;
 pub use cpk_re_randomization::{
     CompressedReRandomizationKey, CompressedReRandomizationKeySwitchingKey, ReRandomizationKey,
     ReRandomizationKeySwitchingKey,

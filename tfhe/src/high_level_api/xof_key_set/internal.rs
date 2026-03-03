@@ -449,8 +449,8 @@ impl crate::CompressedServerKey {
                             ksk: decompressed_ksk,
                         }
                     }
-                    CompressedReRandomizationKey::DerivedCPK { cpk } => {
-                        ReRandomizationKey::DerivedCPK {
+                    CompressedReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk } => {
+                        ReRandomizationKey::DerivedCPKWithoutKeySwitch {
                             cpk: cpk.decompress_with_pre_seeded_generator(generator),
                         }
                     }

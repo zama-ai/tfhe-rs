@@ -227,7 +227,7 @@ impl IntegerExpandedServerKey {
                         ))
                     }
                 },
-                ReRandomizationKey::DerivedCPK { .. } => Err(crate::error!(
+                ReRandomizationKey::DerivedCPKWithoutKeySwitch { .. } => Err(crate::error!(
                     "CUDA currently does not support ReRandomization \
                             with DerivedCPK and no keyswitch"
                 )),

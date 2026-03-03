@@ -22,8 +22,9 @@ use tfhe::{
     CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
     CompressedKVStore, CompressedPublicKey, CompressedServerKey,
     CompressedSquashedNoiseCiphertextList, CompressedSquashedNoiseCiphertextListBuilder, FheBool,
-    FheInt8, FheUint32, FheUint64, FheUint8, ReRandomizationContext, ReRandomizationSupport,
-    ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint,
+    FheInt8, FheUint32, FheUint64, FheUint8, ReRandomizationContext, ReRandomizationMode,
+    ReRandomizationSupport, ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt,
+    SquashedNoiseFheUint,
 };
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
@@ -435,7 +436,7 @@ fn test_hl_key_features(
     };
 
     match (compact_public_key, rerand_support) {
-        (Some(pk), ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch) => {
+        (Some(cpk), ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch) => {
             let nonce: [u8; 256 / 8] = core::array::from_fn(|i| i as u8);
             let mut re_rand_context = ReRandomizationContext::new(
                 *b"TFHE_Rrd",
@@ -448,12 +449,16 @@ fn test_hl_key_features(
 
             let mut seed_gen = re_rand_context.finalize();
 
-            #[allow(deprecated)]
-            a.re_randomize(pk, seed_gen.next_seed().unwrap())
-                .map_err(|e| test.failure(format!("Failed to re-randomize a: {e}"), format))?;
-            #[allow(deprecated)]
-            b.re_randomize(pk, seed_gen.next_seed().unwrap())
-                .map_err(|e| test.failure(format!("Failed to re-randomize b: {e}"), format))?;
+            a.re_randomize(
+                ReRandomizationMode::UseLegacyCPKIfNeeded { cpk },
+                seed_gen.next_seed().unwrap(),
+            )
+            .map_err(|e| test.failure(format!("Failed to re-randomize a: {e}"), format))?;
+            b.re_randomize(
+                ReRandomizationMode::UseLegacyCPKIfNeeded { cpk },
+                seed_gen.next_seed().unwrap(),
+            )
+            .map_err(|e| test.failure(format!("Failed to re-randomize b: {e}"), format))?;
         }
         (_, ReRandomizationSupport::DerivedCPKWithoutKeySwitch) => {
             let nonce: [u8; 256 / 8] = core::array::from_fn(|i| i as u8);
@@ -468,10 +473,16 @@ fn test_hl_key_features(
 
             let mut seed_gen = re_rand_context.finalize();
 
-            a.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
-                .map_err(|e| test.failure(format!("Failed to re-randomize a: {e}"), format))?;
-            b.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
-                .map_err(|e| test.failure(format!("Failed to re-randomize b: {e}"), format))?;
+            a.re_randomize(
+                ReRandomizationMode::UseAvailableMode,
+                seed_gen.next_seed().unwrap(),
+            )
+            .map_err(|e| test.failure(format!("Failed to re-randomize a: {e}"), format))?;
+            b.re_randomize(
+                ReRandomizationMode::UseAvailableMode,
+                seed_gen.next_seed().unwrap(),
+            )
+            .map_err(|e| test.failure(format!("Failed to re-randomize b: {e}"), format))?;
         }
         (None, ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch) => {
             return Err(test.failure(

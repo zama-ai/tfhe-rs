@@ -1,10 +1,35 @@
 use crate::backward_compatibility::cpk_re_randomization::ReRandomizationMetadataVersions;
 use crate::core_crypto::commons::math::random::XofSeed;
 use crate::high_level_api::keys::CompactPublicKey;
+pub use crate::high_level_api::keys::ReRandomizationSupport;
 use crate::high_level_api::tag::SmallVec;
 use crate::integer::ciphertext::{ReRandomizationSeed, ReRandomizationSeedHasher};
 
 use tfhe_versionable::Versionize;
+
+#[derive(Clone, Copy, Debug, Default)]
+pub enum ReRandomizationMode<'key> {
+    // /// Use if you expect to use the legacy re-randomization method and require the
+    // /// [`ServerKey`](`super::ServerKey`) to support it.
+    // RequireLegacyCPK { cpk: &'key CompactPublicKey },
+    /// Use if you are unsure of what the [`ServerKey`](`super::ServerKey`) might support and don't
+    /// need the assurance that the legacy mode is used. In this mode, if the [`CompactPublicKey`]
+    /// is not needed it will be ignored.
+    UseLegacyCPKIfNeeded { cpk: &'key CompactPublicKey },
+    // /// Use if you expect to use the no keyswitch re-randomization method and require the
+    // /// [`ServerKey`](`super::ServerKey`) to support it.
+    // RequireNoKeySwitch,
+    /// Use if you know you will not use the legacy re-randomization method and do not care about
+    /// the other mode the [`ServerKey`](`super::ServerKey`) might use to run re-randomization.
+    #[default]
+    UseAvailableMode,
+}
+
+impl<'key> From<&'key CompactPublicKey> for ReRandomizationMode<'key> {
+    fn from(value: &'key CompactPublicKey) -> Self {
+        Self::UseLegacyCPKIfNeeded { cpk: value }
+    }
+}
 
 /// Re-Randomization adds randomness to an existing ciphertext without changing the value it
 /// encrypts.
@@ -41,7 +66,10 @@ use tfhe_versionable::Versionize;
 /// ```rust
 /// use tfhe::prelude::*;
 /// use tfhe::shortint::parameters::*;
-/// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint64, ReRandomizationContext};
+/// use tfhe::{
+///     generate_keys, set_server_key, ConfigBuilder, FheUint64, ReRandomizationContext,
+///     ReRandomizationMode,
+/// };
 ///
 /// let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 /// let re_rand_params = ReRandomizationParameters::DerivedCPKWithoutKeySwitch;
@@ -84,40 +112,61 @@ use tfhe_versionable::Versionize;
 ///
 /// let mut seed_gen = re_rand_context.finalize();
 ///
-/// a.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
-///     .unwrap();
-/// b.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
-///     .unwrap();
+/// a.re_randomize(
+///     ReRandomizationMode::default(),
+///     seed_gen.next_seed().unwrap(),
+/// )
+/// .unwrap();
+/// b.re_randomize(
+///     ReRandomizationMode::default(),
+///     seed_gen.next_seed().unwrap(),
+/// )
+/// .unwrap();
 ///
 /// let c = a + b;
 /// let dec: u64 = c.decrypt(&cks);
 ///
 /// assert_eq!(clear_a.wrapping_add(clear_b), dec);
 /// ```
-pub trait ReRandomize {
-    fn add_to_re_randomization_context(&self, context: &mut ReRandomizationContext);
-
+pub trait ReRandomize: ReRandContextAdd {
     /// Re-randomize the ciphertext using the provided public key and seed.
     ///
     /// The random elements of the ciphertexts will be changed but it will still encrypt the same
     /// value.
-    #[deprecated(
-        since = "1.6.0",
-        note = "re_randomize requiring a separate CompactPublicKey \
-                has been deprecated: use re_randomize_without_keyswitch"
-    )]
-    fn re_randomize(
+    fn re_randomize<'a, RRD: Into<ReRandomizationMode<'a>>>(
+        &mut self,
+        re_randomization_mode: RRD,
+        seed: ReRandomizationSeed,
+    ) -> crate::Result<()>;
+}
+
+pub trait ReRandContextAdd {
+    fn add_to_re_randomization_context(&self, context: &mut ReRandomizationContext);
+}
+
+// For now the trait is not exposed to the outside world, but is used in tests to verify that we can
+// use it for trait objects/dyn dispatch that we want to make available
+#[allow(dead_code)]
+pub trait NistSubmissionReRandomize: ReRandContextAdd {
+    /// Re-randomize the ciphertext using the provided public key and seed.
+    ///
+    /// The random elements of the ciphertexts will be changed but it will still encrypt the same
+    /// value.
+    fn nist_submission_re_randomize(
         &mut self,
         compact_public_key: &CompactPublicKey,
         seed: ReRandomizationSeed,
     ) -> crate::Result<()>;
+}
 
-    /// Re-randomize the ciphertext using the provided seed and currently set
-    /// [`ServerKey`](`crate::ServerKey`).
-    ///
-    /// The random elements of the ciphertexts will be changed but it will still encrypt the same
-    /// value.
-    fn re_randomize_without_keyswitch(&mut self, seed: ReRandomizationSeed) -> crate::Result<()>;
+impl<T: ReRandomize + ReRandContextAdd> NistSubmissionReRandomize for T {
+    fn nist_submission_re_randomize(
+        &mut self,
+        compact_public_key: &CompactPublicKey,
+        seed: ReRandomizationSeed,
+    ) -> crate::Result<()> {
+        self.re_randomize(compact_public_key, seed)
+    }
 }
 
 /// The context in which the ciphertexts to re-randomized will be used.
@@ -180,7 +229,7 @@ impl ReRandomizationContext {
     }
 
     /// Adds a new ciphertext to the re-randomization context
-    pub fn add_ciphertext<Data: ReRandomize + ?Sized>(&mut self, data: &Data) {
+    pub fn add_ciphertext<Data: ReRandContextAdd + ?Sized>(&mut self, data: &Data) {
         data.add_to_re_randomization_context(self);
     }
 

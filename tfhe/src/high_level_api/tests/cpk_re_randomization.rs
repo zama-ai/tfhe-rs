@@ -6,7 +6,74 @@ use crate::high_level_api::{
 use crate::shortint::parameters::v1_5::meta::cpu::V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
 use crate::shortint::parameters::v1_6::meta::cpu::V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
 use crate::shortint::parameters::MetaParameters;
-use crate::{set_server_key, ClientKey, CompressedServerKey, ReRandomizationSupport, ServerKey};
+use crate::{
+    set_server_key, ClientKey, CompressedServerKey, ReRandomizationMode, ReRandomizationSupport,
+    ServerKey,
+};
+
+#[test]
+fn test_dyn_rerand() {
+    use crate::high_level_api::re_randomization::NistSubmissionReRandomize;
+    pub fn nist_submission_preproc_eval(
+        inputs: &mut [&mut dyn NistSubmissionReRandomize],
+        function_description: &[u8],
+        compact_public_key: &CompactPublicKey,
+    ) {
+        let mut re_rand_context =
+            ReRandomizationContext::new(*b"TFHE_Rrd", [function_description], *b"TFHE_Enc");
+
+        for input in inputs.iter_mut() {
+            re_rand_context.add_ciphertext(&**input);
+        }
+
+        let mut seed_gen = re_rand_context.finalize();
+
+        for input in inputs {
+            input
+                .nist_submission_re_randomize(compact_public_key, seed_gen.next_seed().unwrap())
+                .unwrap();
+        }
+    }
+
+    // Need legacy for nist-like rerand
+    let params = V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+    let (cks, sks, cpk) = setup_re_rand_test(params);
+
+    set_server_key(sks.decompress());
+    let clear_a = rand::random::<u64>();
+    let clear_b = rand::random::<u64>();
+    let mut a = FheUint64::encrypt(clear_a, &cks);
+    let mut b = FheUint64::encrypt(clear_b, &cks);
+
+    // Simulate a 256 bits hash added as metadata
+    let rand_a: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
+    let rand_b: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
+    a.re_randomization_metadata_mut().set_data(&rand_a);
+    b.re_randomization_metadata_mut().set_data(&rand_b);
+
+    let mut builder = CompressedCiphertextListBuilder::new();
+    builder.push(a);
+    builder.push(b);
+    let list = builder.build().unwrap();
+
+    let mut a: FheUint64 = list.get(0).unwrap().unwrap();
+    let mut b: FheUint64 = list.get(1).unwrap().unwrap();
+
+    assert_eq!(a.re_randomization_metadata().data(), &rand_a);
+    assert_eq!(b.re_randomization_metadata().data(), &rand_b);
+
+    let mut dyn_cts: Vec<&mut dyn NistSubmissionReRandomize> = vec![&mut a, &mut b];
+
+    nist_submission_preproc_eval(&mut dyn_cts, b"FheUint64+FheUint64".as_slice(), &cpk);
+
+    assert!(a.re_randomization_metadata().data().is_empty());
+    assert!(b.re_randomization_metadata().data().is_empty());
+
+    let c = a + b;
+    let dec: u64 = c.decrypt(&cks);
+
+    assert_eq!(clear_a.wrapping_add(clear_b), dec);
+}
 
 fn execute_re_rand_test(cks: &ClientKey, cpk: &CompactPublicKey) {
     let compact_public_encryption_domain_separator = *b"TFHE_Enc";
@@ -57,16 +124,28 @@ fn execute_re_rand_test(cks: &ClientKey, cpk: &CompactPublicKey) {
                 panic!("This test runs rerand, the current ServerKey does not support it")
             }
             ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch => {
-                #[allow(deprecated)]
-                a.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
-                #[allow(deprecated)]
-                b.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
+                a.re_randomize(
+                    ReRandomizationMode::UseLegacyCPKIfNeeded { cpk },
+                    seed_gen.next_seed().unwrap(),
+                )
+                .unwrap();
+                b.re_randomize(
+                    ReRandomizationMode::UseLegacyCPKIfNeeded { cpk },
+                    seed_gen.next_seed().unwrap(),
+                )
+                .unwrap();
             }
             ReRandomizationSupport::DerivedCPKWithoutKeySwitch => {
-                a.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
-                    .unwrap();
-                b.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
-                    .unwrap();
+                a.re_randomize(
+                    ReRandomizationMode::UseAvailableMode,
+                    seed_gen.next_seed().unwrap(),
+                )
+                .unwrap();
+                b.re_randomize(
+                    ReRandomizationMode::UseAvailableMode,
+                    seed_gen.next_seed().unwrap(),
+                )
+                .unwrap();
             }
         }
 
@@ -126,16 +205,28 @@ fn execute_re_rand_test(cks: &ClientKey, cpk: &CompactPublicKey) {
                 panic!("This test runs rerand, the current ServerKey does not support it")
             }
             ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch => {
-                #[allow(deprecated)]
-                a.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
-                #[allow(deprecated)]
-                b.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
+                a.re_randomize(
+                    ReRandomizationMode::UseLegacyCPKIfNeeded { cpk },
+                    seed_gen.next_seed().unwrap(),
+                )
+                .unwrap();
+                b.re_randomize(
+                    ReRandomizationMode::UseLegacyCPKIfNeeded { cpk },
+                    seed_gen.next_seed().unwrap(),
+                )
+                .unwrap();
             }
             ReRandomizationSupport::DerivedCPKWithoutKeySwitch => {
-                a.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
-                    .unwrap();
-                b.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
-                    .unwrap();
+                a.re_randomize(
+                    ReRandomizationMode::UseAvailableMode,
+                    seed_gen.next_seed().unwrap(),
+                )
+                .unwrap();
+                b.re_randomize(
+                    ReRandomizationMode::UseAvailableMode,
+                    seed_gen.next_seed().unwrap(),
+                )
+                .unwrap();
             }
         }
 
@@ -194,16 +285,28 @@ fn execute_re_rand_test(cks: &ClientKey, cpk: &CompactPublicKey) {
                         panic!("This test runs rerand, the current ServerKey does not support it")
                     }
                     ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch => {
-                        #[allow(deprecated)]
-                        a.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
-                        #[allow(deprecated)]
-                        b.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
+                        a.re_randomize(
+                            ReRandomizationMode::UseLegacyCPKIfNeeded { cpk },
+                            seed_gen.next_seed().unwrap(),
+                        )
+                        .unwrap();
+                        b.re_randomize(
+                            ReRandomizationMode::UseLegacyCPKIfNeeded { cpk },
+                            seed_gen.next_seed().unwrap(),
+                        )
+                        .unwrap();
                     }
                     ReRandomizationSupport::DerivedCPKWithoutKeySwitch => {
-                        a.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
-                            .unwrap();
-                        b.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
-                            .unwrap();
+                        a.re_randomize(
+                            ReRandomizationMode::UseAvailableMode,
+                            seed_gen.next_seed().unwrap(),
+                        )
+                        .unwrap();
+                        b.re_randomize(
+                            ReRandomizationMode::UseAvailableMode,
+                            seed_gen.next_seed().unwrap(),
+                        )
+                        .unwrap();
                     }
                 }
 

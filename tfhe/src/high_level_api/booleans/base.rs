@@ -2,13 +2,15 @@ use super::inner::InnerBoolean;
 use crate::backward_compatibility::booleans::FheBoolVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
+use crate::high_level_api::global_state;
 use crate::high_level_api::integers::{FheInt, FheIntId, FheUint, FheUintId};
-use crate::high_level_api::keys::InternalServerKey;
-use crate::high_level_api::re_randomization::ReRandomizationMetadata;
+use crate::high_level_api::keys::{InternalServerKey, ReRandomizationExecKey};
+use crate::high_level_api::re_randomization::{
+    ReRandContextAdd, ReRandomizationContext, ReRandomizationMetadata, ReRandomizationMode,
+};
 use crate::high_level_api::traits::{
     FheEq, Flip, IfThenElse, IfThenZero, ReRandomize, ScalarIfThenElse, Tagged,
 };
-use crate::high_level_api::{global_state, CompactPublicKey};
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::ReRandomizationSeed;
 #[cfg(feature = "gpu")]
@@ -2424,78 +2426,58 @@ impl std::ops::Not for &FheBool {
     }
 }
 
-impl ReRandomize for FheBool {
-    fn add_to_re_randomization_context(
-        &self,
-        context: &mut crate::high_level_api::re_randomization::ReRandomizationContext,
-    ) {
+impl ReRandContextAdd for FheBool {
+    fn add_to_re_randomization_context(&self, context: &mut ReRandomizationContext) {
         let on_cpu = self.ciphertext.on_cpu();
         context.inner.add_ciphertext(&*on_cpu);
         context
             .inner
             .add_bytes(self.re_randomization_metadata.data());
     }
+}
 
-    fn re_randomize(
+impl ReRandomize for FheBool {
+    fn re_randomize<'a, RRD: Into<ReRandomizationMode<'a>>>(
         &mut self,
-        compact_public_key: &CompactPublicKey,
+        re_randomization_mode: RRD,
         seed: ReRandomizationSeed,
     ) -> crate::Result<()> {
+        let re_randomization_mode: ReRandomizationMode = re_randomization_mode.into();
         global_state::with_internal_keys(|key| {
             match key {
                 InternalServerKey::Cpu(key) => {
-                    let re_randomization_key = key.legacy_re_randomization_cpk_casting_key()?;
+                    let rrd_key = key.re_randomization_exec_key_from_mode(re_randomization_mode)?;
 
-                    self.ciphertext.as_cpu_mut().re_randomize(
-                        &compact_public_key.key.key,
-                        re_randomization_key.as_ref(),
-                        seed,
-                    )?;
+                    // Note that the match below may be updated and dispatch to future rerand
+                    // implems instead of returning keys that can work in all cases for the unique
+                    // implementation we have today
+                    let (cpk_rrd, ksk_rrd) = match &rrd_key {
+                        ReRandomizationExecKey::LegacyDedicatedCPK { cpk, ksk } => (cpk, Some(ksk)),
+                        ReRandomizationExecKey::DerivedCPKWithoutKeySwitch { cpk } => (cpk, None),
+                    };
+
+                    self.ciphertext
+                        .as_cpu_mut()
+                        .re_randomize(cpk_rrd, ksk_rrd, seed)?;
                 }
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
-                    let Some(re_randomization_key) = cuda_key.re_randomization_cpk_casting_key()
-                    else {
-                        return Err(crate::high_level_api::errors::UninitializedReRandKey.into());
-                    };
+                    use crate::high_level_api::keys::CudaReRandomizationExecKey;
+                    let rrd_key =
+                        cuda_key.re_randomization_exec_key_from_mode(re_randomization_mode)?;
 
                     let streams = &cuda_key.streams;
-                    self.ciphertext.as_gpu_mut(streams).re_randomize(
-                        &compact_public_key.key.key,
-                        re_randomization_key,
-                        seed,
-                        streams,
-                    )?;
+                    match rrd_key {
+                        CudaReRandomizationExecKey::LegacyDedicatedCPK { cpk, ksk } => self
+                            .ciphertext
+                            .as_gpu_mut(streams)
+                            .re_randomize(cpk, ksk, seed, streams)?,
+                        // Other cases to be handled here
+                    }
                 }
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
                     panic!("HPU does not support CPKReRandomize.")
-                }
-            }
-
-            self.re_randomization_metadata_mut().clear();
-
-            Ok(())
-        })
-    }
-
-    fn re_randomize_without_keyswitch(&mut self, seed: ReRandomizationSeed) -> crate::Result<()> {
-        global_state::with_internal_keys(|key| {
-            match key {
-                InternalServerKey::Cpu(key) => {
-                    let re_randomization_key = key.cpk_for_re_randomization_without_keyswitch()?;
-
-                    self.ciphertext
-                        .as_cpu_mut()
-                        .re_randomize(re_randomization_key, None, seed)?;
-                }
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_cuda_key) => {
-                    panic!("GPU does not support re_randomize_without_keyswitch.")
-                }
-                #[cfg(feature = "hpu")]
-                InternalServerKey::Hpu(_device) => {
-                    panic!("HPU does not support re_randomize_without_keyswitch.")
                 }
             }
 

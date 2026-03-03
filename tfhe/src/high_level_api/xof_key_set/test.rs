@@ -284,12 +284,12 @@ fn test_xof_key_set(
         crate::safe_serialization::safe_deserialize(data.as_slice(), compressed_size_limit)
             .unwrap();
 
-    let expected_pk_tag = compressed_key_set.compressed_public_key.tag().clone();
+    let expected_cpk_tag = compressed_key_set.compressed_public_key.tag().clone();
     let expected_sk_tag = compressed_key_set.compressed_server_key.tag().clone();
 
     assert!(compressed_key_set.is_conformant(&config));
 
-    let pk = match device {
+    let cpk = match device {
         Device::Cpu => {
             let key_set = compressed_key_set.decompress().unwrap();
             let size_limit = 1 << 32; // 4GB
@@ -318,7 +318,8 @@ fn test_xof_key_set(
         }
     };
 
-    assert_eq!(pk.tag(), &expected_pk_tag);
+    assert_eq!(cpk.tag(), &expected_cpk_tag);
+    let cpk = &cpk;
 
     let clear_a = rand::random::<u32>();
     let clear_b = rand::random::<u32>();
@@ -343,7 +344,7 @@ fn test_xof_key_set(
             continue;
         }
 
-        let mut builder = CompactCiphertextList::builder(&pk);
+        let mut builder = CompactCiphertextList::builder(cpk);
         builder.push(clear_a).push(clear_b);
         let list = if build_packed {
             builder.build_packed()
@@ -379,16 +380,28 @@ fn test_xof_key_set(
                     panic!("This test runs rerand, the current ServerKey does not support it")
                 }
                 ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch => {
-                    #[allow(deprecated)]
-                    a.re_randomize(&pk, seed_gen.next_seed().unwrap()).unwrap();
-                    #[allow(deprecated)]
-                    b.re_randomize(&pk, seed_gen.next_seed().unwrap()).unwrap();
+                    a.re_randomize(
+                        ReRandomizationMode::UseLegacyCPKIfNeeded { cpk },
+                        seed_gen.next_seed().unwrap(),
+                    )
+                    .unwrap();
+                    b.re_randomize(
+                        ReRandomizationMode::UseLegacyCPKIfNeeded { cpk },
+                        seed_gen.next_seed().unwrap(),
+                    )
+                    .unwrap();
                 }
                 ReRandomizationSupport::DerivedCPKWithoutKeySwitch => {
-                    a.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
-                        .unwrap();
-                    b.re_randomize_without_keyswitch(seed_gen.next_seed().unwrap())
-                        .unwrap();
+                    a.re_randomize(
+                        ReRandomizationMode::UseAvailableMode,
+                        seed_gen.next_seed().unwrap(),
+                    )
+                    .unwrap();
+                    b.re_randomize(
+                        ReRandomizationMode::UseAvailableMode,
+                        seed_gen.next_seed().unwrap(),
+                    )
+                    .unwrap();
                 }
             }
         }

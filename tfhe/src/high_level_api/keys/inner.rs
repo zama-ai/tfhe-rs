@@ -466,7 +466,7 @@ impl IntegerServerKey {
                     }
                     ReRandomizationKeyGenInfo::DerivedCPKWithoutKeySwitch {
                         derived_compact_private_key,
-                    } => ReRandomizationKey::DerivedCPK {
+                    } => ReRandomizationKey::DerivedCPKWithoutKeySwitch {
                         cpk: CompactPublicKey::new(&derived_compact_private_key),
                     },
                 }
@@ -501,28 +501,28 @@ impl IntegerServerKey {
 
     pub(in crate::high_level_api) fn legacy_re_randomization_cpk_casting_key(
         &self,
-    ) -> crate::Result<Option<crate::integer::key_switching_key::KeySwitchingKeyMaterialView<'_>>>
-    {
-        self.cpk_re_randomization_key.as_ref().map_or_else(
-            || Err(crate::high_level_api::errors::UninitializedReRandKey.into()),
-            |key| match key {
-                ReRandomizationKey::LegacyDedicatedCPK { ksk } => match ksk {
-                    ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {
-                        self.cpk_key_switching_key_material.as_ref().map_or_else(
-                            || Err(crate::high_level_api::errors::UninitializedReRandKey.into()),
-                            |key| Ok(Some(key.as_view())),
-                        )
-                    }
-                    ReRandomizationKeySwitchingKey::DedicatedKSK(key_switching_key_material) => {
-                        Ok(Some(key_switching_key_material.as_view()))
-                    }
-                },
-                ReRandomizationKey::DerivedCPK { cpk: _ } => Err(crate::error!(
-                    "Tried to get keyswitching key for legacy rerand API \
-                    while ServerKey is setup for new rerand API."
-                )),
+    ) -> crate::Result<crate::integer::key_switching_key::KeySwitchingKeyMaterialView<'_>> {
+        let key = self
+            .cpk_re_randomization_key
+            .as_ref()
+            .ok_or(crate::high_level_api::errors::UninitializedReRandKey)?;
+
+        match key {
+            ReRandomizationKey::LegacyDedicatedCPK { ksk } => match ksk {
+                ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => Ok(self
+                    .cpk_key_switching_key_material
+                    .as_ref()
+                    .ok_or(crate::high_level_api::errors::UninitializedReRandKey)?
+                    .as_view()),
+                ReRandomizationKeySwitchingKey::DedicatedKSK(key_switching_key_material) => {
+                    Ok(key_switching_key_material.as_view())
+                }
             },
-        )
+            ReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk: _ } => Err(crate::error!(
+                "Tried to get keyswitching key for legacy rerand API \
+                    while ServerKey is setup for new rerand API."
+            )),
+        }
     }
 
     pub(in crate::high_level_api) fn message_modulus(&self) -> MessageModulus {
@@ -551,21 +551,25 @@ pub struct IntegerCudaServerKey {
 
 #[cfg(feature = "gpu")]
 impl IntegerCudaServerKey {
-    pub(in crate::high_level_api) fn re_randomization_cpk_casting_key(
+    pub(in crate::high_level_api) fn legacy_re_randomization_cpk_casting_key(
         &self,
-    ) -> Option<&crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial> {
+    ) -> crate::Result<&crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial> {
         use crate::high_level_api::keys::cpk_re_randomization::CudaReRandomizationKeySwitchingKey;
 
-        self.cpk_re_randomization_key_switching_key_material
+        let key = self
+            .cpk_re_randomization_key_switching_key_material
             .as_ref()
-            .and_then(|key| match key {
-                CudaReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {
-                    self.cpk_key_switching_key_material.as_ref()
-                }
-                CudaReRandomizationKeySwitchingKey::DedicatedKSK(key_switching_key_material) => {
-                    Some(key_switching_key_material)
-                }
-            })
+            .ok_or(crate::high_level_api::errors::UninitializedReRandKey)?;
+
+        match key {
+            CudaReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => Ok(self
+                .cpk_key_switching_key_material
+                .as_ref()
+                .ok_or(crate::high_level_api::errors::UninitializedReRandKey)?),
+            CudaReRandomizationKeySwitchingKey::DedicatedKSK(key_switching_key_material) => {
+                Ok(key_switching_key_material)
+            }
+        }
     }
 }
 
@@ -661,7 +665,7 @@ impl IntegerCompressedServerKey {
                     }
                     ReRandomizationKeyGenInfo::DerivedCPKWithoutKeySwitch {
                         derived_compact_private_key,
-                    } => CompressedReRandomizationKey::DerivedCPK {
+                    } => CompressedReRandomizationKey::DerivedCPKWithoutKeySwitch {
                         cpk: CompressedCompactPublicKey::new(&derived_compact_private_key),
                     },
                 }
@@ -1063,7 +1067,7 @@ impl ParameterSetConformant for IntegerServerKey {
             // New case: rerand without keyswitch
             (
                 _, // Does not matter if we have a ksk between an encryption CPK and compute params
-                Some(ReRandomizationKey::DerivedCPK { cpk }),
+                Some(ReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk }),
                 _, // We therefore do not care about the encryption CPK params here
                 Some(ReRandomizationParameters::DerivedCPKWithoutKeySwitch),
             ) => {
@@ -1198,7 +1202,7 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
             // New case: rerand without keyswitch
             (
                 _, // Does not matter if we have a ksk between an encryption CPK and compute params
-                Some(CompressedReRandomizationKey::DerivedCPK { cpk }),
+                Some(CompressedReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk }),
                 _, // We therefore do not care about the encryption CPK params here
                 Some(ReRandomizationParameters::DerivedCPKWithoutKeySwitch),
             ) => {
