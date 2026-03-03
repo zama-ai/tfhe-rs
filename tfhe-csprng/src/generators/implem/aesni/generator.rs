@@ -27,7 +27,7 @@ impl RandomGenerator for AesniRandomGenerator {
     fn remaining_bytes(&self) -> ByteCount {
         self.0.remaining_bytes()
     }
-    fn next_table_index(&self) -> TableIndex {
+    fn next_table_index(&self) -> Option<TableIndex> {
         self.0.next_table_index()
     }
     fn try_fork(

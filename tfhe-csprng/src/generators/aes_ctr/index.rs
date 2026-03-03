@@ -111,7 +111,11 @@ impl TableIndex {
 
     /// Shifts the table index forward of one byte.
     pub fn increment(&mut self) {
-        self.increase(1)
+        self.byte_index.0 += 1;
+        if self.byte_index.0 == BYTES_PER_AES_CALL {
+            self.byte_index.0 = 0;
+            self.aes_index.0 = self.aes_index.0.wrapping_add(1);
+        }
     }
 
     /// Shifts the table index backward of one byte.
