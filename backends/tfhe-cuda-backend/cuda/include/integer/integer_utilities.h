@@ -89,9 +89,9 @@ public:
       constexpr int max_noise_level = 5;                                       \
       if ((noise_level_expr) > max_noise_level)                                \
         PANIC(                                                                 \
-            "Cuda error: noise %d exceeds maximum authorized value 5 for 2_2"  \
+            "Cuda error: noise %lu exceeds maximum authorized value 5 for 2_2" \
             " parameters",                                                     \
-            noise_level_expr);                                                 \
+            (unsigned long)(noise_level_expr));                                \
     } else if ((msg_mod) == 8 && (carry_mod) == 8) {                           \
       constexpr int max_noise_level = 9;                                       \
       if ((noise_level_expr) > max_noise_level)                                \

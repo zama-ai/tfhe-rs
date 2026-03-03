@@ -71,7 +71,7 @@ all_shifted_lhs_rhs(Torus const *radix_lwe_left, Torus *lsb_ciphertext,
   }
 }
 
-__global__ inline void radix_vec_to_columns(uint32_t *const *const columns,
+static __global__ void radix_vec_to_columns(uint32_t *const *const columns,
                                             uint32_t *const columns_counter,
                                             const uint64_t *const degrees,
                                             const uint32_t num_radix_blocks,
@@ -90,7 +90,7 @@ __global__ inline void radix_vec_to_columns(uint32_t *const *const columns,
 }
 
 template <typename Torus>
-__global__ inline void prepare_new_columns_and_pbs_indexes(
+static __global__ void prepare_new_columns_and_pbs_indexes(
     uint32_t *const *const new_columns, uint32_t *const new_columns_counter,
     Torus *const pbs_indexes_in, Torus *const pbs_indexes_out,
     Torus *const lut_indexes, const uint32_t *const *const columns,
@@ -148,7 +148,7 @@ __global__ inline void prepare_new_columns_and_pbs_indexes(
 }
 
 template <typename Torus>
-__global__ inline void prepare_final_pbs_indexes(
+static __global__ void prepare_final_pbs_indexes(
     Torus *const pbs_indexes_in, Torus *const pbs_indexes_out,
     Torus *const lut_indexes, const uint32_t num_radix_blocks) {
   int idx = threadIdx.x;
