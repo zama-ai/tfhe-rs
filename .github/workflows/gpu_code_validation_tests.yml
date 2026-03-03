@@ -94,7 +94,7 @@ jobs:
       - name: Find tools
         run: |
           # Disable unattended-upgrades to avoid lock issues
-          sudo systemctl disable --now unattended-upgrades
+          sudo systemctl mask --now unattended-upgrades
 
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/*

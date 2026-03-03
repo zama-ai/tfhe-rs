@@ -92,7 +92,7 @@ jobs:
           sudo dpkg -i "${CUDA_KEYRING_PACKAGE}"
 
           # Disable unattended-upgrades to avoid lock issues
-          sudo systemctl disable --now unattended-upgrades
+          sudo systemctl mask --now unattended-upgrades
 
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/*
@@ -139,7 +139,7 @@ jobs:
       - name: Run semgrep and lint checks on CUDA code
         run: |
           # Disable unattended-upgrades to avoid lock issues
-          sudo systemctl disable --now unattended-upgrades
+          sudo systemctl mask --now unattended-upgrades
 
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/*

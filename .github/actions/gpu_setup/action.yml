@@ -25,7 +25,7 @@ runs:
         sudo bash cmake-"${CMAKE_VERSION}"-linux-x86_64.sh --skip-license --prefix=/usr/ --exclude-subdir
 
         # Disable unattended-upgrades to avoid lock issues
-        sudo systemctl disable --now unattended-upgrades
+        sudo systemctl mask --now unattended-upgrades
 
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
@@ -70,7 +70,7 @@ runs:
         sudo dpkg -i "${CUDA_KEYRING_PACKAGE}"
 
         # Disable unattended-upgrades to avoid lock issues
-        sudo systemctl disable --now unattended-upgrades
+        sudo systemctl mask --now unattended-upgrades
 
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
