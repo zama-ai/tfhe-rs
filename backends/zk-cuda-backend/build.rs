@@ -46,7 +46,10 @@ fn main() {
         }
 
         // Build CUDA library using cmake crate
+        let limb_bits = std::env::var("ZK_CUDA_LIMB_BITS").unwrap_or_else(|_| "64".to_string());
+        println!("cargo::rerun-if-env-changed=ZK_CUDA_LIMB_BITS");
         let mut cmake_config = cmake::Config::new("cuda");
+        cmake_config.define("ZK_CUDA_LIMB_BITS", &limb_bits);
         let dest = cmake_config.build();
 
         // cmake crate installs to dest/lib subdirectory

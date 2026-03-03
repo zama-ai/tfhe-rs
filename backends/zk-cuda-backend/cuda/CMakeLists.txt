@@ -51,6 +51,16 @@ else()
   set(CMAKE_CUDA_ARCHITECTURES 70)
 endif()
 
+# Limb size configuration: 32 or 64 (default: 64)
+# 32-bit limbs enable PTX carry-chain optimizations on GPU
+set(ZK_CUDA_LIMB_BITS "64" CACHE STRING "Limb size in bits for Fp arithmetic (32 or 64)")
+set_property(CACHE ZK_CUDA_LIMB_BITS PROPERTY STRINGS "32" "64")
+if(NOT ZK_CUDA_LIMB_BITS STREQUAL "32" AND NOT ZK_CUDA_LIMB_BITS STREQUAL "64")
+  message(FATAL_ERROR "ZK_CUDA_LIMB_BITS must be 32 or 64, got: ${ZK_CUDA_LIMB_BITS}")
+endif()
+add_compile_definitions(LIMB_BITS_CONFIG=${ZK_CUDA_LIMB_BITS})
+message(STATUS "Limb size: ${ZK_CUDA_LIMB_BITS}-bit")
+
 # Enable CUDA separable compilation for better optimization
 set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 

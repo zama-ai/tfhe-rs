@@ -17,7 +17,15 @@ __host__ __device__ void fp2_zero(Fp2 &a);
 
 // G1 point: (x, y) coordinates in Fp
 // Curve equation: y^2 = x^3 + b (short Weierstrass form with a = 0)
-struct G1Affine {
+// alignas(8) ensures identical struct layout (size 120) in both 32-bit and
+// 64-bit limb modes, matching the Rust FFI bindings generated from 64-bit.
+// Without this, 32-bit mode produces 116-byte structs (4-byte alignment from
+// uint32_t limbs) vs 120 bytes in Rust FFI, causing array stride mismatches
+// that corrupt point data for n>1.
+// The 4-byte padding overhead is negligible: MSM is compute-bound (Montgomery
+// multiplications dominate), and point access patterns in Pippenger-style MSM
+// are non-coalescing regardless of struct size.
+struct alignas(8) G1Affine {
   Fp x;
   Fp y;
   bool infinity; // true if point at infinity (identity element)
@@ -36,7 +44,9 @@ struct G1Affine {
 
 // G2 point: (x, y) coordinates in Fp2
 // Curve equation: y^2 = x^3 + b' (twisted curve over Fp2)
-struct G2Affine {
+// alignas(8): same rationale as G1Affine above — ensures FFI layout
+// compatibility (size 232) between 32-bit and 64-bit limb modes.
+struct alignas(8) G2Affine {
   Fp2 x;
   Fp2 y;
   bool infinity; // true if point at infinity (identity element)

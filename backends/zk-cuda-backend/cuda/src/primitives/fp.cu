@@ -1,6 +1,7 @@
 #include "bls12_446_params.h"
 #include "device.h"
 #include "fp.h"
+#include "fp_ptx32.cuh"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -187,6 +188,9 @@ __host__ __device__ void fp_copy(Fp &dst, const Fp &src) {
 // "Raw" means without modular reduction - performs a + b and returns carry.
 // This is an internal helper used by fp_add() which handles reduction.
 __host__ __device__ UNSIGNED_LIMB fp_add_raw(Fp &c, const Fp &a, const Fp &b) {
+#if LIMB_BITS_CONFIG == 32 && defined(__CUDA_ARCH__)
+  return fp_add_raw_ptx32(c, a, b);
+#else
   UNSIGNED_LIMB carry = 0;
 
   for (int i = 0; i < FP_LIMBS; i++) {
@@ -199,12 +203,16 @@ __host__ __device__ UNSIGNED_LIMB fp_add_raw(Fp &c, const Fp &a, const Fp &b) {
   }
 
   return carry;
+#endif
 }
 
 // Subtraction with borrow propagation
 // "Raw" means without modular reduction - performs a - b and returns borrow.
 // This is an internal helper used by fp_sub() which handles reduction.
 __host__ __device__ UNSIGNED_LIMB fp_sub_raw(Fp &c, const Fp &a, const Fp &b) {
+#if LIMB_BITS_CONFIG == 32 && defined(__CUDA_ARCH__)
+  return fp_sub_raw_ptx32(c, a, b);
+#else
   UNSIGNED_LIMB borrow = 0;
 
   for (int i = 0; i < FP_LIMBS; i++) {
@@ -218,11 +226,15 @@ __host__ __device__ UNSIGNED_LIMB fp_sub_raw(Fp &c, const Fp &a, const Fp &b) {
   }
 
   return borrow;
+#endif
 }
 
 // Addition with modular reduction: c = (a + b) mod p
 // MONTGOMERY: Both inputs and output must be in Montgomery form
 __host__ __device__ void fp_add(Fp &c, const Fp &a, const Fp &b) {
+#if LIMB_BITS_CONFIG == 32 && defined(__CUDA_ARCH__)
+  fp_add_ptx32(c, a, b);
+#else
   Fp sum;
   UNSIGNED_LIMB carry = fp_add_raw(sum, a, b);
 
@@ -235,11 +247,15 @@ __host__ __device__ void fp_add(Fp &c, const Fp &a, const Fp &b) {
   } else {
     fp_copy(c, sum);
   }
+#endif
 }
 
 // Subtraction with modular reduction: c = (a - b) mod p
 // MONTGOMERY: Both inputs and output must be in Montgomery form
 __host__ __device__ void fp_sub(Fp &c, const Fp &a, const Fp &b) {
+#if LIMB_BITS_CONFIG == 32 && defined(__CUDA_ARCH__)
+  fp_sub_ptx32(c, a, b);
+#else
   Fp diff;
   UNSIGNED_LIMB borrow = fp_sub_raw(diff, a, b);
 
@@ -250,6 +266,7 @@ __host__ __device__ void fp_sub(Fp &c, const Fp &a, const Fp &b) {
   } else {
     fp_copy(c, diff);
   }
+#endif
 }
 
 // Small-constant multiplication via addition chains.
@@ -458,6 +475,9 @@ __host__ __device__ void fp_mont_reduce(Fp &c, const UNSIGNED_LIMB *a) {
 // Uses only FP_LIMBS+1 limbs of working space instead of 2*FP_LIMBS.
 // Both a and b are in Montgomery form, result is in Montgomery form.
 __host__ __device__ void fp_mont_mul_cios(Fp &c, const Fp &a, const Fp &b) {
+#if LIMB_BITS_CONFIG == 32 && defined(__CUDA_ARCH__)
+  fp_mont_mul_cios_ptx32(c, a, b);
+#else
   const Fp &p = fp_modulus();
   UNSIGNED_LIMB p_prime = fp_p_prime();
 
@@ -545,6 +565,7 @@ __host__ __device__ void fp_mont_mul_cios(Fp &c, const Fp &a, const Fp &b) {
     fp_copy(c, reduced);
   }
   // Result is in Montgomery form
+#endif
 }
 
 // Montgomery multiplication: c = (a * b * R_INV) mod p

@@ -282,6 +282,8 @@ __host__ __device__ void fp_cmov(Fp &dst, const Fp &src, uint64_t condition);
 // Helper functions to access constants
 // Get modulus reference (device: from constant memory, host: static copy)
 __host__ __device__ const Fp &fp_modulus();
+// Get Montgomery reduction constant p' = -p^(-1) mod 2^LIMB_BITS
+__host__ __device__ UNSIGNED_LIMB fp_p_prime();
 
 // ============================================================================
 // Async/Sync API for device memory operations
