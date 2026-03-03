@@ -85,6 +85,7 @@ jobs:
     outputs:
       profile: ${{ steps.parse_profile.outputs.profile }}
       hardware_name: ${{ steps.parse_hardware_name.outputs.name }}
+      additional_file_to_parse: ${{ steps.set_file_to_parse.outputs.additional_file_to_parse }}
     env:
       INPUTS_PROFILE: ${{ inputs.profile }}
     steps:
@@ -104,6 +105,36 @@ jobs:
           NAME=$(echo "${INPUTS_PROFILE}" | sed 's|.*[[:space:]](\(.*\))|\1|')
           echo "name=${NAME}" >> "${GITHUB_OUTPUT}"
 
+      - name: Get additional file to parse
+        id: set_file_to_parse
+        shell: python
+        env:
+          INPUTS_COMMAND: ${{ inputs.command }}
+        run: |
+          import os
+
+          inputs_command = os.environ["INPUTS_COMMAND"]
+          output_file = os.environ["GITHUB_OUTPUT"]
+
+          files_to_parse = []
+
+          if inputs_command == "integer_zk":
+            files_to_parse.append("pke_zk_crs_sizes.csv")
+          elif inputs_command == "hlapi_erc20":
+            files_to_parse.append("erc20_pbs_count.csv")
+          elif inputs_command == "hlapi_dex":
+            files_to_parse.extend(
+              [
+                "dex_swap_request_update_dex_balance_pbs_count.csv",
+                "dex_swap_request_finalize_pbs_count.csv",
+                "dex_swap_claim_prepare_pbs_count.csv",
+                "dex_swap_claim_update_dex_balance_pbs_count.csv"
+              ]
+            )
+
+          with open(output_file, "a") as f:
+            f.write(f"""additional_file_to_parse={",".join(files_to_parse)}\n""")
+
   run-benchmarks:
     name: benchmark_gpu/run-benchmarks
     needs: parse-inputs
@@ -116,6 +147,7 @@ jobs:
       bench_type: ${{ inputs.bench_type }}
       params_type: ${{ inputs.params_type }}
       precisions_set: ${{ inputs.precisions_set }}
+      additional_file_to_parse: ${{ needs.parse-inputs.outputs.additional_file_to_parse }}
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
