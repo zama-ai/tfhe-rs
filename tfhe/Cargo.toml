@@ -1,6 +1,6 @@
 [package]
 name = "tfhe"
-version = "1.5.3"
+version = "1.5.4"
 edition = "2021"
 readme = "../README.md"
 keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography"]
