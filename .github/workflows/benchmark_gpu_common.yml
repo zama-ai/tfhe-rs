@@ -28,6 +28,8 @@ on:
       precisions_set:
         type: string
         default: fast
+      additional_file_to_parse: # Other files to parse, located under tfhe-benchmark/ directory
+        type: string # Use comma separated values to generate an array
     secrets:
       REPO_CHECKOUT_TOKEN:
         required: true
@@ -279,6 +281,19 @@ jobs:
           INPUTS_HARDWARE_NAME: ${{ inputs.hardware_name }}
           REF_NAME: ${{ github.ref_name }}
           BENCH_TYPE: ${{ matrix.bench_type }}
+
+      - name: Parse additional benchmarks results files
+        if: ${{ inputs.additional_file_to_parse }}
+        run: |
+          filenames_list="${filenames}"
+          IFS=','
+          for filename in $filenames_list; do
+            python3 ./ci/benchmark_parser.py "tfhe-benchmark/${filename}" "${RESULTS_FILENAME}" \
+            --object-size \
+            --append-results
+          done
+        env:
+          filenames: ${{ inputs.additional_file_to_parse }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
