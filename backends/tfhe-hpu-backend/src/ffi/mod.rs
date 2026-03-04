@@ -84,6 +84,16 @@ impl HpuHw {
         }
     }
 
+    pub fn get_mac_list() -> Vec<(String, String)> {
+        #[cfg(feature = "hw-v80")]
+        {
+            v80::get_boards_mac().expect("Error with V80_BOARDS_MAC definition")
+        }
+        #[cfg(not(feature = "hw-v80"))]
+        {
+        }
+    }
+
     /// Read Hw register through ffi
     #[inline(always)]
     pub fn read_reg(&self, addr: u64) -> u32 {

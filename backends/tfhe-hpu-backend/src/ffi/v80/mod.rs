@@ -534,3 +534,22 @@ pub(super) fn get_board_dev_sn() -> Result<Vec<(String, String)>, String> {
     }
     Ok(board_dev_sn)
 }
+
+/// Utility function to extract board device_id and mac addresses from env
+pub(super) fn get_boards_mac() -> Result<Vec<(String, String)>, String> {
+    // Read rawmap from environ
+    let v80_board_rawmap = std::env::var("V80_BOARDS_MAC")
+        .map_err(|_| "V80_BOARDS_MAC environment variable not found.")?;
+
+    // Extract list of tuple (pcie_id, serial_number)
+    let mut boards_mac = Vec::new();
+    for board in v80_board_rawmap.split('|') {
+        let dev_mac = board.split(':').collect::<Vec<_>>();
+        if dev_mac.len() != 2 {
+            return Err(format!("Invalid format in V80_BOARDS_MAC: {board}"));
+        } else {
+            boards_mac.push((dev_mac[0].to_string(), dev_mac[1].to_string()));
+        }
+    }
+    Ok(boards_mac)
+}

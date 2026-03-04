@@ -31,7 +31,9 @@ use rayon::prelude::*;
 #[repr(C)]
 pub struct UcoreConfig {
     pub node_id: u8,
-    _padding: [u8; 3],
+    pub cluster_first_nid: u8,
+    pub cluster_last_nid: u8,
+    _padding: [u8; 1],
     // NB: modification in this file must match the one in amc.c
     _reserved_word: [u32; 63],
 }
@@ -40,10 +42,12 @@ unsafe impl Zeroable for UcoreConfig {}
 unsafe impl Pod for UcoreConfig {}
 
 impl UcoreConfig {
-    pub fn new(node_id: u8) -> Self {
+    pub fn new(node_id: u8, cluster_first_nid: u8, cluster_last_nid: u8 ) -> Self {
         Self {
             node_id,
-            _padding: [0; 3],
+            cluster_first_nid,
+            cluster_last_nid,
+            _padding: [0; 1],
             _reserved_word: [u32::MAX; 63],
         }
     }
@@ -56,6 +60,8 @@ pub struct HpuNode {
 
     // Node id
     hid: u8,
+    cluster_first_nid: u8,
+    cluster_last_nid: u8,
     // Extracted parameters
     pub(crate) params: Arc<HpuParameters>,
 
@@ -72,6 +78,7 @@ pub struct HpuNode {
     // Board memory is abstract as a bunch of ciphertext slot
     // Used a dedicaed manager to handle lifetime of used slot
     pub(crate) ct_mem: memory::CiphertextMemory,
+    ct_base_addr: Vec<u64>,
 
     // HW Trace cut
     trace_mem: memory::HugeMemory<u32>,
@@ -106,8 +113,8 @@ pub struct HpuNodeWrapped {
 }
 
 impl HpuNodeWrapped {
-    pub fn new_wrapped(id: u8, config: &config::HpuConfig) -> Self {
-        let node = HpuNode::new(id, config);
+    pub fn new_wrapped(id: u8, cluster_first_nid: u8, cluster_last_nid: u8, config: &config::HpuConfig) -> Self {
+        let node = HpuNode::new(id, cluster_first_nid, cluster_last_nid, config);
         let ct_mem = node.ct_mem.clone();
         let params = node.params.clone();
 
@@ -130,7 +137,7 @@ unsafe impl Sync for HpuNodeWrapped {}
 
 /// Handle HpuBackend construction and initialisation
 impl HpuNode {
-    pub fn new(hid: u8, config: &config::HpuConfig) -> Self {
+    pub fn new(hid: u8, cluster_first_nid: u8, cluster_last_nid: u8, config: &config::HpuConfig) -> Self {
         let mut hpu_hw = ffi::HpuHw::open_hpu_hw(
             hid,
             &config.fpga.ffi,
@@ -282,7 +289,7 @@ impl HpuNode {
             retry_rate_us: config.fpga.polling_us,
         };
         debug!("Ct_mem properties -> {:?}", ct_props);
-        let ct_mem = memory::CiphertextMemory::alloc(&mut hpu_hw, &regmap, &ct_props);
+        let (ct_mem, ct_base_addr) = memory::CiphertextMemory::alloc(&mut hpu_hw, &regmap, &ct_props);
 
         // load trace ptr from config (size does not matter so putting 256)
         let trace_props = memory::HugeMemoryProperties {
@@ -295,6 +302,8 @@ impl HpuNode {
             hpu_hw,
             regmap,
             hid,
+            cluster_first_nid,
+            cluster_last_nid,
             params,
             bsk_key,
             ksk_key,
@@ -302,8 +311,87 @@ impl HpuNode {
             fw_mem,
             init_fw_width: Vec::new(),
             ct_mem,
+            ct_base_addr,
             trace_mem,
             cmdq: VecDeque::new(),
+        }
+    }
+}
+
+/// MHDMA configuration
+/// Only here to expose function to the user. Associated logic is handled by the backend
+impl HpuNode {
+    #[tracing::instrument(level = "debug", skip(self), ret)]
+    pub fn mhdma_cfg(&mut self) {
+        let Self {
+            ref mut hpu_hw,
+            regmap,
+            hid,
+            ct_base_addr,
+            ..
+        } = self;
+
+        let ct_pc_nb = ct_base_addr.len();
+
+        // Extract register from regmap
+        let mhdma_hpu_ids = (0..MAX_HPU_IN_CLUSTER)
+            .map(|idx| {
+                let reg_name = format!("mhdma_system::hpu_id_{idx}");
+                let reg = regmap
+                    .register()
+                    .get(&reg_name)
+                    .expect("Unknown register, check regmap definition");
+                reg
+            })
+            .collect::<Vec<_>>();
+        let mhdma_timeout_notify = regmap
+            .register()
+            .get("mhdma_system::timeout_notify")
+            .expect("Unknown register, check regmap definition");
+        let mhdma_timeout_rr = regmap
+            .register()
+            .get("mhdma_system::timeout_read_req")
+            .expect("Unknown register, check regmap definition");
+        let mhdma_addr_pc = (0..ct_pc_nb)
+            .map(|idx| {
+                let lsb_name = format!("mhdma_hbm_axi4_addr_2in3::ct_pc{idx}_lsb");
+                let msb_name = format!("mhdma_hbm_axi4_addr_2in3::ct_pc{idx}_msb");
+                let lsb = regmap
+                    .register()
+                    .get(&lsb_name)
+                    .expect("Unknown register, check regmap definition");
+                let msb = regmap
+                    .register()
+                    .get(&msb_name)
+                    .expect("Unknown register, check regmap definition");
+                (lsb, msb)
+            })
+            .collect::<Vec<_>>();
+
+        let mac_list = ffi::HpuHw::get_mac_list();
+        debug!("MAC list -> {:?}", mac_list);
+
+        for idx in 0..MAX_HPU_IN_CLUSTER {
+            let hpu_id = mhdma_hpu_ids[idx];
+            let mut mac: u32 = 0;
+            if idx < mac_list.len() {
+                mac = u32::from_str_radix(mac_list[idx].1.trim_start_matches("0x"), 16).unwrap();
+            }
+            if idx as u8 == *hid {
+                mac |= 0x80000000;
+            }
+            debug!("MAC of HPU {idx} -> @{:X} {:X}", *hpu_id.offset() as u64, mac);
+            hpu_hw.write_reg(*hpu_id.offset() as u64, mac);
+        }
+        hpu_hw.write_reg(*mhdma_timeout_notify.offset() as u64, 0xFFFFFFFF);
+        hpu_hw.write_reg(*mhdma_timeout_rr.offset() as u64, 0xFFFFFFFF);
+
+        for idx in 0..ct_pc_nb {
+            let mhdma_addr_pc_lsb = mhdma_addr_pc[idx].0;
+            let mhdma_addr_pc_msb = mhdma_addr_pc[idx].1;
+            debug!("addr of ct_pc[{idx}] given to MHDMA -> @{:X}", ct_base_addr[idx]);
+            hpu_hw.write_reg(*mhdma_addr_pc_msb.offset() as u64, (ct_base_addr[idx] >> 32) as u32);
+            hpu_hw.write_reg(*mhdma_addr_pc_lsb.offset() as u64, (ct_base_addr[idx] & 0xFFFFFFFF) as u32);
         }
     }
 }
@@ -718,7 +806,7 @@ impl HpuNode {
 
         // Write runtime configuration
         // FW cut is view as u32 array, cost UcoreConfig accordingly
-        let fw_cfg = UcoreConfig::new(self.hid);
+        let fw_cfg = UcoreConfig::new(self.hid, self.cluster_first_nid, self.cluster_last_nid);
         let fw_cfg_raw_u8 = bytemuck::bytes_of(&fw_cfg);
         let fw_cfg_raw_u32 = bytemuck::cast_slice::<u8, u32>(fw_cfg_raw_u8);
         self.fw_mem.write_cut_at(0, 0, fw_cfg_raw_u32);

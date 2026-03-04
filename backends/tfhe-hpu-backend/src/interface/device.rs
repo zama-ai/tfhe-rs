@@ -59,6 +59,9 @@ impl HpuDevice {
 
             // Init HW trace offset
             node_lock.trace_init();
+
+            // Init MHDMA
+            node_lock.mhdma_cfg();
         })
     }
 }

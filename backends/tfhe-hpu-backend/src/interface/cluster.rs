@@ -42,13 +42,15 @@ impl HpuCluster {
         // Check HpuNode state
         // Hw is reloaded by batch if needed to reduce risk of failure
         HpuHw::lazy_load(&config.fpga.node_id, &config.fpga.ffi, force_reload);
+        let cluster_first_nid = config.fpga.node_id.iter().min().unwrap();
+        let cluster_last_nid = config.fpga.node_id.iter().max().unwrap();
 
         // Open HpuNode
         let nodes = config
             .fpga
             .node_id
             .par_iter()
-            .map(|id| (*id, HpuNodeWrapped::new_wrapped(*id, config)))
+            .map(|id| (*id, HpuNodeWrapped::new_wrapped(*id, *cluster_first_nid, *cluster_last_nid, config)))
             .collect::<HashMap<_, _>>();
 
         // Enforce that all node within the cluster used same HpuParameters
