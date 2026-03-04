@@ -26,6 +26,7 @@ runs:
 
         # Disable unattended-upgrades to avoid lock issues
         sudo systemctl mask --now unattended-upgrades
+        sudo systemctl kill --now unattended-upgrades
 
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
@@ -71,6 +72,7 @@ runs:
 
         # Disable unattended-upgrades to avoid lock issues
         sudo systemctl mask --now unattended-upgrades
+        sudo systemctl kill --now unattended-upgrades
 
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
