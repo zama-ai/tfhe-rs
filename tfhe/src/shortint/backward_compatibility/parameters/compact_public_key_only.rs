@@ -4,13 +4,34 @@ use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use super::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
 use super::parameters::{
-    CompactCiphertextListExpansionKind, DynamicDistribution, SupportedCompactPkeZkScheme,
+    AtomicPatternKind, CompactCiphertextListExpansionKind, DynamicDistribution, PBSOrder,
+    SupportedCompactPkeZkScheme,
 };
 use super::prelude::*;
 
+#[derive(Version)]
+pub enum CompactCiphertextListExpansionKindV0 {
+    RequiresCasting,
+    NoCasting(PBSOrder),
+}
+
+impl Upgrade<CompactCiphertextListExpansionKind> for CompactCiphertextListExpansionKindV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompactCiphertextListExpansionKind, Self::Error> {
+        match self {
+            Self::RequiresCasting => Ok(CompactCiphertextListExpansionKind::RequiresCasting),
+            Self::NoCasting(pbs_order) => Ok(CompactCiphertextListExpansionKind::NoCasting(
+                AtomicPatternKind::Standard(pbs_order),
+            )),
+        }
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum CompactCiphertextListExpansionKindVersions {
-    V0(CompactCiphertextListExpansionKind),
+    V0(CompactCiphertextListExpansionKindV0),
+    V1(CompactCiphertextListExpansionKind),
 }
 
 #[derive(Version)]

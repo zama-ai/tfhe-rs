@@ -101,16 +101,12 @@ impl ClassicPBSParameters {
     }
 
     pub fn to_shortint_conformance_param(&self) -> CiphertextConformanceParams {
-        let (atomic_pattern, expected_dim) = match self.encryption_key_choice {
-            EncryptionKeyChoice::Big => (
-                AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
-                self.glwe_dimension
-                    .to_equivalent_lwe_dimension(self.polynomial_size),
-            ),
-            EncryptionKeyChoice::Small => (
-                AtomicPatternKind::Standard(PBSOrder::BootstrapKeyswitch),
-                self.lwe_dimension,
-            ),
+        let atomic_pattern = self.atomic_pattern();
+        let expected_dim = match self.encryption_key_choice {
+            EncryptionKeyChoice::Big => self
+                .glwe_dimension
+                .to_equivalent_lwe_dimension(self.polynomial_size),
+            EncryptionKeyChoice::Small => self.lwe_dimension,
         };
 
         let message_modulus = self.message_modulus;
@@ -137,16 +133,12 @@ impl ClassicPBSParameters {
     pub fn to_compressed_modswitched_conformance_param(
         &self,
     ) -> CompressedModulusSwitchedCiphertextConformanceParams {
-        let (atomic_pattern, expected_dim) = match self.encryption_key_choice {
-            EncryptionKeyChoice::Big => (
-                AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
-                self.glwe_dimension
-                    .to_equivalent_lwe_dimension(self.polynomial_size),
-            ),
-            EncryptionKeyChoice::Small => (
-                AtomicPatternKind::Standard(PBSOrder::BootstrapKeyswitch),
-                self.lwe_dimension,
-            ),
+        let atomic_pattern = self.atomic_pattern();
+        let expected_dim = match self.encryption_key_choice {
+            EncryptionKeyChoice::Big => self
+                .glwe_dimension
+                .to_equivalent_lwe_dimension(self.polynomial_size),
+            EncryptionKeyChoice::Small => self.lwe_dimension,
         };
 
         let message_modulus = self.message_modulus;
@@ -176,5 +168,10 @@ impl ClassicPBSParameters {
 
     pub const fn pbs_order(&self) -> PBSOrder {
         self.encryption_key_choice.into_pbs_order()
+    }
+
+    /// Returns [`AtomicPatternKind::Standard`] derived from the PBS order.
+    pub const fn atomic_pattern(&self) -> AtomicPatternKind {
+        AtomicPatternKind::Standard(self.pbs_order())
     }
 }

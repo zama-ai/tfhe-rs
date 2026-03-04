@@ -356,7 +356,6 @@ impl<T: UnsignedInteger> ParameterSetConformant for LweCompactCiphertextListOwne
             lwe_ciphertext_count,
             ciphertext_modulus,
         } = self;
-
         param
             .lwe_ciphertext_count_constraint
             .is_valid(lwe_ciphertext_count.0)
