@@ -321,6 +321,11 @@ impl PBSParameters {
         }
     }
 
+    /// Returns [`AtomicPatternKind::Standard`] derived from the encryption key choice.
+    pub const fn atomic_pattern(&self) -> AtomicPatternKind {
+        AtomicPatternKind::Standard(self.encryption_key_choice().into_pbs_order())
+    }
+
     pub const fn encryption_lwe_dimension(&self) -> LweDimension {
         match self.encryption_key_choice() {
             EncryptionKeyChoice::Big => self
@@ -601,15 +606,11 @@ impl ShortintParameterSet {
 
     pub const fn atomic_pattern(&self) -> AtomicPatternKind {
         match self.inner {
-            ShortintParameterSetInner::PBSOnly(params) => {
-                AtomicPatternKind::Standard(params.encryption_key_choice().into_pbs_order())
-            }
+            ShortintParameterSetInner::PBSOnly(params) => params.atomic_pattern(),
             ShortintParameterSetInner::WopbsOnly(_params) => {
                 panic!("WopbsOnly parameters do not support Atomic Patterns")
             }
-            ShortintParameterSetInner::PBSAndWopbs(params, _) => {
-                AtomicPatternKind::Standard(params.encryption_key_choice().into_pbs_order())
-            }
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.atomic_pattern(),
             ShortintParameterSetInner::KS32PBS(_params) => AtomicPatternKind::KeySwitch32,
         }
     }

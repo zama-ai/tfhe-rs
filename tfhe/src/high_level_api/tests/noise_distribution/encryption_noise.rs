@@ -121,7 +121,7 @@ fn noise_check_compact_public_key_encryption_noise_tuniform(
 ) {
     // Hack to avoid server key needs and get the ciphertext directly
     cpke_params.expansion_kind =
-        CompactCiphertextListExpansionKind::NoCasting(block_params.encryption_key_choice.into());
+        CompactCiphertextListExpansionKind::NoCasting(block_params.atomic_pattern());
 
     let modulus_as_f64 = cpke_params.ciphertext_modulus.raw_modulus_float();
 

@@ -287,9 +287,8 @@ fn noise_check_encrypt_cpk_ks_ms_noise_gpu(meta_params: MetaParameters, filename
         // expand
         let cpk_params = {
             let mut cpk_params = dedicated_cpk_params.pke_params;
-            cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
-                compute_params.encryption_key_choice().into_pbs_order(),
-            );
+            cpk_params.expansion_kind =
+                CompactCiphertextListExpansionKind::NoCasting(compute_params.atomic_pattern());
             cpk_params
         };
 
@@ -478,9 +477,8 @@ fn noise_check_encrypt_cpk_ks_ms_pfail_gpu(meta_params: MetaParameters, filename
         // expand
         let cpk_params = {
             let mut cpk_params = dedicated_cpk_params.pke_params;
-            cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
-                compute_params.encryption_key_choice().into_pbs_order(),
-            );
+            cpk_params.expansion_kind =
+                CompactCiphertextListExpansionKind::NoCasting(compute_params.atomic_pattern());
             cpk_params
         };
 
@@ -604,9 +602,8 @@ fn sanity_check_encrypt_cpk_ks_ms_pbs_gpu(meta_params: MetaParameters, filename_
         let (cpk_params, orig_cast_mode) = {
             let mut cpk_params = dedicated_cpk_params.pke_params;
             let orig_cast_mode = cpk_params.expansion_kind;
-            cpk_params.expansion_kind = CompactCiphertextListExpansionKind::NoCasting(
-                compute_params.encryption_key_choice().into_pbs_order(),
-            );
+            cpk_params.expansion_kind =
+                CompactCiphertextListExpansionKind::NoCasting(compute_params.atomic_pattern());
             (cpk_params, orig_cast_mode)
         };
 
