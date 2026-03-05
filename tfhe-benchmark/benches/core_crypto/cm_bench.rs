@@ -146,19 +146,19 @@ fn cm_bench_for_pfail(c: &mut Criterion, bench_cm_params: &[CmApParams], p_fail:
             ciphertext_modulus,
         );
 
-        let max_nb_zeros_n = cm_param.max_nb_zeros_n.ceil() as usize;
+        let max_nb_zeros_n = cm_param.max_nb_zeros_n;
 
         let mut encryptions_of_zero = CmLweCiphertextList::new(
             0,
             cm_param.lwe_dimension,
             cm_dimension,
-            CmLweCiphertextCount(max_nb_zeros_n),
+            max_nb_zeros_n,
             ciphertext_modulus,
         );
 
         let plaintext_list = PlaintextList::new(0, PlaintextCount(cm_dimension.0));
 
-        let plaintext_lists: Vec<_> = (0..max_nb_zeros_n)
+        let plaintext_lists: Vec<_> = (0..max_nb_zeros_n.0)
             .map(|_| plaintext_list.clone())
             .collect();
 

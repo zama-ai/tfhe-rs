@@ -207,6 +207,12 @@ harness = false
 required-features = ["shortint", "internal-keycache"]
 
 [[bench]]
+name = "core_crypto-experimental_extended_pbs"
+path = "benches/core_crypto/experimental_extended_pbs.rs"
+harness = false
+required-features = ["experimental"]
+
+[[bench]]
 name = "zk-msm"
 path = "benches/zk/msm.rs"
 harness = false

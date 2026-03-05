@@ -4,11 +4,11 @@ use crate::core_crypto::prelude::*;
 /// Represent any kind of LWE ciphertext after a modulus switch operation.
 ///
 /// This may be used as an input to the blind rotatation.
-pub trait ModulusSwitchedLweCiphertext<Scalar> {
+pub trait ModulusSwitchedLweCiphertext<SwitchedScalar> {
     fn log_modulus(&self) -> CiphertextModulusLog;
     fn lwe_dimension(&self) -> LweDimension;
-    fn body(&self) -> Scalar;
-    fn mask(&self) -> impl ExactSizeIterator<Item = Scalar> + '_;
+    fn body(&self) -> SwitchedScalar;
+    fn mask(&self) -> impl ExactSizeIterator<Item = SwitchedScalar> + '_;
 }
 
 pub fn lwe_ciphertext_modulus_switch<Scalar, SwitchedScalar, Cont>(
