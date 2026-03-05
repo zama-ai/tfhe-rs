@@ -107,9 +107,12 @@ impl CompressedXofKeySet {
         max_norm_hwt: NormalizedHammingWeightBound,
         tag: Tag,
     ) -> crate::Result<(ClientKey, Self)> {
+        if security_bits == 0 {
+            return Err(crate::error!("security_bits must be non-zero"));
+        }
         let mut private_generator = RandomGenerator::<DefaultRandomGenerator>::new(private_seed);
 
-        let mut public_seed_bytes = vec![0u8; security_bits as usize / 8];
+        let mut public_seed_bytes = vec![0u8; security_bits.div_ceil(8) as usize];
         private_generator.fill_slice_with_random_uniform(&mut public_seed_bytes);
         let public_seed = XofSeed::new(public_seed_bytes, public_seed_separator);
 
