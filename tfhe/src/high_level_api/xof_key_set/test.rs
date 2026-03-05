@@ -29,6 +29,7 @@ mod cpu {
 
         assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
         assert_eq!(cks.tag(), &tag);
+        assert_eq!(compressed_key_set.tag(), &tag);
         test_xof_key_set(&compressed_key_set, config, Device::Cpu, &cks);
         test_xof_expansion_is_same_as_classic(compressed_key_set);
     }
@@ -54,6 +55,7 @@ mod cpu {
 
         assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
         assert_eq!(cks.tag(), &tag);
+        assert_eq!(compressed_key_set.tag(), &tag);
         test_xof_key_set(&compressed_key_set, config, Device::Cpu, &cks);
         test_xof_expansion_is_same_as_classic(compressed_key_set);
     }
@@ -80,6 +82,7 @@ mod cpu {
 
         assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
         assert_eq!(cks.tag(), &tag);
+        assert_eq!(compressed_key_set.tag(), &tag);
         test_xof_key_set(&compressed_key_set, config, Device::Cpu, &cks);
         test_xof_expansion_is_same_as_classic(compressed_key_set);
     }
@@ -112,6 +115,7 @@ mod gpu {
 
         assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
         assert_eq!(cks.tag(), &tag);
+        assert_eq!(compressed_key_set.tag(), &tag);
         test_xof_key_set(&compressed_key_set, config, Device::CudaGpu, &cks);
         test_xof_expansion_is_same_as_classic(compressed_key_set);
     }
@@ -139,6 +143,7 @@ mod gpu {
 
         assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
         assert_eq!(cks.tag(), &tag);
+        assert_eq!(compressed_key_set.tag(), &tag);
         test_xof_key_set(&compressed_key_set, config, Device::CudaGpu, &cks);
         test_xof_expansion_is_same_as_classic(compressed_key_set);
     }
@@ -164,6 +169,7 @@ mod gpu {
 
         assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
         assert_eq!(cks.tag(), &tag);
+        assert_eq!(compressed_key_set.tag(), &tag);
         test_xof_key_set(&compressed_key_set, config, Device::CudaGpu, &cks);
         test_xof_expansion_is_same_as_classic(compressed_key_set);
     }
@@ -176,6 +182,8 @@ mod gpu {
 fn test_xof_expansion_is_same_as_classic(key_set: CompressedXofKeySet) {
     let (xof_pk, xof_sk) = key_set.expand();
     let (_seed, cpk, csk) = key_set.into_raw_parts();
+    // into_raw_parts syncs the public key tag to match the server key tag
+    assert_eq!(cpk.tag(), csk.tag());
     let pk = cpk.decompress();
 
     let sk = csk.integer_key.expand();
@@ -204,8 +212,20 @@ fn test_xof_key_set(
         crate::safe_serialization::safe_deserialize(data.as_slice(), compressed_size_limit)
             .unwrap();
 
-    let expected_pk_tag = compressed_key_set.compressed_public_key.tag().clone();
-    let expected_sk_tag = compressed_key_set.compressed_server_key.tag().clone();
+    let expected_tag = cks.tag().clone();
+    // Test Tagged trait on CompressedXofKeySet
+    assert_eq!(compressed_key_set.tag(), &expected_tag);
+    {
+        let mut compressed_clone = compressed_key_set.clone();
+        compressed_clone.tag_mut().set_u64(0xDEAD);
+        assert_eq!(compressed_clone.tag().as_u64(), 0xDEAD);
+        // Original unchanged
+        assert_eq!(compressed_key_set.tag(), &expected_tag);
+        // test sync
+        let (_seed, cpk, csk) = compressed_clone.into_raw_parts();
+        assert_eq!(cpk.tag().as_u64(), 0xDEAD);
+        assert_eq!(csk.tag().as_u64(), 0xDEAD);
+    }
 
     assert!(compressed_key_set.is_conformant(&config));
 
@@ -215,20 +235,34 @@ fn test_xof_key_set(
             let size_limit = 1 << 32; // 4GB
             let mut data = vec![];
             crate::safe_serialization::safe_serialize(&key_set, &mut data, size_limit).unwrap();
-            let key_set: XofKeySet =
+            let mut key_set: XofKeySet =
                 crate::safe_serialization::safe_deserialize(data.as_slice(), size_limit).unwrap();
 
+            assert_eq!(key_set.tag(), &expected_tag);
+
+            key_set.tag_mut().set_u64(0xCAFE);
+            assert_eq!(key_set.tag().as_u64(), 0xCAFE);
+
             let (pk, sk) = key_set.into_raw_parts();
-            assert_eq!(sk.tag(), &expected_sk_tag);
+            assert_eq!(pk.tag().as_u64(), 0xCAFE);
+            assert_eq!(sk.tag().as_u64(), 0xCAFE);
+
             assert!(sk.is_conformant(&config.into()));
             set_server_key(sk);
             pk
         }
         #[cfg(feature = "gpu")]
         Device::CudaGpu => {
-            let key_set = compressed_key_set.decompress_to_gpu().unwrap();
+            let mut key_set = compressed_key_set.decompress_to_gpu().unwrap();
+            assert_eq!(key_set.tag(), &expected_tag);
+
+            key_set.tag_mut().set_u64(0xCAFE);
+            assert_eq!(key_set.tag().as_u64(), 0xCAFE);
+
             let (pk, sk) = key_set.into_raw_parts();
-            assert_eq!(sk.tag(), &expected_sk_tag);
+            assert_eq!(pk.tag().as_u64(), 0xCAFE);
+            assert_eq!(sk.tag().as_u64(), 0xCAFE);
+
             set_server_key(sk);
             pk
         }
@@ -237,8 +271,6 @@ fn test_xof_key_set(
             panic!("HPU not supported in this test")
         }
     };
-
-    assert_eq!(pk.tag(), &expected_pk_tag);
 
     let clear_a = rand::random::<u32>();
     let clear_b = rand::random::<u32>();
