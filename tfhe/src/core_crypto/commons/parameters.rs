@@ -11,6 +11,7 @@ use tfhe_versionable::Versionize;
 pub use super::ciphertext_modulus::CiphertextModulus;
 use super::traits::CastInto;
 use crate::core_crypto::backward_compatibility::commons::parameters::*;
+pub use crate::core_crypto::commons::dispersion::StandardDev;
 
 /// The number plaintexts in a plaintext list.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]
@@ -467,6 +468,28 @@ impl NormalizedHammingWeightBound {
         } else {
             Err(())
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct MaxNorm2(pub f64);
+
+pub trait CleartextMarker: Copy {}
+
+#[derive(Clone, Copy, Debug)]
+pub struct MessageSpace;
+#[derive(Clone, Copy, Debug)]
+pub struct CarrySpace;
+
+impl CleartextMarker for MessageSpace {}
+impl CleartextMarker for CarrySpace {}
+
+#[derive(Clone, Copy, Debug)]
+pub struct CleartextModulus<T: CleartextMarker>(pub u64, core::marker::PhantomData<T>);
+
+impl<T: CleartextMarker> CleartextModulus<T> {
+    pub const fn new(value: u64) -> Self {
+        Self(value, core::marker::PhantomData)
     }
 }
 
