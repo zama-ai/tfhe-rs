@@ -1671,6 +1671,11 @@ clippy_bench: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		--features=shortint,internal-keycache \
 		-p tfhe-benchmark -- --no-deps -D warnings
+	@# For experimental core-crypto PBS
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=experimental \
+		-p tfhe-benchmark -- --no-deps -D warnings
+
 
 .PHONY: clippy_bench_gpu # Run clippy lints on tfhe-benchmark
 clippy_bench_gpu: install_rs_check_toolchain
