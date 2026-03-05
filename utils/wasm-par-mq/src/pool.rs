@@ -14,6 +14,8 @@ use crate::registry::{FnEntry, RegisteredFn, init_registry};
 use crate::sync_executor::register_sync_executor;
 use crate::worker::{create_worker_url, resolve_url};
 use futures::channel::oneshot;
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -450,7 +452,7 @@ where
     let mut receivers = Vec::with_capacity(chunks.len());
     for chunk in chunks {
         let chunk_bytes =
-            postcard::to_allocvec(&chunk).map_err(|e| format!("serialize chunk error: {e}"))?;
+            serialize_chunk(chunk).map_err(|e| format!("Failed to serialize input chunk: {e}"))?;
         let rx = submit_chunk::<F>(f.clone(), chunk_bytes)?;
         receivers.push(rx);
     }
@@ -458,8 +460,8 @@ where
     let mut results = Vec::with_capacity(data.len());
     for rx in receivers {
         let result_bytes = rx.await.map_err(|_| "task channel closed".to_string())??;
-        let chunk_results: Vec<O> =
-            postcard::from_bytes(&result_bytes).map_err(|e| format!("deserialize result: {e}"))?;
+        let chunk_results: Vec<O> = deserialize_chunk(&result_bytes)
+            .map_err(|e| format!("Failed to deserialize result: {e}"))?;
         results.extend(chunk_results);
     }
 
@@ -492,8 +494,8 @@ where
 
     // Send all chunks to workers
     for chunk in chunks {
-        let chunk_res = postcard::to_allocvec(&chunk)
-            .map_err(|e| format!("serialize chunk error: {e}"))
+        let chunk_res = serialize_chunk(chunk)
+            .map_err(|e| format!("Failed to serialize input chunk: {e}"))
             .and_then(|chunk_bytes| submit_chunk_sync::<F>(f.clone(), chunk_bytes, task_id));
         if let Err(e) = chunk_res {
             cancel_task(task_id)?;
@@ -506,8 +508,8 @@ where
 
     let mut results = Vec::with_capacity(data.len());
     for result_bytes in res_chunks {
-        let chunk_results: Vec<O> =
-            postcard::from_bytes(&result_bytes).map_err(|e| format!("deserialize result: {e}"))?;
+        let chunk_results: Vec<O> = postcard2::from_bytes(&result_bytes)
+            .map_err(|e| format!("Failed to deserialize result: {e}"))?;
         results.extend(chunk_results);
     }
 
@@ -521,4 +523,20 @@ pub(crate) fn next_task_id() -> Result<u64, String> {
         let pool = pool.as_mut().ok_or("pool not initialized")?;
         Ok(pool.next_task_id())
     })
+}
+
+/// Deserialize a chunk as a Vec of items
+///
+/// Can be used inside a worker to deserialize the input or in the main thread/sync executor
+/// to deserialize the results
+pub(crate) fn deserialize_chunk<I: DeserializeOwned>(input_chunk: &[u8]) -> Result<Vec<I>, String> {
+    postcard2::from_bytes(input_chunk).map_err(|e| format!("deserialize chunk error: {e}"))
+}
+
+/// Serialize a chunk of items
+///
+/// Can be used inside a worker to serialize the results or in the main thread/sync executor
+/// to serialize the inputs
+pub(crate) fn serialize_chunk<O: Serialize>(output_chunk: &[O]) -> Result<Vec<u8>, String> {
+    postcard2::to_vec(&output_chunk).map_err(|e| format!("serialize chunk error: {e}"))
 }

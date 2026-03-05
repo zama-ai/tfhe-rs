@@ -53,7 +53,7 @@ web-sys = { version = "0.3", features = [
     "console",
 ] }
 js-sys = { workspace = true }
-postcard = { version = "1.0", features = ["alloc"] }
+postcard2 = { version = "0.2", features = ["alloc"] }
 serde = { workspace = true, features = ["default", "derive"] }
 serde_json = "1.0"
 serde-wasm-bindgen = { workspace = true }
