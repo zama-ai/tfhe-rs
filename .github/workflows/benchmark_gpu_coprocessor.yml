@@ -128,8 +128,12 @@ jobs:
         run: |
           # Disable unattended-upgrades to avoid lock issues
           sudo systemctl mask --now unattended-upgrades
-          sudo systemctl kill --now unattended-upgrades
-          sudo apt-get remove -y unattended-upgrades
+          sudo systemctl stop --now unattended-upgrades
+
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo apt purge -y unattended-upgrades
+
           sudo apt-get update
           sudo apt-get install -y git-lfs protobuf-compiler
           git lfs install
