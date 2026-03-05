@@ -30,6 +30,8 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
 
+use crate::pool::{deserialize_chunk, serialize_chunk};
+
 /// A unique id for a function, used as a key in the registry
 ///
 /// Even if this type is Serialize, it should not be shared between different compiled binaries
@@ -128,15 +130,17 @@ pub trait RegisteredFn {
 /// SHOULD NOT be called directly, use the [`register_fn!`] macro
 // Made pub because it will be called in the macro that lives in user code.
 pub fn deserialize_input_chunk<I: DeserializeOwned>(input_chunk: &[u8]) -> Result<Vec<I>, String> {
-    postcard::from_bytes(input_chunk).map_err(|e| format!("deserialize chunk error: {e}"))
+    deserialize_chunk(input_chunk)
+        .map_err(|e| format!("worker failed to deserialize its input: {e}"))
 }
 
 /// Serialize the results
 ///
 /// SHOULD NOT be called directly, use the [`register_fn!`] macro
 // Made pub because it will be called in the macro that lives in user code.
-pub fn serialize_output_chunk<O: Serialize>(output_chunk: Vec<O>) -> Result<Vec<u8>, String> {
-    postcard::to_allocvec(&output_chunk).map_err(|e| format!("serialize results error: {e}"))
+pub fn serialize_output_chunk<O: Serialize>(output_chunk: &[O]) -> Result<Vec<u8>, String> {
+    serialize_chunk(output_chunk)
+        .map_err(|e| format!("worker failed to serialize its results: {e}"))
 }
 
 // Collect all the NewFnEntry objects registered by user code
@@ -193,7 +197,7 @@ macro_rules! register_fn {
             fn [<__handler_ $fn>](data: &[u8]) -> Result<Vec<u8>, String> {
                 let inputs: Vec<$input> = $crate::__private::deserialize_input_chunk(data)?;
                 let outputs: Vec<$output> = inputs.into_iter().map($fn).collect();
-                $crate::__private::serialize_output_chunk(outputs)
+                $crate::__private::serialize_output_chunk(&outputs)
             }
 
             // Create a type with the same name as the function. Since types and values live in
