@@ -25,7 +25,7 @@ use web_sys::{DedicatedWorkerGlobalScope, MessageEvent, Worker};
 use crate::coordinator::CoordinatorUrl;
 use crate::global_this;
 use crate::messages::{self, JobOutcome, MainToSyncExecutor, SyncExecutorToMain};
-use crate::pool::{self, ReadySender};
+use crate::pool::{self, ReadySender, deserialize_chunk, serialize_chunk};
 use crate::registry::{FnEntry, RegisteredFn};
 use crate::worker::create_worker_url;
 
@@ -274,11 +274,8 @@ where
 {
     // Wrap input in a single-element Vec to match the chunk-based registry format.
     // The registered handler expects Vec<Input> and returns Vec<Output>.
-    // We use Vec (not array) because postcard serializes arrays without length prefix,
-    // but Vec deserialization expects one.
-    let wrapped_input = vec![input];
-    let data =
-        postcard::to_allocvec(&wrapped_input).map_err(|e| format!("serialize input error: {e}"))?;
+    let data = serialize_chunk(&[input])
+        .map_err(|e| format!("Failed to serialize sync executor job input: {e}"))?;
 
     let (tx, rx) = oneshot::channel();
     let job_id = next_job_id()?;
@@ -302,8 +299,8 @@ where
     let result_bytes: Vec<u8> = rx.await.map_err(|_| "task channel closed".to_string())??;
 
     // Unwrap the Vec<Output> to get the single result
-    let results: Vec<O> =
-        postcard::from_bytes(&result_bytes).map_err(|e| format!("deserialize result: {e}"))?;
+    let results: Vec<O> = deserialize_chunk(&result_bytes)
+        .map_err(|e| format!("Failed to deserialize sync executor job result: {e}"))?;
     results
         .into_iter()
         .next()
