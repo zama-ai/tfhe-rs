@@ -4,6 +4,7 @@
 #include "keyswitch/keyswitch.h"
 #include "pbs/programmable_bootstrap.h"
 #include "pbs/programmable_bootstrap_multibit.h"
+#include "pbs/programmable_bootstrap_testing.h"
 #include <device.h>
 #include <utils.h>
 
