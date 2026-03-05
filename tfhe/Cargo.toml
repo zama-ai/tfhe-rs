@@ -60,13 +60,13 @@ tfhe-csprng = { version = "0.8.0", path = "../tfhe-csprng", features = [
 serde = { workspace = true, features = ["default", "derive"] }
 rayon = { workspace = true }
 bincode = { workspace = true }
-tfhe-fft = { version = "0.10.0", path = "../tfhe-fft", features = [
+tfhe-fft = { version = "0.10.1", path = "../tfhe-fft", features = [
     "serde",
     "fft128",
 ] }
 tfhe-ntt = { version = "0.7.0", path = "../tfhe-ntt" }
 pulp = { workspace = true, features = ["default"] }
-tfhe-cuda-backend = { version = "0.13.0", path = "../backends/tfhe-cuda-backend", optional = true }
+tfhe-cuda-backend = { version = "=0.14.0", path = "../backends/tfhe-cuda-backend", optional = true }
 aligned-vec = { workspace = true, features = ["default", "serde"] }
 dyn-stack = { workspace = true, features = ["default"] }
 paste = { workspace = true }
