@@ -51,3 +51,36 @@ pub struct CmLweCiphertextCount(pub usize);
 /// The number of scalar in an LWE mask, or the length of an LWE secret key.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct CmDimension(pub usize);
+
+/// Parameter indicating by how much a LUT polynomial size is multiplied in the extended PBS
+/// setting.
+///
+/// The extended PBS simulates the rotation of a larger LUT using only smaller LUTs. This
+/// has nice noise properties in some cases. The extended LUT polynomial size is N' = tau * N where
+/// tau is a power of 2, usual notation is tau = 2^nu, so N' = 2^nu * N.
+///
+/// See [this paper](https://eprint.iacr.org/2025/2214.pdf).
+///
+/// Currently the extension factor needs to be a power of two to keep a compatible power of two for
+/// the extended LUT.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LweBootstrapExtensionFactor(usize);
+
+impl LweBootstrapExtensionFactor {
+    pub const fn new(value: usize) -> Self {
+        assert!(
+            value > 1,
+            "An LweBootstrapExtensionFactor <= 1 makes no sense."
+        );
+        assert!(
+            value.is_power_of_two(),
+            "LweBootstrapExtensionFactor needs to be a power of 2"
+        );
+
+        Self(value)
+    }
+
+    pub const fn get(&self) -> usize {
+        self.0
+    }
+}

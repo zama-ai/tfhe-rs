@@ -11,6 +11,7 @@ use tfhe_versionable::Versionize;
 pub use super::ciphertext_modulus::CiphertextModulus;
 use super::traits::CastInto;
 use crate::core_crypto::backward_compatibility::commons::parameters::*;
+pub use crate::core_crypto::commons::dispersion::StandardDev;
 
 /// The number plaintexts in a plaintext list.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]
@@ -478,6 +479,9 @@ impl NormalizedHammingWeightBound {
         }
     }
 }
+
+#[derive(Clone, Copy, Debug)]
+pub struct MaxNorm2(pub f64);
 
 #[cfg(test)]
 mod test {
