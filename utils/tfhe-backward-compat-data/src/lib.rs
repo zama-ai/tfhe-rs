@@ -194,11 +194,18 @@ pub struct TestMetaNoiseSquashingParameters {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum TestReRandomizationConfiguration {
+    LegacyDedicatedCompactPublicKeyWithKeySwitch,
+    DerivedCompactPublicKeyWithoutKeySwitch,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TestMetaParameters {
     pub compute_parameters: TestParameterSet,
     pub dedicated_compact_public_key_parameters: Option<TestDedicatedCompactPublicKeyParameters>,
     pub compression_parameters: Option<TestCompressionParameterSet>,
     pub noise_squashing_parameters: Option<TestMetaNoiseSquashingParameters>,
+    pub rerand_configuration: Option<TestReRandomizationConfiguration>,
 }
 
 pub fn dir_for_version<P: AsRef<Path>>(data_dir: P, version: &str) -> PathBuf {

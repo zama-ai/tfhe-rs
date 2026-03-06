@@ -8,10 +8,12 @@ use crate::core_crypto::prelude::{CastInto, UnsignedInteger};
 use crate::named::Named;
 use crate::shortint::backward_compatibility::parameters::{
     DedicatedCompactPublicKeyParametersVersions, MetaParametersVersions,
+    ReRandomizationConfigurationVersions,
 };
 use crate::shortint::parameters::{
     Backend, CompactPublicKeyEncryptionParameters, CompressionParameters,
-    MetaNoiseSquashingParameters, ShortintKeySwitchingParameters, SupportedCompactPkeZkScheme,
+    MetaNoiseSquashingParameters, ReRandomizationParameters, ShortintKeySwitchingParameters,
+    SupportedCompactPkeZkScheme,
 };
 use crate::shortint::{
     AtomicPatternParameters, CarryModulus, EncryptionKeyChoice, MessageModulus,
@@ -31,6 +33,22 @@ pub struct DedicatedCompactPublicKeyParameters {
     pub re_randomization_parameters: Option<ShortintKeySwitchingParameters>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[versionize(ReRandomizationConfigurationVersions)]
+/// An enum to indicate how the [`MetaParameters`] should resolve [`ReRandomizationParameters`].
+pub enum ReRandomizationConfiguration {
+    /// Use a provided [`DedicatedCompactPublicKeyParameters`] as long as the
+    /// [`ShortintKeySwitchingParameters`] parameters allow to go to the compute parameters under
+    /// the correct key. In the KS_PBS case (which is the only supported case) it means going to
+    /// ciphertexts encrypted under the large key.
+    LegacyDedicatedCompactPublicKeyWithKeySwitch,
+    /// [`CompactPublicKeyEncryptionParameters`]
+    /// will be derived from the available compute parameters and the corresponding secret key
+    /// should correspond to the encryption key of the compute parameters. The parameters are
+    /// restricted to the KS_PBS case (encryption under the large key).
+    DerivedCompactPublicKeyWithoutKeySwitch,
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(MetaParametersVersions)]
 pub struct MetaParameters {
@@ -44,6 +62,8 @@ pub struct MetaParameters {
     pub compression_parameters: Option<CompressionParameters>,
     /// Parameters for noise squashing
     pub noise_squashing_parameters: Option<MetaNoiseSquashingParameters>,
+    /// Configuration to use for re-randomization
+    pub rerand_configuration: Option<ReRandomizationConfiguration>,
 }
 
 impl Named for MetaParameters {
@@ -67,6 +87,88 @@ impl MetaParameters {
 
     pub fn failure_probability(&self) -> Log2PFail {
         Log2PFail(self.compute_parameters.log2_p_fail())
+    }
+
+    pub fn rerandomization_parameters(&self) -> Option<ReRandomizationParameters> {
+        match (
+            self.rerand_configuration,
+            self.dedicated_compact_public_key_parameters,
+        ) {
+            (
+                Some(ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch),
+                Some(DedicatedCompactPublicKeyParameters {
+                    pke_params: _,
+                    ksk_params: _,
+                    re_randomization_parameters: Some(re_randomization_parameters),
+                }),
+            ) => Some(ReRandomizationParameters::LegacyDedicatedCPKWithKeySwitch {
+                rerand_ksk_params: re_randomization_parameters,
+            }),
+            // Irrespective of the presence of dedicated CPK params if we ask for derived CPK for
+            // rerand we should generate one
+            (Some(ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch), _) => {
+                Some(ReRandomizationParameters::DerivedCPKWithoutKeySwitch)
+            }
+            _ => None,
+        }
+    }
+
+    pub const fn is_valid(&self) -> bool {
+        const fn dedicated_cpk_is_valid_has_no_rerand(sself: &MetaParameters) -> bool {
+            let Some(params) = sself.dedicated_compact_public_key_parameters else {
+                // No params is valid
+                return true;
+            };
+            let pke_valid = params.pke_params.is_valid();
+            pke_valid && params.re_randomization_parameters.is_none()
+        }
+
+        if let Some(rerand_configuration) = self.rerand_configuration {
+            match rerand_configuration {
+                ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch => {
+                    let Some(params) = self.dedicated_compact_public_key_parameters else {
+                        // we need params in the legacy case
+                        return false;
+                    };
+
+                    let pke_valid = params.pke_params.is_valid();
+                    // Legacy case, KSK needs to be present and target the big key for rerand
+                    match params.re_randomization_parameters {
+                        Some(rerand_ksk) => {
+                            pke_valid
+                                && matches!(rerand_ksk.destination_key, EncryptionKeyChoice::Big)
+                        }
+                        None => false,
+                    }
+                }
+                ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch => {
+                    let pke_params =
+                        CompactPublicKeyEncryptionParameters::from_shortint_parameter_set(
+                            crate::shortint::ShortintParameterSet::from_atomic_pattern_params(
+                                self.compute_parameters,
+                            ),
+                        );
+                    // need to match to be const
+                    let derived_params_are_ok = match pke_params {
+                        Ok(pke_params) => pke_params.is_valid(),
+                        Err(_) => return false,
+                    };
+
+                    derived_params_are_ok && dedicated_cpk_is_valid_has_no_rerand(self)
+                }
+            }
+        } else {
+            // No rerand config, check pke is valid and that there is no legacy rerand params
+            dedicated_cpk_is_valid_has_no_rerand(self)
+        }
+    }
+
+    pub const fn validate(self) -> Self {
+        if self.is_valid() {
+            return self;
+        }
+
+        panic!("Invalid MetaParameters",);
     }
 }
 
@@ -398,7 +500,6 @@ impl Default for PkeKeyswitchTargetChoice {
 pub struct DedicatedPublicKeyChoice {
     zk_scheme: CompactPkeZkSchemeChoice,
     pke_keyswitch_target: PkeKeyswitchTargetChoice,
-    require_re_rand: bool,
 }
 
 impl DedicatedPublicKeyChoice {
@@ -418,16 +519,7 @@ impl DedicatedPublicKeyChoice {
         self
     }
 
-    pub fn with_re_randomization(mut self, required: bool) -> Self {
-        self.require_re_rand = required;
-        self
-    }
-
     fn is_compatible(&self, dedicated_pk_params: &DedicatedCompactPublicKeyParameters) -> bool {
-        if self.require_re_rand && dedicated_pk_params.re_randomization_parameters.is_none() {
-            return false;
-        }
-
         self.pke_keyswitch_target
             .is_compatible(dedicated_pk_params.ksk_params.destination_key)
             && self
@@ -441,7 +533,6 @@ impl Default for DedicatedPublicKeyChoice {
         Self {
             zk_scheme: CompactPkeZkSchemeChoice::allow_all(),
             pke_keyswitch_target: PkeKeyswitchTargetChoice::allow_all(),
-            require_re_rand: false,
         }
     }
 }
@@ -463,6 +554,32 @@ impl NoiseSquashingChoice {
                 params.compression_parameters.is_some() == with_compression
             }
             (Self::No, None | Some(_)) => true,
+        }
+    }
+}
+
+/// Choices for the re-randomization
+#[derive(Copy, Clone, Debug)]
+pub enum ReRandomizationChoice {
+    /// Re-rand with legacy technique
+    YesWithLegacyTechnique,
+    /// Re-rand wit new technique
+    YesWithoutKeySwitch,
+    /// No re-rand
+    No,
+}
+
+impl ReRandomizationChoice {
+    fn is_compatible(self, parameters: &MetaParameters) -> bool {
+        match self {
+            Self::YesWithLegacyTechnique => parameters
+                .dedicated_compact_public_key_parameters
+                .is_some_and(|p| p.re_randomization_parameters.is_some()),
+            Self::YesWithoutKeySwitch => {
+                CompactPublicKeyEncryptionParameters::try_from(parameters.compute_parameters)
+                    .is_ok_and(|p| p.is_valid())
+            }
+            Self::No => true,
         }
     }
 }
@@ -490,7 +607,7 @@ pub struct MetaParametersFinder {
     dedicated_compact_public_key_choice: Option<DedicatedPublicKeyChoice>,
     use_compression: bool,
     noise_squashing_choice: NoiseSquashingChoice,
-    use_re_randomization: bool,
+    re_randomization_choice: ReRandomizationChoice,
 }
 
 impl MetaParametersFinder {
@@ -512,7 +629,7 @@ impl MetaParametersFinder {
             use_compression: false,
             noise_squashing_choice: NoiseSquashingChoice::No,
             noise_distribution: NoiseDistributionChoice::allow_all(),
-            use_re_randomization: false,
+            re_randomization_choice: ReRandomizationChoice::No,
         }
     }
 
@@ -566,8 +683,8 @@ impl MetaParametersFinder {
         self
     }
 
-    pub const fn with_re_randomization(mut self, enabled: bool) -> Self {
-        self.use_re_randomization = enabled;
+    pub const fn with_re_randomization(mut self, choice: ReRandomizationChoice) -> Self {
+        self.re_randomization_choice = choice;
         self
     }
 
@@ -618,6 +735,10 @@ impl MetaParametersFinder {
             }
         }
 
+        if !self.re_randomization_choice.is_compatible(parameters) {
+            return false;
+        }
+
         if self.use_compression && parameters.compression_parameters.is_none() {
             return false;
         }
@@ -639,12 +760,23 @@ impl MetaParametersFinder {
     fn fit(&self, parameters: &MetaParameters) -> Option<MetaParameters> {
         if self.is_compatible(parameters) {
             let mut result = *parameters;
-            if self.dedicated_compact_public_key_choice.is_none() {
-                result.dedicated_compact_public_key_parameters = None;
+
+            match self.re_randomization_choice {
+                ReRandomizationChoice::YesWithLegacyTechnique => (),
+                ReRandomizationChoice::YesWithoutKeySwitch => (),
+                ReRandomizationChoice::No => {
+                    result.rerand_configuration = None;
+                }
             }
 
-            if let Some(dedicated_pke_choice) = self.dedicated_compact_public_key_choice.as_ref() {
-                if !dedicated_pke_choice.require_re_rand {
+            if self.dedicated_compact_public_key_choice.is_some() {
+                // There is a CPK choice
+                if !matches!(
+                    self.re_randomization_choice,
+                    ReRandomizationChoice::YesWithLegacyTechnique
+                ) {
+                    // Remove the legacy re_randomization_parameters if we did not ask for a legacy
+                    // rerand
                     if let Some(pke_params) =
                         result.dedicated_compact_public_key_parameters.as_mut()
                     {
@@ -652,7 +784,14 @@ impl MetaParametersFinder {
                     }
                 }
             } else {
-                result.dedicated_compact_public_key_parameters = None;
+                // There is no CPK choice
+                // Nuke CPK params only if we did not ask for ReRand with legacy params
+                if !matches!(
+                    self.re_randomization_choice,
+                    ReRandomizationChoice::YesWithLegacyTechnique
+                ) {
+                    result.dedicated_compact_public_key_parameters = None;
+                }
             }
 
             if !self.use_compression {
@@ -808,6 +947,7 @@ mod tests {
             let mut expected =
                 super::super::v1_4::meta::cpu::V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV1_TUNIFORM_2M128;
             expected.dedicated_compact_public_key_parameters = None;
+            expected.rerand_configuration = None;
             assert_eq!(params, Some(expected));
 
             let finder = MetaParametersFinder::new(
@@ -888,6 +1028,7 @@ mod tests {
                 .as_mut()
                 .unwrap()
                 .re_randomization_parameters = None;
+            expected.rerand_configuration = None;
             assert_eq!(params, Some(expected));
 
             // Select SMALL, and dont care about ZK
@@ -901,9 +1042,9 @@ mod tests {
                     .with_zk_scheme(CompactPkeZkSchemeChoice::not_used())
                     .with_pke_switch(
                         PkeKeyswitchTargetChoice::new().allow(EncryptionKeyChoice::Small),
-                    )
-                    .with_re_randomization(true),
-            ));
+                    ),
+            ))
+            .with_re_randomization(ReRandomizationChoice::YesWithLegacyTechnique);
 
             let params = finder.find();
 
@@ -928,5 +1069,90 @@ mod tests {
             super::super::v1_4::meta::cpu::V1_4_META_PARAM_CPU_2_2_KS32_PBS_TUNIFORM_2M128;
 
         assert_eq!(params, Some(expected));
+    }
+
+    #[test]
+    fn test_parameter_finder_rerand() {
+        {
+            let finder = MetaParametersFinder::new(
+                Constraint::LessThanOrEqual(Log2PFail(-64.0)),
+                Backend::Cpu,
+            )
+            .with_compression(true)
+            .with_noise_squashing(NoiseSquashingChoice::Yes {
+                with_compression: true,
+            })
+            .with_version(Version(1, 6))
+            .with_re_randomization(ReRandomizationChoice::YesWithLegacyTechnique);
+
+            let params = finder.find();
+
+            assert_eq!(params, None);
+        }
+
+        {
+            let finder = MetaParametersFinder::new(
+                Constraint::LessThanOrEqual(Log2PFail(-64.0)),
+                Backend::Cpu,
+            )
+            .with_compression(true)
+            .with_noise_squashing(NoiseSquashingChoice::Yes {
+                with_compression: true,
+            })
+            .with_version(Version(1, 5))
+            .with_re_randomization(ReRandomizationChoice::YesWithLegacyTechnique);
+
+            let params = finder.find();
+
+            let expected =
+                super::super::v1_5::meta::cpu::V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+            assert_eq!(params, Some(expected));
+        }
+
+        {
+            let finder = MetaParametersFinder::new(
+                Constraint::LessThanOrEqual(Log2PFail(-64.0)),
+                Backend::Cpu,
+            )
+            .with_compression(true)
+            .with_noise_squashing(NoiseSquashingChoice::Yes {
+                with_compression: true,
+            })
+            .with_version(Version(1, 6))
+            .with_re_randomization(ReRandomizationChoice::YesWithoutKeySwitch);
+
+            let params = finder.find();
+
+            let mut expected =
+                super::super::v1_6::meta::cpu::V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+            expected.dedicated_compact_public_key_parameters = None;
+            assert_eq!(params, Some(expected));
+        }
+
+        {
+            let finder = MetaParametersFinder::new(
+                Constraint::LessThanOrEqual(Log2PFail(-64.0)),
+                Backend::Cpu,
+            )
+            .with_compression(true)
+            .with_noise_squashing(NoiseSquashingChoice::Yes {
+                with_compression: true,
+            })
+            .with_version(Version(1, 5))
+            .with_re_randomization(ReRandomizationChoice::No)
+            .with_dedicated_compact_public_key(Some(DedicatedPublicKeyChoice::new()));
+
+            let params = finder.find();
+
+            let mut expected =
+                super::super::v1_5::meta::cpu::V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+            expected
+                .dedicated_compact_public_key_parameters
+                .as_mut()
+                .unwrap()
+                .re_randomization_parameters = None;
+            expected.rerand_configuration = None;
+            assert_eq!(params, Some(expected));
+        }
     }
 }
