@@ -1,0 +1,35 @@
+[package]
+name = "tfhe-lints-snapshot"
+version = "0.1.0"
+description = "Backward-compatibility snapshot lint for TFHE-rs (VersionsDispatch metadata collection)"
+edition = "2021"
+publish = false
+autotests = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+clippy_utils = { git = "https://github.com/rust-lang/rust-clippy", rev = "54482290b5f32e6c6b57cc9e0a17153f432b0036" }
+dylint_linting = "5.0.0"
+tfhe-lints-common = { path = "../common" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+
+[dev-dependencies]
+dylint_testing = "5.0.0"
+serde = { version = "1.0", features = ["derive"] }
+tfhe-versionable = { version = "0.7.0", path = "../../tfhe-versionable" }
+
+[package.metadata.rust-analyzer]
+rustc_private = true
+
+[[example]]
+name = "versions_dispatch_snapshot"
+path = "tests/versions_dispatch_snapshot/main.rs"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(dylint_lib, values(any()))',
+] }
