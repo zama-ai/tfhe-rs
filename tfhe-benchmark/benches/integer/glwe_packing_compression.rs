@@ -1,17 +1,14 @@
 use benchmark::params_aliases::*;
 use benchmark::utilities::{
-    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, BitSizesSet, EnvConfig,
-    OperatorType,
+    get_bench_type, write_to_json, BenchmarkType, BitSizesSet, EnvConfig, OperatorType,
 };
 use criterion::{black_box, criterion_group, Criterion, Throughput};
 use rayon::prelude::*;
-use std::cmp::max;
 use tfhe::integer::ciphertext::CompressedCiphertextListBuilder;
 use tfhe::integer::{ClientKey, RadixCiphertext};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::LweCiphertextCount;
 use tfhe::shortint::MessageModulus;
-use tfhe::{get_pbs_count, reset_pbs_count};
 
 fn default_config(
     lwe_per_glwe: &LweCiphertextCount,
@@ -94,23 +91,54 @@ fn cpu_glwe_packing(c: &mut Criterion) {
                 });
             }
             BenchmarkType::Throughput => {
-                // Execute the operation once to know its cost.
-                let ct = cks.encrypt_radix(0_u32, num_blocks);
-                let mut builder = CompressedCiphertextListBuilder::new();
-                builder.push(ct);
-                let compressed = builder.build(&compression_key);
+                let elements = {
+                    #[cfg(any(feature = "gpu", feature = "hpu"))]
+                    {
+                        use benchmark::utilities::throughput_num_threads;
+                        use std::cmp::max;
+                        use tfhe::{get_pbs_count, reset_pbs_count};
 
-                reset_pbs_count();
-                let _: RadixCiphertext = compressed.get(0, &decompression_key).unwrap().unwrap();
-                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                        // Execute the operation once to know its cost.
+                        let ct = cks.encrypt_radix(0_u32, num_blocks);
+                        let mut builder = CompressedCiphertextListBuilder::new();
+                        builder.push(ct);
+                        let compressed = builder.build(&compression_key);
 
-                let num_block =
-                    (bit_size as f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
-                let elements = throughput_num_threads(num_block, pbs_count);
-                // FIXME thread usage seemed to be somewhat more "efficient".
-                //  For example, with bit_size = 2, my laptop is only using around 2/3 of the
-                // available threads  Thread usage increases with bit_size = 8 but
-                // still isn't fully loaded.
+                        reset_pbs_count();
+                        let _: RadixCiphertext =
+                            compressed.get(0, &decompression_key).unwrap().unwrap();
+                        let pbs_count = max(get_pbs_count(), 1);
+                        let num_block = (bit_size as f64
+                            / (param.message_modulus.0 as f64).log(2.0))
+                        .ceil() as usize;
+                        throughput_num_threads(num_block, pbs_count)
+                    }
+                    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                    {
+                        use benchmark::find_optimal_batch::find_optimal_batch;
+                        use tfhe::integer::ciphertext::CompressedCiphertextList;
+                        let setup = |batch_size: usize| {
+                            (0..batch_size)
+                                .map(|_| {
+                                    let ct = cks.encrypt_radix(0_u32, num_blocks);
+                                    let mut builder = CompressedCiphertextListBuilder::new();
+                                    builder.push(ct);
+                                    builder.build(&compression_key)
+                                })
+                                .collect::<Vec<_>>()
+                        };
+                        let run = |inputs: &mut Vec<_>, _batch_size: usize| {
+                            inputs
+                                .par_iter()
+                                .for_each(|comp: &CompressedCiphertextList| {
+                                    comp.get::<RadixCiphertext>(0, &decompression_key)
+                                        .unwrap()
+                                        .unwrap();
+                                });
+                        };
+                        find_optimal_batch(run, setup) as u64
+                    }
+                };
                 bench_group.throughput(Throughput::Elements(elements));
 
                 let builders = (0..elements)

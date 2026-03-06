@@ -4,9 +4,7 @@ use benchmark::params_aliases::{
     BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     BENCH_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
 };
-use benchmark::utilities::{
-    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, OperatorType,
-};
+use benchmark::utilities::{get_bench_type, write_to_json, BenchmarkType, OperatorType};
 use criterion::{black_box, criterion_group, BatchSize, Criterion, Throughput};
 #[cfg(feature = "gpu")]
 use cuda::gpu_re_randomize_group;
@@ -97,7 +95,58 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize) {
             });
         }
         BenchmarkType::Throughput => {
-            let elements = throughput_num_threads(num_blocks, 1);
+            let elements = {
+                #[cfg(any(feature = "gpu", feature = "hpu"))]
+                {
+                    use benchmark::utilities::throughput_num_threads;
+                    throughput_num_threads(num_blocks, 1)
+                }
+                #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                {
+                    use benchmark::find_optimal_batch::find_optimal_batch;
+                    let setup = |batch_size: usize| {
+                        (0..batch_size)
+                            .into_par_iter()
+                            .map(|_| {
+                                let message = 42u64;
+                                let ct = cks.encrypt_radix(message, num_blocks);
+
+                                let mut builder = CompressedCiphertextListBuilder::new();
+                                builder.push(ct);
+                                let compressed = builder.build(&compression_key);
+
+                                compressed.get(0, &decompression_key).unwrap().unwrap()
+                            })
+                            .collect::<Vec<RadixCiphertext>>()
+                    };
+                    let run = |cts: &mut Vec<RadixCiphertext>, batch_size: usize| {
+                        let mut ctx = ReRandomizationContext::new(
+                            rerand_domain_separator,
+                            [metadata],
+                            compact_public_encryption_domain_separator,
+                        );
+                        for ct in cts.iter().take(batch_size) {
+                            ctx.add_ciphertext(ct);
+                        }
+                        let mut seed_gen = ctx.finalize();
+                        let seeds: Vec<_> = (0..batch_size)
+                            .map(|_| seed_gen.next_seed().unwrap())
+                            .collect();
+
+                        cts.par_iter_mut()
+                            .zip(seeds.into_par_iter())
+                            .take(batch_size)
+                            .for_each(|(d_re_randomized, seed)| {
+                                d_re_randomized
+                                    .re_randomize(&cpk, &ksk_material.as_view(), seed)
+                                    .unwrap();
+
+                                _ = black_box(&d_re_randomized);
+                            });
+                    };
+                    find_optimal_batch(run, setup) as u64
+                }
+            };
             bench_group.throughput(Throughput::Elements(elements));
 
             // Pre-generate and compress ciphertexts for throughput test
