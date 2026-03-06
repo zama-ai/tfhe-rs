@@ -7,8 +7,8 @@ This document outlines how to use the **TFHE-rs** WebAssembly (WASM) client API 
 **TFHE-rs** supports 3 WASM `targets`:
 
 * Node.js: For use in Node.js applications or packages
-* Web: For use in web browsers
-* Web-parallel: For use in web browsers with multi-threading support
+* Web: For use in web browsers without multi-threading support. Support parallelism via web workers.
+* Web-parallel: For use in web browsers with full multi-threading support
 
 The core of the API remains the same, requiring only minor changes in the initialization functions.
 
@@ -95,13 +95,114 @@ async function example() {
 }
 ```
 
+## Web (cross-origin parallelism)
+
+Standard multi-threading in WASM requires [cross-origin isolation](https://developer.mozilla.org/en-US/docs/Web/API/Window/crossOriginIsolated) (COOP/COEP headers) to enable `SharedArrayBuffer`. Some deployment environments cannot set these headers (e.g., when embedding in third-party pages or certain hosting platforms).
+
+**TFHE-rs** provides an alternative parallelism mode that works **without cross-origin isolation** by using a Service Worker coordinator and a message-passing–based worker pool. This mode is used to accelerate **zero-knowledge proof** computation in the browser.
+
+### Setup
+
+Cross-origin parallelism requires a **coordinator Service Worker** (`coordinator.js`) to be served at the root of your application. After compiling with `make build_web_js_api`, the `pkg/` directory will contain a `coordinator.js` module; you can simply copy it at the root of your web server.
+
+### Initialization from the main thread
+
+If your application runs entirely from the main page (no dedicated Web Worker), you can initialize everything in one call:
+
+```js
+import init, {
+    init_panic_hook,
+    init_cross_origin_worker_pool,
+} from "./pkg/tfhe.js";
+
+async function setup() {
+    await init();
+    await init_cross_origin_worker_pool(
+        "/coordinator.js",   // URL to the coordinator Service Worker
+        null,                // number of workers (null = auto-detect)
+    );
+    await init_panic_hook();
+    // TFHE-rs is ready, ZK proof operations will run in parallel
+}
+```
+
+Since the main thread JS cannot block, you need to build the list using the dedicated async method:
+```
+let list = await builder.build_with_proof_packed_async(
+      crs,
+      metadata,
+      ZkComputeLoad.Proof,
+);
+```
+
+
+### Initialization with a dedicated Web Worker (Comlink pattern)
+
+To reduce the overhead of synchronization between workers, it is advised to offload the encryption process to a Web Worker using a library like [Comlink](https://github.com/GoogleChromeLabs/comlink). In this case, the coordinator must be registered on the **main thread** before the worker initializes the pool:
+
+**Main thread (`index.js`):**
+
+```js
+import init, { register_cross_origin_coordinator } from "./pkg/tfhe.js";
+
+async function setup() {
+    await init();
+    // Register the coordinator Service Worker from the main thread
+    await register_cross_origin_coordinator("/sw.js");
+
+    // Then create a Web Worker that will call init_cross_origin_worker_pool_from_worker
+    const worker = new Worker(new URL("./worker.js", import.meta.url), {
+        type: "module",
+    });
+    // ...
+}
+```
+
+**Web Worker (`worker.js`):**
+
+```js
+import init, {
+    init_panic_hook,
+    init_cross_origin_worker_pool_from_worker,
+} from "./pkg/tfhe.js";
+
+async function main() {
+    await init();
+    await init_cross_origin_worker_pool_from_worker();
+    await init_panic_hook();
+    // TFHE-rs is ready, ZK proof operations will run in parallel
+}
+```
+
+### Runtime detection
+
+You can detect at runtime whether cross-origin isolation is available and fall back to cross-origin workers automatically:
+
+```js
+import { threads } from "wasm-feature-detect";
+import init, {
+    initThreadPool,
+    init_cross_origin_worker_pool,
+} from "./pkg/tfhe.js";
+
+await init();
+let supportsThreads = await threads();
+if (supportsThreads) {
+    // Standard SharedArrayBuffer parallelism
+    await initThreadPool(navigator.hardwareConcurrency);
+} else {
+    // Fallback: cross-origin worker pool
+    await init_cross_origin_worker_pool("/sw.js");
+}
+```
+
 ## Compiling the WASM API
 
 Use the provided Makefile in the **TFHE-rs** repository to compile for the desired target:
 
 * `make build_node_js_api` for the Node.js API
-* `make build_web_js_api` for the browser API
-* `make build_web_js_api_parallel` for the browser API with parallelism
+* `make build_web_js_api` for the browser API (also used for cross-origin parallelism)
+* `make build_web_js_api_parallel` for the browser API with parallelism (requires cross-origin isolation)
 
 The compiled WASM packages are located in `tfhe/pkg`.
 
