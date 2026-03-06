@@ -3,7 +3,7 @@
 use crate::core_crypto::commons::math::random::{
     ByteRandomGenerator, RandomGenerable, RandomGenerator, Seed, Seeder, Uniform,
 };
-use tfhe_csprng::seeders::SeedKind;
+use tfhe_csprng::generators::aes_ctr::AesCtrParams;
 
 /// Seeder backed by a CSPRNG
 ///
@@ -38,10 +38,9 @@ pub struct DeterministicSeeder<G: ByteRandomGenerator> {
 }
 
 impl<G: ByteRandomGenerator> DeterministicSeeder<G> {
-    pub fn new(seed: impl Into<SeedKind>) -> Self {
-        let seed: SeedKind = seed.into();
+    pub fn new(params: impl Into<AesCtrParams>) -> Self {
         Self {
-            generator: RandomGenerator::new(seed),
+            generator: RandomGenerator::new(params),
         }
     }
 }

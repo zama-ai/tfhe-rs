@@ -6,7 +6,7 @@ use crate::core_crypto::commons::math::torus::{UnsignedInteger, UnsignedTorus};
 use crate::core_crypto::commons::numeric::{CastInto, FloatingPoint};
 use crate::core_crypto::commons::parameters::CiphertextModulus;
 use rayon::prelude::*;
-use tfhe_csprng::generators::aes_ctr::AesCtrParams;
+use tfhe_csprng::generators::aes_ctr::{AesCtrParams, TableIndex};
 use tfhe_csprng::generators::{BytesPerChild, ChildrenCount, ForkError};
 
 use serde::{Deserialize, Serialize};
@@ -99,7 +99,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Self(G::new(params))
     }
 
-    pub fn next_table_index(&self) -> tfhe_csprng::generators::aes_ctr::TableIndex {
+    pub fn next_table_index(&self) -> Option<TableIndex> {
         self.0.next_table_index()
     }
 
