@@ -33,22 +33,26 @@ pub struct UcoreConfig {
     pub node_id: u8,
     pub cluster_first_nid: u8,
     pub cluster_last_nid: u8,
+    pub user_size: u16,
+    pub b2b_size: u16,
     _padding: [u8; 1],
     // NB: modification in this file must match the one in amc.c
-    _reserved_word: [u32; 63],
+    _reserved_word: [u32; 62],
 }
 // SAFETY: UcoreConfig is repr(C) with only Zeroable/Pod types
 unsafe impl Zeroable for UcoreConfig {}
 unsafe impl Pod for UcoreConfig {}
 
 impl UcoreConfig {
-    pub fn new(node_id: u8, cluster_first_nid: u8, cluster_last_nid: u8 ) -> Self {
+    pub fn new(node_id: u8, cluster_first_nid: u8, cluster_last_nid: u8, user_size: u16, b2b_size: u16) -> Self {
         Self {
             node_id,
             cluster_first_nid,
             cluster_last_nid,
+            user_size,
+            b2b_size,
             _padding: [0; 1],
-            _reserved_word: [u32::MAX; 63],
+            _reserved_word: [u32::MAX; 62],
         }
     }
 }
@@ -806,7 +810,12 @@ impl HpuNode {
 
         // Write runtime configuration
         // FW cut is view as u32 array, cost UcoreConfig accordingly
-        let fw_cfg = UcoreConfig::new(self.hid, self.cluster_first_nid, self.cluster_last_nid);
+        let fw_cfg = UcoreConfig::new(
+            self.hid,
+            self.cluster_first_nid,
+            self.cluster_last_nid,
+            config.board.user_size as u16,
+            config.board.b2b_size as u16);
         let fw_cfg_raw_u8 = bytemuck::bytes_of(&fw_cfg);
         let fw_cfg_raw_u32 = bytemuck::cast_slice::<u8, u32>(fw_cfg_raw_u8);
         self.fw_mem.write_cut_at(0, 0, fw_cfg_raw_u32);
