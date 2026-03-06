@@ -1,7 +1,7 @@
 use std::convert::Infallible;
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
-use crate::{CompactCiphertextList, Tag};
+use crate::{CompactCiphertextList, CompactCiphertextListBuilder, Tag};
 
 #[cfg(feature = "zk-pok")]
 use crate::ProvenCompactCiphertextList;
@@ -30,4 +30,9 @@ pub enum CompactCiphertextListVersions {
 #[derive(VersionsDispatch)]
 pub enum ProvenCompactCiphertextListVersions {
     V0(ProvenCompactCiphertextList),
+}
+
+#[derive(VersionsDispatch)]
+pub enum CompactCiphertextListBuilderVersions {
+    V0(CompactCiphertextListBuilder),
 }

@@ -13,7 +13,7 @@ use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::curve_api::Curve;
 use crate::proofs::pke_v2::Bound;
-use crate::proofs::GroupElements;
+use crate::proofs::{ComputeLoad, GroupElements};
 use crate::serialization::*;
 
 #[derive(VersionsDispatch)]
@@ -301,4 +301,14 @@ pub enum SerializablePKEv1DomainSeparatorsVersions {
 #[derive(VersionsDispatch)]
 pub enum BoundVersions {
     V0(Bound),
+}
+
+#[derive(VersionsDispatch)]
+pub enum SerializableProjectiveVersions<F> {
+    V0(SerializableProjective<F>),
+}
+
+#[derive(VersionsDispatch)]
+pub enum ComputeLoadVersions {
+    V0(ComputeLoad),
 }
