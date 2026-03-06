@@ -14,7 +14,7 @@ impl MeasureConfig {
         Self {
             target_ratio: 0.95,
             long_target_ratio: 0.80,
-            starting_batch_size: 8,
+            starting_batch_size: 1,
             minimum_time_per_batch: Duration::from_secs(3),
             duration_threshold_for_long_test: Duration::from_secs(30),
         }

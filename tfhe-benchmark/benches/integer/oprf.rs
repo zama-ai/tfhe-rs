@@ -1,13 +1,15 @@
 use benchmark::params::ParamsAndNumBlocksIter;
-use benchmark::utilities::{
-    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, OperatorType,
-};
+#[cfg(any(feature = "gpu", feature = "hpu"))]
+use benchmark::utilities::throughput_num_threads;
+use benchmark::utilities::{get_bench_type, write_to_json, BenchmarkType, OperatorType};
 use criterion::{black_box, Criterion, Throughput};
 use rayon::prelude::*;
+#[cfg(any(feature = "gpu", feature = "hpu"))]
 use std::cmp::max;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::IntegerKeyKind;
 use tfhe::keycache::NamedParam;
+#[cfg(any(feature = "gpu", feature = "hpu"))]
 use tfhe::{get_pbs_count, reset_pbs_count};
 use tfhe_csprng::seeders::Seed;
 
@@ -59,20 +61,39 @@ pub fn unsigned_oprf(c: &mut Criterion) {
             BenchmarkType::Throughput => {
                 let (_, sk) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                // Execute the operation once to know its cost.
-                reset_pbs_count();
-                sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
-                    Seed(0),
-                    bit_size as u64,
-                    num_block as u64,
-                );
-                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
-
                 bench_id_oprf = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 bench_id_oprf_bounded =
                     format!("{bench_name}_bounded::throughput::{param_name}::{bit_size}_bits");
 
-                let elements = throughput_num_threads(num_block, pbs_count);
+                let elements = {
+                    #[cfg(any(feature = "gpu", feature = "hpu"))]
+                    {
+                        // Execute the operation once to know its cost.
+                        reset_pbs_count();
+                        sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                            Seed(0),
+                            bit_size as u64,
+                            num_block as u64,
+                        );
+                        let pbs_count = max(get_pbs_count(), 1);
+                        throughput_num_threads(num_block, pbs_count)
+                    }
+                    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                    {
+                        use benchmark::find_optimal_batch::find_optimal_batch;
+                        let setup = |_batch_size: usize| ();
+                        let run = |_: &mut (), batch_size: usize| {
+                            (0..batch_size).into_par_iter().for_each(|_| {
+                                sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                                    Seed(0),
+                                    bit_size as u64,
+                                    num_block as u64,
+                                );
+                            });
+                        };
+                        find_optimal_batch(run, setup) as u64
+                    }
+                };
                 bench_group.throughput(Throughput::Elements(elements));
 
                 bench_group.bench_function(&bench_id_oprf, |b| {
@@ -124,7 +145,6 @@ pub mod cuda {
     use super::*;
     use benchmark::utilities::cuda_integer_utils::cuda_local_keys;
     use criterion::black_box;
-    use std::cmp::max;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::gpu::server_key::CudaServerKey;
     use tfhe::GpuIndex;

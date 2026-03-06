@@ -10,19 +10,21 @@ mod vector_find;
 mod rerand;
 
 use benchmark::params::ParamsAndNumBlocksIter;
-use benchmark::utilities::{
-    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, EnvConfig, OperatorType,
-};
+#[cfg(any(feature = "gpu", feature = "hpu"))]
+use benchmark::utilities::throughput_num_threads;
+use benchmark::utilities::{get_bench_type, write_to_json, BenchmarkType, EnvConfig, OperatorType};
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
 use std::cell::LazyCell;
+#[cfg(any(feature = "gpu", feature = "hpu"))]
 use std::cmp::max;
 use std::env;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::prelude::*;
 use tfhe::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, U256};
 use tfhe::keycache::NamedParam;
+#[cfg(any(feature = "gpu", feature = "hpu"))]
 use tfhe::{get_pbs_count, reset_pbs_count};
 
 /// The type used to hold scalar values
@@ -151,44 +153,54 @@ fn bench_server_key_binary_function_clean_inputs<F>(
             BenchmarkType::Throughput => {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                // Execute the operation once to know its cost.
-                let clear_0 = gen_random_u256(&mut rng);
-                let ct_0 = cks.encrypt_radix(clear_0, num_block);
-                let clear_1 = gen_random_u256(&mut rng);
-                let ct_1 = cks.encrypt_radix(clear_1, num_block);
-
-                reset_pbs_count();
-                binary_op(&sks, &ct_0, &ct_1);
-                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
-
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 bench_group
                     .sample_size(10)
                     .measurement_time(std::time::Duration::from_secs(30));
-                let elements = throughput_num_threads(num_block, pbs_count);
+                let setup = |batch_size: usize| {
+                    let mut rng = rand::thread_rng();
+                    let cts_0 = (0..batch_size)
+                        .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
+                        .collect::<Vec<_>>();
+                    let cts_1 = (0..batch_size)
+                        .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
+                        .collect::<Vec<_>>();
+                    (cts_0, cts_1)
+                };
+                let run = |inputs: &mut (Vec<RadixCiphertext>, Vec<RadixCiphertext>)| {
+                    inputs
+                        .0
+                        .par_iter()
+                        .zip(inputs.1.par_iter())
+                        .for_each(|(ct_0, ct_1)| {
+                            binary_op(&sks, ct_0, ct_1);
+                        });
+                };
+                let elements = {
+                    #[cfg(any(feature = "gpu", feature = "hpu"))]
+                    {
+                        // Execute the operation once to know its cost.
+                        let clear_0 = gen_random_u256(&mut rng);
+                        let ct_0 = cks.encrypt_radix(clear_0, num_block);
+                        let clear_1 = gen_random_u256(&mut rng);
+                        let ct_1 = cks.encrypt_radix(clear_1, num_block);
+
+                        reset_pbs_count();
+                        binary_op(&sks, &ct_0, &ct_1);
+                        let pbs_count = max(get_pbs_count(), 1);
+                        throughput_num_threads(num_block, pbs_count)
+                    }
+                    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                    {
+                        use benchmark::find_optimal_batch::find_optimal_batch;
+                        find_optimal_batch(|inputs, _batch_size| run(inputs), setup) as u64
+                    }
+                };
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let setup_encrypted_values = || {
-                        let cts_0 = (0..elements)
-                            .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
-                            .collect::<Vec<_>>();
-                        let cts_1 = (0..elements)
-                            .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
-                            .collect::<Vec<_>>();
-
-                        (cts_0, cts_1)
-                    };
-
                     b.iter_batched(
-                        setup_encrypted_values,
-                        |(cts_0, cts_1)| {
-                            cts_0
-                                .par_iter()
-                                .zip(cts_1.par_iter())
-                                .for_each(|(ct_0, ct_1)| {
-                                    binary_op(&sks, ct_0, ct_1);
-                                })
-                        },
+                        || setup(elements as usize),
+                        |mut inputs| run(&mut inputs),
                         criterion::BatchSize::SmallInput,
                     )
                 });
@@ -321,33 +333,44 @@ fn bench_server_key_unary_function_clean_inputs<F>(
             BenchmarkType::Throughput => {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                // Execute the operation once to know its cost.
-                let clear_0 = gen_random_u256(&mut rng);
-                let ct_0 = cks.encrypt_radix(clear_0, num_block);
-
-                reset_pbs_count();
-                unary_fn(&sks, &ct_0);
-                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
-
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 bench_group
                     .sample_size(10)
                     .measurement_time(std::time::Duration::from_secs(30));
-                let elements = throughput_num_threads(num_block, pbs_count);
+                let setup = |batch_size: usize| {
+                    let mut rng = rand::thread_rng();
+                    (0..batch_size)
+                        .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
+                        .collect::<Vec<_>>()
+                };
+                let run = |inputs: &mut Vec<RadixCiphertext>| {
+                    inputs.par_iter().for_each(|ct_0| {
+                        unary_fn(&sks, ct_0);
+                    });
+                };
+                let elements = {
+                    #[cfg(any(feature = "gpu", feature = "hpu"))]
+                    {
+                        // Execute the operation once to know its cost.
+                        let clear_0 = gen_random_u256(&mut rng);
+                        let ct_0 = cks.encrypt_radix(clear_0, num_block);
+
+                        reset_pbs_count();
+                        unary_fn(&sks, &ct_0);
+                        let pbs_count = max(get_pbs_count(), 1);
+                        throughput_num_threads(num_block, pbs_count)
+                    }
+                    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                    {
+                        use benchmark::find_optimal_batch::find_optimal_batch;
+                        find_optimal_batch(|inputs, _batch_size| run(inputs), setup) as u64
+                    }
+                };
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let setup_encrypted_values = || {
-                        (0..elements)
-                            .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
-                            .collect::<Vec<_>>()
-                    };
                     b.iter_batched(
-                        setup_encrypted_values,
-                        |cts| {
-                            cts.par_iter().for_each(|ct_0| {
-                                unary_fn(&sks, ct_0);
-                            })
-                        },
+                        || setup(elements as usize),
+                        |mut inputs| run(&mut inputs),
                         criterion::BatchSize::SmallInput,
                     )
                 });
@@ -493,41 +516,53 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
             BenchmarkType::Throughput => {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                // Execute the operation once to know its cost.
-                let clear_0 = gen_random_u256(&mut rng);
-                let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
-                let clear_1 = rng_func(&mut rng, bit_size) & max_value_for_bit_size;
-
-                reset_pbs_count();
-                binary_op(&sks, &mut ct_0, clear_1);
-                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
-
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 bench_group
                     .sample_size(10)
                     .measurement_time(std::time::Duration::from_secs(30));
-                let elements = throughput_num_threads(num_block, pbs_count);
+                let setup = |batch_size: usize| {
+                    let mut rng = rand::thread_rng();
+                    let cts_0 = (0..batch_size)
+                        .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
+                        .collect::<Vec<_>>();
+                    let clears_1 = (0..batch_size)
+                        .map(|_| rng_func(&mut rng, bit_size) & max_value_for_bit_size)
+                        .collect::<Vec<_>>();
+                    (cts_0, clears_1)
+                };
+                let run = |inputs: &mut (Vec<RadixCiphertext>, Vec<ScalarType>)| {
+                    inputs
+                        .0
+                        .par_iter()
+                        .zip(inputs.1.par_iter())
+                        .for_each(|(ct_0, clear_1)| {
+                            binary_op(&sks, ct_0, *clear_1);
+                        });
+                };
+                let elements = {
+                    #[cfg(any(feature = "gpu", feature = "hpu"))]
+                    {
+                        // Execute the operation once to know its cost.
+                        let clear_0 = gen_random_u256(&mut rng);
+                        let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
+                        let clear_1 = rng_func(&mut rng, bit_size) & max_value_for_bit_size;
+
+                        reset_pbs_count();
+                        binary_op(&sks, &mut ct_0, clear_1);
+                        let pbs_count = max(get_pbs_count(), 1);
+                        throughput_num_threads(num_block, pbs_count)
+                    }
+                    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                    {
+                        use benchmark::find_optimal_batch::find_optimal_batch;
+                        find_optimal_batch(|inputs, _batch_size| run(inputs), setup) as u64
+                    }
+                };
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let setup_encrypted_values = || {
-                        let cts_0 = (0..elements)
-                            .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
-                            .collect::<Vec<_>>();
-                        let clears_1 = (0..elements)
-                            .map(|_| rng_func(&mut rng, bit_size) & max_value_for_bit_size)
-                            .collect::<Vec<_>>();
-
-                        (cts_0, clears_1)
-                    };
                     b.iter_batched(
-                        setup_encrypted_values,
-                        |(mut cts_0, clears_1)| {
-                            cts_0.par_iter_mut().zip(clears_1.par_iter()).for_each(
-                                |(ct_0, clear_1)| {
-                                    binary_op(&sks, ct_0, *clear_1);
-                                },
-                            )
-                        },
+                        || setup(elements as usize),
+                        |mut inputs| run(&mut inputs),
                         criterion::BatchSize::SmallInput,
                     )
                 });
@@ -621,52 +656,54 @@ fn if_then_else_parallelized(c: &mut Criterion) {
             BenchmarkType::Throughput => {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                // Execute the operation once to know its cost.
-                let clear_0 = gen_random_u256(&mut rng);
-                let true_ct = cks.encrypt_radix(clear_0, num_block);
-
-                let clear_1 = gen_random_u256(&mut rng);
-                let false_ct = cks.encrypt_radix(clear_1, num_block);
-
-                let condition = cks.encrypt_bool(rng.gen_bool(0.5));
-
-                reset_pbs_count();
-                sks.if_then_else_parallelized(&condition, &true_ct, &false_ct);
-                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
-
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 bench_group
                     .sample_size(10)
                     .measurement_time(std::time::Duration::from_secs(30));
-                let elements = throughput_num_threads(num_block, pbs_count);
+                let setup = |batch_size: usize| {
+                    let mut rng = rand::thread_rng();
+                    (0..batch_size)
+                        .map(|_| {
+                            let cond = cks.encrypt_bool(rng.gen_bool(0.5));
+                            let ct_then = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                            let ct_else = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                            (cond, ct_then, ct_else)
+                        })
+                        .collect::<Vec<_>>()
+                };
+                let run = |inputs: &mut Vec<_>| {
+                    inputs
+                        .par_iter()
+                        .for_each(|(condition, true_ct, false_ct)| {
+                            sks.if_then_else_parallelized(condition, true_ct, false_ct);
+                        });
+                };
+                let elements = {
+                    #[cfg(any(feature = "gpu", feature = "hpu"))]
+                    {
+                        // Execute the operation once to know its cost.
+                        let clear_0 = gen_random_u256(&mut rng);
+                        let true_ct = cks.encrypt_radix(clear_0, num_block);
+                        let clear_1 = gen_random_u256(&mut rng);
+                        let false_ct = cks.encrypt_radix(clear_1, num_block);
+                        let condition = cks.encrypt_bool(rng.gen_bool(0.5));
+
+                        reset_pbs_count();
+                        sks.if_then_else_parallelized(&condition, &true_ct, &false_ct);
+                        let pbs_count = max(get_pbs_count(), 1);
+                        throughput_num_threads(num_block, pbs_count)
+                    }
+                    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                    {
+                        use benchmark::find_optimal_batch::find_optimal_batch;
+                        find_optimal_batch(|inputs, _batch_size| run(inputs), setup) as u64
+                    }
+                };
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let setup_encrypted_values = || {
-                        let cts_cond = (0..elements)
-                            .map(|_| cks.encrypt_bool(rng.gen_bool(0.5)))
-                            .collect::<Vec<_>>();
-
-                        let cts_then = (0..elements)
-                            .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
-                            .collect::<Vec<_>>();
-                        let cts_else = (0..elements)
-                            .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
-                            .collect::<Vec<_>>();
-
-                        (cts_cond, cts_then, cts_else)
-                    };
-
                     b.iter_batched(
-                        setup_encrypted_values,
-                        |(cts_cond, cts_then, cts_else)| {
-                            cts_cond
-                                .par_iter()
-                                .zip(cts_then.par_iter())
-                                .zip(cts_else.par_iter())
-                                .for_each(|((condition, true_ct), false_ct)| {
-                                    sks.if_then_else_parallelized(condition, true_ct, false_ct);
-                                })
-                        },
+                        || setup(elements as usize),
+                        |mut inputs| run(&mut inputs),
                         criterion::BatchSize::SmallInput,
                     );
                 });
@@ -729,52 +766,54 @@ fn flip_parallelized(c: &mut Criterion) {
             BenchmarkType::Throughput => {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                // Execute the operation once to know its cost.
-                let clear_0 = gen_random_u256(&mut rng);
-                let true_ct = cks.encrypt_radix(clear_0, num_block);
-
-                let clear_1 = gen_random_u256(&mut rng);
-                let false_ct = cks.encrypt_radix(clear_1, num_block);
-
-                let condition = cks.encrypt_bool(rng.gen_bool(0.5));
-
-                reset_pbs_count();
-                sks.flip_parallelized(&condition, &true_ct, &false_ct);
-                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
-
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 bench_group
                     .sample_size(10)
                     .measurement_time(std::time::Duration::from_secs(30));
-                let elements = throughput_num_threads(num_block, pbs_count);
+                let setup = |batch_size: usize| {
+                    let mut rng = rand::thread_rng();
+                    (0..batch_size)
+                        .map(|_| {
+                            let cond = cks.encrypt_bool(rng.gen_bool(0.5));
+                            let ct_then = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                            let ct_else = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                            (cond, ct_then, ct_else)
+                        })
+                        .collect::<Vec<_>>()
+                };
+                let run = |inputs: &mut Vec<_>| {
+                    inputs
+                        .par_iter()
+                        .for_each(|(condition, true_ct, false_ct)| {
+                            sks.flip_parallelized(condition, true_ct, false_ct);
+                        });
+                };
+                let elements = {
+                    #[cfg(any(feature = "gpu", feature = "hpu"))]
+                    {
+                        // Execute the operation once to know its cost.
+                        let clear_0 = gen_random_u256(&mut rng);
+                        let true_ct = cks.encrypt_radix(clear_0, num_block);
+                        let clear_1 = gen_random_u256(&mut rng);
+                        let false_ct = cks.encrypt_radix(clear_1, num_block);
+                        let condition = cks.encrypt_bool(rng.gen_bool(0.5));
+
+                        reset_pbs_count();
+                        sks.flip_parallelized(&condition, &true_ct, &false_ct);
+                        let pbs_count = max(get_pbs_count(), 1);
+                        throughput_num_threads(num_block, pbs_count)
+                    }
+                    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                    {
+                        use benchmark::find_optimal_batch::find_optimal_batch;
+                        find_optimal_batch(|inputs, _batch_size| run(inputs), setup) as u64
+                    }
+                };
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let setup_encrypted_values = || {
-                        let cts_cond = (0..elements)
-                            .map(|_| cks.encrypt_bool(rng.gen_bool(0.5)))
-                            .collect::<Vec<_>>();
-
-                        let cts_then = (0..elements)
-                            .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
-                            .collect::<Vec<_>>();
-                        let cts_else = (0..elements)
-                            .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
-                            .collect::<Vec<_>>();
-
-                        (cts_cond, cts_then, cts_else)
-                    };
-
                     b.iter_batched(
-                        setup_encrypted_values,
-                        |(cts_cond, cts_then, cts_else)| {
-                            cts_cond
-                                .par_iter()
-                                .zip(cts_then.par_iter())
-                                .zip(cts_else.par_iter())
-                                .for_each(|((condition, true_ct), false_ct)| {
-                                    sks.flip_parallelized(condition, true_ct, false_ct);
-                                })
-                        },
+                        || setup(elements as usize),
+                        |mut inputs| run(&mut inputs),
                         criterion::BatchSize::SmallInput,
                     );
                 });
@@ -841,22 +880,8 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
                 BenchmarkType::Throughput => {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                    // Execute the operation once to know its cost.
                     let nb_ctxt = bit_size.div_ceil(param.message_modulus().0.ilog2() as usize);
                     let cks = RadixClientKey::from((cks, nb_ctxt));
-
-                    let clears = (0..len)
-                        .map(|_| gen_random_u256(&mut rng) & max_for_bit_size)
-                        .collect::<Vec<_>>();
-                    let ctxts = clears
-                        .iter()
-                        .copied()
-                        .map(|clear| cks.encrypt(clear))
-                        .collect::<Vec<_>>();
-
-                    reset_pbs_count();
-                    sks.sum_ciphertexts_parallelized(&ctxts);
-                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     bench_id = format!(
                         "{bench_name}_{len}_ctxts::throughput::{param_name}::{bit_size}_bits"
@@ -864,34 +889,55 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
                     bench_group
                         .sample_size(10)
                         .measurement_time(std::time::Duration::from_secs(30));
-                    let elements = throughput_num_threads(num_block, pbs_count);
+                    let setup = |batch_size: usize| {
+                        let mut rng = rand::thread_rng();
+                        (0..batch_size)
+                            .map(|_| {
+                                let clears = (0..len)
+                                    .map(|_| gen_random_u256(&mut rng) & max_for_bit_size)
+                                    .collect::<Vec<_>>();
+                                clears
+                                    .iter()
+                                    .copied()
+                                    .map(|clear| cks.encrypt(clear))
+                                    .collect::<Vec<_>>()
+                            })
+                            .collect::<Vec<_>>()
+                    };
+                    let run = |inputs: &mut Vec<_>| {
+                        inputs.par_iter().for_each(|ctxts| {
+                            sks.sum_ciphertexts_parallelized(ctxts);
+                        });
+                    };
+                    let elements = {
+                        #[cfg(any(feature = "gpu", feature = "hpu"))]
+                        {
+                            // Execute the operation once to know its cost.
+                            let clears = (0..len)
+                                .map(|_| gen_random_u256(&mut rng) & max_for_bit_size)
+                                .collect::<Vec<_>>();
+                            let ctxts = clears
+                                .iter()
+                                .copied()
+                                .map(|clear| cks.encrypt(clear))
+                                .collect::<Vec<_>>();
+
+                            reset_pbs_count();
+                            sks.sum_ciphertexts_parallelized(&ctxts);
+                            let pbs_count = max(get_pbs_count(), 1);
+                            throughput_num_threads(num_block, pbs_count)
+                        }
+                        #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                        {
+                            use benchmark::find_optimal_batch::find_optimal_batch;
+                            find_optimal_batch(|inputs, _batch_size| run(inputs), setup) as u64
+                        }
+                    };
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
-                        let setup_encrypted_values = || {
-                            (0..elements)
-                                .map(|_| {
-                                    let clears = (0..len)
-                                        .map(|_| gen_random_u256(&mut rng) & max_for_bit_size)
-                                        .collect::<Vec<_>>();
-
-                                    let ctxts = clears
-                                        .iter()
-                                        .copied()
-                                        .map(|clear| cks.encrypt(clear))
-                                        .collect::<Vec<_>>();
-
-                                    ctxts
-                                })
-                                .collect::<Vec<_>>()
-                        };
-
                         b.iter_batched(
-                            setup_encrypted_values,
-                            |cts| {
-                                cts.par_iter().for_each(|ctxts| {
-                                    sks.sum_ciphertexts_parallelized(ctxts);
-                                })
-                            },
+                            || setup(elements as usize),
+                            |mut inputs| run(&mut inputs),
                             criterion::BatchSize::SmallInput,
                         );
                     });

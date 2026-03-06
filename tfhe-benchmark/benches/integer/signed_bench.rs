@@ -66,38 +66,50 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
             BenchmarkType::Throughput => {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                // Execute the operation once to know its cost.
-                let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
-                let ct_1 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
-
-                reset_pbs_count();
-                binary_op(&sks, &ct_0, &ct_1);
-                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
-
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                let elements = throughput_num_threads(num_block, pbs_count);
+                let setup = |batch_size: usize| {
+                    let mut rng = rand::thread_rng();
+                    let cts_0 = (0..batch_size)
+                        .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                        .collect::<Vec<_>>();
+                    let cts_1 = (0..batch_size)
+                        .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                        .collect::<Vec<_>>();
+                    (cts_0, cts_1)
+                };
+                let run =
+                    |inputs: &mut (Vec<SignedRadixCiphertext>, Vec<SignedRadixCiphertext>)| {
+                        inputs
+                            .0
+                            .par_iter()
+                            .zip(inputs.1.par_iter())
+                            .for_each(|(ct_0, ct_1)| {
+                                binary_op(&sks, ct_0, ct_1);
+                            });
+                    };
+                let elements = {
+                    #[cfg(any(feature = "gpu", feature = "hpu"))]
+                    {
+                        // Execute the operation once to know its cost.
+                        let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                        let ct_1 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+
+                        reset_pbs_count();
+                        binary_op(&sks, &ct_0, &ct_1);
+                        let pbs_count = max(get_pbs_count(), 1);
+                        throughput_num_threads(num_block, pbs_count)
+                    }
+                    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                    {
+                        use benchmark::find_optimal_batch::find_optimal_batch;
+                        find_optimal_batch(|inputs, _batch_size| run(inputs), setup) as u64
+                    }
+                };
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let setup_encrypted_values = || {
-                        let cts_0 = (0..elements)
-                            .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
-                            .collect::<Vec<_>>();
-                        let cts_1 = (0..elements)
-                            .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
-                            .collect::<Vec<_>>();
-
-                        (cts_0, cts_1)
-                    };
-
                     b.iter_batched(
-                        setup_encrypted_values,
-                        |(mut cts_0, mut cts_1)| {
-                            cts_0.par_iter_mut().zip(cts_1.par_iter_mut()).for_each(
-                                |(ct_0, ct_1)| {
-                                    binary_op(&sks, ct_0, ct_1);
-                                },
-                            )
-                        },
+                        || setup(elements as usize),
+                        |mut inputs| run(&mut inputs),
                         criterion::BatchSize::SmallInput,
                     )
                 });
