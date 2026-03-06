@@ -145,6 +145,15 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## Usage in web browsers
+
+Zero-knowledge proof computation can be accelerated with parallelism in the browser using the WASM API. Two modes are available:
+
+* **Cross-origin isolated mode**: Uses `SharedArrayBuffer` with `initThreadPool`. Requires COOP/COEP headers.
+* **Cross-origin worker mode**: Uses a Service Worker–based worker pool. Works on any website without special headers.
+
+See the [JS on WASM API documentation](../../integration/js-on-wasm-api.md) for setup instructions.
+
 ## Benchmark
 
 Please refer to the [Zero-knowledge proof benchmarks](../../getting-started/benchmarks/zk-proof-benchmarks.md) for detailed performance benchmark results.
