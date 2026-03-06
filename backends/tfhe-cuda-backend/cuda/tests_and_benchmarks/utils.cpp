@@ -1,6 +1,7 @@
 #include <algorithm>
 #include "pbs/programmable_bootstrap.h"
 #include "pbs/programmable_bootstrap_multibit.h"
+#include "pbs/programmable_bootstrap_testing.h"
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -171,6 +172,91 @@ void generate_lwe_programmable_bootstrap_keys(cudaStream_t stream, uint32_t gpu_
     cuda_convert_lwe_programmable_bootstrap_key_64_async(stream, gpu_index, (void *)(d_fourier_bsk), (void *)(bsk),
                                       lwe_dimension, glwe_dimension,
                                       pbs_level, polynomial_size);
+    shift_in += lwe_dimension;
+    shift_out += glwe_dimension * polynomial_size;
+    shift_bsk += bsk_size;
+  }
+  cuda_synchronize_stream(stream, gpu_index);
+  free(bsk_array);
+}
+
+//Force the vanilla layout of the bsk for the classical TBC.
+void generate_lwe_programmable_bootstrap_keys_standard(
+    cudaStream_t stream, uint32_t gpu_index, double **d_fourier_bsk_array,
+    uint64_t *lwe_sk_in_array, uint64_t *lwe_sk_out_array, int lwe_dimension,
+    int glwe_dimension, int polynomial_size, int pbs_level, int pbs_base_log,
+    Seed *seed, DynamicDistribution noise_distribution,
+    const unsigned repetitions) {
+  size_t bsk_size = safe_mul(
+      safe_mul(glwe_dimension + 1, glwe_dimension + 1, pbs_level,
+               polynomial_size),
+      (size_t)(lwe_dimension + 1));
+  size_t bsk_array_size = safe_mul(bsk_size, repetitions);
+
+  uint64_t *bsk_array =
+      (uint64_t *)malloc(safe_mul_sizeof<uint64_t>(bsk_array_size));
+  *d_fourier_bsk_array = (double *)cuda_malloc_async(
+      safe_mul_sizeof<double>(bsk_array_size), stream, gpu_index);
+  int shift_in = 0;
+  int shift_out = 0;
+  int shift_bsk = 0;
+
+  for (uint r = 0; r < repetitions; r++) {
+    core_crypto_par_generate_lwe_bootstrapping_key(
+        bsk_array + (ptrdiff_t)(shift_bsk), pbs_base_log, pbs_level,
+        lwe_sk_in_array + (ptrdiff_t)(shift_in), lwe_dimension,
+        lwe_sk_out_array + (ptrdiff_t)(shift_out), glwe_dimension,
+        polynomial_size, noise_distribution, seed->lo, seed->hi);
+    double *d_fourier_bsk = *d_fourier_bsk_array + (ptrdiff_t)(shift_bsk);
+    uint64_t *bsk = bsk_array + (ptrdiff_t)(shift_bsk);
+    cuda_synchronize_stream(stream, gpu_index);
+    cuda_convert_lwe_programmable_bootstrap_key_standard_64_async(
+        stream, gpu_index, (void *)(d_fourier_bsk), (void *)(bsk),
+        lwe_dimension, glwe_dimension, pbs_level, polynomial_size);
+    shift_in += lwe_dimension;
+    shift_out += glwe_dimension * polynomial_size;
+    shift_bsk += bsk_size;
+  }
+  cuda_synchronize_stream(stream, gpu_index);
+  free(bsk_array);
+}
+
+// Use the bsk layout required by the specialized 2_2 classical PBS kernel.
+void generate_lwe_programmable_bootstrap_keys_specialized_2_2(
+    cudaStream_t stream, uint32_t gpu_index, double **d_fourier_bsk_array,
+    uint64_t *lwe_sk_in_array, uint64_t *lwe_sk_out_array, int lwe_dimension,
+    int glwe_dimension, int polynomial_size, int pbs_level, int pbs_base_log,
+    Seed *seed, DynamicDistribution noise_distribution,
+    const unsigned repetitions) {
+  size_t bsk_size = safe_mul(
+      safe_mul(glwe_dimension + 1, glwe_dimension + 1, pbs_level,
+               polynomial_size),
+      (size_t)(lwe_dimension + 1));
+  size_t bsk_array_size = safe_mul(bsk_size, repetitions);
+
+  uint64_t *bsk_array =
+      (uint64_t *)malloc(safe_mul_sizeof<uint64_t>(bsk_array_size));
+  *d_fourier_bsk_array = (double *)cuda_malloc_async(
+      safe_mul_sizeof<double>(bsk_array_size), stream, gpu_index);
+  int shift_in = 0;
+  int shift_out = 0;
+  int shift_bsk = 0;
+
+  for (uint r = 0; r < repetitions; r++) {
+    core_crypto_par_generate_lwe_bootstrapping_key(
+        bsk_array + (ptrdiff_t)(shift_bsk), pbs_base_log, pbs_level,
+        lwe_sk_in_array + (ptrdiff_t)(shift_in), lwe_dimension,
+        lwe_sk_out_array + (ptrdiff_t)(shift_out), glwe_dimension,
+        polynomial_size, noise_distribution, seed->lo, seed->hi);
+    double *d_fourier_bsk = *d_fourier_bsk_array + (ptrdiff_t)(shift_bsk);
+    uint64_t *bsk = bsk_array + (ptrdiff_t)(shift_bsk);
+    cuda_synchronize_stream(stream, gpu_index);
+    // Use forced-specialized BSK conversion (CC bypass) so the BSK layout
+    // matches what the specialized kernel (device_programmable_bootstrap_
+    // specialized_2_2_params) expects.
+    cuda_convert_lwe_programmable_bootstrap_key_specialized_2_2_64_async(
+        stream, gpu_index, (void *)(d_fourier_bsk), (void *)(bsk),
+        lwe_dimension, glwe_dimension, pbs_level, polynomial_size);
     shift_in += lwe_dimension;
     shift_out += glwe_dimension * polynomial_size;
     shift_bsk += bsk_size;
