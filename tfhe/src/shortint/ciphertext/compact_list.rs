@@ -9,7 +9,7 @@ use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::backward_compatibility::ciphertext::CompactCiphertextListVersions;
 pub use crate::shortint::parameters::ShortintCompactCiphertextListCastingMode;
 use crate::shortint::parameters::{
-    AtomicPatternKind, CarryModulus, CompactCiphertextListExpansionKind, MessageModulus,
+    CarryModulus, CompactCiphertextListExpansionKind, MessageModulus,
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -144,7 +144,7 @@ impl CompactCiphertextList {
                     .collect::<Vec<_>>();
                 Ok(res)
             }
-            (CompactCiphertextListExpansionKind::NoCasting(pbs_order), _) => {
+            (CompactCiphertextListExpansionKind::NoCasting(atomic_pattern), _) => {
                 let res = output_lwe_ciphertext_list
                     .iter()
                     .map(|lwe_view| {
@@ -152,7 +152,6 @@ impl CompactCiphertextList {
                             lwe_view.as_ref().to_vec(),
                             self.ct_list.ciphertext_modulus(),
                         );
-                        let atomic_pattern = AtomicPatternKind::Standard(pbs_order);
 
                         Ciphertext::new(
                             ct,

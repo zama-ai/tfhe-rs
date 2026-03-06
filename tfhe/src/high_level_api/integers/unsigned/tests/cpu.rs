@@ -524,17 +524,54 @@ fn test_safe_deserialize_conformant_compressed_fhe_uint32() {
 }
 
 #[test]
-fn test_safe_deserialize_conformant_compact_fhe_uint32() {
-    let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+fn test_safe_deserialize_conformant_compact_packed_fhe_uint32_ks_pbs() {
+    test_safe_deserialize_conformant_compact_fhe_uint32(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        true,
+    );
+}
+
+#[test]
+fn test_safe_deserialize_conformant_compact_packed_fhe_uint32_ks32() {
+    test_safe_deserialize_conformant_compact_fhe_uint32(
+        PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+        true,
+    );
+}
+
+#[test]
+fn test_safe_deserialize_conformant_compact_fhe_uint32_ks_pbs() {
+    test_safe_deserialize_conformant_compact_fhe_uint32(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        false,
+    );
+}
+
+#[test]
+fn test_safe_deserialize_conformant_compact_fhe_uint32_ks32() {
+    test_safe_deserialize_conformant_compact_fhe_uint32(
+        PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+        false,
+    );
+}
+
+fn test_safe_deserialize_conformant_compact_fhe_uint32(
+    block_params: impl Into<crate::shortint::atomic_pattern::AtomicPatternParameters>,
+    build_packed: bool,
+) {
     let (client_key, server_key) =
         generate_keys(ConfigBuilder::with_custom_parameters(block_params));
     set_server_key(server_key);
     let pk = CompactPublicKey::new(&client_key);
 
     let clears = [random::<u32>(), random::<u32>(), random::<u32>()];
-    let a = CompactCiphertextList::builder(&pk)
-        .extend(clears.iter().copied())
-        .build();
+    let mut builder = CompactCiphertextList::builder(&pk);
+    builder.extend(clears.iter().copied());
+    let a = if build_packed {
+        builder.build_packed()
+    } else {
+        builder.build()
+    };
     let mut serialized = vec![];
     SerializationConfig::new(1 << 20)
         .serialize_into(&a, &mut serialized)
