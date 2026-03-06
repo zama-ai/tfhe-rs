@@ -1,7 +1,8 @@
+#[cfg(not(any(feature = "gpu", feature = "hpu")))]
+use benchmark::find_optimal_batch::find_optimal_batch;
 use benchmark::high_level_api::type_display::*;
 use benchmark::utilities::{
-    get_bench_type, hlapi_throughput_num_ops, write_to_json, BenchmarkType, BitSizesSet, EnvConfig,
-    OperatorType,
+    get_bench_type, write_to_json, BenchmarkType, BitSizesSet, EnvConfig, OperatorType,
 };
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
@@ -96,20 +97,45 @@ where
             let value = rng.gen::<u128>();
             let value_to_add = Value::encrypt(value, cks);
 
-            let factor = hlapi_throughput_num_ops(
-                || {
-                    kv_store.map(&encrypted_key, |v| v);
-                },
-                cks,
-            )
-            .max(1);
+            let (elements, mut kv_stores) = {
+                #[cfg(any(feature = "gpu", feature = "hpu"))]
+                {
+                    use benchmark::utilities::hlapi_throughput_num_ops;
+                    let factor = hlapi_throughput_num_ops(
+                        || {
+                            kv_store.map(&encrypted_key, |v| v);
+                        },
+                        cks,
+                    )
+                    .max(1);
 
-            let mut kv_stores = vec![];
-            for _ in 0..factor {
-                kv_stores.push(kv_store.clone());
-            }
+                    let mut kv_stores = vec![];
+                    for _ in 0..factor {
+                        kv_stores.push(kv_store.clone());
+                    }
 
-            bench_group.throughput(Throughput::Elements(kv_stores.len() as u64));
+                    (kv_stores.len() as u64, kv_stores)
+                }
+                #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                {
+                    let setup = |batch_size: usize| {
+                        (0..batch_size)
+                            .map(|_| kv_store.clone())
+                            .collect::<Vec<_>>()
+                    };
+                    let run = |kv_stores: &mut Vec<_>, batch_size: usize| {
+                        kv_stores.par_iter_mut().take(batch_size).for_each(
+                            |kv_store: &mut KVStore<Key, Value>| {
+                                kv_store.map(&encrypted_key, |v| v);
+                            },
+                        )
+                    };
+                    let elements = find_optimal_batch(run, setup);
+                    (elements as u64, setup(elements))
+                }
+            };
+
+            bench_group.throughput(Throughput::Elements(elements));
 
             bench_id_get = format_id_bench("get::throughput");
             bench_group.bench_function(&bench_id_get, |b| {

@@ -1556,6 +1556,13 @@ bench_integer_compression_128b_gpu: install_rs_check_toolchain
 	--bench	glwe_packing_compression_128b-integer-bench \
 	--features=integer,internal-keycache,gpu,pbs-stats -p tfhe-benchmark --
 
+.PHONY: bench_integer_rerand # Run benchmarks for integer rerand
+bench_integer_rerand: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-rerand \
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
+
 .PHONY: bench_integer_zk_gpu
 bench_integer_zk_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
