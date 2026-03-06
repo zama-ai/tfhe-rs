@@ -2,12 +2,11 @@ mod internal;
 #[cfg(test)]
 mod test;
 
-use crate::keys::IntegerServerKeyConformanceParams;
-use crate::prelude::ParameterSetConformant;
-use crate::shortint::client_key::atomic_pattern::EncryptionAtomicPattern;
-
 use crate::backward_compatibility::xof_key_set::CompressedXofKeySetVersions;
 use crate::core_crypto::commons::generators::MaskRandomGenerator;
+use crate::keys::IntegerServerKeyConformanceParams;
+use crate::prelude::{ParameterSetConformant, Tagged};
+use crate::shortint::client_key::atomic_pattern::EncryptionAtomicPattern;
 
 use crate::core_crypto::commons::math::random::RandomGenerator;
 use crate::core_crypto::prelude::*;
@@ -108,9 +107,12 @@ impl CompressedXofKeySet {
         max_norm_hwt: NormalizedHammingWeightBound,
         tag: Tag,
     ) -> crate::Result<(ClientKey, Self)> {
+        if security_bits == 0 {
+            return Err(crate::error!("security_bits must be non-zero"));
+        }
         let mut private_generator = RandomGenerator::<DefaultRandomGenerator>::new(private_seed);
 
-        let mut public_seed_bytes = vec![0u8; security_bits as usize / 8];
+        let mut public_seed_bytes = vec![0u8; security_bits.div_ceil(8) as usize];
         private_generator.fill_slice_with_random_uniform(&mut public_seed_bytes);
         let public_seed = XofSeed::new(public_seed_bytes, public_seed_separator);
 
@@ -323,7 +325,9 @@ impl CompressedXofKeySet {
     /// Decompress the KeySet
     pub fn decompress(self) -> crate::Result<XofKeySet> {
         let tag = self.compressed_server_key.tag.clone();
-        let (public_key, expanded_server_key) = self.expand();
+        let (mut public_key, expanded_server_key) = self.expand();
+        // Server key tag is the source of truth; sync public key
+        public_key.tag_mut().set_data(tag.data());
         let integer_server_key = expanded_server_key.convert_to_cpu();
         let server_key = ServerKey {
             key: std::sync::Arc::new(integer_server_key),
@@ -353,9 +357,13 @@ impl CompressedXofKeySet {
 
     pub fn from_raw_parts(
         pub_seed: XofSeed,
-        compressed_public_key: CompressedCompactPublicKey,
+        mut compressed_public_key: CompressedCompactPublicKey,
         compressed_server_key: CompressedServerKey,
     ) -> Self {
+        // Server key tag is the source of truth for Tagged impl
+        compressed_public_key
+            .tag_mut()
+            .set_data(compressed_server_key.tag.data());
         Self {
             seed: pub_seed,
             compressed_public_key,
@@ -366,9 +374,14 @@ impl CompressedXofKeySet {
     pub fn into_raw_parts(self) -> (XofSeed, CompressedCompactPublicKey, CompressedServerKey) {
         let Self {
             seed,
-            compressed_public_key,
+            mut compressed_public_key,
             compressed_server_key,
         } = self;
+
+        // Server key tag is the source of truth for Tagged impl
+        compressed_public_key
+            .tag_mut()
+            .set_data(compressed_server_key.tag.data());
 
         (seed, compressed_public_key, compressed_server_key)
     }
@@ -409,6 +422,16 @@ impl ParameterSetConformant for CompressedXofKeySet {
     }
 }
 
+impl Tagged for CompressedXofKeySet {
+    fn tag(&self) -> &Tag {
+        &self.compressed_server_key.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.compressed_server_key.tag
+    }
+}
+
 /// KeySet which contains the public material (public key and server key)
 /// of the [Threshold (Fully) Homomorphic Encryption]
 ///
@@ -427,8 +450,22 @@ impl Named for XofKeySet {
 }
 
 impl XofKeySet {
-    pub fn into_raw_parts(self) -> (CompactPublicKey, ServerKey) {
+    pub fn into_raw_parts(mut self) -> (CompactPublicKey, ServerKey) {
+        // Server key tag is the source of truth for Tagged impl
+        self.public_key
+            .tag_mut()
+            .set_data(self.server_key.tag.data());
         (self.public_key, self.server_key)
+    }
+}
+
+impl Tagged for XofKeySet {
+    fn tag(&self) -> &Tag {
+        &self.server_key.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.server_key.tag
     }
 }
 
@@ -437,6 +474,7 @@ pub use gpu::CudaXofKeySet;
 
 #[cfg(feature = "gpu")]
 mod gpu {
+    use super::{Tag, Tagged};
     use std::sync::Arc;
 
     use crate::{CompactPublicKey, CudaServerKey};
@@ -448,8 +486,22 @@ mod gpu {
     }
 
     impl CudaXofKeySet {
-        pub fn into_raw_parts(self) -> (CompactPublicKey, CudaServerKey) {
+        pub fn into_raw_parts(mut self) -> (CompactPublicKey, CudaServerKey) {
+            // Server key tag is the source of truth for Tagged impl
+            self.public_key
+                .tag_mut()
+                .set_data(self.server_key.tag.data());
             (self.public_key, self.server_key)
+        }
+    }
+
+    impl Tagged for CudaXofKeySet {
+        fn tag(&self) -> &Tag {
+            &self.server_key.tag
+        }
+
+        fn tag_mut(&mut self) -> &mut Tag {
+            &mut self.server_key.tag
         }
     }
 
@@ -465,7 +517,9 @@ mod gpu {
             let streams = gpu_choice.into().build_streams();
             let tag = self.compressed_server_key.tag.clone();
 
-            let (public_key, expanded_server_key) = self.expand();
+            let (mut public_key, expanded_server_key) = self.expand();
+            // Server key tag is the source of truth; sync public key
+            public_key.tag_mut().set_data(tag.data());
             let key = expanded_server_key.convert_to_gpu(&streams)?;
 
             let server_key = CudaServerKey {
