@@ -159,7 +159,7 @@ __device__ __forceinline__ uint32_t extract_window_bigint(
 // Uses counting sort by bucket, then parallel tree reduction per bucket
 // Uses mixed addition (affine + projective) to save 3 field muls per add
 template <typename AffineType, typename ProjectiveType>
-__global__ void kernel_accumulate_all_windows(
+__global__ __launch_bounds__(128) void kernel_accumulate_all_windows(
     ProjectiveType *__restrict__ all_block_buckets, // [num_windows * num_blocks
                                                     // * bucket_count]
     const AffineType *__restrict__ points, const Scalar *__restrict__ scalars,
@@ -289,7 +289,7 @@ __global__ void kernel_accumulate_all_windows(
 // Grid: (num_windows * num_buckets) blocks
 // Each block reduces one (window, bucket) pair across all block contributions
 template <typename ProjectiveType>
-__global__ void kernel_reduce_all_windows(
+__global__ __launch_bounds__(256) void kernel_reduce_all_windows(
     ProjectiveType
         *__restrict__ all_final_buckets, // [num_windows * NUM_BUCKETS]
     const ProjectiveType
@@ -360,7 +360,7 @@ __global__ void kernel_reduce_all_windows(
 // Grid: num_windows blocks
 // Each block computes the window sum: sum(i * bucket[i]) for i=1..15
 template <typename ProjectiveType>
-__global__ void kernel_compute_window_sums(
+__global__ __launch_bounds__(64) void kernel_compute_window_sums(
     ProjectiveType *__restrict__ window_sums, // [num_windows]
     const ProjectiveType
         *__restrict__ all_final_buckets, // [num_windows * NUM_BUCKETS]

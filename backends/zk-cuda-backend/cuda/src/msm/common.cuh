@@ -8,8 +8,8 @@
 
 // Pippenger kernel: Clear buckets (works for both affine and projective points)
 template <typename PointType>
-__global__ void kernel_clear_buckets(PointType *__restrict__ buckets,
-                                     uint32_t num_buckets) {
+__global__ __launch_bounds__(256) void kernel_clear_buckets(
+    PointType *__restrict__ buckets, uint32_t num_buckets) {
   using AffinePoint = typename SelectorChooser<PointType>::Selection;
 
   uint32_t idx = threadIdx.x + blockIdx.x * blockDim.x;
@@ -22,10 +22,10 @@ __global__ void kernel_clear_buckets(PointType *__restrict__ buckets,
 // blocks OPTIMIZED: Uses parallel tree reduction instead of sequential loop
 // Launch config: <<<num_buckets, min(num_blocks, 256), shared_mem>>>
 template <typename ProjectiveType>
-__global__ void
-kernel_reduce_buckets(ProjectiveType *__restrict__ final_buckets,
-                      const ProjectiveType *__restrict__ block_buckets,
-                      uint32_t num_blocks, uint32_t num_buckets) {
+__global__ __launch_bounds__(256) void kernel_reduce_buckets(
+    ProjectiveType *__restrict__ final_buckets,
+    const ProjectiveType *__restrict__ block_buckets, uint32_t num_blocks,
+    uint32_t num_buckets) {
   using ProjectivePoint = Projective<ProjectiveType>;
 
   // Each block handles one bucket, threads cooperate to reduce all block

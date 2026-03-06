@@ -13,22 +13,22 @@
 
 // Forward declarations for projective point operations (implemented in
 // curve.cu)
-__host__ __device__ void projective_point_add(G1Projective &result,
-                                              const G1Projective &p1,
-                                              const G1Projective &p2);
-__host__ __device__ void projective_point_add(G2Projective &result,
-                                              const G2Projective &p1,
-                                              const G2Projective &p2);
-__host__ __device__ void projective_point_double(G1Projective &result,
-                                                 const G1Projective &p);
-__host__ __device__ void projective_point_double(G2Projective &result,
-                                                 const G2Projective &p);
-__host__ __device__ void projective_mixed_add(G1Projective &result,
-                                              const G1Projective &p1,
-                                              const G1Affine &p2);
-__host__ __device__ void projective_mixed_add(G2Projective &result,
-                                              const G2Projective &p1,
-                                              const G2Affine &p2);
+__host__ __device__ __noinline__ void
+projective_point_add(G1Projective &result, const G1Projective &p1,
+                     const G1Projective &p2);
+__host__ __device__ __noinline__ void
+projective_point_add(G2Projective &result, const G2Projective &p1,
+                     const G2Projective &p2);
+__host__ __device__ __noinline__ void
+projective_point_double(G1Projective &result, const G1Projective &p);
+__host__ __device__ __noinline__ void
+projective_point_double(G2Projective &result, const G2Projective &p);
+__host__ __device__ __noinline__ void
+projective_mixed_add(G1Projective &result, const G1Projective &p1,
+                     const G1Affine &p2);
+__host__ __device__ __noinline__ void
+projective_mixed_add(G2Projective &result, const G2Projective &p1,
+                     const G2Affine &p2);
 
 // ============================================================================
 // Affine<T>: trait for affine point operations
