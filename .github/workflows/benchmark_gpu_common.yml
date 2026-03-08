@@ -281,7 +281,7 @@ jobs:
           BENCH_TYPE: ${{ matrix.bench_type }}
 
       - name: Upload parsed results artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ github.sha }}_${{ matrix.command }}_${{ matrix.op_flavor }}_${{ inputs.profile }}_${{ matrix.bench_type }}_${{ matrix.params_type }}
           path: ${{ env.RESULTS_FILENAME }}

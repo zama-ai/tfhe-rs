@@ -271,7 +271,7 @@ jobs:
       - name: Upload profile artifact
         env:
           REPORT_NAME: ${{ steps.nsys_profile_name.outputs.profile }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${{ env.REPORT_NAME }}
           path: fhevm/coprocessor/fhevm-engine/tfhe-worker/${{ env.REPORT_NAME }}
@@ -302,7 +302,7 @@ jobs:
         working-directory: fhevm/
 
       - name: Upload parsed results artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: ${COMMIT_SHA}_${BENCHMARKS}_${{ needs.parse-inputs.outputs.profile }}
           path: fhevm/$${{ env.RESULTS_FILENAME }}
