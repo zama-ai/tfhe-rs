@@ -10,13 +10,30 @@ use criterion::{black_box, criterion_group, BatchSize, Criterion, Throughput};
 use cuda::gpu_re_randomize_group;
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::prelude::{IntoParallelIterator, IntoParallelRefMutIterator};
-use tfhe::integer::ciphertext::{CompressedCiphertextListBuilder, ReRandomizationContext};
+use tfhe::integer::ciphertext::{
+    CompressedCiphertextListBuilder, ReRandomizationContext, ReRandomizationKey,
+};
 use tfhe::integer::key_switching_key::{KeySwitchingKey, KeySwitchingKeyMaterial};
 use tfhe::integer::{gen_keys_radix, CompactPrivateKey, CompactPublicKey, RadixCiphertext};
 use tfhe::keycache::NamedParam;
 
-fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize) {
-    let bench_name = "integer::re_randomize";
+enum BenchReRandomizeMode {
+    LegacyWithKeyswitch,
+    NoKeyswitch,
+}
+
+impl std::fmt::Display for BenchReRandomizeMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BenchReRandomizeMode::LegacyWithKeyswitch => f.write_str("legacykeyswitch"),
+            BenchReRandomizeMode::NoKeyswitch => f.write_str("nokeyswitch"),
+        }
+    }
+}
+
+fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize, rerand_mode: BenchReRandomizeMode) {
+    let bench_name = format!("integer::re_randomize_{rerand_mode}");
+    let bench_name = &bench_name;
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
@@ -39,12 +56,29 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize) {
     let compression_key = compressed_compression_key.decompress();
     let decompression_key = compressed_decompression_key.decompress();
 
-    let cpk_private_key = CompactPrivateKey::new(cpk_param);
-    let cpk = CompactPublicKey::new(&cpk_private_key);
-    let ksk = KeySwitchingKey::new((&cpk_private_key, None), ((&cks), (&sks)), ks_param);
-    let ksk = ksk.into_raw_parts();
-    let (ksk_material, _, _) = ksk.into_raw_parts();
-    let ksk_material = KeySwitchingKeyMaterial::from_raw_parts(ksk_material);
+    let cpk;
+    let ksk_material;
+    let re_randomization_key = match rerand_mode {
+        BenchReRandomizeMode::LegacyWithKeyswitch => {
+            let compact_private_key = CompactPrivateKey::new(cpk_param);
+            cpk = CompactPublicKey::new(&compact_private_key);
+
+            let (shortint_ksk_material, _, _) =
+                KeySwitchingKey::new((&compact_private_key, None), ((&cks), (&sks)), ks_param)
+                    .into_raw_parts()
+                    .into_raw_parts();
+            ksk_material = KeySwitchingKeyMaterial::from_raw_parts(shortint_ksk_material);
+            ReRandomizationKey::LegacyDedicatedCPK {
+                cpk: &cpk,
+                ksk: ksk_material.as_view(),
+            }
+        }
+        BenchReRandomizeMode::NoKeyswitch => {
+            let compact_private_key: CompactPrivateKey<&[u64]> = cks.try_into().unwrap();
+            cpk = CompactPublicKey::new(&compact_private_key);
+            ReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk: &cpk }
+        }
+    };
 
     let rerand_domain_separator = *b"TFHE_Rrd";
     let compact_public_encryption_domain_separator = *b"TFHE_Enc";
@@ -81,11 +115,7 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize) {
                     },
                     |mut seed_gen| {
                         d_re_randomized
-                            .re_randomize(
-                                &cpk,
-                                &ksk_material.as_view(),
-                                seed_gen.next_seed().unwrap(),
-                            )
+                            .re_randomize(re_randomization_key, seed_gen.next_seed().unwrap())
                             .unwrap();
 
                         _ = black_box(&d_re_randomized);
@@ -128,7 +158,7 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize) {
                 cts.par_iter_mut().zip(seeds.into_par_iter()).for_each(
                     |(d_re_randomized, seed)| {
                         d_re_randomized
-                            .re_randomize(&cpk, &ksk_material.as_view(), seed)
+                            .re_randomize(re_randomization_key, seed)
                             .unwrap();
 
                         _ = black_box(&d_re_randomized);
@@ -187,7 +217,8 @@ fn cpu_re_randomize(c: &mut Criterion) {
     let bit_sizes = [2, 4, 8, 16, 32, 64, 128, 256];
 
     for bit_size in bit_sizes.iter() {
-        execute_cpu_re_randomize(c, *bit_size);
+        execute_cpu_re_randomize(c, *bit_size, BenchReRandomizeMode::LegacyWithKeyswitch);
+        execute_cpu_re_randomize(c, *bit_size, BenchReRandomizeMode::NoKeyswitch);
     }
 }
 
@@ -210,6 +241,7 @@ mod cuda {
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::ciphertext::ReRandomizationContext;
     use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
+    use tfhe::integer::gpu::ciphertext::re_randomization::CudaReRandomizationKey;
     use tfhe::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
     use tfhe::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial;
     use tfhe::integer::key_switching_key::KeySwitchingKey;
@@ -244,6 +276,10 @@ mod cuda {
         let cpk = CompactPublicKey::new(&cpk_private_key);
         let ksk = KeySwitchingKey::new((&cpk_private_key, None), (&cks, &sks), ks_param);
         let d_ksk_material = CudaKeySwitchingKeyMaterial::from_key_switching_key(&ksk, &streams);
+        let re_randomization_key = CudaReRandomizationKey::LegacyDedicatedCPK {
+            cpk: &cpk,
+            ksk: &d_ksk_material,
+        };
 
         let rerand_domain_separator = *b"TFHE_Rrd";
         let compact_public_encryption_domain_separator = *b"TFHE_Enc";
@@ -286,8 +322,7 @@ mod cuda {
                         |mut seed_gen| {
                             d_re_randomized
                                 .re_randomize(
-                                    &cpk,
-                                    &d_ksk_material,
+                                    re_randomization_key,
                                     seed_gen.next_seed().unwrap(),
                                     &streams,
                                 )
@@ -385,8 +420,14 @@ mod cuda {
                                     let local_stream = &local_streams[i % local_streams.len()];
                                     let d_ksk = &d_ksk_material_vec[i % num_gpus];
 
+                                    let re_randomization_key =
+                                        CudaReRandomizationKey::LegacyDedicatedCPK {
+                                            cpk: &cpk,
+                                            ksk: d_ksk,
+                                        };
+
                                     d_re_randomized
-                                        .re_randomize(&cpk, d_ksk, seed, local_stream)
+                                        .re_randomize(re_randomization_key, seed, local_stream)
                                         .unwrap();
 
                                     _ = black_box(&d_re_randomized);
