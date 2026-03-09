@@ -309,6 +309,11 @@ semgrep_and_lint_gpu_code: semgrep_lint_setup_venv
 		| xargs venv/bin/semgrep --config "$(TFHECUDA_SRC)/.semgrep/release-ordering.yaml" --scan-unknown-extensions
 	venv/bin/python3 "scripts/check_scratch_cleanup.py"
 
+.PHONY: semver_check_cuda_backend # Run semver checks on tfhe-cuda-backend
+semver_check_cuda_backend:
+	cargo install cargo-semver-checks --locked
+	DOCS_RS=1 cargo semver-checks --package tfhe-cuda-backend
+
 .PHONY: fmt_gpu # Format rust and cuda code
 fmt_gpu: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
