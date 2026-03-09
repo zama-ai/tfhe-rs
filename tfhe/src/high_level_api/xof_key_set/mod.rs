@@ -4,7 +4,9 @@ mod test;
 
 use crate::backward_compatibility::xof_key_set::CompressedXofKeySetVersions;
 use crate::core_crypto::commons::generators::MaskRandomGenerator;
-use crate::keys::IntegerServerKeyConformanceParams;
+use crate::keys::{
+    CompressedReRandomizationKey, IntegerServerKeyConformanceParams, ReRandomizationKeyGenInfo,
+};
 use crate::prelude::{ParameterSetConformant, Tagged};
 use crate::shortint::client_key::atomic_pattern::EncryptionAtomicPattern;
 
@@ -47,7 +49,10 @@ use crate::high_level_api::keys::expanded::IntegerExpandedServerKey;
 // 7) BSK (SnS params)
 // 8) Mod Switch Key (SnS params)
 // 9) KSK (encryption params to compute params)
-// 10) Re-Rand KSK
+// 10) If in the Re-Rand legacy case (network Public key + KSK) then:
+//        - Re-Rand KSK
+//     else:
+//        - Re-Rand Public Key (stored in ServerKey) derived from compute params
 // 11) SNS Compression Key
 
 /// Compressed KeySet which respects the [Threshold (Fully) Homomorphic Encryption]
@@ -276,22 +281,36 @@ impl CompressedXofKeySet {
             }
         };
 
-        // Generate the key switching material that will allow going from
+        // Legacy: Generate the key switching material that will allow going from
         // the public key's dedicated parameters to the re-rand
-        let cpk_re_randomization_key_switching_key_material = ck
-            .key
-            .re_randomization_ksk_gen_info()?
-            .as_ref()
-            .map(|key_gen_info| {
-                CompressedReRandomizationKeySwitchingKey::generate_with_pre_seeded_generator(
-                    glwe_secret_key,
-                    computation_parameters.glwe_noise_distribution(),
-                    computation_parameters.ciphertext_modulus(),
-                    computation_parameters.atomic_pattern().into(),
-                    key_gen_info,
-                    &mut encryption_rand_gen,
-                )
-            });
+        // New: Generate a derived CPK which does not need a keyswitching key
+        let cpk_re_randomization_key = ck.key.re_randomization_key_gen_info()?.as_ref().map(
+            |key_gen_info| match key_gen_info {
+                ReRandomizationKeyGenInfo::LegacyDedicatedCPKWithKeySwitch { ksk_gen_info } => {
+                    use CompressedReRandomizationKeySwitchingKey as CRRDKSK;
+                    let ksk = CRRDKSK::generate_with_pre_seeded_generator(
+                        glwe_secret_key,
+                        computation_parameters.glwe_noise_distribution(),
+                        computation_parameters.ciphertext_modulus(),
+                        computation_parameters.atomic_pattern().into(),
+                        ksk_gen_info,
+                        &mut encryption_rand_gen,
+                    );
+                    CompressedReRandomizationKey::LegacyDedicatedCPK { ksk }
+                }
+                ReRandomizationKeyGenInfo::DerivedCPKWithoutKeySwitch {
+                    derived_compact_private_key,
+                } => {
+                    use integer::CompressedCompactPublicKey;
+                    CompressedReRandomizationKey::DerivedCPKWithoutKeySwitch {
+                        cpk: CompressedCompactPublicKey::generate_with_pre_seeded_generator(
+                            derived_compact_private_key,
+                            &mut encryption_rand_gen,
+                        ),
+                    }
+                }
+            },
+        );
 
         let noise_squashing_compression_key =
             ck.key.noise_squashing_compression_private_key.as_ref().map(
@@ -311,7 +330,7 @@ impl CompressedXofKeySet {
             decompression_key,
             noise_squashing_bs_key,
             noise_squashing_compression_key,
-            cpk_re_randomization_key_switching_key_material,
+            cpk_re_randomization_key,
             ck.tag.clone(),
         );
 
