@@ -8,6 +8,17 @@ pub use crate::shortint::ciphertext::{ReRandomizationSeed, ReRandomizationSeedHa
 use crate::shortint::Ciphertext;
 use crate::Result;
 
+#[derive(Clone, Copy)]
+pub enum ReRandomizationKey<'key> {
+    LegacyDedicatedCPK {
+        cpk: &'key CompactPublicKey,
+        ksk: KeySwitchingKeyMaterialView<'key>,
+    },
+    DerivedCPKWithoutKeySwitch {
+        cpk: &'key CompactPublicKey,
+    },
+}
+
 /// The context that will be hashed and used to generate unique [`ReRandomizationSeed`].
 pub struct ReRandomizationContext {
     /// The inner hasher
@@ -142,13 +153,17 @@ impl ReRandomizationSeedGen {
 
 pub(crate) fn re_randomize_ciphertext_blocks(
     blocks: &mut [Ciphertext],
-    compact_public_key: &CompactPublicKey,
-    key_switching_key_material: &KeySwitchingKeyMaterialView,
+    re_randomization_key: ReRandomizationKey<'_>,
     seed: ReRandomizationSeed,
 ) -> crate::Result<()> {
+    let (compact_public_key, key_switching_key_material) = match re_randomization_key {
+        ReRandomizationKey::LegacyDedicatedCPK { cpk, ksk } => (cpk, Some(ksk)),
+        ReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk } => (cpk, None),
+    };
+
     compact_public_key.key.re_randomize_ciphertexts(
         blocks,
-        &key_switching_key_material.material,
+        key_switching_key_material.map(|k| k.material).as_ref(),
         seed,
     )
 }

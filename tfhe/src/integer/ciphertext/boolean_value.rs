@@ -1,8 +1,9 @@
 use super::{IntegerCiphertext, IntegerRadixCiphertext};
 use crate::integer::backward_compatibility::ciphertext::BooleanBlockVersions;
-use crate::integer::ciphertext::{re_randomize_ciphertext_blocks, ReRandomizationSeed};
-use crate::integer::key_switching_key::KeySwitchingKeyMaterialView;
-use crate::integer::{CompactPublicKey, RadixCiphertext, ServerKey};
+use crate::integer::ciphertext::{
+    re_randomize_ciphertext_blocks, ReRandomizationKey, ReRandomizationSeed,
+};
+use crate::integer::{RadixCiphertext, ServerKey};
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::Ciphertext;
 use serde::{Deserialize, Serialize};
@@ -173,14 +174,12 @@ impl BooleanBlock {
 
     pub fn re_randomize(
         &mut self,
-        compact_public_key: &CompactPublicKey,
-        key_switching_key_material: &KeySwitchingKeyMaterialView,
+        re_randomization_key: ReRandomizationKey<'_>,
         seed: ReRandomizationSeed,
     ) -> crate::Result<()> {
         re_randomize_ciphertext_blocks(
             core::slice::from_mut(&mut self.0),
-            compact_public_key,
-            key_switching_key_material,
+            re_randomization_key,
             seed,
         )?;
 
