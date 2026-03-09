@@ -143,6 +143,10 @@ jobs:
         run: |
           make semgrep_and_lint_gpu_code
 
+      - name: Run semver checks on tfhe-cuda-backend
+        run: |
+          make semver_check_cuda_backend
+
       - name: Check build with hpu enabled
         run: |
           make clippy_gpu_hpu
