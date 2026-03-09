@@ -48,6 +48,7 @@ pub mod noise_squashing;
 pub mod parameters_wopbs;
 pub mod parameters_wopbs_message_carry;
 pub mod parameters_wopbs_only;
+pub mod re_randomization;
 #[cfg(test)]
 pub mod test_params;
 pub mod v0_10;
@@ -83,7 +84,8 @@ pub use ks32::KeySwitch32PBSParameters;
 pub use meta::{
     AtomicPatternChoice, CompactPkeZkSchemeChoice, Constraint, DedicatedPublicKeyChoice, Log2PFail,
     MetaParameters, MetaParametersFinder, MultiBitPBSChoice, NoiseDistributionChoice,
-    NoiseDistributionKind, NoiseSquashingChoice, PkeKeyswitchTargetChoice, Version,
+    NoiseDistributionKind, NoiseSquashingChoice, PkeKeyswitchTargetChoice,
+    ReRandomizationConfiguration, Version,
 };
 pub use multi_bit::MultiBitPBSParameters;
 pub use noise_squashing::{
@@ -91,6 +93,7 @@ pub use noise_squashing::{
     NoiseSquashingCompressionParameters, NoiseSquashingParameters,
 };
 pub use parameters_wopbs::*;
+pub use re_randomization::ReRandomizationParameters;
 #[cfg(test)]
 pub use test_params::TestParameters;
 
@@ -415,6 +418,17 @@ impl ShortintParameterSet {
     pub const fn new_ks32_pbs_param_set(params: KeySwitch32PBSParameters) -> Self {
         Self {
             inner: ShortintParameterSetInner::KS32PBS(params),
+        }
+    }
+
+    pub const fn from_atomic_pattern_params(params: AtomicPatternParameters) -> Self {
+        match params {
+            AtomicPatternParameters::Standard(pbsparameters) => Self {
+                inner: ShortintParameterSetInner::PBSOnly(pbsparameters),
+            },
+            AtomicPatternParameters::KeySwitch32(key_switch32_pbsparameters) => Self {
+                inner: ShortintParameterSetInner::KS32PBS(key_switch32_pbsparameters),
+            },
         }
     }
 

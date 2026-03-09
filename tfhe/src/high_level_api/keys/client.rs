@@ -12,7 +12,7 @@ use crate::integer::compression_keys::CompressionPrivateKeys;
 use crate::integer::noise_squashing::{NoiseSquashingPrivateKey, NoiseSquashingPrivateKeyView};
 use crate::named::Named;
 use crate::prelude::Tagged;
-use crate::shortint::parameters::ShortintKeySwitchingParameters;
+use crate::shortint::parameters::ReRandomizationParameters;
 use crate::shortint::MessageModulus;
 use crate::Tag;
 use tfhe_csprng::seeders::Seed;
@@ -87,7 +87,7 @@ impl ClientKey {
         Option<CompressionPrivateKeys>,
         Option<NoiseSquashingPrivateKey>,
         Option<NoiseSquashingCompressionPrivateKey>,
-        Option<ShortintKeySwitchingParameters>,
+        Option<ReRandomizationParameters>,
         Tag,
     ) {
         let (cks, cpk, cppk, nsk, nscpk, cpkrndp) = self.key.into_raw_parts();
@@ -103,7 +103,7 @@ impl ClientKey {
         compression_key: Option<CompressionPrivateKeys>,
         noise_squashing_key: Option<NoiseSquashingPrivateKey>,
         noise_squashing_compression_key: Option<NoiseSquashingCompressionPrivateKey>,
-        cpk_re_randomization_ksk_params: Option<ShortintKeySwitchingParameters>,
+        cpk_re_randomization_params: Option<ReRandomizationParameters>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -113,7 +113,7 @@ impl ClientKey {
                 compression_key,
                 noise_squashing_key,
                 noise_squashing_compression_key,
-                cpk_re_randomization_ksk_params,
+                cpk_re_randomization_params,
             ),
             tag,
         }
