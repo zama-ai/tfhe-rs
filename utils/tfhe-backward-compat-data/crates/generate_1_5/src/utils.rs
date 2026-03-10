@@ -2,13 +2,16 @@ use std::path::Path;
 use tfhe::core_crypto::prelude::{
     CiphertextModulusLog, LweCiphertextCount, TUniform, UnsignedInteger,
 };
-use tfhe::shortint::MultiBitPBSParameters;
 use tfhe::shortint::parameters::list_compression::{
     ClassicCompressionParameters, MultiBitCompressionParameters,
 };
-use tfhe::shortint::parameters::noise_squashing::NoiseSquashingMultiBitParameters;
+use tfhe::shortint::parameters::meta::{DedicatedCompactPublicKeyParameters, MetaParameters};
+use tfhe::shortint::parameters::noise_squashing::{
+    MetaNoiseSquashingParameters, NoiseSquashingMultiBitParameters,
+};
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::prelude::ModulusSwitchType;
+use tfhe::shortint::MultiBitPBSParameters;
 use tfhe_backward_compat_data::generate::*;
 use tfhe_backward_compat_data::*;
 use tfhe_versionable::Versionize;
@@ -413,6 +416,43 @@ impl ConvertParams<NoiseSquashingCompressionParameters>
             message_modulus: MessageModulus(message_modulus as u64),
             carry_modulus: CarryModulus(carry_modulus as u64),
             ciphertext_modulus: CoreCiphertextModulus::try_new(ciphertext_modulus).unwrap(),
+        }
+    }
+}
+
+impl ConvertParams<DedicatedCompactPublicKeyParameters>
+    for TestDedicatedCompactPublicKeyParameters
+{
+    fn convert(self) -> DedicatedCompactPublicKeyParameters {
+        DedicatedCompactPublicKeyParameters {
+            pke_params: self.pke_params.convert(),
+            ksk_params: self.ksk_params.convert(),
+            re_randomization_parameters: self
+                .re_randomization_parameters
+                .map(ConvertParams::convert),
+        }
+    }
+}
+
+impl ConvertParams<MetaNoiseSquashingParameters> for TestMetaNoiseSquashingParameters {
+    fn convert(self) -> MetaNoiseSquashingParameters {
+        MetaNoiseSquashingParameters {
+            parameters: self.parameters.convert(),
+            compression_parameters: self.compression_parameters.map(ConvertParams::convert),
+        }
+    }
+}
+
+impl ConvertParams<MetaParameters> for TestMetaParameters {
+    fn convert(self) -> MetaParameters {
+        MetaParameters {
+            backend: Backend::Cpu,
+            compute_parameters: self.compute_parameters.convert(),
+            dedicated_compact_public_key_parameters: self
+                .dedicated_compact_public_key_parameters
+                .map(ConvertParams::convert),
+            compression_parameters: self.compression_parameters.map(ConvertParams::convert),
+            noise_squashing_parameters: self.noise_squashing_parameters.map(ConvertParams::convert),
         }
     }
 }
