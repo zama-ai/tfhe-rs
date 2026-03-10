@@ -1,5 +1,9 @@
 // Coordinator Service Worker
 //
+// Self-contained service worker that coordinates parallel task execution
+// for wasm-par-mq's sync API. Deploy this file at your site root and
+// register it via `register_coordinator("/coordinator.js")`.
+//
 // Implemented in JavaScript rather than Rust to avoid WASM compilation
 // latency on Service Worker startup (browsers may kill and restart SWs at any
 // time). The coordinator only does lightweight coordination (task tracking,
@@ -7,30 +11,27 @@
 
 const tasks = new Map(); // task_id -> { expected, completed, resolver, results }
 
-export function setupCoordinator() {
-   self.addEventListener('install', (_event) => {
-       self.skipWaiting();
-   });
+self.addEventListener('install', (_event) => {
+    self.skipWaiting();
+});
 
-   self.addEventListener('activate', (event) => {
-       event.waitUntil(self.clients.claim());
-   });
+self.addEventListener('activate', (event) => {
+    event.waitUntil(self.clients.claim());
+});
 
-   self.addEventListener('fetch', (event) => {
-       const url = new URL(event.request.url);
-       const pathname = url.pathname;
+self.addEventListener('fetch', (event) => {
+    const url = new URL(event.request.url);
+    const pathname = url.pathname;
 
-       if (!pathname.startsWith('/__wasm_par__/')) {
-           return;
-       }
+    if (!pathname.startsWith('/__wasm_par__/')) {
+        return;
+    }
 
-       const response = handleRequest(event.request, pathname);
-       if (response) {
-           event.respondWith(response);
-       }
-   });
-
-}
+    const response = handleRequest(event.request, pathname);
+    if (response) {
+        event.respondWith(response);
+    }
+});
 
 function handleRequest(request, pathname) {
     const method = request.method;

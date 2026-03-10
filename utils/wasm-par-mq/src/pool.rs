@@ -12,7 +12,9 @@ use crate::messages::{self, MainToWorker, WorkerToMain};
 use crate::registry::{FnEntry, RegisteredFn, init_registry};
 #[cfg(feature = "sync-api")]
 use crate::sync_executor::register_sync_executor;
-use crate::worker::{create_worker_url, resolve_url};
+use crate::worker::create_compute_worker;
+#[cfg(feature = "sync-api")]
+use crate::worker::get_worker_origin;
 use futures::channel::oneshot;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -129,32 +131,13 @@ impl WorkerPool {
 
 /// Initialize the parallel execution pool in async mode.
 ///
-/// Workers are spawned directly from the main thread and results are delivered
-/// via async/await.
-///
-/// The compute workers are automatically embedded (no need to serve worker.js).
+/// Workers are spawned as real JS module workers. Each worker loads
+/// the wasm module independently via the wasm-bindgen snippet.
 ///
 /// # Arguments
 /// * `num_workers` - Number of workers. If `None`, auto-detects via `hardwareConcurrency`.
-/// * `wasm_url` - URL to the WASM module
-/// * `bindgen_url` - URL to the wasm-bindgen JS glue
-///
-/// # Example
-/// ```ignore
-/// init_pool_async(None, "/pkg/app_bg.wasm", "/pkg/app.js").await?;
-/// ```
-pub async fn init_pool_async(
-    num_workers: Option<u32>,
-    wasm_url: &str,
-    bindgen_url: &str,
-) -> Result<(), String> {
-    // Resolve relative URLs to absolute - required because blob URL workers
-    // cannot resolve relative imports
-    let wasm_url = resolve_url(wasm_url);
-    let bindgen_url = resolve_url(bindgen_url);
-    // Create blob URL with embedded absolute URLs
-    let worker_url = create_worker_url(&wasm_url, &bindgen_url);
-    init_pool_with_handler(num_workers, &worker_url, Some(AsyncResultHandler::new())).await
+pub async fn init_pool_async(num_workers: Option<u32>) -> Result<(), String> {
+    init_pool_with_handler(num_workers, Some(AsyncResultHandler::new())).await
 }
 
 /// Initialize the pool with a custom result handler.
@@ -162,7 +145,6 @@ pub async fn init_pool_async(
 /// Used internally by `init_pool_async` and `SyncExecutor` (sync).
 pub(crate) async fn init_pool_with_handler(
     num_workers: Option<u32>,
-    worker_url: &str,
     result_handler: Option<AsyncResultHandler>,
 ) -> Result<(), String> {
     init_registry();
@@ -188,9 +170,15 @@ pub(crate) async fn init_pool_with_handler(
     let ready_tx = Rc::new(RefCell::new(Some(ready_tx)));
 
     for i in 0..num_workers {
-        // worker_url is a blob URL with wasm/bindgen URLs already embedded
-        let worker =
-            Worker::new(worker_url).map_err(|e| format!("failed to create worker: {e:?}"))?;
+        // Worker is created in JS using the `new Worker(new URL(...), ...)` pattern
+        // that bundlers recognize and process as a worker entry point.
+        // See: https://webpack.js.org/guides/web-workers/
+        let worker = create_compute_worker();
+
+        // Send a start message to trigger the worker bootstrap.
+        worker
+            .post_message(&JsValue::UNDEFINED)
+            .map_err(|e| format!("failed to send init message: {e:?}"))?;
 
         // Set up message handler
         let workers_ready = workers_ready.clone();
@@ -242,27 +230,17 @@ pub(crate) async fn init_pool_with_handler(
 /// Spawns a SyncExecutor worker which manages compute workers.
 /// Enables blocking `collect_vec_sync()` calls.
 ///
+/// URLs are resolved automatically from the wasm-bindgen snippet.
+///
 /// # Arguments
 /// * `num_workers` - Number of workers. If `None`, auto-detects via `hardwareConcurrency`.
-/// * `wasm_url` - URL to the WASM module
-/// * `bindgen_url` - URL to the wasm-bindgen JS glue
 ///
 /// # Warning
 /// The coordinator Service Worker must already be registered from the main
 /// thread (via [`register_coordinator`]) before calling this.
 #[cfg(feature = "sync-api")]
-pub async fn init_pool_sync(
-    num_workers: Option<u32>,
-    wasm_url: &str,
-    bindgen_url: &str,
-) -> Result<(), String> {
-    // Resolve relative URLs to absolute - required because blob URL workers
-    // cannot resolve relative imports
-    let wasm_url = resolve_url(wasm_url);
-    let bindgen_url = resolve_url(bindgen_url);
-    register_sync_executor(num_workers, &wasm_url, &bindgen_url).await?;
-
-    Ok(())
+pub async fn init_pool_sync(num_workers: Option<u32>) -> Result<(), String> {
+    register_sync_executor(num_workers).await
 }
 
 /// Initialize pool in sync mode, reusing the current worker as SyncExecutor.
@@ -273,28 +251,17 @@ pub async fn init_pool_sync(
 ///
 /// # Arguments
 /// * `num_workers` - Number of workers. If `None`, auto-detects via `hardwareConcurrency`.
-/// * `wasm_url` - URL to the WASM module
-/// * `bindgen_url` - URL to the wasm-bindgen JS glue
 ///
 /// # Warning
 /// The coordinator Service Worker must already be registered from the main
 /// thread (via [`register_coordinator`]) before calling this.
 #[cfg(feature = "sync-api")]
-pub async fn init_pool_sync_from_worker(
-    num_workers: Option<u32>,
-    wasm_url: &str,
-    bindgen_url: &str,
-) -> Result<(), String> {
-    let origin = web_sys::Url::new(wasm_url)
-        .map(|u| u.origin())
-        .unwrap_or_default();
-
-    CoordinatorUrl::set(&origin);
+pub async fn init_pool_sync_from_worker(num_workers: Option<u32>) -> Result<(), String> {
+    CoordinatorUrl::set(&get_worker_origin());
 
     wait_for_coordinator().await?;
 
-    let worker_url = create_worker_url(wasm_url, bindgen_url);
-    init_pool_with_handler(num_workers, &worker_url, None).await
+    init_pool_with_handler(num_workers, None).await
 }
 
 fn handle_worker_message(

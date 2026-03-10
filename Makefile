@@ -1413,7 +1413,8 @@ WASM_PAR_MQ_TEST_DIR=utils/wasm-par-mq/web_tests
 .PHONY: build_wasm_par_mq_tests # Build the wasm-par-mq test WASM package
 build_wasm_par_mq_tests: install_wasm_pack
 	cd $(WASM_PAR_MQ_TEST_DIR) && \
-	RUSTFLAGS="$(WASM_RUSTFLAGS)" wasm-pack build --target=web --out-dir pkg
+	RUSTFLAGS="$(WASM_RUSTFLAGS)" wasm-pack build --target=web --out-dir pkg && \
+	find pkg/snippets -type f -iname worker_helpers.js -exec sed -i 's|import("../../..")|import("../../../wasm_par_mq_web_tests.js")|g' {} \;
 
 # This is an internal target, not meant to be called on its own.
 run_wasm_par_mq_tests: build_wasm_par_mq_tests setup_venv

@@ -1,0 +1,85 @@
+import init, * as wasm from './pkg/wasm_par_mq_web_tests.js';
+
+const NUM_WORKERS = 4;
+
+function arraysEqual(a, b) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) return false;
+    }
+    return true;
+}
+
+function assert(condition, message) {
+    if (!condition) {
+        throw new Error(`Assertion failed: ${message}`);
+    }
+}
+
+async function initWasmAsync() {
+    await init();
+    await wasm.init_async(NUM_WORKERS);
+}
+
+async function initWasmSync() {
+    await init();
+    await wasm.init_sync(NUM_WORKERS, '/coordinator.js');
+}
+
+// --- Test implementations ---
+
+async function doubleAllAsyncTest() {
+    await initWasmAsync();
+
+    const input = Array.from({ length: 100 }, (_, i) => i + 1);
+    const result = await wasm.double_all(input);
+    const expected = input.map(x => x * 2);
+    assert(arraysEqual(result, expected),
+        `double_all: expected [${expected.slice(0, 5)}...] got [${result.slice(0, 5)}...]`);
+    console.log('PASS: doubleAllAsyncTest');
+}
+
+async function doubleThenSquareAsyncTest() {
+    await initWasmAsync();
+
+    const input = [1, 2, 3, 4, 5];
+    const result = await wasm.double_then_square(input);
+    const expected = [4, 16, 36, 64, 100]; // (x*2)^2
+    assert(arraysEqual(result, expected),
+        `double_then_square: expected [${expected}] got [${result}]`);
+    console.log('PASS: doubleThenSquareAsyncTest');
+}
+
+async function doubleAllSyncTest() {
+    await initWasmSync();
+
+    const input = Array.from({ length: 100 }, (_, i) => i + 1);
+    const result = await wasm.double_all_sync(input);
+    const expected = input.map(x => x * 2);
+    assert(arraysEqual(result, expected),
+        `double_all_sync: expected [${expected.slice(0, 5)}...] got [${result.slice(0, 5)}...]`);
+    console.log('PASS: doubleAllSyncTest');
+}
+
+// --- Wire up buttons ---
+
+const tests = {
+    doubleAllAsyncTest,
+    doubleThenSquareAsyncTest,
+    doubleAllSyncTest,
+};
+
+for (const [id, fn] of Object.entries(tests)) {
+    const button = document.getElementById(id);
+    button.onclick = async () => {
+        document.getElementById('testSuccess').checked = false;
+        try {
+            await fn();
+            document.getElementById('testSuccess').checked = true;
+        } catch (error) {
+            console.error(`FAIL: ${id}: ${error}`);
+            document.getElementById('testSuccess').checked = false;
+        }
+    };
+    button.disabled = false;
+}

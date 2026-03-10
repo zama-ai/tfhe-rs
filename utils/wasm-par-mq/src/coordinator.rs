@@ -1,10 +1,9 @@
 //! Coordinator (Service Worker) client for sync API.
 //!
 //! The coordinator is a Service Worker that tracks task completion and holds requests until all
-//! chunks are done. The actual service worker logic is implemented in JavaScript
-//! (`js/coordinator.js`) and exported as `setupCoordinator()` — end users import it into their
-//! own Service Worker file. This Rust module provides the client side: registering the SW and
-//! communicating with it via synchronous XHR.
+//! chunks are done. The actual service worker logic is a self-contained JavaScript file
+//! (`js/coordinator.js`) that end users deploy at their site root. This Rust module provides
+//! the client side: registering the SW and communicating with it via synchronous XHR.
 //!
 //! This module provides:
 //! - Registration of the coordinator from the main thread
@@ -97,11 +96,7 @@ pub async fn register_coordinator(coordinator_url: &str) -> Result<(), String> {
     let navigator = window.navigator();
     let service_worker = navigator.service_worker();
 
-    let options = web_sys::RegistrationOptions::new();
-    // The coordinator is defined as a "module" service worker that can be embedded by the end-user
-    // in its own code.
-    options.set_type("module");
-    let promise = service_worker.register_with_options(coordinator_url, &options);
+    let promise = service_worker.register(coordinator_url);
 
     wasm_bindgen_futures::JsFuture::from(promise)
         .await
