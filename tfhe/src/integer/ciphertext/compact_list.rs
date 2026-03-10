@@ -282,6 +282,28 @@ impl CompactCiphertextListBuilder {
         })
     }
 
+    pub fn build_packed_seeded(&self, seed: &[u8]) -> crate::Result<CompactCiphertextList> {
+        if self.pk.key.parameters.carry_modulus.0 < self.pk.key.parameters.message_modulus.0 {
+            return Err(crate::Error::new("In order to build a packed compact ciphertext list, parameters must have CarryModulus >= MessageModulus".to_string()));
+        }
+
+        let msg_mod = self.pk.key.message_modulus().0;
+        let packed_messaged_iter = self
+            .messages
+            .chunks(2)
+            .map(|two_values| (two_values.get(1).copied().unwrap_or(0) * msg_mod) + two_values[0]);
+        let ct_list = self.pk.key.encrypt_iter_with_modulus_seeded(
+            packed_messaged_iter,
+            msg_mod * msg_mod,
+            seed,
+        )?;
+
+        Ok(CompactCiphertextList {
+            ct_list,
+            info: self.info.clone(),
+        })
+    }
+
     #[cfg(feature = "zk-pok")]
     pub fn build_with_proof(
         &self,
@@ -329,6 +351,42 @@ impl CompactCiphertextListBuilder {
             metadata,
             load,
             msg_mod * msg_mod,
+        )?;
+        Ok(ProvenCompactCiphertextList {
+            ct_list,
+            info: self.info.clone(),
+        })
+    }
+
+    #[cfg(feature = "zk-pok")]
+    pub fn build_with_proof_packed_seeded(
+        &self,
+        crs: &CompactPkeCrs,
+        metadata: &[u8],
+        load: ZkComputeLoad,
+        seed: &[u8],
+    ) -> crate::Result<ProvenCompactCiphertextList> {
+        if self.pk.key.parameters.carry_modulus.0 < self.pk.key.parameters.message_modulus.0 {
+            return Err(crate::Error::new(
+                "In order to build a packed ProvenCompactCiphertextList, \
+                parameters must have CarryModulus >= MessageModulus"
+                    .to_string(),
+            ));
+        }
+
+        let msg_mod = self.pk.key.parameters.message_modulus.0;
+        let packed_messages = self
+            .messages
+            .chunks(2)
+            .map(|two_values| (two_values.get(1).copied().unwrap_or(0) * msg_mod) + two_values[0])
+            .collect::<Vec<_>>();
+        let ct_list = self.pk.key.encrypt_and_prove_slice_seeded(
+            packed_messages.as_slice(),
+            crs,
+            metadata,
+            load,
+            msg_mod * msg_mod,
+            seed,
         )?;
         Ok(ProvenCompactCiphertextList {
             ct_list,
@@ -393,7 +451,7 @@ impl CompactCiphertextListExpander {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Versionize)]
 #[versionize(CompactCiphertextListVersions)]
 pub struct CompactCiphertextList {
     pub(crate) ct_list: crate::shortint::ciphertext::CompactCiphertextList,
@@ -1015,7 +1073,7 @@ impl CompactCiphertextList {
 }
 
 #[cfg(feature = "zk-pok")]
-#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(ProvenCompactCiphertextListVersions)]
 pub struct ProvenCompactCiphertextList {
     pub(crate) ct_list: crate::shortint::ciphertext::ProvenCompactCiphertextList,

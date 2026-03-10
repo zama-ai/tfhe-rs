@@ -18,13 +18,13 @@ use tfhe::zk::{CompactPkeCrs, CompactPkeCrsConformanceParams};
 use tfhe::ProvenCompactCiphertextList;
 use tfhe::{
     set_server_key, ClientKey, CompactCiphertextList, CompactCiphertextListBuilder,
-    CompactPublicKey, CompressedCiphertextList, CompressedCiphertextListBuilder,
-    CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
-    CompressedKVStore, CompressedPublicKey, CompressedServerKey,
-    CompressedSquashedNoiseCiphertextList, CompressedSquashedNoiseCiphertextListBuilder, FheBool,
-    FheInt8, FheUint32, FheUint64, FheUint8, ReRandomizationContext, ReRandomizationMode,
-    ReRandomizationSupport, ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt,
-    SquashedNoiseFheUint,
+    CompactCiphertextListExpander, CompactPublicKey, CompressedCiphertextList,
+    CompressedCiphertextListBuilder, CompressedCompactPublicKey, CompressedFheBool,
+    CompressedFheInt8, CompressedFheUint8, CompressedKVStore, CompressedPublicKey,
+    CompressedServerKey, CompressedSquashedNoiseCiphertextList,
+    CompressedSquashedNoiseCiphertextListBuilder, FheBool, FheInt8, FheUint32, FheUint64, FheUint8,
+    ReRandomizationContext, ReRandomizationMode, ReRandomizationSupport, ServerKey,
+    SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint,
 };
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
@@ -32,7 +32,8 @@ use tfhe_backward_compat_data::load::{
 use tfhe_backward_compat_data::{
     DataKind, HlBoolCiphertextTest, HlCiphertextTest, HlClientKeyTest, HlCompressedKVStoreTest,
     HlCompressedSquashedNoiseCiphertextListTest, HlCompressedXofKeySetTest,
-    HlHeterogeneousCiphertextListTest, HlPublicKeyTest, HlServerKeyTest, HlSignedCiphertextTest,
+    HlHeterogeneousCiphertextListTest, HlPublicKeyTest, HlSeededCompactCiphertextListTest,
+    HlSeededProvenCompactCiphertextListTest, HlServerKeyTest, HlSignedCiphertextTest,
     HlSquashedNoiseBoolCiphertextTest, HlSquashedNoiseSignedCiphertextTest,
     HlSquashedNoiseUnsignedCiphertextTest, TestMetadata, TestType, Testcase, ZkPkePublicParamsTest,
 };
@@ -285,6 +286,189 @@ pub fn test_hl_heterogeneous_ciphertext_list_elements<CtList: CiphertextList>(
         };
     }
     Ok(())
+}
+
+fn verify_expanded_values(
+    expander: &CompactCiphertextListExpander,
+    clear_values: &[u64],
+    data_kinds: &[DataKind],
+    key: &ClientKey,
+) -> Result<(), String> {
+    for (idx, (value, kind)) in clear_values.iter().zip(data_kinds.iter()).enumerate() {
+        match kind {
+            DataKind::Bool => {
+                let ct: FheBool = expander
+                    .get(idx)
+                    .map_err(|e| format!("Failed to get bool at index {idx}: {e}"))?
+                    .ok_or_else(|| format!("No value at index {idx}"))?;
+                let clear = ct.decrypt(key);
+                if clear != (*value != 0) {
+                    return Err(format!(
+                        "Invalid decrypted bool at index {idx}: expected {:?}, got {clear:?}",
+                        *value != 0
+                    ));
+                }
+            }
+            DataKind::Signed => {
+                let ct: FheInt8 = expander
+                    .get(idx)
+                    .map_err(|e| format!("Failed to get signed at index {idx}: {e}"))?
+                    .ok_or_else(|| format!("No value at index {idx}"))?;
+                let clear: i8 = ct.decrypt(key);
+                if clear != *value as i8 {
+                    return Err(format!(
+                        "Invalid decrypted signed at index {idx}: expected {:?}, got {clear:?}",
+                        *value as i8
+                    ));
+                }
+            }
+            DataKind::Unsigned => {
+                let ct: FheUint8 = expander
+                    .get(idx)
+                    .map_err(|e| format!("Failed to get unsigned at index {idx}: {e}"))?
+                    .ok_or_else(|| format!("No value at index {idx}"))?;
+                let clear: u8 = ct.decrypt(key);
+                if clear != *value as u8 {
+                    return Err(format!(
+                        "Invalid decrypted unsigned at index {idx}: expected {:?}, got {clear:?}",
+                        *value as u8
+                    ));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Test seeded compact ciphertext list: loads pregenerated list, rebuilds from
+/// stored values/seed, asserts they match via PartialEq.
+pub fn test_hl_seeded_compact_ciphertext_list(
+    dir: &Path,
+    test: &HlSeededCompactCiphertextListTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let key_file = dir.join(&*test.key_filename);
+    let key = ClientKey::unversionize(
+        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
+    )
+    .map_err(|e| test.failure(e, format))?;
+
+    let server_key = key.generate_server_key();
+    set_server_key(server_key);
+
+    let pubkey_file = dir.join(&*test.public_key_filename);
+    let pubkey = CompactPublicKey::unversionize(
+        load_versioned_auxiliary(pubkey_file).map_err(|e| test.failure(e, format))?,
+    )
+    .map_err(|e| test.failure(e, format))?;
+
+    let pregenerated: CompactCiphertextList = load_and_unversionize(dir, test, format)?;
+
+    let mut builder = CompactCiphertextList::builder(&pubkey);
+    for (value, kind) in test.clear_values.iter().zip(test.data_kinds.iter()) {
+        match kind {
+            DataKind::Unsigned => {
+                builder.push(*value as u8);
+            }
+            DataKind::Signed => {
+                builder.push(*value as i8);
+            }
+            DataKind::Bool => {
+                builder.push(*value != 0);
+            }
+        }
+    }
+    let rebuilt = builder.build_packed_seeded(&test.seed).unwrap();
+
+    if pregenerated != rebuilt {
+        return Err(test.failure(
+            "Seeded compact list rebuilt from values/seed does not match pregenerated",
+            format,
+        ));
+    }
+
+    let expanded = pregenerated.expand().map_err(|e| test.failure(e, format))?;
+    verify_expanded_values(&expanded, &test.clear_values, &test.data_kinds, &key)
+        .map_err(|e| test.failure(e, format))?;
+
+    Ok(test.success(format))
+}
+
+/// Test seeded proven compact ciphertext list: loads pregenerated list, rebuilds
+/// from stored values/seed/proof params, asserts they match via PartialEq.
+pub fn test_hl_seeded_proven_compact_ciphertext_list(
+    dir: &Path,
+    test: &HlSeededProvenCompactCiphertextListTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    #[cfg(feature = "zk-pok")]
+    {
+        use tfhe::zk::ZkComputeLoad;
+
+        let key_file = dir.join(&*test.key_filename);
+        let key = ClientKey::unversionize(
+            load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
+        )
+        .map_err(|e| test.failure(e, format))?;
+
+        let server_key = key.generate_server_key();
+        set_server_key(server_key);
+
+        let pubkey_file = dir.join(&*test.public_key_filename);
+        let pubkey = CompactPublicKey::unversionize(
+            load_versioned_auxiliary(pubkey_file).map_err(|e| test.failure(e, format))?,
+        )
+        .map_err(|e| test.failure(e, format))?;
+
+        let crs_file = dir.join(&*test.proof_info.params_filename);
+        let crs = CompactPkeCrs::unversionize(
+            load_versioned_auxiliary(crs_file).map_err(|e| test.failure(e, format))?,
+        )
+        .map_err(|e| test.failure(e, format))?;
+
+        let pregenerated: ProvenCompactCiphertextList = load_and_unversionize(dir, test, format)?;
+
+        let mut builder = ProvenCompactCiphertextList::builder(&pubkey);
+        for (value, kind) in test.clear_values.iter().zip(test.data_kinds.iter()) {
+            match kind {
+                DataKind::Unsigned => {
+                    builder.push(*value as u8);
+                }
+                DataKind::Signed => {
+                    builder.push(*value as i8);
+                }
+                DataKind::Bool => {
+                    builder.push(*value != 0);
+                }
+            }
+        }
+        let rebuilt = builder
+            .build_with_proof_packed_seeded(
+                &crs,
+                test.proof_info.metadata.as_bytes(),
+                ZkComputeLoad::Proof,
+                &test.seed,
+            )
+            .map_err(|e| test.failure(e, format))?;
+
+        if pregenerated != rebuilt {
+            return Err(test.failure(
+                "Seeded proven compact list rebuilt from values/seed does not match pregenerated",
+                format,
+            ));
+        }
+
+        let expanded = pregenerated
+            .verify_and_expand(&crs, &pubkey, test.proof_info.metadata.as_bytes())
+            .map_err(|e| test.failure(e, format))?;
+        verify_expanded_values(&expanded, &test.clear_values, &test.data_kinds, &key)
+            .map_err(|e| test.failure(e, format))?;
+    }
+
+    #[cfg(not(feature = "zk-pok"))]
+    let _ = dir;
+
+    Ok(test.success(format))
 }
 
 /// Test HL client key: loads the key and checks the parameters using the values stored in
@@ -952,6 +1136,13 @@ impl TestedModule for Hl {
             }
             TestMetadata::HlCompressedXofKeySet(test) => {
                 test_hl_compressed_xof_key_set_test(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::HlSeededCompactCiphertextList(test) => {
+                test_hl_seeded_compact_ciphertext_list(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::HlSeededProvenCompactCiphertextList(test) => {
+                test_hl_seeded_proven_compact_ciphertext_list(test_dir.as_ref(), test, format)
+                    .into()
             }
             _ => {
                 println!("WARNING: missing test: {:?}", testcase.metadata);

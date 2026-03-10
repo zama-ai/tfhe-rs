@@ -166,6 +166,23 @@ impl Clone for InnerCompactCiphertextList {
     }
 }
 
+impl PartialEq for InnerCompactCiphertextList {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Cpu(a), Self::Cpu(b)) => a == b,
+            #[cfg(feature = "gpu")]
+            (Self::Cuda(a), Self::Cuda(b)) => with_cuda_internal_keys(|keys| {
+                let streams = &keys.streams;
+                let a_cpu = a.to_integer_compact_ciphertext_list(streams).unwrap();
+                let b_cpu = b.to_integer_compact_ciphertext_list(streams).unwrap();
+                a_cpu == b_cpu
+            }),
+            #[cfg(feature = "gpu")]
+            _ => false,
+        }
+    }
+}
+
 impl serde::Serialize for InnerCompactCiphertextList {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -273,7 +290,7 @@ impl Unversionize for InnerCompactCiphertextList {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(CompactCiphertextListVersions)]
 pub struct CompactCiphertextList {
     pub(crate) inner: InnerCompactCiphertextList,
@@ -498,7 +515,19 @@ mod zk {
         }
     }
 
-    #[derive(Clone, Serialize, Deserialize, Versionize)]
+    impl PartialEq for InnerProvenCompactCiphertextList {
+        fn eq(&self, other: &Self) -> bool {
+            match (self, other) {
+                (Self::Cpu(a), Self::Cpu(b)) => a == b,
+                #[cfg(feature = "gpu")]
+                (Self::Cuda(a), Self::Cuda(b)) => a.h_proved_lists == b.h_proved_lists,
+                #[cfg(feature = "gpu")]
+                _ => false,
+            }
+        }
+    }
+
+    #[derive(Clone, PartialEq, Serialize, Deserialize, Versionize)]
     #[versionize(ProvenCompactCiphertextListVersions)]
     pub struct ProvenCompactCiphertextList {
         pub(crate) inner: InnerProvenCompactCiphertextList,
@@ -1065,6 +1094,21 @@ impl CompactCiphertextListBuilder {
             })
             .expect("Internal error, invalid parameters should not have been allowed")
     }
+
+    /// Builds the list using the given seed, useful to have determinism for encryption
+    ///
+    /// # Warning
+    ///
+    /// The seed must be kept secure, if attackers gets the seed they can break the encryption
+    pub fn build_packed_seeded(&self, seed: &[u8]) -> crate::Result<CompactCiphertextList> {
+        self.inner
+            .build_packed_seeded(seed)
+            .map(|list| CompactCiphertextList {
+                inner: crate::high_level_api::compact_list::InnerCompactCiphertextList::Cpu(list),
+                tag: self.tag.clone(),
+            })
+    }
+
     #[cfg(feature = "zk-pok")]
     pub fn build_with_proof_packed(
         &self,
@@ -1074,6 +1118,30 @@ impl CompactCiphertextListBuilder {
     ) -> crate::Result<ProvenCompactCiphertextList> {
         self.inner
             .build_with_proof_packed(crs, metadata, compute_load)
+            .map(|proved_list| ProvenCompactCiphertextList {
+                inner:
+                    crate::high_level_api::compact_list::zk::InnerProvenCompactCiphertextList::Cpu(
+                        proved_list,
+                    ),
+                tag: self.tag.clone(),
+            })
+    }
+
+    /// Builds a proved list using the given seed, useful to have determinism for encryption
+    ///
+    /// # Warning
+    ///
+    /// The seed must be kept secure, if attackers gets the seed they can break the encryption
+    #[cfg(feature = "zk-pok")]
+    pub fn build_with_proof_packed_seeded(
+        &self,
+        crs: &CompactPkeCrs,
+        metadata: &[u8],
+        compute_load: ZkComputeLoad,
+        seed: &[u8],
+    ) -> crate::Result<ProvenCompactCiphertextList> {
+        self.inner
+            .build_with_proof_packed_seeded(crs, metadata, compute_load, seed)
             .map(|proved_list| ProvenCompactCiphertextList {
                 inner:
                     crate::high_level_api::compact_list::zk::InnerProvenCompactCiphertextList::Cpu(
@@ -1171,6 +1239,53 @@ mod tests {
             // Correct type but wrong number of bits
             assert!(expander.get::<FheUint16>(0).is_err());
         }
+    }
+
+    #[test]
+    fn test_seeded_compact_list() {
+        let config = crate::ConfigBuilder::default().build();
+
+        let ck = crate::ClientKey::generate(config);
+        let sk = crate::ServerKey::new(&ck);
+        let pk = crate::CompactPublicKey::new(&ck);
+
+        set_server_key(sk);
+
+        let seed_a = 42u128.to_le_bytes();
+        let seed_b = 1337u128.to_le_bytes();
+
+        let build = |seed: &[u8]| {
+            CompactCiphertextList::builder(&pk)
+                .push(17u32)
+                .push(-1i64)
+                .push(false)
+                .build_packed_seeded(seed)
+                .unwrap()
+        };
+
+        let list_a1 = build(&seed_a);
+        let list_a2 = build(&seed_a);
+        let list_b = build(&seed_b);
+
+        assert!(
+            list_a1 == list_a2,
+            "same seed must produce identical output"
+        );
+        assert!(
+            list_a1 != list_b,
+            "different seeds must produce different output"
+        );
+
+        let expander = list_a1.expand().unwrap();
+        let a: FheUint32 = expander.get(0).unwrap().unwrap();
+        let b: FheInt64 = expander.get(1).unwrap().unwrap();
+        let c: FheBool = expander.get(2).unwrap().unwrap();
+
+        let da: u32 = a.decrypt(&ck);
+        let db: i64 = b.decrypt(&ck);
+        assert_eq!(da, 17u32);
+        assert_eq!(db, -1i64);
+        assert!(!c.decrypt(&ck));
     }
 
     #[test]
@@ -1603,6 +1718,61 @@ mod tests {
 
             assert!(unverified_expander.get::<FheBool>(4).unwrap().is_none());
         }
+    }
+
+    #[cfg(feature = "zk-pok")]
+    #[test]
+    fn test_seeded_proven_compact_list() {
+        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let config = crate::ConfigBuilder::with_custom_parameters(params)
+            .use_dedicated_compact_public_key_parameters((
+                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ))
+            .build();
+
+        let ck = crate::ClientKey::generate(config);
+        let pk = crate::CompactPublicKey::new(&ck);
+        let sks = crate::ServerKey::new(&ck);
+        set_server_key(sks);
+
+        let crs = CompactPkeCrs::from_config(config, 32).unwrap();
+        let metadata = [b's', b'e', b'e', b'd'];
+
+        let seed_a = 42u128.to_le_bytes();
+        let seed_b = 1337u128.to_le_bytes();
+
+        let build = |seed: &[u8]| {
+            ProvenCompactCiphertextList::builder(&pk)
+                .push(17u32)
+                .push(-1i64)
+                .push(false)
+                .build_with_proof_packed_seeded(&crs, &metadata, ZkComputeLoad::Proof, seed)
+                .unwrap()
+        };
+
+        let list_a1 = build(&seed_a);
+        let list_a2 = build(&seed_a);
+        let list_b = build(&seed_b);
+
+        assert!(
+            list_a1 == list_a2,
+            "same seed must produce identical output"
+        );
+        assert!(
+            list_a1 != list_b,
+            "different seeds must produce different output"
+        );
+
+        let expander = list_a1.verify_and_expand(&crs, &pk, &metadata).unwrap();
+        let a: FheUint32 = expander.get(0).unwrap().unwrap();
+        let b: FheInt64 = expander.get(1).unwrap().unwrap();
+        let c: FheBool = expander.get(2).unwrap().unwrap();
+        let da: u32 = a.decrypt(&ck);
+        let db: i64 = b.decrypt(&ck);
+        assert_eq!(da, 17u32);
+        assert_eq!(db, -1i64);
+        assert!(!c.decrypt(&ck));
     }
 
     #[cfg(feature = "zk-pok")]

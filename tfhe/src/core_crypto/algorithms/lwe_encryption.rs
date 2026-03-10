@@ -2169,7 +2169,6 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 ///     glwe_noise_distribution,
 ///     glwe_noise_distribution,
 ///     encryption_generator.noise_generator_mut(),
-///     &mut random_generator,
 ///     &crs,
 ///     &metadata,
 ///     ZkComputeLoad::Proof,
@@ -2207,7 +2206,6 @@ pub fn encrypt_and_prove_lwe_ciphertext_with_compact_public_key<
     MaskDistribution,
     NoiseDistribution,
     EncryptionGen,
-    G,
 >(
     lwe_compact_public_key: &LweCompactPublicKey<KeyCont>,
     output: &mut LweCiphertext<OutputCont>,
@@ -2216,7 +2214,6 @@ pub fn encrypt_and_prove_lwe_ciphertext_with_compact_public_key<
     mask_noise_distribution: MaskDistribution,
     body_noise_distribution: NoiseDistribution,
     noise_generator: &mut NoiseRandomGenerator<EncryptionGen>,
-    random_generator: &mut RandomGenerator<G>,
     crs: &CompactPkeCrs,
     metadata: &[u8],
     load: ZkComputeLoad,
@@ -2233,7 +2230,6 @@ where
     MaskDistribution: BoundedDistribution<Scalar::Signed>,
     NoiseDistribution: BoundedDistribution<Scalar::Signed>,
     EncryptionGen: ByteRandomGenerator,
-    G: ByteRandomGenerator,
 {
     verify_zero_knowledge_preconditions(
         lwe_compact_public_key,
@@ -2258,6 +2254,9 @@ where
         noise_generator,
     );
 
+    let mut zk_seed = [0u8; 16];
+    noise_generator.fill_bytes(&mut zk_seed);
+
     Ok(crs.prove(
         lwe_compact_public_key,
         &vec![message.0],
@@ -2272,7 +2271,7 @@ where
         &body_noise,
         metadata,
         load,
-        random_generator,
+        zk_seed,
     ))
 }
 
@@ -2623,7 +2622,6 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     glwe_noise_distribution,
 ///     glwe_noise_distribution,
 ///     encryption_generator.noise_generator_mut(),
-///     &mut random_generator,
 ///     &crs,
 ///     &metadata,
 ///     ZkComputeLoad::Proof,
@@ -2674,7 +2672,6 @@ pub fn encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key<
     MaskDistribution,
     NoiseDistribution,
     EncryptionGen,
-    G,
 >(
     lwe_compact_public_key: &LweCompactPublicKey<KeyCont>,
     output: &mut LweCompactCiphertextList<OutputCont>,
@@ -2683,7 +2680,6 @@ pub fn encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key<
     mask_noise_distribution: MaskDistribution,
     body_noise_distribution: NoiseDistribution,
     noise_generator: &mut NoiseRandomGenerator<EncryptionGen>,
-    random_generator: &mut RandomGenerator<G>,
     crs: &CompactPkeCrs,
     metadata: &[u8],
     load: ZkComputeLoad,
@@ -2701,7 +2697,6 @@ where
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     EncryptionGen: ByteRandomGenerator,
-    G: ByteRandomGenerator,
 {
     verify_zero_knowledge_preconditions(
         lwe_compact_public_key,
@@ -2738,6 +2733,9 @@ where
         slice_semi_reverse_negacyclic_convolution,
     );
 
+    let mut zk_seed = [0u8; 16];
+    noise_generator.fill_bytes(&mut zk_seed);
+
     Ok(crs.prove(
         lwe_compact_public_key,
         messages,
@@ -2747,7 +2745,7 @@ where
         &body_noise,
         metadata,
         load,
-        random_generator,
+        zk_seed,
     ))
 }
 
@@ -3097,7 +3095,6 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     glwe_noise_distribution,
 ///     glwe_noise_distribution,
 ///     encryption_generator.noise_generator_mut(),
-///     &mut random_generator,
 ///     &crs,
 ///     &metadata,
 ///     ZkComputeLoad::Proof,
@@ -3148,7 +3145,6 @@ pub fn par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key
     MaskDistribution,
     NoiseDistribution,
     EncryptionGen,
-    G,
 >(
     lwe_compact_public_key: &LweCompactPublicKey<KeyCont>,
     output: &mut LweCompactCiphertextList<OutputCont>,
@@ -3157,7 +3153,6 @@ pub fn par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key
     mask_noise_distribution: MaskDistribution,
     body_noise_distribution: NoiseDistribution,
     noise_generator: &mut NoiseRandomGenerator<EncryptionGen>,
-    random_generator: &mut RandomGenerator<G>,
     crs: &CompactPkeCrs,
     metadata: &[u8],
     load: ZkComputeLoad,
@@ -3175,7 +3170,6 @@ where
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
     EncryptionGen: ByteRandomGenerator,
-    G: ByteRandomGenerator,
 {
     verify_zero_knowledge_preconditions(
         lwe_compact_public_key,
@@ -3209,6 +3203,9 @@ where
         noise_generator,
     );
 
+    let mut zk_seed = [0u8; 16];
+    noise_generator.fill_bytes(&mut zk_seed);
+
     Ok(crs.prove(
         lwe_compact_public_key,
         messages,
@@ -3218,7 +3215,7 @@ where
         &body_noise,
         metadata,
         load,
-        random_generator,
+        zk_seed,
     ))
 }
 

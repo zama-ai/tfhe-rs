@@ -558,6 +558,55 @@ impl TestType for HlHeterogeneousCiphertextListTest {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HlSeededCompactCiphertextListTest {
+    pub test_filename: Cow<'static, str>,
+    pub key_filename: Cow<'static, str>,
+    pub public_key_filename: Cow<'static, str>,
+    pub clear_values: Cow<'static, [u64]>,
+    pub data_kinds: Cow<'static, [DataKind]>,
+    pub seed: Vec<u8>,
+}
+
+impl TestType for HlSeededCompactCiphertextListTest {
+    fn module(&self) -> String {
+        HL_MODULE_NAME.to_string()
+    }
+
+    fn target_type(&self) -> String {
+        "CompactCiphertextList".to_string()
+    }
+
+    fn test_filename(&self) -> String {
+        self.test_filename.to_string()
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HlSeededProvenCompactCiphertextListTest {
+    pub test_filename: Cow<'static, str>,
+    pub key_filename: Cow<'static, str>,
+    pub public_key_filename: Cow<'static, str>,
+    pub proof_info: PkeZkProofAuxiliaryInfo,
+    pub clear_values: Cow<'static, [u64]>,
+    pub data_kinds: Cow<'static, [DataKind]>,
+    pub seed: Vec<u8>,
+}
+
+impl TestType for HlSeededProvenCompactCiphertextListTest {
+    fn module(&self) -> String {
+        HL_MODULE_NAME.to_string()
+    }
+
+    fn target_type(&self) -> String {
+        "ProvenCompactCiphertextList".to_string()
+    }
+
+    fn test_filename(&self) -> String {
+        self.test_filename.to_string()
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HlCompressedSquashedNoiseCiphertextListTest {
     pub test_filename: Cow<'static, str>,
     pub key_filename: Cow<'static, str>,
@@ -731,6 +780,8 @@ pub enum TestMetadata {
     HlCompressedSquashedNoiseCiphertextList(HlCompressedSquashedNoiseCiphertextListTest),
     HlCompressedKVStoreTest(HlCompressedKVStoreTest),
     HlCompressedXofKeySet(HlCompressedXofKeySetTest),
+    HlSeededCompactCiphertextList(HlSeededCompactCiphertextListTest),
+    HlSeededProvenCompactCiphertextList(HlSeededProvenCompactCiphertextListTest),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

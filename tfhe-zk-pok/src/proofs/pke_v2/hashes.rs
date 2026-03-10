@@ -105,7 +105,7 @@ impl PkeV2HashConfig {
 /// List of hash config that were used for a given version of this crate
 ///
 /// This is stored in the proof so that we only support a specific subset of all possible config.
-#[derive(Default, Copy, Clone, Debug, Serialize, Deserialize, Versionize)]
+#[derive(Default, Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(PkeV2SupportedHashConfigVersions)]
 pub enum PkeV2SupportedHashConfig {
     V0_4_0 = 0,

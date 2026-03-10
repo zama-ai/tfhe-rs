@@ -9,6 +9,8 @@ use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus, EncryptionNoiseByteCount, EncryptionNoiseSampleCount,
 };
+#[cfg(feature = "zk-pok")]
+use rand_core::RngCore;
 use rayon::prelude::*;
 use tfhe_csprng::generators::ForkError;
 use tfhe_csprng::seeders::SeedKind;
@@ -118,6 +120,11 @@ impl<G: ByteRandomGenerator> NoiseRandomGenerator<G> {
         Self {
             gen: RandomGenerator::new(seed),
         }
+    }
+
+    #[cfg(feature = "zk-pok")]
+    pub(crate) fn fill_bytes(&mut self, dest: &mut [u8]) {
+        self.gen.fill_bytes(dest);
     }
 
     pub fn remaining_bytes(&self) -> Option<usize> {

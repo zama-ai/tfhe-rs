@@ -10,7 +10,11 @@ use tfhe::core_crypto::commons::generators::DeterministicSeeder;
 use tfhe::core_crypto::prelude::{DefaultRandomGenerator, NormalizedHammingWeightBound};
 use tfhe::shortint::engine::ShortintEngine;
 use tfhe::xof_key_set::CompressedXofKeySet;
-use tfhe::{ClientKey, CompressedCompactPublicKey, CompressedServerKey, Seed, Tag};
+use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
+use tfhe::{
+    ClientKey, CompactCiphertextList, CompactPublicKey, CompressedCompactPublicKey,
+    CompressedServerKey, ProvenCompactCiphertextList, Seed, ServerKey, Tag, set_server_key,
+};
 use tfhe_backward_compat_data::generate::*;
 use tfhe_backward_compat_data::*;
 
@@ -25,6 +29,34 @@ const HL_SERVER_KEY_TEST: HlServerKeyTest = HlServerKeyTest {
     rerand_cpk_filename: Some(Cow::Borrowed("cpk_rerand_complete")),
     compressed: true,
 };
+const SEEDED_COMPACT_LIST_SEED: &[u8] = &167644343036794213320094654445260117732u128.to_le_bytes();
+
+fn hl_seeded_compactlist_test() -> HlSeededCompactCiphertextListTest {
+    HlSeededCompactCiphertextListTest {
+        test_filename: Cow::Borrowed("hl_seeded_compact_list"),
+        key_filename: Cow::Borrowed("seeded_client_key"),
+        public_key_filename: Cow::Borrowed("seeded_compact_public_key"),
+        clear_values: Cow::Borrowed(&[17u64, 255u64, 0u64]),
+        data_kinds: Cow::Borrowed(&[DataKind::Unsigned, DataKind::Signed, DataKind::Bool]),
+        seed: SEEDED_COMPACT_LIST_SEED.to_vec(),
+    }
+}
+
+fn hl_seeded_proven_compactlist_test() -> HlSeededProvenCompactCiphertextListTest {
+    HlSeededProvenCompactCiphertextListTest {
+        test_filename: Cow::Borrowed("hl_seeded_proven_compact_list"),
+        key_filename: Cow::Borrowed("seeded_proven_client_key"),
+        public_key_filename: Cow::Borrowed("seeded_proven_compact_public_key"),
+        proof_info: PkeZkProofAuxiliaryInfo {
+            public_key_filename: Cow::Borrowed("seeded_proven_compact_public_key"),
+            params_filename: Cow::Borrowed("seeded_proven_zk_pke_crs"),
+            metadata: Cow::Borrowed("backward_compat_seeded"),
+        },
+        clear_values: Cow::Borrowed(&[17u64, 255u64, 0u64]),
+        data_kinds: Cow::Borrowed(&[DataKind::Unsigned, DataKind::Signed, DataKind::Bool]),
+        seed: SEEDED_COMPACT_LIST_SEED.to_vec(),
+    }
+}
 
 pub struct V1_6;
 
@@ -91,9 +123,106 @@ impl TfhersVersion for V1_6 {
             );
         }
 
+        let seeded_test = hl_seeded_compactlist_test();
+        let seeded_proven_test = hl_seeded_proven_compactlist_test();
+
+        // Generate seeded compact ciphertext list (no proof)
+        {
+            let config = tfhe::ConfigBuilder::with_custom_parameters(
+                INSECURE_SMALL_TEST_PARAMS_KS32.convert(),
+            )
+            .build();
+            let hl_client_key = ClientKey::generate(config);
+            let hl_server_key = ServerKey::new(&hl_client_key);
+            set_server_key(hl_server_key);
+            let compact_pub_key = CompactPublicKey::new(&hl_client_key);
+
+            store_versioned_auxiliary(&hl_client_key, &dir, &seeded_test.key_filename);
+            store_versioned_auxiliary(&compact_pub_key, &dir, &seeded_test.public_key_filename);
+
+            let mut builder = CompactCiphertextList::builder(&compact_pub_key);
+            for (value, kind) in seeded_test
+                .clear_values
+                .iter()
+                .zip(seeded_test.data_kinds.iter())
+            {
+                match kind {
+                    DataKind::Unsigned => {
+                        builder.push(*value as u8);
+                    }
+                    DataKind::Signed => {
+                        builder.push(*value as i8);
+                    }
+                    DataKind::Bool => {
+                        builder.push(*value != 0);
+                    }
+                }
+            }
+
+            let list = builder.build_packed_seeded(&seeded_test.seed).unwrap();
+            store_versioned_test(&list, &dir, &seeded_test.test_filename());
+        }
+
+        // Generate seeded proven compact ciphertext list
+        {
+            let config = tfhe::ConfigBuilder::with_custom_parameters(
+                INSECURE_SMALL_TEST_PARAMS_KS32.convert(),
+            )
+            .use_dedicated_compact_public_key_parameters((
+                INSECURE_DEDICATED_CPK_TEST_PARAMS.convert(),
+                KS_TO_SMALL_TEST_PARAMS.convert(),
+            ))
+            .build();
+            let hl_client_key = ClientKey::generate(config);
+            let hl_server_key = ServerKey::new(&hl_client_key);
+            set_server_key(hl_server_key);
+            let compact_pub_key = CompactPublicKey::new(&hl_client_key);
+            let crs = CompactPkeCrs::from_config(config, 64).unwrap();
+
+            store_versioned_auxiliary(&hl_client_key, &dir, &seeded_proven_test.key_filename);
+            store_versioned_auxiliary(
+                &compact_pub_key,
+                &dir,
+                &seeded_proven_test.public_key_filename,
+            );
+            store_versioned_auxiliary(&crs, &dir, &seeded_proven_test.proof_info.params_filename);
+
+            let mut proven_builder = ProvenCompactCiphertextList::builder(&compact_pub_key);
+            for (value, kind) in seeded_proven_test
+                .clear_values
+                .iter()
+                .zip(seeded_proven_test.data_kinds.iter())
+            {
+                match kind {
+                    DataKind::Unsigned => {
+                        proven_builder.push(*value as u8);
+                    }
+                    DataKind::Signed => {
+                        proven_builder.push(*value as i8);
+                    }
+                    DataKind::Bool => {
+                        proven_builder.push(*value != 0);
+                    }
+                }
+            }
+
+            let proven_list = proven_builder
+                .build_with_proof_packed_seeded(
+                    &crs,
+                    seeded_proven_test.proof_info.metadata.as_bytes(),
+                    ZkComputeLoad::Proof,
+                    &seeded_proven_test.seed,
+                )
+                .unwrap();
+
+            store_versioned_test(&proven_list, &dir, &seeded_proven_test.test_filename());
+        }
+
         vec![
             TestMetadata::HlCompressedXofKeySet(HL_COMPRESSED_XOF_KEY_SET_TEST),
             TestMetadata::HlServerKey(HL_SERVER_KEY_TEST),
+            TestMetadata::HlSeededCompactCiphertextList(seeded_test),
+            TestMetadata::HlSeededProvenCompactCiphertextList(seeded_proven_test),
         ]
     }
 }
