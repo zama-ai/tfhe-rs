@@ -100,7 +100,7 @@ jobs:
           sudo apt purge -y unattended-upgrades
 
           sudo apt update
-          sudo apt -y install "cuda-toolkit-${TOOLKIT_VERSION}" cmake-format
+          sudo apt -y install "cuda-toolkit-${TOOLKIT_VERSION}" cmake-format python3-venv
         env:
           CUDA_VERSION: ${{ matrix.cuda }}
 
@@ -141,16 +141,6 @@ jobs:
 
       - name: Run semgrep and lint checks on CUDA code
         run: |
-          # Disable unattended-upgrades to avoid lock issues
-          sudo systemctl mask --now unattended-upgrades
-          sudo systemctl stop --now unattended-upgrades
-
-          sudo apt-get clean
-          sudo rm -rf /var/lib/apt/lists/*
-          sudo apt purge -y unattended-upgrades
-
-          sudo apt update
-          sudo apt -y install python3-venv
           make semgrep_and_lint_gpu_code
 
       - name: Check build with hpu enabled
