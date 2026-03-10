@@ -102,12 +102,8 @@ pub fn init() {
 
 /// Initialize the parallel execution pool
 #[wasm_bindgen]
-pub async fn init_parallel(
-    num_workers: u32,
-    wasm_url: &str,
-    bindgen_url: &str,
-) -> Result<(), JsValue> {
-    wasm_par_mq::init_pool_async(Some(num_workers), wasm_url, bindgen_url)
+pub async fn init_parallel(num_workers: u32) -> Result<(), JsValue> {
+    wasm_par_mq::init_pool_async(Some(num_workers))
         .await
         .map_err(|e| JsValue::from_str(&e.to_string()))
 }
@@ -184,16 +180,11 @@ pub async fn run_msm_compare(data: JsValue) -> Result<String, JsValue> {
 
 /// Initialize the parallel execution pool in sync mode
 #[wasm_bindgen]
-pub async fn init_parallel_sync(
-    num_workers: u32,
-    wasm_url: &str,
-    bindgen_url: &str,
-    coordinator_url: &str,
-) -> Result<(), JsValue> {
+pub async fn init_parallel_sync(num_workers: u32, coordinator_url: &str) -> Result<(), JsValue> {
     wasm_par_mq::register_coordinator(coordinator_url)
         .await
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
-    wasm_par_mq::init_pool_sync(Some(num_workers), wasm_url, bindgen_url)
+    wasm_par_mq::init_pool_sync(Some(num_workers))
         .await
         .map_err(|e| JsValue::from_str(&e.to_string()))
 }

@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "cp ../js/coordinator.js pkg/ && mkdir -p dist && cp index.html dist/ && cp sw.js dist/ && cp -r pkg dist/",
+    "build": "webpack build ./index.js --mode production -o dist --output-filename index.js && cp index.html dist/ && cp ../js/coordinator.js dist/",
     "server": "serve --config ../serve.json dist/"
   },
   "devDependencies": {
-    "serve": "^14.2.5"
+    "serve": "^14.2.5",
+    "webpack": "^5.105.0",
+    "webpack-cli": "^5.1.4"
   }
 }

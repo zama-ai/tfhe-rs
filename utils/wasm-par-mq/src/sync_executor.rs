@@ -27,7 +27,6 @@ use crate::global_this;
 use crate::messages::{self, JobOutcome, MainToSyncExecutor, SyncExecutorToMain};
 use crate::pool::{self, ReadySender, deserialize_chunk, serialize_chunk};
 use crate::registry::{FnEntry, RegisteredFn};
-use crate::worker::create_worker_url;
 
 thread_local! {
     static SYNC_EXECUTOR: RefCell<Option<SyncExecutor>> = const { RefCell::new(None) };
@@ -55,46 +54,30 @@ impl SyncExecutor {
     }
 }
 
-const SYNC_EXECUTOR_JS_TEMPLATE: &str = include_str!("../js/sync_executor.js");
-
-/// Create a blob URL for the sync executor script with the given URLs embedded.
-pub(crate) fn create_sync_executor_url(
-    wasm_url: &str,
-    bindgen_url: &str,
-    num_workers: Option<u32>,
-) -> String {
-    let js_code = SYNC_EXECUTOR_JS_TEMPLATE
-        .replace("__WASM_URL__", wasm_url)
-        .replace("__BINDGEN_URL__", bindgen_url)
-        .replace(
-            "__WORKERS__",
-            &num_workers
-                .map(|n| n.to_string())
-                .unwrap_or(String::from("undefined")),
-        );
-
-    let prop = web_sys::BlobPropertyBag::new();
-    prop.set_type("application/javascript");
-    let blob = web_sys::Blob::new_with_str_sequence_and_options(
-        &js_sys::Array::of1(&js_code.into()),
-        &prop,
-    )
-    .unwrap();
-    web_sys::Url::create_object_url_with_blob(&blob).unwrap()
-}
-
-pub(crate) async fn register_sync_executor(
-    num_workers: Option<u32>,
-    wasm_url: &str,
-    bindgen_url: &str,
-) -> Result<(), String> {
+/// Spawn the sync executor worker and wait for it to be ready.
+pub(crate) async fn register_sync_executor(num_workers: Option<u32>) -> Result<(), String> {
     let (ready_tx, ready_rx) = oneshot::channel::<Result<(), String>>();
     let ready_tx = Rc::new(RefCell::new(Some(ready_tx)));
 
-    let sync_executor_url = create_sync_executor_url(wasm_url, bindgen_url, num_workers);
+    // Worker is created in JS using the `new Worker(new URL(...), ...)` pattern
+    // that bundlers recognize and process as a worker entry point.
+    // See: https://webpack.js.org/guides/web-workers/
+    let executor = crate::worker::create_sync_executor_worker();
 
-    let executor = Worker::new(&sync_executor_url)
-        .map_err(|e| format!("failed to create SyncExecutor: {e:?}"))?;
+    // Send init message with num workers
+    let init_data = js_sys::Object::new();
+    js_sys::Reflect::set(
+        &init_data,
+        &"numWorkers".into(),
+        &match num_workers {
+            Some(n) => JsValue::from_f64(n as f64),
+            None => JsValue::UNDEFINED,
+        },
+    )
+    .map_err(|e| format!("failed to set numWorkers: {e:?}"))?;
+    executor
+        .post_message(&init_data)
+        .map_err(|e| format!("failed to send init message: {e:?}"))?;
 
     // Set up message handler to wait for ready signal
     let ready_tx = ready_tx.clone();
@@ -170,19 +153,15 @@ fn handle_sync_executor_message(event: web_sys::MessageEvent, ready_tx: &ReadySe
     }
 }
 
-/// Entry point called from sync_executor.js bootstrap.
+/// Entry point called from worker_helpers.js bootstrap when loaded as a
+/// sync executor worker.
+///
+/// The wasm module is already loaded by the JS bootstrap via `import('../../..')`.
 #[wasm_bindgen]
-pub fn start_sync_executor(wasm_url: &str, bindgen_url: &str, num_workers: Option<u32>) {
-    let origin = web_sys::Url::new(wasm_url)
-        .map(|u| u.origin())
-        .unwrap_or_default();
-
-    CoordinatorUrl::set(&origin);
+pub fn start_sync_executor(num_workers: Option<u32>) {
+    CoordinatorUrl::set(&crate::worker::get_worker_origin());
 
     let global: DedicatedWorkerGlobalScope = global_this().unchecked_into();
-
-    // Create blob URL for compute workers (URLs already absolute from main thread)
-    let worker_url = create_worker_url(wasm_url, bindgen_url);
 
     // Initialize the pool with sync result handler
     // We use spawn_local since init_pool_with_handler is async (waits for workers to be ready)
@@ -193,7 +172,7 @@ pub fn start_sync_executor(wasm_url: &str, bindgen_url: &str, num_workers: Optio
             return;
         }
 
-        if let Err(e) = pool::init_pool_with_handler(num_workers, &worker_url, None).await {
+        if let Err(e) = pool::init_pool_with_handler(num_workers, None).await {
             web_sys::console::error_1(&format!("Failed to init pool: {e}").into());
             return;
         }

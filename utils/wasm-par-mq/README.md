@@ -191,26 +191,13 @@ the SyncExecutor.
 
 #### 3. Deploy the Coordinator Service Worker
 
-Sync mode uses a Service Worker to coordinate blocking XHR. You need to create a
-small Service Worker file whose scope covers your page. The scope defaults to the
-directory where the SW file is served, so placing it next to your page is sufficient.
+Sync mode uses a Service Worker to coordinate blocking XHR. You need to copy the `coordinator.js`
+file at a location whose scope covers your page. The scope defaults to the directory where
+the SW file is served, so placing it next to your page is sufficient.
 
-Create a `sw.js`:
-
-```javascript
-// sw.js
-import { setupCoordinator } from './pkg/coordinator.js';
-setupCoordinator();
-```
-
-`coordinator.js` ships with the npm package (or can be copied from `js/coordinator.js`
-in this repository). It must be served at the path you import from above.
-
-**Bundler users** (Vite, webpack, etc.): the bundler resolves the import, so
-`coordinator.js` is inlined automatically, no extra file to deploy.
-
-**Static file users**: copy `coordinator.js` next to your wasm-bindgen output
-(e.g. into `pkg/`) and adjust the import path in `sw.js` accordingly.
+Examples:
+**npm users**: `cp node_modules/<your-package>/coordinator.js public/`
+**Static file users**: copy `coordinator.js` next to your HTML entry point.
 
 #### 4. Initialize in sync mode
 
@@ -220,8 +207,6 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub async fn init_parallel_sync(
     num_workers: u32,
-    wasm_url: &str,
-    bindgen_url: &str,
     coordinator_url: &str,
 ) -> Result<(), JsValue> {
     // register_coordinator must be called from the main thread.
@@ -236,7 +221,7 @@ pub async fn init_parallel_sync(
     wasm_par_mq::register_coordinator(coordinator_url)
         .await
         .map_err(|e| JsValue::from_str(&e))?;
-    wasm_par_mq::init_pool_sync(Some(num_workers), wasm_url, bindgen_url)
+    wasm_par_mq::init_pool_sync(Some(num_workers))
         .await
         .map_err(|e| JsValue::from_str(&e))
 }
@@ -246,8 +231,8 @@ pub async fn init_parallel_sync(
 import init, { init_parallel_sync } from './pkg/your_crate.js';
 
 await init();
-// The coordinator_url must point to the SW file created above.
-await init_parallel_sync(4, './pkg/your_crate_bg.wasm', './pkg/your_crate.js', '/sw.js');
+// The coordinator_url must point to the coordinator.js deployed above.
+await init_parallel_sync(4, '/coordinator.js');
 ```
 
 ## API
@@ -265,11 +250,10 @@ await init_parallel_sync(4, './pkg/your_crate_bg.wasm', './pkg/your_crate.js', '
 
 ### Functions
 
-- `init_pool_async(num_workers, wasm_url, bindgen_url)` - Initialize the worker pool in async mode
+- `init_pool_async(num_workers)` - Initialize the worker pool in async mode
 - `register_coordinator(coordinator_url)` - Register the coordinator service worker (sync mode)
-- `init_pool_sync(num_workers, wasm_url, bindgen_url)` - Initialize the worker pool in sync mode (coordinator must be registered first)
-- `init_pool_sync_from_worker(num_workers, wasm_url, bindgen_url)` - Initialize in sync mode, reusing the current worker as SyncExecutor
-- `start_worker()` - Entry point for compute workers
+- `init_pool_sync(num_workers)` - Initialize the worker pool in sync mode (coordinator must be registered first)
+- `init_pool_sync_from_worker(num_workers)` - Initialize in sync mode, reusing the current worker as SyncExecutor
 
 ## Examples
 
