@@ -10,13 +10,13 @@ license = "BSD-3-Clause-Clear"
 clap = { version = "4.5", features = ["derive"] }
 
 # TFHE-rs
-tfhe = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.5.0", features = [
+tfhe = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.5.4", features = [
     "boolean",
     "integer",
     "shortint",
     "zk-pok",
     "experimental-force_fft_algo_dif4",
 ] }
-tfhe-versionable = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.5.0" }
+tfhe-versionable = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.5.4" }
 
 tfhe-backward-compat-data = { path = "../.." }
