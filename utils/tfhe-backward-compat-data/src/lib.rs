@@ -180,6 +180,27 @@ pub struct TestCompactPublicKeyEncryptionParameters {
     pub zk_scheme: Cow<'static, str>,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct TestDedicatedCompactPublicKeyParameters {
+    pub pke_params: TestCompactPublicKeyEncryptionParameters,
+    pub ksk_params: TestKeySwitchingParams,
+    pub re_randomization_parameters: Option<TestKeySwitchingParams>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct TestMetaNoiseSquashingParameters {
+    pub parameters: TestNoiseSquashingParams,
+    pub compression_parameters: Option<TestNoiseSquashingCompressionParameters>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct TestMetaParameters {
+    pub compute_parameters: TestParameterSet,
+    pub dedicated_compact_public_key_parameters: Option<TestDedicatedCompactPublicKeyParameters>,
+    pub compression_parameters: Option<TestCompressionParameterSet>,
+    pub noise_squashing_parameters: Option<TestMetaNoiseSquashingParameters>,
+}
+
 pub fn dir_for_version<P: AsRef<Path>>(data_dir: P, version: &str) -> PathBuf {
     let mut path = data_dir.as_ref().to_path_buf();
     path.push(version.replace('.', "_"));
@@ -661,6 +682,26 @@ impl TestType for HlCompressedKVStoreTest {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HlCompressedXofKeySetTest {
+    pub compressed_xof_key_set_file_name: Cow<'static, str>,
+    pub client_key_file_name: Cow<'static, str>,
+}
+
+impl TestType for HlCompressedXofKeySetTest {
+    fn module(&self) -> String {
+        HL_MODULE_NAME.to_string()
+    }
+
+    fn target_type(&self) -> String {
+        "CompressedXofKeySet".to_string()
+    }
+
+    fn test_filename(&self) -> String {
+        self.compressed_xof_key_set_file_name.to_string()
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Display)]
 pub enum TestMetadata {
     // Shortint
@@ -682,6 +723,7 @@ pub enum TestMetadata {
     HlSquashedNoiseBoolCiphertext(HlSquashedNoiseBoolCiphertextTest),
     HlCompressedSquashedNoiseCiphertextList(HlCompressedSquashedNoiseCiphertextListTest),
     HlCompressedKVStoreTest(HlCompressedKVStoreTest),
+    HlCompressedXofKeySet(HlCompressedXofKeySetTest),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
