@@ -7,8 +7,29 @@ use crate::registry::{self, init_registry};
 use wasm_bindgen::prelude::*;
 use web_sys::{DedicatedWorkerGlobalScope, MessageEvent};
 
-/// Entry point called from worker.js bootstrap.
-/// Sets up message handling for task execution.
+// Bindings to worker_helpers.js snippet (placed by wasm-bindgen at
+// `pkg/snippets/wasm-par-mq-<hash>/js/worker_helpers.js`).
+//
+// Worker creation uses the `new Worker(new URL('./worker_helpers.js', import.meta.url))`
+// pattern in JS, which bundlers (like webpack) recognize and process as a worker
+// entry point, resolving imports inside the worker automatically.
+#[wasm_bindgen(module = "/js/worker_helpers.js")]
+extern "C" {
+    /// Create a compute worker via the bundler-recognized JS pattern.
+    #[wasm_bindgen(js_name = "createComputeWorker")]
+    pub(crate) fn create_compute_worker() -> web_sys::Worker;
+
+    /// Create a sync executor worker via the bundler-recognized JS pattern.
+    #[wasm_bindgen(js_name = "createSyncExecutorWorker")]
+    pub(crate) fn create_sync_executor_worker() -> web_sys::Worker;
+
+    /// Get the origin of the current context (main thread or worker).
+    #[wasm_bindgen(js_name = "getWorkerOrigin")]
+    pub(crate) fn get_worker_origin() -> String;
+}
+
+/// Entry point called from worker_helpers.js bootstrap when loaded as a
+/// compute worker. Sets up message handling for task execution.
 #[wasm_bindgen]
 pub fn start_worker(origin: &str) {
     init_registry();
@@ -27,46 +48,6 @@ pub fn start_worker(origin: &str) {
 
     // Signal ready to parent (main thread or SyncExecutor)
     send_to_main(&WorkerToMain::Ready);
-}
-
-const WORKER_JS_TEMPLATE: &str = include_str!("../js/worker.js");
-
-/// Create a blob URL for the worker script with the given wasm and bindgen URLs embedded.
-pub(crate) fn create_worker_url(wasm_url: &str, bindgen_url: &str) -> String {
-    // Substitute values into the template
-    let js_code = WORKER_JS_TEMPLATE
-        .replace("__WASM_URL__", wasm_url)
-        .replace("__BINDGEN_URL__", bindgen_url);
-
-    let prop = web_sys::BlobPropertyBag::new();
-    prop.set_type("application/javascript");
-    let blob = web_sys::Blob::new_with_str_sequence_and_options(
-        &js_sys::Array::of1(&js_code.into()),
-        &prop,
-    )
-    .unwrap();
-    web_sys::Url::create_object_url_with_blob(&blob).unwrap()
-}
-
-/// Resolve a potentially relative URL to an absolute URL using the current location as base.
-pub(crate) fn resolve_url(url: &str) -> String {
-    let base = {
-        let global = global_this();
-        js_sys::Reflect::get(&global, &"location".into())
-            .ok()
-            .and_then(|loc| {
-                js_sys::Reflect::get(&loc, &"href".into())
-                    .ok()
-                    .and_then(|href| href.as_string())
-            })
-    };
-
-    match base {
-        Some(base) => web_sys::Url::new_with_base(url, &base)
-            .map(|u| u.href())
-            .unwrap_or_else(|_| url.to_string()),
-        None => url.to_string(),
-    }
 }
 
 fn handle_chunk_message(event: MessageEvent) {

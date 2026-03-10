@@ -44,28 +44,19 @@ pub async fn double_all_sync(data: Vec<i32>) -> Result<Vec<i32>, JsValue> {
 
 /// Initialize pool in async mode.
 #[wasm_bindgen]
-pub async fn init_async(
-    num_workers: u32,
-    wasm_url: &str,
-    bindgen_url: &str,
-) -> Result<(), JsValue> {
-    wasm_par_mq::init_pool_async(Some(num_workers), wasm_url, bindgen_url)
+pub async fn init_async(num_workers: u32) -> Result<(), JsValue> {
+    wasm_par_mq::init_pool_async(Some(num_workers))
         .await
         .map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
 /// Initialize pool in sync executor mode.
 #[wasm_bindgen]
-pub async fn init_sync(
-    num_workers: u32,
-    wasm_url: &str,
-    bindgen_url: &str,
-    coordinator_url: &str,
-) -> Result<(), JsValue> {
+pub async fn init_sync(num_workers: u32, coordinator_url: &str) -> Result<(), JsValue> {
     wasm_par_mq::register_coordinator(coordinator_url)
         .await
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
-    wasm_par_mq::init_pool_sync(Some(num_workers), wasm_url, bindgen_url)
+    wasm_par_mq::init_pool_sync(Some(num_workers))
         .await
         .map_err(|e| JsValue::from_str(&e.to_string()))
 }
