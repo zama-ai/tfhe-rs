@@ -260,10 +260,15 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
   // it is only used during the sample extract so it is safe to use it
   Torus *accumulator_rotated = (Torus *)selected_memory;
 
-  // Copying the twiddles from global to shared for extra performance
+  // Copy twiddles from global to shared in SoA layout: real parts in the first
+  // half of the buffer (indices 0..degree/2-1) and imaginary parts in the
+  // second half (indices degree/2..degree-1).  See NSMFFT_direct_2_2_params.
+  double *tw_re = reinterpret_cast<double *>(shared_twiddles);
+  double *tw_im = tw_re + (polynomial_size / 2);
   for (int k = 0; k < params::opt / 2; k++) {
-    shared_twiddles[threadIdx.x + k * (params::degree / params::opt)] =
-        negtwiddles[threadIdx.x + k * (params::degree / params::opt)];
+    int idx = threadIdx.x + k * (params::degree / params::opt);
+    tw_re[idx] = negtwiddles[idx].x;
+    tw_im[idx] = negtwiddles[idx].y;
   }
 
   // The first dimension of the block is used to determine on which ciphertext
@@ -512,6 +517,11 @@ __host__ uint64_t scratch_tbc_multi_bit_programmable_bootstrap(
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
               Torus, params, FULLSM>,
           cudaFuncCachePreferShared));
+      // 8-byte bank mode makes SoA double reads conflict-free for this kernel
+      check_cuda_error(cudaFuncSetSharedMemConfig(
+          device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
+              Torus, params, FULLSM>,
+          cudaSharedMemBankSizeEightByte));
     } else {
       check_cuda_error(cudaFuncSetAttribute(
           device_multi_bit_programmable_bootstrap_tbc_accumulate<Torus, params,
@@ -668,6 +678,11 @@ __host__ void execute_tbc_external_product_loop(
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
               Torus, params, FULLSM>,
           cudaFuncCachePreferShared));
+      // 8-byte bank mode makes SoA double reads conflict-free for this kernel
+      check_cuda_error(cudaFuncSetSharedMemConfig(
+          device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
+              Torus, params, FULLSM>,
+          cudaSharedMemBankSizeEightByte));
       check_cuda_error(cudaLaunchKernelEx(
           &config,
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<

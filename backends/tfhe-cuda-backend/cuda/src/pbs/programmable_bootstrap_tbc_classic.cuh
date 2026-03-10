@@ -259,10 +259,17 @@ device_programmable_bootstrap_tbc_2_2_params(
 
   Torus *accumulator = (Torus *)selected_memory;
 
-  // Copying the twiddles from global to shared for extra performance
+  // Copy twiddles from global to shared in SoA layout: real parts in the first
+  // half of the buffer (indices 0..degree/2-1) and imaginary parts in the
+  // second half (indices degree/2..degree-1).  The NSMFFT_*_2_2_params
+  // functions expect this layout to perform conflict-free double reads when
+  // 8-byte shared-memory bank mode (cudaSharedMemBankSizeEightByte) is active.
+  double *tw_re = reinterpret_cast<double *>(shared_twiddles);
+  double *tw_im = tw_re + (polynomial_size / 2);
   for (int k = 0; k < params::opt / 2; k++) {
-    shared_twiddles[threadIdx.x + k * (params::degree / params::opt)] =
-        negtwiddles[threadIdx.x + k * (params::degree / params::opt)];
+    int idx = threadIdx.x + k * (params::degree / params::opt);
+    tw_re[idx] = negtwiddles[idx].x;
+    tw_im[idx] = negtwiddles[idx].y;
   }
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
@@ -584,6 +591,10 @@ __host__ void host_programmable_bootstrap_tbc_with_mode(
         check_cuda_error(cudaFuncSetCacheConfig(
             device_programmable_bootstrap_tbc_2_2_params<Torus, params, 22>,
             cudaFuncCachePreferShared));
+        // 8-byte bank mode makes SoA double reads conflict-free for this kernel
+        check_cuda_error(cudaFuncSetSharedMemConfig(
+            device_programmable_bootstrap_tbc_2_2_params<Torus, params, 22>,
+            cudaSharedMemBankSizeEightByte));
         check_cuda_error(cudaLaunchKernelEx(
             &config,
             device_programmable_bootstrap_tbc_2_2_params<Torus, params, 22>,
@@ -601,6 +612,10 @@ __host__ void host_programmable_bootstrap_tbc_with_mode(
         check_cuda_error(cudaFuncSetCacheConfig(
             device_programmable_bootstrap_tbc_2_2_params<Torus, params, 23>,
             cudaFuncCachePreferShared));
+        // 8-byte bank mode makes SoA double reads conflict-free for this kernel
+        check_cuda_error(cudaFuncSetSharedMemConfig(
+            device_programmable_bootstrap_tbc_2_2_params<Torus, params, 23>,
+            cudaSharedMemBankSizeEightByte));
         check_cuda_error(cudaLaunchKernelEx(
             &config,
             device_programmable_bootstrap_tbc_2_2_params<Torus, params, 23>,
@@ -618,6 +633,10 @@ __host__ void host_programmable_bootstrap_tbc_with_mode(
         check_cuda_error(cudaFuncSetCacheConfig(
             device_programmable_bootstrap_tbc_2_2_params<Torus, params, 24>,
             cudaFuncCachePreferShared));
+        // 8-byte bank mode makes SoA double reads conflict-free for this kernel
+        check_cuda_error(cudaFuncSetSharedMemConfig(
+            device_programmable_bootstrap_tbc_2_2_params<Torus, params, 24>,
+            cudaSharedMemBankSizeEightByte));
         check_cuda_error(cudaLaunchKernelEx(
             &config,
             device_programmable_bootstrap_tbc_2_2_params<Torus, params, 24>,

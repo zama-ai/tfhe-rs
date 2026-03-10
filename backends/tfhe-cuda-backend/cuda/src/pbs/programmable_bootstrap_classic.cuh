@@ -99,8 +99,15 @@ device_programmable_bootstrap_specialized_2_2_params(
 
   Torus *accumulator = (Torus *)shared_fft;
 
-  shared_twiddles[threadIdx.x + threadIdx.y * (params::degree / params::opt)] =
-      negtwiddles[threadIdx.x + threadIdx.y * (params::degree / params::opt)];
+  // Load twiddles in SoA layout: real parts in the first half of the buffer,
+  // imaginary parts in the second half.  See NSMFFT_direct_2_2_params.
+  {
+    int idx = threadIdx.x + threadIdx.y * (params::degree / params::opt);
+    double *tw_re = reinterpret_cast<double *>(shared_twiddles);
+    double *tw_im = tw_re + (polynomial_size / 2);
+    tw_re[idx] = negtwiddles[idx].x;
+    tw_im[idx] = negtwiddles[idx].y;
+  }
 
   const Torus *block_lwe_array_in =
       &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
@@ -762,6 +769,11 @@ __host__ void host_programmable_bootstrap_with_mode(
           device_programmable_bootstrap_specialized_2_2_params<Torus, params,
                                                                21>,
           cudaFuncCachePreferShared));
+      // 8-byte bank mode makes SoA double reads conflict-free for this kernel
+      check_cuda_error(cudaFuncSetSharedMemConfig(
+          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
+                                                               21>,
+          cudaSharedMemBankSizeEightByte));
       check_cuda_error(cudaGetLastError());
       device_programmable_bootstrap_specialized_2_2_params<Torus, params, 21>
           <<<grid, new_block, full_sm_specialized, stream>>>(
@@ -784,6 +796,11 @@ __host__ void host_programmable_bootstrap_with_mode(
           device_programmable_bootstrap_specialized_2_2_params<Torus, params,
                                                                22>,
           cudaFuncCachePreferShared));
+      // 8-byte bank mode makes SoA double reads conflict-free for this kernel
+      check_cuda_error(cudaFuncSetSharedMemConfig(
+          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
+                                                               22>,
+          cudaSharedMemBankSizeEightByte));
       check_cuda_error(cudaGetLastError());
       device_programmable_bootstrap_specialized_2_2_params<Torus, params, 22>
           <<<grid, new_block, full_sm_specialized, stream>>>(
@@ -806,6 +823,11 @@ __host__ void host_programmable_bootstrap_with_mode(
           device_programmable_bootstrap_specialized_2_2_params<Torus, params,
                                                                23>,
           cudaFuncCachePreferShared));
+      // 8-byte bank mode makes SoA double reads conflict-free for this kernel
+      check_cuda_error(cudaFuncSetSharedMemConfig(
+          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
+                                                               23>,
+          cudaSharedMemBankSizeEightByte));
       check_cuda_error(cudaGetLastError());
       device_programmable_bootstrap_specialized_2_2_params<Torus, params, 23>
           <<<grid, new_block, full_sm_specialized, stream>>>(
@@ -828,6 +850,11 @@ __host__ void host_programmable_bootstrap_with_mode(
           device_programmable_bootstrap_specialized_2_2_params<Torus, params,
                                                                24>,
           cudaFuncCachePreferShared));
+      // 8-byte bank mode makes SoA double reads conflict-free for this kernel
+      check_cuda_error(cudaFuncSetSharedMemConfig(
+          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
+                                                               24>,
+          cudaSharedMemBankSizeEightByte));
       check_cuda_error(cudaGetLastError());
       device_programmable_bootstrap_specialized_2_2_params<Torus, params, 24>
           <<<grid, new_block, full_sm_specialized, stream>>>(
@@ -850,6 +877,11 @@ __host__ void host_programmable_bootstrap_with_mode(
           device_programmable_bootstrap_specialized_2_2_params<Torus, params,
                                                                25>,
           cudaFuncCachePreferShared));
+      // 8-byte bank mode makes SoA double reads conflict-free for this kernel
+      check_cuda_error(cudaFuncSetSharedMemConfig(
+          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
+                                                               25>,
+          cudaSharedMemBankSizeEightByte));
       check_cuda_error(cudaGetLastError());
       device_programmable_bootstrap_specialized_2_2_params<Torus, params, 25>
           <<<grid, new_block, full_sm_specialized, stream>>>(

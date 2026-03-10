@@ -174,9 +174,16 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle_2_2_params(
 
   double2 *shared_fft = (double2 *)(precalc_coefs + polynomial_size * 3);
   double2 *shared_twiddles = shared_fft + (polynomial_size / 2);
-  for (int k = 0; k < params::opt / 2; k++) {
-    shared_twiddles[threadIdx.x + k * (params::degree / params::opt)] =
-        negtwiddles[threadIdx.x + k * (params::degree / params::opt)];
+  // Load twiddles in SoA layout: real parts in the first half of the buffer,
+  // imaginary parts in the second half.  See NSMFFT_direct_2_2_params.
+  {
+    double *tw_re = reinterpret_cast<double *>(shared_twiddles);
+    double *tw_im = tw_re + (polynomial_size / 2);
+    for (int k = 0; k < params::opt / 2; k++) {
+      int idx = threadIdx.x + k * (params::degree / params::opt);
+      tw_re[idx] = negtwiddles[idx].x;
+      tw_im[idx] = negtwiddles[idx].y;
+    }
   }
 
   // Ids
@@ -737,6 +744,11 @@ __host__ void execute_compute_keybundle_with_mode(
           device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
               Torus, Degree<2048>, FULLSM>,
           cudaFuncCachePreferShared));
+      // 8-byte bank mode makes SoA double reads conflict-free for this kernel
+      check_cuda_error(cudaFuncSetSharedMemConfig(
+          device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+              Torus, Degree<2048>, FULLSM>,
+          cudaSharedMemBankSizeEightByte));
       check_cuda_error(cudaGetLastError());
       device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
           Torus, Degree<2048>, FULLSM><<<grid_keybundle, thds_new_keybundle,

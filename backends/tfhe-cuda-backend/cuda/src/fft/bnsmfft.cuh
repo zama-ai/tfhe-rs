@@ -149,6 +149,17 @@ template <class params> __device__ void NSMFFT_direct(double2 *A) {
    it uses the twiddles from shared memory for extra performance
    this is possible cause we know for 2_2 params will have memory available
    the fft is returned in registers to avoid extra synchronizations
+ *
+ * Bank-conflict strategy for double-precision shared memory:
+ * Both the FFT scratch buffer 'A' and the twiddle array are reinterpreted as
+ * struct-of-arrays (SoA): real parts occupy the first half, imaginary parts
+ * the second half.  A double (8 bytes) occupies exactly one bank in 8-byte
+ * bank mode, so 32 consecutive threads hit 32 distinct banks -- no conflict.
+ * The caller must store twiddles in the same SoA layout before calling this
+ * function, and the scratch buffer A must hold 2*degree doubles (i.e. degree
+ * double2 elements) so both halves fit.  Setting 8-byte shared-memory bank
+ * mode (cudaDeviceSetSharedMemConfig / cudaSharedMemBankSizeEightByte) is
+ * required for the SoA layout to become fully conflict-free.
  */
 template <class params>
 __device__ void NSMFFT_direct_2_2_params(double2 *A, double2 *fft_out,
@@ -168,6 +179,16 @@ __device__ void NSMFFT_direct_2_2_params(double2 *A, double2 *fft_out,
 
   Index tid = threadIdx.x;
   double2 u[BUTTERFLY_DEPTH], v[BUTTERFLY_DEPTH], w;
+
+  // SoA view of the scratch buffer: real parts in [0..degree-1],
+  // imaginary parts in [degree..2*degree-1].
+  double *A_re = reinterpret_cast<double *>(A);
+  double *A_im = A_re + params::degree;
+
+  // SoA view of shared twiddles (loaded by caller in the same SoA layout):
+  // real parts in [0..degree-1], imaginary parts in [degree..2*degree-1].
+  const double *tw_re = reinterpret_cast<const double *>(shared_twiddles);
+  const double *tw_im = tw_re + params::degree;
 
   // switch register order
   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
@@ -193,26 +214,36 @@ __device__ void NSMFFT_direct_2_2_params(double2 *A, double2 *fft_out,
     Index thread_mask = (1 << l) - 1;
     twiddle_shift <<= 1;
 
+    // Write phase: store the value that needs to be exchanged into shared
+    // memory using SoA layout so each double maps to a unique bank.
     tid = threadIdx.x;
     __syncthreads();
 #pragma unroll
     for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
       Index rank = tid & thread_mask;
       bool u_stays_in_register = rank < lane_mask;
-      A[tid] = (u_stays_in_register) ? v[i] : u[i];
+      double2 val = (u_stays_in_register) ? v[i] : u[i];
+      A_re[tid] = val.x;
+      A_im[tid] = val.y;
       tid = tid + STRIDE;
     }
     __syncthreads();
 
+    // Read phase: fetch the partner value via XOR index, also using SoA so
+    // both component loads are conflict-free.
     tid = threadIdx.x;
 #pragma unroll
     for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
       Index rank = tid & thread_mask;
       bool u_stays_in_register = rank < lane_mask;
-      w = A[tid ^ lane_mask];
+      Index xor_tid = tid ^ lane_mask;
+      w = {A_re[xor_tid], A_im[xor_tid]};
       u[i] = (u_stays_in_register) ? u[i] : w;
       v[i] = (u_stays_in_register) ? w : v[i];
-      w = shared_twiddles[tid / lane_mask + twiddle_shift];
+      // Twiddle reads at these levels are broadcasts within each warp
+      // (multiple threads read the same address), so no bank conflict here.
+      Index tw_idx = tid / lane_mask + twiddle_shift;
+      w = {tw_re[tw_idx], tw_im[tw_idx]};
 
       w *= v[i];
 
@@ -239,7 +270,10 @@ __device__ void NSMFFT_direct_2_2_params(double2 *A, double2 *fft_out,
       w = shfl_xor_double2(reg_A[i], 1 << (l - 1), 0xFFFFFFFF);
       u[i] = (u_stays_in_register) ? u[i] : w;
       v[i] = (u_stays_in_register) ? w : v[i];
-      w = shared_twiddles[tid / lane_mask + twiddle_shift];
+      // At l=1 each thread reads a unique twiddle address; SoA layout makes
+      // each component load conflict-free when 8-byte bank mode is active.
+      Index tw_idx = tid / lane_mask + twiddle_shift;
+      w = {tw_re[tw_idx], tw_im[tw_idx]};
 
       w *= v[i];
 
@@ -394,6 +428,10 @@ template <class params> __device__ void NSMFFT_inverse(double2 *A) {
  * this is possible cause we know for 2_2 params will have memory available
  * the input comes from registers to avoid some synchronizations and shared mem
  * usage
+ *
+ * Bank-conflict strategy: see NSMFFT_direct_2_2_params for the full
+ * description.  The same SoA layout (real in first half, imag in second half)
+ * is used for both the scratch buffer A and the twiddle array.
  */
 template <class params>
 __device__ void NSMFFT_inverse_2_2_params(double2 *A, double2 *buffer_regs,
@@ -415,6 +453,14 @@ __device__ void NSMFFT_inverse_2_2_params(double2 *A, double2 *buffer_regs,
   size_t tid = threadIdx.x;
   double2 u[BUTTERFLY_DEPTH], v[BUTTERFLY_DEPTH], w;
 
+  // SoA view of the scratch buffer (same layout as in the forward FFT).
+  double *A_re = reinterpret_cast<double *>(A);
+  double *A_im = A_re + params::degree;
+
+  // SoA view of shared twiddles (loaded by caller in the same SoA layout).
+  const double *tw_re = reinterpret_cast<const double *>(shared_twiddles);
+  const double *tw_im = tw_re + params::degree;
+
   // load into registers and divide by compressed polynomial size
   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
     u[i] = buffer_regs[i];
@@ -431,14 +477,18 @@ __device__ void NSMFFT_inverse_2_2_params(double2 *A, double2 *buffer_regs,
     tid = threadIdx.x;
     twiddle_shift >>= 1;
 
-    // at this point registers are ready for the  butterfly
+    // at this point registers are ready for the butterfly
     tid = threadIdx.x;
     double2 reg_A[BUTTERFLY_DEPTH];
 #pragma unroll
     for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
       w = (u[i] - v[i]);
       u[i] += v[i];
-      v[i] = w * conjugate(shared_twiddles[tid / lane_mask + twiddle_shift]);
+      // Twiddle read: broadcast levels (l>=2) have no conflict; at l=1 each
+      // thread reads a unique address -- SoA + 8-byte bank mode =
+      // conflict-free.
+      Index tw_idx = tid / lane_mask + twiddle_shift;
+      v[i] = w * conjugate((double2){tw_re[tw_idx], tw_im[tw_idx]});
 
       tid = tid + STRIDE;
     }
@@ -465,31 +515,38 @@ __device__ void NSMFFT_inverse_2_2_params(double2 *A, double2 *buffer_regs,
     tid = threadIdx.x;
     twiddle_shift >>= 1;
 
-    // at this point registers are ready for the  butterfly
+    // at this point registers are ready for the butterfly
     tid = threadIdx.x;
 
 #pragma unroll
     for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
       w = (u[i] - v[i]);
       u[i] += v[i];
-      v[i] = w * conjugate(shared_twiddles[tid / lane_mask + twiddle_shift]);
+      // Twiddle reads here are broadcasts within each warp, so no conflict.
+      Index tw_idx = tid / lane_mask + twiddle_shift;
+      v[i] = w * conjugate((double2){tw_re[tw_idx], tw_im[tw_idx]});
 
-      // keep one of the register for next iteration and store another one in sm
+      // keep one register for next iteration; store the other in shared memory
+      // using SoA layout for conflict-free double writes.
       Index rank = tid & thread_mask;
       bool u_stays_in_register = rank < lane_mask;
-      A[tid] = (u_stays_in_register) ? v[i] : u[i];
+      double2 val = (u_stays_in_register) ? v[i] : u[i];
+      A_re[tid] = val.x;
+      A_im[tid] = val.y;
 
       tid = tid + STRIDE;
     }
     __syncthreads();
 
-    // prepare registers for next butterfly iteration
+    // Read the exchanged value from shared memory using SoA for conflict-free
+    // double reads.
     tid = threadIdx.x;
 #pragma unroll
     for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
       Index rank = tid & thread_mask;
       bool u_stays_in_register = rank < lane_mask;
-      w = A[tid ^ lane_mask];
+      Index xor_tid = tid ^ lane_mask;
+      w = {A_re[xor_tid], A_im[xor_tid]};
       u[i] = (u_stays_in_register) ? u[i] : w;
       v[i] = (u_stays_in_register) ? w : v[i];
 
@@ -559,10 +616,18 @@ __global__ void batch_NSMFFT_classical_specialized(double2 *d_input,
 
   double2 *shared_twiddles = fft + params::degree / 2;
 
+  // Load twiddles into shared memory using SoA layout: real parts in the first
+  // half (indices 0..degree/2-1) and imaginary parts in the second half
+  // (indices degree/2..degree-1).  This matches the layout expected by
+  // NSMFFT_direct_2_2_params, and enables conflict-free double reads when
+  // 8-byte shared-memory bank mode is active.
+  double *tw_re = reinterpret_cast<double *>(shared_twiddles);
+  double *tw_im = tw_re + (params::degree / 2);
   double2 fft_regs[params::opt / 2];
 #pragma unroll
   for (int i = 0; i < params::opt / 2; i++) {
-    shared_twiddles[tid] = negtwiddles[tid];
+    tw_re[tid] = negtwiddles[tid].x;
+    tw_im[tid] = negtwiddles[tid].y;
     fft_regs[i] = d_input[blockIdx.x * (params::degree / 2) + tid];
     tid = tid + params::degree / params::opt;
   }
