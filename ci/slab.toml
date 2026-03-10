@@ -25,7 +25,7 @@ user = "ubuntu"
 # Profile used to build CUDA code without the need to get p-like instance.
 [backend.aws.gpu-build]
 region = "us-east-1"
-image_id = "ami-093b80553736c78e3"
+image_id = "ami-0250f541bc1358116"
 instance_type = "m6i.4xlarge"
 user = "ubuntu"
 
