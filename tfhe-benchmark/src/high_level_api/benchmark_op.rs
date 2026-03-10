@@ -16,14 +16,13 @@ pub trait BenchmarkOp<FheType> {
     fn execute(&self, inputs: &Self::Inputs) -> Self::Output;
 }
 
-pub struct UnaryOp<F, EncryptType> {
-    pub func: F,
+pub struct UnaryOp<FheType, R, EncryptType> {
+    pub func: fn(&FheType) -> R,
     pub _encrypt: PhantomData<EncryptType>,
 }
 
-impl<FheType, F, R, EncryptType> BenchmarkOp<FheType> for UnaryOp<F, EncryptType>
+impl<FheType, R, EncryptType> BenchmarkOp<FheType> for UnaryOp<FheType, R, EncryptType>
 where
-    F: Fn(&FheType) -> R,
     R: BenchWait,
     FheType: FheEncrypt<EncryptType, ClientKey> + Send + Sync,
     Standard: Distribution<EncryptType>,
@@ -40,17 +39,15 @@ where
     }
 }
 
-pub struct ScalarBinaryOp<F, G, EncryptType> {
-    pub func: F,
-    pub rng_function: G,
+pub struct ScalarBinaryOp<FheType, T, R, EncryptType> {
+    pub func: fn(&FheType, &T) -> R,
+    pub rng_function: fn() -> T,
     pub _encrypt: PhantomData<EncryptType>,
 }
 
-impl<FheType, F, R, G, T, EncryptType> BenchmarkOp<FheType> for ScalarBinaryOp<F, G, EncryptType>
+impl<FheType, R, T, EncryptType> BenchmarkOp<FheType> for ScalarBinaryOp<FheType, T, R, EncryptType>
 where
-    F: Fn(&FheType, &T) -> R,
     R: BenchWait,
-    G: Fn() -> T,
     FheType: FheEncrypt<EncryptType, ClientKey> + Sync + Send,
     Standard: Distribution<EncryptType>,
     T: Sync + Send,
@@ -70,17 +67,16 @@ where
     }
 }
 
-pub struct BinaryOp<F, EncryptLhsType, EncryptRhsType, FheRhsType> {
-    pub func: F,
+pub struct BinaryOp<FheType, R, EncryptLhsType, EncryptRhsType, FheRhsType> {
+    pub func: fn(&FheType, &FheRhsType) -> R,
     pub _encrypt_lhs: PhantomData<EncryptLhsType>,
     pub _encrypt_rhs: PhantomData<EncryptRhsType>,
     pub _rhs_type: PhantomData<FheRhsType>,
 }
 
-impl<FheType, FheRhsType, F, R, EncryptLhsType, EncryptRhsType> BenchmarkOp<FheType>
-    for BinaryOp<F, EncryptLhsType, EncryptRhsType, FheRhsType>
+impl<FheType, FheRhsType, R, EncryptLhsType, EncryptRhsType> BenchmarkOp<FheType>
+    for BinaryOp<FheType, R, EncryptLhsType, EncryptRhsType, FheRhsType>
 where
-    F: Fn(&FheType, &FheRhsType) -> R,
     R: BenchWait,
     FheType: FheEncrypt<EncryptLhsType, ClientKey> + Sync + Send,
     FheRhsType: FheEncrypt<EncryptRhsType, ClientKey> + Sync + Send,
@@ -102,14 +98,13 @@ where
     }
 }
 
-pub struct TernaryOp<F, EncryptType> {
-    pub func: F,
+pub struct TernaryOp<FheType, R, EncryptType> {
+    pub func: fn(&FheBool, &FheType, &FheType) -> R,
     pub _encrypt: PhantomData<EncryptType>,
 }
 
-impl<FheType, F, R, EncryptType> BenchmarkOp<FheType> for TernaryOp<F, EncryptType>
+impl<FheType, R, EncryptType> BenchmarkOp<FheType> for TernaryOp<FheType, R, EncryptType>
 where
-    F: Fn(&FheBool, &FheType, &FheType) -> R,
     R: BenchWait,
     FheType: FheEncrypt<EncryptType, ClientKey> + Sync + Send,
     Standard: Distribution<EncryptType>,
@@ -130,15 +125,14 @@ where
     }
 }
 
-pub struct ArrayOp<F, EncryptType> {
-    pub func: F,
+pub struct ArrayOp<FheType, EncryptType> {
+    pub func: fn(std::slice::Iter<'_, FheType>) -> FheType,
     pub array_size: usize,
     pub _encrypt: PhantomData<EncryptType>,
 }
 
-impl<FheType, F, EncryptType> BenchmarkOp<FheType> for ArrayOp<F, EncryptType>
+impl<FheType, EncryptType> BenchmarkOp<FheType> for ArrayOp<FheType, EncryptType>
 where
-    F: for<'a> Fn(std::slice::Iter<'a, FheType>) -> FheType,
     FheType: FheEncrypt<EncryptType, ClientKey> + Clone + BenchWait + Sync + Send,
     Standard: Distribution<EncryptType>,
 {
