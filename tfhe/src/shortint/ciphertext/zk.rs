@@ -76,7 +76,7 @@ impl CompactPkeCrs {
 /// A List of CompactCiphertext with their zero-knowledge proofs
 ///
 /// The proofs can only be generated during the encryption with a [CompactPublicKey]
-#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(ProvenCompactCiphertextListVersions)]
 pub struct ProvenCompactCiphertextList {
     pub(crate) proved_lists: Vec<(CompactCiphertextList, CompactPkeProof)>,

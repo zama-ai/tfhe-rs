@@ -1033,6 +1033,11 @@ pub struct ProvenCompactCiphertextList(crate::high_level_api::ProvenCompactCiphe
 #[wasm_bindgen]
 impl CompactCiphertextList {
     #[wasm_bindgen]
+    pub fn eq(&self, other: &CompactCiphertextList) -> bool {
+        self.0 == other.0
+    }
+
+    #[wasm_bindgen]
     pub fn builder(
         public_key: &TfheCompactPublicKey,
     ) -> Result<CompactCiphertextListBuilder, JsError> {
@@ -1119,6 +1124,11 @@ impl ProvenCompactCiphertextList {
             let inner = crate::high_level_api::ProvenCompactCiphertextList::builder(&public_key.0);
             CompactCiphertextListBuilder(inner)
         })
+    }
+
+    #[wasm_bindgen]
+    pub fn eq(&self, other: &ProvenCompactCiphertextList) -> bool {
+        self.0 == other.0
     }
 
     #[wasm_bindgen]
@@ -1425,6 +1435,14 @@ impl CompactCiphertextListBuilder {
         })
     }
 
+    #[wasm_bindgen]
+    pub fn build_packed_seeded(&self, seed: &[u8]) -> Result<CompactCiphertextList, JsError> {
+        catch_panic_result(|| {
+            let inner = self.0.build_packed_seeded(seed).map_err(into_js_error)?;
+            Ok(CompactCiphertextList(inner))
+        })
+    }
+
     #[cfg(feature = "zk-pok")]
     pub fn build_with_proof_packed(
         &self,
@@ -1435,6 +1453,22 @@ impl CompactCiphertextListBuilder {
         catch_panic_result(|| {
             self.0
                 .build_with_proof_packed(&crs.0, metadata, compute_load.into())
+                .map_err(into_js_error)
+                .map(ProvenCompactCiphertextList)
+        })
+    }
+
+    #[cfg(feature = "zk-pok")]
+    pub fn build_with_proof_packed_seeded(
+        &self,
+        crs: &CompactPkeCrs,
+        metadata: &[u8],
+        compute_load: ZkComputeLoad,
+        seed: &[u8],
+    ) -> Result<ProvenCompactCiphertextList, JsError> {
+        catch_panic_result(|| {
+            self.0
+                .build_with_proof_packed_seeded(&crs.0, metadata, compute_load.into(), seed)
                 .map_err(into_js_error)
                 .map(ProvenCompactCiphertextList)
         })
