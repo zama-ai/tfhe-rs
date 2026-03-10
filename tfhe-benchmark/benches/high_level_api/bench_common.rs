@@ -10,6 +10,22 @@ use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
 use tfhe::ClientKey;
 
+pub fn as_fn_binary<A, B, R>(f: fn(&A, &B) -> R) -> fn(&A, &B) -> R {
+    f
+}
+pub fn as_fn_unary<A, R>(f: fn(&A) -> R) -> fn(&A) -> R {
+    f
+}
+pub fn as_fn_ternary<A, B, C, R>(f: fn(&A, &B, &C) -> R) -> fn(&A, &B, &C) -> R {
+    f
+}
+pub fn as_fn_nullary<R>(f: fn() -> R) -> fn() -> R {
+    f
+}
+pub fn as_fn_iter<T>(f: fn(std::slice::Iter<'_, T>) -> T) -> fn(std::slice::Iter<'_, T>) -> T {
+    f
+}
+
 pub struct BenchConfig<'a> {
     pub type_name: &'a str,
     pub display_name: &'a str,
@@ -182,7 +198,7 @@ macro_rules! bench_type_binary_op {
                         func_name: stringify!($op),
                     },
                     BinaryOp {
-                        func: |lhs: &$fhe_type, rhs: &$fhe_right_type| lhs.$op(rhs),
+                        func: as_fn_binary(|lhs: &$fhe_type, rhs: &$fhe_right_type| lhs.$op(rhs)),
                         _encrypt_lhs: PhantomData::<$left_type>,
                         _encrypt_rhs: PhantomData::<$right_type>,
                         _rhs_type: PhantomData::<$fhe_right_type>,
@@ -216,8 +232,8 @@ macro_rules! bench_type_binary_scalar_op {
                         func_name: stringify!($op),
                     },
                     ScalarBinaryOp {
-                        func: |lhs: &$fhe_type, rhs: &$scalar_ty| lhs.$op(*rhs),
-                        rng_function: $rng_fn,
+                        func: as_fn_binary(|lhs: &$fhe_type, rhs: &$scalar_ty| lhs.$op(*rhs)),
+                        rng_function: as_fn_nullary($rng_fn),
                         _encrypt: PhantomData::<$integer_type>,
                     }
                 );
@@ -247,7 +263,7 @@ macro_rules! bench_type_unary_op {
                         func_name: stringify!($op),
                     },
                     UnaryOp {
-                        func: |lhs: &$fhe_type| lhs.$op(),
+                        func: as_fn_unary(|lhs: &$fhe_type| lhs.$op()),
                         _encrypt: PhantomData::<$integer_type>
                     }
                 );
@@ -277,7 +293,7 @@ macro_rules! bench_type_ternary_op {
                         func_name: stringify!($op),
                     },
                     TernaryOp {
-                        func: |cond: &FheBool, lhs: &$fhe_type, rhs: &$fhe_type| cond.$op(lhs, rhs),
+                        func: as_fn_ternary(|cond: &FheBool, lhs: &$fhe_type, rhs: &$fhe_type| cond.$op(lhs, rhs)),
                         _encrypt: PhantomData::<$integer_type>
                     }
                 );
@@ -307,7 +323,7 @@ macro_rules! bench_type_array_op {
                         func_name: stringify!($op),
                     },
                     ArrayOp {
-                        func: |iter: std::slice::Iter<'_, $fhe_type>| iter.$op(),
+                        func: as_fn_iter(|iter: std::slice::Iter<'_, $fhe_type>| iter.$op()),
                         array_size: 64,
                         _encrypt: PhantomData::<$integer_type>,
                     }

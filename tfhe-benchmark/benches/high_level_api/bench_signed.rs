@@ -1,4 +1,7 @@
-use crate::bench_common::{bench_fhe_type_op, BenchConfig};
+use crate::bench_common::{
+    as_fn_binary, as_fn_iter, as_fn_nullary, as_fn_ternary, as_fn_unary, bench_fhe_type_op,
+    BenchConfig,
+};
 use benchmark::high_level_api::benchmark_op::*;
 use benchmark::high_level_api::random_generator::{random_non_zero, random_not_power_of_two};
 use benchmark::utilities::{BitSizesSet, EnvConfig, OperandType};
