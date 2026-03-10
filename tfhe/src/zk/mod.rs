@@ -1,9 +1,7 @@
 pub mod backward_compatibility;
 
 use crate::conformance::{EnumSet, ParameterSetConformant};
-use crate::core_crypto::commons::math::random::{
-    BoundedDistribution, ByteRandomGenerator, RandomGenerator,
-};
+use crate::core_crypto::commons::math::random::BoundedDistribution;
 use crate::core_crypto::prelude::*;
 use crate::named::Named;
 #[cfg(feature = "shortint")]
@@ -31,7 +29,7 @@ pub use tfhe_zk_pok::proofs::pke_v2::PkeV2SupportedHashConfig as ZkPkeV2Supporte
 pub use tfhe_zk_pok::proofs::ComputeLoad as ZkComputeLoad;
 type Curve = tfhe_zk_pok::curve_api::Bls12_446;
 
-#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(CompactPkeProofVersions)]
 #[allow(clippy::large_enum_variant)]
 pub enum CompactPkeProof {
@@ -632,7 +630,7 @@ impl CompactPkeCrs {
 
     /// Prove a ciphertext list encryption using this CRS
     #[allow(clippy::too_many_arguments)]
-    pub fn prove<Scalar, KeyCont, InputCont, ListCont, G>(
+    pub fn prove<Scalar, KeyCont, InputCont, ListCont>(
         &self,
         compact_public_key: &LweCompactPublicKey<KeyCont>,
         messages: &InputCont,
@@ -642,7 +640,7 @@ impl CompactPkeCrs {
         body_noise: &[Scalar],
         metadata: &[u8],
         load: ZkComputeLoad,
-        random_generator: &mut RandomGenerator<G>,
+        seed: [u8; 16],
     ) -> CompactPkeProof
     where
         Scalar: UnsignedInteger,
@@ -650,7 +648,6 @@ impl CompactPkeCrs {
         KeyCont: Container<Element = Scalar>,
         InputCont: Container<Element = Scalar>,
         ListCont: Container<Element = Scalar>,
-        G: ByteRandomGenerator,
     {
         let key_mask = compact_public_key
             .get_mask()
@@ -706,10 +703,6 @@ impl CompactPkeCrs {
             .copied()
             .map(CastFrom::cast_from)
             .collect::<Vec<_>>();
-
-        // 128bits seed as defined in the NIST document
-        let mut seed = [0u8; 16];
-        random_generator.fill_bytes(&mut seed);
 
         match self {
             Self::PkeV1(public_params) => {

@@ -120,6 +120,12 @@ impl<G: ByteRandomGenerator> NoiseRandomGenerator<G> {
         }
     }
 
+    #[cfg(feature = "zk-pok")]
+    pub(crate) fn fill_bytes(&mut self, dest: &mut [u8]) {
+        use rand_core::RngCore;
+        self.gen.fill_bytes(dest);
+    }
+
     pub fn remaining_bytes(&self) -> Option<usize> {
         self.gen.remaining_bytes()
     }

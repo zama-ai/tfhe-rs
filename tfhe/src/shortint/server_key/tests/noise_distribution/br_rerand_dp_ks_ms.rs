@@ -274,11 +274,8 @@ where
     let ct = comp_private_key.encrypt_noiseless_decompression_input_dyn_lwe(cks, msg, &mut engine);
 
     let cpk_ct_zero_rerand = {
-        let compact_list = cpk.encrypt_iter_with_modulus_with_engine(
-            core::iter::once(0),
-            cpk.parameters.message_modulus.0,
-            &mut engine,
-        );
+        let compact_list =
+            cpk.encrypt_iter_with_modulus(core::iter::once(0), cpk.parameters.message_modulus.0);
         let mut expanded = compact_list
             .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
             .unwrap();

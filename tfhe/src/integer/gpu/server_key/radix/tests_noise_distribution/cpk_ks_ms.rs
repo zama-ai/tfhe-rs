@@ -2,7 +2,6 @@ use crate::integer::gpu::ciphertext::compact_list::CudaFlattenedVecCompactCipher
 
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_stringified_test;
-use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::test_params::TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, CompactCiphertextListExpansionKind,
@@ -66,7 +65,6 @@ fn cpk_ks_any_ms_inner_helper_gpu(
     DecryptionAndNoiseResult,
     DecryptionAndNoiseResult,
 ) {
-    let mut engine = ShortintEngine::new();
     let thread_cpk_private_key;
     let thread_cpk;
     let thread_cuda_ksk;
@@ -124,11 +122,9 @@ fn cpk_ks_any_ms_inner_helper_gpu(
     };
     let mut cuda_side_resources = CudaSideResources::new(streams, cuda_block_info);
     let ct = {
-        let compact_list = cpk.key.encrypt_iter_with_modulus_with_engine(
-            core::iter::once(msg),
-            cpk.key.parameters.message_modulus.0,
-            &mut engine,
-        );
+        let compact_list = cpk
+            .key
+            .encrypt_iter_with_modulus(core::iter::once(msg), cpk.key.parameters.message_modulus.0);
 
         let num_blocks = 1usize;
 
@@ -648,11 +644,9 @@ fn sanity_check_encrypt_cpk_ks_ms_pbs_gpu(meta_params: MetaParameters, filename_
 
     for _ in 0..10 {
         let (gpu_sample_input, shortint_res) = {
-            let mut engine = ShortintEngine::new();
-            let no_casting_compact_list = cpk.key.encrypt_iter_with_modulus_with_engine(
+            let no_casting_compact_list = cpk.key.encrypt_iter_with_modulus(
                 core::iter::once(0),
                 cpk.key.parameters.message_modulus.0,
-                &mut engine,
             );
 
             let num_blocks = 1usize;
