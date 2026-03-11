@@ -248,8 +248,13 @@ mod cuda {
     use tfhe::integer::{gen_keys_radix, CompactPrivateKey, CompactPublicKey};
     use tfhe::keycache::NamedParam;
 
-    fn execute_gpu_re_randomize(c: &mut Criterion, bit_size: usize) {
-        let bench_name = "integer::cuda::re_randomize";
+    fn execute_gpu_re_randomize(
+        c: &mut Criterion,
+        bit_size: usize,
+        rerand_mode: super::BenchReRandomizeMode,
+    ) {
+        let bench_name = format!("integer::cuda::re_randomize_{rerand_mode}");
+        let bench_name = &bench_name;
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
             .sample_size(15)
@@ -257,8 +262,6 @@ mod cuda {
 
         let param = BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
         let comp_param = BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let cpk_param = BENCH_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
-        let ks_param = BENCH_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let streams = CudaStreams::new_multi_gpu();
 
@@ -272,13 +275,44 @@ mod cuda {
         let (cuda_compression_key, cuda_decompression_key) =
             radix_cks.new_cuda_compression_decompression_keys(&private_compression_key, &streams);
 
-        let cpk_private_key = CompactPrivateKey::new(cpk_param);
-        let cpk = CompactPublicKey::new(&cpk_private_key);
-        let ksk = KeySwitchingKey::new((&cpk_private_key, None), (&cks, &sks), ks_param);
-        let d_ksk_material = CudaKeySwitchingKeyMaterial::from_key_switching_key(&ksk, &streams);
-        let re_randomization_key = CudaReRandomizationKey::LegacyDedicatedCPK {
-            cpk: &cpk,
-            ksk: &d_ksk_material,
+        // Build the CPK and (optionally) KSK depending on the mode.
+        // `ksk` and `d_ksk_material` are `Option` because they only exist in the legacy mode,
+        // but must outlive `re_randomization_key` which borrows from them.
+        let cpk;
+        let ksk;
+        let d_ksk_material;
+        // The `NoKeyswitch` branch assigns `d_ksk_material = None` which is never read, but
+        // the variable must be initialized in all branches so it can be dropped at scope end.
+        #[allow(unused_assignments)]
+        let re_randomization_key = match rerand_mode {
+            super::BenchReRandomizeMode::LegacyWithKeyswitch => {
+                let cpk_param = BENCH_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
+                let ks_param =
+                    BENCH_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+                let cpk_private_key = CompactPrivateKey::new(cpk_param);
+                cpk = CompactPublicKey::new(&cpk_private_key);
+                ksk = Some(KeySwitchingKey::new(
+                    (&cpk_private_key, None),
+                    (&cks, &sks),
+                    ks_param,
+                ));
+                d_ksk_material = Some(CudaKeySwitchingKeyMaterial::from_key_switching_key(
+                    ksk.as_ref().unwrap(),
+                    &streams,
+                ));
+                CudaReRandomizationKey::LegacyDedicatedCPK {
+                    cpk: &cpk,
+                    ksk: d_ksk_material.as_ref().unwrap(),
+                }
+            }
+            super::BenchReRandomizeMode::NoKeyswitch => {
+                let compact_private_key: CompactPrivateKey<&[u64]> = cks.try_into().unwrap();
+                cpk = CompactPublicKey::new(&compact_private_key);
+                ksk = None;
+                d_ksk_material = None;
+                CudaReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk: &cpk }
+            }
         };
 
         let rerand_domain_separator = *b"TFHE_Rrd";
@@ -341,12 +375,19 @@ mod cuda {
                 let local_streams = cuda_local_streams(num_blocks, elements as usize);
                 let num_gpus = get_number_of_gpus() as usize;
 
-                let d_ksk_material_vec: Vec<CudaKeySwitchingKeyMaterial> = (0..num_gpus)
-                    .map(|i| {
-                        let local_stream = &local_streams[i % local_streams.len()];
-                        CudaKeySwitchingKeyMaterial::from_key_switching_key(&ksk, local_stream)
-                    })
-                    .collect();
+                // Only create per-GPU KSK copies for the legacy mode
+                let d_ksk_material_vec: Option<Vec<CudaKeySwitchingKeyMaterial>> =
+                    ksk.as_ref().map(|ksk| {
+                        (0..num_gpus)
+                            .map(|i| {
+                                let local_stream = &local_streams[i % local_streams.len()];
+                                CudaKeySwitchingKeyMaterial::from_key_switching_key(
+                                    ksk,
+                                    local_stream,
+                                )
+                            })
+                            .collect()
+                    });
 
                 // Pre-generate and compress ciphertexts for throughput test
                 let d_compressed_cts: Vec<CudaUnsignedRadixCiphertext> = (0..elements as usize)
@@ -405,10 +446,11 @@ mod cuda {
                                 .collect::<Vec<_>>();
 
                             // Return a new seed generator for this iteration
-                            (ctx.finalize(), h_decompressed_cts.clone(), d_cts_to_rerand)
+                            let num_cts = h_decompressed_cts.len();
+                            (ctx.finalize(), num_cts, d_cts_to_rerand)
                         },
-                        |(mut seed_gen, h_cts_to_rerand, mut d_cts_to_rerand)| {
-                            let seeds: Vec<_> = (0..h_cts_to_rerand.len())
+                        |(mut seed_gen, num_cts, mut d_cts_to_rerand)| {
+                            let seeds: Vec<_> = (0..num_cts)
                                 .map(|_| seed_gen.next_seed().unwrap())
                                 .collect();
 
@@ -418,13 +460,18 @@ mod cuda {
                                 .enumerate()
                                 .for_each(|(i, (d_re_randomized, seed))| {
                                     let local_stream = &local_streams[i % local_streams.len()];
-                                    let d_ksk = &d_ksk_material_vec[i % num_gpus];
 
-                                    let re_randomization_key =
-                                        CudaReRandomizationKey::LegacyDedicatedCPK {
+                                    let re_randomization_key = match &d_ksk_material_vec {
+                                        Some(vec) => CudaReRandomizationKey::LegacyDedicatedCPK {
                                             cpk: &cpk,
-                                            ksk: d_ksk,
-                                        };
+                                            ksk: &vec[i % num_gpus],
+                                        },
+                                        None => {
+                                            CudaReRandomizationKey::DerivedCPKWithoutKeySwitch {
+                                                cpk: &cpk,
+                                            }
+                                        }
+                                    };
 
                                     d_re_randomized
                                         .re_randomize(re_randomization_key, seed, local_stream)
@@ -453,10 +500,13 @@ mod cuda {
     }
 
     fn gpu_re_randomize(c: &mut Criterion) {
+        use super::BenchReRandomizeMode;
+
         let bit_sizes = [2, 4, 16, 32, 64, 128, 256];
 
         for bit_size in bit_sizes.iter() {
-            execute_gpu_re_randomize(c, *bit_size);
+            execute_gpu_re_randomize(c, *bit_size, BenchReRandomizeMode::LegacyWithKeyswitch);
+            execute_gpu_re_randomize(c, *bit_size, BenchReRandomizeMode::NoKeyswitch);
         }
     }
 
