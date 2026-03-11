@@ -1,19 +1,17 @@
-use crate::core_crypto::algorithms::lwe_encryption::re_randomization::rerand_encrypt_lwe_compact_ciphertext_list_with_compact_public_key;
-use crate::core_crypto::commons::generators::NoiseRandomGenerator;
 use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{LweCompactCiphertextList, PlaintextCount, PlaintextList};
 use crate::integer::ciphertext::ReRandomizationSeed;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
     CudaRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
-use crate::integer::gpu::cuda_backend_rerand_assign;
 use crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial;
+use crate::integer::gpu::{
+    cuda_backend_rerand_assign, cuda_backend_rerand_without_keyswitch_assign,
+};
 use crate::integer::CompactPublicKey;
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::PBSOrder;
-use tfhe_csprng::generators::DefaultRandomGenerator;
 
 #[derive(Clone, Copy)]
 pub enum CudaReRandomizationKey<'key> {
@@ -21,8 +19,9 @@ pub enum CudaReRandomizationKey<'key> {
         cpk: &'key CompactPublicKey,
         ksk: &'key CudaKeySwitchingKeyMaterial,
     },
-    // For now the GPU only supports the LegacyDedicatedCPK case, see the CPU key in integer for
-    // no keyswitch management
+    DerivedCPKWithoutKeySwitch {
+        cpk: &'key CompactPublicKey,
+    },
 }
 
 impl CudaUnsignedRadixCiphertext {
@@ -67,22 +66,23 @@ impl CudaRadixCiphertext {
         seed: ReRandomizationSeed,
         streams: &CudaStreams,
     ) -> crate::Result<()> {
-        // For now the match has a single arm, but this structure will allow adding the no keyswitch
-        // variant easily
         match re_randomization_key {
             CudaReRandomizationKey::LegacyDedicatedCPK {
                 cpk: compact_public_key,
                 ksk: key_switching_key_material,
-            } => self.legacy_re_randomize(
+            } => self.re_randomize_ciphertexts_with_keyswitch(
                 compact_public_key,
                 key_switching_key_material,
                 seed,
                 streams,
             ),
+            CudaReRandomizationKey::DerivedCPKWithoutKeySwitch {
+                cpk: compact_public_key,
+            } => self.re_randomize_ciphertexts_without_keyswitch(compact_public_key, seed, streams),
         }
     }
 
-    fn legacy_re_randomize(
+    fn re_randomize_ciphertexts_with_keyswitch(
         &mut self,
         compact_public_key: &CompactPublicKey,
         key_switching_key_material: &CudaKeySwitchingKeyMaterial,
@@ -102,7 +102,7 @@ impl CudaRadixCiphertext {
                 )
             } else if ksk_output_lwe_size != self.d_blocks.0.lwe_dimension.to_lwe_size() {
                 Some(
-                    "Mismatched LweSwize between Ciphertext being re-randomized and provided \
+                    "Mismatched LweSize between Ciphertext being re-randomized and provided \
                 KeySwitchingKeyMaterialView.",
                 )
             } else if ct.noise_level > NoiseLevel::NOMINAL {
@@ -132,7 +132,10 @@ impl CudaRadixCiphertext {
         if key_switching_key_material
             .lwe_keyswitch_key
             .input_key_lwe_size()
-            != self.d_blocks.lwe_dimension().to_lwe_size()
+            != compact_public_key
+                .parameters()
+                .encryption_lwe_dimension
+                .to_lwe_size()
         {
             return Err(crate::error!(
                 "Mismatched LweDimension between provided CompactPublicKey and \
@@ -140,35 +143,11 @@ impl CudaRadixCiphertext {
             ));
         }
 
-        let mut encryption_generator =
-            NoiseRandomGenerator::<DefaultRandomGenerator>::new_from_seed(seed.0);
-
         let lwe_ciphertext_count = self.d_blocks.lwe_ciphertext_count();
-        let mut encryption_of_zero = LweCompactCiphertextList::new(
-            0,
-            self.d_blocks.lwe_dimension().to_lwe_size(),
-            lwe_ciphertext_count,
-            self.d_blocks.ciphertext_modulus(),
-        );
 
-        let plaintext_list = PlaintextList::new(
-            0,
-            PlaintextCount(encryption_of_zero.lwe_ciphertext_count().0),
-        );
-
-        let cpk_encryption_noise_distribution = compact_public_key
+        let encryption_of_zero = compact_public_key
             .key
-            .parameters()
-            .encryption_noise_distribution;
-
-        rerand_encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
-            &compact_public_key.key.key,
-            &mut encryption_of_zero,
-            &plaintext_list,
-            cpk_encryption_noise_distribution,
-            cpk_encryption_noise_distribution,
-            &mut encryption_generator,
-        );
+            .prepare_cpk_zero_for_rerand(seed, lwe_ciphertext_count);
 
         let d_zero_lwes = CudaLweCompactCiphertextList::from_lwe_compact_ciphertext_list(
             &encryption_of_zero,
@@ -179,6 +158,9 @@ impl CudaRadixCiphertext {
         let message_modulus = first_info.message_modulus;
         let carry_modulus = first_info.carry_modulus;
 
+        // SAFETY: we have exclusive mutable access to `d_blocks` via `&mut self`,
+        // `d_zero_lwes` and `keyswitch_key` remain valid for the kernel duration,
+        // and the function synchronizes before returning.
         unsafe {
             cuda_backend_rerand_assign(
                 streams,
@@ -201,7 +183,67 @@ impl CudaRadixCiphertext {
                 key_switching_key_material
                     .lwe_keyswitch_key
                     .decomposition_base_log(),
-                lwe_ciphertext_count.0 as u32,
+                u32::try_from(lwe_ciphertext_count.0).unwrap(),
+            );
+        }
+
+        self.info.blocks.iter_mut().for_each(|ct| {
+            ct.noise_level = NoiseLevel::NOMINAL;
+        });
+
+        Ok(())
+    }
+
+    fn re_randomize_ciphertexts_without_keyswitch(
+        &mut self,
+        compact_public_key: &CompactPublicKey,
+        seed: ReRandomizationSeed,
+        streams: &CudaStreams,
+    ) -> crate::Result<()> {
+        let key_lwe_size = compact_public_key.key.key.lwe_dimension().to_lwe_size();
+
+        // We assume all LWEs in a CudaLweCiphertextList have the same LweSize, so this is ok
+        if key_lwe_size != self.d_blocks.lwe_dimension().to_lwe_size() {
+            let err = "Mismatched LweSize between Ciphertext being re-randomized and provided \
+                CompactPublicKey.";
+            return Err(crate::error!("{}", err));
+        }
+
+        if let Some(msg) = self.info.blocks.iter().find_map(|ct| {
+            if ct.noise_level > NoiseLevel::NOMINAL {
+                Some("Tried to re-randomize a Ciphertext with non-nominal NoiseLevel.")
+            } else {
+                None
+            }
+        }) {
+            return Err(crate::error!("{}", msg));
+        }
+
+        let lwe_ciphertext_count = self.d_blocks.lwe_ciphertext_count();
+        let encryption_of_zero = compact_public_key
+            .key
+            .prepare_cpk_zero_for_rerand(seed, lwe_ciphertext_count);
+
+        let d_zero_lwes = CudaLweCompactCiphertextList::from_lwe_compact_ciphertext_list(
+            &encryption_of_zero,
+            streams,
+        );
+
+        let first_info = self.info.blocks.first().unwrap();
+        let message_modulus = first_info.message_modulus;
+        let carry_modulus = first_info.carry_modulus;
+
+        // SAFETY: we have exclusive mutable access to `d_blocks` via `&mut self`,
+        // `d_zero_lwes` remains valid for the kernel duration, and the function
+        // synchronizes before returning.
+        unsafe {
+            cuda_backend_rerand_without_keyswitch_assign(
+                streams,
+                &mut self.d_blocks,
+                &d_zero_lwes,
+                message_modulus,
+                carry_modulus,
+                u32::try_from(lwe_ciphertext_count.0).unwrap(),
             );
         }
 

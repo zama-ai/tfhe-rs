@@ -2,12 +2,17 @@
 
 #include "integer.h"
 
+enum RERAND_MODE {
+  RERAND_WITH_KS = 0,
+  RERAND_WITHOUT_KS = 1,
+};
+
 extern "C" {
 uint64_t scratch_cuda_rerand_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t big_lwe_dimension,
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t lwe_ciphertext_count, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory);
+    uint32_t carry_modulus, bool allocate_gpu_memory, RERAND_MODE rerand_type);
 
 void cuda_rerand_64_async(
     CudaStreamsFFI streams, void *lwe_array,

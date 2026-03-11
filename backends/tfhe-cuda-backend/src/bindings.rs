@@ -112,6 +112,9 @@ pub type Direction = ffi::c_uint;
 pub const BitValue_Zero: BitValue = 0;
 pub const BitValue_One: BitValue = 1;
 pub type BitValue = ffi::c_uint;
+pub const RERAND_MODE_RERAND_WITH_KS: RERAND_MODE = 0;
+pub const RERAND_MODE_RERAND_WITHOUT_KS: RERAND_MODE = 1;
+pub type RERAND_MODE = ffi::c_uint;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct CudaStreamsFFI {
@@ -2459,6 +2462,7 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
+        rerand_type: u32,
     ) -> u64;
 }
 unsafe extern "C" {

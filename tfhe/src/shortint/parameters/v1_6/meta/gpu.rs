@@ -924,7 +924,7 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIF
             pke_params: V1_6_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
             ksk_params:
                 V1_6_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            re_randomization_parameters: Some(V1_6_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+            re_randomization_parameters: None,
         }),
         compression_parameters: Some(
             V1_6_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -936,7 +936,7 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIF
             ),
         }),
         rerand_configuration: Some(
-            ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch
+            ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch
         ),
     }.validate();
 
@@ -950,7 +950,7 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUN
             pke_params: V1_6_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
             ksk_params:
                 V1_6_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            re_randomization_parameters: Some(V1_6_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+            re_randomization_parameters: None,
         }),
         compression_parameters: Some(
             V1_6_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -962,7 +962,7 @@ pub const V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUN
             ),
         }),
         rerand_configuration: Some(
-            ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch
+            ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch
         ),
     }.validate();
 
