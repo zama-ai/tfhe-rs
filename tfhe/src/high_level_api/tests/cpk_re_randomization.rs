@@ -360,11 +360,23 @@ mod gpu {
     use super::*;
     // for legacy params
     use crate::shortint::parameters::v1_5::meta::gpu::V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+    use crate::shortint::parameters::v1_6::meta::gpu::V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
 
     #[test]
     fn test_gpu_legacy_re_rand() {
         let params =
             V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+        let (cks, sks, cpk) = setup_re_rand_test(params);
+
+        set_server_key(sks.decompress_to_gpu());
+
+        execute_re_rand_test(&cks, &cpk);
+    }
+
+    #[test]
+    fn test_gpu_re_rand() {
+        let params =
+            V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
         let (cks, sks, cpk) = setup_re_rand_test(params);
 
         set_server_key(sks.decompress_to_gpu());
