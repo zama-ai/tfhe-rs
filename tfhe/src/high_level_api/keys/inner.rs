@@ -533,6 +533,25 @@ impl IntegerServerKey {
 }
 
 #[cfg(feature = "gpu")]
+pub enum CudaReRandomizationKey {
+    /// Previous way of performing re-randomization: the encryption
+    /// [`super::public::CompactPublicKey`] is used to generate the required encryptions of zero,
+    /// they are then keyswitched to be compatible with the compute keys before being used to
+    /// re-randomize the ciphertexts. Prefer [`Self::DerivedCPKWithoutKeySwitch`].
+    LegacyDedicatedCPK {
+        // Legacy code did not have the CPK in the ServerKey
+        ksk: crate::high_level_api::keys::cpk_re_randomization::CudaReRandomizationKeySwitchingKey,
+    },
+    /// Recommended way of performing re-randomization: a specific
+    /// [`super::public::CompactPublicKey`] is generated from the compute private keys, meaning
+    /// it can be used to generate the required encryptions of zero without needing a keyswitch to
+    /// be usable, making it much more efficient than the [`Self::LegacyDedicatedCPK`] mode.
+    DerivedCPKWithoutKeySwitch {
+        cpk: crate::integer::CompactPublicKey,
+    },
+}
+
+#[cfg(feature = "gpu")]
 pub struct IntegerCudaServerKey {
     pub(crate) key: crate::integer::gpu::CudaServerKey,
     pub(crate) cpk_key_switching_key_material:
@@ -546,9 +565,7 @@ pub struct IntegerCudaServerKey {
     pub(crate) noise_squashing_compression_key: Option<
         crate::integer::gpu::list_compression::server_keys::CudaNoiseSquashingCompressionKey,
     >,
-    pub(crate) cpk_re_randomization_key_switching_key_material: Option<
-        crate::high_level_api::keys::cpk_re_randomization::CudaReRandomizationKeySwitchingKey,
-    >,
+    pub(crate) cpk_re_randomization_key: Option<CudaReRandomizationKey>,
 }
 
 #[cfg(feature = "gpu")]
@@ -559,18 +576,41 @@ impl IntegerCudaServerKey {
         use crate::high_level_api::keys::cpk_re_randomization::CudaReRandomizationKeySwitchingKey;
 
         let key = self
-            .cpk_re_randomization_key_switching_key_material
+            .cpk_re_randomization_key
             .as_ref()
             .ok_or(crate::high_level_api::errors::UninitializedReRandKey)?;
 
         match key {
-            CudaReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => self
-                .cpk_key_switching_key_material
-                .as_ref()
-                .ok_or_else(|| crate::high_level_api::errors::UninitializedReRandKey.into()),
-            CudaReRandomizationKeySwitchingKey::DedicatedKSK(key_switching_key_material) => {
-                Ok(key_switching_key_material)
-            }
+            CudaReRandomizationKey::LegacyDedicatedCPK { ksk } => match ksk {
+                CudaReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => self
+                    .cpk_key_switching_key_material
+                    .as_ref()
+                    .ok_or_else(|| crate::high_level_api::errors::UninitializedReRandKey.into()),
+                CudaReRandomizationKeySwitchingKey::DedicatedKSK(key_switching_key_material) => {
+                    Ok(key_switching_key_material)
+                }
+            },
+            CudaReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk: _ } => Err(crate::error!(
+                "Tried to get keyswitching key for legacy rerand API \
+                    while ServerKey is setup for new rerand API."
+            )),
+        }
+    }
+
+    pub(in crate::high_level_api) fn cpk_for_re_randomization_without_keyswitch(
+        &self,
+    ) -> crate::Result<&crate::integer::CompactPublicKey> {
+        let key = self
+            .cpk_re_randomization_key
+            .as_ref()
+            .ok_or(crate::high_level_api::errors::UninitializedReRandKey)?;
+
+        match key {
+            CudaReRandomizationKey::LegacyDedicatedCPK { .. } => Err(crate::error!(
+                "Found legacy ReRandomizationKey while requesting \
+                a ReRandomizationKey without keyswitch."
+            )),
+            CudaReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk } => Ok(cpk),
         }
     }
 }

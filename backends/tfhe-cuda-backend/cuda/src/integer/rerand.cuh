@@ -14,26 +14,25 @@ void host_rerand_inplace(
     CudaStreams const streams, Torus *lwe_array,
     const Torus *lwe_flattened_encryptions_of_zero_compact_array_in,
     Torus *const *ksk, int_rerand_mem<Torus> *mem_ptr) {
-  auto zero_lwes = mem_ptr->tmp_zero_lwes;
+  auto rerand_mode = mem_ptr->rerand_mode;
+  auto expanded_zero_lwes = mem_ptr->tmp_expanded_zero_lwes;
   auto num_lwes = mem_ptr->num_lwes;
-  auto ksed_zero_lwes = mem_ptr->tmp_ksed_zero_lwes;
-  auto lwe_trivial_indexes = mem_ptr->lwe_trivial_indexes;
-  auto ksk_params = mem_ptr->params;
-  auto output_dimension = ksk_params.small_lwe_dimension;
-  auto input_dimension = ksk_params.big_lwe_dimension;
-  auto ks_level = ksk_params.ks_level;
-  auto ks_base_log = ksk_params.ks_base_log;
-  auto message_modulus = ksk_params.message_modulus;
-  auto carry_modulus = ksk_params.carry_modulus;
 
-  GPU_ASSERT(sizeof(Torus) == 8,
-             "Cuda error: expand is only supported on 64 bits");
+  auto rerand_params = mem_ptr->params;
+  auto message_modulus = rerand_params.message_modulus;
+  auto carry_modulus = rerand_params.carry_modulus;
+  auto input_dimension = rerand_params.big_lwe_dimension;
+  // Default to input dimension; overridden to small_lwe_dimension in the KS
+  // path
+  auto output_dimension = input_dimension;
+
+  static_assert(sizeof(Torus) == 8, "expand is only supported on 64 bits");
 
   // Expand encryptions of zero
   // Wraps the input into a flattened_compact_lwe_lists type
   auto compact_lwe_lists = flattened_compact_lwe_lists<Torus>(
       const_cast<Torus *>(lwe_flattened_encryptions_of_zero_compact_array_in),
-      &num_lwes, (uint32_t)1, input_dimension);
+      &num_lwes, static_cast<uint32_t>(1), input_dimension);
   auto h_expand_jobs = mem_ptr->h_expand_jobs;
   auto d_expand_jobs = mem_ptr->d_expand_jobs;
 
@@ -53,20 +52,30 @@ void host_rerand_inplace(
       streams.stream(0), streams.gpu_index(0), true);
 
   host_lwe_expand<Torus, params>(streams.stream(0), streams.gpu_index(0),
-                                 zero_lwes, d_expand_jobs, num_lwes);
+                                 expanded_zero_lwes, d_expand_jobs, num_lwes);
 
-  // Keyswitch
-  execute_keyswitch_async<Torus>(
-      streams.get_ith(0), ksed_zero_lwes, lwe_trivial_indexes, zero_lwes,
-      lwe_trivial_indexes, ksk, input_dimension, output_dimension, ks_base_log,
-      ks_level, num_lwes, true, mem_ptr->ks_tmp_buf_vec);
+  auto lwes_to_be_added = expanded_zero_lwes;
+  if (rerand_mode == RERAND_MODE::RERAND_WITH_KS) {
+    lwes_to_be_added = mem_ptr->tmp_ksed_expanded_zero_lwes;
+    output_dimension = rerand_params.small_lwe_dimension;
+    auto ks_level = rerand_params.ks_level;
+    auto ks_base_log = rerand_params.ks_base_log;
+    auto lwe_trivial_indexes = mem_ptr->lwe_trivial_indexes;
+
+    // Keyswitch
+    execute_keyswitch_async<Torus>(streams.get_ith(0), lwes_to_be_added,
+                                   lwe_trivial_indexes, expanded_zero_lwes,
+                                   lwe_trivial_indexes, ksk, input_dimension,
+                                   output_dimension, ks_base_log, ks_level,
+                                   num_lwes, true, mem_ptr->ks_tmp_buf_vec);
+  }
 
   // Add ks output to ct
   // Check sizes
   CudaRadixCiphertextFFI lwes_ffi;
   into_radix_ciphertext(&lwes_ffi, lwe_array, num_lwes, output_dimension);
   CudaRadixCiphertextFFI ksed_zero_lwes_ffi;
-  into_radix_ciphertext(&ksed_zero_lwes_ffi, ksed_zero_lwes, num_lwes,
+  into_radix_ciphertext(&ksed_zero_lwes_ffi, lwes_to_be_added, num_lwes,
                         output_dimension);
   host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &lwes_ffi,
                        &lwes_ffi, &ksed_zero_lwes_ffi, num_lwes,
@@ -81,10 +90,11 @@ __host__ uint64_t scratch_cuda_rerand(CudaStreams streams,
                                       int_rerand_mem<Torus> **mem_ptr,
                                       uint32_t num_lwes,
                                       int_radix_params params,
-                                      bool allocate_gpu_memory) {
+                                      bool allocate_gpu_memory,
+                                      RERAND_MODE rerand_mode) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_rerand_mem<Torus>(streams, params, num_lwes,
+  *mem_ptr = new int_rerand_mem<Torus>(streams, params, num_lwes, rerand_mode,
                                        allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
