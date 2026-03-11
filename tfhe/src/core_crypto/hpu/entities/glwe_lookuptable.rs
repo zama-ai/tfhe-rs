@@ -85,7 +85,7 @@ pub fn create_hpu_lookuptable(
     // Modulus of the msg contained in the msg bits and operations buffer
     let modulus_sup = 1 << (pbs_p.message_width + pbs_p.carry_width);
 
-    // N/(p/2) = size of each block
+    // N/p = size of each box
     let box_size = pbs_p.polynomial_size / modulus_sup;
 
     // Value of the shift we multiply our messages by

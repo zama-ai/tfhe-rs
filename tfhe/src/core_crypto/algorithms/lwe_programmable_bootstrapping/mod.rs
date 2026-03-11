@@ -34,7 +34,9 @@ pub fn generate_programmable_bootstrap_glwe_lut<F, Scalar: UnsignedTorus + CastF
 where
     F: Fn(Scalar) -> Scalar,
 {
-    // N/(p/2) = size of each block, to correct noise from the input we introduce the
+    // N = polynomial_size
+    // p = message_modulus
+    // N/p = size of each box, to correct noise from the input we introduce the
     // notion of box, which manages redundancy to yield a denoised value
     // for several noisy values around a true input value.
     let box_size = polynomial_size.0 / message_modulus;
