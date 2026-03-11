@@ -25,19 +25,27 @@ export const SYNC_EXECUTOR_NAME = "wasm_par_mq_sync_executor";
 
 // Compute worker
 if (self.name === WORKER_NAME) {
-  addEventListener('message', async () => {
-    const mod = await import('../../..');
-    await mod.default();
-    mod.start_worker(self.location.origin);
-  }, { once: true });
+  addEventListener(
+    "message",
+    async () => {
+      const mod = await import("../../..");
+      await mod.default();
+      mod.start_worker(self.location.origin);
+    },
+    { once: true },
+  );
 
   // Sync executor
 } else if (self.name === SYNC_EXECUTOR_NAME) {
-  addEventListener('message', async ({ data: { numWorkers } }) => {
-    const mod = await import('../../..');
-    await mod.default();
-    mod.start_sync_executor(numWorkers);
-  }, { once: true });
+  addEventListener(
+    "message",
+    async ({ data: { numWorkers } }) => {
+      const mod = await import("../../..");
+      await mod.default();
+      mod.start_sync_executor(numWorkers);
+    },
+    { once: true },
+  );
 }
 
 // === Purpose 2: Utils for rust bindings (imported as a module) ===
@@ -70,4 +78,3 @@ export function createSyncExecutorWorker() {
     name: SYNC_EXECUTOR_NAME,
   });
 }
-
