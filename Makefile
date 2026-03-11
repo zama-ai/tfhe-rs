@@ -294,7 +294,8 @@ fmt_js: check_nvm_installed
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) -C tfhe/web_wasm_parallel_tests fmt && \
-	$(MAKE) -C tfhe/js_on_wasm_tests fmt
+	$(MAKE) -C tfhe/js_on_wasm_tests fmt && \
+	$(MAKE) -C utils/wasm-par-mq fmt
 
 .PHONY: semgrep_lint_setup_venv # Create venv and install Python dependencies for GPU lint checks
 semgrep_lint_setup_venv:
@@ -339,7 +340,8 @@ check_fmt_js: check_nvm_installed
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) -C tfhe/web_wasm_parallel_tests check_fmt && \
-	$(MAKE) -C tfhe/js_on_wasm_tests check_fmt
+	$(MAKE) -C tfhe/js_on_wasm_tests check_fmt && \
+	$(MAKE) -C utils/wasm-par-mq check_fmt
 
 .PHONY: check_fmt_toml # Check TOML files format
 check_fmt_toml: install_taplo

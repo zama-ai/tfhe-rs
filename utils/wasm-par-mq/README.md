@@ -33,10 +33,12 @@ register_fn!(double, u32, u32);
 ```
 
 Current limitations (may be lifted in the future):
+
 - Closures are not supported
 - Only functions with exactly one parameter are supported
 
 ### 2. Run parallel operations
+
 At the call site, wrap the function in the `par_fn!` macro to retrieve its registry ID:
 
 ```rust
@@ -69,10 +71,10 @@ pub async fn init_parallel(
 ```
 
 ```javascript
-import init, { init_parallel } from './pkg/your_crate.js';
+import init, { init_parallel } from "./pkg/your_crate.js";
 
 await init();
-await init_parallel(4, './pkg/your_crate_bg.wasm', './pkg/your_crate.js');
+await init_parallel(4, "./pkg/your_crate_bg.wasm", "./pkg/your_crate.js");
 ```
 
 ## Sync Executor
@@ -228,11 +230,11 @@ pub async fn init_parallel_sync(
 ```
 
 ```javascript
-import init, { init_parallel_sync } from './pkg/your_crate.js';
+import init, { init_parallel_sync } from "./pkg/your_crate.js";
 
 await init();
 // The coordinator_url must point to the coordinator.js deployed above.
-await init_parallel_sync(4, '/coordinator.js');
+await init_parallel_sync(4, "/coordinator.js");
 ```
 
 ## API

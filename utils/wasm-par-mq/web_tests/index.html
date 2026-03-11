@@ -1,19 +1,35 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-    <meta charset="utf-8">
+  <head>
+    <meta charset="utf-8" />
     <title>wasm-par-mq Web Tests</title>
-    <link rel="icon" href="data:,">
-</head>
-<body>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
     <h1>wasm-par-mq Web Tests</h1>
     <input type="checkbox" id="testSuccess" disabled />
     <input type="text" id="benchmarkResults" disabled />
 
-    <input type="button" id="doubleAllAsyncTest" value="doubleAllAsyncTest" disabled />
-    <input type="button" id="doubleThenSquareAsyncTest" value="doubleThenSquareAsyncTest" disabled />
-    <input type="button" id="doubleAllSyncTest" value="doubleAllSyncTest" disabled max="120" />
+    <input
+      type="button"
+      id="doubleAllAsyncTest"
+      value="doubleAllAsyncTest"
+      disabled
+    />
+    <input
+      type="button"
+      id="doubleThenSquareAsyncTest"
+      value="doubleThenSquareAsyncTest"
+      disabled
+    />
+    <input
+      type="button"
+      id="doubleAllSyncTest"
+      value="doubleAllSyncTest"
+      disabled
+      max="120"
+    />
 
     <script src="./index.js"></script>
-</body>
+  </body>
 </html>

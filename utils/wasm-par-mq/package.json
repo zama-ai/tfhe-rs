@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "format": "prettier . --write",
+    "check-format": "prettier . --check"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  },
+  "private": true
+}
