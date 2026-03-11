@@ -63,7 +63,7 @@ uint64_t *generate_identity_lut_pbs(int polynomial_size, int glwe_dimension,
   // Modulus of the msg contained in the msg bits and operations buffer
   uint64_t modulus_sup = message_modulus * carry_modulus;
 
-  // N/(p/2) = size of each block
+  // N/p = size of each box
   uint64_t box_size = polynomial_size / modulus_sup;
 
   // Value of the shift we multiply our messages by

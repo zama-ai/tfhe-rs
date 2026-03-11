@@ -111,7 +111,7 @@ where
     // Modulus of the msg contained in the msg bits and operations buffer
     let input_modulus_sup = (input_message_modulus.0 * input_carry_modulus.0) as usize;
 
-    // N/(p/2) = size of each block
+    // N/p = size of each box
     let box_size = polynomial_size.0 / input_modulus_sup;
 
     let mut body = accumulator_view.get_mut_body();
@@ -193,7 +193,7 @@ where
     // Modulus of the msg contained in the msg bits and operations buffer
     let modulus_sup = (message_modulus.0 * carry_modulus.0) as usize;
 
-    // N/(p/2) = size of each block
+    // N/p = size of each box
     let box_size = polynomial_size.0 / modulus_sup;
 
     let mut body = accumulator_view.get_mut_body();
