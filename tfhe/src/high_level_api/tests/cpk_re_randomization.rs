@@ -13,8 +13,16 @@ use crate::{
 
 #[test]
 fn test_dyn_rerand() {
+    // Need legacy for nist-like rerand
+    let params = V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+    let (cks, sks, cpk) = setup_re_rand_test(params);
+    set_server_key(sks.decompress());
+    execute_dyn_rerand_test(&cks, &cpk);
+}
+
+fn execute_dyn_rerand_test(cks: &ClientKey, cpk: &CompactPublicKey) {
     use crate::high_level_api::re_randomization::NistSubmissionReRandomize;
-    pub fn nist_submission_preproc_eval(
+    fn nist_submission_preproc_eval(
         inputs: &mut [&mut dyn NistSubmissionReRandomize],
         function_description: &[u8],
         compact_public_key: &CompactPublicKey,
@@ -35,15 +43,10 @@ fn test_dyn_rerand() {
         }
     }
 
-    // Need legacy for nist-like rerand
-    let params = V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
-    let (cks, sks, cpk) = setup_re_rand_test(params);
-
-    set_server_key(sks.decompress());
     let clear_a = rand::random::<u64>();
     let clear_b = rand::random::<u64>();
-    let mut a = FheUint64::encrypt(clear_a, &cks);
-    let mut b = FheUint64::encrypt(clear_b, &cks);
+    let mut a = FheUint64::encrypt(clear_a, cks);
+    let mut b = FheUint64::encrypt(clear_b, cks);
 
     // Simulate a 256 bits hash added as metadata
     let rand_a: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
@@ -64,13 +67,13 @@ fn test_dyn_rerand() {
 
     let mut dyn_cts: Vec<&mut dyn NistSubmissionReRandomize> = vec![&mut a, &mut b];
 
-    nist_submission_preproc_eval(&mut dyn_cts, b"FheUint64+FheUint64".as_slice(), &cpk);
+    nist_submission_preproc_eval(&mut dyn_cts, b"FheUint64+FheUint64".as_slice(), cpk);
 
     assert!(a.re_randomization_metadata().data().is_empty());
     assert!(b.re_randomization_metadata().data().is_empty());
 
     let c = a + b;
-    let dec: u64 = c.decrypt(&cks);
+    let dec: u64 = c.decrypt(cks);
 
     assert_eq!(clear_a.wrapping_add(clear_b), dec);
 }
@@ -360,6 +363,7 @@ mod gpu {
     use super::*;
     // for legacy params
     use crate::shortint::parameters::v1_5::meta::gpu::V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+    use crate::shortint::parameters::v1_6::meta::gpu::V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
 
     #[test]
     fn test_gpu_legacy_re_rand() {
@@ -370,5 +374,25 @@ mod gpu {
         set_server_key(sks.decompress_to_gpu());
 
         execute_re_rand_test(&cks, &cpk);
+    }
+
+    #[test]
+    fn test_gpu_re_rand() {
+        let params =
+            V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+        let (cks, sks, cpk) = setup_re_rand_test(params);
+
+        set_server_key(sks.decompress_to_gpu());
+
+        execute_re_rand_test(&cks, &cpk);
+    }
+
+    #[test]
+    fn test_gpu_legacy_dyn_rerand() {
+        let params =
+            V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+        let (cks, sks, cpk) = setup_re_rand_test(params);
+        set_server_key(sks.decompress_to_gpu());
+        execute_dyn_rerand_test(&cks, &cpk);
     }
 }

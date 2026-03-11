@@ -976,4 +976,230 @@ mod tests {
             }
         }
     }
+
+    fn test_gpu_ciphertext_re_randomization_after_compression_impl(
+        radix_cks: &RadixClientKey,
+        cuda_compression_key: &crate::integer::gpu::list_compression::server_keys::CudaCompressionKey,
+        cuda_decompression_key: &crate::integer::gpu::list_compression::server_keys::CudaDecompressionKey,
+        re_randomization_key: crate::integer::gpu::ciphertext::re_randomization::CudaReRandomizationKey<'_>,
+        streams: &CudaStreams,
+    ) {
+        use crate::integer::ciphertext::ReRandomizationContext;
+
+        const NUM_BLOCKS: usize = 32;
+        let cks = radix_cks.as_ref();
+        let rerand_domain_separator = *b"TFHE_Rrd";
+        let compact_public_encryption_domain_separator = *b"TFHE_Enc";
+        let metadata = b"lol".as_slice();
+
+        let mut rng = rand::thread_rng();
+        let message_modulus: u128 = cks.parameters().message_modulus().0 as u128;
+
+        // Unsigned
+        let modulus = message_modulus.pow(NUM_BLOCKS as u32);
+        for _ in 0..NB_TESTS {
+            let message = rng.gen::<u128>() % modulus;
+
+            let ct = radix_cks.encrypt(message);
+            let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, streams);
+
+            let mut builder = CudaCompressedCiphertextListBuilder::new();
+            builder.push(d_ct, streams);
+            let compressed = builder.build(cuda_compression_key, streams);
+
+            let d_decompressed: CudaUnsignedRadixCiphertext = compressed
+                .get(0, cuda_decompression_key, streams)
+                .unwrap()
+                .unwrap();
+
+            // Build the seed from the CPU representation of the decompressed ciphertext
+            let decompressed = d_decompressed.to_radix_ciphertext(streams);
+            let mut re_randomizer_context = ReRandomizationContext::new(
+                rerand_domain_separator,
+                [metadata],
+                compact_public_encryption_domain_separator,
+            );
+            re_randomizer_context.add_ciphertext(&decompressed);
+            let mut seed_gen = re_randomizer_context.finalize();
+
+            let mut d_re_randomized = d_decompressed.duplicate(streams);
+            d_re_randomized
+                .re_randomize(re_randomization_key, seed_gen.next_seed().unwrap(), streams)
+                .unwrap();
+
+            let re_randomized = d_re_randomized.to_radix_ciphertext(streams);
+            assert_ne!(decompressed, re_randomized);
+
+            let decrypted: u128 = radix_cks.decrypt(&re_randomized);
+            assert_eq!(decrypted, message);
+        }
+
+        // Signed
+        let modulus = message_modulus.pow((NUM_BLOCKS - 1) as u32) as i128;
+        for _ in 0..NB_TESTS {
+            let message = rng.gen::<i128>() % modulus;
+
+            let ct = radix_cks.encrypt_signed(message);
+            let d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, streams);
+
+            let mut builder = CudaCompressedCiphertextListBuilder::new();
+            builder.push(d_ct, streams);
+            let compressed = builder.build(cuda_compression_key, streams);
+
+            let d_decompressed: CudaSignedRadixCiphertext = compressed
+                .get(0, cuda_decompression_key, streams)
+                .unwrap()
+                .unwrap();
+
+            let decompressed = d_decompressed.to_signed_radix_ciphertext(streams);
+            let mut re_randomizer_context = ReRandomizationContext::new(
+                rerand_domain_separator,
+                [metadata],
+                compact_public_encryption_domain_separator,
+            );
+            re_randomizer_context.add_ciphertext(&decompressed);
+            let mut seed_gen = re_randomizer_context.finalize();
+
+            let mut d_re_randomized = d_decompressed.duplicate(streams);
+            d_re_randomized
+                .re_randomize(re_randomization_key, seed_gen.next_seed().unwrap(), streams)
+                .unwrap();
+
+            let re_randomized = d_re_randomized.to_signed_radix_ciphertext(streams);
+            assert_ne!(decompressed, re_randomized);
+
+            let decrypted: i128 = radix_cks.decrypt_signed(&re_randomized);
+            assert_eq!(decrypted, message);
+        }
+
+        // Boolean
+        for _ in 0..NB_TESTS {
+            let messages = [false, true];
+
+            let d_cts = messages
+                .iter()
+                .map(|message| {
+                    let ct = radix_cks.encrypt_bool(*message);
+                    CudaBooleanBlock::from_boolean_block(&ct, streams)
+                })
+                .collect_vec();
+
+            let mut builder = CudaCompressedCiphertextListBuilder::new();
+            for d_ct in d_cts {
+                builder.push(d_ct, streams);
+            }
+            let compressed = builder.build(cuda_compression_key, streams);
+
+            for (i, message) in messages.iter().enumerate() {
+                let d_decompressed: CudaBooleanBlock = compressed
+                    .get(i, cuda_decompression_key, streams)
+                    .unwrap()
+                    .unwrap();
+
+                let decompressed = d_decompressed.to_boolean_block(streams);
+                let mut re_randomizer_context = ReRandomizationContext::new(
+                    rerand_domain_separator,
+                    [metadata],
+                    compact_public_encryption_domain_separator,
+                );
+                re_randomizer_context.add_ciphertext(&decompressed);
+                let mut seed_gen = re_randomizer_context.finalize();
+
+                let mut d_re_randomized = d_decompressed.duplicate(streams);
+                d_re_randomized
+                    .re_randomize(re_randomization_key, seed_gen.next_seed().unwrap(), streams)
+                    .unwrap();
+
+                let re_randomized = d_re_randomized.to_boolean_block(streams);
+                assert_ne!(decompressed, re_randomized);
+
+                let decrypted = radix_cks.decrypt_bool(&re_randomized);
+                assert_eq!(decrypted, *message);
+            }
+        }
+    }
+
+    // Re-randomization with keyswitch (legacy dedicated CPK path)
+    #[test]
+    fn test_gpu_ciphertext_re_randomization_after_compression_with_dedicated_cpk() {
+        use crate::integer::gpu::ciphertext::re_randomization::CudaReRandomizationKey;
+        use crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial;
+        use crate::integer::key_switching_key::KeySwitchingKey;
+        use crate::integer::{gen_keys_radix, CompactPrivateKey, CompactPublicKey};
+        use crate::shortint::parameters::test_params::{
+            TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+        };
+
+        const NUM_BLOCKS: usize = 32;
+        let streams = CudaStreams::new_multi_gpu();
+
+        let params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let comp_params = COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let cpk_params = TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+        let rerand_ksk_params =
+            TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let (radix_cks, sks) = gen_keys_radix(params, NUM_BLOCKS);
+        let cks = radix_cks.as_ref();
+
+        let private_compression_key = cks.new_compression_private_key(comp_params);
+        let (cuda_compression_key, cuda_decompression_key) =
+            radix_cks.new_cuda_compression_decompression_keys(&private_compression_key, &streams);
+
+        let compact_private_key = CompactPrivateKey::new(cpk_params);
+        let cpk = CompactPublicKey::new(&compact_private_key);
+        let ksk = KeySwitchingKey::new(
+            (&compact_private_key, None),
+            (&cks, &sks),
+            rerand_ksk_params,
+        );
+        let d_ksk_material = CudaKeySwitchingKeyMaterial::from_key_switching_key(&ksk, &streams);
+
+        let re_randomization_key = CudaReRandomizationKey::LegacyDedicatedCPK {
+            cpk: &cpk,
+            ksk: &d_ksk_material,
+        };
+
+        test_gpu_ciphertext_re_randomization_after_compression_impl(
+            &radix_cks,
+            &cuda_compression_key,
+            &cuda_decompression_key,
+            re_randomization_key,
+            &streams,
+        );
+    }
+
+    // Re-randomization without keyswitch (derived CPK path)
+    #[test]
+    fn test_gpu_ciphertext_re_randomization_after_compression_with_derived_cpk() {
+        use crate::integer::gpu::ciphertext::re_randomization::CudaReRandomizationKey;
+        use crate::integer::{gen_keys_radix, CompactPrivateKey, CompactPublicKey};
+
+        const NUM_BLOCKS: usize = 32;
+        let streams = CudaStreams::new_multi_gpu();
+
+        let params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let comp_params = COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let (radix_cks, _sks) = gen_keys_radix(params, NUM_BLOCKS);
+        let cks = radix_cks.as_ref();
+
+        let private_compression_key = cks.new_compression_private_key(comp_params);
+        let (cuda_compression_key, cuda_decompression_key) =
+            radix_cks.new_cuda_compression_decompression_keys(&private_compression_key, &streams);
+
+        let derived_compact_private_key: CompactPrivateKey<&[u64]> = cks.try_into().unwrap();
+        let cpk = CompactPublicKey::new(&derived_compact_private_key);
+
+        let re_randomization_key = CudaReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk: &cpk };
+
+        test_gpu_ciphertext_re_randomization_after_compression_impl(
+            &radix_cks,
+            &cuda_compression_key,
+            &cuda_decompression_key,
+            re_randomization_key,
+            &streams,
+        );
+    }
 }
