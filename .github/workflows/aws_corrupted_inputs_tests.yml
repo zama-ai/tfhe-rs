@@ -1,0 +1,105 @@
+# Run corrupted inputs deserialization tests
+name: aws_tfhe_corrupted_inputs_tests
+
+env:
+  CARGO_TERM_COLOR: always
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUSTFLAGS: "-C target-cpu=native"
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  SLACKIFY_MARKDOWN: true
+  PULL_REQUEST_MD_LINK: ""
+  CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
+
+
+on:
+  # Allows you to run this workflow manually from the Actions tab as an alternative.
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+# zizmor: ignore[concurrency-limits] concurrency is managed after instance setup to ensure safe provisioning
+
+jobs:
+  corrupted-input-tests:
+    name: aws_tfhe_corrupted_inputs_tests/corrupted-input-tests (bpr)
+    if: (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||
+      github.event_name != 'push'
+    runs-on: "runs-on=${{ github.run_id }}/runner=cpu-small"
+    concurrency:
+      group: ${{ github.workflow_ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: 'true' # Needed to pull lfs data
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      # Cache key is an aggregated hash of lfs files hashes
+      - name: Get LFS data sha
+        id: hash-lfs-data
+        run: |
+          SHA=$(git lfs ls-files -l -I tests/corrupted_inputs_deserialization | sha256sum | cut -d' ' -f1)
+          echo "sha=${SHA}" >> "${GITHUB_OUTPUT}"
+
+      - name: Retrieve data from cache
+        id: retrieve-data-cache
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 #v5.0.3
+        with:
+          path: |
+            tests/corrupted_inputs_deserialization/**/*.bcode
+          key: ${{ steps.hash-lfs-data.outputs.sha }}
+
+      - name: Pull test data
+        if: steps.retrieve-data-cache.outputs.cache-hit != 'true'
+        run: |
+          make pull_corrupted_inputs_data
+
+      # Pull token was stored by action/checkout to be used by lfs, we don't need it anymore
+      - name: Remove git credentials
+        run: | # Starting version 6.0, action/checkout uses a dedicated file for git credentials
+          git config --local --unset-all http.https://github.com/.extraheader || rm "${RUNNER_TEMP}"/git-credentials-*.config
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        with:
+          toolchain: stable
+
+      - name: Run corrupted inputs deserialization tests
+        run: |
+          make test_corrupted_inputs_ci
+
+      - name: Store data in cache
+        if: steps.retrieve-data-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 #v5.0.3
+        with:
+          path: |
+            tests/corrupted_inputs_deserialization/**/*.bcode
+          key: ${{ steps.hash-lfs-data.outputs.sha }}
+
+      - name: Set pull-request URL
+        if: ${{ failure() && github.event_name == 'pull_request' }}
+        run: |
+          echo "PULL_REQUEST_MD_LINK=[pull-request](${PR_BASE_URL}${PR_NUMBER}), "  >> "${GITHUB_ENV}"
+        env:
+          PR_BASE_URL: ${{ vars.PR_BASE_URL }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+
+      - name: Slack Notification
+        if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Corrupted inputs deserialization tests finished with status: ${{ job.status }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"

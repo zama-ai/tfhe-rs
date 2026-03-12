@@ -26,6 +26,7 @@ BENCH_CUSTOM_COMMAND:=
 NODE_VERSION=24.12
 BACKWARD_COMPAT_DATA_DIR=utils/tfhe-backward-compat-data
 BACKWARD_COMPAT_DATA_GEN_VERSION:=$(TFHE_VERSION)
+CORRUPTED_INPUTS_TEST=tests/corrupted_inputs_deserialization
 TEST_VECTORS_DIR=apps/test-vectors
 CURRENT_TFHE_VERSION:=$(shell grep '^version[[:space:]]*=' tfhe/Cargo.toml | cut -d '=' -f 2 | xargs)
 WASM_PACK_VERSION="0.13.1"
@@ -1258,6 +1259,14 @@ test_backward_compatibility_ci:
 .PHONY: test_backward_compatibility # Same as test_backward_compatibility_ci but tries to clone the data repo first if needed
 test_backward_compatibility: pull_backward_compat_data test_backward_compatibility_ci
 
+.PHONY: test_corrupted_inputs_ci
+test_corrupted_inputs_ci:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=integer,zk-pok,strings -p tests test_corrupted_inputs_deserialization -- --nocapture
+
+.PHONY: test_corrupted_inputs # Same as test_corrupted_inputs_ci but pulls data first
+test_corrupted_inputs: pull_corrupted_inputs_data test_corrupted_inputs_ci
+
 # Generate the test vectors and update the hash file
 .PHONY: gen_test_vectors
 gen_test_vectors:
@@ -2040,6 +2049,10 @@ write_params_to_file: install_rs_check_toolchain
 .PHONY: pull_backward_compat_data # Pull the data files needed for backward compatibility tests
 pull_backward_compat_data:
 	./scripts/pull_lfs_data.sh $(BACKWARD_COMPAT_DATA_DIR)
+
+.PHONY: pull_corrupted_inputs_data # Pull the data files needed for corrupted inputs deserialization tests
+pull_corrupted_inputs_data:
+	./scripts/pull_lfs_data.sh $(CORRUPTED_INPUTS_TEST)
 
 .PHONY: pull_hpu_files # Pull the hpu files
 pull_hpu_files:
