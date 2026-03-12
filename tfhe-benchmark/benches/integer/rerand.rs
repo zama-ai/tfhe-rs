@@ -4,7 +4,8 @@ use benchmark::params_aliases::{
     BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     BENCH_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
 };
-use benchmark::utilities::{get_bench_type, write_to_json, BenchmarkType, OperatorType};
+use benchmark::utilities::{write_to_json_unchecked, OperatorType};
+use benchmark_spec::{get_bench_type, BenchmarkType};
 use criterion::{black_box, criterion_group, BatchSize, Criterion, Throughput};
 #[cfg(feature = "gpu")]
 use cuda::gpu_re_randomize_group;
@@ -200,7 +201,7 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize, rerand_mode: Ben
         }
     }
 
-    write_to_json::<u64, _>(
+    write_to_json_unchecked::<u64, _>(
         &bench_id,
         (comp_param, param.into()),
         comp_param.name(),
@@ -233,9 +234,8 @@ mod cuda {
         BENCH_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
     };
     use benchmark::utilities::cuda_integer_utils::cuda_local_streams;
-    use benchmark::utilities::{
-        get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, OperatorType,
-    };
+    use benchmark::utilities::{throughput_num_threads, write_to_json_unchecked, OperatorType};
+    use benchmark_spec::{get_bench_type, BenchmarkType};
     use criterion::{black_box, criterion_group, BatchSize, Criterion, Throughput};
     use rayon::prelude::*;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
@@ -486,7 +486,7 @@ mod cuda {
             }
         }
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             (comp_param, param.into()),
             comp_param.name(),

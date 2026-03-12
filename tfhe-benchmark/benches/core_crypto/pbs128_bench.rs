@@ -2,7 +2,7 @@ use benchmark::params_aliases::{
     BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
-use benchmark::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
+use benchmark::utilities::{write_to_json_unchecked, CryptoParametersRecord, OperatorType};
 use criterion::{black_box, Criterion};
 use dyn_stack::PodStack;
 use tfhe::core_crypto::fft_impl::fft128::crypto::bootstrap::bootstrap_scratch;
@@ -149,7 +149,7 @@ fn pbs_128(c: &mut Criterion) {
     };
 
     let bit_size = (message_modulus as u32).ilog2();
-    write_to_json(
+    write_to_json_unchecked(
         &id,
         params_record,
         noise_params.name(),
@@ -163,10 +163,11 @@ fn pbs_128(c: &mut Criterion) {
 #[cfg(feature = "gpu")]
 mod cuda {
     use benchmark::utilities::{
-        cuda_local_keys_core, cuda_local_streams_core, get_bench_type, throughput_num_threads,
-        write_to_json, BenchmarkType, CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes,
+        cuda_local_keys_core, cuda_local_streams_core, throughput_num_threads,
+        write_to_json_unchecked, CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes,
         CudaLocalKeys, OperatorType,
     };
+    use benchmark_spec::{get_bench_type, BenchmarkType};
     use criterion::{black_box, Criterion, Throughput};
     use rayon::prelude::*;
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
@@ -430,7 +431,7 @@ mod cuda {
         };
 
         let bit_size = (message_modulus as u32).ilog2();
-        write_to_json(
+        write_to_json_unchecked(
             &bench_id,
             params_record,
             params_name,
@@ -695,7 +696,7 @@ mod cuda {
         };
 
         let bit_size = (message_modulus as u32).ilog2();
-        write_to_json(
+        write_to_json_unchecked(
             &bench_id,
             params_record,
             params_name,

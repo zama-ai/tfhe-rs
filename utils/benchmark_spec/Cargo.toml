@@ -1,0 +1,10 @@
+[package]
+name = "benchmark_spec"
+version = "0.1.0"
+edition = "2024"
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+strum = { version = "0.28", features = ["derive"] }
+serde = { workspace = true, default-features = false, features = ["derive"] }

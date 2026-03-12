@@ -1,5 +1,5 @@
 use benchmark::params_aliases::*;
-use benchmark::utilities::{write_to_json, OperatorType};
+use benchmark::utilities::{write_to_json_unchecked, OperatorType};
 use criterion::Criterion;
 use rayon::prelude::*;
 use tfhe::keycache::NamedParam;
@@ -45,7 +45,7 @@ pub fn pack_cast_64(c: &mut Criterion) {
         });
     });
 
-    write_to_json::<u64, _>(
+    write_to_json_unchecked::<u64, _>(
         &bench_id,
         ks_param,
         ks_param_name,
@@ -86,7 +86,7 @@ pub fn pack_cast(c: &mut Criterion) {
         });
     });
 
-    write_to_json::<u64, _>(
+    write_to_json_unchecked::<u64, _>(
         &bench_id,
         ks_param,
         ks_param_name,
@@ -124,7 +124,7 @@ pub fn cast(c: &mut Criterion) {
         });
     });
 
-    write_to_json::<u64, _>(
+    write_to_json_unchecked::<u64, _>(
         &bench_id,
         ks_param,
         ks_param_name,
