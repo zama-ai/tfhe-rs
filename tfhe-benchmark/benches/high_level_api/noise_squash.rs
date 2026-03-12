@@ -15,8 +15,8 @@ use benchmark::params_aliases::{
 #[cfg(feature = "gpu")]
 use benchmark::utilities::configure_gpu;
 use benchmark::utilities::{
-    get_bench_type, will_this_bench_run, write_to_json, BenchmarkType, BitSizesSet, EnvConfig,
-    OperatorType,
+    get_bench_type, will_this_bench_run, write_to_json_unchecked, BenchmarkType, BitSizesSet,
+    EnvConfig, OperatorType,
 };
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
@@ -200,7 +200,7 @@ fn bench_sns_only_fhe_type<FheType>(
     }
     let params = client_key.computation_parameters();
 
-    write_to_json::<u64, _>(
+    write_to_json_unchecked::<u64, _>(
         &bench_id,
         params,
         params.name(),
@@ -409,7 +409,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
     }
     let params = client_key.computation_parameters();
 
-    write_to_json::<u64, _>(
+    write_to_json_unchecked::<u64, _>(
         &bench_id,
         params,
         params.name(),
