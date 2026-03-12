@@ -1,4 +1,4 @@
-use benchmark::utilities::{write_to_json, OperatorType};
+use benchmark::utilities::{write_to_json_unchecked, OperatorType};
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -39,7 +39,7 @@ fn client_server_key_sizes(results_file: &Path) {
         let test_name = format!("boolean_key_sizes_{params_name}_ksk");
 
         write_result(&mut file, &test_name, ksk_size);
-        write_to_json::<u32, _>(
+        write_to_json_unchecked::<u32, _>(
             &test_name,
             *params,
             *params_name,
@@ -59,7 +59,7 @@ fn client_server_key_sizes(results_file: &Path) {
         let test_name = format!("boolean_key_sizes_{params_name}_bsk");
 
         write_result(&mut file, &test_name, bsk_size);
-        write_to_json::<u32, _>(
+        write_to_json_unchecked::<u32, _>(
             &test_name,
             *params,
             *params_name,

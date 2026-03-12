@@ -1,7 +1,8 @@
 use benchmark::params::ParamsAndNumBlocksIter;
 use benchmark::utilities::{
-    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, EnvConfig, OperatorType,
+    throughput_num_threads, write_to_json_unchecked, EnvConfig, OperatorType,
 };
+use benchmark_spec::{get_bench_type, BenchmarkType};
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -116,7 +117,7 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
             }
         }
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -217,7 +218,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
             }
         }
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -303,7 +304,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
             }
         }
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -400,7 +401,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
             }
         }
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -942,7 +943,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
             }
         }
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -1120,7 +1121,7 @@ fn signed_flip_parallelized(c: &mut Criterion) {
             }
         }
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -1475,7 +1476,7 @@ fn bench_server_key_signed_cast_function<F>(
                 )
             });
 
-            write_to_json::<u64, _>(
+            write_to_json_unchecked::<u64, _>(
                 &bench_id,
                 param,
                 param.name(),
@@ -1664,7 +1665,7 @@ mod cuda {
                 }
             }
 
-            write_to_json::<u64, _>(
+            write_to_json_unchecked::<u64, _>(
                 &bench_id,
                 param,
                 param.name(),
@@ -1802,7 +1803,7 @@ mod cuda {
                 }
             }
 
-            write_to_json::<u64, _>(
+            write_to_json_unchecked::<u64, _>(
                 &bench_id,
                 param,
                 param.name(),
@@ -1964,7 +1965,7 @@ mod cuda {
                 }
             }
 
-            write_to_json::<u64, _>(
+            write_to_json_unchecked::<u64, _>(
                 &bench_id,
                 param,
                 param.name(),
@@ -2141,7 +2142,7 @@ mod cuda {
                 }
             }
 
-            write_to_json::<u64, _>(
+            write_to_json_unchecked::<u64, _>(
                 &bench_id,
                 param,
                 param.name(),
@@ -2311,7 +2312,7 @@ mod cuda {
                 }
             }
 
-            write_to_json::<u64, _>(
+            write_to_json_unchecked::<u64, _>(
                 &bench_id,
                 param,
                 param.name(),
@@ -3084,7 +3085,7 @@ mod cuda {
                     )
                 });
 
-                write_to_json::<u64, _>(
+                write_to_json_unchecked::<u64, _>(
                     &bench_id,
                     param,
                     param.name(),

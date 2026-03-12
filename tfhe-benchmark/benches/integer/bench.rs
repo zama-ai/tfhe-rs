@@ -12,7 +12,8 @@ mod rerand;
 use benchmark::params::ParamsAndNumBlocksIter;
 #[cfg(any(feature = "gpu", feature = "hpu"))]
 use benchmark::utilities::throughput_num_threads;
-use benchmark::utilities::{get_bench_type, write_to_json, BenchmarkType, EnvConfig, OperatorType};
+use benchmark::utilities::{write_to_json_unchecked, EnvConfig, OperatorType};
+use benchmark_spec::{get_bench_type, BenchmarkType};
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -94,7 +95,7 @@ fn bench_server_key_binary_function_dirty_inputs<F>(
             )
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -207,7 +208,7 @@ fn bench_server_key_binary_function_clean_inputs<F>(
             }
         }
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -274,7 +275,7 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
             )
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -377,7 +378,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
             }
         }
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -449,7 +450,7 @@ fn bench_server_key_binary_scalar_function_dirty_inputs<F, G>(
             )
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -569,7 +570,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
             }
         }
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -710,7 +711,7 @@ fn if_then_else_parallelized(c: &mut Criterion) {
             }
         }
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -820,7 +821,7 @@ fn flip_parallelized(c: &mut Criterion) {
             }
         }
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -944,7 +945,7 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
                 }
             }
 
-            write_to_json::<u64, _>(
+            write_to_json_unchecked::<u64, _>(
                 &bench_id,
                 param,
                 param.name(),
@@ -1655,7 +1656,7 @@ mod cuda {
                 }
             }
 
-            write_to_json::<u64, _>(
+            write_to_json_unchecked::<u64, _>(
                 &bench_id,
                 param,
                 param.name(),
@@ -1799,7 +1800,7 @@ mod cuda {
                 }
             }
 
-            write_to_json::<u64, _>(
+            write_to_json_unchecked::<u64, _>(
                 &bench_id,
                 param,
                 param.name(),
@@ -1938,7 +1939,7 @@ mod cuda {
                 }
             }
 
-            write_to_json::<u64, _>(
+            write_to_json_unchecked::<u64, _>(
                 &bench_id,
                 param,
                 param.name(),
@@ -2090,7 +2091,7 @@ mod cuda {
                 }
             }
 
-            write_to_json::<u64, _>(
+            write_to_json_unchecked::<u64, _>(
                 &bench_id,
                 param,
                 param.name(),
@@ -2959,7 +2960,7 @@ mod cuda {
                     )
                 });
 
-                write_to_json::<u64, _>(
+                write_to_json_unchecked::<u64, _>(
                     &bench_id,
                     param,
                     param.name(),
@@ -3170,7 +3171,7 @@ mod hpu {
                 }
             }
 
-            write_to_json::<u64, _>(
+            write_to_json_unchecked::<u64, _>(
                 &bench_id,
                 param,
                 param.name(),
@@ -3750,7 +3751,7 @@ fn bench_server_key_cast_function<F>(
                 )
             });
 
-            write_to_json::<u64, _>(
+            write_to_json_unchecked::<u64, _>(
                 &bench_id,
                 param,
                 param.name(),
