@@ -1,6 +1,6 @@
 use benchmark::params_aliases::*;
 use benchmark::utilities::{
-    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, OperatorType,
+    get_bench_type, throughput_num_threads, write_to_json_unchecked, BenchmarkType, OperatorType,
 };
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
@@ -192,7 +192,7 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
 
                     let shortint_params: PBSParameters = param_fhe.into();
 
-                    write_to_json::<u64, _>(
+                    write_to_json_unchecked::<u64, _>(
                         &bench_id,
                         shortint_params,
                         param_name,
@@ -273,7 +273,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                     format!("zk::crs_sizes::{param_name}::{bits}_bits_packed_ZK{zk_vers:?}");
 
                 write_result(&mut file, &test_name, crs_data.len());
-                write_to_json::<u64, _>(
+                write_to_json_unchecked::<u64, _>(
                     &test_name,
                     shortint_params,
                     param_name,
@@ -327,7 +327,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                                 &test_name,
                                 proven_ciphertext_list_serialized.len(),
                             );
-                            write_to_json::<u64, _>(
+                            write_to_json_unchecked::<u64, _>(
                                 &test_name,
                                 shortint_params,
                                 param_name,
@@ -344,7 +344,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                             format!("zk::proof_sizes::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}");
 
                             write_result(&mut file, &test_name, proof_size);
-                            write_to_json::<u64, _>(
+                            write_to_json_unchecked::<u64, _>(
                                 &test_name,
                                 shortint_params,
                                 param_name,
@@ -447,7 +447,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                         }
                     }
 
-                    write_to_json::<u64, _>(
+                    write_to_json_unchecked::<u64, _>(
                         &bench_id_verify,
                         shortint_params,
                         param_name,
@@ -457,7 +457,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                         vec![shortint_params.message_modulus().0.ilog2(); num_block],
                     );
 
-                    write_to_json::<u64, _>(
+                    write_to_json_unchecked::<u64, _>(
                         &bench_id_verify_and_expand,
                         shortint_params,
                         param_name,
@@ -562,7 +562,7 @@ mod cuda {
                     format!("zk::crs_sizes::{param_name}::{bits}_bits_packed_ZK{zk_vers:?}");
 
                 write_result(&mut file, &test_name, crs_data.len());
-                write_to_json::<u64, _>(
+                write_to_json_unchecked::<u64, _>(
                     &test_name,
                     param_fhe,
                     param_name,
@@ -636,7 +636,7 @@ mod cuda {
                                 &test_name,
                                 proven_ciphertext_list_serialized.len(),
                             );
-                            write_to_json::<u64, _>(
+                            write_to_json_unchecked::<u64, _>(
                                 &test_name,
                                 param_fhe,
                                 param_name,
@@ -653,7 +653,7 @@ mod cuda {
                                     format!("zk::proof_sizes::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}");
 
                             write_result(&mut file, &test_name, proof_size);
-                            write_to_json::<u64, _>(
+                            write_to_json_unchecked::<u64, _>(
                                 &test_name,
                                 param_fhe,
                                 param_name,
@@ -799,7 +799,7 @@ mod cuda {
                         (bench_id_expand_without_verify, "pke_zk_verify_only_expand"),
                         (bench_id_verify_and_expand, "pke_zk_verify_and_expand"),
                     ] {
-                        write_to_json::<u64, _>(
+                        write_to_json_unchecked::<u64, _>(
                             &bench_id,
                             param_fhe,
                             param_name,

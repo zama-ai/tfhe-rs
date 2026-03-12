@@ -1,7 +1,7 @@
 use benchmark::params::ParamsAndNumBlocksIter;
 #[cfg(any(feature = "gpu", feature = "hpu"))]
 use benchmark::utilities::throughput_num_threads;
-use benchmark::utilities::{get_bench_type, write_to_json, BenchmarkType, OperatorType};
+use benchmark::utilities::{get_bench_type, write_to_json_unchecked, BenchmarkType, OperatorType};
 use criterion::{black_box, Criterion, Throughput};
 use rayon::prelude::*;
 #[cfg(any(feature = "gpu", feature = "hpu"))]
@@ -125,7 +125,7 @@ pub fn unsigned_oprf(c: &mut Criterion) {
             (bench_id_oprf, "oprf"),
             (bench_id_oprf_bounded, "oprf_bounded"),
         ] {
-            write_to_json::<u64, _>(
+            write_to_json_unchecked::<u64, _>(
                 &bench_id,
                 param,
                 param.name(),
@@ -263,7 +263,7 @@ pub mod cuda {
                 (bench_id_oprf, "oprf"),
                 (bench_id_oprf_bounded, "oprf_bounded"),
             ] {
-                write_to_json::<u64, _>(
+                write_to_json_unchecked::<u64, _>(
                     &bench_id,
                     param,
                     param.name(),

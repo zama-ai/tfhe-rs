@@ -3,7 +3,7 @@ use benchmark::params::{
 };
 
 use benchmark::utilities::{
-    get_bench_type, get_param_type, write_to_json, BenchmarkType, CryptoParametersRecord,
+    get_bench_type, get_param_type, write_to_json_unchecked, BenchmarkType, CryptoParametersRecord,
     OperatorType, ParamType,
 };
 use criterion::{black_box, Criterion, Throughput};
@@ -269,7 +269,7 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
         }
 
         let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
-        write_to_json(
+        write_to_json_unchecked(
             &bench_id,
             *params,
             name,
@@ -505,7 +505,7 @@ fn multi_bit_ks_pbs<
         };
 
         let bit_size = params.message_modulus.unwrap().ilog2();
-        write_to_json(
+        write_to_json_unchecked(
             &bench_id,
             *params,
             name,
@@ -522,8 +522,8 @@ mod cuda {
     use super::{benchmark_parameters, multi_bit_benchmark_parameters_with_grouping};
     use benchmark::utilities::{
         cuda_local_keys_core, cuda_local_streams_core, get_bench_type, throughput_num_threads,
-        write_to_json, BenchmarkType, CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes,
-        CudaLocalKeys, OperatorType, GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE,
+        write_to_json_unchecked, BenchmarkType, CpuKeys, CpuKeysBuilder, CryptoParametersRecord,
+        CudaIndexes, CudaLocalKeys, OperatorType, GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE,
     };
     use criterion::{black_box, Criterion, Throughput};
     use rayon::prelude::*;
@@ -833,7 +833,7 @@ mod cuda {
             };
 
             let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
-            write_to_json(
+            write_to_json_unchecked(
                 &bench_id,
                 *params,
                 name,
@@ -1143,7 +1143,7 @@ mod cuda {
             };
 
             let bit_size = params.message_modulus.unwrap().ilog2();
-            write_to_json(
+            write_to_json_unchecked(
                 &bench_id,
                 *params,
                 name,

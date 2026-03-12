@@ -1,5 +1,6 @@
 use benchmark::high_level_api::bench_wait::*;
 use benchmark::high_level_api::benchmark_op::*;
+use benchmark::name_spec::NameSpec;
 use benchmark::utilities::{
     get_bench_type, will_this_bench_run, write_to_json, BenchmarkType, OperandType, OperatorType,
 };
@@ -46,24 +47,20 @@ pub fn bench_fhe_type_op<FheType, Op>(
     let bit_size = config.bit_size as u32;
 
     let inputs = op.setup_inputs(client_key, &mut rng);
-    let bench_id;
+
+    let is_throughput = matches!(get_bench_type(), BenchmarkType::Throughput);
+    let name = NameSpec::new(
+        &bench_prefix,
+        config.func_name,
+        &param_name,
+        config.operand_type.is_scalar(),
+        config.type_name,
+        is_throughput,
+    );
+    let bench_id = name.to_string();
 
     match get_bench_type() {
         BenchmarkType::Latency => {
-            bench_id = match config.operand_type {
-                OperandType::PlainText => {
-                    format!(
-                        "{bench_prefix}::{}::{param_name}::scalar::{}",
-                        config.func_name, config.type_name
-                    )
-                }
-                OperandType::CipherText => {
-                    format!(
-                        "{bench_prefix}::{}::{param_name}::{}",
-                        config.func_name, config.type_name
-                    )
-                }
-            };
             bench_group.bench_function(&bench_id, |b| {
                 b.iter(|| {
                     let res = op.execute(&inputs);
@@ -73,21 +70,6 @@ pub fn bench_fhe_type_op<FheType, Op>(
             });
         }
         BenchmarkType::Throughput => {
-            bench_id = match config.operand_type {
-                OperandType::PlainText => {
-                    format!(
-                        "{bench_prefix}::{}::throughput::{param_name}::scalar::{}",
-                        config.func_name, config.type_name
-                    )
-                }
-                OperandType::CipherText => {
-                    format!(
-                        "{bench_prefix}::{}::throughput::{param_name}::{}",
-                        config.func_name, config.type_name
-                    )
-                }
-            };
-
             let setup = |batch_size: usize| {
                 (0..batch_size)
                     .into_par_iter()
@@ -149,9 +131,8 @@ pub fn bench_fhe_type_op<FheType, Op>(
     }
 
     write_to_json::<u64, _>(
-        &bench_id,
+        &name,
         param,
-        &param_name,
         config.display_name,
         &OperatorType::Atomic,
         bit_size,

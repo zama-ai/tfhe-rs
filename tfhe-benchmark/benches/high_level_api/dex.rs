@@ -7,7 +7,7 @@ use benchmark::params_aliases::{
 };
 #[cfg(feature = "gpu")]
 use benchmark::utilities::{configure_gpu, get_param_type, ParamType};
-use benchmark::utilities::{get_bench_type, write_to_json, BenchmarkType, OperatorType};
+use benchmark::utilities::{get_bench_type, write_to_json_unchecked, BenchmarkType, OperatorType};
 use criterion::measurement::WallTime;
 use criterion::{BenchmarkGroup, Criterion, Throughput};
 use rand::prelude::*;
@@ -276,7 +276,7 @@ mod pbs_stats {
 
         write_result(&mut file, &test_name, count as usize);
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &test_name,
             params,
             params_name,
@@ -331,7 +331,7 @@ mod pbs_stats {
 
         write_result(&mut file, &test_name, count as usize);
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &test_name,
             params,
             params_name,
@@ -394,7 +394,7 @@ mod pbs_stats {
 
         write_result(&mut file, &test_name, count as usize);
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &test_name,
             params,
             params_name,
@@ -454,7 +454,7 @@ mod pbs_stats {
 
         write_result(&mut file, &test_name, count as usize);
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &test_name,
             params,
             params_name,
@@ -524,7 +524,7 @@ fn bench_swap_request_latency<FheType, F1, F2>(
         })
     });
 
-    write_to_json::<u64, _>(
+    write_to_json_unchecked::<u64, _>(
         &bench_id,
         params,
         params_name,
@@ -640,7 +640,7 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
             })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             params,
             &params_name,
@@ -852,7 +852,7 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
                                 })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             params,
             &params_name,
@@ -928,7 +928,7 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
         });
     });
 
-    write_to_json::<u64, _>(
+    write_to_json_unchecked::<u64, _>(
         &bench_id,
         params,
         &params_name,
@@ -1062,7 +1062,7 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
             });
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             params,
             &params_name,
@@ -1269,7 +1269,7 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
             });
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             params,
             &params_name,

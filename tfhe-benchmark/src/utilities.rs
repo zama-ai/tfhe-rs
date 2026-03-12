@@ -1,3 +1,4 @@
+use crate::name_spec::NameSpec;
 use criterion::Criterion;
 use serde::Serialize;
 use std::path::PathBuf;
@@ -265,6 +266,12 @@ pub enum OperandType {
     PlainText,
 }
 
+impl OperandType {
+    pub fn is_scalar(&self) -> bool {
+        matches!(self, OperandType::PlainText)
+    }
+}
+
 #[derive(Clone, Serialize)]
 pub enum OperatorType {
     Atomic,
@@ -292,8 +299,32 @@ struct BenchmarkParametersRecord<Scalar: UnsignedInteger> {
     operator_type: OperatorType,
 }
 
-/// Writes benchmarks parameters to disk in JSON format.
+/// Writes benchmarks parameters to disk in JSON format, enforcing the bench name spec.
 pub fn write_to_json<
+    Scalar: UnsignedInteger + Serialize,
+    T: Into<CryptoParametersRecord<Scalar>>,
+>(
+    name: &NameSpec,
+    params: T,
+    display_name: impl Into<String>,
+    operator_type: &OperatorType,
+    bit_size: u32,
+    decomposition_basis: Vec<u32>,
+) {
+    write_to_json_unchecked(
+        &name.to_string(),
+        params,
+        name.param_name,
+        display_name,
+        operator_type,
+        bit_size,
+        decomposition_basis,
+    )
+}
+
+/// Writes benchmarks parameters to disk in JSON format.
+/// Prefer `write_to_json` which enforces the bench name spec via `NameSpec`.
+pub fn write_to_json_unchecked<
     Scalar: UnsignedInteger + Serialize,
     T: Into<CryptoParametersRecord<Scalar>>,
 >(
