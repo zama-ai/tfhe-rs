@@ -912,7 +912,7 @@ mod cuda {
 
                     let fhe_uint_count = bits / 64;
 
-                    for compute_load in [ZkComputeLoad::Proof, ZkComputeLoad::Verify] {
+                    for compute_load in compute_load_config() {
                         let zk_load = match compute_load {
                             ZkComputeLoad::Proof => "compute_load_proof",
                             ZkComputeLoad::Verify => "compute_load_verify",
@@ -941,12 +941,12 @@ mod cuda {
                                 });
                             }
                             BenchmarkType::Throughput => {
-                                // The zk proof is currently not pooled, so we simply use the number
-                                // of threads as heuristic for the
-                                // batch size
-                                let elements =
-                                    (rayon::current_num_threads() / num_block).max(1) + 1;
-                                bench_group.throughput(Throughput::Elements(elements as u64));
+                                // Each proof uses GPU MSM internally, and
+                                // select_gpu_for_msm() distributes across GPUs by rayon
+                                // thread index, so we scale by GPU count and use par_iter.
+                                let elements = gpu_zk_throughput_elements(crs_size, *bits)
+                                    * get_number_of_gpus() as u64;
+                                bench_group.throughput(Throughput::Elements(elements));
 
                                 bench_id = format!(
                                     "{bench_name}::throughput::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
