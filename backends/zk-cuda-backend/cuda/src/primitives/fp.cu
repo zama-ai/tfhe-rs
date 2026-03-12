@@ -583,7 +583,7 @@ __host__ __device__ void fp_mont_reduce(Fp &c, const UNSIGNED_LIMB *a) {
                "add.cc.u64  %0, %0, %1;\n\t"                                   \
                "addc.u64    %1, _hi, 0;\n\t"                                   \
                "}\n\t"                                                         \
-               : "+l"(t_j), "+l"(carry)                                      \
+               : "+l"(t_j), "+l"(carry)                                        \
                : "l"(a_j), "l"(b_i))
 
 // Single CIOS iteration: multiply-accumulate, reduce, and shift.

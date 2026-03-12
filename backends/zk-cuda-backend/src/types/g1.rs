@@ -234,8 +234,7 @@ impl G1Projective {
     ///
     /// The caller is responsible for creating and destroying the stream.
     ///
-    /// Returns the result and the size_tracker (GPU memory allocated in bytes) if successful,
-    /// or an error if MSM computation fails.
+    /// Returns the MSM result if successful, or an error if MSM computation fails.
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     #[must_use = "GPU MSM result must be handled"]
     pub fn msm(
@@ -244,14 +243,14 @@ impl G1Projective {
         stream: *mut std::ffi::c_void,
         gpu_index: u32,
         points_in_montgomery: bool,
-    ) -> Result<(Self, u64), String> {
+    ) -> Result<Self, String> {
         assert_eq!(
             points.len(),
             scalars.len(),
             "GPU MSM: points and scalars must have the same length"
         );
         if points.is_empty() {
-            return Ok((Self::infinity(), 0));
+            return Ok(Self::infinity());
         }
         if stream.is_null() {
             return Err("GPU MSM: stream pointer is null".to_string());
@@ -263,7 +262,6 @@ impl G1Projective {
         let points_ffi: Vec<G1Point> = points.iter().map(|p| p.inner).collect();
         let scalars_ffi: Vec<ScalarFFI> = scalars.iter().map(|s| *s.inner()).collect();
         let mut result = G1ProjectivePoint::default();
-        let mut size_tracker: u64 = 0;
         // NOTE: This method uses the managed API (g1_msm_managed_wrapper) which handles
         // memory allocation and transfers internally. For a pure-GPU verify/proof implementation
         // where all data is already on the device and memory is managed externally, use the
@@ -279,12 +277,13 @@ impl G1Projective {
         //   ownership. The caller remains responsible for destroying the stream after use.
         // - `gpu_index` is passed directly to CUDA; the C++ wrapper validates it
         // - `points_ffi` and `scalars_ffi` are valid Vec slices with matching length `n`
-        // - `result` and `size_tracker` are valid stack-allocated outputs
+        // - `result` is a valid stack-allocated output
         // - The managed wrapper handles all device memory allocation/deallocation internally
         // - Failure: The C++ managed wrapper validates all inputs via PANIC_IF_FALSE and checks
         //   CUDA errors via cudaGetLastError() after each kernel launch.
         // - Success: The C++ managed wrapper calls cuda_synchronize_stream before returning,
         //   ensuring `result` contains the final MSM output.
+        let mut size_tracker: u64 = 0;
         unsafe {
             crate::bindings::g1_msm_managed_wrapper(
                 stream as crate::bindings::cudaStream_t,
@@ -298,7 +297,7 @@ impl G1Projective {
             );
         }
 
-        Ok((Self { inner: result }, size_tracker))
+        Ok(Self { inner: result })
     }
 }
 

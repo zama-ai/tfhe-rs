@@ -20,7 +20,6 @@
 #include "device.h"
 #include "fp.h"
 #include "msm.h"
-#include <cassert>
 #include <cstdio>
 #include <cstring>
 #include <vector>
@@ -33,7 +32,6 @@ int main() {
 
   const uint32_t gpu_index = 0;
   const uint32_t n = 4; // number of points / scalars
-  uint64_t size_tracker = 0;
 
   // ---- Prepare host-side points in Montgomery form ----
   // Use n doublings of the G1 generator: G, 2*G, 4*G, 8*G.
@@ -76,8 +74,7 @@ int main() {
 
   // ---- Run MSM (synchronous wrapper; result written directly to host) ----
   G1Projective h_result;
-  point_msm_g1(stream, gpu_index, &h_result, d_points, d_scalars, n, d_scratch,
-               size_tracker, true);
+  point_msm_g1(stream, gpu_index, &h_result, d_points, d_scalars, n, d_scratch);
 
   // ---- Verify against naive sequential computation on the host ----
   // Expected = sum over i of (scalar[i] * point[i]).
@@ -95,7 +92,8 @@ int main() {
   // Normalise to Z = 1 (Montgomery) before comparing projective coordinates.
   normalize_projective_g1(h_result);
   normalize_projective_g1(expected);
-  assert(h_result == expected);
+  PANIC_IF_FALSE(h_result == expected,
+                 "MSM result must match naive sequential computation");
   printf("MSM result matches naive sequential computation.\n");
 
   // ---- Cleanup ----
