@@ -41,7 +41,8 @@ fn test_pke_v1_gpu_cpu_equivalence() {
         msbs_zero_padding_bit_count,
     } = params;
 
-    let seed = thread_rng().gen();
+    let seed: u64 = thread_rng().gen();
+    println!("test_pke_v1_gpu_cpu_equivalence seed: {seed:x}");
     let rng = &mut StdRng::seed_from_u64(seed);
 
     let valid_testcase = PkeTestcase::gen(rng, params);
@@ -221,7 +222,8 @@ fn test_pke_v2_gpu_cpu_equivalence() {
         msbs_zero_padding_bit_count,
     } = params;
 
-    let seed = thread_rng().gen();
+    let seed: u64 = thread_rng().gen();
+    println!("test_pke_v2_gpu_cpu_equivalence seed: {seed:x}");
     let rng = &mut StdRng::seed_from_u64(seed);
 
     let testcase = PkeTestcase::gen(rng, params);
