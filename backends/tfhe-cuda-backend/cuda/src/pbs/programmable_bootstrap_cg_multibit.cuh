@@ -420,6 +420,39 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
   }
 }
 
+// Noise tests variant: identical to host_cg_multi_bit_programmable_bootstrap
+// but uses NOISE_TESTS keybundle mode.
+template <typename Torus, class params>
+__host__ void host_cg_multi_bit_programmable_bootstrap_noise_tests(
+    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, uint64_t const *bootstrapping_key,
+    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t num_many_lut, uint32_t lut_stride) {
+
+  auto lwe_chunk_size = buffer->lwe_chunk_size;
+
+  for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
+       lwe_offset += lwe_chunk_size) {
+
+    // Compute a keybundle with NOISE_TESTS mode instead of GENERIC
+    execute_compute_keybundle_noise_tests<Torus, params>(
+        stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+        buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+        grouping_factor, level_count, lwe_offset);
+
+    execute_cg_external_product_loop<Torus, params>(
+        stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
+        lwe_input_indexes, lwe_array_out, lwe_output_indexes, buffer,
+        num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+        grouping_factor, base_log, level_count, lwe_offset, num_many_lut,
+        lut_stride);
+  }
+}
+
 // Verify if the grid size satisfies the cooperative group constraints
 template <typename Torus, class params>
 __host__ bool verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size(

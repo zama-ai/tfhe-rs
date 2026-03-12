@@ -463,5 +463,48 @@ __global__ void __launch_bounds__(512)
       return;
   }
 }
+// This function is only used for noise tests, it follows the same logic
+// that is embedded in the keybundle just we need a global function to
+// be able to test it individually.
+template <typename Torus, class params>
+__global__ void
+modulus_switch_multi_bit(Torus *array_out, const Torus *array_in, int size,
+                         uint32_t log_modulus, uint32_t grouping_factor) {
+  const int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  if (tid < size) {
+    int num_monomials = 1 << grouping_factor;
+    int input_offset = tid * grouping_factor;
+    int output_offset = tid * num_monomials;
+    // We calculate all monomials even if the first one is never used.
+    for (int ggsw_idx = 0; ggsw_idx < num_monomials; ggsw_idx++) {
+      array_out[ggsw_idx + output_offset] =
+          calculates_monomial_degree<Torus, params>(&array_in[input_offset],
+                                                    ggsw_idx, grouping_factor);
+    }
+  }
+}
+// This aims to be launched only from the noise tests.
+//  That is why we support a specific set of parameters
+template <typename Torus>
+__host__ void host_modulus_switch_multi_bit(
+    cudaStream_t stream, uint32_t gpu_index, Torus *array_out, Torus *array_in,
+    int size, uint32_t log_modulus, uint32_t degree, uint32_t grouping_factor) {
+  cudaSetDevice(gpu_index);
+  int multibit_size = size / grouping_factor;
+  int num_threads = 0, num_blocks = 0;
+  getNumBlocksAndThreads(multibit_size, 1024, num_blocks, num_threads);
+  switch (degree) {
+  case 2048:
+    modulus_switch_multi_bit<Torus, Degree<2048>>
+        <<<num_blocks, num_threads, 0, stream>>>(
+            array_out, array_in, multibit_size, log_modulus, grouping_factor);
+    break;
+  default:
+    PANIC("Cuda error: unsupported polynomial size. Supported "
+          "N's are powers of two in the interval [2048].")
+  };
+
+  check_cuda_error(cudaGetLastError());
+}
 
 #endif // CNCRT_TORUS_H
