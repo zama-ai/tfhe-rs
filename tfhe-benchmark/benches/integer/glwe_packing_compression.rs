@@ -1,7 +1,6 @@
 use benchmark::params_aliases::*;
-use benchmark::utilities::{
-    get_bench_type, write_to_json, BenchmarkType, BitSizesSet, EnvConfig, OperatorType,
-};
+use benchmark::utilities::{write_to_json_unchecked, BitSizesSet, EnvConfig, OperatorType};
+use benchmark_spec::{get_bench_type, BenchmarkType};
 use criterion::{black_box, criterion_group, Criterion, Throughput};
 use rayon::prelude::*;
 use tfhe::integer::ciphertext::CompressedCiphertextListBuilder;
@@ -178,7 +177,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
             }
         }
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id_pack,
             (comp_param, param.into()),
             comp_param.name(),
@@ -188,7 +187,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
             vec![param.message_modulus.0.ilog2(); num_blocks],
         );
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id_unpack,
             (comp_param, param.into()),
             comp_param.name(),
@@ -334,7 +333,7 @@ mod cuda {
             }
         }
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id_pack,
             (comp_param, param),
             comp_param.name(),
@@ -497,7 +496,7 @@ mod cuda {
             }
         }
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id_unpack,
             (comp_param, param),
             comp_param.name(),
