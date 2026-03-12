@@ -1,8 +1,9 @@
 use benchmark::high_level_api::bench_wait::*;
 use benchmark::high_level_api::benchmark_op::*;
 use benchmark::utilities::{
-    get_bench_type, will_this_bench_run, write_to_json, BenchmarkType, OperandType, OperatorType,
+    bench_backend_from_cfg, will_this_bench_run, write_to_json, OperatorType,
 };
+use benchmark_spec::{get_bench_type, BenchmarkSpec, BenchmarkType, HlIntegerOp, OperandType};
 use criterion::{black_box, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -10,60 +11,43 @@ use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
 use tfhe::ClientKey;
 
-pub struct BenchConfig<'a> {
-    pub type_name: &'a str,
-    pub display_name: &'a str,
-    pub operand_type: OperandType,
-    pub func_name: &'a str,
-    pub bit_size: usize,
-}
-
+#[allow(clippy::too_many_arguments)]
 #[inline(never)]
 pub fn bench_fhe_type_op<FheType, Op>(
     c: &mut Criterion,
     client_key: &ClientKey,
-    config: BenchConfig,
+    hlapi_op: HlIntegerOp,
+    operand_type: OperandType,
+    type_name: &str,
+    bit_size: usize,
     op: Op,
 ) where
     Op: BenchmarkOp<FheType> + Sync,
     FheType: FheWait + Send + Sync,
 {
-    let group_name = config.type_name;
-    let mut bench_group = c.benchmark_group(group_name);
-    let mut bench_prefix = "hlapi".to_string();
-    if cfg!(feature = "gpu") {
-        bench_prefix = format!("{}::cuda", bench_prefix);
-    } else if cfg!(feature = "hpu") {
-        bench_prefix = format!("{}::hpu", bench_prefix);
-    }
-
-    bench_prefix = format!("{}::ops", bench_prefix);
+    let mut bench_group = c.benchmark_group(type_name);
 
     let mut rng = thread_rng();
 
     let param = client_key.computation_parameters();
     let param_name = param.name();
-    let bit_size = config.bit_size as u32;
+    let bit_size = bit_size as u32;
 
     let inputs = op.setup_inputs(client_key, &mut rng);
-    let bench_id;
 
-    match get_bench_type() {
+    let bench_type = get_bench_type();
+    let benchmark_spec = BenchmarkSpec::new_hlapi(
+        hlapi_op,
+        &param_name,
+        &operand_type,
+        Some(type_name),
+        bench_type,
+        bench_backend_from_cfg(),
+    );
+    let bench_id = benchmark_spec.to_string();
+
+    match bench_type {
         BenchmarkType::Latency => {
-            bench_id = match config.operand_type {
-                OperandType::PlainText => {
-                    format!(
-                        "{bench_prefix}::{}::{param_name}::scalar::{}",
-                        config.func_name, config.type_name
-                    )
-                }
-                OperandType::CipherText => {
-                    format!(
-                        "{bench_prefix}::{}::{param_name}::{}",
-                        config.func_name, config.type_name
-                    )
-                }
-            };
             bench_group.bench_function(&bench_id, |b| {
                 b.iter(|| {
                     let res = op.execute(&inputs);
@@ -73,21 +57,6 @@ pub fn bench_fhe_type_op<FheType, Op>(
             });
         }
         BenchmarkType::Throughput => {
-            bench_id = match config.operand_type {
-                OperandType::PlainText => {
-                    format!(
-                        "{bench_prefix}::{}::throughput::{param_name}::scalar::{}",
-                        config.func_name, config.type_name
-                    )
-                }
-                OperandType::CipherText => {
-                    format!(
-                        "{bench_prefix}::{}::throughput::{param_name}::{}",
-                        config.func_name, config.type_name
-                    )
-                }
-            };
-
             let setup = |batch_size: usize| {
                 (0..batch_size)
                     .into_par_iter()
@@ -95,7 +64,7 @@ pub fn bench_fhe_type_op<FheType, Op>(
                     .collect::<Vec<_>>()
             };
 
-            let elements = if will_this_bench_run(group_name, &bench_id) {
+            let elements = if will_this_bench_run(type_name, &bench_id) {
                 #[cfg(any(feature = "gpu", feature = "hpu"))]
                 {
                     use benchmark::utilities::throughput_num_threads;
@@ -149,10 +118,9 @@ pub fn bench_fhe_type_op<FheType, Op>(
     }
 
     write_to_json::<u64, _>(
-        &bench_id,
+        &benchmark_spec,
         param,
-        &param_name,
-        config.display_name,
+        hlapi_op.to_string(),
         &OperatorType::Atomic,
         bit_size,
         vec![],
@@ -165,7 +133,7 @@ macro_rules! bench_type_binary_op {
         right_type_name: $fhe_right_type:ident,
         left_type: $left_type:ty,
         right_type: $right_type:ty,
-        display_name: $display_name:literal,
+        hlapi_op: $hlapi_op:expr,
         operation: $op:ident
     ) => {
         ::paste::paste! {
@@ -174,13 +142,10 @@ macro_rules! bench_type_binary_op {
                 bench_fhe_type_op(
                     c,
                     cks,
-                    BenchConfig {
-                        type_name: stringify!($fhe_type),
-                        bit_size: $fhe_type::num_bits(),
-                        display_name: $display_name,
-                        operand_type: OperandType::CipherText,
-                        func_name: stringify!($op),
-                    },
+                    $hlapi_op,
+                    OperandType::CipherText,
+                    stringify!($fhe_type),
+                    $fhe_type::num_bits(),
                     BinaryOp {
                         func: |lhs: &$fhe_type, rhs: &$fhe_right_type| lhs.$op(rhs),
                         _encrypt_lhs: PhantomData::<$left_type>,
@@ -198,7 +163,7 @@ macro_rules! bench_type_binary_scalar_op {
         type_name: $fhe_type:ident,
         integer_type: $integer_type:ty,
         scalar_type: $scalar_ty:ty,
-        display_name: $display_name:literal,
+        hlapi_op: $hlapi_op:expr,
         operation: $op:ident,
         rng: $rng_fn:expr
     ) => {
@@ -208,13 +173,10 @@ macro_rules! bench_type_binary_scalar_op {
                 bench_fhe_type_op(
                     c,
                     cks,
-                    BenchConfig {
-                        type_name: stringify!($fhe_type),
-                        bit_size: $fhe_type::num_bits(),
-                        display_name: $display_name,
-                        operand_type: OperandType::PlainText,
-                        func_name: stringify!($op),
-                    },
+                    $hlapi_op,
+                    OperandType::PlainText,
+                    stringify!($fhe_type),
+                    $fhe_type::num_bits(),
                     ScalarBinaryOp {
                         func: |lhs: &$fhe_type, rhs: &$scalar_ty| lhs.$op(*rhs),
                         rng_function: $rng_fn,
@@ -230,7 +192,7 @@ macro_rules! bench_type_unary_op {
     (
         type_name: $fhe_type:ident,
         integer_type: $integer_type:ty,
-        display_name: $display_name:literal,
+        hlapi_op: $hlapi_op:expr,
         operation: $op:ident
     ) => {
         ::paste::paste! {
@@ -239,13 +201,10 @@ macro_rules! bench_type_unary_op {
                 bench_fhe_type_op(
                     c,
                     cks,
-                    BenchConfig {
-                        type_name: stringify!($fhe_type),
-                        bit_size: $fhe_type::num_bits(),
-                        display_name: $display_name,
-                        operand_type: OperandType::CipherText,
-                        func_name: stringify!($op),
-                    },
+                    $hlapi_op,
+                    OperandType::CipherText,
+                    stringify!($fhe_type),
+                    $fhe_type::num_bits(),
                     UnaryOp {
                         func: |lhs: &$fhe_type| lhs.$op(),
                         _encrypt: PhantomData::<$integer_type>
@@ -260,7 +219,7 @@ macro_rules! bench_type_ternary_op {
     (
         type_name: $fhe_type:ident,
         integer_type: $integer_type:ty,
-        display_name: $display_name:literal,
+        hlapi_op: $hlapi_op:expr,
         operation: $op:ident
     ) => {
         ::paste::paste! {
@@ -269,13 +228,10 @@ macro_rules! bench_type_ternary_op {
                 bench_fhe_type_op(
                     c,
                     cks,
-                    BenchConfig {
-                        type_name: stringify!($fhe_type),
-                        bit_size: $fhe_type::num_bits(),
-                        display_name: $display_name,
-                        operand_type: OperandType::CipherText,
-                        func_name: stringify!($op),
-                    },
+                    $hlapi_op,
+                    OperandType::CipherText,
+                    stringify!($fhe_type),
+                    $fhe_type::num_bits(),
                     TernaryOp {
                         func: |cond: &FheBool, lhs: &$fhe_type, rhs: &$fhe_type| cond.$op(lhs, rhs),
                         _encrypt: PhantomData::<$integer_type>
@@ -290,7 +246,7 @@ macro_rules! bench_type_array_op {
     (
         type_name: $fhe_type:ident,
         integer_type: $integer_type:ty,
-        display_name: $display_name:literal,
+        hlapi_op: $hlapi_op:expr,
         operation: $op:ident
     ) => {
         ::paste::paste! {
@@ -299,13 +255,10 @@ macro_rules! bench_type_array_op {
                 bench_fhe_type_op(
                     c,
                     cks,
-                    BenchConfig {
-                        type_name: stringify!($fhe_type),
-                        bit_size: $fhe_type::num_bits(),
-                        display_name: $display_name,
-                        operand_type: OperandType::CipherText,
-                        func_name: stringify!($op),
-                    },
+                    $hlapi_op,
+                    OperandType::CipherText,
+                    stringify!($fhe_type),
+                    $fhe_type::num_bits(),
                     ArrayOp {
                         func: |iter: std::slice::Iter<'_, $fhe_type>| iter.$op(),
                         array_size: 64,
@@ -325,7 +278,7 @@ macro_rules! generate_typed_benches {
         bench_type_array_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
-            display_name: "sum",
+            hlapi_op: HlIntegerOp::Sum,
             operation: sum
         );
         bench_type_binary_op!(
@@ -333,16 +286,15 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "add",
-            operation:
-            add
+            hlapi_op: HlIntegerOp::Add,
+            operation: add
         );
         bench_type_binary_op!(
             type_name: $fhe_type,
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "bitand",
+            hlapi_op: HlIntegerOp::Bitand,
             operation: bitand
         );
         bench_type_binary_op!(
@@ -350,7 +302,7 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "bitor",
+            hlapi_op: HlIntegerOp::Bitor,
             operation: bitor
         );
         bench_type_binary_op!(
@@ -358,7 +310,7 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "bitxor",
+            hlapi_op: HlIntegerOp::Bitxor,
             operation: bitxor
         );
         bench_type_binary_op!(
@@ -366,7 +318,7 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "div",
+            hlapi_op: HlIntegerOp::Div,
             operation: div
         );
         bench_type_binary_op!(
@@ -374,7 +326,7 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "div_rem",
+            hlapi_op: HlIntegerOp::DivRem,
             operation: div_rem
         );
         bench_type_binary_op!(
@@ -382,7 +334,7 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "eq",
+            hlapi_op: HlIntegerOp::Eq,
             operation: eq
         );
         bench_type_binary_op!(
@@ -390,7 +342,7 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "ge",
+            hlapi_op: HlIntegerOp::Ge,
             operation: ge
         );
         bench_type_binary_op!(
@@ -398,7 +350,7 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "gt",
+            hlapi_op: HlIntegerOp::Gt,
             operation: gt
         );
         bench_type_binary_op!(
@@ -406,7 +358,7 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "le",
+            hlapi_op: HlIntegerOp::Le,
             operation: le
         );
         bench_type_binary_op!(
@@ -414,7 +366,7 @@ macro_rules! generate_typed_benches {
             right_type_name: FheUint8,
             left_type: $integer_type,
             right_type: u8,
-            display_name: "left_rotate",
+            hlapi_op: HlIntegerOp::LeftRotate,
             operation: rotate_left
         );
         bench_type_binary_op!(
@@ -422,7 +374,7 @@ macro_rules! generate_typed_benches {
             right_type_name: FheUint8,
             left_type: $integer_type,
             right_type: u8,
-            display_name: "left_shift",
+            hlapi_op: HlIntegerOp::LeftShift,
             operation: shl
         );
         bench_type_binary_op!(
@@ -430,7 +382,7 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "lt",
+            hlapi_op: HlIntegerOp::Lt,
             operation: lt
         );
         bench_type_binary_op!(
@@ -438,7 +390,7 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "max",
+            hlapi_op: HlIntegerOp::Max,
             operation: max
         );
         bench_type_binary_op!(
@@ -446,7 +398,7 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "min",
+            hlapi_op: HlIntegerOp::Min,
             operation: min
         );
         bench_type_binary_op!(
@@ -454,7 +406,7 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "mul",
+            hlapi_op: HlIntegerOp::Mul,
             operation: mul
         );
         bench_type_binary_op!(
@@ -462,7 +414,7 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "ne",
+            hlapi_op: HlIntegerOp::Ne,
             operation: ne
         );
         bench_type_binary_op!(
@@ -470,7 +422,7 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "overflowing_add",
+            hlapi_op: HlIntegerOp::OverflowingAdd,
             operation: overflowing_add
         );
         bench_type_binary_op!(
@@ -478,7 +430,7 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "overflowing_mul",
+            hlapi_op: HlIntegerOp::OverflowingMul,
             operation: overflowing_mul
         );
         bench_type_binary_op!(
@@ -486,7 +438,7 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "overflowing_sub",
+            hlapi_op: HlIntegerOp::OverflowingSub,
             operation: overflowing_sub
         );
         bench_type_binary_op!(
@@ -494,7 +446,7 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "rem",
+            hlapi_op: HlIntegerOp::Rem,
             operation: rem
         );
         bench_type_binary_op!(
@@ -502,7 +454,7 @@ macro_rules! generate_typed_benches {
             right_type_name: FheUint8,
             left_type: $integer_type,
             right_type: u8,
-            display_name: "right_rotate",
+            hlapi_op: HlIntegerOp::RightRotate,
             operation: rotate_right
         );
         bench_type_binary_op!(
@@ -510,7 +462,7 @@ macro_rules! generate_typed_benches {
             right_type_name: FheUint8,
             left_type: $integer_type,
             right_type: u8,
-            display_name: "right_shift",
+            hlapi_op: HlIntegerOp::RightShift,
             operation: shr
         );
         bench_type_binary_op!(
@@ -518,103 +470,103 @@ macro_rules! generate_typed_benches {
             right_type_name: $fhe_type,
             left_type: $integer_type,
             right_type: $integer_type,
-            display_name: "sub",
+            hlapi_op: HlIntegerOp::Sub,
             operation: sub
         );
         bench_type_ternary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
-            display_name: "flip",
+            hlapi_op: HlIntegerOp::Flip,
             operation: flip
         );
         bench_type_ternary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
-            display_name: "if_then_else",
+            hlapi_op: HlIntegerOp::IfThenElse,
             operation: if_then_else
         );
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
-            display_name: "checked_ilog2",
+            hlapi_op: HlIntegerOp::CheckedIlog2,
             operation: checked_ilog2
         );
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
-            display_name: "count_ones",
+            hlapi_op: HlIntegerOp::CountOnes,
             operation: count_ones
         );
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
-            display_name: "count_zeros",
+            hlapi_op: HlIntegerOp::CountZeros,
             operation: count_zeros
         );
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
-            display_name: "ilog2",
+            hlapi_op: HlIntegerOp::Ilog2,
             operation: ilog2
         );
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
-            display_name: "is_even",
+            hlapi_op: HlIntegerOp::IsEven,
             operation: is_even
         );
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
-            display_name: "is_odd",
+            hlapi_op: HlIntegerOp::IsOdd,
             operation: is_odd
         );
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
-            display_name: "leading_ones",
+            hlapi_op: HlIntegerOp::LeadingOnes,
             operation: leading_ones
         );
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
-            display_name: "leading_zeros",
+            hlapi_op: HlIntegerOp::LeadingZeros,
             operation: leading_zeros
         );
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
-            display_name: "neg",
+            hlapi_op: HlIntegerOp::Neg,
             operation: neg
         );
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
-            display_name: "not",
+            hlapi_op: HlIntegerOp::Not,
             operation: not
         );
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
-            display_name: "overflowing_neg",
+            hlapi_op: HlIntegerOp::OverflowingNeg,
             operation: overflowing_neg
         );
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
-            display_name: "reverse_bits",
+            hlapi_op: HlIntegerOp::ReverseBits,
             operation: reverse_bits
         );
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
-            display_name: "trailing_ones",
+            hlapi_op: HlIntegerOp::TrailingOnes,
             operation: trailing_ones
         );
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
-            display_name: "trailing_zeros",
+            hlapi_op: HlIntegerOp::TrailingZeros,
             operation: trailing_zeros
         );
     };
@@ -631,7 +583,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "add",
+            hlapi_op: HlIntegerOp::Add,
             operation: add,
             rng: || rand::random::<$scalar_ty>()
         );
@@ -639,7 +591,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "bitand",
+            hlapi_op: HlIntegerOp::Bitand,
             operation: bitand,
             rng: || rand::random::<$scalar_ty>()
         );
@@ -647,7 +599,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "bitor",
+            hlapi_op: HlIntegerOp::Bitor,
             operation: bitor,
             rng: || rand::random::<$scalar_ty>()
         );
@@ -655,7 +607,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "bitxor",
+            hlapi_op: HlIntegerOp::Bitxor,
             operation: bitxor,
             rng: || rand::random::<$scalar_ty>()
         );
@@ -663,7 +615,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "div",
+            hlapi_op: HlIntegerOp::Div,
             operation: div,
             rng: || random_non_zero::<$scalar_ty>()
         );
@@ -671,7 +623,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "eq",
+            hlapi_op: HlIntegerOp::Eq,
             operation: eq,
             rng: || rand::random::<$scalar_ty>()
         );
@@ -679,7 +631,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "ge",
+            hlapi_op: HlIntegerOp::Ge,
             operation: ge,
             rng: || rand::random::<$scalar_ty>()
         );
@@ -687,7 +639,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "gt",
+            hlapi_op: HlIntegerOp::Gt,
             operation: gt,
             rng: || rand::random::<$scalar_ty>()
         );
@@ -695,7 +647,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "le",
+            hlapi_op: HlIntegerOp::Le,
             operation: le,
             rng: || rand::random::<$scalar_ty>()
         );
@@ -703,7 +655,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "lt",
+            hlapi_op: HlIntegerOp::Lt,
             operation: lt,
             rng: || rand::random::<$scalar_ty>()
         );
@@ -711,7 +663,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "max",
+            hlapi_op: HlIntegerOp::Max,
             operation: max,
             rng: || rand::random::<$scalar_ty>()
         );
@@ -719,7 +671,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "min",
+            hlapi_op: HlIntegerOp::Min,
             operation: min,
             rng: || rand::random::<$scalar_ty>()
         );
@@ -727,7 +679,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "mul",
+            hlapi_op: HlIntegerOp::Mul,
             operation: mul,
             rng: || random_not_power_of_two::<$scalar_ty>()
         );
@@ -735,7 +687,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "ne",
+            hlapi_op: HlIntegerOp::Ne,
             operation: ne,
             rng: || rand::random::<$scalar_ty>()
         );
@@ -743,7 +695,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "overflowing_add",
+            hlapi_op: HlIntegerOp::OverflowingAdd,
             operation: overflowing_add,
             rng: || rand::random::<$scalar_ty>()
         );
@@ -751,7 +703,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "overflowing_sub",
+            hlapi_op: HlIntegerOp::OverflowingSub,
             operation: overflowing_sub,
             rng: || rand::random::<$scalar_ty>()
         );
@@ -759,7 +711,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "rem",
+            hlapi_op: HlIntegerOp::Rem,
             operation: rem,
             rng: || random_non_zero::<$scalar_ty>()
         );
@@ -767,7 +719,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $specific_ty,
-            display_name: "rotate_left",
+            hlapi_op: HlIntegerOp::LeftRotate,
             operation: rotate_left,
             rng: || rand::random::<$specific_ty>()
         );
@@ -775,7 +727,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $specific_ty,
-            display_name: "rotate_right",
+            hlapi_op: HlIntegerOp::RightRotate,
             operation: rotate_right,
             rng: || rand::random::<$specific_ty>()
         );
@@ -783,7 +735,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $specific_ty,
-            display_name: "shift_left",
+            hlapi_op: HlIntegerOp::LeftShift,
             operation: shl,
             rng: || <$specific_ty>::ONE
         );
@@ -791,7 +743,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $specific_ty,
-            display_name: "shift_right",
+            hlapi_op: HlIntegerOp::RightShift,
             operation: shr,
             rng: || <$specific_ty>::ONE
         );
@@ -799,7 +751,7 @@ macro_rules! generate_typed_scalar_benches {
             type_name: $fhe_type,
             integer_type: $integer_type,
             scalar_type: $scalar_ty,
-            display_name: "sub",
+            hlapi_op: HlIntegerOp::Sub,
             operation: sub,
             rng: || rand::random::<$scalar_ty>()
         );

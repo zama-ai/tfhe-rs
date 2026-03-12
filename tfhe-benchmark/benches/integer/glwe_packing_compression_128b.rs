@@ -2,9 +2,8 @@
 mod cuda {
     use benchmark::params_aliases::*;
     use benchmark::utilities::cuda_integer_utils::cuda_local_streams;
-    use benchmark::utilities::{
-        cuda_local_keys, get_bench_type, write_to_json, BenchmarkType, OperatorType,
-    };
+    use benchmark::utilities::{cuda_local_keys, write_to_json_unchecked, OperatorType};
+    use benchmark_spec::{get_bench_type, BenchmarkType};
     use criterion::{black_box, criterion_group, Criterion, Throughput};
     use rayon::prelude::*;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
@@ -169,7 +168,7 @@ mod cuda {
             }
         }
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id_pack,
             (noise_squashing_compression_parameters, param.into()),
             noise_squashing_compression_parameters.name(),
@@ -324,7 +323,7 @@ mod cuda {
             }
         }
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id_unpack,
             (noise_squashing_compression_parameters, param.into()),
             noise_squashing_compression_parameters.name(),

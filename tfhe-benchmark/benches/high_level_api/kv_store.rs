@@ -1,9 +1,8 @@
 #[cfg(not(any(feature = "gpu", feature = "hpu")))]
 use benchmark::find_optimal_batch::find_optimal_batch;
 use benchmark::high_level_api::type_display::*;
-use benchmark::utilities::{
-    get_bench_type, write_to_json, BenchmarkType, BitSizesSet, EnvConfig, OperatorType,
-};
+use benchmark::utilities::{write_to_json_unchecked, BitSizesSet, EnvConfig, OperatorType};
+use benchmark_spec::{get_bench_type, BenchmarkType};
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -171,7 +170,7 @@ where
         (bench_id_update, "update"),
         (bench_id_map, "map"),
     ] {
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             param,
             param.name(),
