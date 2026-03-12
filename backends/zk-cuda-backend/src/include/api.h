@@ -109,9 +109,7 @@ void g1_msm_unmanaged_wrapper_async(
     const G1Point* d_points,
     const Scalar* d_scalars,
     uint32_t n,
-    G1ProjectivePoint* d_scratch,
-    bool gpu_memory_allocated,
-    uint64_t* size_tracker
+    G1ProjectivePoint* d_scratch
 );
 
 void g2_msm_unmanaged_wrapper_async(
@@ -121,9 +119,7 @@ void g2_msm_unmanaged_wrapper_async(
     const G2Point* d_points,
     const Scalar* d_scalars,
     uint32_t n,
-    G2ProjectivePoint* d_scratch,
-    bool gpu_memory_allocated,
-    uint64_t* size_tracker
+    G2ProjectivePoint* d_scratch
 );
 
 // Scratch size queries for Pippenger MSM

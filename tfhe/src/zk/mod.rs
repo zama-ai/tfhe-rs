@@ -15,8 +15,8 @@ use std::fmt::Debug;
 use tfhe_versionable::Versionize;
 
 use tfhe_zk_pok::proofs::pke::{
-    commit as commit_v1, crs_gen as crs_gen_v1, verify as verify_v1, Proof as ProofV1,
-    PublicCommit as PublicCommitV1,
+    commit as commit_v1, crs_gen as crs_gen_v1, prove as prove_v1, verify as verify_v1,
+    Proof as ProofV1, PublicCommit as PublicCommitV1,
 };
 
 use tfhe_zk_pok::proofs::pke_v2::{
@@ -24,9 +24,8 @@ use tfhe_zk_pok::proofs::pke_v2::{
     PublicCommit as PublicCommitV2, VerificationPairingMode,
 };
 
-#[cfg(not(feature = "gpu-experimental-zk"))]
-use tfhe_zk_pok::proofs::pke::prove as prove_v1;
-
+#[cfg(feature = "gpu-experimental-zk")]
+use tfhe_zk_pok::gpu::pke_v2::{prove as prove_v2, verify as verify_v2};
 #[cfg(not(feature = "gpu-experimental-zk"))]
 use tfhe_zk_pok::proofs::pke_v2::{prove as prove_v2, verify as verify_v2};
 
@@ -724,15 +723,6 @@ impl CompactPkeCrs {
                     public_params,
                 );
 
-                #[cfg(feature = "gpu-experimental-zk")]
-                let proof = tfhe_zk_pok::gpu::pke::prove(
-                    (public_params, &public_commit),
-                    &private_commit,
-                    metadata,
-                    load,
-                    &seed,
-                );
-                #[cfg(not(feature = "gpu-experimental-zk"))]
                 let proof = prove_v1(
                     (public_params, &public_commit),
                     &private_commit,
@@ -756,15 +746,6 @@ impl CompactPkeCrs {
                     public_params,
                 );
 
-                #[cfg(feature = "gpu-experimental-zk")]
-                let proof = tfhe_zk_pok::gpu::pke_v2::prove(
-                    (public_params, &public_commit),
-                    &private_commit,
-                    metadata,
-                    load,
-                    &seed,
-                );
-                #[cfg(not(feature = "gpu-experimental-zk"))]
                 let proof = prove_v2(
                     (public_params, &public_commit),
                     &private_commit,
@@ -833,21 +814,12 @@ impl CompactPkeCrs {
             }
             (Self::PkeV2(public_params), CompactPkeProof::PkeV2(proof)) => {
                 let public_commit = PublicCommitV2::new(key_mask, key_body, ct_mask, ct_body);
-                #[cfg(feature = "gpu-experimental-zk")]
-                let res = tfhe_zk_pok::gpu::pke_v2::verify(
+                verify_v2(
                     proof,
                     (public_params, &public_commit),
                     metadata,
                     VerificationPairingMode::default(),
-                );
-                #[cfg(not(feature = "gpu-experimental-zk"))]
-                let res = verify_v2(
-                    proof,
-                    (public_params, &public_commit),
-                    metadata,
-                    VerificationPairingMode::default(),
-                );
-                res
+                )
             }
 
             (Self::PkeV1(_), CompactPkeProof::PkeV2(_))

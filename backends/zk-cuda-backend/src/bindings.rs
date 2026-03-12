@@ -147,8 +147,6 @@ unsafe extern "C" {
         d_scalars: *const Scalar,
         n: u32,
         d_scratch: *mut G1ProjectivePoint,
-        gpu_memory_allocated: bool,
-        size_tracker: *mut u64,
     );
 }
 unsafe extern "C" {
@@ -160,8 +158,6 @@ unsafe extern "C" {
         d_scalars: *const Scalar,
         n: u32,
         d_scratch: *mut G2ProjectivePoint,
-        gpu_memory_allocated: bool,
-        size_tracker: *mut u64,
     );
 }
 unsafe extern "C" {
