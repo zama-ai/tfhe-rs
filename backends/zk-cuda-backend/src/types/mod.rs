@@ -178,13 +178,13 @@ mod tests {
 
     #[test]
     fn g1_msm_empty_returns_infinity() {
-        let (result, _) = G1Projective::msm(&[], &[], std::ptr::null_mut(), 0, false).unwrap();
+        let result = G1Projective::msm(&[], &[], std::ptr::null_mut(), 0, false).unwrap();
         assert!(result.to_affine().is_infinity());
     }
 
     #[test]
     fn g2_msm_empty_returns_infinity() {
-        let (result, _) = G2Projective::msm(&[], &[], std::ptr::null_mut(), 0, false).unwrap();
+        let result = G2Projective::msm(&[], &[], std::ptr::null_mut(), 0, false).unwrap();
         assert!(result.to_affine().is_infinity());
     }
 
@@ -194,7 +194,7 @@ mod tests {
         let one = Scalar::from_u64(1);
 
         let stream = unsafe { tfhe_cuda_backend::cuda_bind::cuda_create_stream(0) };
-        let (result, _) = G1Projective::msm(&[gen], &[one], stream, 0, false).unwrap();
+        let result = G1Projective::msm(&[gen], &[one], stream, 0, false).unwrap();
         unsafe { tfhe_cuda_backend::cuda_bind::cuda_destroy_stream(stream, 0) };
 
         // from_montgomery_normalized() normalizes (divides by Z in Montgomery form)
@@ -219,7 +219,7 @@ mod tests {
         let one = Scalar::from_u64(1);
 
         let stream = unsafe { tfhe_cuda_backend::cuda_bind::cuda_create_stream(0) };
-        let (result, _) = G2Projective::msm(&[gen], &[one], stream, 0, false).unwrap();
+        let result = G2Projective::msm(&[gen], &[one], stream, 0, false).unwrap();
         unsafe { tfhe_cuda_backend::cuda_bind::cuda_destroy_stream(stream, 0) };
 
         // Same approach: extract affine coordinates directly from normalized projective

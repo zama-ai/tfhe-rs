@@ -152,7 +152,7 @@ protected:
 
 // Test basic addition (on GPU)
 TEST_F(Fp2ArithmeticTest, Addition) {
-  uint64_t size_tracker = 0;
+
   Fp2 a, b, c, c_cpu;
 
   // Test: (1 + 0*i) + (1 + 0*i) = (2 + 0*i)
@@ -175,7 +175,7 @@ TEST_F(Fp2ArithmeticTest, Addition) {
 
 // Test subtraction (on GPU)
 TEST_F(Fp2ArithmeticTest, Subtraction) {
-  uint64_t size_tracker = 0;
+
   Fp2 a, b, c, a_cpu;
 
   // Test: (2 + 0*i) - (1 + 0*i) = (1 + 0*i)
@@ -197,7 +197,7 @@ TEST_F(Fp2ArithmeticTest, Subtraction) {
 
 // Test multiplication (on GPU)
 TEST_F(Fp2ArithmeticTest, Multiplication) {
-  uint64_t size_tracker = 0;
+
   Fp2 a, b, result, expected, result_cpu;
 
   // Test: (1 + 1*i) * (1 + 1*i) = (0 + 2*i)
@@ -224,7 +224,7 @@ TEST_F(Fp2ArithmeticTest, Multiplication) {
 
 // Test i * i = -1 (on GPU)
 TEST_F(Fp2ArithmeticTest, I_Squared) {
-  uint64_t size_tracker = 0;
+
   Fp2 i_val, result, expected, result_cpu;
 
   // i = 0 + 1*i
@@ -250,7 +250,7 @@ TEST_F(Fp2ArithmeticTest, I_Squared) {
 
 // Test negation (on GPU)
 TEST_F(Fp2ArithmeticTest, Negation) {
-  uint64_t size_tracker = 0;
+
   Fp2 a, neg_a, result, neg_a_cpu, result_cpu;
 
   a = test_utils_fp2::make_fp2_simple(5, 3);
@@ -273,7 +273,7 @@ TEST_F(Fp2ArithmeticTest, Negation) {
 
 // Test conjugation (on GPU)
 TEST_F(Fp2ArithmeticTest, Conjugation) {
-  uint64_t size_tracker = 0;
+
   Fp2 a, conj, result, conj_cpu, result_cpu;
 
   a = test_utils_fp2::make_fp2_simple(5, 3);
@@ -304,7 +304,7 @@ TEST_F(Fp2ArithmeticTest, Conjugation) {
 
 // Test squaring (on GPU)
 TEST_F(Fp2ArithmeticTest, Squaring) {
-  uint64_t size_tracker = 0;
+
   Fp2 a, square, square_cpu;
 
   // Test: (1 + 1*i)^2 = 2*i
@@ -327,7 +327,7 @@ TEST_F(Fp2ArithmeticTest, Squaring) {
 
 // Test zero and one (on GPU)
 TEST_F(Fp2ArithmeticTest, ZeroAndOne) {
-  uint64_t size_tracker = 0;
+
   Fp2 zero_val, one_val;
 
   fp2_zero(zero_val);
@@ -349,7 +349,7 @@ TEST_F(Fp2ArithmeticTest, ZeroAndOne) {
 
 // Test copy (on GPU)
 TEST_F(Fp2ArithmeticTest, Copy) {
-  uint64_t size_tracker = 0;
+
   Fp2 a, b, b_cpu;
 
   a = test_utils_fp2::make_fp2_simple(42, 123);
@@ -370,7 +370,7 @@ TEST_F(Fp2ArithmeticTest, Copy) {
 
 // Test conditional move (on GPU)
 TEST_F(Fp2ArithmeticTest, ConditionalMove) {
-  uint64_t size_tracker = 0;
+
   Fp2 a, b, result, result_cpu;
 
   a = test_utils_fp2::make_fp2_simple(10, 20);
@@ -411,7 +411,7 @@ TEST_F(Fp2ArithmeticTest, ConditionalMove) {
 
 // Test multiplication by zero (on GPU)
 TEST_F(Fp2ArithmeticTest, MultiplicationByZero) {
-  uint64_t size_tracker = 0;
+
   Fp2 a, zero_val, result, result_cpu;
 
   fp2_zero(zero_val);
@@ -432,7 +432,7 @@ TEST_F(Fp2ArithmeticTest, MultiplicationByZero) {
 
 // Test inversion (on GPU)
 TEST_F(Fp2ArithmeticTest, Inversion) {
-  uint64_t size_tracker = 0;
+
   Fp2 a, a_inv, result, a_inv_cpu, result_cpu;
 
   a = test_utils_fp2::make_fp2_simple(5, 3);
@@ -456,7 +456,7 @@ TEST_F(Fp2ArithmeticTest, Inversion) {
 
 // Test division (on GPU)
 TEST_F(Fp2ArithmeticTest, Division) {
-  uint64_t size_tracker = 0;
+
   Fp2 a, b, quotient, result, quotient_cpu, result_cpu;
 
   a = test_utils_fp2::make_fp2_simple(10, 6);
@@ -482,7 +482,7 @@ TEST_F(Fp2ArithmeticTest, Division) {
 
 // Test multiply by i (on GPU)
 TEST_F(Fp2ArithmeticTest, MultiplyByI) {
-  uint64_t size_tracker = 0;
+
   Fp2 a, result, result_cpu;
 
   // Test: (a + b*i) * i = -b + a*i
@@ -509,7 +509,7 @@ TEST_F(Fp2ArithmeticTest, MultiplyByI) {
 
 // Test Frobenius map (on GPU)
 TEST_F(Fp2ArithmeticTest, Frobenius) {
-  uint64_t size_tracker = 0;
+
   Fp2 a, frob, conj, frob_cpu, conj_cpu;
 
   a = test_utils_fp2::make_fp2_simple(5, 3);
@@ -541,7 +541,7 @@ TEST_F(Fp2ArithmeticTest, Frobenius) {
 
 // Test addition associativity: (a + b) + c = a + (b + c) (on GPU)
 TEST_F(Fp2PropertyTest, AdditionAssociativity) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 100; i++) {
     Fp2 a = random_value();
     Fp2 b = random_value();
@@ -567,7 +567,7 @@ TEST_F(Fp2PropertyTest, AdditionAssociativity) {
 
 // Test multiplication associativity: (a * b) * c = a * (b * c) (on GPU)
 TEST_F(Fp2PropertyTest, MultiplicationAssociativity) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 50; i++) {
     Fp2 a = random_value();
     Fp2 b = random_value();
@@ -593,7 +593,7 @@ TEST_F(Fp2PropertyTest, MultiplicationAssociativity) {
 
 // Test distributivity: a * (b + c) = a*b + a*c (on GPU)
 TEST_F(Fp2PropertyTest, MultiplicationDistributivity) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 50; i++) {
     Fp2 a = random_value();
     Fp2 b = random_value();
@@ -620,7 +620,7 @@ TEST_F(Fp2PropertyTest, MultiplicationDistributivity) {
 
 // Test addition commutativity (on GPU)
 TEST_F(Fp2PropertyTest, AdditionCommutativity) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 100; i++) {
     Fp2 a = random_value();
     Fp2 b = random_value();
@@ -638,7 +638,7 @@ TEST_F(Fp2PropertyTest, AdditionCommutativity) {
 
 // Test multiplication commutativity (on GPU)
 TEST_F(Fp2PropertyTest, MultiplicationCommutativity) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 50; i++) {
     Fp2 a = random_value();
     Fp2 b = random_value();
@@ -656,7 +656,7 @@ TEST_F(Fp2PropertyTest, MultiplicationCommutativity) {
 
 // Test additive identity: a + 0 = a (on GPU)
 TEST_F(Fp2PropertyTest, AdditiveIdentity) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 100; i++) {
     Fp2 a = random_value();
     Fp2 result;
@@ -672,7 +672,7 @@ TEST_F(Fp2PropertyTest, AdditiveIdentity) {
 
 // Test multiplicative identity: a * 1 = a (on GPU)
 TEST_F(Fp2PropertyTest, MultiplicativeIdentity) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 100; i++) {
     Fp2 a = random_value();
     Fp2 result;
@@ -688,7 +688,7 @@ TEST_F(Fp2PropertyTest, MultiplicativeIdentity) {
 
 // Test additive inverse: a + (-a) = 0 (on GPU)
 TEST_F(Fp2PropertyTest, AdditiveInverse) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 100; i++) {
     Fp2 a = random_value();
     Fp2 neg_a, result;
@@ -705,7 +705,7 @@ TEST_F(Fp2PropertyTest, AdditiveInverse) {
 
 // Test multiplicative inverse: a * a^(-1) = 1 (on GPU)
 TEST_F(Fp2PropertyTest, MultiplicativeInverse) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 50; i++) {
     Fp2 a = random_value();
     // Skip zero
@@ -726,7 +726,7 @@ TEST_F(Fp2PropertyTest, MultiplicativeInverse) {
 
 // Test square vs multiply by self: a^2 = a * a (on GPU)
 TEST_F(Fp2PropertyTest, SquareVsMultiply) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 50; i++) {
     Fp2 a = random_value();
 
@@ -747,7 +747,7 @@ TEST_F(Fp2PropertyTest, SquareVsMultiply) {
 
 // Test CUDA kernel: array addition
 TEST_F(Fp2CudaKernelTest, CudaKernelArrayAdd) {
-  uint64_t size_tracker = 0;
+
   const int n = 1000;
   Fp2 *h_a = new Fp2[n];
   Fp2 *h_b = new Fp2[n];
@@ -784,7 +784,7 @@ TEST_F(Fp2CudaKernelTest, CudaKernelArrayAdd) {
 
 // Test CUDA kernel: array multiplication
 TEST_F(Fp2CudaKernelTest, CudaKernelArrayMul) {
-  uint64_t size_tracker = 0;
+
   const int n = 1000;
   Fp2 *h_a = new Fp2[n];
   Fp2 *h_b = new Fp2[n];
@@ -825,7 +825,7 @@ TEST_F(Fp2CudaKernelTest, CudaKernelArrayMul) {
 
 // Test is_on_curve_g2 with point at infinity
 TEST_F(Fp2ArithmeticTest, CurveG2PointAtInfinity) {
-  uint64_t size_tracker = 0;
+
   G2Affine point;
   g2_point_at_infinity(point);
 
@@ -835,7 +835,7 @@ TEST_F(Fp2ArithmeticTest, CurveG2PointAtInfinity) {
 
 // Test is_on_curve_g2 with valid point construction
 TEST_F(Fp2ArithmeticTest, CurveG2ValidPointCheck) {
-  uint64_t size_tracker = 0;
+
   G2Affine point;
   point.infinity = false;
 
@@ -860,7 +860,7 @@ TEST_F(Fp2ArithmeticTest, CurveG2ValidPointCheck) {
 
 // Test that field operations maintain curve validity for G2
 TEST_F(Fp2ArithmeticTest, CurveG2FieldOperationsConsistency) {
-  uint64_t size_tracker = 0;
+
   // Create a point (we'll test the consistency check works)
   G2Affine point;
   point.infinity = false;

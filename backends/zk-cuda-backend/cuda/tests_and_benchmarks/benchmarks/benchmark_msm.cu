@@ -140,14 +140,14 @@ static void BM_G1_MSM(benchmark::State &state) {
   // Warm-up iterations
   for (int i = 0; i < WARMUP_ITERATIONS; i++) {
     point_msm_g1_async(g_benchmark_stream, g_gpu_index, &h_result, d_points,
-                       d_scalars, n, d_scratch, size_tracker, true);
+                       d_scalars, n, d_scratch);
   }
   cuda_synchronize_stream(g_benchmark_stream, g_gpu_index);
 
   // Benchmark loop: only measure the MSM computation, no memory operations
   for (auto _ : state) {
     point_msm_g1_async(g_benchmark_stream, g_gpu_index, &h_result, d_points,
-                       d_scalars, n, d_scratch, size_tracker, true);
+                       d_scalars, n, d_scratch);
     benchmark::ClobberMemory();
   }
 
@@ -221,14 +221,14 @@ static void BM_G2_MSM(benchmark::State &state) {
   // Warm-up iterations
   for (int i = 0; i < WARMUP_ITERATIONS; i++) {
     point_msm_g2_async(g_benchmark_stream, g_gpu_index, &h_result, d_points,
-                       d_scalars, n, d_scratch, size_tracker, true);
+                       d_scalars, n, d_scratch);
   }
   cuda_synchronize_stream(g_benchmark_stream, g_gpu_index);
 
   // Benchmark loop: only measure the MSM computation, no memory operations
   for (auto _ : state) {
     point_msm_g2_async(g_benchmark_stream, g_gpu_index, &h_result, d_points,
-                       d_scalars, n, d_scratch, size_tracker, true);
+                       d_scalars, n, d_scratch);
     benchmark::ClobberMemory();
   }
 
