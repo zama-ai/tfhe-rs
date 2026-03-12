@@ -1,7 +1,8 @@
-use crate::bench_common::{bench_fhe_type_op, BenchConfig};
+use crate::bench_common::bench_fhe_type_op;
 use benchmark::high_level_api::benchmark_op::*;
 use benchmark::high_level_api::random_generator::{random_non_zero, random_not_power_of_two};
-use benchmark::utilities::{BitSizesSet, EnvConfig, OperandType};
+use benchmark::utilities::{BitSizesSet, EnvConfig};
+use benchmark_spec::{HlapiOp, OperandType};
 use criterion::Criterion;
 use oprf::oprf_any_range2;
 use std::env;

@@ -1,6 +1,7 @@
 #[cfg(feature = "gpu")]
 use benchmark::utilities::{configure_gpu, get_param_type, ParamType};
-use benchmark::utilities::{get_bench_type, write_to_json, BenchmarkType, OperatorType};
+use benchmark::utilities::{write_to_json_unchecked, OperatorType};
+use benchmark_spec::{get_bench_type, BenchmarkType};
 use criterion::measurement::WallTime;
 use criterion::{BenchmarkGroup, Criterion, Throughput};
 use rand::prelude::*;
@@ -340,7 +341,7 @@ mod pbs_stats {
 
         write_result(&mut file, &test_name, count as usize);
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &test_name,
             params,
             params_name,
@@ -387,7 +388,7 @@ fn bench_transfer_latency<FheType, F>(
         })
     });
 
-    write_to_json::<u64, _>(
+    write_to_json_unchecked::<u64, _>(
         &bench_id,
         params,
         params_name,
@@ -448,7 +449,7 @@ fn bench_transfer_latency_simd<FheType, F>(
         })
     });
 
-    write_to_json::<u64, _>(
+    write_to_json_unchecked::<u64, _>(
         &bench_id,
         params,
         params_name,
@@ -502,7 +503,7 @@ fn bench_transfer_throughput<FheType, F>(
             })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             params,
             &params_name,
@@ -592,7 +593,7 @@ fn cuda_bench_transfer_throughput<FheType, F>(
         });
     });
 
-    write_to_json::<u64, _>(
+    write_to_json_unchecked::<u64, _>(
         &bench_id,
         params,
         &params_name,
@@ -656,7 +657,7 @@ fn hpu_bench_transfer_throughput<FheType, F>(
             });
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             params,
             &params_name,
@@ -741,7 +742,7 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
             });
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             params,
             &params_name,

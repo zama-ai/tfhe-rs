@@ -1,5 +1,5 @@
 use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-use benchmark::utilities::{write_to_json, OperatorType};
+use benchmark::utilities::{write_to_json_unchecked, OperatorType};
 use criterion::{black_box, Criterion};
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::{IntegerKeyKind, RadixClientKey};
@@ -39,7 +39,7 @@ pub fn match_value(c: &mut Criterion) {
             })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             atomic_param,
             param.name(),
@@ -92,7 +92,7 @@ pub mod cuda {
                 })
             });
 
-            write_to_json::<u64, _>(
+            write_to_json_unchecked::<u64, _>(
                 &bench_id,
                 atomic_param,
                 param.name(),

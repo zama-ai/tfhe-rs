@@ -1,3 +1,4 @@
+use benchmark_spec::{BenchmarkSpec, OperandType};
 use criterion::Criterion;
 use serde::Serialize;
 use std::path::PathBuf;
@@ -259,12 +260,6 @@ enum KeySetType {
     // Multi,
 }
 
-#[derive(Serialize)]
-pub enum OperandType {
-    CipherText,
-    PlainText,
-}
-
 #[derive(Clone, Serialize)]
 pub enum OperatorType {
     Atomic,
@@ -292,8 +287,32 @@ struct BenchmarkParametersRecord<Scalar: UnsignedInteger> {
     operator_type: OperatorType,
 }
 
-/// Writes benchmarks parameters to disk in JSON format.
+/// Writes benchmarks parameters to disk in JSON format, enforcing the bench name spec.
 pub fn write_to_json<
+    Scalar: UnsignedInteger + Serialize,
+    T: Into<CryptoParametersRecord<Scalar>>,
+>(
+    benchmark_spec: &BenchmarkSpec,
+    params: T,
+    display_name: impl Into<String>,
+    operator_type: &OperatorType,
+    bit_size: u32,
+    decomposition_basis: Vec<u32>,
+) {
+    write_to_json_unchecked(
+        &benchmark_spec.to_string(),
+        params,
+        benchmark_spec.param_name,
+        display_name,
+        operator_type,
+        bit_size,
+        decomposition_basis,
+    )
+}
+
+/// Writes benchmarks parameters to disk in JSON format.
+/// Prefer `write_to_json` which enforces the bench name spec via `BenchmarkSpec`.
+pub fn write_to_json_unchecked<
     Scalar: UnsignedInteger + Serialize,
     T: Into<CryptoParametersRecord<Scalar>>,
 >(
@@ -414,28 +433,6 @@ impl EnvConfig {
             bit_sizes_set
         }
     }
-}
-
-pub static BENCH_TYPE: OnceLock<BenchmarkType> = OnceLock::new();
-
-pub enum BenchmarkType {
-    Latency,
-    Throughput,
-}
-
-impl BenchmarkType {
-    pub fn from_env() -> Result<Self, String> {
-        let raw_value = env::var("__TFHE_RS_BENCH_TYPE").unwrap_or("latency".to_string());
-        match raw_value.to_lowercase().as_str() {
-            "latency" => Ok(BenchmarkType::Latency),
-            "throughput" => Ok(BenchmarkType::Throughput),
-            _ => Err(format!("benchmark type '{raw_value}' is not supported")),
-        }
-    }
-}
-
-pub fn get_bench_type() -> &'static BenchmarkType {
-    BENCH_TYPE.get_or_init(|| BenchmarkType::from_env().unwrap())
 }
 
 pub static PARAM_TYPE: OnceLock<ParamType> = OnceLock::new();

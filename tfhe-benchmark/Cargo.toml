@@ -32,14 +32,15 @@ tfhe-csprng = { path = "../tfhe-csprng" }
 cpu-time = "1.0"
 num_cpus = "1.17"
 gag = "1.0.0"
+benchmark_spec = { version = "0.1.0", path = "../utils/benchmark_spec" }
 
 [features]
 default = ["avx512"]
 boolean = ["tfhe/boolean"]
 shortint = ["tfhe/shortint"]
 integer = ["shortint", "tfhe/integer"]
-gpu = ["tfhe/gpu"]
-hpu = ["tfhe/hpu"]
+gpu = ["tfhe/gpu", "benchmark_spec/gpu"]
+hpu = ["tfhe/hpu", "benchmark_spec/hpu"]
 hpu-v80 = ["tfhe/hpu-v80"]
 internal-keycache = ["tfhe/internal-keycache"]
 avx512 = ["tfhe/avx512"]

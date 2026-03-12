@@ -1,6 +1,6 @@
 use benchmark::params::{get_classical_tuniform_groups, get_multi_bit_tuniform_groups};
 use benchmark::params_aliases::*;
-use benchmark::utilities::{write_to_json, OperatorType};
+use benchmark::utilities::{write_to_json_unchecked, OperatorType};
 use rand::Rng;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -88,7 +88,7 @@ pub fn ct_sizes(results_file: &Path) {
 
         let mut write_and_record_result = |res: usize, test_name: &str, display_name: &str| {
             write_result(&mut file, test_name, res);
-            write_to_json::<u64, _>(
+            write_to_json_unchecked::<u64, _>(
                 test_name,
                 params_record,
                 param_fhe.name(),
@@ -206,7 +206,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
         println!("PK size: {cpk_size} bytes");
         write_result(&mut file, &test_name, cpk_size);
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &test_name,
             params,
             params.name(),
@@ -228,7 +228,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
         println!("Compact CT list for {NB_CTXT} CTs: {cctl_size} bytes");
 
         write_result(&mut file, &test_name, cctl_size);
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &test_name,
             params,
             params.name(),
@@ -274,7 +274,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
         println!("Compact CT list for {NB_CTXT} CTs: {cctl_size} bytes");
 
         write_result(&mut file, &test_name, cctl_size);
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &test_name,
             params,
             params.name(),

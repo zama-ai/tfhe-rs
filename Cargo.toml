@@ -14,6 +14,7 @@ members = [
     "tfhe-fft",
     "tfhe-ntt",
     "tfhe-zk-pok",
+    "utils/benchmark_spec",
     "utils/param_dedup",
     "utils/tfhe-backward-compat-checker",
     "utils/tfhe-backward-compat-data",
