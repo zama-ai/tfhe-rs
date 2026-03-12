@@ -488,12 +488,13 @@ mod cuda {
     use tfhe::GpuIndex;
 
     /// Per-GPU element count for verify+expand throughput benchmarks.
-    /// Tuned to avoid OOM on H100 (80GB) — expansion allocates server keys,
+    /// Empirically measured with ZkComputeLoad::Verify on 8xH100-NVLink (80GB) GPUs.
+    /// Tuned to avoid OOM — expansion allocates server keys,
     /// key switching material, and PBS buffers per element on GPU.
     fn gpu_zk_verify_throughput_elements(crs_size: usize, bits: usize) -> u64 {
         match (crs_size, bits) {
             (64, _) => 30,
-            (2048, b) if b <= 256 => 15,
+            (2048, b) if b <= 256 => 60,
             (2048, _) => 10,
             (4096, _) => 6,
             _ => 10,
@@ -501,13 +502,14 @@ mod cuda {
     }
 
     /// Per-GPU element count for proof throughput benchmarks.
+    /// Empirically measured with ZkComputeLoad::Verify on 8xH100-NVLink (80GB) GPUs.
     /// Proof generation uses GPU MSM internally (~0.5–1.8 MB per concurrent
-    /// proof), so memory is not the bottleneck — GPU compute saturation is.
-    /// Values are ~2x the verify numbers to keep the H100's 132 SMs busy.
+    /// proof), so memory is not the bottleneck — CPU/GPU pipeline saturation is.
+    /// Values are ~4x the verify numbers so 252 CPU cores keep all 8 GPUs fed.
     fn gpu_zk_proof_throughput_elements(crs_size: usize, bits: usize) -> u64 {
         match (crs_size, bits) {
             (64, _) => 60,
-            (2048, b) if b <= 256 => 30,
+            (2048, b) if b <= 256 => 250,
             (2048, _) => 20,
             (4096, _) => 12,
             _ => 20,
