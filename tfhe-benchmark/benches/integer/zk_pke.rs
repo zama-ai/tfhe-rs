@@ -487,20 +487,30 @@ mod cuda {
     use tfhe::integer::CompressedServerKey;
     use tfhe::GpuIndex;
 
-    /// Compute the number of elements for GPU ZK throughput benchmarks.
-    /// Values are tuned to avoid OOM on H100 GPUs while still saturating the GPU.
-    /// Memory usage scales with both CRS size and bits being proven.
-    fn gpu_zk_throughput_elements(crs_size: usize, bits: usize) -> u64 {
+    /// Per-GPU element count for verify+expand throughput benchmarks.
+    /// Tuned to avoid OOM on H100 (80GB) — expansion allocates server keys,
+    /// key switching material, and PBS buffers per element on GPU.
+    fn gpu_zk_verify_throughput_elements(crs_size: usize, bits: usize) -> u64 {
         match (crs_size, bits) {
-            // 64-bit CRS: smaller proofs, can handle more elements
             (64, _) => 30,
-            // 2048-bit CRS: moderate memory usage
             (2048, b) if b <= 256 => 15,
             (2048, _) => 10,
-            // 4096-bit CRS: largest proofs, most memory intensive
             (4096, _) => 6,
-            // Default fallback for unknown configurations
             _ => 10,
+        }
+    }
+
+    /// Per-GPU element count for proof throughput benchmarks.
+    /// Proof generation uses GPU MSM internally (~0.5–1.8 MB per concurrent
+    /// proof), so memory is not the bottleneck — GPU compute saturation is.
+    /// Values are ~2x the verify numbers to keep the H100's 132 SMs busy.
+    fn gpu_zk_proof_throughput_elements(crs_size: usize, bits: usize) -> u64 {
+        match (crs_size, bits) {
+            (64, _) => 60,
+            (2048, b) if b <= 256 => 30,
+            (2048, _) => 20,
+            (4096, _) => 12,
+            _ => 20,
         }
     }
 
@@ -704,7 +714,7 @@ mod cuda {
                             });
                         }
                         BenchmarkType::Throughput => {
-                            let elements = gpu_zk_throughput_elements(crs_size, *bits)
+                            let elements = gpu_zk_verify_throughput_elements(crs_size, *bits)
                                 * get_number_of_gpus() as u64;
                             bench_group.throughput(Throughput::Elements(elements));
 
@@ -944,7 +954,7 @@ mod cuda {
                                 // Each proof uses GPU MSM internally, and
                                 // select_gpu_for_msm() distributes across GPUs by rayon
                                 // thread index, so we scale by GPU count and use par_iter.
-                                let elements = gpu_zk_throughput_elements(crs_size, *bits)
+                                let elements = gpu_zk_proof_throughput_elements(crs_size, *bits)
                                     * get_number_of_gpus() as u64;
                                 bench_group.throughput(Throughput::Elements(elements));
 
