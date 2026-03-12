@@ -1034,4 +1034,62 @@ __host__ void host_multi_bit_programmable_bootstrap(
     }
   }
 }
+
+template <typename Torus, class params>
+__host__ void host_multi_bit_programmable_bootstrap_noise_tests(
+    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
+    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t num_many_lut, uint32_t lut_stride) {
+
+  auto lwe_chunk_size = buffer->lwe_chunk_size;
+
+  for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
+       lwe_offset += lwe_chunk_size) {
+
+    // Compute a keybundle with NOISE_TESTS mode to enable the specialized
+    // runs_noise_test=true kernel variant for noise measurement
+    execute_compute_keybundle_with_mode<Torus, params>(
+        stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+        buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+        grouping_factor, level_count, lwe_offset,
+        MultiBitKeybundleLaunchMode::NOISE_TESTS);
+    // Accumulate (same as standard path)
+    uint32_t chunk_size =
+        std::min((uint32_t)lwe_chunk_size,
+                 (lwe_dimension / grouping_factor) - lwe_offset);
+    for (uint32_t j = 0; j < chunk_size; j++) {
+      bool is_first_iter = (j + lwe_offset) == 0;
+      bool is_last_iter =
+          (j + lwe_offset) + 1 == (lwe_dimension / grouping_factor);
+      if (is_first_iter) {
+        execute_step_one<Torus, params, true>(
+            stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
+            lwe_input_indexes, buffer, num_samples, lwe_dimension,
+            glwe_dimension, polynomial_size, base_log, level_count);
+      } else {
+        execute_step_one<Torus, params, false>(
+            stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
+            lwe_input_indexes, buffer, num_samples, lwe_dimension,
+            glwe_dimension, polynomial_size, base_log, level_count);
+      }
+
+      if (is_last_iter) {
+        execute_step_two<Torus, params, true>(
+            stream, gpu_index, lwe_array_out, lwe_output_indexes, buffer,
+            num_samples, glwe_dimension, polynomial_size, level_count, j,
+            num_many_lut, lut_stride);
+      } else {
+        execute_step_two<Torus, params, false>(
+            stream, gpu_index, lwe_array_out, lwe_output_indexes, buffer,
+            num_samples, glwe_dimension, polynomial_size, level_count, j,
+            num_many_lut, lut_stride);
+      }
+    }
+  }
+}
 #endif // MULTIBIT_PBS_H
