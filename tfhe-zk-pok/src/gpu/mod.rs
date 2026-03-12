@@ -62,20 +62,17 @@ pub(crate) fn get_num_gpus() -> u32 {
 }
 
 /// Selects a GPU for MSM based on the rayon thread index, distributing work
-/// across all available GPUs. Returns `None` (meaning GPU 0) when only one GPU
-/// is present.
+/// across all available GPUs. Returns `0` when only one GPU is present.
 #[inline]
-pub fn select_gpu_for_msm() -> Option<u32> {
+pub fn select_gpu_for_msm() -> u32 {
     let num_gpus = get_num_gpus();
     if num_gpus <= 1 {
-        return None;
+        return 0;
     }
     let thread_idx = rayon::current_thread_index().unwrap_or(0);
-    Some(
-        (thread_idx % num_gpus as usize)
-            .try_into()
-            .expect("GPU index fits in u32"),
-    )
+    (thread_idx % num_gpus as usize)
+        .try_into()
+        .expect("GPU index fits in u32")
 }
 
 // ---------------------------------------------------------------------------
@@ -203,16 +200,15 @@ pub fn zp_to_zk_scalar(zp: &Zp) -> ZkScalar {
 // GPU MSM functions
 // ---------------------------------------------------------------------------
 
-/// GPU-accelerated multi-scalar multiplication for G1. The `gpu_index` parameter
-/// selects which GPU device to use; `None` defaults to GPU 0.
+/// GPU-accelerated multi-scalar multiplication for G1.
 ///
 /// # Panics
 ///
-/// - If `gpu_index` is `Some(i)` where `i >= number of available GPUs`.
+/// - If `gpu_index >= number of available GPUs`.
 /// - If `bases` and `scalars` have different lengths (checked inside the backend).
 /// - If the GPU MSM call fails.
 #[must_use]
-pub fn g1_msm_gpu(bases: &[G1Affine], scalars: &[Zp], gpu_index: Option<u32>) -> G1 {
+pub fn g1_msm_gpu(bases: &[G1Affine], scalars: &[Zp], gpu_index: u32) -> G1 {
     use crate::curve_446::g1::G1Projective;
 
     // Convert points to zk-cuda-backend format (normal form)
@@ -226,7 +222,6 @@ pub fn g1_msm_gpu(bases: &[G1Affine], scalars: &[Zp], gpu_index: Option<u32>) ->
         .map(|s| zk_cuda_backend::Scalar::from(s.inner.into_bigint().0))
         .collect();
 
-    let gpu_index = gpu_index.unwrap_or(0);
     let num_gpus = get_num_gpus();
     assert!(
         gpu_index < num_gpus,
@@ -242,7 +237,7 @@ pub fn g1_msm_gpu(bases: &[G1Affine], scalars: &[Zp], gpu_index: Option<u32>) ->
     // used after this point
     unsafe { cuda_destroy_stream(stream, gpu_index) };
 
-    let (gpu_result, _size_tracker) = result.unwrap_or_else(|e| panic!("G1 GPU MSM failed: {e}"));
+    let gpu_result = result.unwrap_or_else(|e| panic!("G1 GPU MSM failed: {e}"));
 
     // Convert result from Montgomery form back to arkworks types
     let normalized = gpu_result.from_montgomery_normalized();
@@ -260,16 +255,15 @@ pub fn g1_msm_gpu(bases: &[G1Affine], scalars: &[Zp], gpu_index: Option<u32>) ->
     }
 }
 
-/// GPU-accelerated multi-scalar multiplication for G2. The `gpu_index` parameter
-/// selects which GPU device to use; `None` defaults to GPU 0.
+/// GPU-accelerated multi-scalar multiplication for G2.
 ///
 /// # Panics
 ///
-/// - If `gpu_index` is `Some(i)` where `i >= number of available GPUs`.
+/// - If `gpu_index >= number of available GPUs`.
 /// - If `bases` and `scalars` have different lengths (checked inside the backend).
 /// - If the GPU MSM call fails.
 #[must_use]
-pub fn g2_msm_gpu(bases: &[G2Affine], scalars: &[Zp], gpu_index: Option<u32>) -> G2 {
+pub fn g2_msm_gpu(bases: &[G2Affine], scalars: &[Zp], gpu_index: u32) -> G2 {
     use crate::curve_446::g2::G2Projective;
     use ark_ec::AffineRepr;
 
@@ -291,7 +285,6 @@ pub fn g2_msm_gpu(bases: &[G2Affine], scalars: &[Zp], gpu_index: Option<u32>) ->
         .map(|s| zk_cuda_backend::Scalar::from(s.inner.into_bigint().0))
         .collect();
 
-    let gpu_index = gpu_index.unwrap_or(0);
     let num_gpus = get_num_gpus();
     assert!(
         gpu_index < num_gpus,
@@ -307,7 +300,7 @@ pub fn g2_msm_gpu(bases: &[G2Affine], scalars: &[Zp], gpu_index: Option<u32>) ->
     // used after this point
     unsafe { cuda_destroy_stream(stream, gpu_index) };
 
-    let (gpu_result, _size_tracker) = result.unwrap_or_else(|e| panic!("G2 GPU MSM failed: {e}"));
+    let gpu_result = result.unwrap_or_else(|e| panic!("G2 GPU MSM failed: {e}"));
 
     // Convert result from Montgomery form back to arkworks types
     let normalized = gpu_result.from_montgomery_normalized();
