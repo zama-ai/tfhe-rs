@@ -64,8 +64,7 @@ bool g2_is_infinity_wrapper(const G2Affine* point) {
 }
 
 // Unmanaged MSM wrapper for G1 (points/scalars/scratch on device, result on host)
-// Points MUST be in Montgomery form. Caller provides scratch buffer and
-// controls allocation tracking via gpu_memory_allocated.
+// Points MUST be in Montgomery form. Caller provides scratch buffer.
 // Zero internal allocations — this is a thin validation + dispatch layer.
 void g1_msm_unmanaged_wrapper_async(
     cudaStream_t stream,
@@ -74,12 +73,8 @@ void g1_msm_unmanaged_wrapper_async(
     const G1Affine* d_points,
     const Scalar* d_scalars,
     uint32_t n,
-    G1Projective* d_scratch,
-    bool gpu_memory_allocated,
-    uint64_t* size_tracker
+    G1Projective* d_scratch
 ) {
-    PANIC_IF_FALSE(size_tracker != nullptr, "G1 MSM error: size_tracker is null");
-    uint64_t& size_tracker_ref = *size_tracker;
     PANIC_IF_FALSE(n > 0, "G1 MSM error: n must be positive, got %u", n);
     PANIC_IF_FALSE(stream != nullptr, "G1 MSM error: stream is null");
     PANIC_IF_FALSE(h_result != nullptr, "G1 MSM error: h_result is null");
@@ -91,13 +86,12 @@ void g1_msm_unmanaged_wrapper_async(
                    cuda_get_number_of_gpus());
 
     point_msm_g1_async(stream, gpu_index, h_result, d_points, d_scalars, n,
-                       d_scratch, size_tracker_ref, gpu_memory_allocated);
+                       d_scratch);
     check_cuda_error(cudaGetLastError());
 }
 
 // Unmanaged MSM wrapper for G2 (points/scalars/scratch on device, result on host)
-// Points MUST be in Montgomery form. Caller provides scratch buffer and
-// controls allocation tracking via gpu_memory_allocated.
+// Points MUST be in Montgomery form. Caller provides scratch buffer.
 // Zero internal allocations — this is a thin validation + dispatch layer.
 void g2_msm_unmanaged_wrapper_async(
     cudaStream_t stream,
@@ -106,12 +100,8 @@ void g2_msm_unmanaged_wrapper_async(
     const G2Affine* d_points,
     const Scalar* d_scalars,
     uint32_t n,
-    G2Projective* d_scratch,
-    bool gpu_memory_allocated,
-    uint64_t* size_tracker
+    G2Projective* d_scratch
 ) {
-    PANIC_IF_FALSE(size_tracker != nullptr, "G2 MSM error: size_tracker is null");
-    uint64_t& size_tracker_ref = *size_tracker;
     PANIC_IF_FALSE(n > 0, "G2 MSM error: n must be positive, got %u", n);
     PANIC_IF_FALSE(stream != nullptr, "G2 MSM error: stream is null");
     PANIC_IF_FALSE(h_result != nullptr, "G2 MSM error: h_result is null");
@@ -123,7 +113,7 @@ void g2_msm_unmanaged_wrapper_async(
                    cuda_get_number_of_gpus());
 
     point_msm_g2_async(stream, gpu_index, h_result, d_points, d_scalars, n,
-                       d_scratch, size_tracker_ref, gpu_memory_allocated);
+                       d_scratch);
     check_cuda_error(cudaGetLastError());
 }
 
@@ -148,7 +138,7 @@ void g1_msm_managed_wrapper(
     bool points_in_montgomery,
     uint64_t* size_tracker
 ) {
-    uint64_t& size_tracker_ref = *size_tracker;
+    uint64_t& size_tracker_local = *size_tracker;
     PANIC_IF_FALSE(n > 0, "G1 MSM error: n must be positive, got %u", n);
     PANIC_IF_FALSE(result != nullptr, "G1 MSM error: result is null");
     PANIC_IF_FALSE(stream != nullptr, "G1 MSM error: stream is null");
@@ -165,8 +155,8 @@ void g1_msm_managed_wrapper(
     size_t scalars_bytes = safe_mul_sizeof<Scalar>(static_cast<size_t>(n));
 
     // TODO: We should migrate to _unmanaged_ methods and have scratch/cleanup functions as tfhe-cuda-backend
-    auto* d_points = static_cast<G1Affine*>(cuda_malloc_with_size_tracking_async(points_bytes, stream, gpu_index, size_tracker_ref, true));
-    auto* d_scalars = static_cast<Scalar*>(cuda_malloc_with_size_tracking_async(scalars_bytes, stream, gpu_index, size_tracker_ref, true));
+    auto* d_points = static_cast<G1Affine*>(cuda_malloc_with_size_tracking_async(points_bytes, stream, gpu_index, size_tracker_local, true));
+    auto* d_scalars = static_cast<Scalar*>(cuda_malloc_with_size_tracking_async(scalars_bytes, stream, gpu_index, size_tracker_local, true));
 
     // Always copy points to GPU first
     cuda_memcpy_with_size_tracking_async_to_gpu(d_points, points, points_bytes, stream, gpu_index, true);
@@ -181,14 +171,14 @@ void g1_msm_managed_wrapper(
     // Allocate scratch buffer sized to match the pippenger internal partitioning
     size_t scratch_bytes = pippenger_scratch_size_g1(n, gpu_index);
     auto* d_scratch = static_cast<G1Projective*>(cuda_malloc_with_size_tracking_async(
-        scratch_bytes, stream, gpu_index, size_tracker_ref, true));
+        scratch_bytes, stream, gpu_index, size_tracker_local, true));
 
     PANIC_IF_FALSE(d_points && d_scalars && d_scratch,
                    "G1 MSM error: device memory allocation failed");
 
     // Result written directly to host pointer -- no device round-trip needed
     point_msm_g1_async(stream, gpu_index, result, d_points, d_scalars, n,
-                       d_scratch, size_tracker_ref, true);
+                       d_scratch);
     check_cuda_error(cudaGetLastError());
 
     cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);
@@ -212,7 +202,7 @@ void g2_msm_managed_wrapper(
     bool points_in_montgomery,
     uint64_t* size_tracker
 ) {
-    uint64_t& size_tracker_ref = *size_tracker;
+    uint64_t& size_tracker_local = *size_tracker;
     PANIC_IF_FALSE(n > 0, "G2 MSM error: n must be positive, got %u", n);
     PANIC_IF_FALSE(result != nullptr, "G2 MSM error: result is null");
     PANIC_IF_FALSE(stream != nullptr, "G2 MSM error: stream is null");
@@ -229,8 +219,8 @@ void g2_msm_managed_wrapper(
     size_t scalars_bytes = safe_mul_sizeof<Scalar>(static_cast<size_t>(n));
 
     // TODO: We should migrate to _unmanaged_ methods and have scratch/cleanup functions as tfhe-cuda-backend
-    auto* d_points = static_cast<G2Affine*>(cuda_malloc_with_size_tracking_async(points_bytes, stream, gpu_index, size_tracker_ref, true));
-    auto* d_scalars = static_cast<Scalar*>(cuda_malloc_with_size_tracking_async(scalars_bytes, stream, gpu_index, size_tracker_ref, true));
+    auto* d_points = static_cast<G2Affine*>(cuda_malloc_with_size_tracking_async(points_bytes, stream, gpu_index, size_tracker_local, true));
+    auto* d_scalars = static_cast<Scalar*>(cuda_malloc_with_size_tracking_async(scalars_bytes, stream, gpu_index, size_tracker_local, true));
 
     cuda_memcpy_with_size_tracking_async_to_gpu(d_points, points, points_bytes, stream, gpu_index, true);
     cuda_memcpy_with_size_tracking_async_to_gpu(d_scalars, scalars, scalars_bytes, stream, gpu_index, true);
@@ -243,14 +233,14 @@ void g2_msm_managed_wrapper(
     // Allocate scratch buffer sized to match the pippenger internal partitioning
     size_t scratch_bytes = pippenger_scratch_size_g2(n, gpu_index);
     auto* d_scratch = static_cast<G2Projective*>(cuda_malloc_with_size_tracking_async(
-        scratch_bytes, stream, gpu_index, size_tracker_ref, true));
+        scratch_bytes, stream, gpu_index, size_tracker_local, true));
 
     PANIC_IF_FALSE(d_points && d_scalars && d_scratch,
                    "G2 MSM error: device memory allocation failed");
 
     // Result written directly to host pointer -- no device round-trip needed
     point_msm_g2_async(stream, gpu_index, result, d_points, d_scalars, n,
-                       d_scratch, size_tracker_ref, true);
+                       d_scratch);
     check_cuda_error(cudaGetLastError());
 
     cuda_drop_with_size_tracking_async(d_scratch, stream, gpu_index, true);

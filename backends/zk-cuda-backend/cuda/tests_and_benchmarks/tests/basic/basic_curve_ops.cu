@@ -13,8 +13,8 @@
 //   ./build/tests_and_benchmarks/tests/basic/basic_curve_ops
 
 #include "curve.h"
+#include "device.h"
 #include "fp.h"
-#include <cassert>
 #include <cstdio>
 #include <cstring>
 
@@ -24,7 +24,7 @@ int main() {
   // (non-Montgomery) form. Convert to Montgomery, then lift to projective for
   // host-side arithmetic.
   const G1Affine &gen_normal = g1_generator();
-  assert(!g1_is_infinity(gen_normal));
+  PANIC_IF_FALSE(!g1_is_infinity(gen_normal), "generator must not be infinity");
 
   G1Affine gen_affine = gen_normal;
   point_to_montgomery_inplace(gen_affine);
@@ -37,21 +37,21 @@ int main() {
 
   // G + (-G) = identity (Z = 0 in the projective convention)
   G1Projective identity = G + neg_G;
-  assert(fp_is_zero(identity.Z));
+  PANIC_IF_FALSE(fp_is_zero(identity.Z), "G + (-G) must be identity (Z = 0)");
   printf("Negation (-G) and G + (-G) = identity: OK\n");
 
   // ---- Addition: 2*G = G + G, 3*G = 2*G + G ----
   G1Projective two_G = G + G;
-  assert(!(two_G == G1Projective())); // not the identity
+  PANIC_IF_FALSE(!(two_G == G1Projective{}), "2*G must not be identity");
 
   G1Projective three_G = two_G + G;
-  assert(!(three_G == G1Projective()));
+  PANIC_IF_FALSE(!(three_G == G1Projective{}), "3*G must not be identity");
   printf("Addition (2*G, 3*G): OK\n");
 
   // ---- Compound assignment: G += G ----
   G1Projective acc = G;
   acc += G; // acc = 2*G
-  assert(acc == two_G);
+  PANIC_IF_FALSE(acc == two_G, "G += G must equal 2*G");
   printf("Compound assignment (+=): OK\n");
 
   // ---- Scalar multiplication: 3*G using Scalar type ----
@@ -61,19 +61,22 @@ int main() {
   scalar_3.limb[0] = 3;
 
   G1Projective three_G_via_scalar = G * scalar_3;
-  assert(!(three_G_via_scalar == G1Projective()));
+  PANIC_IF_FALSE(!(three_G_via_scalar == G1Projective{}),
+                 "3*G via scalar must not be identity");
 
   // Normalise both to Z = 1 (Montgomery) before comparing coordinates.
   normalize_projective_g1(three_G);
   normalize_projective_g1(three_G_via_scalar);
-  assert(three_G == three_G_via_scalar);
+  PANIC_IF_FALSE(three_G == three_G_via_scalar,
+                 "3*G via addition must equal 3*G via scalar multiply");
   printf("Scalar multiplication (3*G == G + G + G): OK\n");
 
   // ---- Projective -> affine conversion ----
   // projective_to_affine_g1 keeps coordinates in Montgomery form.
   G1Affine three_G_affine;
   projective_to_affine_g1(three_G_affine, three_G);
-  assert(!g1_is_infinity(three_G_affine));
+  PANIC_IF_FALSE(!g1_is_infinity(three_G_affine),
+                 "3*G in affine must not be infinity");
   printf("Projective -> affine conversion: OK\n");
 
   // ---- Convert to normal-form coordinates ----
@@ -82,7 +85,8 @@ int main() {
   G1Projective result = three_G_via_scalar;
   normalize_from_montgomery_g1(
       result); // coordinates now in normal (non-Montgomery) form
-  assert(!fp_is_zero(result.Z)); // Z = 1 (non-zero)
+  PANIC_IF_FALSE(!fp_is_zero(result.Z),
+                 "normalized result must have non-zero Z");
   printf("Conversion to normal-form projective: OK\n");
 
   printf("All G1 curve operations passed.\n");
