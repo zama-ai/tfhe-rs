@@ -25,7 +25,8 @@ get_start_ith_ggsw_offset(uint32_t polynomial_size, int glwe_dimension,
          level_count;
 }
 
-template <typename Torus, class params, sharedMemDegree SMD>
+template <typename Torus, class params, sharedMemDegree SMD,
+          bool runs_noise_test = false>
 __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     const Torus *__restrict__ lwe_array_in,
     const Torus *__restrict__ lwe_input_indexes, double2 *keybundle_array,
@@ -55,9 +56,6 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 
   if (lwe_iteration < (lwe_dimension / grouping_factor)) {
 
-    const Torus *block_lwe_array_in =
-        &lwe_array_in[lwe_input_indexes[input_idx] * (lwe_dimension + 1)];
-
     double2 *keybundle = keybundle_array +
                          // select the input
                          input_idx * keybundle_size_per_input;
@@ -86,10 +84,30 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     // Precalculate the monomial degrees and store them in shared memory
     uint32_t *monomial_degrees = (uint32_t *)selected_memory;
     if (threadIdx.x < (1 << grouping_factor)) {
-      const Torus *lwe_array_group =
-          block_lwe_array_in + rev_lwe_iteration * grouping_factor;
-      monomial_degrees[threadIdx.x] = calculates_monomial_degree<Torus, params>(
-          lwe_array_group, threadIdx.x, grouping_factor);
+      // For noise tests we read the precalculated monomial degrees directly
+      // from the input array.
+      if constexpr (runs_noise_test == true) {
+        const Torus *block_lwe_array_in =
+            &lwe_array_in[lwe_input_indexes[input_idx] *
+                          (lwe_dimension / grouping_factor) *
+                          (1 << grouping_factor)];
+
+        const Torus *lwe_array_group =
+            block_lwe_array_in + rev_lwe_iteration * (1 << grouping_factor);
+        monomial_degrees[threadIdx.x] = lwe_array_group[threadIdx.x];
+
+      } else {
+        // In production we calculate the monomial degrees on the fly, since
+        // they are not stored in the input array.
+        const Torus *block_lwe_array_in =
+            &lwe_array_in[lwe_input_indexes[input_idx] * (lwe_dimension + 1)];
+
+        const Torus *lwe_array_group =
+            block_lwe_array_in + rev_lwe_iteration * grouping_factor;
+        monomial_degrees[threadIdx.x] =
+            calculates_monomial_degree<Torus, params>(
+                lwe_array_group, threadIdx.x, grouping_factor);
+      }
     }
     __syncthreads();
 
@@ -145,7 +163,8 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 // Then we can just calculate the offset needed to apply this coefficients, and
 // the operation transforms into a pointwise vector multiplication, avoiding to
 // perform extra instructions other than MADD
-template <typename Torus, class params, sharedMemDegree SMD>
+template <typename Torus, class params, sharedMemDegree SMD,
+          bool runs_noise_test = false>
 __global__ void device_multi_bit_programmable_bootstrap_keybundle_2_2_params(
     const Torus *__restrict__ lwe_array_in,
     const Torus *__restrict__ lwe_input_indexes, double2 *keybundle_array,
@@ -219,10 +238,30 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle_2_2_params(
     uint32_t *monomial_degrees = (uint32_t *)selected_memory;
 
     if (threadIdx.x < (1 << grouping_factor)) {
-      const Torus *lwe_array_group =
-          block_lwe_array_in + rev_lwe_iteration * grouping_factor;
-      monomial_degrees[threadIdx.x] = calculates_monomial_degree<Torus, params>(
-          lwe_array_group, threadIdx.x, grouping_factor);
+      // For noise tests we read the precalculated monomial degrees directly
+      // from the input array.
+      if constexpr (runs_noise_test == true) {
+        const Torus *block_lwe_array_in =
+            &lwe_array_in[lwe_input_indexes[input_idx] *
+                          (lwe_dimension / grouping_factor) *
+                          (1 << grouping_factor)];
+
+        const Torus *lwe_array_group =
+            block_lwe_array_in + rev_lwe_iteration * (1 << grouping_factor);
+        monomial_degrees[threadIdx.x] = lwe_array_group[threadIdx.x];
+
+      } else {
+        // In production we calculate the monomial degrees on the fly, since
+        // they are not stored in the input array.
+        const Torus *block_lwe_array_in =
+            &lwe_array_in[lwe_input_indexes[input_idx] * (lwe_dimension + 1)];
+
+        const Torus *lwe_array_group =
+            block_lwe_array_in + rev_lwe_iteration * grouping_factor;
+        monomial_degrees[threadIdx.x] =
+            calculates_monomial_degree<Torus, params>(
+                lwe_array_group, threadIdx.x, grouping_factor);
+      }
     }
     __syncthreads();
 
