@@ -17,7 +17,12 @@ semver = "1.0"
 name = "backward_compatibility_tests"
 path = "backward_compatibility_tests.rs"
 
+[[test]]
+name = "corrupted_inputs_deserialization"
+path = "corrupted_inputs_deserialization.rs"
+
 [features]
 shortint = ["tfhe/shortint"]
 integer = ["shortint", "tfhe/integer"]
 zk-pok = ["tfhe/zk-pok"]
+strings = ["integer", "tfhe/strings"]
