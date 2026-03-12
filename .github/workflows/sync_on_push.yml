@@ -4,7 +4,7 @@ name: sync_on_push
 on:
   push:
     branches:
-      - 'main'
+      - "main"
   workflow_dispatch:
 
 permissions: {}
@@ -39,15 +39,12 @@ jobs:
           echo ">>> Print out all branches"
           git --no-pager branch -a -vv
 
-          echo ">>> Fetching all LFS items from source..."
-          git lfs fetch --all source "${SOURCE_BRANCH}"
+          echo ">>> Fetching LFS items from source..."
+          git lfs fetch source "${SOURCE_BRANCH}"
 
-          echo ">>> Pushing git changes..."
+          echo ">>> Pushing git changes and LFS content..."
           git push destination "${SOURCE_BRANCH}:${DESTINATION_BRANCH}" -f
 
-          echo ">>> Pushing all LFS items..."
-          git lfs push --all destination "${DESTINATION_BRANCH}"
-          
           shred --remove .git/config
 
       - name: git-sync-tags
@@ -64,13 +61,17 @@ jobs:
           git clone --quiet "https://${USERNAME}:${TOKEN}@github.com/${SOURCE_REPO}.git" ./tfhe-rs-tag --origin source && cd ./tfhe-rs-tag
           git remote add destination "https://${USERNAME}:${TOKEN}@github.com/${DEST_REPO}.git"
 
+          # The LFS config disables pulling files by default, so remove it
+          # TODO: see if we need to more precisely fetch LFS files for new tags or if git is smart
+          rm .lfsconfig
+
           echo ">>> Fetching all branches references down locally so subsequent commands can see them..."
           git fetch source '+refs/heads/*:refs/heads/*' --update-head-ok
 
           echo ">>> Print out all branches"
           git --no-pager branch -a -vv
 
-          echo ">>> Pushing git changes..."
+          echo ">>> Pushing git changes and LFS content..."
           git push destination "${SOURCE_BRANCH}:${DESTINATION_BRANCH}" -f
-          
+
           shred --remove .git/config
