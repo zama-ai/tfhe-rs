@@ -645,6 +645,99 @@ void cleanup_cuda_multi_bit_programmable_bootstrap_64(void *stream,
   *buffer = nullptr;
 }
 
+// Noise-tests-namespaced wrappers: delegate to the standard scratch/cleanup so
+// that callers using the noise-tests PBS variant have a consistent API.
+uint64_t scratch_cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
+    void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
+  return scratch_cuda_multi_bit_programmable_bootstrap_64_async(
+      stream, gpu_index, pbs_buffer, glwe_dimension, polynomial_size,
+      level_count, input_lwe_ciphertext_count, allocate_gpu_memory);
+}
+
+void cleanup_cuda_multi_bit_programmable_bootstrap_noise_tests_64(
+    void *stream, uint32_t gpu_index, int8_t **pbs_buffer) {
+  cleanup_cuda_multi_bit_programmable_bootstrap_64(stream, gpu_index,
+                                                   pbs_buffer);
+}
+
+// Noise tests variant of the 64-bit multi-bit PBS, restricted to
+// polynomial_size=2048. The main difference is that the input
+// is assumed to be modulus switched before bootstrapping.
+void cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
+    void *stream, uint32_t gpu_index, void *lwe_array_out,
+    void const *lwe_output_indexes, void const *lut_vector,
+    void const *lut_vector_indexes, void const *lwe_array_in,
+    void const *lwe_input_indexes, void const *bootstrapping_key,
+    int8_t *mem_ptr, uint32_t lwe_dimension, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
+    uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
+    uint32_t lut_stride) {
+
+  PANIC_IF_FALSE(base_log <= 64,
+                 "Cuda error (multi-bit PBS): base log (%d) should be <= 64",
+                 base_log);
+  PANIC_IF_FALSE(polynomial_size == 2048,
+                 "Cuda error (multi-bit PBS noise tests): only polynomial "
+                 "size 2048 is supported, got %d.",
+                 polynomial_size);
+
+  pbs_buffer<uint64_t, MULTI_BIT> *buffer =
+      (pbs_buffer<uint64_t, MULTI_BIT> *)mem_ptr;
+
+  switch (buffer->pbs_variant) {
+  case PBS_VARIANT::TBC:
+#if CUDA_ARCH >= 900
+  {
+    host_tbc_multi_bit_programmable_bootstrap_noise_tests<uint64_t,
+                                                          Degree<2048>>(
+        static_cast<cudaStream_t>(stream), gpu_index,
+        static_cast<uint64_t *>(lwe_array_out),
+        static_cast<const uint64_t *>(lwe_output_indexes),
+        static_cast<const uint64_t *>(lut_vector),
+        static_cast<const uint64_t *>(lut_vector_indexes),
+        static_cast<const uint64_t *>(lwe_array_in),
+        static_cast<const uint64_t *>(lwe_input_indexes),
+        static_cast<const uint64_t *>(bootstrapping_key), buffer,
+        glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
+        base_log, level_count, num_samples, num_many_lut, lut_stride);
+  } break;
+#else
+    PANIC("Cuda error (multi-bit PBS): TBC pbs is not supported.")
+#endif
+  case PBS_VARIANT::CG:
+    host_cg_multi_bit_programmable_bootstrap_noise_tests<uint64_t,
+                                                         Degree<2048>>(
+        static_cast<cudaStream_t>(stream), gpu_index,
+        static_cast<uint64_t *>(lwe_array_out),
+        static_cast<const uint64_t *>(lwe_output_indexes),
+        static_cast<const uint64_t *>(lut_vector),
+        static_cast<const uint64_t *>(lut_vector_indexes),
+        static_cast<const uint64_t *>(lwe_array_in),
+        static_cast<const uint64_t *>(lwe_input_indexes),
+        static_cast<const uint64_t *>(bootstrapping_key), buffer,
+        glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
+        base_log, level_count, num_samples, num_many_lut, lut_stride);
+    break;
+  case PBS_VARIANT::DEFAULT:
+    host_multi_bit_programmable_bootstrap_noise_tests<uint64_t, Degree<2048>>(
+        static_cast<cudaStream_t>(stream), gpu_index,
+        static_cast<uint64_t *>(lwe_array_out),
+        static_cast<const uint64_t *>(lwe_output_indexes),
+        static_cast<const uint64_t *>(lut_vector),
+        static_cast<const uint64_t *>(lut_vector_indexes),
+        static_cast<const uint64_t *>(lwe_array_in),
+        static_cast<const uint64_t *>(lwe_input_indexes),
+        static_cast<const uint64_t *>(bootstrapping_key), buffer,
+        glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
+        base_log, level_count, num_samples, num_many_lut, lut_stride);
+    break;
+  default:
+    PANIC("Cuda error (multi-bit PBS): unsupported implementation variant.")
+  }
+}
+
 /**
  * Computes divisors of the product of num_sms (streaming multiprocessors on the
  * GPU) and max_blocks_per_sm (maximum active blocks per SM to launch
