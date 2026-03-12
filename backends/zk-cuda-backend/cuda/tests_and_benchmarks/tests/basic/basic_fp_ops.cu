@@ -11,8 +11,8 @@
 //   cmake --build build --target basic_fp_ops
 //   ./build/tests_and_benchmarks/tests/basic/basic_fp_ops
 
+#include "device.h"
 #include "fp.h"
-#include <cassert>
 #include <cstdio>
 
 int main() {
@@ -25,16 +25,16 @@ int main() {
   fp_one(b); // b = 1
 
   c = a + b; // c = 2
-  assert(c.limb[0] == 2);
+  PANIC_IF_FALSE(c.limb[0] == 2, "1 + 1 must equal 2");
 
   c = c - a; // c = 1
-  assert(fp_is_one(c));
+  PANIC_IF_FALSE(fp_is_one(c), "2 - 1 must equal 1");
 
   // Compound assignment
   c += a; // c = 2
-  assert(c.limb[0] == 2);
+  PANIC_IF_FALSE(c.limb[0] == 2, "1 += 1 must equal 2");
   c -= b; // c = 1
-  assert(fp_is_one(c));
+  PANIC_IF_FALSE(fp_is_one(c), "2 -= 1 must equal 1");
 
   printf("Addition/subtraction: OK\n");
 
@@ -43,7 +43,7 @@ int main() {
   // form, but for add/sub/neg small normal-form values also work correctly.
   Fp neg_a = -a; // neg_a = -1 mod p
   Fp sum = a + neg_a;
-  assert(fp_is_zero(sum)); // 1 + (-1) = 0
+  PANIC_IF_FALSE(fp_is_zero(sum), "1 + (-1) must equal 0");
   printf("Negation: OK\n");
 
   // ---- Multiplication (Montgomery form required) ----
@@ -56,17 +56,17 @@ int main() {
 
   result_m = one_m * two_m; // result_m = 2 in Montgomery form
   fp_from_montgomery(result, result_m);
-  assert(result.limb[0] == 2);
+  PANIC_IF_FALSE(result.limb[0] == 2, "1 * 2 must equal 2");
 
   result_m = two_m * two_m; // result_m = 4 in Montgomery form
   fp_from_montgomery(result, result_m);
-  assert(result.limb[0] == 4);
+  PANIC_IF_FALSE(result.limb[0] == 4, "2 * 2 must equal 4");
 
   // Compound multiplication
   result_m = two_m;
   result_m *= two_m; // result_m = 4
   fp_from_montgomery(result, result_m);
-  assert(result.limb[0] == 4);
+  PANIC_IF_FALSE(result.limb[0] == 4, "2 *= 2 must equal 4");
 
   // Convert an arbitrary normal-form value to Montgomery before multiplying
   Fp five_normal, five_m, twenty_five_m, twenty_five;
@@ -76,7 +76,7 @@ int main() {
 
   fp_mont_mul(twenty_five_m, five_m, five_m); // 5 * 5 = 25
   fp_from_montgomery(twenty_five, twenty_five_m);
-  assert(twenty_five.limb[0] == 25);
+  PANIC_IF_FALSE(twenty_five.limb[0] == 25, "5 * 5 must equal 25");
 
   printf("Multiplication: OK\n");
 
@@ -88,7 +88,7 @@ int main() {
 
   Fp one_check;
   fp_div(one_check, five_normal, five_normal); // 5 / 5 = 1
-  assert(fp_is_one(one_check));
+  PANIC_IF_FALSE(fp_is_one(one_check), "5 / 5 must equal 1");
 
   // Verify: 5 * 5^{-1} == 1  (using fp_div as a cross-check)
   Fp product;
@@ -98,7 +98,7 @@ int main() {
   fp_zero(two_normal);
   two_normal.limb[0] = 2;
   fp_div(product, two_normal, two_normal); // 2 / 2 = 1
-  assert(fp_is_one(product));
+  PANIC_IF_FALSE(fp_is_one(product), "2 / 2 must equal 1");
 
   printf("Inversion/division: OK\n");
 

@@ -99,9 +99,8 @@ macro_rules! msm_tests {
 
                 // SAFETY: gpu_index 0 is valid (checked by test setup)
                 let stream = unsafe { cuda_create_stream(0) };
-                let (gpu_result_proj, _size_tracker) =
-                    <$ZkProjective>::msm(&points, &scalars, stream, 0, false)
-                        .unwrap_or_else(|_| panic!("CUDA MSM failed at N={}", n));
+                let gpu_result_proj = <$ZkProjective>::msm(&points, &scalars, stream, 0, false)
+                    .unwrap_or_else(|_| panic!("CUDA MSM failed at N={}", n));
                 // SAFETY: stream was created above and is not used after this point
                 unsafe { cuda_destroy_stream(stream, 0) };
 
@@ -152,7 +151,7 @@ macro_rules! msm_tests {
             let stream = unsafe { cuda_create_stream(gpu_index) };
             let result_proj =
                 match <$ZkProjective>::msm(&points, &scalars, stream, gpu_index, false) {
-                    Ok((result, _size_tracker)) => result,
+                    Ok(result) => result,
                     Err(e) => {
                         eprintln!("CUDA MSM failed: {} - Skipping test", e);
                         // SAFETY: stream was created above and is not used after this point
@@ -185,7 +184,7 @@ macro_rules! msm_tests {
             let stream = unsafe { cuda_create_stream(gpu_index) };
             let result_proj =
                 match <$ZkProjective>::msm(&points, &scalars, stream, gpu_index, false) {
-                    Ok((result, _size_tracker)) => result,
+                    Ok(result) => result,
                     Err(e) => {
                         eprintln!("CUDA MSM failed: {} - Skipping test", e);
                         // SAFETY: stream was created above and is not used after this point
@@ -223,7 +222,7 @@ macro_rules! msm_tests {
             let stream = unsafe { cuda_create_stream(gpu_index) };
             let result_proj =
                 match <$ZkProjective>::msm(&points, &scalars, stream, gpu_index, false) {
-                    Ok((result, _size_tracker)) => result,
+                    Ok(result) => result,
                     Err(e) => {
                         eprintln!("CUDA MSM failed: {} - Skipping test", e);
                         // SAFETY: stream was created above and is not used after this point
@@ -325,7 +324,7 @@ fn test_g1_msm_multi_limb_scalar() {
     // SAFETY: gpu_index 0 is valid (checked by test setup)
     let stream = unsafe { cuda_create_stream(gpu_index) };
     let gpu_result_proj = match ZkG1Projective::msm(&points, &scalars, stream, gpu_index, false) {
-        Ok((result, _size_tracker)) => result,
+        Ok(result) => result,
         Err(e) => {
             eprintln!("CUDA MSM failed: {} - Skipping test", e);
             // SAFETY: stream was created above and is not used after this point

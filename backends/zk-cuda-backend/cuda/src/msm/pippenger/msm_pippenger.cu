@@ -493,12 +493,13 @@ void horner_combine_cpu(ProjectiveType &result,
 // window sums. The caller is responsible for allocating and freeing this
 // buffer.
 template <typename AffineType, typename ProjectiveType>
-void point_msm_pippenger_impl_async(
-    cudaStream_t stream, uint32_t gpu_index, ProjectiveType *h_result,
-    const AffineType *d_points, const Scalar *d_scalars, uint32_t n,
-    uint32_t threads_per_block, uint32_t window_size, uint32_t bucket_count,
-    ProjectiveType *d_scratch, uint64_t &size_tracker,
-    bool gpu_memory_allocated) {
+void point_msm_pippenger_impl_async(cudaStream_t stream, uint32_t gpu_index,
+                                    ProjectiveType *h_result,
+                                    const AffineType *d_points,
+                                    const Scalar *d_scalars, uint32_t n,
+                                    uint32_t threads_per_block,
+                                    uint32_t window_size, uint32_t bucket_count,
+                                    ProjectiveType *d_scratch) {
   using ProjectivePoint = Projective<ProjectiveType>;
 
   if (n == 0) {
@@ -705,16 +706,13 @@ void point_msm_g1_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
                                   G1Projective *h_result,
                                   const G1Affine *d_points,
                                   const Scalar *d_scalars, uint32_t n,
-                                  G1Projective *d_scratch,
-                                  uint64_t &size_tracker,
-                                  bool gpu_memory_allocated) {
+                                  G1Projective *d_scratch) {
   uint32_t window_size, bucket_count;
   get_g1_window_params(n, window_size, bucket_count);
 
   point_msm_pippenger_impl_async<G1Affine, G1Projective>(
       stream, gpu_index, h_result, d_points, d_scalars, n,
-      msm_threads_per_block<G1Affine>(n), window_size, bucket_count, d_scratch,
-      size_tracker, gpu_memory_allocated);
+      msm_threads_per_block<G1Affine>(n), window_size, bucket_count, d_scratch);
 }
 
 // MSM with BigInt scalars for G2 (projective coordinates internally)
@@ -724,14 +722,11 @@ void point_msm_g2_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
                                   G2ProjectivePoint *h_result,
                                   const G2Point *d_points,
                                   const Scalar *d_scalars, uint32_t n,
-                                  G2ProjectivePoint *d_scratch,
-                                  uint64_t &size_tracker,
-                                  bool gpu_memory_allocated) {
+                                  G2ProjectivePoint *d_scratch) {
   uint32_t window_size, bucket_count;
   get_g2_window_params(n, window_size, bucket_count);
 
   point_msm_pippenger_impl_async<G2Point, G2ProjectivePoint>(
       stream, gpu_index, h_result, d_points, d_scalars, n,
-      msm_threads_per_block<G2Point>(n), window_size, bucket_count, d_scratch,
-      size_tracker, gpu_memory_allocated);
+      msm_threads_per_block<G2Point>(n), window_size, bucket_count, d_scratch);
 }
