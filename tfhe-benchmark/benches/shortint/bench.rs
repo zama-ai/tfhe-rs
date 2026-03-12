@@ -2,7 +2,7 @@ use benchmark::params::{
     raw_benchmark_parameters, SHORTINT_BENCH_PARAMS_GAUSSIAN, SHORTINT_BENCH_PARAMS_TUNIFORM,
     SHORTINT_MULTI_BIT_BENCH_PARAMS,
 };
-use benchmark::utilities::{write_to_json, OperatorType};
+use benchmark::utilities::{write_to_json_unchecked, OperatorType};
 use criterion::{criterion_group, Criterion};
 use rand::Rng;
 use std::env;
@@ -40,7 +40,7 @@ fn bench_server_key_unary_function<F>(
             })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             *param,
             param.name(),
@@ -85,7 +85,7 @@ fn bench_server_key_binary_function<F>(
             })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             *param,
             param.name(),
@@ -129,7 +129,7 @@ fn bench_server_key_binary_scalar_function<F>(
             })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             *param,
             param.name(),
@@ -177,7 +177,7 @@ fn bench_server_key_binary_scalar_division_function<F>(
             })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             *param,
             param.name(),
@@ -213,7 +213,7 @@ fn carry_extract_bench(c: &mut Criterion) {
             })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             *param,
             param.name(),
@@ -252,7 +252,7 @@ fn programmable_bootstrapping_bench(c: &mut Criterion) {
             })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             *param,
             param.name(),
@@ -301,7 +301,7 @@ fn server_key_from_compressed_key(c: &mut Criterion) {
             )
         });
 
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &bench_id,
             *param,
             param.name(),

@@ -1,6 +1,6 @@
 use benchmark::params::get_classical_tuniform_groups;
 use benchmark::params_aliases::*;
-use benchmark::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
+use benchmark::utilities::{write_to_json_unchecked, CryptoParametersRecord, OperatorType};
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -84,7 +84,7 @@ fn client_server_key_sizes(results_file: &Path) {
         let test_name = format!("shortint_key_sizes_{}_ksk", params.name());
 
         write_result(&mut file, &test_name, ksk_size);
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &test_name,
             params,
             params.name(),
@@ -104,7 +104,7 @@ fn client_server_key_sizes(results_file: &Path) {
         let test_name = format!("shortint_key_sizes_{}_bsk", params.name());
 
         write_result(&mut file, &test_name, bsk_size);
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &test_name,
             params,
             params.name(),
@@ -125,7 +125,7 @@ fn client_server_key_sizes(results_file: &Path) {
         let test_name = format!("shortint_key_sizes_{}_bsk_compressed", params.name());
 
         write_result(&mut file, &test_name, bsk_compressed_size);
-        write_to_json::<u64, _>(
+        write_to_json_unchecked::<u64, _>(
             &test_name,
             params,
             params.name(),
@@ -158,7 +158,7 @@ fn measure_serialized_size<T: serde::Serialize, P: Into<CryptoParametersRecord<u
     let size = serialized.len();
     let test_name = format!("shortint_key_sizes_{param_name}_{test_name_suffix}");
     write_result(file, &test_name, size);
-    write_to_json::<u64, _>(
+    write_to_json_unchecked::<u64, _>(
         &test_name,
         param.clone(),
         param_name,

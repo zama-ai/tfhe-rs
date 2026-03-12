@@ -3,9 +3,9 @@ use benchmark::params::{
     multi_bit_benchmark_parameters_with_grouping, multi_bit_num_threads,
 };
 use benchmark::utilities::{
-    get_bench_type, get_param_type, write_to_json, BenchmarkType, CryptoParametersRecord,
-    OperatorType, ParamType,
+    get_param_type, write_to_json_unchecked, CryptoParametersRecord, OperatorType, ParamType,
 };
+use benchmark_spec::{get_bench_type, BenchmarkType};
 use criterion::{black_box, Criterion, Throughput};
 use rayon::prelude::*;
 use serde::Serialize;
@@ -220,7 +220,7 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
         };
 
         let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
-        write_to_json(
+        write_to_json_unchecked(
             &bench_id,
             *params,
             name,
@@ -460,7 +460,7 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
         };
 
         let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
-        write_to_json(
+        write_to_json_unchecked(
             &bench_id,
             *params,
             name,
@@ -656,7 +656,7 @@ fn multi_bit_pbs<
         };
 
         let bit_size = params.message_modulus.unwrap().ilog2();
-        write_to_json(
+        write_to_json_unchecked(
             &bench_id,
             *params,
             name,
@@ -920,7 +920,7 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
         };
 
         let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
-        write_to_json(
+        write_to_json_unchecked(
             &bench_id,
             *params,
             name,
@@ -936,10 +936,11 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
 mod cuda {
     use benchmark::params::{benchmark_parameters, multi_bit_benchmark_parameters};
     use benchmark::utilities::{
-        cuda_local_keys_core, cuda_local_streams_core, get_bench_type, throughput_num_threads,
-        write_to_json, BenchmarkType, CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes,
+        cuda_local_keys_core, cuda_local_streams_core, throughput_num_threads,
+        write_to_json_unchecked, CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes,
         CudaLocalKeys, OperatorType, GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE,
     };
+    use benchmark_spec::{get_bench_type, BenchmarkType};
     use criterion::{black_box, Criterion, Throughput};
     use rayon::prelude::*;
     use serde::Serialize;
@@ -1188,7 +1189,7 @@ mod cuda {
             };
 
             let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
-            write_to_json(
+            write_to_json_unchecked(
                 &bench_id,
                 *params,
                 name,
@@ -1446,7 +1447,7 @@ mod cuda {
             };
 
             let bit_size = params.message_modulus.unwrap().ilog2();
-            write_to_json(
+            write_to_json_unchecked(
                 &bench_id,
                 *params,
                 name,
