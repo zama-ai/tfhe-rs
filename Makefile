@@ -1222,8 +1222,8 @@ test_zk_pok:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		-p tfhe-zk-pok --features experimental
 
-.PHONY: test_zk_pok_gpu # Run tfhe-zk-pok GPU-accelerated tests
-test_zk_pok_gpu:
+.PHONY: test_zk_pok_experimental_gpu # Run tfhe-zk-pok GPU-accelerated tests
+test_zk_pok_experimental_gpu:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		-p tfhe-zk-pok --features experimental,gpu-experimental -- gpu
 
@@ -1240,7 +1240,7 @@ test_integer_zk_experimental_gpu: install_rs_check_toolchain
 		integer::gpu::zk::
 
 .PHONY: test_zk_cuda # Run all GPU MSM integration tests (CPU vs GPU comparison + integration test)
-test_zk_cuda: install_rs_check_toolchain test_zk_cuda_backend test_zk_pok_gpu test_integer_zk_gpu test_integer_zk_experimental_gpu
+test_zk_cuda: install_rs_check_toolchain test_zk_cuda_backend test_zk_pok_experimental_gpu test_integer_zk_gpu test_integer_zk_experimental_gpu
 
 .PHONY: test_zk_wasm_x86_compat_ci
 test_zk_wasm_x86_compat_ci: check_nvm_installed
