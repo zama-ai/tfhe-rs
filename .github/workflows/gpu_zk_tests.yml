@@ -131,7 +131,7 @@ jobs:
       - name: Run zk-cuda-backend integration tests
         run: |
           make test_zk_cuda_backend
-          make test_zk_pok_gpu
+          make test_zk_pok_experimental_gpu
           make test_integer_zk_gpu
           make test_integer_zk_experimental_gpu
 
