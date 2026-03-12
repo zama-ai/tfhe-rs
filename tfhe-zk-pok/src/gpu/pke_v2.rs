@@ -21,8 +21,9 @@ use crate::proofs::{
 use crate::proofs::pke_v2::hashes::RHash;
 use crate::proofs::pke_v2::{
     bit_iter, compute_a_theta, compute_crs_params, inf_norm_bound_to_euclidean_squared,
-    ComputeLoadProofFields, EvaluationPoints, GeneratedScalars, PkeV2SupportedHashConfig,
-    PrivateCommit, Proof, PublicCommit, PublicParams, VerificationPairingMode,
+    precompute_xi_powers, ComputeLoadProofFields, EvaluationPoints, GeneratedScalars,
+    PkeV2SupportedHashConfig, PrivateCommit, Proof, PublicCommit, PublicParams,
+    VerificationPairingMode,
 };
 
 use rayon::prelude::*;
@@ -57,6 +58,9 @@ pub fn prove(
 ///
 /// Identical to [`crate::proofs::pke_v2::verify`] but dispatches MSM to the GPU via
 /// [`super::g1_msm_gpu`] / [`super::g2_msm_gpu`].
+// TODO: `run_in_pool` was introduced for the CPU path because benchmarks showed better
+// performance with fewer threads (likely due to arkworks MSM parallelization overhead).
+// This may not hold for the GPU implementation and should be revisited.
 #[allow(clippy::result_unit_err)]
 pub fn verify(
     proof: &Proof<Bls12_446>,
@@ -81,6 +85,7 @@ fn prove_impl(
     hash_config: PkeV2SupportedHashConfig,
     sanity_check_mode: ProofSanityCheckMode,
 ) -> Proof<Bls12_446> {
+    _ = load;
     let (
         &PublicParams {
             ref g_lists,
@@ -154,8 +159,6 @@ fn prove_impl(
     let r1 = compute_r1(e1, c1, a, r, d, decoded_q);
     let r2 = compute_r2(e2, c2, m, b, r, d, delta, decoded_q);
 
-    // Reinterpret as unsigned for bit decomposition; bit pattern is preserved,
-    // which is correct for torus arithmetic
     let u64 = |x: i64| x as u64;
 
     let w_tilde = r
@@ -177,33 +180,52 @@ fn prove_impl(
     let r1_zp = &*r1.iter().copied().map(Zp::from_i64).collect::<Box<[_]>>();
     let r2_zp = &*r2.iter().copied().map(Zp::from_i64).collect::<Box<[_]>>();
 
-    // GPU MSM: C_hat_e commitment
-    let mut scalars = e1_zp
+    let scalars_e = e1_zp
         .iter()
         .copied()
         .chain(e2_zp.iter().copied())
         .chain(v_zp)
         .collect::<Box<[_]>>();
-    let C_hat_e = g_hat.mul_scalar(gamma_hat_e)
-        + super::g2_msm_gpu(&g_hat_list[..d + k + 4], &scalars, select_gpu_for_msm());
+    let scalars_e_rev: Box<[_]> = scalars_e.iter().copied().rev().collect();
+    let scalars_r: Box<[_]> = r1_zp.iter().chain(r2_zp.iter()).copied().collect();
 
-    // GPU MSM: C_e and C_r_tilde commitments (parallelised)
-    let (C_e, C_r_tilde) = rayon::join(
-        || {
-            scalars.reverse();
-            g.mul_scalar(gamma_e)
-                + super::g1_msm_gpu(&g_list[n - (d + k + 4)..n], &scalars, select_gpu_for_msm())
-        },
-        || {
-            let scalars = r1_zp
-                .iter()
-                .chain(r2_zp.iter())
-                .copied()
-                .collect::<Box<[_]>>();
-            g.mul_scalar(gamma_r)
-                + super::g1_msm_gpu(&g_list[..d + k], &scalars, select_gpu_for_msm())
-        },
-    );
+    let mut C_hat_e = None;
+    let mut C_e = None;
+    let mut C_r_tilde = None;
+
+    rayon::scope(|s| {
+        s.spawn(|_| {
+            // GPU MSM: C_hat_e commitment
+            C_hat_e = Some(
+                g_hat.mul_scalar(gamma_hat_e)
+                    + super::g2_msm_gpu(&g_hat_list[..d + k + 4], &scalars_e, select_gpu_for_msm()),
+            );
+        });
+
+        s.spawn(|_| {
+            // GPU MSM: C_e commitment
+            C_e = Some(
+                g.mul_scalar(gamma_e)
+                    + super::g1_msm_gpu(
+                        &g_list[n - (d + k + 4)..n],
+                        &scalars_e_rev,
+                        select_gpu_for_msm(),
+                    ),
+            );
+        });
+
+        s.spawn(|_| {
+            // GPU MSM: C_r_tilde commitment
+            C_r_tilde = Some(
+                g.mul_scalar(gamma_r)
+                    + super::g1_msm_gpu(&g_list[..d + k], &scalars_r, select_gpu_for_msm()),
+            );
+        });
+    });
+
+    let C_hat_e = C_hat_e.unwrap();
+    let C_e = C_e.unwrap();
+    let C_r_tilde = C_r_tilde.unwrap();
 
     let C_hat_e_bytes = C_hat_e.to_le_bytes();
     let C_e_bytes = C_e.to_le_bytes();
@@ -243,8 +265,10 @@ fn prove_impl(
                     "sqr(acc) ({}) > B_bound_squared ({B_bound_squared})",
                     checked_sqr(acc.unsigned_abs()).unwrap()
                 );
+                i64::try_from(acc).expect("w_R element must fit in i64")
+            } else {
+                acc as i64
             }
-            i64::try_from(acc).expect("w_R element must fit in i64")
         })
         .collect::<Box<[_]>>();
 
@@ -332,178 +356,239 @@ fn prove_impl(
     let (delta, delta_hash) = omega_hash.gen_delta::<Zp>();
     let [delta_r, delta_dec, delta_eq, delta_y, delta_theta, delta_e, delta_l] = delta;
 
-    let mut poly_0_lhs = vec![Zp::ZERO; 1 + n];
-    let mut poly_0_rhs = vec![Zp::ZERO; 1 + D + 128 * m];
-    let mut poly_1_lhs = vec![Zp::ZERO; 1 + n];
-    let mut poly_1_rhs = vec![Zp::ZERO; 1 + d + k + 4];
-    let mut poly_2_lhs = vec![Zp::ZERO; 1 + d + k];
-    let mut poly_2_rhs = vec![Zp::ZERO; 1 + n];
-    let mut poly_3_lhs = vec![Zp::ZERO; 1 + 128];
-    let mut poly_3_rhs = vec![Zp::ZERO; 1 + n];
-    let mut poly_4_lhs = vec![Zp::ZERO; 1 + n];
-    let mut poly_4_rhs = vec![Zp::ZERO; 1 + d + k + 4];
-    let mut poly_5_lhs = vec![Zp::ZERO; 1 + n];
-    let mut poly_5_rhs = vec![Zp::ZERO; 1 + n];
+    // Precompute xi powers to enable parallel polynomial construction
+    let xi_powers = precompute_xi_powers(&xi, m);
+    let delta_theta_q = delta_theta * Zp::from_u128(decoded_q);
 
-    let mut xi_scaled = xi;
-    poly_0_lhs[0] = delta_y * gamma_y;
-    for j in 0..D + 128 * m {
-        let p = &mut poly_0_lhs[n - j];
+    // Build all polynomial pairs in parallel
+    let mut poly_0_lhs = None;
+    let mut poly_0_rhs = None;
+    let mut poly_1_lhs = None;
+    let mut poly_1_rhs = None;
+    let mut poly_2_lhs = None;
+    let mut poly_2_rhs = None;
+    let mut poly_3_lhs = None;
+    let mut poly_3_rhs = None;
+    let mut poly_4_lhs = None;
+    let mut poly_4_rhs = None;
+    let mut poly_5_lhs = None;
+    let mut poly_5_rhs = None;
 
-        if !w_bin[j] {
-            *p -= delta_y * y[j];
-        }
+    rayon::scope(|s| {
+        s.spawn(|_| {
+            let mut lhs = vec![Zp::ZERO; 1 + n];
+            let mut rhs = vec![Zp::ZERO; 1 + D + 128 * m];
 
-        if j < D {
-            *p += delta_theta * a_theta[j];
-        }
-        *p += delta_eq * t[j] * y[j];
+            lhs[0] = delta_y * gamma_y;
+            for j in 0..D + 128 * m {
+                let p = &mut lhs[n - j];
 
-        if j >= D {
-            let j = j - D;
+                if !w_bin[j] {
+                    *p -= delta_y * y[j];
+                }
 
-            let xi = &mut xi_scaled[j / m];
-            let H_xi = *xi;
-            *xi = *xi + *xi;
+                if j < D {
+                    *p += delta_theta * a_theta[j];
+                }
+                *p += delta_eq * t[j] * y[j];
 
-            let r = delta_dec * H_xi;
+                if j >= D {
+                    let j_inner = j - D;
+                    let r = delta_dec * xi_powers[j_inner];
 
-            if j % m < m - 1 {
-                *p += r;
-            } else {
-                *p -= r;
-            }
-        }
-    }
-
-    poly_0_rhs[0] = gamma_bin;
-    for j in 0..D + 128 * m {
-        let p = &mut poly_0_rhs[j + 1];
-
-        if w_bin[j] {
-            *p = Zp::ONE;
-        }
-    }
-
-    poly_1_lhs[0] = delta_l * gamma_e;
-    for j in 0..d {
-        let p = &mut poly_1_lhs[n - j];
-        *p = delta_l * e1_zp[j];
-    }
-    for j in 0..k {
-        let p = &mut poly_1_lhs[n - (d + j)];
-        *p = delta_l * e2_zp[j];
-    }
-    for j in 0..4 {
-        let p = &mut poly_1_lhs[n - (d + k + j)];
-        *p = delta_l * v_zp[j];
-    }
-
-    for j in 0..n {
-        let p = &mut poly_1_lhs[n - j];
-        let mut acc = delta_e * omega[j];
-        if j < d + k {
-            acc += delta_theta * theta[j];
-        }
-
-        if j < d + k + 4 {
-            let mut acc2 = Zp::ZERO;
-            for (i, &phi) in phi.iter().enumerate() {
-                match R(i, j) {
-                    0 => {}
-                    1 => acc2 += phi,
-                    -1 => acc2 -= phi,
-                    _ => unreachable!(),
+                    if j_inner % m < m - 1 {
+                        *p += r;
+                    } else {
+                        *p -= r;
+                    }
                 }
             }
-            acc += delta_r * acc2;
-        }
-        *p += acc;
-    }
 
-    poly_1_rhs[0] = gamma_hat_e;
-    for j in 0..d {
-        let p = &mut poly_1_rhs[1 + j];
-        *p = e1_zp[j];
-    }
-    for j in 0..k {
-        let p = &mut poly_1_rhs[1 + (d + j)];
-        *p = e2_zp[j];
-    }
-    for j in 0..4 {
-        let p = &mut poly_1_rhs[1 + (d + k + j)];
-        *p = v_zp[j];
-    }
+            rhs[0] = gamma_bin;
+            for j in 0..D + 128 * m {
+                let p = &mut rhs[j + 1];
 
-    poly_2_lhs[0] = gamma_r;
-    for j in 0..d {
-        let p = &mut poly_2_lhs[1 + j];
-        *p = r1_zp[j];
-    }
-    for j in 0..k {
-        let p = &mut poly_2_lhs[1 + (d + j)];
-        *p = r2_zp[j];
-    }
-
-    let delta_theta_q = delta_theta * Zp::from_u128(decoded_q);
-    for j in 0..d + k {
-        let p = &mut poly_2_rhs[n - j];
-
-        let mut acc = Zp::ZERO;
-        for (i, &phi) in phi.iter().enumerate() {
-            match R(i, d + k + 4 + j) {
-                0 => {}
-                1 => acc += phi,
-                -1 => acc -= phi,
-                _ => unreachable!(),
+                if w_bin[j] {
+                    *p = Zp::ONE;
+                }
             }
-        }
-        *p = delta_r * acc - delta_theta_q * theta[j];
-    }
 
-    poly_3_lhs[0] = gamma_R;
-    for j in 0..128 {
-        let p = &mut poly_3_lhs[1 + j];
-        *p = Zp::from_i64(w_R[j]);
-    }
+            poly_0_lhs = Some(lhs);
+            poly_0_rhs = Some(rhs);
+        });
 
-    for j in 0..128 {
-        let p = &mut poly_3_rhs[n - j];
-        *p = delta_r * phi[j] + delta_dec * xi[j];
-    }
+        s.spawn(|_| {
+            let mut lhs = vec![Zp::ZERO; 1 + n];
+            let mut rhs = vec![Zp::ZERO; 1 + d + k + 4];
 
-    poly_4_lhs[0] = delta_e * gamma_e;
-    for j in 0..d {
-        let p = &mut poly_4_lhs[n - j];
-        *p = delta_e * e1_zp[j];
-    }
-    for j in 0..k {
-        let p = &mut poly_4_lhs[n - (d + j)];
-        *p = delta_e * e2_zp[j];
-    }
-    for j in 0..4 {
-        let p = &mut poly_4_lhs[n - (d + k + j)];
-        *p = delta_e * v_zp[j];
-    }
+            lhs[0] = delta_l * gamma_e;
+            for j in 0..d {
+                let p = &mut lhs[n - j];
+                *p = delta_l * e1_zp[j];
+            }
+            for j in 0..k {
+                let p = &mut lhs[n - (d + j)];
+                *p = delta_l * e2_zp[j];
+            }
+            for j in 0..4 {
+                let p = &mut lhs[n - (d + k + j)];
+                *p = delta_l * v_zp[j];
+            }
 
-    for j in 0..d + k + 4 {
-        let p = &mut poly_4_rhs[1 + j];
-        *p = omega[j];
-    }
+            for j in 0..n {
+                let p = &mut lhs[n - j];
+                let mut acc = delta_e * omega[j];
+                if j < d + k {
+                    acc += delta_theta * theta[j];
+                }
 
-    poly_5_lhs[0] = delta_eq * gamma_y;
-    for j in 0..D + 128 * m {
-        let p = &mut poly_5_lhs[n - j];
+                if j < d + k + 4 {
+                    let mut acc2 = Zp::ZERO;
+                    for (i, &phi_val) in phi.iter().enumerate() {
+                        match R(i, j) {
+                            0 => {}
+                            1 => acc2 += phi_val,
+                            -1 => acc2 -= phi_val,
+                            _ => unreachable!(),
+                        }
+                    }
+                    acc += delta_r * acc2;
+                }
+                *p += acc;
+            }
 
-        if w_bin[j] {
-            *p = delta_eq * y[j];
-        }
-    }
+            rhs[0] = gamma_hat_e;
+            for j in 0..d {
+                let p = &mut rhs[1 + j];
+                *p = e1_zp[j];
+            }
+            for j in 0..k {
+                let p = &mut rhs[1 + (d + j)];
+                *p = e2_zp[j];
+            }
+            for j in 0..4 {
+                let p = &mut rhs[1 + (d + k + j)];
+                *p = v_zp[j];
+            }
 
-    for j in 0..n {
-        let p = &mut poly_5_rhs[1 + j];
-        *p = t[j];
-    }
+            poly_1_lhs = Some(lhs);
+            poly_1_rhs = Some(rhs);
+        });
+
+        s.spawn(|_| {
+            let mut lhs = vec![Zp::ZERO; 1 + d + k];
+            let mut rhs = vec![Zp::ZERO; 1 + n];
+
+            lhs[0] = gamma_r;
+            for j in 0..d {
+                let p = &mut lhs[1 + j];
+                *p = r1_zp[j];
+            }
+            for j in 0..k {
+                let p = &mut lhs[1 + (d + j)];
+                *p = r2_zp[j];
+            }
+
+            for j in 0..d + k {
+                let p = &mut rhs[n - j];
+
+                let mut acc = Zp::ZERO;
+                for (i, &phi_val) in phi.iter().enumerate() {
+                    match R(i, d + k + 4 + j) {
+                        0 => {}
+                        1 => acc += phi_val,
+                        -1 => acc -= phi_val,
+                        _ => unreachable!(),
+                    }
+                }
+                *p = delta_r * acc - delta_theta_q * theta[j];
+            }
+
+            poly_2_lhs = Some(lhs);
+            poly_2_rhs = Some(rhs);
+        });
+
+        s.spawn(|_| {
+            let mut lhs = vec![Zp::ZERO; 1 + 128];
+            let mut rhs = vec![Zp::ZERO; 1 + n];
+
+            lhs[0] = gamma_R;
+            for j in 0..128 {
+                let p = &mut lhs[1 + j];
+                *p = Zp::from_i64(w_R[j]);
+            }
+
+            for j in 0..128 {
+                let p = &mut rhs[n - j];
+                *p = delta_r * phi[j] + delta_dec * xi_powers[j * m];
+            }
+
+            poly_3_lhs = Some(lhs);
+            poly_3_rhs = Some(rhs);
+        });
+
+        s.spawn(|_| {
+            let mut lhs = vec![Zp::ZERO; 1 + n];
+            let mut rhs = vec![Zp::ZERO; 1 + d + k + 4];
+
+            lhs[0] = delta_e * gamma_e;
+            for j in 0..d {
+                let p = &mut lhs[n - j];
+                *p = delta_e * e1_zp[j];
+            }
+            for j in 0..k {
+                let p = &mut lhs[n - (d + j)];
+                *p = delta_e * e2_zp[j];
+            }
+            for j in 0..4 {
+                let p = &mut lhs[n - (d + k + j)];
+                *p = delta_e * v_zp[j];
+            }
+
+            for j in 0..d + k + 4 {
+                let p = &mut rhs[1 + j];
+                *p = omega[j];
+            }
+
+            poly_4_lhs = Some(lhs);
+            poly_4_rhs = Some(rhs);
+        });
+
+        s.spawn(|_| {
+            let mut lhs = vec![Zp::ZERO; 1 + n];
+            let mut rhs = vec![Zp::ZERO; 1 + n];
+
+            lhs[0] = delta_eq * gamma_y;
+            for j in 0..D + 128 * m {
+                let p = &mut lhs[n - j];
+
+                if w_bin[j] {
+                    *p = delta_eq * y[j];
+                }
+            }
+
+            for j in 0..n {
+                let p = &mut rhs[1 + j];
+                *p = t[j];
+            }
+
+            poly_5_lhs = Some(lhs);
+            poly_5_rhs = Some(rhs);
+        });
+    });
+
+    let poly_0_lhs = poly_0_lhs.unwrap();
+    let poly_0_rhs = poly_0_rhs.unwrap();
+    let poly_1_lhs = poly_1_lhs.unwrap();
+    let poly_1_rhs = poly_1_rhs.unwrap();
+    let poly_2_lhs = poly_2_lhs.unwrap();
+    let poly_2_rhs = poly_2_rhs.unwrap();
+    let poly_3_lhs = poly_3_lhs.unwrap();
+    let poly_3_rhs = poly_3_rhs.unwrap();
+    let poly_4_lhs = poly_4_lhs.unwrap();
+    let poly_4_rhs = poly_4_rhs.unwrap();
+    let poly_5_lhs = poly_5_lhs.unwrap();
+    let poly_5_rhs = poly_5_rhs.unwrap();
 
     let poly = [
         (&poly_0_lhs, &poly_0_rhs),
@@ -576,119 +661,151 @@ fn prove_impl(
         P_pi[n + 1] -= delta_theta * t_theta + delta_l * Zp::from_u128(B_squared);
     }
 
-    // GPU MSM: pi commitment
-    let pi = if P_pi.is_empty() {
-        G1::ZERO
-    } else {
-        g.mul_scalar(P_pi[0])
-            + super::g1_msm_gpu(&g_list[..P_pi.len() - 1], &P_pi[1..], select_gpu_for_msm())
-    };
+    // Parallelize pi, C_h1, C_h2, compute_load_proof_fields, and C_hat_t computations
+    let mut pi = None;
+    let mut C_h1 = None;
+    let mut C_h2 = None;
+    let mut compute_load_proof_fields = None;
+    let mut C_hat_t = None;
 
-    // GPU MSM: C_h1 commitment
-    let mut xi_scaled = xi;
-    let mut scalars = (0..D + 128 * m)
-        .map(|j| {
-            let mut acc = Zp::ZERO;
-            if j < D {
-                acc += delta_theta * a_theta[j];
-            }
-            acc -= delta_y * y[j];
-            acc += delta_eq * t[j] * y[j];
+    rayon::scope(|s| {
+        s.spawn(|_| {
+            // GPU MSM: pi commitment
+            pi = Some(if P_pi.is_empty() {
+                G1::ZERO
+            } else {
+                g.mul_scalar(P_pi[0])
+                    + super::g1_msm_gpu(&g_list[..P_pi.len() - 1], &P_pi[1..], select_gpu_for_msm())
+            });
+        });
 
-            if j >= D {
-                let j = j - D;
-                let xi = &mut xi_scaled[j / m];
-                let H_xi = *xi;
-                *xi = *xi + *xi;
-
-                let r = delta_dec * H_xi;
-
-                if j % m < m - 1 {
-                    acc += r;
-                } else {
-                    acc -= r;
-                }
-            }
-
-            acc
-        })
-        .collect::<Box<[_]>>();
-    scalars.reverse();
-    let C_h1 = super::g1_msm_gpu(
-        &g_list[n - (D + 128 * m)..n],
-        &scalars,
-        select_gpu_for_msm(),
-    );
-
-    // GPU MSM: C_h2 commitment
-    let mut scalars = (0..n)
-        .map(|j| {
-            let mut acc = Zp::ZERO;
-            if j < d + k {
-                acc += delta_theta * theta[j];
-            }
-
-            acc += delta_e * omega[j];
-
-            if j < d + k + 4 {
-                let mut acc2 = Zp::ZERO;
-                for (i, &phi) in phi.iter().enumerate() {
-                    match R(i, j) {
-                        0 => {}
-                        1 => acc2 += phi,
-                        -1 => acc2 -= phi,
-                        _ => unreachable!(),
+        s.spawn(|_| {
+            // GPU MSM: C_h1 commitment
+            let scalars_h1: Box<[_]> = (0..D + 128 * m)
+                .rev()
+                .map(|j| {
+                    let mut acc = Zp::ZERO;
+                    if j < D {
+                        acc += delta_theta * a_theta[j];
                     }
+                    acc -= delta_y * y[j];
+                    acc += delta_eq * t[j] * y[j];
+
+                    if j >= D {
+                        let j_inner = j - D;
+                        let r = delta_dec * xi_powers[j_inner];
+
+                        if j_inner % m < m - 1 {
+                            acc += r;
+                        } else {
+                            acc -= r;
+                        }
+                    }
+
+                    acc
+                })
+                .collect();
+            C_h1 = Some(super::g1_msm_gpu(
+                &g_list[n - (D + 128 * m)..n],
+                &scalars_h1,
+                select_gpu_for_msm(),
+            ));
+        });
+
+        s.spawn(|_| {
+            // GPU MSM: C_h2 commitment
+            let scalars_h2: Box<[_]> = (0..n)
+                .rev()
+                .map(|j| {
+                    let mut acc = Zp::ZERO;
+                    if j < d + k {
+                        acc += delta_theta * theta[j];
+                    }
+
+                    acc += delta_e * omega[j];
+
+                    if j < d + k + 4 {
+                        let mut acc2 = Zp::ZERO;
+                        for (i, &phi_val) in phi.iter().enumerate() {
+                            match R(i, j) {
+                                0 => {}
+                                1 => acc2 += phi_val,
+                                -1 => acc2 -= phi_val,
+                                _ => unreachable!(),
+                            }
+                        }
+                        acc += delta_r * acc2;
+                    }
+                    acc
+                })
+                .collect();
+            C_h2 = Some(super::g1_msm_gpu(
+                &g_list[..n],
+                &scalars_h2,
+                select_gpu_for_msm(),
+            ));
+        });
+
+        s.spawn(|_| {
+            compute_load_proof_fields = Some(match load {
+                ComputeLoad::Proof => {
+                    let mut C_hat_h3 = None;
+                    let mut C_hat_w = None;
+
+                    rayon::scope(|s_inner| {
+                        s_inner.spawn(|_| {
+                            // GPU MSM: C_hat_h3 commitment
+                            C_hat_h3 = Some(super::g2_msm_gpu(
+                                &g_hat_list[n - (d + k)..n],
+                                &(0..d + k)
+                                    .rev()
+                                    .map(|j| {
+                                        let mut acc = Zp::ZERO;
+                                        for (i, &phi_val) in phi.iter().enumerate() {
+                                            match R(i, d + k + 4 + j) {
+                                                0 => {}
+                                                1 => acc += phi_val,
+                                                -1 => acc -= phi_val,
+                                                _ => unreachable!(),
+                                            }
+                                        }
+                                        delta_r * acc - delta_theta_q * theta[j]
+                                    })
+                                    .collect::<Box<[_]>>(),
+                                select_gpu_for_msm(),
+                            ));
+                        });
+
+                        s_inner.spawn(|_| {
+                            // GPU MSM: C_hat_w commitment
+                            C_hat_w = Some(super::g2_msm_gpu(
+                                &g_hat_list[..d + k + 4],
+                                &omega[..d + k + 4],
+                                select_gpu_for_msm(),
+                            ));
+                        });
+                    });
+
+                    Some(ComputeLoadProofFields {
+                        C_hat_h3: C_hat_h3.unwrap(),
+                        C_hat_w: C_hat_w.unwrap(),
+                    })
                 }
-                acc += delta_r * acc2;
-            }
-            acc
-        })
-        .collect::<Box<[_]>>();
-    scalars.reverse();
-    let C_h2 = super::g1_msm_gpu(&g_list[..n], &scalars, select_gpu_for_msm());
+                ComputeLoad::Verify => None,
+            });
+        });
 
-    let compute_load_proof_fields = match load {
-        ComputeLoad::Proof => {
-            // GPU MSM: C_hat_h3 and C_hat_w commitments (parallelised)
-            let (C_hat_h3, C_hat_w) = rayon::join(
-                || {
-                    super::g2_msm_gpu(
-                        &g_hat_list[n - (d + k)..n],
-                        &(0..d + k)
-                            .rev()
-                            .map(|j| {
-                                let mut acc = Zp::ZERO;
-                                for (i, &phi) in phi.iter().enumerate() {
-                                    match R(i, d + k + 4 + j) {
-                                        0 => {}
-                                        1 => acc += phi,
-                                        -1 => acc -= phi,
-                                        _ => unreachable!(),
-                                    }
-                                }
-                                delta_r * acc - delta_theta_q * theta[j]
-                            })
-                            .collect::<Box<[_]>>(),
-                        select_gpu_for_msm(),
-                    )
-                },
-                || {
-                    super::g2_msm_gpu(
-                        &g_hat_list[..d + k + 4],
-                        &omega[..d + k + 4],
-                        select_gpu_for_msm(),
-                    )
-                },
-            );
+        s.spawn(|_| {
+            // GPU MSM: C_hat_t commitment
+            C_hat_t = Some(super::g2_msm_gpu(g_hat_list, &t, select_gpu_for_msm()));
+        });
+    });
 
-            Some(ComputeLoadProofFields { C_hat_h3, C_hat_w })
-        }
-        ComputeLoad::Verify => None,
-    };
-
-    // GPU MSM: C_hat_t commitment
-    let C_hat_t = super::g2_msm_gpu(g_hat_list, &t, select_gpu_for_msm());
+    let pi = pi.unwrap();
+    let C_h1 = C_h1.unwrap();
+    let C_h2 = C_h2.unwrap();
+    let compute_load_proof_fields = compute_load_proof_fields.unwrap();
+    let C_hat_t = C_hat_t.unwrap();
 
     let (C_hat_h3_bytes, C_hat_w_bytes) =
         ComputeLoadProofFields::to_le_bytes(&compute_load_proof_fields);
@@ -705,110 +822,182 @@ fn prove_impl(
         &C_hat_w_bytes,
     );
 
-    let mut P_h1 = vec![Zp::ZERO; 1 + n];
-    let mut P_h2 = vec![Zp::ZERO; 1 + n];
-    let mut P_t = vec![Zp::ZERO; 1 + n];
-    let mut P_h3 = match load {
-        ComputeLoad::Proof => vec![Zp::ZERO; 1 + n],
-        ComputeLoad::Verify => vec![],
+    // Compute P_t and P_omega inline (too cheap to justify a rayon task)
+    let P_t = {
+        let mut poly = vec![Zp::ZERO; 1 + n];
+        poly[1..].copy_from_slice(&t);
+        poly
     };
-    let mut P_omega = match load {
-        ComputeLoad::Proof => vec![Zp::ZERO; 1 + d + k + 4],
-        ComputeLoad::Verify => vec![],
-    };
-
-    let mut xi_scaled = xi;
-    for j in 0..D + 128 * m {
-        let p = &mut P_h1[n - j];
-        if j < D {
-            *p += delta_theta * a_theta[j];
+    let P_omega = match load {
+        ComputeLoad::Proof => {
+            let mut poly = vec![Zp::ZERO; 1 + d + k + 4];
+            poly[1..].copy_from_slice(&omega[..d + k + 4]);
+            poly
         }
-        *p -= delta_y * y[j];
-        *p += delta_eq * t[j] * y[j];
+        ComputeLoad::Verify => vec![],
+    };
 
-        if j >= D {
-            let j = j - D;
-            let xi = &mut xi_scaled[j / m];
-            let H_xi = *xi;
-            *xi = *xi + *xi;
+    // Build P_h1, P_h2, P_h3 in parallel
+    let mut P_h1 = None;
+    let mut P_h2 = None;
+    let mut P_h3 = None;
 
-            let r = delta_dec * H_xi;
+    rayon::scope(|s| {
+        s.spawn(|_| {
+            let mut poly = vec![Zp::ZERO; 1 + n];
+            for j in 0..D + 128 * m {
+                let p = &mut poly[n - j];
+                if j < D {
+                    *p += delta_theta * a_theta[j];
+                }
+                *p -= delta_y * y[j];
+                *p += delta_eq * t[j] * y[j];
 
-            if j % m < m - 1 {
-                *p += r;
+                if j >= D {
+                    let j_inner = j - D;
+                    let r = delta_dec * xi_powers[j_inner];
+
+                    if j_inner % m < m - 1 {
+                        *p += r;
+                    } else {
+                        *p -= r;
+                    }
+                }
+            }
+            P_h1 = Some(poly);
+        });
+
+        s.spawn(|_| {
+            let mut poly = vec![Zp::ZERO; 1 + n];
+            for j in 0..n {
+                let p = &mut poly[n - j];
+
+                if j < d + k {
+                    *p += delta_theta * theta[j];
+                }
+
+                *p += delta_e * omega[j];
+
+                if j < d + k + 4 {
+                    let mut acc = Zp::ZERO;
+                    for (i, &phi_val) in phi.iter().enumerate() {
+                        match R(i, j) {
+                            0 => {}
+                            1 => acc += phi_val,
+                            -1 => acc -= phi_val,
+                            _ => unreachable!(),
+                        }
+                    }
+                    *p += delta_r * acc;
+                }
+            }
+            P_h2 = Some(poly);
+        });
+
+        s.spawn(|_| {
+            P_h3 = Some(match load {
+                ComputeLoad::Proof => {
+                    let mut poly = vec![Zp::ZERO; 1 + n];
+                    for j in 0..d + k {
+                        let p = &mut poly[n - j];
+
+                        let mut acc = Zp::ZERO;
+                        for (i, &phi_val) in phi.iter().enumerate() {
+                            match R(i, d + k + 4 + j) {
+                                0 => {}
+                                1 => acc += phi_val,
+                                -1 => acc -= phi_val,
+                                _ => unreachable!(),
+                            }
+                        }
+                        *p = delta_r * acc - delta_theta_q * theta[j];
+                    }
+                    poly
+                }
+                ComputeLoad::Verify => vec![],
+            });
+        });
+    });
+
+    let P_h1 = P_h1.unwrap();
+    let P_h2 = P_h2.unwrap();
+    let P_h3 = P_h3.unwrap();
+
+    // Precompute powers of z for parallel polynomial evaluation
+    let z_powers: Box<[_]> = {
+        let mut powers = Vec::with_capacity(n + 1);
+        let mut pow = Zp::ONE;
+        for _ in 0..n + 1 {
+            powers.push(pow);
+            pow = pow * z;
+        }
+        powers.into_boxed_slice()
+    };
+
+    // Evaluate polynomials at z in parallel
+    let mut p_h1 = None;
+    let mut p_h2 = None;
+    let mut p_t = None;
+    let mut p_h3 = None;
+    let mut p_omega = None;
+
+    rayon::scope(|s| {
+        s.spawn(|_| {
+            p_h1 = Some(
+                P_h1.iter()
+                    .zip(z_powers.iter())
+                    .map(|(&p, &pow)| p * pow)
+                    .sum::<Zp>(),
+            );
+        });
+
+        s.spawn(|_| {
+            p_h2 = Some(
+                P_h2.iter()
+                    .zip(z_powers.iter())
+                    .map(|(&p, &pow)| p * pow)
+                    .sum::<Zp>(),
+            );
+        });
+
+        s.spawn(|_| {
+            p_t = Some(
+                P_t.iter()
+                    .zip(z_powers.iter())
+                    .map(|(&p, &pow)| p * pow)
+                    .sum::<Zp>(),
+            );
+        });
+
+        s.spawn(|_| {
+            p_h3 = Some(if P_h3.is_empty() {
+                Zp::ZERO
             } else {
-                *p -= r;
-            }
-        }
-    }
+                P_h3.iter()
+                    .zip(z_powers.iter())
+                    .map(|(&p, &pow)| p * pow)
+                    .sum::<Zp>()
+            });
+        });
 
-    for j in 0..n {
-        let p = &mut P_h2[n - j];
+        s.spawn(|_| {
+            p_omega = Some(if P_omega.is_empty() {
+                Zp::ZERO
+            } else {
+                P_omega
+                    .iter()
+                    .zip(z_powers.iter())
+                    .map(|(&p, &pow)| p * pow)
+                    .sum::<Zp>()
+            });
+        });
+    });
 
-        if j < d + k {
-            *p += delta_theta * theta[j];
-        }
-
-        *p += delta_e * omega[j];
-
-        if j < d + k + 4 {
-            let mut acc = Zp::ZERO;
-            for (i, &phi) in phi.iter().enumerate() {
-                match R(i, j) {
-                    0 => {}
-                    1 => acc += phi,
-                    -1 => acc -= phi,
-                    _ => unreachable!(),
-                }
-            }
-            *p += delta_r * acc;
-        }
-    }
-
-    P_t[1..].copy_from_slice(&t);
-
-    if !P_h3.is_empty() {
-        for j in 0..d + k {
-            let p = &mut P_h3[n - j];
-
-            let mut acc = Zp::ZERO;
-            for (i, &phi) in phi.iter().enumerate() {
-                match R(i, d + k + 4 + j) {
-                    0 => {}
-                    1 => acc += phi,
-                    -1 => acc -= phi,
-                    _ => unreachable!(),
-                }
-            }
-            *p = delta_r * acc - delta_theta_q * theta[j];
-        }
-    }
-
-    if !P_omega.is_empty() {
-        P_omega[1..].copy_from_slice(&omega[..d + k + 4]);
-    }
-
-    let mut p_h1 = Zp::ZERO;
-    let mut p_h2 = Zp::ZERO;
-    let mut p_t = Zp::ZERO;
-    let mut p_h3 = Zp::ZERO;
-    let mut p_omega = Zp::ZERO;
-
-    let mut pow = Zp::ONE;
-    for j in 0..n + 1 {
-        p_h1 += P_h1[j] * pow;
-        p_h2 += P_h2[j] * pow;
-        p_t += P_t[j] * pow;
-
-        if j < P_h3.len() {
-            p_h3 += P_h3[j] * pow;
-        }
-        if j < P_omega.len() {
-            p_omega += P_omega[j] * pow;
-        }
-
-        pow = pow * z;
-    }
+    let p_h1 = p_h1.unwrap();
+    let p_h2 = p_h2.unwrap();
+    let p_t = p_t.unwrap();
+    let p_h3 = p_h3.unwrap();
+    let p_omega = p_omega.unwrap();
 
     let p_h3_opt = if P_h3.is_empty() { None } else { Some(p_h3) };
     let p_omega_opt = if P_omega.is_empty() {

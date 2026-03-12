@@ -4,7 +4,6 @@
 //! type conversions between tfhe-zk-pok and zk-cuda-backend types,
 //! and GPU MSM helper functions used by the `pke` and `pke_v2` submodules.
 
-pub mod pke;
 pub mod pke_v2;
 
 #[cfg(test)]
@@ -18,28 +17,7 @@ use ark_ff::{BigInt, MontFp, PrimeField};
 use tfhe_cuda_backend::cuda_bind::{
     cuda_create_stream, cuda_destroy_stream, cuda_get_number_of_gpus,
 };
-use zk_cuda_backend::{G1Affine as ZkG1Affine, G2Affine as ZkG2Affine, Scalar as ZkScalar};
-
-// ---------------------------------------------------------------------------
-// Compile-time assertions to verify transmute safety between wrapper types and inner arkworks
-// types. These ensure that G1Affine/G2Affine wrappers are truly repr(transparent) around their
-// inner types.
-// ---------------------------------------------------------------------------
-
-const _: () = {
-    assert!(
-        std::mem::size_of::<G1Affine>() == std::mem::size_of::<crate::curve_446::g1::G1Affine>()
-    );
-    assert!(
-        std::mem::align_of::<G1Affine>() == std::mem::align_of::<crate::curve_446::g1::G1Affine>()
-    );
-    assert!(
-        std::mem::size_of::<G2Affine>() == std::mem::size_of::<crate::curve_446::g2::G2Affine>()
-    );
-    assert!(
-        std::mem::align_of::<G2Affine>() == std::mem::align_of::<crate::curve_446::g2::G2Affine>()
-    );
-};
+use zk_cuda_backend::{G1Affine as CudaG1Affine, G2Affine as CudaG2Affine, Scalar as CudaScalar};
 
 // ---------------------------------------------------------------------------
 // GPU helpers
@@ -62,20 +40,17 @@ pub(crate) fn get_num_gpus() -> u32 {
 }
 
 /// Selects a GPU for MSM based on the rayon thread index, distributing work
-/// across all available GPUs. Returns `None` (meaning GPU 0) when only one GPU
-/// is present.
+/// across all available GPUs. Returns `0` when only one GPU is present.
 #[inline]
-pub fn select_gpu_for_msm() -> Option<u32> {
+pub fn select_gpu_for_msm() -> u32 {
     let num_gpus = get_num_gpus();
     if num_gpus <= 1 {
-        return None;
+        return 0;
     }
     let thread_idx = rayon::current_thread_index().unwrap_or(0);
-    Some(
-        (thread_idx % num_gpus as usize)
-            .try_into()
-            .expect("GPU index fits in u32"),
-    )
+    (thread_idx % num_gpus as usize)
+        .try_into()
+        .expect("GPU index fits in u32")
 }
 
 // ---------------------------------------------------------------------------
@@ -113,20 +88,20 @@ fn fq2_from_cuda_fp2(fp2: &zk_cuda_backend::bindings::Fp2) -> Fq2 {
 ///
 /// # Panics
 ///
-/// Panics if the input point is non-identity but has no coordinates (malformed arkworks point).
-pub fn g1_affine_to_zk_cuda(affine: &G1Affine) -> ZkG1Affine {
+/// Panics if the input point is non-infinity but has no coordinates (malformed arkworks point).
+pub fn g1_affine_to_cuda(affine: &G1Affine) -> CudaG1Affine {
     use ark_ec::AffineRepr;
 
     if affine.inner.is_zero() {
-        return ZkG1Affine::infinity();
+        return CudaG1Affine::infinity();
     }
     let xy = affine
         .inner
         .xy()
-        .expect("non-identity point must have coordinates");
+        .expect("non-infinity point must have coordinates");
     let x = fq_to_cuda_fp(&xy.0);
     let y = fq_to_cuda_fp(&xy.1);
-    ZkG1Affine::new(x, y, affine.inner.infinity)
+    CudaG1Affine::new(x, y, affine.inner.infinity)
 }
 
 /// Convert a zk-cuda-backend G1Affine back to a tfhe-zk-pok G1Affine.
@@ -135,7 +110,7 @@ pub fn g1_affine_to_zk_cuda(affine: &G1Affine) -> ZkG1Affine {
 ///
 /// Panics if the Fp limbs from the zk-cuda-backend point do not represent a valid `Fq` element
 /// (i.e., the value is not in the base field).
-pub fn g1_affine_from_zk_cuda(affine: &ZkG1Affine) -> G1Affine {
+pub fn g1_affine_from_cuda(affine: &CudaG1Affine) -> G1Affine {
     if affine.is_infinity() {
         return G1::ZERO.normalize();
     }
@@ -154,20 +129,20 @@ pub fn g1_affine_from_zk_cuda(affine: &ZkG1Affine) -> G1Affine {
 ///
 /// # Panics
 ///
-/// Panics if the input point is non-identity but has no coordinates (malformed arkworks point).
-pub fn g2_affine_to_zk_cuda(affine: &G2Affine) -> ZkG2Affine {
+/// Panics if the input point is non-infinity but has no coordinates (malformed arkworks point).
+pub fn g2_affine_to_cuda(affine: &G2Affine) -> CudaG2Affine {
     use ark_ec::AffineRepr;
 
     if affine.inner.is_zero() {
-        return ZkG2Affine::infinity();
+        return CudaG2Affine::infinity();
     }
     let xy = affine
         .inner
         .xy()
-        .expect("non-identity point must have coordinates");
+        .expect("non-infinity point must have coordinates");
     let x = fq2_to_cuda_fp2(&xy.0);
     let y = fq2_to_cuda_fp2(&xy.1);
-    ZkG2Affine::new(x, y, affine.inner.infinity)
+    CudaG2Affine::new(x, y, affine.inner.infinity)
 }
 
 /// Convert a zk-cuda-backend G2Affine back to a tfhe-zk-pok G2Affine.
@@ -176,7 +151,7 @@ pub fn g2_affine_to_zk_cuda(affine: &G2Affine) -> ZkG2Affine {
 ///
 /// Panics if the Fp limbs from the zk-cuda-backend point do not represent valid `Fq` elements
 /// (i.e., the values are not in the base field).
-pub fn g2_affine_from_zk_cuda(affine: &ZkG2Affine) -> G2Affine {
+pub fn g2_affine_from_cuda(affine: &CudaG2Affine) -> G2Affine {
     if affine.is_infinity() {
         return G2::ZERO.normalize();
     }
@@ -193,26 +168,25 @@ pub fn g2_affine_from_zk_cuda(affine: &ZkG2Affine) -> G2Affine {
     G2Affine { inner }
 }
 
-/// Convert a Zp scalar to a zk-cuda-backend Scalar.
-pub fn zp_to_zk_scalar(zp: &Zp) -> ZkScalar {
+/// Convert a tfhe-zk-pok Zp scalar to a zk-cuda-backend Scalar.
+pub fn zp_to_cuda_scalar(zp: &Zp) -> CudaScalar {
     let limbs = zp.inner.into_bigint().0;
-    ZkScalar::from(limbs)
+    CudaScalar::from(limbs)
 }
 
 // ---------------------------------------------------------------------------
 // GPU MSM functions
 // ---------------------------------------------------------------------------
 
-/// GPU-accelerated multi-scalar multiplication for G1. The `gpu_index` parameter
-/// selects which GPU device to use; `None` defaults to GPU 0.
+/// GPU-accelerated multi-scalar multiplication for G1.
 ///
 /// # Panics
 ///
-/// - If `gpu_index` is `Some(i)` where `i >= number of available GPUs`.
+/// - If `gpu_index >= number of available GPUs`.
 /// - If `bases` and `scalars` have different lengths (checked inside the backend).
 /// - If the GPU MSM call fails.
 #[must_use]
-pub fn g1_msm_gpu(bases: &[G1Affine], scalars: &[Zp], gpu_index: Option<u32>) -> G1 {
+pub fn g1_msm_gpu(bases: &[G1Affine], scalars: &[Zp], gpu_index: u32) -> G1 {
     use crate::curve_446::g1::G1Projective;
 
     // Convert points to zk-cuda-backend format (normal form)
@@ -226,7 +200,6 @@ pub fn g1_msm_gpu(bases: &[G1Affine], scalars: &[Zp], gpu_index: Option<u32>) ->
         .map(|s| zk_cuda_backend::Scalar::from(s.inner.into_bigint().0))
         .collect();
 
-    let gpu_index = gpu_index.unwrap_or(0);
     let num_gpus = get_num_gpus();
     assert!(
         gpu_index < num_gpus,
@@ -242,7 +215,7 @@ pub fn g1_msm_gpu(bases: &[G1Affine], scalars: &[Zp], gpu_index: Option<u32>) ->
     // used after this point
     unsafe { cuda_destroy_stream(stream, gpu_index) };
 
-    let (gpu_result, _size_tracker) = result.unwrap_or_else(|e| panic!("G1 GPU MSM failed: {e}"));
+    let gpu_result = result.unwrap_or_else(|e| panic!("G1 GPU MSM failed: {e}"));
 
     // Convert result from Montgomery form back to arkworks types
     let normalized = gpu_result.from_montgomery_normalized();
@@ -260,16 +233,15 @@ pub fn g1_msm_gpu(bases: &[G1Affine], scalars: &[Zp], gpu_index: Option<u32>) ->
     }
 }
 
-/// GPU-accelerated multi-scalar multiplication for G2. The `gpu_index` parameter
-/// selects which GPU device to use; `None` defaults to GPU 0.
+/// GPU-accelerated multi-scalar multiplication for G2.
 ///
 /// # Panics
 ///
-/// - If `gpu_index` is `Some(i)` where `i >= number of available GPUs`.
+/// - If `gpu_index >= number of available GPUs`.
 /// - If `bases` and `scalars` have different lengths (checked inside the backend).
 /// - If the GPU MSM call fails.
 #[must_use]
-pub fn g2_msm_gpu(bases: &[G2Affine], scalars: &[Zp], gpu_index: Option<u32>) -> G2 {
+pub fn g2_msm_gpu(bases: &[G2Affine], scalars: &[Zp], gpu_index: u32) -> G2 {
     use crate::curve_446::g2::G2Projective;
     use ark_ec::AffineRepr;
 
@@ -291,7 +263,6 @@ pub fn g2_msm_gpu(bases: &[G2Affine], scalars: &[Zp], gpu_index: Option<u32>) ->
         .map(|s| zk_cuda_backend::Scalar::from(s.inner.into_bigint().0))
         .collect();
 
-    let gpu_index = gpu_index.unwrap_or(0);
     let num_gpus = get_num_gpus();
     assert!(
         gpu_index < num_gpus,
@@ -307,7 +278,7 @@ pub fn g2_msm_gpu(bases: &[G2Affine], scalars: &[Zp], gpu_index: Option<u32>) ->
     // used after this point
     unsafe { cuda_destroy_stream(stream, gpu_index) };
 
-    let (gpu_result, _size_tracker) = result.unwrap_or_else(|e| panic!("G2 GPU MSM failed: {e}"));
+    let gpu_result = result.unwrap_or_else(|e| panic!("G2 GPU MSM failed: {e}"));
 
     // Convert result from Montgomery form back to arkworks types
     let normalized = gpu_result.from_montgomery_normalized();
