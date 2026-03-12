@@ -701,6 +701,7 @@ enum class MultiBitKeybundleLaunchMode {
   AUTO,
   GENERIC,
   SPECIALIZED_2_2,
+  NOISE_TESTS,
 };
 
 template <typename Torus, class params>
@@ -765,23 +766,48 @@ __host__ void execute_compute_keybundle_with_mode(
     bool use_specialized =
         launch_mode == MultiBitKeybundleLaunchMode::SPECIALIZED_2_2 ||
         (launch_mode == MultiBitKeybundleLaunchMode::AUTO &&
+         can_use_specialized) ||
+        (launch_mode == MultiBitKeybundleLaunchMode::NOISE_TESTS &&
          can_use_specialized);
+    bool use_noise_test_template =
+        launch_mode == MultiBitKeybundleLaunchMode::NOISE_TESTS;
     if (use_specialized) {
       dim3 thds_new_keybundle(512, 1, 1);
-      check_cuda_error(cudaFuncSetAttribute(
-          device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-              Torus, Degree<2048>, FULLSM>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize, 3 * full_sm_keybundle));
-      check_cuda_error(cudaFuncSetCacheConfig(
-          device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-              Torus, Degree<2048>, FULLSM>,
-          cudaFuncCachePreferShared));
-      check_cuda_error(cudaGetLastError());
-      device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-          Torus, Degree<2048>, FULLSM><<<grid_keybundle, thds_new_keybundle,
-                                         3 * full_sm_keybundle, stream>>>(
-          lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
-          lwe_dimension, lwe_offset, chunk_size, keybundle_size_per_input);
+      if (use_noise_test_template) {
+        // Set up the noise-test variant of the specialized 2_2 kernel
+        check_cuda_error(cudaFuncSetAttribute(
+            device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+                Torus, Degree<2048>, FULLSM, true>,
+            cudaFuncAttributeMaxDynamicSharedMemorySize,
+            3 * full_sm_keybundle));
+        check_cuda_error(cudaFuncSetCacheConfig(
+            device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+                Torus, Degree<2048>, FULLSM, true>,
+            cudaFuncCachePreferShared));
+        check_cuda_error(cudaGetLastError());
+        device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+            Torus, Degree<2048>, FULLSM, true>
+            <<<grid_keybundle, thds_new_keybundle, 3 * full_sm_keybundle,
+               stream>>>(lwe_array_in, lwe_input_indexes, keybundle_fft,
+                         bootstrapping_key, lwe_dimension, lwe_offset,
+                         chunk_size, keybundle_size_per_input);
+      } else {
+        check_cuda_error(cudaFuncSetAttribute(
+            device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+                Torus, Degree<2048>, FULLSM>,
+            cudaFuncAttributeMaxDynamicSharedMemorySize,
+            3 * full_sm_keybundle));
+        check_cuda_error(cudaFuncSetCacheConfig(
+            device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+                Torus, Degree<2048>, FULLSM>,
+            cudaFuncCachePreferShared));
+        check_cuda_error(cudaGetLastError());
+        device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+            Torus, Degree<2048>, FULLSM><<<grid_keybundle, thds_new_keybundle,
+                                           3 * full_sm_keybundle, stream>>>(
+            lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
+            lwe_dimension, lwe_offset, chunk_size, keybundle_size_per_input);
+      }
     } else {
       device_multi_bit_programmable_bootstrap_keybundle<Torus, params, FULLSM>
           <<<grid_keybundle, thds, full_sm_keybundle, stream>>>(
@@ -834,6 +860,20 @@ __host__ void execute_compute_keybundle_2_2_specialized(
       buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
       grouping_factor, level_count, lwe_offset,
       MultiBitKeybundleLaunchMode::SPECIALIZED_2_2);
+}
+// Used only to run noise tests
+template <typename Torus, class params>
+__host__ void execute_compute_keybundle_noise_tests(
+    cudaStream_t stream, uint32_t gpu_index, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
+    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
+  execute_compute_keybundle_with_mode<Torus, params>(
+      stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+      buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+      grouping_factor, level_count, lwe_offset,
+      MultiBitKeybundleLaunchMode::NOISE_TESTS);
 }
 
 template <typename Torus, class params, bool is_first_iter>
