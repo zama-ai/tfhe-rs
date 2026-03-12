@@ -1,5 +1,5 @@
-# Run backward compatibility tests
-name: aws_tfhe_backward_compat_tests
+# Run data related tests
+name: aws_data_tests
 
 env:
   CARGO_TERM_COLOR: always
@@ -30,8 +30,8 @@ permissions:
 # zizmor: ignore[concurrency-limits] concurrency is managed after instance setup to ensure safe provisioning
 
 jobs:
-  backward-compat-tests:
-    name: aws_tfhe_backward_compat_tests/backward-compat-tests (bpr)
+  data-tests:
+    name: aws_data_tests/data-tests (bpr)
     if: (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||
       github.event_name != 'push'
     runs-on: "runs-on=${{ github.run_id }}/runner=cpu-small"
@@ -49,7 +49,7 @@ jobs:
       - name: Get LFS data sha
         id: hash-lfs-data
         run: |
-          SHA=$(git lfs ls-files -l -I utils/tfhe-backward-compat-data | sha256sum | cut -d' ' -f1)
+          SHA=$(git lfs ls-files -l -I utils/tfhe-backward-compat-data,tests/corrupted_inputs_deserialization | sha256sum | cut -d' ' -f1)
           echo "sha=${SHA}" >> "${GITHUB_OUTPUT}"
 
       - name: Retrieve data from cache
@@ -59,12 +59,14 @@ jobs:
           path: |
             utils/tfhe-backward-compat-data/**/*.cbor
             utils/tfhe-backward-compat-data/**/*.bcode
+            tests/corrupted_inputs_deserialization/**/*.bcode
           key: ${{ steps.hash-lfs-data.outputs.sha }}
 
       - name: Pull test data
         if: steps.retrieve-data-cache.outputs.cache-hit != 'true'
         run: |
           make pull_backward_compat_data
+          make pull_corrupted_inputs_data
 
       # Pull token was stored by action/checkout to be used by lfs, we don't need it anymore
       - name: Remove git credentials
@@ -80,6 +82,10 @@ jobs:
         run: |
           make test_backward_compatibility_ci
 
+      - name: Run corrupted inputs deserialization tests
+        run: |
+          make test_corrupted_inputs_ci
+
       - name: Store data in cache
         if: steps.retrieve-data-cache.outputs.cache-hit != 'true'
         continue-on-error: true
@@ -88,6 +94,7 @@ jobs:
           path: |
             utils/tfhe-backward-compat-data/**/*.cbor
             utils/tfhe-backward-compat-data/**/*.bcode
+            tests/corrupted_inputs_deserialization/**/*.bcode
           key: ${{ steps.hash-lfs-data.outputs.sha }}
 
       - name: Set pull-request URL
