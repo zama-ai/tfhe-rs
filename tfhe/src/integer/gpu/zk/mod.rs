@@ -56,6 +56,7 @@ impl CudaProvenCompactCiphertextList {
             },
             || self.expand_without_verification(key, streams),
         );
+
         if all_valid {
             return r;
         }
