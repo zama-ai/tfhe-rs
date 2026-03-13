@@ -1,10 +1,9 @@
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::cuda_backend_trivium_generate_keystream;
 use crate::integer::gpu::server_key::{
     CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
 };
-use crate::integer::gpu::{cuda_backend_trivium_generate_keystream, PBSType};
-use crate::shortint::parameters::LweBskGroupingFactor;
 
 impl CudaServerKey {
     /// Generates a Trivium keystream homomorphically on the GPU.
@@ -70,15 +69,9 @@ impl CudaServerKey {
                         &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,
-                        d_bsk.glwe_dimension,
-                        d_bsk.polynomial_size,
-                        d_bsk.input_lwe_dimension,
+                        d_bsk,
                         computing_ks_key.decomposition_level_count(),
                         computing_ks_key.decomposition_base_log(),
-                        d_bsk.decomp_level_count,
-                        d_bsk.decomp_base_log,
-                        LweBskGroupingFactor(0),
-                        PBSType::Classical,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                         num_steps as u32,
                     );
@@ -93,15 +86,9 @@ impl CudaServerKey {
                         &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,
-                        d_multibit_bsk.glwe_dimension,
-                        d_multibit_bsk.polynomial_size,
-                        d_multibit_bsk.input_lwe_dimension,
+                        d_multibit_bsk,
                         computing_ks_key.decomposition_level_count(),
                         computing_ks_key.decomposition_base_log(),
-                        d_multibit_bsk.decomp_level_count,
-                        d_multibit_bsk.decomp_base_log,
-                        d_multibit_bsk.grouping_factor,
-                        PBSType::MultiBit,
                         None,
                         num_steps as u32,
                     );

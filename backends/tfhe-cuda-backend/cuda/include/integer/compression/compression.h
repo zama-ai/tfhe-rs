@@ -17,10 +17,9 @@ uint64_t scratch_cuda_integer_decompress_radix_ciphertext_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     uint32_t encryption_glwe_dimension, uint32_t encryption_polynomial_size,
     uint32_t compression_glwe_dimension, uint32_t compression_polynomial_size,
-    uint32_t lwe_dimension, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t num_blocks_to_decompress,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t num_blocks_to_decompress,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_compress_radix_ciphertext_64_async(
     CudaStreamsFFI streams, CudaPackedGlweCiphertextListFFI *glwe_array_out,

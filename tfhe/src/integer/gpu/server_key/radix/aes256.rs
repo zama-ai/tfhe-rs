@@ -6,10 +6,9 @@ use crate::integer::gpu::server_key::{
     CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
 };
 
-use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::{
     cuda_backend_aes_key_expansion_256, cuda_backend_get_aes_key_expansion_256_size_on_gpu,
-    cuda_backend_unchecked_aes_ctr_256_encrypt, PBSType,
+    cuda_backend_unchecked_aes_ctr_256_encrypt,
 };
 use crate::integer::{RadixCiphertext, RadixClientKey};
 
@@ -218,15 +217,9 @@ impl CudaServerKey {
                         &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,
-                        d_bsk.glwe_dimension,
-                        d_bsk.polynomial_size,
-                        d_bsk.input_lwe_dimension,
+                        d_bsk,
                         computing_ks_key.decomposition_level_count(),
                         computing_ks_key.decomposition_base_log(),
-                        d_bsk.decomp_level_count,
-                        d_bsk.decomp_base_log,
-                        LweBskGroupingFactor(0),
-                        PBSType::Classical,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -243,15 +236,9 @@ impl CudaServerKey {
                         &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,
-                        d_multibit_bsk.glwe_dimension,
-                        d_multibit_bsk.polynomial_size,
-                        d_multibit_bsk.input_lwe_dimension,
+                        d_multibit_bsk,
                         computing_ks_key.decomposition_level_count(),
                         computing_ks_key.decomposition_base_log(),
-                        d_multibit_bsk.decomp_level_count,
-                        d_multibit_bsk.decomp_base_log,
-                        d_multibit_bsk.grouping_factor,
-                        PBSType::MultiBit,
                         None,
                     );
                 }
@@ -295,15 +282,9 @@ impl CudaServerKey {
                         &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,
-                        d_bsk.glwe_dimension,
-                        d_bsk.polynomial_size,
-                        d_bsk.input_lwe_dimension,
+                        d_bsk,
                         computing_ks_key.decomposition_level_count(),
                         computing_ks_key.decomposition_base_log(),
-                        d_bsk.decomp_level_count,
-                        d_bsk.decomp_base_log,
-                        LweBskGroupingFactor(0),
-                        PBSType::Classical,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -316,15 +297,9 @@ impl CudaServerKey {
                         &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,
-                        d_multibit_bsk.glwe_dimension,
-                        d_multibit_bsk.polynomial_size,
-                        d_multibit_bsk.input_lwe_dimension,
+                        d_multibit_bsk,
                         computing_ks_key.decomposition_level_count(),
                         computing_ks_key.decomposition_base_log(),
-                        d_multibit_bsk.decomp_level_count,
-                        d_multibit_bsk.decomp_base_log,
-                        d_multibit_bsk.grouping_factor,
-                        PBSType::MultiBit,
                         None,
                     );
                 }
@@ -344,15 +319,9 @@ impl CudaServerKey {
                     streams,
                     self.message_modulus,
                     self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    d_bsk.input_lwe_dimension,
+                    d_bsk,
                     computing_ks_key.decomposition_level_count(),
                     computing_ks_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    LweBskGroupingFactor(0),
-                    PBSType::Classical,
                     d_bsk.ms_noise_reduction_configuration.as_ref(),
                 )
             }
@@ -361,15 +330,9 @@ impl CudaServerKey {
                     streams,
                     self.message_modulus,
                     self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    d_multibit_bsk.input_lwe_dimension,
+                    d_multibit_bsk,
                     computing_ks_key.decomposition_level_count(),
                     computing_ks_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
-                    PBSType::MultiBit,
                     None,
                 )
             }
