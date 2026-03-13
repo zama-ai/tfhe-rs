@@ -53,8 +53,12 @@ jobs:
             gpu:
               - tfhe/Cargo.toml
               - tfhe/build.rs
+              - backends/tfhe-cuda-backend/**
               - backends/zk-cuda-backend/**
-              - tfhe/src/integer/gpu/zk/**
+              - tfhe/src/core_crypto/gpu/**
+              - tfhe/src/integer/gpu/**
+              - tfhe/src/shortint/parameters/**
+              - tfhe/src/zk/**
               - tfhe-zk-pok/**
               - 'tfhe/docs/**/**.md'
               - '.github/workflows/gpu_zk_tests.yml'
