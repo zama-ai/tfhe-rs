@@ -26,7 +26,6 @@ use tfhe_zk_pok::proofs::pke_v2::{
     PublicCommit as PublicCommitV2, VerificationPairingMode,
 };
 
-#[cfg(not(feature = "gpu-experimental-zk"))]
 use tfhe_zk_pok::proofs::pke::prove as prove_v1;
 
 #[cfg(not(feature = "gpu-experimental-zk"))]
@@ -731,15 +730,6 @@ impl CompactPkeCrs {
                     public_params,
                 );
 
-                #[cfg(feature = "gpu-experimental-zk")]
-                let proof = tfhe_zk_pok::gpu::pke::prove(
-                    (public_params, &public_commit),
-                    &private_commit,
-                    metadata,
-                    load,
-                    &seed,
-                );
-                #[cfg(not(feature = "gpu-experimental-zk"))]
                 let proof = prove_v1(
                     (public_params, &public_commit),
                     &private_commit,

@@ -4,7 +4,6 @@
 //! type conversions between tfhe-zk-pok and zk-cuda-backend types,
 //! and GPU MSM helper functions used by the `pke` and `pke_v2` submodules.
 
-pub mod pke;
 pub mod pke_v2;
 
 #[cfg(test)]
