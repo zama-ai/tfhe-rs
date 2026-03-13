@@ -592,7 +592,7 @@ pub mod aes_ctr_generic_test {
                 let expected_byte = gen1.next().unwrap();
                 assert_eq!(
                     byte, expected_byte,
-                    "pre-fork bytes are not equal (byte index {i}), key={k:?}, t={t:?}, offset={offset:?}"
+                    "pre-fork bytes are not equal (byte index {i}), key={k:?}, t={t:?}, offset={offset:?} nc={nc:?}, nb={nb:?}, num_extra_bytes={num_extra_bytes}, bytes_per_parts={bytes_per_parts}"
                 );
             }
 
@@ -604,7 +604,7 @@ pub mod aes_ctr_generic_test {
                     let expected_byte = gen1.next().unwrap();
                     assert_eq!(
                         byte, expected_byte,
-                        "invalid byte at index {i} for child {child_i}, key={k:?}, t={t:?}, offset={offset:?}"
+                        "invalid byte at index {i} for child {child_i}, key={k:?}, t={t:?}, offset={offset:?}offset={offset:?} nc={nc:?}, nb={nb:?}, num_extra_bytes={num_extra_bytes}, bytes_per_parts={bytes_per_parts}"
                     );
                 }
                 assert!(
@@ -621,7 +621,7 @@ pub mod aes_ctr_generic_test {
             for i in 0..bytes_per_parts {
                 let byte = forked_gen.next().unwrap();
                 let expected_byte = gen1.next().unwrap();
-                assert_eq!(byte, expected_byte, "post-fork bytes are not equal (byte index {i}), got {byte}, expected {expected_byte}, key={k:?}, t={t:?}, offset={offset:?}");
+                assert_eq!(byte, expected_byte, "post-fork bytes are not equal (byte index {i}), got {byte}, expected {expected_byte}, key={k:?}, t={t:?}, offset={offset:?}, offset={offset:?} nc={nc:?}, nb={nb:?}, num_extra_bytes={num_extra_bytes}, bytes_per_parts={bytes_per_parts}");
             }
         }
     }
