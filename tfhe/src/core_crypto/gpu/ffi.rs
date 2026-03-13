@@ -859,6 +859,54 @@ pub fn cuda_modulus_switch_ciphertext<Scalar>(
     streams.synchronize();
 }
 
+#[allow(clippy::too_many_arguments)]
+pub fn cuda_modulus_switch_multi_bit_ciphertext<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    lwe_array_in: &mut CudaVec<T>,
+    log_modulus: u32,
+    polynomial_size: u32,
+    grouping_factor: u32,
+) {
+    unsafe {
+        cuda_modulus_switch_multi_bit_64_async(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            lwe_array_out.as_mut_c_ptr(0),
+            lwe_array_in.as_mut_c_ptr(0),
+            u32::try_from(lwe_array_in.len()).unwrap(),
+            log_modulus,
+            polynomial_size,
+            grouping_factor,
+        );
+    }
+    streams.synchronize();
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn cuda_modulus_switch_multi_bit_ciphertext_u128<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    lwe_array_in: &mut CudaVec<T>,
+    log_modulus: u32,
+    polynomial_size: u32,
+    grouping_factor: u32,
+) {
+    unsafe {
+        cuda_modulus_switch_multi_bit_128_async(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            lwe_array_out.as_mut_c_ptr(0),
+            lwe_array_in.as_mut_c_ptr(0),
+            u32::try_from(lwe_array_in.len()).unwrap(),
+            log_modulus,
+            polynomial_size,
+            grouping_factor,
+        );
+    }
+    streams.synchronize();
+}
+
 /// Addition of a vector of LWE ciphertexts
 ///
 /// # Safety
