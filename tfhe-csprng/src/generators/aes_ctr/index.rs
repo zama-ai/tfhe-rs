@@ -584,7 +584,7 @@ mod test {
             );
         }
 
-        // Test when the distance correctly subracts from "saturated" value
+        // Test when the distance correctly subtracts from "saturated" value
         for byte_index in 1..BYTES_PER_AES_CALL {
             let larger = TableIndex::FIRST.increased(u128::MAX).increased(1);
             let smaller = TableIndex::FIRST.increased(byte_index as u128);
