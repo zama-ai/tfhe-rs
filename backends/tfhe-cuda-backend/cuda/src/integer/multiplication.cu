@@ -122,16 +122,12 @@ void cuda_integer_mult_inplace_64_async(
 uint64_t scratch_cuda_integer_mult_inplace_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, bool const is_boolean_left,
     bool const is_boolean_right, uint32_t message_modulus,
-    uint32_t carry_modulus, uint32_t glwe_dimension, uint32_t lwe_dimension,
-    uint32_t polynomial_size, uint32_t pbs_base_log, uint32_t pbs_level,
-    uint32_t ks_base_log, uint32_t ks_level, uint32_t grouping_factor,
-    uint32_t num_radix_blocks, PBS_TYPE pbs_type, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
-  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          polynomial_size * glwe_dimension, lwe_dimension,
-                          ks_level, ks_base_log, pbs_level, pbs_base_log,
-                          grouping_factor, message_modulus, carry_modulus,
-                          noise_reduction_type);
+    uint32_t carry_modulus, CudaLweBootstrapKeyParamsFFI bsk_params,
+    uint32_t ks_base_log, uint32_t ks_level, uint32_t num_radix_blocks,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+  const uint32_t polynomial_size = bsk_params.polynomial_size;
+  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+                          carry_modulus, noise_reduction_type);
 
   switch (polynomial_size) {
   case 256:
@@ -164,20 +160,14 @@ void cleanup_cuda_integer_mult_inplace_64(CudaStreamsFFI streams,
 }
 
 uint64_t scratch_cuda_partial_sum_ciphertexts_vec_64_async(
-    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t lwe_dimension, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t num_blocks_in_radix,
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t num_blocks_in_radix,
     uint32_t max_num_radix_in_vec, uint32_t message_modulus,
-    uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool reduce_degrees_for_single_carry_propagation, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
-
-  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          glwe_dimension * polynomial_size, lwe_dimension,
-                          ks_level, ks_base_log, pbs_level, pbs_base_log,
-                          grouping_factor, message_modulus, carry_modulus,
-                          noise_reduction_type);
+    uint32_t carry_modulus, bool reduce_degrees_for_single_carry_propagation,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+                          carry_modulus, noise_reduction_type);
   return scratch_cuda_integer_partial_sum_ciphertexts_vec<uint64_t>(
       CudaStreams(streams),
       (int_sum_ciphertexts_vec_memory<uint64_t> **)mem_ptr, num_blocks_in_radix,

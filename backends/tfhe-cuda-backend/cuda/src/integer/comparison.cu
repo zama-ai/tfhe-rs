@@ -1,18 +1,14 @@
 #include "integer/comparison.cuh"
 
 uint64_t scratch_cuda_integer_comparison_64_async(
-    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t big_lwe_dimension,
-    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
-    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
-    uint32_t num_radix_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, COMPARISON_TYPE op_type, bool is_signed,
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t num_radix_blocks, uint32_t message_modulus,
+    uint32_t carry_modulus, COMPARISON_TYPE op_type, bool is_signed,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
   PUSH_RANGE("scratch comparison")
-  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          big_lwe_dimension, small_lwe_dimension, ks_level,
-                          ks_base_log, pbs_level, pbs_base_log, grouping_factor,
-                          message_modulus, carry_modulus, noise_reduction_type);
+  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+                          carry_modulus, noise_reduction_type);
 
   uint64_t size_tracker = 0;
   switch (op_type) {
@@ -38,18 +34,14 @@ uint64_t scratch_cuda_integer_comparison_64_async(
 }
 
 uint64_t scratch_cuda_integer_scalar_comparison_64_async(
-    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t big_lwe_dimension,
-    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
-    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
-    uint32_t num_radix_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, COMPARISON_TYPE op_type, bool is_signed,
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t num_radix_blocks, uint32_t message_modulus,
+    uint32_t carry_modulus, COMPARISON_TYPE op_type, bool is_signed,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
   PUSH_RANGE("scratch scalar comparison")
-  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          big_lwe_dimension, small_lwe_dimension, ks_level,
-                          ks_base_log, pbs_level, pbs_base_log, grouping_factor,
-                          message_modulus, carry_modulus, noise_reduction_type);
+  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+                          carry_modulus, noise_reduction_type);
 
   uint64_t size_tracker = 0;
   switch (op_type) {
@@ -151,18 +143,13 @@ void cleanup_cuda_integer_scalar_comparison_64(CudaStreamsFFI streams,
 }
 
 uint64_t scratch_cuda_integer_are_all_comparisons_block_true_64_async(
-    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t big_lwe_dimension,
-    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
-    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
-    uint32_t num_radix_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, bool allocate_gpu_memory,
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t num_radix_blocks, uint32_t message_modulus,
+    uint32_t carry_modulus, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type) {
-
-  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          big_lwe_dimension, small_lwe_dimension, ks_level,
-                          ks_base_log, pbs_level, pbs_base_log, grouping_factor,
-                          message_modulus, carry_modulus, noise_reduction_type);
+  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+                          carry_modulus, noise_reduction_type);
 
   return scratch_cuda_comparison_check<uint64_t>(
       CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,
@@ -196,18 +183,13 @@ void cleanup_cuda_integer_are_all_comparisons_block_true_64(
 }
 
 uint64_t scratch_cuda_integer_is_at_least_one_comparisons_block_true_64_async(
-    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t big_lwe_dimension,
-    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
-    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
-    uint32_t num_radix_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, bool allocate_gpu_memory,
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t num_radix_blocks, uint32_t message_modulus,
+    uint32_t carry_modulus, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type) {
-
-  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          big_lwe_dimension, small_lwe_dimension, ks_level,
-                          ks_base_log, pbs_level, pbs_base_log, grouping_factor,
-                          message_modulus, carry_modulus, noise_reduction_type);
+  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+                          carry_modulus, noise_reduction_type);
 
   return scratch_cuda_comparison_check<uint64_t>(
       CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,
