@@ -1,6 +1,6 @@
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{LweBskGroupingFactor, SignedNumeric};
+use crate::core_crypto::prelude::SignedNumeric;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
@@ -12,7 +12,7 @@ use crate::integer::gpu::server_key::{
 use crate::integer::gpu::{
     cuda_backend_get_full_propagate_assign_size_on_gpu,
     cuda_backend_get_propagate_single_carry_assign_size_on_gpu,
-    cuda_backend_scalar_addition_assign, PBSType,
+    cuda_backend_scalar_addition_assign,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::prelude::CastInto;
@@ -192,34 +192,22 @@ impl CudaServerKey {
                 CudaBootstrappingKey::Classic(d_bsk) => {
                     cuda_backend_get_full_propagate_assign_size_on_gpu(
                         streams,
-                        d_bsk.input_lwe_dimension(),
-                        d_bsk.glwe_dimension(),
-                        d_bsk.polynomial_size(),
+                        d_bsk,
                         computing_ks_key.decomposition_level_count(),
                         computing_ks_key.decomposition_base_log(),
-                        d_bsk.decomp_level_count(),
-                        d_bsk.decomp_base_log(),
                         self.message_modulus,
                         self.carry_modulus,
-                        PBSType::Classical,
-                        LweBskGroupingFactor(0),
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     )
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                     cuda_backend_get_full_propagate_assign_size_on_gpu(
                         streams,
-                        d_multibit_bsk.input_lwe_dimension(),
-                        d_multibit_bsk.glwe_dimension(),
-                        d_multibit_bsk.polynomial_size(),
+                        d_multibit_bsk,
                         computing_ks_key.decomposition_level_count(),
                         computing_ks_key.decomposition_base_log(),
-                        d_multibit_bsk.decomp_level_count(),
-                        d_multibit_bsk.decomp_base_log(),
                         self.message_modulus,
                         self.carry_modulus,
-                        PBSType::MultiBit,
-                        d_multibit_bsk.grouping_factor,
                         None,
                     )
                 }
@@ -231,18 +219,12 @@ impl CudaServerKey {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
                     streams,
-                    d_bsk.input_lwe_dimension(),
-                    d_bsk.glwe_dimension(),
-                    d_bsk.polynomial_size(),
+                    d_bsk,
                     computing_ks_key.decomposition_level_count(),
                     computing_ks_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count(),
-                    d_bsk.decomp_base_log(),
                     num_blocks,
                     self.message_modulus,
                     self.carry_modulus,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
                     OutputFlag::None,
                     d_bsk.ms_noise_reduction_configuration.as_ref(),
                 )
@@ -250,18 +232,12 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
                     streams,
-                    d_multibit_bsk.input_lwe_dimension(),
-                    d_multibit_bsk.glwe_dimension(),
-                    d_multibit_bsk.polynomial_size(),
+                    d_multibit_bsk,
                     computing_ks_key.decomposition_level_count(),
                     computing_ks_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count(),
-                    d_multibit_bsk.decomp_base_log(),
                     num_blocks,
                     self.message_modulus,
                     self.carry_modulus,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
                     OutputFlag::None,
                     None,
                 )
