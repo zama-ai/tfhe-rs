@@ -170,7 +170,7 @@ const HL_CLIENT_KEY_BATCH_2_FILENAME: &str = "batch_2_client_key";
 const HL_COMPACTLIST_TEST: HlHeterogeneousCiphertextListTest = HlHeterogeneousCiphertextListTest {
     test_filename: Cow::Borrowed("hl_heterogeneous_list"),
     key_filename: Cow::Borrowed(HL_CLIENT_KEY_BATCH_2_FILENAME),
-    clear_values: Cow::Borrowed(&[17u8 as u64, -12i8 as u64, false as u64, true as u64]),
+    clear_values: Cow::Borrowed(&[17u8 as i64, -12i8 as i64, false as i64, true as i64]),
     data_kinds: Cow::Borrowed(&[
         DataKind::Unsigned,
         DataKind::Signed,
@@ -195,7 +195,7 @@ const HL_COMPRESSED_LIST_TEST: HlHeterogeneousCiphertextListTest =
     HlHeterogeneousCiphertextListTest {
         test_filename: Cow::Borrowed("hl_compressed_heterogeneous_list"),
         key_filename: Cow::Borrowed(HL_CLIENT_KEY_BATCH_2_FILENAME),
-        clear_values: Cow::Borrowed(&[17u8 as u64, -12i8 as u64, false as u64, true as u64]),
+        clear_values: Cow::Borrowed(&[17u8 as i64, -12i8 as i64, false as i64, true as i64]),
         data_kinds: Cow::Borrowed(&[
             DataKind::Unsigned,
             DataKind::Signed,
@@ -210,7 +210,7 @@ const HL_PROVEN_COMPACTLIST_TEST: HlHeterogeneousCiphertextListTest =
     HlHeterogeneousCiphertextListTest {
         test_filename: Cow::Borrowed("hl_proven_heterogeneous_list"),
         key_filename: Cow::Borrowed(HL_CLIENT_KEY_BATCH_2_FILENAME),
-        clear_values: Cow::Borrowed(&[17u8 as u64, -12i8 as u64, false as u64, true as u64]),
+        clear_values: Cow::Borrowed(&[17u8 as i64, -12i8 as i64, false as i64, true as i64]),
         data_kinds: Cow::Borrowed(&[
             DataKind::Unsigned,
             DataKind::Signed,

@@ -256,7 +256,7 @@ pub fn test_hl_heterogeneous_ciphertext_list_elements<CtList: CiphertextList>(
 
 fn verify_expanded_values<CtList>(
     list: &CtList,
-    clear_values: &[u64],
+    clear_values: &[i64],
     data_kinds: &[DataKind],
     key: &ClientKey,
 ) -> Result<(), String>
@@ -333,7 +333,7 @@ fn test_hl_seeded_compact_list_core<T: TestType>(
     format: DataFormat,
     key_filename: &str,
     public_key_filename: &str,
-    clear_values: &[u64],
+    clear_values: &[i64],
     data_kinds: &[DataKind],
     seed: &[u8],
     zk_proof_info: Option<&ZkProofAuxiliaryInfo>,
@@ -960,21 +960,20 @@ pub fn test_hl_compressed_squashed_noise_ciphertext_list(
     }
 
     for i in 0..list.len() {
-        let decrypted = match test.data_kinds[i] {
+        let decrypted: i64 = match test.data_kinds[i] {
             DataKind::Unsigned => {
                 let ct: SquashedNoiseFheUint = list.get(i).unwrap().unwrap();
                 let clear: u64 = ct.decrypt(&key);
-                clear
+                clear as i64
             }
             DataKind::Signed => {
                 let ct: SquashedNoiseFheInt = list.get(i).unwrap().unwrap();
-                let clear: i64 = ct.decrypt(&key);
-                clear as u64
+                ct.decrypt(&key)
             }
             DataKind::Bool => {
                 let ct: SquashedNoiseFheBool = list.get(i).unwrap().unwrap();
                 let clear: bool = ct.decrypt(&key);
-                clear as u64
+                clear as i64
             }
         };
 

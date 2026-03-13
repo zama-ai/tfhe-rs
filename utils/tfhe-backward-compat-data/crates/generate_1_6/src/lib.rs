@@ -12,8 +12,8 @@ use tfhe::shortint::engine::ShortintEngine;
 use tfhe::xof_key_set::CompressedXofKeySet;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 use tfhe::{
-    set_server_key, ClientKey, CompactCiphertextList, CompactPublicKey, CompressedCompactPublicKey,
-    CompressedServerKey, ProvenCompactCiphertextList, Seed, ServerKey, Tag,
+    ClientKey, CompactCiphertextList, CompactPublicKey, CompressedCompactPublicKey,
+    CompressedServerKey, ProvenCompactCiphertextList, Seed, ServerKey, Tag, set_server_key,
 };
 use tfhe_backward_compat_data::generate::*;
 use tfhe_backward_compat_data::*;
@@ -36,7 +36,7 @@ const HL_SEEDED_COMPACT_LIST_TEST: HlSeededCompactCiphertextListTest =
         test_filename: Cow::Borrowed("hl_seeded_compact_list"),
         key_filename: Cow::Borrowed("seeded_client_key"),
         public_key_filename: Cow::Borrowed("seeded_compact_public_key"),
-        clear_values: Cow::Borrowed(&[17u64, 255u64, 0u64]),
+        clear_values: Cow::Borrowed(&[17, -1, 0]),
         data_kinds: Cow::Borrowed(&[DataKind::Unsigned, DataKind::Signed, DataKind::Bool]),
         seed: Cow::Borrowed(SEEDED_COMPACT_LIST_SEED),
     };
@@ -50,7 +50,7 @@ const HL_SEEDED_PROVEN_COMPACT_LIST_TEST: HlSeededProvenCompactCiphertextListTes
             params_filename: Cow::Borrowed("seeded_proven_zk_pke_crs"),
             metadata: Cow::Borrowed("backward_compat_seeded"),
         },
-        clear_values: Cow::Borrowed(&[17u64, 255u64, 0u64]),
+        clear_values: Cow::Borrowed(&[17, -1, 0]),
         data_kinds: Cow::Borrowed(&[DataKind::Unsigned, DataKind::Signed, DataKind::Bool]),
         seed: Cow::Borrowed(SEEDED_COMPACT_LIST_SEED),
     };

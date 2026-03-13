@@ -547,7 +547,7 @@ pub struct HlHeterogeneousCiphertextListTest {
     pub key_filename: Cow<'static, str>,
     pub compressed: bool,
     pub proof_info: Option<PkeZkProofAuxiliaryInfo>,
-    pub clear_values: Cow<'static, [u64]>,
+    pub clear_values: Cow<'static, [i64]>,
     pub data_kinds: Cow<'static, [DataKind]>,
 }
 
@@ -570,7 +570,7 @@ pub struct HlSeededCompactCiphertextListTest {
     pub test_filename: Cow<'static, str>,
     pub key_filename: Cow<'static, str>,
     pub public_key_filename: Cow<'static, str>,
-    pub clear_values: Cow<'static, [u64]>,
+    pub clear_values: Cow<'static, [i64]>,
     pub data_kinds: Cow<'static, [DataKind]>,
     pub seed: Cow<'static, [u8]>,
 }
@@ -595,7 +595,7 @@ pub struct HlSeededProvenCompactCiphertextListTest {
     pub key_filename: Cow<'static, str>,
     pub public_key_filename: Cow<'static, str>,
     pub proof_info: ZkProofAuxiliaryInfo,
-    pub clear_values: Cow<'static, [u64]>,
+    pub clear_values: Cow<'static, [i64]>,
     pub data_kinds: Cow<'static, [DataKind]>,
     pub seed: Cow<'static, [u8]>,
 }
@@ -618,7 +618,7 @@ impl TestType for HlSeededProvenCompactCiphertextListTest {
 pub struct HlCompressedSquashedNoiseCiphertextListTest {
     pub test_filename: Cow<'static, str>,
     pub key_filename: Cow<'static, str>,
-    pub clear_values: Cow<'static, [u64]>,
+    pub clear_values: Cow<'static, [i64]>,
     pub data_kinds: Cow<'static, [DataKind]>,
 }
 
