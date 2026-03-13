@@ -198,7 +198,7 @@
             proof_info: None,
             clear_values: [
                 17,
-                18446744073709551604,
+                -12,
                 0,
                 1,
             ],
@@ -220,7 +220,7 @@
             proof_info: None,
             clear_values: [
                 17,
-                18446744073709551604,
+                -12,
                 0,
                 1,
             ],
@@ -242,7 +242,7 @@
             proof_info: None,
             clear_values: [
                 17,
-                18446744073709551604,
+                -12,
                 0,
                 1,
             ],
@@ -268,7 +268,7 @@
             )),
             clear_values: [
                 17,
-                18446744073709551604,
+                -12,
                 0,
                 1,
             ],
@@ -398,7 +398,7 @@
             )),
             clear_values: [
                 17,
-                18446744073709551604,
+                -12,
                 0,
                 1,
             ],
@@ -571,7 +571,7 @@
             )),
             clear_values: [
                 17,
-                18446744073709551604,
+                -12,
                 0,
                 1,
             ],
@@ -630,7 +630,7 @@
             key_filename: "client_key_with_noise_squashing",
             clear_values: [
                 54679568,
-                18446744073697155244,
+                -12396372,
                 12396372,
                 0,
                 1,
@@ -892,7 +892,7 @@
             public_key_filename: "seeded_compact_public_key",
             clear_values: [
                 17,
-                255,
+                -1,
                 0,
             ],
             data_kinds: [
@@ -933,7 +933,7 @@
             ),
             clear_values: [
                 17,
-                255,
+                -1,
                 0,
             ],
             data_kinds: [
