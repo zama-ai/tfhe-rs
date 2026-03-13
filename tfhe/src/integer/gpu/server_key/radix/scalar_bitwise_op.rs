@@ -1,12 +1,11 @@
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaDynamicKeyswitchingKey};
 use crate::integer::gpu::{
     cuda_backend_get_full_propagate_assign_size_on_gpu, cuda_backend_get_scalar_bitop_size_on_gpu,
-    cuda_backend_unchecked_scalar_bitop_assign, BitOpType, CudaServerKey, PBSType,
+    cuda_backend_unchecked_scalar_bitop_assign, BitOpType, CudaServerKey,
 };
 
 impl CudaServerKey {
@@ -36,6 +35,18 @@ impl CudaServerKey {
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
+                    assert_eq!(
+                        computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                        d_bsk.input_lwe_dimension,
+                        "KS key output LWE dimension mismatch with BSK input LWE dimension"
+                    );
+                    assert_eq!(
+                        computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
+                        d_bsk
+                            .glwe_dimension
+                            .to_equivalent_lwe_dimension(d_bsk.polynomial_size),
+                        "KS key input LWE dimension mismatch with BSK big LWE dimension"
+                    );
                     cuda_backend_unchecked_scalar_bitop_assign(
                         streams,
                         ct.as_mut(),
@@ -45,22 +56,27 @@ impl CudaServerKey {
                         &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,
-                        d_bsk.glwe_dimension,
-                        d_bsk.polynomial_size,
-                        computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
-                        computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                        d_bsk,
                         computing_ks_key.decomposition_level_count(),
                         computing_ks_key.decomposition_base_log(),
-                        d_bsk.decomp_level_count,
-                        d_bsk.decomp_base_log,
                         op,
                         lwe_ciphertext_count.0 as u32,
-                        PBSType::Classical,
-                        LweBskGroupingFactor(0),
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    assert_eq!(
+                        computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                        d_multibit_bsk.input_lwe_dimension,
+                        "KS key output LWE dimension mismatch with BSK input LWE dimension"
+                    );
+                    assert_eq!(
+                        computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
+                        d_multibit_bsk
+                            .glwe_dimension
+                            .to_equivalent_lwe_dimension(d_multibit_bsk.polynomial_size),
+                        "KS key input LWE dimension mismatch with BSK big LWE dimension"
+                    );
                     cuda_backend_unchecked_scalar_bitop_assign(
                         streams,
                         ct.as_mut(),
@@ -70,18 +86,11 @@ impl CudaServerKey {
                         &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,
-                        d_multibit_bsk.glwe_dimension,
-                        d_multibit_bsk.polynomial_size,
-                        computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
-                        computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                        d_multibit_bsk,
                         computing_ks_key.decomposition_level_count(),
                         computing_ks_key.decomposition_base_log(),
-                        d_multibit_bsk.decomp_level_count,
-                        d_multibit_bsk.decomp_base_log,
                         op,
                         lwe_ciphertext_count.0 as u32,
-                        PBSType::MultiBit,
-                        d_multibit_bsk.grouping_factor,
                         None,
                     );
                 }
@@ -248,34 +257,22 @@ impl CudaServerKey {
                 CudaBootstrappingKey::Classic(d_bsk) => {
                     cuda_backend_get_full_propagate_assign_size_on_gpu(
                         streams,
-                        d_bsk.input_lwe_dimension(),
-                        d_bsk.glwe_dimension(),
-                        d_bsk.polynomial_size(),
+                        d_bsk,
                         computing_ks_key.decomposition_level_count(),
                         computing_ks_key.decomposition_base_log(),
-                        d_bsk.decomp_level_count(),
-                        d_bsk.decomp_base_log(),
                         self.message_modulus,
                         self.carry_modulus,
-                        PBSType::Classical,
-                        LweBskGroupingFactor(0),
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     )
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                     cuda_backend_get_full_propagate_assign_size_on_gpu(
                         streams,
-                        d_multibit_bsk.input_lwe_dimension(),
-                        d_multibit_bsk.glwe_dimension(),
-                        d_multibit_bsk.polynomial_size(),
+                        d_multibit_bsk,
                         computing_ks_key.decomposition_level_count(),
                         computing_ks_key.decomposition_base_log(),
-                        d_multibit_bsk.decomp_level_count(),
-                        d_multibit_bsk.decomp_base_log(),
                         self.message_modulus,
                         self.carry_modulus,
-                        PBSType::MultiBit,
-                        d_multibit_bsk.grouping_factor,
                         None,
                     )
                 }
@@ -284,41 +281,53 @@ impl CudaServerKey {
         let clear_blocks_mem = (lwe_ciphertext_count.0 * size_of::<u64>()) as u64;
 
         let scalar_bitop_mem = match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => cuda_backend_get_scalar_bitop_size_on_gpu(
-                streams,
-                self.message_modulus,
-                self.carry_modulus,
-                d_bsk.glwe_dimension,
-                d_bsk.polynomial_size,
-                computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
-                computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
-                computing_ks_key.decomposition_level_count(),
-                computing_ks_key.decomposition_base_log(),
-                d_bsk.decomp_level_count,
-                d_bsk.decomp_base_log,
-                op,
-                lwe_ciphertext_count.0 as u32,
-                PBSType::Classical,
-                LweBskGroupingFactor(0),
-                d_bsk.ms_noise_reduction_configuration.as_ref(),
-            ),
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                assert_eq!(
+                    computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                    d_bsk.input_lwe_dimension,
+                    "KS key output LWE dimension mismatch with BSK input LWE dimension"
+                );
+                assert_eq!(
+                    computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
+                    d_bsk
+                        .glwe_dimension
+                        .to_equivalent_lwe_dimension(d_bsk.polynomial_size),
+                    "KS key input LWE dimension mismatch with BSK big LWE dimension"
+                );
                 cuda_backend_get_scalar_bitop_size_on_gpu(
                     streams,
                     self.message_modulus,
                     self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
-                    computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                    d_bsk,
                     computing_ks_key.decomposition_level_count(),
                     computing_ks_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
                     op,
                     lwe_ciphertext_count.0 as u32,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
+                    d_bsk.ms_noise_reduction_configuration.as_ref(),
+                )
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                assert_eq!(
+                    computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                    d_multibit_bsk.input_lwe_dimension,
+                    "KS key output LWE dimension mismatch with BSK input LWE dimension"
+                );
+                assert_eq!(
+                    computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
+                    d_multibit_bsk
+                        .glwe_dimension
+                        .to_equivalent_lwe_dimension(d_multibit_bsk.polynomial_size),
+                    "KS key input LWE dimension mismatch with BSK big LWE dimension"
+                );
+                cuda_backend_get_scalar_bitop_size_on_gpu(
+                    streams,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_multibit_bsk,
+                    computing_ks_key.decomposition_level_count(),
+                    computing_ks_key.decomposition_base_log(),
+                    op,
+                    lwe_ciphertext_count.0 as u32,
                     None,
                 )
             }

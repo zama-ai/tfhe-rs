@@ -5,6 +5,11 @@ use crate::core_crypto::prelude::{
     GlweDimension, LweBootstrapKey, LweDimension, PolynomialSize, UnsignedInteger,
 };
 use crate::shortint::server_key::ModulusSwitchConfiguration;
+use tfhe_cuda_backend::bindings::{CudaLweBootstrapKeyParamsFFI, PBS_TYPE_CLASSICAL};
+
+pub(crate) trait CudaBskParams {
+    fn params_ffi(&self) -> CudaLweBootstrapKeyParamsFFI;
+}
 
 #[derive(Clone, Debug)]
 pub enum CudaModulusSwitchNoiseReductionConfiguration {
@@ -127,5 +132,25 @@ impl CudaLweBootstrapKey {
     }
     pub(crate) fn decomp_level_count(&self) -> DecompositionLevelCount {
         self.decomp_level_count
+    }
+}
+
+impl CudaBskParams for CudaLweBootstrapKey {
+    fn params_ffi(&self) -> CudaLweBootstrapKeyParamsFFI {
+        CudaLweBootstrapKeyParamsFFI {
+            input_lwe_dimension: u32::try_from(self.input_lwe_dimension.0).unwrap(),
+            glwe_dimension: u32::try_from(self.glwe_dimension.0).unwrap(),
+            polynomial_size: u32::try_from(self.polynomial_size.0).unwrap(),
+            base_log: u32::try_from(self.decomp_base_log.0).unwrap(),
+            level_count: u32::try_from(self.decomp_level_count.0).unwrap(),
+            big_lwe_dimension: u32::try_from(
+                self.glwe_dimension
+                    .to_equivalent_lwe_dimension(self.polynomial_size)
+                    .0,
+            )
+            .unwrap(),
+            pbs_type: PBS_TYPE_CLASSICAL,
+            grouping_factor: 0,
+        }
     }
 }
