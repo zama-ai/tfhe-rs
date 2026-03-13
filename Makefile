@@ -1602,7 +1602,7 @@ bench_msm_zk_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench zk-msm \
-	--features=gpu,gpu-experimental-zk,zk-pok -p tfhe-benchmark --profile release --
+	--features=gpu,gpu-experimental-zk,zk-pok -p tfhe-benchmark --profile release -- zk::cuda::msm
 
 .PHONY: bench_integer_zk_gpu
 bench_integer_zk_gpu: install_rs_check_toolchain
