@@ -13,7 +13,7 @@ use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::tests_noise_distribution::utils::noise_simulation::CudaDynLwe;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_stringified_test;
 use crate::integer::gpu::server_key::radix::CudaBlockInfo;
-use crate::integer::gpu::server_key::CudaServerKey;
+use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::unchecked_small_scalar_mul_integer;
 use crate::integer::{CompressedServerKey, IntegerCiphertext};
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
@@ -21,6 +21,7 @@ use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
 use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{AtomicPatternParameters, MetaParameters};
 use crate::shortint::server_key::tests::noise_distribution::dp_ks_ms::dp_ks_any_ms;
@@ -96,6 +97,7 @@ fn sanity_check_encrypt_dp_ks_pbs_gpu(meta_params: MetaParameters, filename_suff
     };
 
     let mut cuda_side_resources = CudaSideResources::new(&streams, block_info);
+    cuda_side_resources.configure_from_server_key(&cuda_sks);
 
     type SanityVec = (LweCiphertext<Vec<u64>>, LweCiphertext<Vec<u64>>);
     let mut results: Vec<SanityVec> = Vec::new();
@@ -189,6 +191,7 @@ fn sanity_check_encrypt_dp_ks_pbs_gpu(meta_params: MetaParameters, filename_suff
 create_gpu_parameterized_stringified_test!(sanity_check_encrypt_dp_ks_pbs_gpu {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 use crate::shortint::CarryModulus;
@@ -235,6 +238,7 @@ fn encrypt_dp_ks_any_ms_inner_helper_gpu(
     };
 
     let mut cuda_side_resources = CudaSideResources::new(streams, block_info);
+    cuda_side_resources.configure_from_server_key(cuda_sks);
 
     let (input_gpu, after_dp_gpu, after_ks_gpu, after_drift_gpu, after_ms_gpu) = dp_ks_any_ms(
         gpu_sample_input,
@@ -413,6 +417,7 @@ fn noise_check_encrypt_dp_ks_ms_noise_gpu(meta_params: MetaParameters, filename_
             noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
         };
         let mut side_resources = CudaSideResources::new(&streams, block_info);
+        side_resources.configure_from_server_key(&cuda_sks);
 
         let (_input, _after_dp, _after_ks, _after_drift, after_ms) = dp_ks_any_ms(
             gpu_sample_input,
@@ -508,6 +513,7 @@ fn noise_check_encrypt_dp_ks_ms_noise_gpu(meta_params: MetaParameters, filename_
 create_gpu_parameterized_stringified_test!(noise_check_encrypt_dp_ks_ms_noise_gpu {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 fn noise_check_encrypt_dp_ks_ms_pfail_gpu(meta_params: MetaParameters, filename_suffix: &str) {
@@ -605,4 +611,5 @@ fn noise_check_encrypt_dp_ks_ms_pfail_gpu(meta_params: MetaParameters, filename_
 create_gpu_parameterized_stringified_test!(noise_check_encrypt_dp_ks_ms_pfail_gpu {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });

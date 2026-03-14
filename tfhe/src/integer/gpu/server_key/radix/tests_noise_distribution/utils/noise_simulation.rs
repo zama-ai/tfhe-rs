@@ -15,7 +15,9 @@ use crate::core_crypto::gpu::lwe_bootstrap_key::CudaModulusSwitchNoiseReductionC
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{cuda_modulus_switch_ciphertext, CudaStreams};
+use crate::core_crypto::gpu::{
+    cuda_modulus_switch_ciphertext, cuda_modulus_switch_multi_bit_ciphertext, CudaStreams,
+};
 use crate::core_crypto::prelude::*;
 use crate::integer::gpu::ciphertext::info::CudaBlockInfo;
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
@@ -37,6 +39,10 @@ use tfhe_cuda_backend::bindings::cuda_centered_modulus_switch_64_async;
 pub struct CudaSideResources {
     pub streams: CudaStreams,
     pub block_info: CudaBlockInfo,
+    /// Polynomial size required for multi-bit modulus switch; None for classic PBS
+    pub polynomial_size: Option<PolynomialSize>,
+    /// Grouping factor required for allocation and execution of multi-bit modulus switch
+    pub multi_bit_grouping_factor: Option<LweBskGroupingFactor>,
 }
 
 impl CudaSideResources {
@@ -44,6 +50,17 @@ impl CudaSideResources {
         Self {
             streams: streams.clone(),
             block_info,
+            polynomial_size: None,
+            multi_bit_grouping_factor: None,
+        }
+    }
+
+    /// Populate multi-bit mod switch parameters from the server key's bootstrapping key.
+    /// For classic PBS, this is a no-op.
+    pub fn configure_from_server_key(&mut self, sks: &CudaServerKey) {
+        if let CudaBootstrappingKey::MultiBit(mb_bsk) = &sks.bootstrapping_key {
+            self.polynomial_size = Some(mb_bsk.polynomial_size());
+            self.multi_bit_grouping_factor = Some(mb_bsk.grouping_factor());
         }
     }
 }
@@ -586,8 +603,9 @@ impl CudaServerKey {
                     NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction
                 }
             },
-            CudaBootstrappingKey::MultiBit(_) => {
-                todo!()
+            // Multi-bit PBS uses a grouping-factor-based modulus switch
+            CudaBootstrappingKey::MultiBit(mb_bsk) => {
+                NoiseSimulationModulusSwitchConfig::MultiBit(mb_bsk.grouping_factor())
             }
         }
     }
@@ -604,8 +622,9 @@ impl CudaNoiseSquashingKey {
                     NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction
                 }
             },
-            CudaBootstrappingKey::MultiBit(_) => {
-                todo!()
+            // Multi-bit PBS uses a grouping-factor-based modulus switch
+            CudaBootstrappingKey::MultiBit(mb_bsk) => {
+                NoiseSimulationModulusSwitchConfig::MultiBit(mb_bsk.grouping_factor())
             }
         }
     }
@@ -958,13 +977,29 @@ impl AllocateMultiBitModSwitchResult for CudaDynLwe {
 
     fn allocate_multi_bit_mod_switch_result(
         &self,
-        _side_resources: &mut Self::SideResources,
+        side_resources: &mut Self::SideResources,
     ) -> Self::Output {
-        todo!(
-            "TODO: the output type likely needs to be a specialized enum CudaDynModSwitchedLwe\n\
-            See shortint CPU impls, the standard mod switch results likely \
-            need an update for the output type"
-        )
+        // The multi-bit mod switch outputs (1 << grouping_factor) modulus-switched variants per
+        // input ciphertext, interleaved in the output buffer
+        let grouping_factor = side_resources
+            .multi_bit_grouping_factor
+            .expect("multi_bit_grouping_factor must be set in CudaSideResources for multi-bit mod switch");
+        let num_output_cts = 1usize << grouping_factor.0;
+
+        match self {
+            Self::U64(cuda_lwe) => {
+                let new_cuda_lwe = CudaLweCiphertextList::new(
+                    cuda_lwe.lwe_dimension(),
+                    LweCiphertextCount(num_output_cts),
+                    cuda_lwe.ciphertext_modulus(),
+                    &side_resources.streams,
+                );
+                Self::U64(new_cuda_lwe)
+            }
+            Self::U32(_) | Self::U128(_) => {
+                panic!("Multi-bit mod switch is only supported for U64 CudaDynLwe")
+            }
+        }
     }
 }
 
@@ -973,16 +1008,31 @@ impl MultiBitModSwitch<Self> for CudaDynLwe {
 
     fn multi_bit_mod_switch(
         &self,
-        _grouping_factor: LweBskGroupingFactor,
-        _output_modulus_log: CiphertextModulusLog,
-        _output: &mut Self,
-        _side_resources: &mut Self::SideResources,
+        grouping_factor: LweBskGroupingFactor,
+        output_modulus_log: CiphertextModulusLog,
+        output: &mut Self,
+        side_resources: &mut Self::SideResources,
     ) {
-        todo!(
-            "TODO: the output type likely needs to be a specialized enum CudaDynModSwitchedLwe\n\
-            See shortint CPU impls, the standard mod switch results likely \
-            need an update for the output type"
-        )
+        let polynomial_size = side_resources
+            .polynomial_size
+            .expect("polynomial_size must be set in CudaSideResources for multi-bit mod switch");
+
+        match (self, output) {
+            (Self::U64(input), Self::U64(output_cuda_lwe)) => {
+                // Duplicate input so we can pass a mutable reference (the kernel reads from it
+                // in-place even though the signature requires &mut)
+                let mut input_copy = input.duplicate(&side_resources.streams);
+                cuda_modulus_switch_multi_bit_ciphertext(
+                    &side_resources.streams,
+                    &mut output_cuda_lwe.0.d_vec,
+                    &mut input_copy.0.d_vec,
+                    output_modulus_log.0 as u32,
+                    polynomial_size.0 as u32,
+                    grouping_factor.0 as u32,
+                );
+            }
+            _ => panic!("Multi-bit mod switch is only supported for U64 CudaDynLwe"),
+        }
     }
 }
 
