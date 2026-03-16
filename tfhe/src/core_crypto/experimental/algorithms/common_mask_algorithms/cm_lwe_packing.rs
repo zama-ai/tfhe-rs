@@ -1,0 +1,117 @@
+//! Module containing primitives pertaining to `CommonMask LWE ciphertext
+//! packing`.
+
+use crate::core_crypto::algorithms::slice_algorithms::*;
+use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
+use crate::core_crypto::commons::numeric::UnsignedInteger;
+use crate::core_crypto::commons::traits::*;
+use crate::core_crypto::entities::*;
+use crate::core_crypto::experimental::prelude::{CmLweCiphertext, CmLwePackingKey};
+use itertools::Itertools;
+
+pub fn pack_lwe_ciphertexts_into_cm<Scalar, KSKCont, InputCont, OutputCont>(
+    cm_lwe_packing_key: &CmLwePackingKey<KSKCont>,
+    // TODO: support both &[LweCiphertext] and &LweCiphertextList
+    input_lwe_ciphertexts: &[LweCiphertext<InputCont>],
+    output_cm_lwe_ciphertext: &mut CmLweCiphertext<OutputCont>,
+) where
+    Scalar: UnsignedInteger,
+    KSKCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
+    let input_ciphertext_modulus = input_lwe_ciphertexts[0].ciphertext_modulus();
+
+    for input_lwe_ciphertext in input_lwe_ciphertexts {
+        assert_eq!(
+            cm_lwe_packing_key.input_key_lwe_dimension(),
+            input_lwe_ciphertext.lwe_size().to_lwe_dimension(),
+            "Mismatched input LweDimension. \
+        CmLwePackingKey input LweDimension: {:?}, input LweCiphertext LweDimension {:?}.",
+            cm_lwe_packing_key.input_key_lwe_dimension(),
+            input_lwe_ciphertext.lwe_size().to_lwe_dimension(),
+        );
+
+        assert_eq!(
+            input_lwe_ciphertext.ciphertext_modulus(),
+            input_ciphertext_modulus,
+        );
+    }
+
+    assert_eq!(
+        cm_lwe_packing_key.output_lwe_dimension(),
+        output_cm_lwe_ciphertext.lwe_dimension(),
+        "Mismatched output LweDimension. \
+        CmLwePackingKey output LweDimension: {:?}, output LweCiphertext LweDimension {:?}.",
+        cm_lwe_packing_key.output_lwe_dimension(),
+        output_cm_lwe_ciphertext.lwe_dimension(),
+    );
+
+    assert_eq!(
+        cm_lwe_packing_key.output_cm_dimension(),
+        output_cm_lwe_ciphertext.cm_dimension(),
+        "Mismatched output LweDimension. \
+        CmLwePackingKey output LweDimension: {:?}, output LweCiphertext LweDimension {:?}.",
+        cm_lwe_packing_key.output_lwe_dimension(),
+        output_cm_lwe_ciphertext.lwe_dimension(),
+    );
+
+    let output_ciphertext_modulus = output_cm_lwe_ciphertext.ciphertext_modulus();
+
+    assert_eq!(
+        cm_lwe_packing_key.ciphertext_modulus(),
+        output_ciphertext_modulus,
+        "Mismatched CiphertextModulus. \
+        CmLwePackingKey CiphertextModulus: {:?}, output LweCiphertext CiphertextModulus {:?}.",
+        cm_lwe_packing_key.ciphertext_modulus(),
+        output_ciphertext_modulus
+    );
+    assert!(
+        output_ciphertext_modulus.is_compatible_with_native_modulus(),
+        "This operation currently only supports power of 2 moduli"
+    );
+
+    assert!(
+        input_ciphertext_modulus.is_compatible_with_native_modulus(),
+        "This operation currently only supports power of 2 moduli"
+    );
+
+    // Clear the output ciphertext, as it will get updated gradually
+    output_cm_lwe_ciphertext.as_mut().fill(Scalar::ZERO);
+
+    for (i, (key_part, input_lwe_ciphertext)) in cm_lwe_packing_key
+        .iter()
+        .zip_eq(input_lwe_ciphertexts.iter())
+        .enumerate()
+    {
+        let mut bodies = output_cm_lwe_ciphertext.get_mut_bodies();
+
+        let body = &mut bodies.as_mut()[i];
+
+        *body = body.wrapping_add(*input_lwe_ciphertext.get_body().data);
+
+        // We instantiate a decomposer
+        let decomposer = SignedDecomposer::new(
+            cm_lwe_packing_key.decomposition_base_log(),
+            cm_lwe_packing_key.decomposition_level_count(),
+        );
+
+        for (keyswitch_key_block, &input_mask_element) in key_part
+            .iter()
+            .zip_eq(input_lwe_ciphertext.get_mask().as_ref())
+        {
+            let decomposition_iter = decomposer.decompose(input_mask_element);
+            // Loop over the levels
+
+            for (level_key_ciphertext, decomposed) in
+                keyswitch_key_block.iter().zip_eq(decomposition_iter)
+            {
+                slice_wrapping_sub_scalar_mul_assign(
+                    output_cm_lwe_ciphertext.as_mut(),
+                    level_key_ciphertext.into_container(),
+                    decomposed.value(),
+                );
+            }
+        }
+    }
+}
