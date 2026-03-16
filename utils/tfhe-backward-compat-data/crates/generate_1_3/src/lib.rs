@@ -42,7 +42,7 @@ const HL_PROVEN_COMPACTLIST_TEST_ZKV2_FASTHASH: HlHeterogeneousCiphertextListTes
     HlHeterogeneousCiphertextListTest {
         test_filename: Cow::Borrowed("hl_proven_heterogeneous_list_zkv2_fasthash"),
         key_filename: Cow::Borrowed("client_key"),
-        clear_values: Cow::Borrowed(&[17u8 as u64, -12i8 as u64, false as u64, true as u64]),
+        clear_values: Cow::Borrowed(&[17u8 as i64, -12i8 as i64, false as i64, true as i64]),
         data_kinds: Cow::Borrowed(&[
             DataKind::Unsigned,
             DataKind::Signed,
@@ -74,11 +74,11 @@ const HL_COMPRESSED_SQUASHED_NOISE_CIPHERTEXT_LIST: HlCompressedSquashedNoiseCip
         test_filename: Cow::Borrowed("hl_compressed_squashed_noise_ciphertext_list"),
         key_filename: Cow::Borrowed("client_key_with_noise_squashing"),
         clear_values: Cow::Borrowed(&[
-            54679568u32 as u64,
-            -12396372i32 as u64,
-            12396372i32 as u64,
-            false as u64,
-            true as u64,
+            54679568u32 as i64,
+            -12396372i32 as i64,
+            12396372i32 as i64,
+            false as i64,
+            true as i64,
         ]),
         data_kinds: Cow::Borrowed(&[
             DataKind::Unsigned,

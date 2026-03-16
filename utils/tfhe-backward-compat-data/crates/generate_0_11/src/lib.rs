@@ -44,7 +44,7 @@ const HL_PROVEN_COMPACTLIST_TEST_ZKV2: HlHeterogeneousCiphertextListTest =
     HlHeterogeneousCiphertextListTest {
         test_filename: Cow::Borrowed("hl_proven_heterogeneous_list_zkv2"),
         key_filename: HL_CLIENTKEY_TEST.test_filename,
-        clear_values: Cow::Borrowed(&[17u8 as u64, -12i8 as u64, false as u64, true as u64]),
+        clear_values: Cow::Borrowed(&[17u8 as i64, -12i8 as i64, false as i64, true as i64]),
         data_kinds: Cow::Borrowed(&[
             DataKind::Unsigned,
             DataKind::Signed,

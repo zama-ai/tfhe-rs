@@ -144,11 +144,8 @@ fn cpk_ks_any_ms_inner_helper(
     let modulus_switch_config = sks.noise_simulation_modulus_switch_config();
 
     let ct = {
-        let compact_list = cpk.encrypt_iter_with_modulus_with_engine(
-            core::iter::once(msg),
-            cpk.parameters.message_modulus.0,
-            &mut engine,
-        );
+        let compact_list =
+            cpk.encrypt_iter_with_modulus(core::iter::once(msg), cpk.parameters.message_modulus.0);
         let mut expanded = compact_list
             .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
             .unwrap();
@@ -574,12 +571,8 @@ fn sanity_check_encrypt_cpk_ks_ms_pbs(meta_params: MetaParameters, filename_suff
 
     for _ in 0..10 {
         let (sample_input, shortint_res) = {
-            let mut engine = ShortintEngine::new();
-            let no_casting_compact_list = cpk.encrypt_iter_with_modulus_with_engine(
-                core::iter::once(0),
-                cpk.parameters.message_modulus.0,
-                &mut engine,
-            );
+            let no_casting_compact_list = cpk
+                .encrypt_iter_with_modulus(core::iter::once(0), cpk.parameters.message_modulus.0);
 
             let mut shortint_casting_compact_list = no_casting_compact_list.clone();
             shortint_casting_compact_list.expansion_kind = orig_cast_mode;

@@ -351,7 +351,7 @@ impl<G: Curve> PublicParams<G> {
 
 /// This represents a proof that the given ciphertext is a valid encryptions of the input messages
 /// with the provided public key.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
 #[serde(bound(
     deserialize = "G: Curve, G::G1: serde::Deserialize<'de>, G::G2: serde::Deserialize<'de>",
     serialize = "G: Curve, G::G1: serde::Serialize, G::G2: serde::Serialize"
@@ -428,7 +428,7 @@ impl<G: Curve> Proof<G> {
 
 /// These fields can be pre-computed on the prover side in the faster Verifier scheme. If that's the
 /// case, they should be included in the proof.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(ComputeLoadProofFieldsVersions)]
 pub(crate) struct ComputeLoadProofFields<G: Curve> {
     pub(crate) C_hat_h3: G::G2,
