@@ -1,8 +1,10 @@
 use crate::conformance::ParameterSetConformant;
+use crate::core_crypto::commons::generators::NoiseRandomGenerator;
+use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, XofSeed};
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_binary_lwe_secret_key,
     allocate_and_generate_new_seeded_lwe_compact_public_key, generate_lwe_compact_public_key,
-    Cleartext, Container, LweCiphertextCount, LweCompactCiphertextListOwned,
+    new_seeder, Cleartext, Container, LweCiphertextCount, LweCompactCiphertextListOwned,
     LweCompactPublicKeyConformanceParams, LweCompactPublicKeyOwned, LweSecretKey, Plaintext,
     PlaintextList, SeededLweCompactPublicKeyOwned,
 };
@@ -23,7 +25,6 @@ use crate::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
-
 /// Private key from which a [`CompactPublicKey`] can be built.
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
 #[versionize(CompactPrivateKeyVersions)]
@@ -326,17 +327,18 @@ impl CompactPublicKey {
         messages: impl Iterator<Item = u64>,
         encryption_modulus: u64,
     ) -> CompactCiphertextList {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            self.encrypt_iter_with_modulus_with_engine(messages, encryption_modulus, engine)
-        })
+        let seed = new_seeder().seed();
+        self.encrypt_iter_with_modulus_seeded(messages, encryption_modulus, &seed.0.to_le_bytes())
+            .expect("internal error: seed from seeder is always 16 bytes")
     }
 
-    pub fn encrypt_iter_with_modulus_with_engine(
+    pub fn encrypt_iter_with_modulus_seeded(
         &self,
         messages: impl Iterator<Item = u64>,
         encryption_modulus: u64,
-        engine: &mut ShortintEngine,
-    ) -> CompactCiphertextList {
+        seed: &[u8],
+    ) -> crate::Result<CompactCiphertextList> {
+        let mut noise_generator = noise_generator_from_seed(seed)?;
         let plaintext_container =
             to_plaintext_iterator(messages, encryption_modulus, &self.parameters)
                 .map(|plaintext| plaintext.0)
@@ -362,7 +364,7 @@ impl CompactPublicKey {
                 &plaintext_list,
                 encryption_noise_distribution,
                 encryption_noise_distribution,
-                engine.encryption_generator.noise_generator_mut(),
+                &mut noise_generator,
             );
         }
 
@@ -376,18 +378,18 @@ impl CompactPublicKey {
                 &plaintext_list,
                 encryption_noise_distribution,
                 encryption_noise_distribution,
-                engine.encryption_generator.noise_generator_mut(),
+                &mut noise_generator,
             );
         }
 
         let message_modulus = self.parameters.message_modulus;
-        CompactCiphertextList {
+        Ok(CompactCiphertextList {
             ct_list,
             degree: Degree::new(encryption_modulus - 1),
             message_modulus,
             carry_modulus: self.parameters.carry_modulus,
             expansion_kind: self.parameters.expansion_kind,
-        }
+        })
     }
 
     #[cfg(feature = "zk-pok")]
@@ -399,9 +401,36 @@ impl CompactPublicKey {
         load: ZkComputeLoad,
         encryption_modulus: u64,
     ) -> crate::Result<ProvenCompactCiphertextList> {
+        let seed = new_seeder().seed();
+        self.encrypt_and_prove_slice_seeded(
+            messages,
+            crs,
+            metadata,
+            load,
+            encryption_modulus,
+            &seed.0.to_le_bytes(),
+        )
+    }
+
+    #[cfg(feature = "zk-pok")]
+    pub fn encrypt_and_prove_slice_seeded(
+        &self,
+        messages: &[u64],
+        crs: &CompactPkeCrs,
+        metadata: &[u8],
+        load: ZkComputeLoad,
+        encryption_modulus: u64,
+        seed: &[u8],
+    ) -> crate::Result<ProvenCompactCiphertextList> {
         let plaintext_modulus = self.parameters.message_modulus.0 * self.parameters.carry_modulus.0;
-        assert!(encryption_modulus <= plaintext_modulus);
+        if encryption_modulus > plaintext_modulus {
+            return Err(crate::Error::new(format!(
+                "encryption_modulus ({encryption_modulus}) must be <= \
+                 message_modulus * carry_modulus ({plaintext_modulus})"
+            )));
+        }
         let delta = self.encoding().delta();
+        let mut noise_generator = noise_generator_from_seed(seed)?;
 
         // This is the maximum number of lwe that can share the same mask in lwe compact pk
         // encryption
@@ -427,42 +456,36 @@ impl CompactPublicKey {
             #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
             let proof = {
                 use crate::core_crypto::prelude::encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key;
-                ShortintEngine::with_thread_local_mut(|engine| {
-                    encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key(
-                        &self.key,
-                        &mut ct_list,
-                        &message_chunk,
-                        delta,
-                        encryption_noise_distribution,
-                        encryption_noise_distribution,
-                        engine.encryption_generator.noise_generator_mut(),
-                        &mut engine.random_generator,
-                        crs,
-                        metadata,
-                        load,
-                    )
-                })
+                encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key(
+                    &self.key,
+                    &mut ct_list,
+                    &message_chunk,
+                    delta,
+                    encryption_noise_distribution,
+                    encryption_noise_distribution,
+                    &mut noise_generator,
+                    crs,
+                    metadata,
+                    load,
+                )
             }?;
 
-            // Parallelism allowed  /
+            // Parallelism allowed
             #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
             let proof = {
                 use crate::core_crypto::prelude::par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key;
-                ShortintEngine::with_thread_local_mut(|engine| {
-                    par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key(
-                        &self.key,
-                        &mut ct_list,
-                        &message_chunk,
-                        delta,
-                        encryption_noise_distribution,
-                        encryption_noise_distribution,
-                        engine.encryption_generator.noise_generator_mut(),
-                        &mut engine.random_generator,
-                        crs,
-                        metadata,
-                        load,
-                    )
-                })
+                par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key(
+                    &self.key,
+                    &mut ct_list,
+                    &message_chunk,
+                    delta,
+                    encryption_noise_distribution,
+                    encryption_noise_distribution,
+                    &mut noise_generator,
+                    crs,
+                    metadata,
+                    load,
+                )
             }?;
 
             let message_modulus = self.parameters.message_modulus;
@@ -496,6 +519,19 @@ impl CompactPublicKey {
     pub(crate) fn encoding(&self) -> ShortintEncoding<u64> {
         self.parameters.encoding()
     }
+}
+
+fn noise_generator_from_seed(
+    seed: &[u8],
+) -> crate::Result<NoiseRandomGenerator<DefaultRandomGenerator>> {
+    if seed.len() < 16 {
+        return Err(crate::Error::new(format!(
+            "seed must be at least 16 bytes, got {}",
+            seed.len()
+        )));
+    }
+    let xof_seed = XofSeed::new(seed.to_vec(), *b"TFHE_Enc");
+    Ok(NoiseRandomGenerator::new_from_seed(xof_seed))
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]

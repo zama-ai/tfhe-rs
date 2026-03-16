@@ -612,6 +612,110 @@ test("hlapi_compact_ciphertext_list_with_proof", (t) => {
   // Verifying and expanding is too slow for single threaded node tests.
 });
 
+test("hlapi_proven_compact_ciphertext_list_seeded", (t) => {
+  const block_params = new ShortintParameters(
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+  );
+  let publicKeyParams = new ShortintCompactPublicKeyEncryptionParameters(
+    ShortintCompactPublicKeyEncryptionParametersName.PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+  );
+
+  let config = TfheConfigBuilder.default()
+    .use_custom_parameters(block_params)
+    .use_dedicated_compact_public_key_parameters(publicKeyParams)
+    .build();
+
+  let clientKey = TfheClientKey.generate(config);
+  let publicKey = TfheCompactPublicKey.new(clientKey);
+
+  let crs = CompactPkeCrs.from_config(config, 2 + 32 + 1);
+  let metadata = new Uint8Array([0x73, 0x65, 0x65, 0x64]);
+
+  let seed_a = randomBytes(16);
+  let seed_b = randomBytes(16);
+  console.log(
+    `proven seeded test — seed_a: [${Array.from(seed_a).join(", ")}], seed_b: [${Array.from(seed_b).join(", ")}]`,
+  );
+
+  const buildProvenSeeded = (seed) => {
+    let builder = CompactCiphertextList.builder(publicKey);
+    builder.push_u2(3);
+    builder.push_i32(-3284);
+    builder.push_boolean(true);
+    return builder.build_with_proof_packed_seeded(
+      crs,
+      metadata,
+      ZkComputeLoad.Proof,
+      seed,
+    );
+  };
+
+  let list_a1 = buildProvenSeeded(seed_a);
+  let list_a2 = buildProvenSeeded(seed_a);
+  let list_b = buildProvenSeeded(seed_b);
+
+  // JS === is reference equality, not structural — always false for distinct WASM objects
+  assert.strictEqual(list_a1 === list_a2, false);
+
+  // Use the custom .eq() method for structural comparison
+  assert.strictEqual(
+    list_a1.eq(list_a2),
+    true,
+    "same seed must produce identical output",
+  );
+  assert.strictEqual(
+    list_a1.eq(list_b),
+    false,
+    "different seeds must produce different output",
+  );
+});
+
+test("hlapi_compact_ciphertext_list_seeded", (t) => {
+  const block_params = new ShortintParameters(
+    ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+  );
+
+  let config = TfheConfigBuilder.default()
+    .use_custom_parameters(block_params)
+    .build();
+
+  let clientKey = TfheClientKey.generate(config);
+  let publicKey = TfheCompactPublicKey.new(clientKey);
+
+  let seed_a = randomBytes(16);
+  let seed_b = randomBytes(16);
+  console.log(
+    `seeded test — seed_a: [${Array.from(seed_a).join(", ")}], seed_b: [${Array.from(seed_b).join(", ")}]`,
+  );
+
+  const buildSeeded = (seed) => {
+    let builder = CompactCiphertextList.builder(publicKey);
+    builder.push_u32(17);
+    builder.push_i32(-1);
+    builder.push_boolean(false);
+    return builder.build_packed_seeded(seed);
+  };
+
+  let list_a1 = buildSeeded(seed_a);
+  let list_a2 = buildSeeded(seed_a);
+  let list_b = buildSeeded(seed_b);
+
+  // JS === is reference equality, not structural — always false for distinct WASM objects
+  assert.strictEqual(list_a1 === list_a2, false);
+
+  // Use the custom .eq() method for structural comparison
+  assert.strictEqual(
+    list_a1.eq(list_a2),
+    true,
+    "same seed must produce identical output",
+  );
+  assert.strictEqual(
+    list_a1.eq(list_b),
+    false,
+    "different seeds must produce different output",
+  );
+});
+
 test("hlapi_compact_pk_conformance", (t) => {
   const limit = BigInt(1 << 20);
 

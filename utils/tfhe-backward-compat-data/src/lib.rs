@@ -533,13 +533,21 @@ pub struct PkeZkProofAuxiliaryInfo {
     pub metadata: Cow<'static, str>,
 }
 
+/// Same as [PkeZkProofAuxiliaryInfo] without the Pke in case the Pke
+/// is already part of the non auxiliary data
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ZkProofAuxiliaryInfo {
+    pub params_filename: Cow<'static, str>,
+    pub metadata: Cow<'static, str>,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HlHeterogeneousCiphertextListTest {
     pub test_filename: Cow<'static, str>,
     pub key_filename: Cow<'static, str>,
     pub compressed: bool,
     pub proof_info: Option<PkeZkProofAuxiliaryInfo>,
-    pub clear_values: Cow<'static, [u64]>,
+    pub clear_values: Cow<'static, [i64]>,
     pub data_kinds: Cow<'static, [DataKind]>,
 }
 
@@ -558,10 +566,39 @@ impl TestType for HlHeterogeneousCiphertextListTest {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HlSeededCompactCiphertextListTest {
+    pub test_filename: Cow<'static, str>,
+    pub key_filename: Cow<'static, str>,
+    pub public_key_filename: Cow<'static, str>,
+    pub proof_info: Option<ZkProofAuxiliaryInfo>,
+    pub clear_values: Cow<'static, [i64]>,
+    pub data_kinds: Cow<'static, [DataKind]>,
+    pub seed: Cow<'static, [u8]>,
+}
+
+impl TestType for HlSeededCompactCiphertextListTest {
+    fn module(&self) -> String {
+        HL_MODULE_NAME.to_string()
+    }
+
+    fn target_type(&self) -> String {
+        if self.proof_info.is_none() {
+            "CompactCiphertextList".to_string()
+        } else {
+            "ProvenCompactCiphertextList".to_string()
+        }
+    }
+
+    fn test_filename(&self) -> String {
+        self.test_filename.to_string()
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HlCompressedSquashedNoiseCiphertextListTest {
     pub test_filename: Cow<'static, str>,
     pub key_filename: Cow<'static, str>,
-    pub clear_values: Cow<'static, [u64]>,
+    pub clear_values: Cow<'static, [i64]>,
     pub data_kinds: Cow<'static, [DataKind]>,
 }
 
@@ -731,6 +768,7 @@ pub enum TestMetadata {
     HlCompressedSquashedNoiseCiphertextList(HlCompressedSquashedNoiseCiphertextListTest),
     HlCompressedKVStoreTest(HlCompressedKVStoreTest),
     HlCompressedXofKeySet(HlCompressedXofKeySetTest),
+    HlSeededCompactCiphertextList(HlSeededCompactCiphertextListTest),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
