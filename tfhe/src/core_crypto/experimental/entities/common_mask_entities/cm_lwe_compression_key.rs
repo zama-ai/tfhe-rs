@@ -1,0 +1,302 @@
+//! Module containing the definition of the [`CmLweCompressionKey`].
+
+use super::cm_lwe_compression_key_part::{
+    CmLweCompressionKeyPartCreationMetadata, CmLweCompressionKeyPartMutView,
+    CmLweCompressionKeyPartView,
+};
+use crate::core_crypto::commons::parameters::*;
+use crate::core_crypto::commons::traits::*;
+use crate::core_crypto::experimental::entities::*;
+use crate::core_crypto::experimental::prelude::*;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct CmLweCompressionKey<C: Container>
+where
+    C::Element: UnsignedInteger,
+{
+    data: C,
+    decomp_base_log: DecompositionBaseLog,
+    decomp_level_count: DecompositionLevelCount,
+    output_lwe_dimension: LweDimension,
+    output_cm_dimension: CmDimension,
+    ciphertext_modulus: CiphertextModulus<C::Element>,
+}
+
+impl<T: UnsignedInteger, C: Container<Element = T>> AsRef<[T]> for CmLweCompressionKey<C> {
+    fn as_ref(&self) -> &[T] {
+        self.data.as_ref()
+    }
+}
+
+impl<T: UnsignedInteger, C: ContainerMut<Element = T>> AsMut<[T]> for CmLweCompressionKey<C> {
+    fn as_mut(&mut self) -> &mut [T] {
+        self.data.as_mut()
+    }
+}
+
+pub fn cm_lwe_compression_key_input_key_element_encrypted_size(
+    decomp_level_count: DecompositionLevelCount,
+    input_lwe_dimension: LweDimension,
+    output_lwe_dimension: LweDimension,
+    output_cm_dimension: CmDimension,
+) -> usize {
+    // One ciphertext per level encrypted under the output key
+    decomp_level_count.0 * (output_lwe_dimension.0 + output_cm_dimension.0) * input_lwe_dimension.0
+}
+
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmLweCompressionKey<C> {
+    pub fn from_container(
+        container: C,
+        decomp_base_log: DecompositionBaseLog,
+        decomp_level_count: DecompositionLevelCount,
+        output_lwe_dimension: LweDimension,
+        output_cm_dimension: CmDimension,
+        ciphertext_modulus: CiphertextModulus<C::Element>,
+    ) -> Self {
+        assert!(
+            container.container_len() > 0,
+            "Got an empty container to create an CmLweCompressionKey"
+        );
+        assert_eq!(
+            container.container_len() % (decomp_level_count.0 * (output_lwe_dimension.0 + output_cm_dimension.0) * output_cm_dimension.0),
+            0,
+            "The provided container length is not valid. \
+        It needs to be dividable by decomp_level_count * (output_lwe_dimension + output_cm_dimension) * output_cm_dimension: {}. \
+        Got container length: {} and decomp_level_count: {decomp_level_count:?}, \
+        output_lwe_dimension + output_cm_dimension: {}.",
+            decomp_level_count.0 * (output_lwe_dimension.0 + output_cm_dimension.0) * output_cm_dimension.0,
+            container.container_len(),
+            output_lwe_dimension.0 + output_cm_dimension.0,
+        );
+
+        Self {
+            data: container,
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_dimension,
+            output_cm_dimension,
+            ciphertext_modulus,
+        }
+    }
+
+    pub fn decomposition_base_log(&self) -> DecompositionBaseLog {
+        self.decomp_base_log
+    }
+
+    pub fn decomposition_level_count(&self) -> DecompositionLevelCount {
+        self.decomp_level_count
+    }
+
+    pub fn input_key_lwe_dimension(&self) -> LweDimension {
+        LweDimension(
+            self.data.container_len()
+                / (self.output_lwe_dimension.0 + self.output_cm_dimension.0)
+                / self.output_cm_dimension.0
+                / self.decomp_level_count.0,
+        )
+    }
+
+    pub fn output_lwe_dimension(&self) -> LweDimension {
+        self.output_lwe_dimension
+    }
+
+    pub fn output_cm_dimension(&self) -> CmDimension {
+        self.output_cm_dimension
+    }
+
+    pub fn input_key_element_encrypted_size(&self) -> usize {
+        cm_lwe_compression_key_input_key_element_encrypted_size(
+            self.decomp_level_count,
+            self.input_key_lwe_dimension(),
+            self.output_lwe_dimension,
+            self.output_cm_dimension,
+        )
+    }
+
+    pub fn as_view(&self) -> CmLweCompressionKeyView<'_, Scalar> {
+        CmLweCompressionKey::from_container(
+            self.as_ref(),
+            self.decomp_base_log,
+            self.decomp_level_count,
+            self.output_lwe_dimension,
+            self.output_cm_dimension,
+            self.ciphertext_modulus,
+        )
+    }
+
+    pub fn into_container(self) -> C {
+        self.data
+    }
+
+    pub fn as_lwe_ciphertext_list(&self) -> CmLweCiphertextListView<'_, Scalar> {
+        CmLweCiphertextListView::from_container(
+            self.as_ref(),
+            self.output_lwe_dimension(),
+            self.output_cm_dimension,
+            self.ciphertext_modulus(),
+        )
+    }
+
+    pub fn ciphertext_modulus(&self) -> CiphertextModulus<C::Element> {
+        self.ciphertext_modulus
+    }
+}
+
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> CmLweCompressionKey<C> {
+    pub fn as_mut_view(&mut self) -> CmLweCompressionKeyMutView<'_, Scalar> {
+        let decomp_base_log = self.decomp_base_log;
+        let decomp_level_count = self.decomp_level_count;
+        let output_lwe_dimension = self.output_lwe_dimension;
+        let output_cm_dimension = self.output_cm_dimension;
+
+        let ciphertext_modulus = self.ciphertext_modulus;
+        CmLweCompressionKey::from_container(
+            self.as_mut(),
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_dimension,
+            output_cm_dimension,
+            ciphertext_modulus,
+        )
+    }
+
+    pub fn as_mut_csr_lwe_ciphertext_list(&mut self) -> CmLweCiphertextListMutView<'_, Scalar> {
+        let output_lwe_dimension = self.output_lwe_dimension();
+        let output_cm_dimension = self.output_cm_dimension;
+        let ciphertext_modulus = self.ciphertext_modulus();
+        CmLweCiphertextListMutView::from_container(
+            self.as_mut(),
+            output_lwe_dimension,
+            output_cm_dimension,
+            ciphertext_modulus,
+        )
+    }
+}
+
+pub type CmLweCompressionKeyOwned<Scalar> = CmLweCompressionKey<Vec<Scalar>>;
+
+pub type CmLweCompressionKeyView<'data, Scalar> = CmLweCompressionKey<&'data [Scalar]>;
+
+pub type CmLweCompressionKeyMutView<'data, Scalar> = CmLweCompressionKey<&'data mut [Scalar]>;
+
+impl<Scalar: UnsignedInteger> CmLweCompressionKeyOwned<Scalar> {
+    pub fn new(
+        fill_with: Scalar,
+        decomp_base_log: DecompositionBaseLog,
+        decomp_level_count: DecompositionLevelCount,
+        input_key_lwe_dimension: LweDimension,
+        output_lwe_dimension: LweDimension,
+        output_key_cm_dimension: CmDimension,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> Self {
+        Self::from_container(
+            vec![
+                fill_with;
+                output_key_cm_dimension.0
+                    * cm_lwe_compression_key_input_key_element_encrypted_size(
+                        decomp_level_count,
+                        input_key_lwe_dimension,
+                        output_lwe_dimension,
+                        output_key_cm_dimension,
+                    )
+            ],
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_dimension,
+            output_key_cm_dimension,
+            ciphertext_modulus,
+        )
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct CmLweCompressionKeyCreationMetadata<Scalar: UnsignedInteger> {
+    pub decomp_base_log: DecompositionBaseLog,
+    pub decomp_level_count: DecompositionLevelCount,
+    pub output_lwe_dimension: LweDimension,
+    pub output_cm_dimension: CmDimension,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
+
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
+    for CmLweCompressionKey<C>
+{
+    type Metadata = CmLweCompressionKeyCreationMetadata<Scalar>;
+
+    #[inline]
+    fn create_from(from: C, meta: Self::Metadata) -> Self {
+        let CmLweCompressionKeyCreationMetadata {
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_dimension,
+            output_cm_dimension,
+            ciphertext_modulus,
+        } = meta;
+        Self::from_container(
+            from,
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_dimension,
+            output_cm_dimension,
+            ciphertext_modulus,
+        )
+    }
+}
+
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityContainer
+    for CmLweCompressionKey<C>
+{
+    type Element = C::Element;
+
+    type EntityViewMetadata = CmLweCompressionKeyPartCreationMetadata<Self::Element>;
+
+    type EntityView<'this>
+        = CmLweCompressionKeyPartView<'this, Self::Element>
+    where
+        Self: 'this;
+
+    type SelfViewMetadata = CmLweCompressionKeyCreationMetadata<Self::Element>;
+
+    type SelfView<'this>
+        = CmLweCompressionKeyView<'this, Self::Element>
+    where
+        Self: 'this;
+
+    fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        CmLweCompressionKeyPartCreationMetadata {
+            decomp_base_log: self.decomp_base_log,
+            decomp_level_count: self.decomp_level_count,
+            output_lwe_dimension: self.output_lwe_dimension,
+            output_cm_dimension: self.output_cm_dimension,
+            ciphertext_modulus: self.ciphertext_modulus(),
+        }
+    }
+
+    fn get_entity_view_pod_size(&self) -> usize {
+        self.input_key_element_encrypted_size()
+    }
+
+    fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        CmLweCompressionKeyCreationMetadata {
+            decomp_base_log: self.decomposition_base_log(),
+            decomp_level_count: self.decomposition_level_count(),
+            output_lwe_dimension: self.output_lwe_dimension(),
+            output_cm_dimension: self.output_cm_dimension,
+            ciphertext_modulus: self.ciphertext_modulus(),
+        }
+    }
+}
+
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
+    for CmLweCompressionKey<C>
+{
+    type EntityMutView<'this>
+        = CmLweCompressionKeyPartMutView<'this, Self::Element>
+    where
+        Self: 'this;
+
+    type SelfMutView<'this>
+        = CmLweCompressionKeyMutView<'this, Self::Element>
+    where
+        Self: 'this;
+}
