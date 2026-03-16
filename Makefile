@@ -1667,6 +1667,13 @@ bench_boolean: install_rs_check_toolchain
 	--bench boolean \
 	--features=boolean,internal-keycache -p tfhe-benchmark
 
+.PHONY: bench_common_mask # Run benchmarks for CM-PBS
+bench_common_mask: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench cm-bench \
+	--features=experimental -p tfhe-benchmark
+
+
 .PHONY: bench_ks # Run benchmarks for keyswitch
 bench_ks: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
