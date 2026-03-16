@@ -84,13 +84,23 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     // Precalculate the monomial degrees and store them in shared memory
     uint32_t *monomial_degrees = (uint32_t *)selected_memory;
     if (threadIdx.x < (1 << grouping_factor)) {
-      // For noise tests we read the precalculated monomial degrees directly
-      // from the input array.
       if constexpr (runs_noise_test == true) {
+        // For noise tests the input array contains the input lwe but also the
+        // modswitched results. This allows to avoid changing the accumulation
+        // kernel for the noise tests since the input body will stay in the same
+        // position. The layout of the input array is the following:
+        // | input lwe     | modswitched inputs       |
+        // | lwe size      | lwe_size*grouping_factor |
+
+        // This offset allows to jump directly to the modswitched inputs,
+        // skipping the input lwe
+        const Torus modswitched_offset = lwe_dimension / grouping_factor + 1;
+
         const Torus *block_lwe_array_in =
             &lwe_array_in[lwe_input_indexes[input_idx] *
-                          (lwe_dimension / grouping_factor) *
-                          (1 << grouping_factor)];
+                              (lwe_dimension / grouping_factor) *
+                              (1 << grouping_factor) +
+                          modswitched_offset];
 
         const Torus *lwe_array_group =
             block_lwe_array_in + rev_lwe_iteration * (1 << grouping_factor);

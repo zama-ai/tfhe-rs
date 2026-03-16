@@ -1,10 +1,11 @@
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateCenteredBinaryShiftedStandardModSwitchResult,
     AllocateDriftTechniqueStandardModSwitchResult, AllocateLweBootstrapResult,
-    AllocateLweKeyswitchResult, AllocateLwePackingKeyswitchResult, AllocateMultiBitModSwitchResult,
+    AllocateLweKeyswitchResult, AllocateLweMultiBitBlindRotateResult,
+    AllocateLwePackingKeyswitchResult, AllocateMultiBitModSwitchResult,
     AllocateStandardModSwitchResult, CenteredBinaryShiftedStandardModSwitch,
     DriftTechniqueStandardModSwitch, LweClassicFft128Bootstrap, LweClassicFftBootstrap,
-    LweKeyswitch, MultiBitModSwitch, ScalarMul, StandardModSwitch,
+    LweKeyswitch, LweMultiBitFftBootstrap, MultiBitModSwitch, ScalarMul, StandardModSwitch,
 };
 use crate::core_crypto::commons::noise_formulas::noise_simulation::{
     NoiseSimulationLweFourier128Bsk, NoiseSimulationLweFourierBsk,
@@ -16,7 +17,7 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{
-    cuda_modulus_switch_ciphertext, cuda_modulus_switch_multi_bit_ciphertext, CudaStreams,
+    cuda_modulus_switch_ciphertext, programmable_bootstrap_multi_bit_noise_tests, CudaStreams,
 };
 use crate::core_crypto::prelude::*;
 use crate::integer::gpu::ciphertext::info::CudaBlockInfo;
@@ -33,7 +34,9 @@ use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulat
 use crate::shortint::server_key::tests::noise_distribution::utils::traits::{
     LweGenericBlindRotate128, LweGenericBootstrap, LwePackingKeyswitch,
 };
-use tfhe_cuda_backend::bindings::cuda_centered_modulus_switch_64_async;
+use tfhe_cuda_backend::bindings::{
+    cuda_centered_modulus_switch_64_async, cuda_modulus_switch_multi_bit_64_async,
+};
 /// Side resources for CUDA operations in noise simulation
 #[derive(Clone)]
 pub struct CudaSideResources {
@@ -949,7 +952,108 @@ impl LwePackingKeyswitch<[&CudaDynLwe], CudaGlweCiphertextList<u128>>
     }
 }
 
-// Multi bit and generic extensions
+/// Allocation of the PBS output for multi-bit PBS; the output LWE dimension equals
+/// glwe_dimension * polynomial_size, identical to the classic PBS case.
+impl AllocateLweMultiBitBlindRotateResult for CudaGlweCiphertextList<u64> {
+    type Output = CudaDynLwe;
+    type SideResources = CudaSideResources;
+
+    fn allocate_lwe_multi_bit_blind_rotate_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        let lwe_dimension = self
+            .glwe_dimension()
+            .to_equivalent_lwe_dimension(self.polynomial_size());
+
+        let cuda_lwe = CudaLweCiphertextList::new(
+            lwe_dimension,
+            LweCiphertextCount(1),
+            self.ciphertext_modulus(),
+            &side_resources.streams,
+        );
+        CudaDynLwe::U64(cuda_lwe)
+    }
+}
+
+/// Multi-bit PBS for noise tests, wrapping programmable_bootstrap_multi_bit_noise_tests.
+/// The input must be the output of the multi-bit modulus switch (i.e., a CudaDynLwe that holds
+/// (1 << grouping_factor) ciphertexts produced by cuda_modulus_switch_multi_bit_ciphertext).
+impl LweMultiBitFftBootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u64>>
+    for CudaServerKey
+{
+    type SideResources = CudaSideResources;
+
+    fn lwe_multi_bit_fft_bootstrap(
+        &self,
+        input: &CudaDynLwe,
+        output: &mut CudaDynLwe,
+        accumulator: &CudaGlweCiphertextList<u64>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        let mb_bsk = match &self.bootstrapping_key {
+            CudaBootstrappingKey::MultiBit(mb_bsk) => mb_bsk,
+            CudaBootstrappingKey::Classic(_) => {
+                panic!("Expected multi-bit bootstrapping key, got classic");
+            }
+        };
+
+        match (input, output) {
+            (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U64(output_cuda_lwe)) => {
+                let num_samples = 1u32;
+                // Single-element index arrays pointing to index 0
+                let zero_index = vec![0u64];
+                let mut output_indexes =
+                    unsafe { CudaVec::<u64>::new_async(1, &side_resources.streams, 0) };
+                let mut test_vector_indexes =
+                    unsafe { CudaVec::<u64>::new_async(1, &side_resources.streams, 0) };
+                let mut input_indexes =
+                    unsafe { CudaVec::<u64>::new_async(1, &side_resources.streams, 0) };
+                unsafe {
+                    output_indexes.copy_from_cpu_async(&zero_index, &side_resources.streams, 0);
+                    test_vector_indexes.copy_from_cpu_async(
+                        &zero_index,
+                        &side_resources.streams,
+                        0,
+                    );
+                    input_indexes.copy_from_cpu_async(&zero_index, &side_resources.streams, 0);
+                }
+                side_resources.streams.synchronize();
+                println!(
+                    "Running noise based multi-bit PBS test with grouping factor {}",
+                    mb_bsk.grouping_factor().0
+                );
+                println!(
+                    "Input num ciphertexts: {}, Output num ciphertexts: {}",
+                    input_cuda_lwe.lwe_ciphertext_count().0,
+                    output_cuda_lwe.lwe_ciphertext_count().0
+                );
+                unsafe {
+                    programmable_bootstrap_multi_bit_noise_tests(
+                        &side_resources.streams,
+                        &mut output_cuda_lwe.0.d_vec,
+                        &output_indexes,
+                        &accumulator.0.d_vec,
+                        &test_vector_indexes,
+                        &input_cuda_lwe.0.d_vec,
+                        &input_indexes,
+                        &mb_bsk.d_vec,
+                        mb_bsk.input_lwe_dimension(),
+                        mb_bsk.glwe_dimension(),
+                        mb_bsk.polynomial_size(),
+                        mb_bsk.decomp_base_log(),
+                        mb_bsk.decomp_level_count(),
+                        mb_bsk.grouping_factor(),
+                        num_samples,
+                    );
+                }
+            }
+            _ => panic!("Multi-bit PBS is only supported for U64 CudaDynLwe"),
+        }
+    }
+}
+
+/// Generic bootstrap dispatcher: routes to classic or multi-bit PBS depending on the BSK type.
 impl LweGenericBootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u64>> for CudaServerKey {
     type SideResources = CudaSideResources;
 
@@ -960,12 +1064,12 @@ impl LweGenericBootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u64>> fo
         accumulator: &CudaGlweCiphertextList<u64>,
         side_resources: &mut Self::SideResources,
     ) {
-        match self.bootstrapping_key {
+        match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(_) => {
                 self.lwe_classic_fft_pbs(input, output, accumulator, side_resources);
             }
             CudaBootstrappingKey::MultiBit(_) => {
-                todo!("TODO: this currently only manages classic PBS")
+                self.lwe_multi_bit_fft_bootstrap(input, output, accumulator, side_resources);
             }
         }
     }
@@ -981,11 +1085,12 @@ impl AllocateMultiBitModSwitchResult for CudaDynLwe {
     ) -> Self::Output {
         // The multi-bit mod switch outputs (1 << grouping_factor) modulus-switched variants per
         // input ciphertext, interleaved in the output buffer
-        let grouping_factor = side_resources
-            .multi_bit_grouping_factor
-            .expect("multi_bit_grouping_factor must be set in CudaSideResources for multi-bit mod switch");
-        let num_output_cts = 1usize << grouping_factor.0;
-
+        let grouping_factor = side_resources.multi_bit_grouping_factor.expect(
+            "multi_bit_grouping_factor must be set in CudaSideResources for multi-bit mod switch",
+        );
+        // We add 1 to the number of output ciphertext because we will keep the input and the
+        // modswitched outputs together.
+        let num_output_cts = (1usize << grouping_factor.0) + 1;
         match self {
             Self::U64(cuda_lwe) => {
                 let new_cuda_lwe = CudaLweCiphertextList::new(
@@ -1019,17 +1124,42 @@ impl MultiBitModSwitch<Self> for CudaDynLwe {
 
         match (self, output) {
             (Self::U64(input), Self::U64(output_cuda_lwe)) => {
-                // Duplicate input so we can pass a mutable reference (the kernel reads from it
-                // in-place even though the signature requires &mut)
+                // Copy the original input into the first slot of the output buffer so that
+                // the multi-bit PBS kernel can read both the unmodified input and the
+                // modulus-switched variants from a single contiguous allocation.
+                let input_len = input.0.d_vec.len();
+                unsafe {
+                    output_cuda_lwe.0.d_vec.copy_self_range_gpu_to_gpu_async(
+                        0..input_len,
+                        &input.0.d_vec,
+                        &side_resources.streams,
+                        0,
+                    );
+                }
+                side_resources.streams.synchronize();
+
+                // Call the multi-bit modulus switch kernel writing after the original input
+                // in the output buffer, so that the layout is [input | ms_0 | ... ].
                 let mut input_copy = input.duplicate(&side_resources.streams);
-                cuda_modulus_switch_multi_bit_ciphertext(
-                    &side_resources.streams,
-                    &mut output_cuda_lwe.0.d_vec,
-                    &mut input_copy.0.d_vec,
-                    output_modulus_log.0 as u32,
-                    polynomial_size.0 as u32,
-                    grouping_factor.0 as u32,
-                );
+                let lwe_size = input.0.lwe_dimension.to_lwe_size().0;
+                unsafe {
+                    let out_ptr = output_cuda_lwe
+                        .0
+                        .d_vec
+                        .as_mut_c_ptr(0)
+                        .add(lwe_size * std::mem::size_of::<u64>());
+                    cuda_modulus_switch_multi_bit_64_async(
+                        side_resources.streams.ptr[0],
+                        side_resources.streams.gpu_indexes[0].get(),
+                        out_ptr,
+                        input_copy.0.d_vec.as_mut_c_ptr(0),
+                        u32::try_from(input_copy.0.d_vec.len()).unwrap(),
+                        output_modulus_log.0 as u32,
+                        polynomial_size.0 as u32,
+                        grouping_factor.0 as u32,
+                    );
+                }
+                side_resources.streams.synchronize();
             }
             _ => panic!("Multi-bit mod switch is only supported for U64 CudaDynLwe"),
         }
