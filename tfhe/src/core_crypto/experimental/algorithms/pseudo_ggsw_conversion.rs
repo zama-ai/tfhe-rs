@@ -4,9 +4,7 @@
 
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::experimental::entities::fourier_pseudo_ggsw_ciphertext::{
-    fill_with_forward_fourier_scratch, PseudoFourierGgswCiphertext,
-};
+use crate::core_crypto::experimental::entities::fourier_pseudo_ggsw_ciphertext::PseudoFourierGgswCiphertext;
 use crate::core_crypto::experimental::entities::pseudo_ggsw_ciphertext::PseudoGgswCiphertext;
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
 use dyn_stack::{PodStack, StackReq};
@@ -67,5 +65,5 @@ pub fn convert_standard_pseudo_ggsw_ciphertext_to_fourier_mem_optimized<
 pub fn convert_standard_pseudo_ggsw_ciphertext_to_fourier_mem_optimized_requirement(
     fft: FftView<'_>,
 ) -> StackReq {
-    fill_with_forward_fourier_scratch(fft)
+    fft.forward_scratch()
 }
