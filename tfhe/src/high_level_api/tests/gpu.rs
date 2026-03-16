@@ -4,9 +4,67 @@ use crate::core_crypto::gpu::get_number_of_gpus;
 use crate::high_level_api::global_state::CustomMultiGpuIndexes;
 use crate::prelude::*;
 use crate::{
-    set_server_key, unset_server_key, ClientKey, CompressedServerKey, ConfigBuilder, Device,
-    FheUint32, GpuIndex,
+    clear_gpu_thread_locals, set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, Device,
+    FheUint32, FheUint8, GpuIndex,
 };
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::ThreadPoolBuilder;
+
+/// Regression test: dropping a rayon pool whose threads holds some thread-local GPU
+/// data (keys, streams, etc) can cause issue if not properly cleaned up.
+///
+/// This is because rayon does not seem to wait for the thread destruction
+/// which then creates ordering problems with the CUDA driver
+///
+/// The scenario is:
+/// 1. Create a custom rayon thread pool.
+/// 2. On each thread, set a GPU server key (which stores CUDA resources in thread-locals).
+/// 3. decrypt as decrypt init and uses a different set of cuda stream thread locals
+/// 4. Drop the pool
+#[test]
+fn test_drop_rayon_pool_with_gpu_server_key_thread_locals() {
+    let config = ConfigBuilder::default().build();
+    let cks = ClientKey::generate(config);
+
+    let num_gpus = get_number_of_gpus() as usize;
+
+    let compressed_sks = CompressedServerKey::new(&cks);
+    let sks_vec: Vec<_> = (0..num_gpus)
+        .map(|i| compressed_sks.decompress_to_specific_gpu(GpuIndex::new(i as u32)))
+        .collect();
+
+    let pool = ThreadPoolBuilder::new()
+        .num_threads(4 * num_gpus)
+        .exit_handler(|_| clear_gpu_thread_locals())
+        .build()
+        .unwrap();
+
+    let results: Vec<u8> = pool.install(|| {
+        (0..4 * num_gpus)
+            .into_par_iter()
+            .map_init(
+                || {
+                    let gpu_index = rayon::current_thread_index().unwrap_or(0) % num_gpus;
+                    set_server_key(sks_vec[gpu_index].clone());
+                },
+                |(), _| {
+                    let ct = FheUint8::encrypt_trivial(42u8);
+                    let result: u8 = ct.decrypt(&cks);
+                    result
+                },
+            )
+            .collect()
+    });
+
+    for val in &results {
+        assert_eq!(*val, 42u8);
+    }
+
+    // Explicitly drop the pool — this is where the bug manifests:
+    // rayon threads are joined, their thread-locals (holding GPU server keys
+    // referencing CUDA resources) are dropped.
+    drop(pool);
+}
 
 #[test]
 fn test_gpu_selection() {
@@ -187,6 +245,9 @@ fn test_specific_gpu_selection() {
         assert_eq!(c.current_device(), Device::CudaGpu);
         assert_eq!(c.gpu_indexes(), &[first_gpu]);
         assert_eq!(decrypted, clear_a.wrapping_add(clear_b));
-        unset_server_key();
+        // unset_server_key is sufficient but we use clear_gpu_thread_locals
+        // in order to test  that after calling it, the thread is still usable
+        // (the needed thread locals will lazily recreate themselves, nothing prevents them)
+        clear_gpu_thread_locals();
     }
 }

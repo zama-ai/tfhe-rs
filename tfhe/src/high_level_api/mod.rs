@@ -54,6 +54,8 @@ use crate::{error, Error, Versionize};
 use backward_compatibility::compressed_ciphertext_list::SquashedNoiseCiphertextStateVersions;
 pub use config::{Config, ConfigBuilder};
 #[cfg(feature = "gpu")]
+pub use global_state::clear_gpu_thread_locals;
+#[cfg(feature = "gpu")]
 pub use global_state::CudaGpuChoice;
 #[cfg(feature = "gpu")]
 pub use global_state::CustomMultiGpuIndexes;

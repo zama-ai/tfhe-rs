@@ -188,6 +188,8 @@ where
 }
 
 #[cfg(feature = "gpu")]
+pub use gpu::clear_gpu_thread_locals;
+#[cfg(feature = "gpu")]
 pub(in crate::high_level_api) use gpu::with_thread_local_cuda_streams_for_gpu_indexes;
 
 #[cfg(feature = "gpu")]
@@ -222,6 +224,21 @@ mod gpu {
                     .collect(),
             }
         }
+
+        fn clear(&mut self) {
+            self.custom.take();
+            // "Reset" the lazycells instead of emptying the vec as this allows to reuse the
+            // the StreamPool, the streams are going to get re-created lazily again
+            for (index, cell) in self.single.iter_mut().enumerate() {
+                let ctor =
+                    Box::new(move || CudaStreams::new_single_gpu(GpuIndex::new(index as u32)));
+                *cell = LazyCell::new(ctor as Box<dyn Fn() -> CudaStreams>);
+            }
+        }
+    }
+
+    thread_local! {
+        static POOL: RefCell<CudaStreamPool> = RefCell::new(CudaStreamPool::new());
     }
 
     pub(in crate::high_level_api) fn with_thread_local_cuda_streams_for_gpu_indexes<
@@ -231,10 +248,6 @@ mod gpu {
         gpu_indexes: &[GpuIndex],
         func: F,
     ) -> R {
-        thread_local! {
-            static POOL: RefCell<CudaStreamPool> = RefCell::new(CudaStreamPool::new());
-        }
-
         if gpu_indexes.len() == 1 {
             POOL.with_borrow(|pool| func(&pool.single[gpu_indexes[0].get() as usize]))
         } else {
@@ -295,6 +308,13 @@ mod gpu {
                 Self::Custom(idxs) => CudaStreams::new_multi_gpu_with_indexes(idxs.gpu_indexes()),
             }
         }
+    }
+
+    /// Clears all the thread_locals that store Cuda related items
+    /// this means keys, and other internal data, streams used
+    pub fn clear_gpu_thread_locals() {
+        unset_server_key();
+        POOL.with_borrow_mut(|pool| pool.clear());
     }
 }
 
