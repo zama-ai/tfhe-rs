@@ -1,7 +1,5 @@
 use super::utils::noise_simulation::CudaSideResources;
-use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
-    AllocateLweBootstrapResult, LweClassicFftBootstrap,
-};
+use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::AllocateLweBootstrapResult;
 use crate::core_crypto::commons::numeric::Numeric;
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
@@ -13,11 +11,9 @@ use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::tests_noise_distribution::utils::noise_simulation::CudaDynLwe;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_stringified_test;
 use crate::integer::gpu::server_key::radix::CudaBlockInfo;
-use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
+use crate::integer::gpu::server_key::CudaServerKey;
 use crate::integer::gpu::unchecked_small_scalar_mul_integer;
 use crate::integer::{CompressedServerKey, IntegerCiphertext};
-use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
-use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
 use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
@@ -26,7 +22,7 @@ use crate::shortint::parameters::test_params::{
 use crate::shortint::parameters::{AtomicPatternParameters, MetaParameters};
 use crate::shortint::server_key::tests::noise_distribution::dp_ks_ms::dp_ks_any_ms;
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
-    NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
+    DynLwe, NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
     write_empty_json_file, write_to_json_file, NoiseCheckWithNormalityCheck, TestResult,
@@ -254,47 +250,40 @@ fn encrypt_dp_ks_any_ms_inner_helper_gpu(
     let input_ct = input_gpu.as_ct_64_cpu(&cuda_side_resources.streams);
     let after_dp_ct = after_dp_gpu.as_ct_64_cpu(&cuda_side_resources.streams);
     let after_ks_ct = after_ks_gpu.as_ct_64_cpu(&cuda_side_resources.streams);
-    let after_ms_ct = after_ms_gpu.as_ct_64_cpu(&cuda_side_resources.streams);
+    let after_ms_dyn =
+        after_ms_gpu.as_dyn_mod_switched_lwe_cpu(&cuda_side_resources, br_input_modulus_log);
     let before_ms_gpu: &CudaDynLwe = after_drift_gpu.as_ref().unwrap_or(&after_ks_gpu);
     let before_ms_ct = before_ms_gpu.as_ct_64_cpu(&cuda_side_resources.streams);
 
-    let output_encoding = ShortintEncoding::from_parameters(params, PaddingBit::Yes);
-
-    match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => (
-            DecryptionAndNoiseResult::new_from_lwe(
-                &input_ct,
-                &standard_atomic_pattern_client_key.large_lwe_secret_key(),
-                msg,
-                &output_encoding,
-            ),
-            DecryptionAndNoiseResult::new_from_lwe(
-                &after_dp_ct,
-                &standard_atomic_pattern_client_key.large_lwe_secret_key(),
-                msg,
-                &output_encoding,
-            ),
-            DecryptionAndNoiseResult::new_from_lwe(
-                &after_ks_ct,
-                &standard_atomic_pattern_client_key.small_lwe_secret_key(),
-                msg,
-                &output_encoding,
-            ),
-            DecryptionAndNoiseResult::new_from_lwe(
-                &before_ms_ct,
-                &standard_atomic_pattern_client_key.small_lwe_secret_key(),
-                msg,
-                &output_encoding,
-            ),
-            DecryptionAndNoiseResult::new_from_lwe(
-                &after_ms_ct,
-                &standard_atomic_pattern_client_key.small_lwe_secret_key(),
-                msg,
-                &output_encoding,
-            ),
+    let large_lwe_secret_key_dyn = cks.large_lwe_secret_key_as_dyn();
+    let small_lwe_secret_key_dyn = cks.small_lwe_secret_key_as_dyn();
+    (
+        DecryptionAndNoiseResult::new_from_dyn_lwe(
+            &DynLwe::U64(input_ct),
+            &large_lwe_secret_key_dyn,
+            msg,
         ),
-        AtomicPatternClientKey::KeySwitch32(_) => todo!(),
-    }
+        DecryptionAndNoiseResult::new_from_dyn_lwe(
+            &DynLwe::U64(after_dp_ct),
+            &large_lwe_secret_key_dyn,
+            msg,
+        ),
+        DecryptionAndNoiseResult::new_from_dyn_lwe(
+            &DynLwe::U64(after_ks_ct),
+            &small_lwe_secret_key_dyn,
+            msg,
+        ),
+        DecryptionAndNoiseResult::new_from_dyn_lwe(
+            &DynLwe::U64(before_ms_ct),
+            &small_lwe_secret_key_dyn,
+            msg,
+        ),
+        DecryptionAndNoiseResult::new_from_dyn_modswitched_lwe(
+            &after_ms_dyn,
+            &small_lwe_secret_key_dyn,
+            msg,
+        ),
+    )
 }
 
 fn encrypt_dp_ks_any_ms_noise_helper_gpu(

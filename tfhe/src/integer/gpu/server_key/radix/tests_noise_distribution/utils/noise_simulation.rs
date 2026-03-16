@@ -1,3 +1,4 @@
+use crate::core_crypto::algorithms::lwe_multi_bit_programmable_bootstrapping::StandardMultiBitModulusSwitchedCt;
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateCenteredBinaryShiftedStandardModSwitchResult,
     AllocateDriftTechniqueStandardModSwitchResult, AllocateLweBootstrapResult,
@@ -29,6 +30,7 @@ use crate::integer::gpu::server_key::{
 };
 use crate::integer::gpu::unchecked_small_scalar_mul_integer;
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
+    DynLwe, DynModSwitchedLwe, DynStandardMultiBitModulusSwitchedCt,
     NoiseSimulationGenericBootstrapKey, NoiseSimulationModulusSwitchConfig,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::traits::{
@@ -151,6 +153,53 @@ impl CudaDynLwe {
                 )
             }
             Self::U128(_) => panic!("Tried getting a u128 CudaLweCiphertextList as u64."),
+        }
+    }
+
+    pub fn as_dyn_mod_switched_lwe_cpu(
+        &self,
+        side_resources: &CudaSideResources,
+        log_modulus: CiphertextModulusLog,
+    ) -> DynModSwitchedLwe {
+        match self {
+            Self::U32(_) => {
+                panic!("Tried getting a u32 CudaLweCiphertextList as DynModSwitchedLwe.")
+            }
+            Self::U64(_) => {
+                let cpu_lwe_list = self
+                    .as_lwe_64()
+                    .to_lwe_ciphertext_list(&side_resources.streams);
+                let ciphertext_modulus = cpu_lwe_list.ciphertext_modulus();
+                let container = cpu_lwe_list.into_container();
+                match side_resources.multi_bit_grouping_factor {
+                    // Classical: the full container is the modswitched LWE ciphertext.
+                    None => {
+                        let ct = LweCiphertext::from_container(container, ciphertext_modulus);
+                        DynModSwitchedLwe::ModSwitchedLwe(DynLwe::U64(ct))
+                    }
+                    // Multi-bit: after ms contains the input and the modulus switched inputs, so
+                    // we need to split the container and construct a multi-bit modulus switched
+                    // ciphertext.
+                    Some(gf) => {
+                        let lwe_size = self.lwe_dimension().0 + 1;
+                        let input_ct = LweCiphertext::from_container(
+                            container[..lwe_size].to_vec(),
+                            ciphertext_modulus,
+                        );
+                        let mb_ms_ct = StandardMultiBitModulusSwitchedCt {
+                            input: input_ct,
+                            grouping_factor: gf,
+                            log_modulus,
+                        };
+                        DynModSwitchedLwe::MultiBitModSwitchedLwe(
+                            DynStandardMultiBitModulusSwitchedCt::U64(mb_ms_ct),
+                        )
+                    }
+                }
+            }
+            Self::U128(_) => {
+                panic!("Tried getting a u128 CudaLweCiphertextList as DynModSwitchedLwe.")
+            }
         }
     }
 
@@ -1019,15 +1068,6 @@ impl LweMultiBitFftBootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u64>
                     input_indexes.copy_from_cpu_async(&zero_index, &side_resources.streams, 0);
                 }
                 side_resources.streams.synchronize();
-                println!(
-                    "Running noise based multi-bit PBS test with grouping factor {}",
-                    mb_bsk.grouping_factor().0
-                );
-                println!(
-                    "Input num ciphertexts: {}, Output num ciphertexts: {}",
-                    input_cuda_lwe.lwe_ciphertext_count().0,
-                    output_cuda_lwe.lwe_ciphertext_count().0
-                );
                 unsafe {
                     programmable_bootstrap_multi_bit_noise_tests(
                         &side_resources.streams,

@@ -3367,6 +3367,25 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        pbs_buffer: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        level_count: u32,
+        input_lwe_ciphertext_count: u32,
+        allocate_gpu_memory: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_multi_bit_programmable_bootstrap_noise_tests_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        pbs_buffer: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
     pub fn cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
         stream: *mut ffi::c_void,
         gpu_index: u32,

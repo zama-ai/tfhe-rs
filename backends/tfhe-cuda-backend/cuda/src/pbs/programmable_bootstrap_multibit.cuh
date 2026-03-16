@@ -94,7 +94,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 
         // This offset allows to jump directly to the modswitched inputs,
         // skipping the input lwe
-        const Torus modswitched_offset = lwe_dimension / grouping_factor + 1;
+        const Torus modswitched_offset = lwe_dimension + 1;
 
         const Torus *block_lwe_array_in =
             &lwe_array_in[lwe_input_indexes[input_idx] *
@@ -819,12 +819,22 @@ __host__ void execute_compute_keybundle_with_mode(
             lwe_dimension, lwe_offset, chunk_size, keybundle_size_per_input);
       }
     } else {
-      device_multi_bit_programmable_bootstrap_keybundle<Torus, params, FULLSM>
-          <<<grid_keybundle, thds, full_sm_keybundle, stream>>>(
-              lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
-              lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-              level_count, lwe_offset, chunk_size, keybundle_size_per_input,
-              d_mem, 0);
+      if (use_noise_test_template) {
+        device_multi_bit_programmable_bootstrap_keybundle<Torus, params, FULLSM,
+                                                          true>
+            <<<grid_keybundle, thds, full_sm_keybundle, stream>>>(
+                lwe_array_in, lwe_input_indexes, keybundle_fft,
+                bootstrapping_key, lwe_dimension, glwe_dimension,
+                polynomial_size, grouping_factor, level_count, lwe_offset,
+                chunk_size, keybundle_size_per_input, d_mem, 0);
+      } else {
+        device_multi_bit_programmable_bootstrap_keybundle<Torus, params, FULLSM>
+            <<<grid_keybundle, thds, full_sm_keybundle, stream>>>(
+                lwe_array_in, lwe_input_indexes, keybundle_fft,
+                bootstrapping_key, lwe_dimension, glwe_dimension,
+                polynomial_size, grouping_factor, level_count, lwe_offset,
+                chunk_size, keybundle_size_per_input, d_mem, 0);
+      }
     }
   }
   check_cuda_error(cudaGetLastError());

@@ -336,8 +336,7 @@ pub unsafe fn programmable_bootstrap_multi_bit_noise_tests<T: UnsignedInteger>(
     let num_many_lut = 1u32;
     let lut_stride = 0u32;
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
-    // Reuse the standard scratch/cleanup since the buffer layout is identical
-    scratch_cuda_multi_bit_programmable_bootstrap_64_async(
+    scratch_cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
         std::ptr::addr_of_mut!(pbs_buffer),
@@ -368,7 +367,7 @@ pub unsafe fn programmable_bootstrap_multi_bit_noise_tests<T: UnsignedInteger>(
         num_many_lut,
         lut_stride,
     );
-    cleanup_cuda_multi_bit_programmable_bootstrap_64(
+    cleanup_cuda_multi_bit_programmable_bootstrap_noise_tests_64(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
         std::ptr::addr_of_mut!(pbs_buffer),

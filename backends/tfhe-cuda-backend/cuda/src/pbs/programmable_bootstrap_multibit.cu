@@ -645,6 +645,23 @@ void cleanup_cuda_multi_bit_programmable_bootstrap_64(void *stream,
   *buffer = nullptr;
 }
 
+// Noise-tests-namespaced wrappers: delegate to the standard scratch/cleanup so
+// that callers using the noise-tests PBS variant have a consistent API.
+uint64_t scratch_cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
+    void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
+  return scratch_cuda_multi_bit_programmable_bootstrap_64_async(
+      stream, gpu_index, pbs_buffer, glwe_dimension, polynomial_size,
+      level_count, input_lwe_ciphertext_count, allocate_gpu_memory);
+}
+
+void cleanup_cuda_multi_bit_programmable_bootstrap_noise_tests_64(
+    void *stream, uint32_t gpu_index, int8_t **pbs_buffer) {
+  cleanup_cuda_multi_bit_programmable_bootstrap_64(stream, gpu_index,
+                                                   pbs_buffer);
+}
+
 // Noise tests variant of the 64-bit multi-bit PBS, restricted to
 // polynomial_size=2048. The main difference is that the input
 // is assumed to be modulus switched before bootstrapping.
@@ -691,7 +708,7 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
 #endif
   case PBS_VARIANT::CG:
     host_cg_multi_bit_programmable_bootstrap_noise_tests<uint64_t,
-                                                         AmortizedDegree<2048>>(
+                                                         Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index,
         static_cast<uint64_t *>(lwe_array_out),
         static_cast<const uint64_t *>(lwe_output_indexes),
@@ -704,8 +721,7 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
         base_log, level_count, num_samples, num_many_lut, lut_stride);
     break;
   case PBS_VARIANT::DEFAULT:
-    host_multi_bit_programmable_bootstrap_noise_tests<uint64_t,
-                                                      AmortizedDegree<2048>>(
+    host_multi_bit_programmable_bootstrap_noise_tests<uint64_t, Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index,
         static_cast<uint64_t *>(lwe_array_out),
         static_cast<const uint64_t *>(lwe_output_indexes),
