@@ -2,7 +2,9 @@ mod internal;
 #[cfg(test)]
 mod test;
 
-use crate::backward_compatibility::xof_key_set::CompressedXofKeySetVersions;
+use crate::backward_compatibility::xof_key_set::{
+    CompressedXofKeySetVersions, XofSeedStartVersions,
+};
 use crate::core_crypto::commons::generators::MaskRandomGenerator;
 use crate::keys::{
     CompressedReRandomizationKey, IntegerServerKeyConformanceParams, ReRandomizationKeyGenInfo,
@@ -24,6 +26,7 @@ use crate::{
     CompressedReRandomizationKeySwitchingKey, CompressedServerKey, Config, ServerKey, Tag,
 };
 use serde::{Deserialize, Serialize};
+use tfhe_csprng::generators::aes_ctr::{AesCtrParams, TableIndex};
 
 use crate::core_crypto::commons::generators::NoiseRandomGenerator;
 use crate::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey;
@@ -55,6 +58,39 @@ use crate::high_level_api::keys::expanded::IntegerExpandedServerKey;
 //        - Re-Rand Public Key (stored in ServerKey) derived from compute params
 // 11) SNS Compression Key
 
+/// Holds an [XofSeed] and the byte at which the random generator should start.
+/// This maintains backward compatibility with tfhe-rs=1.5.4 (csprng=0.8.1)
+/// where the generator started at the second byte.
+///
+/// Default conversion [From] a [XofSeed] selects the first byte.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[versionize(XofSeedStartVersions)]
+pub enum XofSeedStart {
+    FirstByte(XofSeed),
+    SecondByte(XofSeed),
+}
+
+impl From<XofSeed> for XofSeedStart {
+    fn from(seed: XofSeed) -> Self {
+        Self::FirstByte(seed)
+    }
+}
+
+impl From<XofSeedStart> for AesCtrParams {
+    fn from(val: XofSeedStart) -> Self {
+        match val {
+            XofSeedStart::FirstByte(xof_seed) => Self {
+                seed: xof_seed.into(),
+                first_index: TableIndex::FIRST,
+            },
+            XofSeedStart::SecondByte(xof_seed) => Self {
+                seed: xof_seed.into(),
+                first_index: TableIndex::SECOND,
+            },
+        }
+    }
+}
+
 /// Compressed KeySet which respects the [Threshold (Fully) Homomorphic Encryption]
 /// regarding the random generator used, and the order of key generation
 ///
@@ -62,7 +98,7 @@ use crate::high_level_api::keys::expanded::IntegerExpandedServerKey;
 #[derive(Clone, Serialize, Deserialize, Versionize)]
 #[versionize(CompressedXofKeySetVersions)]
 pub struct CompressedXofKeySet {
-    seed: XofSeed,
+    seed: XofSeedStart,
     compressed_public_key: CompressedCompactPublicKey,
     compressed_server_key: CompressedServerKey,
 }
@@ -335,7 +371,7 @@ impl CompressedXofKeySet {
         );
 
         Ok(Self {
-            seed: pub_seed,
+            seed: XofSeedStart::FirstByte(pub_seed),
             compressed_public_key,
             compressed_server_key,
         })
@@ -375,7 +411,7 @@ impl CompressedXofKeySet {
     }
 
     pub fn from_raw_parts(
-        pub_seed: XofSeed,
+        pub_seed: impl Into<XofSeedStart>,
         mut compressed_public_key: CompressedCompactPublicKey,
         compressed_server_key: CompressedServerKey,
     ) -> Self {
@@ -384,13 +420,19 @@ impl CompressedXofKeySet {
             .tag_mut()
             .set_data(compressed_server_key.tag.data());
         Self {
-            seed: pub_seed,
+            seed: pub_seed.into(),
             compressed_public_key,
             compressed_server_key,
         }
     }
 
-    pub fn into_raw_parts(self) -> (XofSeed, CompressedCompactPublicKey, CompressedServerKey) {
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        XofSeedStart,
+        CompressedCompactPublicKey,
+        CompressedServerKey,
+    ) {
         let Self {
             seed,
             mut compressed_public_key,
