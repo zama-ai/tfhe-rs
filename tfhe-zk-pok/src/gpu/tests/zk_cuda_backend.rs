@@ -39,249 +39,347 @@ fn g2_proj_z_is_zero(p: &ZkG2Projective) -> bool {
 }
 
 // =============================================================================
-// Macro: generates G1 and G2 MSM test variants from a single template.
+// Trait-based abstraction over G1/G2 MSM test variants.
 //
-// Parameters:
-//   $Group        - tfhe-zk-pok curve group (G1 or G2)
-//   $ZkAffine     - zk-cuda-backend affine type (ZkG1Affine or ZkG2Affine)
-//   $ZkProjective - zk-cuda-backend projective type
-//   $to_zk        - conversion: tfhe-zk-pok affine -> zk-cuda affine
-//   $from_zk      - conversion: zk-cuda affine -> tfhe-zk-pok affine
-//   $from_mont    - Montgomery-to-normal conversion for zk-cuda affine
-//   $proj_z_is_zero - fn to check projective Z == 0 (group-specific)
-//   $test_*       - test function names (avoids `paste` dependency)
+// Each curve group has different affine/projective types, coordinate field types
+// (Fp vs Fp2), and conversion functions. This trait captures those differences so
+// the four MSM test bodies can be written once as generic functions.
 // =============================================================================
-macro_rules! msm_tests {
-    (
-        group: $Group:ty,
-        zk_affine: $ZkAffine:ty,
-        zk_proj: $ZkProjective:ty,
-        to_zk: $to_zk:expr,
-        from_zk: $from_zk:expr,
-        from_mont: $from_mont:expr,
-        proj_z_is_zero: $proj_z_is_zero:expr,
-        label: $label:expr,
-        test_large_n: $test_large_n:ident,
-        test_zero_scalars: $test_zero_scalars:ident,
-        test_canceling: $test_canceling:ident,
-        test_infinity_input: $test_infinity_input:ident
-    ) => {
-        #[test]
-        fn $test_large_n() {
-            const MAX_N: u64 = 100;
 
-            let gen = <$Group>::GENERATOR.normalize();
-            let gen_zk = $to_zk(&gen);
+trait MsmTestGroup {
+    const LABEL: &'static str;
+    type Group: CurveGroupOps<Zp>;
+    type ZkAffine: Copy + PartialEq + std::fmt::Debug;
+    type ZkProjective;
+    /// Coordinate field type: Fp for G1, Fp2 for G2. Used in per-coordinate assertions
+    /// to give precise x/y diagnostics when GPU results diverge.
+    type Coord: PartialEq + std::fmt::Debug;
 
-            // Probe CUDA availability with a trivial MSM before the sweep
-            {
-                let probe_points: Vec<$ZkAffine> = vec![gen_zk];
-                let probe_scalars: Vec<ZkScalar> = vec![ZkScalar::from_u64(1)];
-                // SAFETY: gpu_index 0 is valid (checked by test setup)
-                let probe_stream = unsafe { cuda_create_stream(0) };
-                if <$ZkProjective>::msm(&probe_points, &probe_scalars, probe_stream, 0, false)
-                    .is_err()
-                {
-                    // SAFETY: stream was created above and is not used after this point
-                    unsafe { cuda_destroy_stream(probe_stream, 0) };
-                    eprintln!("CUDA not available - Skipping test");
-                    return;
-                }
-                // SAFETY: stream was created above and is not used after this point
-                unsafe { cuda_destroy_stream(probe_stream, 0) };
-            }
+    fn to_zk(affine: &<Self::Group as CurveGroupOps<Zp>>::Affine) -> Self::ZkAffine;
+    fn from_zk(affine: &Self::ZkAffine) -> <Self::Group as CurveGroupOps<Zp>>::Affine;
+    fn from_mont(proj: &Self::ZkProjective) -> Self::ZkAffine;
+    fn proj_z_is_zero(proj: &Self::ZkProjective) -> bool;
+    fn infinity() -> Self::ZkAffine;
+    fn x(affine: &Self::ZkAffine) -> Self::Coord;
+    fn y(affine: &Self::ZkAffine) -> Self::Coord;
+    fn is_infinity(affine: &Self::ZkAffine) -> bool;
+    fn msm(
+        points: &[Self::ZkAffine],
+        scalars: &[ZkScalar],
+        stream: *mut std::ffi::c_void,
+        gpu_index: u32,
+    ) -> Result<Self::ZkProjective, String>;
+}
 
-            // Sweep N from 1..=MAX_N: points = [G; N], scalars = [1..=N].
-            // Expected result = G * triangular(N).
-            for n in 1..=MAX_N {
-                let points: Vec<$ZkAffine> = (0..n).map(|_| gen_zk).collect();
-                let scalars: Vec<ZkScalar> = (1..=n).map(ZkScalar::from_u64).collect();
+struct G1MSM;
 
-                // SAFETY: gpu_index 0 is valid (checked by test setup)
-                let stream = unsafe { cuda_create_stream(0) };
-                let gpu_result_proj = <$ZkProjective>::msm(&points, &scalars, stream, 0, false)
-                    .unwrap_or_else(|_| panic!("CUDA MSM failed at N={}", n));
-                // SAFETY: stream was created above and is not used after this point
-                unsafe { cuda_destroy_stream(stream, 0) };
+impl MsmTestGroup for G1MSM {
+    const LABEL: &'static str = "G1";
+    type Group = G1;
+    type ZkAffine = ZkG1Affine;
+    type ZkProjective = ZkG1Projective;
+    type Coord = zk_cuda_backend::Fp;
 
-                let gpu_result = $from_mont(&gpu_result_proj.to_affine());
+    fn to_zk(affine: &<G1 as CurveGroupOps<Zp>>::Affine) -> ZkG1Affine {
+        g1_affine_to_zk_cuda(affine)
+    }
+    fn from_zk(affine: &ZkG1Affine) -> <G1 as CurveGroupOps<Zp>>::Affine {
+        g1_affine_from_zk_cuda(affine)
+    }
+    fn from_mont(proj: &ZkG1Projective) -> ZkG1Affine {
+        g1_affine_from_montgomery(&proj.to_affine())
+    }
+    fn proj_z_is_zero(proj: &ZkG1Projective) -> bool {
+        g1_proj_z_is_zero(proj)
+    }
+    fn infinity() -> ZkG1Affine {
+        ZkG1Affine::infinity()
+    }
+    fn x(affine: &ZkG1Affine) -> zk_cuda_backend::Fp {
+        affine.x()
+    }
+    fn y(affine: &ZkG1Affine) -> zk_cuda_backend::Fp {
+        affine.y()
+    }
+    fn is_infinity(affine: &ZkG1Affine) -> bool {
+        affine.is_infinity()
+    }
+    fn msm(
+        points: &[ZkG1Affine],
+        scalars: &[ZkScalar],
+        stream: *mut std::ffi::c_void,
+        gpu_index: u32,
+    ) -> Result<ZkG1Projective, String> {
+        ZkG1Projective::msm(points, scalars, stream, gpu_index, false)
+    }
+}
 
-                let expected_scalar = Zp::from_u64(triangular_number(n));
-                let cpu_result = <$Group>::GENERATOR.mul_scalar(expected_scalar).normalize();
+struct G2MSM;
 
-                let gpu_tfhe = $from_zk(&gpu_result);
+impl MsmTestGroup for G2MSM {
+    const LABEL: &'static str = "G2";
+    type Group = G2;
+    type ZkAffine = ZkG2Affine;
+    type ZkProjective = ZkG2Projective;
+    type Coord = zk_cuda_backend::bindings::Fp2;
 
-                assert_eq!(
-                    $to_zk(&gpu_tfhe).is_infinity(),
-                    $to_zk(&cpu_result).is_infinity(),
-                    "{} MSM large_n: N={} infinity mismatch",
-                    $label,
-                    n
-                );
-                if !gpu_result.is_infinity() {
-                    assert_eq!(
-                        $to_zk(&gpu_tfhe).x(),
-                        $to_zk(&cpu_result).x(),
-                        "{} MSM large_n: N={} x mismatch",
-                        $label,
-                        n
-                    );
-                    assert_eq!(
-                        $to_zk(&gpu_tfhe).y(),
-                        $to_zk(&cpu_result).y(),
-                        "{} MSM large_n: N={} y mismatch",
-                        $label,
-                        n
-                    );
-                }
-            }
-        }
+    fn to_zk(affine: &<G2 as CurveGroupOps<Zp>>::Affine) -> ZkG2Affine {
+        g2_affine_to_zk_cuda(affine)
+    }
+    fn from_zk(affine: &ZkG2Affine) -> <G2 as CurveGroupOps<Zp>>::Affine {
+        g2_affine_from_zk_cuda(affine)
+    }
+    fn from_mont(proj: &ZkG2Projective) -> ZkG2Affine {
+        g2_affine_from_montgomery(&proj.to_affine())
+    }
+    fn proj_z_is_zero(proj: &ZkG2Projective) -> bool {
+        g2_proj_z_is_zero(proj)
+    }
+    fn infinity() -> ZkG2Affine {
+        ZkG2Affine::infinity()
+    }
+    fn x(affine: &ZkG2Affine) -> zk_cuda_backend::bindings::Fp2 {
+        affine.x()
+    }
+    fn y(affine: &ZkG2Affine) -> zk_cuda_backend::bindings::Fp2 {
+        affine.y()
+    }
+    fn is_infinity(affine: &ZkG2Affine) -> bool {
+        affine.is_infinity()
+    }
+    fn msm(
+        points: &[ZkG2Affine],
+        scalars: &[ZkScalar],
+        stream: *mut std::ffi::c_void,
+        gpu_index: u32,
+    ) -> Result<ZkG2Projective, String> {
+        ZkG2Projective::msm(points, scalars, stream, gpu_index, false)
+    }
+}
 
-        #[test]
-        fn $test_zero_scalars() {
-            let gen = <$Group>::GENERATOR.normalize();
-            let gen_zk = $to_zk(&gen);
+// =============================================================================
+// Generic MSM test functions, parameterized by MsmTestGroup
+// =============================================================================
 
-            // All-zero scalars: 0*G + 0*G + ... = O
-            let points: Vec<$ZkAffine> = vec![gen_zk; 5];
-            let scalars: Vec<ZkScalar> = vec![ZkScalar::from_u64(0); 5];
+fn msm_large_n<T: MsmTestGroup>() {
+    const MAX_N: u64 = 100;
 
-            let gpu_index = 0;
-            // SAFETY: gpu_index 0 is valid (checked by test setup)
-            let stream = unsafe { cuda_create_stream(gpu_index) };
-            let result_proj =
-                match <$ZkProjective>::msm(&points, &scalars, stream, gpu_index, false) {
-                    Ok(result) => result,
-                    Err(e) => {
-                        eprintln!("CUDA MSM failed: {} - Skipping test", e);
-                        // SAFETY: stream was created above and is not used after this point
-                        unsafe { cuda_destroy_stream(stream, gpu_index) };
-                        return;
-                    }
-                };
+    let gen = T::Group::GENERATOR.normalize();
+    let gen_zk = T::to_zk(&gen);
+
+    // Probe CUDA availability with a trivial MSM before the sweep
+    {
+        let probe_points = vec![gen_zk];
+        let probe_scalars = vec![ZkScalar::from_u64(1)];
+        // SAFETY: gpu_index 0 is valid (checked by test setup)
+        let probe_stream = unsafe { cuda_create_stream(0) };
+        if T::msm(&probe_points, &probe_scalars, probe_stream, 0).is_err() {
             // SAFETY: stream was created above and is not used after this point
-            unsafe { cuda_destroy_stream(stream, gpu_index) };
-
-            let is_infinity = ($proj_z_is_zero)(&result_proj);
-            assert!(
-                is_infinity,
-                "{} MSM with all-zero scalars should return infinity",
-                $label
-            );
+            unsafe { cuda_destroy_stream(probe_stream, 0) };
+            eprintln!("CUDA not available - Skipping test");
+            return;
         }
+        // SAFETY: stream was created above and is not used after this point
+        unsafe { cuda_destroy_stream(probe_stream, 0) };
+    }
 
-        #[test]
-        fn $test_canceling() {
-            let gen = <$Group>::GENERATOR.normalize();
-            let gen_zk = $to_zk(&gen);
+    // Sweep N from 1..=MAX_N: points = [G; N], scalars = [1..=N].
+    // Expected result = G * triangular(N).
+    for n in 1..=MAX_N {
+        let points: Vec<T::ZkAffine> = (0..n).map(|_| gen_zk).collect();
+        let scalars: Vec<ZkScalar> = (1..=n).map(ZkScalar::from_u64).collect();
 
-            // 1*G + (r-1)*G = r*G = O
-            let points: Vec<$ZkAffine> = vec![gen_zk, gen_zk];
-            let scalars: Vec<ZkScalar> = vec![ZkScalar::from_u64(1), ZkScalar::from(r_minus_1())];
+        // SAFETY: gpu_index 0 is valid (checked by test setup)
+        let stream = unsafe { cuda_create_stream(0) };
+        let gpu_result_proj = T::msm(&points, &scalars, stream, 0)
+            .unwrap_or_else(|_| panic!("CUDA MSM failed at N={}", n));
+        // SAFETY: stream was created above and is not used after this point
+        unsafe { cuda_destroy_stream(stream, 0) };
 
-            let gpu_index = 0;
-            // SAFETY: gpu_index 0 is valid (checked by test setup)
-            let stream = unsafe { cuda_create_stream(gpu_index) };
-            let result_proj =
-                match <$ZkProjective>::msm(&points, &scalars, stream, gpu_index, false) {
-                    Ok(result) => result,
-                    Err(e) => {
-                        eprintln!("CUDA MSM failed: {} - Skipping test", e);
-                        // SAFETY: stream was created above and is not used after this point
-                        unsafe { cuda_destroy_stream(stream, gpu_index) };
-                        return;
-                    }
-                };
-            // SAFETY: stream was created above and is not used after this point
-            unsafe { cuda_destroy_stream(stream, gpu_index) };
+        let gpu_result = T::from_mont(&gpu_result_proj);
 
-            let is_infinity = ($proj_z_is_zero)(&result_proj);
-            assert!(
-                is_infinity,
-                "{} MSM with canceling scalars (1*G + (r-1)*G) should return infinity",
-                $label
-            );
-        }
+        let expected_scalar = Zp::from_u64(triangular_number(n));
+        let cpu_result = T::Group::GENERATOR.mul_scalar(expected_scalar).normalize();
 
-        #[test]
-        fn $test_infinity_input() {
-            let gen = <$Group>::GENERATOR.normalize();
-            let gen_zk = $to_zk(&gen);
-            let inf = <$ZkAffine>::infinity();
+        let gpu_tfhe = T::from_zk(&gpu_result);
 
-            // 5*O + 3*G + 7*O = 3*G (infinity inputs contribute nothing)
-            let points: Vec<$ZkAffine> = vec![inf, gen_zk, inf];
-            let scalars: Vec<ZkScalar> = vec![
-                ZkScalar::from_u64(5),
-                ZkScalar::from_u64(3),
-                ZkScalar::from_u64(7),
-            ];
-
-            let gpu_index = 0;
-            // SAFETY: gpu_index 0 is valid (checked by test setup)
-            let stream = unsafe { cuda_create_stream(gpu_index) };
-            let result_proj =
-                match <$ZkProjective>::msm(&points, &scalars, stream, gpu_index, false) {
-                    Ok(result) => result,
-                    Err(e) => {
-                        eprintln!("CUDA MSM failed: {} - Skipping test", e);
-                        // SAFETY: stream was created above and is not used after this point
-                        unsafe { cuda_destroy_stream(stream, gpu_index) };
-                        return;
-                    }
-                };
-            // SAFETY: stream was created above and is not used after this point
-            unsafe { cuda_destroy_stream(stream, gpu_index) };
-
-            let expected = <$Group>::GENERATOR.mul_scalar(Zp::from_u64(3)).normalize();
-            let expected_zk = $to_zk(&expected);
-
-            let result = $from_mont(&result_proj.to_affine());
-
+        assert_eq!(
+            T::is_infinity(&T::to_zk(&gpu_tfhe)),
+            T::is_infinity(&T::to_zk(&cpu_result)),
+            "{} MSM large_n: N={} infinity mismatch",
+            T::LABEL,
+            n
+        );
+        if !T::is_infinity(&gpu_result) {
             assert_eq!(
-                result.x(),
-                expected_zk.x(),
-                "{} MSM with infinity points: x mismatch",
-                $label
+                T::x(&T::to_zk(&gpu_tfhe)),
+                T::x(&T::to_zk(&cpu_result)),
+                "{} MSM large_n: N={} x mismatch",
+                T::LABEL,
+                n
             );
             assert_eq!(
-                result.y(),
-                expected_zk.y(),
-                "{} MSM with infinity points: y mismatch",
-                $label
+                T::y(&T::to_zk(&gpu_tfhe)),
+                T::y(&T::to_zk(&cpu_result)),
+                "{} MSM large_n: N={} y mismatch",
+                T::LABEL,
+                n
             );
+        }
+    }
+}
+
+fn msm_zero_scalars<T: MsmTestGroup>() {
+    let gen = T::Group::GENERATOR.normalize();
+    let gen_zk = T::to_zk(&gen);
+
+    // All-zero scalars: 0*G + 0*G + ... = O
+    let points = vec![gen_zk; 5];
+    let scalars = vec![ZkScalar::from_u64(0); 5];
+
+    let gpu_index = 0;
+    // SAFETY: gpu_index 0 is valid (checked by test setup)
+    let stream = unsafe { cuda_create_stream(gpu_index) };
+    let result_proj = match T::msm(&points, &scalars, stream, gpu_index) {
+        Ok(result) => result,
+        Err(e) => {
+            eprintln!("CUDA MSM failed: {} - Skipping test", e);
+            // SAFETY: stream was created above and is not used after this point
+            unsafe { cuda_destroy_stream(stream, gpu_index) };
+            return;
         }
     };
+    // SAFETY: stream was created above and is not used after this point
+    unsafe { cuda_destroy_stream(stream, gpu_index) };
+
+    let is_infinity = T::proj_z_is_zero(&result_proj);
+    assert!(
+        is_infinity,
+        "{} MSM with all-zero scalars should return infinity",
+        T::LABEL
+    );
 }
 
-msm_tests! {
-    group: G1,
-    zk_affine: ZkG1Affine,
-    zk_proj: ZkG1Projective,
-    to_zk: g1_affine_to_zk_cuda,
-    from_zk: g1_affine_from_zk_cuda,
-    from_mont: g1_affine_from_montgomery,
-    proj_z_is_zero: g1_proj_z_is_zero,
-    label: "G1",
-    test_large_n: test_g1_msm_large_n,
-    test_zero_scalars: test_g1_msm_zero_scalars_returns_infinity,
-    test_canceling: test_g1_msm_canceling_scalars_returns_infinity,
-    test_infinity_input: test_g1_msm_infinity_point_input
+fn msm_canceling<T: MsmTestGroup>() {
+    let gen = T::Group::GENERATOR.normalize();
+    let gen_zk = T::to_zk(&gen);
+
+    // 1*G + (r-1)*G = r*G = O
+    let points = vec![gen_zk, gen_zk];
+    let scalars = vec![ZkScalar::from_u64(1), ZkScalar::from(r_minus_1())];
+
+    let gpu_index = 0;
+    // SAFETY: gpu_index 0 is valid (checked by test setup)
+    let stream = unsafe { cuda_create_stream(gpu_index) };
+    let result_proj = match T::msm(&points, &scalars, stream, gpu_index) {
+        Ok(result) => result,
+        Err(e) => {
+            eprintln!("CUDA MSM failed: {} - Skipping test", e);
+            // SAFETY: stream was created above and is not used after this point
+            unsafe { cuda_destroy_stream(stream, gpu_index) };
+            return;
+        }
+    };
+    // SAFETY: stream was created above and is not used after this point
+    unsafe { cuda_destroy_stream(stream, gpu_index) };
+
+    let is_infinity = T::proj_z_is_zero(&result_proj);
+    assert!(
+        is_infinity,
+        "{} MSM with canceling scalars (1*G + (r-1)*G) should return infinity",
+        T::LABEL
+    );
 }
 
-msm_tests! {
-    group: G2,
-    zk_affine: ZkG2Affine,
-    zk_proj: ZkG2Projective,
-    to_zk: g2_affine_to_zk_cuda,
-    from_zk: g2_affine_from_zk_cuda,
-    from_mont: g2_affine_from_montgomery,
-    proj_z_is_zero: g2_proj_z_is_zero,
-    label: "G2",
-    test_large_n: test_g2_msm_large_n,
-    test_zero_scalars: test_g2_msm_zero_scalars_returns_infinity,
-    test_canceling: test_g2_msm_canceling_scalars_returns_infinity,
-    test_infinity_input: test_g2_msm_infinity_point_input
+fn msm_infinity_input<T: MsmTestGroup>() {
+    let gen = T::Group::GENERATOR.normalize();
+    let gen_zk = T::to_zk(&gen);
+    let inf = T::infinity();
+
+    // 5*O + 3*G + 7*O = 3*G (infinity inputs contribute nothing)
+    let points = vec![inf, gen_zk, inf];
+    let scalars = vec![
+        ZkScalar::from_u64(5),
+        ZkScalar::from_u64(3),
+        ZkScalar::from_u64(7),
+    ];
+
+    let gpu_index = 0;
+    // SAFETY: gpu_index 0 is valid (checked by test setup)
+    let stream = unsafe { cuda_create_stream(gpu_index) };
+    let result_proj = match T::msm(&points, &scalars, stream, gpu_index) {
+        Ok(result) => result,
+        Err(e) => {
+            eprintln!("CUDA MSM failed: {} - Skipping test", e);
+            // SAFETY: stream was created above and is not used after this point
+            unsafe { cuda_destroy_stream(stream, gpu_index) };
+            return;
+        }
+    };
+    // SAFETY: stream was created above and is not used after this point
+    unsafe { cuda_destroy_stream(stream, gpu_index) };
+
+    let expected = T::Group::GENERATOR.mul_scalar(Zp::from_u64(3)).normalize();
+    let expected_zk = T::to_zk(&expected);
+
+    let result = T::from_mont(&result_proj);
+
+    assert_eq!(
+        T::x(&result),
+        T::x(&expected_zk),
+        "{} MSM with infinity points: x mismatch",
+        T::LABEL
+    );
+    assert_eq!(
+        T::y(&result),
+        T::y(&expected_zk),
+        "{} MSM with infinity points: y mismatch",
+        T::LABEL
+    );
+}
+
+// =============================================================================
+// Test wrappers: instantiate generic tests for G1 and G2
+// =============================================================================
+
+#[test]
+fn test_g1_msm_large_n() {
+    msm_large_n::<G1MSM>();
+}
+
+#[test]
+fn test_g1_msm_zero_scalars_returns_infinity() {
+    msm_zero_scalars::<G1MSM>();
+}
+
+#[test]
+fn test_g1_msm_canceling_scalars_returns_infinity() {
+    msm_canceling::<G1MSM>();
+}
+
+#[test]
+fn test_g1_msm_infinity_point_input() {
+    msm_infinity_input::<G1MSM>();
+}
+
+#[test]
+fn test_g2_msm_large_n() {
+    msm_large_n::<G2MSM>();
+}
+
+#[test]
+fn test_g2_msm_zero_scalars_returns_infinity() {
+    msm_zero_scalars::<G2MSM>();
+}
+
+#[test]
+fn test_g2_msm_canceling_scalars_returns_infinity() {
+    msm_canceling::<G2MSM>();
+}
+
+#[test]
+fn test_g2_msm_infinity_point_input() {
+    msm_infinity_input::<G2MSM>();
 }
 
 // =============================================================================
