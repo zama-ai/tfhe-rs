@@ -64,6 +64,12 @@ void cuda_add_lwe_ciphertext_vector_plaintext_64(
     void const *lwe_array_in, const uint64_t plaintext_in,
     const uint32_t input_lwe_dimension,
     const uint32_t input_lwe_ciphertext_count);
+void cuda_add_lwe_ciphertext_vector_inplace_32(
+    void *stream, uint32_t gpu_index, CudaRadixCiphertextFFI *lwe_array_inout,
+    CudaRadixCiphertextFFI const *input_2);
+void cuda_add_lwe_ciphertext_vector_inplace_64(
+    void *stream, uint32_t gpu_index, CudaRadixCiphertextFFI *lwe_array_inout,
+    CudaRadixCiphertextFFI const *input_2);
 }
 
 #endif // CUDA_LINALG_H_

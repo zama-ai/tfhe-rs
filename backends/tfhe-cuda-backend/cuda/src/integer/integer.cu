@@ -212,6 +212,9 @@ void cuda_apply_univariate_lut_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
     CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
     void *const *ksks, void *const *bsks) {
+  PANIC_IF_FALSE(output_radix_lwe != input_radix_lwe,
+                 "Output and input pointers must be different for out-of-place "
+                 "operations");
 
   host_apply_univariate_lut<uint64_t>(
       CudaStreams(streams), output_radix_lwe, input_radix_lwe,
@@ -243,6 +246,9 @@ void cuda_apply_many_univariate_lut_64_async(
     CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
     void *const *ksks, void *const *bsks, uint32_t num_many_lut,
     uint32_t lut_stride) {
+  PANIC_IF_FALSE(output_radix_lwe != input_radix_lwe,
+                 "Output and input pointers must be different for out-of-place "
+                 "operations");
 
   host_apply_many_univariate_lut<uint64_t>(
       CudaStreams(streams), output_radix_lwe, input_radix_lwe,
@@ -312,6 +318,9 @@ void cuda_apply_noise_squashing_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
     CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
     void *const *ksks, void *const *bsks) {
+  PANIC_IF_FALSE(output_radix_lwe != input_radix_lwe,
+                 "Output and input pointers must be different for out-of-place "
+                 "operations");
 
   PUSH_RANGE("apply noise squashing")
   integer_radix_apply_noise_squashing<uint64_t>(

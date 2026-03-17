@@ -27,6 +27,21 @@ void cuda_integer_div_rem_64_async(CudaStreamsFFI streams,
                                    CudaRadixCiphertextFFI const *divisor,
                                    bool is_signed, int8_t *mem_ptr,
                                    void *const *bsks, void *const *ksks) {
+  PANIC_IF_FALSE(quotient != numerator,
+                 "Quotient and numerator pointers must be different for "
+                 "out-of-place operations");
+  PANIC_IF_FALSE(quotient != divisor,
+                 "Quotient and divisor pointers must be different for "
+                 "out-of-place operations");
+  PANIC_IF_FALSE(remainder != numerator,
+                 "Remainder and numerator pointers must be different for "
+                 "out-of-place operations");
+  PANIC_IF_FALSE(remainder != divisor,
+                 "Remainder and divisor pointers must be different for "
+                 "out-of-place operations");
+  PANIC_IF_FALSE(quotient != remainder,
+                 "Quotient and remainder pointers must be different for "
+                 "out-of-place operations");
   PUSH_RANGE("div")
   auto mem = (int_div_rem_memory<uint64_t> *)mem_ptr;
 

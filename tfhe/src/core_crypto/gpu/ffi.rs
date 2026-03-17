@@ -871,11 +871,10 @@ pub unsafe fn add_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
         max_num_radix_blocks: num_samples,
         lwe_dimension: u32::try_from(lwe_dimension.0).unwrap(),
     };
-    cuda_add_lwe_ciphertext_vector_64(
+    cuda_add_lwe_ciphertext_vector_inplace_64(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
         &raw mut lwe_array_out_data,
-        &raw const lwe_array_out_data,
         &raw const lwe_array_in_data,
     );
 }

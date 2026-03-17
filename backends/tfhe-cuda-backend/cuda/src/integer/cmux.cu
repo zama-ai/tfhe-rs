@@ -30,6 +30,18 @@ void cuda_cmux_64_async(CudaStreamsFFI streams,
                         CudaRadixCiphertextFFI const *lwe_array_true,
                         CudaRadixCiphertextFFI const *lwe_array_false,
                         int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
+  PANIC_IF_FALSE(
+      lwe_array_out != lwe_condition,
+      "Output and condition pointers must be different for out-of-place "
+      "operations");
+  PANIC_IF_FALSE(
+      lwe_array_out != lwe_array_true,
+      "Output and true-branch pointers must be different for out-of-place "
+      "operations");
+  PANIC_IF_FALSE(
+      lwe_array_out != lwe_array_false,
+      "Output and false-branch pointers must be different for out-of-place "
+      "operations");
   PUSH_RANGE("cmux")
   host_cmux<uint64_t>(CudaStreams(streams), lwe_array_out, lwe_condition,
                       lwe_array_true, lwe_array_false,

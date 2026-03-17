@@ -1106,12 +1106,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_add_assign(
         &mut radix_lwe_left_degrees,
         &mut radix_lwe_left_noise_levels,
     );
-    // Here even though the input is not modified, data is passed as mutable.
-    // This avoids having to create two structs for the CudaRadixCiphertext pointers,
-    // one const and the other mutable.
-    // Having two structs on the Cuda side complicates things as we need to be sure we pass the
-    // Const structure as input instead of the mutable structure, which leads to complicated
-    // data manipulation on the C++ side to change mutability of data.
     let mut radix_lwe_right_degrees = radix_lwe_right
         .info
         .blocks
@@ -1129,11 +1123,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_add_assign(
         &mut radix_lwe_right_degrees,
         &mut radix_lwe_right_noise_levels,
     );
-    cuda_add_lwe_ciphertext_vector_64(
+    cuda_add_lwe_ciphertext_vector_inplace_64(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
         &raw mut cuda_ffi_radix_lwe_left,
-        &raw const cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_lwe_right,
     );
     update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
@@ -1215,12 +1208,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Nu
         &mut radix_lwe_left_degrees,
         &mut radix_lwe_left_noise_levels,
     );
-    // Here even though the input is not modified, data is passed as mutable.
-    // This avoids having to create two structs for the CudaRadixCiphertext pointers,
-    // one const and the other mutable.
-    // Having two structs on the Cuda side complicates things as we need to be sure we pass the
-    // Const structure as input instead of the mutable structure, which leads to complicated
-    // data manipulation on the C++ side to change mutability of data.
     let mut radix_lwe_right_degrees = radix_lwe_right
         .info
         .blocks
@@ -1238,7 +1225,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Nu
         &mut radix_lwe_right_degrees,
         &mut radix_lwe_right_noise_levels,
     );
-    scratch_cuda_integer_mult_64_async(
+    scratch_cuda_integer_mult_inplace_64_async(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         is_boolean_left,
@@ -1258,10 +1245,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Nu
         true,
         noise_reduction_type as u32,
     );
-    cuda_integer_mult_64_async(
+    cuda_integer_mult_inplace_64_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
-        &raw const cuda_ffi_radix_lwe_left,
         is_boolean_left,
         &raw const cuda_ffi_radix_lwe_right,
         is_boolean_right,
@@ -1271,7 +1257,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Nu
         u32::try_from(polynomial_size.0).unwrap(),
         num_blocks,
     );
-    cleanup_cuda_integer_mult_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_integer_mult_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
 }
 
@@ -1298,7 +1284,7 @@ pub(crate) fn cuda_backend_get_mul_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_mult_64_async(
+        scratch_cuda_integer_mult_inplace_64_async(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             is_boolean_left,
@@ -1320,7 +1306,7 @@ pub(crate) fn cuda_backend_get_mul_size_on_gpu(
         )
     };
     unsafe {
-        cleanup_cuda_integer_mult_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+        cleanup_cuda_integer_mult_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
@@ -1401,12 +1387,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger, B: 
         &mut radix_lwe_left_degrees,
         &mut radix_lwe_left_noise_levels,
     );
-    // Here even though the input is not modified, data is passed as mutable.
-    // This avoids having to create two structs for the CudaRadixCiphertext pointers,
-    // one const and the other mutable.
-    // Having two structs on the Cuda side complicates things as we need to be sure we pass the
-    // Const structure as input instead of the mutable structure, which leads to complicated
-    // data manipulation on the C++ side to change mutability of data.
     let mut radix_lwe_right_degrees = radix_lwe_right
         .info
         .blocks
@@ -1424,7 +1404,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger, B: 
         &mut radix_lwe_right_degrees,
         &mut radix_lwe_right_noise_levels,
     );
-    scratch_cuda_integer_bitop_64_async(
+    scratch_cuda_integer_bitop_inplace_64_async(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         u32::try_from(glwe_dimension.0).unwrap(),
@@ -1444,16 +1424,15 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger, B: 
         true,
         noise_reduction_type as u32,
     );
-    cuda_integer_bitop_64_async(
+    cuda_integer_bitop_inplace_64_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
-        &raw const cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_lwe_right,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
-    cleanup_cuda_integer_bitop_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_integer_bitop_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
 }
 
@@ -1534,12 +1513,6 @@ pub(crate) unsafe fn cuda_backend_boolean_bitop_assign<T: UnsignedInteger, B: Nu
         &mut radix_lwe_left_degrees,
         &mut radix_lwe_left_noise_levels,
     );
-    // Here even though the input is not modified, data is passed as mutable.
-    // This avoids having to create two structs for the CudaRadixCiphertext pointers,
-    // one const and the other mutable.
-    // Having two structs on the Cuda side complicates things as we need to be sure we pass the
-    // Const structure as input instead of the mutable structure, which leads to complicated
-    // data manipulation on the C++ side to change mutability of data.
     let mut radix_lwe_right_degrees = radix_lwe_right
         .info
         .blocks
@@ -1557,7 +1530,7 @@ pub(crate) unsafe fn cuda_backend_boolean_bitop_assign<T: UnsignedInteger, B: Nu
         &mut radix_lwe_right_degrees,
         &mut radix_lwe_right_noise_levels,
     );
-    scratch_cuda_boolean_bitop_64_async(
+    scratch_cuda_boolean_bitop_inplace_64_async(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         u32::try_from(glwe_dimension.0).unwrap(),
@@ -1578,16 +1551,15 @@ pub(crate) unsafe fn cuda_backend_boolean_bitop_assign<T: UnsignedInteger, B: Nu
         true,
         noise_reduction_type as u32,
     );
-    cuda_boolean_bitop_64_async(
+    cuda_boolean_bitop_inplace_64_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
-        &raw const cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_lwe_right,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
-    cleanup_cuda_boolean_bitop_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_boolean_bitop_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
 }
 
@@ -1615,7 +1587,7 @@ pub(crate) fn cuda_backend_get_boolean_bitop_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_boolean_bitop_64_async(
+        scratch_cuda_boolean_bitop_inplace_64_async(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             u32::try_from(glwe_dimension.0).unwrap(),
@@ -1638,7 +1610,7 @@ pub(crate) fn cuda_backend_get_boolean_bitop_size_on_gpu(
         )
     };
     unsafe {
-        cleanup_cuda_boolean_bitop_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+        cleanup_cuda_boolean_bitop_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
@@ -1716,7 +1688,7 @@ pub(crate) fn cuda_backend_get_bitop_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_bitop_64_async(
+        scratch_cuda_integer_bitop_inplace_64_async(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             u32::try_from(glwe_dimension.0).unwrap(),
@@ -1738,7 +1710,7 @@ pub(crate) fn cuda_backend_get_bitop_size_on_gpu(
         )
     };
     unsafe {
-        cleanup_cuda_integer_bitop_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+        cleanup_cuda_integer_bitop_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
@@ -1819,7 +1791,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<
         &mut radix_lwe_degrees,
         &mut radix_lwe_noise_levels,
     );
-    scratch_cuda_integer_scalar_bitop_64_async(
+    scratch_cuda_integer_scalar_bitop_inplace_64_async(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         u32::try_from(glwe_dimension.0).unwrap(),
@@ -1839,10 +1811,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<
         true,
         noise_reduction_type as u32,
     );
-    cuda_integer_scalar_bitop_64_async(
+    cuda_integer_scalar_bitop_inplace_64_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe,
-        &raw const cuda_ffi_radix_lwe,
         clear_blocks.as_c_ptr(0),
         h_clear_blocks.as_ptr().cast::<std::ffi::c_void>(),
         min(u32::try_from(clear_blocks.len()).unwrap(), num_blocks),
@@ -1850,7 +1821,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
-    cleanup_cuda_integer_scalar_bitop_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_integer_scalar_bitop_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_lwe, &cuda_ffi_radix_lwe);
 }
 
@@ -1877,7 +1848,7 @@ pub(crate) fn cuda_backend_get_scalar_bitop_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_integer_scalar_bitop_64_async(
+        scratch_cuda_integer_scalar_bitop_inplace_64_async(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             u32::try_from(glwe_dimension.0).unwrap(),
@@ -1899,7 +1870,10 @@ pub(crate) fn cuda_backend_get_scalar_bitop_size_on_gpu(
         )
     };
     unsafe {
-        cleanup_cuda_integer_scalar_bitop_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+        cleanup_cuda_integer_scalar_bitop_inplace_64(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
     }
     size_tracker
 }

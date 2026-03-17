@@ -118,6 +118,9 @@ void cuda_integer_unsigned_scalar_div_rem_radix_64_async(
     uint64_t const *decomposed_divisor, uint32_t const num_scalars_divisor,
     void const *clear_blocks, void const *h_clear_blocks,
     uint32_t num_clear_blocks) {
+  PANIC_IF_FALSE(quotient_ct != remainder_ct,
+                 "Quotient and remainder pointers must be different for "
+                 "out-of-place operations");
 
   host_integer_unsigned_scalar_div_rem_radix<uint64_t>(
       CudaStreams(streams), quotient_ct, remainder_ct,
@@ -168,6 +171,9 @@ void cuda_integer_signed_scalar_div_rem_radix_64_async(
     uint64_t const *divisor_has_at_least_one_set,
     uint64_t const *decomposed_divisor, uint32_t const num_scalars_divisor,
     uint32_t numerator_bits) {
+  PANIC_IF_FALSE(quotient_ct != remainder_ct,
+                 "Quotient and remainder pointers must be different for "
+                 "out-of-place operations");
 
   host_integer_signed_scalar_div_rem_radix<uint64_t>(
       CudaStreams(streams), quotient_ct, remainder_ct,

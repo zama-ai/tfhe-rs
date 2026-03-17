@@ -264,6 +264,8 @@ void g2_msm_managed_wrapper(
 void g1_from_montgomery_wrapper(G1Affine* result, const G1Affine* point) {
     PANIC_IF_FALSE(result != nullptr, "g1_from_montgomery error: result is null");
     PANIC_IF_FALSE(point != nullptr, "g1_from_montgomery error: point is null");
+    PANIC_IF_FALSE(result != point,
+                   "Output and input pointers must be different for out-of-place operations");
     if (point->infinity) {
         g1_point_at_infinity(*result);
         return;
@@ -276,6 +278,8 @@ void g1_from_montgomery_wrapper(G1Affine* result, const G1Affine* point) {
 void g2_from_montgomery_wrapper(G2Affine* result, const G2Affine* point) {
     PANIC_IF_FALSE(result != nullptr, "g2_from_montgomery error: result is null");
     PANIC_IF_FALSE(point != nullptr, "g2_from_montgomery error: point is null");
+    PANIC_IF_FALSE(result != point,
+                   "Output and input pointers must be different for out-of-place operations");
     if (point->infinity) {
         g2_point_at_infinity(*result);
         return;
@@ -290,18 +294,24 @@ void g2_from_montgomery_wrapper(G2Affine* result, const G2Affine* point) {
 void fp_to_montgomery_wrapper(Fp* result, const Fp* value) {
     PANIC_IF_FALSE(result != nullptr, "fp_to_montgomery error: result is null");
     PANIC_IF_FALSE(value != nullptr, "fp_to_montgomery error: value is null");
+    PANIC_IF_FALSE(result != value,
+                   "Output and input pointers must be different for out-of-place operations");
     fp_to_montgomery(*result, *value);
 }
 
 void fp_from_montgomery_wrapper(Fp* result, const Fp* value) {
     PANIC_IF_FALSE(result != nullptr, "fp_from_montgomery error: result is null");
     PANIC_IF_FALSE(value != nullptr, "fp_from_montgomery error: value is null");
+    PANIC_IF_FALSE(result != value,
+                   "Output and input pointers must be different for out-of-place operations");
     fp_from_montgomery(*result, *value);
 }
 
 void g1_projective_from_montgomery_normalized_wrapper(G1Projective* result, const G1Projective* point) {
     PANIC_IF_FALSE(result != nullptr, "g1_projective_from_montgomery error: result is null");
     PANIC_IF_FALSE(point != nullptr, "g1_projective_from_montgomery error: point is null");
+    PANIC_IF_FALSE(result != point,
+                   "Output and input pointers must be different for out-of-place operations");
 
     // Copy the point first (since inplace modifies the input)
     *result = *point;
@@ -315,6 +325,8 @@ void g1_projective_from_montgomery_normalized_wrapper(G1Projective* result, cons
 void g2_projective_from_montgomery_normalized_wrapper(G2Projective* result, const G2Projective* point) {
     PANIC_IF_FALSE(result != nullptr, "g2_projective_from_montgomery error: result is null");
     PANIC_IF_FALSE(point != nullptr, "g2_projective_from_montgomery error: point is null");
+    PANIC_IF_FALSE(result != point,
+                   "Output and input pointers must be different for out-of-place operations");
 
     // Copy the point first (since inplace modifies the input)
     *result = *point;

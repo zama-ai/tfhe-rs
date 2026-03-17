@@ -5,6 +5,9 @@ void cuda_negate_ciphertext_64(CudaStreamsFFI streams,
                                CudaRadixCiphertextFFI const *lwe_array_in,
                                uint32_t message_modulus, uint32_t carry_modulus,
                                uint32_t num_radix_blocks) {
+  PANIC_IF_FALSE(lwe_array_out != lwe_array_in,
+                 "Output and input pointers must be different for out-of-place "
+                 "operations");
 
   auto cuda_streams = CudaStreams(streams);
   host_negation<uint64_t>(cuda_streams, lwe_array_out, lwe_array_in,

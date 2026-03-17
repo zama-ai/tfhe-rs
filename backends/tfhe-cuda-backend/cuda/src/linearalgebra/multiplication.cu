@@ -10,6 +10,9 @@ void cuda_mult_lwe_ciphertext_vector_cleartext_vector_32(
     void const *lwe_array_in, void const *cleartext_array_in,
     const uint32_t input_lwe_dimension,
     const uint32_t input_lwe_ciphertext_count) {
+  PANIC_IF_FALSE(lwe_array_out != lwe_array_in,
+                 "Output and input pointers must be different for out-of-place "
+                 "operations");
 
   host_cleartext_vec_multiplication<uint32_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
@@ -52,6 +55,9 @@ void cuda_mult_lwe_ciphertext_vector_cleartext_vector_64(
     void const *lwe_array_in, void const *cleartext_array_in,
     const uint32_t input_lwe_dimension,
     const uint32_t input_lwe_ciphertext_count) {
+  PANIC_IF_FALSE(lwe_array_out != lwe_array_in,
+                 "Output and input pointers must be different for out-of-place "
+                 "operations");
 
   host_cleartext_vec_multiplication<uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
@@ -80,6 +86,12 @@ void cuda_wrapping_polynomial_mul_one_to_many_64_async(
     void *stream, uint32_t gpu_index, void *result, void const *poly_lhs,
     int8_t *circulant, void const *poly_rhs, uint32_t polynomial_size,
     uint32_t n_rhs) {
+  PANIC_IF_FALSE(result != poly_lhs,
+                 "Output and left input pointers must be different for "
+                 "out-of-place operations");
+  PANIC_IF_FALSE(result != poly_rhs,
+                 "Output and right input pointers must be different for "
+                 "out-of-place operations");
 
   host_wrapping_polynomial_mul_one_to_many<uint64_t, ulonglong4>(
       static_cast<cudaStream_t>(stream), gpu_index,
@@ -92,6 +104,13 @@ void cuda_glwe_wrapping_polynomial_mul_one_to_many_64_async(
     void *stream, uint32_t gpu_index, void *result, void const *glwe_lhs,
     int8_t *circulant, void const *poly_rhs, uint32_t polynomial_size,
     uint32_t glwe_dimension, uint32_t n_rhs) {
+  PANIC_IF_FALSE(result != glwe_lhs,
+                 "Output and left input pointers must be different for "
+                 "out-of-place operations");
+  PANIC_IF_FALSE(result != poly_rhs,
+                 "Output and right input pointers must be different for "
+                 "out-of-place operations");
+
   host_glwe_wrapping_polynomial_mul_one_to_many<uint64_t, ulonglong4>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<uint64_t *>(result), static_cast<uint64_t const *>(glwe_lhs),
