@@ -489,8 +489,8 @@ mod cuda {
 
     /// Per-GPU element count for verify+expand throughput benchmarks.
     /// Empirically measured with ZkComputeLoad::Verify on 8xH100-NVLink (80GB) GPUs.
-    /// Tuned to avoid OOM — expansion allocates server keys,
-    /// key switching material, and PBS buffers per element on GPU.
+    /// Tuned to avoid OOM — expansion allocates server keys
+    /// and key switching material on each GPU.
     fn gpu_zk_verify_throughput_elements(crs_size: usize, bits: usize) -> u64 {
         match (crs_size, bits) {
             (64, _) => 30,
@@ -895,9 +895,6 @@ mod cuda {
             let sks = ServerKey::new_radix_server_key(&cks);
             let compact_private_key = CompactPrivateKey::new(*param_pke);
             let pk = CompactPublicKey::new(&compact_private_key);
-            // Kept for consistency
-            let _casting_key =
-                KeySwitchingKey::new((&compact_private_key, None), (&cks, &sks), *_param_ksk);
 
             // We have a use case with 320 bits of metadata
             let mut metadata = [0u8; (320 / u8::BITS) as usize];
