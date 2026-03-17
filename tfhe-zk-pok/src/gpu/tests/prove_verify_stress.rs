@@ -4,10 +4,11 @@
 //! running GPU prove/verify alongside CPU to verify that:
 //!   - Serialized proofs are byte-identical between CPU and GPU.
 //!   - CPU and GPU verifiers agree on accept/reject for every input.
-//!   - Both directions are covered: GPU-prove→GPU-verify and CPU-prove→GPU-verify.
+//!   - Three directions are covered: GPU-prove→CPU-verify, GPU-prove→GPU-verify, and
+//!     CPU-prove→GPU-verify.
 //!
 //! Each test iterates over 3 CRS variants (original, compressed, not-compressed)
-//! × 32 combinations of invalid inputs (e1, e2, r, m, metadata) × 2 compute
+//! × 32 combinations of valid/invalid inputs (e1, e2, r, m, metadata) × 2 compute
 //! loads (Proof, Verify) × 2 pairing modes (TwoSteps, Batched).
 
 use crate::curve_api::Bls12_446;
@@ -22,8 +23,6 @@ type Curve = Bls12_446;
 
 /// Exhaustive GPU-vs-CPU equivalence test for PKE v2.
 ///
-/// Same structure as the v1 test but exercises `pke_v2` functions.  Key
-/// differences from v1:
 ///   - Uses `PKEV2_TEST_PARAMS` and `pke_v2::*` functions.
 ///   - Seed bytes are little-endian (`to_le_bytes`) per v2 convention.
 ///   - Verify takes a `VerificationPairingMode`; we test both `TwoSteps` and `Batched` and assert
