@@ -52,12 +52,11 @@ RUST_CALL_SITES = [
 # ---------------------------------------------------------------------------
 
 # Bindings parsed from bindings.rs
-# Scratch functions: Two more than cleanup functions because of
-#  'scratch_cuda_programmable_bootstrap_32_async' and
+# Scratch functions (equal to cleanup count)
 EXPECTED_SCRATCH_COUNT = 70
 
 # Cuda operation functions
-EXPECTED_CUDA_COUNT = 107
+EXPECTED_CUDA_COUNT = 109
 
 # Cleanup functions
 EXPECTED_CLEANUP_COUNT = 70
@@ -65,7 +64,7 @@ EXPECTED_CLEANUP_COUNT = 70
 # Check 3: Rust call-site scanning
 # Number of functions in ffi.rs files
 EXPECTED_CHECK3_RUST_FNS = 133
-# Number of functions in ffi.rs files that
+# Number of async cuda calls found in ffi.rs functions
 EXPECTED_CHECK3_ASYNC_CUDA_CALLS = 89
 
 # Number of instances of Rust calls to the scratch/cuda/cleanup in a

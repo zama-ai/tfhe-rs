@@ -36,6 +36,9 @@ void cuda_integer_scalar_comparison_64_async(
     CudaRadixCiphertextFFI const *lwe_array_in, void const *scalar_blocks,
     void const *h_scalar_blocks, int8_t *mem_ptr, void *const *bsks,
     void *const *ksks, uint32_t num_scalar_blocks) {
+  PANIC_IF_FALSE(lwe_array_out != lwe_array_in,
+                 "Output and input pointers must be different for out-of-place "
+                 "operations");
 
   // The output ciphertext might be a boolean block or a radix ciphertext
   // depending on the case (eq/gt vs max/min) so the amount of blocks to

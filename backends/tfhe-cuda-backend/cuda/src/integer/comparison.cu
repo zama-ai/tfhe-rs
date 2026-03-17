@@ -80,6 +80,12 @@ void cuda_integer_comparison_64_async(CudaStreamsFFI streams,
                                       CudaRadixCiphertextFFI const *lwe_array_2,
                                       int8_t *mem_ptr, void *const *bsks,
                                       void *const *ksks) {
+  PANIC_IF_FALSE(lwe_array_out != lwe_array_1,
+                 "Output and first input pointers must be different for "
+                 "out-of-place operations");
+  PANIC_IF_FALSE(lwe_array_out != lwe_array_2,
+                 "Output and second input pointers must be different for "
+                 "out-of-place operations");
   PUSH_RANGE("comparison")
   if (lwe_array_1->num_radix_blocks != lwe_array_2->num_radix_blocks)
     PANIC("Cuda error: input num radix blocks must be the same")
@@ -167,6 +173,9 @@ void cuda_integer_are_all_comparisons_block_true_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks, uint32_t num_radix_blocks) {
+  PANIC_IF_FALSE(lwe_array_out != lwe_array_in,
+                 "Output and input pointers must be different for out-of-place "
+                 "operations");
 
   int_comparison_buffer<uint64_t> *buffer =
       (int_comparison_buffer<uint64_t> *)mem_ptr;
@@ -209,6 +218,9 @@ void cuda_integer_is_at_least_one_comparisons_block_true_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks, uint32_t num_radix_blocks) {
+  PANIC_IF_FALSE(lwe_array_out != lwe_array_in,
+                 "Output and input pointers must be different for out-of-place "
+                 "operations");
 
   int_comparison_buffer<uint64_t> *buffer =
       (int_comparison_buffer<uint64_t> *)mem_ptr;

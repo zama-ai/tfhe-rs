@@ -61,11 +61,65 @@ void generate_ids_update_degrees(uint64_t *terms_degree, size_t *h_lwe_idx_in,
 
   total_count = message_count + carry_count;
 }
-/*
- * This scratch function allocates the necessary amount of data on the GPU for
- * the integer radix multiplication in keyswitch->bootstrap order.
- */
-uint64_t scratch_cuda_integer_mult_64_async(
+void cuda_integer_mult_inplace_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_inout,
+    bool const is_bool_left, CudaRadixCiphertextFFI const *radix_lwe_right,
+    bool const is_bool_right, void *const *bsks, void *const *ksks,
+    int8_t *mem_ptr, uint32_t polynomial_size, uint32_t num_blocks) {
+  // In-place variant: radix_lwe_inout *= radix_lwe_right, no aliasing check
+  // needed
+  PUSH_RANGE("mul_inplace")
+  switch (polynomial_size) {
+  case 256:
+    host_integer_mult_radix<uint64_t, AmortizedDegree<256>>(
+        CudaStreams(streams), radix_lwe_inout, radix_lwe_inout, is_bool_left,
+        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
+        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
+    break;
+  case 512:
+    host_integer_mult_radix<uint64_t, AmortizedDegree<512>>(
+        CudaStreams(streams), radix_lwe_inout, radix_lwe_inout, is_bool_left,
+        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
+        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
+    break;
+  case 1024:
+    host_integer_mult_radix<uint64_t, AmortizedDegree<1024>>(
+        CudaStreams(streams), radix_lwe_inout, radix_lwe_inout, is_bool_left,
+        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
+        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
+    break;
+  case 2048:
+    host_integer_mult_radix<uint64_t, AmortizedDegree<2048>>(
+        CudaStreams(streams), radix_lwe_inout, radix_lwe_inout, is_bool_left,
+        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
+        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
+    break;
+  case 4096:
+    host_integer_mult_radix<uint64_t, AmortizedDegree<4096>>(
+        CudaStreams(streams), radix_lwe_inout, radix_lwe_inout, is_bool_left,
+        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
+        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
+    break;
+  case 8192:
+    host_integer_mult_radix<uint64_t, AmortizedDegree<8192>>(
+        CudaStreams(streams), radix_lwe_inout, radix_lwe_inout, is_bool_left,
+        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
+        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
+    break;
+  case 16384:
+    host_integer_mult_radix<uint64_t, AmortizedDegree<16384>>(
+        CudaStreams(streams), radix_lwe_inout, radix_lwe_inout, is_bool_left,
+        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
+        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
+    break;
+  default:
+    PANIC("Cuda error (integer multiplication): unsupported polynomial size. "
+          "Supported N's are powers of two in the interval [256..16384].")
+  }
+  POP_RANGE()
+}
+
+uint64_t scratch_cuda_integer_mult_inplace_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, bool const is_boolean_left,
     bool const is_boolean_right, uint32_t message_modulus,
     uint32_t carry_modulus, uint32_t glwe_dimension, uint32_t lwe_dimension,
@@ -97,94 +151,8 @@ uint64_t scratch_cuda_integer_mult_64_async(
   }
 }
 
-/*
- * Computes a multiplication between two 64 bit radix lwe ciphertexts
- * encrypting integer values. keyswitch -> bootstrap pattern is used, function
- * works for single pair of radix ciphertexts, 'v_stream' can be used for
- * parallelization
- * - 'v_stream' is a void pointer to the Cuda stream to be used in the kernel
- * launch
- * - 'gpu_index' is the index of the GPU to be used in the kernel launch
- * - 'radix_lwe_out' is 64 bit radix big lwe ciphertext, product of
- * multiplication
- * - 'radix_lwe_left' left radix big lwe ciphertext
- * - 'radix_lwe_right' right radix big lwe ciphertext
- * - 'bsk' bootstrapping key in fourier domain
- * - 'ksk' keyswitching key
- * - 'mem_ptr'
- * - 'message_modulus' message_modulus
- * - 'carry_modulus' carry_modulus
- * - 'glwe_dimension' glwe_dimension
- * - 'lwe_dimension' is the dimension of small lwe ciphertext
- * - 'polynomial_size' polynomial size
- * - 'pbs_base_log' base log used in the pbs
- * - 'pbs_level' decomposition level count used in the pbs
- * - 'ks_level' decomposition level count used in the keyswitch
- * - 'num_blocks' is the number of big lwe ciphertext blocks inside radix
- * ciphertext
- * - 'pbs_type' selects which PBS implementation should be used
- */
-void cuda_integer_mult_64_async(CudaStreamsFFI streams,
-                                CudaRadixCiphertextFFI *radix_lwe_out,
-                                CudaRadixCiphertextFFI const *radix_lwe_left,
-                                bool const is_bool_left,
-                                CudaRadixCiphertextFFI const *radix_lwe_right,
-                                bool const is_bool_right, void *const *bsks,
-                                void *const *ksks, int8_t *mem_ptr,
-                                uint32_t polynomial_size, uint32_t num_blocks) {
-  PUSH_RANGE("mul")
-  switch (polynomial_size) {
-  case 256:
-    host_integer_mult_radix<uint64_t, AmortizedDegree<256>>(
-        CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
-        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
-        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
-    break;
-  case 512:
-    host_integer_mult_radix<uint64_t, AmortizedDegree<512>>(
-        CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
-        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
-        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
-    break;
-  case 1024:
-    host_integer_mult_radix<uint64_t, AmortizedDegree<1024>>(
-        CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
-        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
-        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
-    break;
-  case 2048:
-    host_integer_mult_radix<uint64_t, AmortizedDegree<2048>>(
-        CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
-        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
-        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
-    break;
-  case 4096:
-    host_integer_mult_radix<uint64_t, AmortizedDegree<4096>>(
-        CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
-        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
-        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
-    break;
-  case 8192:
-    host_integer_mult_radix<uint64_t, AmortizedDegree<8192>>(
-        CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
-        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
-        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
-    break;
-  case 16384:
-    host_integer_mult_radix<uint64_t, AmortizedDegree<16384>>(
-        CudaStreams(streams), radix_lwe_out, radix_lwe_left, is_bool_left,
-        radix_lwe_right, is_bool_right, bsks, (uint64_t **)(ksks),
-        (int_mul_memory<uint64_t> *)mem_ptr, num_blocks);
-    break;
-  default:
-    PANIC("Cuda error (integer multiplication): unsupported polynomial size. "
-          "Supported N's are powers of two in the interval [256..16384].")
-  }
-  POP_RANGE()
-}
-
-void cleanup_cuda_integer_mult_64(CudaStreamsFFI streams,
-                                  int8_t **mem_ptr_void) {
+void cleanup_cuda_integer_mult_inplace_64(CudaStreamsFFI streams,
+                                          int8_t **mem_ptr_void) {
   PUSH_RANGE("cleanup mul")
   int_mul_memory<uint64_t> *mem_ptr =
       (int_mul_memory<uint64_t> *)(*mem_ptr_void);
@@ -221,6 +189,9 @@ void cuda_partial_sum_ciphertexts_vec_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_out,
     CudaRadixCiphertextFFI *radix_lwe_vec, int8_t *mem_ptr, void *const *bsks,
     void *const *ksks) {
+  PANIC_IF_FALSE(radix_lwe_out != radix_lwe_vec,
+                 "Output and input pointers must be different for out-of-place "
+                 "operations");
 
   auto mem = (int_sum_ciphertexts_vec_memory<uint64_t> *)mem_ptr;
   if (radix_lwe_vec->num_radix_blocks % radix_lwe_out->num_radix_blocks != 0)

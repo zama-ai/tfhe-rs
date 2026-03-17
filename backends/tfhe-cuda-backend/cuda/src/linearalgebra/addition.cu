@@ -5,6 +5,12 @@ void cuda_add_lwe_ciphertext_vector_32(void *stream, uint32_t gpu_index,
                                        CudaRadixCiphertextFFI *output,
                                        CudaRadixCiphertextFFI const *input_1,
                                        CudaRadixCiphertextFFI const *input_2) {
+  PANIC_IF_FALSE(output != input_1,
+                 "Output and first input pointers must be different for "
+                 "out-of-place operations");
+  PANIC_IF_FALSE(output != input_2,
+                 "Output and second input pointers must be different for "
+                 "out-of-place operations");
 
   if (output->num_radix_blocks != input_1->num_radix_blocks ||
       output->num_radix_blocks != input_2->num_radix_blocks)
@@ -44,12 +50,42 @@ void cuda_add_lwe_ciphertext_vector_64(void *stream, uint32_t gpu_index,
                                        CudaRadixCiphertextFFI *output,
                                        CudaRadixCiphertextFFI const *input_1,
                                        CudaRadixCiphertextFFI const *input_2) {
+  PANIC_IF_FALSE(output != input_1,
+                 "Output and first input pointers must be different for "
+                 "out-of-place operations");
+  PANIC_IF_FALSE(output != input_2,
+                 "Output and second input pointers must be different for "
+                 "out-of-place operations");
 
   if (output->num_radix_blocks != input_1->num_radix_blocks ||
       output->num_radix_blocks != input_2->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be the same")
   host_addition<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index, output,
                           input_1, input_2, output->num_radix_blocks, 0, 0);
+  cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
+}
+
+void cuda_add_lwe_ciphertext_vector_inplace_32(
+    void *stream, uint32_t gpu_index, CudaRadixCiphertextFFI *lwe_array_inout,
+    CudaRadixCiphertextFFI const *input_2) {
+  // In-place variant: lwe_array_inout += input_2, no aliasing check needed
+  if (lwe_array_inout->num_radix_blocks != input_2->num_radix_blocks)
+    PANIC("Cuda error: input and output num radix blocks must be the same")
+  host_addition<uint32_t>(static_cast<cudaStream_t>(stream), gpu_index,
+                          lwe_array_inout, lwe_array_inout, input_2,
+                          lwe_array_inout->num_radix_blocks, 0, 0);
+  cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
+}
+
+void cuda_add_lwe_ciphertext_vector_inplace_64(
+    void *stream, uint32_t gpu_index, CudaRadixCiphertextFFI *lwe_array_inout,
+    CudaRadixCiphertextFFI const *input_2) {
+  // In-place variant: lwe_array_inout += input_2, no aliasing check needed
+  if (lwe_array_inout->num_radix_blocks != input_2->num_radix_blocks)
+    PANIC("Cuda error: input and output num radix blocks must be the same")
+  host_addition<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index,
+                          lwe_array_inout, lwe_array_inout, input_2,
+                          lwe_array_inout->num_radix_blocks, 0, 0);
   cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
 }
 
@@ -62,6 +98,9 @@ void cuda_add_lwe_ciphertext_vector_plaintext_vector_32(
     void const *lwe_array_in, void const *plaintext_array_in,
     const uint32_t input_lwe_dimension,
     const uint32_t input_lwe_ciphertext_count) {
+  PANIC_IF_FALSE(lwe_array_out != lwe_array_in,
+                 "Output and input pointers must be different for out-of-place "
+                 "operations");
 
   host_addition_plaintext<uint32_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
@@ -104,6 +143,9 @@ void cuda_add_lwe_ciphertext_vector_plaintext_vector_64(
     void const *lwe_array_in, void const *plaintext_array_in,
     const uint32_t input_lwe_dimension,
     const uint32_t input_lwe_ciphertext_count) {
+  PANIC_IF_FALSE(lwe_array_out != lwe_array_in,
+                 "Output and input pointers must be different for out-of-place "
+                 "operations");
 
   host_addition_plaintext<uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
@@ -144,6 +186,9 @@ void cuda_add_lwe_ciphertext_vector_plaintext_64(
     void const *lwe_array_in, const uint64_t plaintext_in,
     const uint32_t input_lwe_dimension,
     const uint32_t input_lwe_ciphertext_count) {
+  PANIC_IF_FALSE(lwe_array_out != lwe_array_in,
+                 "Output and input pointers must be different for out-of-place "
+                 "operations");
 
   host_addition_plaintext_scalar<uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index,

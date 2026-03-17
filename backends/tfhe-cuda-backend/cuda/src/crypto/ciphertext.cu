@@ -83,6 +83,8 @@ void cuda_modulus_switch_inplace_64_async(void *stream, uint32_t gpu_index,
 void cuda_modulus_switch_64_async(void *stream, uint32_t gpu_index,
                                   void *lwe_out, const void *lwe_in,
                                   uint32_t size, uint32_t log_modulus) {
+  PANIC_IF_FALSE(lwe_out != lwe_in, "Output and input pointers must be "
+                                    "different for out-of-place operations");
   host_modulus_switch<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index,
                                 static_cast<uint64_t *>(lwe_out),
                                 static_cast<const uint64_t *>(lwe_in), size,
@@ -93,6 +95,8 @@ void cuda_centered_modulus_switch_64_async(void *stream, uint32_t gpu_index,
                                            void *lwe_out, const void *lwe_in,
                                            uint32_t lwe_dimension,
                                            uint32_t log_modulus) {
+  PANIC_IF_FALSE(lwe_out != lwe_in, "Output and input pointers must be "
+                                    "different for out-of-place operations");
   host_centered_modulus_switch_inplace<uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<uint64_t *>(lwe_out), static_cast<const uint64_t *>(lwe_in),

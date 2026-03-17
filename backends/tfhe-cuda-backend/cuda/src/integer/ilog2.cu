@@ -30,6 +30,9 @@ void cuda_integer_count_of_consecutive_bits_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_ct,
     CudaRadixCiphertextFFI const *input_ct, int8_t *mem_ptr, void *const *bsks,
     void *const *ksks) {
+  PANIC_IF_FALSE(output_ct != input_ct,
+                 "Output and input pointers must be different for out-of-place "
+                 "operations");
 
   host_integer_count_of_consecutive_bits<uint64_t, uint64_t>(
       CudaStreams(streams), output_ct, input_ct,
@@ -81,6 +84,9 @@ void cuda_integer_ilog2_64_async(
     CudaRadixCiphertextFFI const *trivial_ct_2,
     CudaRadixCiphertextFFI const *trivial_ct_m_minus_1_block, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks) {
+  PANIC_IF_FALSE(output_ct != input_ct,
+                 "Output and input pointers must be different for out-of-place "
+                 "operations");
 
   host_integer_ilog2<uint64_t, uint64_t>(
       CudaStreams(streams), output_ct, input_ct, trivial_ct_neg_n, trivial_ct_2,
