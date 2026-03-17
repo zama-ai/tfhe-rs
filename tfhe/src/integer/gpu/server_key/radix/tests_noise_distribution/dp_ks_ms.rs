@@ -27,7 +27,6 @@ use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulat
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
     write_empty_json_file, write_to_json_file, NoiseCheckWithNormalityCheck, TestResult,
 };
-use crate::shortint::server_key::tests::noise_distribution::utils::traits::LweGenericBootstrap;
 use crate::shortint::server_key::tests::noise_distribution::utils::{
     mean_and_variance_check, normality_check, pfail_check, update_ap_params_for_pfail,
     DecryptionAndNoiseResult, NoiseSample, PfailTestMeta, PfailTestResult,
@@ -119,7 +118,8 @@ fn sanity_check_encrypt_dp_ks_pbs_gpu(meta_params: MetaParameters, filename_suff
         );
 
         let mut after_pbs = d_accumulator.allocate_lwe_bootstrap_result(&mut cuda_side_resources);
-        cuda_sks.lwe_generic_bootstrap(
+        //This is a specific pbs that works on top of a modulus switched multi-bit ciphertext.
+        cuda_sks.apply_generic_blind_rotation(
             &after_ms,
             &mut after_pbs,
             &d_accumulator,

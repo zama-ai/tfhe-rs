@@ -18,7 +18,8 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{
-    cuda_modulus_switch_ciphertext, programmable_bootstrap_multi_bit_noise_tests, CudaStreams,
+    cuda_modulus_switch_ciphertext, programmable_bootstrap_multi_bit,
+    programmable_bootstrap_multi_bit_noise_tests, CudaStreams,
 };
 use crate::core_crypto::prelude::*;
 use crate::integer::gpu::ciphertext::info::CudaBlockInfo;
@@ -1069,7 +1070,7 @@ impl LweMultiBitFftBootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u64>
                 }
                 side_resources.streams.synchronize();
                 unsafe {
-                    programmable_bootstrap_multi_bit_noise_tests(
+                    programmable_bootstrap_multi_bit(
                         &side_resources.streams,
                         &mut output_cuda_lwe.0.d_vec,
                         &output_indexes,
@@ -1110,6 +1111,83 @@ impl LweGenericBootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u64>> fo
             }
             CudaBootstrappingKey::MultiBit(_) => {
                 self.lwe_multi_bit_fft_bootstrap(input, output, accumulator, side_resources);
+            }
+        }
+    }
+}
+
+impl CudaServerKey {
+    // Only for noise tests to call a blind rotation that works on top of a modulus switched input.
+    // For classical PBS, no changes in the pbs are needed because applying a second vanilla ms
+    // doesn't change the results. For multi-bit we need a special PBS to avoid applying twice
+    // the multi-bit ms. In MB case, the input contains the original input and the modulus
+    // switched monomials for each component needed in the keybundle. The keybundle reads this
+    // precalculated monomials instead of calculating them on the fly.
+    pub fn apply_generic_blind_rotation(
+        &self,
+        input: &CudaDynLwe,
+        output: &mut CudaDynLwe,
+        accumulator: &CudaGlweCiphertextList<u64>,
+        side_resources: &mut CudaSideResources,
+    ) {
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(_) => {
+                self.lwe_classic_fft_pbs(input, output, accumulator, side_resources);
+            }
+            CudaBootstrappingKey::MultiBit(mb_bsk) => {
+                // Multi-bit PBS: input already holds the multi-bit mod-switched buffer,
+                // so we call the noise-test variant that consumes this layout directly.
+                match (input, output) {
+                    (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U64(output_cuda_lwe)) => {
+                        let num_samples = 1u32;
+                        let zero_index = vec![0u64];
+                        let mut output_indexes =
+                            unsafe { CudaVec::<u64>::new_async(1, &side_resources.streams, 0) };
+                        let mut test_vector_indexes =
+                            unsafe { CudaVec::<u64>::new_async(1, &side_resources.streams, 0) };
+                        let mut input_indexes =
+                            unsafe { CudaVec::<u64>::new_async(1, &side_resources.streams, 0) };
+                        unsafe {
+                            output_indexes.copy_from_cpu_async(
+                                &zero_index,
+                                &side_resources.streams,
+                                0,
+                            );
+                            test_vector_indexes.copy_from_cpu_async(
+                                &zero_index,
+                                &side_resources.streams,
+                                0,
+                            );
+                            input_indexes.copy_from_cpu_async(
+                                &zero_index,
+                                &side_resources.streams,
+                                0,
+                            );
+                        }
+                        side_resources.streams.synchronize();
+                        unsafe {
+                            // Our special pbs variant only for noise tests.
+                            programmable_bootstrap_multi_bit_noise_tests(
+                                &side_resources.streams,
+                                &mut output_cuda_lwe.0.d_vec,
+                                &output_indexes,
+                                &accumulator.0.d_vec,
+                                &test_vector_indexes,
+                                &input_cuda_lwe.0.d_vec,
+                                &input_indexes,
+                                &mb_bsk.d_vec,
+                                mb_bsk.input_lwe_dimension(),
+                                mb_bsk.glwe_dimension(),
+                                mb_bsk.polynomial_size(),
+                                mb_bsk.decomp_base_log(),
+                                mb_bsk.decomp_level_count(),
+                                mb_bsk.grouping_factor(),
+                                num_samples,
+                            );
+                        }
+                    }
+                    _ => panic!("Multi-bit blind rotation is only supported for U64 CudaDynLwe"),
+                }
             }
         }
     }
