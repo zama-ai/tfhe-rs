@@ -92,5 +92,4 @@ fn bench_pke_v1_verify(c: &mut Criterion) {
 }
 
 criterion_group!(benches_pke_v1, bench_pke_v1_verify, bench_pke_v1_prove);
-
 criterion_main!(benches_pke_v1);
