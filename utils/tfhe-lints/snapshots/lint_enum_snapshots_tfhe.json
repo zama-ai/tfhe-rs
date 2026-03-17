@@ -4739,12 +4739,24 @@
     "variants": [
       {
         "index": 0,
+        "inner_type_def_path": "high_level_api::backward_compatibility::xof_key_set::CompressedXofKeySetV0",
+        "inner_type_display": "high_level_api::backward_compatibility::xof_key_set::CompressedXofKeySetV0",
+        "type_hash": "b2f53df4231fec00dd91f7b25af832922ea3e2ad8fc5c6361185be67b105d3bd"
+      },
+      {
+        "index": 1,
         "inner_type_def_path": "high_level_api::xof_key_set::CompressedXofKeySet",
         "inner_type_display": "high_level_api::xof_key_set::CompressedXofKeySet",
-        "type_hash": "fa11083223cebe078112f69f0cb0f64e2c76b19e1c228401d10d6709b8a2dea5"
+        "type_hash": "e0c69a8c84e757985fe5d4b8bc1f20bab68c3ec48c50ebdbe88bcb104f423984"
       }
     ],
-    "upgrades": []
+    "upgrades": [
+      {
+        "source_def_path": "high_level_api::backward_compatibility::xof_key_set::CompressedXofKeySetV0",
+        "target_def_path": "high_level_api::xof_key_set::CompressedXofKeySet",
+        "body_hash": "a0a7f8dfa98a16a05dcc01d35511666bcacc61bdccf690569ebe75db631edaf2"
+      }
+    ]
   },
   {
     "enum_name": "high_level_api::backward_compatibility::xof_key_set::XofKeySetVersions",
@@ -4754,6 +4766,18 @@
         "inner_type_def_path": "high_level_api::xof_key_set::XofKeySet",
         "inner_type_display": "high_level_api::xof_key_set::XofKeySet",
         "type_hash": "e0abe14277bcf82b86b9fde3ab4bdb7d13064c85827c571d4d6e9e2976f1e4e3"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "high_level_api::backward_compatibility::xof_key_set::XofSeedStartVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "high_level_api::xof_key_set::XofSeedStart",
+        "inner_type_display": "high_level_api::xof_key_set::XofSeedStart",
+        "type_hash": "9903b0a560789f4851e07514ac047e785a937f93a7fd202d5b390248a382bee3"
       }
     ],
     "upgrades": []
