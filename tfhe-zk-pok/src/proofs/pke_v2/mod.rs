@@ -1799,7 +1799,7 @@ fn prove_impl<G: Curve>(
 
 /// Precompute xi powers: for each index j in 0..128*m, compute 2^(j % m) * xi[j / m]
 /// This replaces the sequential accumulator pattern that mutates xi_scaled.
-fn precompute_xi_powers<Zp: FieldOps>(xi: &[Zp; 128], m: usize) -> Box<[Zp]> {
+pub(crate) fn precompute_xi_powers<Zp: FieldOps>(xi: &[Zp; 128], m: usize) -> Box<[Zp]> {
     let mut result = Vec::with_capacity(128 * m);
     for &xi_val in xi {
         let mut power = xi_val;
