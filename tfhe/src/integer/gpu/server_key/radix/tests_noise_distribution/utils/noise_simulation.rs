@@ -10,8 +10,11 @@ use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
 };
 use crate::core_crypto::commons::noise_formulas::noise_simulation::{
     NoiseSimulationLweFourier128Bsk, NoiseSimulationLweFourierBsk,
+    NoiseSimulationLweMultiBitFourierBsk,
 };
 use crate::core_crypto::gpu::algorithms::lwe_keyswitch::cuda_keyswitch_lwe_ciphertext;
+use crate::core_crypto::gpu::entities::lwe_bootstrap_key::CudaLweBootstrapKey;
+use crate::core_crypto::gpu::entities::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaModulusSwitchNoiseReductionConfiguration;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
@@ -280,43 +283,39 @@ impl ScalarMul<u64> for CudaDynLwe {
 
 // Extensions for NoiseSimulationLweFourierBsk to support GPU operations
 impl NoiseSimulationLweFourierBsk {
-    pub fn matches_actual_bsk_gpu(&self, lwe_bsk: &CudaBootstrappingKey<u64>) -> bool {
-        let input_lwe_dimension = self.input_lwe_dimension();
-        let glwe_size = self.output_glwe_size();
-        let polynomial_size = self.output_polynomial_size();
-        let decomp_base_log = self.decomp_base_log();
-        let decomp_level_count = self.decomp_level_count();
+    pub fn matches_actual_bsk_gpu(&self, cuda_bsk: &CudaLweBootstrapKey) -> bool {
+        self.input_lwe_dimension() == cuda_bsk.input_lwe_dimension()
+            && self.output_glwe_size() == cuda_bsk.glwe_dimension().to_glwe_size()
+            && self.output_polynomial_size() == cuda_bsk.polynomial_size()
+            && self.decomp_base_log() == cuda_bsk.decomp_base_log()
+            && self.decomp_level_count() == cuda_bsk.decomp_level_count()
+    }
+}
 
-        match lwe_bsk {
-            CudaBootstrappingKey::Classic(cuda_bsk) => {
-                let bsk_input_lwe_dimension = cuda_bsk.input_lwe_dimension();
-                let bsk_glwe_size = cuda_bsk.glwe_dimension().to_glwe_size();
-                let bsk_polynomial_size = cuda_bsk.polynomial_size();
-                let bsk_decomp_base_log = cuda_bsk.decomp_base_log();
-                let bsk_decomp_level_count = cuda_bsk.decomp_level_count();
-
-                input_lwe_dimension == bsk_input_lwe_dimension
-                    && glwe_size == bsk_glwe_size
-                    && polynomial_size == bsk_polynomial_size
-                    && decomp_base_log == bsk_decomp_base_log
-                    && decomp_level_count == bsk_decomp_level_count
-            }
-            // MultiBit key cannot match classic key
-            CudaBootstrappingKey::MultiBit(_) => false,
-        }
+// Extension for NoiseSimulationLweMultiBitFourierBsk to support GPU operations
+impl NoiseSimulationLweMultiBitFourierBsk {
+    pub fn matches_actual_bsk_gpu(&self, cuda_mb_bsk: &CudaLweMultiBitBootstrapKey<u64>) -> bool {
+        self.input_lwe_dimension() == cuda_mb_bsk.input_lwe_dimension()
+            && self.output_glwe_size() == cuda_mb_bsk.glwe_dimension().to_glwe_size()
+            && self.output_polynomial_size() == cuda_mb_bsk.polynomial_size()
+            && self.decomp_base_log() == cuda_mb_bsk.decomp_base_log()
+            && self.decomp_level_count() == cuda_mb_bsk.decomp_level_count()
+            && self.grouping_factor() == cuda_mb_bsk.grouping_factor()
     }
 }
 
 // Extensions for NoiseSimulationGenericBootstrapKey to support GPU operations
 impl NoiseSimulationGenericBootstrapKey {
     pub fn matches_actual_bsk_gpu(&self, lwe_bsk: &CudaBootstrappingKey<u64>) -> bool {
-        match self {
-            Self::Classic(noise_simulation_lwe_fourier_bsk) => {
-                noise_simulation_lwe_fourier_bsk.matches_actual_bsk_gpu(lwe_bsk)
+        match (self, lwe_bsk) {
+            (Self::Classic(sim_bsk), CudaBootstrappingKey::Classic(cuda_bsk)) => {
+                sim_bsk.matches_actual_bsk_gpu(cuda_bsk)
             }
-            Self::MultiBit(_) => todo!(
-                "Implement the matching for NoiseSimulationLweMultiBitFourierBsk and forward here"
-            ),
+            (Self::MultiBit(sim_mb_bsk), CudaBootstrappingKey::MultiBit(cuda_mb_bsk)) => {
+                sim_mb_bsk.matches_actual_bsk_gpu(cuda_mb_bsk)
+            }
+            // Mismatched key types cannot match
+            _ => false,
         }
     }
 }
