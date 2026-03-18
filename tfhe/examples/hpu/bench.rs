@@ -64,9 +64,12 @@ pub struct Args {
 
     #[arg(long)]
     pub check_res: bool,
+<<<<<<< HEAD
 
     #[arg(long)]
     pub chain_iop: bool,
+=======
+>>>>>>> 245865d1c (chore(hpu): update to debug multi-hpu IOp)
 
     /// Force ct input values
     #[arg(long, value_parser = maybe_hex::<u128>)]
@@ -384,6 +387,7 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                                         err_cnt += 1;
                                     }
                                 }
+<<<<<<< HEAD
                                 if iop.opcode() == IOpcode(40) {
                                     let res = clear_res[0] + (clear_res[1] << width / 2);
                                     let expected = (srcs_clear[0] * srcs_clear[1]) % (1 << width);
@@ -417,6 +421,10 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                                 }
                             }
                             hpu_enc_res_0
+=======
+                            }
+                            hpu_enc_res
+>>>>>>> 245865d1c (chore(hpu): update to debug multi-hpu IOp)
                         })
                         .collect::<Vec<_>>();
                     if i == (args.iter - 1) {
