@@ -43,8 +43,8 @@ jobs:
           echo ">>> Print out all branches"
           git --no-pager branch -a -vv
 
-          echo ">>> Fetching LFS items from source..."
-          git lfs fetch source "${SOURCE_BRANCH}"
+          echo ">>> Pull LFS items from source..."
+          git lfs pull source "${SOURCE_BRANCH}"
 
           echo ">>> Pushing git changes and LFS content..."
           git push destination "${SOURCE_BRANCH}:${DESTINATION_BRANCH}" -f
