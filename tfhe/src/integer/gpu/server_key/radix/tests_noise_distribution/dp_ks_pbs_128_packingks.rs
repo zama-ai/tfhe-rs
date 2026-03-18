@@ -13,6 +13,7 @@ use crate::integer::ciphertext::NoiseSquashingCompressionPrivateKey;
 use crate::integer::gpu::list_compression::server_keys::CudaNoiseSquashingCompressionKey;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_stringified_test;
 use crate::integer::gpu::server_key::radix::{CudaNoiseSquashingKey, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::unchecked_small_scalar_mul_integer;
 use crate::integer::IntegerCiphertext;
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
@@ -770,7 +771,10 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise_gpu(
             noise_squashing_compression_params,
         );
 
-    assert!(noise_simulation_bsk.matches_actual_bsk_gpu(&cuda_sks.bootstrapping_key));
+    let CudaBootstrappingKey::Classic(cuda_classic_bsk) = &cuda_sks.bootstrapping_key else {
+        panic!("Expected a classic bootstrapping key for 128-bit noise squashing test");
+    };
+    assert!(noise_simulation_bsk.matches_actual_bsk_gpu(cuda_classic_bsk));
 
     assert!(noise_simulation_bsk128
         .matches_actual_shortint_noise_squashing_key(&noise_squashing_key.key));
