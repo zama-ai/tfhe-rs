@@ -33,6 +33,10 @@ jobs:
           git clone --quiet "https://${USERNAME}:${TOKEN}@github.com/${SOURCE_REPO}.git" ./tfhe-rs --origin source && cd ./tfhe-rs
           git remote add destination "https://${USERNAME}:${TOKEN}@github.com/${DEST_REPO}.git"
 
+          # The LFS config disables pulling files by default, so remove it
+          # TODO: see if we need to more precisely fetch LFS files or if git is smart
+          rm .lfsconfig
+
           echo ">>> Fetching all branches references down locally so subsequent commands can see them..."
           git fetch source '+refs/heads/*:refs/heads/*' --update-head-ok
 
