@@ -171,9 +171,9 @@ impl std::str::FromStr for IOpProto {
 // Define some common IOp scaling
 // Couldn't rely on NodesMap::new for constness reasons
 const NODE_MAP_SINGLE: NodesMap = NodesMap([1; MAX_HPU_IN_CLUSTER]);
-const NODE_MAP_LINEAR: NodesMap = NodesMap([1, 2, 3, 4, 5, 6, 7, 8]);
-const NODE_MAP_EVEN: NodesMap = NodesMap([1, 2, 2, 4, 4, 6, 6, 8]);
-const NODE_MAP_POW2: NodesMap = NodesMap([1, 2, 2, 4, 4, 4, 4, 8]);
+//const NODE_MAP_LINEAR: NodesMap = NodesMap([1, 2, 3, 4, 5, 6, 7, 8]);
+//const NODE_MAP_EVEN: NodesMap = NodesMap([1, 2, 2, 4, 4, 6, 6, 8]);
+//const NODE_MAP_POW2: NodesMap = NodesMap([1, 2, 2, 4, 4, 4, 4, 8]);
 
 // Define some common iop format
 pub const IOP1_CT_F_CT: ConstIOpProto<1, 1> = ConstIOpProto {
