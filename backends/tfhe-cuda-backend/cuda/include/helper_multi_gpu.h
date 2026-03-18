@@ -124,7 +124,7 @@ public:
   void create_on_same_gpus(const CudaStreams &other) {
     PANIC_IF_FALSE(_streams == nullptr,
                    "Cuda error: Assign clone to non-empty CudaStreams");
-    PANIC_IF_FALSE(_gpu_count <= 8,
+    PANIC_IF_FALSE(other._gpu_count <= 8,
                    "Cuda error: GPU count should be in the interval [0, 8]");
 
     cudaStream_t *new_streams = new cudaStream_t[other._gpu_count];
