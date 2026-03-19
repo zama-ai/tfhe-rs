@@ -119,71 +119,75 @@ __host__ void host_expand_without_verification(
       streams.stream(0), streams.gpu_index(0), true);
 
   if (mem_ptr->expand_kind == EXPAND_KIND::NO_CASTING) {
+    // This path is added to mimic the CPU fallback behaviour for the no_casting
+    // expand, which is needed for the noise sanity checks.
     host_lwe_expand<Torus, params>(streams.stream(0), streams.gpu_index(0),
                                    lwe_array_out, d_expand_jobs, num_lwes);
-    return;
-  }
 
-  host_lwe_expand<Torus, params>(streams.stream(0), streams.gpu_index(0),
-                                 expanded_lwes, d_expand_jobs, num_lwes);
+  } else {
+    // This is our default path for the expand with casting if needed.
+    host_lwe_expand<Torus, params>(streams.stream(0), streams.gpu_index(0),
+                                   expanded_lwes, d_expand_jobs, num_lwes);
 
-  auto lwe_array_input = expanded_lwes;
-  auto ksks = casting_keys;
-  auto message_and_carry_extract_luts = mem_ptr->message_and_carry_extract_luts;
+    auto lwe_array_input = expanded_lwes;
+    auto ksks = casting_keys;
+    auto message_and_carry_extract_luts =
+        mem_ptr->message_and_carry_extract_luts;
 
-  auto lut = mem_ptr->message_and_carry_extract_luts;
-  if (casting_key_type == SMALL_TO_BIG) {
-    if (mem_ptr->expand_kind == EXPAND_KIND::SANITY_CHECK) {
-      PANIC("SANITY_CHECK not supported for SMALL_TO_BIG casting");
+    auto lut = mem_ptr->message_and_carry_extract_luts;
+    if (casting_key_type == SMALL_TO_BIG) {
+      if (mem_ptr->expand_kind == EXPAND_KIND::SANITY_CHECK) {
+        PANIC("SANITY_CHECK not supported for SMALL_TO_BIG casting");
+      }
+      // Keyswitch from small to big key if needed
+      auto ksed_small_to_big_expanded_lwes =
+          mem_ptr->tmp_ksed_small_to_big_expanded_lwes;
+      std::vector<Torus *> lwe_trivial_indexes_vec =
+          lut->lwe_trivial_indexes_vec;
+
+      auto casting_params = mem_ptr->casting_params;
+      auto casting_output_dimension = casting_params.big_lwe_dimension;
+      auto casting_input_dimension = casting_params.small_lwe_dimension;
+      auto casting_ks_level = casting_params.ks_level;
+      auto casting_ks_base_log = casting_params.ks_base_log;
+
+      // apply keyswitch to BIG
+      execute_keyswitch_async<Torus>(
+          streams.get_ith(0), ksed_small_to_big_expanded_lwes,
+          lwe_trivial_indexes_vec[0], expanded_lwes, lwe_trivial_indexes_vec[0],
+          casting_keys, casting_input_dimension, casting_output_dimension,
+          casting_ks_base_log, casting_ks_level, num_lwes,
+          lut->using_trivial_lwe_indexes, lut->ks_tmp_buf_vec);
+
+      // In this case, the next keyswitch will use the compute ksk
+      ksks = compute_ksks;
+      lwe_array_input = ksed_small_to_big_expanded_lwes;
     }
-    // Keyswitch from small to big key if needed
-    auto ksed_small_to_big_expanded_lwes =
-        mem_ptr->tmp_ksed_small_to_big_expanded_lwes;
-    std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
 
-    auto casting_params = mem_ptr->casting_params;
-    auto casting_output_dimension = casting_params.big_lwe_dimension;
-    auto casting_input_dimension = casting_params.small_lwe_dimension;
-    auto casting_ks_level = casting_params.ks_level;
-    auto casting_ks_base_log = casting_params.ks_base_log;
-
-    // apply keyswitch to BIG
-    execute_keyswitch_async<Torus>(
-        streams.get_ith(0), ksed_small_to_big_expanded_lwes,
-        lwe_trivial_indexes_vec[0], expanded_lwes, lwe_trivial_indexes_vec[0],
-        casting_keys, casting_input_dimension, casting_output_dimension,
-        casting_ks_base_log, casting_ks_level, num_lwes,
-        lut->using_trivial_lwe_indexes, lut->ks_tmp_buf_vec);
-
-    // In this case, the next keyswitch will use the compute ksk
-    ksks = compute_ksks;
-    lwe_array_input = ksed_small_to_big_expanded_lwes;
+    // Apply LUT
+    cuda_memset_async(lwe_array_out, 0,
+                      safe_mul_sizeof<Torus>((size_t)(lwe_dimension + 1),
+                                             (size_t)num_lwes, (size_t)2),
+                      streams.stream(0), streams.gpu_index(0));
+    CudaRadixCiphertextFFI output;
+    into_radix_ciphertext(&output, lwe_array_out, 2 * num_lwes, lwe_dimension);
+    CudaRadixCiphertextFFI input;
+    into_radix_ciphertext(&input, lwe_array_input, 2 * num_lwes, lwe_dimension);
+    // This is a special case only for our noise sanity checks
+    // If we are doing a SANITY_CHECK expand, we just apply the identity LUT
+    // This replicates the CPU fallback behaviour of the casting expand
+    if (mem_ptr->expand_kind == EXPAND_KIND::SANITY_CHECK) {
+      integer_radix_apply_univariate_lookup_table<Torus>(
+          streams, &output, &input, bsks, ksks, mem_ptr->identity_lut,
+          2 * num_lwes);
+    } else {
+      integer_radix_apply_univariate_lookup_table<Torus>(
+          streams, &output, &input, bsks, ksks, message_and_carry_extract_luts,
+          2 * num_lwes);
+    }
+    release_cpu_radix_ciphertext_async(&input);
+    release_cpu_radix_ciphertext_async(&output);
   }
-
-  // Apply LUT
-  cuda_memset_async(lwe_array_out, 0,
-                    safe_mul_sizeof<Torus>((size_t)(lwe_dimension + 1),
-                                           (size_t)num_lwes, (size_t)2),
-                    streams.stream(0), streams.gpu_index(0));
-  CudaRadixCiphertextFFI output;
-  into_radix_ciphertext(&output, lwe_array_out, 2 * num_lwes, lwe_dimension);
-  CudaRadixCiphertextFFI input;
-  into_radix_ciphertext(&input, lwe_array_input, 2 * num_lwes, lwe_dimension);
-  // This is a special case only for our noise sanity checks
-  // If we are doing a SANITY_CHECK expand, we just apply the identity LUT
-  // This replicates the CPU fallback behaviour of the casting expand
-  if (mem_ptr->expand_kind == EXPAND_KIND::SANITY_CHECK) {
-    integer_radix_apply_univariate_lookup_table<Torus>(
-        streams, &output, &input, bsks, ksks, mem_ptr->identity_lut,
-        2 * num_lwes);
-    return;
-  }
-
-  integer_radix_apply_univariate_lookup_table<Torus>(
-      streams, &output, &input, bsks, ksks, message_and_carry_extract_luts,
-      2 * num_lwes);
-  release_cpu_radix_ciphertext_async(&input);
-  release_cpu_radix_ciphertext_async(&output);
   compact_lwe_lists.release();
 }
 

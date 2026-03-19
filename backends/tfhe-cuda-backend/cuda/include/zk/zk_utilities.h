@@ -151,7 +151,7 @@ template <typename Torus> struct zk_expand_mem {
     // We create the identity LUT only if we are doing a SANITY_CHECK
     if (expand_kind == EXPAND_KIND::SANITY_CHECK) {
       identity_lut =
-          new int_radix_lut<Torus>(streams, computing_params, 1, 2 * num_lwes,
+          new int_radix_lut<Torus>(streams, casting_params, 1, 2 * num_lwes,
                                    allocate_gpu_memory, size_tracker);
 
       auto identity_lut_f = [](Torus x) -> Torus { return x; };
@@ -289,6 +289,11 @@ template <typename Torus> struct zk_expand_mem {
     message_and_carry_extract_luts->set_lwe_indexes(
         streams.stream(0), streams.gpu_index(0), h_indexes_in, h_indexes_out);
 
+    if (expand_kind == EXPAND_KIND::SANITY_CHECK) {
+      identity_lut->set_lwe_indexes(streams.stream(0), streams.gpu_index(0),
+                                    h_indexes_in, h_indexes_out);
+    }
+
     auto active_streams =
         streams.active_gpu_subset(2 * num_lwes, params.pbs_type);
 
@@ -320,6 +325,12 @@ template <typename Torus> struct zk_expand_mem {
 
     message_and_carry_extract_luts->allocate_lwe_vector_for_non_trivial_indexes(
         active_streams, 2 * num_lwes, size_tracker, allocate_gpu_memory);
+
+    if (expand_kind == EXPAND_KIND::SANITY_CHECK) {
+      identity_lut->allocate_lwe_vector_for_non_trivial_indexes(
+          active_streams, 2 * num_lwes, size_tracker, allocate_gpu_memory);
+    }
+
     // The expanded LWEs will always be on the casting key format
     tmp_expanded_lwes = (Torus *)cuda_malloc_with_size_tracking_async(
         safe_mul_sizeof<Torus>(num_lwes, casting_params.big_lwe_dimension + 1),
