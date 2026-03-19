@@ -77,7 +77,7 @@
 [firmware]
   implementation = "Llt"
   # integer_w=[2,4,6,8,10,12,14,16,32,64,128]
-  integer_w=[8]
+  integer_w=[32]
   min_batch_size = 12
   kogge_cfg            = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/kogge_cfg.toml"
 
@@ -106,8 +106,12 @@
 [firmware.custom_iop.integer_w_16]
   'IOP[21]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_16/cust_21"
 
+[firmware.custom_iop.integer_w_32]
+  'IOP[40]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_32/cust_40"
+
 [firmware.custom_iop.integer_w_64]
   'IOP[4]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/cust_4"
+  'IOP[40]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/cust_40"
 
 [firmware.custom_iop.integer_w_128]
 'IOP[5]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/cust_5"
