@@ -12,14 +12,14 @@
         "index": 1,
         "inner_type_def_path": "proofs::pke::Proof",
         "inner_type_display": "proofs::pke::Proof<G>",
-        "type_hash": "adc38118248ee2a5a57276487bb1746b863628f7b05ad980043f18af3d9eb530"
+        "type_hash": "adc381182492298ee2a5a57276487bb1746b863628f7b05ad980043f18af3d9eb530"
       }
     ],
     "upgrades": [
       {
         "source_def_path": "backward_compatibility::pke::ProofV0",
         "target_def_path": "proofs::pke::Proof",
-        "body_hash": "b3dc72a9bfa7827a6c4860e31420e1d5e23e75f4609313c5175e4a991108331e"
+        "body_hash": "b3dc72a910bfa7827a6c4860e31420e1d5e23e75f4609313c5175e4a991108331e"
       }
     ]
   },
