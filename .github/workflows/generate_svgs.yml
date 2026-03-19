@@ -39,7 +39,7 @@ jobs:
     if: inputs.generate-cpu-svgs
     with:
       backend: cpu
-      hardware_name: hpc7a.96xlarge
+      hardware_name: hpc8a.96xlarge
       layer: integer
       pbs_kind: classical
       bench_type: latency
@@ -56,7 +56,7 @@ jobs:
     if: inputs.generate-cpu-svgs
     with:
       backend: cpu
-      hardware_name: hpc7a.96xlarge
+      hardware_name: hpc8a.96xlarge
       layer: integer
       pbs_kind: classical
       bench_type: throughput
@@ -160,7 +160,7 @@ jobs:
     if: inputs.generate-cpu-svgs
     with:
       backend: cpu
-      hardware_name: hpc7a.96xlarge
+      hardware_name: hpc8a.96xlarge
       layer: integer
       bench_subset: zk
       pbs_kind: classical
@@ -178,7 +178,7 @@ jobs:
     if: inputs.generate-cpu-svgs
     with:
       backend: cpu
-      hardware_name: hpc7a.96xlarge
+      hardware_name: hpc8a.96xlarge
       layer: integer
       bench_subset: zk
       pbs_kind: classical
@@ -219,7 +219,7 @@ jobs:
     if: inputs.generate-cpu-svgs
     with:
       backend: cpu
-      hardware_name: hpc7a.96xlarge
+      hardware_name: hpc8a.96xlarge
       layer: hlapi
       bench_subset: erc20
       pbs_kind: classical
@@ -278,7 +278,7 @@ jobs:
     if: inputs.generate-cpu-svgs
     with:
       backend: cpu
-      hardware_name: hpc7a.96xlarge
+      hardware_name: hpc8a.96xlarge
       layer: core_crypto
       pbs_kind: any
       grouping_factor: 4

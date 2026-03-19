@@ -16,10 +16,16 @@ image_id = "ami-0eda00173fe323828"
 instance_type = "m6i.4xlarge"
 user = "ubuntu"
 
+#[backend.aws.bench]
+#region = "eu-west-1"
+#image_id = "ami-06e3a9d9b57d38676"
+#instance_type = "hpc7a.96xlarge"
+#user = "ubuntu"
+
 [backend.aws.bench]
-region = "eu-west-1"
-image_id = "ami-06e3a9d9b57d38676"
-instance_type = "hpc7a.96xlarge"
+region = "eu-north-1"
+image_id = "ami-0e6002335516dd069"
+instance_type = "hpc8a.96xlarge"
 user = "ubuntu"
 
 # Profile used to build CUDA code without the need to get p-like instance.

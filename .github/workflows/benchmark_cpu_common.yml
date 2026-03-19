@@ -185,7 +185,7 @@ jobs:
         run: |
           python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
-          --hardware "hpc7a.96xlarge" \
+          --hardware "hpc8a.96xlarge" \
           --project-version "${COMMIT_HASH}" \
           --branch "${REF_NAME}" \
           --commit-date "${COMMIT_DATE}" \
