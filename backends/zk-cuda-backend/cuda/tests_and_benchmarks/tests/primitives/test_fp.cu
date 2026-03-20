@@ -3,6 +3,7 @@
 #include "fp.h"
 #include "fp_helpers.h" // Include test-only batch operations and kernels
 #include <chrono>
+#include <cinttypes>
 #include <cstdint>
 #include <cstring>
 #include <cuda_runtime.h>
@@ -297,7 +298,7 @@ protected:
 
 // Test basic addition (on GPU)
 TEST_F(FpArithmeticTest, Addition) {
-  uint64_t size_tracker = 0;
+
   Fp a, b, c, c_cpu;
 
   // Test: 1 + 1 = 2
@@ -320,7 +321,7 @@ TEST_F(FpArithmeticTest, Addition) {
 
 // Test subtraction (on GPU)
 TEST_F(FpArithmeticTest, Subtraction) {
-  uint64_t size_tracker = 0;
+
   Fp a, b, c, a_cpu;
 
   // Test: 2 - 1 = 1
@@ -341,7 +342,7 @@ TEST_F(FpArithmeticTest, Subtraction) {
 
 // Test multiplication (on GPU)
 TEST_F(FpArithmeticTest, Multiplication) {
-  uint64_t size_tracker = 0;
+
   Fp five, three, result, expected;
 
   fp_zero(five);
@@ -370,7 +371,7 @@ TEST_F(FpArithmeticTest, Multiplication) {
 
 // Test negation (on GPU)
 TEST_F(FpArithmeticTest, Negation) {
-  uint64_t size_tracker = 0;
+
   Fp a, neg_a, result;
 
   fp_zero(a);
@@ -395,7 +396,7 @@ TEST_F(FpArithmeticTest, Negation) {
 
 // Test Montgomery conversion round-trip (on GPU)
 TEST_F(FpArithmeticTest, MontgomeryRoundTrip) {
-  uint64_t size_tracker = 0;
+
   Fp value, mont_form, back, mont_form_cpu, back_cpu;
 
   fp_zero(value);
@@ -421,7 +422,7 @@ TEST_F(FpArithmeticTest, MontgomeryRoundTrip) {
 
 // Test Montgomery multiplication (on GPU)
 TEST_F(FpArithmeticTest, MontgomeryMultiplication) {
-  uint64_t size_tracker = 0;
+
   Fp five, three, five_m, three_m, result_m, result, expected, result_cpu;
 
   fp_zero(five);
@@ -460,7 +461,7 @@ TEST_F(FpArithmeticTest, MontgomeryMultiplication) {
 
 // Test comparison operations (on GPU)
 TEST_F(FpArithmeticTest, Comparison) {
-  uint64_t size_tracker = 0;
+
   Fp five, three;
 
   fp_zero(five);
@@ -481,7 +482,7 @@ TEST_F(FpArithmeticTest, Comparison) {
 
 // Test zero and one (on GPU)
 TEST_F(FpArithmeticTest, ZeroAndOne) {
-  uint64_t size_tracker = 0;
+
   Fp zero, one;
 
   fp_zero(zero);
@@ -499,7 +500,7 @@ TEST_F(FpArithmeticTest, ZeroAndOne) {
 
 // Test copy (on GPU)
 TEST_F(FpArithmeticTest, Copy) {
-  uint64_t size_tracker = 0;
+
   Fp a, b, b_cpu;
 
   fp_zero(a);
@@ -522,7 +523,7 @@ TEST_F(FpArithmeticTest, Copy) {
 
 // Test conditional move (on GPU)
 TEST_F(FpArithmeticTest, ConditionalMove) {
-  uint64_t size_tracker = 0;
+
   Fp a, b, result, result_cpu;
 
   fp_zero(a);
@@ -563,7 +564,7 @@ TEST_F(FpArithmeticTest, ConditionalMove) {
 
 // Test multiplication by zero (on GPU)
 TEST_F(FpArithmeticTest, MultiplicationByZero) {
-  uint64_t size_tracker = 0;
+
   Fp a, zero, result, result_cpu;
 
   fp_zero(zero);
@@ -591,7 +592,7 @@ TEST_F(FpArithmeticTest, MultiplicationByZero) {
 
 // Test inversion (on GPU)
 TEST_F(FpArithmeticTest, Inversion) {
-  uint64_t size_tracker = 0;
+
   Fp a, a_inv, result, a_inv_cpu;
 
   fp_zero(a);
@@ -623,7 +624,7 @@ TEST_F(FpArithmeticTest, Inversion) {
 
 // Test inversion of one (on GPU)
 TEST_F(FpArithmeticTest, InversionOfOne) {
-  uint64_t size_tracker = 0;
+
   Fp one, one_inv, one_inv_cpu;
 
   fp_one(one);
@@ -645,7 +646,7 @@ TEST_F(FpArithmeticTest, InversionOfOne) {
 
 // Test division (on GPU)
 TEST_F(FpArithmeticTest, Division) {
-  uint64_t size_tracker = 0;
+
   Fp a, b, quotient, result;
 
   fp_zero(a);
@@ -678,7 +679,7 @@ TEST_F(FpArithmeticTest, Division) {
 
 // Test division by one (on GPU)
 TEST_F(FpArithmeticTest, DivisionByOne) {
-  uint64_t size_tracker = 0;
+
   Fp a, one, result;
 
   fp_one(one);
@@ -707,7 +708,7 @@ TEST_F(FpArithmeticTest, DivisionByOne) {
 
 // Test exponentiation with small exponent (on GPU)
 TEST_F(FpArithmeticTest, ExponentiationSmall) {
-  uint64_t size_tracker = 0;
+
   Fp base, result, expected, result_cpu;
 
   fp_zero(base);
@@ -734,7 +735,7 @@ TEST_F(FpArithmeticTest, ExponentiationSmall) {
 
 // Test exponentiation to power of one (on GPU)
 TEST_F(FpArithmeticTest, ExponentiationToPowerOfOne) {
-  uint64_t size_tracker = 0;
+
   Fp base, result, result_cpu;
 
   fp_zero(base);
@@ -758,7 +759,7 @@ TEST_F(FpArithmeticTest, ExponentiationToPowerOfOne) {
 
 // Test exponentiation to power of zero (on GPU)
 TEST_F(FpArithmeticTest, ExponentiationToPowerOfZero) {
-  uint64_t size_tracker = 0;
+
   Fp base, result, one, result_cpu;
 
   fp_zero(base);
@@ -782,7 +783,7 @@ TEST_F(FpArithmeticTest, ExponentiationToPowerOfZero) {
 
 // Test exponentiation with large exponent (Fermat's little theorem)
 TEST_F(FpArithmeticTest, ExponentiationFermat) {
-  uint64_t size_tracker = 0;
+
   Fp a, result;
 
   fp_zero(a);
@@ -798,7 +799,7 @@ TEST_F(FpArithmeticTest, ExponentiationFermat) {
 
 // Test exponentiation: a^(p-1) = 1 mod p
 TEST_F(FpArithmeticTest, ExponentiationFermatInverse) {
-  uint64_t size_tracker = 0;
+
   Fp a, result, one;
 
   fp_zero(a);
@@ -820,7 +821,7 @@ TEST_F(FpArithmeticTest, ExponentiationFermatInverse) {
 
 // Test square root (on GPU)
 TEST_F(FpArithmeticTest, SquareRoot) {
-  uint64_t size_tracker = 0;
+
   Fp a, square, sqrt_result, verify, square_cpu, sqrt_result_cpu, verify_cpu;
 
   // Test: sqrt(a^2) = a or -a
@@ -872,6 +873,12 @@ TEST_F(FpArithmeticTest, SquareRoot) {
     // Also test on CPU for comparison
     Fp neg_a_cpu = -a;
 
+    // Verify GPU negation matches CPU negation
+    EXPECT_EQ(fp_cmp_gpu(stream, gpu_index, &neg_a, &neg_a_cpu),
+              ComparisonType::Equal)
+        << "GPU negation should match CPU negation";
+    cuda_synchronize_stream(stream, gpu_index);
+
     bool matches_a = (fp_cmp_gpu(stream, gpu_index, &sqrt_result, &a) ==
                       ComparisonType::Equal);
     cuda_synchronize_stream(stream, gpu_index);
@@ -891,7 +898,7 @@ TEST_F(FpArithmeticTest, SquareRoot) {
 
 // Test square root of zero (on GPU)
 TEST_F(FpArithmeticTest, SquareRootOfZero) {
-  uint64_t size_tracker = 0;
+
   Fp zero, result, result_cpu;
   fp_zero(zero);
 
@@ -913,7 +920,7 @@ TEST_F(FpArithmeticTest, SquareRootOfZero) {
 
 // Test square root of one (on GPU)
 TEST_F(FpArithmeticTest, SquareRootOfOne) {
-  uint64_t size_tracker = 0;
+
   Fp one, result, result_cpu;
   fp_one(one);
 
@@ -935,7 +942,7 @@ TEST_F(FpArithmeticTest, SquareRootOfOne) {
 
 // Test quadratic residue check (on GPU)
 TEST_F(FpArithmeticTest, IsQuadraticResidue) {
-  uint64_t size_tracker = 0;
+
   Fp a, square, square_cpu, zero;
 
   fp_zero(a);
@@ -971,7 +978,7 @@ TEST_F(FpArithmeticTest, IsQuadraticResidue) {
 // device. For now, we test individual conversions on GPU and verify with GPU
 // comparisons
 TEST_F(FpArithmeticTest, BatchMontgomeryConversion) {
-  uint64_t size_tracker = 0;
+
   const int n = 10;
   Fp normal[n], montgomery[n], back[n];
 
@@ -1011,7 +1018,7 @@ TEST_F(FpArithmeticTest, BatchMontgomeryConversion) {
 
 // Test 1: Addition that doesn't overflow (on GPU)
 TEST_F(FpArithmeticTest, LargeAddition1) {
-  uint64_t size_tracker = 0;
+
   // a = large value
   Fp a = test_utils::make_fp(0x18e00013555855ULL, 0x2b772294629DAULL,
                              0x412736E1F11D66ULL, 0x87BAD325DD638ULL,
@@ -1044,7 +1051,7 @@ TEST_F(FpArithmeticTest, LargeAddition1) {
 
 // Test 2: Addition that triggers reduction (sum > p) (on GPU)
 TEST_F(FpArithmeticTest, LargeAddition2WithReduction) {
-  uint64_t size_tracker = 0;
+
   // Use two large numbers that will trigger reduction
   // a + b should wrap around modulus
   Fp a = test_utils::make_fp(0x311c0026aab0aaaaULL, 0x56ee4528c573b5ccULL,
@@ -1076,7 +1083,7 @@ TEST_F(FpArithmeticTest, LargeAddition2WithReduction) {
 
 // Test 3: Subtraction without borrow (on GPU)
 TEST_F(FpArithmeticTest, LargeSubtraction1) {
-  uint64_t size_tracker = 0;
+
   // a = large value
   Fp a = test_utils::make_fp(0x18e00013555855ULL, 0x2b772294629DAULL,
                              0x412736E1F11D66ULL, 0x87BAD325DD638ULL,
@@ -1106,11 +1113,15 @@ TEST_F(FpArithmeticTest, LargeSubtraction1) {
             ComparisonType::Equal)
       << "GPU result should match CPU result";
   cuda_synchronize_stream(stream, gpu_index);
+  EXPECT_EQ(fp_cmp_gpu(stream, gpu_index, &verify, &verify_cpu),
+            ComparisonType::Equal)
+      << "GPU subtraction roundtrip should match CPU roundtrip";
+  cuda_synchronize_stream(stream, gpu_index);
 }
 
 // Test 4: Subtraction with borrow (a < b) (on GPU)
 TEST_F(FpArithmeticTest, LargeSubtraction2WithBorrow) {
-  uint64_t size_tracker = 0;
+
   // a = 50
   Fp a = test_utils::make_fp(0x32ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL,
                              0x0ULL);
@@ -1144,7 +1155,7 @@ TEST_F(FpArithmeticTest, LargeSubtraction2WithBorrow) {
 
 // Test 5: Multiplication of large values (triggers reduction) (on GPU)
 TEST_F(FpArithmeticTest, LargeMultiplication1) {
-  uint64_t size_tracker = 0;
+
   // a = 2^200 (bit 200 set)
   Fp a;
   fp_zero(a);
@@ -1190,7 +1201,7 @@ TEST_F(FpArithmeticTest, LargeMultiplication1) {
 
 // Test 6: (p-1) * (p-1) = 1 (mod p) (on GPU)
 TEST_F(FpArithmeticTest, LargeMultiplication2ModulusMinus1) {
-  uint64_t size_tracker = 0;
+
   // a = p - 1
   Fp a = test_utils::make_fp(0x311c0026aab0aaaaULL, 0x56ee4528c573b5ccULL,
                              0x824e6dc3e23acdeeULL, 0xf75a64bbac71602ULL,
@@ -1228,7 +1239,7 @@ TEST_F(FpArithmeticTest, LargeMultiplication2ModulusMinus1) {
 
 // Test 7: Multiplication with 2: a * 2 = a + a (on GPU)
 TEST_F(FpArithmeticTest, LargeMultiplication3Half) {
-  uint64_t size_tracker = 0;
+
   // a = large value
   Fp a = test_utils::make_fp(0x18e00013555855ULL, 0x2b772294629DAE6ULL,
                              0x412736E1F11D66F7ULL, 0x7BAD325DD638B01ULL,
@@ -1264,11 +1275,15 @@ TEST_F(FpArithmeticTest, LargeMultiplication3Half) {
             ComparisonType::Equal)
       << "GPU result should match CPU result";
   cuda_synchronize_stream(stream, gpu_index);
+  EXPECT_EQ(fp_cmp_gpu(stream, gpu_index, &expected, &expected_cpu),
+            ComparisonType::Equal)
+      << "GPU addition should match CPU addition";
+  cuda_synchronize_stream(stream, gpu_index);
 }
 
 // Test 8: Large number squared (on GPU)
 TEST_F(FpArithmeticTest, LargeMultiplication4Square) {
-  uint64_t size_tracker = 0;
+
   // a = large value
   Fp a = test_utils::make_fp(0x123456789ABCDEFULL, 0xFEDCBA9876543210ULL,
                              0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL);
@@ -1305,7 +1320,7 @@ TEST_F(FpArithmeticTest, LargeMultiplication4Square) {
 
 // Test 9: Addition chain near modulus (on GPU)
 TEST_F(FpArithmeticTest, LargeAddition3Chain) {
-  uint64_t size_tracker = 0;
+
   // Start with p-1
   Fp a = test_utils::make_fp(0x311c0026aab0aaaaULL, 0x56ee4528c573b5ccULL,
                              0x824e6dc3e23acdeeULL, 0x0f75a64bbac71602ULL,
@@ -1332,7 +1347,7 @@ TEST_F(FpArithmeticTest, LargeAddition3Chain) {
 
 // Test 10: Complex multiplication with reduction (on GPU)
 TEST_F(FpArithmeticTest, LargeMultiplication5Complex) {
-  uint64_t size_tracker = 0;
+
   // a = large prime-like number
   Fp a = test_utils::make_fp(0x123456789ABCDEFULL, 0xFEDCBA9876543210ULL,
                              0x0123456789ABCDEFULL, 0xFEDCBA9876543210ULL,
@@ -1386,7 +1401,7 @@ TEST_F(FpArithmeticTest, LargeMultiplication5Complex) {
 
 // Test addition associativity: (a + b) + c = a + (b + c) (on GPU)
 TEST_F(FpPropertyTest, AdditionAssociativity) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 100; i++) {
     Fp a = random_value();
     Fp b = random_value();
@@ -1412,7 +1427,7 @@ TEST_F(FpPropertyTest, AdditionAssociativity) {
 
 // Test multiplication associativity: (a * b) * c = a * (b * c) (on GPU)
 TEST_F(FpPropertyTest, MultiplicationAssociativity) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 50; i++) { // Fewer iterations due to multiplication cost
     Fp a = random_value();
     Fp b = random_value();
@@ -1438,7 +1453,7 @@ TEST_F(FpPropertyTest, MultiplicationAssociativity) {
 
 // Test distributivity: a * (b + c) = a*b + a*c (on GPU)
 TEST_F(FpPropertyTest, MultiplicationDistributivity) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 50; i++) {
     Fp a = random_value();
     Fp b = random_value();
@@ -1465,7 +1480,7 @@ TEST_F(FpPropertyTest, MultiplicationDistributivity) {
 
 // Test addition commutativity with random values (on GPU)
 TEST_F(FpPropertyTest, AdditionCommutativityRandom) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 100; i++) {
     Fp a = random_value();
     Fp b = random_value();
@@ -1483,7 +1498,7 @@ TEST_F(FpPropertyTest, AdditionCommutativityRandom) {
 
 // Test multiplication commutativity with random values (on GPU)
 TEST_F(FpPropertyTest, MultiplicationCommutativityRandom) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 50; i++) {
     Fp a = random_value();
     Fp b = random_value();
@@ -1501,7 +1516,7 @@ TEST_F(FpPropertyTest, MultiplicationCommutativityRandom) {
 
 // Test additive identity: a + 0 = a (on GPU)
 TEST_F(FpPropertyTest, AdditiveIdentity) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 100; i++) {
     Fp a = random_value();
     Fp result;
@@ -1517,7 +1532,7 @@ TEST_F(FpPropertyTest, AdditiveIdentity) {
 
 // Test multiplicative identity: a * 1 = a (on GPU)
 TEST_F(FpPropertyTest, MultiplicativeIdentity) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 100; i++) {
     Fp a = random_value();
     Fp result;
@@ -1533,7 +1548,7 @@ TEST_F(FpPropertyTest, MultiplicativeIdentity) {
 
 // Test additive inverse: a + (-a) = 0 (on GPU)
 TEST_F(FpPropertyTest, AdditiveInverse) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 100; i++) {
     Fp a = random_value();
     Fp neg_a, result;
@@ -1550,7 +1565,7 @@ TEST_F(FpPropertyTest, AdditiveInverse) {
 
 // Test double negation: -(-a) = a (on GPU)
 TEST_F(FpPropertyTest, DoubleNegation) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 100; i++) {
     Fp a = random_value();
     Fp neg_a, neg_neg_a;
@@ -1568,7 +1583,7 @@ TEST_F(FpPropertyTest, DoubleNegation) {
 
 // Test subtraction as addition of negation: a - b = a + (-b) (on GPU)
 TEST_F(FpPropertyTest, SubtractionAsNegation) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 100; i++) {
     Fp a = random_value();
     Fp b = random_value();
@@ -1590,7 +1605,7 @@ TEST_F(FpPropertyTest, SubtractionAsNegation) {
 
 // Test Montgomery form round-trip with random values (on GPU)
 TEST_F(FpPropertyTest, MontgomeryRoundTripRandom) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 100; i++) {
     Fp a = random_value();
     Fp mont_form, back;
@@ -1607,7 +1622,7 @@ TEST_F(FpPropertyTest, MontgomeryRoundTripRandom) {
 
 // Test multiplicative inverse: a * a^(-1) = 1 (on GPU)
 TEST_F(FpPropertyTest, MultiplicativeInverse) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 50; i++) {
     Fp a = random_value();
     // Skip zero (on GPU)
@@ -1630,7 +1645,7 @@ TEST_F(FpPropertyTest, MultiplicativeInverse) {
 
 // Test division: (a / b) * b = a (on GPU)
 TEST_F(FpPropertyTest, DivisionProperty) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 50; i++) {
     Fp a = random_value();
     Fp b = random_value();
@@ -1654,7 +1669,7 @@ TEST_F(FpPropertyTest, DivisionProperty) {
 
 // Test division as multiplication by inverse: a / b = a * b^(-1) (on GPU)
 TEST_F(FpPropertyTest, DivisionAsInverse) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 50; i++) {
     Fp a = random_value();
     Fp b = random_value();
@@ -1682,7 +1697,7 @@ TEST_F(FpPropertyTest, DivisionAsInverse) {
 
 // Test exponentiation: (a^e1)^e2 = a^(e1*e2) for small exponents (on GPU)
 TEST_F(FpPropertyTest, ExponentiationPowerOfPower) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 20; i++) { // Fewer iterations due to cost
     Fp a = random_value();
     // Skip zero (on GPU)
@@ -1716,7 +1731,7 @@ TEST_F(FpPropertyTest, ExponentiationPowerOfPower) {
 
 // Test exponentiation: a^e1 * a^e2 = a^(e1+e2) (on GPU)
 TEST_F(FpPropertyTest, ExponentiationProduct) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 20; i++) { // Fewer iterations due to cost
     Fp a = random_value();
     // Skip zero (on GPU)
@@ -1751,7 +1766,7 @@ TEST_F(FpPropertyTest, ExponentiationProduct) {
 
 // Test inversion of inversion: (a^(-1))^(-1) = a (on GPU)
 TEST_F(FpPropertyTest, DoubleInversion) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 50; i++) {
     Fp a = random_value();
     // Skip zero (on GPU)
@@ -1775,7 +1790,7 @@ TEST_F(FpPropertyTest, DoubleInversion) {
 
 // Test square root property: sqrt(a^2) = a (for random a) (on GPU)
 TEST_F(FpPropertyTest, SquareRootProperty) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 50; i++) {
     Fp a = random_value();
     Fp square, sqrt_result, verify;
@@ -1819,7 +1834,7 @@ TEST_F(FpPropertyTest, SquareRootProperty) {
 // Test quadratic residue property: squares are always quadratic residues (on
 // GPU)
 TEST_F(FpPropertyTest, QuadraticResidueProperty) {
-  uint64_t size_tracker = 0;
+
   for (int i = 0; i < 100; i++) {
     Fp a = random_value();
     Fp square;
@@ -1841,7 +1856,7 @@ TEST_F(FpPropertyTest, QuadraticResidueProperty) {
 
 // Test operations with p-1 (on GPU)
 TEST_F(FpEdgeCaseTest, OperationsWithModulusMinusOne) {
-  uint64_t size_tracker = 0;
+
   // (p-1) + 1 = 0 (on GPU)
   Fp result;
   fp_add_gpu(stream, gpu_index, &result, &modulus_minus_one, &one);
@@ -1868,7 +1883,7 @@ TEST_F(FpEdgeCaseTest, OperationsWithModulusMinusOne) {
 
 // Test operations with p-2 (on GPU)
 TEST_F(FpEdgeCaseTest, OperationsWithModulusMinusTwo) {
-  uint64_t size_tracker = 0;
+
   // (p-2) + 1 = p-1 (on GPU)
   Fp result;
   fp_add_gpu(stream, gpu_index, &result, &modulus_minus_two, &one);
@@ -1888,7 +1903,7 @@ TEST_F(FpEdgeCaseTest, OperationsWithModulusMinusTwo) {
 
 // Test operations with very small values (on GPU)
 TEST_F(FpEdgeCaseTest, VerySmallValues) {
-  uint64_t size_tracker = 0;
+
   Fp zero_val, one_val, two_val, three_val;
   fp_zero(zero_val);
   fp_one(one_val);
@@ -1930,7 +1945,7 @@ TEST_F(FpEdgeCaseTest, VerySmallValues) {
 
 // Test operations with max limb values (on GPU)
 TEST_F(FpEdgeCaseTest, MaxLimbValues) {
-  uint64_t size_tracker = 0;
+
   // Test that max_limb_value is valid
   EXPECT_TRUE(test_utils::is_valid_fp(max_limb_value))
       << "max_limb_value should be < p";
@@ -1953,7 +1968,7 @@ TEST_F(FpEdgeCaseTest, MaxLimbValues) {
 
 // Test operations with alternating bit patterns (on GPU)
 TEST_F(FpEdgeCaseTest, AlternatingBitPatterns) {
-  uint64_t size_tracker = 0;
+
   // Test that alternating_bits is valid
   EXPECT_TRUE(test_utils::is_valid_fp(alternating_bits))
       << "alternating_bits should be < p";
@@ -1976,7 +1991,7 @@ TEST_F(FpEdgeCaseTest, AlternatingBitPatterns) {
 
 // Test edge case: zero operations (on GPU)
 TEST_F(FpEdgeCaseTest, ZeroOperations) {
-  uint64_t size_tracker = 0;
+
   // 0 + 0 = 0 (on GPU)
   Fp result;
   fp_add_gpu(stream, gpu_index, &result, &zero, &zero);
@@ -2006,7 +2021,7 @@ TEST_F(FpEdgeCaseTest, ZeroOperations) {
 
 // Test edge case: one operations (on GPU)
 TEST_F(FpEdgeCaseTest, OneOperations) {
-  uint64_t size_tracker = 0;
+
   // 1 + 1 = 2 (on GPU)
   Fp result;
   fp_add_gpu(stream, gpu_index, &result, &one, &one);
@@ -2033,7 +2048,7 @@ TEST_F(FpEdgeCaseTest, OneOperations) {
 
 // Test fp_one_montgomery (on GPU)
 TEST_F(FpEdgeCaseTest, OneMontgomery) {
-  uint64_t size_tracker = 0;
+
   Fp one_mont, one_normal;
   fp_one(one_normal);
   fp_one_montgomery(one_mont);
@@ -2049,7 +2064,7 @@ TEST_F(FpEdgeCaseTest, OneMontgomery) {
 
 // Test repeated operations (stress test) (on GPU)
 TEST_F(FpEdgeCaseTest, RepeatedOperations) {
-  uint64_t size_tracker = 0;
+
   Fp a = test_utils::random_fp(rng);
   Fp result = a;
 
@@ -2091,7 +2106,7 @@ TEST_F(FpEdgeCaseTest, RepeatedOperations) {
 
 // Test CUDA kernel: array addition
 TEST_F(FpCudaKernelTest, CudaKernelArrayAdd) {
-  uint64_t size_tracker = 0;
+
   const int n = 1000;
   Fp *h_a = new Fp[n];
   Fp *h_b = new Fp[n];
@@ -2126,7 +2141,7 @@ TEST_F(FpCudaKernelTest, CudaKernelArrayAdd) {
 
 // Test CUDA kernel: array multiplication
 TEST_F(FpCudaKernelTest, CudaKernelArrayMul) {
-  uint64_t size_tracker = 0;
+
   const int n = 1000;
   Fp *h_a = new Fp[n];
   Fp *h_b = new Fp[n];
@@ -2166,7 +2181,7 @@ TEST_F(FpCudaKernelTest, CudaKernelArrayMul) {
 
 // Test CUDA kernel: array addition with edge cases
 TEST_F(FpCudaKernelTest, CudaKernelArrayAddEdgeCases) {
-  uint64_t size_tracker = 0;
+
   const int n = 100;
   Fp *h_a = new Fp[n];
   Fp *h_b = new Fp[n];
@@ -2216,7 +2231,7 @@ TEST_F(FpCudaKernelTest, CudaKernelArrayAddEdgeCases) {
 
 // Test CUDA kernel: array multiplication with edge cases
 TEST_F(FpCudaKernelTest, CudaKernelArrayMulEdgeCases) {
-  uint64_t size_tracker = 0;
+
   const int n = 100;
   Fp *h_a = new Fp[n];
   Fp *h_b = new Fp[n];
@@ -2271,7 +2286,7 @@ TEST_F(FpCudaKernelTest, CudaKernelArrayMulEdgeCases) {
 
 // Test CUDA kernel: large array
 TEST_F(FpCudaKernelTest, CudaKernelLargeArray) {
-  uint64_t size_tracker = 0;
+
   const int n = 10000;
   Fp *h_a = new Fp[n];
   Fp *h_b = new Fp[n];
@@ -2312,7 +2327,7 @@ TEST_F(FpCudaKernelTest, CudaKernelLargeArray) {
 // Test CUDA kernel: boundary conditions for launch configuration
 // Tests that the "if (idx < n)" check works correctly at block boundaries
 TEST_F(FpCudaKernelTest, CudaKernelBoundaryConditions) {
-  uint64_t size_tracker = 0;
+
   // Test sizes that stress the launch configuration
   // threadsPerBlock = 256, so test around block boundaries
   std::vector<int> test_sizes = {1,   255, 256,  257,  511,
@@ -2352,7 +2367,7 @@ TEST_F(FpCudaKernelTest, CudaKernelBoundaryConditions) {
 
 // Test CUDA kernel: verify kernel actually launches (not just CPU fallback)
 TEST_F(FpCudaKernelTest, CudaKernelActuallyLaunches) {
-  uint64_t size_tracker = 0;
+
   const int n = 1000;
   Fp *h_a = new Fp[n];
   Fp *h_b = new Fp[n];
@@ -2384,7 +2399,7 @@ TEST_F(FpCudaKernelTest, CudaKernelActuallyLaunches) {
 
 // Test CUDA kernel: verify device constant memory is accessible
 TEST_F(FpCudaKernelTest, CudaKernelDeviceConstants) {
-  uint64_t size_tracker = 0;
+
   // This test verifies that DEVICE_MODULUS is properly initialized
   // by running a kernel that uses it (multiplication uses Montgomery which
   // needs modulus)
@@ -2428,7 +2443,7 @@ TEST_F(FpCudaKernelTest, CudaKernelDeviceConstants) {
 
 // Test CUDA kernel: empty array (edge case)
 TEST_F(FpCudaKernelTest, CudaKernelEmptyArray) {
-  uint64_t size_tracker = 0;
+
   const int n = 0;
   Fp *h_a = nullptr;
   Fp *h_b = nullptr;
@@ -2445,7 +2460,7 @@ TEST_F(FpCudaKernelTest, CudaKernelEmptyArray) {
 
 // Test CUDA kernel: single element
 TEST_F(FpCudaKernelTest, CudaKernelSingleElement) {
-  uint64_t size_tracker = 0;
+
   const int n = 1;
   Fp *h_a = new Fp[n];
   Fp *h_b = new Fp[n];
@@ -2471,44 +2486,53 @@ TEST_F(FpCudaKernelTest, CudaKernelSingleElement) {
 // ============================================================================
 
 // Test to print generator values (for hardcoding)
+// PRIx64 format specifiers require 64-bit limbs
+#if LIMB_BITS_CONFIG == 64
 TEST_F(FpArithmeticTest, PrintGenerators) {
-  uint64_t size_tracker = 0;
+
   const G1Affine &g1 = g1_generator();
   const G2Affine &g2 = g2_generator();
 
   printf("\n=== G1 Generator (Montgomery form) ===\n");
-  printf("x: {0x%llxULL, 0x%llxULL, 0x%llxULL, 0x%llxULL, 0x%llxULL, "
-         "0x%llxULL, 0x%llxULL}\n",
+  printf("x: {0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, "
+         "0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, "
+         "0x%" PRIx64 "ULL}\n",
          g1.x.limb[0], g1.x.limb[1], g1.x.limb[2], g1.x.limb[3], g1.x.limb[4],
          g1.x.limb[5], g1.x.limb[6]);
-  printf("y: {0x%llxULL, 0x%llxULL, 0x%llxULL, 0x%llxULL, 0x%llxULL, "
-         "0x%llxULL, 0x%llxULL}\n",
+  printf("y: {0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, "
+         "0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, "
+         "0x%" PRIx64 "ULL}\n",
          g1.y.limb[0], g1.y.limb[1], g1.y.limb[2], g1.y.limb[3], g1.y.limb[4],
          g1.y.limb[5], g1.y.limb[6]);
 
   printf("\n=== G2 Generator (Montgomery form) ===\n");
-  printf("x.c0: {0x%llxULL, 0x%llxULL, 0x%llxULL, 0x%llxULL, 0x%llxULL, "
-         "0x%llxULL, 0x%llxULL}\n",
+  printf("x.c0: {0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, "
+         "0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, "
+         "0x%" PRIx64 "ULL}\n",
          g2.x.c0.limb[0], g2.x.c0.limb[1], g2.x.c0.limb[2], g2.x.c0.limb[3],
          g2.x.c0.limb[4], g2.x.c0.limb[5], g2.x.c0.limb[6]);
-  printf("x.c1: {0x%llxULL, 0x%llxULL, 0x%llxULL, 0x%llxULL, 0x%llxULL, "
-         "0x%llxULL, 0x%llxULL}\n",
+  printf("x.c1: {0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, "
+         "0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, "
+         "0x%" PRIx64 "ULL}\n",
          g2.x.c1.limb[0], g2.x.c1.limb[1], g2.x.c1.limb[2], g2.x.c1.limb[3],
          g2.x.c1.limb[4], g2.x.c1.limb[5], g2.x.c1.limb[6]);
-  printf("y.c0: {0x%llxULL, 0x%llxULL, 0x%llxULL, 0x%llxULL, 0x%llxULL, "
-         "0x%llxULL, 0x%llxULL}\n",
+  printf("y.c0: {0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, "
+         "0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, "
+         "0x%" PRIx64 "ULL}\n",
          g2.y.c0.limb[0], g2.y.c0.limb[1], g2.y.c0.limb[2], g2.y.c0.limb[3],
          g2.y.c0.limb[4], g2.y.c0.limb[5], g2.y.c0.limb[6]);
-  printf("y.c1: {0x%llxULL, 0x%llxULL, 0x%llxULL, 0x%llxULL, 0x%llxULL, "
-         "0x%llxULL, 0x%llxULL}\n",
+  printf("y.c1: {0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, "
+         "0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, 0x%" PRIx64 "ULL, "
+         "0x%" PRIx64 "ULL}\n",
          g2.y.c1.limb[0], g2.y.c1.limb[1], g2.y.c1.limb[2], g2.y.c1.limb[3],
          g2.y.c1.limb[4], g2.y.c1.limb[5], g2.y.c1.limb[6]);
   printf("\n");
 }
+#endif
 
 // Test is_on_curve_g1 with point at infinity
 TEST_F(FpArithmeticTest, CurveG1PointAtInfinity) {
-  uint64_t size_tracker = 0;
+
   G1Affine point;
   g1_point_at_infinity(point);
 
@@ -2520,7 +2544,7 @@ TEST_F(FpArithmeticTest, CurveG1PointAtInfinity) {
 // We'll create a point by starting with a valid y and computing x
 // Or use a known valid point
 TEST_F(FpArithmeticTest, CurveG1ValidPoint) {
-  uint64_t size_tracker = 0;
+
   G1Affine point;
   point.infinity = false;
 
@@ -2593,7 +2617,7 @@ TEST_F(FpArithmeticTest, CurveG1ValidPoint) {
 
 // Test is_on_curve_g1 with invalid point
 TEST_F(FpArithmeticTest, CurveG1InvalidPoint) {
-  uint64_t size_tracker = 0;
+
   G1Affine point;
   point.infinity = false;
 
@@ -2606,7 +2630,7 @@ TEST_F(FpArithmeticTest, CurveG1InvalidPoint) {
 
 // Test that negating y preserves curve validity (on GPU)
 TEST_F(FpArithmeticTest, CurveG1FieldOperationsConsistency) {
-  uint64_t size_tracker = 0;
+
   G1Affine point;
   point.infinity = false;
 
@@ -2650,7 +2674,7 @@ TEST_F(FpArithmeticTest, CurveG1FieldOperationsConsistency) {
 
 // Test is_on_curve_g2 with point at infinity
 TEST_F(FpArithmeticTest, CurveG2PointAtInfinity) {
-  uint64_t size_tracker = 0;
+
   G2Affine point;
   g2_point_at_infinity(point);
 
