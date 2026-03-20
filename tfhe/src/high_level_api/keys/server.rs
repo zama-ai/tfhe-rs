@@ -1,5 +1,6 @@
 use super::ClientKey;
 use crate::backward_compatibility::keys::{CompressedServerKeyVersions, ServerKeyVersions};
+use crate::conformance::ParameterSetConformant;
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::CudaStreams;
 #[cfg(feature = "gpu")]
@@ -20,6 +21,7 @@ use crate::integer::gpu::ciphertext::re_randomization::CudaReRandomizationKey as
 use crate::integer::noise_squashing::{CompressedNoiseSquashingKey, NoiseSquashingKey};
 use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use crate::integer::public_key::compact::CompactPublicKey;
+use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::MessageModulus;
 #[cfg(feature = "gpu")]
@@ -30,7 +32,6 @@ pub(in crate::high_level_api) use hpu::HpuTaggedDevice;
 use std::sync::Arc;
 #[cfg(feature = "hpu")]
 use tfhe_hpu_backend::prelude::HpuDevice;
-use tfhe_safe_serialize::{Named, ParameterSetConformant};
 use tfhe_versionable::Versionize;
 
 /// Key of the server

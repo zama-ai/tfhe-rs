@@ -1,6 +1,7 @@
 use super::atomic_pattern::compressed::CompressedAtomicPatternNoiseSquashingKey;
 use super::server_key::Shortint128BootstrappingKeyConformanceParams;
 use super::{NoiseSquashingKey, NoiseSquashingKeyConformanceParams, NoiseSquashingPrivateKey};
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::lwe_bootstrap_key_conversion::par_convert_standard_lwe_bootstrap_key_to_fourier_128;
 use crate::core_crypto::algorithms::lwe_bootstrap_key_generation::par_allocate_and_generate_new_seeded_lwe_bootstrap_key;
 use crate::core_crypto::commons::math::random::Uniform;
@@ -14,7 +15,6 @@ use crate::core_crypto::prelude::{
 use crate::shortint::backward_compatibility::noise_squashing::{
     CompressedNoiseSquashingKeyVersions, CompressedShortint128BootstrappingKeyVersions,
 };
-use tfhe_safe_serialize::ParameterSetConformant;
 
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;

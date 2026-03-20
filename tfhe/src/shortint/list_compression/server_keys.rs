@@ -1,5 +1,6 @@
 use super::private_key::NoiseSquashingCompressionPrivateKey;
 use super::CompressionPrivateKeys;
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::*;
 use crate::shortint::atomic_pattern::AtomicPatternParameters;
 use crate::shortint::backward_compatibility::list_compression::{
@@ -19,7 +20,6 @@ use crate::shortint::server_key::{
 };
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use tfhe_safe_serialize::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]

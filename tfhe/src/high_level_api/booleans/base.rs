@@ -1,5 +1,6 @@
 use super::inner::InnerBoolean;
 use crate::backward_compatibility::booleans::FheBoolVersions;
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::{FheInt, FheIntId, FheUint, FheUintId};
@@ -18,6 +19,7 @@ use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::prelude::*;
 use crate::integer::BooleanBlock;
+use crate::named::Named;
 use crate::prelude::FheWait;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::parameters::CiphertextConformanceParams;
@@ -26,7 +28,6 @@ use crate::{Device, ServerKey, Tag};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
-use tfhe_safe_serialize::{Named, ParameterSetConformant};
 use tfhe_versionable::Versionize;
 
 #[cfg(feature = "hpu")]

@@ -1,3 +1,4 @@
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::lwe_keyswitch_key_generation::allocate_and_generate_new_seeded_lwe_keyswitch_key;
 use crate::core_crypto::entities::seeded_lwe_keyswitch_key::SeededLweKeyswitchKeyOwned;
 use crate::shortint::atomic_pattern::expanded::ExpandedStandardAtomicPatternServerKey;
@@ -7,7 +8,6 @@ use crate::shortint::client_key::atomic_pattern::StandardAtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CiphertextModulus, LweDimension, PBSOrder, PBSParameters};
 use crate::shortint::server_key::ShortintCompressedBootstrappingKey;
-use tfhe_safe_serialize::ParameterSetConformant;
 
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;

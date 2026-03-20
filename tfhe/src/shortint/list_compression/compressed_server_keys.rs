@@ -3,6 +3,7 @@ use super::{
     CompressionKey, CompressionKeyConformanceParams, CompressionPrivateKeys, DecompressionKey,
     NoiseSquashingCompressionKey,
 };
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
     CiphertextModulus, CiphertextModulusLog, GlweSize, LweCiphertextCount,
     LwePackingKeyswitchKeyConformanceParams, PolynomialSize, SeededLwePackingKeyswitchKey,
@@ -15,7 +16,6 @@ use crate::shortint::client_key::ClientKey;
 use crate::shortint::server_key::ShortintCompressedBootstrappingKey;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use tfhe_safe_serialize::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]

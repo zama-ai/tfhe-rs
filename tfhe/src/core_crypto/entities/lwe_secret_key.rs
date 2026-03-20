@@ -8,7 +8,7 @@ use crate::core_crypto::commons::generators::SecretRandomGenerator;
 use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};
 use crate::core_crypto::commons::parameters::LweDimension;
 use crate::core_crypto::commons::traits::*;
-use tfhe_safe_serialize::Named;
+use crate::named::Named;
 
 /// An [`LWE secret key`](`LweSecretKey`).
 ///
