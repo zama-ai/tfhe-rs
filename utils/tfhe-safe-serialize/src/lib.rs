@@ -12,8 +12,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::{Unversionize, Versionize};
 
-pub mod traits;
-
+mod traits;
 pub use crate::traits::{Named, ParameterSetConformant};
 
 /// This is the global version of the serialization scheme that is used. This should be updated when
