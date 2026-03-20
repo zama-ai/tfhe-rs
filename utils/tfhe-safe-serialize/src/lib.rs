@@ -7,12 +7,13 @@
 use std::borrow::Cow;
 use std::fmt::Display;
 
-use crate::conformance::ParameterSetConformant;
-use crate::named::Named;
 use bincode::Options;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::{Unversionize, Versionize};
+
+mod traits;
+pub use crate::traits::{Named, ParameterSetConformant};
 
 /// This is the global version of the serialization scheme that is used. This should be updated when
 /// the SerializationHeader is updated.
@@ -102,7 +103,8 @@ impl SerializationHeader {
         if self.header_version != SERIALIZATION_VERSION {
             return Err(format!(
                 "On deserialization, expected serialization header version {SERIALIZATION_VERSION}, \
-got version {}", self.header_version
+got version {}",
+                self.header_version
             ));
         }
 
@@ -113,18 +115,18 @@ got version {}", self.header_version
                 // it.
                 if versioning_version != VERSIONING_VERSION {
                     return Err(format!(
-                    "On deserialization, expected versioning scheme version {VERSIONING_VERSION}, \
+                        "On deserialization, expected versioning scheme version {VERSIONING_VERSION}, \
 got version {versioning_version}"
-                ));
+                    ));
                 }
             }
             SerializationVersioningMode::Unversioned { crate_version } => {
                 if crate_version != CRATE_VERSION {
                     return Err(format!(
-                "This {} has been saved from TFHE-rs v{crate_version}, without versioning information. \
+                        "This {} has been saved from TFHE-rs v{crate_version}, without versioning information. \
 Please use the versioned serialization mode for backward compatibility.",
-                self.name
-            ));
+                        self.name
+                    ));
                 }
             }
         }
@@ -532,379 +534,178 @@ pub fn safe_deserialize_conformant<
     DeserializationConfig::new(deserialized_size_limit).deserialize_from(reader, parameter_set)
 }
 
-#[cfg(all(test, feature = "shortint"))]
-mod test_shortint {
-    use tfhe_versionable::Versionize;
-
-    use crate::named::Named;
-    use crate::shortint::parameters::test_params::{
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-    };
-    use crate::shortint::{gen_keys, Ciphertext};
-
+#[cfg(test)]
+mod tests {
     use super::*;
+    use crate::traits::Named;
+    use std::ops::RangeInclusive;
 
-    #[test]
-    fn safe_deserialization_ct_unversioned() {
-        let (ck, _sk) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+    #[derive(Serialize, Deserialize, Versionize, Debug, PartialEq)]
+    #[repr(transparent)]
+    struct Foo(u64);
 
-        let msg = 2_u64;
-
-        let ct = ck.encrypt(msg);
-
-        let mut buffer = vec![];
-
-        let config = SerializationConfig::new(1 << 20).disable_versioning();
-
-        let size = config.serialized_size(&ct).unwrap();
-        config.serialize_into(&ct, &mut buffer).unwrap();
-
-        assert_eq!(size as usize, buffer.len());
-
-        assert!(DeserializationConfig::new(1 << 20)
-            .deserialize_from::<Ciphertext>(
-                buffer.as_slice(),
-                &TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128.to_shortint_conformance_param()
-            )
-            .is_err());
-
-        let ct2 = DeserializationConfig::new(1 << 20)
-            .deserialize_from::<Ciphertext>(
-                buffer.as_slice(),
-                &TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.to_shortint_conformance_param(),
-            )
-            .unwrap();
-
-        let dec = ck.decrypt(&ct2);
-        assert_eq!(msg, dec);
+    impl Named for Foo {
+        const NAME: &'static str = "Foo";
     }
 
-    #[test]
-    fn safe_deserialization_ct_versioned() {
-        let (ck, _sk) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+    #[derive(Serialize, Deserialize, Versionize, Debug, PartialEq)]
+    #[repr(transparent)]
+    struct Bar(u64);
 
-        let msg = 2_u64;
-
-        let ct = ck.encrypt(msg);
-
-        let mut buffer = vec![];
-
-        let config = SerializationConfig::new(1 << 20);
-
-        let size = config.serialized_size(&ct).unwrap();
-        config.serialize_into(&ct, &mut buffer).unwrap();
-
-        assert_eq!(size as usize, buffer.len());
-
-        assert!(DeserializationConfig::new(1 << 20,)
-            .deserialize_from::<Ciphertext>(
-                buffer.as_slice(),
-                &TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128.to_shortint_conformance_param()
-            )
-            .is_err());
-
-        let ct2 = DeserializationConfig::new(1 << 20)
-            .deserialize_from::<Ciphertext>(
-                buffer.as_slice(),
-                &TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.to_shortint_conformance_param(),
-            )
-            .unwrap();
-
-        let dec = ck.decrypt(&ct2);
-        assert_eq!(msg, dec);
+    impl Named for Bar {
+        const NAME: &'static str = "Bar";
+        const BACKWARD_COMPATIBILITY_ALIASES: &'static [&'static str] = &["Foo"];
     }
 
-    #[test]
-    fn safe_deserialization_ct_unlimited_size() {
-        let (ck, _sk) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+    #[derive(Serialize, Deserialize, Versionize, Debug, PartialEq)]
+    #[repr(transparent)]
+    struct Baz(u64);
 
-        let msg = 2_u64;
-
-        let ct = ck.encrypt(msg);
-
-        let mut buffer = vec![];
-
-        let config = SerializationConfig::new_with_unlimited_size();
-
-        let size = config.serialized_size(&ct).unwrap();
-        config.serialize_into(&ct, &mut buffer).unwrap();
-
-        assert_eq!(size as usize, buffer.len());
-
-        let ct2 = DeserializationConfig::new_with_unlimited_size()
-            .deserialize_from::<Ciphertext>(
-                buffer.as_slice(),
-                &TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.to_shortint_conformance_param(),
-            )
-            .unwrap();
-
-        let dec = ck.decrypt(&ct2);
-        assert_eq!(msg, dec);
+    impl Named for Baz {
+        const NAME: &'static str = "Baz";
     }
 
-    #[test]
-    fn safe_deserialization_size_limit() {
-        let (ck, _sk) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+    #[derive(Serialize, Deserialize, Versionize, Debug, PartialEq)]
+    #[repr(transparent)]
+    struct Conformant(u64);
 
-        let msg = 2_u64;
-
-        let ct = ck.encrypt(msg);
-
-        let mut buffer = vec![];
-
-        let config = SerializationConfig::new_with_unlimited_size().disable_versioning();
-
-        let size = config.serialized_size(&ct).unwrap();
-        config.serialize_into(&ct, &mut buffer).unwrap();
-
-        assert_eq!(size as usize, buffer.len());
-
-        let ct2 = DeserializationConfig::new(size)
-            .deserialize_from::<Ciphertext>(
-                buffer.as_slice(),
-                &TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.to_shortint_conformance_param(),
-            )
-            .unwrap();
-
-        let dec = ck.decrypt(&ct2);
-        assert_eq!(msg, dec);
+    impl Named for Conformant {
+        const NAME: &'static str = "Conformant";
     }
 
-    #[test]
-    fn safe_deserialization_named() {
-        #[derive(Serialize, Deserialize, Versionize)]
-        #[repr(transparent)]
-        struct Foo(u64);
+    impl ParameterSetConformant for Conformant {
+        type ParameterSet = RangeInclusive<u64>;
 
-        impl Named for Foo {
-            const NAME: &'static str = "Foo";
+        fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+            parameter_set.contains(&self.0)
         }
+    }
 
-        #[derive(Deserialize, Versionize)]
-        #[repr(transparent)]
-        struct Bar(u64);
+    fn serialize_versioned(obj: &Foo) -> Vec<u8> {
+        let mut buf = Vec::new();
+        SerializationConfig::new(1 << 20)
+            .serialize_into(obj, &mut buf)
+            .unwrap();
+        buf
+    }
 
-        impl Named for Bar {
-            const NAME: &'static str = "Bar";
-
-            const BACKWARD_COMPATIBILITY_ALIASES: &'static [&'static str] = &["Foo"];
-        }
-
-        #[derive(Deserialize, Versionize)]
-        #[repr(transparent)]
-        struct Baz(u64);
-
-        impl Named for Baz {
-            const NAME: &'static str = "Baz";
-        }
-
+    #[test]
+    fn backward_compatibility_aliases() {
         let foo = Foo(3);
-        let mut foo_ser = Vec::new();
-        safe_serialize(&foo, &mut foo_ser, 0x1000).unwrap();
+        let mut buf = Vec::new();
+        safe_serialize(&foo, &mut buf, 0x1000).unwrap();
 
-        let foo_deser: Foo = safe_deserialize(foo_ser.as_slice(), 0x1000).unwrap();
-        let bar_deser: Bar = safe_deserialize(foo_ser.as_slice(), 0x1000).unwrap();
+        let foo_deser: Foo = safe_deserialize(buf.as_slice(), 0x1000).unwrap();
+        // Bar is backward compatible with Foo, this works
+        let bar_deser: Bar = safe_deserialize(buf.as_slice(), 0x1000).unwrap();
 
         assert_eq!(foo_deser.0, bar_deser.0);
-
-        assert!(safe_deserialize::<Baz>(foo_ser.as_slice(), 0x1000).is_err());
-    }
-}
-
-#[cfg(all(test, feature = "integer"))]
-mod test_integer {
-    use crate::conformance::ListSizeConstraint;
-    use crate::high_level_api::{generate_keys, ConfigBuilder};
-    use crate::prelude::*;
-    use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
-    use crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128;
-    use crate::{
-        set_server_key, CompactCiphertextList, CompactCiphertextListConformanceParams,
-        CompactPublicKey, FheUint8,
-    };
-
-    fn test_safe_deserialization_ct_list(is_packed: bool) {
-        let (client_key, sks) = generate_keys(ConfigBuilder::default().build());
-        set_server_key(sks);
-
-        let public_key = CompactPublicKey::new(&client_key);
-
-        let msg = [27u8, 10, 3];
-
-        let mut builder = CompactCiphertextList::builder(&public_key);
-        for value in msg {
-            builder.push(value);
-        }
-
-        let ct_list = if is_packed {
-            builder.build_packed()
-        } else {
-            builder.build()
-        };
-
-        let mut buffer = vec![];
-
-        let config = SerializationConfig::new(1 << 20).disable_versioning();
-
-        let size = config.serialized_size(&ct_list).unwrap();
-        config.serialize_into(&ct_list, &mut buffer).unwrap();
-
-        assert_eq!(size as usize, buffer.len());
-
-        let to_param_set = |list_size_constraint| {
-            let params =
-                CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
-                    public_key.parameters(),
-                    list_size_constraint,
-                );
-
-            if is_packed {
-                params
-            } else {
-                params.allow_unpacked()
-            }
-        };
-
-        let wrong_pke_params =
-            CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
-                PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128
-                    .try_into()
-                    .unwrap(),
-                ListSizeConstraint::exact_size(3),
-            );
-
-        for param_set in [
-            if is_packed {
-                wrong_pke_params
-            } else {
-                wrong_pke_params.allow_unpacked()
-            },
-            to_param_set(ListSizeConstraint::exact_size(2)),
-            to_param_set(ListSizeConstraint::exact_size(4)),
-            to_param_set(ListSizeConstraint::try_size_in_range(1, 2).unwrap()),
-            to_param_set(ListSizeConstraint::try_size_in_range(4, 5).unwrap()),
-        ] {
-            assert!(DeserializationConfig::new(1 << 20)
-                .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &param_set)
-                .is_err());
-        }
-
-        for len_constraint in [
-            ListSizeConstraint::exact_size(3),
-            ListSizeConstraint::try_size_in_range(2, 3).unwrap(),
-            ListSizeConstraint::try_size_in_range(3, 4).unwrap(),
-            ListSizeConstraint::try_size_in_range(2, 4).unwrap(),
-        ] {
-            let params = to_param_set(len_constraint);
-
-            DeserializationConfig::new(1 << 20)
-                .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &params)
-                .unwrap();
-        }
-
-        let params = to_param_set(ListSizeConstraint::exact_size(3));
-        let ct2 = DeserializationConfig::new(1 << 20)
-            .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &params)
-            .unwrap();
-
-        let mut cts = Vec::with_capacity(3);
-        let expander = ct2.expand().unwrap();
-        for i in 0..3 {
-            cts.push(expander.get::<FheUint8>(i).unwrap().unwrap());
-        }
-
-        let dec: Vec<u8> = cts.iter().map(|a| a.decrypt(&client_key)).collect();
-
-        assert_eq!(&msg[..], &dec);
+        // Baz is not backward compatible with Foo, this fails
+        assert!(safe_deserialize::<Baz>(buf.as_slice(), 0x1000).is_err());
     }
 
     #[test]
-    fn safe_deserialization_ct_list() {
-        test_safe_deserialization_ct_list(false);
-    }
-
-    #[test]
-    fn safe_deserialization_ct_list_packed() {
-        test_safe_deserialization_ct_list(true);
-    }
-
-    #[test]
-    fn safe_deserialization_ct_list_versioned() {
-        let (client_key, sks) = generate_keys(ConfigBuilder::default().build());
-        set_server_key(sks);
-
-        let public_key = CompactPublicKey::new(&client_key);
-
-        let msg = [27u8, 10, 3];
-
-        let ct_list = CompactCiphertextList::builder(&public_key)
-            .push(27u8)
-            .push(10u8)
-            .push(3u8)
-            .build();
-
-        let mut buffer = vec![];
-
+    fn serialized_size_matches_actual_versioned() {
+        let foo = Foo(123);
         let config = SerializationConfig::new(1 << 20);
+        let size = config.serialized_size(&foo).unwrap();
+        let buf = serialize_versioned(&foo);
+        assert_eq!(size as usize, buf.len());
+    }
 
-        let size = config.serialized_size(&ct_list).unwrap();
-        config.serialize_into(&ct_list, &mut buffer).unwrap();
-
-        assert_eq!(size as usize, buffer.len());
-
-        let to_param_set = |list_size_constraint| {
-            CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
-                public_key.parameters(),
-                list_size_constraint,
-            )
-            .allow_unpacked()
-        };
-
-        for param_set in [
-            CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
-                PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128
-                    .try_into()
-                    .unwrap(),
-                ListSizeConstraint::exact_size(3),
-            )
-            .allow_unpacked(),
-            to_param_set(ListSizeConstraint::exact_size(2)),
-            to_param_set(ListSizeConstraint::exact_size(4)),
-            to_param_set(ListSizeConstraint::try_size_in_range(1, 2).unwrap()),
-            to_param_set(ListSizeConstraint::try_size_in_range(4, 5).unwrap()),
-        ] {
-            assert!(DeserializationConfig::new(1 << 20)
-                .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &param_set)
-                .is_err());
-        }
-
-        for len_constraint in [
-            ListSizeConstraint::exact_size(3),
-            ListSizeConstraint::try_size_in_range(2, 3).unwrap(),
-            ListSizeConstraint::try_size_in_range(3, 4).unwrap(),
-            ListSizeConstraint::try_size_in_range(2, 4).unwrap(),
-        ] {
-            let params = to_param_set(len_constraint);
-
-            DeserializationConfig::new(1 << 20)
-                .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &params)
-                .unwrap();
-        }
-
-        let params = to_param_set(ListSizeConstraint::exact_size(3));
-        let ct2 = DeserializationConfig::new(1 << 20)
-            .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &params)
+    #[test]
+    fn serialize_size_limit_works() {
+        let foo = Foo(1);
+        let exact_size = SerializationConfig::new(1 << 20)
+            .serialized_size(&foo)
             .unwrap();
 
-        let mut cts = Vec::with_capacity(3);
-        let expander = ct2.expand().unwrap();
-        for i in 0..3 {
-            cts.push(expander.get::<FheUint8>(i).unwrap().unwrap());
-        }
+        let mut buf = Vec::new();
+        let result = SerializationConfig::new(exact_size - 1).serialize_into(&foo, &mut buf);
+        assert!(result.is_err());
 
-        let dec: Vec<u8> = cts.iter().map(|a| a.decrypt(&client_key)).collect();
+        buf.clear();
+        SerializationConfig::new(exact_size)
+            .serialize_into(&foo, &mut buf)
+            .unwrap();
+        assert_eq!(buf.len(), exact_size as usize);
+    }
 
-        assert_eq!(&msg[..], &dec);
+    #[test]
+    fn deserialize_size_limit_works() {
+        let obj = Conformant(1);
+        let mut buf = Vec::new();
+        SerializationConfig::new(1 << 20)
+            .serialize_into(&obj, &mut buf)
+            .unwrap();
+        let exact_size = buf.len() as u64;
+
+        let result: Result<Conformant, _> =
+            DeserializationConfig::new(exact_size - 1).deserialize_from(buf.as_slice(), &(0..=100));
+        assert!(result.is_err());
+
+        let result: Result<Conformant, _> =
+            DeserializationConfig::new(exact_size).deserialize_from(buf.as_slice(), &(0..=100));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn header_validation_disabled() {
+        let buf = serialize_versioned(&Foo(7));
+
+        let result: Result<Baz, _> = DeserializationConfig::new(1 << 20)
+            .disable_conformance()
+            .deserialize_from(buf.as_slice());
+        assert!(result.is_err());
+
+        let deser: Baz = DeserializationConfig::new(1 << 20)
+            .disable_header_validation()
+            .disable_conformance()
+            .deserialize_from(buf.as_slice())
+            .unwrap();
+        assert_eq!(deser.0, 7);
+    }
+
+    #[test]
+    fn conformance_check() {
+        let obj = Conformant(50);
+        let mut buf = Vec::new();
+        SerializationConfig::new(1 << 20)
+            .serialize_into(&obj, &mut buf)
+            .unwrap();
+
+        let result: Result<Conformant, _> =
+            DeserializationConfig::new(1 << 20).deserialize_from(buf.as_slice(), &(0..=100));
+        assert!(result.is_ok());
+
+        let result: Result<Conformant, _> =
+            DeserializationConfig::new(1 << 20).deserialize_from(buf.as_slice(), &(0..=10));
+        assert!(result.is_err());
+
+        let deser: Conformant = DeserializationConfig::new(1 << 20)
+            .disable_conformance()
+            .deserialize_from(buf.as_slice())
+            .unwrap();
+        assert_eq!(deser, obj);
+    }
+
+    #[test]
+    fn unlimited_size_configs() {
+        let foo = Conformant(999);
+
+        let mut buf = Vec::new();
+        SerializationConfig::new_with_unlimited_size()
+            .serialize_into(&foo, &mut buf)
+            .unwrap();
+
+        let deser: Conformant = DeserializationConfig::new_with_unlimited_size()
+            .disable_conformance()
+            .deserialize_from(buf.as_slice())
+            .unwrap();
+        assert_eq!(deser, foo);
+
+        let deser: Result<Conformant, _> =
+            DeserializationConfig::new(1).deserialize_from(buf.as_slice(), &(0..=1234));
+        assert!(deser.is_err());
     }
 }

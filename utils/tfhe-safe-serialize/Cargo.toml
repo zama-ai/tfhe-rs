@@ -1,0 +1,21 @@
+[package]
+name = "tfhe-safe-serialize"
+version = "0.1.0"
+edition = "2024"
+keywords = ["serialization"]
+homepage = "https://zama.org/"
+documentation = "https://docs.rs/tfhe-safe-serialize"
+repository = "https://github.com/zama-ai/tfhe-rs"
+license = "BSD-3-Clause-Clear"
+description = "Serialization utilities with conformance checks that works well with versioning"
+rust-version.workspace = true
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(dylint_lib, values(any()))',
+] }
+
+[dependencies]
+bincode.workspace = true
+serde.workspace = true
+tfhe-versionable.workspace = true
