@@ -341,6 +341,7 @@ impl CudaFlattenedVecCompactCiphertextList {
         let mut result = Vec::new();
         let mut offset = 0;
 
+        streams.synchronize();
         // For each size in num_lwe_per_compact_list, compute the length of that slice
         // and extract it from h_vec
         for num_lwe in self.num_lwe_per_compact_list.iter() {
