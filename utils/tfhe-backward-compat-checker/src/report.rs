@@ -64,6 +64,17 @@ pub fn build_diff_report(entries: &[DiffEntry]) -> String {
         lines.push("\n</details>\n".to_string());
     }
 
+    lines.push("---\n".to_string());
+
+    lines.push(
+        "If you encounter any errors or have doubts, you can verify locally by running:\n\n\
+         ```\n\
+         make backward_correctness BASE_REF=<base_branch_or_commit>\n\
+         ```\n\n\
+         Where `BASE_REF` is the reference branch or commit to check against.\n"
+            .to_string(),
+    );
+
     lines.join("\n")
 }
 
