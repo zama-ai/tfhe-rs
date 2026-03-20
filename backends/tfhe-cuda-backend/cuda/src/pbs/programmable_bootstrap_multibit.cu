@@ -675,6 +675,10 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
     uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
     uint32_t lut_stride) {
 
+  PANIC_IF_FALSE(num_samples == 1,
+                 "Cuda error (multi-bit PBS): num_samples (%d) should be 1",
+                 num_samples);
+
   PANIC_IF_FALSE(base_log <= 64,
                  "Cuda error (multi-bit PBS): base log (%d) should be <= 64",
                  base_log);
