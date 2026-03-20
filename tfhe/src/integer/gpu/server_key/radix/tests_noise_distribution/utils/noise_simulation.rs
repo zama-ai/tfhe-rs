@@ -22,7 +22,8 @@ use crate::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchK
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{
     cuda_modulus_switch_ciphertext, programmable_bootstrap_multi_bit,
-    programmable_bootstrap_multi_bit_noise_tests, CudaStreams,
+    programmable_bootstrap_multi_bit_noise_tests, programmable_bootstrap_multi_bit_noise_tests_128,
+    CudaStreams,
 };
 use crate::core_crypto::prelude::*;
 use crate::integer::gpu::ciphertext::info::CudaBlockInfo;
@@ -68,6 +69,15 @@ impl CudaSideResources {
     /// For classic PBS, this is a no-op.
     pub fn configure_from_server_key(&mut self, sks: &CudaServerKey) {
         if let CudaBootstrappingKey::MultiBit(mb_bsk) = &sks.bootstrapping_key {
+            self.polynomial_size = Some(mb_bsk.polynomial_size());
+            self.multi_bit_grouping_factor = Some(mb_bsk.grouping_factor());
+        }
+    }
+
+    /// Populate multi-bit mod switch parameters from the noise squashing key's bootstrapping key.
+    /// For classic noise squashing BSK, this is a no-op.
+    pub fn configure_from_noise_squashing_key(&mut self, nsk: &CudaNoiseSquashingKey) {
+        if let CudaBootstrappingKey::MultiBit(mb_bsk) = &nsk.bootstrapping_key {
             self.polynomial_size = Some(mb_bsk.polynomial_size());
             self.multi_bit_grouping_factor = Some(mb_bsk.grouping_factor());
         }
@@ -1295,14 +1305,50 @@ impl LweGenericBlindRotate128<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u12
         accumulator: &CudaGlweCiphertextList<u128>,
         side_resources: &mut Self::SideResources,
     ) {
-        match self.bootstrapping_key {
+        match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(_) => {
                 self.lwe_classic_fft_128_pbs(input, output, accumulator, side_resources)
             }
-            CudaBootstrappingKey::MultiBit(_) => todo!(
-                "CPU manages this by taking a modswitched type to be able to apply \
-                the blind rotate correctly without redoing the modswitch, to adapt for the GPU case"
-            ),
+            // Multi-bit PBS128: the input already holds the multi-bit mod-switched buffer
+            // (layout: [original_input | ms_variant_0 | ... | ms_variant_n]), produced by
+            // multi_bit_mod_switch. We call the noise-test variant that consumes this layout
+            // directly, outputting a u128 LWE ciphertext after blind rotation.
+            CudaBootstrappingKey::MultiBit(mb_bsk) => match (input, output) {
+                (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U128(output_cuda_lwe)) => {
+                    let num_samples = 1u32;
+                    let zero_index = vec![0u64];
+                    let mut output_indexes =
+                        unsafe { CudaVec::<u64>::new_async(1, &side_resources.streams, 0) };
+                    let mut input_indexes =
+                        unsafe { CudaVec::<u64>::new_async(1, &side_resources.streams, 0) };
+                    unsafe {
+                        output_indexes.copy_from_cpu_async(&zero_index, &side_resources.streams, 0);
+                        input_indexes.copy_from_cpu_async(&zero_index, &side_resources.streams, 0);
+                    }
+                    side_resources.streams.synchronize();
+                    unsafe {
+                        programmable_bootstrap_multi_bit_noise_tests_128(
+                            &side_resources.streams,
+                            &mut output_cuda_lwe.0.d_vec,
+                            &output_indexes,
+                            &accumulator.0.d_vec,
+                            &input_cuda_lwe.0.d_vec,
+                            &input_indexes,
+                            &mb_bsk.d_vec,
+                            mb_bsk.input_lwe_dimension(),
+                            mb_bsk.glwe_dimension(),
+                            mb_bsk.polynomial_size(),
+                            mb_bsk.decomp_base_log(),
+                            mb_bsk.decomp_level_count(),
+                            mb_bsk.grouping_factor(),
+                            num_samples,
+                        );
+                    }
+                }
+                _ => {
+                    panic!("Multi-bit PBS128 expects U64 input and U128 output for CudaDynLwe")
+                }
+            },
         }
     }
 }
