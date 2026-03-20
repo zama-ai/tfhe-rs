@@ -1,11 +1,12 @@
 //! Module containing the definition of the [`SeededLweKeyswitchKeyChunk`].
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::seeded_lwe_keyswitch_key_chunk::SeededLweKeyswitchKeyChunkVersions;
 use crate::core_crypto::commons::math::random::CompressionSeed;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use tfhe_safe_serialize::{Named, ParameterSetConformant};
+use crate::named::Named;
 use tfhe_versionable::Versionize;
 
 /// A [`seeded LWE keyswitch key chunk`](`SeededLweKeyswitchKeyChunk`).

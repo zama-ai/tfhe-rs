@@ -120,9 +120,9 @@ export_concrete_array_types!(
 );
 
 pub use crate::integer::parameters::CompactCiphertextListConformanceParams;
+pub use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
 #[cfg(feature = "strings")]
 pub use crate::strings::ciphertext::ClearString;
-pub use tfhe_safe_serialize::{DeserializationConfig, SerializationConfig};
 
 #[cfg(feature = "zk-pok")]
 pub use compact_list::ProvenCompactCiphertextList;

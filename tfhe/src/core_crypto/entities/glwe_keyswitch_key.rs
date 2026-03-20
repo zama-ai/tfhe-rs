@@ -1,10 +1,10 @@
 //! Module containing the definition of the [`GlweKeyswitchKey`].
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::glwe_keyswitch_key::GlweKeyswitchKeyVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use tfhe_safe_serialize::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 /// A [`GLWE keyswitch key`](`GlweKeyswitchKey`).

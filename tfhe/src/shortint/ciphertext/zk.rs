@@ -337,6 +337,7 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
 
 #[cfg(test)]
 mod tests {
+    use crate::conformance::ParameterSetConformant;
     use crate::core_crypto::prelude::LweCiphertextCount;
     use crate::shortint::ciphertext::ProvenCompactCiphertextListConformanceParams;
     use crate::shortint::parameters::*;
@@ -347,7 +348,6 @@ mod tests {
         CompactPkeCrs, CompactPkeProofConformanceParams, ZkComputeLoad, ZkPkeV2SupportedHashConfig,
     };
     use rand::random;
-    use tfhe_safe_serialize::ParameterSetConformant;
 
     #[test]
     fn test_zk_ciphertext_encryption_ci_run_filter() {

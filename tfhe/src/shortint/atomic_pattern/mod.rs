@@ -20,10 +20,10 @@ use serde::{Deserialize, Serialize};
 use tfhe_csprng::seeders::Seed;
 use tfhe_versionable::Versionize;
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
     GlweDimension, LweCiphertextOwned, LweDimension, MsDecompressionType, PolynomialSize,
 };
-use tfhe_safe_serialize::ParameterSetConformant;
 
 use super::backward_compatibility::atomic_pattern::*;
 use super::ciphertext::{

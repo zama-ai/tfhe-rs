@@ -400,9 +400,7 @@ where
 
 macro_rules! impl_named_for_kv_store {
     ($Key:ty) => {
-        impl tfhe_safe_serialize::Named
-            for CompressedKVStore<$Key, crate::integer::RadixCiphertext>
-        {
+        impl crate::named::Named for CompressedKVStore<$Key, crate::integer::RadixCiphertext> {
             const NAME: &'static str = concat!(
                 "integer::CompressedKVStore<",
                 stringify!($Key),
@@ -410,7 +408,7 @@ macro_rules! impl_named_for_kv_store {
             );
         }
 
-        impl tfhe_safe_serialize::Named
+        impl crate::named::Named
             for CompressedKVStore<$Key, crate::integer::SignedRadixCiphertext>
         {
             const NAME: &'static str = concat!(
@@ -507,9 +505,9 @@ mod tests {
         assert_store_unsigned_matches(&clear_store, &kv_store, &cks);
 
         let mut data = vec![];
-        tfhe_safe_serialize::safe_serialize(&compressed, &mut data, 1 << 20).unwrap();
+        crate::safe_serialization::safe_serialize(&compressed, &mut data, 1 << 20).unwrap();
         let compressed: CompressedKVStore<u32, RadixCiphertext> =
-            tfhe_safe_serialize::safe_deserialize(data.as_slice(), 1 << 20).unwrap();
+            crate::safe_serialization::safe_deserialize(data.as_slice(), 1 << 20).unwrap();
         let kv_store = compressed.decompress(&decompression_key).unwrap();
         assert_store_unsigned_matches(&clear_store, &kv_store, &cks);
     }
@@ -574,9 +572,9 @@ mod tests {
         assert_store_signed_matches(&clear_store, &kv_store, &cks);
 
         let mut data = vec![];
-        tfhe_safe_serialize::safe_serialize(&compressed, &mut data, 1 << 20).unwrap();
+        crate::safe_serialization::safe_serialize(&compressed, &mut data, 1 << 20).unwrap();
         let compressed: CompressedKVStore<u32, SignedRadixCiphertext> =
-            tfhe_safe_serialize::safe_deserialize(data.as_slice(), 1 << 20).unwrap();
+            crate::safe_serialization::safe_deserialize(data.as_slice(), 1 << 20).unwrap();
         let kv_store = compressed.decompress(&decompression_key).unwrap();
         assert_store_signed_matches(&clear_store, &kv_store, &cks);
     }

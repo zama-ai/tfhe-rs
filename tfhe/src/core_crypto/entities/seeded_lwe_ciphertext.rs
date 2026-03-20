@@ -2,6 +2,7 @@
 
 use tfhe_versionable::Versionize;
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::seeded_lwe_ciphertext::SeededLweCiphertextVersions;
 use crate::core_crypto::commons::math::random::{CompressionSeed, DefaultRandomGenerator};
@@ -9,7 +10,6 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::misc::check_encrypted_content_respects_mod;
-use tfhe_safe_serialize::ParameterSetConformant;
 
 /// A [`seeded GLWE ciphertext`](`SeededLweCiphertext`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]

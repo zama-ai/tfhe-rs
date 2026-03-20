@@ -1,6 +1,6 @@
 //! Module containing the definition of the GlweCiphertext.
 
-use tfhe_safe_serialize::ParameterSetConformant;
+use crate::conformance::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 use crate::core_crypto::backward_compatibility::entities::glwe_ciphertext::GlweCiphertextVersions;

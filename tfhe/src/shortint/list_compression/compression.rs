@@ -301,8 +301,8 @@ mod test {
 
     #[test]
     fn test_compressed_compression_decompression_keys_multibit_conformance_ci_run_filter() {
+        use crate::conformance::ParameterSetConformant;
         use crate::shortint::list_compression::CompressionKeyConformanceParams;
-        use tfhe_safe_serialize::ParameterSetConformant;
 
         let params: ShortintParameterSet =
             TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();

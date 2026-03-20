@@ -294,7 +294,7 @@ macro_rules! impl_safe_serialize_on_type {
 
                     let sself = crate::c_api::utils::get_ref_checked(sself).unwrap();
 
-                    tfhe_safe_serialize::SerializationConfig::new(serialized_size_limit).serialize_into(&sself.0, &mut buffer)
+                    crate::safe_serialization::SerializationConfig::new(serialized_size_limit).serialize_into(&sself.0, &mut buffer)
                         .unwrap();
 
                     *result = buffer.into();
@@ -340,7 +340,7 @@ macro_rules! impl_safe_deserialize_conformant_on_type {
                     *result = std::ptr::null_mut();
 
                     let params = $crate::high_level_api::$conformance_param_type::from(&sk.0);
-                    let inner = tfhe_safe_serialize::DeserializationConfig::new(
+                    let inner = $crate::safe_serialization::DeserializationConfig::new(
                         serialized_size_limit)
                     .deserialize_from(buffer_view, &params)
                     .unwrap();
@@ -385,7 +385,7 @@ macro_rules! impl_safe_deserialize_on_type {
                     // checked, then any access to the result pointer will segfault (mimics malloc on failure)
                     *result = std::ptr::null_mut();
 
-                    let inner = tfhe_safe_serialize::DeserializationConfig::new(serialized_size_limit)
+                    let inner = $crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
                     .disable_conformance()
                     .deserialize_from(buffer_view)
                     .unwrap();

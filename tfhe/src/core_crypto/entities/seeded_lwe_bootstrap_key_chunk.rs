@@ -7,7 +7,7 @@ use crate::core_crypto::commons::math::random::CompressionSeed;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use tfhe_safe_serialize::Named;
+use crate::named::Named;
 
 /// A [`seeded LWE bootstrap key chunk`](`SeededLweBootstrapKeyChunk`).
 ///

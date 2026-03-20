@@ -1,5 +1,6 @@
 use super::super::math::fft::{Fft128, Fft128View};
 use super::ggsw::{cmux, cmux_scratch};
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::backward_compatibility::fft_impl::Fourier128LweBootstrapKeyVersions;
@@ -25,7 +26,6 @@ use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use core::any::TypeId;
 use core::mem::transmute;
 use dyn_stack::{PodStack, StackReq};
-use tfhe_safe_serialize::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]

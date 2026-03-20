@@ -16,9 +16,9 @@ use crate::high_level_api::SquashedNoiseCiphertextState;
 use crate::integer::block_decomposition::RecomposableFrom;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseRadixCiphertext;
+use crate::named::Named;
 use crate::{ClientKey, Device, Tag};
 use serde::{Deserializer, Serializer};
-use tfhe_safe_serialize::Named;
 use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 /// Enum that manages the current inner representation of a squashed noise FheUint .
