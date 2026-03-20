@@ -6,9 +6,7 @@ use crate::core_crypto::algorithms::glwe_encryption::decrypt_glwe_ciphertext;
 use crate::core_crypto::algorithms::lwe_encryption::{
     allocate_and_encrypt_new_lwe_ciphertext, decrypt_lwe_ciphertext,
 };
-use crate::core_crypto::algorithms::lwe_multi_bit_programmable_bootstrapping::{
-    MultiBitModulusSwitchedLweCiphertext, StandardMultiBitModulusSwitchedCt,
-};
+use crate::core_crypto::algorithms::lwe_multi_bit_programmable_bootstrapping::MultiBitModulusSwitchedLweCiphertext;
 use crate::core_crypto::algorithms::misc::torus_modular_diff;
 use crate::core_crypto::algorithms::test::round_decode;
 use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
@@ -20,7 +18,8 @@ use crate::core_crypto::commons::noise_formulas::secure_noise::{
 };
 use crate::core_crypto::commons::numeric::{CastFrom, CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
-    CiphertextModulus, DynamicDistribution, LweCiphertextCount, LweDimension, PlaintextCount,
+    CiphertextModulus, CiphertextModulusLog, DynamicDistribution, LweCiphertextCount, LweDimension,
+    PlaintextCount,
 };
 use crate::core_crypto::commons::test_tools::{
     arithmetic_mean, equivalent_pfail_gaussian_noise, gaussian_mean_confidence_interval,
@@ -640,6 +639,7 @@ impl DecryptionAndNoiseResult {
                 let decrypted_plaintext = decrypt_multi_bit_mod_switched_lwe_ciphertext(
                     key,
                     standard_multi_bit_modulus_switched_ct,
+                    standard_multi_bit_modulus_switched_ct.log_modulus,
                 );
                 Self::new_from_plaintext(
                     decrypted_plaintext,
@@ -654,6 +654,20 @@ impl DecryptionAndNoiseResult {
                 let decrypted_plaintext = decrypt_multi_bit_mod_switched_lwe_ciphertext(
                     key,
                     standard_multi_bit_modulus_switched_ct,
+                    standard_multi_bit_modulus_switched_ct.log_modulus,
+                );
+                Self::new_from_plaintext(decrypted_plaintext, expected_msg, encoding)
+            }
+            (
+                DynStandardMultiBitModulusSwitchedCt::PreComputedU64(
+                    precomputed_multi_bit_modulus_switched_ct,
+                ),
+                DynLweSecretKeyView::U64 { key, encoding },
+            ) => {
+                let decrypted_plaintext = decrypt_multi_bit_mod_switched_lwe_ciphertext(
+                    key,
+                    precomputed_multi_bit_modulus_switched_ct,
+                    precomputed_multi_bit_modulus_switched_ct.log_modulus,
                 );
                 Self::new_from_plaintext(decrypted_plaintext, expected_msg, encoding)
             }
@@ -843,22 +857,19 @@ pub fn expected_pfail_for_precision(
     statrs::function::erf::erfc(measured_std_score / core::f64::consts::SQRT_2)
 }
 
-pub fn decrypt_multi_bit_mod_switched_lwe_ciphertext<Scalar, CtCont, KeyCont>(
+pub fn decrypt_multi_bit_mod_switched_lwe_ciphertext<Scalar, Ct, KeyCont>(
     lwe_secret_key: &LweSecretKey<KeyCont>,
-    mod_switched_lwe: &StandardMultiBitModulusSwitchedCt<Scalar, CtCont>,
+    ct: &Ct,
+    log_modulus: CiphertextModulusLog,
 ) -> Plaintext<Scalar>
 where
     Scalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>,
-    CtCont: Container<Element = Scalar> + Sync,
+    Ct: MultiBitModulusSwitchedLweCiphertext,
     KeyCont: Container<Element = Scalar>,
 {
-    let mut result: Scalar = mod_switched_lwe
-        .switched_modulus_input_lwe_body()
-        .cast_into();
+    let mut result: Scalar = ct.switched_modulus_input_lwe_body().cast_into();
 
-    let log_modulus = mod_switched_lwe.log_modulus;
-    let grouping_factor = mod_switched_lwe.grouping_factor();
-
+    let grouping_factor = ct.grouping_factor();
     let shift_to_native = Scalar::BITS - log_modulus.0;
 
     result <<= shift_to_native;
@@ -876,24 +887,21 @@ where
                 selector |= bit;
             }
             if selector == 0 {
-                // We dont generate a mod switched value for selector == 0 it corresponds to key
-                // bits == 0
+                // All key bits are zero: no monomial rotation needed for this group.
                 None
             } else {
-                // We subtract 1 to be coherent with the fact the first mod switched value is not
-                // generated
+                // Subtract 1 to align with the iterator that skips ggsw_idx=0.
                 Some(selector - 1)
             }
         };
 
         if let Some(selector) = selector {
-            let mod_switched: Scalar = mod_switched_lwe
+            let mod_switched: Scalar = ct
                 .switched_modulus_input_mask_per_group(loop_idx)
                 .nth(selector)
                 .unwrap()
                 .cast_into();
-            // Put in the high bits same as the body to be able to measure the noise in the
-            // encompassing modulus
+            // Put in the high bits, same as the body, to measure noise in the encompassing modulus.
             let mod_switched = mod_switched << shift_to_native;
             result = result.wrapping_sub(mod_switched);
         }

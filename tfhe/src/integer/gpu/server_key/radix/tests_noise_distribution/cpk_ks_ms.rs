@@ -122,9 +122,7 @@ fn cpk_ks_any_ms_inner_helper_gpu(
         atomic_pattern: params.atomic_pattern(),
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
-    let mut cuda_side_resources = CudaSideResources::new(streams, cuda_block_info);
-    // Required for multi-bit parameters so that the grouping factor is set before cpk_ks_any_ms
-    cuda_side_resources.configure_from_server_key(cuda_sks);
+    let mut cuda_side_resources = CudaSideResources::new(cuda_sks, streams, cuda_block_info);
     let ct = {
         let compact_list = cpk
             .key
@@ -358,9 +356,7 @@ fn noise_check_encrypt_cpk_ks_ms_noise_gpu(meta_params: MetaParameters, filename
         atomic_pattern: params.atomic_pattern(),
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
-    let mut cuda_side_resources = CudaSideResources::new(&streams, cuda_block_info);
-    // Required for multi-bit parameters so that the grouping factor is set before cpk_ks_any_ms
-    cuda_side_resources.configure_from_server_key(&cuda_sks);
+    let mut cuda_side_resources = CudaSideResources::new(&cuda_sks, &streams, cuda_block_info);
     // Check that the circuit is correct with respect to core implementation, i.e. does not crash on
     // dimension checks
     let (expected_lwe_dimension_out, expected_modulus_f64_out) = {
@@ -645,9 +641,7 @@ fn sanity_check_encrypt_cpk_ks_ms_pbs_gpu(meta_params: MetaParameters, filename_
         atomic_pattern: params.atomic_pattern(),
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
-    let mut cuda_side_resources = CudaSideResources::new(&streams, cuda_block_info);
-    // Required for multi-bit parameters so that the grouping factor is set before cpk_ks_any_ms
-    cuda_side_resources.configure_from_server_key(&cuda_sks);
+    let mut cuda_side_resources = CudaSideResources::new(&cuda_sks, &streams, cuda_block_info);
 
     type SanityVec = (LweCiphertextList<Vec<u64>>, LweCiphertextList<Vec<u64>>);
     let mut results: Vec<SanityVec> = Vec::new();

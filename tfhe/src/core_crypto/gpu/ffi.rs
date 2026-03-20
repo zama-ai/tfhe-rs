@@ -319,6 +319,7 @@ pub unsafe fn programmable_bootstrap_multi_bit<T: UnsignedInteger, B: Any + Unsi
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 pub unsafe fn programmable_bootstrap_multi_bit_noise_tests<T: UnsignedInteger>(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaVec<u64>,
@@ -378,6 +379,81 @@ pub unsafe fn programmable_bootstrap_multi_bit_noise_tests<T: UnsignedInteger>(
         lut_stride,
     );
     cleanup_cuda_multi_bit_programmable_bootstrap_noise_tests_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        std::ptr::addr_of_mut!(pbs_buffer),
+    );
+}
+
+/// Programmable 128-bit multi-bit bootstrap (noise tests variant) on a vector of LWE ciphertexts
+/// that has already been modulus-switched using the multi-bit MS.
+/// Input is u64 (small LWE), output is u128 (GLWE-dimension LWE after PBS128).
+/// Only used during noise tests to evaluate the noise at intermediate steps.
+///
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+#[allow(clippy::too_many_arguments)]
+#[cfg(test)]
+pub unsafe fn programmable_bootstrap_multi_bit_noise_tests_128<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<u128>,
+    output_indexes: &CudaVec<T>,
+    test_vector: &CudaVec<u128>,
+    lwe_array_in: &CudaVec<T>,
+    input_indexes: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<u128>,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    base_log: DecompositionBaseLog,
+    level: DecompositionLevelCount,
+    grouping_factor: LweBskGroupingFactor,
+    num_samples: u32,
+) {
+    assert_eq!(
+        polynomial_size,
+        PolynomialSize(2048),
+        "programmable_bootstrap_multi_bit_noise_tests_128 only supports polynomial \
+         size 2048, got {}",
+        polynomial_size.0
+    );
+    let num_many_lut = 1u32;
+    let lut_stride = 0u32;
+    let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        std::ptr::addr_of_mut!(pbs_buffer),
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(level.0).unwrap(),
+        num_samples,
+        true,
+    );
+    cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        lwe_array_out.as_mut_c_ptr(0),
+        output_indexes.as_c_ptr(0),
+        test_vector.as_c_ptr(0),
+        lwe_array_in.as_c_ptr(0),
+        input_indexes.as_c_ptr(0),
+        bootstrapping_key.as_c_ptr(0),
+        pbs_buffer,
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(base_log.0).unwrap(),
+        u32::try_from(level.0).unwrap(),
+        num_samples,
+        num_many_lut,
+        lut_stride,
+    );
+    cleanup_cuda_multi_bit_programmable_bootstrap_noise_tests_128(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
         std::ptr::addr_of_mut!(pbs_buffer),
