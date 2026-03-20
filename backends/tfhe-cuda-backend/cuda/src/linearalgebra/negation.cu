@@ -8,6 +8,9 @@ void cuda_negate_lwe_ciphertext_vector_32(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_array_in, const uint32_t input_lwe_dimension,
     const uint32_t input_lwe_ciphertext_count) {
+  PANIC_IF_FALSE(lwe_array_out != lwe_array_in,
+                 "Output and input pointers must be different for out-of-place "
+                 "operations");
 
   host_negation<uint32_t>(static_cast<cudaStream_t>(stream), gpu_index,
                           static_cast<uint32_t *>(lwe_array_out),
@@ -42,6 +45,9 @@ void cuda_negate_lwe_ciphertext_vector_64(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_array_in, const uint32_t input_lwe_dimension,
     const uint32_t input_lwe_ciphertext_count) {
+  PANIC_IF_FALSE(lwe_array_out != lwe_array_in,
+                 "Output and input pointers must be different for out-of-place "
+                 "operations");
 
   host_negation<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index,
                           static_cast<uint64_t *>(lwe_array_out),

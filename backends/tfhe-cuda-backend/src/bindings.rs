@@ -403,7 +403,21 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn scratch_cuda_integer_mult_64_async(
+    pub fn cuda_integer_mult_inplace_64_async(
+        streams: CudaStreamsFFI,
+        radix_lwe_inout: *mut CudaRadixCiphertextFFI,
+        is_bool_left: bool,
+        radix_lwe_right: *const CudaRadixCiphertextFFI,
+        is_bool_right: bool,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        mem_ptr: *mut i8,
+        polynomial_size: u32,
+        num_blocks: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_integer_mult_inplace_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         is_boolean_left: bool,
@@ -425,22 +439,10 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
-    pub fn cuda_integer_mult_64_async(
+    pub fn cleanup_cuda_integer_mult_inplace_64(
         streams: CudaStreamsFFI,
-        radix_lwe_out: *mut CudaRadixCiphertextFFI,
-        radix_lwe_left: *const CudaRadixCiphertextFFI,
-        is_bool_left: bool,
-        radix_lwe_right: *const CudaRadixCiphertextFFI,
-        is_bool_right: bool,
-        bsks: *const *mut ffi::c_void,
-        ksks: *const *mut ffi::c_void,
-        mem_ptr: *mut i8,
-        polynomial_size: u32,
-        num_blocks: u32,
+        mem_ptr_void: *mut *mut i8,
     );
-}
-unsafe extern "C" {
-    pub fn cleanup_cuda_integer_mult_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
     pub fn cuda_negate_ciphertext_64(
@@ -658,7 +660,17 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn scratch_cuda_boolean_bitop_64_async(
+    pub fn cuda_boolean_bitop_inplace_64_async(
+        streams: CudaStreamsFFI,
+        lwe_array_inout: *mut CudaRadixCiphertextFFI,
+        lwe_array_2: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_boolean_bitop_inplace_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
@@ -681,18 +693,10 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
-    pub fn cuda_boolean_bitop_64_async(
+    pub fn cleanup_cuda_boolean_bitop_inplace_64(
         streams: CudaStreamsFFI,
-        lwe_array_out: *mut CudaRadixCiphertextFFI,
-        lwe_array_1: *const CudaRadixCiphertextFFI,
-        lwe_array_2: *const CudaRadixCiphertextFFI,
-        mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
-        ksks: *const *mut ffi::c_void,
+        mem_ptr_void: *mut *mut i8,
     );
-}
-unsafe extern "C" {
-    pub fn cleanup_cuda_boolean_bitop_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
     pub fn scratch_cuda_boolean_bitnot_64_async(
@@ -738,54 +742,19 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn scratch_cuda_integer_bitop_64_async(
+    pub fn cuda_integer_bitop_inplace_64_async(
         streams: CudaStreamsFFI,
-        mem_ptr: *mut *mut i8,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        big_lwe_dimension: u32,
-        small_lwe_dimension: u32,
-        ks_level: u32,
-        ks_base_log: u32,
-        pbs_level: u32,
-        pbs_base_log: u32,
-        grouping_factor: u32,
-        lwe_ciphertext_count: u32,
-        message_modulus: u32,
-        carry_modulus: u32,
-        pbs_type: PBS_TYPE,
-        op_type: BITOP_TYPE,
-        allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
-    ) -> u64;
+        lwe_array_inout: *mut CudaRadixCiphertextFFI,
+        lwe_array_2: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
 }
 unsafe extern "C" {
-    pub fn scratch_cuda_integer_scalar_bitop_64_async(
+    pub fn cuda_integer_scalar_bitop_inplace_64_async(
         streams: CudaStreamsFFI,
-        mem_ptr: *mut *mut i8,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        big_lwe_dimension: u32,
-        small_lwe_dimension: u32,
-        ks_level: u32,
-        ks_base_log: u32,
-        pbs_level: u32,
-        pbs_base_log: u32,
-        grouping_factor: u32,
-        lwe_ciphertext_count: u32,
-        message_modulus: u32,
-        carry_modulus: u32,
-        pbs_type: PBS_TYPE,
-        op_type: BITOP_TYPE,
-        allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
-    ) -> u64;
-}
-unsafe extern "C" {
-    pub fn cuda_integer_scalar_bitop_64_async(
-        streams: CudaStreamsFFI,
-        lwe_array_out: *mut CudaRadixCiphertextFFI,
-        lwe_array_input: *const CudaRadixCiphertextFFI,
+        lwe_array_inout: *mut CudaRadixCiphertextFFI,
         clear_blocks: *const ffi::c_void,
         h_clear_blocks: *const ffi::c_void,
         num_clear_blocks: u32,
@@ -795,21 +764,57 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn cuda_integer_bitop_64_async(
+    pub fn scratch_cuda_integer_bitop_inplace_64_async(
         streams: CudaStreamsFFI,
-        lwe_array_out: *mut CudaRadixCiphertextFFI,
-        lwe_array_1: *const CudaRadixCiphertextFFI,
-        lwe_array_2: *const CudaRadixCiphertextFFI,
-        mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
-        ksks: *const *mut ffi::c_void,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        lwe_ciphertext_count: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        op_type: BITOP_TYPE,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_integer_bitop_inplace_64(
+        streams: CudaStreamsFFI,
+        mem_ptr_void: *mut *mut i8,
     );
 }
 unsafe extern "C" {
-    pub fn cleanup_cuda_integer_bitop_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+    pub fn scratch_cuda_integer_scalar_bitop_inplace_64_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        lwe_ciphertext_count: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        op_type: BITOP_TYPE,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
 }
 unsafe extern "C" {
-    pub fn cleanup_cuda_integer_scalar_bitop_64(
+    pub fn cleanup_cuda_integer_scalar_bitop_inplace_64(
         streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,
     );
@@ -3074,6 +3079,22 @@ unsafe extern "C" {
         plaintext_in: u64,
         input_lwe_dimension: u32,
         input_lwe_ciphertext_count: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_add_lwe_ciphertext_vector_inplace_32(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_inout: *mut CudaRadixCiphertextFFI,
+        input_2: *const CudaRadixCiphertextFFI,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_add_lwe_ciphertext_vector_inplace_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_inout: *mut CudaRadixCiphertextFFI,
+        input_2: *const CudaRadixCiphertextFFI,
     );
 }
 unsafe extern "C" {
