@@ -1,5 +1,5 @@
 use super::{DataKind, Expandable};
-use crate::conformance::ListSizeConstraint;
+use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::prelude::{LweCiphertextListConformanceParams, Numeric};
 use crate::integer::backward_compatibility::ciphertext::CompactCiphertextListVersions;
 #[cfg(feature = "zk-pok")]
@@ -32,7 +32,6 @@ use std::num::NonZero;
 
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use tfhe_safe_serialize::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 /// Unpack message and carries and additionally sanitizes blocks

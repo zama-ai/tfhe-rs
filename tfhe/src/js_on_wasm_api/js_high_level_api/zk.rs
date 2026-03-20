@@ -54,7 +54,7 @@ impl CompactPkeCrs {
     pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
         let mut buffer = vec![];
         catch_panic_result(|| {
-            tfhe_safe_serialize::SerializationConfig::new(serialized_size_limit)
+            crate::safe_serialization::SerializationConfig::new(serialized_size_limit)
                 .serialize_into(&self.0, &mut buffer)
                 .map_err(into_js_error)
         })?;
@@ -68,7 +68,7 @@ impl CompactPkeCrs {
         serialized_size_limit: u64,
     ) -> Result<CompactPkeCrs, JsError> {
         catch_panic_result(|| {
-            tfhe_safe_serialize::DeserializationConfig::new(serialized_size_limit)
+            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
                 .deserialize_from(buffer)
                 .map(Self)
@@ -102,7 +102,7 @@ impl CompactPkeCrs {
         serialized_size_limit: u64,
     ) -> Result<CompactPkeCrs, JsError> {
         catch_panic_result(|| {
-            tfhe_safe_serialize::DeserializationConfig::new(serialized_size_limit)
+            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
                 .deserialize_from(buffer)
                 .map(crate::zk::ZkCompactPkeV1PublicParams::into)

@@ -286,10 +286,11 @@ fn test_xof_key_set(
 ) {
     let compressed_size_limit = 1 << 32; // 4GB
     let mut data = vec![];
-    tfhe_safe_serialize::safe_serialize(compressed_key_set, &mut data, compressed_size_limit)
+    crate::safe_serialization::safe_serialize(compressed_key_set, &mut data, compressed_size_limit)
         .unwrap();
     let compressed_key_set: CompressedXofKeySet =
-        tfhe_safe_serialize::safe_deserialize(data.as_slice(), compressed_size_limit).unwrap();
+        crate::safe_serialization::safe_deserialize(data.as_slice(), compressed_size_limit)
+            .unwrap();
 
     let expected_tag = cks.tag().clone();
     // Test Tagged trait on CompressedXofKeySet
@@ -313,9 +314,9 @@ fn test_xof_key_set(
             let key_set = compressed_key_set.decompress().unwrap();
             let size_limit = 1 << 32; // 4GB
             let mut data = vec![];
-            tfhe_safe_serialize::safe_serialize(&key_set, &mut data, size_limit).unwrap();
+            crate::safe_serialization::safe_serialize(&key_set, &mut data, size_limit).unwrap();
             let mut key_set: XofKeySet =
-                tfhe_safe_serialize::safe_deserialize(data.as_slice(), size_limit).unwrap();
+                crate::safe_serialization::safe_deserialize(data.as_slice(), size_limit).unwrap();
 
             assert_eq!(key_set.tag(), &expected_tag);
 

@@ -10,12 +10,12 @@ use crate::high_level_api::SquashedNoiseCiphertextState;
 use crate::integer::ciphertext::NoiseSquashingCompressionPrivateKey;
 use crate::integer::compression_keys::CompressionPrivateKeys;
 use crate::integer::noise_squashing::{NoiseSquashingPrivateKey, NoiseSquashingPrivateKeyView};
+use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::parameters::ReRandomizationParameters;
 use crate::shortint::MessageModulus;
 use crate::Tag;
 use tfhe_csprng::seeders::Seed;
-use tfhe_safe_serialize::Named;
 use tfhe_versionable::Versionize;
 
 /// Key of the client

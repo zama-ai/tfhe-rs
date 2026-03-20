@@ -1,6 +1,7 @@
 use tfhe_versionable::Versionize;
 
 use super::common::*;
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
 use crate::core_crypto::prelude::compressed_modulus_switched_multi_bit_lwe_ciphertext::CompressedModulusSwitchedMultiBitLweCiphertext;
 use crate::core_crypto::prelude::CompressedModulusSwitchedLweCiphertextConformanceParams;
@@ -10,7 +11,6 @@ use crate::shortint::backward_compatibility::ciphertext::{
 };
 use crate::shortint::parameters::{AtomicPatternKind, CiphertextConformanceParams};
 use crate::shortint::{CarryModulus, MessageModulus};
-use tfhe_safe_serialize::ParameterSetConformant;
 
 /// An object to store a ciphertext using less memory.
 /// Decompressing it requires a PBS

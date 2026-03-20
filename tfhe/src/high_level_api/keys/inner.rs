@@ -1,3 +1,4 @@
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::{DefaultRandomGenerator, LweKeyswitchKeyConformanceParams};
 use crate::high_level_api::backward_compatibility::keys::*;
@@ -33,7 +34,6 @@ use crate::shortint::{EncryptionKeyChoice, MessageModulus};
 use crate::{Config, Error};
 use serde::{Deserialize, Serialize};
 use tfhe_csprng::seeders::Seed;
-use tfhe_safe_serialize::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]

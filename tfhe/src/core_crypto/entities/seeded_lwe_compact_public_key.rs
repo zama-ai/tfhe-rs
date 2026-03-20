@@ -2,13 +2,13 @@
 
 use tfhe_versionable::Versionize;
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::decompress_seeded_lwe_compact_public_key;
 use crate::core_crypto::backward_compatibility::entities::seeded_lwe_compact_public_key::SeededLweCompactPublicKeyVersions;
 use crate::core_crypto::commons::math::random::{CompressionSeed, DefaultRandomGenerator};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use tfhe_safe_serialize::ParameterSetConformant;
 
 /// A [`seeded compact public LWE encryption key`](`SeededLweCompactPublicKey`).
 ///

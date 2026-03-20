@@ -20,12 +20,13 @@ use crate::backward_compatibility::keys::{
     CompactPublicKeyVersions, CompressedCompactPublicKeyVersions, CompressedPublicKeyVersions,
     PublicKeyVersions,
 };
+use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::keys::{IntegerCompactPublicKey, IntegerCompressedCompactPublicKey};
+use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::parameters::CompactPublicKeyEncryptionParameters;
 use crate::shortint::MessageModulus;
 use crate::{Error, Tag};
-use tfhe_safe_serialize::{Named, ParameterSetConformant};
 
 /// Classical public key.
 ///
@@ -272,12 +273,12 @@ impl ParameterSetConformant for CompressedCompactPublicKey {
 
 #[cfg(test)]
 mod test {
+    use crate::conformance::ParameterSetConformant;
     use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128;
     use crate::shortint::parameters::*;
     use crate::{
         generate_keys, ClientKey, CompactPublicKey, CompressedCompactPublicKey, ConfigBuilder,
     };
-    use tfhe_safe_serialize::ParameterSetConformant;
 
     #[test]
     fn conformance_compact_public_key() {

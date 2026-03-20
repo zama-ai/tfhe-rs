@@ -4,11 +4,11 @@ use crate::backward_compatibility::keys::KeySwitchingKeyVersions;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::integer::BooleanBlock;
+use crate::named::Named;
 use crate::prelude::FheKeyswitch;
 pub use crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters;
 use crate::{ClientKey, FheBool, FheInt, FheUint, ServerKey, Tag};
 use std::fmt::{Display, Formatter};
-use tfhe_safe_serialize::Named;
 
 #[derive(Copy, Clone, Debug)]
 pub struct IncompatibleParameters;

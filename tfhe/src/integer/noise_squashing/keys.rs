@@ -1,3 +1,4 @@
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::numeric::UnsignedNumeric;
 use crate::integer::backward_compatibility::noise_squashing::*;
 use crate::integer::block_decomposition::{BlockRecomposer, RecomposableFrom, SignExtendable};
@@ -7,11 +8,11 @@ use crate::integer::ciphertext::{
 };
 use crate::integer::server_key::ServerKey;
 use crate::integer::ClientKey;
+use crate::named::Named;
 use crate::shortint::noise_squashing::NoiseSquashingKeyConformanceParams;
 use crate::shortint::parameters::NoiseSquashingParameters;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use tfhe_safe_serialize::{Named, ParameterSetConformant};
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]

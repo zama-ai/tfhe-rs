@@ -5,12 +5,12 @@ pub use standard::*;
 
 use super::expanded::ExpandedAtomicPatternServerKey;
 use super::AtomicPatternServerKey;
+use crate::conformance::ParameterSetConformant;
 use crate::shortint::backward_compatibility::atomic_pattern::CompressedAtomicPatternServerKeyVersions;
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{AtomicPatternParameters, CiphertextModulus, LweDimension};
-use tfhe_safe_serialize::ParameterSetConformant;
 
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;

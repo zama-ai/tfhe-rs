@@ -1,11 +1,13 @@
 use crate::backward_compatibility::booleans::{
     CompressedFheBoolVersions, InnerCompressedFheBoolVersions,
 };
+use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::traits::Tagged;
 use crate::integer::BooleanBlock;
+use crate::named::Named;
 use crate::prelude::FheTryEncrypt;
 use crate::shortint::ciphertext::{
     CompressedModulusSwitchedCiphertext, CompressedModulusSwitchedCiphertextConformanceParams,
@@ -14,7 +16,6 @@ use crate::shortint::ciphertext::{
 use crate::shortint::{AtomicPatternParameters, CompressedCiphertext};
 use crate::{ClientKey, FheBool, ServerKey, Tag};
 use serde::{Deserialize, Serialize};
-use tfhe_safe_serialize::{Named, ParameterSetConformant};
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Serialize, Deserialize, Versionize)]

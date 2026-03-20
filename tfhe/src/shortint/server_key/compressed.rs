@@ -1,6 +1,7 @@
 //! Module with the definition of the CompressedServerKey.
 
 use super::{MaxDegree, PBSConformanceParams, PbsTypeConformanceParams};
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::*;
 use crate::shortint::atomic_pattern::compressed::{
@@ -21,7 +22,6 @@ use crate::shortint::server_key::{
 };
 use crate::shortint::{ClientKey, ServerKey};
 use serde::{Deserialize, Serialize};
-use tfhe_safe_serialize::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
