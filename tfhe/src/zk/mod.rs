@@ -3,7 +3,6 @@ pub mod backward_compatibility;
 use crate::conformance::{EnumSet, ParameterSetConformant};
 use crate::core_crypto::commons::math::random::BoundedDistribution;
 use crate::core_crypto::prelude::*;
-use crate::named::Named;
 #[cfg(feature = "shortint")]
 use crate::shortint::parameters::CompactPublicKeyEncryptionParameters;
 use backward_compatibility::*;
@@ -12,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::Bound;
 use std::fmt::Debug;
+use tfhe_safe_serialize::Named;
 use tfhe_versionable::Versionize;
 
 use tfhe_zk_pok::proofs::pke::{
@@ -883,9 +883,9 @@ impl Compressible for CompactPkeCrs {
 #[cfg(all(test, feature = "shortint"))]
 mod test {
     use super::*;
-    use crate::safe_serialization::{safe_deserialize_conformant, safe_serialize};
     use crate::shortint::parameters::*;
     use crate::shortint::{CarryModulus, MessageModulus};
+    use tfhe_safe_serialize::{safe_deserialize_conformant, safe_serialize};
 
     #[test]
     fn test_crs_conformance() {

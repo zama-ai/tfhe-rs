@@ -6,7 +6,7 @@ use crate::core_crypto::backward_compatibility::entities::lwe_bootstrap_key_chun
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::named::Named;
+use tfhe_safe_serialize::Named;
 
 /// An [`LWE bootstrap key chunk`](`LweBootstrapKeyChunk`).
 ///

@@ -2,13 +2,6 @@ use crate::core_crypto::commons::numeric::CastInto;
 
 use std::marker::PhantomData;
 
-/// A trait for objects which can be checked to be conformant with a parameter set
-pub trait ParameterSetConformant {
-    type ParameterSet;
-
-    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool;
-}
-
 /// A constraint on a list size
 /// The list must be composed of a number `n` of groups of size `group_size` which means list size
 /// must be a multiple of `group_size`.

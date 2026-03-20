@@ -2,7 +2,6 @@ use tfhe_versionable::Versionize;
 
 use super::inner::SignedRadixCiphertext;
 use crate::backward_compatibility::integers::FheIntVersions;
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::SignedNumeric;
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::global_state;
@@ -15,12 +14,12 @@ use crate::high_level_api::traits::{FheWait, ReRandomize, Tagged};
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableSignedInteger};
 use crate::integer::ciphertext::ReRandomizationSeed;
 use crate::integer::parameters::RadixCiphertextConformanceParams;
-use crate::named::Named;
 use crate::prelude::CastFrom;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::AtomicPatternParameters;
 use crate::{Device, FheBool, ServerKey, Tag};
 use std::marker::PhantomData;
+use tfhe_safe_serialize::{Named, ParameterSetConformant};
 
 #[cfg(not(feature = "gpu"))]
 type ExpectedInnerGpu = ();

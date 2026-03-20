@@ -19,9 +19,9 @@ use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseBooleanBlock;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
-use crate::named::Named;
 use crate::{ClientKey, Device, Tag};
 use serde::{Deserializer, Serializer};
+use tfhe_safe_serialize::Named;
 use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 /// Enum that manages the current inner representation of a boolean.

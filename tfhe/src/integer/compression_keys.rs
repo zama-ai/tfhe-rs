@@ -1,8 +1,7 @@
 use super::ClientKey;
-use crate::conformance::ParameterSetConformant;
 use crate::integer::backward_compatibility::list_compression::*;
-use crate::named::Named;
 use serde::{Deserialize, Serialize};
+use tfhe_safe_serialize::{Named, ParameterSetConformant};
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]

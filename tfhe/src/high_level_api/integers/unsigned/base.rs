@@ -2,7 +2,6 @@ use tfhe_versionable::Versionize;
 
 use super::inner::RadixCiphertext;
 use crate::backward_compatibility::integers::FheUintVersions;
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{CastFrom, UnsignedInteger, UnsignedNumeric};
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::integers::signed::{FheInt, FheIntId};
@@ -21,7 +20,6 @@ use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::integer::server_key::MatchValues;
-use crate::named::Named;
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::AtomicPatternParameters;
@@ -29,6 +27,7 @@ use crate::shortint::AtomicPatternParameters;
 use crate::GpuIndex;
 use crate::{FheBool, ServerKey, Tag};
 use std::marker::PhantomData;
+use tfhe_safe_serialize::{Named, ParameterSetConformant};
 
 #[cfg(feature = "hpu")]
 use crate::high_level_api::traits::{FheHpu, HpuHandle};
@@ -50,19 +49,19 @@ impl std::fmt::Display for GenericIntegerBlockError {
         match self {
             Self::NumberOfBlocks(correct, incorrect) => write!(
                 f,
-                "Wrong number of blocks for creating 
+                "Wrong number of blocks for creating
                     a GenericInteger: should have been {correct}, but
                     was {incorrect} instead"
             ),
             Self::CarryModulus(correct, incorrect) => write!(
                 f,
-                "Wrong carry modulus for creating 
+                "Wrong carry modulus for creating
                     a GenericInteger: should have been {correct:?}, but
                     was {incorrect:?} instead"
             ),
             Self::MessageModulus(correct, incorrect) => write!(
                 f,
-                "Wrong message modulus for creating 
+                "Wrong message modulus for creating
                     a GenericInteger: should have been {correct:?}, but
                     was {incorrect:?} instead"
             ),

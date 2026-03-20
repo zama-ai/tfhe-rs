@@ -1,6 +1,5 @@
 //! Module containing the definition of the [`SeededLwePackingKeyswitchKey`].
 
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::seeded_lwe_packing_keyswitch_key::SeededLwePackingKeyswitchKeyVersions;
 use crate::core_crypto::commons::generators::MaskRandomGenerator;
@@ -8,6 +7,7 @@ use crate::core_crypto::commons::math::random::{CompressionSeed, DefaultRandomGe
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use tfhe_safe_serialize::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 /// A [`seeded LWE packing keyswitch key`](`SeededLwePackingKeyswitchKey`).

@@ -1,7 +1,6 @@
 use tfhe_versionable::Versionize;
 
 use self::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::*;
 use crate::error;
 use crate::shortint::backward_compatibility::ciphertext::{
@@ -13,6 +12,7 @@ use crate::shortint::parameters::{
     CompressedCiphertextConformanceParams, CompressedSquashedNoiseCiphertextConformanceParams,
 };
 use crate::shortint::{AtomicPatternKind, CarryModulus, MessageModulus};
+use tfhe_safe_serialize::ParameterSetConformant;
 
 use super::{Degree, MaxDegree, SquashedNoiseCiphertext};
 

@@ -1,5 +1,4 @@
 use super::fourier_lwe_multi_bit_bootstrap_key_size;
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::lwe_multi_bit_bootstrap_key::Fourier128LweMultiBitBootstrapKeyVersions;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweBskGroupingFactor, LweDimension,
@@ -9,6 +8,7 @@ use crate::core_crypto::commons::traits::{Container, Split};
 use crate::core_crypto::commons::utils::izip_eq;
 use crate::core_crypto::fft_impl::fft128::crypto::ggsw::Fourier128GgswCiphertext;
 use crate::core_crypto::prelude::MultiBitBootstrapKeyConformanceParams;
+use tfhe_safe_serialize::ParameterSetConformant;
 
 use aligned_vec::{avec, ABox};
 use tfhe_versionable::Versionize;
