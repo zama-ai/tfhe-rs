@@ -176,15 +176,13 @@ __host__ void host_expand_without_verification(
     // This is a special case only for our noise sanity checks
     // If we are doing a SANITY_CHECK expand, we just apply the identity LUT
     // This replicates the CPU fallback behaviour of the casting expand
-    if (mem_ptr->expand_kind == EXPAND_KIND::SANITY_CHECK) {
-      integer_radix_apply_univariate_lookup_table<Torus>(
-          streams, &output, &input, bsks, ksks, mem_ptr->identity_lut,
-          2 * num_lwes);
-    } else {
-      integer_radix_apply_univariate_lookup_table<Torus>(
-          streams, &output, &input, bsks, ksks, message_and_carry_extract_luts,
-          2 * num_lwes);
-    }
+    auto final_lut = (mem_ptr->expand_kind == EXPAND_KIND::SANITY_CHECK
+                          ? mem_ptr->identity_lut
+                          : message_and_carry_extract_luts);
+
+    integer_radix_apply_univariate_lookup_table<Torus>(
+        streams, &output, &input, bsks, ksks, final_lut, 2 * num_lwes);
+
     release_cpu_radix_ciphertext_async(&input);
     release_cpu_radix_ciphertext_async(&output);
   }
