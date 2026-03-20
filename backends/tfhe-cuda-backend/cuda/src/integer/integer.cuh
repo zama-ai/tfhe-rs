@@ -546,7 +546,9 @@ __host__ void integer_radix_apply_univariate_lookup_table(
 
   // Verify consistency between set_lut_indexes and apply_lookup_table
   GPU_ASSERT(
-      num_radix_blocks <= lut->last_broadcast_num_radix_blocks,
+      lut->num_luts == 1
+          ? num_radix_blocks <= lut->last_broadcast_num_radix_blocks
+          : num_radix_blocks == lut->last_broadcast_num_radix_blocks,
       "num_radix_blocks (%u) must match last_broadcast_num_radix_blocks (%u)",
       num_radix_blocks, lut->last_broadcast_num_radix_blocks);
   GPU_ASSERT(active_streams.count() <= lut->last_broadcast_streams.count(),
@@ -655,6 +657,13 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input and output radix ciphertexts should have the same "
           "lwe dimension")
+  GPU_ASSERT(
+      lut->num_luts == 1 ? lwe_array_in->num_radix_blocks <=
+                               lut->last_broadcast_num_radix_blocks
+                         : lwe_array_in->num_radix_blocks ==
+                               lut->last_broadcast_num_radix_blocks,
+      "num_radix_blocks (%u) must match last_broadcast_num_radix_blocks (%u)",
+      lwe_array_in->num_radix_blocks, lut->last_broadcast_num_radix_blocks);
 
   auto num_radix_blocks = lwe_array_in->num_radix_blocks;
   /// For multi GPU execution we create vectors of pointers for inputs and
@@ -747,6 +756,12 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
   if (num_radix_blocks > lut->num_blocks)
     PANIC("Cuda error: num radix blocks on which lut is applied should be "
           "smaller or equal to the number of lut radix blocks")
+  GPU_ASSERT(
+      lut->num_luts == 1
+          ? num_radix_blocks <= lut->last_broadcast_num_radix_blocks
+          : num_radix_blocks == lut->last_broadcast_num_radix_blocks,
+      "num_radix_blocks (%u) must match last_broadcast_num_radix_blocks (%u)",
+      num_radix_blocks, lut->last_broadcast_num_radix_blocks);
   if (num_radix_blocks > lwe_array_out->num_radix_blocks ||
       num_radix_blocks > lwe_array_1->num_radix_blocks ||
       num_radix_blocks > lwe_array_2->num_radix_blocks)
@@ -1376,10 +1391,18 @@ void host_resolve_group_carries_sequentially(
 
       // Apply the lut
       auto luts_sequential = mem->lut_sequential_algorithm;
+      auto lut_index_generator = [](Torus *h_lut_indexes,
+                                    uint32_t num_indexes) {
+        for (uint32_t i = 0; i < num_indexes; i++)
+          h_lut_indexes[i] = i;
+      };
+      luts_sequential->prepare_to_apply_to_block_subset(blocks_to_solve,
+                                                        lut_index_generator);
       CudaRadixCiphertextFFI shifted_group_resolved_carries;
       as_radix_ciphertext_slice<Torus>(&shifted_group_resolved_carries,
                                        group_resolved_carries, 1,
                                        blocks_to_solve + 1);
+
       integer_radix_apply_univariate_lookup_table<Torus>(
           streams, &shifted_group_resolved_carries,
           &shifted_group_resolved_carries, bsks, ksks, luts_sequential,
@@ -1716,6 +1739,7 @@ extract_n_bits(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
           num_radix_blocks);
     }
   }
+  bit_extract->prepare_lut_for_blocks(effective_num_radix_blocks);
   integer_radix_apply_univariate_lookup_table<Torus>(
       streams, lwe_array_out, lwe_array_out, bsks, ksks, bit_extract->lut,
       effective_num_radix_blocks);

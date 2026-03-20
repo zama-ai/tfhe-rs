@@ -414,6 +414,8 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
 
       // we just need to broadcast the indexes
       luts_message_carry->broadcast_lut(active_streams, false);
+      luts_message_carry->prepare_to_apply_to_block_subset(
+          total_ciphertexts, LUT_0_FOR_ALL_BLOCKS);
       luts_message_carry->using_trivial_lwe_indexes = false;
 
       integer_radix_apply_univariate_lookup_table<Torus>(
@@ -467,6 +469,8 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
       uint32_t num_blocks_in_apply_lut = 2 * num_radix_blocks;
       // we just need to broadcast the indexes
       luts_message_carry->broadcast_lut(active_streams, false);
+      luts_message_carry->prepare_to_apply_to_block_subset(
+          num_blocks_in_apply_lut, LUT_0_FOR_ALL_BLOCKS);
       luts_message_carry->using_trivial_lwe_indexes = false;
 
       integer_radix_apply_univariate_lookup_table<Torus>(
