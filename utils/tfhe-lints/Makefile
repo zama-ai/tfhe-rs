@@ -94,3 +94,8 @@ backward_snapshot_check:
 	cargo run -p tfhe-backward-compat-checker -- check \
 		--base-dir $(BASE_SNAPSHOT_DIR) \
 		--head-dir $(HEAD_SNAPSHOT_DIR)
+
+.PHONY: backward_correctness # Check backward compat against the reference snapshots
+backward_correctness: install_cargo_dylint install_tfhe_lints_toolchain
+	$(call require,BASE_REF)
+	./scripts/check_snapshot_correctness.sh $(BASE_REF)
