@@ -339,7 +339,7 @@ fn encrypt_dp_ks_any_ms_pfail_helper_gpu(
     br_input_modulus_log: CiphertextModulusLog,
     streams: &CudaStreams,
 ) -> DecryptionAndNoiseResult {
-    let (_input, _after_dp, _after_ks, after_ms, _after_pbs) =
+    let (_input, _after_dp, _after_ks, _before_ms, after_ms) =
         encrypt_dp_ks_any_ms_inner_helper_gpu(
             params,
             single_cks,
