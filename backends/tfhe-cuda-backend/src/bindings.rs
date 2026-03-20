@@ -136,9 +136,6 @@ pub type Direction = ffi::c_uint;
 pub const BitValue_Zero: BitValue = 0;
 pub const BitValue_One: BitValue = 1;
 pub type BitValue = ffi::c_uint;
-pub const RERAND_MODE_RERAND_WITH_KS: RERAND_MODE = 0;
-pub const RERAND_MODE_RERAND_WITHOUT_KS: RERAND_MODE = 1;
-pub type RERAND_MODE = ffi::c_uint;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct CudaStreamsFFI {
@@ -2479,6 +2476,9 @@ unsafe extern "C" {
         glwe_index: u32,
     );
 }
+pub const RERAND_MODE_RERAND_WITH_KS: RERAND_MODE = 0;
+pub const RERAND_MODE_RERAND_WITHOUT_KS: RERAND_MODE = 1;
+pub type RERAND_MODE = ffi::c_uint;
 unsafe extern "C" {
     pub fn scratch_cuda_rerand_64_async(
         streams: CudaStreamsFFI,
@@ -2491,7 +2491,7 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        rerand_type: u32,
+        rerand_type: RERAND_MODE,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -3472,5 +3472,46 @@ unsafe extern "C" {
         stream: *mut ffi::c_void,
         gpu_index: u32,
         buffer: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        pbs_buffer: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        level_count: u32,
+        input_lwe_ciphertext_count: u32,
+        allocate_gpu_memory: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_multi_bit_programmable_bootstrap_noise_tests_128(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        pbs_buffer: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_output_indexes: *const ffi::c_void,
+        lut_vector: *const ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        lwe_input_indexes: *const ffi::c_void,
+        bootstrapping_key: *const ffi::c_void,
+        buffer: *mut i8,
+        lwe_dimension: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        grouping_factor: u32,
+        base_log: u32,
+        level_count: u32,
+        num_samples: u32,
+        num_many_lut: u32,
+        lut_stride: u32,
     );
 }
