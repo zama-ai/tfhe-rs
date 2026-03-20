@@ -128,14 +128,20 @@ jobs:
         run: |
           make test_nodejs_wasm_api_ci
 
-      - name: Run parallel wasm tests
-        run: |
-          make test_web_js_api_parallel_chrome_ci
-
       - name: Run wasm_par_mq tests
         run: |
           make test_wasm_par_mq_chrome_ci
           make test_wasm_par_mq_firefox_ci
+
+      - name: Run parallel wasm tests
+        run: |
+          make test_web_js_api_parallel_chrome_ci
+          make test_web_js_api_parallel_firefox_ci
+
+      - name: Run cross origin wasm tests
+        run: |
+          make test_web_js_api_cross_origin_chrome_ci
+          make test_web_js_api_cross_origin_firefox_ci
 
       - name: Run x86_64/wasm zk compatibility tests
         run: |

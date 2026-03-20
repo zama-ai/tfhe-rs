@@ -1,4 +1,4 @@
-use crate::backward_compatibility::GroupElementsVersions;
+use crate::backward_compatibility::{ComputeLoadVersions, GroupElementsVersions};
 
 use crate::curve_api::{Compressible, Curve, CurveGroupOps, FieldOps, PairingGroupOps};
 use crate::serialization::{
@@ -19,7 +19,8 @@ pub(crate) struct OneBased<T: ?Sized>(T);
 
 /// The proving scheme is available in 2 versions, one that puts more load on the prover and one
 /// that puts more load on the verifier
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Versionize, Copy, Clone, Debug, PartialEq, Eq)]
+#[versionize(ComputeLoadVersions)]
 pub enum ComputeLoad {
     Proof = 0,
     Verify = 1,

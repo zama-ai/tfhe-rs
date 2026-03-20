@@ -3,6 +3,7 @@ import { threads } from "wasm-feature-detect";
 import init, {
   initThreadPool,
   init_panic_hook,
+  init_cross_origin_worker_pool_from_worker,
   set_server_key,
   shortint_params_name,
   ShortintParametersName,
@@ -196,7 +197,7 @@ async function compactPublicKeyBench32BitSmall() {
 function generateRandomBigInt(bitLen) {
   let result = BigInt(0);
   for (let i = 0; i < bitLen; i++) {
-    result << 1n;
+    result <<= 1n;
     result |= BigInt(Math.random() < 0.5);
   }
   return result;
@@ -716,7 +717,7 @@ async function compactPublicKeyZeroKnowledgeBench() {
             params.zk_scheme;
 
           if (!supportsThreads) {
-            common_bench_str += "_unsafe_coop";
+            common_bench_str += "_cross_origin";
           }
 
           const bench_str_1 = common_bench_str + "_mean";
@@ -739,9 +740,17 @@ async function main() {
   let supportsThreads = await threads();
   if (supportsThreads) {
     await initThreadPool(navigator.hardwareConcurrency);
+  } else {
+    console.warn(
+      "This browser does not support threads, using cross-origin workers",
+    );
+    // We are already in a web Worker, from_worker will reuse it as SyncExecutor
+    await init_cross_origin_worker_pool_from_worker();
   }
   await init_panic_hook();
 
+  // Use Comlink.proxy() to ensure the object is proxied, not copied
+  // This allows functions to be called across the worker boundary
   return Comlink.proxy({
     publicKeyTest,
     compressedPublicKeyTest,
@@ -760,6 +769,7 @@ async function main() {
   });
 }
 
+// When loaded as a worker, expose via Comlink
 Comlink.expose({
   demos: main(),
 });
