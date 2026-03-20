@@ -18,7 +18,8 @@ uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_128_keybundle(
                                       (size_t)2); // accumulator
 }
 
-template <typename InputTorus, class params, sharedMemDegree SMD>
+template <typename InputTorus, class params, sharedMemDegree SMD,
+          bool runs_noise_test = false>
 __global__ void device_multi_bit_programmable_bootstrap_keybundle_128(
     const InputTorus *__restrict__ lwe_array_in,
     const InputTorus *__restrict__ lwe_input_indexes, double *keybundle_array,
@@ -80,11 +81,35 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle_128(
     // Precalculate the monomial degrees and store them in shared memory
     uint32_t *monomial_degrees = (uint32_t *)selected_memory;
     if (threadIdx.x < (1 << grouping_factor)) {
-      auto lwe_array_group =
-          block_lwe_array_in + rev_lwe_iteration * grouping_factor;
-      monomial_degrees[threadIdx.x] =
-          calculates_monomial_degree<InputTorus, params>(
-              lwe_array_group, threadIdx.x, grouping_factor);
+      if constexpr (runs_noise_test == true) {
+        // For noise tests the input array contains the input lwe but also the
+        // modswitched results. This allows to avoid changing the accumulation
+        // kernel for the noise tests since the input body will stay in the same
+        // position. The layout of the input array is the following:
+        // | input lwe     | modswitched inputs       |
+        // | lwe size      | lwe_size*grouping_factor |
+
+        // This offset allows to jump directly to the modswitched inputs,
+        // skipping the input lwe
+        const InputTorus modswitched_offset = lwe_dimension + 1;
+
+        const InputTorus *block_lwe_array_in_noise =
+            &lwe_array_in[lwe_input_indexes[input_idx] *
+                              (lwe_dimension / grouping_factor) *
+                              (1 << grouping_factor) +
+                          modswitched_offset];
+
+        const InputTorus *lwe_array_group =
+            block_lwe_array_in_noise +
+            rev_lwe_iteration * (1 << grouping_factor);
+        monomial_degrees[threadIdx.x] = lwe_array_group[threadIdx.x];
+      } else {
+        auto lwe_array_group =
+            block_lwe_array_in + rev_lwe_iteration * grouping_factor;
+        monomial_degrees[threadIdx.x] =
+            calculates_monomial_degree<InputTorus, params>(
+                lwe_array_group, threadIdx.x, grouping_factor);
+      }
     }
     __syncthreads();
 
@@ -585,6 +610,74 @@ __host__ void execute_compute_keybundle_128(
             lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
             level_count, lwe_offset, chunk_size, keybundle_size_per_input,
             d_mem, 0);
+  check_cuda_error(cudaGetLastError());
+}
+
+// Used only to run noise tests: launches the keybundle kernel with the
+// runs_noise_test=true variant, which reads modswitched inputs from the
+// extended input array layout instead of computing them on-the-fly
+template <typename InputTorus, class params>
+__host__ void execute_compute_keybundle_noise_tests_128(
+    cudaStream_t stream, uint32_t gpu_index, InputTorus const *lwe_array_in,
+    InputTorus const *lwe_input_indexes, __uint128_t const *bootstrapping_key,
+    pbs_buffer_128<InputTorus, MULTI_BIT> *buffer, uint32_t num_samples,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
+  cuda_set_device(gpu_index);
+
+  auto lwe_chunk_size = buffer->lwe_chunk_size;
+  uint64_t chunk_size = std::min(
+      lwe_chunk_size, (uint64_t)(lwe_dimension / grouping_factor) - lwe_offset);
+
+  uint64_t keybundle_size_per_input =
+      lwe_chunk_size * level_count * (glwe_dimension + 1) *
+      (glwe_dimension + 1) * (polynomial_size / 2) * 4;
+
+  uint64_t full_sm_keybundle =
+      get_buffer_size_full_sm_multibit_programmable_bootstrap_128_keybundle<
+          __uint128_t>(polynomial_size);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+
+  auto d_mem = buffer->d_mem_keybundle;
+  auto keybundle_fft = buffer->keybundle_fft;
+
+  dim3 grid_keybundle(num_samples * chunk_size,
+                      (glwe_dimension + 1) * (glwe_dimension + 1), level_count);
+  dim3 thds(polynomial_size / params::opt, 1, 1);
+
+  if (max_shared_memory < full_sm_keybundle) {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_multi_bit_programmable_bootstrap_keybundle_128<
+            InputTorus, params, NOSM, true>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, 0));
+    check_cuda_error(cudaFuncSetCacheConfig(
+        device_multi_bit_programmable_bootstrap_keybundle_128<
+            InputTorus, params, NOSM, true>,
+        cudaFuncCachePreferShared));
+    device_multi_bit_programmable_bootstrap_keybundle_128<InputTorus, params,
+                                                          NOSM, true>
+        <<<grid_keybundle, thds, 0, stream>>>(
+            lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
+            lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
+            level_count, lwe_offset, chunk_size, keybundle_size_per_input,
+            d_mem, full_sm_keybundle);
+  } else {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_multi_bit_programmable_bootstrap_keybundle_128<
+            InputTorus, params, FULLSM, true>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_keybundle));
+    check_cuda_error(cudaFuncSetCacheConfig(
+        device_multi_bit_programmable_bootstrap_keybundle_128<
+            InputTorus, params, FULLSM, true>,
+        cudaFuncCachePreferShared));
+    device_multi_bit_programmable_bootstrap_keybundle_128<InputTorus, params,
+                                                          FULLSM, true>
+        <<<grid_keybundle, thds, full_sm_keybundle, stream>>>(
+            lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
+            lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
+            level_count, lwe_offset, chunk_size, keybundle_size_per_input,
+            d_mem, 0);
+  }
   check_cuda_error(cudaGetLastError());
 }
 
@@ -1197,6 +1290,98 @@ supports_cooperative_groups_on_multibit_programmable_bootstrap_128(
         "Cuda error (multi-bit PBS128): unsupported polynomial size. Supported "
         "N's are powers of two"
         " in the interval [256..4096].")
+  }
+}
+
+// Noise tests variant: identical to
+// host_cg_multi_bit_programmable_bootstrap_128 but uses the noise-test
+// keybundle (runs_noise_test=true) instead of the standard one.
+template <typename InputTorus, class params>
+__host__ void host_cg_multi_bit_programmable_bootstrap_noise_tests_128(
+    cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
+    InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
+    InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
+    __uint128_t const *bootstrapping_key,
+    pbs_buffer_128<InputTorus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t num_many_lut, uint32_t lut_stride) {
+
+  auto lwe_chunk_size = buffer->lwe_chunk_size;
+
+  for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
+       lwe_offset += lwe_chunk_size) {
+
+    // Compute a keybundle with the noise-test kernel variant
+    // (runs_noise_test=true) to read precomputed modswitched values
+    execute_compute_keybundle_noise_tests_128<InputTorus, params>(
+        stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+        buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+        grouping_factor, level_count, lwe_offset);
+
+    execute_cg_external_product_loop_128<InputTorus, params>(
+        stream, gpu_index, lut_vector, lwe_array_in, lwe_input_indexes,
+        lwe_array_out, lwe_output_indexes, buffer, num_samples, lwe_dimension,
+        glwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        lwe_offset, num_many_lut, lut_stride);
+  }
+}
+
+template <typename InputTorus, class params>
+__host__ void host_multi_bit_programmable_bootstrap_noise_tests_128(
+    cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
+    InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
+    InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
+    __uint128_t const *bootstrapping_key,
+    pbs_buffer_128<InputTorus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t num_many_lut, uint32_t lut_stride) {
+
+  auto lwe_chunk_size = buffer->lwe_chunk_size;
+
+  for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
+       lwe_offset += lwe_chunk_size) {
+
+    // Compute a keybundle with the noise-test kernel variant
+    // (runs_noise_test=true) to read precomputed modswitched values
+    execute_compute_keybundle_noise_tests_128<InputTorus, params>(
+        stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+        buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+        grouping_factor, level_count, lwe_offset);
+
+    // Accumulate (same as standard path)
+    uint64_t chunk_size =
+        std::min((uint32_t)lwe_chunk_size,
+                 (lwe_dimension / grouping_factor) - lwe_offset);
+    for (uint32_t j = 0; j < chunk_size; j++) {
+      bool is_first_iter = (j + lwe_offset) == 0;
+      bool is_last_iter =
+          (j + lwe_offset) + 1 == (lwe_dimension / grouping_factor);
+      if (is_first_iter) {
+        execute_step_one_128<InputTorus, params, true>(
+            stream, gpu_index, lut_vector, lwe_array_in, lwe_input_indexes,
+            buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+            base_log, level_count);
+      } else {
+        execute_step_one_128<InputTorus, params, false>(
+            stream, gpu_index, lut_vector, lwe_array_in, lwe_input_indexes,
+            buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+            base_log, level_count);
+      }
+
+      if (is_last_iter) {
+        execute_step_two_128<InputTorus, params, true>(
+            stream, gpu_index, lwe_array_out, lwe_output_indexes, buffer,
+            num_samples, glwe_dimension, polynomial_size, level_count, j,
+            num_many_lut, lut_stride);
+      } else {
+        execute_step_two_128<InputTorus, params, false>(
+            stream, gpu_index, lwe_array_out, lwe_output_indexes, buffer,
+            num_samples, glwe_dimension, polynomial_size, level_count, j,
+            num_many_lut, lut_stride);
+      }
+    }
   }
 }
 
