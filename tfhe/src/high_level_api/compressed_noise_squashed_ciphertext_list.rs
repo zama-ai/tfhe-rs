@@ -21,7 +21,6 @@ use crate::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseRadixCiphe
 use crate::integer::gpu::ciphertext::{
     CudaCompressedSquashedNoiseCiphertextList, CudaSquashedNoiseExpandable,
 };
-use crate::named::Named;
 use crate::shortint::ciphertext::SquashedNoiseCiphertext;
 use crate::{
     Device, SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint, Tag, Versionize,
@@ -30,6 +29,7 @@ use crate::{
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::num::NonZero;
+use tfhe_safe_serialize::Named;
 use tfhe_versionable::{Unversionize, UnversionizeError, VersionizeOwned};
 
 #[derive(Clone)]
@@ -627,10 +627,10 @@ impl CompressedSquashedNoiseCiphertextListBuilder {
 mod tests {
     use super::*;
     use crate::prelude::*;
-    use crate::safe_serialization::{safe_deserialize, safe_serialize};
     use crate::shortint::parameters::current_params::*;
     use crate::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheInt32, FheUint32};
     use rand::Rng;
+    use tfhe_safe_serialize::{safe_deserialize, safe_serialize};
 
     #[test]
     fn test_compressed_squashed_noise_ciphertext_list() {

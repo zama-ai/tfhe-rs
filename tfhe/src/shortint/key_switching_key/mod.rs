@@ -17,7 +17,6 @@ use super::server_key::{
     KS32ServerKeyView, ServerKeyView, ShortintBootstrappingKey, StandardServerKeyView,
 };
 use super::AtomicPatternKind;
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
     keyswitch_lwe_ciphertext, CastFrom, CastInto, Cleartext, LweCiphertext, LweCiphertextOwned,
     LweKeyswitchKeyConformanceParams, LweKeyswitchKeyOwned, SeededLweKeyswitchKeyOwned,
@@ -36,6 +35,7 @@ use crate::shortint::{Ciphertext, ClientKey, CompressedServerKey, MaxNoiseLevel,
 use core::cmp::Ordering;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use tfhe_safe_serialize::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 #[cfg(test)]

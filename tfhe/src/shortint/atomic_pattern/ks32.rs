@@ -6,7 +6,6 @@ use super::{
     apply_ms_blind_rotate, apply_programmable_bootstrap, AtomicPattern, AtomicPatternKind,
     AtomicPatternMut,
 };
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_lwe_keyswitch_key, extract_lwe_sample_from_glwe_ciphertext,
     keyswitch_lwe_ciphertext_with_scalar_change, CiphertextModulus as CoreCiphertextModulus,
@@ -24,6 +23,7 @@ use crate::shortint::server_key::{
     LookupTableSize, ManyLookupTableOwned, ShortintBootstrappingKey,
 };
 use crate::shortint::{Ciphertext, CiphertextModulus, EncryptionKeyChoice};
+use tfhe_safe_serialize::ParameterSetConformant;
 
 /// The definition of the server key elements used in the
 /// [`KeySwitch32`](AtomicPatternKind::KeySwitch32) atomic pattern

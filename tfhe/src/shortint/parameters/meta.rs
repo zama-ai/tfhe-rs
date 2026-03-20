@@ -5,7 +5,6 @@ use tfhe_versionable::Versionize;
 
 use crate::conformance::EnumSet;
 use crate::core_crypto::prelude::{CastInto, UnsignedInteger};
-use crate::named::Named;
 use crate::shortint::backward_compatibility::parameters::{
     DedicatedCompactPublicKeyParametersVersions, MetaParametersVersions,
     ReRandomizationConfigurationVersions,
@@ -19,6 +18,7 @@ use crate::shortint::{
     AtomicPatternParameters, CarryModulus, EncryptionKeyChoice, MessageModulus,
     MultiBitPBSParameters, PBSParameters,
 };
+use tfhe_safe_serialize::Named;
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(DedicatedCompactPublicKeyParametersVersions)]

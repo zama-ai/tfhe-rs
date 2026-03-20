@@ -85,11 +85,11 @@ pub unsafe extern "C" fn compact_pke_crs_safe_serialize(
 
         let mut buffer = Vec::new();
         if compress {
-            crate::safe_serialization::SerializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialize::SerializationConfig::new(serialized_size_limit)
                 .serialize_into(&wrapper.0.compress(), &mut buffer)
                 .unwrap();
         } else {
-            crate::safe_serialization::SerializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialize::SerializationConfig::new(serialized_size_limit)
                 .serialize_into(&wrapper.0, &mut buffer)
                 .unwrap();
         }
@@ -112,11 +112,10 @@ pub unsafe extern "C" fn compact_pke_crs_safe_deserialize(
 
         let buffer_view: &[u8] = buffer_view.as_slice();
 
-        let deserialized =
-            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
-                .disable_conformance()
-                .deserialize_from(buffer_view)
-                .unwrap();
+        let deserialized = tfhe_safe_serialize::DeserializationConfig::new(serialized_size_limit)
+            .disable_conformance()
+            .deserialize_from(buffer_view)
+            .unwrap();
 
         let heap_allocated_object = Box::new(CompactPkeCrs(deserialized));
 
@@ -164,7 +163,7 @@ pub unsafe extern "C" fn compact_pke_crs_safe_deserialize_from_params(
         let buffer_view: &[u8] = buffer_view.as_slice();
 
         let deserialized: crate::core_crypto::entities::ZkCompactPkeV1PublicParams =
-            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+            tfhe_safe_serialize::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
                 .deserialize_from(buffer_view)
                 .unwrap();

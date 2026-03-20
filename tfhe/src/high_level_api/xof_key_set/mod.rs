@@ -16,7 +16,7 @@ use crate::core_crypto::prelude::*;
 use crate::integer::ciphertext::CompressedNoiseSquashingCompressionKey;
 use crate::integer::noise_squashing::CompressedNoiseSquashingKey;
 
-use crate::named::Named;
+use tfhe_safe_serialize::Named;
 
 use crate::shortint::parameters::CompactPublicKeyEncryptionParameters;
 use crate::{

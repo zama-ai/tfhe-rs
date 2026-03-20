@@ -1,10 +1,10 @@
 use super::{lwe_multi_bit_bootstrap_key_size, MultiBitBootstrapKeyConformanceParams};
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::lwe_multi_bit_bootstrap_key::FourierLweMultiBitBootstrapKeyVersions;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::math::fft::FourierPolynomialList;
+use tfhe_safe_serialize::ParameterSetConformant;
 
 use aligned_vec::{avec, ABox};
 use tfhe_fft::c64;

@@ -15,10 +15,10 @@ use crate::high_level_api::SquashedNoiseCiphertextState;
 use crate::integer::block_decomposition::{RecomposableFrom, SignExtendable};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseSignedRadixCiphertext;
-use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::{ClientKey, Device, Tag};
 use serde::{Deserializer, Serializer};
+use tfhe_safe_serialize::Named;
 use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 /// Enum that manages the current inner representation of a squashed noise FheInt .

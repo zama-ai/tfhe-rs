@@ -1,6 +1,5 @@
 use tfhe_versionable::Versionize;
 
-use crate::conformance::ParameterSetConformant;
 use crate::integer::backward_compatibility::ciphertext::{
     CompressedModulusSwitchedRadixCiphertextGenericVersions,
     CompressedModulusSwitchedRadixCiphertextVersions,
@@ -12,6 +11,7 @@ use crate::shortint::ciphertext::{
     MaxDegree,
 };
 use crate::shortint::parameters::Degree;
+use tfhe_safe_serialize::ParameterSetConformant;
 
 /// An object to store a ciphertext using less memory.
 /// Decompressing it requires a PBS

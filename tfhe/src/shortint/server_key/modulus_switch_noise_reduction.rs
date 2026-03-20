@@ -1,4 +1,3 @@
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::math::random::{CompressionSeed, DynamicDistribution, Uniform};
 use crate::core_crypto::commons::parameters::{
@@ -13,6 +12,7 @@ use crate::core_crypto::prelude::{
 use crate::shortint::backward_compatibility::server_key::modulus_switch_noise_reduction::*;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::ModulusSwitchNoiseReductionParams;
+use tfhe_safe_serialize::ParameterSetConformant;
 
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
