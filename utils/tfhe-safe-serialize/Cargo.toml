@@ -7,7 +7,7 @@ homepage = "https://zama.org/"
 documentation = "https://docs.rs/tfhe-safe-serialize"
 repository = "https://github.com/zama-ai/tfhe-rs"
 license = "BSD-3-Clause-Clear"
-description = "tfhe-safe-serialize: TODO(dp)"
+description = "Serialization utilities with conformance checks that works well with versioning"
 rust-version.workspace = true
 
 [lints.rust]
