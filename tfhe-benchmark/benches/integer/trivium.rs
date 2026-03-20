@@ -3,7 +3,7 @@ use criterion::Criterion;
 #[cfg(feature = "gpu")]
 pub mod cuda {
     use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    use benchmark::utilities::{write_to_json, OperatorType};
+    use benchmark::utilities::{write_to_json_unchecked, OperatorType};
     use criterion::{black_box, criterion_group, Criterion};
     use tfhe::core_crypto::gpu::CudaStreams;
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
@@ -61,7 +61,7 @@ pub mod cuda {
                 })
             });
 
-            write_to_json::<u64, _>(
+            write_to_json_unchecked::<u64, _>(
                 &bench_id,
                 atomic_param,
                 param.name(),

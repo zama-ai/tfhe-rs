@@ -1,4 +1,4 @@
-use benchmark::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
+use benchmark::utilities::{write_to_json_unchecked, CryptoParametersRecord, OperatorType};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use tfhe::boolean::client_key::ClientKey;
 use tfhe::boolean::parameters::{
@@ -27,7 +27,7 @@ pub fn write_to_json_boolean<T: Into<CryptoParametersRecord<u32>>>(
     params_alias: impl Into<String>,
     display_name: impl Into<String>,
 ) {
-    write_to_json(
+    write_to_json_unchecked(
         bench_id,
         params,
         params_alias,
