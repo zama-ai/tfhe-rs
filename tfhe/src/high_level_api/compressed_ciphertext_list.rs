@@ -31,13 +31,13 @@ use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::gpu::list_compression::server_keys::CudaDecompressionKey;
 #[cfg(feature = "gpu")]
 use crate::integer::parameters::LweDimension;
-use crate::named::Named;
 use crate::prelude::{CiphertextList, Tagged};
 use crate::shortint::Ciphertext;
 #[cfg(feature = "gpu")]
 use crate::shortint::{CarryModulus, MessageModulus};
 use crate::{Device, FheBool, FheInt, FheUint, Tag};
 use serde::{Deserialize, Serialize};
+use tfhe_safe_serialize::Named;
 
 impl<Id: FheUintId> HlCompressible for FheUint<Id> {
     fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>) {
@@ -956,7 +956,6 @@ pub mod gpu {
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
-    use crate::safe_serialization::{safe_deserialize, safe_serialize};
     #[cfg(feature = "gpu")]
     use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     #[cfg(not(feature = "gpu"))]
@@ -973,6 +972,7 @@ mod tests {
         set_server_key, unset_server_key, ClientKey, CompressedCiphertextList,
         CompressedCiphertextListBuilder, FheBool, FheInt64, FheUint16, FheUint2, FheUint32,
     };
+    use tfhe_safe_serialize::{safe_deserialize, safe_serialize};
 
     #[test]
     fn test_compressed_ct_list_cpu_gpu() {

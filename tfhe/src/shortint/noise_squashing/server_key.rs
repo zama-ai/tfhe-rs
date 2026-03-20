@@ -1,7 +1,6 @@
 use super::atomic_pattern::standard::StandardAtomicPatternNoiseSquashingKey;
 use super::atomic_pattern::{AtomicPatternNoiseSquashingKey, NoiseSquashingAtomicPattern};
 use super::NoiseSquashingPrivateKey;
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::lwe_bootstrap_key_conversion::par_convert_standard_lwe_bootstrap_key_to_fourier_128;
 use crate::core_crypto::algorithms::lwe_bootstrap_key_generation::par_allocate_and_generate_new_lwe_bootstrap_key;
 use crate::core_crypto::commons::math::random::Uniform;
@@ -33,6 +32,7 @@ use crate::shortint::server_key::{
 };
 use crate::shortint::AtomicPatternKind;
 use serde::{Deserialize, Serialize};
+use tfhe_safe_serialize::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 /// A 128b bootstrapping key that can be used for the noise squashing operation

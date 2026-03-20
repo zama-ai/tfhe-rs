@@ -424,7 +424,8 @@ where
 
 macro_rules! impl_named_for_kv_store {
     ($Key:ty) => {
-        impl<Id> crate::named::Named for CompressedKVStore<$Key, crate::high_level_api::FheUint<Id>>
+        impl<Id> tfhe_safe_serialize::Named
+            for CompressedKVStore<$Key, crate::high_level_api::FheUint<Id>>
         where
             Id: crate::high_level_api::FheUintId,
         {
@@ -435,7 +436,8 @@ macro_rules! impl_named_for_kv_store {
             );
         }
 
-        impl<Id> crate::named::Named for CompressedKVStore<$Key, crate::high_level_api::FheInt<Id>>
+        impl<Id> tfhe_safe_serialize::Named
+            for CompressedKVStore<$Key, crate::high_level_api::FheInt<Id>>
         where
             Id: crate::high_level_api::FheIntId,
         {
@@ -660,36 +662,39 @@ mod test {
         let compressed = kv_store.compress().unwrap();
 
         let mut data = vec![];
-        crate::safe_serialization::safe_serialize(&compressed, &mut data, 1 << 30).unwrap();
+        tfhe_safe_serialize::safe_serialize(&compressed, &mut data, 1 << 30).unwrap();
 
         // Key type is incorrect
-        let maybe_compressed = crate::safe_serialization::safe_deserialize::<
+        let maybe_compressed = tfhe_safe_serialize::safe_deserialize::<
             CompressedKVStore<u16, FheUint32>,
         >(data.as_slice(), 1 << 30);
         // safe_deserialize catch the error
         assert!(maybe_compressed.is_err());
 
-        let maybe_compressed = crate::safe_serialization::safe_deserialize::<
+        let maybe_compressed = tfhe_safe_serialize::safe_deserialize::<
             CompressedKVStore<u8, FheInt32>,
         >(data.as_slice(), 1 << 30);
         assert!(maybe_compressed.is_err());
 
         // Invalid value types
-        let compressed = crate::safe_serialization::safe_deserialize::<
-            CompressedKVStore<u8, FheUint8>,
-        >(data.as_slice(), 1 << 30)
+        let compressed = tfhe_safe_serialize::safe_deserialize::<CompressedKVStore<u8, FheUint8>>(
+            data.as_slice(),
+            1 << 30,
+        )
         .unwrap();
         assert!(compressed.decompress().is_err());
 
-        let compressed = crate::safe_serialization::safe_deserialize::<
-            CompressedKVStore<u8, FheUint64>,
-        >(data.as_slice(), 1 << 30)
+        let compressed = tfhe_safe_serialize::safe_deserialize::<CompressedKVStore<u8, FheUint64>>(
+            data.as_slice(),
+            1 << 30,
+        )
         .unwrap();
         assert!(compressed.decompress().is_err());
 
-        let compressed = crate::safe_serialization::safe_deserialize::<
-            CompressedKVStore<u8, FheUint32>,
-        >(data.as_slice(), 1 << 30)
+        let compressed = tfhe_safe_serialize::safe_deserialize::<CompressedKVStore<u8, FheUint32>>(
+            data.as_slice(),
+            1 << 30,
+        )
         .unwrap();
 
         let kv_store = compressed.decompress().unwrap();

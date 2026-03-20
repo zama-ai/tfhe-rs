@@ -3,7 +3,6 @@ use crate::high_level_api::prelude::*;
 use crate::high_level_api::tests::{setup_cpu, setup_default_cpu};
 use crate::high_level_api::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 use crate::integer::U256;
-use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use crate::{
@@ -13,6 +12,7 @@ use crate::{
     FheInt32, FheInt8, FheUint128, FheUint16, FheUint256, FheUint32, FheUint32ConformanceParams,
 };
 use rand::prelude::*;
+use tfhe_safe_serialize::{DeserializationConfig, SerializationConfig};
 
 #[test]
 fn test_integer_compressed_can_be_serialized() {

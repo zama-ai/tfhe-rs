@@ -1,9 +1,10 @@
 //! Module containing the definition of the [`LweCompactCiphertextList`] a space efficient
 //! encryption of a list of LWE ciphertexts.
 
+use tfhe_safe_serialize::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
-use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
+use crate::conformance::ListSizeConstraint;
 use crate::core_crypto::algorithms::{
     expand_lwe_compact_ciphertext_list, par_expand_lwe_compact_ciphertext_list,
 };

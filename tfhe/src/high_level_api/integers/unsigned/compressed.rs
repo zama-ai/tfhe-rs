@@ -5,7 +5,6 @@ use tfhe_versionable::Versionize;
 use crate::backward_compatibility::integers::{
     CompressedFheUintVersions, CompressedRadixCiphertextVersions,
 };
-use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::high_level_api::integers::unsigned::base::{FheUint, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
@@ -18,9 +17,9 @@ use crate::integer::ciphertext::{
     CompressedModulusSwitchedRadixCiphertextConformanceParams,
     CompressedRadixCiphertext as IntegerCompressedRadixCiphertext,
 };
-use crate::named::Named;
 use crate::shortint::AtomicPatternParameters;
 use crate::{ServerKey, Tag};
+use tfhe_safe_serialize::{Named, ParameterSetConformant};
 
 /// Compressed [FheUint]
 ///

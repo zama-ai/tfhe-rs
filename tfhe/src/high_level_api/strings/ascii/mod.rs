@@ -14,13 +14,13 @@ use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::integer::ciphertext::{Compressible, DataKind, Expandable};
-use crate::named::Named;
 use crate::prelude::{FheDecrypt, FheTryEncrypt, FheTryTrivialEncrypt, Tagged};
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::strings::ciphertext::FheString;
 use crate::{ClientKey, HlExpandable, Tag};
 pub use no_pattern::{FheStringIsEmpty, FheStringLen};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use tfhe_safe_serialize::Named;
 use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 pub enum EncryptableString<'a> {
