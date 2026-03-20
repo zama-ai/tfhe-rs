@@ -4,6 +4,8 @@ use crate::conformance::ParameterSetConformant;
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::CudaStreams;
 #[cfg(feature = "gpu")]
+use crate::high_level_api::keys::inner::CudaReRandomizationKey;
+#[cfg(feature = "gpu")]
 use crate::high_level_api::keys::inner::IntegerCudaServerKey;
 use crate::high_level_api::keys::{
     CompressedReRandomizationKey, IntegerCompressedServerKey, IntegerServerKey, ReRandomizationKey,
@@ -498,16 +500,27 @@ impl CudaServerKey {
     ) -> crate::Result<&CudaKeySwitchingKeyMaterial> {
         self.key.legacy_re_randomization_cpk_casting_key()
     }
+    pub(in crate::high_level_api) fn cpk_for_re_randomization_without_keyswitch(
+        &self,
+    ) -> crate::Result<&crate::integer::CompactPublicKey> {
+        self.key.cpk_for_re_randomization_without_keyswitch()
+    }
     pub fn re_randomization_support(&self) -> ReRandomizationSupport {
-        if self
-            .key
-            .cpk_re_randomization_key_switching_key_material
-            .is_some()
-        {
-            ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch
-        } else {
-            ReRandomizationSupport::NoSupport
-        }
+        self.key
+            .cpk_re_randomization_key
+            .as_ref()
+            .map_or(ReRandomizationSupport::NoSupport, |k| match k {
+                CudaReRandomizationKey::LegacyDedicatedCPK { .. } => {
+                    if self.legacy_re_randomization_cpk_casting_key().is_ok() {
+                        ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch
+                    } else {
+                        ReRandomizationSupport::NoSupport
+                    }
+                }
+                CudaReRandomizationKey::DerivedCPKWithoutKeySwitch { .. } => {
+                    ReRandomizationSupport::DerivedCPKWithoutKeySwitch
+                }
+            })
     }
 
     // See CPU implementation for the new logic of no KeySwitch when being added to the GPU backend
@@ -540,9 +553,9 @@ impl CudaServerKey {
                 ReRandomizationSupport::DerivedCPKWithoutKeySwitch,
                 ReRandomizationMode::UseLegacyCPKIfNeeded { .. }
                 | ReRandomizationMode::UseAvailableMode,
-            ) => Err(crate::error!(
-                "Cuda does not support DerivedCPKWithoutKeySwitch re-randomization."
-            )),
+            ) => Ok(IntegerCudaReRandomizationKey::DerivedCPKWithoutKeySwitch {
+                cpk: self.cpk_for_re_randomization_without_keyswitch()?,
+            }),
         }
     }
 }

@@ -77,6 +77,13 @@ pub enum ZKType {
     SanityCheck = 2,
 }
 
+#[repr(u32)]
+#[derive(Clone, Copy, Debug)]
+pub enum RerandMode {
+    WithKs = 0,
+    WithoutKs = 1,
+}
+
 fn resolve_noise_reduction_type(
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> PBSMSNoiseReductionType {
@@ -5549,6 +5556,7 @@ pub(crate) unsafe fn cuda_backend_rerand_assign<T: UnsignedInteger>(
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
+        RerandMode::WithKs as u32,
     );
     cuda_rerand_64_async(
         streams.ffi(),
@@ -5556,6 +5564,66 @@ pub(crate) unsafe fn cuda_backend_rerand_assign<T: UnsignedInteger>(
         zero_lwes.0.d_vec.as_c_ptr(0),
         mem_ptr,
         keyswitch_key.d_vec.ptr.as_ptr(),
+    );
+    cleanup_cuda_rerand_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - `mem_ptr` must have been allocated by `scratch_cuda_rerand_64_async` and must be freed by
+///   `cleanup_cuda_rerand_64`. It must not be used after cleanup.
+/// - The null KSK pointer is safe because `WithoutKs` mode never dereferences it.
+/// - `small_lwe_dimension`, `ks_level`, and `ks_base_log` are zeroed sentinel values that are
+///   unused in `WithoutKs` mode.
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_rerand_without_keyswitch_assign<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array: &mut CudaLweCiphertextList<T>,
+    zero_lwes: &CudaLweCompactCiphertextList<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    num_blocks: u32,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lwe_array.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        lwe_array.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        zero_lwes.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        zero_lwes.0.d_vec.gpu_index(0).get(),
+    );
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_rerand_64_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        u32::try_from(lwe_array.0.lwe_dimension.0).unwrap(),
+        // KS parameters unused in WithoutKs mode — zeroed as sentinel values
+        0,
+        0,
+        0,
+        num_blocks,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        true,
+        RerandMode::WithoutKs as u32,
+    );
+    cuda_rerand_64_async(
+        streams.ffi(),
+        lwe_array.0.d_vec.as_mut_c_ptr(0),
+        zero_lwes.0.d_vec.as_c_ptr(0),
+        mem_ptr,
+        // KSK pointer is null — WithoutKs mode never dereferences it
+        std::ptr::null(),
     );
     cleanup_cuda_rerand_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 }
