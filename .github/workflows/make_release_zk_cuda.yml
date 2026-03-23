@@ -1,0 +1,44 @@
+# Publish new release of CUDA Zero-Knowledge primitives on crates.io.
+name: make_release_zk_cuda
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run"
+        type: boolean
+        default: true
+
+env:
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+permissions: {}
+
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
+
+jobs:
+  make-release:
+    name: make_release_zk_cuda/make-release
+    uses: ./.github/workflows/make_release_common_cuda.yml
+    with:
+      package-name: "zk-cuda-backend"
+      dry-run: ${{ inputs.dry_run }}
+    permissions:
+      actions: read # Needed to detect the GitHub Actions environment
+      id-token: write # Needed to create the provenance via GitHub OIDC
+      contents: write # Needed to upload assets/artifacts
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      ALLOWED_TEAM: ${{ secrets.RELEASE_TEAM }}
+      READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
