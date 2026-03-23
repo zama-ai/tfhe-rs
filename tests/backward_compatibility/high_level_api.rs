@@ -13,6 +13,8 @@ use tfhe::shortint::prelude::LweDimension;
 use tfhe::shortint::{CarryModulus, CiphertextModulus, MessageModulus};
 use tfhe::xof_key_set::CompressedXofKeySet;
 #[cfg(feature = "zk-pok")]
+use tfhe::zk::new_compact_pke_crs_conformance_params;
+#[cfg(feature = "zk-pok")]
 use tfhe::zk::{CompactPkeCrs, CompactPkeCrsConformanceParams};
 #[cfg(feature = "zk-pok")]
 use tfhe::ProvenCompactCiphertextList;
