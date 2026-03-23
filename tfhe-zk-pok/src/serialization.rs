@@ -16,6 +16,7 @@ use ark_ff::{
     BigInt, Field, Fp, Fp2, Fp6, Fp6Config, FpConfig, PrimeField, QuadExtConfig, QuadExtField,
 };
 use serde::{Deserialize, Serialize};
+use tfhe_safe_serialize::Named;
 use tfhe_versionable::Versionize;
 
 use crate::curve_api::{Curve, CurveGroupOps};
@@ -667,6 +668,17 @@ pub struct SerializablePKEv1PublicParams {
     pub(crate) msbs_zero_padding_bit_count: u64,
     pub(crate) sid: Option<u128>,
     pub(crate) domain_separators: SerializablePKEv1DomainSeparators,
+}
+
+// If we call `CompactPkePublicParams::compress` we end up with a
+// `SerializableCompactPkePublicParams` that should also impl Named to be serializable with
+// `safe_serialization`. Since the `CompactPkePublicParams` is transformed into a
+// `SerializableCompactPkePublicParams` anyways before serialization, their impl of `Named` should
+// return the same string.
+impl Named for SerializablePKEv1PublicParams {
+    // TODO(dp): this is terrible, shouldn't have to name the curve.
+    const NAME: &'static str =
+        <crate::proofs::pke::PublicParams<crate::curve_api::Bls12_446> as Named>::NAME;
 }
 
 impl<G: Curve> From<PKEv1PublicParams<G>> for SerializablePKEv1PublicParams

@@ -143,7 +143,10 @@ pub use tfhe_hpu_backend;
 
 /// Export tfhe-safe-serialize items for external use.
 pub mod safe_serialization {
-    pub use tfhe_safe_serialize::*;
+    pub use tfhe_safe_serialize::{
+        safe_deserialize, safe_deserialize_conformant, safe_serialize, safe_serialized_size,
+        DeserializationConfig, NonConformantDeserializationConfig, SerializationConfig,
+    };
 }
 
 // Export the Named trait in the expected module.
