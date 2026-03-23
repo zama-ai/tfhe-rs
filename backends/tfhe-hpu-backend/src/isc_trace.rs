@@ -9,6 +9,7 @@ use crate::asm::dop;
 pub struct IscTrace {
     pub pe_reserved: u16,
     pub state: IscPoolState,
+    pub insn: Option<dop::DOp>,
     pub insn_hex: u32,
     pub insn_asm: Option<String>,
     pub timestamp: u32,
@@ -60,7 +61,9 @@ pub enum TraceParsingError {
     #[error("Incomplete stream")]
     EmptyStream,
     #[error("Incorrect value {0}")]
-    IncorrectValue(String), // TODO extend error handling
+    IncorrectValue(String), 
+    #[error("Incorrect insn {0}")]
+    IncorrectDOp(dop::ParsingError),
 }
 
 impl IscTrace {
@@ -79,22 +82,32 @@ impl IscTrace {
             flit0
         };
 
+        let cmd = unsafe { std::mem::transmute(flit0.cmd()) };
         let asm = dop::DOp::from_hex(flit0.insn())
             .map_err(|x| TraceParsingError::IncorrectValue(x.to_string()))?
             .to_string();
+
+        let insn = match cmd {
+            IscCommand::None => None,
+            _ => {
+                let dop = dop::DOp::from_hex(flit0.insn()).map_err(|e| TraceParsingError::IncorrectDOp(e))?;
+                Some(dop)
+            }
+        };
 
         Ok(Self {
             state: IscPoolState {
                 pdg: flit0.pdg(),
                 rd_pdg: flit0.rd_pdg(),
                 vld: flit0.vld(),
-                cmd: unsafe { std::mem::transmute(flit0.cmd()) },
+                cmd,
                 wr_lock: flit0.wr_lock(),
                 rd_lock: flit0.rd_lock(),
                 issue_lock: flit0.issue_lock(),
                 sync_id: flit0.sync_id(),
             },
             pe_reserved: flit0.pe_reserved(),
+            insn,
             insn_hex: flit0.insn(),
             insn_asm: Some(asm),
             timestamp: flit0.timestamp(),
@@ -143,6 +156,7 @@ impl IscTraceStream {
                         println!("This event could occurred when the trace end is reached");
                         break;
                     }
+                    _ => panic!("{}", e),
                 },
             }
         }
