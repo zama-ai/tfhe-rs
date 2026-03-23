@@ -7,13 +7,13 @@
 # Focus on explicit xfer between HPU
 # Below producer code
 # Issue read value from Node0
-LD_B2B F0 TH.10
-LD_B2B F1 TH.11
-LD_B2B F2 TH.12
-LD_B2B F3 TH.13
+LD_B2B F1 TH.10
+LD_B2B F2 TH.11
+LD_B2B F3 TH.12
+LD_B2B F4 TH.13
 
 # Wait for B2b load end and load in reg
-WAIT F0 TH.10
+WAIT F1 TH.10
 LD R0 TH.10
 #WAIT F1 TH.11
 #LD R1 TH.11

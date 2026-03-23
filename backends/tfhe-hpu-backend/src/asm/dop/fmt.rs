@@ -276,7 +276,8 @@ impl From<&PeUcoreInsn> for PeUcoreHex {
         let (mode, slot) = match value.slot {
             MemId::Addr(ct_id) => (MEM_ADDR, ct_id.0),
             MemId::Heap { bid } => (MEM_HEAP, bid),
-            _ => panic!("Templated Src/Dst must not be used in UcoreInsn"),
+            MemId::Src { tid, bid } => (MEM_HEAP, ((tid as u16) << 8) + bid as u16),
+            _ => panic!("Templated Dst must not be used in UcoreInsn"),
         };
 
         Self::new()
@@ -293,6 +294,11 @@ impl From<&PeUcoreHex> for PeUcoreInsn {
             MemId::Addr(crate::asm::CtId(value.slot()))
         } else if MEM_HEAP == value.mode() {
             MemId::Heap { bid: value.slot() }
+        } else if MEM_SRC == value.mode() {
+            MemId::Src {
+                tid: (value.slot() >> 8) as u8,
+                bid: (value.slot() & 0xff) as u8,
+            }
         } else {
             panic!("Unsupported Ucore memory mode")
         };

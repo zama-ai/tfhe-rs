@@ -25,7 +25,7 @@ PBS_ML2_F R18              R15              PbsManyGenProp
 MULS      R20              R6               2                
 ADDS      R25              R7               0                
 ST TH.0 R25
-NOTIFY N1 F0 TH.0 
+NOTIFY N1 F1 TH.0 
 ADDS      R20              R20              0                
 #ST TH.1 R20
 #NOTIFY N1 F1 TH.1 
