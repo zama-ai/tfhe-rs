@@ -741,6 +741,24 @@ impl TryFrom<SupportedCompactPkeZkScheme> for CompactPkeZkScheme {
     }
 }
 
+#[expect(clippy::fallible_impl_from)]
+impl From<usize> for SupportedCompactPkeZkScheme {
+    fn from(value: usize) -> Self {
+        match value {
+            0 => Self::ZkNotSupported,
+            1 => Self::V1,
+            2 => Self::V2,
+            _ => panic!("Invalid value for SupportedCompactPkeZkScheme"),
+        }
+    }
+}
+
+impl From<SupportedCompactPkeZkScheme> for usize {
+    fn from(value: SupportedCompactPkeZkScheme) -> Self {
+        value as Self
+    }
+}
+
 #[cfg(feature = "zk-pok")]
 impl From<CompactPkeZkScheme> for SupportedCompactPkeZkScheme {
     fn from(value: CompactPkeZkScheme) -> Self {

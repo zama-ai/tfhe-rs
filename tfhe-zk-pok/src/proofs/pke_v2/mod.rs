@@ -21,6 +21,7 @@ mod hashes;
 use hashes::RHash;
 
 pub use hashes::*;
+use tfhe_safe_serialize::{EnumSet, ParameterSetConformant};
 
 fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
     (0..nbits).map(move |idx| ((x >> idx) & 1) != 0)
@@ -52,6 +53,21 @@ pub struct PublicParams<G: Curve> {
     pub bound_type: Bound,
     pub(crate) sid: Sid,
     pub(crate) domain_separators: PKEv2DomainSeparators,
+}
+
+impl<G: Curve> ParameterSetConformant for PublicParams<G> {
+    type ParameterSet = CompactPkeCrsConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        self.k <= self.d
+            && self.d == parameter_set.lwe_dim
+            && self.k == parameter_set.max_num_message
+            && self.B_inf == parameter_set.noise_bound
+            && self.q == parameter_set.ciphertext_modulus
+            && self.t == parameter_set.plaintext_modulus
+            && self.msbs_zero_padding_bit_count == parameter_set.msbs_zero_padding_bit_count
+            && self.is_usable()
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -445,6 +461,74 @@ impl<G: Curve> ComputeLoadProofFields<G> {
         } else {
             (Box::from([]), Box::from([]))
         }
+    }
+}
+
+#[derive(Copy, Clone)]
+/// Used to explicitly reject [`Proof`] v2 proofs that come with specific config
+pub struct CompactPkeV2ProofConformanceParams {
+    accepted_compute_load: EnumSet<ComputeLoad>,
+    accepted_hash_config: EnumSet<PkeV2SupportedHashConfig>,
+}
+
+impl Default for CompactPkeV2ProofConformanceParams {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CompactPkeV2ProofConformanceParams {
+    /// Create new params that accept all proof configurations
+    pub fn new() -> Self {
+        let mut accepted_compute_load = EnumSet::new();
+        accepted_compute_load.insert(ComputeLoad::Proof);
+        accepted_compute_load.insert(ComputeLoad::Verify);
+
+        let mut accepted_hash_config = EnumSet::new();
+        accepted_hash_config.insert(PkeV2SupportedHashConfig::V0_4_0);
+        accepted_hash_config.insert(PkeV2SupportedHashConfig::V0_7_0);
+        accepted_hash_config.insert(PkeV2SupportedHashConfig::V0_8_0);
+
+        Self {
+            accepted_compute_load,
+            accepted_hash_config,
+        }
+    }
+
+    /// Forbid proofs coming with the provided [`ZkComputeLoad`]
+    pub fn forbid_compute_load(self, forbidden_compute_load: ComputeLoad) -> Self {
+        let mut accepted_compute_load = self.accepted_compute_load;
+        accepted_compute_load.remove(forbidden_compute_load);
+
+        Self {
+            accepted_compute_load,
+            ..self
+        }
+    }
+
+    /// Forbid proofs coming with the provided [`ZkPkeV2SupportedHashConfig`]
+    pub fn forbid_hash_config(self, forbidden_hash_config: PkeV2SupportedHashConfig) -> Self {
+        let mut accepted_hash_config = self.accepted_hash_config;
+        accepted_hash_config.remove(forbidden_hash_config);
+
+        Self {
+            accepted_hash_config,
+            ..self
+        }
+    }
+}
+
+impl<G: Curve> ParameterSetConformant for Proof<G> {
+    type ParameterSet = CompactPkeV2ProofConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        parameter_set
+            .accepted_compute_load
+            .contains(self.compute_load())
+            && parameter_set
+                .accepted_hash_config
+                .contains(self.hash_config())
+            && self.is_usable()
     }
 }
 

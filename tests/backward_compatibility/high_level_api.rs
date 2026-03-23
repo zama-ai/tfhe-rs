@@ -175,7 +175,8 @@ pub fn test_zk_params(
             zk_scheme: loaded_crs.scheme_version().into(),
         };
         let conformance_params =
-            CompactPkeCrsConformanceParams::new(pke_params, loaded_crs.max_num_messages()).unwrap();
+            new_compact_pke_crs_conformance_params(pke_params, loaded_crs.max_num_messages())
+                .unwrap();
 
         loaded_crs.is_conformant(&conformance_params);
     }

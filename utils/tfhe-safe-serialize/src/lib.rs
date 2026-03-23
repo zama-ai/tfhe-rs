@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use tfhe_versionable::{Unversionize, Versionize};
 
 mod traits;
-pub use crate::traits::{Named, ParameterSetConformant};
+pub use crate::traits::{EnumSet, Named, ParameterSetConformant};
 
 /// This is the global version of the serialization scheme that is used. This should be updated when
 /// the SerializationHeader is updated.
