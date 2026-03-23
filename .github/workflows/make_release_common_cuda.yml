@@ -1,12 +1,36 @@
-name: make_release_cuda
+# Common workflow to make crate release for CUDA backend
+name: make_release_common_cuda
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      dry_run:
-        description: "Dry-run"
+      package-name:
+        type: string
+        required: true
+      dry-run:
         type: boolean
         default: true
+    secrets:
+      REPO_CHECKOUT_TOKEN:
+        required: true
+      SLAB_ACTION_TOKEN:
+        required: true
+      SLAB_BASE_URL:
+        required: true
+      SLAB_URL:
+        required: true
+      JOB_SECRET:
+        required: true
+      SLACK_CHANNEL:
+        required: true
+      BOT_USERNAME:
+        required: true
+      SLACK_WEBHOOK:
+        required: true
+      ALLOWED_TEAM:
+        required: true
+      READ_ORG_TOKEN:
+        required: true
 
 env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -21,15 +45,15 @@ permissions: {}
 
 jobs:
   verify-triggering-actor:
-    name: make_release_cuda/verify-triggering-actor
+    name: make_release_common_cuda/verify-triggering-actor
     if: startsWith(github.ref, 'refs/tags/')
     uses: ./.github/workflows/verify_triggering_actor.yml
     secrets:
-      ALLOWED_TEAM: ${{ secrets.RELEASE_TEAM }}
+      ALLOWED_TEAM: ${{ secrets.ALLOWED_TEAM }}
       READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
 
   setup-instance:
-    name: make_release_cuda/setup-instance
+    name: make_release_common_cuda/setup-instance
     needs: verify-triggering-actor
     runs-on: ubuntu-latest
     outputs:
@@ -47,7 +71,7 @@ jobs:
           profile: gpu-build
 
   package:
-    name: make_release_cuda/package
+    name: make_release_common_cuda/package
     needs: setup-instance
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     outputs:
@@ -76,7 +100,6 @@ jobs:
           toolchain: stable
 
       - name: Export CUDA variables
-        if: ${{ !cancelled() }}
         run: |
           echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
           {
@@ -89,7 +112,6 @@ jobs:
 
       # Specify the correct host compilers
       - name: Export gcc and g++ variables
-        if: ${{ !cancelled() }}
         run: |
           {
             echo "CC=/usr/bin/gcc-${GCC_VERSION}";
@@ -101,12 +123,14 @@ jobs:
           GCC_VERSION: ${{ matrix.gcc }}
 
       - name: Prepare package
+        env:
+          PACKAGE: ${{ inputs.package-name }}
         run: |
-          cargo package -p tfhe-cuda-backend
+          cargo package -p "${PACKAGE}"
 
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: crate-tfhe-cuda-backend
+          name: crate-${{ inputs.package-name }}
           path: target/package/*.crate
 
       - name: generate hash
@@ -114,8 +138,8 @@ jobs:
         run: cd target/package && echo "hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
 
   provenance:
-    name: make_release_cuda/provenance
-    if: ${{ !inputs.dry_run  }}
+    name: make_release_common_cuda/provenance
+    if: ${{ !inputs.dry-run  }}
     needs: [package]
     # This action cannot be pinned to a specific commit (see https://github.com/slsa-framework/slsa-github-generator/blob/main/README.md#referencing-slsa-builders-and-generators)
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0 # zizmor: ignore[unpinned-uses] as said above SLSA cannot be pinned by tag today
@@ -128,7 +152,7 @@ jobs:
       base64-subjects: ${{ needs.package.outputs.hash }}
 
   publish-cuda-release:
-    name: make_release_cuda/publish-cuda-release
+    name: make_release_common_cuda/publish-cuda-release
     needs: [setup-instance, package] # for comparing hashes
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     permissions:
@@ -150,7 +174,6 @@ jobs:
           toolchain: stable
 
       - name: Export CUDA variables
-        if: ${{ !cancelled() }}
         run: |
           echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
           {
@@ -163,7 +186,6 @@ jobs:
 
       # Specify the correct host compilers
       - name: Export gcc and g++ variables
-        if: ${{ !cancelled() }}
         run: |
           {
             echo "CC=/usr/bin/gcc-${GCC_VERSION}";
@@ -177,7 +199,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: crate-tfhe-cuda-backend
+          name: crate-${{ inputs.package-name }}
           path: target/package
 
       - name: Authenticate on registry
@@ -187,12 +209,13 @@ jobs:
       - name: Publish crate.io package
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
-          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+          PACKAGE: ${{ inputs.package-name }}
+          DRY-RUN: ${{ inputs.dry-run && '--dry-run' || '' }}
         run: |
-          # DRY_RUN expansion cannot be double quoted when variable contains empty string otherwise cargo publish 
-          # would fail. This is safe since DRY_RUN is handled in the env section above.
+          # dry-run expansion cannot be double quoted when variable contains empty string otherwise cargo publish
+          # would fail. This is safe since dry-run is handled in the env section above.
           # shellcheck disable=SC2086
-          cargo publish -p tfhe-cuda-backend ${DRY_RUN}
+          cargo publish -p "${PACKAGE}" ${DRY-RUN}
 
       - name: Generate hash
         id: published_hash
@@ -204,7 +227,7 @@ jobs:
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
         env:
           SLACK_COLOR: failure
-          SLACK_MESSAGE: "SLSA tfhe-cuda-backend crate - hash comparison failure: (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "SLSA ${{ inputs.package-name }} crate - hash comparison failure: (${{ env.ACTION_RUN_URL }})"
 
       - name: Slack Notification
         if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
@@ -212,10 +235,10 @@ jobs:
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "tfhe-cuda-backend release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "${{ inputs.package-name }} release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: make_release_cuda/teardown-instance
+    name: make_release_common_cuda/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [setup-instance, publish-cuda-release]
     runs-on: ubuntu-latest
@@ -235,4 +258,4 @@ jobs:
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (publish-cuda-release) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (${{ inputs.package-name }} release) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
