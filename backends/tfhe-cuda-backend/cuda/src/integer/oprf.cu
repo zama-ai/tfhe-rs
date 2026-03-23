@@ -1,19 +1,14 @@
 #include "integer/oprf.cuh"
 
 uint64_t scratch_cuda_integer_grouped_oprf_64_async(
-    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t lwe_dimension, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t num_blocks_to_process,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory, uint32_t message_bits_per_block,
-    uint32_t total_random_bits, PBS_MS_REDUCTION_T noise_reduction_type) {
-
-  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          glwe_dimension * polynomial_size, lwe_dimension,
-                          ks_level, ks_base_log, pbs_level, pbs_base_log,
-                          grouping_factor, message_modulus, carry_modulus,
-                          noise_reduction_type);
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t num_blocks_to_process,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    uint32_t message_bits_per_block, uint32_t total_random_bits,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
+  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+                          carry_modulus, noise_reduction_type);
 
   return scratch_cuda_integer_grouped_oprf<uint64_t>(
       CudaStreams(streams), (int_grouped_oprf_memory<uint64_t> **)mem_ptr,
@@ -45,20 +40,14 @@ void cleanup_cuda_integer_grouped_oprf_64(CudaStreamsFFI streams,
 }
 
 uint64_t scratch_cuda_integer_grouped_oprf_custom_range_64_async(
-    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t lwe_dimension, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t num_blocks_intermediate,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory, uint32_t message_bits_per_block,
-    uint32_t num_input_random_bits, uint32_t num_scalar_bits,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
-
-  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          glwe_dimension * polynomial_size, lwe_dimension,
-                          ks_level, ks_base_log, pbs_level, pbs_base_log,
-                          grouping_factor, message_modulus, carry_modulus,
-                          noise_reduction_type);
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t num_blocks_intermediate,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    uint32_t message_bits_per_block, uint32_t num_input_random_bits,
+    uint32_t num_scalar_bits, PBS_MS_REDUCTION_T noise_reduction_type) {
+  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+                          carry_modulus, noise_reduction_type);
 
   return scratch_cuda_integer_grouped_oprf_custom_range<uint64_t>(
       CudaStreams(streams),
