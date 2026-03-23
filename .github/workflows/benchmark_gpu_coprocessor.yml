@@ -77,7 +77,7 @@ jobs:
           if [[ ${IS_MANUAL_RUN} == true ]]; then
             PROFILE_RAW="${PROFILE_MANUAL_RUN}"
           else
-            PROFILE_RAW="${PROFILE}"
+            PROFILE_RAW="${PROFILE_SCHEDULED_RUN}"
           fi
           # shellcheck disable=SC2001
           PROFILE_VAL=$(echo "${PROFILE_RAW}" | sed 's|.*[[:space:]](\(.*\))|\1|')
