@@ -2,7 +2,10 @@
 
 // Types in this file should never be versioned because they are a wrapper around the versioning
 // process
-#![cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
+#![cfg_attr(
+    dylint_lib = "tfhe_lints",
+    allow(unknown_lints, serialize_without_versionize)
+)]
 
 use std::borrow::Cow;
 use std::fmt::Display;
