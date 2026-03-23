@@ -16,6 +16,10 @@ on:
         description: "Push web js package"
         type: boolean
         default: true
+      push_web_compat_package:
+        description: "Push web compat (cross-origin) js package"
+        type: boolean
+        default: true
       push_node_package:
         description: "Push node js package"
         type: boolean
@@ -92,6 +96,23 @@ jobs:
 
       - name: Publish web package
         if: ${{ inputs.push_web_package }}
+        uses: JS-DevTools/npm-publish@0fd2f4369c5d6bcfcde6091a7c527d810b9b5c3f
+        with:
+          package: tfhe/pkg/package.json
+          dry-run: ${{ inputs.dry_run }}
+          tag: ${{ env.NPM_TAG }}
+          provenance: true
+
+      - name: Build web compat (cross-origin) package
+        if: ${{ inputs.push_web_compat_package }}
+        run: |
+          rm -rf tfhe/pkg
+
+          make build_web_js_api
+          sed -i 's/"tfhe"/"tfhe-compat"/g' tfhe/pkg/package.json
+
+      - name: Publish web compat (cross-origin) package
+        if: ${{ inputs.push_web_compat_package }}
         uses: JS-DevTools/npm-publish@0fd2f4369c5d6bcfcde6091a7c527d810b9b5c3f
         with:
           package: tfhe/pkg/package.json
