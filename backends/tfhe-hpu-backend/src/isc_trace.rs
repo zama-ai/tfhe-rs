@@ -7,6 +7,7 @@ use crate::asm::dop;
 // High-level view of the trace.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct IscTrace {
+    pub pe_reserved: u16,
     pub state: IscPoolState,
     pub insn_hex: u32,
     pub insn_asm: Option<String>,
@@ -19,10 +20,10 @@ pub struct IscPoolState {
     pub rd_pdg: bool,
     pub vld: bool,
     pub cmd: IscCommand,
-    pub wr_lock: u32,
-    pub rd_lock: u32,
-    pub issue_lock: u32,
-    pub sync_id: u32,
+    pub wr_lock: u8,
+    pub rd_lock: u8,
+    pub issue_lock: u8,
+    pub sync_id: u8,
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
@@ -37,24 +38,18 @@ pub enum IscCommand {
 
 // Low-level bit representation
 #[bitfield(u128)]
-pub struct IscTraceFmtFlit1 {
-    #[bits(26)]
-    _reserved: u32,
+pub struct IscTraceFmtFlit0 {
+    pe_reserved: u16,
     pdg: bool,
     rd_pdg: bool,
     vld: bool,
-    #[bits(3)]
+    #[bits(5)]
+    _reserved: u8,
     cmd: u8,
-    wr_lock: u32,
-    rd_lock: u32,
-    issue_lock: u32,
-}
-
-#[bitfield(u128)]
-pub struct IscTraceFmtFlit0 {
-    #[bits(32)]
-    _reserved: u32,
-    sync_id: u32,
+    wr_lock: u8,
+    rd_lock: u8,
+    issue_lock: u8,
+    sync_id: u8,
     insn: u32,
     timestamp: u32,
 }
@@ -70,20 +65,18 @@ pub enum TraceParsingError {
 
 impl IscTrace {
     pub fn bytes_size() -> usize {
-        32
+        16
     }
     pub fn bit_size() -> usize {
-        256
+        128
     }
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, TraceParsingError> {
-        let (flit0, flit1) = if bytes.len() != Self::bytes_size() {
+        let flit0 = if bytes.len() != Self::bytes_size() {
             return Err(TraceParsingError::EmptyStream);
         } else {
             let flit0_raw = u128::from_le_bytes(bytes[0..16].try_into().unwrap());
             let flit0 = IscTraceFmtFlit0::from_bits(flit0_raw);
-            let flit1_raw = u128::from_le_bytes(bytes[16..32].try_into().unwrap());
-            let flit1 = IscTraceFmtFlit1::from_bits(flit1_raw);
-            (flit0, flit1)
+            flit0
         };
 
         let asm = dop::DOp::from_hex(flit0.insn())
@@ -92,15 +85,16 @@ impl IscTrace {
 
         Ok(Self {
             state: IscPoolState {
-                pdg: flit1.pdg(),
-                rd_pdg: flit1.rd_pdg(),
-                vld: flit1.vld(),
-                cmd: unsafe { std::mem::transmute(flit1.cmd()) },
-                wr_lock: flit1.wr_lock(),
-                rd_lock: flit1.rd_lock(),
-                issue_lock: flit1.issue_lock(),
+                pdg: flit0.pdg(),
+                rd_pdg: flit0.rd_pdg(),
+                vld: flit0.vld(),
+                cmd: unsafe { std::mem::transmute(flit0.cmd()) },
+                wr_lock: flit0.wr_lock(),
+                rd_lock: flit0.rd_lock(),
+                issue_lock: flit0.issue_lock(),
                 sync_id: flit0.sync_id(),
             },
+            pe_reserved: flit0.pe_reserved(),
             insn_hex: flit0.insn(),
             insn_asm: Some(asm),
             timestamp: flit0.timestamp(),
@@ -109,21 +103,20 @@ impl IscTrace {
 
     pub fn into_bytes(&self) -> Vec<u8> {
         let flit0 = IscTraceFmtFlit0::new()
-            .with_sync_id(self.state.sync_id)
+            .with_timestamp(self.timestamp)
             .with_insn(self.insn_hex)
-            .with_timestamp(self.timestamp);
-        let flit1 = IscTraceFmtFlit1::new()
-            .with_pdg(self.state.pdg)
-            .with_rd_pdg(self.state.rd_pdg)
-            .with_vld(self.state.vld)
-            .with_cmd(self.state.cmd as _)
-            .with_wr_lock(self.state.wr_lock)
+            .with_sync_id(self.state.sync_id)
+            .with_issue_lock(self.state.issue_lock)
             .with_rd_lock(self.state.rd_lock)
-            .with_issue_lock(self.state.issue_lock);
+            .with_wr_lock(self.state.wr_lock)
+            .with_cmd(self.state.cmd as _)
+            .with_vld(self.state.vld)
+            .with_rd_pdg(self.state.rd_pdg)
+            .with_pdg(self.state.pdg)
+            .with_pe_reserved(self.pe_reserved);
 
         let mut bytes = Vec::new();
         bytes.extend_from_slice(&flit0.into_bits().to_le_bytes());
-        bytes.extend_from_slice(&flit1.into_bits().to_le_bytes());
         bytes
     }
 }
