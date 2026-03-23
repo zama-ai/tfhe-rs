@@ -15,7 +15,7 @@ use tfhe::xof_key_set::CompressedXofKeySet;
 #[cfg(feature = "zk-pok")]
 use tfhe::zk::new_compact_pke_crs_conformance_params;
 #[cfg(feature = "zk-pok")]
-use tfhe::zk::{CompactPkeCrs, CompactPkeCrsConformanceParams};
+use tfhe::zk::CompactPkeCrs;
 #[cfg(feature = "zk-pok")]
 use tfhe::ProvenCompactCiphertextList;
 use tfhe::{
