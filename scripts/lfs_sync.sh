@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script tries to:
 # List all LFS references in a source remote on the given target branch and all tags
