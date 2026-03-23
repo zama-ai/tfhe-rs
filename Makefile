@@ -541,6 +541,14 @@ clippy_param_dedup: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p param_dedup -- --no-deps -D warnings
 
+.PHONY: clippy_fuzz # Run clippy lints on fuzzing crates
+clippy_fuzz: install_rs_check_toolchain
+	@for crate in utils/fuzz/*/Cargo.toml; do \
+		echo "checking $$(dirname $$crate)"; \
+		RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+			--manifest-path $$crate -- --no-deps -D warnings; \
+	done
+
 .PHONY: clippy_wasm_par_mq # Run clippy lints on wasm-par-mq and its examples
 clippy_wasm_par_mq: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets --all-features \
@@ -570,7 +578,7 @@ clippy_test_vectors: install_rs_check_toolchain
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
 clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_trivium \
 clippy_versionable clippy_tfhe_lints clippy_ws_tests clippy_bench clippy_param_dedup \
-clippy_test_vectors clippy_backward_compat_data clippy_wasm_par_mq
+clippy_test_vectors clippy_backward_compat_data clippy_wasm_par_mq clippy_fuzz
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy_rustdoc clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks \

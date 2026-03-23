@@ -1,0 +1,12 @@
+[package]
+name = "fuzz-utils"
+version = "0.1.0"
+edition = "2024"
+rust-version.workspace = true
+
+[dependencies]
+tfhe = { path = "../../../tfhe", features = ["integer", "zk-pok"] }
+afl = "0.17.0"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }

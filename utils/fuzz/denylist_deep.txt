@@ -1,0 +1,6 @@
+# List of deserialization related function that should not be covered in verify and compute
+# harnesses
+fun:is_conformant*
+fun:deserialize*
+fun:unversionize*
+fun:upgrade*
