@@ -83,9 +83,14 @@ impl IscTrace {
         };
 
         let cmd = unsafe { std::mem::transmute(flit0.cmd()) };
-        let asm = dop::DOp::from_hex(flit0.insn())
-            .map_err(|x| TraceParsingError::IncorrectValue(x.to_string()))?
-            .to_string();
+        let asm = match cmd {
+            IscCommand::None => "Garbage".to_string(),
+            _ => {
+                dop::DOp::from_hex(flit0.insn())
+                .map_err(|x| TraceParsingError::IncorrectValue(x.to_string()))?
+                .to_string()
+            }
+        };
 
         let insn = match cmd {
             IscCommand::None => None,
