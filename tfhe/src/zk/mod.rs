@@ -134,6 +134,8 @@ where
         noise_bound,
         ciphertext_modulus,
         plaintext_modulus,
+        // CRS created from shortint params have 1 MSB 0bit
+        1,
     ))
 }
 

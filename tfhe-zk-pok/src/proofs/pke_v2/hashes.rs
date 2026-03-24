@@ -123,7 +123,6 @@ impl From<usize> for PkeV2SupportedHashConfig {
             0 => PkeV2SupportedHashConfig::V0_4_0,
             1 => PkeV2SupportedHashConfig::V0_7_0,
             2 => PkeV2SupportedHashConfig::V0_8_0,
-            // TODO(dp): Ask reviewers if we  should use the default, `V0_8_0`, here instead?
             _ => panic!("Invalid PkeV2SupportedHashConfig value"),
         }
     }

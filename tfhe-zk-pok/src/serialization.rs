@@ -676,7 +676,6 @@ pub struct SerializablePKEv1PublicParams {
 // `SerializableCompactPkePublicParams` anyways before serialization, their impl of `Named` should
 // return the same string.
 impl Named for SerializablePKEv1PublicParams {
-    // TODO(dp): this is terrible, shouldn't have to name the curve.
     const NAME: &'static str =
         <crate::proofs::pke::PublicParams<crate::curve_api::Bls12_446> as Named>::NAME;
 }

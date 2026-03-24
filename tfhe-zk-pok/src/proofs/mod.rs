@@ -34,16 +34,6 @@ impl Display for ComputeLoad {
     }
 }
 
-impl From<usize> for ComputeLoad {
-    fn from(value: usize) -> Self {
-        match value {
-            0 => ComputeLoad::Proof,
-            1 => ComputeLoad::Verify,
-            _ => panic!("Invalid compute load value"),
-        }
-    }
-}
-
 impl From<ComputeLoad> for usize {
     fn from(value: ComputeLoad) -> Self {
         match value {
@@ -53,7 +43,6 @@ impl From<ComputeLoad> for usize {
     }
 }
 
-// TODO(dp): Ask reviewers if switching this to use primitive types is ok.
 pub struct CompactPkeCrsConformanceParams {
     lwe_dim: usize,
     max_num_message: usize,
@@ -70,6 +59,7 @@ impl CompactPkeCrsConformanceParams {
         noise_bound: u64,
         ciphertext_modulus: u64,
         plaintext_modulus: u64,
+        msbs_zero_padding_bit_count: u64,
     ) -> Self {
         Self {
             lwe_dim,
@@ -77,9 +67,7 @@ impl CompactPkeCrsConformanceParams {
             noise_bound,
             ciphertext_modulus,
             plaintext_modulus,
-            // TODO(dp): Ok to hardcode?
-            // CRS created from shortint params have 1 MSB 0bit
-            msbs_zero_padding_bit_count: 1,
+            msbs_zero_padding_bit_count,
         }
     }
 }

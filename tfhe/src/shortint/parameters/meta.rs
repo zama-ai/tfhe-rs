@@ -178,17 +178,6 @@ pub enum NoiseDistributionKind {
     TUniform = 1,
 }
 
-#[expect(clippy::fallible_impl_from)]
-impl From<usize> for NoiseDistributionKind {
-    fn from(value: usize) -> Self {
-        match value {
-            0 => Self::Gaussian,
-            1 => Self::TUniform,
-            _ => panic!("Invalid NoiseDistributionKind"),
-        }
-    }
-}
-
 impl From<NoiseDistributionKind> for usize {
     fn from(value: NoiseDistributionKind) -> Self {
         value as Self

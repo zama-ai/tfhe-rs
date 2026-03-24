@@ -46,13 +46,7 @@ pub struct PublicParams<G: Curve> {
     pub(crate) domain_separators: PKEv1DomainSeparators,
 }
 
-// TODO(dp): this sucks, sad to have to name the curve. In tfhe, the `PublicParams` are used by way
-// of a type alias I think. Maybe switch to use a wrapper type and impl `Named` on that. Or add
-// `Named` impls in the curve_api module for all curves? Or move to a `named()` method instead of a
-// `const`?
-// Could also add a `type C: Curve` associated type to  `Named`, to allow
-// `impl<G: Curve> Named for PublicParams<G> { type C: G; const NAME: … …}`
-impl Named for PublicParams<crate::curve_api::Bls12_446> {
+impl<G: Curve> Named for PublicParams<G> {
     const NAME: &'static str = "zk::CompactPkePublicParams";
 }
 

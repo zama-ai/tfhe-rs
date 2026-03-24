@@ -18,9 +18,9 @@ members = [
     "utils/tfhe-backward-compat-checker",
     "utils/tfhe-backward-compat-data",
     "utils/tfhe-backward-compat-data/crates/add_new_version",
+    "utils/tfhe-safe-serialize",
     "utils/tfhe-versionable",
     "utils/tfhe-versionable-derive",
-    "utils/tfhe-safe-serialize",
     "utils/wasm-par-mq",
     "utils/wasm-par-mq/examples/msm",
     "utils/wasm-par-mq/web_tests",
@@ -57,8 +57,8 @@ pkg-config = "0.3"
 clap = { version = "4.5", features = ["derive"] }
 serde-wasm-bindgen = "0.6.5"
 paste = "1.0.15"
-tfhe-versionable = { path = "utils/tfhe-versionable" }
 tfhe-safe-serialize = { path = "utils/tfhe-safe-serialize" }
+tfhe-versionable = { path = "utils/tfhe-versionable" }
 
 [profile.bench]
 lto = "fat"
