@@ -22,6 +22,7 @@ use zhc::sim::{Cycle, MHz};
 use tracing::{debug, info, trace};
 
 use rayon::prelude::*;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Runtime configuration of the ucore
 /// This structure is used to configure the ucore fw with custom runtime information
@@ -31,13 +32,14 @@ use rayon::prelude::*;
 #[repr(C)]
 pub struct UcoreConfig {
     pub node_id: u8,
+    pub timestamp: u32,
     pub cluster_first_nid: u8,
     pub cluster_last_nid: u8,
     pub user_size: u16,
     pub b2b_size: u16,
     _padding: [u8; 1],
     // NB: modification in this file must match the one in amc.c
-    _reserved_word: [u32; 62],
+    _reserved_word: [u32; 61],
 }
 // SAFETY: UcoreConfig is repr(C) with only Zeroable/Pod types
 unsafe impl Zeroable for UcoreConfig {}
@@ -45,14 +47,21 @@ unsafe impl Pod for UcoreConfig {}
 
 impl UcoreConfig {
     pub fn new(node_id: u8, cluster_first_nid: u8, cluster_last_nid: u8, user_size: u16, b2b_size: u16) -> Self {
+
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards!")
+            .as_secs() as u32;
+
         Self {
             node_id,
+            timestamp,
             cluster_first_nid,
             cluster_last_nid,
             user_size,
             b2b_size,
             _padding: [0; 1],
-            _reserved_word: [u32::MAX; 62],
+            _reserved_word: [u32::MAX; 61],
         }
     }
 }

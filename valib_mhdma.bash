@@ -1,35 +1,35 @@
 cargo run --profile devo --features=integer,internal-keycache,hw-v80,hpu --example hpu_bench -- --iter 1 --integer-w 8 --iop ADD --tput --force-reload
 # src/dst sync - swap MSB/LSB
-echo "Testing x100 IOP 32"
-if cargo run --profile devo --features=integer,internal-keycache,hw-v80,hpu --example hpu_bench -- --iter 100 --integer-w 8 --iop IOP[32] --user-proto "[2]<N,N>::<N,N><0>" --check-res 2>&1 | grep -q "Score 0/100"; then
+echo "Testing x1000 IOP 32"
+if cargo run --profile devo --features=integer,internal-keycache,hw-v80,hpu --example hpu_bench -- --iter 1000 --integer-w 8 --iop IOP[32] --user-proto "[2]<N,N>::<N,N><0>" --check-res 2>&1 | grep -q "Score 0/1000"; then
     echo "No error !!"
 else
     exit 1
 fi
-echo "Testing x100 IOP 33"
+echo "Testing x1000 IOP 33"
 # identity - internal notify vHPU0 to vHPU1
-if cargo run --profile devo --features=integer,internal-keycache,hw-v80,hpu --example hpu_bench -- --iter 100 --integer-w 8 --iop IOP[33] --user-proto "[2]<N>::<N><0>" --check-res 2>&1 | grep -q "Score 0/100"; then
+if cargo run --profile devo --features=integer,internal-keycache,hw-v80,hpu --example hpu_bench -- --iter 1000 --integer-w 8 --iop IOP[33] --user-proto "[2]<N>::<N><0>" --check-res 2>&1 | grep -q "Score 0/1000"; then
     echo "No error !!"
 else
     exit 1
 fi
-echo "Testing x100 IOP 34 (ADD8)"
+echo "Testing x1000 IOP 34 (ADD8)"
 # Add 8 (manual)
-if cargo run --profile devo --features=integer,internal-keycache,hw-v80,hpu --example hpu_bench -- --iter 100 --integer-w 8 --iop IOP[34] --user-proto "[2]<N>::<N,N><0>" --check-res 2>&1 | grep -q "Score 0/100"; then
+if cargo run --profile devo --features=integer,internal-keycache,hw-v80,hpu --example hpu_bench -- --iter 1000 --integer-w 8 --iop IOP[34] --user-proto "[2]<N>::<N,N><0>" --check-res 2>&1 | grep -q "Score 0/1000"; then
     echo "No error !!"
 else
     exit 1
 fi
-echo "Testing x100 IOP 35"
+echo "Testing x1000 IOP 35"
 # identity - internal notify vHPU1 to vHPU0
-if cargo run --profile devo --features=integer,internal-keycache,hw-v80,hpu --example hpu_bench -- --iter 100 --integer-w 8 --iop IOP[35] --user-proto "[2]<N>::<N><0>" --check-res 2>&1 | grep -q "Score 0/100"; then
+if cargo run --profile devo --features=integer,internal-keycache,hw-v80,hpu --example hpu_bench -- --iter 1000 --integer-w 8 --iop IOP[35] --user-proto "[2]<N>::<N><0>" --check-res 2>&1 | grep -q "Score 0/1000"; then
     echo "No error !!"
 else
     exit 1
 fi
-echo "Testing x100 IOP 36 (MUL8)"
+echo "Testing x1000 IOP 36 (MUL8)"
 # Mul 8 (manual)
-if cargo run --profile devo --features=integer,internal-keycache,hw-v80,hpu --example hpu_bench -- --iter 100 --integer-w 8 --iop IOP[36] --user-proto "[2]<N>::<N,N><0>" --check-res 2>&1 | grep -q "Score 0/100"; then
+if cargo run --profile devo --features=integer,internal-keycache,hw-v80,hpu --example hpu_bench -- --iter 1000 --integer-w 8 --iop IOP[36] --user-proto "[2]<N>::<N,N><0>" --check-res 2>&1 | grep -q "Score 0/1000"; then
     echo "No error !!"
 else
     exit 1

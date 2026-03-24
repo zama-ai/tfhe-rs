@@ -221,7 +221,10 @@ impl HpuCluster {
     /// Return current IOp id and increment internal counter
     /// IOp id is used to enforce data validity across a chain of inter-dependant IOp
     pub(crate) fn gen_iop_id(&self) -> IOpId {
-        let raw_id = self.iop_id.fetch_add(1, atomic::Ordering::SeqCst);
+        let mut raw_id = self.iop_id.fetch_add(1, atomic::Ordering::SeqCst);
+        while raw_id == 0 {
+            raw_id = self.iop_id.fetch_add(1, atomic::Ordering::SeqCst);
+        }
         IOpId(raw_id)
     }
 }
