@@ -5,164 +5,92 @@ use crate::shortint::parameters::test_params::*;
 use crate::xof_key_set::{CompressedXofKeySet, XofKeySet};
 use crate::*;
 
+fn run_xof_key_set_test(config: Config, tag_str: &str, device: Device, check_expansion: bool) {
+    let mut seeder = new_seeder();
+    let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
+    let security_bits = 128;
+    let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
+    let tag = Tag::from(tag_str);
+
+    let (cks, compressed_key_set) = CompressedXofKeySet::generate(
+        config,
+        private_seed_bytes,
+        security_bits,
+        max_norm_hwt,
+        tag.clone(),
+    )
+    .unwrap();
+
+    assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
+    assert_eq!(cks.tag(), &tag);
+    assert_eq!(compressed_key_set.tag(), &tag);
+    test_xof_key_set(&compressed_key_set, config, device, &cks);
+    if check_expansion {
+        test_xof_expansion_is_same_as_classic(compressed_key_set);
+    }
+}
+
 mod cpu {
     use super::*;
 
     #[test]
     fn test_xof_key_set_legacy_rerand_classic_params() {
-        let config = Config::from(
-            TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        run_xof_key_set_test(
+            TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128.into(),
+            "classic_2_2",
+            Device::Cpu,
+            false,
         );
-
-        let mut seeder = new_seeder();
-        let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
-        let security_bits = 128;
-        let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
-        let tag = Tag::from("classic_2_2");
-
-        let (cks, compressed_key_set) = CompressedXofKeySet::generate(
-            config,
-            private_seed_bytes,
-            security_bits,
-            max_norm_hwt,
-            tag.clone(),
-        )
-        .unwrap();
-
-        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
-        assert_eq!(cks.tag(), &tag);
-        test_xof_key_set(&compressed_key_set, config, Device::Cpu, &cks);
     }
 
     #[test]
     fn test_xof_key_set_legacy_rerand_ks32_params_big_pke() {
-        let config = Config::from(
-            TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+        run_xof_key_set_test(
+            TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128.into(),
+            "ks32 big pke",
+            Device::Cpu,
+            false,
         );
-
-        let mut seeder = new_seeder();
-        let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
-        let security_bits = 128;
-        let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
-        let tag = Tag::from("ks32 big pke");
-
-        let (cks, compressed_key_set) = CompressedXofKeySet::generate(
-            config,
-            private_seed_bytes,
-            security_bits,
-            max_norm_hwt,
-            tag.clone(),
-        )
-        .unwrap();
-
-        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
-        assert_eq!(cks.tag(), &tag);
-        test_xof_key_set(&compressed_key_set, config, Device::Cpu, &cks);
     }
 
     #[test]
     fn test_xof_key_set_legacy_rerand_ks32_params_small_pke() {
-        let config = Config::from(
-            TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        run_xof_key_set_test(
+            TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128.into(),
+            "ks32 small pke",
+            Device::Cpu,
+            false,
         );
-
-        let mut seeder = new_seeder();
-        let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
-        let security_bits = 128;
-        let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
-        let tag = Tag::from("ks32 small pke");
-
-        let (cks, compressed_key_set) = CompressedXofKeySet::generate(
-            config,
-            private_seed_bytes,
-            security_bits,
-            max_norm_hwt,
-            tag.clone(),
-        )
-        .unwrap();
-
-        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
-        assert_eq!(cks.tag(), &tag);
-        test_xof_key_set(&compressed_key_set, config, Device::Cpu, &cks);
     }
 
     #[test]
     fn test_xof_key_set_classic_params() {
-        let config = Config::from(TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
-
-        let mut seeder = new_seeder();
-        let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
-        let security_bits = 128;
-        let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
-        let tag = Tag::from("classic_2_2");
-
-        let (cks, compressed_key_set) = CompressedXofKeySet::generate(
-            config,
-            private_seed_bytes,
-            security_bits,
-            max_norm_hwt,
-            tag.clone(),
-        )
-        .unwrap();
-
-        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
-        assert_eq!(cks.tag(), &tag);
-        assert_eq!(compressed_key_set.tag(), &tag);
-        test_xof_key_set(&compressed_key_set, config, Device::Cpu, &cks);
-        test_xof_expansion_is_same_as_classic(compressed_key_set);
+        run_xof_key_set_test(
+            TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128.into(),
+            "classic_2_2",
+            Device::Cpu,
+            true,
+        );
     }
 
     #[test]
     fn test_xof_key_set_ks32_params_big_pke() {
-        let config = Config::from(TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128);
-
-        let mut seeder = new_seeder();
-        let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
-        let security_bits = 128;
-        let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
-        let tag = Tag::from("ks32 big pke");
-
-        let (cks, compressed_key_set) = CompressedXofKeySet::generate(
-            config,
-            private_seed_bytes,
-            security_bits,
-            max_norm_hwt,
-            tag.clone(),
-        )
-        .unwrap();
-
-        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
-        assert_eq!(cks.tag(), &tag);
-        assert_eq!(compressed_key_set.tag(), &tag);
-        test_xof_key_set(&compressed_key_set, config, Device::Cpu, &cks);
-        test_xof_expansion_is_same_as_classic(compressed_key_set);
+        run_xof_key_set_test(
+            TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128.into(),
+            "ks32 big pke",
+            Device::Cpu,
+            true,
+        );
     }
 
     #[test]
     fn test_xof_key_set_ks32_params_small_pke() {
-        let config =
-            Config::from(TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
-
-        let mut seeder = new_seeder();
-        let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
-        let security_bits = 128;
-        let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
-        let tag = Tag::from("ks32 small pke");
-
-        let (cks, compressed_key_set) = CompressedXofKeySet::generate(
-            config,
-            private_seed_bytes,
-            security_bits,
-            max_norm_hwt,
-            tag.clone(),
-        )
-        .unwrap();
-
-        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
-        assert_eq!(cks.tag(), &tag);
-        assert_eq!(compressed_key_set.tag(), &tag);
-        test_xof_key_set(&compressed_key_set, config, Device::Cpu, &cks);
-        test_xof_expansion_is_same_as_classic(compressed_key_set);
+        run_xof_key_set_test(
+            TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128.into(),
+            "ks32 small pke",
+            Device::Cpu,
+            true,
+        );
     }
 }
 
@@ -173,173 +101,68 @@ mod gpu {
     // Triggers rerand with KS (V1.5 legacy params have dedicated re_randomization_parameters)
     #[test]
     fn test_xof_key_set_legacy_rerand_multibit_group_4_small_pke() {
-        let config = Config::from(
-            TEST_LEGACY_RERAND_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        run_xof_key_set_test(
+            TEST_LEGACY_RERAND_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128.into(),
+            "gpu multibit group 4",
+            Device::CudaGpu,
+            true,
         );
-
-        let mut seeder = new_seeder();
-        let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
-        let security_bits = 128;
-        let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
-        let tag = Tag::from("gpu multibit group 4");
-
-        let (cks, compressed_key_set) = CompressedXofKeySet::generate(
-            config,
-            private_seed_bytes,
-            security_bits,
-            max_norm_hwt,
-            tag.clone(),
-        )
-        .unwrap();
-
-        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
-        assert_eq!(cks.tag(), &tag);
-        assert_eq!(compressed_key_set.tag(), &tag);
-        test_xof_key_set(&compressed_key_set, config, Device::CudaGpu, &cks);
-        test_xof_expansion_is_same_as_classic(compressed_key_set);
     }
 
     // Triggers rerand with KS (V1.5 legacy params have dedicated re_randomization_parameters)
     #[test]
     fn test_xof_key_set_legacy_rerand_multibit_group_4_big_pke() {
-        let config = Config::from(
-            TEST_LEGACY_RERAND_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+        run_xof_key_set_test(
+            TEST_LEGACY_RERAND_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128.into(),
+            "gpu multibit group 4",
+            Device::CudaGpu,
+            true,
         );
-
-        let mut seeder = new_seeder();
-        let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
-        let security_bits = 128;
-        let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
-        let tag = Tag::from("gpu multibit group 4");
-
-        let (cks, compressed_key_set) = CompressedXofKeySet::generate(
-            config,
-            private_seed_bytes,
-            security_bits,
-            max_norm_hwt,
-            tag.clone(),
-        )
-        .unwrap();
-
-        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
-        assert_eq!(cks.tag(), &tag);
-        assert_eq!(compressed_key_set.tag(), &tag);
-        test_xof_key_set(&compressed_key_set, config, Device::CudaGpu, &cks);
-        test_xof_expansion_is_same_as_classic(compressed_key_set);
     }
 
     // Triggers rerand without KS (V1.6 params have no re_randomization_parameters)
     #[test]
     fn test_xof_key_set_multibit_group_4_small_pke() {
-        let config = Config::from(
-            TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        run_xof_key_set_test(
+            TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128
+                .into(),
+            "gpu multibit group 4 small pke",
+            Device::CudaGpu,
+            true,
         );
-
-        let mut seeder = new_seeder();
-        let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
-        let security_bits = 128;
-        let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
-        let tag = Tag::from("gpu multibit group 4 small pke");
-
-        let (cks, compressed_key_set) = CompressedXofKeySet::generate(
-            config,
-            private_seed_bytes,
-            security_bits,
-            max_norm_hwt,
-            tag.clone(),
-        )
-        .unwrap();
-
-        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
-        assert_eq!(cks.tag(), &tag);
-        assert_eq!(compressed_key_set.tag(), &tag);
-        test_xof_key_set(&compressed_key_set, config, Device::CudaGpu, &cks);
-        test_xof_expansion_is_same_as_classic(compressed_key_set);
     }
 
     // Triggers rerand without KS (V1.6 params have no re_randomization_parameters)
     #[test]
     fn test_xof_key_set_multibit_group_4_big_pke() {
-        let config = Config::from(
-            TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+        run_xof_key_set_test(
+            TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128.into(),
+            "gpu multibit group 4 big pke",
+            Device::CudaGpu,
+            true,
         );
-
-        let mut seeder = new_seeder();
-        let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
-        let security_bits = 128;
-        let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
-        let tag = Tag::from("gpu multibit group 4 big pke");
-
-        let (cks, compressed_key_set) = CompressedXofKeySet::generate(
-            config,
-            private_seed_bytes,
-            security_bits,
-            max_norm_hwt,
-            tag.clone(),
-        )
-        .unwrap();
-
-        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
-        assert_eq!(cks.tag(), &tag);
-        assert_eq!(compressed_key_set.tag(), &tag);
-        test_xof_key_set(&compressed_key_set, config, Device::CudaGpu, &cks);
-        test_xof_expansion_is_same_as_classic(compressed_key_set);
     }
 
     // Triggers rerand without KS (V1.6 CPU params have no re_randomization_parameters)
     #[test]
     fn test_xof_key_set_with_cpu_params() {
-        let config = Config::from(TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
-
-        let mut seeder = new_seeder();
-        let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
-        let security_bits = 128;
-        let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
-        let tag = Tag::from("gpu with cpu v1.6 params");
-
-        let (cks, compressed_key_set) = CompressedXofKeySet::generate(
-            config,
-            private_seed_bytes,
-            security_bits,
-            max_norm_hwt,
-            tag.clone(),
-        )
-        .unwrap();
-
-        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
-        assert_eq!(cks.tag(), &tag);
-        assert_eq!(compressed_key_set.tag(), &tag);
-        test_xof_key_set(&compressed_key_set, config, Device::CudaGpu, &cks);
-        test_xof_expansion_is_same_as_classic(compressed_key_set);
+        run_xof_key_set_test(
+            TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128.into(),
+            "gpu with cpu v1.6 params",
+            Device::CudaGpu,
+            true,
+        );
     }
 
     // Triggers rerand with KS (V1.5 legacy params have dedicated re_randomization_parameters)
     #[test]
     fn test_xof_key_set_legacy_rerand_with_cpu_params() {
-        let config = Config::from(
-            TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        run_xof_key_set_test(
+            TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128.into(),
+            "gpu with cpu params",
+            Device::CudaGpu,
+            true,
         );
-
-        let mut seeder = new_seeder();
-        let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
-        let security_bits = 128;
-        let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
-        let tag = Tag::from("gpu with cpu params");
-
-        let (cks, compressed_key_set) = CompressedXofKeySet::generate(
-            config,
-            private_seed_bytes,
-            security_bits,
-            max_norm_hwt,
-            tag.clone(),
-        )
-        .unwrap();
-
-        assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
-        assert_eq!(cks.tag(), &tag);
-        assert_eq!(compressed_key_set.tag(), &tag);
-        test_xof_key_set(&compressed_key_set, config, Device::CudaGpu, &cks);
-        test_xof_expansion_is_same_as_classic(compressed_key_set);
     }
 }
 
