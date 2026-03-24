@@ -97,13 +97,8 @@ fn sanity_check_encrypt_br_dp_packing_ks_ms(meta_params: MetaParameters, filenam
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
     let mut cuda_side_resources: Vec<CudaSideResources> = (0..input_zeros.len())
-        .map(|_| CudaSideResources::new(&streams, cuda_block_info))
+        .map(|_| CudaSideResources::new(&cuda_sks, &streams, cuda_block_info))
         .collect();
-    // Required for multi-bit parameters so that the grouping factor is set before
-    // br_dp_packing_ks_ms
-    for sr in cuda_side_resources.iter_mut() {
-        sr.configure_from_server_key(&cuda_sks);
-    }
 
     let (d_before_packing, _after_packing, d_after_ms) = br_dp_packing_ks_ms(
         d_input_zeros,
@@ -257,13 +252,8 @@ fn encrypt_br_dp_packing_ks_ms_inner_helper_gpu(
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
     let mut cuda_side_resources: Vec<CudaSideResources> = (0..input_zeros.len())
-        .map(|_| CudaSideResources::new(streams, cuda_block_info))
+        .map(|_| CudaSideResources::new(cuda_sks, streams, cuda_block_info))
         .collect();
-    // Required for multi-bit parameters so that the grouping factor is set before
-    // br_dp_packing_ks_ms
-    for sr in cuda_side_resources.iter_mut() {
-        sr.configure_from_server_key(cuda_sks);
-    }
 
     let dp_scalar = params.carry_modulus().0;
     let storage_modulus_log = cuda_compression_key.storage_log_modulus;
@@ -519,13 +509,8 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_noise_gpu(
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
     let mut cuda_side_resources: Vec<CudaSideResources> = (0..input_zeros.len())
-        .map(|_| CudaSideResources::new(&streams, cuda_block_info))
+        .map(|_| CudaSideResources::new(&cuda_sks, &streams, cuda_block_info))
         .collect();
-    // Required for multi-bit parameters so that the grouping factor is set before
-    // br_dp_packing_ks_ms
-    for sr in cuda_side_resources.iter_mut() {
-        sr.configure_from_server_key(&cuda_sks);
-    }
 
     // Check that the circuit is correct with respect to core implementation, i.e. does not crash on
     // dimension checks

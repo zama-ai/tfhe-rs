@@ -1,4 +1,3 @@
-use crate::core_crypto::algorithms::lwe_multi_bit_programmable_bootstrapping::StandardMultiBitModulusSwitchedCt;
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateCenteredBinaryShiftedStandardModSwitchResult,
     AllocateDriftTechniqueStandardModSwitchResult, AllocateLweBootstrapResult,
@@ -37,6 +36,7 @@ use crate::integer::gpu::unchecked_small_scalar_mul_integer;
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
     DynLwe, DynModSwitchedLwe, DynStandardMultiBitModulusSwitchedCt,
     NoiseSimulationGenericBootstrapKey, NoiseSimulationModulusSwitchConfig,
+    PreComputedU64MultiBitModSwitchCt,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::traits::{
     LweGenericBlindRotate128, LweGenericBootstrap, LwePackingKeyswitch,
@@ -56,30 +56,39 @@ pub struct CudaSideResources {
 }
 
 impl CudaSideResources {
-    pub fn new(streams: &CudaStreams, block_info: CudaBlockInfo) -> Self {
+    pub fn new(sks: &CudaServerKey, streams: &CudaStreams, block_info: CudaBlockInfo) -> Self {
+        let (polynomial_size, multi_bit_grouping_factor) = match &sks.bootstrapping_key {
+            CudaBootstrappingKey::MultiBit(mb_bsk) => (
+                Some(mb_bsk.polynomial_size()),
+                Some(mb_bsk.grouping_factor()),
+            ),
+            CudaBootstrappingKey::Classic(_) => (None, None),
+        };
         Self {
             streams: streams.clone(),
             block_info,
-            polynomial_size: None,
-            multi_bit_grouping_factor: None,
+            polynomial_size,
+            multi_bit_grouping_factor,
         }
     }
 
-    /// Populate multi-bit mod switch parameters from the server key's bootstrapping key.
-    /// For classic PBS, this is a no-op.
-    pub fn configure_from_server_key(&mut self, sks: &CudaServerKey) {
-        if let CudaBootstrappingKey::MultiBit(mb_bsk) = &sks.bootstrapping_key {
-            self.polynomial_size = Some(mb_bsk.polynomial_size());
-            self.multi_bit_grouping_factor = Some(mb_bsk.grouping_factor());
-        }
-    }
-
-    /// Populate multi-bit mod switch parameters from the noise squashing key's bootstrapping key.
-    /// For classic noise squashing BSK, this is a no-op.
-    pub fn configure_from_noise_squashing_key(&mut self, nsk: &CudaNoiseSquashingKey) {
-        if let CudaBootstrappingKey::MultiBit(mb_bsk) = &nsk.bootstrapping_key {
-            self.polynomial_size = Some(mb_bsk.polynomial_size());
-            self.multi_bit_grouping_factor = Some(mb_bsk.grouping_factor());
+    pub fn new_from_noise_squashing_key(
+        nsk: &CudaNoiseSquashingKey,
+        streams: &CudaStreams,
+        block_info: CudaBlockInfo,
+    ) -> Self {
+        let (polynomial_size, multi_bit_grouping_factor) = match &nsk.bootstrapping_key {
+            CudaBootstrappingKey::MultiBit(mb_bsk) => (
+                Some(mb_bsk.polynomial_size()),
+                Some(mb_bsk.grouping_factor()),
+            ),
+            CudaBootstrappingKey::Classic(_) => (None, None),
+        };
+        Self {
+            streams: streams.clone(),
+            block_info,
+            polynomial_size,
+            multi_bit_grouping_factor,
         }
     }
 }
@@ -191,22 +200,27 @@ impl CudaDynLwe {
                         let ct = LweCiphertext::from_container(container, ciphertext_modulus);
                         DynModSwitchedLwe::ModSwitchedLwe(DynLwe::U64(ct))
                     }
-                    // Multi-bit: after ms contains the input and the modulus switched inputs, so
-                    // we need to split the container and construct a multi-bit modulus switched
-                    // ciphertext.
+                    // Multi-bit: the GPU output buffer holds [input_lwe | ms_0 | ms_1 | ...].
+                    // We extract the GPU pre-computed modulus-switched monomial degrees directly
+                    // instead of recomputing them on CPU from the original input.
                     Some(gf) => {
-                        let lwe_size = self.lwe_dimension().0 + 1;
-                        let input_ct = LweCiphertext::from_container(
-                            container[..lwe_size].to_vec(),
-                            ciphertext_modulus,
-                        );
-                        let mb_ms_ct = StandardMultiBitModulusSwitchedCt {
-                            input: input_ct,
+                        let lwe_size = self.lwe_dimension().to_lwe_size().0;
+                        // Body is the last element of the original input LWE slot.
+                        let body = container[self.lwe_dimension().0];
+                        let num_monomials = 1usize << gf.0;
+                        let multibit_size = self.lwe_dimension().0 / gf.0;
+                        let mask_len = multibit_size * num_monomials;
+                        let mask: Vec<u64> = container[lwe_size..lwe_size + mask_len].to_vec();
+                        let precomputed = PreComputedU64MultiBitModSwitchCt {
+                            body,
+                            mask,
                             grouping_factor: gf,
                             log_modulus,
+                            lwe_dimension: self.lwe_dimension(),
+                            ciphertext_modulus,
                         };
                         DynModSwitchedLwe::MultiBitModSwitchedLwe(
-                            DynStandardMultiBitModulusSwitchedCt::U64(mb_ms_ct),
+                            DynStandardMultiBitModulusSwitchedCt::PreComputedU64(precomputed),
                         )
                     }
                 }
