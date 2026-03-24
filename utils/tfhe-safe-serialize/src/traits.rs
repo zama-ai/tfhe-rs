@@ -48,10 +48,7 @@ where
     T: Into<usize> + Copy,
 {
     /// Checks if a given value is present in the set.
-    pub fn contains(&self, value: T) -> bool
-    where
-        T: std::fmt::Debug,
-    {
+    pub fn contains(&self, value: T) -> bool {
         let index = value.into();
 
         if index < 128 {

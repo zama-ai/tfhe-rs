@@ -316,17 +316,6 @@ impl From<PBSOrder> for EncryptionKeyChoice {
     }
 }
 
-#[expect(clippy::fallible_impl_from)]
-impl From<usize> for EncryptionKeyChoice {
-    fn from(value: usize) -> Self {
-        match value {
-            0 => Self::Big,
-            1 => Self::Small,
-            _ => panic!("Invalid value for EncryptionKeyChoice"),
-        }
-    }
-}
-
 impl From<EncryptionKeyChoice> for usize {
     fn from(value: EncryptionKeyChoice) -> Self {
         match value {
