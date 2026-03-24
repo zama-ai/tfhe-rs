@@ -117,17 +117,6 @@ pub enum PkeV2SupportedHashConfig {
     V0_8_0 = 2,
 }
 
-impl From<usize> for PkeV2SupportedHashConfig {
-    fn from(value: usize) -> Self {
-        match value {
-            0 => PkeV2SupportedHashConfig::V0_4_0,
-            1 => PkeV2SupportedHashConfig::V0_7_0,
-            2 => PkeV2SupportedHashConfig::V0_8_0,
-            _ => panic!("Invalid PkeV2SupportedHashConfig value"),
-        }
-    }
-}
-
 impl From<PkeV2SupportedHashConfig> for usize {
     fn from(value: PkeV2SupportedHashConfig) -> Self {
         match value {
