@@ -124,12 +124,14 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_gpu(
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
     let mut cuda_side_resources: Vec<CudaSideResources> = (0..input_zeros.len())
-        .map(|_| CudaSideResources::new(&streams, cuda_block_info))
+        .map(|_| {
+            CudaSideResources::new_from_noise_squashing_key(
+                &cuda_noise_squashing_key,
+                &streams,
+                cuda_block_info,
+            )
+        })
         .collect();
-    // Configure grouping factor for multi-bit noise squashing parameters (no-op for classic)
-    for r in cuda_side_resources.iter_mut() {
-        r.configure_from_noise_squashing_key(&cuda_noise_squashing_key);
-    }
 
     let input_zero_as_lwe: Vec<_> = input_zeros
         .iter()
@@ -279,12 +281,14 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
     let mut cuda_side_resources: Vec<CudaSideResources> = (0..input_zeros.len())
-        .map(|_| CudaSideResources::new(&streams, cuda_block_info))
+        .map(|_| {
+            CudaSideResources::new_from_noise_squashing_key(
+                &cuda_noise_squashing_key,
+                &streams,
+                cuda_block_info,
+            )
+        })
         .collect();
-    // Configure grouping factor for multi-bit noise squashing parameters (no-op for classic)
-    for r in cuda_side_resources.iter_mut() {
-        r.configure_from_noise_squashing_key(&cuda_noise_squashing_key);
-    }
 
     let input_zero_as_lwe: Vec<_> = input_zeros
         .iter()
@@ -509,12 +513,14 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper_gpu(
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
     let mut cuda_side_resources: Vec<CudaSideResources> = (0..input_zeros.len())
-        .map(|_| CudaSideResources::new(streams, cuda_block_info))
+        .map(|_| {
+            CudaSideResources::new_from_noise_squashing_key(
+                cuda_noise_squashing_key,
+                streams,
+                cuda_block_info,
+            )
+        })
         .collect();
-    // Configure grouping factor for multi-bit noise squashing parameters (no-op for classic)
-    for r in cuda_side_resources.iter_mut() {
-        r.configure_from_noise_squashing_key(cuda_noise_squashing_key);
-    }
 
     let input_zero_as_lwe: Vec<_> = input_zeros
         .iter()

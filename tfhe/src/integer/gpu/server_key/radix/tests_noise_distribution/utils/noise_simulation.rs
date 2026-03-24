@@ -56,30 +56,39 @@ pub struct CudaSideResources {
 }
 
 impl CudaSideResources {
-    pub fn new(streams: &CudaStreams, block_info: CudaBlockInfo) -> Self {
+    pub fn new(sks: &CudaServerKey, streams: &CudaStreams, block_info: CudaBlockInfo) -> Self {
+        let (polynomial_size, multi_bit_grouping_factor) = match &sks.bootstrapping_key {
+            CudaBootstrappingKey::MultiBit(mb_bsk) => (
+                Some(mb_bsk.polynomial_size()),
+                Some(mb_bsk.grouping_factor()),
+            ),
+            _ => (None, None),
+        };
         Self {
             streams: streams.clone(),
             block_info,
-            polynomial_size: None,
-            multi_bit_grouping_factor: None,
+            polynomial_size,
+            multi_bit_grouping_factor,
         }
     }
 
-    /// Populate multi-bit mod switch parameters from the server key's bootstrapping key.
-    /// For classic PBS, this is a no-op.
-    pub fn configure_from_server_key(&mut self, sks: &CudaServerKey) {
-        if let CudaBootstrappingKey::MultiBit(mb_bsk) = &sks.bootstrapping_key {
-            self.polynomial_size = Some(mb_bsk.polynomial_size());
-            self.multi_bit_grouping_factor = Some(mb_bsk.grouping_factor());
-        }
-    }
-
-    /// Populate multi-bit mod switch parameters from the noise squashing key's bootstrapping key.
-    /// For classic noise squashing BSK, this is a no-op.
-    pub fn configure_from_noise_squashing_key(&mut self, nsk: &CudaNoiseSquashingKey) {
-        if let CudaBootstrappingKey::MultiBit(mb_bsk) = &nsk.bootstrapping_key {
-            self.polynomial_size = Some(mb_bsk.polynomial_size());
-            self.multi_bit_grouping_factor = Some(mb_bsk.grouping_factor());
+    pub fn new_from_noise_squashing_key(
+        nsk: &CudaNoiseSquashingKey,
+        streams: &CudaStreams,
+        block_info: CudaBlockInfo,
+    ) -> Self {
+        let (polynomial_size, multi_bit_grouping_factor) = match &nsk.bootstrapping_key {
+            CudaBootstrappingKey::MultiBit(mb_bsk) => (
+                Some(mb_bsk.polynomial_size()),
+                Some(mb_bsk.grouping_factor()),
+            ),
+            _ => (None, None),
+        };
+        Self {
+            streams: streams.clone(),
+            block_info,
+            polynomial_size,
+            multi_bit_grouping_factor,
         }
     }
 }

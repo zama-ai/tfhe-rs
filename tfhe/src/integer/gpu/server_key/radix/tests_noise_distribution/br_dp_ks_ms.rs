@@ -71,9 +71,7 @@ fn sanity_check_encrypt_br_dp_ks_pbs_gpu(meta_params: MetaParameters, filename_s
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
 
-    let mut cuda_side_resources = CudaSideResources::new(&streams, block_info);
-    // Configure grouping factor and other multi-bit params derived from the server key
-    cuda_side_resources.configure_from_server_key(&cuda_sks);
+    let mut cuda_side_resources = CudaSideResources::new(&cuda_sks, &streams, block_info);
 
     type SanityVec = (LweCiphertext<Vec<u64>>, LweCiphertext<Vec<u64>>);
     let mut results: Vec<SanityVec> = Vec::new();
@@ -238,9 +236,7 @@ fn encrypt_br_dp_ks_any_ms_inner_helper_gpu(
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
 
-    let mut cuda_side_resources = CudaSideResources::new(streams, block_info);
-    // Required for multi-bit parameters so that the grouping factor is set before br_dp_ks_any_ms
-    cuda_side_resources.configure_from_server_key(cuda_sks);
+    let mut cuda_side_resources = CudaSideResources::new(cuda_sks, streams, block_info);
 
     let id_lut = cuda_sks.generate_lookup_table(|x| x);
     let d_accumulator = CudaGlweCiphertextList::from_glwe_ciphertext(&id_lut.acc, streams);
@@ -447,9 +443,7 @@ fn noise_check_encrypt_br_dp_ks_ms_noise(meta_params: MetaParameters, filename_s
         atomic_pattern: params.atomic_pattern(),
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
-    let mut side_resources = CudaSideResources::new(&streams, block_info);
-    // Required for multi-bit parameters so that the grouping factor is set before br_dp_ks_any_ms
-    side_resources.configure_from_server_key(&cuda_sks);
+    let mut side_resources = CudaSideResources::new(&cuda_sks, &streams, block_info);
 
     // Check that the circuit is correct with respect to core implementation, i.e. does not crash on
     // dimension checks

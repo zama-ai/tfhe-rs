@@ -92,8 +92,7 @@ fn sanity_check_encrypt_dp_ks_pbs_gpu(meta_params: MetaParameters, filename_suff
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
 
-    let mut cuda_side_resources = CudaSideResources::new(&streams, block_info);
-    cuda_side_resources.configure_from_server_key(&cuda_sks);
+    let mut cuda_side_resources = CudaSideResources::new(&cuda_sks, &streams, block_info);
 
     type SanityVec = (LweCiphertext<Vec<u64>>, LweCiphertext<Vec<u64>>);
     let mut results: Vec<SanityVec> = Vec::new();
@@ -234,8 +233,7 @@ fn encrypt_dp_ks_any_ms_inner_helper_gpu(
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
 
-    let mut cuda_side_resources = CudaSideResources::new(streams, block_info);
-    cuda_side_resources.configure_from_server_key(cuda_sks);
+    let mut cuda_side_resources = CudaSideResources::new(cuda_sks, streams, block_info);
 
     let (input_gpu, after_dp_gpu, after_ks_gpu, after_drift_gpu, after_ms_gpu) = dp_ks_any_ms(
         gpu_sample_input,
@@ -406,8 +404,7 @@ fn noise_check_encrypt_dp_ks_ms_noise_gpu(meta_params: MetaParameters, filename_
             atomic_pattern: params.atomic_pattern(),
             noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
         };
-        let mut side_resources = CudaSideResources::new(&streams, block_info);
-        side_resources.configure_from_server_key(&cuda_sks);
+        let mut side_resources = CudaSideResources::new(&cuda_sks, &streams, block_info);
 
         let (_input, _after_dp, _after_ks, _after_drift, after_ms) = dp_ks_any_ms(
             gpu_sample_input,
