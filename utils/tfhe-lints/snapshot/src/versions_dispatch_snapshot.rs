@@ -5,7 +5,7 @@ use rustc_hir::{Impl, Item, ItemKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self, TyKind};
 use rustc_session::{declare_lint, impl_lint_pass};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use tfhe_lints_common::{get_def_id_from_ty, symbols_list_from_str};
@@ -15,7 +15,7 @@ const VERSIONS_DISPATCH_TRAIT: [&str; 3] =
 const UPGRADE_TRAIT: [&str; 3] = ["tfhe_versionable", "upgrade", "Upgrade"];
 const UPGRADE_STR: &str = "upgrade";
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct VariantMeta {
     pub index: usize,
     pub inner_type_def_path: String,
@@ -23,14 +23,14 @@ pub struct VariantMeta {
     pub type_hash: String,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct UpgradeMeta {
     pub source_def_path: String,
     pub target_def_path: String,
     pub body_hash: String,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct EnumSnapshot {
     pub enum_name: String,
     pub variants: Vec<VariantMeta>,
@@ -114,9 +114,13 @@ fn compute_type_hash<'tcx>(
     args: ty::GenericArgsRef<'tcx>,
 ) -> String {
     let mut hasher = Sha256::new();
-
+    let adt_name = tcx.def_path_str(adt_def.did());
     for variant in adt_def.variants() {
-        let name = tcx.def_path_str(variant.def_id);
+        let variant_name = tcx.def_path_str(variant.def_id);
+        let stripped_variant_name = match variant_name.strip_prefix(&adt_name) {
+            Some(stripped) => stripped.trim_start_matches("::"),
+            None => "",
+        };
         let fields_str: Vec<String> = variant
             .fields
             .iter()
@@ -126,7 +130,11 @@ fn compute_type_hash<'tcx>(
                 format!("{field_name}:{field_ty}")
             })
             .collect();
-        hasher.update(format!("{}:{};", name, fields_str.join(",")));
+        hasher.update(format!(
+            "{}:{};",
+            stripped_variant_name,
+            fields_str.join(",")
+        ));
     }
 
     format!("{:x}", hasher.finalize())
@@ -361,7 +369,109 @@ impl VersionsDispatchSnapshot {
     }
 }
 
+/// This function is doing the classic UI test pattern of running the lint and then loading the
+/// generated JSON snapshot to perform other assertions on the collected data. This ensures the
+/// snapshot contains the expected behavior
 #[test]
 fn ui() {
     dylint_testing::ui_test_example(env!("CARGO_PKG_NAME"), "versions_dispatch_snapshot");
+
+    let json_str = std::fs::read_to_string("lint_enum_snapshots_main.json")
+        .expect("JSON snapshot should exist after lint run");
+    let snapshots: Vec<EnumSnapshot> =
+        serde_json::from_str(&json_str).expect("should be valid JSON");
+
+    // All variants should have non-empty hashes
+    for snap in &snapshots {
+        for v in &snap.variants {
+            assert!(
+                !v.type_hash.is_empty(),
+                "hash should not be empty for {}",
+                v.inner_type_def_path
+            );
+        }
+    }
+
+    // Find snapshots by enum name
+    let my_type = snapshots
+        .iter()
+        .find(|s| s.enum_name == "MyTypeVersions")
+        .expect("MyTypeVersions should exist");
+    let tuple_type = snapshots
+        .iter()
+        .find(|s| s.enum_name == "TupleTypeVersions")
+        .expect("TupleTypeVersions should exist");
+    let renamed = snapshots
+        .iter()
+        .find(|s| s.enum_name == "RenamedVersions")
+        .expect("RenamedVersions should exist");
+
+    // Different field types produce different hashes
+    // MyTypeV0 { _val: u32 } vs MyType { _val: u64 }
+    assert_ne!(
+        my_type.variants[0].type_hash, my_type.variants[1].type_hash,
+        "different field types should produce different hashes"
+    );
+
+    // Same fields, different struct name → same hash
+    // MyTypeV0 { _val: u32 } and RenamedV0 { _val: u32 }
+    assert_eq!(
+        my_type.variants[0].type_hash, renamed.variants[0].type_hash,
+        "renaming a struct should not change its hash"
+    );
+
+    // MyType { _val: u64 } and Renamed { _val: u64 }
+    assert_eq!(
+        my_type.variants[1].type_hash, renamed.variants[1].type_hash,
+        "renaming a struct should not change its hash"
+    );
+
+    // Named struct vs tuple struct with same layout → different hashes
+    // MyTypeV0 { _val: u32, _other_val: u8 } vs TupleTypeV0(u32, u8)
+    assert_ne!(
+        my_type.variants[0].type_hash, tuple_type.variants[0].type_hash,
+        "named and tuple structs with same types should have different hashes (field names differ)"
+    );
+
+    // Renaming a field changes the hash
+    // MyTypeV0 { _val: u32, _other_val: u8 } vs RenamedFieldV0 { _value: u32, _other_val: u8 }
+    let renamed_field = snapshots
+        .iter()
+        .find(|s| s.enum_name == "RenamedFieldVersions")
+        .expect("RenamedFieldVersions should exist");
+    assert_ne!(
+        my_type.variants[0].type_hash, renamed_field.variants[0].type_hash,
+        "renaming a field should change the hash"
+    );
+
+    // Renaming a variant of an enum changes the hash
+    // MyEnumV0 { Alpha(u32), Beta(u64) } vs RenamedVariantEnumV0 { Gamma(u32), Beta(u64) }
+    let my_enum = snapshots
+        .iter()
+        .find(|s| s.enum_name == "MyEnumVersions")
+        .expect("MyEnumVersions should exist");
+    let renamed_variant_enum = snapshots
+        .iter()
+        .find(|s| s.enum_name == "RenamedVariantEnumVersions")
+        .expect("RenamedVariantEnumVersions should exist");
+    assert_ne!(
+        my_enum.variants[0].type_hash, renamed_variant_enum.variants[0].type_hash,
+        "renaming an enum variant should change the hash"
+    );
+
+    // Same struct in a different module → same hash
+    // MyTypeV0 { _val: u32, _other_val: u8 } (root) vs other_module::OtherTypeV0 { _val: u32,
+    // _other_val: u8 }
+    let other_module = snapshots
+        .iter()
+        .find(|s| s.enum_name == "other_module::OtherTypeVersions")
+        .expect("other_module::OtherTypeVersions should exist");
+    assert_eq!(
+        my_type.variants[0].type_hash, other_module.variants[0].type_hash,
+        "same fields in a different module should produce the same hash"
+    );
+    assert_eq!(
+        my_type.variants[1].type_hash, other_module.variants[1].type_hash,
+        "same fields in a different module should produce the same hash"
+    );
 }
