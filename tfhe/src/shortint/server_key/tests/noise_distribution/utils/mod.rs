@@ -40,6 +40,7 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
     DynLwe, DynLweSecretKeyView, DynModSwitchedLwe, DynStandardMultiBitModulusSwitchedCt,
+    PreComputedMultiBitModSwitchCt,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
     write_to_json_file, BoundedLog2Measurement, BoundedMeasurement, ConfidenceInterval,
@@ -657,6 +658,18 @@ impl DecryptionAndNoiseResult {
                 );
                 Self::new_from_plaintext(decrypted_plaintext, expected_msg, encoding)
             }
+            (
+                DynStandardMultiBitModulusSwitchedCt::PreComputed(
+                    precomputed_multi_bit_modulus_switched_ct,
+                ),
+                DynLweSecretKeyView::U64 { key, encoding },
+            ) => {
+                let decrypted_plaintext = decrypt_precomputed_multi_bit_mod_switched_lwe_ciphertext(
+                    key,
+                    precomputed_multi_bit_modulus_switched_ct,
+                );
+                Self::new_from_plaintext(decrypted_plaintext, expected_msg, encoding)
+            }
             _ => panic!(
                 "Incompatible types in \
                 DecryptionAndNoiseResult::new_from_dyn_multi_bit_mod_switched_lwe"
@@ -841,6 +854,54 @@ pub fn expected_pfail_for_precision(
     let measured_std_score = correctness_threshold / measured_std_dev;
 
     statrs::function::erf::erfc(measured_std_score / core::f64::consts::SQRT_2)
+}
+
+pub fn decrypt_precomputed_multi_bit_mod_switched_lwe_ciphertext<KeyCont>(
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    ct: &PreComputedMultiBitModSwitchCt,
+) -> Plaintext<u64>
+where
+    KeyCont: Container<Element = u64>,
+{
+    let mut result: u64 = ct.switched_modulus_input_lwe_body() as u64;
+
+    let log_modulus = ct.log_modulus;
+    let grouping_factor = ct.grouping_factor;
+    let num_monomials = 1usize << grouping_factor.0;
+
+    let shift_to_native = u64::BITS - log_modulus.0 as u32;
+    result <<= shift_to_native;
+
+    for (loop_idx, lwe_key_bits) in lwe_secret_key
+        .as_ref()
+        .chunks_exact(grouping_factor.0)
+        .enumerate()
+    {
+        let selector = {
+            let mut selector = 0usize;
+            for bit in lwe_key_bits.iter() {
+                let bit: usize = (*bit).cast_into();
+                selector <<= 1;
+                selector |= bit;
+            }
+            if selector == 0 {
+                // All key bits are zero: no monomial rotation needed for this group.
+                None
+            } else {
+                // Subtract 1 to align with the iterator that skips ggsw_idx=0.
+                Some(selector - 1)
+            }
+        };
+
+        if let Some(selector) = selector {
+            // Read the pre-computed monomial degree directly from the GPU output.
+            let start = loop_idx * num_monomials + 1;
+            let mod_switched: u64 = ct.mask[start + selector];
+            let mod_switched = mod_switched << shift_to_native;
+            result = result.wrapping_sub(mod_switched);
+        }
+    }
+    Plaintext(result)
 }
 
 pub fn decrypt_multi_bit_mod_switched_lwe_ciphertext<Scalar, CtCont, KeyCont>(

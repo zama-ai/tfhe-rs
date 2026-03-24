@@ -2,7 +2,9 @@ pub use crate::core_crypto::commons::noise_formulas::noise_simulation::*;
 
 use super::traits::{LweGenericBlindRotate128, LweGenericBootstrap};
 use crate::core_crypto::algorithms::glwe_encryption::encrypt_glwe_ciphertext;
-use crate::core_crypto::algorithms::lwe_multi_bit_programmable_bootstrapping::StandardMultiBitModulusSwitchedCt;
+use crate::core_crypto::algorithms::lwe_multi_bit_programmable_bootstrapping::{
+    MultiBitModulusSwitchedLweCiphertext, StandardMultiBitModulusSwitchedCt,
+};
 use crate::core_crypto::algorithms::test::noise_distribution::lwe_encryption_noise::lwe_compact_public_key_encryption_expected_variance;
 use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
 use crate::core_crypto::commons::math::random::Gaussian;
@@ -28,6 +30,7 @@ use crate::core_crypto::entities::{
     GlweCiphertext, GlweCiphertextOwned, LweCiphertext, LweCiphertextOwned, LweCiphertextView,
     LweSecretKeyView, PlaintextList,
 };
+use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
@@ -462,10 +465,48 @@ impl MultiBitModSwitch<DynModSwitchedLwe> for DynLwe {
     }
 }
 
+/// Holds the already-computed modulus-switched values produced by the GPU multi-bit modulus
+pub struct PreComputedMultiBitModSwitchCt {
+    pub body: u64,
+    /// GPU pre-computed modulus-switched monomial degrees for all groups.
+    pub mask: Vec<u64>,
+    pub grouping_factor: LweBskGroupingFactor,
+    pub log_modulus: CiphertextModulusLog,
+}
+
+impl MultiBitModulusSwitchedLweCiphertext for PreComputedMultiBitModSwitchCt {
+    fn lwe_dimension(&self) -> LweDimension {
+        let num_monomials = 1usize << self.grouping_factor.0;
+        let lwe_dimension_multi_bit = self.mask.len() / num_monomials;
+        LweDimension(lwe_dimension_multi_bit * self.grouping_factor.0)
+    }
+
+    fn grouping_factor(&self) -> LweBskGroupingFactor {
+        self.grouping_factor
+    }
+
+    fn switched_modulus_input_lwe_body(&self) -> usize {
+        modulus_switch(self.body, self.log_modulus).cast_into()
+    }
+
+    /// Returns the GPU pre-computed monomial degrees for the given mask group.
+    fn switched_modulus_input_mask_per_group(
+        &self,
+        index: usize,
+    ) -> impl Iterator<Item = usize> + '_ {
+        let num_monomials = 1usize << self.grouping_factor.0;
+        // We skip the index 0
+        let start = index * num_monomials + 1;
+        let end = (index + 1) * num_monomials;
+        self.mask[start..end].iter().map(|&v| v as usize)
+    }
+}
+
 pub enum DynStandardMultiBitModulusSwitchedCt {
     U32(StandardMultiBitModulusSwitchedCt<u32, Vec<u32>>),
     U64(StandardMultiBitModulusSwitchedCt<u64, Vec<u64>>),
     U128(StandardMultiBitModulusSwitchedCt<u128, Vec<u128>>),
+    PreComputed(PreComputedMultiBitModSwitchCt),
 }
 
 impl DynStandardMultiBitModulusSwitchedCt {
@@ -489,6 +530,7 @@ impl DynStandardMultiBitModulusSwitchedCt {
                     .lwe_size()
                     .to_lwe_dimension()
             }
+            Self::PreComputed(ct) => ct.lwe_dimension(),
         }
     }
 
@@ -512,6 +554,7 @@ impl DynStandardMultiBitModulusSwitchedCt {
                     .ciphertext_modulus()
                     .raw_modulus_float()
             }
+            Self::PreComputed(_) => CiphertextModulus::<u64>::new_native().raw_modulus_float(),
         }
     }
 }

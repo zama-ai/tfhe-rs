@@ -309,6 +309,7 @@ pub unsafe fn programmable_bootstrap_multi_bit<T: UnsignedInteger, B: Any + Unsi
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 pub unsafe fn programmable_bootstrap_multi_bit_noise_tests<T: UnsignedInteger>(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaVec<u64>,
@@ -385,6 +386,7 @@ pub unsafe fn programmable_bootstrap_multi_bit_noise_tests<T: UnsignedInteger>(
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 pub unsafe fn programmable_bootstrap_multi_bit_noise_tests_128<T: UnsignedInteger>(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaVec<u128>,
