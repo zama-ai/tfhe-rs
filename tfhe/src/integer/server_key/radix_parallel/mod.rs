@@ -5,6 +5,7 @@ mod bitwise_op;
 mod block_shift;
 pub(crate) mod cmux;
 mod comparison;
+mod count_consecutive_bits;
 mod div_mod;
 mod modulus_switch_compression;
 mod mul;
