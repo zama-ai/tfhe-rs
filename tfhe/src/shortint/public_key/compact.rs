@@ -1,10 +1,13 @@
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::generators::NoiseRandomGenerator;
 use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, XofSeed};
+#[cfg(feature = "zk-pok")]
+use crate::core_crypto::prelude::par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_binary_lwe_secret_key,
     allocate_and_generate_new_seeded_lwe_compact_public_key, generate_lwe_compact_public_key,
-    new_seeder, Cleartext, Container, LweCiphertextCount, LweCompactCiphertextListOwned,
+    new_seeder, par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key, Cleartext,
+    Container, LweCiphertextCount, LweCompactCiphertextListOwned,
     LweCompactPublicKeyConformanceParams, LweCompactPublicKeyOwned, LweSecretKey, Plaintext,
     PlaintextList, SeededLweCompactPublicKeyOwned,
 };
@@ -354,33 +357,14 @@ impl CompactPublicKey {
 
         let encryption_noise_distribution = self.parameters.encryption_noise_distribution;
 
-        // No parallelism allowed
-        #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
-        {
-            use crate::core_crypto::prelude::encrypt_lwe_compact_ciphertext_list_with_compact_public_key;
-            encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
-                &self.key,
-                &mut ct_list,
-                &plaintext_list,
-                encryption_noise_distribution,
-                encryption_noise_distribution,
-                &mut noise_generator,
-            );
-        }
-
-        // Parallelism allowed
-        #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
-        {
-            use crate::core_crypto::prelude::par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key;
-            par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
-                &self.key,
-                &mut ct_list,
-                &plaintext_list,
-                encryption_noise_distribution,
-                encryption_noise_distribution,
-                &mut noise_generator,
-            );
-        }
+        par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
+            &self.key,
+            &mut ct_list,
+            &plaintext_list,
+            encryption_noise_distribution,
+            encryption_noise_distribution,
+            &mut noise_generator,
+        );
 
         let message_modulus = self.parameters.message_modulus;
         Ok(CompactCiphertextList {
@@ -452,28 +436,7 @@ impl CompactPublicKey {
 
             let encryption_noise_distribution = self.parameters.encryption_noise_distribution;
 
-            // No parallelism allowed
-            #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
             let proof = {
-                use crate::core_crypto::prelude::encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key;
-                encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key(
-                    &self.key,
-                    &mut ct_list,
-                    &message_chunk,
-                    delta,
-                    encryption_noise_distribution,
-                    encryption_noise_distribution,
-                    &mut noise_generator,
-                    crs,
-                    metadata,
-                    load,
-                )
-            }?;
-
-            // Parallelism allowed
-            #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
-            let proof = {
-                use crate::core_crypto::prelude::par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key;
                 par_encrypt_and_prove_lwe_compact_ciphertext_list_with_compact_public_key(
                     &self.key,
                     &mut ct_list,
