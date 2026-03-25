@@ -475,11 +475,7 @@ mod tests {
 
 #[cfg(test)]
 mod test_serialization {
-    use serde::{Deserialize, Serialize};
-    use tfhe_safe_serialize::{
-        safe_deserialize, safe_serialize, DeserializationConfig, Named, SerializationConfig,
-    };
-    use tfhe_versionable::Versionize;
+    use tfhe_safe_serialize::{DeserializationConfig, SerializationConfig};
 
     use crate::shortint::parameters::test_params::{
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
