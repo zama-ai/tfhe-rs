@@ -1119,46 +1119,47 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128(
   int max_active_blocks_per_sm;
 
   if (max_shared_memory < partial_sm_cg_accumulate) {
-    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
         (void *)device_multi_bit_programmable_bootstrap_cg_accumulate_128<
             Torus, params, NOSM>,
-        thds, 0);
+        thds, 0));
   } else if (max_shared_memory < full_sm_cg_accumulate) {
     check_cuda_error(cudaFuncSetAttribute(
         device_multi_bit_programmable_bootstrap_cg_accumulate_128<Torus, params,
                                                                   PARTIALSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm_cg_accumulate));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_multi_bit_programmable_bootstrap_cg_accumulate_128<Torus, params,
                                                                   PARTIALSM>,
-        cudaFuncCachePreferShared);
-    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        cudaFuncCachePreferShared));
+    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
         (void *)device_multi_bit_programmable_bootstrap_cg_accumulate_128<
             Torus, params, PARTIALSM>,
-        thds, partial_sm_cg_accumulate);
+        thds, partial_sm_cg_accumulate));
     check_cuda_error(cudaGetLastError());
   } else {
     check_cuda_error(cudaFuncSetAttribute(
         device_multi_bit_programmable_bootstrap_cg_accumulate_128<Torus, params,
                                                                   FULLSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_cg_accumulate));
-    cudaFuncSetCacheConfig(
+    check_cuda_error(cudaFuncSetCacheConfig(
         device_multi_bit_programmable_bootstrap_cg_accumulate_128<Torus, params,
                                                                   FULLSM>,
-        cudaFuncCachePreferShared);
-    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        cudaFuncCachePreferShared));
+    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
         (void *)device_multi_bit_programmable_bootstrap_cg_accumulate_128<
             Torus, params, FULLSM>,
-        thds, full_sm_cg_accumulate);
+        thds, full_sm_cg_accumulate));
     check_cuda_error(cudaGetLastError());
   }
 
   // Get the number of streaming multiprocessors
   int number_of_sm = 0;
-  cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0);
+  check_cuda_error(
+      cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0));
   return number_of_blocks <= max_active_blocks_per_sm * number_of_sm;
 }
 

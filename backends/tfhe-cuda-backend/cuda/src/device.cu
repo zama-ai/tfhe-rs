@@ -326,6 +326,10 @@ void cuda_memcpy_gpu_to_gpu(void *dest, void const *src, uint64_t size,
                             uint32_t gpu_index) {
   if (size == 0)
     return;
+
+  GPU_ASSERT(src != nullptr, "Cuda error: null device ptr");
+  GPU_ASSERT(dest != nullptr, "Cuda error: null device ptr");
+
   cudaPointerAttributes attr_dest;
   check_cuda_error(cudaPointerGetAttributes(&attr_dest, dest));
   PANIC_IF_FALSE(

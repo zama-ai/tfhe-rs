@@ -382,14 +382,17 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
                        ->use_sequential_algorithm_to_resolve_group_carries;
 
     cuda_set_device(0);
-    cudaEventCreateWithFlags(&create_indexes_done, cudaEventDisableTiming);
+    check_cuda_error(
+        cudaEventCreateWithFlags(&create_indexes_done, cudaEventDisableTiming));
     create_indexes_for_overflow_sub(streams.get_ith(0), num_blocks, group_size,
                                     use_seq, allocate_gpu_memory, size_tracker);
-    cudaEventRecord(create_indexes_done, streams.stream(0));
+    check_cuda_error(cudaEventRecord(create_indexes_done, streams.stream(0)));
     cuda_set_device(1);
-    cudaStreamWaitEvent(streams.stream(1), create_indexes_done, 0);
+    check_cuda_error(
+        cudaStreamWaitEvent(streams.stream(1), create_indexes_done, 0));
     cuda_set_device(2);
-    cudaStreamWaitEvent(streams.stream(2), create_indexes_done, 0);
+    check_cuda_error(
+        cudaStreamWaitEvent(streams.stream(2), create_indexes_done, 0));
 
     scatter_indexes_for_overflowing_sub(
         streams.stream(1), streams.gpu_index(1),
@@ -842,7 +845,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     free(second_indexes_for_overflow_sub_gpu_2);
     free(scalars_for_overflow_sub_gpu_2);
 
-    cudaEventDestroy(create_indexes_done);
+    check_cuda_error(cudaEventDestroy(create_indexes_done));
 
     // release sub streams
     sub_streams_1.release();

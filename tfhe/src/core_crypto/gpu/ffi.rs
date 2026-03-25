@@ -40,6 +40,11 @@ pub unsafe fn programmable_bootstrap<T: UnsignedInteger>(
     let lut_stride = 0u32;
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
 
+    assert!(
+        TypeId::of::<T>() == TypeId::of::<u64>(),
+        "CUDA TFHE backend only supports u64 PBS indices and u64 LWE inputs"
+    );
+
     // Initializes as NoReduction and change variables later if otherwise
     let noise_reduction_type = ms_noise_reduction_configuration
         .map_or(PBSMSNoiseReductionType::NoReduction, |_config| {
@@ -221,6 +226,11 @@ pub unsafe fn programmable_bootstrap_multi_bit<T: UnsignedInteger, B: Any + Unsi
     let num_many_lut = 1u32;
     let lut_stride = 0u32;
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
+    assert!(
+        TypeId::of::<T>() == TypeId::of::<u64>(),
+        "CUDA TFHE backend only supports u64 PBS indices and u64 LWE inputs"
+    );
+
     if TypeId::of::<B>() == TypeId::of::<u128>() {
         scratch_cuda_multi_bit_programmable_bootstrap_128_async(
             streams.ptr[0],

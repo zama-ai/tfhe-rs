@@ -784,9 +784,9 @@ __host__ uint64_t scratch_programmable_bootstrap_tbc_128(
       device_programmable_bootstrap_tbc_128<InputTorus, params, FULLSM>,
       cudaFuncAttributeMaxDynamicSharedMemorySize,
       full_sm)); // full_sm + minimum_sm_tbc));
-  cudaFuncSetCacheConfig(
+  check_cuda_error(cudaFuncSetCacheConfig(
       device_programmable_bootstrap_tbc_128<InputTorus, params, FULLSM>,
-      cudaFuncCachePreferShared);
+      cudaFuncCachePreferShared));
   check_cuda_error(cudaFuncSetAttribute(
       device_programmable_bootstrap_tbc_128<InputTorus, params, FULLSM>,
       cudaFuncAttributeNonPortableClusterSizeAllowed, true));
@@ -1271,7 +1271,8 @@ __host__ bool verify_cuda_programmable_bootstrap_128_cg_grid_size(
 
   // Get the number of streaming multiprocessors
   int number_of_sm = 0;
-  cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0);
+  check_cuda_error(
+      cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0));
 
   return number_of_blocks <= max_active_blocks_per_sm * number_of_sm;
 }
