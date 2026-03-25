@@ -1681,49 +1681,43 @@ __host__ __device__ void projective_point_double(G1Projective &result,
 
   // G1 projective doubling using hyperelliptic.org formula
   // For curves y^2 = x^3 + a_4*x + b with a_4 = 0
+  //
+  // Register-optimized: 5 reusable Fp temporaries instead of 17 named
+  // locals. Aliasing safety: fp_mont_mul loads all inputs before writing
+  // output; fp_mul3/4/8 use internal temps before writing to c.
+  Fp t1, t2, t3, t4, t5;
 
-  // A = 3 * X^2
-  Fp X_sq, A;
-  fp_mont_mul(X_sq, p.X, p.X);
-  fp_mul3(A, X_sq);
+  // t1 = A = 3*X^2, t2 = B = Y*Z
+  fp_mont_mul(t1, p.X, p.X);
+  fp_mul3(t1, t1);
+  fp_mont_mul(t2, p.Y, p.Z);
 
-  // B = Y * Z
-  Fp B;
-  fp_mont_mul(B, p.Y, p.Z);
+  // t3 = C = X*Y*B
+  fp_mont_mul(t3, p.X, p.Y);
+  fp_mont_mul(t3, t3, t2);
 
-  // C = X * Y * B
-  Fp XY, C;
-  fp_mont_mul(XY, p.X, p.Y);
-  fp_mont_mul(C, XY, B);
+  // t4 = D = A^2 - 8*C
+  fp_mont_mul(t4, t1, t1);
+  fp_mul8(t5, t3);
+  t4 = t4 - t5;
 
-  // D = A^2 - 8*C
-  Fp A_sq, eight_C;
-  fp_mont_mul(A_sq, A, A);
-  fp_mul8(eight_C, C);
-  Fp D = A_sq - eight_C;
+  // X3 = 2*B*D
+  fp_mont_mul(t5, t2, t4);
+  fp_double(result.X, t5);
 
-  // X3 = 2 * B * D
-  Fp BD;
-  fp_mont_mul(BD, B, D);
-  fp_double(result.X, BD);
+  // Y3 = A*(4*C - D) - 8*Y^2*B^2
+  fp_mul4(t5, t3);
+  t5 = t5 - t4;
+  fp_mont_mul(t3, t1, t5);
+  fp_mont_mul(t1, p.Y, p.Y);
+  fp_mont_mul(t4, t2, t2);
+  fp_mont_mul(t1, t1, t4);
+  fp_mul8(t1, t1);
+  result.Y = t3 - t1;
 
-  // Y3 = A * (4*C - D) - 8 * Y^2 * B^2
-  Fp four_C, A_times_diff;
-  fp_mul4(four_C, C);
-  Fp four_C_minus_D = four_C - D;
-  fp_mont_mul(A_times_diff, A, four_C_minus_D);
-
-  Fp Y_sq, B_sq, Y_sq_B_sq, eight_Y_sq_B_sq;
-  fp_mont_mul(Y_sq, p.Y, p.Y);
-  fp_mont_mul(B_sq, B, B);
-  fp_mont_mul(Y_sq_B_sq, Y_sq, B_sq);
-  fp_mul8(eight_Y_sq_B_sq, Y_sq_B_sq);
-  result.Y = A_times_diff - eight_Y_sq_B_sq;
-
-  // Z3 = 8 * B^3
-  Fp B_cu;
-  fp_mont_mul(B_cu, B_sq, B);
-  fp_mul8(result.Z, B_cu);
+  // Z3 = 8*B^3
+  fp_mont_mul(t1, t4, t2);
+  fp_mul8(result.Z, t1);
 }
 
 // Projective point doubling: result = 2 * p (no inversions!) - G2
@@ -1737,50 +1731,43 @@ __host__ __device__ void projective_point_double(G2Projective &result,
     return;
   }
 
-  // G2 projective doubling (same as G1 but with Fp2)
+  // G2 projective doubling (same formula as G1 but with Fp2)
+  //
+  // Register-optimized: 5 reusable Fp2 temporaries instead of 17 named
+  // locals. Same variable reuse strategy as the G1 version.
+  Fp2 t1, t2, t3, t4, t5;
 
-  // A = 3 * X^2
-  Fp2 X_sq, A;
-  fp2_mont_square(X_sq, p.X);
-  fp2_mul3(A, X_sq);
+  // t1 = A = 3*X^2, t2 = B = Y*Z
+  fp2_mont_square(t1, p.X);
+  fp2_mul3(t1, t1);
+  fp2_mont_mul(t2, p.Y, p.Z);
 
-  // B = Y * Z
-  Fp2 B;
-  fp2_mont_mul(B, p.Y, p.Z);
+  // t3 = C = X*Y*B
+  fp2_mont_mul(t3, p.X, p.Y);
+  fp2_mont_mul(t3, t3, t2);
 
-  // C = X * Y * B
-  Fp2 XY, C;
-  fp2_mont_mul(XY, p.X, p.Y);
-  fp2_mont_mul(C, XY, B);
+  // t4 = D = A^2 - 8*C
+  fp2_mont_square(t4, t1);
+  fp2_mul8(t5, t3);
+  t4 = t4 - t5;
 
-  // D = A^2 - 8*C
-  Fp2 A_sq, eight_C;
-  fp2_mont_square(A_sq, A);
-  fp2_mul8(eight_C, C);
-  Fp2 D = A_sq - eight_C;
+  // X3 = 2*B*D
+  fp2_mont_mul(t5, t2, t4);
+  fp2_double(result.X, t5);
 
-  // X3 = 2 * B * D
-  Fp2 BD;
-  fp2_mont_mul(BD, B, D);
-  fp2_double(result.X, BD);
+  // Y3 = A*(4*C - D) - 8*Y^2*B^2
+  fp2_mul4(t5, t3);
+  t5 = t5 - t4;
+  fp2_mont_mul(t3, t1, t5);
+  fp2_mont_square(t1, p.Y);
+  fp2_mont_square(t4, t2);
+  fp2_mont_mul(t1, t1, t4);
+  fp2_mul8(t1, t1);
+  result.Y = t3 - t1;
 
-  // Y3 = A * (4*C - D) - 8 * Y^2 * B^2
-  Fp2 four_C, A_times_diff;
-  fp2_mul4(four_C, C);
-  Fp2 four_C_minus_D = four_C - D;
-  fp2_mont_mul(A_times_diff, A, four_C_minus_D);
-
-  Fp2 Y_sq, B_sq, Y_sq_B_sq, eight_Y_sq_B_sq;
-  fp2_mont_square(Y_sq, p.Y);
-  fp2_mont_square(B_sq, B);
-  fp2_mont_mul(Y_sq_B_sq, Y_sq, B_sq);
-  fp2_mul8(eight_Y_sq_B_sq, Y_sq_B_sq);
-  result.Y = A_times_diff - eight_Y_sq_B_sq;
-
-  // Z3 = 8 * B^3
-  Fp2 B_cu;
-  fp2_mont_mul(B_cu, B_sq, B);
-  fp2_mul8(result.Z, B_cu);
+  // Z3 = 8*B^3
+  fp2_mont_mul(t1, t4, t2);
+  fp2_mul8(result.Z, t1);
 }
 
 // Explicit template instantiations for projective_scalar_mul (needed by MSM)
