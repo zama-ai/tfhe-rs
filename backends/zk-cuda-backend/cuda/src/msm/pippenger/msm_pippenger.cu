@@ -271,10 +271,9 @@ __global__ void kernel_accumulate_all_windows(
         if (ProjectivePoint::is_infinity(sum)) {
           ProjectivePoint::affine_to_projective(sum, pt);
         } else {
-          ProjectiveType temp;
-          // MIXED ADDITION: projective + affine (saves 3 field muls)
-          ProjectivePoint::mixed_add(temp, sum, pt);
-          ProjectivePoint::point_copy(sum, temp);
+          // In-place mixed addition: projective_mixed_add reads all of p1
+          // before writing any of result, so result==p1 aliasing is safe.
+          ProjectivePoint::mixed_add(sum, sum, pt);
         }
       }
     }
