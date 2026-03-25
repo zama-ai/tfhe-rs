@@ -62,3 +62,29 @@ rules:
             cuda_synchronize_stream(...);
             ...
           }
+
+  - id: tfhe-cuda-unwrapped-cuda-runtime-call
+    message: "CUDA runtime API call is not wrapped in `check_cuda_error(...)`."
+    severity: WARNING
+    languages: [c, cpp]
+    options:
+      generic_ellipsis_max_span: 500
+    paths:
+      include:
+        - "*.cu"
+        - "*.cuh"
+        - "*.cpp"
+        - "*.h"
+      exclude:
+        - backends/tfhe-cuda-backend/cuda/check_cuda.cu # contains cuda checking functions
+        - backends/tfhe-cuda-backend/cuda/include/device.h # contains the cuda_check_error macro (and others)
+    patterns:
+      - pattern: $FUNC(...)
+      - metavariable-regex:
+          metavariable: $FUNC
+          regex: "^cuda[A-Z][A-Za-z0-9]*$" # matches cudaMalloc/cudaMemcpy/... (not project helpers like cuda_set_device)
+      - pattern-not-inside: check_cuda_error(...)
+      - pattern-not-inside: |
+          $FUNC(...);
+          check_cuda_error(cudaGetLastError());
+      - pattern-not-inside: $FUNC(...) == $VAL

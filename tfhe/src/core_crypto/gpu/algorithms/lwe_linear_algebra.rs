@@ -43,7 +43,6 @@ pub fn cuda_lwe_ciphertext_add<Scalar>(
         lhs.ciphertext_modulus(),
         rhs.ciphertext_modulus()
     );
-
     assert_eq!(
         output.ciphertext_modulus(),
         rhs.ciphertext_modulus(),
@@ -51,6 +50,11 @@ pub fn cuda_lwe_ciphertext_add<Scalar>(
         output.ciphertext_modulus(),
         rhs.ciphertext_modulus()
     );
+    assert!(
+        lhs.ciphertext_modulus().is_compatible_with_native_modulus(),
+        "GPU LWE ciphertext cleartext mul currently only supports power of 2 moduli"
+    );
+
     assert_eq!(
         streams.gpu_indexes[0],
         rhs.0.d_vec.gpu_index(0),
@@ -268,6 +272,19 @@ pub fn cuda_lwe_ciphertext_negate<Scalar>(
         output.lwe_ciphertext_count()
     );
     assert_eq!(
+        output.ciphertext_modulus(),
+        input.ciphertext_modulus(),
+        "Mismatched moduli between output ({:?}) and input ({:?}) LweCiphertext",
+        output.ciphertext_modulus(),
+        input.ciphertext_modulus()
+    );
+    assert!(
+        input
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "GPU LWE ciphertext cleartext mul currently only supports power of 2 moduli"
+    );
+    assert_eq!(
         streams.gpu_indexes[0],
         input.0.d_vec.gpu_index(0),
         "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
@@ -302,6 +319,10 @@ pub fn cuda_lwe_ciphertext_negate_assign<Scalar>(
 ) where
     Scalar: UnsignedInteger,
 {
+    assert!(
+        ct.ciphertext_modulus().is_compatible_with_native_modulus(),
+        "GPU LWE ciphertext cleartext mul currently only supports power of 2 moduli"
+    );
     assert_eq!(
         streams.gpu_indexes[0],
         ct.0.d_vec.gpu_index(0),
@@ -423,6 +444,11 @@ pub fn cuda_lwe_ciphertext_cleartext_mul_assign<Scalar>(
         ct.lwe_ciphertext_count(),
         cleartext.len()
     );
+    assert!(
+        lhs.ciphertext_modulus().is_compatible_with_native_modulus(),
+        "GPU LWE ciphertext cleartext mul currently only supports power of 2 moduli"
+    );
+
     let num_samples = u32::try_from(ct.lwe_ciphertext_count().0).unwrap();
     let lwe_dimension = ct.lwe_dimension();
 

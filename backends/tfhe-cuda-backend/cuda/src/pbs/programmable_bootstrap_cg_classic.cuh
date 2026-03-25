@@ -373,7 +373,8 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
 
   // Get the number of streaming multiprocessors
   int number_of_sm = 0;
-  cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0);
+  check_cuda_error(
+      cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0));
   return number_of_blocks <= max_active_blocks_per_sm * number_of_sm;
 }
 
