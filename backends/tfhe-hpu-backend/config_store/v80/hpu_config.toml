@@ -11,9 +11,10 @@
   #hpu_path="${HPU_BACKEND_DIR}/config_store/v80_archives/psi64_tput.hpu"
   #hpu_path="${HPU_BACKEND_DIR}/config_store/v80_archives/psi16_mhdma.hpu"
   #hpu_path="${HPU_BACKEND_DIR}/config_store/v80_archives/psi16_mhdma_isc.hpu"
-  hpu_path="${HPU_BACKEND_DIR}/config_store/v80_archives/psi16_mhdma_isc_trace.hpu"
+  #hpu_path="${HPU_BACKEND_DIR}/config_store/v80_archives/psi16_mhdma_isc_trace.hpu"
   #hpu_path="${HPU_BACKEND_DIR}/config_store/v80_archives/psi64_mhdma.hpu"
   #hpu_path="${HPU_BACKEND_DIR}/config_store/v80_archives/psi64_mhdma_oldfw.hpu"
+  hpu_path="${HPU_BACKEND_DIR}/config_store/v80_archives/baroux_psi64.hpu"
   ami_path="${AMI_PATH}/ami.ko"
 
 [rtl]
@@ -79,8 +80,8 @@
   trace_depth = 2 # In MB
 
 [firmware]
-  implementation = "Ilp"
-  integer_w=[8,16,32]
+  implementation = "Llt"
+  integer_w=[8,16,32,64]
   min_batch_size = 12
   kogge_cfg            = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/kogge_cfg.toml"
 
