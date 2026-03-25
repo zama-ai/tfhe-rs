@@ -20,7 +20,8 @@ set(ZK_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../src)
 set(ZK_PRIMITIVES_DIR ${ZK_SRC_DIR}/primitives)
 
 # Build device library from tfhe-cuda-backend
-add_library(tfhe_device STATIC ${TFHE_CUDA_BACKEND_DIR}/src/device.cu)
+add_library(tfhe_device STATIC ${TFHE_CUDA_BACKEND_DIR}/src/device.cu
+                               ${TFHE_CUDA_BACKEND_DIR}/src/utils/helper_profile.cu)
 set_target_properties(
   tfhe_device
   PROPERTIES CUDA_SEPARABLE_COMPILATION ON
