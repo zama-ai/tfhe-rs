@@ -981,7 +981,7 @@ mod cuda {
 
                         let shortint_params: PBSParameters = *param_fhe;
 
-                        write_to_json::<u64, _>(
+                        write_to_json_unchecked::<u64, _>(
                             &bench_id,
                             shortint_params,
                             param_name,
