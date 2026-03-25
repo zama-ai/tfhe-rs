@@ -1170,10 +1170,16 @@ impl CompactCiphertextListBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::conformance::ListSizeConstraint;
+    use crate::high_level_api::{generate_keys, ConfigBuilder};
     use crate::prelude::*;
-    use crate::shortint::parameters::*;
-    use crate::{set_server_key, FheBool, FheInt64, FheUint16, FheUint2, FheUint32};
+    use crate::shortint::parameters::{PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128, *};
+    use crate::{
+        set_server_key, CompactCiphertextList, CompactCiphertextListConformanceParams,
+        CompactPublicKey, FheBool, FheInt64, FheUint16, FheUint2, FheUint32, FheUint8,
+    };
     use rand::{thread_rng, Rng};
+    use tfhe_safe_serialize::{DeserializationConfig, SerializationConfig};
 
     #[cfg(feature = "gpu")]
     use crate::CompressedServerKey;
@@ -1975,19 +1981,6 @@ mod tests {
             assert!(expander.get::<FheAsciiString>(0).is_err());
         }
     }
-}
-
-#[cfg(test)]
-mod test_serialization {
-    use crate::conformance::ListSizeConstraint;
-    use crate::high_level_api::{generate_keys, ConfigBuilder};
-    use crate::prelude::*;
-    use crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128;
-    use crate::{
-        set_server_key, CompactCiphertextList, CompactCiphertextListConformanceParams,
-        CompactPublicKey, FheUint8,
-    };
-    use tfhe_safe_serialize::{DeserializationConfig, SerializationConfig};
 
     fn test_safe_deserialization_ct_list(is_packed: bool) {
         let (client_key, sks) = generate_keys(ConfigBuilder::default().build());

@@ -319,10 +319,13 @@ mod tests {
         TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
         TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
     };
     use crate::shortint::public_key::compact::CompactPrivateKey;
-    use crate::shortint::CiphertextModulus;
+    use crate::shortint::{gen_keys, Ciphertext, CiphertextModulus};
+
+    use tfhe_safe_serialize::{DeserializationConfig, SerializationConfig};
 
     #[test]
     fn test_clone_from_same_lwe_size_and_modulus_ci_run_filter() {
@@ -471,17 +474,6 @@ mod tests {
             assert_eq!(dec, msg);
         }
     }
-}
-
-#[cfg(test)]
-mod test_serialization {
-    use tfhe_safe_serialize::{DeserializationConfig, SerializationConfig};
-
-    use crate::shortint::parameters::test_params::{
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-    };
-    use crate::shortint::{gen_keys, Ciphertext};
 
     #[test]
     fn safe_deserialization_ct_unversioned_ci_run_filter() {
