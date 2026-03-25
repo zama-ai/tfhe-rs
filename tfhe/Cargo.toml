@@ -93,6 +93,7 @@ getrandom = { workspace = true, optional = true }
 bytemuck = { workspace = true }
 
 tfhe-hpu-backend = { version = "0.4", path = "../backends/tfhe-hpu-backend", optional = true }
+arrayvec = "0.7.6"
 
 [features]
 default = ["avx512"]
