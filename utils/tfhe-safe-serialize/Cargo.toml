@@ -18,4 +18,4 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 [dependencies]
 bincode.workspace = true
 serde.workspace = true
-tfhe-versionable.workspace = true
+tfhe-versionable = { version = "0.7.0", path = "../tfhe-versionable" }

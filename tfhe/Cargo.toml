@@ -80,7 +80,7 @@ rand_core = { version = "0.6.4", features = ["std"] }
 strum = { version = "0.27", features = ["derive"], optional = true }
 tfhe-zk-pok = { version = "0.8.1", path = "../tfhe-zk-pok", optional = true }
 tfhe-versionable = { version = "0.7.0", path = "../utils/tfhe-versionable" }
-tfhe-safe-serialize.workspace = true
+tfhe-safe-serialize = { version = "0.1.0", path = "../utils/tfhe-safe-serialize" }
 
 # wasm deps
 wasm-bindgen = { workspace = true, features = [
