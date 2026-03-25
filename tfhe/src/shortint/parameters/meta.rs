@@ -180,7 +180,10 @@ pub enum NoiseDistributionKind {
 
 impl From<NoiseDistributionKind> for usize {
     fn from(value: NoiseDistributionKind) -> Self {
-        value as Self
+        match value {
+            NoiseDistributionKind::Gaussian => 0,
+            NoiseDistributionKind::TUniform => 1,
+        }
     }
 }
 
