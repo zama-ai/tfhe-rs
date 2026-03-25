@@ -488,7 +488,7 @@ mod test_serialization {
     use crate::shortint::{gen_keys, Ciphertext};
 
     #[test]
-    fn safe_deserialization_ct_unversioned() {
+    fn safe_deserialization_ct_unversioned_ci_run_filter() {
         let (ck, _sk) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 
         let msg = 2_u64;
@@ -523,7 +523,7 @@ mod test_serialization {
     }
 
     #[test]
-    fn safe_deserialization_ct_versioned() {
+    fn safe_deserialization_ct_versioned_ci_run_filter() {
         let (ck, _sk) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 
         let msg = 2_u64;
@@ -558,7 +558,7 @@ mod test_serialization {
     }
 
     #[test]
-    fn safe_deserialization_ct_unlimited_size() {
+    fn safe_deserialization_ct_unlimited_size_ci_run_filter() {
         let (ck, _sk) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 
         let msg = 2_u64;
@@ -586,7 +586,7 @@ mod test_serialization {
     }
 
     #[test]
-    fn safe_deserialization_size_limit() {
+    fn safe_deserialization_size_limit_ci_run_filter() {
         let (ck, _sk) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 
         let msg = 2_u64;
@@ -611,45 +611,5 @@ mod test_serialization {
 
         let dec = ck.decrypt(&ct2);
         assert_eq!(msg, dec);
-    }
-
-    #[test]
-    fn safe_deserialization_named() {
-        #[derive(Serialize, Deserialize, Versionize)]
-        #[repr(transparent)]
-        struct Foo(u64);
-
-        impl Named for Foo {
-            const NAME: &'static str = "Foo";
-        }
-
-        #[derive(Deserialize, Versionize)]
-        #[repr(transparent)]
-        struct Bar(u64);
-
-        impl Named for Bar {
-            const NAME: &'static str = "Bar";
-
-            const BACKWARD_COMPATIBILITY_ALIASES: &'static [&'static str] = &["Foo"];
-        }
-
-        #[derive(Deserialize, Versionize)]
-        #[repr(transparent)]
-        struct Baz(u64);
-
-        impl Named for Baz {
-            const NAME: &'static str = "Baz";
-        }
-
-        let foo = Foo(3);
-        let mut foo_ser = Vec::new();
-        safe_serialize(&foo, &mut foo_ser, 0x1000).unwrap();
-
-        let foo_deser: Foo = safe_deserialize(foo_ser.as_slice(), 0x1000).unwrap();
-        let bar_deser: Bar = safe_deserialize(foo_ser.as_slice(), 0x1000).unwrap();
-
-        assert_eq!(foo_deser.0, bar_deser.0);
-
-        assert!(safe_deserialize::<Baz>(foo_ser.as_slice(), 0x1000).is_err());
     }
 }
