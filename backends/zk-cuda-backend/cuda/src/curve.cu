@@ -1546,20 +1546,19 @@ __host__ __device__ void projective_mixed_add(G1Projective &result,
     return;
   }
 
-  // Mixed addition: p2.Z is implicitly 1
-  // Simplified formulas when Z2=1:
-  // Y1Z2 = Y1 (skip mul), X1Z2 = X1 (skip mul), Z1Z2 = Z1 (skip mul)
-  Fp u, uu, v, vv, vvv, R, A;
+  // Mixed addition with Z2=1, using 5 reusable Fp temporaries (u, v, t1,
+  // t2, t3) instead of 12+ named locals. Variables are reused once their
+  // original value is no longer needed, reducing peak register liveness.
+  //
+  // Aliasing safety: fp_mont_mul(c, a, b) loads all of a into registers
+  // (a0-a6) before any write to c, so c==a and c==b are both safe.
+  Fp u, v, t1, t2, t3;
 
-  // u = Y2 * Z1 - Y1 (since Y1Z2 = Y1 when Z2=1)
-  Fp Y2Z1;
-  fp_mont_mul(Y2Z1, p2.y, p1.Z);
-  u = Y2Z1 - p1.Y;
-
-  // v = X2 * Z1 - X1 (since X1Z2 = X1 when Z2=1)
-  Fp X2Z1;
-  fp_mont_mul(X2Z1, p2.x, p1.Z);
-  v = X2Z1 - p1.X;
+  // u = Y2*Z1 - Y1, v = X2*Z1 - X1 (Z2=1 so Y1Z2=Y1, X1Z2=X1)
+  fp_mont_mul(t1, p2.y, p1.Z);
+  u = t1 - p1.Y;
+  fp_mont_mul(t1, p2.x, p1.Z);
+  v = t1 - p1.X;
 
   // Check if this is actually a doubling case (p1 == p2)
   if (fp_is_zero(u) && fp_is_zero(v)) {
@@ -1567,36 +1566,31 @@ __host__ __device__ void projective_mixed_add(G1Projective &result,
     return;
   }
 
-  // uu = u^2
-  fp_mont_mul(uu, u, u);
-  // vv = v^2
-  fp_mont_mul(vv, v, v);
-  // vvv = v * vv
-  fp_mont_mul(vvv, v, vv);
+  // Compute intermediate powers of v:
+  //   t1 = vv = v^2,  t2 = R = vv*X1,  t3 = vvv = v*vv
+  fp_mont_mul(t1, v, v);
+  fp_mont_mul(t2, t1, p1.X);
+  fp_mont_mul(t3, t1, v);
 
-  // R = vv * X1 (since X1Z2 = X1 when Z2=1)
-  fp_mont_mul(R, vv, p1.X);
-
-  // A = uu * Z1 - vvv - 2*R (since Z1Z2 = Z1 when Z2=1)
-  Fp temp1, two_R;
-  fp_mont_mul(temp1, uu, p1.Z);
-  Fp temp2 = temp1 - vvv;
-  fp_double(two_R, R);
-  A = temp2 - two_R;
+  // t1 = A = uu*Z1 - vvv - 2*R (reuse t1 since vv is no longer needed)
+  fp_mont_mul(t1, u, u);
+  fp_mont_mul(t1, t1, p1.Z);
+  t1 = t1 - t3;
+  Fp two_R;
+  fp_double(two_R, t2);
+  t1 = t1 - two_R;
 
   // X3 = v * A
-  fp_mont_mul(result.X, v, A);
+  fp_mont_mul(result.X, v, t1);
 
-  // Y3 = u * (R - A) - vvv * Y1 (since Y1Z2 = Y1 when Z2=1)
-  Fp R_minus_A = R - A;
-  Fp uR_minus_A;
-  fp_mont_mul(uR_minus_A, u, R_minus_A);
-  Fp vvvY1;
-  fp_mont_mul(vvvY1, vvv, p1.Y);
-  result.Y = uR_minus_A - vvvY1;
+  // Y3 = u*(R - A) - vvv*Y1 (reuse t2 for R-A, then for u*(R-A))
+  t2 = t2 - t1;
+  fp_mont_mul(t2, u, t2);
+  fp_mont_mul(t1, t3, p1.Y);
+  result.Y = t2 - t1;
 
-  // Z3 = vvv * Z1 (since Z1Z2 = Z1 when Z2=1)
-  fp_mont_mul(result.Z, vvv, p1.Z);
+  // Z3 = vvv * Z1
+  fp_mont_mul(result.Z, t3, p1.Z);
 }
 
 // Mixed addition: result = p1 (projective) + p2 (affine) - G2 specialization
@@ -1627,18 +1621,19 @@ __host__ __device__ void projective_mixed_add(G2Projective &result,
     return;
   }
 
-  // Mixed addition: p2.Z is implicitly 1
-  Fp2 u, uu, v, vv, vvv, R, A;
+  // Mixed addition with Z2=1, using 5 reusable Fp2 temporaries (u, v, t1,
+  // t2, t3) instead of 12+ named locals. Same register-pressure reduction
+  // strategy as the G1 version.
+  //
+  // Aliasing safety: fp2_mont_mul reads all of a/b into Fp locals before
+  // writing to c, so c==a and c==b are both safe.
+  Fp2 u, v, t1, t2, t3;
 
-  // u = Y2 * Z1 - Y1
-  Fp2 Y2Z1;
-  fp2_mont_mul(Y2Z1, p2.y, p1.Z);
-  u = Y2Z1 - p1.Y;
-
-  // v = X2 * Z1 - X1
-  Fp2 X2Z1;
-  fp2_mont_mul(X2Z1, p2.x, p1.Z);
-  v = X2Z1 - p1.X;
+  // u = Y2*Z1 - Y1, v = X2*Z1 - X1 (Z2=1)
+  fp2_mont_mul(t1, p2.y, p1.Z);
+  u = t1 - p1.Y;
+  fp2_mont_mul(t1, p2.x, p1.Z);
+  v = t1 - p1.X;
 
   // Check if this is actually a doubling case
   if (fp2_is_zero(u) && fp2_is_zero(v)) {
@@ -1646,34 +1641,31 @@ __host__ __device__ void projective_mixed_add(G2Projective &result,
     return;
   }
 
-  // uu = u^2, vv = v^2, vvv = v * vv
-  fp2_mont_square(uu, u);
-  fp2_mont_square(vv, v);
-  fp2_mont_mul(vvv, v, vv);
+  // Compute intermediate powers of v:
+  //   t1 = vv = v^2,  t2 = R = vv*X1,  t3 = vvv = v*vv
+  fp2_mont_square(t1, v);
+  fp2_mont_mul(t2, t1, p1.X);
+  fp2_mont_mul(t3, t1, v);
 
-  // R = vv * X1
-  fp2_mont_mul(R, vv, p1.X);
-
-  // A = uu * Z1 - vvv - 2*R
-  Fp2 temp1, two_R;
-  fp2_mont_mul(temp1, uu, p1.Z);
-  Fp2 temp2 = temp1 - vvv;
-  fp2_double(two_R, R);
-  A = temp2 - two_R;
+  // t1 = A = uu*Z1 - vvv - 2*R (reuse t1 since vv is no longer needed)
+  fp2_mont_square(t1, u);
+  fp2_mont_mul(t1, t1, p1.Z);
+  t1 = t1 - t3;
+  Fp2 two_R;
+  fp2_double(two_R, t2);
+  t1 = t1 - two_R;
 
   // X3 = v * A
-  fp2_mont_mul(result.X, v, A);
+  fp2_mont_mul(result.X, v, t1);
 
-  // Y3 = u * (R - A) - vvv * Y1
-  Fp2 R_minus_A = R - A;
-  Fp2 uR_minus_A;
-  fp2_mont_mul(uR_minus_A, u, R_minus_A);
-  Fp2 vvvY1;
-  fp2_mont_mul(vvvY1, vvv, p1.Y);
-  result.Y = uR_minus_A - vvvY1;
+  // Y3 = u*(R - A) - vvv*Y1 (reuse t2 for R-A, then for u*(R-A))
+  t2 = t2 - t1;
+  fp2_mont_mul(t2, u, t2);
+  fp2_mont_mul(t1, t3, p1.Y);
+  result.Y = t2 - t1;
 
   // Z3 = vvv * Z1
-  fp2_mont_mul(result.Z, vvv, p1.Z);
+  fp2_mont_mul(result.Z, t3, p1.Z);
 }
 
 // Projective point doubling: result = 2 * p (no inversions!) - G1
