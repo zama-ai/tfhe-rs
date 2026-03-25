@@ -89,7 +89,8 @@ jobs:
     uses: ./.github/workflows/benchmark_gpu_common.yml
     if: inputs.run-gpu-integer-benchmarks
     with:
-      profile: multi-h100-sxm5
+      backend: terraform
+      profile: scaleway-multi-h100-sxm5
       hardware_name: n3-H100-SXM5x8
       command: integer_multi_bit,hlapi_erc20
       op_flavor: fast_default
@@ -103,7 +104,7 @@ jobs:
       JOB_SECRET: ${{ secrets.JOB_SECRET }}
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
-      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL_PRE_PROD }}
 
   run-benchmarks-hpu-integer:
     name: benchmark_documentation/run-benchmarks-hpu-integer
@@ -150,7 +151,8 @@ jobs:
     uses: ./.github/workflows/benchmark_gpu_common.yml
     if: inputs.run-gpu-core-crypto-benchmarks
     with:
-      profile: multi-h100-sxm5
+      backend: terraform
+      profile: scaleway-multi-h100-sxm5
       hardware_name: n3-H100-SXM5x8
       command: pbs, ks_pbs
       bench_type: latency
@@ -163,7 +165,7 @@ jobs:
       JOB_SECRET: ${{ secrets.JOB_SECRET }}
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
-      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL_PRE_PROD }}
 
   generate-svgs-with-benchmarks-run:
     name: benchmark-documentation/generate-svgs-with-benchmarks-run

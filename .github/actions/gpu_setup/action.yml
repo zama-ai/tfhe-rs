@@ -82,10 +82,11 @@ runs:
         sudo apt update
         sudo apt -y install cuda-toolkit-"${TOOLKIT_VERSION}"
 
+# Command to put back in once nvcc check is fixed
+#        find /usr/local -executable -name "nvcc"
     - name: Export CUDA variables
       shell: bash
       run: |
-        find /usr/local -executable -name "nvcc"
         CUDA_PATH=/usr/local/cuda-"${CUDA_VERSION}"
         {
           echo "CUDA_PATH=$CUDA_PATH";

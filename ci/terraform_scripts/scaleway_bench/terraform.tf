@@ -48,7 +48,7 @@ resource "scaleway_instance_security_group" "github_runner" {
 
 resource "scaleway_instance_server" "gpu_bench" {
   project_id = local.project_id
-  image      = "ubuntu_jammy_gpu_os_12"
+  image      = "ba7d8136-7ec3-4efb-8e36-b891a4685a36" # tfhe-rs-ubuntu-noble-cuda
   type       = var.instance_type
   name       = var.instance_label
 
