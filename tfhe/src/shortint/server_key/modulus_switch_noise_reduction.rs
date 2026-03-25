@@ -189,19 +189,7 @@ where
 
         let plaintext_list = PlaintextList::new(InputScalar::ZERO, PlaintextCount(count.0));
 
-        // Parallelism allowed
-        #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
         par_encrypt_lwe_ciphertext_list(
-            secret_key,
-            &mut modulus_switch_zeros,
-            &plaintext_list,
-            lwe_noise_distribution,
-            &mut engine.encryption_generator,
-        );
-
-        // No parallelism allowed
-        #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
-        encrypt_lwe_ciphertext_list(
             secret_key,
             &mut modulus_switch_zeros,
             &plaintext_list,
@@ -249,19 +237,7 @@ where
 
         let plaintext_list = PlaintextList::new(InputScalar::ZERO, PlaintextCount(count.0));
 
-        // Parallelism allowed
-        #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
         par_encrypt_seeded_lwe_ciphertext_list(
-            secret_key,
-            &mut modulus_switch_zeros,
-            &plaintext_list,
-            lwe_noise_distribution,
-            &mut engine.seeder,
-        );
-
-        // No parallelism allowed
-        #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
-        encrypt_seeded_lwe_ciphertext_list(
             secret_key,
             &mut modulus_switch_zeros,
             &plaintext_list,

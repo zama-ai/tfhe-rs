@@ -353,30 +353,16 @@ impl ShortintEngine {
             }
             crate::shortint::PBSParameters::MultiBitPBS(pbs_params) => {
                 let bootstrapping_key =
-                    if cfg!(feature = "__wasm_api") && !cfg!(feature = "parallel-wasm-api") {
-                        // WASM and no parallelism -> sequential generation
-                        allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
-                            in_key,
-                            out_key,
-                            pbs_params.pbs_base_log,
-                            pbs_params.pbs_level,
-                            pbs_params.glwe_noise_distribution,
-                            pbs_params.grouping_factor,
-                            pbs_params.ciphertext_modulus,
-                            &mut self.seeder,
-                        )
-                    } else {
-                        par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
-                            in_key,
-                            out_key,
-                            pbs_params.pbs_base_log,
-                            pbs_params.pbs_level,
-                            pbs_params.glwe_noise_distribution,
-                            pbs_params.grouping_factor,
-                            pbs_params.ciphertext_modulus,
-                            &mut self.seeder,
-                        )
-                    };
+                    par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
+                        in_key,
+                        out_key,
+                        pbs_params.pbs_base_log,
+                        pbs_params.pbs_level,
+                        pbs_params.glwe_noise_distribution,
+                        pbs_params.grouping_factor,
+                        pbs_params.ciphertext_modulus,
+                        &mut self.seeder,
+                    );
 
                 ShortintCompressedBootstrappingKey::MultiBit {
                     seeded_bsk: bootstrapping_key,
@@ -399,27 +385,14 @@ impl ShortintEngine {
         pbs_level: DecompositionLevelCount,
         ciphertext_modulus: CiphertextModulus,
     ) -> SeededLweBootstrapKeyOwned<u64> {
-        if cfg!(feature = "__wasm_api") && !cfg!(feature = "parallel-wasm-api") {
-            // WASM and no parallelism -> sequential generation
-            allocate_and_generate_new_seeded_lwe_bootstrap_key(
-                in_key,
-                out_key,
-                pbs_base_log,
-                pbs_level,
-                glwe_noise_distribution,
-                ciphertext_modulus,
-                &mut self.seeder,
-            )
-        } else {
-            par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
-                in_key,
-                out_key,
-                pbs_base_log,
-                pbs_level,
-                glwe_noise_distribution,
-                ciphertext_modulus,
-                &mut self.seeder,
-            )
-        }
+        par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
+            in_key,
+            out_key,
+            pbs_base_log,
+            pbs_level,
+            glwe_noise_distribution,
+            ciphertext_modulus,
+            &mut self.seeder,
+        )
     }
 }
