@@ -445,7 +445,7 @@ pub fn cuda_lwe_ciphertext_cleartext_mul_assign<Scalar>(
         cleartext.len()
     );
     assert!(
-        lhs.ciphertext_modulus().is_compatible_with_native_modulus(),
+        ct.ciphertext_modulus().is_compatible_with_native_modulus(),
         "GPU LWE ciphertext cleartext mul currently only supports power of 2 moduli"
     );
 
