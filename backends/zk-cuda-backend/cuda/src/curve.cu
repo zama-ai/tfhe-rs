@@ -1523,9 +1523,8 @@ __host__ __device__ void projective_point_add(G2Projective &result,
 // Optimized for when Z2=1: saves 3 field multiplications vs
 // projective+projective This is ~25% faster than converting affine to
 // projective then adding
-__host__ __device__ void projective_mixed_add(G1Projective &result,
-                                              const G1Projective &p1,
-                                              const G1Affine &p2) {
+__host__ __device__ __noinline__ void projective_mixed_add(
+    G1Projective &result, const G1Projective &p1, const G1Affine &p2) {
   // Handle infinity cases
   // Note: All coordinates are in Montgomery form per convention
   if (fp_is_zero(p1.Z)) {
@@ -1596,9 +1595,8 @@ __host__ __device__ void projective_mixed_add(G1Projective &result,
 // Mixed addition: result = p1 (projective) + p2 (affine) - G2 specialization
 // Optimized for when Z2=1: saves 3 field multiplications vs
 // projective+projective
-__host__ __device__ void projective_mixed_add(G2Projective &result,
-                                              const G2Projective &p1,
-                                              const G2Affine &p2) {
+__host__ __device__ __noinline__ void projective_mixed_add(
+    G2Projective &result, const G2Projective &p1, const G2Affine &p2) {
   // Handle infinity cases
   // Note: All coordinates are in Montgomery form per convention
   if (fp2_is_zero(p1.Z)) {
@@ -1671,8 +1669,8 @@ __host__ __device__ void projective_mixed_add(G2Projective &result,
 // Projective point doubling: result = 2 * p (no inversions!) - G1
 // specialization
 // Optimized: uses cached Montgomery constants (host) or computes once (device)
-__host__ __device__ void projective_point_double(G1Projective &result,
-                                                 const G1Projective &p) {
+__host__ __device__ __noinline__ void projective_point_double(
+    G1Projective &result, const G1Projective &p) {
   // Handle infinity
   if (fp_is_zero(p.Z)) {
     result = p;
@@ -1723,8 +1721,8 @@ __host__ __device__ void projective_point_double(G1Projective &result,
 // Projective point doubling: result = 2 * p (no inversions!) - G2
 // specialization
 // Optimized: uses cached Montgomery constants (host) or computes once (device)
-__host__ __device__ void projective_point_double(G2Projective &result,
-                                                 const G2Projective &p) {
+__host__ __device__ __noinline__ void projective_point_double(
+    G2Projective &result, const G2Projective &p) {
   // Handle infinity
   if (fp2_is_zero(p.Z)) {
     result = p;
