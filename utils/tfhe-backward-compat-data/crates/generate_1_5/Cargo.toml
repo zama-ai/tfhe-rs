@@ -10,6 +10,8 @@ license = "BSD-3-Clause-Clear"
 clap = { version = "4.5", features = ["derive"] }
 
 # TFHE-rs
+# 1.5.4 depends on tfhe-csprng 0.8.1 that introduced a prng fix
+# This fix is required to generate the `compressed_xof_key_set` correctly
 tfhe = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.5.4", features = [
     "boolean",
     "integer",

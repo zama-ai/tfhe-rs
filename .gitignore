@@ -34,6 +34,9 @@ node_modules/
 package-lock.json
 utils/wasm-par-mq/examples/*/pkg/
 
+# Commit lock files of backward data generation crates
+!utils/tfhe-backward-compat-data/crates/generate_*/Cargo.lock
+
 # Python .env
 .env
 __pycache__
