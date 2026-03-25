@@ -743,7 +743,11 @@ impl TryFrom<SupportedCompactPkeZkScheme> for CompactPkeZkScheme {
 
 impl From<SupportedCompactPkeZkScheme> for usize {
     fn from(value: SupportedCompactPkeZkScheme) -> Self {
-        value as Self
+        match value {
+            SupportedCompactPkeZkScheme::ZkNotSupported => 0,
+            SupportedCompactPkeZkScheme::V1 => 1,
+            SupportedCompactPkeZkScheme::V2 => 2,
+        }
     }
 }
 
