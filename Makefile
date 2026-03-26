@@ -557,6 +557,11 @@ clippy_versionable: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-versionable -- --no-deps -D warnings
 
+.PHONY: clippy_safe_serialize # Run clippy lints on tfhe-safe-serialize
+clippy_safe_serialize: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p tfhe-safe-serialize -- --no-deps -D warnings
+
 .PHONY: clippy_param_dedup # Run clippy lints on param_dedup tool
 clippy_param_dedup: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
@@ -592,7 +597,7 @@ clippy_test_vectors: install_rs_check_toolchain
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
 clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_zk_pok_wasm clippy_trivium \
-clippy_versionable clippy_tfhe_lints clippy_ws_tests clippy_bench clippy_param_dedup \
+clippy_versionable clippy_safe_serialize clippy_tfhe_lints clippy_ws_tests clippy_bench clippy_param_dedup \
 clippy_test_vectors clippy_backward_compat_data clippy_wasm_par_mq
 
 .PHONY: clippy_fast # Run main clippy targets
@@ -1269,6 +1274,11 @@ test_zk_wasm_x86_compat: build_node_js_api
 test_versionable:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--all-targets -p tfhe-versionable
+
+.PHONY: test_safe_serialize # Run tests for tfhe-safe-serialize subcrate
+test_safe_serialize:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--all-targets -p tfhe-safe-serialize
 
 # The backward compat data folder holds historical binary data but also rust code to generate and load them.
 .PHONY: gen_backward_compat_data # Re-generate backward compatibility data
@@ -2266,6 +2276,7 @@ pcc_batch_6:
 	$(call run_recipe_with_details,clippy_zk_pok_wasm)
 	$(call run_recipe_with_details,clippy_trivium)
 	$(call run_recipe_with_details,clippy_versionable)
+	$(call run_recipe_with_details,clippy_safe_serialize)
 	$(call run_recipe_with_details,clippy_param_dedup)
 	$(call run_recipe_with_details,docs)
 
