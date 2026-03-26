@@ -741,6 +741,16 @@ impl TryFrom<SupportedCompactPkeZkScheme> for CompactPkeZkScheme {
     }
 }
 
+impl From<SupportedCompactPkeZkScheme> for usize {
+    fn from(value: SupportedCompactPkeZkScheme) -> Self {
+        match value {
+            SupportedCompactPkeZkScheme::ZkNotSupported => 0,
+            SupportedCompactPkeZkScheme::V1 => 1,
+            SupportedCompactPkeZkScheme::V2 => 2,
+        }
+    }
+}
+
 #[cfg(feature = "zk-pok")]
 impl From<CompactPkeZkScheme> for SupportedCompactPkeZkScheme {
     fn from(value: CompactPkeZkScheme) -> Self {

@@ -1,11 +1,10 @@
 use std::ops::RangeInclusive;
 
 use serde::{Deserialize, Serialize};
+use tfhe_safe_serialize::{EnumSet, Named};
 use tfhe_versionable::Versionize;
 
-use crate::conformance::EnumSet;
-use crate::core_crypto::prelude::{CastInto, UnsignedInteger};
-use crate::named::Named;
+use crate::core_crypto::prelude::UnsignedInteger;
 use crate::shortint::backward_compatibility::parameters::{
     DedicatedCompactPublicKeyParametersVersions, MetaParametersVersions,
     ReRandomizationConfigurationVersions,
@@ -179,9 +178,12 @@ pub enum NoiseDistributionKind {
     TUniform = 1,
 }
 
-impl CastInto<usize> for NoiseDistributionKind {
-    fn cast_into(self) -> usize {
-        self as usize
+impl From<NoiseDistributionKind> for usize {
+    fn from(value: NoiseDistributionKind) -> Self {
+        match value {
+            NoiseDistributionKind::Gaussian => 0,
+            NoiseDistributionKind::TUniform => 1,
+        }
     }
 }
 
@@ -409,12 +411,6 @@ impl Default for AtomicPatternChoice {
 #[derive(Copy, Clone, Debug)]
 pub struct CompactPkeZkSchemeChoice(EnumSet<SupportedCompactPkeZkScheme>);
 
-impl CastInto<usize> for SupportedCompactPkeZkScheme {
-    fn cast_into(self) -> usize {
-        self as usize
-    }
-}
-
 impl CompactPkeZkSchemeChoice {
     pub fn new() -> Self {
         Self(EnumSet::new())
@@ -457,12 +453,6 @@ impl Default for CompactPkeZkSchemeChoice {
 
 #[derive(Copy, Clone, Debug)]
 pub struct PkeKeyswitchTargetChoice(EnumSet<EncryptionKeyChoice>);
-
-impl CastInto<usize> for EncryptionKeyChoice {
-    fn cast_into(self) -> usize {
-        self as usize
-    }
-}
 
 impl PkeKeyswitchTargetChoice {
     pub fn new() -> Self {
