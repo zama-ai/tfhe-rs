@@ -186,6 +186,11 @@ impl ServerKey {
         Ct: IntegerRadixCiphertext,
         Key: Decomposable + CastInto<usize> + Ord,
     {
+        if map.is_empty() {
+            let zero = self.create_trivial_zero_radix(encrypted_key.blocks().len());
+            return (zero, self.create_trivial_boolean_block(false), vec![]);
+        }
+
         let selectors =
             self.compute_equality_selectors(encrypted_key, map.par_iter_keys().copied());
 
@@ -279,6 +284,10 @@ impl ServerKey {
         Ct: IntegerRadixCiphertext,
         Key: Decomposable + CastInto<usize> + Ord,
     {
+        if map.is_empty() {
+            return self.create_trivial_boolean_block(false);
+        }
+
         let selectors =
             self.compute_equality_selectors(encrypted_key, map.par_iter_keys().copied());
 
