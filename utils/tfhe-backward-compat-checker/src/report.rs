@@ -4,7 +4,7 @@ use crate::diff::DiffEntry;
 /// Returns an empty string if there are no changes.
 pub fn build_diff_report(entries: &[DiffEntry]) -> String {
     if entries.is_empty() {
-        return String::new();
+        return ":white_check_mark: **Backward-compat snapshot: everything looks good! No backward-compatibility issues detected.**".to_string();
     }
 
     let (errors, warnings, neutral) = DiffEntry::split_by_severity(entries);
