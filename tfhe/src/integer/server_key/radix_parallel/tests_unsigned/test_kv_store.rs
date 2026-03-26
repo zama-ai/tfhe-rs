@@ -128,6 +128,23 @@ fn default_kv_store_get_update_test<P, T1, T2>(
     kv_store_get.setup(&cks, sks.clone());
     kv_store_update.setup(&cks, sks);
 
+    // Test on an empty store
+    {
+        let mut empty_map: KVStore<KeyType, RadixCiphertext> = KVStore::new();
+        let key = rand::random::<u8>();
+        let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
+
+        let (result, is_some) = kv_store_get.execute((&empty_map, &encrypted_key));
+        assert!(!cks.decrypt_bool(&is_some));
+        assert_eq!(cks.decrypt::<u64>(&result), 0);
+
+        let new_value = rand::random::<u64>() % modulus;
+        let encrypted_new_value: RadixCiphertext = cks.encrypt(new_value);
+        let is_some =
+            kv_store_update.execute((&mut empty_map, &encrypted_key, &encrypted_new_value));
+        assert!(!cks.decrypt_bool(&is_some));
+    }
+
     let num_keys = 20usize;
     let (mut map, mut clear_store) = create_filled_stores(num_keys, modulus, &cks);
 
@@ -196,6 +213,16 @@ where
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     kv_store_map.setup(&cks, sks);
+
+    // Test on an empty store
+    {
+        let mut empty_map: KVStore<KeyType, RadixCiphertext> = KVStore::new();
+        let key = rand::random::<u8>();
+        let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
+        let identity: &dyn Fn(RadixCiphertext) -> RadixCiphertext = &|x| x;
+        let (_, _, is_some) = kv_store_map.execute((&mut empty_map, &encrypted_key, identity));
+        assert!(!cks.decrypt_bool(&is_some));
+    }
 
     let num_keys = 20usize;
     let (mut map, mut clear_store) = create_filled_stores(num_keys, modulus, &cks);
