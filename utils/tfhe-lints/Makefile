@@ -8,11 +8,13 @@ require = $(if $($(1)),,$(error $(1) is required. Usage: make $@ $(1)=<value>))
 LINT_TFHE_ARGS        := -p tfhe -- --features=boolean,shortint,integer,strings,zk-pok
 LINT_TFHE_ZK_POK_ARGS := -p tfhe-zk-pok -- --features=experimental
 LINT_TFHE_CSPRNG_ARGS := -p tfhe-csprng -- --all-features
+LINT_TFHE_SAFE_SERIALIZE_ARGS := -p tfhe-safe-serialize
 
 # Lookup crate args from CRATE name, $(1) = crate name
 crate-args = $(if $(filter tfhe,$(1)),$(LINT_TFHE_ARGS),\
              $(if $(filter tfhe-zk-pok,$(1)),$(LINT_TFHE_ZK_POK_ARGS),\
              $(if $(filter tfhe-csprng,$(1)),$(LINT_TFHE_CSPRNG_ARGS),\
+             $(if $(filter tfhe-safe-serialize,$(1)),$(LINT_TFHE_SAFE_SERIALIZE_ARGS),\
              $(error Unknown crate: $(1). Expected: tfhe, tfhe-zk-pok, tfhe-csprng))))
 
 # $(1) = dylint lib name, $(2) = optional TFHE_BACKWARD_COMPAT_DATA_DIR
@@ -25,6 +27,7 @@ define run-all-crates
 	$(call run-dylint,$(1),$(2)) $(LINT_TFHE_ARGS)
 	$(call run-dylint,$(1),$(2)) $(LINT_TFHE_ZK_POK_ARGS)
 	$(call run-dylint,$(1),$(2)) $(LINT_TFHE_CSPRNG_ARGS)
+	$(call run-dylint,$(1),$(2)) $(LINT_TFHE_SAFE_SERIALIZE_ARGS)
 endef
 
 .PHONY: install_cargo_dylint # Install custom tfhe-rs lints
