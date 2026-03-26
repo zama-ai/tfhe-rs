@@ -8,6 +8,10 @@ This document explains how to implement the zero-knowledge proofs function for c
 You can enable this feature using the flag: `--features=zk-pok` when building **TFHE-rs**.
 {% endhint %}
 
+{% hint style="info" %}
+For GPU-accelerated proof generation and verification, see [GPU ZK-PoKs](../../configuration/gpu-acceleration/zk-pok.md).
+{% endhint %}
+
 To use this feature, you must first generate a **CRS** (Common Reference String). The CRS is a piece of cryptographic data that is necessary to ensure the security of zero-knowledge proofs. The CRS should be generated in advance and shared between all the clients and the server. A CRS can be reused for multiple encryptions with the same parameters.
 
 Once the CRS is generated, using zero-knowledge proofs is straightforward: during encryption, the client generates the proof, and the server validates it before performing any homomorphic computations.

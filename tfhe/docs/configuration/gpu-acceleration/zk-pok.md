@@ -13,14 +13,14 @@ In both cases proof verification and compact ciphertext expansion are independen
 
 {% hint style="info" %}
 For GPU-accelerated **expansion only** (stable), build with:
-```
+```shell
 --features=zk-pok,gpu
 ```
 {% endhint %}
 
 {% hint style="warning" %}
 For GPU-accelerated **proof generation and verification** (experimental), build with:
-```
+```shell
 --features=gpu-experimental-zk
 ```
 This feature implies `gpu` and `zk-pok`, so you do not need to specify them separately. It requires a CUDA-capable GPU. This feature is experimental and should not be used in production.
