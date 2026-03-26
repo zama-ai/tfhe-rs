@@ -40,6 +40,7 @@ where
         )
     };
 
+    let bench_id_contains_key;
     let bench_id_get;
     let bench_id_update;
     let bench_id_map;
@@ -59,6 +60,13 @@ where
 
             let value = rng.gen::<u128>();
             let value_to_add = Value::encrypt(value, cks);
+
+            bench_id_contains_key = format_id_bench("contains_key");
+            bench_group.bench_function(&bench_id_contains_key, |b| {
+                b.iter(|| {
+                    let _ = kv_store.contains_key(&encrypted_key);
+                })
+            });
 
             bench_id_get = format_id_bench("get");
             bench_group.bench_function(&bench_id_get, |b| {
@@ -136,6 +144,15 @@ where
 
             bench_group.throughput(Throughput::Elements(elements));
 
+            bench_id_contains_key = format_id_bench("contains_key::throughput");
+            bench_group.bench_function(&bench_id_contains_key, |b| {
+                b.iter(|| {
+                    kv_stores.par_iter().for_each(|kv_store| {
+                        kv_store.contains_key(&encrypted_key);
+                    })
+                })
+            });
+
             bench_id_get = format_id_bench("get::throughput");
             bench_group.bench_function(&bench_id_get, |b| {
                 b.iter(|| {
@@ -166,6 +183,7 @@ where
     }
 
     for (bench_id, display_name) in [
+        (bench_id_contains_key, "contains_key"),
         (bench_id_get, "get"),
         (bench_id_update, "update"),
         (bench_id_map, "map"),
