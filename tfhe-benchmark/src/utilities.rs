@@ -1,3 +1,4 @@
+pub use benchmark_spec::{get_bench_type, BenchmarkType};
 use benchmark_spec::{Backend, BenchmarkSpec, OperandType};
 use criterion::Criterion;
 use serde::Serialize;
