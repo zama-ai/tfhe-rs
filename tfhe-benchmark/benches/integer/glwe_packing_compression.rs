@@ -499,7 +499,7 @@ mod cuda {
             private_compression_key,
             bit_size: 0,
         };
-        for bit_size in default_config(&comp_param.lwe_per_glwe(), &param.message_modulus()) {
+        for bit_size in default_config(&comp_param.lwe_per_glwe(), &param.message_modulus) {
             config.bit_size = bit_size;
             execute_gpu_glwe_packing(c, config.clone());
         }
@@ -520,7 +520,7 @@ mod cuda {
             cks,
             private_compression_key,
         };
-        for bit_size in default_config(&comp_param.lwe_per_glwe(), &param.message_modulus()) {
+        for bit_size in default_config(&comp_param.lwe_per_glwe(), &param.message_modulus) {
             config.bit_size = bit_size;
             execute_gpu_glwe_unpacking(c, config.clone());
         }
