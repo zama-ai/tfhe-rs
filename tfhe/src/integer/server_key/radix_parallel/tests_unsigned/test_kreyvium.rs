@@ -263,3 +263,53 @@ where
         assert_eq!(fhe_output, cpu_output);
     }
 }
+
+// Integration test verifying the correctness of the stateful FHE Kreyvium implementation by
+// comparing consecutive keystream chunks against a cleartext CPU reference.
+//
+pub fn kreyvium_stateful_comparison_test<P, E>(param: P, mut executor: E)
+where
+    P: Into<TestParameters>,
+    E: for<'a> FunctionExecutor<
+        (&'a RadixCiphertext, &'a RadixCiphertext, &'a [usize]),
+        crate::Result<Vec<RadixCiphertext>>,
+    >,
+{
+    let param = param.into();
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, 1));
+    let sks = Arc::new(sks);
+    executor.setup(&cks, sks);
+
+    let step_chunks = vec![64, 128, 64, 192];
+    let total_steps: usize = step_chunks.iter().sum();
+
+    let mut rng = rand::thread_rng();
+
+    let mut key_bits = vec![0u64; 128];
+    let mut iv_bits = vec![0u64; 128];
+
+    for i in 0..128 {
+        key_bits[i] = rng.gen_range(0..2);
+        iv_bits[i] = rng.gen_range(0..2);
+    }
+
+    let ct_key = encrypt_bits(&cks, &key_bits);
+    let ct_iv = encrypt_bits(&cks, &iv_bits);
+
+    let mut ref_kreyvium = KreyviumRef::new(&key_bits, &iv_bits);
+    let mut cpu_output = Vec::with_capacity(total_steps);
+    for _ in 0..total_steps {
+        cpu_output.push(ref_kreyvium.next_bit());
+    }
+
+    let output_radixes = executor.execute((&ct_key, &ct_iv, &step_chunks)).unwrap();
+
+    let mut fhe_output = Vec::new();
+    for out_radix in output_radixes {
+        fhe_output.extend(decrypt_bits(&cks, &out_radix));
+    }
+
+    assert_eq!(fhe_output.len(), cpu_output.len());
+    assert_eq!(fhe_output, cpu_output);
+}
