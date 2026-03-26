@@ -41,6 +41,7 @@ where
     };
 
     let bench_id_contains_key;
+    let bench_id_contains_value;
     let bench_id_get;
     let bench_id_update;
     let bench_id_map;
@@ -65,6 +66,13 @@ where
             bench_group.bench_function(&bench_id_contains_key, |b| {
                 b.iter(|| {
                     let _ = kv_store.contains_key(&encrypted_key);
+                })
+            });
+
+            bench_id_contains_value = format_id_bench("contains_value");
+            bench_group.bench_function(&bench_id_contains_value, |b| {
+                b.iter(|| {
+                    let _ = kv_store.contains_value(&value_to_add);
                 })
             });
 
@@ -153,6 +161,15 @@ where
                 })
             });
 
+            bench_id_contains_value = format_id_bench("contains_value::throughput");
+            bench_group.bench_function(&bench_id_contains_value, |b| {
+                b.iter(|| {
+                    kv_stores.par_iter().for_each(|kv_store| {
+                        kv_store.contains_value(&value_to_add);
+                    })
+                })
+            });
+
             bench_id_get = format_id_bench("get::throughput");
             bench_group.bench_function(&bench_id_get, |b| {
                 b.iter(|| {
@@ -184,6 +201,7 @@ where
 
     for (bench_id, display_name) in [
         (bench_id_contains_key, "contains_key"),
+        (bench_id_contains_value, "contains_value"),
         (bench_id_get, "get"),
         (bench_id_update, "update"),
         (bench_id_map, "map"),
