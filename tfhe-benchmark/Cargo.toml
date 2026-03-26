@@ -84,6 +84,12 @@ harness = false
 required-features = ["integer", "internal-keycache", "pbs-stats"]
 
 [[bench]]
+name = "hlapi-bitonic-shuffle"
+path = "benches/high_level_api/bitonic_shuffle.rs"
+harness = false
+required-features = ["integer", "internal-keycache"]
+
+[[bench]]
 name = "hlapi-erc20"
 path = "benches/high_level_api/erc20.rs"
 harness = false
