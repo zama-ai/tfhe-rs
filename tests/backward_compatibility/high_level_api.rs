@@ -13,7 +13,9 @@ use tfhe::shortint::prelude::LweDimension;
 use tfhe::shortint::{CarryModulus, CiphertextModulus, MessageModulus};
 use tfhe::xof_key_set::CompressedXofKeySet;
 #[cfg(feature = "zk-pok")]
-use tfhe::zk::{CompactPkeCrs, CompactPkeCrsConformanceParams};
+use tfhe::zk::new_compact_pke_crs_conformance_params;
+#[cfg(feature = "zk-pok")]
+use tfhe::zk::CompactPkeCrs;
 #[cfg(feature = "zk-pok")]
 use tfhe::ProvenCompactCiphertextList;
 use tfhe::{
@@ -175,7 +177,8 @@ pub fn test_zk_params(
             zk_scheme: loaded_crs.scheme_version().into(),
         };
         let conformance_params =
-            CompactPkeCrsConformanceParams::new(pke_params, loaded_crs.max_num_messages()).unwrap();
+            new_compact_pke_crs_conformance_params(pke_params, loaded_crs.max_num_messages())
+                .unwrap();
 
         loaded_crs.is_conformant(&conformance_params);
     }

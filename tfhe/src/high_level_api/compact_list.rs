@@ -1170,10 +1170,16 @@ impl CompactCiphertextListBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::conformance::ListSizeConstraint;
+    use crate::high_level_api::{generate_keys, ConfigBuilder};
     use crate::prelude::*;
-    use crate::shortint::parameters::*;
-    use crate::{set_server_key, FheBool, FheInt64, FheUint16, FheUint2, FheUint32};
+    use crate::shortint::parameters::{PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128, *};
+    use crate::{
+        set_server_key, CompactCiphertextList, CompactCiphertextListConformanceParams,
+        CompactPublicKey, FheBool, FheInt64, FheUint16, FheUint2, FheUint32, FheUint8,
+    };
     use rand::{thread_rng, Rng};
+    use tfhe_safe_serialize::{DeserializationConfig, SerializationConfig};
 
     #[cfg(feature = "gpu")]
     use crate::CompressedServerKey;
@@ -1974,5 +1980,189 @@ mod tests {
             // Correct type but wrong number of bits
             assert!(expander.get::<FheAsciiString>(0).is_err());
         }
+    }
+
+    fn test_safe_deserialization_ct_list(is_packed: bool) {
+        let (client_key, sks) = generate_keys(ConfigBuilder::default().build());
+        set_server_key(sks);
+
+        let public_key = CompactPublicKey::new(&client_key);
+
+        let msg = [27u8, 10, 3];
+
+        let mut builder = CompactCiphertextList::builder(&public_key);
+        for value in msg {
+            builder.push(value);
+        }
+
+        let ct_list = if is_packed {
+            builder.build_packed()
+        } else {
+            builder.build()
+        };
+
+        let mut buffer = vec![];
+
+        let config = SerializationConfig::new(1 << 20).disable_versioning();
+
+        let size = config.serialized_size(&ct_list).unwrap();
+        config.serialize_into(&ct_list, &mut buffer).unwrap();
+
+        assert_eq!(size as usize, buffer.len());
+
+        let to_param_set = |list_size_constraint| {
+            let params =
+                CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+                    public_key.parameters(),
+                    list_size_constraint,
+                );
+
+            if is_packed {
+                params
+            } else {
+                params.allow_unpacked()
+            }
+        };
+
+        let wrong_pke_params =
+            CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+                PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128
+                    .try_into()
+                    .unwrap(),
+                ListSizeConstraint::exact_size(3),
+            );
+
+        for param_set in [
+            if is_packed {
+                wrong_pke_params
+            } else {
+                wrong_pke_params.allow_unpacked()
+            },
+            to_param_set(ListSizeConstraint::exact_size(2)),
+            to_param_set(ListSizeConstraint::exact_size(4)),
+            to_param_set(ListSizeConstraint::try_size_in_range(1, 2).unwrap()),
+            to_param_set(ListSizeConstraint::try_size_in_range(4, 5).unwrap()),
+        ] {
+            assert!(DeserializationConfig::new(1 << 20)
+                .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &param_set)
+                .is_err());
+        }
+
+        for len_constraint in [
+            ListSizeConstraint::exact_size(3),
+            ListSizeConstraint::try_size_in_range(2, 3).unwrap(),
+            ListSizeConstraint::try_size_in_range(3, 4).unwrap(),
+            ListSizeConstraint::try_size_in_range(2, 4).unwrap(),
+        ] {
+            let params = to_param_set(len_constraint);
+
+            DeserializationConfig::new(1 << 20)
+                .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &params)
+                .unwrap();
+        }
+
+        let params = to_param_set(ListSizeConstraint::exact_size(3));
+        let ct2 = DeserializationConfig::new(1 << 20)
+            .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &params)
+            .unwrap();
+
+        let mut cts = Vec::with_capacity(3);
+        let expander = ct2.expand().unwrap();
+        for i in 0..3 {
+            cts.push(expander.get::<FheUint8>(i).unwrap().unwrap());
+        }
+
+        let dec: Vec<u8> = cts.iter().map(|a| a.decrypt(&client_key)).collect();
+
+        assert_eq!(&msg[..], &dec);
+    }
+
+    #[test]
+    fn safe_deserialization_ct_list() {
+        test_safe_deserialization_ct_list(false);
+    }
+
+    #[test]
+    fn safe_deserialization_ct_list_packed() {
+        test_safe_deserialization_ct_list(true);
+    }
+
+    #[test]
+    fn safe_deserialization_ct_list_versioned() {
+        let (client_key, sks) = generate_keys(ConfigBuilder::default().build());
+        set_server_key(sks);
+
+        let public_key = CompactPublicKey::new(&client_key);
+
+        let msg = [27u8, 10, 3];
+
+        let ct_list = CompactCiphertextList::builder(&public_key)
+            .push(27u8)
+            .push(10u8)
+            .push(3u8)
+            .build();
+
+        let mut buffer = vec![];
+
+        let config = SerializationConfig::new(1 << 20);
+
+        let size = config.serialized_size(&ct_list).unwrap();
+        config.serialize_into(&ct_list, &mut buffer).unwrap();
+
+        assert_eq!(size as usize, buffer.len());
+
+        let to_param_set = |list_size_constraint| {
+            CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+                public_key.parameters(),
+                list_size_constraint,
+            )
+            .allow_unpacked()
+        };
+
+        for param_set in [
+            CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+                PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128
+                    .try_into()
+                    .unwrap(),
+                ListSizeConstraint::exact_size(3),
+            )
+            .allow_unpacked(),
+            to_param_set(ListSizeConstraint::exact_size(2)),
+            to_param_set(ListSizeConstraint::exact_size(4)),
+            to_param_set(ListSizeConstraint::try_size_in_range(1, 2).unwrap()),
+            to_param_set(ListSizeConstraint::try_size_in_range(4, 5).unwrap()),
+        ] {
+            assert!(DeserializationConfig::new(1 << 20)
+                .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &param_set)
+                .is_err());
+        }
+
+        for len_constraint in [
+            ListSizeConstraint::exact_size(3),
+            ListSizeConstraint::try_size_in_range(2, 3).unwrap(),
+            ListSizeConstraint::try_size_in_range(3, 4).unwrap(),
+            ListSizeConstraint::try_size_in_range(2, 4).unwrap(),
+        ] {
+            let params = to_param_set(len_constraint);
+
+            DeserializationConfig::new(1 << 20)
+                .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &params)
+                .unwrap();
+        }
+
+        let params = to_param_set(ListSizeConstraint::exact_size(3));
+        let ct2 = DeserializationConfig::new(1 << 20)
+            .deserialize_from::<CompactCiphertextList>(buffer.as_slice(), &params)
+            .unwrap();
+
+        let mut cts = Vec::with_capacity(3);
+        let expander = ct2.expand().unwrap();
+        for i in 0..3 {
+            cts.push(expander.get::<FheUint8>(i).unwrap().unwrap());
+        }
+
+        let dec: Vec<u8> = cts.iter().map(|a| a.decrypt(&client_key)).collect();
+
+        assert_eq!(&msg[..], &dec);
     }
 }

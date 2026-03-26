@@ -117,6 +117,16 @@ pub enum PkeV2SupportedHashConfig {
     V0_8_0 = 2,
 }
 
+impl From<PkeV2SupportedHashConfig> for usize {
+    fn from(value: PkeV2SupportedHashConfig) -> Self {
+        match value {
+            PkeV2SupportedHashConfig::V0_4_0 => 0,
+            PkeV2SupportedHashConfig::V0_7_0 => 1,
+            PkeV2SupportedHashConfig::V0_8_0 => 2,
+        }
+    }
+}
+
 const PKEV2_HASH_CONFIG_V0_4_0: PkeV2HashConfig = PkeV2HashConfig {
     mode: PkeV2HashMode::BackwardCompat,
     proven_zero_bits_encoding: PkeV2ProvenZeroBitsEncoding::MsbZeroBitsCountOnly,
