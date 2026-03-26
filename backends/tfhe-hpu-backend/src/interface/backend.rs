@@ -12,6 +12,10 @@ use std::collections::VecDeque;
 use std::str::FromStr;
 use std::sync::{mpsc, Arc, Mutex};
 use strum::VariantNames;
+use zhc::builder::CiphertextSpec;
+use zhc::pipeline::compat::Iop;
+use zhc::sim::hpu::HpuConfig;
+use zhc::sim::{Cycle, MHz};
 
 use tracing::{debug, info, trace};
 
@@ -632,6 +636,67 @@ impl HpuBackend {
     }
 }
 
+pub fn new_config(params: &HpuParameters) -> HpuConfig {
+    // TODO: Add register to depicts the number of computation units (NB: Currently fixed to 1)
+    let total_pbs_nb = params.ntt_params.total_pbs_nb;
+
+    // Extract used parameters for ease of access
+    let batch_pbs = params.ntt_params.batch_pbs_nb;
+    let lwe_k = params.pbs_params.lwe_dimension;
+    let glwe_k = params.pbs_params.glwe_dimension;
+    let poly_size = params.pbs_params.polynomial_size;
+    let pem_axi_w = params.pc_params.pem_pc * params.pc_params.pem_bytes_w * 8;
+    let ct_w = params.ntt_params.ct_width as usize;
+    let lbx = params.ks_params.lbx;
+    let min_batch_size = params.ntt_params.min_pbs_nb.unwrap();
+
+    // Compute some intermediate values
+    let blwe_coefs = (poly_size * glwe_k) + 1;
+    let glwe_coefs = poly_size * (glwe_k + 1);
+    let rpsi = params.ntt_params.radix * params.ntt_params.psi;
+
+    // Cycles required to load a ciphertext in the computation pipe
+    let ct_load_cycles = usize::div_ceil(glwe_coefs * params.pbs_params.pbs_level, rpsi);
+    // Latency of a Cmux for a batch
+    let cmux_lat = ct_load_cycles * batch_pbs;
+
+    // NB: Keyswitch latency is dimension to match roughly the Cmux latency (with lbx coefs in
+    // //) Keep this approximation here
+    let ks_cycles = cmux_lat * lbx;
+
+    let ldst_raw_cycle = (blwe_coefs * ct_w).div_ceil(pem_axi_w);
+    let ldst_cycle = ldst_raw_cycle * 2;
+    let kspbs_rd_cycle = blwe_coefs.div_ceil(params.regf_params.coef_nb);
+    let kspbs_cnst_cost = kspbs_rd_cycle; // write to regfile
+    let kspbs_pbs_cost = (
+        ks_cycles // latency of keyswitch
+        + lwe_k * cmux_lat // Loop of cmux lat
+        + batch_pbs * blwe_coefs.div_ceil(rpsi / 2 /* approx */)
+        //Sample extract latency
+    ) / batch_pbs;
+    HpuConfig {
+        freq: MHz(300),
+        isc_depth: 64,
+        isc_query_period: Cycle(12),
+        mem_fifo_capacity: 8,
+        mem_read_latency: ldst_cycle,
+        mem_write_latency: ldst_cycle + 1,
+        alu_fifo_capacity: 8,
+        alu_read_latency: blwe_coefs,
+        alu_write_latency: blwe_coefs + 1,
+        pbs_fifo_capacity: 8,
+        pbs_memory_capacity: total_pbs_nb,
+        pbs_min_batch_size: min_batch_size,
+        pbs_max_batch_size: batch_pbs,
+        pbs_timeout: Cycle(100_000),
+        pbs_load_unload_latency: kspbs_cnst_cost,
+        pbs_processing_latency_a: kspbs_pbs_cost,
+        pbs_processing_latency_b: kspbs_cnst_cost,
+        pbs_processing_latency_m: min_batch_size,
+        regf_size: 64,
+    }
+}
+
 /// Handle Fw Lut and translation table init
 impl HpuBackend {
     #[tracing::instrument(skip(self, config))]
@@ -701,9 +766,19 @@ impl HpuBackend {
             let mut id_fw = asm::iop::IOP_LIST
                 .par_iter()
                 .map(|iop| {
-                    let opcode = iop.opcode();
-                    let prog = fw.expand(&fw_params, iop);
-                    (opcode.0 as usize, prog.tr_table())
+                    let translation_table = match iop.format().unwrap().name.as_str().parse::<Iop>()
+                    {
+                        Ok(iop) => iop.get_translation_table(
+                            &new_config(&self.params),
+                            CiphertextSpec::new(*integer_w as u16, 2, 2),
+                        ),
+                        Err(()) => {
+                            let prog = fw.expand(&fw_params, iop);
+                            prog.tr_table()
+                        }
+                    };
+
+                    (iop.opcode().0 as usize, translation_table)
                 })
                 .collect::<Vec<_>>();
 
