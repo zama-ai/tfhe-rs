@@ -34,6 +34,44 @@ impl Display for ComputeLoad {
     }
 }
 
+impl From<ComputeLoad> for usize {
+    fn from(value: ComputeLoad) -> Self {
+        match value {
+            ComputeLoad::Proof => 0,
+            ComputeLoad::Verify => 1,
+        }
+    }
+}
+
+pub struct CompactPkeCrsConformanceParams {
+    lwe_dim: usize,
+    max_num_message: usize,
+    noise_bound: u64,
+    ciphertext_modulus: u64,
+    plaintext_modulus: u64,
+    msbs_zero_padding_bit_count: u64,
+}
+
+impl CompactPkeCrsConformanceParams {
+    pub fn new(
+        lwe_dim: usize,
+        max_num_message: usize,
+        noise_bound: u64,
+        ciphertext_modulus: u64,
+        plaintext_modulus: u64,
+        msbs_zero_padding_bit_count: u64,
+    ) -> Self {
+        Self {
+            lwe_dim,
+            max_num_message,
+            noise_bound,
+            ciphertext_modulus,
+            plaintext_modulus,
+            msbs_zero_padding_bit_count,
+        }
+    }
+}
+
 impl<T: ?Sized> OneBased<T> {
     pub fn new(inner: T) -> Self
     where

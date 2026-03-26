@@ -18,6 +18,7 @@ members = [
     "utils/tfhe-backward-compat-checker",
     "utils/tfhe-backward-compat-data",
     "utils/tfhe-backward-compat-data/crates/add_new_version",
+    "utils/tfhe-safe-serialize",
     "utils/tfhe-versionable",
     "utils/tfhe-versionable-derive",
     "utils/wasm-par-mq",

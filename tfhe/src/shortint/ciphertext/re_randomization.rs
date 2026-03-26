@@ -391,9 +391,8 @@ impl CompactPublicKey {
 
         for ct in cts.iter() {
             if key_lwe_size != ct.ct.lwe_size() {
-                let err =
-                    "Mismatched LweSwize between Ciphertext being re-randomized and provided \
-                    KeySwitchingKeyMaterialView.";
+                let err = "Mismatched LweSwize between Ciphertexts \
+                    being re-randomized and provided CompactPublicKey";
                 return Err(crate::error!("{}", err));
             } else if ct.noise_level() > NoiseLevel::NOMINAL {
                 let err = "Tried to re-randomize a Ciphertext with non-nominal NoiseLevel.";

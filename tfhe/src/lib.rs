@@ -124,11 +124,7 @@ pub use high_level_api::*;
 /// cbindgen:ignore
 pub mod keycache;
 
-pub mod safe_serialization;
-
 pub mod conformance;
-
-pub mod named;
 
 pub mod error;
 #[cfg(feature = "zk-pok")]
@@ -144,3 +140,16 @@ pub use tfhe_versionable::{Unversionize, Versionize};
 /// Export tfhe-hpu-backend for external use
 #[cfg(feature = "hpu")]
 pub use tfhe_hpu_backend;
+
+/// Export tfhe-safe-serialize items for external use.
+pub mod safe_serialization {
+    pub use tfhe_safe_serialize::{
+        safe_deserialize, safe_deserialize_conformant, safe_serialize, safe_serialized_size,
+        DeserializationConfig, NonConformantDeserializationConfig, SerializationConfig,
+    };
+}
+
+// Export the Named trait in the expected module.
+pub mod named {
+    pub use tfhe_safe_serialize::Named;
+}

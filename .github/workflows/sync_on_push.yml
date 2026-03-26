@@ -24,6 +24,8 @@ jobs:
           SOURCE_REPO: "zama-ai/tfhe-rs"
           SOURCE_BRANCH: "main"
           DESTINATION_BRANCH: "main"
+          SOURCE_TAGS: "refs/tags/*"
+          DESTINATION_TAGS: "refs/tags/*"
           USERNAME: ${{ secrets.BOT_USERNAME }}
           TOKEN: ${{ secrets.SYNC_REPO_TOKEN }}
           DEST_REPO: ${{ secrets.SYNC_DEST_REPO }}
@@ -33,49 +35,16 @@ jobs:
           git clone --quiet "https://${USERNAME}:${TOKEN}@github.com/${SOURCE_REPO}.git" ./tfhe-rs --origin source && cd ./tfhe-rs
           git remote add destination "https://${USERNAME}:${TOKEN}@github.com/${DEST_REPO}.git"
 
-          # The LFS config disables pulling files by default, so remove it
-          # TODO: see if we need to more precisely fetch LFS files or if git is smart
-          rm .lfsconfig
-
           echo ">>> Fetching all branches references down locally so subsequent commands can see them..."
-          git fetch source '+refs/heads/*:refs/heads/*' --update-head-ok
+          git fetch --all --tags --update-head-ok --quiet
 
-          echo ">>> Print out all branches"
-          git --no-pager branch -a -vv
+          echo ">>> Sync LFS items from source..."
+          ./scripts/lfs_sync.sh source destination "${SOURCE_BRANCH}"
 
-          echo ">>> Pull LFS items from source..."
-          git lfs pull source "${SOURCE_BRANCH}"
-
-          echo ">>> Pushing git changes and LFS content..."
+          echo ">>> Pushing git changes for ${SOURCE_BRANCH}..."
           git push destination "${SOURCE_BRANCH}:${DESTINATION_BRANCH}" -f
 
-          shred --remove .git/config
-
-      - name: git-sync-tags
-        env:
-          SOURCE_REPO: "zama-ai/tfhe-rs"
-          SOURCE_BRANCH: "refs/tags/*"
-          DESTINATION_BRANCH: "refs/tags/*"
-          USERNAME: ${{ secrets.BOT_USERNAME }}
-          TOKEN: ${{ secrets.SYNC_REPO_TOKEN }}
-          DEST_REPO: ${{ secrets.SYNC_DEST_REPO }}
-        run: |
-          echo ">>> Cloning source repo..."
-          git lfs install
-          git clone --quiet "https://${USERNAME}:${TOKEN}@github.com/${SOURCE_REPO}.git" ./tfhe-rs-tag --origin source && cd ./tfhe-rs-tag
-          git remote add destination "https://${USERNAME}:${TOKEN}@github.com/${DEST_REPO}.git"
-
-          # The LFS config disables pulling files by default, so remove it
-          # TODO: see if we need to more precisely fetch LFS files for new tags or if git is smart
-          rm .lfsconfig
-
-          echo ">>> Fetching all branches references down locally so subsequent commands can see them..."
-          git fetch source '+refs/heads/*:refs/heads/*' --update-head-ok
-
-          echo ">>> Print out all branches"
-          git --no-pager branch -a -vv
-
-          echo ">>> Pushing git changes and LFS content..."
-          git push destination "${SOURCE_BRANCH}:${DESTINATION_BRANCH}" -f
+          echo ">>> Pushing git tags..."
+          git push destination "${SOURCE_TAGS}:${DESTINATION_TAGS}" -f
 
           shred --remove .git/config

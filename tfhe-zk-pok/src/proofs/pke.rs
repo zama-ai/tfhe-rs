@@ -14,6 +14,8 @@ use core::marker::PhantomData;
 
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use tfhe_safe_serialize::{EnumSet, Named, ParameterSetConformant};
+use tfhe_versionable::Versionize;
 
 fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
     (0..nbits).map(move |idx| ((x >> idx) & 1) != 0)
@@ -42,6 +44,25 @@ pub struct PublicParams<G: Curve> {
     pub msbs_zero_padding_bit_count: u64,
     pub(crate) sid: Sid,
     pub(crate) domain_separators: PKEv1DomainSeparators,
+}
+
+impl<G: Curve> Named for PublicParams<G> {
+    const NAME: &'static str = "zk::CompactPkePublicParams";
+}
+
+impl<G: Curve> ParameterSetConformant for PublicParams<G> {
+    type ParameterSet = CompactPkeCrsConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        self.k <= self.d
+            && self.d == parameter_set.lwe_dim
+            && self.k == parameter_set.max_num_message
+            && self.b == parameter_set.noise_bound
+            && self.q == parameter_set.ciphertext_modulus
+            && self.t == parameter_set.plaintext_modulus
+            && self.msbs_zero_padding_bit_count == parameter_set.msbs_zero_padding_bit_count
+            && self.is_usable()
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -319,6 +340,52 @@ impl<G: Curve> Proof<G> {
         match self.compute_load_proof_fields {
             Some(_) => ComputeLoad::Proof,
             None => ComputeLoad::Verify,
+        }
+    }
+}
+
+impl<G: Curve> ParameterSetConformant for Proof<G> {
+    type ParameterSet = CompactPkeV1ProofConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        parameter_set
+            .accepted_compute_load
+            .contains(self.compute_load())
+            && self.is_usable()
+    }
+}
+
+#[derive(Copy, Clone)]
+/// Used to explicitly reject [`Proof`] v1 proofs that come with specific config
+pub struct CompactPkeV1ProofConformanceParams {
+    accepted_compute_load: EnumSet<ComputeLoad>,
+}
+
+impl Default for CompactPkeV1ProofConformanceParams {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CompactPkeV1ProofConformanceParams {
+    /// Create new params that accept all proof configurations
+    pub fn new() -> Self {
+        let mut accepted_compute_load = EnumSet::new();
+        accepted_compute_load.insert(ComputeLoad::Proof);
+        accepted_compute_load.insert(ComputeLoad::Verify);
+
+        Self {
+            accepted_compute_load,
+        }
+    }
+
+    /// Forbid proofs coming with the provided [`ComputeLoad`]
+    pub fn forbid_compute_load(self, forbidden_compute_load: ComputeLoad) -> Self {
+        let mut accepted_compute_load = self.accepted_compute_load;
+        accepted_compute_load.remove(forbidden_compute_load);
+
+        Self {
+            accepted_compute_load,
         }
     }
 }

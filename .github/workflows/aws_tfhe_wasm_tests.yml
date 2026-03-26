@@ -14,12 +14,11 @@ env:
   PULL_REQUEST_MD_LINK: ""
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
-
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   pull_request:
-    types: [ labeled ]
+    types: [labeled]
 
 permissions:
   contents: read
@@ -32,16 +31,16 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.label.name, 'approved')
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read  # Needed to check for file change
+      pull-requests: read # Needed to check for file change
     outputs:
       wasm_test: ${{ github.event_name == 'workflow_dispatch' ||
-          steps.changed-files.outputs.wasm_any_changed }}
+        steps.changed-files.outputs.wasm_any_changed }}
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Check for file changes
@@ -63,6 +62,7 @@ jobs:
                 - tfhe/js_on_wasm_tests/**
                 - tfhe/web_wasm_parallel_tests/**
                 - utils/tfhe-versionable/**
+                - utils/tfhe-safe-serialize/**
                 - .github/workflows/aws_tfhe_wasm_tests.yml
 
   wasm-tests:
@@ -78,7 +78,7 @@ jobs:
       - name: Checkout tfhe-rs
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Install latest stable
