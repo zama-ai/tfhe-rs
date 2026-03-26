@@ -5,7 +5,7 @@ use crate::backward_compatibility::kv_store::CompressedKVStoreVersions;
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::FheIntegerType;
 use crate::high_level_api::keys::InternalServerKey;
-use crate::integer::block_decomposition::Decomposable;
+use crate::integer::block_decomposition::{Decomposable, DecomposableInto};
 use crate::integer::ciphertext::{Compressible, Expandable};
 use crate::integer::server_key::{
     CompressedKVStore as CompressedIntegerKVStore, KVStore as IntegerKVStore,
@@ -334,6 +334,37 @@ where
                 let inner = cpu_key
                     .pbs_key()
                     .kv_store_contains_value(inner_store, &*encrypted_value.on_cpu());
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
+            }
+            #[cfg(feature = "gpu")]
+            (InternalServerKey::Cuda(_cuda_key), _) => {
+                panic!("GPU does not support KVStore yet")
+            }
+            #[cfg(feature = "hpu")]
+            (InternalServerKey::Hpu(_device), _) => {
+                panic!("HPU does not support KVStore yet")
+            }
+            _ => panic!("The KVStore's current backend does not match the current key backend"),
+        })
+    }
+
+    /// Checks if the store contains the given clear value.
+    ///
+    /// Returns an encrypted boolean that is true if the value was found.
+    pub fn contains_clear_value<Clear>(&self, clear_value: Clear) -> FheBool
+    where
+        Clear: DecomposableInto<u64>,
+    {
+        #[allow(unreachable_patterns)]
+        global_state::with_internal_keys(|key| match (key, &self.inner) {
+            (InternalServerKey::Cpu(cpu_key), InnerKVStore::Cpu(inner_store)) => {
+                let inner = cpu_key
+                    .pbs_key()
+                    .kv_store_contains_clear_value(inner_store, clear_value);
                 FheBool::new(
                     inner,
                     cpu_key.tag.clone(),
@@ -787,6 +818,38 @@ mod test {
         }
     }
 
+    fn kv_store_contains_clear_value_test_case(ck: &ClientKey) {
+        let num_keys = 10;
+        let num_tests = 10;
+
+        let (kv_store, clear_store) = create_kv_store::<u8, u32, FheUint32>(num_keys, ck);
+        let mut rng = rand::thread_rng();
+
+        // Test a value that exists
+        for _ in 0..num_tests {
+            let value_index = rng.gen_range(0..num_keys);
+            let target_value = *clear_store.values().nth(value_index).unwrap();
+
+            let e_found = kv_store.contains_clear_value(target_value);
+            let found: bool = e_found.decrypt(ck);
+            assert!(found);
+        }
+
+        // Test a value that does not exist
+        for _ in 0..num_tests {
+            let value = loop {
+                let candidate = rng.gen::<u32>();
+                if !clear_store.values().any(|&v| v == candidate) {
+                    break candidate;
+                }
+            };
+
+            let e_found = kv_store.contains_clear_value(value);
+            let found: bool = e_found.decrypt(ck);
+            assert!(!found);
+        }
+    }
+
     fn kv_store_serialization_test_case(ck: &ClientKey) {
         let num_keys = 10;
 
@@ -893,6 +956,13 @@ mod test {
             let ck = setup_default_cpu();
 
             kv_store_contains_value_test_case(&ck);
+        }
+
+        #[test]
+        fn test_kv_store_contains_clear_value() {
+            let ck = setup_default_cpu();
+
+            kv_store_contains_clear_value_test_case(&ck);
         }
 
         #[test]

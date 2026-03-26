@@ -1,5 +1,5 @@
 use crate::integer::backward_compatibility::ciphertext::CompressedKVStoreVersions;
-use crate::integer::block_decomposition::Decomposable;
+use crate::integer::block_decomposition::{Decomposable, DecomposableInto};
 use crate::integer::ciphertext::{
     CompressedCiphertextList, CompressedCiphertextListBuilder, Compressible, Expandable,
 };
@@ -258,6 +258,25 @@ impl ServerKey {
         // We accept the cost of the cloning for now
         let values_vec = map.iter().map(|(_, v)| v.clone()).collect::<Vec<_>>();
         self.contains_parallelized(&values_vec, encrypted_value)
+    }
+
+    /// Checks if a value that matches the `clear_value` is contained in the store
+    ///
+    /// Returns a [BooleanBlock] that encrypts true if the clear_value is found in the
+    /// store.
+    pub fn kv_store_contains_clear_value<Key, Ct, Clear>(
+        &self,
+        map: &KVStore<Key, Ct>,
+        clear_value: Clear,
+    ) -> BooleanBlock
+    where
+        Ct: IntegerRadixCiphertext,
+        Key: Decomposable + CastInto<usize> + Ord,
+        Clear: DecomposableInto<u64>,
+    {
+        // We accept the cost of the cloning for now
+        let values_vec = map.iter().map(|(_, v)| v.clone()).collect::<Vec<_>>();
+        self.contains_clear_parallelized(&values_vec, clear_value)
     }
 
     /// Returns the value at the given key
