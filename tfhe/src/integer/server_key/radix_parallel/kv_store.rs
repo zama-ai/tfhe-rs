@@ -112,6 +112,13 @@ impl<Key, Ct> KVStore<Key, Ct> {
         self.data.get(key)
     }
 
+    pub fn contains_key(&self, key: &Key) -> bool
+    where
+        Key: Ord,
+    {
+        self.data.contains_key(key)
+    }
+
     /// Returns the number of key-value pairs currently stored
     pub fn len(&self) -> usize {
         self.data.len()
@@ -204,6 +211,30 @@ impl ServerKey {
         );
 
         (result, check_block, selectors)
+    }
+
+    /// Checks if a key that matches the `encrypted_key` is contained in the store
+    ///
+    /// Returns a [BooleanBlock] that encrypts true if the encrypted_key is found in the
+    /// store.
+    pub fn kv_store_contains_key<Key, Ct>(
+        &self,
+        map: &KVStore<Key, Ct>,
+        encrypted_key: &Ct,
+    ) -> BooleanBlock
+    where
+        Ct: IntegerRadixCiphertext,
+        Key: Decomposable + CastInto<usize> + Ord,
+    {
+        if map.is_empty() {
+            return self.create_trivial_boolean_block(false);
+        }
+
+        let selectors =
+            self.compute_equality_selectors(encrypted_key, map.par_iter_keys().copied());
+
+        let selectors = selectors.iter().map(|s| s.0.clone()).collect::<Vec<_>>();
+        BooleanBlock::new_unchecked(self.is_at_least_one_comparisons_block_true(selectors))
     }
 
     /// Returns the value at the given key
