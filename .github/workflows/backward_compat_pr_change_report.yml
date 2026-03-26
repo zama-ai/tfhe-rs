@@ -5,6 +5,8 @@ name: backward_compat_pr_change_report
 
 on:
   pull_request:
+    paths:
+      - 'utils/tfhe-lints/snapshots/*.json'
 
 permissions:
   contents: read
