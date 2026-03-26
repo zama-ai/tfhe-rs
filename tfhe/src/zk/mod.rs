@@ -1,6 +1,6 @@
 pub mod backward_compatibility;
 
-use crate::conformance::{EnumSet, ParameterSetConformant};
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::math::random::BoundedDistribution;
 use crate::core_crypto::prelude::*;
 use crate::named::Named;
@@ -16,7 +16,7 @@ use tfhe_versionable::Versionize;
 
 use tfhe_zk_pok::proofs::pke::{
     commit as commit_v1, crs_gen as crs_gen_v1, prove as prove_v1, verify as verify_v1,
-    Proof as ProofV1, PublicCommit as PublicCommitV1,
+    CompactPkeV1ProofConformanceParams, Proof as ProofV1, PublicCommit as PublicCommitV1,
 };
 
 use tfhe_zk_pok::proofs::pke_v2::{
@@ -31,7 +31,7 @@ use tfhe_zk_pok::proofs::pke_v2::{prove as prove_v2, verify as verify_v2};
 
 pub use tfhe_zk_pok::curve_api::Compressible;
 pub use tfhe_zk_pok::proofs::pke_v2::PkeV2SupportedHashConfig as ZkPkeV2SupportedHashConfig;
-pub use tfhe_zk_pok::proofs::ComputeLoad as ZkComputeLoad;
+pub use tfhe_zk_pok::proofs::{CompactPkeCrsConformanceParams, ComputeLoad as ZkComputeLoad};
 type Curve = tfhe_zk_pok::curve_api::Bls12_446;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
@@ -44,132 +44,6 @@ pub enum CompactPkeProof {
 
 impl Named for CompactPkeProof {
     const NAME: &'static str = "zk::CompactPkeProof";
-}
-
-impl CastInto<usize> for ZkComputeLoad {
-    fn cast_into(self) -> usize {
-        self as usize
-    }
-}
-
-impl CastInto<usize> for ZkPkeV2SupportedHashConfig {
-    fn cast_into(self) -> usize {
-        self as usize
-    }
-}
-
-#[derive(Copy, Clone)]
-/// Used to explicitly reject [`ProofV1`] proofs that come with specific config
-pub struct CompactPkeV1ProofConformanceParams {
-    accepted_compute_load: EnumSet<ZkComputeLoad>,
-}
-
-impl Default for CompactPkeV1ProofConformanceParams {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl CompactPkeV1ProofConformanceParams {
-    /// Create new params that accept all proof configurations
-    pub fn new() -> Self {
-        let mut accepted_compute_load = EnumSet::new();
-        accepted_compute_load.insert(ZkComputeLoad::Proof);
-        accepted_compute_load.insert(ZkComputeLoad::Verify);
-
-        Self {
-            accepted_compute_load,
-        }
-    }
-
-    /// Forbid proofs coming with the provided [`ZkComputeLoad`]
-    pub fn forbid_compute_load(self, forbidden_compute_load: ZkComputeLoad) -> Self {
-        let mut accepted_compute_load = self.accepted_compute_load;
-        accepted_compute_load.remove(forbidden_compute_load);
-
-        Self {
-            accepted_compute_load,
-        }
-    }
-}
-
-impl ParameterSetConformant for ProofV1<Curve> {
-    type ParameterSet = CompactPkeV1ProofConformanceParams;
-
-    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        parameter_set
-            .accepted_compute_load
-            .contains(self.compute_load())
-            && self.is_usable()
-    }
-}
-
-#[derive(Copy, Clone)]
-/// Used to explicitly reject [`ProofV2`] proofs that come with specific config
-pub struct CompactPkeV2ProofConformanceParams {
-    accepted_compute_load: EnumSet<ZkComputeLoad>,
-    accepted_hash_config: EnumSet<PkeV2SupportedHashConfig>,
-}
-
-impl Default for CompactPkeV2ProofConformanceParams {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl CompactPkeV2ProofConformanceParams {
-    /// Create new params that accept all proof configurations
-    pub fn new() -> Self {
-        let mut accepted_compute_load = EnumSet::new();
-        accepted_compute_load.insert(ZkComputeLoad::Proof);
-        accepted_compute_load.insert(ZkComputeLoad::Verify);
-
-        let mut accepted_hash_config = EnumSet::new();
-        accepted_hash_config.insert(PkeV2SupportedHashConfig::V0_4_0);
-        accepted_hash_config.insert(PkeV2SupportedHashConfig::V0_7_0);
-        accepted_hash_config.insert(PkeV2SupportedHashConfig::V0_8_0);
-
-        Self {
-            accepted_compute_load,
-            accepted_hash_config,
-        }
-    }
-
-    /// Forbid proofs coming with the provided [`ZkComputeLoad`]
-    pub fn forbid_compute_load(self, forbidden_compute_load: ZkComputeLoad) -> Self {
-        let mut accepted_compute_load = self.accepted_compute_load;
-        accepted_compute_load.remove(forbidden_compute_load);
-
-        Self {
-            accepted_compute_load,
-            ..self
-        }
-    }
-
-    /// Forbid proofs coming with the provided [`ZkPkeV2SupportedHashConfig`]
-    pub fn forbid_hash_config(self, forbidden_hash_config: ZkPkeV2SupportedHashConfig) -> Self {
-        let mut accepted_hash_config = self.accepted_hash_config;
-        accepted_hash_config.remove(forbidden_hash_config);
-
-        Self {
-            accepted_hash_config,
-            ..self
-        }
-    }
-}
-
-impl ParameterSetConformant for ProofV2<Curve> {
-    type ParameterSet = CompactPkeV2ProofConformanceParams;
-
-    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        parameter_set
-            .accepted_compute_load
-            .contains(self.compute_load())
-            && parameter_set
-                .accepted_hash_config
-                .contains(self.hash_config())
-            && self.is_usable()
-    }
 }
 
 #[derive(Copy, Clone)]
@@ -234,94 +108,40 @@ pub type ZkCompactPkeV2PublicParams = tfhe_zk_pok::proofs::pke_v2::PublicParams<
 pub type SerializableCompactPkePublicParams =
     tfhe_zk_pok::serialization::SerializablePKEv1PublicParams;
 
-impl Named for ZkCompactPkeV1PublicParams {
-    const NAME: &'static str = "zk::CompactPkePublicParams";
-}
-
-pub struct CompactPkeCrsConformanceParams {
-    lwe_dim: LweDimension,
-    max_num_message: LweCiphertextCount,
-    noise_bound: u64,
-    ciphertext_modulus: u64,
-    plaintext_modulus: u64,
-    msbs_zero_padding_bit_count: ZkMSBZeroPaddingBitCount,
-}
-
 #[cfg(feature = "shortint")]
-impl CompactPkeCrsConformanceParams {
-    pub fn new<E, P: TryInto<CompactPublicKeyEncryptionParameters, Error = E>>(
-        value: P,
-        max_num_message: LweCiphertextCount,
-    ) -> Result<Self, crate::Error>
-    where
-        E: Into<crate::Error>,
-    {
-        let params: CompactPublicKeyEncryptionParameters =
-            value.try_into().map_err(|e| e.into())?;
+pub fn new_compact_pke_crs_conformance_params<E, P>(
+    value: P,
+    max_num_message: LweCiphertextCount,
+) -> Result<CompactPkeCrsConformanceParams, crate::Error>
+where
+    P: TryInto<CompactPublicKeyEncryptionParameters, Error = E>,
+    E: Into<crate::Error>,
+{
+    let params: CompactPublicKeyEncryptionParameters = value.try_into().map_err(|e| e.into())?;
 
-        let mut plaintext_modulus = params.message_modulus.0 * params.carry_modulus.0;
-        // Add 1 bit of modulus for the padding bit
-        plaintext_modulus *= 2;
+    let mut plaintext_modulus = params.message_modulus.0 * params.carry_modulus.0;
+    // Add 1 bit of modulus for the padding bit
+    plaintext_modulus *= 2;
 
-        let (lwe_dim, max_num_message, noise_bound, ciphertext_modulus, plaintext_modulus) =
-            CompactPkeCrs::prepare_crs_parameters(
-                params.encryption_lwe_dimension,
-                max_num_message,
-                params.encryption_noise_distribution,
-                params.ciphertext_modulus,
-                plaintext_modulus,
-                CompactPkeZkScheme::V2,
-            )?;
-
-        Ok(Self {
-            lwe_dim,
+    let (lwe_dim, max_num_message, noise_bound, ciphertext_modulus, plaintext_modulus) =
+        CompactPkeCrs::prepare_crs_parameters(
+            params.encryption_lwe_dimension,
             max_num_message,
-            noise_bound,
-            ciphertext_modulus,
+            params.encryption_noise_distribution,
+            params.ciphertext_modulus,
             plaintext_modulus,
-            // CRS created from shortint params have 1 MSB 0bit
-            msbs_zero_padding_bit_count: ZkMSBZeroPaddingBitCount(1),
-        })
-    }
-}
+            CompactPkeZkScheme::V2,
+        )?;
 
-impl ParameterSetConformant for ZkCompactPkeV1PublicParams {
-    type ParameterSet = CompactPkeCrsConformanceParams;
-
-    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.k <= self.d
-            && self.d == parameter_set.lwe_dim.0
-            && self.k == parameter_set.max_num_message.0
-            && self.b == parameter_set.noise_bound
-            && self.q == parameter_set.ciphertext_modulus
-            && self.t == parameter_set.plaintext_modulus
-            && self.msbs_zero_padding_bit_count == parameter_set.msbs_zero_padding_bit_count.0
-            && self.is_usable()
-    }
-}
-
-impl ParameterSetConformant for ZkCompactPkeV2PublicParams {
-    type ParameterSet = CompactPkeCrsConformanceParams;
-
-    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.k <= self.d
-            && self.d == parameter_set.lwe_dim.0
-            && self.k == parameter_set.max_num_message.0
-            && self.B_inf == parameter_set.noise_bound
-            && self.q == parameter_set.ciphertext_modulus
-            && self.t == parameter_set.plaintext_modulus
-            && self.msbs_zero_padding_bit_count == parameter_set.msbs_zero_padding_bit_count.0
-            && self.is_usable()
-    }
-}
-
-// If we call `CompactPkePublicParams::compress` we end up with a
-// `SerializableCompactPkePublicParams` that should also impl Named to be serializable with
-// `safe_serialization`. Since the `CompactPkePublicParams` is transformed into a
-// `SerializableCompactPkePublicParams` anyways before serialization, their impl of `Named` should
-// return the same string.
-impl Named for SerializableCompactPkePublicParams {
-    const NAME: &'static str = ZkCompactPkeV1PublicParams::NAME;
+    Ok(CompactPkeCrsConformanceParams::new(
+        lwe_dim.0,
+        max_num_message.0,
+        noise_bound,
+        ciphertext_modulus,
+        plaintext_modulus,
+        // CRS created from shortint params have 1 MSB 0bit
+        1,
+    ))
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -837,7 +657,7 @@ impl CompactPkeCrs {
 }
 
 impl ParameterSetConformant for CompactPkeCrs {
-    type ParameterSet = CompactPkeCrsConformanceParams;
+    type ParameterSet = tfhe_zk_pok::proofs::CompactPkeCrsConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         match self {
@@ -887,8 +707,10 @@ impl Compressible for CompactPkeCrs {
 
 #[cfg(all(test, feature = "shortint"))]
 mod test {
+    use tfhe_safe_serialize::{safe_deserialize_conformant, safe_serialize};
+
     use super::*;
-    use crate::safe_serialization::{safe_deserialize_conformant, safe_serialize};
+
     use crate::shortint::parameters::*;
     use crate::shortint::{CarryModulus, MessageModulus};
 
@@ -913,18 +735,16 @@ mod test {
         .unwrap();
 
         let conformance_params =
-            CompactPkeCrsConformanceParams::new(params, LweCiphertextCount(4)).unwrap();
-
+            new_compact_pke_crs_conformance_params(params, LweCiphertextCount(4)).unwrap();
         assert!(crs.is_conformant(&conformance_params));
 
         let conformance_params =
-            CompactPkeCrsConformanceParams::new(bad_params, LweCiphertextCount(4)).unwrap();
+            new_compact_pke_crs_conformance_params(bad_params, LweCiphertextCount(4)).unwrap();
 
         assert!(!crs.is_conformant(&conformance_params));
 
         let conformance_params =
-            CompactPkeCrsConformanceParams::new(params, LweCiphertextCount(2)).unwrap();
-
+            new_compact_pke_crs_conformance_params(params, LweCiphertextCount(2)).unwrap();
         assert!(!crs.is_conformant(&conformance_params));
     }
 
@@ -946,7 +766,7 @@ mod test {
         .unwrap();
 
         let conformance_params =
-            CompactPkeCrsConformanceParams::new(params, LweCiphertextCount(4)).unwrap();
+            new_compact_pke_crs_conformance_params(params, LweCiphertextCount(4)).unwrap();
 
         let mut serialized = Vec::new();
         safe_serialize(&crs, &mut serialized, 1 << 30).unwrap();

@@ -1,0 +1,32 @@
+name: make_release_tfhe_safe_serialize
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run"
+        type: boolean
+        default: true
+
+permissions: {}
+
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
+
+jobs:
+  make-release:
+    name: make_release_tfhe_safe_serialize/make-release
+    uses: ./.github/workflows/make_release_common.yml
+    with:
+      package-name: "tfhe-safe-serialize"
+      dry-run: ${{ inputs.dry_run }}
+    permissions:
+      actions: read # Needed to detect the GitHub Actions environment
+      id-token: write # Needed to create the provenance via GitHub OIDC
+      contents: write # Needed to upload assets/artifacts
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      ALLOWED_TEAM: ${{ secrets.RELEASE_TEAM }}
+      READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
