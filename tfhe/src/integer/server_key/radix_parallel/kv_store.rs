@@ -242,6 +242,24 @@ impl ServerKey {
         BooleanBlock::new_unchecked(self.is_at_least_one_comparisons_block_true(selectors))
     }
 
+    /// Checks if a value that matches the `encrypted_value` is contained in the store
+    ///
+    /// Returns a [BooleanBlock] that encrypts true if the encrypted_value is found in the
+    /// store.
+    pub fn kv_store_contains_value<Key, Ct>(
+        &self,
+        map: &KVStore<Key, Ct>,
+        encrypted_value: &Ct,
+    ) -> BooleanBlock
+    where
+        Ct: IntegerRadixCiphertext,
+        Key: Decomposable + CastInto<usize> + Ord,
+    {
+        // We accept the cost of the cloning for now
+        let values_vec = map.iter().map(|(_, v)| v.clone()).collect::<Vec<_>>();
+        self.contains_parallelized(&values_vec, encrypted_value)
+    }
+
     /// Returns the value at the given key
     ///
     /// `return map[encrypted_key]`
