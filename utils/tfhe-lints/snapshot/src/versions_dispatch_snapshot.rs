@@ -188,12 +188,13 @@ impl<'tcx> LateLintPass<'tcx> for VersionsDispatchSnapshot {
         let enums = self.0.collected_enums.lock().unwrap();
         let upgrades = self.0.collected_upgrades.lock().unwrap();
 
+        let crate_name = cx.tcx.crate_name(LOCAL_CRATE).to_string();
         if enums.is_empty() {
-            eprintln!("No VersionsDispatch enums found, skipping snapshot generation");
+            eprintln!(
+                "No VersionsDispatch enums found for {crate_name} crate, skipping snapshot generation"
+            );
             return;
         }
-
-        let crate_name = cx.tcx.crate_name(LOCAL_CRATE).to_string();
 
         // Match upgrades to their enums
         let mut final_enums: Vec<EnumSnapshot> = enums.clone();
