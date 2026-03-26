@@ -312,7 +312,145 @@ template <typename Torus> struct int_kreyvium_buffer {
     state->release(streams, allocate_gpu_memory);
     delete state;
     state = nullptr;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+};
 
+// Holds the temporary GPU buffers and workspaces required during the stateful
+// execution of the Kreyvium cipher.
+//
+template <typename Torus> struct int_kreyvium_stateful_workspaces {
+  CudaRadixCiphertextFFI *shift_workspace;
+  CudaRadixCiphertextFFI *temp_a;
+  CudaRadixCiphertextFFI *temp_b;
+  CudaRadixCiphertextFFI *temp_c;
+  CudaRadixCiphertextFFI *packed_and_lhs;
+  CudaRadixCiphertextFFI *packed_and_rhs;
+  CudaRadixCiphertextFFI *packed_and_out;
+  CudaRadixCiphertextFFI *packed_flush_in;
+  CudaRadixCiphertextFFI *packed_flush_out;
+
+  int_kreyvium_stateful_workspaces(CudaStreams streams,
+                                   const int_radix_params &params,
+                                   bool allocate_gpu_memory,
+                                   uint32_t num_inputs,
+                                   uint64_t &size_tracker) {
+    uint32_t batch_blocks = KREYVIUM_BATCH_SIZE * num_inputs;
+    this->shift_workspace = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->shift_workspace,
+        128 * num_inputs, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+    this->temp_a = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->temp_a, batch_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    this->temp_b = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->temp_b, batch_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    this->temp_c = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->temp_c, batch_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    this->packed_and_lhs = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->packed_and_lhs,
+        KREYVIUM_NUM_AND_GATES * batch_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
+    this->packed_and_rhs = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->packed_and_rhs,
+        KREYVIUM_NUM_AND_GATES * batch_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
+    this->packed_and_out = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->packed_and_out,
+        KREYVIUM_NUM_AND_GATES * batch_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
+    this->packed_flush_in = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->packed_flush_in,
+        KREYVIUM_NUM_FLUSH_PATHS * batch_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
+    this->packed_flush_out = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->packed_flush_out,
+        KREYVIUM_NUM_FLUSH_PATHS * batch_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
+  }
+
+  void release(CudaStreams streams, bool allocate_gpu_memory) {
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->shift_workspace, allocate_gpu_memory);
+    delete this->shift_workspace;
+    this->shift_workspace = nullptr;
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->temp_a, allocate_gpu_memory);
+    delete this->temp_a;
+    this->temp_a = nullptr;
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->temp_b, allocate_gpu_memory);
+    delete this->temp_b;
+    this->temp_b = nullptr;
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->temp_c, allocate_gpu_memory);
+    delete this->temp_c;
+    this->temp_c = nullptr;
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->packed_and_lhs, allocate_gpu_memory);
+    delete this->packed_and_lhs;
+    this->packed_and_lhs = nullptr;
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->packed_and_rhs, allocate_gpu_memory);
+    delete this->packed_and_rhs;
+    this->packed_and_rhs = nullptr;
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->packed_and_out, allocate_gpu_memory);
+    delete this->packed_and_out;
+    this->packed_and_out = nullptr;
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->packed_flush_in, allocate_gpu_memory);
+    delete this->packed_flush_in;
+    this->packed_flush_in = nullptr;
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->packed_flush_out, allocate_gpu_memory);
+    delete this->packed_flush_out;
+    this->packed_flush_out = nullptr;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+};
+
+// Container for all parameters, lookup tables, and memory workspaces needed to
+// maintain and evolve the stateful Kreyvium context.
+//
+template <typename Torus> struct int_kreyvium_stateful_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+  uint32_t num_inputs;
+  int_kreyvium_lut_buffers<Torus> *luts;
+  int_kreyvium_stateful_workspaces<Torus> *ws;
+
+  int_kreyvium_stateful_buffer(CudaStreams streams,
+                               const int_radix_params &params,
+                               bool allocate_gpu_memory, uint32_t num_inputs,
+                               uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+    this->num_inputs = num_inputs;
+    this->luts = new int_kreyvium_lut_buffers<Torus>(
+        streams, params, allocate_gpu_memory, num_inputs, size_tracker);
+    this->ws = new int_kreyvium_stateful_workspaces<Torus>(
+        streams, params, allocate_gpu_memory, num_inputs, size_tracker);
+  }
+
+  void release(CudaStreams streams) {
+    luts->release(streams);
+    delete luts;
+    luts = nullptr;
+    ws->release(streams, allocate_gpu_memory);
+    delete ws;
+    ws = nullptr;
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };

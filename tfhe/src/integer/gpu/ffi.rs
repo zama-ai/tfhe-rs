@@ -10807,7 +10807,6 @@ pub(crate) unsafe fn cuda_backend_kreyvium_generate_keystream<T: UnsignedInteger
         noise_reduction_type as u32,
         num_inputs,
     );
-
     cuda_kreyvium_generate_keystream_64_async(
         streams.ffi(),
         &raw mut cuda_ffi_keystream,
@@ -10819,8 +10818,308 @@ pub(crate) unsafe fn cuda_backend_kreyvium_generate_keystream<T: UnsignedInteger
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
-
     cleanup_cuda_kreyvium_generate_keystream_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 
     update_noise_degree(keystream_output, &cuda_ffi_keystream);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_kreyvium_init<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    a: &mut CudaRadixCiphertext,
+    b: &mut CudaRadixCiphertext,
+    c: &mut CudaRadixCiphertext,
+    k_reg: &mut CudaRadixCiphertext,
+    iv_reg: &mut CudaRadixCiphertext,
+    k_offset: &mut u32,
+    iv_offset: &mut u32,
+    key: &CudaRadixCiphertext,
+    iv: &CudaRadixCiphertext,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    grouping_factor: LweBskGroupingFactor,
+    pbs_type: PBSType,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    let mut a_deg = a.info.blocks.iter().map(|b| b.degree.0).collect::<Vec<_>>();
+    let mut a_noise = a
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect::<Vec<_>>();
+    let mut ffi_a = prepare_cuda_radix_ffi(a, &mut a_deg, &mut a_noise);
+    let mut b_deg = b.info.blocks.iter().map(|b| b.degree.0).collect::<Vec<_>>();
+    let mut b_noise = b
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect::<Vec<_>>();
+    let mut ffi_b = prepare_cuda_radix_ffi(b, &mut b_deg, &mut b_noise);
+    let mut c_deg = c.info.blocks.iter().map(|b| b.degree.0).collect::<Vec<_>>();
+    let mut c_noise = c
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect::<Vec<_>>();
+    let mut ffi_c = prepare_cuda_radix_ffi(c, &mut c_deg, &mut c_noise);
+    let mut k_deg = k_reg
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect::<Vec<_>>();
+    let mut k_noise = k_reg
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect::<Vec<_>>();
+    let mut ffi_k = prepare_cuda_radix_ffi(k_reg, &mut k_deg, &mut k_noise);
+    let mut iv_reg_deg = iv_reg
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect::<Vec<_>>();
+    let mut iv_reg_noise = iv_reg
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect::<Vec<_>>();
+    let mut ffi_iv_reg = prepare_cuda_radix_ffi(iv_reg, &mut iv_reg_deg, &mut iv_reg_noise);
+
+    let mut key_deg = key
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect::<Vec<_>>();
+    let mut key_noise = key
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect::<Vec<_>>();
+    let ffi_key = prepare_cuda_radix_ffi(key, &mut key_deg, &mut key_noise);
+    let mut iv_deg = iv
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect::<Vec<_>>();
+    let mut iv_noise = iv
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect::<Vec<_>>();
+    let ffi_iv = prepare_cuda_radix_ffi(iv, &mut iv_deg, &mut iv_noise);
+
+    let num_inputs = u32::try_from(key.info.blocks.len() / 128).unwrap();
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_kreyvium_init_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        pbs_type as u32,
+        true,
+        noise_reduction_type as u32,
+        num_inputs,
+    );
+    cuda_kreyvium_init_async(
+        streams.ffi(),
+        &raw mut ffi_a,
+        &raw mut ffi_b,
+        &raw mut ffi_c,
+        &raw mut ffi_k,
+        &raw mut ffi_iv_reg,
+        k_offset,
+        iv_offset,
+        &raw const ffi_key,
+        &raw const ffi_iv,
+        num_inputs,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+    cleanup_cuda_kreyvium_init(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(a, &ffi_a);
+    update_noise_degree(b, &ffi_b);
+    update_noise_degree(c, &ffi_c);
+    update_noise_degree(k_reg, &ffi_k);
+    update_noise_degree(iv_reg, &ffi_iv_reg);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_kreyvium_step<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    keystream_output: &mut CudaRadixCiphertext,
+    a: &mut CudaRadixCiphertext,
+    b: &mut CudaRadixCiphertext,
+    c: &mut CudaRadixCiphertext,
+    k_reg: &mut CudaRadixCiphertext,
+    iv_reg: &mut CudaRadixCiphertext,
+    k_offset: &mut u32,
+    iv_offset: &mut u32,
+    num_steps: u32,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    grouping_factor: LweBskGroupingFactor,
+    pbs_type: PBSType,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    let mut out_deg = keystream_output
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect::<Vec<_>>();
+    let mut out_noise = keystream_output
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect::<Vec<_>>();
+    let mut ffi_out = prepare_cuda_radix_ffi(keystream_output, &mut out_deg, &mut out_noise);
+    let mut a_deg = a.info.blocks.iter().map(|b| b.degree.0).collect::<Vec<_>>();
+    let mut a_noise = a
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect::<Vec<_>>();
+    let mut ffi_a = prepare_cuda_radix_ffi(a, &mut a_deg, &mut a_noise);
+    let mut b_deg = b.info.blocks.iter().map(|b| b.degree.0).collect::<Vec<_>>();
+    let mut b_noise = b
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect::<Vec<_>>();
+    let mut ffi_b = prepare_cuda_radix_ffi(b, &mut b_deg, &mut b_noise);
+    let mut c_deg = c.info.blocks.iter().map(|b| b.degree.0).collect::<Vec<_>>();
+    let mut c_noise = c
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect::<Vec<_>>();
+    let mut ffi_c = prepare_cuda_radix_ffi(c, &mut c_deg, &mut c_noise);
+    let mut k_deg = k_reg
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect::<Vec<_>>();
+    let mut k_noise = k_reg
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect::<Vec<_>>();
+    let mut ffi_k = prepare_cuda_radix_ffi(k_reg, &mut k_deg, &mut k_noise);
+    let mut iv_reg_deg = iv_reg
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect::<Vec<_>>();
+    let mut iv_reg_noise = iv_reg
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect::<Vec<_>>();
+    let mut ffi_iv_reg = prepare_cuda_radix_ffi(iv_reg, &mut iv_reg_deg, &mut iv_reg_noise);
+
+    let num_inputs = u32::try_from(a.info.blocks.len() / 93).unwrap();
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_kreyvium_step_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        pbs_type as u32,
+        true,
+        noise_reduction_type as u32,
+        num_inputs,
+    );
+    cuda_kreyvium_step_async(
+        streams.ffi(),
+        &raw mut ffi_out,
+        &raw mut ffi_a,
+        &raw mut ffi_b,
+        &raw mut ffi_c,
+        &raw mut ffi_k,
+        &raw mut ffi_iv_reg,
+        k_offset,
+        iv_offset,
+        num_inputs,
+        num_steps,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+    cleanup_cuda_kreyvium_step(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(keystream_output, &ffi_out);
+    update_noise_degree(a, &ffi_a);
+    update_noise_degree(b, &ffi_b);
+    update_noise_degree(c, &ffi_c);
+    update_noise_degree(k_reg, &ffi_k);
+    update_noise_degree(iv_reg, &ffi_iv_reg);
 }

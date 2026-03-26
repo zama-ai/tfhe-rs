@@ -49,10 +49,50 @@ pub mod cuda {
         let d_key = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_key, &streams);
         let d_iv = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_iv, &streams);
 
-        for num_steps in [64, 512] {
-            let bench_id = format!("{bench_name}::{param_name}::generate_{num_steps}_bits");
+        // 1. Benchmark: init
+        let init_bench_id = format!("{bench_name}::{param_name}::init");
+        bench_group.bench_function(&init_bench_id, |b| {
+            b.iter(|| {
+                black_box(sks.kreyvium_init(&d_key, &d_iv, &streams).unwrap());
+            })
+        });
 
-            bench_group.bench_function(&bench_id, |b| {
+        write_to_json_unchecked::<u64, _>(
+            &init_bench_id,
+            atomic_param,
+            param.name(),
+            "kreyvium_init",
+            &OperatorType::Atomic,
+            128,
+            vec![atomic_param.message_modulus().0.ilog2(); 128],
+        );
+
+        let mut state = sks.kreyvium_init(&d_key, &d_iv, &streams).unwrap();
+
+        for num_steps in [64, 512] {
+            // 2. Benchmark: next
+            let next_bench_id = format!("{bench_name}::{param_name}::next_{num_steps}_bits");
+
+            bench_group.bench_function(&next_bench_id, |b| {
+                b.iter(|| {
+                    black_box(sks.kreyvium_next(&mut state, num_steps, &streams).unwrap());
+                })
+            });
+
+            write_to_json_unchecked::<u64, _>(
+                &next_bench_id,
+                atomic_param,
+                param.name(),
+                &format!("kreyvium_next_{}_bits", num_steps),
+                &OperatorType::Atomic,
+                128,
+                vec![atomic_param.message_modulus().0.ilog2(); 128],
+            );
+
+            // 3. Benchmark: generate_keystream
+            let gen_bench_id = format!("{bench_name}::{param_name}::generate_{num_steps}_bits");
+
+            bench_group.bench_function(&gen_bench_id, |b| {
                 b.iter(|| {
                     black_box(
                         sks.kreyvium_generate_keystream(&d_key, &d_iv, num_steps, &streams)
@@ -62,7 +102,7 @@ pub mod cuda {
             });
 
             write_to_json_unchecked::<u64, _>(
-                &bench_id,
+                &gen_bench_id,
                 atomic_param,
                 param.name(),
                 &format!("kreyvium_generation_{}_bits", num_steps),
