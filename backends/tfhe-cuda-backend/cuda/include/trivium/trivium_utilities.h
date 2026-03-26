@@ -2,6 +2,20 @@
 #define TRIVIUM_UTILITIES_H
 #include "../integer/integer_utilities.h"
 
+constexpr uint32_t TRIVIUM_BATCH_SIZE = 64;
+constexpr uint32_t TRIVIUM_NUM_AND_GATES = 3;
+constexpr uint32_t TRIVIUM_NUM_FLUSH_PATHS = 4;
+constexpr uint32_t TRIVIUM_REGISTER_A_BITS = 93;
+constexpr uint32_t TRIVIUM_REGISTER_B_BITS = 84;
+constexpr uint32_t TRIVIUM_REGISTER_C_BITS = 111;
+constexpr uint32_t TRIVIUM_KEY_BITS = 80;
+constexpr uint32_t TRIVIUM_IV_BITS = 80;
+// Standard Trivium warm-up: 1152 cycles (4 * 288 state bits) before the first
+// keystream bit is emitted, processed in batches of TRIVIUM_BATCH_SIZE.
+constexpr uint32_t TRIVIUM_WARMUP_CYCLES = 1152;
+constexpr uint32_t TRIVIUM_WARMUP_BATCHES =
+    TRIVIUM_WARMUP_CYCLES / TRIVIUM_BATCH_SIZE;
+
 /// Struct to hold the LUTs.
 template <typename Torus> struct int_trivium_lut_buffers {
   // Bivariate AND Gate LUT:
@@ -20,9 +34,8 @@ template <typename Torus> struct int_trivium_lut_buffers {
                           bool allocate_gpu_memory, uint32_t num_trivium_inputs,
                           uint64_t &size_tracker) {
 
-    constexpr uint32_t BATCH_SIZE = 64;
-    constexpr uint32_t MAX_AND_PER_STEP = 3;
-    uint32_t total_lut_ops = num_trivium_inputs * BATCH_SIZE * MAX_AND_PER_STEP;
+    uint32_t total_lut_ops =
+        num_trivium_inputs * TRIVIUM_BATCH_SIZE * TRIVIUM_NUM_AND_GATES;
 
     this->and_lut = new int_radix_lut<Torus>(streams, params, 1, total_lut_ops,
                                              allocate_gpu_memory, size_tracker);
@@ -36,7 +49,8 @@ template <typename Torus> struct int_trivium_lut_buffers {
         active_streams_and, {0}, {and_lambda}, LUT_0_FOR_ALL_BLOCKS);
     this->and_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
 
-    uint32_t total_flush_ops = num_trivium_inputs * BATCH_SIZE * 4;
+    uint32_t total_flush_ops =
+        num_trivium_inputs * TRIVIUM_BATCH_SIZE * TRIVIUM_NUM_FLUSH_PATHS;
 
     this->flush_lut = new int_radix_lut<Torus>(
         streams, params, 1, total_flush_ops, allocate_gpu_memory, size_tracker);
@@ -63,23 +77,10 @@ template <typename Torus> struct int_trivium_lut_buffers {
   }
 };
 
-/// Struct to hold the state and temporary workspaces required for
-/// Trivium execution on the GPU.
-///
-/// This struct manages the memory for the internal registers (A, B, C),
-/// temporary buffers used during the update function, and buffers used for
-/// packing data before and after PBS.
-template <typename Torus> struct int_trivium_state_workspaces {
-  // Trivium Internal State Registers:
-  // Register A: 93 bits
-  CudaRadixCiphertextFFI *a_reg;
-  // Register B: 84 bits
-  CudaRadixCiphertextFFI *b_reg;
-  // Register C: 111 bits
-  CudaRadixCiphertextFFI *c_reg;
-
-  // Shift Workspace:
-  // Used to manage bitshifting operations on the registers
+/// Holds the temporary GPU buffers and workspaces required during the
+/// execution of the Trivium cipher. Registers a/b/c are owned by the caller
+/// (the persistent state) and passed in to each call.
+template <typename Torus> struct int_trivium_workspaces {
   CudaRadixCiphertextFFI *shift_workspace;
 
   // Temporary Update Buffers:
@@ -105,33 +106,17 @@ template <typename Torus> struct int_trivium_state_workspaces {
   CudaRadixCiphertextFFI *packed_flush_in;
   CudaRadixCiphertextFFI *packed_flush_out;
 
-  int_trivium_state_workspaces(CudaStreams streams,
-                               const int_radix_params &params,
-                               bool allocate_gpu_memory, uint32_t num_inputs,
-                               uint64_t &size_tracker) {
+  int_trivium_workspaces(CudaStreams streams, const int_radix_params &params,
+                         bool allocate_gpu_memory, uint32_t num_inputs,
+                         uint64_t &size_tracker) {
 
-    this->a_reg = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), this->a_reg, 93 * num_inputs,
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-
-    this->b_reg = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), this->b_reg, 84 * num_inputs,
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-
-    this->c_reg = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), this->c_reg, 111 * num_inputs,
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    uint32_t batch_blocks = TRIVIUM_BATCH_SIZE * num_inputs;
 
     this->shift_workspace = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->shift_workspace,
-        128 * num_inputs, params.big_lwe_dimension, size_tracker,
-        allocate_gpu_memory);
-
-    uint32_t batch_blocks = 64 * num_inputs;
+        TRIVIUM_REGISTER_C_BITS * num_inputs, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
 
     this->temp_t1 = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -166,47 +151,35 @@ template <typename Torus> struct int_trivium_state_workspaces {
     this->packed_pbs_lhs = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_pbs_lhs,
-        3 * batch_blocks, params.big_lwe_dimension, size_tracker,
-        allocate_gpu_memory);
+        TRIVIUM_NUM_AND_GATES * batch_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
 
     this->packed_pbs_rhs = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_pbs_rhs,
-        3 * batch_blocks, params.big_lwe_dimension, size_tracker,
-        allocate_gpu_memory);
+        TRIVIUM_NUM_AND_GATES * batch_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
 
     this->packed_pbs_out = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_pbs_out,
-        3 * batch_blocks, params.big_lwe_dimension, size_tracker,
-        allocate_gpu_memory);
+        TRIVIUM_NUM_AND_GATES * batch_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
 
     this->packed_flush_in = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_flush_in,
-        4 * batch_blocks, params.big_lwe_dimension, size_tracker,
-        allocate_gpu_memory);
+        TRIVIUM_NUM_FLUSH_PATHS * batch_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
 
     this->packed_flush_out = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_flush_out,
-        4 * batch_blocks, params.big_lwe_dimension, size_tracker,
-        allocate_gpu_memory);
+        TRIVIUM_NUM_FLUSH_PATHS * batch_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
   }
 
   void release(CudaStreams streams, bool allocate_gpu_memory) {
-    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                   this->a_reg, allocate_gpu_memory);
-    delete this->a_reg;
-
-    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                   this->b_reg, allocate_gpu_memory);
-    delete this->b_reg;
-
-    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                   this->c_reg, allocate_gpu_memory);
-    delete this->c_reg;
-
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    this->shift_workspace, allocate_gpu_memory);
     delete this->shift_workspace;
@@ -265,7 +238,7 @@ template <typename Torus> struct int_trivium_buffer {
   uint32_t num_inputs;
 
   int_trivium_lut_buffers<Torus> *luts;
-  int_trivium_state_workspaces<Torus> *state;
+  int_trivium_workspaces<Torus> *ws;
 
   int_trivium_buffer(CudaStreams streams, const int_radix_params &params,
                      bool allocate_gpu_memory, uint32_t num_inputs,
@@ -277,7 +250,7 @@ template <typename Torus> struct int_trivium_buffer {
     this->luts = new int_trivium_lut_buffers<Torus>(
         streams, params, allocate_gpu_memory, num_inputs, size_tracker);
 
-    this->state = new int_trivium_state_workspaces<Torus>(
+    this->ws = new int_trivium_workspaces<Torus>(
         streams, params, allocate_gpu_memory, num_inputs, size_tracker);
   }
 
@@ -286,9 +259,9 @@ template <typename Torus> struct int_trivium_buffer {
     delete luts;
     luts = nullptr;
 
-    state->release(streams, allocate_gpu_memory);
-    delete state;
-    state = nullptr;
+    ws->release(streams, allocate_gpu_memory);
+    delete ws;
+    ws = nullptr;
 
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
