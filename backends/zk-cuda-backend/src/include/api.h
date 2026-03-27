@@ -127,6 +127,165 @@ void g2_msm_unmanaged_wrapper_async(
 size_t pippenger_scratch_size_g1_wrapper(uint32_t n, uint32_t gpu_index);
 size_t pippenger_scratch_size_g2_wrapper(uint32_t n, uint32_t gpu_index);
 
+// G1 MSM scratch/cleanup/async pattern
+// Pre-allocates device buffers once for reuse across multiple MSM calls,
+// eliminating per-call malloc/free overhead from the managed wrapper path.
+struct zk_g1_msm_mem;
+
+void scratch_zk_g1_msm(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g1_msm_mem** mem,
+    uint32_t max_n,
+    uint64_t* size_tracker,
+    bool allocate_gpu_memory
+);
+
+void cleanup_zk_g1_msm(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g1_msm_mem** mem,
+    bool allocate_gpu_memory
+);
+
+void zk_g1_msm_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g1_msm_mem* mem,
+    G1ProjectivePoint* h_result,
+    const G1Point* h_points,
+    const Scalar* h_scalars,
+    uint32_t n,
+    bool points_in_montgomery
+);
+
+// Cached G1 base points on device in Montgomery form.
+// Allocated once per CRS, reused across many MSM calls in the verify path.
+struct zk_cached_g1_points;
+
+void scratch_zk_cached_g1_points(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_cached_g1_points** mem,
+    const G1Point* h_points,
+    uint32_t n,
+    uint64_t* size_tracker,
+    bool allocate_gpu_memory
+);
+
+void cleanup_zk_cached_g1_points(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_cached_g1_points** mem,
+    bool allocate_gpu_memory
+);
+
+// MSM variant that uses device-resident cached base points (scalars-only H2D).
+// Requires a pre-allocated zk_g1_msm_mem for scalar buffer and Pippenger scratch.
+void zk_g1_msm_cached_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g1_msm_mem* msm_mem,
+    G1ProjectivePoint* h_result,
+    const struct zk_cached_g1_points* cached,
+    uint32_t point_offset,
+    const Scalar* h_scalars,
+    uint32_t n
+);
+
+// G2 MSM scratch/cleanup/async pattern
+// Pre-allocates device buffers once for reuse across multiple MSM calls,
+// eliminating per-call malloc/free overhead from the managed wrapper path.
+struct zk_g2_msm_mem;
+
+void scratch_zk_g2_msm(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g2_msm_mem** mem,
+    uint32_t max_n,
+    uint64_t* size_tracker,
+    bool allocate_gpu_memory
+);
+
+void cleanup_zk_g2_msm(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g2_msm_mem** mem,
+    bool allocate_gpu_memory
+);
+
+void zk_g2_msm_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g2_msm_mem* mem,
+    G2ProjectivePoint* h_result,
+    const G2Point* h_points,
+    const Scalar* h_scalars,
+    uint32_t n,
+    bool points_in_montgomery
+);
+
+// Cached G2 base points on device in Montgomery form.
+// Allocated once per CRS, reused across many MSM calls in the verify path.
+struct zk_cached_g2_points;
+
+void scratch_zk_cached_g2_points(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_cached_g2_points** mem,
+    const G2Point* h_points,
+    uint32_t n,
+    uint64_t* size_tracker,
+    bool allocate_gpu_memory
+);
+
+void cleanup_zk_cached_g2_points(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_cached_g2_points** mem,
+    bool allocate_gpu_memory
+);
+
+// MSM variant that uses device-resident cached base points (scalars-only H2D).
+// Requires a pre-allocated zk_g2_msm_mem for scalar buffer and Pippenger scratch.
+void zk_g2_msm_cached_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g2_msm_mem* msm_mem,
+    G2ProjectivePoint* h_result,
+    const struct zk_cached_g2_points* cached,
+    uint32_t point_offset,
+    const Scalar* h_scalars,
+    uint32_t n
+);
+
+// Split launch/finalize for pipelined G2 MSM.
+// Allows GPU MSM kernels to overlap with CPU work (e.g., pairings).
+//   1. zk_g2_msm_cached_launch_async — queues GPU work, returns immediately
+//   2. zk_g2_msm_finalize — syncs stream, runs CPU Horner, writes result
+
+// Launches G2 MSM using cached device base points. Queues H2D scalar copy,
+// GPU Pippenger phases, and D2H window-sum copy on `stream`. Does NOT
+// synchronize — call zk_g2_msm_finalize() when the result is needed.
+void zk_g2_msm_cached_launch_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g2_msm_mem* msm_mem,
+    const struct zk_cached_g2_points* cached,
+    uint32_t point_offset,
+    const Scalar* h_scalars,
+    uint32_t n
+);
+
+// Synchronizes the stream and runs CPU Horner combine on the window sums
+// that were D2H-copied during the launch phase. Writes final result to h_result.
+void zk_g2_msm_finalize(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    const struct zk_g2_msm_mem* msm_mem,
+    G2ProjectivePoint* h_result
+);
+
 // Managed MSM wrappers with BigInt scalars (320-bit scalars)
 // Handles memory allocation and transfers internally.
 void g1_msm_managed_wrapper(
