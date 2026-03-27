@@ -460,114 +460,75 @@ pub fn g2_msm_gpu_on_stream(
     }
 }
 
-/// GPU-accelerated G2 MSM using cached device-resident base points.
+// ---------------------------------------------------------------------------
+// Async (split launch/finalize) G2 MSM using cached device points
+// ---------------------------------------------------------------------------
+
+/// Opaque handle returned by [`g2_msm_cached_launch`] that keeps the host
+/// scalar buffer alive until the caller is done with it.
 ///
-/// Only scalars are transferred H2D; base points are already on device in
-/// Montgomery form (placed there by `scratch_zk_cached_g2_points`).
-/// `point_offset` indexes into the cached array to select which base points
-/// participate in the MSM.
+/// The FFI function `zk_g2_msm_cached_launch_async` issues an async H2D copy
+/// from the host scalars pointer.  With pageable host memory (a normal `Vec`)
+/// the CUDA runtime *may* stage the copy through an internal pinned buffer and
+/// return before the copy completes.  To prevent use-after-free the caller must
+/// hold this handle — and the `Vec` it owns — until after
+/// [`g2_msm_finalize`] synchronizes the stream.
+pub(crate) struct MsmLaunchHandle {
+    _scalars_ffi: Vec<zk_cuda_backend::bindings::Scalar>,
+}
+
+// SAFETY: The inner Vec is only read from the CUDA stream via a device-side
+// copy.  Once the stream is synchronized in `g2_msm_finalize`, the Vec is no
+// longer accessed by the GPU.  Moving the handle across threads is safe.
+unsafe impl Send for MsmLaunchHandle {}
+unsafe impl Sync for MsmLaunchHandle {}
+
+/// Launches a G2 MSM using cached device base points.  Queues GPU work on
+/// `stream` and returns immediately — the GPU kernels run asynchronously.
+/// Call [`g2_msm_finalize`] when the result is needed.
 ///
-/// The caller owns the `cached` handle and must free it with
-/// `cleanup_zk_cached_g2_points` after all MSMs are done.
+/// # Strategy
+///
+/// The Horner combine step (merging Pippenger window sums into the final
+/// result) is deliberately deferred to [`g2_msm_finalize`] rather than
+/// executed on the GPU, because the algorithm is inherently sequential:
+/// a single CPU core completes it in ~0.1 ms, while a <<<1,1>>> GPU
+/// kernel takes ~10–12 ms due to launch overhead.  By splitting launch
+/// from finalize, multiple GPU MSMs can overlap with CPU pairings.
 ///
 /// # Panics
 ///
-/// - If `gpu_index >= number of available GPUs`.
-/// - If the stream pointer is null.
 /// - If `scalars` is empty.
 /// - If the scalar count does not fit in `u32`.
-#[must_use]
-pub(crate) fn g2_msm_cached_on_stream(
+pub(crate) fn g2_msm_cached_launch(
+    msm_mem: *mut std::ffi::c_void,
     cached: *const std::ffi::c_void,
     point_offset: u32,
     scalars: &[Zp],
     stream: *mut std::ffi::c_void,
     gpu_index: u32,
-) -> G2 {
-    use crate::curve_446::g2::G2Projective;
-
-    assert!(!stream.is_null(), "GPU MSM: stream pointer is null");
-    assert!(!cached.is_null(), "GPU MSM: cached pointer is null");
-
-    let num_gpus = get_num_gpus();
-    assert!(
-        gpu_index < num_gpus,
-        "gpu_index {gpu_index} exceeds available GPUs ({num_gpus})",
-    );
-
-    if scalars.is_empty() {
-        return G2::ZERO;
-    }
-
+) -> MsmLaunchHandle {
     let scalars_ffi: Vec<zk_cuda_backend::bindings::Scalar> = scalars
         .iter()
-        .map(|s| {
-            let limbs = s.inner.into_bigint().0;
-            zk_cuda_backend::bindings::Scalar { limb: limbs }
+        .map(|s| zk_cuda_backend::bindings::Scalar {
+            limb: s.inner.into_bigint().0,
         })
         .collect();
-
     let n: u32 = scalars_ffi
         .len()
         .try_into()
         .expect("GPU MSM: scalar count too large for u32");
-
     let cuda_stream = stream as zk_cuda_backend::bindings::cudaStream_t;
 
-    // Allocate MSM scratch space (scalar device buffer + Pippenger workspace).
-    let mut mem: *mut std::ffi::c_void = std::ptr::null_mut();
-    let mut size_tracker: u64 = 0;
-    // SAFETY: `cuda_stream` is a valid, non-null CUDA stream (asserted above). `mem` and
-    // `size_tracker` are valid stack-allocated pointers.
+    // SAFETY: `msm_mem` was allocated by `scratch_zk_g2_msm` for this stream.
+    // `cached` is a valid handle from `scratch_zk_cached_g2_points`.
+    // `scalars_ffi` is a valid host array with `n` elements that will remain
+    // live (owned by the returned `MsmLaunchHandle`) until the stream is synced.
     unsafe {
-        zk_cuda_backend::bindings::scratch_zk_g2_msm(
+        zk_cuda_backend::bindings::zk_g2_msm_cached_launch_async(
             cuda_stream,
             gpu_index,
-            &mut mem,
-            n,
-            &mut size_tracker,
-            true,
-        );
-    }
-
-    // RAII guard: ensures cleanup_zk_g2_msm runs on all exit paths (including panics)
-    struct ScratchGuard {
-        mem: *mut std::ffi::c_void,
-        stream: zk_cuda_backend::bindings::cudaStream_t,
-        gpu_index: u32,
-    }
-    impl Drop for ScratchGuard {
-        fn drop(&mut self) {
-            if !self.mem.is_null() {
-                // SAFETY: mem was allocated by scratch_zk_g2_msm on this stream/GPU
-                unsafe {
-                    zk_cuda_backend::bindings::cleanup_zk_g2_msm(
-                        self.stream,
-                        self.gpu_index,
-                        &mut self.mem,
-                        true,
-                    );
-                }
-            }
-        }
-    }
-    let mut guard = ScratchGuard {
-        mem,
-        stream: cuda_stream,
-        gpu_index,
-    };
-
-    // Launch MSM using cached device points — only scalars are copied H2D.
-    let mut result = zk_cuda_backend::bindings::G2ProjectivePoint::default();
-    // SAFETY: `guard.mem` was allocated by `scratch_zk_g2_msm` for this stream.
-    // `cached` is a valid handle from `scratch_zk_cached_g2_points`. `result` is
-    // a valid stack-allocated output buffer. `scalars_ffi` has length `n`.
-    unsafe {
-        zk_cuda_backend::bindings::zk_g2_msm_cached_async(
-            cuda_stream,
-            gpu_index,
-            guard.mem,
-            &mut result,
+            msm_mem,
             cached,
             point_offset,
             scalars_ffi.as_ptr(),
@@ -575,21 +536,44 @@ pub(crate) fn g2_msm_cached_on_stream(
         );
     }
 
-    // Explicit cleanup before the guard runs (setting mem to null prevents double-free)
-    // SAFETY: guard.mem was allocated by scratch_zk_g2_msm on this stream/GPU
+    MsmLaunchHandle {
+        _scalars_ffi: scalars_ffi,
+    }
+}
+
+/// Synchronizes the stream and runs the CPU Horner combine on the window
+/// sums that were D2H-copied during the launch phase.  Returns the MSM
+/// result as an arkworks G2 point.
+///
+/// The caller should drop the corresponding [`MsmLaunchHandle`] only after
+/// this function returns, since the stream sync here guarantees the async
+/// H2D copy from launch has completed.
+pub(crate) fn g2_msm_finalize(
+    msm_mem: *const std::ffi::c_void,
+    stream: *mut std::ffi::c_void,
+    gpu_index: u32,
+) -> G2 {
+    use crate::curve_446::g2::G2Projective;
+
+    let cuda_stream = stream as zk_cuda_backend::bindings::cudaStream_t;
+    let mut result = zk_cuda_backend::bindings::G2ProjectivePoint::default();
+
+    // SAFETY: `msm_mem` was allocated by `scratch_zk_g2_msm` and had a launch
+    // issued on this stream.  `result` is a valid stack-allocated output buffer.
+    // The finalize function synchronizes the stream internally before running
+    // the Horner combine.
     unsafe {
-        zk_cuda_backend::bindings::cleanup_zk_g2_msm(cuda_stream, gpu_index, &mut guard.mem, true);
+        zk_cuda_backend::bindings::zk_g2_msm_finalize(cuda_stream, gpu_index, msm_mem, &mut result);
     }
 
-    // Convert result from Montgomery form back to arkworks types
+    // Convert from Montgomery form (same as g2_msm_cached_on_stream)
     let gpu_result = zk_cuda_backend::G2Projective::new(result.X, result.Y, result.Z);
     let normalized = gpu_result.from_montgomery_normalized();
     let x_fp2 = normalized.X();
     let y_fp2 = normalized.Y();
     let z_fp2 = normalized.Z();
 
-    let z_is_zero =
-        z_fp2.c0.limb.iter().all(|&limb| limb == 0) && z_fp2.c1.limb.iter().all(|&limb| limb == 0);
+    let z_is_zero = z_fp2.c0.limb.iter().all(|&l| l == 0) && z_fp2.c1.limb.iter().all(|&l| l == 0);
     if z_is_zero {
         return G2::ZERO;
     }

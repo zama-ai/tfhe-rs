@@ -193,6 +193,33 @@ void zk_g2_msm_cached_async(
     uint32_t n
 );
 
+// Split launch/finalize for pipelined G2 MSM.
+// Allows GPU MSM kernels to overlap with CPU work (e.g., pairings).
+//   1. zk_g2_msm_cached_launch_async — queues GPU work, returns immediately
+//   2. zk_g2_msm_finalize — syncs stream, runs CPU Horner, writes result
+
+// Launches G2 MSM using cached device base points. Queues H2D scalar copy,
+// GPU Pippenger phases, and D2H window-sum copy on `stream`. Does NOT
+// synchronize — call zk_g2_msm_finalize() when the result is needed.
+void zk_g2_msm_cached_launch_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g2_msm_mem* msm_mem,
+    const struct zk_cached_g2_points* cached,
+    uint32_t point_offset,
+    const Scalar* h_scalars,
+    uint32_t n
+);
+
+// Synchronizes the stream and runs CPU Horner combine on the window sums
+// that were D2H-copied during the launch phase. Writes final result to h_result.
+void zk_g2_msm_finalize(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    const struct zk_g2_msm_mem* msm_mem,
+    G2ProjectivePoint* h_result
+);
+
 // Managed MSM wrappers with BigInt scalars (320-bit scalars)
 // Handles memory allocation and transfers internally.
 void g1_msm_managed_wrapper(

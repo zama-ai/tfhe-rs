@@ -272,10 +272,18 @@ void g2_msm_managed_wrapper(
 //   cleanup_zk_g2_msm   — free device buffers, delete context
 
 struct zk_g2_msm_mem {
-    G2Affine*      d_points;   // device buffer for G2 affine points
-    Scalar*        d_scalars;  // device buffer for scalars
-    G2Projective*  d_scratch;  // Pippenger scratch buffer
-    uint32_t       capacity;   // max number of points this context can handle
+    G2Affine*      d_points;       // device buffer for G2 affine points
+    Scalar*        d_scalars;      // device buffer for scalars
+    G2Projective*  d_scratch;      // Pippenger scratch buffer
+    uint32_t       capacity;       // max number of points this context can handle
+
+    // For split launch/finalize: host buffer for Pippenger window sums.
+    // Allocated during scratch, populated by the async D2H copy in
+    // zk_g2_msm_cached_launch_async, consumed by zk_g2_msm_finalize.
+    G2Projective*  h_window_sums;  // pinned host memory for window sums
+    uint32_t       max_num_windows; // capacity of h_window_sums
+    uint32_t       num_windows;    // set during launch, used by finalize
+    uint32_t       window_size;    // set during launch, used by finalize
 };
 
 void scratch_zk_g2_msm(
@@ -312,6 +320,20 @@ void scratch_zk_g2_msm(
     (*mem)->d_scratch = static_cast<G2Projective*>(
         cuda_malloc_with_size_tracking_async(
             scratch_bytes, stream, gpu_index, tracker, allocate_gpu_memory));
+
+    // Allocate pinned host buffer for window sums (used by launch/finalize split).
+    // Pinned memory is required for the async D2H copy to be truly async.
+    // Window count is constant for G2 (fixed window size), but we compute it
+    // from the constants rather than hardcoding.
+    const uint32_t max_num_windows = CEIL_DIV(Scalar::NUM_BITS, MSM_G2_WINDOW_SIZE);
+    (*mem)->max_num_windows = max_num_windows;
+    (*mem)->num_windows = 0;
+    (*mem)->window_size = 0;
+
+    size_t window_sums_bytes = safe_mul_sizeof<G2Projective>(
+        static_cast<size_t>(max_num_windows));
+    check_cuda_error(
+        cudaMallocHost(&(*mem)->h_window_sums, window_sums_bytes));
 }
 
 void cleanup_zk_g2_msm(
@@ -333,6 +355,11 @@ void cleanup_zk_g2_msm(
         (*mem)->d_scalars, stream, gpu_index, allocate_gpu_memory);
     cuda_drop_with_size_tracking_async(
         (*mem)->d_scratch, stream, gpu_index, allocate_gpu_memory);
+
+    // Free the pinned host buffer for window sums
+    if ((*mem)->h_window_sums != nullptr) {
+        check_cuda_error(cudaFreeHost((*mem)->h_window_sums));
+    }
 
     delete *mem;
     *mem = nullptr;
@@ -499,6 +526,90 @@ void zk_g2_msm_cached_async(
                        cached->d_points + point_offset,
                        msm_mem->d_scalars, n, msm_mem->d_scratch);
     check_cuda_error(cudaGetLastError());
+    POP_RANGE();
+}
+
+// ============================================================================
+// Split launch/finalize for pipelined G2 MSM
+// ============================================================================
+// These two functions split the MSM into a truly async GPU launch and a
+// CPU-side finalize step. Between launch and finalize the caller can do
+// CPU work (e.g., pairings) while the GPU kernels execute concurrently.
+//
+// Flow:
+//   1. zk_g2_msm_cached_launch_async — H2D scalars, GPU phases 1-3, async D2H
+//      of window sums. Returns immediately (stream NOT synchronized).
+//   2. (caller does CPU work here while GPU is busy)
+//   3. zk_g2_msm_finalize — syncs stream, runs CPU Horner combine, writes result.
+
+// Launches G2 MSM asynchronously using cached device base points. Only scalars
+// are transferred H2D. The MSM kernels and D2H copy of window sums are queued
+// on `stream` but NOT synchronized — the caller must call
+// `zk_g2_msm_finalize()` after any desired CPU overlap to get the final result.
+void zk_g2_msm_cached_launch_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_g2_msm_mem* msm_mem,
+    const zk_cached_g2_points* cached,
+    uint32_t point_offset,
+    const Scalar* h_scalars,
+    uint32_t n
+) {
+    PUSH_RANGE("G2 MSM CACHED LAUNCH");
+    PANIC_IF_FALSE(msm_mem != nullptr, "zk_g2_msm_cached_launch_async: msm_mem is null");
+    PANIC_IF_FALSE(cached != nullptr, "zk_g2_msm_cached_launch_async: cached is null");
+    PANIC_IF_FALSE(n > 0, "zk_g2_msm_cached_launch_async: n must be positive, got %u", n);
+    PANIC_IF_FALSE(n <= msm_mem->capacity,
+                   "zk_g2_msm_cached_launch_async: n=%u exceeds msm_mem capacity=%u",
+                   n, msm_mem->capacity);
+    PANIC_IF_FALSE(point_offset + n <= cached->n,
+                   "zk_g2_msm_cached_launch_async: point_offset=%u + n=%u exceeds cached points=%u",
+                   point_offset, n, cached->n);
+    PANIC_IF_FALSE(stream != nullptr, "zk_g2_msm_cached_launch_async: stream is null");
+    PANIC_IF_FALSE(h_scalars != nullptr, "zk_g2_msm_cached_launch_async: h_scalars is null");
+    PANIC_IF_FALSE(msm_mem->h_window_sums != nullptr,
+                   "zk_g2_msm_cached_launch_async: h_window_sums is null (scratch not allocated?)");
+
+    // H2D transfer: only scalars (points are already cached on device)
+    size_t scalars_bytes = safe_mul_sizeof<Scalar>(static_cast<size_t>(n));
+    cuda_memcpy_async_to_gpu(msm_mem->d_scalars, h_scalars, scalars_bytes,
+                             stream, gpu_index);
+
+    // Launch Pippenger phases 1-3 + async D2H of window sums into msm_mem.
+    // num_windows and window_size are written to msm_mem for finalize.
+    point_msm_g2_launch_async(
+        stream, gpu_index, msm_mem->h_window_sums,
+        cached->d_points + point_offset, msm_mem->d_scalars, n,
+        msm_mem->d_scratch,
+        msm_mem->num_windows, msm_mem->window_size);
+    check_cuda_error(cudaGetLastError());
+    POP_RANGE();
+}
+
+// Synchronizes the stream and runs the CPU Horner combine on the window sums
+// that were copied D2H during the launch phase. Writes the final MSM result
+// to `h_result`.
+void zk_g2_msm_finalize(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    const zk_g2_msm_mem* msm_mem,
+    G2Projective* h_result
+) {
+    PUSH_RANGE("G2 MSM FINALIZE");
+    PANIC_IF_FALSE(msm_mem != nullptr, "zk_g2_msm_finalize: msm_mem is null");
+    PANIC_IF_FALSE(h_result != nullptr, "zk_g2_msm_finalize: h_result is null");
+    PANIC_IF_FALSE(stream != nullptr, "zk_g2_msm_finalize: stream is null");
+    PANIC_IF_FALSE(msm_mem->num_windows > 0,
+                   "zk_g2_msm_finalize: num_windows is 0 (launch not called?)");
+    PANIC_IF_FALSE(msm_mem->h_window_sums != nullptr,
+                   "zk_g2_msm_finalize: h_window_sums is null");
+
+    // Block until all GPU work (kernels + D2H copy) has completed
+    cuda_synchronize_stream(stream, gpu_index);
+
+    // Run CPU Horner combine (~0.1 ms) to produce the final MSM result
+    point_msm_g2_horner_finalize(h_result, msm_mem->h_window_sums,
+                                 msm_mem->num_windows, msm_mem->window_size);
     POP_RANGE();
 }
 

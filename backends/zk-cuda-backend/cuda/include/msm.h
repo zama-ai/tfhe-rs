@@ -117,3 +117,25 @@ void point_msm_g2(cudaStream_t stream, uint32_t gpu_index,
                   G2ProjectivePoint *h_result, const G2Point *d_points,
                   const Scalar *d_scalars, uint32_t n,
                   G2ProjectivePoint *d_scratch);
+
+// ============================================================================
+// Split Launch / Finalize for Pipelined G2 MSM
+// ============================================================================
+// Splits the MSM into a truly async GPU launch and a CPU finalize step,
+// allowing GPU kernel execution to overlap with CPU work (e.g., pairings).
+
+// Launches Pippenger phases 1-3 and queues async D2H copy of window sums.
+// Does NOT synchronize or run the Horner combine. The caller must sync the
+// stream and then call point_msm_g2_horner_finalize() to get the result.
+void point_msm_g2_launch_async(cudaStream_t stream, uint32_t gpu_index,
+                               G2ProjectivePoint *h_window_sums,
+                               const G2Point *d_points, const Scalar *d_scalars,
+                               uint32_t n, G2ProjectivePoint *d_scratch,
+                               uint32_t &out_num_windows,
+                               uint32_t &out_window_size);
+
+// Runs the CPU Horner combine on window sums already in host memory.
+// The stream must have been synchronized before calling this.
+void point_msm_g2_horner_finalize(G2ProjectivePoint *h_result,
+                                  const G2ProjectivePoint *h_window_sums,
+                                  uint32_t num_windows, uint32_t window_size);

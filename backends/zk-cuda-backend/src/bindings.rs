@@ -233,6 +233,28 @@ unsafe extern "C" {
         n: u32,
     );
 }
+// Split launch/finalize for pipelined G2 MSM. The launch function queues GPU
+// work and returns immediately; the finalize function syncs the stream and runs
+// the CPU Horner combine. This allows GPU MSMs to overlap with CPU pairings.
+unsafe extern "C" {
+    pub fn zk_g2_msm_cached_launch_async(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        msm_mem: *mut std::ffi::c_void,
+        cached: *const std::ffi::c_void,
+        point_offset: u32,
+        h_scalars: *const Scalar,
+        n: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn zk_g2_msm_finalize(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        msm_mem: *const std::ffi::c_void,
+        h_result: *mut G2ProjectivePoint,
+    );
+}
 unsafe extern "C" {
     pub fn g1_msm_managed_wrapper(
         stream: cudaStream_t,
