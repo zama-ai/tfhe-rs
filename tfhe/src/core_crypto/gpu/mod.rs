@@ -16,6 +16,7 @@ use std::ffi::c_void;
 use tfhe_cuda_backend::bindings::*;
 use tfhe_cuda_backend::cuda_bind::*;
 
+// TODO: refactor CudaStreams to use tfhe_cuda_backend::CudaStream internally
 pub struct CudaStreams {
     pub ptr: Vec<*mut c_void>,
     pub gpu_indexes: Vec<GpuIndex>,

@@ -262,12 +262,6 @@ impl G1Projective {
         let points_ffi: Vec<G1Point> = points.iter().map(|p| p.inner).collect();
         let scalars_ffi: Vec<ScalarFFI> = scalars.iter().map(|s| *s.inner()).collect();
         let mut result = G1ProjectivePoint::default();
-        // NOTE: This method uses the managed API (g1_msm_managed_wrapper) which handles
-        // memory allocation and transfers internally. For a pure-GPU verify/proof implementation
-        // where all data is already on the device and memory is managed externally, use the
-        // unmanaged API (g1_msm_unmanaged_wrapper_async) instead — it performs zero internal
-        // allocations (caller provides d_scratch via pippenger_scratch_size_g1_wrapper).
-        //
         // SAFETY:
         // - `stream` was validated as non-null above and must be a valid `cudaStream_t` obtained
         //   from `cuda_create_stream`. The raw pointer type is `*mut c_void` because CUDA streams

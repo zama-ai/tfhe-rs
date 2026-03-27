@@ -127,6 +127,96 @@ void g2_msm_unmanaged_wrapper_async(
 size_t pippenger_scratch_size_g1_wrapper(uint32_t n, uint32_t gpu_index);
 size_t pippenger_scratch_size_g2_wrapper(uint32_t n, uint32_t gpu_index);
 
+struct zk_g1_msm_mem;
+
+void scratch_zk_g1_msm(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g1_msm_mem** mem,
+    uint32_t max_n,
+    uint64_t* size_tracker,
+    bool allocate_gpu_memory
+);
+
+void cleanup_zk_g1_msm(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g1_msm_mem** mem,
+    bool allocate_gpu_memory
+);
+
+// Cached G1 base points on device in Montgomery form.
+// Allocated once per CRS, reused across many MSM calls in the verify path.
+struct zk_cached_g1_points;
+
+void scratch_zk_cached_g1_points(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_cached_g1_points** mem,
+    const G1Point* h_points,
+    uint32_t n,
+    uint64_t* size_tracker,
+    bool allocate_gpu_memory
+);
+
+// MSM variant that uses device-resident cached base points (scalars-only H2D).
+// Requires a pre-allocated zk_g1_msm_mem for scalar buffer and Pippenger scratch.
+void zk_g1_msm_cached_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g1_msm_mem* msm_mem,
+    G1ProjectivePoint* h_result,
+    const struct zk_cached_g1_points* cached,
+    uint32_t point_offset,
+    const Scalar* h_scalars,
+    uint32_t n
+);
+
+struct zk_g2_msm_mem;
+
+void scratch_zk_g2_msm(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g2_msm_mem** mem,
+    uint32_t max_n,
+    uint64_t* size_tracker,
+    bool allocate_gpu_memory
+);
+
+void cleanup_zk_g2_msm(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g2_msm_mem** mem,
+    bool allocate_gpu_memory
+);
+
+// Cached G2 base points on device in Montgomery form.
+// Allocated once per CRS, reused across many MSM calls in the verify path.
+struct zk_cached_g2_points;
+
+void scratch_zk_cached_g2_points(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_cached_g2_points** mem,
+    const G2Point* h_points,
+    uint32_t n,
+    uint64_t* size_tracker,
+    bool allocate_gpu_memory
+);
+
+// MSM variant that uses device-resident cached base points (scalars-only H2D).
+// Requires a pre-allocated zk_g2_msm_mem for scalar buffer and Pippenger scratch.
+void zk_g2_msm_cached_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g2_msm_mem* msm_mem,
+    G2ProjectivePoint* h_result,
+    const struct zk_cached_g2_points* cached,
+    uint32_t point_offset,
+    const Scalar* h_scalars,
+    uint32_t n
+);
+
 // Managed MSM wrappers with BigInt scalars (320-bit scalars)
 // Handles memory allocation and transfers internally.
 void g1_msm_managed_wrapper(
@@ -154,9 +244,6 @@ void g2_msm_managed_wrapper(
 // Montgomery conversion helpers
 void g1_from_montgomery_wrapper(G1Point* result, const G1Point* point);
 void g2_from_montgomery_wrapper(G2Point* result, const G2Point* point);
-void fp_to_montgomery_wrapper(Fp* result, const Fp* value);
-void fp_from_montgomery_wrapper(Fp* result, const Fp* value);
-
 // Projective point from Montgomery and normalize (divides by Z to get Z=1 form)
 void g1_projective_from_montgomery_normalized_wrapper(G1ProjectivePoint* result, const G1ProjectivePoint* point);
 void g2_projective_from_montgomery_normalized_wrapper(G2ProjectivePoint* result, const G2ProjectivePoint* point);
@@ -167,6 +254,17 @@ bool is_on_curve_g2_wrapper(const G2Point* point);
 
 // Scalar modulus accessor - returns the scalar field modulus (group order)
 void scalar_modulus_limbs_wrapper(uint64_t* limbs);
+
+// Global MSM cache for CRS base points (singleton).
+// Populated once per CRS key, lives until release() or process exit.
+uint32_t zk_msm_cache_acquire(
+    const G1Point* g1_points, uint32_t n_g1,
+    const G2Point* g2_points, uint32_t n_g2,
+    const uintptr_t key[4],
+    uint64_t* size_tracker);
+const struct zk_cached_g1_points* zk_msm_cache_get_g1(uint32_t gpu_index);
+const struct zk_cached_g2_points* zk_msm_cache_get_g2(uint32_t gpu_index);
+void zk_msm_cache_release(void);
 
 #ifdef __cplusplus
 }

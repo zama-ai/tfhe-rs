@@ -30,6 +30,8 @@ use tfhe_zk_pok::gpu::pke_v2::{prove as prove_v2, verify as verify_v2};
 use tfhe_zk_pok::proofs::pke_v2::{prove as prove_v2, verify as verify_v2};
 
 pub use tfhe_zk_pok::curve_api::Compressible;
+#[cfg(feature = "gpu-experimental-zk")]
+pub use tfhe_zk_pok::gpu::{set_gpu_affinity, with_gpu_affinity};
 pub use tfhe_zk_pok::proofs::pke_v2::PkeV2SupportedHashConfig as ZkPkeV2SupportedHashConfig;
 pub use tfhe_zk_pok::proofs::{CompactPkeCrsConformanceParams, ComputeLoad as ZkComputeLoad};
 type Curve = tfhe_zk_pok::curve_api::Bls12_446;

@@ -116,6 +116,18 @@ Internal: `point_msm_g1_async`, `point_msm_g1`, `pippenger_scratch_size_g1` (gro
 - Group suffix: `affine_to_projective_g1_wrapper`, `is_on_curve_g1_wrapper`, `pippenger_scratch_size_g1_wrapper`
 - No group: `fp_to_montgomery_wrapper`, `scalar_modulus_limbs_wrapper`
 
+### Internal Implementations (`_impl` suffix)
+
+**Rule: `*_impl` suffix** for internal C++ functions whose name would otherwise collide with an `extern "C"` FFI symbol.
+
+When a header (e.g., `msm_utils.h`) defines a function with the same name as an FFI function in `c_wrapper.cu`/`api.h`, the internal function gets `_impl` appended. The FFI function then forwards to the `_impl` variant.
+
+Do **not** use C++ namespaces to avoid these collisions — neither `zk-cuda-backend` nor `tfhe-cuda-backend` uses namespaces.
+
+Examples:
+- `scratch_zk_g1_msm_impl` (internal) → `scratch_zk_g1_msm` (FFI)
+- `zk_msm_cache_acquire_impl` (internal) → `zk_msm_cache_acquire` (FFI)
+
 ### Rust API
 
 Standard Rust `snake_case`: `to_projective()`, `from_montgomery_normalized()`, `is_infinity()`, `msm()`.

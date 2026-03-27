@@ -105,9 +105,11 @@ fn main() {
 
             let bindings = bindgen::Builder::default()
                 .header(header_path.to_str().unwrap())
-                // Allow only the wrapper functions (C FFI interface)
                 .allowlist_function(".*_wrapper(_async)?")
-                // Allow the core types needed for FFI
+                .allowlist_function("scratch_zk_.*")
+                .allowlist_function("cleanup_zk_.*")
+                .allowlist_function("zk_g[12]_msm.*")
+                .allowlist_function("zk_msm_cache_.*")
                 .allowlist_type("G1Point")
                 .allowlist_type("G2Point")
                 .allowlist_type("G1ProjectivePoint")
@@ -117,6 +119,8 @@ fn main() {
                 .allowlist_type("Scalar")
                 .allowlist_type("BigInt")
                 .allowlist_type("cudaStream_t")
+                .allowlist_type("zk_g[12]_msm_mem")
+                .allowlist_type("zk_cached_g[12]_points")
                 // Derive Default, PartialEq and Eq for all types so wrapper
                 // types can use derive macros instead of manual impls
                 .derive_default(true)

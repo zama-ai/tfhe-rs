@@ -2026,6 +2026,9 @@ pub(crate) struct GeneratedScalars<G: Curve> {
     pub(crate) chi_powers: [G::Zp; 4],
     pub(crate) z: G::Zp,
     pub(crate) t_theta: G::Zp,
+    /// Precomputed R^T * phi vector: entry j = sum_i(phi[i] * R(i,j)) for j in 0..2(d+k)+4.
+    /// Computed once and reused in P_h2, P_h3, and pairing-check MSM scalars.
+    pub(crate) r_transpose_phi: Vec<G::Zp>,
 }
 
 pub(crate) struct EvaluationPoints<G: Curve> {
@@ -2145,6 +2148,26 @@ pub fn verify_impl<G: Curve>(
 
     let (y, y_hash) = xi_hash.gen_y();
 
+    // Precompute R^T * phi: for each column j of R, compute sum_i(phi[i] * R(i,j)).
+    // The full vector has 2*(d+k)+4 entries covering both the P_h2 range (first d+k+4
+    // columns) and the P_h3 / MSM-scalar range (next d+k columns). Each column is
+    // independent, so we parallelize across columns with rayon.
+    let r_transpose_phi: Vec<G::Zp> = (0..2 * (d + k) + 4)
+        .into_par_iter()
+        .map(|j| {
+            let mut acc = G::Zp::ZERO;
+            for (i, &phi_val) in phi.iter().enumerate() {
+                match R(i, j) {
+                    0 => {}
+                    1 => acc += phi_val,
+                    -1 => acc -= phi_val,
+                    _ => unreachable!(),
+                }
+            }
+            acc
+        })
+        .collect();
+
     let C_y_bytes = C_y.to_le_bytes();
     let (t, t_hash) = y_hash.gen_t(C_y_bytes.as_ref());
 
@@ -2244,16 +2267,7 @@ pub fn verify_impl<G: Curve>(
         *p += delta_e * omega[j];
 
         if j < d + k + 4 {
-            let mut acc = G::Zp::ZERO;
-            for (i, &phi) in phi.iter().enumerate() {
-                match R(i, j) {
-                    0 => {}
-                    1 => acc += phi,
-                    -1 => acc -= phi,
-                    _ => unreachable!(),
-                }
-            }
-            *p += delta_r * acc;
+            *p += delta_r * r_transpose_phi[j];
         }
     }
 
@@ -2262,17 +2276,7 @@ pub fn verify_impl<G: Curve>(
     if !P_h3.is_empty() {
         for j in 0..d + k {
             let p = &mut P_h3[n - j];
-
-            let mut acc = G::Zp::ZERO;
-            for (i, &phi) in phi.iter().enumerate() {
-                match R(i, d + k + 4 + j) {
-                    0 => {}
-                    1 => acc += phi,
-                    -1 => acc -= phi,
-                    _ => unreachable!(),
-                }
-            }
-            *p = delta_r * acc - delta_theta_q * theta[j];
+            *p = delta_r * r_transpose_phi[d + k + 4 + j] - delta_theta_q * theta[j];
         }
     }
 
@@ -2327,6 +2331,7 @@ pub fn verify_impl<G: Curve>(
         chi_powers: [chi, chi2, chi3, chi4],
         z,
         t_theta,
+        r_transpose_phi,
     };
 
     let eval_points = EvaluationPoints {
@@ -2346,7 +2351,6 @@ pub fn verify_impl<G: Curve>(
             B_squared,
             decoded_q,
             k,
-            R,
             scalars,
             eval_points,
         ),
@@ -2358,7 +2362,6 @@ pub fn verify_impl<G: Curve>(
             B_squared,
             decoded_q,
             k,
-            R,
             scalars,
             eval_points,
         ),
@@ -2374,7 +2377,6 @@ fn pairing_check_two_steps<G: Curve>(
     B_squared: u128,
     decoded_q: u128,
     k: usize,
-    R: impl Fn(usize, usize) -> i8 + Sync,
     scalars: GeneratedScalars<G>,
     eval_points: EvaluationPoints<G>,
 ) -> Result<(), ()> {
@@ -2403,6 +2405,7 @@ fn pairing_check_two_steps<G: Curve>(
         chi_powers: [chi, chi2, chi3, chi4],
         z,
         t_theta,
+        r_transpose_phi,
     } = scalars;
 
     let EvaluationPoints {
@@ -2454,16 +2457,7 @@ fn pairing_check_two_steps<G: Curve>(
                         &(0..d + k)
                             .rev()
                             .map(|j| {
-                                let mut acc = G::Zp::ZERO;
-                                for (i, &phi) in phi.iter().enumerate() {
-                                    match R(i, d + k + 4 + j) {
-                                        0 => {}
-                                        1 => acc += phi,
-                                        -1 => acc -= phi,
-                                        _ => unreachable!(),
-                                    }
-                                }
-                                delta_r * acc - delta_theta_q * theta[j]
+                                delta_r * r_transpose_phi[d + k + 4 + j] - delta_theta_q * theta[j]
                             })
                             .collect::<Box<[_]>>(),
                     ),
@@ -2572,7 +2566,6 @@ fn pairing_check_batched<G: Curve>(
     B_squared: u128,
     decoded_q: u128,
     k: usize,
-    R: impl Fn(usize, usize) -> i8 + Sync,
     scalars: GeneratedScalars<G>,
     eval_points: EvaluationPoints<G>,
 ) -> Result<(), ()> {
@@ -2601,6 +2594,7 @@ fn pairing_check_batched<G: Curve>(
         chi_powers: [chi, chi2, chi3, chi4],
         z,
         t_theta,
+        r_transpose_phi,
     } = scalars;
 
     let EvaluationPoints {
@@ -2661,16 +2655,7 @@ fn pairing_check_batched<G: Curve>(
                         &(0..d + k)
                             .rev()
                             .map(|j| {
-                                let mut acc = G::Zp::ZERO;
-                                for (i, &phi) in phi.iter().enumerate() {
-                                    match R(i, d + k + 4 + j) {
-                                        0 => {}
-                                        1 => acc += phi,
-                                        -1 => acc -= phi,
-                                        _ => unreachable!(),
-                                    }
-                                }
-                                delta_r * acc - delta_theta_q * theta[j]
+                                delta_r * r_transpose_phi[d + k + 4 + j] - delta_theta_q * theta[j]
                             })
                             .collect::<Box<[_]>>(),
                     ),

@@ -166,6 +166,108 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn pippenger_scratch_size_g2_wrapper(n: u32, gpu_index: u32) -> usize;
 }
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct zk_g1_msm_mem {
+    _unused: [u8; 0],
+}
+unsafe extern "C" {
+    pub fn scratch_zk_g1_msm(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        mem: *mut *mut zk_g1_msm_mem,
+        max_n: u32,
+        size_tracker: *mut u64,
+        allocate_gpu_memory: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_zk_g1_msm(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        mem: *mut *mut zk_g1_msm_mem,
+        allocate_gpu_memory: bool,
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct zk_cached_g1_points {
+    _unused: [u8; 0],
+}
+unsafe extern "C" {
+    pub fn scratch_zk_cached_g1_points(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        mem: *mut *mut zk_cached_g1_points,
+        h_points: *const G1Point,
+        n: u32,
+        size_tracker: *mut u64,
+        allocate_gpu_memory: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn zk_g1_msm_cached_async(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        msm_mem: *mut zk_g1_msm_mem,
+        h_result: *mut G1ProjectivePoint,
+        cached: *const zk_cached_g1_points,
+        point_offset: u32,
+        h_scalars: *const Scalar,
+        n: u32,
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct zk_g2_msm_mem {
+    _unused: [u8; 0],
+}
+unsafe extern "C" {
+    pub fn scratch_zk_g2_msm(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        mem: *mut *mut zk_g2_msm_mem,
+        max_n: u32,
+        size_tracker: *mut u64,
+        allocate_gpu_memory: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_zk_g2_msm(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        mem: *mut *mut zk_g2_msm_mem,
+        allocate_gpu_memory: bool,
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct zk_cached_g2_points {
+    _unused: [u8; 0],
+}
+unsafe extern "C" {
+    pub fn scratch_zk_cached_g2_points(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        mem: *mut *mut zk_cached_g2_points,
+        h_points: *const G2Point,
+        n: u32,
+        size_tracker: *mut u64,
+        allocate_gpu_memory: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn zk_g2_msm_cached_async(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        msm_mem: *mut zk_g2_msm_mem,
+        h_result: *mut G2ProjectivePoint,
+        cached: *const zk_cached_g2_points,
+        point_offset: u32,
+        h_scalars: *const Scalar,
+        n: u32,
+    );
+}
 unsafe extern "C" {
     pub fn g1_msm_managed_wrapper(
         stream: cudaStream_t,
@@ -197,12 +299,6 @@ unsafe extern "C" {
     pub fn g2_from_montgomery_wrapper(result: *mut G2Point, point: *const G2Point);
 }
 unsafe extern "C" {
-    pub fn fp_to_montgomery_wrapper(result: *mut Fp, value: *const Fp);
-}
-unsafe extern "C" {
-    pub fn fp_from_montgomery_wrapper(result: *mut Fp, value: *const Fp);
-}
-unsafe extern "C" {
     pub fn g1_projective_from_montgomery_normalized_wrapper(
         result: *mut G1ProjectivePoint,
         point: *const G1ProjectivePoint,
@@ -222,4 +318,23 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn scalar_modulus_limbs_wrapper(limbs: *mut u64);
+}
+unsafe extern "C" {
+    pub fn zk_msm_cache_acquire(
+        g1_points: *const G1Point,
+        n_g1: u32,
+        g2_points: *const G2Point,
+        n_g2: u32,
+        key: *const usize,
+        size_tracker: *mut u64,
+    ) -> u32;
+}
+unsafe extern "C" {
+    pub fn zk_msm_cache_get_g1(gpu_index: u32) -> *const zk_cached_g1_points;
+}
+unsafe extern "C" {
+    pub fn zk_msm_cache_get_g2(gpu_index: u32) -> *const zk_cached_g2_points;
+}
+unsafe extern "C" {
+    pub fn zk_msm_cache_release();
 }

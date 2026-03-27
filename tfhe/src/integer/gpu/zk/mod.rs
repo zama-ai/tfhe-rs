@@ -64,17 +64,16 @@ impl CudaProvenCompactCiphertextList {
         Err(crate::ErrorKind::InvalidZkProof.into())
     }
 
-    /// # Safety
-    ///
-    /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
-    ///   synchronization is required
     pub fn expand_without_verification(
         &self,
         key: &CudaKeySwitchingKey,
         streams: &CudaStreams,
     ) -> crate::Result<CudaCompactCiphertextListExpander> {
-        self.d_flattened_compact_lists
-            .expand(key, super::ZKType::Casting, streams)
+        let result = self
+            .d_flattened_compact_lists
+            .expand(key, super::ZKType::Casting, streams)?;
+        streams.synchronize();
+        Ok(result)
     }
 
     pub fn from_proven_compact_ciphertext_list(
@@ -341,6 +340,82 @@ mod tests {
             for (idx, msg) in msgs.iter().copied().enumerate() {
                 let gpu_expanded: CudaUnsignedRadixCiphertext =
                     unverified_expander.get(idx, &streams).unwrap().unwrap();
+                let expanded = gpu_expanded.to_radix_ciphertext(&streams);
+                let decrypted = cks.decrypt_radix::<u64>(&expanded);
+                assert_eq!(msg, decrypted);
+            }
+        }
+    }
+
+    /// Exercises the `ZkComputeLoad::Verify` path where the verifier must
+    /// recompute C_hat_h3 / C_hat_w via GPU MSMs (they are not included in the
+    /// proof).
+    #[test]
+    fn test_verify_load_verify_and_expand() {
+        let ksk_params = PARAM_KEYSWITCH_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let fhe_params: PBSParameters = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
+
+        let metadata = [b'v', b'e', b'r', b'i', b'f', b'y'];
+
+        let msg_carry_bits =
+            (pke_params.message_modulus.0 * pke_params.carry_modulus.0).ilog2() as usize;
+        let encryption_num_blocks = 64 / (pke_params.message_modulus.0.ilog2() as usize);
+
+        // Small CRS: multiple proved lists per proof, matching the original test.
+        // Large CRS: single proved list, matching the benchmark config
+        // (ProofConfig::new(2048, &[64]) with msg_bits=4).
+
+        let cks = ClientKey::new(fhe_params);
+        let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
+        let sk = compressed_server_key.decompress();
+        let streams = CudaStreams::new_multi_gpu();
+        let gpu_sk = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
+
+        let compact_private_key = CompactPrivateKey::new(pke_params);
+        let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), ksk_params);
+        let d_ksk_material = CudaKeySwitchingKeyMaterial::from_key_switching_key(&ksk, &streams);
+        let d_ksk =
+            CudaKeySwitchingKey::from_cuda_key_switching_key_material(&d_ksk_material, &gpu_sk);
+
+        let pk = CompactPublicKey::new(&compact_private_key);
+
+        // Test configurations: (crs_lwe_count, num_messages)
+        // Small CRS with 2 msgs → multiple proved lists (original test).
+        // Large CRS with 2 msgs → single proved list, many LWEs.
+        // Large CRS with 1 msg  → matches benchmark config exactly.
+        let configs: &[(usize, usize)] = &[
+            (64 / msg_carry_bits, 2),
+            (2048 / msg_carry_bits, 2),
+            (2048 / msg_carry_bits, 1),
+        ];
+
+        for &(crs_lwe_count, num_msgs) in configs {
+            let crs =
+                CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(crs_lwe_count))
+                    .unwrap();
+
+            let msgs: Vec<u64> = (0..num_msgs).map(|_| random::<u64>()).collect();
+
+            let proven_ct = CompactCiphertextList::builder(&pk)
+                .extend_with_num_blocks(msgs.iter().copied(), encryption_num_blocks)
+                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Verify)
+                .unwrap();
+            let gpu_proven_ct =
+                CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
+                    &proven_ct, &streams,
+                );
+
+            // Verify the proof is valid before testing verify_and_expand.
+            assert!(proven_ct.verify(&crs, &pk, &metadata).is_valid());
+
+            let gpu_expander = gpu_proven_ct
+                .verify_and_expand(&crs, &pk, &metadata, &d_ksk, &streams)
+                .unwrap();
+
+            for (idx, msg) in msgs.iter().copied().enumerate() {
+                let gpu_expanded: CudaUnsignedRadixCiphertext =
+                    gpu_expander.get(idx, &streams).unwrap().unwrap();
                 let expanded = gpu_expanded.to_radix_ciphertext(&streams);
                 let decrypted = cks.decrypt_radix::<u64>(&expanded);
                 assert_eq!(msg, decrypted);

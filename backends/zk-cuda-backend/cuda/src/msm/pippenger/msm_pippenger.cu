@@ -174,8 +174,10 @@ __global__ void kernel_accumulate_all_windows(
     return;
 
   // Output offset for this block's buckets
-  uint32_t bucket_offset =
-      (window_idx * num_blocks_per_window + block_within_window) * bucket_count;
+  size_t bucket_offset =
+      (static_cast<size_t>(window_idx) * num_blocks_per_window +
+       block_within_window) *
+      bucket_count;
   ProjectiveType *my_buckets = all_block_buckets + bucket_offset;
 
   // Shared memory layout (register-based optimization):
@@ -315,8 +317,10 @@ __global__ void kernel_reduce_all_windows(
   // Each thread sums a subset of block contributions
   for (uint32_t block = threadIdx.x; block < num_blocks_per_window;
        block += blockDim.x) {
-    uint32_t idx =
-        (window_idx * num_blocks_per_window + block) * num_buckets + bucket_idx;
+    size_t idx =
+        (static_cast<size_t>(window_idx) * num_blocks_per_window + block) *
+            num_buckets +
+        bucket_idx;
     const ProjectiveType &contrib = all_block_buckets[idx];
     if (!ProjectivePoint::is_infinity(contrib)) {
       if (ProjectivePoint::is_infinity(local_sum)) {
@@ -525,14 +529,12 @@ void point_msm_pippenger_impl_async(cudaStream_t stream, uint32_t gpu_index,
   // - all_block_buckets: [num_windows * num_blocks * bucket_count]
   // - all_final_buckets: [num_windows * bucket_count]
   // - window_sums: [num_windows]
-  // Compute element counts in size_t (64-bit) so that intermediate products
-  // of uint32_t inputs don't silently wrap at 2^32 before reaching the
-  // explicit overflow check below (which multiplies by sizeof(ProjectiveType))
-  const size_t all_block_buckets_size = static_cast<size_t>(num_windows) *
-                                        launch_params.num_blocks_per_window *
-                                        bucket_count;
-  const size_t all_final_buckets_size =
-      static_cast<size_t>(num_windows) * bucket_count;
+  const size_t all_block_buckets_size =
+      safe_mul(static_cast<size_t>(num_windows),
+               static_cast<size_t>(launch_params.num_blocks_per_window),
+               static_cast<size_t>(bucket_count));
+  const size_t all_final_buckets_size = safe_mul(
+      static_cast<size_t>(num_windows), static_cast<size_t>(bucket_count));
   const size_t total_scratch =
       all_block_buckets_size + all_final_buckets_size + num_windows;
 
@@ -542,59 +544,75 @@ void point_msm_pippenger_impl_async(cudaStream_t stream, uint32_t gpu_index,
   ProjectiveType *d_window_sums = d_all_final_buckets + all_final_buckets_size;
 
   // Clear all scratch space
-  const uint32_t clear_blocks = CEIL_DIV(total_scratch, KERNEL_THREADS_MAX);
-  PANIC_IF_FALSE(clear_blocks * KERNEL_THREADS_MAX >= total_scratch,
-                 "kernel_clear_buckets: insufficient threads (%zu) to clear "
-                 "buffer (%zu elements)",
-                 static_cast<size_t>(clear_blocks) * KERNEL_THREADS_MAX,
-                 total_scratch);
+  const size_t clear_blocks =
+      CEIL_DIV(total_scratch, static_cast<size_t>(KERNEL_THREADS_MAX));
+  PANIC_IF_FALSE(clear_blocks <= static_cast<size_t>(UINT32_MAX),
+                 "kernel_clear_buckets: clear_blocks (%zu) exceeds UINT32_MAX",
+                 clear_blocks);
   kernel_clear_buckets<ProjectiveType>
-      <<<clear_blocks, KERNEL_THREADS_MAX, 0, stream>>>(d_scratch,
-                                                        total_scratch);
+      <<<static_cast<uint32_t>(clear_blocks), KERNEL_THREADS_MAX, 0, stream>>>(
+          d_scratch, total_scratch);
   check_cuda_error(cudaGetLastError());
 
-  // Phase 1: Accumulate ALL windows in parallel (SINGLE kernel launch!)
-  const uint32_t total_accum_blocks =
-      num_windows * launch_params.num_blocks_per_window;
+  // Phase 1: Bucket accumulation
+  const size_t total_accum_blocks =
+      safe_mul(static_cast<size_t>(num_windows),
+               static_cast<size_t>(launch_params.num_blocks_per_window));
   PANIC_IF_FALSE(
-      total_accum_blocks * bucket_count <= all_block_buckets_size,
+      safe_mul(total_accum_blocks, static_cast<size_t>(bucket_count)) <=
+          all_block_buckets_size,
       "kernel_accumulate_all_windows: max write index (%zu) exceeds buffer "
       "(%zu)",
-      static_cast<size_t>(total_accum_blocks) * bucket_count,
+      safe_mul(total_accum_blocks, static_cast<size_t>(bucket_count)),
       all_block_buckets_size);
+  PANIC_IF_FALSE(total_accum_blocks <= static_cast<size_t>(UINT32_MAX),
+                 "total_accum_blocks (%zu) exceeds UINT32_MAX",
+                 total_accum_blocks);
   kernel_accumulate_all_windows<AffineType, ProjectiveType>
-      <<<total_accum_blocks, launch_params.adjusted_threads_per_block,
+      <<<static_cast<uint32_t>(total_accum_blocks),
+         launch_params.adjusted_threads_per_block,
          launch_params.accum_shared_mem, stream>>>(
           d_all_block_buckets, d_points, d_scalars, n, num_windows,
           launch_params.num_blocks_per_window, window_size, bucket_count);
   check_cuda_error(cudaGetLastError());
 
-  // Phase 2: Reduce ALL windows' buckets in parallel (SINGLE kernel launch!)
-  const uint32_t total_reduce_blocks = num_windows * bucket_count;
+  // Phase 2: Cross-block bucket reduction
+  const size_t total_reduce_blocks = safe_mul(
+      static_cast<size_t>(num_windows), static_cast<size_t>(bucket_count));
   Phase2KernelLaunchParams<ProjectiveType> reduce_params(
       launch_params.num_blocks_per_window, gpu_index);
   PANIC_IF_FALSE(
       total_reduce_blocks <= all_final_buckets_size,
-      "kernel_reduce_all_windows: blocks (%u) exceeds output buffer (%zu)",
+      "kernel_reduce_all_windows: blocks (%zu) exceeds output buffer (%zu)",
       total_reduce_blocks, all_final_buckets_size);
+  PANIC_IF_FALSE(total_reduce_blocks <= static_cast<size_t>(UINT32_MAX),
+                 "total_reduce_blocks (%zu) exceeds UINT32_MAX",
+                 total_reduce_blocks);
   kernel_reduce_all_windows<ProjectiveType>
-      <<<total_reduce_blocks, reduce_params.adjusted_threads,
-         reduce_params.shared_mem, stream>>>(
+      <<<static_cast<uint32_t>(total_reduce_blocks),
+         reduce_params.adjusted_threads, reduce_params.shared_mem, stream>>>(
           d_all_final_buckets, d_all_block_buckets, num_windows,
           launch_params.num_blocks_per_window, bucket_count);
   check_cuda_error(cudaGetLastError());
 
-  // Phase 3: Compute window sums in parallel (SINGLE kernel launch!)
+  // Phase 3: Window sum computation
   // Round up to next multiple of 32 (warp size) for efficient scheduling.
   // The kernel already has `if (tid < n)` bounds checks for the excess threads.
   const uint32_t combine_threads = ((bucket_count - 1) + 31) & ~31u;
   const size_t combine_shared_mem =
       safe_mul_sizeof<ProjectiveType>(static_cast<size_t>(combine_threads));
-  PANIC_IF_FALSE(num_windows * bucket_count <= all_final_buckets_size,
+  PANIC_IF_FALSE(safe_mul(static_cast<size_t>(num_windows),
+                          static_cast<size_t>(bucket_count)) <=
+                     all_final_buckets_size,
                  "kernel_compute_window_sums: max read index (%zu) exceeds "
                  "input buffer (%zu)",
-                 static_cast<size_t>(num_windows) * bucket_count,
+                 safe_mul(static_cast<size_t>(num_windows),
+                          static_cast<size_t>(bucket_count)),
                  all_final_buckets_size);
+  PANIC_IF_FALSE((bucket_count & (bucket_count - 1)) == 0,
+                 "kernel_compute_window_sums: bucket_count (%u) must be a "
+                 "power of 2",
+                 bucket_count);
   kernel_compute_window_sums<ProjectiveType>
       <<<num_windows, combine_threads, combine_shared_mem, stream>>>(
           d_window_sums, d_all_final_buckets, num_windows, bucket_count);
@@ -680,11 +698,12 @@ size_t pippenger_scratch_size(uint32_t n, uint32_t gpu_index) {
   Phase1KernelLaunchParams<AffineType> launch_params(n, threads_per_block,
                                                      bucket_count, gpu_index);
 
-  const size_t all_block_buckets_elems = static_cast<size_t>(num_windows) *
-                                         launch_params.num_blocks_per_window *
-                                         bucket_count;
-  const size_t all_final_buckets_elems =
-      static_cast<size_t>(num_windows) * bucket_count;
+  const size_t all_block_buckets_elems =
+      safe_mul(static_cast<size_t>(num_windows),
+               static_cast<size_t>(launch_params.num_blocks_per_window),
+               static_cast<size_t>(bucket_count));
+  const size_t all_final_buckets_elems = safe_mul(
+      static_cast<size_t>(num_windows), static_cast<size_t>(bucket_count));
   const size_t total_elems =
       all_block_buckets_elems + all_final_buckets_elems + num_windows;
 
@@ -729,4 +748,190 @@ void point_msm_g2_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
   point_msm_pippenger_impl_async<G2Point, G2ProjectivePoint>(
       stream, gpu_index, h_result, d_points, d_scalars, n,
       msm_threads_per_block<G2Point>(n), window_size, bucket_count, d_scratch);
+}
+
+// For pipelining, we split the MSM into two phases:
+//   1. Launch: GPU kernels (phases 1-3) + async D2H copy of window sums
+//   2. Finalize: stream sync + CPU Horner combine
+// This allows the GPU work to overlap with CPU work (e.g., pairings)
+// between launch and finalize.
+
+// Launches Pippenger phases 1-3 and queues an async D2H copy of the window
+// sums into h_window_sums. Does NOT synchronize the stream or run the Horner
+// combine. The caller must sync the stream and call point_msm_horner_finalize()
+// to obtain the final result.
+//
+// On return, out_num_windows and out_window_size are populated so finalize
+// knows the Horner parameters without recomputing them.
+template <typename AffineType, typename ProjectiveType>
+void point_msm_pippenger_launch_async(
+    cudaStream_t stream, uint32_t gpu_index,
+    ProjectiveType *h_window_sums, // host buffer (must hold num_windows elems)
+    const AffineType *d_points, const Scalar *d_scalars, uint32_t n,
+    uint32_t threads_per_block, uint32_t window_size, uint32_t bucket_count,
+    ProjectiveType *d_scratch, uint32_t &out_num_windows,
+    uint32_t &out_window_size) {
+  using ProjectivePoint = Projective<ProjectiveType>;
+
+  PANIC_IF_FALSE(n > 0, "point_msm_pippenger_launch_async: n must be positive");
+  PANIC_IF_FALSE(h_window_sums != nullptr && d_points != nullptr &&
+                     d_scalars != nullptr && d_scratch != nullptr,
+                 "point_msm_pippenger_launch_async: null pointer argument");
+
+  cuda_set_device(gpu_index);
+
+  const uint32_t num_windows = CEIL_DIV(Scalar::NUM_BITS, window_size);
+
+  // Publish Horner parameters for finalize
+  out_num_windows = num_windows;
+  out_window_size = window_size;
+
+  Phase1KernelLaunchParams<AffineType> launch_params(n, threads_per_block,
+                                                     bucket_count, gpu_index);
+
+  // Scratch layout is identical to point_msm_pippenger_impl_async
+  const size_t all_block_buckets_size =
+      safe_mul(static_cast<size_t>(num_windows),
+               static_cast<size_t>(launch_params.num_blocks_per_window),
+               static_cast<size_t>(bucket_count));
+  const size_t all_final_buckets_size = safe_mul(
+      static_cast<size_t>(num_windows), static_cast<size_t>(bucket_count));
+  const size_t total_scratch =
+      all_block_buckets_size + all_final_buckets_size + num_windows;
+
+  ProjectiveType *d_all_block_buckets = d_scratch;
+  ProjectiveType *d_all_final_buckets = d_scratch + all_block_buckets_size;
+  ProjectiveType *d_window_sums = d_all_final_buckets + all_final_buckets_size;
+
+  // Clear scratch
+  const size_t clear_blocks =
+      CEIL_DIV(total_scratch, static_cast<size_t>(KERNEL_THREADS_MAX));
+  PANIC_IF_FALSE(clear_blocks <= static_cast<size_t>(UINT32_MAX),
+                 "kernel_clear_buckets: clear_blocks (%zu) exceeds UINT32_MAX",
+                 clear_blocks);
+  kernel_clear_buckets<ProjectiveType>
+      <<<static_cast<uint32_t>(clear_blocks), KERNEL_THREADS_MAX, 0, stream>>>(
+          d_scratch, total_scratch);
+  check_cuda_error(cudaGetLastError());
+
+  const size_t total_accum_blocks =
+      safe_mul(static_cast<size_t>(num_windows),
+               static_cast<size_t>(launch_params.num_blocks_per_window));
+  PANIC_IF_FALSE(
+      safe_mul(total_accum_blocks, static_cast<size_t>(bucket_count)) <=
+          all_block_buckets_size,
+      "kernel_accumulate_all_windows: max write index (%zu) exceeds buffer "
+      "(%zu)",
+      safe_mul(total_accum_blocks, static_cast<size_t>(bucket_count)),
+      all_block_buckets_size);
+  PANIC_IF_FALSE(total_accum_blocks <= static_cast<size_t>(UINT32_MAX),
+                 "total_accum_blocks (%zu) exceeds UINT32_MAX",
+                 total_accum_blocks);
+  kernel_accumulate_all_windows<AffineType, ProjectiveType>
+      <<<static_cast<uint32_t>(total_accum_blocks),
+         launch_params.adjusted_threads_per_block,
+         launch_params.accum_shared_mem, stream>>>(
+          d_all_block_buckets, d_points, d_scalars, n, num_windows,
+          launch_params.num_blocks_per_window, window_size, bucket_count);
+  check_cuda_error(cudaGetLastError());
+
+  const size_t total_reduce_blocks = safe_mul(
+      static_cast<size_t>(num_windows), static_cast<size_t>(bucket_count));
+  Phase2KernelLaunchParams<ProjectiveType> reduce_params(
+      launch_params.num_blocks_per_window, gpu_index);
+  PANIC_IF_FALSE(
+      total_reduce_blocks <= all_final_buckets_size,
+      "kernel_reduce_all_windows: blocks (%zu) exceeds output buffer (%zu)",
+      total_reduce_blocks, all_final_buckets_size);
+  PANIC_IF_FALSE(total_reduce_blocks <= static_cast<size_t>(UINT32_MAX),
+                 "total_reduce_blocks (%zu) exceeds UINT32_MAX",
+                 total_reduce_blocks);
+  kernel_reduce_all_windows<ProjectiveType>
+      <<<static_cast<uint32_t>(total_reduce_blocks),
+         reduce_params.adjusted_threads, reduce_params.shared_mem, stream>>>(
+          d_all_final_buckets, d_all_block_buckets, num_windows,
+          launch_params.num_blocks_per_window, bucket_count);
+  check_cuda_error(cudaGetLastError());
+
+  const uint32_t combine_threads = ((bucket_count - 1) + 31) & ~31u;
+  const size_t combine_shared_mem =
+      safe_mul_sizeof<ProjectiveType>(static_cast<size_t>(combine_threads));
+  PANIC_IF_FALSE(safe_mul(static_cast<size_t>(num_windows),
+                          static_cast<size_t>(bucket_count)) <=
+                     all_final_buckets_size,
+                 "kernel_compute_window_sums: max read index (%zu) exceeds "
+                 "input buffer (%zu)",
+                 safe_mul(static_cast<size_t>(num_windows),
+                          static_cast<size_t>(bucket_count)),
+                 all_final_buckets_size);
+  PANIC_IF_FALSE((bucket_count & (bucket_count - 1)) == 0,
+                 "kernel_compute_window_sums: bucket_count (%u) must be a "
+                 "power of 2",
+                 bucket_count);
+  kernel_compute_window_sums<ProjectiveType>
+      <<<num_windows, combine_threads, combine_shared_mem, stream>>>(
+          d_window_sums, d_all_final_buckets, num_windows, bucket_count);
+  check_cuda_error(cudaGetLastError());
+
+  // Queue async D2H copy of window sums — the stream is NOT synchronized here
+  cuda_memcpy_async_to_cpu(
+      h_window_sums, d_window_sums,
+      safe_mul_sizeof<ProjectiveType>(static_cast<size_t>(num_windows)), stream,
+      gpu_index);
+}
+
+// Runs the CPU Horner combine on window sums that were copied D2H during
+// the launch phase. The caller must have synchronized the stream before
+// calling this so that h_window_sums contains valid data.
+template <typename ProjectiveType>
+void point_msm_horner_finalize(ProjectiveType *h_result,
+                               const ProjectiveType *h_window_sums,
+                               uint32_t num_windows, uint32_t window_size) {
+  PANIC_IF_FALSE(h_result != nullptr && h_window_sums != nullptr,
+                 "point_msm_horner_finalize: null pointer argument");
+  PANIC_IF_FALSE(num_windows > 0,
+                 "point_msm_horner_finalize: num_windows must be positive");
+  horner_combine_cpu(*h_result, h_window_sums, num_windows, window_size);
+}
+
+void point_msm_g1_pippenger_launch_async(
+    cudaStream_t stream, uint32_t gpu_index, G1Projective *h_window_sums,
+    const G1Affine *d_points, const Scalar *d_scalars, uint32_t n,
+    G1Projective *d_scratch, uint32_t &out_num_windows,
+    uint32_t &out_window_size) {
+  uint32_t window_size, bucket_count;
+  get_g1_window_params(n, window_size, bucket_count);
+
+  point_msm_pippenger_launch_async<G1Affine, G1Projective>(
+      stream, gpu_index, h_window_sums, d_points, d_scalars, n,
+      msm_threads_per_block<G1Affine>(n), window_size, bucket_count, d_scratch,
+      out_num_windows, out_window_size);
+}
+
+void point_msm_g1_horner_finalize(G1Projective *h_result,
+                                  const G1Projective *h_window_sums,
+                                  uint32_t num_windows, uint32_t window_size) {
+  point_msm_horner_finalize<G1Projective>(h_result, h_window_sums, num_windows,
+                                          window_size);
+}
+
+void point_msm_g2_pippenger_launch_async(
+    cudaStream_t stream, uint32_t gpu_index, G2ProjectivePoint *h_window_sums,
+    const G2Point *d_points, const Scalar *d_scalars, uint32_t n,
+    G2ProjectivePoint *d_scratch, uint32_t &out_num_windows,
+    uint32_t &out_window_size) {
+  uint32_t window_size, bucket_count;
+  get_g2_window_params(n, window_size, bucket_count);
+
+  point_msm_pippenger_launch_async<G2Point, G2ProjectivePoint>(
+      stream, gpu_index, h_window_sums, d_points, d_scalars, n,
+      msm_threads_per_block<G2Point>(n), window_size, bucket_count, d_scratch,
+      out_num_windows, out_window_size);
+}
+
+void point_msm_g2_horner_finalize(G2ProjectivePoint *h_result,
+                                  const G2ProjectivePoint *h_window_sums,
+                                  uint32_t num_windows, uint32_t window_size) {
+  point_msm_horner_finalize<G2ProjectivePoint>(h_result, h_window_sums,
+                                               num_windows, window_size);
 }

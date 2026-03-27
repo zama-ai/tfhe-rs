@@ -9,11 +9,11 @@
 // Pippenger kernel: Clear buckets (works for both affine and projective points)
 template <typename PointType>
 __global__ void kernel_clear_buckets(PointType *__restrict__ buckets,
-                                     uint32_t num_buckets) {
+                                     size_t num_buckets) {
   using AffinePoint = typename SelectorChooser<PointType>::Selection;
 
-  uint32_t idx = threadIdx.x + blockIdx.x * blockDim.x;
-  if (idx < num_buckets) {
+  for (size_t idx = threadIdx.x + static_cast<size_t>(blockIdx.x) * blockDim.x;
+       idx < num_buckets; idx += static_cast<size_t>(blockDim.x) * gridDim.x) {
     AffinePoint::point_at_infinity(buckets[idx]);
   }
 }
@@ -45,7 +45,7 @@ kernel_reduce_buckets(ProjectiveType *__restrict__ final_buckets,
   // Each thread loads one block's contribution (or infinity if out of range)
   ProjectiveType my_point;
   if (threadIdx.x < num_blocks) {
-    uint32_t idx = threadIdx.x * num_buckets + bucket_idx;
+    size_t idx = static_cast<size_t>(threadIdx.x) * num_buckets + bucket_idx;
     my_point = block_buckets[idx];
   } else {
     ProjectivePoint::point_at_infinity(my_point);
@@ -53,7 +53,7 @@ kernel_reduce_buckets(ProjectiveType *__restrict__ final_buckets,
 
   // If num_blocks > blockDim.x, accumulate multiple blocks per thread
   for (uint32_t i = threadIdx.x + blockDim.x; i < num_blocks; i += blockDim.x) {
-    uint32_t idx = i * num_buckets + bucket_idx;
+    size_t idx = static_cast<size_t>(i) * num_buckets + bucket_idx;
     const ProjectiveType &contrib = block_buckets[idx];
     if (!ProjectivePoint::is_infinity(contrib)) {
       if (ProjectivePoint::is_infinity(my_point)) {
