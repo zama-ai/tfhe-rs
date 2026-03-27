@@ -31,15 +31,15 @@ The GPU backend is designed to speed up server-side FHE operations and supports 
 - [FHE ciphertext operations](./gpu-operations.md)
 - [Ciphertext compression](./compressing-ciphertexts.md)
 - [Ciphertext arrays](array-type.md)
-- [ZK-POK proof expansion](zk-pok.md)
+- [Compact ciphertext expansion](zk-pok.md)
+- [ZK proof generation and verification](zk-pok.md) (experimental, via `gpu-experimental-zk`)
 - [Noise Squashing](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.squash_noise)
-- [Multi-GPU for throughput optimization](./multi-gpu.md) 
+- [Multi-GPU for throughput optimization](./multi-gpu.md)
 
 The following features are not supported:
 
 - Key generation
 - Encryption/decryption
-- ZK-POK proof generation and verification
 - Encrypted strings and operations on encrypted strings
 
 ## GPU programming model
