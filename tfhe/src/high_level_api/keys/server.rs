@@ -489,6 +489,14 @@ impl CudaServerKey {
         &self.key.key
     }
 
+    /// Returns the ksk needed to keyswitch from cpk to compute params
+    pub(crate) fn cpk_key_switching_key(&self) -> CudaKeySwitchingKey<'_> {
+        CudaKeySwitchingKey {
+            key_switching_key_material: self.key.cpk_key_switching_key_material.as_ref().unwrap(),
+            dest_server_key: &self.key.key,
+        }
+    }
+
     pub fn gpu_indexes(&self) -> &[GpuIndex] {
         match &self.key.key.key_switching_key {
             CudaDynamicKeyswitchingKey::KeySwitch32(ksk_32) => ksk_32.d_vec.gpu_indexes.as_slice(),
@@ -674,7 +682,7 @@ mod hpu {
 use crate::high_level_api::keys::inner::IntegerServerKeyConformanceParams;
 
 #[cfg(feature = "gpu")]
-use crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial;
+use crate::integer::gpu::key_switching_key::{CudaKeySwitchingKey, CudaKeySwitchingKeyMaterial};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::server_key::CudaDynamicKeyswitchingKey;
 
