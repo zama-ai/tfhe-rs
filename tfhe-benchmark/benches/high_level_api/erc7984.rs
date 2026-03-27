@@ -1,6 +1,8 @@
 use benchmark::high_level_api::type_display::TypeDisplayer;
+#[cfg(all(feature = "gpu", target_os = "linux"))]
+use benchmark::utilities::bench_sync_barrier;
 #[cfg(feature = "gpu")]
-use benchmark::utilities::{configure_gpu, get_param_type, ParamType};
+use benchmark::utilities::{configure_gpu, get_bench_gpu_instances, get_param_type, ParamType};
 use benchmark::utilities::{write_to_json, OperatorType};
 use benchmark_spec::tfhe::hlapi::erc7984::{Erc7984, TransferFlavor};
 use benchmark_spec::tfhe::hlapi::HlapiBench;
@@ -547,13 +549,15 @@ fn cuda_bench_transfer_throughput<FheType, F>(
     let mut group = c.benchmark_group(type_name.to_string());
     group.throughput(Throughput::Elements(num_elems));
 
+    let reported_num_elems = num_elems * get_bench_gpu_instances().unwrap_or(1) as u64;
+
     let bench_spec = BenchmarkSpec::new_hlapi(
         HlapiBench::Erc7984(erc7984_bench_spec),
         &params_name,
         OperandType::CipherText,
         Some(type_name),
         BenchmarkMetric::Throughput,
-        Some(num_elems.try_into().unwrap()),
+        Some(reported_num_elems.try_into().unwrap()),
     );
     group.bench_with_input(bench_spec.to_string(), &num_elems, |b, &num_elems| {
         let from_amounts = (0..num_elems)
@@ -568,6 +572,11 @@ fn cuda_bench_transfer_throughput<FheType, F>(
 
         let num_streams_per_gpu = 16; // Hard coded stream value for FheUint64
         let chunk_size = (num_elems / num_gpus) as usize;
+
+        #[cfg(target_os = "linux")]
+        if let Some(n) = get_bench_gpu_instances() {
+            bench_sync_barrier(n);
+        }
 
         b.iter(|| {
             from_amounts

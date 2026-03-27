@@ -1,4 +1,6 @@
 target/
+# Per-process target dirs used by the multi-group GPU benchmarks
+target_p*/
 .idea/
 .vscode/
 
