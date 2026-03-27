@@ -261,17 +261,10 @@ impl CompressedPublicKey {
     pub fn decompress(&self) -> PublicKey {
         let parameters = self.parameters;
 
-        #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
         let decompressed_public_key = self
             .lwe_public_key
             .as_view()
             .par_decompress_into_lwe_public_key();
-
-        #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
-        let decompressed_public_key = self
-            .lwe_public_key
-            .as_view()
-            .decompress_into_lwe_public_key();
 
         PublicKey {
             lwe_public_key: decompressed_public_key,

@@ -5,6 +5,7 @@ use super::standard::Ciphertext;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::traits::ContiguousEntityContainer;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::prelude::par_expand_lwe_compact_ciphertext_list;
 use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::backward_compatibility::ciphertext::CompactCiphertextListVersions;
 pub use crate::shortint::parameters::ShortintCompactCiphertextListCastingMode;
@@ -74,19 +75,7 @@ impl CompactCiphertextList {
             self.ct_list.ciphertext_modulus(),
         );
 
-        // No parallelism allowed
-        #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
-        {
-            use crate::core_crypto::prelude::expand_lwe_compact_ciphertext_list;
-            expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
-        }
-
-        // Parallelism allowed
-        #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
-        {
-            use crate::core_crypto::prelude::par_expand_lwe_compact_ciphertext_list;
-            par_expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
-        }
+        par_expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
 
         match (self.expansion_kind, casting_mode) {
             (
