@@ -43,6 +43,7 @@ on:
           - integer_aes256
           - hlapi_kvstore
           - hlapi_erc7984
+          - hlapi_erc7984_multi_group
           - hlapi_dex
           - hlapi_noise_squash
       op_flavor:
@@ -80,6 +81,14 @@ on:
           - classical_documentation
           - multi_bit_documentation
           - classical_documentation + multi_bit_documentation
+      multi_proc_groups:
+        description: "Process groups, only for hlapi_erc7984_multi_group (must divide the GPU count)"
+        type: choice
+        default: "8"
+        options:
+          - "2"
+          - "4"
+          - "8"
 
 
 permissions: {}
@@ -153,6 +162,7 @@ jobs:
       bench_type: ${{ inputs.bench_type }}
       params_type: ${{ inputs.params_type }}
       precisions_set: ${{ inputs.precisions_set }}
+      multi_proc_groups: ${{ fromJSON(inputs.multi_proc_groups) }}
       additional_file_to_parse: ${{ needs.parse-inputs.outputs.additional_file_to_parse }}
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
