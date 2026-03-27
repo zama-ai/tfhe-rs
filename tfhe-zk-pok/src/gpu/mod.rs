@@ -54,6 +54,23 @@ pub fn select_gpu_for_msm() -> u32 {
 }
 
 // ---------------------------------------------------------------------------
+// Send wrapper for raw CUDA stream pointers
+// ---------------------------------------------------------------------------
+
+/// Wrapper that marks a raw pointer as `Send`.
+///
+/// CUDA streams are thread-safe for submission from any host thread, so it is
+/// sound to move a `*mut c_void` stream handle across threads.  This newtype
+/// exists solely to satisfy Rust's `Send` requirement in `rayon::scope` closures
+/// where we pre-create streams outside the scope and hand them to worker threads.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SendPtr(pub *mut std::ffi::c_void);
+
+// SAFETY: CUDA stream handles are safe to use from any host thread.
+unsafe impl Send for SendPtr {}
+unsafe impl Sync for SendPtr {}
+
+// ---------------------------------------------------------------------------
 // Type conversion helpers
 // ---------------------------------------------------------------------------
 
@@ -175,6 +192,39 @@ pub fn zp_to_cuda_scalar(zp: &Zp) -> CudaScalar {
 }
 
 // ---------------------------------------------------------------------------
+// Type conversion helpers for caching
+// ---------------------------------------------------------------------------
+
+/// Convert a slice of G2Affine points to FFI G2Point format.
+///
+/// This extracts the conversion logic used by `g2_msm_gpu_on_stream` so that
+/// callers who cache points on device can convert once and reuse the result.
+pub(crate) fn g2_points_to_ffi(points: &[G2Affine]) -> Vec<zk_cuda_backend::bindings::G2Point> {
+    use ark_ec::AffineRepr;
+
+    points
+        .iter()
+        .map(|b| {
+            if b.inner.is_zero() {
+                let mut point = zk_cuda_backend::bindings::G2Point::default();
+                // SAFETY: `point` is a valid, zero-initialized G2Point with repr(C) layout.
+                unsafe {
+                    zk_cuda_backend::bindings::g2_point_at_infinity_wrapper(&mut point);
+                }
+                return point;
+            }
+            let x = fq2_to_cuda_fp2(&b.inner.x);
+            let y = fq2_to_cuda_fp2(&b.inner.y);
+            zk_cuda_backend::bindings::G2Point {
+                x,
+                y,
+                infinity: false,
+            }
+        })
+        .collect()
+}
+
+// ---------------------------------------------------------------------------
 // GPU MSM functions
 // ---------------------------------------------------------------------------
 
@@ -233,54 +283,164 @@ pub fn g1_msm_gpu(bases: &[G1Affine], scalars: &[Zp], gpu_index: u32) -> G1 {
     }
 }
 
-/// GPU-accelerated multi-scalar multiplication for G2.
+/// GPU-accelerated multi-scalar multiplication for G2, using a caller-provided stream.
+///
+/// Uses the scratch/async/cleanup pattern: device buffers are allocated once via
+/// `scratch_zk_g2_msm`, the MSM is launched asynchronously with `zk_g2_msm_async`,
+/// the stream is synchronized to wait for the result, and buffers are freed via
+/// `cleanup_zk_g2_msm`. This is the building block for Phase 3 pipelining where
+/// scratch allocation and cleanup will be hoisted out of per-call scope.
+///
+/// Unlike [`g2_msm_gpu`], this does NOT create or destroy a CUDA stream — the caller
+/// owns the stream lifecycle. The stream must be valid for the duration of this call.
 ///
 /// # Panics
 ///
 /// - If `gpu_index >= number of available GPUs`.
-/// - If `bases` and `scalars` have different lengths (checked inside the backend).
-/// - If the GPU MSM call fails.
+/// - If `bases` and `scalars` have different lengths.
+/// - If the stream pointer is null.
+/// - If the input length does not fit in `u32`.
 #[must_use]
-pub fn g2_msm_gpu(bases: &[G2Affine], scalars: &[Zp], gpu_index: u32) -> G2 {
+pub fn g2_msm_gpu_on_stream(
+    bases: &[G2Affine],
+    scalars: &[Zp],
+    stream: *mut std::ffi::c_void,
+    gpu_index: u32,
+) -> G2 {
     use crate::curve_446::g2::G2Projective;
     use ark_ec::AffineRepr;
 
-    // Convert points to zk-cuda-backend format (normal form)
-    let gpu_bases: Vec<_> = bases
-        .iter()
-        .map(|b| {
-            if b.inner.is_zero() {
-                return zk_cuda_backend::G2Affine::infinity();
-            }
-            let x = fq2_to_cuda_fp2(&b.inner.x);
-            let y = fq2_to_cuda_fp2(&b.inner.y);
-            zk_cuda_backend::G2Affine::new(x, y, false)
-        })
-        .collect();
-
-    let gpu_scalars: Vec<_> = scalars
-        .iter()
-        .map(|s| zk_cuda_backend::Scalar::from(s.inner.into_bigint().0))
-        .collect();
+    assert_eq!(
+        bases.len(),
+        scalars.len(),
+        "GPU MSM: bases and scalars must have the same length"
+    );
+    assert!(!stream.is_null(), "GPU MSM: stream pointer is null");
 
     let num_gpus = get_num_gpus();
     assert!(
         gpu_index < num_gpus,
         "gpu_index {gpu_index} exceeds available GPUs ({num_gpus})",
     );
-    // SAFETY: gpu_index was validated by the assert above
-    let stream = unsafe { cuda_create_stream(gpu_index) };
 
-    let result =
-        zk_cuda_backend::G2Projective::msm(&gpu_bases, &gpu_scalars, stream, gpu_index, false);
+    if bases.is_empty() {
+        return G2::ZERO;
+    }
 
-    // SAFETY: stream was created by cuda_create_stream above with the same gpu_index and is not
-    // used after this point
-    unsafe { cuda_destroy_stream(stream, gpu_index) };
+    // Convert points and scalars to FFI types (normal form).
+    // The wrapper types are not #[repr(transparent)], so we extract the inner
+    // FFI structs into separate Vecs — matching G2Projective::msm's approach.
+    let points_ffi: Vec<zk_cuda_backend::bindings::G2Point> = bases
+        .iter()
+        .map(|b| {
+            if b.inner.is_zero() {
+                let mut point = zk_cuda_backend::bindings::G2Point::default();
+                // SAFETY: `point` is a valid, zero-initialized G2Point with repr(C) layout.
+                unsafe {
+                    zk_cuda_backend::bindings::g2_point_at_infinity_wrapper(&mut point);
+                }
+                return point;
+            }
+            let x = fq2_to_cuda_fp2(&b.inner.x);
+            let y = fq2_to_cuda_fp2(&b.inner.y);
+            zk_cuda_backend::bindings::G2Point {
+                x,
+                y,
+                infinity: false,
+            }
+        })
+        .collect();
 
-    let gpu_result = result.unwrap_or_else(|e| panic!("G2 GPU MSM failed: {e}"));
+    let scalars_ffi: Vec<zk_cuda_backend::bindings::Scalar> = scalars
+        .iter()
+        .map(|s| {
+            let limbs = s.inner.into_bigint().0;
+            zk_cuda_backend::bindings::Scalar { limb: limbs }
+        })
+        .collect();
+
+    let n: u32 = points_ffi
+        .len()
+        .try_into()
+        .expect("GPU MSM: input length too large for u32");
+
+    let cuda_stream = stream as zk_cuda_backend::bindings::cudaStream_t;
+
+    // Allocate device buffers for MSM scratch space. Wrapped in an RAII guard
+    // so that device memory is freed even if a panic occurs before cleanup.
+    let mut mem: *mut std::ffi::c_void = std::ptr::null_mut();
+    let mut size_tracker: u64 = 0;
+    // SAFETY: `cuda_stream` is a valid, non-null CUDA stream (asserted above). `mem` and
+    // `size_tracker` are valid stack-allocated pointers. The C++ function allocates device
+    // memory and writes the opaque handle to `mem`.
+    unsafe {
+        zk_cuda_backend::bindings::scratch_zk_g2_msm(
+            cuda_stream,
+            gpu_index,
+            &mut mem,
+            n,
+            &mut size_tracker,
+            true,
+        );
+    }
+
+    // RAII guard: ensures cleanup_zk_g2_msm runs on all exit paths (including panics)
+    struct ScratchGuard {
+        mem: *mut std::ffi::c_void,
+        stream: zk_cuda_backend::bindings::cudaStream_t,
+        gpu_index: u32,
+    }
+    impl Drop for ScratchGuard {
+        fn drop(&mut self) {
+            if !self.mem.is_null() {
+                // SAFETY: mem was allocated by scratch_zk_g2_msm on this stream/GPU
+                unsafe {
+                    zk_cuda_backend::bindings::cleanup_zk_g2_msm(
+                        self.stream,
+                        self.gpu_index,
+                        &mut self.mem,
+                        true,
+                    );
+                }
+            }
+        }
+    }
+    let mut guard = ScratchGuard {
+        mem,
+        stream: cuda_stream,
+        gpu_index,
+    };
+
+    // Launch MSM: H2D transfers, Montgomery conversion, and Pippenger kernel.
+    // Note: despite the "_async" name, the Pippenger implementation synchronizes
+    // internally for its CPU Horner combine phase, so `result` is fully written
+    // by the time this call returns.
+    let mut result = zk_cuda_backend::bindings::G2ProjectivePoint::default();
+    // SAFETY: `guard.mem` was allocated by `scratch_zk_g2_msm` above and is valid for
+    // this stream. `result` is a valid stack-allocated output buffer. `points_ffi` and
+    // `scalars_ffi` are valid host arrays with length `n`.
+    unsafe {
+        zk_cuda_backend::bindings::zk_g2_msm_async(
+            cuda_stream,
+            gpu_index,
+            guard.mem,
+            &mut result,
+            points_ffi.as_ptr(),
+            scalars_ffi.as_ptr(),
+            n,
+            false, // points are in normal form, not Montgomery
+        );
+    }
+
+    // Cleanup device buffers via the guard. Setting mem to null prevents double-free
+    // if the guard also runs (e.g., during unwind).
+    // SAFETY: guard.mem was allocated by scratch_zk_g2_msm on this stream/GPU
+    unsafe {
+        zk_cuda_backend::bindings::cleanup_zk_g2_msm(cuda_stream, gpu_index, &mut guard.mem, true);
+    }
 
     // Convert result from Montgomery form back to arkworks types
+    let gpu_result = zk_cuda_backend::G2Projective::new(result.X, result.Y, result.Z);
     let normalized = gpu_result.from_montgomery_normalized();
     let x_fp2 = normalized.X();
     let y_fp2 = normalized.Y();
@@ -298,4 +458,172 @@ pub fn g2_msm_gpu(bases: &[G2Affine], scalars: &[Zp], gpu_index: u32) -> G2 {
     G2 {
         inner: G2Projective::new_unchecked(x, y, z),
     }
+}
+
+/// GPU-accelerated G2 MSM using cached device-resident base points.
+///
+/// Only scalars are transferred H2D; base points are already on device in
+/// Montgomery form (placed there by `scratch_zk_cached_g2_points`).
+/// `point_offset` indexes into the cached array to select which base points
+/// participate in the MSM.
+///
+/// The caller owns the `cached` handle and must free it with
+/// `cleanup_zk_cached_g2_points` after all MSMs are done.
+///
+/// # Panics
+///
+/// - If `gpu_index >= number of available GPUs`.
+/// - If the stream pointer is null.
+/// - If `scalars` is empty.
+/// - If the scalar count does not fit in `u32`.
+#[must_use]
+pub(crate) fn g2_msm_cached_on_stream(
+    cached: *const std::ffi::c_void,
+    point_offset: u32,
+    scalars: &[Zp],
+    stream: *mut std::ffi::c_void,
+    gpu_index: u32,
+) -> G2 {
+    use crate::curve_446::g2::G2Projective;
+
+    assert!(!stream.is_null(), "GPU MSM: stream pointer is null");
+    assert!(!cached.is_null(), "GPU MSM: cached pointer is null");
+
+    let num_gpus = get_num_gpus();
+    assert!(
+        gpu_index < num_gpus,
+        "gpu_index {gpu_index} exceeds available GPUs ({num_gpus})",
+    );
+
+    if scalars.is_empty() {
+        return G2::ZERO;
+    }
+
+    let scalars_ffi: Vec<zk_cuda_backend::bindings::Scalar> = scalars
+        .iter()
+        .map(|s| {
+            let limbs = s.inner.into_bigint().0;
+            zk_cuda_backend::bindings::Scalar { limb: limbs }
+        })
+        .collect();
+
+    let n: u32 = scalars_ffi
+        .len()
+        .try_into()
+        .expect("GPU MSM: scalar count too large for u32");
+
+    let cuda_stream = stream as zk_cuda_backend::bindings::cudaStream_t;
+
+    // Allocate MSM scratch space (scalar device buffer + Pippenger workspace).
+    let mut mem: *mut std::ffi::c_void = std::ptr::null_mut();
+    let mut size_tracker: u64 = 0;
+    // SAFETY: `cuda_stream` is a valid, non-null CUDA stream (asserted above). `mem` and
+    // `size_tracker` are valid stack-allocated pointers.
+    unsafe {
+        zk_cuda_backend::bindings::scratch_zk_g2_msm(
+            cuda_stream,
+            gpu_index,
+            &mut mem,
+            n,
+            &mut size_tracker,
+            true,
+        );
+    }
+
+    // RAII guard: ensures cleanup_zk_g2_msm runs on all exit paths (including panics)
+    struct ScratchGuard {
+        mem: *mut std::ffi::c_void,
+        stream: zk_cuda_backend::bindings::cudaStream_t,
+        gpu_index: u32,
+    }
+    impl Drop for ScratchGuard {
+        fn drop(&mut self) {
+            if !self.mem.is_null() {
+                // SAFETY: mem was allocated by scratch_zk_g2_msm on this stream/GPU
+                unsafe {
+                    zk_cuda_backend::bindings::cleanup_zk_g2_msm(
+                        self.stream,
+                        self.gpu_index,
+                        &mut self.mem,
+                        true,
+                    );
+                }
+            }
+        }
+    }
+    let mut guard = ScratchGuard {
+        mem,
+        stream: cuda_stream,
+        gpu_index,
+    };
+
+    // Launch MSM using cached device points — only scalars are copied H2D.
+    let mut result = zk_cuda_backend::bindings::G2ProjectivePoint::default();
+    // SAFETY: `guard.mem` was allocated by `scratch_zk_g2_msm` for this stream.
+    // `cached` is a valid handle from `scratch_zk_cached_g2_points`. `result` is
+    // a valid stack-allocated output buffer. `scalars_ffi` has length `n`.
+    unsafe {
+        zk_cuda_backend::bindings::zk_g2_msm_cached_async(
+            cuda_stream,
+            gpu_index,
+            guard.mem,
+            &mut result,
+            cached,
+            point_offset,
+            scalars_ffi.as_ptr(),
+            n,
+        );
+    }
+
+    // Explicit cleanup before the guard runs (setting mem to null prevents double-free)
+    // SAFETY: guard.mem was allocated by scratch_zk_g2_msm on this stream/GPU
+    unsafe {
+        zk_cuda_backend::bindings::cleanup_zk_g2_msm(cuda_stream, gpu_index, &mut guard.mem, true);
+    }
+
+    // Convert result from Montgomery form back to arkworks types
+    let gpu_result = zk_cuda_backend::G2Projective::new(result.X, result.Y, result.Z);
+    let normalized = gpu_result.from_montgomery_normalized();
+    let x_fp2 = normalized.X();
+    let y_fp2 = normalized.Y();
+    let z_fp2 = normalized.Z();
+
+    let z_is_zero =
+        z_fp2.c0.limb.iter().all(|&limb| limb == 0) && z_fp2.c1.limb.iter().all(|&limb| limb == 0);
+    if z_is_zero {
+        return G2::ZERO;
+    }
+
+    let x = fq2_from_cuda_fp2(&x_fp2);
+    let y = fq2_from_cuda_fp2(&y_fp2);
+    let z = fq2_from_cuda_fp2(&z_fp2);
+    G2 {
+        inner: G2Projective::new_unchecked(x, y, z),
+    }
+}
+
+/// GPU-accelerated multi-scalar multiplication for G2.
+///
+/// Creates and destroys a CUDA stream internally. For callers that manage their
+/// own stream lifetime, use [`g2_msm_gpu_on_stream`] instead.
+///
+/// # Panics
+///
+/// - If `gpu_index >= number of available GPUs`.
+/// - If `bases` and `scalars` have different lengths (checked inside the backend).
+/// - If the GPU MSM call fails.
+#[must_use]
+pub fn g2_msm_gpu(bases: &[G2Affine], scalars: &[Zp], gpu_index: u32) -> G2 {
+    let num_gpus = get_num_gpus();
+    assert!(
+        gpu_index < num_gpus,
+        "gpu_index {gpu_index} exceeds available GPUs ({num_gpus})",
+    );
+    // SAFETY: gpu_index was validated by the assert above
+    let stream = unsafe { cuda_create_stream(gpu_index) };
+    let result = g2_msm_gpu_on_stream(bases, scalars, stream, gpu_index);
+    // SAFETY: stream was created by cuda_create_stream above with the same gpu_index and is not
+    // used after this point
+    unsafe { cuda_destroy_stream(stream, gpu_index) };
+    result
 }

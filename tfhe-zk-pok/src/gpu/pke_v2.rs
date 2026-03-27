@@ -27,6 +27,7 @@ use crate::proofs::pke_v2::{
 };
 
 use rayon::prelude::*;
+use tfhe_cuda_backend::cuda_bind::{cuda_create_stream, cuda_destroy_stream};
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -1449,6 +1450,58 @@ fn pairing_check_two_steps(
     let mut lhs0_eq2 = None;
     let mut lhs1_eq2 = None;
 
+    // Pre-create one stream per GPU MSM so that rayon tasks reuse them instead
+    // of repeatedly creating/destroying streams inside the scope.
+    let num_gpus = super::get_num_gpus();
+    let gpu_indices: [u32; 3] = [0, 1 % num_gpus, 2 % num_gpus];
+    // SAFETY: gpu_indices are computed as i % num_gpus, guaranteeing each index < num_gpus.
+    let streams: [super::SendPtr; 3] = [
+        super::SendPtr(unsafe { cuda_create_stream(gpu_indices[0]) }),
+        super::SendPtr(unsafe { cuda_create_stream(gpu_indices[1]) }),
+        super::SendPtr(unsafe { cuda_create_stream(gpu_indices[2]) }),
+    ];
+
+    // Cache g_hat_list on each unique GPU used for G2 MSMs, so that base
+    // points are uploaded and converted to Montgomery form only once.
+    let unique_gpus: Vec<u32> = {
+        let mut gpus = gpu_indices.to_vec();
+        gpus.sort_unstable();
+        gpus.dedup();
+        gpus
+    };
+    let g_hat_ffi = super::g2_points_to_ffi(g_hat_list);
+    let mut caches: Vec<(u32, *mut std::ffi::c_void)> = Vec::with_capacity(unique_gpus.len());
+    for &gpu_idx in &unique_gpus {
+        let stream_idx = gpu_indices.iter().position(|&g| g == gpu_idx).unwrap();
+        let mut cached: *mut std::ffi::c_void = std::ptr::null_mut();
+        let mut size_tracker: u64 = 0;
+        // SAFETY: stream and gpu_idx are valid (created above). g_hat_ffi is a
+        // valid host array of G2Points.
+        unsafe {
+            zk_cuda_backend::bindings::scratch_zk_cached_g2_points(
+                streams[stream_idx].0 as _,
+                gpu_idx,
+                &mut cached,
+                g_hat_ffi.as_ptr(),
+                g_hat_ffi.len() as u32,
+                &mut size_tracker,
+                true,
+            );
+        }
+        caches.push((gpu_idx, cached));
+    }
+
+    // Wrap cache pointers for Send across rayon scope boundaries
+    let cached_ptrs: Vec<(u32, super::SendPtr)> = caches
+        .iter()
+        .map(|&(gpu, ptr)| (gpu, super::SendPtr(ptr)))
+        .collect();
+
+    // Helper: look up the cached pointer for a given GPU index
+    let find_cache = |gpu: u32| -> *const std::ffi::c_void {
+        cached_ptrs.iter().find(|(g, _)| *g == gpu).unwrap().1 .0 as *const _
+    };
+
     rayon::scope(|s| {
         s.spawn(|_| rhs = Some(pairing(pi, g_hat)));
         s.spawn(|_| lhs0 = Some(pairing(C_y.mul_scalar(delta_y) + C_h1, C_hat_bin)));
@@ -1461,9 +1514,10 @@ fn pairing_check_two_steps(
                         C_hat_h3,
                         C_hat_w: _,
                     }) => C_hat_h3,
-                    // GPU MSM: C_hat_h3 on-the-fly during verify
-                    None => super::g2_msm_gpu(
-                        &g_hat_list[n - (d + k)..n],
+                    // GPU MSM: C_hat_h3 on-the-fly using cached device points
+                    None => super::g2_msm_cached_on_stream(
+                        find_cache(gpu_indices[0]),
+                        (n - (d + k)) as u32,
                         &(0..d + k)
                             .rev()
                             .map(|j| {
@@ -1479,22 +1533,25 @@ fn pairing_check_two_steps(
                                 delta_r * acc - delta_theta_q * theta[j]
                             })
                             .collect::<Box<[_]>>(),
-                        select_gpu_for_msm(),
+                        streams[0].0,
+                        gpu_indices[0],
                     ),
                 },
             ))
         });
         s.spawn(|_| {
-            // GPU MSM: pairing argument for C_R
+            // GPU MSM: pairing argument for C_R using cached device points
             lhs3 = Some(pairing(
                 C_R,
-                super::g2_msm_gpu(
-                    &g_hat_list[n - 128..n],
+                super::g2_msm_cached_on_stream(
+                    find_cache(gpu_indices[1]),
+                    (n - 128) as u32,
                     &(0..128)
                         .rev()
                         .map(|j| delta_r * phi[j] + delta_dec * xi[j])
                         .collect::<Box<[_]>>(),
-                    select_gpu_for_msm(),
+                    streams[1].0,
+                    gpu_indices[1],
                 ),
             ))
         });
@@ -1506,11 +1563,13 @@ fn pairing_check_two_steps(
                         C_hat_h3: _,
                         C_hat_w,
                     }) => C_hat_w,
-                    // GPU MSM: C_hat_w on-the-fly during verify
-                    None => super::g2_msm_gpu(
-                        &g_hat_list[..d + k + 4],
+                    // GPU MSM: C_hat_w on-the-fly using cached device points
+                    None => super::g2_msm_cached_on_stream(
+                        find_cache(gpu_indices[2]),
+                        0,
                         &omega[..d + k + 4],
-                        select_gpu_for_msm(),
+                        streams[2].0,
+                        gpu_indices[2],
                     ),
                 },
             ))
@@ -1553,6 +1612,28 @@ fn pairing_check_two_steps(
             ))
         });
     });
+
+    // Free cached G2 base points from device memory
+    for &mut (gpu_idx, ref mut cached) in &mut caches {
+        let stream_idx = gpu_indices.iter().position(|&g| g == gpu_idx).unwrap();
+        // SAFETY: cached was allocated by scratch_zk_cached_g2_points on this
+        // stream/GPU and is not used after the rayon scope above
+        unsafe {
+            zk_cuda_backend::bindings::cleanup_zk_cached_g2_points(
+                streams[stream_idx].0 as _,
+                gpu_idx,
+                cached,
+                true,
+            );
+        }
+    }
+
+    // Destroy pre-created streams now that all GPU work is done
+    for (i, stream) in streams.iter().enumerate() {
+        // SAFETY: each stream was created above with the matching gpu_indices[i] and is not
+        // used after the rayon scope
+        unsafe { cuda_destroy_stream(stream.0, gpu_indices[i]) };
+    }
 
     let rhs = rhs.unwrap();
     let lhs0 = lhs0.unwrap();
@@ -1656,6 +1737,58 @@ fn pairing_check_batched(
     // TODO: should the user be able to control the randomness source here?
     let eta = Zp::rand(&mut rand::thread_rng());
 
+    // Pre-create one stream per GPU MSM so that rayon tasks reuse them instead
+    // of repeatedly creating/destroying streams inside the scope.
+    let num_gpus = super::get_num_gpus();
+    let gpu_indices: [u32; 3] = [0, 1 % num_gpus, 2 % num_gpus];
+    // SAFETY: gpu_indices are computed as i % num_gpus, guaranteeing each index < num_gpus.
+    let streams: [super::SendPtr; 3] = [
+        super::SendPtr(unsafe { cuda_create_stream(gpu_indices[0]) }),
+        super::SendPtr(unsafe { cuda_create_stream(gpu_indices[1]) }),
+        super::SendPtr(unsafe { cuda_create_stream(gpu_indices[2]) }),
+    ];
+
+    // Cache g_hat_list on each unique GPU used for G2 MSMs, so that base
+    // points are uploaded and converted to Montgomery form only once.
+    let unique_gpus: Vec<u32> = {
+        let mut gpus = gpu_indices.to_vec();
+        gpus.sort_unstable();
+        gpus.dedup();
+        gpus
+    };
+    let g_hat_ffi = super::g2_points_to_ffi(g_hat_list);
+    let mut caches: Vec<(u32, *mut std::ffi::c_void)> = Vec::with_capacity(unique_gpus.len());
+    for &gpu_idx in &unique_gpus {
+        let stream_idx = gpu_indices.iter().position(|&g| g == gpu_idx).unwrap();
+        let mut cached: *mut std::ffi::c_void = std::ptr::null_mut();
+        let mut size_tracker: u64 = 0;
+        // SAFETY: stream and gpu_idx are valid (created above). g_hat_ffi is a
+        // valid host array of G2Points.
+        unsafe {
+            zk_cuda_backend::bindings::scratch_zk_cached_g2_points(
+                streams[stream_idx].0 as _,
+                gpu_idx,
+                &mut cached,
+                g_hat_ffi.as_ptr(),
+                g_hat_ffi.len() as u32,
+                &mut size_tracker,
+                true,
+            );
+        }
+        caches.push((gpu_idx, cached));
+    }
+
+    // Wrap cache pointers for Send across rayon scope boundaries
+    let cached_ptrs: Vec<(u32, super::SendPtr)> = caches
+        .iter()
+        .map(|&(gpu, ptr)| (gpu, super::SendPtr(ptr)))
+        .collect();
+
+    // Helper: look up the cached pointer for a given GPU index
+    let find_cache = |gpu: u32| -> *const std::ffi::c_void {
+        cached_ptrs.iter().find(|(g, _)| *g == gpu).unwrap().1 .0 as *const _
+    };
+
     rayon::scope(|s| {
         s.spawn(|_| {
             rhs = Some(pairing(
@@ -1676,11 +1809,12 @@ fn pairing_check_batched(
                 C_hat_w: _,
             }) => lhs2 = Some(pairing(C_r_tilde + g.mul_scalar(eta * chi3), C_hat_h3)),
             None => {
-                // GPU MSM: C_hat_h3 on-the-fly during verify (batched)
+                // GPU MSM: C_hat_h3 on-the-fly using cached device points (batched)
                 lhs2 = Some(pairing(
                     C_r_tilde,
-                    super::g2_msm_gpu(
-                        &g_hat_list[n - (d + k)..n],
+                    super::g2_msm_cached_on_stream(
+                        find_cache(gpu_indices[0]),
+                        (n - (d + k)) as u32,
                         &(0..d + k)
                             .rev()
                             .map(|j| {
@@ -1696,22 +1830,25 @@ fn pairing_check_batched(
                                 delta_r * acc - delta_theta_q * theta[j]
                             })
                             .collect::<Box<[_]>>(),
-                        select_gpu_for_msm(),
+                        streams[0].0,
+                        gpu_indices[0],
                     ),
                 ))
             }
         });
         s.spawn(|_| {
-            // GPU MSM: pairing argument for C_R (batched)
+            // GPU MSM: pairing argument for C_R using cached device points (batched)
             lhs3 = Some(pairing(
                 C_R,
-                super::g2_msm_gpu(
-                    &g_hat_list[n - 128..n],
+                super::g2_msm_cached_on_stream(
+                    find_cache(gpu_indices[1]),
+                    (n - 128) as u32,
                     &(0..128)
                         .rev()
                         .map(|j| delta_r * phi[j] + delta_dec * xi[j])
                         .collect::<Box<[_]>>(),
-                    select_gpu_for_msm(),
+                    streams[1].0,
+                    gpu_indices[1],
                 ),
             ))
         });
@@ -1726,13 +1863,15 @@ fn pairing_check_batched(
                 ))
             }
             None => {
-                // GPU MSM: C_hat_w on-the-fly during verify (batched)
+                // GPU MSM: C_hat_w on-the-fly using cached device points (batched)
                 lhs4 = Some(pairing(
                     C_e.mul_scalar(delta_e),
-                    super::g2_msm_gpu(
-                        &g_hat_list[..d + k + 4],
+                    super::g2_msm_cached_on_stream(
+                        find_cache(gpu_indices[2]),
+                        0,
                         &omega[..d + k + 4],
-                        select_gpu_for_msm(),
+                        streams[2].0,
+                        gpu_indices[2],
                     ),
                 ))
             }
@@ -1752,6 +1891,28 @@ fn pairing_check_batched(
             ))
         });
     });
+
+    // Free cached G2 base points from device memory
+    for &mut (gpu_idx, ref mut cached) in &mut caches {
+        let stream_idx = gpu_indices.iter().position(|&g| g == gpu_idx).unwrap();
+        // SAFETY: cached was allocated by scratch_zk_cached_g2_points on this
+        // stream/GPU and is not used after the rayon scope above
+        unsafe {
+            zk_cuda_backend::bindings::cleanup_zk_cached_g2_points(
+                streams[stream_idx].0 as _,
+                gpu_idx,
+                cached,
+                true,
+            );
+        }
+    }
+
+    // Destroy pre-created streams now that all GPU work is done
+    for (i, stream) in streams.iter().enumerate() {
+        // SAFETY: each stream was created above with the matching gpu_indices[i] and is not
+        // used after the rayon scope
+        unsafe { cuda_destroy_stream(stream.0, gpu_indices[i]) };
+    }
 
     let rhs = rhs.unwrap();
     let lhs0 = lhs0.unwrap();

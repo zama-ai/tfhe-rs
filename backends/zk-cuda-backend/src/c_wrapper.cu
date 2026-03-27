@@ -261,6 +261,247 @@ void g2_msm_managed_wrapper(
     POP_RANGE();
 }
 
+// ============================================================================
+// G2 MSM scratch/cleanup/async pattern
+// ============================================================================
+// Pre-allocates device buffers once, then reuses them across multiple MSM calls.
+// This eliminates per-call malloc/free overhead from the managed wrapper path.
+//
+//   scratch_zk_g2_msm   — allocate device buffers for up to max_n points
+//   zk_g2_msm_async     — copy host data, convert to Montgomery, run MSM
+//   cleanup_zk_g2_msm   — free device buffers, delete context
+
+struct zk_g2_msm_mem {
+    G2Affine*      d_points;   // device buffer for G2 affine points
+    Scalar*        d_scalars;  // device buffer for scalars
+    G2Projective*  d_scratch;  // Pippenger scratch buffer
+    uint32_t       capacity;   // max number of points this context can handle
+};
+
+void scratch_zk_g2_msm(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_g2_msm_mem** mem,
+    uint32_t max_n,
+    uint64_t* size_tracker,
+    bool allocate_gpu_memory
+) {
+    PANIC_IF_FALSE(mem != nullptr, "scratch_zk_g2_msm: mem is null");
+    PANIC_IF_FALSE(max_n > 0, "scratch_zk_g2_msm: max_n must be positive");
+    PANIC_IF_FALSE(stream != nullptr, "scratch_zk_g2_msm: stream is null");
+    PANIC_IF_FALSE(size_tracker != nullptr, "scratch_zk_g2_msm: size_tracker is null");
+    PANIC_IF_FALSE(gpu_index < static_cast<uint32_t>(cuda_get_number_of_gpus()),
+                   "scratch_zk_g2_msm: invalid gpu_index=%u (gpu_count=%d)",
+                   gpu_index, cuda_get_number_of_gpus());
+
+    *mem = new zk_g2_msm_mem;
+    (*mem)->capacity = max_n;
+
+    uint64_t& tracker = *size_tracker;
+
+    size_t points_bytes = safe_mul_sizeof<G2Affine>(static_cast<size_t>(max_n));
+    size_t scalars_bytes = safe_mul_sizeof<Scalar>(static_cast<size_t>(max_n));
+    size_t scratch_bytes = pippenger_scratch_size_g2(max_n, gpu_index);
+
+    (*mem)->d_points = static_cast<G2Affine*>(
+        cuda_malloc_with_size_tracking_async(
+            points_bytes, stream, gpu_index, tracker, allocate_gpu_memory));
+    (*mem)->d_scalars = static_cast<Scalar*>(
+        cuda_malloc_with_size_tracking_async(
+            scalars_bytes, stream, gpu_index, tracker, allocate_gpu_memory));
+    (*mem)->d_scratch = static_cast<G2Projective*>(
+        cuda_malloc_with_size_tracking_async(
+            scratch_bytes, stream, gpu_index, tracker, allocate_gpu_memory));
+}
+
+void cleanup_zk_g2_msm(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_g2_msm_mem** mem,
+    bool allocate_gpu_memory
+) {
+    PANIC_IF_FALSE(mem != nullptr && *mem != nullptr,
+                   "cleanup_zk_g2_msm: mem is null");
+    PANIC_IF_FALSE(stream != nullptr, "cleanup_zk_g2_msm: stream is null");
+    PANIC_IF_FALSE(gpu_index < static_cast<uint32_t>(cuda_get_number_of_gpus()),
+                   "cleanup_zk_g2_msm: invalid gpu_index=%u (gpu_count=%d)",
+                   gpu_index, cuda_get_number_of_gpus());
+
+    cuda_drop_with_size_tracking_async(
+        (*mem)->d_points, stream, gpu_index, allocate_gpu_memory);
+    cuda_drop_with_size_tracking_async(
+        (*mem)->d_scalars, stream, gpu_index, allocate_gpu_memory);
+    cuda_drop_with_size_tracking_async(
+        (*mem)->d_scratch, stream, gpu_index, allocate_gpu_memory);
+
+    delete *mem;
+    *mem = nullptr;
+
+    cuda_synchronize_stream(stream, gpu_index);
+}
+
+void zk_g2_msm_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_g2_msm_mem* mem,
+    G2Projective* h_result,
+    const G2Affine* h_points,
+    const Scalar* h_scalars,
+    uint32_t n,
+    bool points_in_montgomery
+) {
+    PUSH_RANGE("G2 MSM ASYNC (SCRATCH)");
+    PANIC_IF_FALSE(mem != nullptr, "zk_g2_msm_async: mem is null");
+    PANIC_IF_FALSE(n > 0, "zk_g2_msm_async: n must be positive, got %u", n);
+    PANIC_IF_FALSE(n <= mem->capacity,
+                   "zk_g2_msm_async: n=%u exceeds pre-allocated capacity=%u",
+                   n, mem->capacity);
+    PANIC_IF_FALSE(stream != nullptr, "zk_g2_msm_async: stream is null");
+    PANIC_IF_FALSE(gpu_index < static_cast<uint32_t>(cuda_get_number_of_gpus()),
+                   "zk_g2_msm_async: invalid gpu_index=%u (gpu_count=%d)",
+                   gpu_index, cuda_get_number_of_gpus());
+    PANIC_IF_FALSE(h_result != nullptr, "zk_g2_msm_async: h_result is null");
+    PANIC_IF_FALSE(h_points != nullptr, "zk_g2_msm_async: h_points is null");
+    PANIC_IF_FALSE(h_scalars != nullptr, "zk_g2_msm_async: h_scalars is null");
+
+    size_t points_bytes = safe_mul_sizeof<G2Affine>(static_cast<size_t>(n));
+    size_t scalars_bytes = safe_mul_sizeof<Scalar>(static_cast<size_t>(n));
+
+    // Copy host data into pre-allocated device buffers
+    cuda_memcpy_async_to_gpu(mem->d_points, h_points, points_bytes,
+                             stream, gpu_index);
+    cuda_memcpy_async_to_gpu(mem->d_scalars, h_scalars, scalars_bytes,
+                             stream, gpu_index);
+
+    // Convert points to Montgomery form on device if needed
+    if (!points_in_montgomery) {
+        convert_g2_points_to_montgomery(stream, gpu_index, mem->d_points, n);
+        check_cuda_error(cudaGetLastError());
+    }
+
+    // Run MSM using pre-allocated scratch buffer (zero internal allocations).
+    // point_msm_g2_async expects Montgomery-form points.
+    point_msm_g2_async(stream, gpu_index, h_result, mem->d_points,
+                       mem->d_scalars, n, mem->d_scratch);
+    check_cuda_error(cudaGetLastError());
+    POP_RANGE();
+}
+
+// ============================================================================
+// Cached G2 base points on device
+// ============================================================================
+// For verify workloads that reuse the same CRS/PublicParams across many calls,
+// we cache the G2 base points (g_hat_list) on device in Montgomery form.
+// This avoids repeated CPU-side conversion and H2D copies per MSM call.
+//
+//   scratch_zk_cached_g2_points — allocate, copy H2D, convert to Montgomery
+//   cleanup_zk_cached_g2_points — free device buffer, delete context
+//   zk_g2_msm_cached_async     — MSM using cached device points (scalars-only H2D)
+
+struct zk_cached_g2_points {
+    G2Affine*  d_points;   // device buffer, Montgomery form
+    uint32_t   n;          // number of points
+    uint32_t   gpu_index;  // GPU this buffer lives on
+};
+
+void scratch_zk_cached_g2_points(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_cached_g2_points** mem,
+    const G2Affine* h_points,
+    uint32_t n,
+    uint64_t* size_tracker,
+    bool allocate_gpu_memory
+) {
+    PANIC_IF_FALSE(mem != nullptr, "scratch_zk_cached_g2_points: mem is null");
+    PANIC_IF_FALSE(h_points != nullptr, "scratch_zk_cached_g2_points: h_points is null");
+    PANIC_IF_FALSE(n > 0, "scratch_zk_cached_g2_points: n must be positive");
+    PANIC_IF_FALSE(stream != nullptr, "scratch_zk_cached_g2_points: stream is null");
+    PANIC_IF_FALSE(size_tracker != nullptr, "scratch_zk_cached_g2_points: size_tracker is null");
+    PANIC_IF_FALSE(gpu_index < static_cast<uint32_t>(cuda_get_number_of_gpus()),
+                   "scratch_zk_cached_g2_points: invalid gpu_index=%u (gpu_count=%d)",
+                   gpu_index, cuda_get_number_of_gpus());
+
+    *mem = new zk_cached_g2_points;
+    (*mem)->n = n;
+    (*mem)->gpu_index = gpu_index;
+
+    uint64_t& tracker = *size_tracker;
+    size_t points_bytes = safe_mul_sizeof<G2Affine>(static_cast<size_t>(n));
+
+    (*mem)->d_points = static_cast<G2Affine*>(
+        cuda_malloc_with_size_tracking_async(
+            points_bytes, stream, gpu_index, tracker, allocate_gpu_memory));
+
+    // Copy host points to device, then convert to Montgomery form in-place
+    cuda_memcpy_async_to_gpu((*mem)->d_points, h_points, points_bytes,
+                             stream, gpu_index);
+    convert_g2_points_to_montgomery(stream, gpu_index, (*mem)->d_points, n);
+    check_cuda_error(cudaGetLastError());
+
+    // Ensure points are fully resident and converted before returning,
+    // so the cache is immediately usable by any stream.
+    cuda_synchronize_stream(stream, gpu_index);
+}
+
+void cleanup_zk_cached_g2_points(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_cached_g2_points** mem,
+    bool allocate_gpu_memory
+) {
+    PANIC_IF_FALSE(mem != nullptr && *mem != nullptr,
+                   "cleanup_zk_cached_g2_points: mem is null");
+    PANIC_IF_FALSE(stream != nullptr, "cleanup_zk_cached_g2_points: stream is null");
+
+    cuda_drop_with_size_tracking_async(
+        (*mem)->d_points, stream, gpu_index, allocate_gpu_memory);
+
+    delete *mem;
+    *mem = nullptr;
+
+    cuda_synchronize_stream(stream, gpu_index);
+}
+
+void zk_g2_msm_cached_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_g2_msm_mem* msm_mem,
+    G2Projective* h_result,
+    const zk_cached_g2_points* cached,
+    uint32_t point_offset,
+    const Scalar* h_scalars,
+    uint32_t n
+) {
+    PUSH_RANGE("G2 MSM CACHED");
+    PANIC_IF_FALSE(msm_mem != nullptr, "zk_g2_msm_cached_async: msm_mem is null");
+    PANIC_IF_FALSE(cached != nullptr, "zk_g2_msm_cached_async: cached is null");
+    PANIC_IF_FALSE(n > 0, "zk_g2_msm_cached_async: n must be positive, got %u", n);
+    PANIC_IF_FALSE(n <= msm_mem->capacity,
+                   "zk_g2_msm_cached_async: n=%u exceeds msm_mem capacity=%u",
+                   n, msm_mem->capacity);
+    PANIC_IF_FALSE(point_offset + n <= cached->n,
+                   "zk_g2_msm_cached_async: point_offset=%u + n=%u exceeds cached points=%u",
+                   point_offset, n, cached->n);
+    PANIC_IF_FALSE(stream != nullptr, "zk_g2_msm_cached_async: stream is null");
+    PANIC_IF_FALSE(h_result != nullptr, "zk_g2_msm_cached_async: h_result is null");
+    PANIC_IF_FALSE(h_scalars != nullptr, "zk_g2_msm_cached_async: h_scalars is null");
+
+    // Only scalars need H2D transfer — points are already on device in Montgomery form
+    size_t scalars_bytes = safe_mul_sizeof<Scalar>(static_cast<size_t>(n));
+    cuda_memcpy_async_to_gpu(msm_mem->d_scalars, h_scalars, scalars_bytes,
+                             stream, gpu_index);
+
+    // Cached points are already in Montgomery form, which is what Pippenger expects.
+    // The scratch buffer from msm_mem was sized for msm_mem->capacity >= n, and
+    // pippenger_scratch_size is monotonically non-decreasing, so it is sufficient.
+    point_msm_g2_async(stream, gpu_index, h_result,
+                       cached->d_points + point_offset,
+                       msm_mem->d_scalars, n, msm_mem->d_scratch);
+    check_cuda_error(cudaGetLastError());
+    POP_RANGE();
+}
+
 void g1_from_montgomery_wrapper(G1Affine* result, const G1Affine* point) {
     PANIC_IF_FALSE(result != nullptr, "g1_from_montgomery error: result is null");
     PANIC_IF_FALSE(point != nullptr, "g1_from_montgomery error: point is null");

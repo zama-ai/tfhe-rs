@@ -127,6 +127,72 @@ void g2_msm_unmanaged_wrapper_async(
 size_t pippenger_scratch_size_g1_wrapper(uint32_t n, uint32_t gpu_index);
 size_t pippenger_scratch_size_g2_wrapper(uint32_t n, uint32_t gpu_index);
 
+// G2 MSM scratch/cleanup/async pattern
+// Pre-allocates device buffers once for reuse across multiple MSM calls,
+// eliminating per-call malloc/free overhead from the managed wrapper path.
+struct zk_g2_msm_mem;
+
+void scratch_zk_g2_msm(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g2_msm_mem** mem,
+    uint32_t max_n,
+    uint64_t* size_tracker,
+    bool allocate_gpu_memory
+);
+
+void cleanup_zk_g2_msm(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g2_msm_mem** mem,
+    bool allocate_gpu_memory
+);
+
+void zk_g2_msm_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g2_msm_mem* mem,
+    G2ProjectivePoint* h_result,
+    const G2Point* h_points,
+    const Scalar* h_scalars,
+    uint32_t n,
+    bool points_in_montgomery
+);
+
+// Cached G2 base points on device in Montgomery form.
+// Allocated once per CRS, reused across many MSM calls in the verify path.
+struct zk_cached_g2_points;
+
+void scratch_zk_cached_g2_points(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_cached_g2_points** mem,
+    const G2Point* h_points,
+    uint32_t n,
+    uint64_t* size_tracker,
+    bool allocate_gpu_memory
+);
+
+void cleanup_zk_cached_g2_points(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_cached_g2_points** mem,
+    bool allocate_gpu_memory
+);
+
+// MSM variant that uses device-resident cached base points (scalars-only H2D).
+// Requires a pre-allocated zk_g2_msm_mem for scalar buffer and Pippenger scratch.
+void zk_g2_msm_cached_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g2_msm_mem* msm_mem,
+    G2ProjectivePoint* h_result,
+    const struct zk_cached_g2_points* cached,
+    uint32_t point_offset,
+    const Scalar* h_scalars,
+    uint32_t n
+);
+
 // Managed MSM wrappers with BigInt scalars (320-bit scalars)
 // Handles memory allocation and transfers internally.
 void g1_msm_managed_wrapper(

@@ -166,6 +166,73 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn pippenger_scratch_size_g2_wrapper(n: u32, gpu_index: u32) -> usize;
 }
+// Scratch/async/cleanup pattern for G2 MSM — the `mem` parameter is an opaque
+// pointer to a C++ `zk_g2_msm_mem` struct that holds device buffers for scalars,
+// points, and Pippenger scratch space.
+unsafe extern "C" {
+    pub fn scratch_zk_g2_msm(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        mem: *mut *mut std::ffi::c_void,
+        max_n: u32,
+        size_tracker: *mut u64,
+        allocate_gpu_memory: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_zk_g2_msm(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        mem: *mut *mut std::ffi::c_void,
+        allocate_gpu_memory: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn zk_g2_msm_async(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        mem: *mut std::ffi::c_void,
+        h_result: *mut G2ProjectivePoint,
+        h_points: *const G2Point,
+        h_scalars: *const Scalar,
+        n: u32,
+        points_in_montgomery: bool,
+    );
+}
+// Cached G2 base points on device in Montgomery form — allocated once per CRS,
+// reused across many MSM calls. The `mem` parameter is an opaque pointer to
+// a C++ `zk_cached_g2_points` struct.
+unsafe extern "C" {
+    pub fn scratch_zk_cached_g2_points(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        mem: *mut *mut std::ffi::c_void,
+        h_points: *const G2Point,
+        n: u32,
+        size_tracker: *mut u64,
+        allocate_gpu_memory: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_zk_cached_g2_points(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        mem: *mut *mut std::ffi::c_void,
+        allocate_gpu_memory: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn zk_g2_msm_cached_async(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        msm_mem: *mut std::ffi::c_void,
+        h_result: *mut G2ProjectivePoint,
+        cached: *const std::ffi::c_void,
+        point_offset: u32,
+        h_scalars: *const Scalar,
+        n: u32,
+    );
+}
 unsafe extern "C" {
     pub fn g1_msm_managed_wrapper(
         stream: cudaStream_t,
