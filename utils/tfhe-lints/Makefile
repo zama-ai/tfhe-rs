@@ -15,7 +15,7 @@ crate-args = $(if $(filter tfhe,$(1)),$(LINT_TFHE_ARGS),\
              $(if $(filter tfhe-zk-pok,$(1)),$(LINT_TFHE_ZK_POK_ARGS),\
              $(if $(filter tfhe-csprng,$(1)),$(LINT_TFHE_CSPRNG_ARGS),\
              $(if $(filter tfhe-safe-serialize,$(1)),$(LINT_TFHE_SAFE_SERIALIZE_ARGS),\
-             $(error Unknown crate: $(1). Expected: tfhe, tfhe-zk-pok, tfhe-csprng))))
+             $(error Unknown crate: $(1). Expected: tfhe, tfhe-zk-pok, tfhe-csprng, tfhe-safe-serialize))))
 
 # $(1) = dylint lib name, $(2) = optional TFHE_BACKWARD_COMPAT_DATA_DIR
 run-dylint = $(if $(2),TFHE_BACKWARD_COMPAT_DATA_DIR=$(2)) \
