@@ -1483,7 +1483,7 @@ fn pairing_check_two_steps(
                 gpu_idx,
                 &mut cached,
                 g_hat_ffi.as_ptr(),
-                g_hat_ffi.len() as u32,
+                u32::try_from(g_hat_ffi.len()).expect("g_hat_list length fits in u32"),
                 &mut size_tracker,
                 true,
             );
@@ -1576,7 +1576,7 @@ fn pairing_check_two_steps(
         super::g2_msm_cached_launch(
             msm_mems[0],
             find_cache(gpu_indices[0]),
-            (n - (d + k)) as u32,
+            u32::try_from(n - (d + k)).expect("point offset fits in u32"),
             scalars,
             streams[0].0,
             gpu_indices[0],
@@ -1586,7 +1586,7 @@ fn pairing_check_two_steps(
     let _handle2 = super::g2_msm_cached_launch(
         msm_mems[1],
         find_cache(gpu_indices[1]),
-        (n - 128) as u32,
+        u32::try_from(n - 128).expect("point offset fits in u32"),
         &msm2_scalars,
         streams[1].0,
         gpu_indices[1],
@@ -1875,7 +1875,7 @@ fn pairing_check_batched(
                 gpu_idx,
                 &mut cached,
                 g_hat_ffi.as_ptr(),
-                g_hat_ffi.len() as u32,
+                u32::try_from(g_hat_ffi.len()).expect("g_hat_list length fits in u32"),
                 &mut size_tracker,
                 true,
             );
@@ -1960,7 +1960,7 @@ fn pairing_check_batched(
         super::g2_msm_cached_launch(
             msm_mems[0],
             find_cache(gpu_indices[0]),
-            (n - (d + k)) as u32,
+            u32::try_from(n - (d + k)).expect("point offset fits in u32"),
             scalars,
             streams[0].0,
             gpu_indices[0],
@@ -1970,7 +1970,7 @@ fn pairing_check_batched(
     let _handle2 = super::g2_msm_cached_launch(
         msm_mems[1],
         find_cache(gpu_indices[1]),
-        (n - 128) as u32,
+        u32::try_from(n - 128).expect("point offset fits in u32"),
         &msm2_scalars,
         streams[1].0,
         gpu_indices[1],

@@ -507,7 +507,7 @@ void zk_g2_msm_cached_async(
     PANIC_IF_FALSE(n <= msm_mem->capacity,
                    "zk_g2_msm_cached_async: n=%u exceeds msm_mem capacity=%u",
                    n, msm_mem->capacity);
-    PANIC_IF_FALSE(point_offset + n <= cached->n,
+    PANIC_IF_FALSE(static_cast<uint64_t>(point_offset) + n <= cached->n,
                    "zk_g2_msm_cached_async: point_offset=%u + n=%u exceeds cached points=%u",
                    point_offset, n, cached->n);
     PANIC_IF_FALSE(stream != nullptr, "zk_g2_msm_cached_async: stream is null");
@@ -562,7 +562,7 @@ void zk_g2_msm_cached_launch_async(
     PANIC_IF_FALSE(n <= msm_mem->capacity,
                    "zk_g2_msm_cached_launch_async: n=%u exceeds msm_mem capacity=%u",
                    n, msm_mem->capacity);
-    PANIC_IF_FALSE(point_offset + n <= cached->n,
+    PANIC_IF_FALSE(static_cast<uint64_t>(point_offset) + n <= cached->n,
                    "zk_g2_msm_cached_launch_async: point_offset=%u + n=%u exceeds cached points=%u",
                    point_offset, n, cached->n);
     PANIC_IF_FALSE(stream != nullptr, "zk_g2_msm_cached_launch_async: stream is null");
