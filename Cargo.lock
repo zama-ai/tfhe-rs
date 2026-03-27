@@ -2989,6 +2989,7 @@ dependencies = [
  "dyn-stack",
  "gag",
  "itertools 0.14.0",
+ "libc",
  "num_cpus",
  "paste",
  "rand 0.8.6",

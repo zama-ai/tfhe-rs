@@ -2216,6 +2216,61 @@ bench_hlapi_erc7984_gpu_classical: install_rs_check_toolchain
 	--bench hlapi-erc7984 \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
+.PHONY: bench_hlapi_erc7984_multi_group_gpu # Runs ERC7984 bench in one process per gpu and aggregates results
+bench_hlapi_erc7984_multi_group_gpu: install_rs_check_toolchain
+	# This next line must be kept here: the code can not remove this file without a risk of concurrency issues
+	# we don't know which process starts first and which one deletes the files - file deletion may also be not atomic)
+	rm -f /dev/shm/sem.tfhe_bench_*
+	# Single build: each group runs the same binary, criterion outputs split via CARGO_TARGET_DIR
+	NUM_GROUPS=$$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l); \
+	[ "$$NUM_GROUPS" -ge 2 ] || { echo "Error: this bench runs one process per gpu and needs at least 2 gpus, detected $$NUM_GROUPS (use bench_hlapi_erc7984_gpu on a single gpu)"; exit 1; }; \
+	CARGO_TARGET_DIR=target_p0 RUSTFLAGS="$(RUSTFLAGS)" \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-erc7984 \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --no-run || exit 1; \
+	BENCH_BIN=$$(CARGO_TARGET_DIR=target_p0 RUSTFLAGS="$(RUSTFLAGS)" \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-erc7984 \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --no-run --message-format=json 2>/dev/null \
+	| grep -o '"executable":"[^"]*hlapi_erc7984[^"]*"' | cut -d'"' -f4); \
+	[ -x "$$BENCH_BIN" ] || { echo "Error: bench executable not found"; exit 1; }; \
+	BENCH_FILTER=$${__TFHE_RS_BENCH_ERC7984_FILTER:-}; \
+	if [ -z "$$BENCH_FILTER" ]; then \
+		BENCH_FILTER='::transfer::(whitepaper|no_cmux)'; \
+		case "$(BENCH_PARAM_TYPE)" in multi_bit*) BENCH_FILTER='::transfer::overflow';; esac; \
+	fi; \
+	CORES_PER_GROUP=$$(( $$(nproc) / NUM_GROUPS )); \
+	trap "echo 'User interrupted the benchmark, stopping all workers!'; rm -f /dev/shm/sem.tfhe_bench_*; kill 0" INT TERM; \
+	for i in $$(seq 0 $$((NUM_GROUPS - 1))); do \
+		CORE_LIST="$$((i * CORES_PER_GROUP))-$$(((i + 1) * CORES_PER_GROUP - 1))"; \
+		echo "Starting benchmark group $$i with CUDA_VISIBLE_DEVICES=$$i on cores $$CORE_LIST"; \
+		(cd tfhe-benchmark && CUDA_VISIBLE_DEVICES=$$i CUDA_DEVICE_MAX_CONNECTIONS=32 CARGO_TARGET_DIR=target_p$$i RAYON_NUM_THREADS=$$CORES_PER_GROUP __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_GPU_PROCESS_COUNT=$$NUM_GROUPS \
+		taskset -c $$CORE_LIST "$$BENCH_BIN" --bench "$$BENCH_FILTER") & \
+	done; \
+	wait
+
+.PHONY: bench_hlapi_erc7984_multi_group_fake_multi_gpu # Runs ERC7984 bench in two processes in parallel on a single GPU (use to debug bench_hlapi_erc7984_multi_group_gpu)
+bench_hlapi_erc7984_multi_group_fake_multi_gpu: install_rs_check_toolchain
+	# This next line must be kept here: the code can not remove this file without a risk of concurrency issues
+	# we don't know which process starts first and which one deletes the files - file deletion may also be not atomic)
+	rm -f /dev/shm/sem.tfhe_bench_*
+	CARGO_TARGET_DIR=target_p0 RUSTFLAGS="$(RUSTFLAGS)" \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-erc7984 \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --no-run || exit 1; \
+	BENCH_BIN=$$(CARGO_TARGET_DIR=target_p0 RUSTFLAGS="$(RUSTFLAGS)" \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-erc7984 \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --no-run --message-format=json 2>/dev/null \
+	| grep -o '"executable":"[^"]*hlapi_erc7984[^"]*"' | cut -d'"' -f4); \
+	[ -x "$$BENCH_BIN" ] || { echo "Error: bench executable not found"; exit 1; }; \
+	trap "echo 'User interrupted the benchmark, stopping all workers!'; rm -f /dev/shm/sem.tfhe_bench_*; kill 0" INT TERM; \
+	for i in 0 1; do \
+		(cd tfhe-benchmark && CARGO_TARGET_DIR=target_p$$i __TFHE_RS_BENCH_TYPE=throughput __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_GPU_PROCESS_COUNT=2 \
+		"$$BENCH_BIN" --bench '::transfer::overflow') & \
+	done; \
+	wait
+
 .PHONY: bench_hlapi_dex # Run benchmarks for DEX operations
 bench_hlapi_dex: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
@@ -2356,17 +2411,23 @@ bench_summary_gpu: install_rs_check_toolchain
 	--bench hlapi-noise-squash \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::decomp_noise_squash_comp::'
 
+	# The ERC7984 benchmarks below only run in latency mode. This is because
+	# summary benchmarks must use the multi-process-multi-group throughput target
+	# to measure throughput. That target must be followed by specific post-processing steps.
+	# Thus that target is run in a separate step in benchmark_summary.yml.
+ifneq ($(filter latency both,$(BENCH_TYPE)),)
 	# ERC7984
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=latency __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc7984 \
 	--features=integer,gpu,internal-keycache -p tfhe-benchmark --profile release_lto_off -- '::transfer::overflow'
 
 	# ERC7984 (all transfer flavors)
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=latency __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc7984 \
 	--features=integer,gpu,internal-keycache -p tfhe-benchmark --profile release_lto_off -- '::transfer::'
+endif
 
 	# DEX
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
