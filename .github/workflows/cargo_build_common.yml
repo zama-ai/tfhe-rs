@@ -94,7 +94,7 @@ jobs:
           with open(env_file, "a") as f:
             f.write(f"""RUNNERS=["{'", "'.join(runners)}"]\n""")
 
-      - name: Set martix runners outputs
+      - name: Set matrix runners outputs
         id: set_matrix_runners
         run: | # zizmor: ignore[template-injection] these env variable are safe
           echo "runners=${{ toJSON(env.RUNNERS) }}" >> "${GITHUB_OUTPUT}"

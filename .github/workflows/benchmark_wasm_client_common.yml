@@ -63,7 +63,7 @@ jobs:
           with open(env_file, "a") as f:
             f.write(f"""BROWSER=["{'", "'.join(split_browser)}"]\n""")
 
-      - name: Set martix arguments output
+      - name: Set matrix arguments output
         id: set_matrix_arg
         run: | # zizmor: ignore[template-injection] this env variable is safe
           echo "browser=${{ toJSON(env.BROWSER) }}" >> "${GITHUB_OUTPUT}"

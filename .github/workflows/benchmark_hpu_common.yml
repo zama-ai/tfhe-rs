@@ -95,7 +95,7 @@ jobs:
             ]:
               f.write(f"""{env_name}=["{'", "'.join(values_to_join)}"]\n""")
 
-      - name: Set martix arguments outputs
+      - name: Set matrix arguments outputs
         id: set_matrix_args
         run: | # zizmor: ignore[template-injection] these env variable are safe
           {
