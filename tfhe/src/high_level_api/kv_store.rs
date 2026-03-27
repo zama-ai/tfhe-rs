@@ -5,7 +5,7 @@ use crate::backward_compatibility::kv_store::CompressedKVStoreVersions;
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::FheIntegerType;
 use crate::high_level_api::keys::InternalServerKey;
-use crate::integer::block_decomposition::Decomposable;
+use crate::integer::block_decomposition::{Decomposable, DecomposableInto};
 use crate::integer::ciphertext::{Compressible, Expandable};
 use crate::integer::server_key::{
     CompressedKVStore as CompressedIntegerKVStore, KVStore as IntegerKVStore,
@@ -178,6 +178,18 @@ where
         })
     }
 
+    /// Returns `true` if the store contains a value for the given clear key.
+    ///
+    /// If your key is encrypted see [Self::contains_key]
+    pub fn contains_key_with_clear_key(&self, key: &Key) -> bool
+    where
+        Key: Ord,
+    {
+        match &self.inner {
+            InnerKVStore::Cpu(kvstore) => kvstore.contains_key(key),
+        }
+    }
+
     /// Returns the value associated to a key.
     ///
     /// Returns Some(_) if the key was present, None otherwise
@@ -261,6 +273,102 @@ where
                         cpu_key.tag.clone(),
                         ReRandomizationMetadata::default(),
                     ),
+                )
+            }
+            #[cfg(feature = "gpu")]
+            (InternalServerKey::Cuda(_cuda_key), _) => {
+                panic!("GPU does not support KVStore yet")
+            }
+            #[cfg(feature = "hpu")]
+            (InternalServerKey::Hpu(_device), _) => {
+                panic!("HPU does not support KVStore yet")
+            }
+            _ => panic!("The KVStore's current backend does not match the current key backend"),
+        })
+    }
+
+    /// Checks if the store contains a value for the given encrypted key.
+    ///
+    /// Returns an encrypted boolean that is true if the key was found.
+    ///
+    /// If your key is clear see [Self::contains_key_with_clear_key]
+    pub fn contains_key<EK>(&self, encrypted_key: &EK) -> FheBool
+    where
+        EK: FheIntegerType,
+        EK::Id: IntegerId<
+            InnerCpu = <T::Id as IntegerId>::InnerCpu,
+            InnerGpu = <T::Id as IntegerId>::InnerGpu,
+        >,
+    {
+        #[allow(unreachable_patterns)]
+        global_state::with_internal_keys(|key| match (key, &self.inner) {
+            (InternalServerKey::Cpu(cpu_key), InnerKVStore::Cpu(inner_store)) => {
+                let inner = cpu_key
+                    .pbs_key()
+                    .kv_store_contains_key(inner_store, &*encrypted_key.on_cpu());
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
+            }
+            #[cfg(feature = "gpu")]
+            (InternalServerKey::Cuda(_cuda_key), _) => {
+                panic!("GPU does not support KVStore yet")
+            }
+            #[cfg(feature = "hpu")]
+            (InternalServerKey::Hpu(_device), _) => {
+                panic!("HPU does not support KVStore yet")
+            }
+            _ => panic!("The KVStore's current backend does not match the current key backend"),
+        })
+    }
+
+    /// Checks if the store contains the given encrypted value.
+    ///
+    /// Returns an encrypted boolean that is true if the value was found.
+    pub fn contains_value(&self, encrypted_value: &T) -> FheBool {
+        #[allow(unreachable_patterns)]
+        global_state::with_internal_keys(|key| match (key, &self.inner) {
+            (InternalServerKey::Cpu(cpu_key), InnerKVStore::Cpu(inner_store)) => {
+                let inner = cpu_key
+                    .pbs_key()
+                    .kv_store_contains_value(inner_store, &*encrypted_value.on_cpu());
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
+            }
+            #[cfg(feature = "gpu")]
+            (InternalServerKey::Cuda(_cuda_key), _) => {
+                panic!("GPU does not support KVStore yet")
+            }
+            #[cfg(feature = "hpu")]
+            (InternalServerKey::Hpu(_device), _) => {
+                panic!("HPU does not support KVStore yet")
+            }
+            _ => panic!("The KVStore's current backend does not match the current key backend"),
+        })
+    }
+
+    /// Checks if the store contains the given clear value.
+    ///
+    /// Returns an encrypted boolean that is true if the value was found.
+    pub fn contains_clear_value<Clear>(&self, clear_value: Clear) -> FheBool
+    where
+        Clear: DecomposableInto<u64>,
+    {
+        #[allow(unreachable_patterns)]
+        global_state::with_internal_keys(|key| match (key, &self.inner) {
+            (InternalServerKey::Cpu(cpu_key), InnerKVStore::Cpu(inner_store)) => {
+                let inner = cpu_key
+                    .pbs_key()
+                    .kv_store_contains_clear_value(inner_store, clear_value);
+                FheBool::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -652,6 +760,96 @@ mod test {
         }
     }
 
+    fn kv_store_contains_key_test_case(ck: &ClientKey) {
+        let num_keys = 10;
+        let num_tests = 10;
+
+        let (kv_store, clear_store) = create_kv_store::<u8, u32, FheUint32>(num_keys, ck);
+        let mut rng = rand::thread_rng();
+
+        for _ in 0..num_tests {
+            let k = rng.gen::<u8>();
+            let e_k = FheUint8::encrypt(k, ck);
+
+            // Test encrypted-key contains_key
+            let e_found = kv_store.contains_key(&e_k);
+            let found: bool = e_found.decrypt(ck);
+            assert_eq!(found, clear_store.contains_key(&k));
+
+            // Test clear-key contains_key
+            assert_eq!(
+                kv_store.contains_key_with_clear_key(&k),
+                clear_store.contains_key(&k)
+            );
+        }
+    }
+
+    fn kv_store_contains_value_test_case(ck: &ClientKey) {
+        let num_keys = 10;
+        let num_tests = 10;
+
+        let (kv_store, clear_store) = create_kv_store::<u8, u32, FheUint32>(num_keys, ck);
+        let mut rng = rand::thread_rng();
+
+        // Test a value that exists
+        for _ in 0..num_tests {
+            let value_index = rng.gen_range(0..num_keys);
+            let target_value = *clear_store.values().nth(value_index).unwrap();
+            let e_v = FheUint32::encrypt(target_value, ck);
+
+            let e_found = kv_store.contains_value(&e_v);
+            let found: bool = e_found.decrypt(ck);
+            assert!(found);
+        }
+
+        // Test a value that does not exist
+        for _ in 0..num_tests {
+            let value = loop {
+                let candidate = rng.gen::<u32>();
+                if !clear_store.values().any(|&v| v == candidate) {
+                    break candidate;
+                }
+            };
+            let e_v = FheUint32::encrypt(value, ck);
+
+            let e_found = kv_store.contains_value(&e_v);
+            let found: bool = e_found.decrypt(ck);
+            assert!(!found);
+        }
+    }
+
+    fn kv_store_contains_clear_value_test_case(ck: &ClientKey) {
+        let num_keys = 10;
+        let num_tests = 10;
+
+        let (kv_store, clear_store) = create_kv_store::<u8, u32, FheUint32>(num_keys, ck);
+        let mut rng = rand::thread_rng();
+
+        // Test a value that exists
+        for _ in 0..num_tests {
+            let value_index = rng.gen_range(0..num_keys);
+            let target_value = *clear_store.values().nth(value_index).unwrap();
+
+            let e_found = kv_store.contains_clear_value(target_value);
+            let found: bool = e_found.decrypt(ck);
+            assert!(found);
+        }
+
+        // Test a value that does not exist
+        for _ in 0..num_tests {
+            let value = loop {
+                let candidate = rng.gen::<u32>();
+                if !clear_store.values().any(|&v| v == candidate) {
+                    break candidate;
+                }
+            };
+
+            let e_found = kv_store.contains_clear_value(value);
+            let found: bool = e_found.decrypt(ck);
+            assert!(!found);
+        }
+    }
+
     fn kv_store_serialization_test_case(ck: &ClientKey) {
         let num_keys = 10;
 
@@ -744,6 +942,27 @@ mod test {
             let ck = setup_default_cpu();
 
             kv_store_map_test_case(&ck);
+        }
+
+        #[test]
+        fn test_kv_store_contains_key() {
+            let ck = setup_default_cpu();
+
+            kv_store_contains_key_test_case(&ck);
+        }
+
+        #[test]
+        fn test_kv_store_contains_value() {
+            let ck = setup_default_cpu();
+
+            kv_store_contains_value_test_case(&ck);
+        }
+
+        #[test]
+        fn test_kv_store_contains_clear_value() {
+            let ck = setup_default_cpu();
+
+            kv_store_contains_clear_value_test_case(&ck);
         }
 
         #[test]

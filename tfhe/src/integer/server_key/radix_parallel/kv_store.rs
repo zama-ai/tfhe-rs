@@ -1,5 +1,5 @@
 use crate::integer::backward_compatibility::ciphertext::CompressedKVStoreVersions;
-use crate::integer::block_decomposition::Decomposable;
+use crate::integer::block_decomposition::{Decomposable, DecomposableInto};
 use crate::integer::ciphertext::{
     CompressedCiphertextList, CompressedCiphertextListBuilder, Compressible, Expandable,
 };
@@ -112,6 +112,13 @@ impl<Key, Ct> KVStore<Key, Ct> {
         self.data.get(key)
     }
 
+    pub fn contains_key(&self, key: &Key) -> bool
+    where
+        Key: Ord,
+    {
+        self.data.contains_key(key)
+    }
+
     /// Returns the number of key-value pairs currently stored
     pub fn len(&self) -> usize {
         self.data.len()
@@ -179,6 +186,11 @@ impl ServerKey {
         Ct: IntegerRadixCiphertext,
         Key: Decomposable + CastInto<usize> + Ord,
     {
+        if map.is_empty() {
+            let zero = self.create_trivial_zero_radix(encrypted_key.blocks().len());
+            return (zero, self.create_trivial_boolean_block(false), vec![]);
+        }
+
         let selectors =
             self.compute_equality_selectors(encrypted_key, map.par_iter_keys().copied());
 
@@ -204,6 +216,67 @@ impl ServerKey {
         );
 
         (result, check_block, selectors)
+    }
+
+    /// Checks if a key that matches the `encrypted_key` is contained in the store
+    ///
+    /// Returns a [BooleanBlock] that encrypts true if the encrypted_key is found in the
+    /// store.
+    pub fn kv_store_contains_key<Key, Ct>(
+        &self,
+        map: &KVStore<Key, Ct>,
+        encrypted_key: &Ct,
+    ) -> BooleanBlock
+    where
+        Ct: IntegerRadixCiphertext,
+        Key: Decomposable + CastInto<usize> + Ord,
+    {
+        if map.is_empty() {
+            return self.create_trivial_boolean_block(false);
+        }
+
+        let selectors =
+            self.compute_equality_selectors(encrypted_key, map.par_iter_keys().copied());
+
+        let selectors = selectors.iter().map(|s| s.0.clone()).collect::<Vec<_>>();
+        BooleanBlock::new_unchecked(self.is_at_least_one_comparisons_block_true(selectors))
+    }
+
+    /// Checks if a value that matches the `encrypted_value` is contained in the store
+    ///
+    /// Returns a [BooleanBlock] that encrypts true if the encrypted_value is found in the
+    /// store.
+    pub fn kv_store_contains_value<Key, Ct>(
+        &self,
+        map: &KVStore<Key, Ct>,
+        encrypted_value: &Ct,
+    ) -> BooleanBlock
+    where
+        Ct: IntegerRadixCiphertext,
+        Key: Decomposable + CastInto<usize> + Ord,
+    {
+        // We accept the cost of the cloning for now
+        let values_vec = map.iter().map(|(_, v)| v.clone()).collect::<Vec<_>>();
+        self.contains_parallelized(&values_vec, encrypted_value)
+    }
+
+    /// Checks if a value that matches the `clear_value` is contained in the store
+    ///
+    /// Returns a [BooleanBlock] that encrypts true if the clear_value is found in the
+    /// store.
+    pub fn kv_store_contains_clear_value<Key, Ct, Clear>(
+        &self,
+        map: &KVStore<Key, Ct>,
+        clear_value: Clear,
+    ) -> BooleanBlock
+    where
+        Ct: IntegerRadixCiphertext,
+        Key: Decomposable + CastInto<usize> + Ord,
+        Clear: DecomposableInto<u64>,
+    {
+        // We accept the cost of the cloning for now
+        let values_vec = map.iter().map(|(_, v)| v.clone()).collect::<Vec<_>>();
+        self.contains_clear_parallelized(&values_vec, clear_value)
     }
 
     /// Returns the value at the given key
@@ -248,6 +321,10 @@ impl ServerKey {
         Ct: IntegerRadixCiphertext,
         Key: Decomposable + CastInto<usize> + Ord,
     {
+        if map.is_empty() {
+            return self.create_trivial_boolean_block(false);
+        }
+
         let selectors =
             self.compute_equality_selectors(encrypted_key, map.par_iter_keys().copied());
 
