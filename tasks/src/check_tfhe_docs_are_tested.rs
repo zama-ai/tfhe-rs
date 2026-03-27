@@ -1,9 +1,10 @@
 use no_comment::{languages, IntoWithoutComments};
 use std::collections::HashSet;
 use std::io::{Error, ErrorKind};
+use std::path::Path;
+use std::process::Command;
 
-// TODO use .gitignore or git to resolve ignored files
-const DIR_TO_IGNORE: [&str; 3] = [".git", "target", "apps/test-vectors"];
+const DIR_TO_IGNORE: [&str; 1] = ["apps/test-vectors"];
 
 const FILES_TO_IGNORE: [&str; 11] = [
     // This contains fragments of code that are unrelated to TFHE-rs
@@ -78,37 +79,32 @@ pub fn check_tfhe_docs_are_tested() -> Result<(), Error> {
         tested_files.insert(tested_file_path);
     }
 
-    let mut walk_errs = vec![];
+    let output = Command::new("git")
+        .args(["ls-files", "*.md"])
+        .current_dir(&curr_dir)
+        .output()?;
 
-    let dir_entries = walkdir::WalkDir::new(&curr_dir)
-        .into_iter()
-        .flat_map(|e| match e {
-            Ok(e) => Some(e),
-            Err(err) => {
-                walk_errs.push(err);
-                None
-            }
-        })
-        .collect::<Vec<_>>();
-
-    if !walk_errs.is_empty() {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            format!("Encountered errors while walking repo: {walk_errs:#?}"),
-        ));
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        eprintln!("{stderr}");
+        return Err(Error::other("git ls-files failed"));
     }
 
-    let mut doc_files: HashSet<_> = dir_entries
-        .into_iter()
-        .filter_map(|entry| {
-            let path = entry.path().canonicalize().ok()?;
-            if path.is_file() && path.extension().is_some_and(|e| e == "md") {
-                let file_content = std::fs::read_to_string(&path).ok()?;
-                if file_content.contains("```rust") {
-                    Some(path)
-                } else {
-                    None
-                }
+    let files_list = String::from_utf8(output.stdout).map_err(|e| {
+        Error::new(
+            ErrorKind::InvalidData,
+            format!("git output is not valid UTF-8: {e}"),
+        )
+    })?;
+
+    let mut doc_files: HashSet<_> = files_list
+        .lines()
+        .map(Path::new)
+        .filter_map(|path| {
+            let path = path.canonicalize().ok()?;
+            let file_content = std::fs::read_to_string(&path).ok()?;
+            if file_content.contains("```rust") {
+                Some(path)
             } else {
                 None
             }
@@ -144,11 +140,14 @@ pub fn check_tfhe_docs_are_tested() -> Result<(), Error> {
 
     let debug_format = format!(
         "missing file from user doc tests: {difference:#?}\n\
-        files that are tested but don't exist: {files_that_dont_exist:#?}"
+         files that are tested but don't exist: {files_that_dont_exist:#?}"
     );
-
     if difference.count() != 0 || !files_that_dont_exist.is_empty() {
-        return Err(Error::new(ErrorKind::NotFound, debug_format));
+        println!("{debug_format}");
+        return Err(Error::new(
+            ErrorKind::NotFound,
+            "Not all docs files are tested",
+        ));
     }
 
     Ok(())
