@@ -104,6 +104,7 @@ jobs:
       command: summary
       bench_type: ${{ inputs.bench_type }}
       params_type: classical + multi_bit
+      multi_group: true
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}

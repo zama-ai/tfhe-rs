@@ -1945,6 +1945,20 @@ bench_hlapi_erc20_gpu_classical: install_rs_check_toolchain
 	--bench hlapi-erc20 \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
+.PHONY: bench_hlapi_erc20_gpu_multi_group # TODO: ADD COMMENT
+bench_hlapi_erc20_gpu_multi_group: install_rs_check_toolchain
+	rm -f /dev/shm/sem.tfhe_bench_*
+	trap "echo 'User interrupted the benchmark, stopping all workers!'; rm -f /dev/shm/sem.tfhe_bench_*; kill 0" INT TERM; \
+	CARGO_TARGET_DIR=target_p0 RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=throughput __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_GPU_PROCESS_COUNT=2 __TFHE_RS_BENCH_GPU_PROCESS_ID=0 \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-erc20 \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::transfer::overflow' & \
+	CARGO_TARGET_DIR=target_p1 RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=throughput __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_GPU_PROCESS_COUNT=2 __TFHE_RS_BENCH_GPU_PROCESS_ID=1 \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-erc20 \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::transfer::overflow' & \
+	wait
+
 .PHONY: bench_hlapi_dex # Run benchmarks for DEX operations
 bench_hlapi_dex: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
@@ -2074,10 +2088,15 @@ bench_summary_gpu: install_rs_check_toolchain
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::decomp_noise_squash_comp::'
 
 	# ERC20
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
+ifneq ($(filter throughput both,$(BENCH_TYPE)),)
+	$(MAKE) BENCH_PARAM_TYPE=$(BENCH_PARAM_TYPE) bench_hlapi_erc20_gpu_multi_group
+endif
+ifneq ($(filter latency both,$(BENCH_TYPE)),)
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=latency __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc20 \
 	--features=integer,gpu,internal-keycache -p tfhe-benchmark --profile release_lto_off -- '::transfer::overflow'
+endif
 
 	# DEX
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE)  __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
