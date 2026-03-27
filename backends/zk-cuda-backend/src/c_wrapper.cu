@@ -511,6 +511,12 @@ void zk_g2_msm_cached_async(
                    "zk_g2_msm_cached_async: point_offset=%u + n=%u exceeds cached points=%u",
                    point_offset, n, cached->n);
     PANIC_IF_FALSE(stream != nullptr, "zk_g2_msm_cached_async: stream is null");
+    PANIC_IF_FALSE(gpu_index < static_cast<uint32_t>(cuda_get_number_of_gpus()),
+                   "zk_g2_msm_cached_async: invalid gpu_index=%u (gpu_count=%d)",
+                   gpu_index, cuda_get_number_of_gpus());
+    PANIC_IF_FALSE(gpu_index == cached->gpu_index,
+                   "zk_g2_msm_cached_async: gpu_index=%u but cached points are on gpu=%u",
+                   gpu_index, cached->gpu_index);
     PANIC_IF_FALSE(h_result != nullptr, "zk_g2_msm_cached_async: h_result is null");
     PANIC_IF_FALSE(h_scalars != nullptr, "zk_g2_msm_cached_async: h_scalars is null");
 
@@ -566,6 +572,12 @@ void zk_g2_msm_cached_launch_async(
                    "zk_g2_msm_cached_launch_async: point_offset=%u + n=%u exceeds cached points=%u",
                    point_offset, n, cached->n);
     PANIC_IF_FALSE(stream != nullptr, "zk_g2_msm_cached_launch_async: stream is null");
+    PANIC_IF_FALSE(gpu_index < static_cast<uint32_t>(cuda_get_number_of_gpus()),
+                   "zk_g2_msm_cached_launch_async: invalid gpu_index=%u (gpu_count=%d)",
+                   gpu_index, cuda_get_number_of_gpus());
+    PANIC_IF_FALSE(gpu_index == cached->gpu_index,
+                   "zk_g2_msm_cached_launch_async: gpu_index=%u but cached points are on gpu=%u",
+                   gpu_index, cached->gpu_index);
     PANIC_IF_FALSE(h_scalars != nullptr, "zk_g2_msm_cached_launch_async: h_scalars is null");
     PANIC_IF_FALSE(msm_mem->h_window_sums != nullptr,
                    "zk_g2_msm_cached_launch_async: h_window_sums is null (scratch not allocated?)");

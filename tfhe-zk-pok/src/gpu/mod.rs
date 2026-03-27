@@ -308,7 +308,6 @@ pub fn g2_msm_gpu_on_stream(
     gpu_index: u32,
 ) -> G2 {
     use crate::curve_446::g2::G2Projective;
-    use ark_ec::AffineRepr;
 
     assert_eq!(
         bases.len(),
@@ -327,29 +326,7 @@ pub fn g2_msm_gpu_on_stream(
         return G2::ZERO;
     }
 
-    // Convert points and scalars to FFI types (normal form).
-    // The wrapper types are not #[repr(transparent)], so we extract the inner
-    // FFI structs into separate Vecs — matching G2Projective::msm's approach.
-    let points_ffi: Vec<zk_cuda_backend::bindings::G2Point> = bases
-        .iter()
-        .map(|b| {
-            if b.inner.is_zero() {
-                let mut point = zk_cuda_backend::bindings::G2Point::default();
-                // SAFETY: `point` is a valid, zero-initialized G2Point with repr(C) layout.
-                unsafe {
-                    zk_cuda_backend::bindings::g2_point_at_infinity_wrapper(&mut point);
-                }
-                return point;
-            }
-            let x = fq2_to_cuda_fp2(&b.inner.x);
-            let y = fq2_to_cuda_fp2(&b.inner.y);
-            zk_cuda_backend::bindings::G2Point {
-                x,
-                y,
-                infinity: false,
-            }
-        })
-        .collect();
+    let points_ffi = g2_points_to_ffi(bases);
 
     let scalars_ffi: Vec<zk_cuda_backend::bindings::Scalar> = scalars
         .iter()
