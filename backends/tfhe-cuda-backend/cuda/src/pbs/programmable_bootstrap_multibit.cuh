@@ -25,7 +25,8 @@ get_start_ith_ggsw_offset(uint32_t polynomial_size, int glwe_dimension,
          level_count;
 }
 
-template <typename Torus, class params, sharedMemDegree SMD>
+template <typename Torus, class params, sharedMemDegree SMD,
+          bool runs_noise_test = false>
 __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     const Torus *__restrict__ lwe_array_in,
     const Torus *__restrict__ lwe_input_indexes, double2 *keybundle_array,
@@ -55,9 +56,6 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 
   if (lwe_iteration < (lwe_dimension / grouping_factor)) {
 
-    const Torus *block_lwe_array_in =
-        &lwe_array_in[lwe_input_indexes[input_idx] * (lwe_dimension + 1)];
-
     double2 *keybundle = keybundle_array +
                          // select the input
                          input_idx * keybundle_size_per_input;
@@ -86,10 +84,40 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
     // Precalculate the monomial degrees and store them in shared memory
     uint32_t *monomial_degrees = (uint32_t *)selected_memory;
     if (threadIdx.x < (1 << grouping_factor)) {
-      const Torus *lwe_array_group =
-          block_lwe_array_in + rev_lwe_iteration * grouping_factor;
-      monomial_degrees[threadIdx.x] = calculates_monomial_degree<Torus, params>(
-          lwe_array_group, threadIdx.x, grouping_factor);
+      if constexpr (runs_noise_test == true) {
+        // For noise tests the input array contains the input lwe but also the
+        // modswitched results. This allows to avoid changing the accumulation
+        // kernel for the noise tests since the input body will stay in the same
+        // position. The layout of the input array is the following:
+        // | input lwe     | modswitched inputs       |
+        // | lwe size      | lwe_size*grouping_factor |
+
+        // This offset allows to jump directly to the modswitched inputs,
+        // skipping the input lwe
+        const Torus modswitched_offset = lwe_dimension + 1;
+
+        const Torus *block_lwe_array_in =
+            &lwe_array_in[lwe_input_indexes[input_idx] *
+                              (lwe_dimension / grouping_factor) *
+                              (1 << grouping_factor) +
+                          modswitched_offset];
+
+        const Torus *lwe_array_group =
+            block_lwe_array_in + rev_lwe_iteration * (1 << grouping_factor);
+        monomial_degrees[threadIdx.x] = lwe_array_group[threadIdx.x];
+
+      } else {
+        // In production we calculate the monomial degrees on the fly, since
+        // they are not stored in the input array.
+        const Torus *block_lwe_array_in =
+            &lwe_array_in[lwe_input_indexes[input_idx] * (lwe_dimension + 1)];
+
+        const Torus *lwe_array_group =
+            block_lwe_array_in + rev_lwe_iteration * grouping_factor;
+        monomial_degrees[threadIdx.x] =
+            calculates_monomial_degree<Torus, params>(
+                lwe_array_group, threadIdx.x, grouping_factor);
+      }
     }
     __syncthreads();
 
@@ -145,7 +173,8 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 // Then we can just calculate the offset needed to apply this coefficients, and
 // the operation transforms into a pointwise vector multiplication, avoiding to
 // perform extra instructions other than MADD
-template <typename Torus, class params, sharedMemDegree SMD>
+template <typename Torus, class params, sharedMemDegree SMD,
+          bool runs_noise_test = false>
 __global__ void device_multi_bit_programmable_bootstrap_keybundle_2_2_params(
     const Torus *__restrict__ lwe_array_in,
     const Torus *__restrict__ lwe_input_indexes, double2 *keybundle_array,
@@ -219,10 +248,40 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle_2_2_params(
     uint32_t *monomial_degrees = (uint32_t *)selected_memory;
 
     if (threadIdx.x < (1 << grouping_factor)) {
-      const Torus *lwe_array_group =
-          block_lwe_array_in + rev_lwe_iteration * grouping_factor;
-      monomial_degrees[threadIdx.x] = calculates_monomial_degree<Torus, params>(
-          lwe_array_group, threadIdx.x, grouping_factor);
+      if constexpr (runs_noise_test == true) {
+        // For noise tests the input array contains the input lwe but also the
+        // modswitched results. This allows to avoid changing the accumulation
+        // kernel for the noise tests since the input body will stay in the same
+        // position. The layout of the input array is the following:
+        // | input lwe     | modswitched inputs       |
+        // | lwe size      | lwe_size*grouping_factor |
+
+        // This offset allows to jump directly to the modswitched inputs,
+        // skipping the input lwe
+        const Torus modswitched_offset = lwe_dimension + 1;
+
+        const Torus *block_lwe_array_in =
+            &lwe_array_in[lwe_input_indexes[input_idx] *
+                              (lwe_dimension / grouping_factor) *
+                              (1 << grouping_factor) +
+                          modswitched_offset];
+
+        const Torus *lwe_array_group =
+            block_lwe_array_in + rev_lwe_iteration * (1 << grouping_factor);
+        monomial_degrees[threadIdx.x] = lwe_array_group[threadIdx.x];
+
+      } else {
+        // In production we calculate the monomial degrees on the fly, since
+        // they are not stored in the input array.
+        const Torus *block_lwe_array_in =
+            &lwe_array_in[lwe_input_indexes[input_idx] * (lwe_dimension + 1)];
+
+        const Torus *lwe_array_group =
+            block_lwe_array_in + rev_lwe_iteration * grouping_factor;
+        monomial_degrees[threadIdx.x] =
+            calculates_monomial_degree<Torus, params>(
+                lwe_array_group, threadIdx.x, grouping_factor);
+      }
     }
     __syncthreads();
 
@@ -662,6 +721,7 @@ enum class MultiBitKeybundleLaunchMode {
   AUTO,
   GENERIC,
   SPECIALIZED_2_2,
+  NOISE_TESTS,
 };
 
 template <typename Torus, class params>
@@ -726,30 +786,65 @@ __host__ void execute_compute_keybundle_with_mode(
     bool use_specialized =
         launch_mode == MultiBitKeybundleLaunchMode::SPECIALIZED_2_2 ||
         (launch_mode == MultiBitKeybundleLaunchMode::AUTO &&
+         can_use_specialized) ||
+        (launch_mode == MultiBitKeybundleLaunchMode::NOISE_TESTS &&
          can_use_specialized);
+    bool use_noise_test_template =
+        launch_mode == MultiBitKeybundleLaunchMode::NOISE_TESTS;
     if (use_specialized) {
       dim3 thds_new_keybundle(512, 1, 1);
-      check_cuda_error(cudaFuncSetAttribute(
-          device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-              Torus, Degree<2048>, FULLSM>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize, 3 * full_sm_keybundle));
-      check_cuda_error(cudaFuncSetCacheConfig(
-          device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-              Torus, Degree<2048>, FULLSM>,
-          cudaFuncCachePreferShared));
-      check_cuda_error(cudaGetLastError());
-      device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-          Torus, Degree<2048>, FULLSM><<<grid_keybundle, thds_new_keybundle,
-                                         3 * full_sm_keybundle, stream>>>(
-          lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
-          lwe_dimension, lwe_offset, chunk_size, keybundle_size_per_input);
+      if (use_noise_test_template) {
+        // Set up the noise-test variant of the specialized 2_2 kernel
+        check_cuda_error(cudaFuncSetAttribute(
+            device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+                Torus, Degree<2048>, FULLSM, true>,
+            cudaFuncAttributeMaxDynamicSharedMemorySize,
+            3 * full_sm_keybundle));
+        check_cuda_error(cudaFuncSetCacheConfig(
+            device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+                Torus, Degree<2048>, FULLSM, true>,
+            cudaFuncCachePreferShared));
+        check_cuda_error(cudaGetLastError());
+        device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+            Torus, Degree<2048>, FULLSM, true>
+            <<<grid_keybundle, thds_new_keybundle, 3 * full_sm_keybundle,
+               stream>>>(lwe_array_in, lwe_input_indexes, keybundle_fft,
+                         bootstrapping_key, lwe_dimension, lwe_offset,
+                         chunk_size, keybundle_size_per_input);
+      } else {
+        check_cuda_error(cudaFuncSetAttribute(
+            device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+                Torus, Degree<2048>, FULLSM>,
+            cudaFuncAttributeMaxDynamicSharedMemorySize,
+            3 * full_sm_keybundle));
+        check_cuda_error(cudaFuncSetCacheConfig(
+            device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+                Torus, Degree<2048>, FULLSM>,
+            cudaFuncCachePreferShared));
+        check_cuda_error(cudaGetLastError());
+        device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+            Torus, Degree<2048>, FULLSM><<<grid_keybundle, thds_new_keybundle,
+                                           3 * full_sm_keybundle, stream>>>(
+            lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
+            lwe_dimension, lwe_offset, chunk_size, keybundle_size_per_input);
+      }
     } else {
-      device_multi_bit_programmable_bootstrap_keybundle<Torus, params, FULLSM>
-          <<<grid_keybundle, thds, full_sm_keybundle, stream>>>(
-              lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
-              lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-              level_count, lwe_offset, chunk_size, keybundle_size_per_input,
-              d_mem, 0);
+      if (use_noise_test_template) {
+        device_multi_bit_programmable_bootstrap_keybundle<Torus, params, FULLSM,
+                                                          true>
+            <<<grid_keybundle, thds, full_sm_keybundle, stream>>>(
+                lwe_array_in, lwe_input_indexes, keybundle_fft,
+                bootstrapping_key, lwe_dimension, glwe_dimension,
+                polynomial_size, grouping_factor, level_count, lwe_offset,
+                chunk_size, keybundle_size_per_input, d_mem, 0);
+      } else {
+        device_multi_bit_programmable_bootstrap_keybundle<Torus, params, FULLSM>
+            <<<grid_keybundle, thds, full_sm_keybundle, stream>>>(
+                lwe_array_in, lwe_input_indexes, keybundle_fft,
+                bootstrapping_key, lwe_dimension, glwe_dimension,
+                polynomial_size, grouping_factor, level_count, lwe_offset,
+                chunk_size, keybundle_size_per_input, d_mem, 0);
+      }
     }
   }
   check_cuda_error(cudaGetLastError());
@@ -795,6 +890,20 @@ __host__ void execute_compute_keybundle_2_2_specialized(
       buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
       grouping_factor, level_count, lwe_offset,
       MultiBitKeybundleLaunchMode::SPECIALIZED_2_2);
+}
+// Used only to run noise tests
+template <typename Torus, class params>
+__host__ void execute_compute_keybundle_noise_tests(
+    cudaStream_t stream, uint32_t gpu_index, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
+    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
+  execute_compute_keybundle_with_mode<Torus, params>(
+      stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+      buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+      grouping_factor, level_count, lwe_offset,
+      MultiBitKeybundleLaunchMode::NOISE_TESTS);
 }
 
 template <typename Torus, class params, bool is_first_iter>
@@ -922,6 +1031,64 @@ __host__ void host_multi_bit_programmable_bootstrap(
         grouping_factor, level_count, lwe_offset,
         MultiBitKeybundleLaunchMode::GENERIC);
     // Accumulate
+    uint32_t chunk_size =
+        std::min((uint32_t)lwe_chunk_size,
+                 (lwe_dimension / grouping_factor) - lwe_offset);
+    for (uint32_t j = 0; j < chunk_size; j++) {
+      bool is_first_iter = (j + lwe_offset) == 0;
+      bool is_last_iter =
+          (j + lwe_offset) + 1 == (lwe_dimension / grouping_factor);
+      if (is_first_iter) {
+        execute_step_one<Torus, params, true>(
+            stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
+            lwe_input_indexes, buffer, num_samples, lwe_dimension,
+            glwe_dimension, polynomial_size, base_log, level_count);
+      } else {
+        execute_step_one<Torus, params, false>(
+            stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
+            lwe_input_indexes, buffer, num_samples, lwe_dimension,
+            glwe_dimension, polynomial_size, base_log, level_count);
+      }
+
+      if (is_last_iter) {
+        execute_step_two<Torus, params, true>(
+            stream, gpu_index, lwe_array_out, lwe_output_indexes, buffer,
+            num_samples, glwe_dimension, polynomial_size, level_count, j,
+            num_many_lut, lut_stride);
+      } else {
+        execute_step_two<Torus, params, false>(
+            stream, gpu_index, lwe_array_out, lwe_output_indexes, buffer,
+            num_samples, glwe_dimension, polynomial_size, level_count, j,
+            num_many_lut, lut_stride);
+      }
+    }
+  }
+}
+
+template <typename Torus, class params>
+__host__ void host_multi_bit_programmable_bootstrap_noise_tests(
+    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
+    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t num_many_lut, uint32_t lut_stride) {
+
+  auto lwe_chunk_size = buffer->lwe_chunk_size;
+
+  for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
+       lwe_offset += lwe_chunk_size) {
+
+    // Compute a keybundle with NOISE_TESTS mode to enable the specialized
+    // runs_noise_test=true kernel variant for noise measurement
+    execute_compute_keybundle_with_mode<Torus, params>(
+        stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+        buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+        grouping_factor, level_count, lwe_offset,
+        MultiBitKeybundleLaunchMode::NOISE_TESTS);
+    // Accumulate (same as standard path)
     uint32_t chunk_size =
         std::min((uint32_t)lwe_chunk_size,
                  (lwe_dimension / grouping_factor) - lwe_offset);

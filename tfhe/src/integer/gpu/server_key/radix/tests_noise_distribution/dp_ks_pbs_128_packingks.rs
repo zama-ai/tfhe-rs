@@ -17,7 +17,10 @@ use crate::integer::gpu::unchecked_small_scalar_mul_integer;
 use crate::integer::IntegerCiphertext;
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
-use crate::shortint::parameters::test_params::TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+use crate::shortint::parameters::test_params::{
+    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+};
 use crate::shortint::parameters::{
     AtomicPatternParameters, MetaParameters, NoiseSquashingCompressionParameters, Variance,
 };
@@ -26,9 +29,8 @@ use crate::shortint::server_key::tests::noise_distribution::dp_ks_pbs128_packing
 };
 use crate::shortint::server_key::tests::noise_distribution::should_use_single_key_debug;
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
-    NoiseSimulationGenericBootstrapKey128, NoiseSimulationGlwe, NoiseSimulationLwe,
-    NoiseSimulationLweFourierBsk, NoiseSimulationLweKeyswitchKey,
-    NoiseSimulationModulusSwitchConfig,
+    NoiseSimulationGenericBootstrapKey, NoiseSimulationGenericBootstrapKey128, NoiseSimulationGlwe,
+    NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
     write_empty_json_file, write_to_json_file, NoiseCheckWithoutNormalityCheck, TestResult,
@@ -122,7 +124,13 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_gpu(
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
     let mut cuda_side_resources: Vec<CudaSideResources> = (0..input_zeros.len())
-        .map(|_| CudaSideResources::new(&streams, cuda_block_info))
+        .map(|_| {
+            CudaSideResources::new_from_noise_squashing_key(
+                &cuda_noise_squashing_key,
+                &streams,
+                cuda_block_info,
+            )
+        })
         .collect();
 
     let input_zero_as_lwe: Vec<_> = input_zeros
@@ -273,7 +281,13 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
     let mut cuda_side_resources: Vec<CudaSideResources> = (0..input_zeros.len())
-        .map(|_| CudaSideResources::new(&streams, cuda_block_info))
+        .map(|_| {
+            CudaSideResources::new_from_noise_squashing_key(
+                &cuda_noise_squashing_key,
+                &streams,
+                cuda_block_info,
+            )
+        })
         .collect();
 
     let input_zero_as_lwe: Vec<_> = input_zeros
@@ -499,7 +513,13 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper_gpu(
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
     let mut cuda_side_resources: Vec<CudaSideResources> = (0..input_zeros.len())
-        .map(|_| CudaSideResources::new(streams, cuda_block_info))
+        .map(|_| {
+            CudaSideResources::new_from_noise_squashing_key(
+                cuda_noise_squashing_key,
+                streams,
+                cuda_block_info,
+            )
+        })
         .collect();
 
     let input_zero_as_lwe: Vec<_> = input_zeros
@@ -556,7 +576,10 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper_gpu(
                         let before_ms_gpu: &CudaDynLwe =
                             after_drift_gpu.as_ref().unwrap_or(&after_ks_gpu);
                         let before_ms_ct = before_ms_gpu.as_ct_64_cpu(streams);
-                        let after_ms_ct = after_ms_gpu.as_ct_64_cpu(streams);
+                        let after_ms_dyn = after_ms_gpu.as_dyn_mod_switched_lwe_cpu(
+                            &cuda_side_resources[0],
+                            br_input_modulus_log,
+                        );
                         let after_pbs128_ct = after_pbs128_gpu.as_ct_128_cpu(streams);
                         (
                             DecryptionAndNoiseResult::new_from_lwe(
@@ -583,12 +606,15 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper_gpu(
                                 msg,
                                 &u64_encoding,
                             ),
-                            DecryptionAndNoiseResult::new_from_lwe(
-                                &after_ms_ct,
-                                &small_lwe_secret_key,
-                                msg,
-                                &u64_encoding,
-                            ),
+                            {
+                                let small_lwe_secret_key_dyn =
+                                    cks.key.small_lwe_secret_key_as_dyn();
+                                DecryptionAndNoiseResult::new_from_dyn_modswitched_lwe(
+                                    &after_ms_dyn,
+                                    &small_lwe_secret_key_dyn,
+                                    msg,
+                                )
+                            },
                             DecryptionAndNoiseResult::new_from_lwe(
                                 &after_pbs128_ct,
                                 &noise_squashing_private_key
@@ -757,7 +783,7 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise_gpu(
     let noise_simulation_ksk =
         NoiseSimulationLweKeyswitchKey::new_from_atomic_pattern_parameters(atomic_params);
     let noise_simulation_bsk =
-        NoiseSimulationLweFourierBsk::new_from_atomic_pattern_parameters(atomic_params);
+        NoiseSimulationGenericBootstrapKey::new_from_atomic_pattern_parameters(atomic_params);
     let noise_simulation_modulus_switch_config =
         NoiseSimulationModulusSwitchConfig::new_from_atomic_pattern_parameters(atomic_params);
     let noise_simulation_bsk128 = NoiseSimulationGenericBootstrapKey128::new_from_parameters(
@@ -919,15 +945,18 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise_gpu(
 create_gpu_parameterized_stringified_test!(
     noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise_gpu {
         TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     }
 );
 
 create_gpu_parameterized_stringified_test!(
     sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_gpu {
         TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     }
 );
 
 create_gpu_parameterized_stringified_test!(sanity_check_encrypt_dp_ks_standard_pbs128_gpu {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });

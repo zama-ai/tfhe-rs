@@ -13,7 +13,10 @@ use crate::integer::{ClientKey, CompressedServerKey, IntegerCiphertext};
 use crate::shortint::ciphertext::{Ciphertext, Degree, NoiseLevel};
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::test_params::TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+use crate::shortint::parameters::test_params::{
+    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+};
 use crate::shortint::parameters::{CompressionParameters, MetaParameters, Variance};
 use crate::shortint::server_key::tests::noise_distribution::br_dp_packingks_ms::br_dp_packing_ks_ms;
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
@@ -94,7 +97,7 @@ fn sanity_check_encrypt_br_dp_packing_ks_ms(meta_params: MetaParameters, filenam
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
     let mut cuda_side_resources: Vec<CudaSideResources> = (0..input_zeros.len())
-        .map(|_| CudaSideResources::new(&streams, cuda_block_info))
+        .map(|_| CudaSideResources::new(&cuda_sks, &streams, cuda_block_info))
         .collect();
 
     let (d_before_packing, _after_packing, d_after_ms) = br_dp_packing_ks_ms(
@@ -163,6 +166,7 @@ fn sanity_check_encrypt_br_dp_packing_ks_ms(meta_params: MetaParameters, filenam
 
 create_gpu_parameterized_stringified_test!(sanity_check_encrypt_br_dp_packing_ks_ms {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
@@ -248,7 +252,7 @@ fn encrypt_br_dp_packing_ks_ms_inner_helper_gpu(
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
     let mut cuda_side_resources: Vec<CudaSideResources> = (0..input_zeros.len())
-        .map(|_| CudaSideResources::new(streams, cuda_block_info))
+        .map(|_| CudaSideResources::new(cuda_sks, streams, cuda_block_info))
         .collect();
 
     let dp_scalar = params.carry_modulus().0;
@@ -505,7 +509,7 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_noise_gpu(
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
     let mut cuda_side_resources: Vec<CudaSideResources> = (0..input_zeros.len())
-        .map(|_| CudaSideResources::new(&streams, cuda_block_info))
+        .map(|_| CudaSideResources::new(&cuda_sks, &streams, cuda_block_info))
         .collect();
 
     // Check that the circuit is correct with respect to core implementation, i.e. does not crash on
@@ -624,6 +628,7 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_noise_gpu(
 }
 create_gpu_parameterized_stringified_test!(noise_check_encrypt_br_dp_packing_ks_ms_noise_gpu {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 fn noise_check_encrypt_br_dp_packing_ks_ms_pfail_gpu(
@@ -819,4 +824,5 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_pfail_gpu(
 
 create_gpu_parameterized_stringified_test!(noise_check_encrypt_br_dp_packing_ks_ms_pfail_gpu {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });

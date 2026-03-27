@@ -1,7 +1,5 @@
 use super::utils::noise_simulation::{CudaDynLwe, CudaSideResources};
-use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
-    AllocateLweBootstrapResult, LweClassicFftBootstrap,
-};
+use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::AllocateLweBootstrapResult;
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
@@ -15,17 +13,16 @@ use crate::integer::gpu::server_key::CudaServerKey;
 use crate::integer::gpu::unchecked_small_scalar_mul_integer;
 use crate::integer::{CompressedServerKey, IntegerCiphertext};
 use crate::shortint::ciphertext::NoiseLevel;
-use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
-use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
 use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{AtomicPatternParameters, MetaParameters, Variance};
 use crate::shortint::server_key::tests::noise_distribution::br_dp_ks_ms::br_dp_ks_any_ms;
 use crate::shortint::server_key::tests::noise_distribution::should_use_single_key_debug;
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
-    NoiseSimulationGenericBootstrapKey, NoiseSimulationGlwe, NoiseSimulationLwe,
+    DynLwe, NoiseSimulationGenericBootstrapKey, NoiseSimulationGlwe, NoiseSimulationLwe,
     NoiseSimulationLweKeyswitchKey, NoiseSimulationModulus,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
@@ -74,7 +71,7 @@ fn sanity_check_encrypt_br_dp_ks_pbs_gpu(meta_params: MetaParameters, filename_s
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
 
-    let mut cuda_side_resources = CudaSideResources::new(&streams, block_info);
+    let mut cuda_side_resources = CudaSideResources::new(&cuda_sks, &streams, block_info);
 
     type SanityVec = (LweCiphertext<Vec<u64>>, LweCiphertext<Vec<u64>>);
     let mut results: Vec<SanityVec> = Vec::new();
@@ -102,7 +99,8 @@ fn sanity_check_encrypt_br_dp_ks_pbs_gpu(meta_params: MetaParameters, filename_s
 
         let mut output_pbs_result =
             d_accumulator.allocate_lwe_bootstrap_result(&mut cuda_side_resources);
-        cuda_sks.lwe_classic_fft_pbs(
+        // This calls a multi-bit pbs that works on top of a modswitched result.
+        cuda_sks.apply_generic_blind_rotation(
             &ms_result,
             &mut output_pbs_result,
             &d_accumulator,
@@ -118,7 +116,7 @@ fn sanity_check_encrypt_br_dp_ks_pbs_gpu(meta_params: MetaParameters, filename_s
         // the second PBS and not the MS from our dedicated sanity function, which are
         // boundaries that are easily reached with shortint.
         // We don't want to use that dedicated function in statistical tests as it computes
-        // 2 PBSes instead of one, the output of the seoncd PBS being of no interest for
+        // 2 PBSes instead of one, the output of the second PBS being of no interest for
         // noise measurement here.
 
         let shortint_res = Ciphertext::new(
@@ -191,6 +189,7 @@ fn sanity_check_encrypt_br_dp_ks_pbs_gpu(meta_params: MetaParameters, filename_s
 create_gpu_parameterized_stringified_test!(sanity_check_encrypt_br_dp_ks_pbs_gpu {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 fn encrypt_br_dp_ks_any_ms_inner_helper_gpu(
@@ -237,7 +236,7 @@ fn encrypt_br_dp_ks_any_ms_inner_helper_gpu(
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
 
-    let mut cuda_side_resources = CudaSideResources::new(streams, block_info);
+    let mut cuda_side_resources = CudaSideResources::new(cuda_sks, streams, block_info);
 
     let id_lut = cuda_sks.generate_lookup_table(|x| x);
     let d_accumulator = CudaGlweCiphertextList::from_glwe_ciphertext(&id_lut.acc, streams);
@@ -260,51 +259,44 @@ fn encrypt_br_dp_ks_any_ms_inner_helper_gpu(
     let after_ks_ct = after_ks_gpu.as_ct_64_cpu(&cuda_side_resources.streams);
     let before_ms_gpu: &CudaDynLwe = after_drift_gpu.as_ref().unwrap_or(&after_ks_gpu);
     let before_ms_ct = before_ms_gpu.as_ct_64_cpu(&cuda_side_resources.streams);
-    let after_ms_ct = after_ms_gpu.as_ct_64_cpu(&cuda_side_resources.streams);
+    let after_ms_dyn =
+        after_ms_gpu.as_dyn_mod_switched_lwe_cpu(&cuda_side_resources, br_input_modulus_log);
 
-    let output_encoding = ShortintEncoding::from_parameters(params, PaddingBit::Yes);
+    let large_lwe_secret_key_dyn = cks.large_lwe_secret_key_as_dyn();
+    let small_lwe_secret_key_dyn = cks.small_lwe_secret_key_as_dyn();
 
-    match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => (
-            DecryptionAndNoiseResult::new_from_lwe(
-                &input_ct,
-                &standard_atomic_pattern_client_key.small_lwe_secret_key(),
-                msg,
-                &output_encoding,
-            ),
-            DecryptionAndNoiseResult::new_from_lwe(
-                &after_br_ct,
-                &standard_atomic_pattern_client_key.large_lwe_secret_key(),
-                msg,
-                &output_encoding,
-            ),
-            DecryptionAndNoiseResult::new_from_lwe(
-                &after_dp_ct,
-                &standard_atomic_pattern_client_key.large_lwe_secret_key(),
-                msg,
-                &output_encoding,
-            ),
-            DecryptionAndNoiseResult::new_from_lwe(
-                &after_ks_ct,
-                &standard_atomic_pattern_client_key.small_lwe_secret_key(),
-                msg,
-                &output_encoding,
-            ),
-            DecryptionAndNoiseResult::new_from_lwe(
-                &before_ms_ct,
-                &standard_atomic_pattern_client_key.small_lwe_secret_key(),
-                msg,
-                &output_encoding,
-            ),
-            DecryptionAndNoiseResult::new_from_lwe(
-                &after_ms_ct,
-                &standard_atomic_pattern_client_key.small_lwe_secret_key(),
-                msg,
-                &output_encoding,
-            ),
+    (
+        DecryptionAndNoiseResult::new_from_dyn_lwe(
+            &DynLwe::U64(input_ct),
+            &small_lwe_secret_key_dyn,
+            msg,
         ),
-        AtomicPatternClientKey::KeySwitch32(_) => todo!(),
-    }
+        DecryptionAndNoiseResult::new_from_dyn_lwe(
+            &DynLwe::U64(after_br_ct),
+            &large_lwe_secret_key_dyn,
+            msg,
+        ),
+        DecryptionAndNoiseResult::new_from_dyn_lwe(
+            &DynLwe::U64(after_dp_ct),
+            &large_lwe_secret_key_dyn,
+            msg,
+        ),
+        DecryptionAndNoiseResult::new_from_dyn_lwe(
+            &DynLwe::U64(after_ks_ct),
+            &small_lwe_secret_key_dyn,
+            msg,
+        ),
+        DecryptionAndNoiseResult::new_from_dyn_lwe(
+            &DynLwe::U64(before_ms_ct),
+            &small_lwe_secret_key_dyn,
+            msg,
+        ),
+        DecryptionAndNoiseResult::new_from_dyn_modswitched_lwe(
+            &after_ms_dyn,
+            &small_lwe_secret_key_dyn,
+            msg,
+        ),
+    )
 }
 
 fn encrypt_br_dp_ks_any_ms_noise_helper_gpu(
@@ -451,7 +443,7 @@ fn noise_check_encrypt_br_dp_ks_ms_noise(meta_params: MetaParameters, filename_s
         atomic_pattern: params.atomic_pattern(),
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
-    let mut side_resources = CudaSideResources::new(&streams, block_info);
+    let mut side_resources = CudaSideResources::new(&cuda_sks, &streams, block_info);
 
     // Check that the circuit is correct with respect to core implementation, i.e. does not crash on
     // dimension checks
@@ -552,6 +544,7 @@ fn noise_check_encrypt_br_dp_ks_ms_noise(meta_params: MetaParameters, filename_s
 create_gpu_parameterized_stringified_test!(noise_check_encrypt_br_dp_ks_ms_noise {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 fn noise_check_encrypt_br_dp_ks_ms_pfail_gpu(meta_params: MetaParameters, filename_suffix: &str) {
@@ -650,4 +643,5 @@ fn noise_check_encrypt_br_dp_ks_ms_pfail_gpu(meta_params: MetaParameters, filena
 create_gpu_parameterized_stringified_test!(noise_check_encrypt_br_dp_ks_ms_pfail_gpu {
     TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });

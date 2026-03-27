@@ -2,14 +2,17 @@ use crate::integer::gpu::ciphertext::compact_list::CudaFlattenedVecCompactCipher
 
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_stringified_test;
-use crate::shortint::parameters::test_params::TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+use crate::shortint::parameters::test_params::{
+    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+};
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, CompactCiphertextListExpansionKind,
     CompactPublicKeyEncryptionParameters, MetaParameters, ShortintCompactCiphertextListCastingMode,
     ShortintKeySwitchingParameters,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
-    DynLwe, DynModSwitchedLwe, NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey,
+    DynLwe, NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey,
     NoiseSimulationModulusSwitchConfig,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
@@ -36,7 +39,6 @@ use crate::integer::gpu::key_switching_key::CudaKeySwitchingKey;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::shortint::server_key::tests::noise_distribution::cpk_ks_ms::cpk_ks_any_ms;
-use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::lwe_programmable_bootstrap::LweClassicFftBootstrap;
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::lwe_programmable_bootstrap::AllocateLweBootstrapResult;
 use crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial;
 use crate::integer::key_switching_key::KeySwitchingKey;
@@ -120,7 +122,7 @@ fn cpk_ks_any_ms_inner_helper_gpu(
         atomic_pattern: params.atomic_pattern(),
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
-    let mut cuda_side_resources = CudaSideResources::new(streams, cuda_block_info);
+    let mut cuda_side_resources = CudaSideResources::new(cuda_sks, streams, cuda_block_info);
     let ct = {
         let compact_list = cpk
             .key
@@ -163,8 +165,8 @@ fn cpk_ks_any_ms_inner_helper_gpu(
     let after_ks_ds_ct = after_ks_ds_gpu.as_ct_64_cpu(streams);
     let before_ms_gpu: &CudaDynLwe = after_drift_gpu.as_ref().unwrap_or(&after_ks_ds_gpu);
     let before_ms_ct = before_ms_gpu.as_ct_64_cpu(streams);
-
-    let after_ms_ct = after_ms_gpu.as_ct_64_cpu(streams);
+    let after_ms_dyn =
+        after_ms_gpu.as_dyn_mod_switched_lwe_cpu(&cuda_side_resources, br_input_modulus_log);
     let cpk_lwe_secret_key_dyn = cpk_private_key.key.lwe_secret_key_as_dyn();
     let small_lwe_secret_key_dyn = cks.key.small_lwe_secret_key_as_dyn();
 
@@ -185,7 +187,7 @@ fn cpk_ks_any_ms_inner_helper_gpu(
             msg,
         ),
         DecryptionAndNoiseResult::new_from_dyn_modswitched_lwe(
-            &DynModSwitchedLwe::ModSwitchedLwe(DynLwe::U64(after_ms_ct)),
+            &after_ms_dyn,
             &small_lwe_secret_key_dyn,
             msg,
         ),
@@ -354,7 +356,7 @@ fn noise_check_encrypt_cpk_ks_ms_noise_gpu(meta_params: MetaParameters, filename
         atomic_pattern: params.atomic_pattern(),
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
-    let mut cuda_side_resources = CudaSideResources::new(&streams, cuda_block_info);
+    let mut cuda_side_resources = CudaSideResources::new(&cuda_sks, &streams, cuda_block_info);
     // Check that the circuit is correct with respect to core implementation, i.e. does not crash on
     // dimension checks
     let (expected_lwe_dimension_out, expected_modulus_f64_out) = {
@@ -457,6 +459,7 @@ fn noise_check_encrypt_cpk_ks_ms_noise_gpu(meta_params: MetaParameters, filename
 
 create_gpu_parameterized_stringified_test!(noise_check_encrypt_cpk_ks_ms_noise_gpu {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 fn noise_check_encrypt_cpk_ks_ms_pfail_gpu(meta_params: MetaParameters, filename_suffix: &str) {
@@ -581,6 +584,7 @@ fn noise_check_encrypt_cpk_ks_ms_pfail_gpu(meta_params: MetaParameters, filename
 
 create_gpu_parameterized_stringified_test!(noise_check_encrypt_cpk_ks_ms_pfail_gpu {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
 fn sanity_check_encrypt_cpk_ks_ms_pbs_gpu(meta_params: MetaParameters, filename_suffix: &str) {
@@ -637,7 +641,7 @@ fn sanity_check_encrypt_cpk_ks_ms_pbs_gpu(meta_params: MetaParameters, filename_
         atomic_pattern: params.atomic_pattern(),
         noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
     };
-    let mut cuda_side_resources = CudaSideResources::new(&streams, cuda_block_info);
+    let mut cuda_side_resources = CudaSideResources::new(&cuda_sks, &streams, cuda_block_info);
 
     type SanityVec = (LweCiphertextList<Vec<u64>>, LweCiphertextList<Vec<u64>>);
     let mut results: Vec<SanityVec> = Vec::new();
@@ -714,7 +718,7 @@ fn sanity_check_encrypt_cpk_ks_ms_pbs_gpu(meta_params: MetaParameters, filename_
 
         // Complete the AP by computing the PBS to match shortint
         let mut pbs_result = d_accumulator.allocate_lwe_bootstrap_result(&mut cuda_side_resources);
-        cuda_sks.lwe_classic_fft_pbs(
+        cuda_sks.apply_generic_blind_rotation(
             &after_ms,
             &mut pbs_result,
             &d_accumulator,
@@ -748,4 +752,5 @@ fn sanity_check_encrypt_cpk_ks_ms_pbs_gpu(meta_params: MetaParameters, filename_
 
 create_gpu_parameterized_stringified_test!(sanity_check_encrypt_cpk_ks_ms_pbs_gpu {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
