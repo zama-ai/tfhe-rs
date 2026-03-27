@@ -114,6 +114,27 @@ jobs:
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
+  run-benchmarks-gpu-erc7984-multi-group:
+    name: benchmark_documentation/run-benchmarks-gpu-erc7984-multi-group
+    uses: ./.github/workflows/benchmark_gpu_common.yml
+    if: inputs.run-gpu-benchmarks
+    needs: parse-gpu-inputs
+    with:
+      profile: ${{ needs.parse-gpu-inputs.outputs.profile }}
+      hardware_name: ${{ needs.parse-gpu-inputs.outputs.hardware_name }}
+      command: hlapi_erc7984_multi_group
+      bench_type: throughput
+      params_type: multi_bit
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
 # TODO add make recipe for HPU benchmarks
 #  run-benchmarks-hpu:
 #    name: benchmark_documentation/run-benchmarks-hpu

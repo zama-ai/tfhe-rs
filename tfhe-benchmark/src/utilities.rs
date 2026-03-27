@@ -472,6 +472,96 @@ pub fn get_param_type() -> &'static ParamType {
     PARAM_TYPE.get_or_init(|| ParamType::from_env().unwrap())
 }
 
+pub fn get_bench_gpu_process_id() -> Option<usize> {
+    env::var("__TFHE_RS_BENCH_GPU_PROCESS_ID").ok().map(|v| {
+        v.parse::<usize>().unwrap_or_else(|_| {
+            panic!("__TFHE_RS_BENCH_GPU_PROCESS_ID must be a non-negative integer, got '{v}'")
+        })
+    })
+}
+
+pub fn get_bench_instances() -> Option<usize> {
+    env::var("__TFHE_RS_BENCH_GPU_PROCESS_COUNT").ok().map(|v| {
+        v.parse::<usize>().unwrap_or_else(|_| {
+            panic!("__TFHE_RS_BENCH_GPU_PROCESS_COUNT must be a positive integer, got '{v}'")
+        })
+    })
+}
+
+/// TODO: ADD COMMENT
+#[cfg(target_os = "linux")]
+pub fn bench_sync_barrier(num_instances: usize) {
+    use std::ffi::CString;
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+    const BARRIER_TIMEOUT_SECS: u64 = 120;
+    const MUTEX_NAME_PREFIX: &str = "tfhe_bench";
+
+    let sem_mutex = CString::new(format!("/{MUTEX_NAME_PREFIX}_mutex")).unwrap();
+    let sem_arrive = CString::new(format!("/{MUTEX_NAME_PREFIX}_arrive")).unwrap();
+    let sem_gate = CString::new(format!("/{MUTEX_NAME_PREFIX}_gate")).unwrap();
+
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    let deadline_t = now + Duration::from_secs(BARRIER_TIMEOUT_SECS);
+    let deadline = libc::timespec {
+        tv_sec: deadline_t.as_secs() as libc::time_t,
+        tv_nsec: deadline_t.subsec_nanos() as libc::c_long,
+    };
+
+    let open_sem = |name: &CString, init: u32| {
+        let sem = unsafe { libc::sem_open(name.as_ptr(), libc::O_CREAT, 0o600u32, init) };
+        assert!(
+            sem != libc::SEM_FAILED,
+            "sem_open({:?}) failed: {}",
+            name,
+            std::io::Error::last_os_error()
+        );
+        sem
+    };
+
+    let timed_wait = |sem: *mut libc::sem_t, label: &str| {
+        let ret = unsafe { libc::sem_timedwait(sem, &deadline) };
+        if ret != 0 {
+            panic!(
+                "bench_sync_barrier: timed out on '{label}' after {BARRIER_TIMEOUT_SECS}s \
+                 (__TFHE_RS_BENCH_GPU_PROCESS_COUNT={num_instances}). \
+                 If semaphores are stale from a prior crash, clean up with: \
+                 rm -f /dev/shm/sem.{MUTEX_NAME_PREFIX}_*\n\
+                 OS error: {}",
+                std::io::Error::last_os_error()
+            );
+        }
+    };
+
+    let mutex = open_sem(&sem_mutex, 1);
+    let arrive = open_sem(&sem_arrive, 0);
+    let gate = open_sem(&sem_gate, 0);
+
+    // TODO: ADD COMMENT
+    timed_wait(mutex, "mutex");
+    unsafe { libc::sem_post(arrive) };
+    let mut count = 0i32;
+    unsafe { libc::sem_getvalue(arrive, &mut count) };
+    unsafe { libc::sem_post(mutex) };
+
+    if count as usize == num_instances {
+        for _ in 0..num_instances {
+            unsafe { libc::sem_post(gate) };
+        }
+    }
+
+    timed_wait(gate, "gate");
+
+    unsafe {
+        libc::sem_close(mutex);
+        libc::sem_close(arrive);
+        libc::sem_close(gate);
+        libc::sem_unlink(sem_mutex.as_ptr());
+        libc::sem_unlink(sem_arrive.as_ptr());
+        libc::sem_unlink(sem_gate.as_ptr());
+    }
+}
+
 /// Generate a number of threads to use to saturate current machine for throughput measurements.
 pub fn throughput_num_threads(num_block: usize, op_pbs_count: u64) -> u64 {
     let ref_block_count = 32; // Represent a ciphertext of 64 bits for 2_2 parameters set

@@ -38,6 +38,7 @@ on:
           - integer_aes
           - integer_aes256
           - hlapi_erc7984
+          - hlapi_erc7984_multi_group
           - hlapi_dex
           - hlapi_noise_squash
       op_flavor:
@@ -75,6 +76,7 @@ on:
           - classical_documentation
           - multi_bit_documentation
           - classical_documentation + multi_bit_documentation
+
 
 
 permissions: {}
