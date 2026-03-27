@@ -356,7 +356,7 @@ check_fmt_js: check_nvm_installed
 .PHONY: check_fmt_toml # Check TOML files format
 check_fmt_toml: install_taplo
 	@RUST_LOG=warn taplo fmt --check || \
-	echo "TOML files format check failed. Please run 'make fmt_toml'"
+	{ echo "TOML files format check failed. Please run 'make fmt_toml'"; exit 1; }
 
 .PHONY: check_typos # Check for typos in codebase
 check_typos: install_typos_checker
