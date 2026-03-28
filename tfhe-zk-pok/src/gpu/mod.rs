@@ -9,6 +9,8 @@ pub mod pke_v2;
 #[cfg(test)]
 mod tests;
 
+use std::sync::Mutex;
+
 use crate::curve_446::{Fq, Fq2};
 use crate::curve_api::bls12_446::{G1Affine, G2Affine, Zp, G1, G2};
 use crate::curve_api::CurveGroupOps;
@@ -48,7 +50,8 @@ pub fn select_gpu_for_msm() -> u32 {
         return 0;
     }
     let thread_idx = rayon::current_thread_index().unwrap_or(0);
-    (thread_idx % num_gpus as usize)
+    let num_gpus_usize: usize = num_gpus.try_into().expect("GPU count fits in usize");
+    (thread_idx % num_gpus_usize)
         .try_into()
         .expect("GPU index fits in u32")
 }
@@ -199,7 +202,6 @@ pub fn zp_to_cuda_scalar(zp: &Zp) -> CudaScalar {
 ///
 /// This extracts the conversion logic used by `g2_msm_gpu_on_stream` so that
 /// callers who cache points on device can convert once and reuse the result.
-#[allow(dead_code)]
 pub(crate) fn g2_points_to_ffi(points: &[G2Affine]) -> Vec<zk_cuda_backend::bindings::G2Point> {
     use ark_ec::AffineRepr;
 
@@ -506,4 +508,280 @@ pub fn g2_msm_gpu(bases: &[G2Affine], scalars: &[Zp], gpu_index: u32) -> G2 {
     // used after this point
     unsafe { cuda_destroy_stream(stream, gpu_index) };
     result
+}
+
+// ---------------------------------------------------------------------------
+// Persistent device cache for CRS base points
+// ---------------------------------------------------------------------------
+
+/// Persistent GPU cache for CRS base points (g_hat_list).
+///
+/// Holds the full g_hat_list on GPU device in Montgomery form,
+/// plus pre-allocated MSM scratch buffers. Persists across verify calls
+/// as long as the same CRS (identified by data pointer + length) is used.
+struct DevicePointCache {
+    /// Opaque handle to zk_cached_g2_points (device memory, Montgomery form)
+    cached_points: *mut std::ffi::c_void,
+    /// Pre-allocated MSM scratch buffers (one per stream/MSM slot)
+    msm_mems: [*mut std::ffi::c_void; 3],
+    /// CUDA streams for MSM execution (persistent)
+    streams: [*mut std::ffi::c_void; 3],
+    /// GPU indices for each stream
+    gpu_indices: [u32; 3],
+    /// Cache key: (data pointer of g_hat_list, element count)
+    key: (usize, usize),
+    /// Max MSM size these scratch buffers support
+    max_n: u32,
+}
+
+// SAFETY: All fields are stable device pointers or GPU indices. CUDA operations
+// on these pointers are thread-safe when each stream is used by at most one thread.
+unsafe impl Send for DevicePointCache {}
+
+static DEVICE_CACHE: Mutex<Option<DevicePointCache>> = Mutex::new(None);
+
+/// Frees all device resources held by the cache.
+///
+/// Must be called while holding the DEVICE_CACHE lock, before replacing
+/// the cache entry. Cleanup functions synchronize internally.
+fn evict_cache(cache: DevicePointCache) {
+    let DevicePointCache {
+        mut cached_points,
+        mut msm_mems,
+        streams,
+        gpu_indices,
+        ..
+    } = cache;
+
+    // Free MSM scratch buffers (each on its own stream)
+    for i in 0..3 {
+        // SAFETY: msm_mems[i] was allocated by scratch_zk_g2_msm on streams[i]
+        // with gpu_indices[i]. No operations are in-flight since we hold the
+        // DEVICE_CACHE lock and callers have finished their verify.
+        unsafe {
+            zk_cuda_backend::bindings::cleanup_zk_g2_msm(
+                streams[i] as zk_cuda_backend::bindings::cudaStream_t,
+                gpu_indices[i],
+                &mut msm_mems[i],
+                true,
+            );
+        }
+    }
+
+    // Free cached points (on stream 0)
+    // SAFETY: cached_points was allocated by scratch_zk_cached_g2_points on
+    // stream 0. MSM scratch buffers were freed above so no operations reference
+    // the cached points.
+    unsafe {
+        zk_cuda_backend::bindings::cleanup_zk_cached_g2_points(
+            streams[0] as zk_cuda_backend::bindings::cudaStream_t,
+            gpu_indices[0],
+            &mut cached_points,
+            true,
+        );
+    }
+
+    // Destroy streams
+    for i in 0..3 {
+        // SAFETY: streams[i] was created with cuda_create_stream(gpu_indices[i]).
+        // All device resources using these streams have been freed above.
+        unsafe {
+            cuda_destroy_stream(streams[i], gpu_indices[i]);
+        }
+    }
+}
+
+/// Resources cloned out of the persistent cache for use during a single verify call.
+///
+/// Device pointers are stable until the cache is evicted (which only happens when the CRS
+/// changes -- never mid-verify).
+pub(crate) struct CachedMsmResources {
+    pub cached_points: *const std::ffi::c_void,
+    pub msm_mems: [*mut std::ffi::c_void; 3],
+    pub streams: [SendPtr; 3],
+    pub gpu_indices: [u32; 3],
+}
+
+// SAFETY: Device pointers are stable and CUDA streams are thread-safe
+unsafe impl Send for CachedMsmResources {}
+unsafe impl Sync for CachedMsmResources {}
+
+/// Acquire cached MSM resources for the given g_hat_list.
+/// Re-caches on device if the CRS changed or if max_msm_n exceeds current capacity.
+///
+/// # Safety invariant
+///
+/// The returned `CachedMsmResources` contains raw device pointers that are only
+/// valid as long as the cache entry is not evicted. Eviction happens only when a
+/// subsequent call provides a different CRS (different `g_hat_list` pointer or
+/// length). Callers must ensure the CRS does not change while the returned
+/// resources are in use (i.e., do not call `acquire_cached_msm_resources` with a
+/// different `g_hat_list` from another thread while GPU MSMs are in-flight).
+pub(crate) fn acquire_cached_msm_resources(
+    g_hat_list: &[G2Affine],
+    max_msm_n: u32,
+) -> CachedMsmResources {
+    let key = (g_hat_list.as_ptr() as usize, g_hat_list.len());
+    let mut guard = DEVICE_CACHE.lock().expect("DEVICE_CACHE lock poisoned");
+
+    // Return existing cache if the CRS identity and capacity match
+    if let Some(ref cache) = *guard {
+        if cache.key == key && cache.max_n >= max_msm_n {
+            return CachedMsmResources {
+                cached_points: cache.cached_points,
+                msm_mems: cache.msm_mems,
+                streams: [
+                    SendPtr(cache.streams[0]),
+                    SendPtr(cache.streams[1]),
+                    SendPtr(cache.streams[2]),
+                ],
+                gpu_indices: cache.gpu_indices,
+            };
+        }
+    }
+
+    // Evict old cache if present
+    if let Some(old) = guard.take() {
+        evict_cache(old);
+    }
+
+    // All 3 streams on GPU 0
+    let gpu_index: u32 = 0;
+    let gpu_indices = [gpu_index; 3];
+    // SAFETY: gpu_index is 0, which is always valid (get_num_gpus() asserts >= 1 GPU).
+    let streams: [*mut std::ffi::c_void; 3] = [
+        unsafe { cuda_create_stream(gpu_index) },
+        unsafe { cuda_create_stream(gpu_index) },
+        unsafe { cuda_create_stream(gpu_index) },
+    ];
+
+    // Convert g_hat_list to FFI G2Points
+    let ffi_points = g2_points_to_ffi(g_hat_list);
+    let n_points: u32 = g_hat_list
+        .len()
+        .try_into()
+        .expect("g_hat_list length fits in u32");
+
+    // Cache points on device (H2D + Montgomery conversion, synchronizes internally)
+    let mut cached_points: *mut std::ffi::c_void = std::ptr::null_mut();
+    let mut size_tracker: u64 = 0;
+    // SAFETY: streams[0] is a valid CUDA stream. ffi_points is a valid array of
+    // n_points G2Points. cached_points is null and receives the allocation.
+    // The function synchronizes internally.
+    unsafe {
+        zk_cuda_backend::bindings::scratch_zk_cached_g2_points(
+            streams[0] as zk_cuda_backend::bindings::cudaStream_t,
+            gpu_index,
+            &mut cached_points,
+            ffi_points.as_ptr(),
+            n_points,
+            &mut size_tracker,
+            true,
+        );
+    }
+
+    // Allocate MSM scratch buffers (one per stream)
+    let mut msm_mems: [*mut std::ffi::c_void; 3] = [std::ptr::null_mut(); 3];
+    for i in 0..3 {
+        let mut tracker: u64 = 0;
+        // SAFETY: streams[i] is a valid CUDA stream. msm_mems[i] is null and
+        // receives the allocation. max_msm_n is the maximum MSM size.
+        unsafe {
+            zk_cuda_backend::bindings::scratch_zk_g2_msm(
+                streams[i] as zk_cuda_backend::bindings::cudaStream_t,
+                gpu_indices[i],
+                &mut msm_mems[i],
+                max_msm_n,
+                &mut tracker,
+                true,
+            );
+        }
+    }
+
+    let cache = DevicePointCache {
+        cached_points,
+        msm_mems,
+        streams,
+        gpu_indices,
+        key,
+        max_n: max_msm_n,
+    };
+
+    let resources = CachedMsmResources {
+        cached_points: cache.cached_points,
+        msm_mems: cache.msm_mems,
+        streams: [
+            SendPtr(cache.streams[0]),
+            SendPtr(cache.streams[1]),
+            SendPtr(cache.streams[2]),
+        ],
+        gpu_indices: cache.gpu_indices,
+    };
+
+    *guard = Some(cache);
+    resources
+}
+
+/// G2 MSM using cached device base points and pre-allocated scratch.
+/// Only scalars are transferred H2D.
+#[must_use]
+pub(crate) fn g2_msm_cached_on_stream(
+    msm_mem: *mut std::ffi::c_void,
+    cached: *const std::ffi::c_void,
+    point_offset: u32,
+    scalars: &[Zp],
+    stream: *mut std::ffi::c_void,
+    gpu_index: u32,
+) -> G2 {
+    use crate::curve_446::g2::G2Projective;
+
+    let scalars_ffi: Vec<zk_cuda_backend::bindings::Scalar> = scalars
+        .iter()
+        .map(|s| zk_cuda_backend::bindings::Scalar {
+            limb: s.inner.into_bigint().0,
+        })
+        .collect();
+    let n: u32 = scalars_ffi
+        .len()
+        .try_into()
+        .expect("GPU MSM: scalar count too large for u32");
+
+    let mut result = zk_cuda_backend::bindings::G2ProjectivePoint::default();
+    let cuda_stream = stream as zk_cuda_backend::bindings::cudaStream_t;
+
+    // SAFETY: `msm_mem` was allocated by `scratch_zk_g2_msm` for >= n points.
+    // `cached` is a valid handle from `scratch_zk_cached_g2_points`.
+    // `scalars_ffi` is a valid host array with `n` elements.
+    // The function synchronizes internally before writing to `result`.
+    unsafe {
+        zk_cuda_backend::bindings::zk_g2_msm_cached_async(
+            cuda_stream,
+            gpu_index,
+            msm_mem,
+            &mut result,
+            cached,
+            point_offset,
+            scalars_ffi.as_ptr(),
+            n,
+        );
+    }
+
+    // Convert from Montgomery form
+    let gpu_result = zk_cuda_backend::G2Projective::new(result.X, result.Y, result.Z);
+    let normalized = gpu_result.from_montgomery_normalized();
+    let x_fp2 = normalized.X();
+    let y_fp2 = normalized.Y();
+    let z_fp2 = normalized.Z();
+
+    let z_is_zero = z_fp2.c0.limb.iter().all(|&l| l == 0) && z_fp2.c1.limb.iter().all(|&l| l == 0);
+    if z_is_zero {
+        return G2::ZERO;
+    }
+
+    let x = fq2_from_cuda_fp2(&x_fp2);
+    let y = fq2_from_cuda_fp2(&y_fp2);
+    let z = fq2_from_cuda_fp2(&z_fp2);
+    G2 {
+        inner: G2Projective::new_unchecked(x, y, z),
+    }
 }

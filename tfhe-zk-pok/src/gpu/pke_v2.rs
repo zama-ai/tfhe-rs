@@ -27,7 +27,6 @@ use crate::proofs::pke_v2::{
 };
 
 use rayon::prelude::*;
-use tfhe_cuda_backend::cuda_bind::{cuda_create_stream, cuda_destroy_stream};
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -1596,21 +1595,19 @@ fn pairing_check_two_steps(
     let mut lhs0_eq2 = None;
     let mut lhs1_eq2 = None;
 
-    // Pre-create one stream per GPU MSM so that rayon tasks reuse them instead
-    // of repeatedly creating/destroying streams inside the scope.
-    let stream_create_start = std::time::Instant::now();
-    let num_gpus = super::get_num_gpus();
-    let gpu_indices: [u32; 3] = [0, 1 % num_gpus, 2 % num_gpus];
-    // SAFETY: gpu_indices are computed as i % num_gpus, guaranteeing each index < num_gpus.
-    let streams: [super::SendPtr; 3] = [
-        super::SendPtr(unsafe { cuda_create_stream(gpu_indices[0]) }),
-        super::SendPtr(unsafe { cuda_create_stream(gpu_indices[1]) }),
-        super::SendPtr(unsafe { cuda_create_stream(gpu_indices[2]) }),
-    ];
+    // Acquire persistent device cache (streams + cached g_hat_list + MSM scratch)
+    let cache_start = std::time::Instant::now();
+    let max_n = u32::try_from((d + k + 4).max(128)).expect("MSM size fits in u32");
+    let cache = super::acquire_cached_msm_resources(g_hat_list, max_n);
+    let streams = cache.streams;
+    let gpu_indices = cache.gpu_indices;
+    // Extract device pointers from the cache. CachedMsmResources implements
+    // Send+Sync, so we keep it alive across the rayon scope.
+    let gpu_ptrs = &cache;
     if timing {
         eprintln!(
-            "[ZK_VERIFY_TIMING] stream_creation: {:.1}ms",
-            stream_create_start.elapsed().as_secs_f64() * 1000.0,
+            "[ZK_VERIFY_TIMING] cache_acquire: {:.1}ms",
+            cache_start.elapsed().as_secs_f64() * 1000.0,
         );
     }
 
@@ -1723,8 +1720,10 @@ fn pairing_check_two_steps(
                         C_hat_h3,
                         C_hat_w: _,
                     }) => C_hat_h3,
-                    None => super::g2_msm_gpu_on_stream(
-                        &g_hat_list[n - (d + k)..n],
+                    None => super::g2_msm_cached_on_stream(
+                        gpu_ptrs.msm_mems[0],
+                        gpu_ptrs.cached_points,
+                        u32::try_from(n - (d + k)).expect("point offset fits in u32"),
                         &(0..d + k)
                             .rev()
                             .map(|j| {
@@ -1744,8 +1743,10 @@ fn pairing_check_two_steps(
             let start = std::time::Instant::now();
             lhs3 = Some(pairing(
                 C_R,
-                super::g2_msm_gpu_on_stream(
-                    &g_hat_list[n - 128..n],
+                super::g2_msm_cached_on_stream(
+                    gpu_ptrs.msm_mems[1],
+                    gpu_ptrs.cached_points,
+                    u32::try_from(n - 128).expect("point offset fits in u32"),
                     &(0..128)
                         .rev()
                         .map(|j| delta_r * phi[j] + delta_dec * xi[j])
@@ -1767,8 +1768,10 @@ fn pairing_check_two_steps(
                         C_hat_h3: _,
                         C_hat_w,
                     }) => C_hat_w,
-                    None => super::g2_msm_gpu_on_stream(
-                        &g_hat_list[..d + k + 4],
+                    None => super::g2_msm_cached_on_stream(
+                        gpu_ptrs.msm_mems[2],
+                        gpu_ptrs.cached_points,
+                        0,
                         &omega[..d + k + 4],
                         streams[2].0,
                         gpu_indices[2],
@@ -1782,14 +1785,6 @@ fn pairing_check_two_steps(
     });
 
     let rayon_elapsed = rayon_start.elapsed();
-
-    // Destroy pre-created streams now that all GPU work is done
-    let stream_destroy_start = std::time::Instant::now();
-    for (i, stream) in streams.iter().enumerate() {
-        // SAFETY: each stream was created above with the matching gpu_indices[i] and is not
-        // used after the rayon scope
-        unsafe { cuda_destroy_stream(stream.0, gpu_indices[i]) };
-    }
 
     if timing {
         let nanos_to_ms = |n: u64| n as f64 / 1_000_000.0;
@@ -1838,10 +1833,6 @@ fn pairing_check_two_steps(
         eprintln!(
             "[ZK_VERIFY_TIMING] pairing rhs_eq2: {:.1}ms",
             nanos_to_ms(t_rhs_eq2.load(Ordering::Relaxed)),
-        );
-        eprintln!(
-            "[ZK_VERIFY_TIMING] stream_destroy: {:.1}ms",
-            stream_destroy_start.elapsed().as_secs_f64() * 1000.0,
         );
         eprintln!(
             "[ZK_VERIFY_TIMING] rayon_scope_total: {:.1}ms  (wall clock, limited by longest task)",
@@ -1952,16 +1943,13 @@ fn pairing_check_batched(
     // TODO: should the user be able to control the randomness source here?
     let eta = Zp::rand(&mut rand::thread_rng());
 
-    // Pre-create one stream per GPU MSM so that rayon tasks reuse them instead
-    // of repeatedly creating/destroying streams inside the scope.
-    let num_gpus = super::get_num_gpus();
-    let gpu_indices: [u32; 3] = [0, 1 % num_gpus, 2 % num_gpus];
-    // SAFETY: gpu_indices are computed as i % num_gpus, guaranteeing each index < num_gpus.
-    let streams: [super::SendPtr; 3] = [
-        super::SendPtr(unsafe { cuda_create_stream(gpu_indices[0]) }),
-        super::SendPtr(unsafe { cuda_create_stream(gpu_indices[1]) }),
-        super::SendPtr(unsafe { cuda_create_stream(gpu_indices[2]) }),
-    ];
+    // Acquire persistent device cache (streams + cached g_hat_list + MSM scratch)
+    let max_n = u32::try_from((d + k + 4).max(128)).expect("MSM size fits in u32");
+    let cache = super::acquire_cached_msm_resources(g_hat_list, max_n);
+    let streams = cache.streams;
+    let gpu_indices = cache.gpu_indices;
+    // Keep a reference to the Send+Sync cache so rayon closures can share it
+    let gpu_ptrs = &cache;
 
     rayon::scope(|s| {
         // GPU-independent pairings
@@ -2000,8 +1988,10 @@ fn pairing_check_batched(
                     C_hat_h3,
                     C_hat_w: _,
                 }) => C_hat_h3,
-                None => super::g2_msm_gpu_on_stream(
-                    &g_hat_list[n - (d + k)..n],
+                None => super::g2_msm_cached_on_stream(
+                    gpu_ptrs.msm_mems[0],
+                    gpu_ptrs.cached_points,
+                    u32::try_from(n - (d + k)).expect("point offset fits in u32"),
                     &(0..d + k)
                         .rev()
                         .map(|j| {
@@ -2023,8 +2013,10 @@ fn pairing_check_batched(
         s.spawn(|_| {
             lhs3 = Some(pairing(
                 C_R,
-                super::g2_msm_gpu_on_stream(
-                    &g_hat_list[n - 128..n],
+                super::g2_msm_cached_on_stream(
+                    gpu_ptrs.msm_mems[1],
+                    gpu_ptrs.cached_points,
+                    u32::try_from(n - 128).expect("point offset fits in u32"),
                     &(0..128)
                         .rev()
                         .map(|j| delta_r * phi[j] + delta_dec * xi[j])
@@ -2040,8 +2032,10 @@ fn pairing_check_batched(
                     C_hat_h3: _,
                     C_hat_w,
                 }) => C_hat_w,
-                None => super::g2_msm_gpu_on_stream(
-                    &g_hat_list[..d + k + 4],
+                None => super::g2_msm_cached_on_stream(
+                    gpu_ptrs.msm_mems[2],
+                    gpu_ptrs.cached_points,
+                    0,
                     &omega[..d + k + 4],
                     streams[2].0,
                     gpu_indices[2],
@@ -2056,13 +2050,6 @@ fn pairing_check_batched(
             lhs4 = Some(pairing(g1_arg, c_hat_w));
         });
     });
-
-    // Destroy pre-created streams now that all GPU work is done
-    for (i, stream) in streams.iter().enumerate() {
-        // SAFETY: each stream was created above with the matching gpu_indices[i] and is not
-        // used after the rayon scope
-        unsafe { cuda_destroy_stream(stream.0, gpu_indices[i]) };
-    }
 
     let rhs = rhs.unwrap();
     let lhs0 = lhs0.unwrap();
