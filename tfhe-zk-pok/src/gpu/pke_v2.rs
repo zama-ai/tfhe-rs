@@ -1176,6 +1176,35 @@ fn verify_impl(
         t_sub = std::time::Instant::now();
     }
 
+    // Precompute R^T * phi: for each column j of R, compute sum_i(phi[i] * R(i,j)).
+    // The full vector has 2*(d+k)+4 entries covering both the P_h2 range (first d+k+4
+    // columns) and the P_h3 / MSM-scalar range (next d+k columns). Each column is
+    // independent, so we parallelize across columns with rayon.
+    let r_transpose_phi: Vec<Zp> = (0..2 * (d + k) + 4)
+        .into_par_iter()
+        .map(|j| {
+            let mut acc = Zp::ZERO;
+            for (i, &phi_val) in phi.iter().enumerate() {
+                match R(i, j) {
+                    0 => {}
+                    1 => acc += phi_val,
+                    -1 => acc -= phi_val,
+                    _ => unreachable!(),
+                }
+            }
+            acc
+        })
+        .collect();
+
+    if timing {
+        eprintln!(
+            "[ZK_VERIFY_TIMING]   r_transpose_phi: {:.1}ms (2*(d+k)+4={} cols)",
+            t_sub.elapsed().as_secs_f64() * 1000.0,
+            2 * (d + k) + 4,
+        );
+        t_sub = std::time::Instant::now();
+    }
+
     let C_y_bytes = C_y.to_le_bytes();
     let (t, t_hash) = y_hash.gen_t(C_y_bytes.as_ref());
 
@@ -1308,16 +1337,7 @@ fn verify_impl(
                 *p += delta_e * omega[j];
 
                 if j < d + k + 4 {
-                    let mut acc = Zp::ZERO;
-                    for (i, &phi) in phi.iter().enumerate() {
-                        match R(i, j) {
-                            0 => {}
-                            1 => acc += phi,
-                            -1 => acc -= phi,
-                            _ => unreachable!(),
-                        }
-                    }
-                    *p += delta_r * acc;
+                    *p += delta_r * r_transpose_phi[j];
                 }
             }
         },
@@ -1337,17 +1357,7 @@ fn verify_impl(
     if !P_h3.is_empty() {
         for j in 0..d + k {
             let p = &mut P_h3[n - j];
-
-            let mut acc = Zp::ZERO;
-            for (i, &phi) in phi.iter().enumerate() {
-                match R(i, d + k + 4 + j) {
-                    0 => {}
-                    1 => acc += phi,
-                    -1 => acc -= phi,
-                    _ => unreachable!(),
-                }
-            }
-            *p = delta_r * acc - delta_theta_q * theta[j];
+            *p = delta_r * r_transpose_phi[d + k + 4 + j] - delta_theta_q * theta[j];
         }
     }
 
@@ -1455,6 +1465,7 @@ fn verify_impl(
         chi_powers: [chi, chi2, chi3, chi4],
         z,
         t_theta,
+        r_transpose_phi,
     };
 
     let eval_points = EvaluationPoints {
@@ -1476,7 +1487,6 @@ fn verify_impl(
             B_squared,
             decoded_q,
             k,
-            R,
             scalars,
             eval_points,
             timing,
@@ -1489,7 +1499,6 @@ fn verify_impl(
             B_squared,
             decoded_q,
             k,
-            R,
             scalars,
             eval_points,
             timing,
@@ -1523,7 +1532,6 @@ fn pairing_check_two_steps(
     B_squared: u128,
     decoded_q: u128,
     k: usize,
-    R: impl Fn(usize, usize) -> i8 + Sync,
     scalars: GeneratedScalars<Bls12_446>,
     eval_points: EvaluationPoints<Bls12_446>,
     timing: bool,
@@ -1553,6 +1561,7 @@ fn pairing_check_two_steps(
         chi_powers: [chi, chi2, chi3, chi4],
         z,
         t_theta,
+        r_transpose_phi,
     } = scalars;
 
     let EvaluationPoints {
@@ -1719,16 +1728,7 @@ fn pairing_check_two_steps(
                         &(0..d + k)
                             .rev()
                             .map(|j| {
-                                let mut acc = Zp::ZERO;
-                                for (i, &phi_i) in phi.iter().enumerate() {
-                                    match R(i, d + k + 4 + j) {
-                                        0 => {}
-                                        1 => acc += phi_i,
-                                        -1 => acc -= phi_i,
-                                        _ => unreachable!(),
-                                    }
-                                }
-                                delta_r * acc - delta_theta_q * theta[j]
+                                delta_r * r_transpose_phi[d + k + 4 + j] - delta_theta_q * theta[j]
                             })
                             .collect::<Box<[_]>>(),
                         streams[0].0,
@@ -1889,7 +1889,6 @@ fn pairing_check_batched(
     B_squared: u128,
     decoded_q: u128,
     k: usize,
-    R: impl Fn(usize, usize) -> i8 + Sync,
     scalars: GeneratedScalars<Bls12_446>,
     eval_points: EvaluationPoints<Bls12_446>,
     _timing: bool,
@@ -1919,6 +1918,7 @@ fn pairing_check_batched(
         chi_powers: [chi, chi2, chi3, chi4],
         z,
         t_theta,
+        r_transpose_phi,
     } = scalars;
 
     let EvaluationPoints {
@@ -2005,16 +2005,7 @@ fn pairing_check_batched(
                     &(0..d + k)
                         .rev()
                         .map(|j| {
-                            let mut acc = Zp::ZERO;
-                            for (i, &phi_i) in phi.iter().enumerate() {
-                                match R(i, d + k + 4 + j) {
-                                    0 => {}
-                                    1 => acc += phi_i,
-                                    -1 => acc -= phi_i,
-                                    _ => unreachable!(),
-                                }
-                            }
-                            delta_r * acc - delta_theta_q * theta[j]
+                            delta_r * r_transpose_phi[d + k + 4 + j] - delta_theta_q * theta[j]
                         })
                         .collect::<Box<[_]>>(),
                     streams[0].0,
