@@ -1064,6 +1064,9 @@ fn verify_impl(
     metadata: &[u8],
     pairing_mode: VerificationPairingMode,
 ) -> Result<(), ()> {
+    let timing = std::env::var("ZK_VERIFY_TIMING").is_ok();
+    let verify_start = std::time::Instant::now();
+
     let &Proof {
         C_hat_e,
         C_e,
@@ -1132,6 +1135,9 @@ fn verify_impl(
         return Err(());
     }
 
+    let hash_chain_start = std::time::Instant::now();
+    let mut t_sub = std::time::Instant::now();
+
     let C_hat_e_bytes = C_hat_e.to_le_bytes();
     let C_e_bytes = C_e.to_le_bytes();
     let C_r_tilde_bytes = C_r_tilde.to_le_bytes();
@@ -1146,6 +1152,14 @@ fn verify_impl(
     );
     let R = |i: usize, j: usize| R_matrix[i + j * 128];
 
+    if timing {
+        eprintln!(
+            "[ZK_VERIFY_TIMING]   RHash::new: {:.1}ms",
+            t_sub.elapsed().as_secs_f64() * 1000.0
+        );
+        t_sub = std::time::Instant::now();
+    }
+
     let C_R_bytes = C_R.to_le_bytes();
     let (phi, phi_hash) = R_hash.gen_phi(C_R_bytes.as_ref());
 
@@ -1153,6 +1167,14 @@ fn verify_impl(
     let (xi, xi_hash) = phi_hash.gen_xi::<Zp>(C_hat_bin_bytes.as_ref());
 
     let (y, y_hash) = xi_hash.gen_y::<Zp>();
+
+    if timing {
+        eprintln!(
+            "[ZK_VERIFY_TIMING]   phi+xi+y: {:.1}ms",
+            t_sub.elapsed().as_secs_f64() * 1000.0
+        );
+        t_sub = std::time::Instant::now();
+    }
 
     let C_y_bytes = C_y.to_le_bytes();
     let (t, t_hash) = y_hash.gen_t(C_y_bytes.as_ref());
@@ -1173,6 +1195,14 @@ fn verify_impl(
 
     let delta_theta_q = delta_theta * Zp::from_u128(decoded_q);
 
+    if timing {
+        eprintln!(
+            "[ZK_VERIFY_TIMING]   t+theta+omega+delta: {:.1}ms",
+            t_sub.elapsed().as_secs_f64() * 1000.0
+        );
+        t_sub = std::time::Instant::now();
+    }
+
     let mut a_theta = vec![Zp::ZERO; D];
     compute_a_theta::<Bls12_446>(
         &mut a_theta,
@@ -1184,6 +1214,15 @@ fn verify_impl(
         effective_cleartext_t,
         delta_encoding,
     );
+
+    if timing {
+        eprintln!(
+            "[ZK_VERIFY_TIMING]   compute_a_theta: {:.1}ms (D={})",
+            t_sub.elapsed().as_secs_f64() * 1000.0,
+            D
+        );
+        t_sub = std::time::Instant::now();
+    }
 
     let load = if compute_load_proof_fields.is_some() {
         ComputeLoad::Proof
@@ -1206,6 +1245,15 @@ fn verify_impl(
         &C_hat_w_bytes,
     );
 
+    if timing {
+        eprintln!(
+            "[ZK_VERIFY_TIMING]   gen_z+bytes: {:.1}ms",
+            t_sub.elapsed().as_secs_f64() * 1000.0
+        );
+    }
+
+    let poly_construction_start = std::time::Instant::now();
+
     let mut P_h1 = vec![Zp::ZERO; 1 + n];
     let mut P_h2 = vec![Zp::ZERO; 1 + n];
     let mut P_t = vec![Zp::ZERO; 1 + n];
@@ -1218,54 +1266,72 @@ fn verify_impl(
         ComputeLoad::Verify => vec![],
     };
 
-    let mut xi_scaled = xi;
-    for j in 0..D + 128 * m {
-        let p = &mut P_h1[n - j];
-        if j < D {
-            *p += delta_theta * a_theta[j];
-        }
-        *p -= delta_y * y[j];
-        *p += delta_eq * t[j] * y[j];
-
-        if j >= D {
-            let j = j - D;
-            let xi = &mut xi_scaled[j / m];
-            let H_xi = *xi;
-            *xi = *xi + *xi;
-
-            let r = delta_dec * H_xi;
-
-            if j % m < m - 1 {
-                *p += r;
-            } else {
-                *p -= r;
-            }
-        }
+    if timing {
+        t_sub = std::time::Instant::now();
     }
 
-    for j in 0..n {
-        let p = &mut P_h2[n - j];
+    // Precompute doubling powers of xi so the P_h1 loop has no sequential
+    // dependency on xi_scaled.  xi_powers[i*m + k] = 2^k * xi[i].
+    let xi_powers = precompute_xi_powers(&xi, m);
 
-        if j < d + k {
-            *p += delta_theta * theta[j];
-        }
+    // P_h1 and P_h2 write to disjoint arrays and read only shared immutable
+    // data, so we run them concurrently.
+    rayon::join(
+        || {
+            for j in 0..D + 128 * m {
+                let p = &mut P_h1[n - j];
+                if j < D {
+                    *p += delta_theta * a_theta[j];
+                }
+                *p -= delta_y * y[j];
+                *p += delta_eq * t[j] * y[j];
 
-        *p += delta_e * omega[j];
-
-        if j < d + k + 4 {
-            let mut acc = Zp::ZERO;
-            for (i, &phi) in phi.iter().enumerate() {
-                match R(i, j) {
-                    0 => {}
-                    1 => acc += phi,
-                    -1 => acc -= phi,
-                    _ => unreachable!(),
+                if j >= D {
+                    let idx = j - D;
+                    let r = delta_dec * xi_powers[idx];
+                    if idx % m < m - 1 {
+                        *p += r;
+                    } else {
+                        *p -= r;
+                    }
                 }
             }
-            *p += delta_r * acc;
-        }
-    }
+        },
+        || {
+            for j in 0..n {
+                let p = &mut P_h2[n - j];
 
+                if j < d + k {
+                    *p += delta_theta * theta[j];
+                }
+
+                *p += delta_e * omega[j];
+
+                if j < d + k + 4 {
+                    let mut acc = Zp::ZERO;
+                    for (i, &phi) in phi.iter().enumerate() {
+                        match R(i, j) {
+                            0 => {}
+                            1 => acc += phi,
+                            -1 => acc -= phi,
+                            _ => unreachable!(),
+                        }
+                    }
+                    *p += delta_r * acc;
+                }
+            }
+        },
+    );
+
+    if timing {
+        eprintln!(
+            "[ZK_VERIFY_TIMING]   P_h1+P_h2 parallel (D+128m={}, n={}): {:.1}ms",
+            D + 128 * m,
+            n,
+            t_sub.elapsed().as_secs_f64() * 1000.0
+        );
+        t_sub = std::time::Instant::now();
+    }
     P_t[1..].copy_from_slice(&t);
 
     if !P_h3.is_empty() {
@@ -1289,27 +1355,65 @@ fn verify_impl(
         P_omega[1..].copy_from_slice(&omega[..d + k + 4]);
     }
 
-    let mut p_h1 = Zp::ZERO;
-    let mut p_h2 = Zp::ZERO;
-    let mut p_t = Zp::ZERO;
-    let mut p_h3 = Zp::ZERO;
-    let mut p_omega = Zp::ZERO;
-
-    let mut pow = Zp::ONE;
-    for j in 0..n + 1 {
-        p_h1 += P_h1[j] * pow;
-        p_h2 += P_h2[j] * pow;
-        p_t += P_t[j] * pow;
-
-        if j < P_h3.len() {
-            p_h3 += P_h3[j] * pow;
-        }
-        if j < P_omega.len() {
-            p_omega += P_omega[j] * pow;
-        }
-
-        pow = pow * z;
+    if timing {
+        eprintln!(
+            "[ZK_VERIFY_TIMING]   P_h3+P_omega+P_t: {:.1}ms",
+            t_sub.elapsed().as_secs_f64() * 1000.0
+        );
+        t_sub = std::time::Instant::now();
     }
+
+    // Precompute z^0, z^1, ..., z^n so the 5 polynomial evaluations can run
+    // as independent dot-products instead of a single sequential Horner loop.
+    let z_powers = {
+        let mut powers = Vec::with_capacity(n + 1);
+        let mut pow = Zp::ONE;
+        for _ in 0..=n {
+            powers.push(pow);
+            pow = pow * z;
+        }
+        powers
+    };
+
+    // Evaluate P_h1(z), P_h2(z), P_t(z), P_h3(z), P_omega(z) in parallel.
+    let (p_h1, p_h2, p_t, p_h3, p_omega) = {
+        let ((p_h1, p_h2), (p_t, (p_h3, p_omega))) = rayon::join(
+            || {
+                rayon::join(
+                    || P_h1.iter().zip(&z_powers).map(|(&c, &p)| c * p).sum::<Zp>(),
+                    || P_h2.iter().zip(&z_powers).map(|(&c, &p)| c * p).sum::<Zp>(),
+                )
+            },
+            || {
+                rayon::join(
+                    || P_t.iter().zip(&z_powers).map(|(&c, &p)| c * p).sum::<Zp>(),
+                    || {
+                        rayon::join(
+                            || {
+                                if P_h3.is_empty() {
+                                    Zp::ZERO
+                                } else {
+                                    P_h3.iter().zip(&z_powers).map(|(&c, &p)| c * p).sum::<Zp>()
+                                }
+                            },
+                            || {
+                                if P_omega.is_empty() {
+                                    Zp::ZERO
+                                } else {
+                                    P_omega
+                                        .iter()
+                                        .zip(&z_powers)
+                                        .map(|(&c, &p)| c * p)
+                                        .sum::<Zp>()
+                                }
+                            },
+                        )
+                    },
+                )
+            },
+        );
+        (p_h1, p_h2, p_t, p_h3, p_omega)
+    };
 
     let p_h3_opt = if P_h3.is_empty() { None } else { Some(p_h3) };
     let p_omega_opt = if P_omega.is_empty() {
@@ -1319,6 +1423,21 @@ fn verify_impl(
     };
 
     let chi = z_hash.gen_chi(p_h1, p_h2, p_t, p_h3_opt, p_omega_opt);
+
+    if timing {
+        eprintln!(
+            "[ZK_VERIFY_TIMING]   z_powers+eval parallel: {:.1}ms",
+            t_sub.elapsed().as_secs_f64() * 1000.0
+        );
+        eprintln!(
+            "[ZK_VERIFY_TIMING] hash_chain: {:.1}ms",
+            hash_chain_start.elapsed().as_secs_f64() * 1000.0,
+        );
+        eprintln!(
+            "[ZK_VERIFY_TIMING] poly_construction: {:.1}ms",
+            poly_construction_start.elapsed().as_secs_f64() * 1000.0,
+        );
+    }
 
     // Compared to the reference document, chi2 and chi3 are reversed in compute load proof, that
     // way the equation are not modified between compute load proof/verify. This is ok as long as
@@ -1346,7 +1465,9 @@ fn verify_impl(
         p_omega,
     };
 
-    match pairing_mode {
+    let pairing_start = std::time::Instant::now();
+
+    let result = match pairing_mode {
         VerificationPairingMode::TwoSteps => pairing_check_two_steps(
             proof,
             &public.0.g_lists,
@@ -1358,6 +1479,7 @@ fn verify_impl(
             R,
             scalars,
             eval_points,
+            timing,
         ),
         VerificationPairingMode::Batched => pairing_check_batched(
             proof,
@@ -1370,8 +1492,22 @@ fn verify_impl(
             R,
             scalars,
             eval_points,
+            timing,
         ),
+    };
+
+    if timing {
+        eprintln!(
+            "[ZK_VERIFY_TIMING] pairing_check: {:.1}ms",
+            pairing_start.elapsed().as_secs_f64() * 1000.0,
+        );
+        eprintln!(
+            "[ZK_VERIFY_TIMING] verify_total: {:.1}ms",
+            verify_start.elapsed().as_secs_f64() * 1000.0,
+        );
     }
+
+    result
 }
 
 // ---------------------------------------------------------------------------
@@ -1390,6 +1526,7 @@ fn pairing_check_two_steps(
     R: impl Fn(usize, usize) -> i8 + Sync,
     scalars: GeneratedScalars<Bls12_446>,
     eval_points: EvaluationPoints<Bls12_446>,
+    timing: bool,
 ) -> Result<(), ()> {
     let &Proof {
         C_hat_e,
@@ -1452,6 +1589,7 @@ fn pairing_check_two_steps(
 
     // Pre-create one stream per GPU MSM so that rayon tasks reuse them instead
     // of repeatedly creating/destroying streams inside the scope.
+    let stream_create_start = std::time::Instant::now();
     let num_gpus = super::get_num_gpus();
     let gpu_indices: [u32; 3] = [0, 1 % num_gpus, 2 % num_gpus];
     // SAFETY: gpu_indices are computed as i % num_gpus, guaranteeing each index < num_gpus.
@@ -1460,28 +1598,84 @@ fn pairing_check_two_steps(
         super::SendPtr(unsafe { cuda_create_stream(gpu_indices[1]) }),
         super::SendPtr(unsafe { cuda_create_stream(gpu_indices[2]) }),
     ];
+    if timing {
+        eprintln!(
+            "[ZK_VERIFY_TIMING] stream_creation: {:.1}ms",
+            stream_create_start.elapsed().as_secs_f64() * 1000.0,
+        );
+    }
+
+    // Per-task timing storage (nanos). Only written/read when timing is enabled, but
+    // declared unconditionally to keep the rayon closure signatures simple.
+    use std::sync::atomic::{AtomicU64, Ordering};
+    let t_rhs = AtomicU64::new(0);
+    let t_lhs0 = AtomicU64::new(0);
+    let t_lhs1 = AtomicU64::new(0);
+    let t_lhs2 = AtomicU64::new(0);
+    let t_lhs3 = AtomicU64::new(0);
+    let t_lhs4 = AtomicU64::new(0);
+    let t_lhs5 = AtomicU64::new(0);
+    let t_lhs6 = AtomicU64::new(0);
+    let t_lhs0_eq2 = AtomicU64::new(0);
+    let t_lhs1_eq2 = AtomicU64::new(0);
+    let t_rhs_eq2 = AtomicU64::new(0);
+
+    let rayon_start = std::time::Instant::now();
 
     rayon::scope(|s| {
         // GPU-independent pairings
-        s.spawn(|_| rhs = Some(pairing(pi, g_hat)));
-        s.spawn(|_| lhs0 = Some(pairing(C_y.mul_scalar(delta_y) + C_h1, C_hat_bin)));
-        s.spawn(|_| lhs1 = Some(pairing(C_e.mul_scalar(delta_l) + C_h2, C_hat_e)));
-        s.spawn(|_| lhs5 = Some(pairing(C_y.mul_scalar(delta_eq), C_hat_t)));
         s.spawn(|_| {
+            let start = std::time::Instant::now();
+            rhs = Some(pairing(pi, g_hat));
+            if timing {
+                t_rhs.store(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            }
+        });
+        s.spawn(|_| {
+            let start = std::time::Instant::now();
+            lhs0 = Some(pairing(C_y.mul_scalar(delta_y) + C_h1, C_hat_bin));
+            if timing {
+                t_lhs0.store(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            }
+        });
+        s.spawn(|_| {
+            let start = std::time::Instant::now();
+            lhs1 = Some(pairing(C_e.mul_scalar(delta_l) + C_h2, C_hat_e));
+            if timing {
+                t_lhs1.store(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            }
+        });
+        s.spawn(|_| {
+            let start = std::time::Instant::now();
+            lhs5 = Some(pairing(C_y.mul_scalar(delta_eq), C_hat_t));
+            if timing {
+                t_lhs5.store(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            }
+        });
+        s.spawn(|_| {
+            let start = std::time::Instant::now();
             lhs6 = Some(
                 pairing(G1::projective(g_list[0]), G2::projective(g_hat_list[n - 1]))
                     .mul_scalar(delta_theta * t_theta + delta_l * Zp::from_u128(B_squared)),
-            )
+            );
+            if timing {
+                t_lhs6.store(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            }
         });
 
         // Eq2 pairings
         s.spawn(|_| {
+            let start = std::time::Instant::now();
             lhs0_eq2 = Some(pairing(
                 C_h1 + C_h2.mul_scalar(chi) - g.mul_scalar(p_h1 + chi * p_h2),
                 g_hat,
             ));
+            if timing {
+                t_lhs0_eq2.store(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            }
         });
         s.spawn(|_| {
+            let start = std::time::Instant::now();
             lhs1_eq2 = Some(pairing(
                 g,
                 {
@@ -1495,16 +1689,24 @@ fn pairing_check_two_steps(
                     C_hat
                 } - g_hat.mul_scalar(p_t * chi2 + p_h3 * chi3 + p_omega * chi4),
             ));
+            if timing {
+                t_lhs1_eq2.store(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            }
         });
         s.spawn(|_| {
+            let start = std::time::Instant::now();
             rhs_eq2 = Some(pairing(
                 pi_kzg,
                 G2::projective(g_hat_list[0]) - g_hat.mul_scalar(z),
-            ))
+            ));
+            if timing {
+                t_rhs_eq2.store(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            }
         });
 
         // GPU MSM pairings
         s.spawn(|_| {
+            let start = std::time::Instant::now();
             lhs2 = Some(pairing(
                 C_r_tilde,
                 match compute_load_proof_fields.as_ref() {
@@ -1533,9 +1735,13 @@ fn pairing_check_two_steps(
                         gpu_indices[0],
                     ),
                 },
-            ))
+            ));
+            if timing {
+                t_lhs2.store(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            }
         });
         s.spawn(|_| {
+            let start = std::time::Instant::now();
             lhs3 = Some(pairing(
                 C_R,
                 super::g2_msm_gpu_on_stream(
@@ -1547,9 +1753,13 @@ fn pairing_check_two_steps(
                     streams[1].0,
                     gpu_indices[1],
                 ),
-            ))
+            ));
+            if timing {
+                t_lhs3.store(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            }
         });
         s.spawn(|_| {
+            let start = std::time::Instant::now();
             lhs4 = Some(pairing(
                 C_e.mul_scalar(delta_e),
                 match compute_load_proof_fields.as_ref() {
@@ -1564,15 +1774,79 @@ fn pairing_check_two_steps(
                         gpu_indices[2],
                     ),
                 },
-            ))
+            ));
+            if timing {
+                t_lhs4.store(start.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            }
         });
     });
 
+    let rayon_elapsed = rayon_start.elapsed();
+
     // Destroy pre-created streams now that all GPU work is done
+    let stream_destroy_start = std::time::Instant::now();
     for (i, stream) in streams.iter().enumerate() {
         // SAFETY: each stream was created above with the matching gpu_indices[i] and is not
         // used after the rayon scope
         unsafe { cuda_destroy_stream(stream.0, gpu_indices[i]) };
+    }
+
+    if timing {
+        let nanos_to_ms = |n: u64| n as f64 / 1_000_000.0;
+        eprintln!(
+            "[ZK_VERIFY_TIMING] pairing rhs: {:.1}ms",
+            nanos_to_ms(t_rhs.load(Ordering::Relaxed)),
+        );
+        eprintln!(
+            "[ZK_VERIFY_TIMING] pairing lhs0: {:.1}ms",
+            nanos_to_ms(t_lhs0.load(Ordering::Relaxed)),
+        );
+        eprintln!(
+            "[ZK_VERIFY_TIMING] pairing lhs1: {:.1}ms",
+            nanos_to_ms(t_lhs1.load(Ordering::Relaxed)),
+        );
+        eprintln!(
+            "[ZK_VERIFY_TIMING] msm+pairing lhs2: {:.1}ms  (MSM d+k={} pts)",
+            nanos_to_ms(t_lhs2.load(Ordering::Relaxed)),
+            d + k,
+        );
+        eprintln!(
+            "[ZK_VERIFY_TIMING] msm+pairing lhs3: {:.1}ms  (MSM 128 pts)",
+            nanos_to_ms(t_lhs3.load(Ordering::Relaxed)),
+        );
+        eprintln!(
+            "[ZK_VERIFY_TIMING] msm+pairing lhs4: {:.1}ms  (MSM d+k+4={} pts)",
+            nanos_to_ms(t_lhs4.load(Ordering::Relaxed)),
+            d + k + 4,
+        );
+        eprintln!(
+            "[ZK_VERIFY_TIMING] pairing lhs5: {:.1}ms",
+            nanos_to_ms(t_lhs5.load(Ordering::Relaxed)),
+        );
+        eprintln!(
+            "[ZK_VERIFY_TIMING] pairing lhs6: {:.1}ms",
+            nanos_to_ms(t_lhs6.load(Ordering::Relaxed)),
+        );
+        eprintln!(
+            "[ZK_VERIFY_TIMING] pairing lhs0_eq2: {:.1}ms",
+            nanos_to_ms(t_lhs0_eq2.load(Ordering::Relaxed)),
+        );
+        eprintln!(
+            "[ZK_VERIFY_TIMING] pairing lhs1_eq2: {:.1}ms",
+            nanos_to_ms(t_lhs1_eq2.load(Ordering::Relaxed)),
+        );
+        eprintln!(
+            "[ZK_VERIFY_TIMING] pairing rhs_eq2: {:.1}ms",
+            nanos_to_ms(t_rhs_eq2.load(Ordering::Relaxed)),
+        );
+        eprintln!(
+            "[ZK_VERIFY_TIMING] stream_destroy: {:.1}ms",
+            stream_destroy_start.elapsed().as_secs_f64() * 1000.0,
+        );
+        eprintln!(
+            "[ZK_VERIFY_TIMING] rayon_scope_total: {:.1}ms  (wall clock, limited by longest task)",
+            rayon_elapsed.as_secs_f64() * 1000.0,
+        );
     }
 
     let rhs = rhs.unwrap();
@@ -1618,6 +1892,7 @@ fn pairing_check_batched(
     R: impl Fn(usize, usize) -> i8 + Sync,
     scalars: GeneratedScalars<Bls12_446>,
     eval_points: EvaluationPoints<Bls12_446>,
+    _timing: bool,
 ) -> Result<(), ()> {
     let &Proof {
         C_hat_e,
