@@ -1461,167 +1461,8 @@ fn pairing_check_two_steps(
         super::SendPtr(unsafe { cuda_create_stream(gpu_indices[2]) }),
     ];
 
-    // Cache g_hat_list on each unique GPU used for G2 MSMs, so that base
-    // points are uploaded and converted to Montgomery form only once.
-    let unique_gpus: Vec<u32> = {
-        let mut gpus = gpu_indices.to_vec();
-        gpus.sort_unstable();
-        gpus.dedup();
-        gpus
-    };
-    let g_hat_ffi = super::g2_points_to_ffi(g_hat_list);
-    let mut caches: Vec<(u32, *mut std::ffi::c_void)> = Vec::with_capacity(unique_gpus.len());
-    for &gpu_idx in &unique_gpus {
-        let stream_idx = gpu_indices.iter().position(|&g| g == gpu_idx).unwrap();
-        let mut cached: *mut std::ffi::c_void = std::ptr::null_mut();
-        let mut size_tracker: u64 = 0;
-        // SAFETY: stream and gpu_idx are valid (created above). g_hat_ffi is a
-        // valid host array of G2Points.
-        unsafe {
-            zk_cuda_backend::bindings::scratch_zk_cached_g2_points(
-                streams[stream_idx].0 as _,
-                gpu_idx,
-                &mut cached,
-                g_hat_ffi.as_ptr(),
-                u32::try_from(g_hat_ffi.len()).expect("g_hat_list length fits in u32"),
-                &mut size_tracker,
-                true,
-            );
-        }
-        caches.push((gpu_idx, cached));
-    }
-
-    // Helper: look up the cached pointer for a given GPU index
-    let cached_ptrs: Vec<(u32, super::SendPtr)> = caches
-        .iter()
-        .map(|&(gpu, ptr)| (gpu, super::SendPtr(ptr)))
-        .collect();
-    let find_cache = |gpu: u32| -> *const std::ffi::c_void {
-        cached_ptrs.iter().find(|(g, _)| *g == gpu).unwrap().1 .0 as *const _
-    };
-
-    // -----------------------------------------------------------------------
-    // Phase A: Pre-compute MSM scalars (CPU, sequential)
-    //
-    // All three MSMs' scalar vectors are built before any GPU launch so the
-    // launches (Phase B) can fire back-to-back without CPU gaps.
-    // -----------------------------------------------------------------------
-
-    // MSM #1 (C_hat_h3): only when compute_load_proof_fields is None
-    let msm1_scalars: Option<Box<[Zp]>> = if compute_load_proof_fields.is_none() {
-        Some(
-            (0..d + k)
-                .rev()
-                .map(|j| {
-                    let mut acc = Zp::ZERO;
-                    for (i, &phi_i) in phi.iter().enumerate() {
-                        match R(i, d + k + 4 + j) {
-                            0 => {}
-                            1 => acc += phi_i,
-                            -1 => acc -= phi_i,
-                            _ => unreachable!(),
-                        }
-                    }
-                    delta_r * acc - delta_theta_q * theta[j]
-                })
-                .collect(),
-        )
-    } else {
-        None
-    };
-
-    // MSM #2 (C_R pairing argument): always computed
-    let msm2_scalars: Box<[Zp]> = (0..128)
-        .rev()
-        .map(|j| delta_r * phi[j] + delta_dec * xi[j])
-        .collect();
-
-    // MSM #3 (C_hat_w): only when compute_load_proof_fields is None
-    // Uses omega[..d+k+4] directly as the scalar slice.
-
-    // -----------------------------------------------------------------------
-    // Phase B: Allocate MSM scratch + launch all MSMs asynchronously
-    //
-    // Each launch queues GPU kernels on its stream and returns immediately.
-    // The GPU work (H2D copy, Montgomery conversion, Pippenger buckets)
-    // overlaps with the CPU pairings that run in Phase C.
-    // -----------------------------------------------------------------------
-
-    let max_n: u32 = (d + k + 4)
-        .max(128)
-        .try_into()
-        .expect("MSM size too large for u32");
-
-    let mut msm_mems: [*mut std::ffi::c_void; 3] = [std::ptr::null_mut(); 3];
-    let mut size_trackers: [u64; 3] = [0; 3];
-    for i in 0..3 {
-        let cuda_stream = streams[i].0 as zk_cuda_backend::bindings::cudaStream_t;
-        // SAFETY: streams[i] is a valid CUDA stream created above. msm_mems[i]
-        // and size_trackers[i] are valid stack-allocated pointers.
-        unsafe {
-            zk_cuda_backend::bindings::scratch_zk_g2_msm(
-                cuda_stream,
-                gpu_indices[i],
-                &mut msm_mems[i],
-                max_n,
-                &mut size_trackers[i],
-                true,
-            );
-        }
-    }
-
-    // Launch MSMs. The returned handles keep host scalar buffers alive until
-    // after finalize synchronizes each stream.
-    let _handle1 = msm1_scalars.as_ref().map(|scalars| {
-        super::g2_msm_cached_launch(
-            msm_mems[0],
-            find_cache(gpu_indices[0]),
-            u32::try_from(n - (d + k)).expect("point offset fits in u32"),
-            scalars,
-            streams[0].0,
-            gpu_indices[0],
-        )
-    });
-
-    let _handle2 = super::g2_msm_cached_launch(
-        msm_mems[1],
-        find_cache(gpu_indices[1]),
-        u32::try_from(n - 128).expect("point offset fits in u32"),
-        &msm2_scalars,
-        streams[1].0,
-        gpu_indices[1],
-    );
-
-    let _handle3 = if compute_load_proof_fields.is_none() {
-        Some(super::g2_msm_cached_launch(
-            msm_mems[2],
-            find_cache(gpu_indices[2]),
-            0,
-            &omega[..d + k + 4],
-            streams[2].0,
-            gpu_indices[2],
-        ))
-    } else {
-        None
-    };
-
-    // Wrap MSM mem pointers for Send across rayon scope boundaries
-    let msm_mem_ptrs: [super::SendPtr; 3] = [
-        super::SendPtr(msm_mems[0]),
-        super::SendPtr(msm_mems[1]),
-        super::SendPtr(msm_mems[2]),
-    ];
-
-    // -----------------------------------------------------------------------
-    // Phase C: CPU pairings + GPU-dependent pairings in parallel
-    //
-    // GPU-independent pairings start immediately on rayon threads, overlapping
-    // with the in-flight GPU kernels. GPU-dependent pairings call finalize
-    // (which syncs the stream + runs the CPU Horner combine) and then pair.
-    // -----------------------------------------------------------------------
-
     rayon::scope(|s| {
-        // GPU-independent pairings (run immediately, overlap with GPU work)
+        // GPU-independent pairings
         s.spawn(|_| rhs = Some(pairing(pi, g_hat)));
         s.spawn(|_| lhs0 = Some(pairing(C_y.mul_scalar(delta_y) + C_h1, C_hat_bin)));
         s.spawn(|_| lhs1 = Some(pairing(C_e.mul_scalar(delta_l) + C_h2, C_hat_e)));
@@ -1633,7 +1474,7 @@ fn pairing_check_two_steps(
             )
         });
 
-        // Eq2 pairings (also GPU-independent)
+        // Eq2 pairings
         s.spawn(|_| {
             lhs0_eq2 = Some(pairing(
                 C_h1 + C_h2.mul_scalar(chi) - g.mul_scalar(p_h1 + chi * p_h2),
@@ -1662,71 +1503,70 @@ fn pairing_check_two_steps(
             ))
         });
 
-        // GPU-dependent pairings: finalize (sync stream + Horner), then pair
+        // GPU MSM pairings
         s.spawn(|_| {
-            let c_hat_h3 = match compute_load_proof_fields.as_ref() {
-                Some(&ComputeLoadProofFields {
-                    C_hat_h3,
-                    C_hat_w: _,
-                }) => C_hat_h3,
-                None => super::g2_msm_finalize(
-                    msm_mem_ptrs[0].0 as *const _,
-                    streams[0].0,
-                    gpu_indices[0],
-                ),
-            };
-            lhs2 = Some(pairing(C_r_tilde, c_hat_h3));
+            lhs2 = Some(pairing(
+                C_r_tilde,
+                match compute_load_proof_fields.as_ref() {
+                    Some(&ComputeLoadProofFields {
+                        C_hat_h3,
+                        C_hat_w: _,
+                    }) => C_hat_h3,
+                    None => super::g2_msm_gpu_on_stream(
+                        &g_hat_list[n - (d + k)..n],
+                        &(0..d + k)
+                            .rev()
+                            .map(|j| {
+                                let mut acc = Zp::ZERO;
+                                for (i, &phi_i) in phi.iter().enumerate() {
+                                    match R(i, d + k + 4 + j) {
+                                        0 => {}
+                                        1 => acc += phi_i,
+                                        -1 => acc -= phi_i,
+                                        _ => unreachable!(),
+                                    }
+                                }
+                                delta_r * acc - delta_theta_q * theta[j]
+                            })
+                            .collect::<Box<[_]>>(),
+                        streams[0].0,
+                        gpu_indices[0],
+                    ),
+                },
+            ))
         });
         s.spawn(|_| {
-            let msm_result =
-                super::g2_msm_finalize(msm_mem_ptrs[1].0 as *const _, streams[1].0, gpu_indices[1]);
-            lhs3 = Some(pairing(C_R, msm_result));
+            lhs3 = Some(pairing(
+                C_R,
+                super::g2_msm_gpu_on_stream(
+                    &g_hat_list[n - 128..n],
+                    &(0..128)
+                        .rev()
+                        .map(|j| delta_r * phi[j] + delta_dec * xi[j])
+                        .collect::<Box<[_]>>(),
+                    streams[1].0,
+                    gpu_indices[1],
+                ),
+            ))
         });
         s.spawn(|_| {
-            let c_hat_w = match compute_load_proof_fields.as_ref() {
-                Some(&ComputeLoadProofFields {
-                    C_hat_h3: _,
-                    C_hat_w,
-                }) => C_hat_w,
-                None => super::g2_msm_finalize(
-                    msm_mem_ptrs[2].0 as *const _,
-                    streams[2].0,
-                    gpu_indices[2],
-                ),
-            };
-            lhs4 = Some(pairing(C_e.mul_scalar(delta_e), c_hat_w));
+            lhs4 = Some(pairing(
+                C_e.mul_scalar(delta_e),
+                match compute_load_proof_fields.as_ref() {
+                    Some(&ComputeLoadProofFields {
+                        C_hat_h3: _,
+                        C_hat_w,
+                    }) => C_hat_w,
+                    None => super::g2_msm_gpu_on_stream(
+                        &g_hat_list[..d + k + 4],
+                        &omega[..d + k + 4],
+                        streams[2].0,
+                        gpu_indices[2],
+                    ),
+                },
+            ))
         });
     });
-
-    // Clean up MSM scratch buffers (must happen after finalize consumed results)
-    for i in 0..3 {
-        let cuda_stream = streams[i].0 as zk_cuda_backend::bindings::cudaStream_t;
-        // SAFETY: msm_mems[i] was allocated by scratch_zk_g2_msm on this
-        // stream/GPU and finalize has already synced the stream above
-        unsafe {
-            zk_cuda_backend::bindings::cleanup_zk_g2_msm(
-                cuda_stream,
-                gpu_indices[i],
-                &mut msm_mems[i],
-                true,
-            );
-        }
-    }
-
-    // Free cached G2 base points from device memory
-    for &mut (gpu_idx, ref mut cached) in &mut caches {
-        let stream_idx = gpu_indices.iter().position(|&g| g == gpu_idx).unwrap();
-        // SAFETY: cached was allocated by scratch_zk_cached_g2_points on this
-        // stream/GPU and is not used after the rayon scope above
-        unsafe {
-            zk_cuda_backend::bindings::cleanup_zk_cached_g2_points(
-                streams[stream_idx].0 as _,
-                gpu_idx,
-                cached,
-                true,
-            );
-        }
-    }
 
     // Destroy pre-created streams now that all GPU work is done
     for (i, stream) in streams.iter().enumerate() {
@@ -1734,11 +1574,6 @@ fn pairing_check_two_steps(
         // used after the rayon scope
         unsafe { cuda_destroy_stream(stream.0, gpu_indices[i]) };
     }
-
-    // Drop launch handles now that all streams are synced
-    drop(_handle1);
-    drop(_handle2);
-    drop(_handle3);
 
     let rhs = rhs.unwrap();
     let lhs0 = lhs0.unwrap();
@@ -1853,155 +1688,8 @@ fn pairing_check_batched(
         super::SendPtr(unsafe { cuda_create_stream(gpu_indices[2]) }),
     ];
 
-    // Cache g_hat_list on each unique GPU used for G2 MSMs, so that base
-    // points are uploaded and converted to Montgomery form only once.
-    let unique_gpus: Vec<u32> = {
-        let mut gpus = gpu_indices.to_vec();
-        gpus.sort_unstable();
-        gpus.dedup();
-        gpus
-    };
-    let g_hat_ffi = super::g2_points_to_ffi(g_hat_list);
-    let mut caches: Vec<(u32, *mut std::ffi::c_void)> = Vec::with_capacity(unique_gpus.len());
-    for &gpu_idx in &unique_gpus {
-        let stream_idx = gpu_indices.iter().position(|&g| g == gpu_idx).unwrap();
-        let mut cached: *mut std::ffi::c_void = std::ptr::null_mut();
-        let mut size_tracker: u64 = 0;
-        // SAFETY: stream and gpu_idx are valid (created above). g_hat_ffi is a
-        // valid host array of G2Points.
-        unsafe {
-            zk_cuda_backend::bindings::scratch_zk_cached_g2_points(
-                streams[stream_idx].0 as _,
-                gpu_idx,
-                &mut cached,
-                g_hat_ffi.as_ptr(),
-                u32::try_from(g_hat_ffi.len()).expect("g_hat_list length fits in u32"),
-                &mut size_tracker,
-                true,
-            );
-        }
-        caches.push((gpu_idx, cached));
-    }
-
-    // Helper: look up the cached pointer for a given GPU index
-    let cached_ptrs: Vec<(u32, super::SendPtr)> = caches
-        .iter()
-        .map(|&(gpu, ptr)| (gpu, super::SendPtr(ptr)))
-        .collect();
-    let find_cache = |gpu: u32| -> *const std::ffi::c_void {
-        cached_ptrs.iter().find(|(g, _)| *g == gpu).unwrap().1 .0 as *const _
-    };
-
-    // -----------------------------------------------------------------------
-    // Phase A: Pre-compute MSM scalars (CPU, sequential)
-    // -----------------------------------------------------------------------
-
-    // MSM #1 (C_hat_h3): only when compute_load_proof_fields is None
-    let msm1_scalars: Option<Box<[Zp]>> = if compute_load_proof_fields.is_none() {
-        Some(
-            (0..d + k)
-                .rev()
-                .map(|j| {
-                    let mut acc = Zp::ZERO;
-                    for (i, &phi_i) in phi.iter().enumerate() {
-                        match R(i, d + k + 4 + j) {
-                            0 => {}
-                            1 => acc += phi_i,
-                            -1 => acc -= phi_i,
-                            _ => unreachable!(),
-                        }
-                    }
-                    delta_r * acc - delta_theta_q * theta[j]
-                })
-                .collect(),
-        )
-    } else {
-        None
-    };
-
-    // MSM #2 (C_R pairing argument): always computed
-    let msm2_scalars: Box<[Zp]> = (0..128)
-        .rev()
-        .map(|j| delta_r * phi[j] + delta_dec * xi[j])
-        .collect();
-
-    // MSM #3 (C_hat_w): only when compute_load_proof_fields is None
-    // Uses omega[..d+k+4] directly as the scalar slice.
-
-    // -----------------------------------------------------------------------
-    // Phase B: Allocate MSM scratch + launch all MSMs asynchronously
-    // -----------------------------------------------------------------------
-
-    let max_n: u32 = (d + k + 4)
-        .max(128)
-        .try_into()
-        .expect("MSM size too large for u32");
-
-    let mut msm_mems: [*mut std::ffi::c_void; 3] = [std::ptr::null_mut(); 3];
-    let mut size_trackers: [u64; 3] = [0; 3];
-    for i in 0..3 {
-        let cuda_stream = streams[i].0 as zk_cuda_backend::bindings::cudaStream_t;
-        // SAFETY: streams[i] is a valid CUDA stream created above.
-        unsafe {
-            zk_cuda_backend::bindings::scratch_zk_g2_msm(
-                cuda_stream,
-                gpu_indices[i],
-                &mut msm_mems[i],
-                max_n,
-                &mut size_trackers[i],
-                true,
-            );
-        }
-    }
-
-    // Launch MSMs. The returned handles keep host scalar buffers alive until
-    // after finalize synchronizes each stream.
-    let _handle1 = msm1_scalars.as_ref().map(|scalars| {
-        super::g2_msm_cached_launch(
-            msm_mems[0],
-            find_cache(gpu_indices[0]),
-            u32::try_from(n - (d + k)).expect("point offset fits in u32"),
-            scalars,
-            streams[0].0,
-            gpu_indices[0],
-        )
-    });
-
-    let _handle2 = super::g2_msm_cached_launch(
-        msm_mems[1],
-        find_cache(gpu_indices[1]),
-        u32::try_from(n - 128).expect("point offset fits in u32"),
-        &msm2_scalars,
-        streams[1].0,
-        gpu_indices[1],
-    );
-
-    let _handle3 = if compute_load_proof_fields.is_none() {
-        Some(super::g2_msm_cached_launch(
-            msm_mems[2],
-            find_cache(gpu_indices[2]),
-            0,
-            &omega[..d + k + 4],
-            streams[2].0,
-            gpu_indices[2],
-        ))
-    } else {
-        None
-    };
-
-    // Wrap MSM mem pointers for Send across rayon scope boundaries
-    let msm_mem_ptrs: [super::SendPtr; 3] = [
-        super::SendPtr(msm_mems[0]),
-        super::SendPtr(msm_mems[1]),
-        super::SendPtr(msm_mems[2]),
-    ];
-
-    // -----------------------------------------------------------------------
-    // Phase C: CPU pairings + GPU-dependent pairings in parallel
-    // -----------------------------------------------------------------------
-
     rayon::scope(|s| {
-        // GPU-independent pairings (run immediately, overlap with GPU work)
+        // GPU-independent pairings
         s.spawn(|_| {
             rhs = Some(pairing(
                 pi - C_h1.mul_scalar(eta)
@@ -2030,15 +1718,30 @@ fn pairing_check_batched(
             ))
         });
 
-        // GPU-dependent pairings: finalize (sync stream + Horner), then pair
+        // GPU MSM pairings
         s.spawn(|_| {
             let c_hat_h3 = match compute_load_proof_fields.as_ref() {
                 Some(&ComputeLoadProofFields {
                     C_hat_h3,
                     C_hat_w: _,
                 }) => C_hat_h3,
-                None => super::g2_msm_finalize(
-                    msm_mem_ptrs[0].0 as *const _,
+                None => super::g2_msm_gpu_on_stream(
+                    &g_hat_list[n - (d + k)..n],
+                    &(0..d + k)
+                        .rev()
+                        .map(|j| {
+                            let mut acc = Zp::ZERO;
+                            for (i, &phi_i) in phi.iter().enumerate() {
+                                match R(i, d + k + 4 + j) {
+                                    0 => {}
+                                    1 => acc += phi_i,
+                                    -1 => acc -= phi_i,
+                                    _ => unreachable!(),
+                                }
+                            }
+                            delta_r * acc - delta_theta_q * theta[j]
+                        })
+                        .collect::<Box<[_]>>(),
                     streams[0].0,
                     gpu_indices[0],
                 ),
@@ -2052,9 +1755,18 @@ fn pairing_check_batched(
             lhs2 = Some(pairing(g1_arg, c_hat_h3));
         });
         s.spawn(|_| {
-            let msm_result =
-                super::g2_msm_finalize(msm_mem_ptrs[1].0 as *const _, streams[1].0, gpu_indices[1]);
-            lhs3 = Some(pairing(C_R, msm_result));
+            lhs3 = Some(pairing(
+                C_R,
+                super::g2_msm_gpu_on_stream(
+                    &g_hat_list[n - 128..n],
+                    &(0..128)
+                        .rev()
+                        .map(|j| delta_r * phi[j] + delta_dec * xi[j])
+                        .collect::<Box<[_]>>(),
+                    streams[1].0,
+                    gpu_indices[1],
+                ),
+            ))
         });
         s.spawn(|_| {
             let c_hat_w = match compute_load_proof_fields.as_ref() {
@@ -2062,8 +1774,9 @@ fn pairing_check_batched(
                     C_hat_h3: _,
                     C_hat_w,
                 }) => C_hat_w,
-                None => super::g2_msm_finalize(
-                    msm_mem_ptrs[2].0 as *const _,
+                None => super::g2_msm_gpu_on_stream(
+                    &g_hat_list[..d + k + 4],
+                    &omega[..d + k + 4],
                     streams[2].0,
                     gpu_indices[2],
                 ),
@@ -2078,47 +1791,12 @@ fn pairing_check_batched(
         });
     });
 
-    // Clean up MSM scratch buffers (must happen after finalize consumed results)
-    for i in 0..3 {
-        let cuda_stream = streams[i].0 as zk_cuda_backend::bindings::cudaStream_t;
-        // SAFETY: msm_mems[i] was allocated by scratch_zk_g2_msm on this
-        // stream/GPU and finalize has already synced the stream above
-        unsafe {
-            zk_cuda_backend::bindings::cleanup_zk_g2_msm(
-                cuda_stream,
-                gpu_indices[i],
-                &mut msm_mems[i],
-                true,
-            );
-        }
-    }
-
-    // Free cached G2 base points from device memory
-    for &mut (gpu_idx, ref mut cached) in &mut caches {
-        let stream_idx = gpu_indices.iter().position(|&g| g == gpu_idx).unwrap();
-        // SAFETY: cached was allocated by scratch_zk_cached_g2_points on this
-        // stream/GPU and is not used after the rayon scope above
-        unsafe {
-            zk_cuda_backend::bindings::cleanup_zk_cached_g2_points(
-                streams[stream_idx].0 as _,
-                gpu_idx,
-                cached,
-                true,
-            );
-        }
-    }
-
     // Destroy pre-created streams now that all GPU work is done
     for (i, stream) in streams.iter().enumerate() {
         // SAFETY: each stream was created above with the matching gpu_indices[i] and is not
         // used after the rayon scope
         unsafe { cuda_destroy_stream(stream.0, gpu_indices[i]) };
     }
-
-    // Drop launch handles now that all streams are synced
-    drop(_handle1);
-    drop(_handle2);
-    drop(_handle3);
 
     let rhs = rhs.unwrap();
     let lhs0 = lhs0.unwrap();
