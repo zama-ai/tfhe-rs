@@ -86,6 +86,10 @@ fn prove_impl(
     sanity_check_mode: ProofSanityCheckMode,
 ) -> Proof<Bls12_446> {
     _ = load;
+    let timing = std::env::var("ZK_VERIFY_TIMING").is_ok();
+    let prove_start = std::time::Instant::now();
+    let mut t_phase = std::time::Instant::now();
+
     let (
         &PublicParams {
             ref g_lists,
@@ -189,6 +193,14 @@ fn prove_impl(
     let scalars_e_rev: Box<[_]> = scalars_e.iter().copied().rev().collect();
     let scalars_r: Box<[_]> = r1_zp.iter().chain(r2_zp.iter()).copied().collect();
 
+    if timing {
+        eprintln!(
+            "[ZK_PROVE_TIMING] setup+scalars: {:.1}ms",
+            t_phase.elapsed().as_secs_f64() * 1000.0
+        );
+        t_phase = std::time::Instant::now();
+    }
+
     let mut C_hat_e = None;
     let mut C_e = None;
     let mut C_r_tilde = None;
@@ -226,6 +238,14 @@ fn prove_impl(
     let C_hat_e = C_hat_e.unwrap();
     let C_e = C_e.unwrap();
     let C_r_tilde = C_r_tilde.unwrap();
+
+    if timing {
+        eprintln!(
+            "[ZK_PROVE_TIMING] initial_commitments: {:.1}ms",
+            t_phase.elapsed().as_secs_f64() * 1000.0
+        );
+        t_phase = std::time::Instant::now();
+    }
 
     let C_hat_e_bytes = C_hat_e.to_le_bytes();
     let C_e_bytes = C_e.to_le_bytes();
@@ -330,6 +350,14 @@ fn prove_impl(
     let C_y_bytes = C_y.to_le_bytes();
     let (t, t_hash) = y_hash.gen_t(C_y_bytes.as_ref());
 
+    if timing {
+        eprintln!(
+            "[ZK_PROVE_TIMING] hash_chain_1: {:.1}ms",
+            t_phase.elapsed().as_secs_f64() * 1000.0
+        );
+        t_phase = std::time::Instant::now();
+    }
+
     let (theta, theta_hash) = t_hash.gen_theta();
 
     let mut a_theta = vec![Zp::ZERO; D];
@@ -359,6 +387,14 @@ fn prove_impl(
     // Precompute xi powers to enable parallel polynomial construction
     let xi_powers = precompute_xi_powers(&xi, m);
     let delta_theta_q = delta_theta * Zp::from_u128(decoded_q);
+
+    if timing {
+        eprintln!(
+            "[ZK_PROVE_TIMING] hash_chain_2: {:.1}ms",
+            t_phase.elapsed().as_secs_f64() * 1000.0
+        );
+        t_phase = std::time::Instant::now();
+    }
 
     // Build all polynomial pairs in parallel
     let mut poly_0_lhs = None;
@@ -661,6 +697,14 @@ fn prove_impl(
         P_pi[n + 1] -= delta_theta * t_theta + delta_l * Zp::from_u128(B_squared);
     }
 
+    if timing {
+        eprintln!(
+            "[ZK_PROVE_TIMING] poly_construction: {:.1}ms",
+            t_phase.elapsed().as_secs_f64() * 1000.0
+        );
+        t_phase = std::time::Instant::now();
+    }
+
     // Parallelize pi, C_h1, C_h2, compute_load_proof_fields, and C_hat_t computations
     let mut pi = None;
     let mut C_h1 = None;
@@ -813,6 +857,14 @@ fn prove_impl(
     let C_h1_bytes = C_h1.to_le_bytes();
     let C_h2_bytes = C_h2.to_le_bytes();
     let C_hat_t_bytes = C_hat_t.to_le_bytes();
+
+    if timing {
+        eprintln!(
+            "[ZK_PROVE_TIMING] commitment_msms: {:.1}ms",
+            t_phase.elapsed().as_secs_f64() * 1000.0
+        );
+        t_phase = std::time::Instant::now();
+    }
 
     let (z, z_hash) = delta_hash.gen_z::<Zp>(
         C_h1_bytes.as_ref(),
@@ -1034,6 +1086,17 @@ fn prove_impl(
     // GPU MSM: pi_kzg commitment
     let pi_kzg =
         g.mul_scalar(q[0]) + super::g1_msm_gpu(&g_list[..n - 1], &q[1..n], select_gpu_for_msm());
+
+    if timing {
+        eprintln!(
+            "[ZK_PROVE_TIMING] kzg_phase: {:.1}ms",
+            t_phase.elapsed().as_secs_f64() * 1000.0
+        );
+        eprintln!(
+            "[ZK_PROVE_TIMING] prove_total: {:.1}ms",
+            prove_start.elapsed().as_secs_f64() * 1000.0
+        );
+    }
 
     Proof {
         C_hat_e,
