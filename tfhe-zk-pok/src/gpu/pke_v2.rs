@@ -471,355 +471,28 @@ fn prove_impl(
         t_phase = std::time::Instant::now();
     }
 
-    // Build all polynomial pairs in parallel
-    if timing {
-        t_sub = std::time::Instant::now();
-    }
-    let mut poly_0_lhs = None;
-    let mut poly_0_rhs = None;
-    let mut poly_1_lhs = None;
-    let mut poly_1_rhs = None;
-    let mut poly_2_lhs = None;
-    let mut poly_2_rhs = None;
-    let mut poly_3_lhs = None;
-    let mut poly_3_rhs = None;
-    let mut poly_4_lhs = None;
-    let mut poly_4_rhs = None;
-    let mut poly_5_lhs = None;
-    let mut poly_5_rhs = None;
-
-    rayon::scope(|s| {
-        s.spawn(|_| {
-            let mut lhs = vec![Zp::ZERO; 1 + n];
-            let mut rhs = vec![Zp::ZERO; 1 + D + 128 * m];
-
-            lhs[0] = delta_y * gamma_y;
-            for j in 0..D + 128 * m {
-                let p = &mut lhs[n - j];
-
-                if !w_bin[j] {
-                    *p -= delta_y * y[j];
-                }
-
-                if j < D {
-                    *p += delta_theta * a_theta[j];
-                }
-                *p += delta_eq * t[j] * y[j];
-
-                if j >= D {
-                    let j_inner = j - D;
-                    let r = delta_dec * xi_powers[j_inner];
-
-                    if j_inner % m < m - 1 {
-                        *p += r;
-                    } else {
-                        *p -= r;
-                    }
-                }
-            }
-
-            rhs[0] = gamma_bin;
-            for j in 0..D + 128 * m {
-                let p = &mut rhs[j + 1];
-
-                if w_bin[j] {
-                    *p = Zp::ONE;
-                }
-            }
-
-            poly_0_lhs = Some(lhs);
-            poly_0_rhs = Some(rhs);
-        });
-
-        s.spawn(|_| {
-            let mut lhs = vec![Zp::ZERO; 1 + n];
-            let mut rhs = vec![Zp::ZERO; 1 + d + k + 4];
-
-            lhs[0] = delta_l * gamma_e;
-            for j in 0..d {
-                let p = &mut lhs[n - j];
-                *p = delta_l * e1_zp[j];
-            }
-            for j in 0..k {
-                let p = &mut lhs[n - (d + j)];
-                *p = delta_l * e2_zp[j];
-            }
-            for j in 0..4 {
-                let p = &mut lhs[n - (d + k + j)];
-                *p = delta_l * v_zp[j];
-            }
-
-            for j in 0..n {
-                let p = &mut lhs[n - j];
-                let mut acc = delta_e * omega[j];
-                if j < d + k {
-                    acc += delta_theta * theta[j];
-                }
-
-                if j < d + k + 4 {
-                    acc += delta_r * r_transpose_phi[j];
-                }
-                *p += acc;
-            }
-
-            rhs[0] = gamma_hat_e;
-            for j in 0..d {
-                let p = &mut rhs[1 + j];
-                *p = e1_zp[j];
-            }
-            for j in 0..k {
-                let p = &mut rhs[1 + (d + j)];
-                *p = e2_zp[j];
-            }
-            for j in 0..4 {
-                let p = &mut rhs[1 + (d + k + j)];
-                *p = v_zp[j];
-            }
-
-            poly_1_lhs = Some(lhs);
-            poly_1_rhs = Some(rhs);
-        });
-
-        s.spawn(|_| {
-            let mut lhs = vec![Zp::ZERO; 1 + d + k];
-            let mut rhs = vec![Zp::ZERO; 1 + n];
-
-            lhs[0] = gamma_r;
-            for j in 0..d {
-                let p = &mut lhs[1 + j];
-                *p = r1_zp[j];
-            }
-            for j in 0..k {
-                let p = &mut lhs[1 + (d + j)];
-                *p = r2_zp[j];
-            }
-
-            for j in 0..d + k {
-                let p = &mut rhs[n - j];
-                *p = delta_r * r_transpose_phi[d + k + 4 + j] - delta_theta_q * theta[j];
-            }
-
-            poly_2_lhs = Some(lhs);
-            poly_2_rhs = Some(rhs);
-        });
-
-        s.spawn(|_| {
-            let mut lhs = vec![Zp::ZERO; 1 + 128];
-            let mut rhs = vec![Zp::ZERO; 1 + n];
-
-            lhs[0] = gamma_R;
-            for j in 0..128 {
-                let p = &mut lhs[1 + j];
-                *p = Zp::from_i64(w_R[j]);
-            }
-
-            for j in 0..128 {
-                let p = &mut rhs[n - j];
-                *p = delta_r * phi[j] + delta_dec * xi_powers[j * m];
-            }
-
-            poly_3_lhs = Some(lhs);
-            poly_3_rhs = Some(rhs);
-        });
-
-        s.spawn(|_| {
-            let mut lhs = vec![Zp::ZERO; 1 + n];
-            let mut rhs = vec![Zp::ZERO; 1 + d + k + 4];
-
-            lhs[0] = delta_e * gamma_e;
-            for j in 0..d {
-                let p = &mut lhs[n - j];
-                *p = delta_e * e1_zp[j];
-            }
-            for j in 0..k {
-                let p = &mut lhs[n - (d + j)];
-                *p = delta_e * e2_zp[j];
-            }
-            for j in 0..4 {
-                let p = &mut lhs[n - (d + k + j)];
-                *p = delta_e * v_zp[j];
-            }
-
-            for j in 0..d + k + 4 {
-                let p = &mut rhs[1 + j];
-                *p = omega[j];
-            }
-
-            poly_4_lhs = Some(lhs);
-            poly_4_rhs = Some(rhs);
-        });
-
-        s.spawn(|_| {
-            let mut lhs = vec![Zp::ZERO; 1 + n];
-            let mut rhs = vec![Zp::ZERO; 1 + n];
-
-            lhs[0] = delta_eq * gamma_y;
-            for j in 0..D + 128 * m {
-                let p = &mut lhs[n - j];
-
-                if w_bin[j] {
-                    *p = delta_eq * y[j];
-                }
-            }
-
-            for j in 0..n {
-                let p = &mut rhs[1 + j];
-                *p = t[j];
-            }
-
-            poly_5_lhs = Some(lhs);
-            poly_5_rhs = Some(rhs);
-        });
-    });
-
-    let poly_0_lhs = poly_0_lhs.unwrap();
-    let poly_0_rhs = poly_0_rhs.unwrap();
-    let poly_1_lhs = poly_1_lhs.unwrap();
-    let poly_1_rhs = poly_1_rhs.unwrap();
-    let poly_2_lhs = poly_2_lhs.unwrap();
-    let poly_2_rhs = poly_2_rhs.unwrap();
-    let poly_3_lhs = poly_3_lhs.unwrap();
-    let poly_3_rhs = poly_3_rhs.unwrap();
-    let poly_4_lhs = poly_4_lhs.unwrap();
-    let poly_4_rhs = poly_4_rhs.unwrap();
-    let poly_5_lhs = poly_5_lhs.unwrap();
-    let poly_5_rhs = poly_5_rhs.unwrap();
-
-    if timing {
-        eprintln!(
-            "[ZK_PROVE_TIMING]   poly_pairs: {:.1}ms",
-            t_sub.elapsed().as_secs_f64() * 1000.0,
-        );
-        t_sub = std::time::Instant::now();
-    }
-
-    let poly = [
-        (&poly_0_lhs, &poly_0_rhs),
-        (&poly_1_lhs, &poly_1_rhs),
-        (&poly_2_lhs, &poly_2_rhs),
-        (&poly_3_lhs, &poly_3_rhs),
-        (&poly_4_lhs, &poly_4_rhs),
-        (&poly_5_lhs, &poly_5_rhs),
-    ];
-
-    let [mut poly_0, poly_1, poly_2, poly_3, poly_4, poly_5] = {
-        let tmp: Box<[Vec<Zp>; 6]> = poly
-            .into_par_iter()
-            .map(|(lhs, rhs)| Zp::poly_mul(lhs, rhs))
-            .collect::<Box<[_]>>()
-            .try_into()
-            .unwrap();
-        *tmp
-    };
-
-    if timing {
-        eprintln!(
-            "[ZK_PROVE_TIMING]   poly_mul: {:.1}ms",
-            t_sub.elapsed().as_secs_f64() * 1000.0,
-        );
-        t_sub = std::time::Instant::now();
-    }
-
-    let len = [
-        poly_0.len(),
-        poly_1.len(),
-        poly_2.len(),
-        poly_3.len(),
-        poly_4.len(),
-        poly_5.len(),
-    ]
-    .into_iter()
-    .max()
-    .unwrap();
-
-    poly_0.resize(len, Zp::ZERO);
-
-    {
-        let chunk_size = len.div_ceil(rayon::current_num_threads());
-
-        poly_0
-            .par_chunks_mut(chunk_size)
-            .enumerate()
-            .for_each(|(j, p0)| {
-                let offset = j * chunk_size;
-                let p1 = poly_1.get(offset..).unwrap_or(&[]);
-                let p2 = poly_2.get(offset..).unwrap_or(&[]);
-                let p3 = poly_3.get(offset..).unwrap_or(&[]);
-                let p4 = poly_4.get(offset..).unwrap_or(&[]);
-                let p5 = poly_5.get(offset..).unwrap_or(&[]);
-
-                for (j, p0) in p0.iter_mut().enumerate() {
-                    if j < p1.len() {
-                        *p0 += p1[j];
-                    }
-                    if j < p2.len() {
-                        *p0 += p2[j];
-                    }
-                    if j < p3.len() {
-                        *p0 -= p3[j];
-                    }
-                    if j < p4.len() {
-                        *p0 -= p4[j];
-                    }
-                    if j < p5.len() {
-                        *p0 -= p5[j];
-                    }
-                }
-            });
-    }
-
-    if timing {
-        eprintln!(
-            "[ZK_PROVE_TIMING]   poly_accumulate: {:.1}ms",
-            t_sub.elapsed().as_secs_f64() * 1000.0,
-        );
-    }
-
-    let mut P_pi = poly_0;
-    if P_pi.len() > n + 1 {
-        P_pi[n + 1] -= delta_theta * t_theta + delta_l * Zp::from_u128(B_squared);
-    }
-
-    if timing {
-        eprintln!(
-            "[ZK_PROVE_TIMING] poly_construction: {:.1}ms",
-            t_phase.elapsed().as_secs_f64() * 1000.0
-        );
-        t_phase = std::time::Instant::now();
-    }
-
-    // Parallelize pi, C_h1, C_h2, compute_load_proof_fields, and C_hat_t computations
+    // Overlap polynomial construction (CPU-heavy) with independent commitment
+    // MSMs (GPU-heavy). 5 of the 6 commitment MSMs depend only on values
+    // already available after hash_chain_2 (delta_*, theta, omega, a_theta, y,
+    // t, xi_powers, r_transpose_phi). Only the pi MSM needs P_pi, which comes
+    // from poly construction, so pi runs at the end of the poly spawn.
+    //
+    // 6 MSMs distributed across 3 streams:
+    //   G1 side: pi (stream 0), C_h1 (stream 1), C_h2 (stream 2)
+    //   G2 side: C_hat_h3 (stream 0), C_hat_w (stream 1), C_hat_t (stream 2)
+    // G1 and G2 scratch buffers are independent, so a stream can run one G1
+    // and one G2 MSM concurrently without contention.
     let mut pi = None;
     let mut C_h1 = None;
     let mut C_h2 = None;
     let mut compute_load_proof_fields = None;
     let mut C_hat_t = None;
 
-    // 6 MSMs distributed across 3 streams:
-    //   G1 side: pi (stream 0), C_h1 (stream 1), C_h2 (stream 2)
-    //   G2 side: C_hat_h3 (stream 0), C_hat_w (stream 1), C_hat_t (stream 2)
-    // G1 and G2 scratch buffers are independent, so a stream can run one of
-    // each concurrently without contention.
     rayon::scope(|s| {
-        s.spawn(|_| {
-            // GPU MSM: pi commitment (G1, offset 0)
-            pi = Some(if P_pi.is_empty() {
-                G1::ZERO
-            } else {
-                g.mul_scalar(P_pi[0])
-                    + super::g1_msm_cached_on_stream(
-                        cache.g1_msm_mems[0],
-                        cache.cached_g1_points,
-                        0,
-                        &P_pi[1..],
-                        cache.streams[0].0,
-                        cache.gpu_indices[0],
-                    )
-            });
-        });
+        // --- Independent MSMs: launch GPU work immediately ---
 
         s.spawn(|_| {
-            // GPU MSM: C_h1 commitment (G1, offset n-(D+128*m))
+            // GPU MSM: C_h1 commitment (G1, stream 1, offset n-(D+128*m))
             let scalars_h1: Box<[_]> = (0..D + 128 * m)
                 .rev()
                 .map(|j| {
@@ -855,7 +528,7 @@ fn prove_impl(
         });
 
         s.spawn(|_| {
-            // GPU MSM: C_h2 commitment (G1, offset 0, n=n -- reversed scalars)
+            // GPU MSM: C_h2 commitment (G1, stream 2, offset 0, n=n)
             let scalars_h2: Box<[_]> = (0..n)
                 .rev()
                 .map(|j| {
@@ -883,6 +556,7 @@ fn prove_impl(
         });
 
         s.spawn(|_| {
+            // GPU MSMs: C_hat_h3 (G2, stream 0) + C_hat_w (G2, stream 1)
             compute_load_proof_fields = Some(match load {
                 ComputeLoad::Proof => {
                     let mut C_hat_h3 = None;
@@ -890,7 +564,6 @@ fn prove_impl(
 
                     rayon::scope(|s_inner| {
                         s_inner.spawn(|_| {
-                            // GPU MSM: C_hat_h3 (G2, offset n-(d+k))
                             C_hat_h3 = Some(super::g2_msm_cached_on_stream(
                                 cache.g2_msm_mems[0],
                                 cache.cached_g2_points,
@@ -908,7 +581,6 @@ fn prove_impl(
                         });
 
                         s_inner.spawn(|_| {
-                            // GPU MSM: C_hat_w (G2, offset 0, n=d+k+4)
                             C_hat_w = Some(super::g2_msm_cached_on_stream(
                                 cache.g2_msm_mems[1],
                                 cache.cached_g2_points,
@@ -930,7 +602,7 @@ fn prove_impl(
         });
 
         s.spawn(|_| {
-            // GPU MSM: C_hat_t (G2, offset 0, n=full g_hat_list)
+            // GPU MSM: C_hat_t (G2, stream 2, offset 0, n=full g_hat_list)
             C_hat_t = Some(super::g2_msm_cached_on_stream(
                 cache.g2_msm_mems[2],
                 cache.cached_g2_points,
@@ -939,6 +611,336 @@ fn prove_impl(
                 cache.streams[2].0,
                 cache.gpu_indices[2],
             ));
+        });
+
+        // --- Polynomial construction + pi MSM (depends on P_pi) ---
+
+        s.spawn(|_| {
+            if timing {
+                t_sub = std::time::Instant::now();
+            }
+
+            // Build all 6 polynomial pairs in parallel
+            let mut poly_0_lhs = None;
+            let mut poly_0_rhs = None;
+            let mut poly_1_lhs = None;
+            let mut poly_1_rhs = None;
+            let mut poly_2_lhs = None;
+            let mut poly_2_rhs = None;
+            let mut poly_3_lhs = None;
+            let mut poly_3_rhs = None;
+            let mut poly_4_lhs = None;
+            let mut poly_4_rhs = None;
+            let mut poly_5_lhs = None;
+            let mut poly_5_rhs = None;
+
+            rayon::scope(|s_poly| {
+                s_poly.spawn(|_| {
+                    let mut lhs = vec![Zp::ZERO; 1 + n];
+                    let mut rhs = vec![Zp::ZERO; 1 + D + 128 * m];
+
+                    lhs[0] = delta_y * gamma_y;
+                    for j in 0..D + 128 * m {
+                        let p = &mut lhs[n - j];
+
+                        if !w_bin[j] {
+                            *p -= delta_y * y[j];
+                        }
+
+                        if j < D {
+                            *p += delta_theta * a_theta[j];
+                        }
+                        *p += delta_eq * t[j] * y[j];
+
+                        if j >= D {
+                            let j_inner = j - D;
+                            let r = delta_dec * xi_powers[j_inner];
+
+                            if j_inner % m < m - 1 {
+                                *p += r;
+                            } else {
+                                *p -= r;
+                            }
+                        }
+                    }
+
+                    rhs[0] = gamma_bin;
+                    for j in 0..D + 128 * m {
+                        let p = &mut rhs[j + 1];
+
+                        if w_bin[j] {
+                            *p = Zp::ONE;
+                        }
+                    }
+
+                    poly_0_lhs = Some(lhs);
+                    poly_0_rhs = Some(rhs);
+                });
+
+                s_poly.spawn(|_| {
+                    let mut lhs = vec![Zp::ZERO; 1 + n];
+                    let mut rhs = vec![Zp::ZERO; 1 + d + k + 4];
+
+                    lhs[0] = delta_l * gamma_e;
+                    for j in 0..d {
+                        let p = &mut lhs[n - j];
+                        *p = delta_l * e1_zp[j];
+                    }
+                    for j in 0..k {
+                        let p = &mut lhs[n - (d + j)];
+                        *p = delta_l * e2_zp[j];
+                    }
+                    for j in 0..4 {
+                        let p = &mut lhs[n - (d + k + j)];
+                        *p = delta_l * v_zp[j];
+                    }
+
+                    for j in 0..n {
+                        let p = &mut lhs[n - j];
+                        let mut acc = delta_e * omega[j];
+                        if j < d + k {
+                            acc += delta_theta * theta[j];
+                        }
+
+                        if j < d + k + 4 {
+                            acc += delta_r * r_transpose_phi[j];
+                        }
+                        *p += acc;
+                    }
+
+                    rhs[0] = gamma_hat_e;
+                    for j in 0..d {
+                        let p = &mut rhs[1 + j];
+                        *p = e1_zp[j];
+                    }
+                    for j in 0..k {
+                        let p = &mut rhs[1 + (d + j)];
+                        *p = e2_zp[j];
+                    }
+                    for j in 0..4 {
+                        let p = &mut rhs[1 + (d + k + j)];
+                        *p = v_zp[j];
+                    }
+
+                    poly_1_lhs = Some(lhs);
+                    poly_1_rhs = Some(rhs);
+                });
+
+                s_poly.spawn(|_| {
+                    let mut lhs = vec![Zp::ZERO; 1 + d + k];
+                    let mut rhs = vec![Zp::ZERO; 1 + n];
+
+                    lhs[0] = gamma_r;
+                    for j in 0..d {
+                        let p = &mut lhs[1 + j];
+                        *p = r1_zp[j];
+                    }
+                    for j in 0..k {
+                        let p = &mut lhs[1 + (d + j)];
+                        *p = r2_zp[j];
+                    }
+
+                    for j in 0..d + k {
+                        let p = &mut rhs[n - j];
+                        *p = delta_r * r_transpose_phi[d + k + 4 + j] - delta_theta_q * theta[j];
+                    }
+
+                    poly_2_lhs = Some(lhs);
+                    poly_2_rhs = Some(rhs);
+                });
+
+                s_poly.spawn(|_| {
+                    let mut lhs = vec![Zp::ZERO; 1 + 128];
+                    let mut rhs = vec![Zp::ZERO; 1 + n];
+
+                    lhs[0] = gamma_R;
+                    for j in 0..128 {
+                        let p = &mut lhs[1 + j];
+                        *p = Zp::from_i64(w_R[j]);
+                    }
+
+                    for j in 0..128 {
+                        let p = &mut rhs[n - j];
+                        *p = delta_r * phi[j] + delta_dec * xi_powers[j * m];
+                    }
+
+                    poly_3_lhs = Some(lhs);
+                    poly_3_rhs = Some(rhs);
+                });
+
+                s_poly.spawn(|_| {
+                    let mut lhs = vec![Zp::ZERO; 1 + n];
+                    let mut rhs = vec![Zp::ZERO; 1 + d + k + 4];
+
+                    lhs[0] = delta_e * gamma_e;
+                    for j in 0..d {
+                        let p = &mut lhs[n - j];
+                        *p = delta_e * e1_zp[j];
+                    }
+                    for j in 0..k {
+                        let p = &mut lhs[n - (d + j)];
+                        *p = delta_e * e2_zp[j];
+                    }
+                    for j in 0..4 {
+                        let p = &mut lhs[n - (d + k + j)];
+                        *p = delta_e * v_zp[j];
+                    }
+
+                    for j in 0..d + k + 4 {
+                        let p = &mut rhs[1 + j];
+                        *p = omega[j];
+                    }
+
+                    poly_4_lhs = Some(lhs);
+                    poly_4_rhs = Some(rhs);
+                });
+
+                s_poly.spawn(|_| {
+                    let mut lhs = vec![Zp::ZERO; 1 + n];
+                    let mut rhs = vec![Zp::ZERO; 1 + n];
+
+                    lhs[0] = delta_eq * gamma_y;
+                    for j in 0..D + 128 * m {
+                        let p = &mut lhs[n - j];
+
+                        if w_bin[j] {
+                            *p = delta_eq * y[j];
+                        }
+                    }
+
+                    for j in 0..n {
+                        let p = &mut rhs[1 + j];
+                        *p = t[j];
+                    }
+
+                    poly_5_lhs = Some(lhs);
+                    poly_5_rhs = Some(rhs);
+                });
+            });
+
+            let poly_0_lhs = poly_0_lhs.unwrap();
+            let poly_0_rhs = poly_0_rhs.unwrap();
+            let poly_1_lhs = poly_1_lhs.unwrap();
+            let poly_1_rhs = poly_1_rhs.unwrap();
+            let poly_2_lhs = poly_2_lhs.unwrap();
+            let poly_2_rhs = poly_2_rhs.unwrap();
+            let poly_3_lhs = poly_3_lhs.unwrap();
+            let poly_3_rhs = poly_3_rhs.unwrap();
+            let poly_4_lhs = poly_4_lhs.unwrap();
+            let poly_4_rhs = poly_4_rhs.unwrap();
+            let poly_5_lhs = poly_5_lhs.unwrap();
+            let poly_5_rhs = poly_5_rhs.unwrap();
+
+            if timing {
+                eprintln!(
+                    "[ZK_PROVE_TIMING]   poly_pairs: {:.1}ms",
+                    t_sub.elapsed().as_secs_f64() * 1000.0,
+                );
+                t_sub = std::time::Instant::now();
+            }
+
+            let poly = [
+                (&poly_0_lhs, &poly_0_rhs),
+                (&poly_1_lhs, &poly_1_rhs),
+                (&poly_2_lhs, &poly_2_rhs),
+                (&poly_3_lhs, &poly_3_rhs),
+                (&poly_4_lhs, &poly_4_rhs),
+                (&poly_5_lhs, &poly_5_rhs),
+            ];
+
+            let [mut poly_0, poly_1, poly_2, poly_3, poly_4, poly_5] = {
+                let tmp: Box<[Vec<Zp>; 6]> = poly
+                    .into_par_iter()
+                    .map(|(lhs, rhs)| Zp::poly_mul(lhs, rhs))
+                    .collect::<Box<[_]>>()
+                    .try_into()
+                    .unwrap();
+                *tmp
+            };
+
+            if timing {
+                eprintln!(
+                    "[ZK_PROVE_TIMING]   poly_mul: {:.1}ms",
+                    t_sub.elapsed().as_secs_f64() * 1000.0,
+                );
+                t_sub = std::time::Instant::now();
+            }
+
+            let len = [
+                poly_0.len(),
+                poly_1.len(),
+                poly_2.len(),
+                poly_3.len(),
+                poly_4.len(),
+                poly_5.len(),
+            ]
+            .into_iter()
+            .max()
+            .unwrap();
+
+            poly_0.resize(len, Zp::ZERO);
+
+            {
+                let chunk_size = len.div_ceil(rayon::current_num_threads());
+
+                poly_0
+                    .par_chunks_mut(chunk_size)
+                    .enumerate()
+                    .for_each(|(j, p0)| {
+                        let offset = j * chunk_size;
+                        let p1 = poly_1.get(offset..).unwrap_or(&[]);
+                        let p2 = poly_2.get(offset..).unwrap_or(&[]);
+                        let p3 = poly_3.get(offset..).unwrap_or(&[]);
+                        let p4 = poly_4.get(offset..).unwrap_or(&[]);
+                        let p5 = poly_5.get(offset..).unwrap_or(&[]);
+
+                        for (j, p0) in p0.iter_mut().enumerate() {
+                            if j < p1.len() {
+                                *p0 += p1[j];
+                            }
+                            if j < p2.len() {
+                                *p0 += p2[j];
+                            }
+                            if j < p3.len() {
+                                *p0 -= p3[j];
+                            }
+                            if j < p4.len() {
+                                *p0 -= p4[j];
+                            }
+                            if j < p5.len() {
+                                *p0 -= p5[j];
+                            }
+                        }
+                    });
+            }
+
+            if timing {
+                eprintln!(
+                    "[ZK_PROVE_TIMING]   poly_accumulate: {:.1}ms",
+                    t_sub.elapsed().as_secs_f64() * 1000.0,
+                );
+            }
+
+            let mut P_pi = poly_0;
+            if P_pi.len() > n + 1 {
+                P_pi[n + 1] -= delta_theta * t_theta + delta_l * Zp::from_u128(B_squared);
+            }
+
+            // GPU MSM: pi commitment (G1, stream 0, offset 0)
+            // This is the only MSM that depends on poly construction results.
+            pi = Some(if P_pi.is_empty() {
+                G1::ZERO
+            } else {
+                g.mul_scalar(P_pi[0])
+                    + super::g1_msm_cached_on_stream(
+                        cache.g1_msm_mems[0],
+                        cache.cached_g1_points,
+                        0,
+                        &P_pi[1..],
+                        cache.streams[0].0,
+                        cache.gpu_indices[0],
+                    )
+            });
         });
     });
 
@@ -957,7 +959,7 @@ fn prove_impl(
 
     if timing {
         eprintln!(
-            "[ZK_PROVE_TIMING] commitment_msms: {:.1}ms",
+            "[ZK_PROVE_TIMING] poly+msms_overlapped: {:.1}ms",
             t_phase.elapsed().as_secs_f64() * 1000.0
         );
         t_phase = std::time::Instant::now();
