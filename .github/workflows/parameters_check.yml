@@ -53,7 +53,7 @@ jobs:
 
       - name: Restore Sagemath image from cache
         id: docker-cache
-        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 #v5.0.3
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 #v5.0.4
         with:
           path: /tmp/sagemath_image
           key: sagemath-image-${{ env.SAGEMATH_VERSION }}-${{ github.sha }}
@@ -76,7 +76,7 @@ jobs:
       - name: Store Sagemath image in cache
         if: steps.docker-cache.outputs.cache-hit != 'true'
         continue-on-error: true
-        uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 #v5.0.3
+        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 #v5.0.4
         with:
           path: /tmp/sagemath_image
           key: sagemath-image-${{ env.SAGEMATH_VERSION }}-${{ github.sha }}
