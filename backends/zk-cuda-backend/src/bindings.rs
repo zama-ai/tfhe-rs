@@ -166,6 +166,73 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn pippenger_scratch_size_g2_wrapper(n: u32, gpu_index: u32) -> usize;
 }
+// Scratch/async/cleanup pattern for G1 MSM — the `mem` parameter is an opaque
+// pointer to a C++ `zk_g1_msm_mem` struct that holds device buffers for scalars,
+// points, and Pippenger scratch space.
+unsafe extern "C" {
+    pub fn scratch_zk_g1_msm(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        mem: *mut *mut std::ffi::c_void,
+        max_n: u32,
+        size_tracker: *mut u64,
+        allocate_gpu_memory: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_zk_g1_msm(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        mem: *mut *mut std::ffi::c_void,
+        allocate_gpu_memory: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn zk_g1_msm_async(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        mem: *mut std::ffi::c_void,
+        h_result: *mut G1ProjectivePoint,
+        h_points: *const G1Point,
+        h_scalars: *const Scalar,
+        n: u32,
+        points_in_montgomery: bool,
+    );
+}
+// Cached G1 base points on device in Montgomery form — allocated once per CRS,
+// reused across many MSM calls. The `mem` parameter is an opaque pointer to
+// a C++ `zk_cached_g1_points` struct.
+unsafe extern "C" {
+    pub fn scratch_zk_cached_g1_points(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        mem: *mut *mut std::ffi::c_void,
+        h_points: *const G1Point,
+        n: u32,
+        size_tracker: *mut u64,
+        allocate_gpu_memory: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_zk_cached_g1_points(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        mem: *mut *mut std::ffi::c_void,
+        allocate_gpu_memory: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn zk_g1_msm_cached_async(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        msm_mem: *mut std::ffi::c_void,
+        h_result: *mut G1ProjectivePoint,
+        cached: *const std::ffi::c_void,
+        point_offset: u32,
+        h_scalars: *const Scalar,
+        n: u32,
+    );
+}
 // Scratch/async/cleanup pattern for G2 MSM — the `mem` parameter is an opaque
 // pointer to a C++ `zk_g2_msm_mem` struct that holds device buffers for scalars,
 // points, and Pippenger scratch space.

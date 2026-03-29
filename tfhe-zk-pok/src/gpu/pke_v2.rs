@@ -1,15 +1,15 @@
 //! GPU-accelerated prove/verify for PKE v2.
 //!
 //! `prove` duplicates the logic of [`crate::proofs::pke_v2::prove_impl`] but replaces every
-//! `multi_mul_scalar` call with the GPU-accelerated [`super::g1_msm_gpu`]
-//! / [`super::g2_msm_gpu`].  `verify` duplicates [`crate::proofs::pke_v2::verify_impl`]
-//! and the two pairing-check helpers (`pairing_check_two_steps`,
-//! `pairing_check_batched`) with MSM sites similarly replaced.
+//! `multi_mul_scalar` call with GPU-accelerated cached MSMs that keep the CRS
+//! base points resident on device across calls.  `verify` duplicates
+//! [`crate::proofs::pke_v2::verify_impl`] and the two pairing-check helpers
+//! (`pairing_check_two_steps`, `pairing_check_batched`) with MSM sites
+//! similarly replaced.
 
 // Follow the notation of the paper
 #![allow(non_snake_case)]
 
-use super::select_gpu_for_msm;
 use crate::curve_api::bls12_446::{Gt, Zp, G1, G2};
 use crate::curve_api::{Bls12_446, CurveGroupOps, FieldOps};
 use crate::four_squares::*;
@@ -35,7 +35,7 @@ use rayon::prelude::*;
 /// GPU-accelerated proof generation for PKE v2.
 ///
 /// Identical to [`crate::proofs::pke_v2::prove`] but dispatches MSM to the GPU via
-/// [`super::g1_msm_gpu`] / [`super::g2_msm_gpu`].
+/// cached device-resident CRS base points.
 pub fn prove(
     public: (&PublicParams<Bls12_446>, &PublicCommit<Bls12_446>),
     private_commit: &PrivateCommit<Bls12_446>,
@@ -57,7 +57,7 @@ pub fn prove(
 /// GPU-accelerated verification for PKE v2.
 ///
 /// Identical to [`crate::proofs::pke_v2::verify`] but dispatches MSM to the GPU via
-/// [`super::g1_msm_gpu`] / [`super::g2_msm_gpu`].
+/// cached device-resident CRS base points.
 // TODO: `run_in_pool` was introduced for the CPU path because benchmarks showed better
 // performance with fewer threads (likely due to arkworks MSM parallelization overhead).
 // This may not hold for the GPU implementation and should be revisited.
@@ -113,6 +113,18 @@ fn prove_impl(
 
     let g_list = &*g_lists.g_list.0;
     let g_hat_list = &*g_lists.g_hat_list.0;
+
+    // Acquire persistent device cache for both G1 and G2 base points.
+    // The largest G1 MSM uses up to n points (C_h2), and the largest G2 MSM
+    // uses the full g_hat_list (C_hat_t). Cache them all so any sub-slice
+    // can be addressed via point_offset.
+    let g1_max_n = u32::try_from(g_list.len()).expect("g_list length fits in u32");
+    let g2_max_n = u32::try_from(g_hat_list.len()).expect("g_hat_list length fits in u32");
+    let cache = super::acquire_cached_msm_resources(g_list, g_hat_list, g1_max_n, g2_max_n);
+    // Borrow the cache so rayon closures see `&CachedMsmResources` (which is
+    // Send because CachedMsmResources: Sync) rather than individual raw pointer
+    // fields that lack Sync.
+    let cache = &cache;
 
     let PrivateCommit { r, e1, m, e2, .. } = private_commit;
 
@@ -207,30 +219,47 @@ fn prove_impl(
 
     rayon::scope(|s| {
         s.spawn(|_| {
-            // GPU MSM: C_hat_e commitment
+            // GPU MSM: C_hat_e commitment (G2, offset 0, n=d+k+4)
             C_hat_e = Some(
                 g_hat.mul_scalar(gamma_hat_e)
-                    + super::g2_msm_gpu(&g_hat_list[..d + k + 4], &scalars_e, select_gpu_for_msm()),
-            );
-        });
-
-        s.spawn(|_| {
-            // GPU MSM: C_e commitment
-            C_e = Some(
-                g.mul_scalar(gamma_e)
-                    + super::g1_msm_gpu(
-                        &g_list[n - (d + k + 4)..n],
-                        &scalars_e_rev,
-                        select_gpu_for_msm(),
+                    + super::g2_msm_cached_on_stream(
+                        cache.g2_msm_mems[0],
+                        cache.cached_g2_points,
+                        0,
+                        &scalars_e,
+                        cache.streams[0].0,
+                        cache.gpu_indices[0],
                     ),
             );
         });
 
         s.spawn(|_| {
-            // GPU MSM: C_r_tilde commitment
+            // GPU MSM: C_e commitment (G1, offset n-(d+k+4))
+            C_e = Some(
+                g.mul_scalar(gamma_e)
+                    + super::g1_msm_cached_on_stream(
+                        cache.g1_msm_mems[1],
+                        cache.cached_g1_points,
+                        u32::try_from(n - (d + k + 4)).expect("point offset fits in u32"),
+                        &scalars_e_rev,
+                        cache.streams[1].0,
+                        cache.gpu_indices[1],
+                    ),
+            );
+        });
+
+        s.spawn(|_| {
+            // GPU MSM: C_r_tilde commitment (G1, offset 0, n=d+k)
             C_r_tilde = Some(
                 g.mul_scalar(gamma_r)
-                    + super::g1_msm_gpu(&g_list[..d + k], &scalars_r, select_gpu_for_msm()),
+                    + super::g1_msm_cached_on_stream(
+                        cache.g1_msm_mems[2],
+                        cache.cached_g1_points,
+                        0,
+                        &scalars_r,
+                        cache.streams[2].0,
+                        cache.gpu_indices[2],
+                    ),
             );
         });
     });
@@ -292,12 +321,15 @@ fn prove_impl(
         })
         .collect::<Box<[_]>>();
 
-    // GPU MSM: C_R commitment
+    // GPU MSM: C_R commitment (G1, offset 0, n=128)
     let C_R = g.mul_scalar(gamma_R)
-        + super::g1_msm_gpu(
-            &g_list[..128],
+        + super::g1_msm_cached_on_stream(
+            cache.g1_msm_mems[0],
+            cache.cached_g1_points,
+            0,
             &w_R.iter().copied().map(Zp::from_i64).collect::<Box<[_]>>(),
-            select_gpu_for_msm(),
+            cache.streams[0].0,
+            cache.gpu_indices[0],
         );
 
     let C_R_bytes = C_R.to_le_bytes();
@@ -339,12 +371,15 @@ fn prove_impl(
         .map(|(&y, &w)| if w { y } else { Zp::ZERO })
         .collect::<Box<[_]>>();
 
-    // GPU MSM: C_y commitment
+    // GPU MSM: C_y commitment (G1, offset n-(D+128*m))
     let C_y = g.mul_scalar(gamma_y)
-        + super::g1_msm_gpu(
-            &g_list[n - (D + 128 * m)..n],
+        + super::g1_msm_cached_on_stream(
+            cache.g1_msm_mems[0],
+            cache.cached_g1_points,
+            u32::try_from(n - (D + 128 * m)).expect("point offset fits in u32"),
             &scalars,
-            select_gpu_for_msm(),
+            cache.streams[0].0,
+            cache.gpu_indices[0],
         );
 
     let C_y_bytes = C_y.to_le_bytes();
@@ -712,19 +747,31 @@ fn prove_impl(
     let mut compute_load_proof_fields = None;
     let mut C_hat_t = None;
 
+    // 6 MSMs distributed across 3 streams:
+    //   G1 side: pi (stream 0), C_h1 (stream 1), C_h2 (stream 2)
+    //   G2 side: C_hat_h3 (stream 0), C_hat_w (stream 1), C_hat_t (stream 2)
+    // G1 and G2 scratch buffers are independent, so a stream can run one of
+    // each concurrently without contention.
     rayon::scope(|s| {
         s.spawn(|_| {
-            // GPU MSM: pi commitment
+            // GPU MSM: pi commitment (G1, offset 0)
             pi = Some(if P_pi.is_empty() {
                 G1::ZERO
             } else {
                 g.mul_scalar(P_pi[0])
-                    + super::g1_msm_gpu(&g_list[..P_pi.len() - 1], &P_pi[1..], select_gpu_for_msm())
+                    + super::g1_msm_cached_on_stream(
+                        cache.g1_msm_mems[0],
+                        cache.cached_g1_points,
+                        0,
+                        &P_pi[1..],
+                        cache.streams[0].0,
+                        cache.gpu_indices[0],
+                    )
             });
         });
 
         s.spawn(|_| {
-            // GPU MSM: C_h1 commitment
+            // GPU MSM: C_h1 commitment (G1, offset n-(D+128*m))
             let scalars_h1: Box<[_]> = (0..D + 128 * m)
                 .rev()
                 .map(|j| {
@@ -749,15 +796,18 @@ fn prove_impl(
                     acc
                 })
                 .collect();
-            C_h1 = Some(super::g1_msm_gpu(
-                &g_list[n - (D + 128 * m)..n],
+            C_h1 = Some(super::g1_msm_cached_on_stream(
+                cache.g1_msm_mems[1],
+                cache.cached_g1_points,
+                u32::try_from(n - (D + 128 * m)).expect("point offset fits in u32"),
                 &scalars_h1,
-                select_gpu_for_msm(),
+                cache.streams[1].0,
+                cache.gpu_indices[1],
             ));
         });
 
         s.spawn(|_| {
-            // GPU MSM: C_h2 commitment
+            // GPU MSM: C_h2 commitment (G1, offset 0, n=n -- reversed scalars)
             let scalars_h2: Box<[_]> = (0..n)
                 .rev()
                 .map(|j| {
@@ -783,10 +833,13 @@ fn prove_impl(
                     acc
                 })
                 .collect();
-            C_h2 = Some(super::g1_msm_gpu(
-                &g_list[..n],
+            C_h2 = Some(super::g1_msm_cached_on_stream(
+                cache.g1_msm_mems[2],
+                cache.cached_g1_points,
+                0,
                 &scalars_h2,
-                select_gpu_for_msm(),
+                cache.streams[2].0,
+                cache.gpu_indices[2],
             ));
         });
 
@@ -798,9 +851,11 @@ fn prove_impl(
 
                     rayon::scope(|s_inner| {
                         s_inner.spawn(|_| {
-                            // GPU MSM: C_hat_h3 commitment
-                            C_hat_h3 = Some(super::g2_msm_gpu(
-                                &g_hat_list[n - (d + k)..n],
+                            // GPU MSM: C_hat_h3 (G2, offset n-(d+k))
+                            C_hat_h3 = Some(super::g2_msm_cached_on_stream(
+                                cache.g2_msm_mems[0],
+                                cache.cached_g2_points,
+                                u32::try_from(n - (d + k)).expect("point offset fits in u32"),
                                 &(0..d + k)
                                     .rev()
                                     .map(|j| {
@@ -816,16 +871,20 @@ fn prove_impl(
                                         delta_r * acc - delta_theta_q * theta[j]
                                     })
                                     .collect::<Box<[_]>>(),
-                                select_gpu_for_msm(),
+                                cache.streams[0].0,
+                                cache.gpu_indices[0],
                             ));
                         });
 
                         s_inner.spawn(|_| {
-                            // GPU MSM: C_hat_w commitment
-                            C_hat_w = Some(super::g2_msm_gpu(
-                                &g_hat_list[..d + k + 4],
+                            // GPU MSM: C_hat_w (G2, offset 0, n=d+k+4)
+                            C_hat_w = Some(super::g2_msm_cached_on_stream(
+                                cache.g2_msm_mems[1],
+                                cache.cached_g2_points,
+                                0,
                                 &omega[..d + k + 4],
-                                select_gpu_for_msm(),
+                                cache.streams[1].0,
+                                cache.gpu_indices[1],
                             ));
                         });
                     });
@@ -840,8 +899,15 @@ fn prove_impl(
         });
 
         s.spawn(|_| {
-            // GPU MSM: C_hat_t commitment
-            C_hat_t = Some(super::g2_msm_gpu(g_hat_list, &t, select_gpu_for_msm()));
+            // GPU MSM: C_hat_t (G2, offset 0, n=full g_hat_list)
+            C_hat_t = Some(super::g2_msm_cached_on_stream(
+                cache.g2_msm_mems[2],
+                cache.cached_g2_points,
+                0,
+                &t,
+                cache.streams[2].0,
+                cache.gpu_indices[2],
+            ));
         });
     });
 
@@ -1083,9 +1149,16 @@ fn prove_impl(
         Q_kzg[j + 1] = Zp::ZERO;
     }
 
-    // GPU MSM: pi_kzg commitment
-    let pi_kzg =
-        g.mul_scalar(q[0]) + super::g1_msm_gpu(&g_list[..n - 1], &q[1..n], select_gpu_for_msm());
+    // GPU MSM: pi_kzg commitment (G1, offset 0, n=n-1)
+    let pi_kzg = g.mul_scalar(q[0])
+        + super::g1_msm_cached_on_stream(
+            cache.g1_msm_mems[0],
+            cache.cached_g1_points,
+            0,
+            &q[1..n],
+            cache.streams[0].0,
+            cache.gpu_indices[0],
+        );
 
     if timing {
         eprintln!(
@@ -1658,10 +1731,11 @@ fn pairing_check_two_steps(
     let mut lhs0_eq2 = None;
     let mut lhs1_eq2 = None;
 
-    // Acquire persistent device cache (streams + cached g_hat_list + MSM scratch)
+    // Acquire persistent device cache (streams + cached g_hat_list + MSM scratch).
+    // Verify only uses G2 MSMs, so g1_max_n = 0 to skip G1 allocation.
     let cache_start = std::time::Instant::now();
-    let max_n = u32::try_from((d + k + 4).max(128)).expect("MSM size fits in u32");
-    let cache = super::acquire_cached_msm_resources(g_hat_list, max_n);
+    let g2_max_n = u32::try_from((d + k + 4).max(128)).expect("MSM size fits in u32");
+    let cache = super::acquire_cached_msm_resources(g_list, g_hat_list, 0, g2_max_n);
     let streams = cache.streams;
     let gpu_indices = cache.gpu_indices;
     // Extract device pointers from the cache. CachedMsmResources implements
@@ -1784,8 +1858,8 @@ fn pairing_check_two_steps(
                         C_hat_w: _,
                     }) => C_hat_h3,
                     None => super::g2_msm_cached_on_stream(
-                        gpu_ptrs.msm_mems[0],
-                        gpu_ptrs.cached_points,
+                        gpu_ptrs.g2_msm_mems[0],
+                        gpu_ptrs.cached_g2_points,
                         u32::try_from(n - (d + k)).expect("point offset fits in u32"),
                         &(0..d + k)
                             .rev()
@@ -1807,8 +1881,8 @@ fn pairing_check_two_steps(
             lhs3 = Some(pairing(
                 C_R,
                 super::g2_msm_cached_on_stream(
-                    gpu_ptrs.msm_mems[1],
-                    gpu_ptrs.cached_points,
+                    gpu_ptrs.g2_msm_mems[1],
+                    gpu_ptrs.cached_g2_points,
                     u32::try_from(n - 128).expect("point offset fits in u32"),
                     &(0..128)
                         .rev()
@@ -1832,8 +1906,8 @@ fn pairing_check_two_steps(
                         C_hat_w,
                     }) => C_hat_w,
                     None => super::g2_msm_cached_on_stream(
-                        gpu_ptrs.msm_mems[2],
-                        gpu_ptrs.cached_points,
+                        gpu_ptrs.g2_msm_mems[2],
+                        gpu_ptrs.cached_g2_points,
                         0,
                         &omega[..d + k + 4],
                         streams[2].0,
@@ -2006,9 +2080,10 @@ fn pairing_check_batched(
     // TODO: should the user be able to control the randomness source here?
     let eta = Zp::rand(&mut rand::thread_rng());
 
-    // Acquire persistent device cache (streams + cached g_hat_list + MSM scratch)
-    let max_n = u32::try_from((d + k + 4).max(128)).expect("MSM size fits in u32");
-    let cache = super::acquire_cached_msm_resources(g_hat_list, max_n);
+    // Acquire persistent device cache (streams + cached g_hat_list + MSM scratch).
+    // Verify only uses G2 MSMs, so g1_max_n = 0 to skip G1 allocation.
+    let g2_max_n = u32::try_from((d + k + 4).max(128)).expect("MSM size fits in u32");
+    let cache = super::acquire_cached_msm_resources(g_list, g_hat_list, 0, g2_max_n);
     let streams = cache.streams;
     let gpu_indices = cache.gpu_indices;
     // Keep a reference to the Send+Sync cache so rayon closures can share it
@@ -2052,8 +2127,8 @@ fn pairing_check_batched(
                     C_hat_w: _,
                 }) => C_hat_h3,
                 None => super::g2_msm_cached_on_stream(
-                    gpu_ptrs.msm_mems[0],
-                    gpu_ptrs.cached_points,
+                    gpu_ptrs.g2_msm_mems[0],
+                    gpu_ptrs.cached_g2_points,
                     u32::try_from(n - (d + k)).expect("point offset fits in u32"),
                     &(0..d + k)
                         .rev()
@@ -2077,8 +2152,8 @@ fn pairing_check_batched(
             lhs3 = Some(pairing(
                 C_R,
                 super::g2_msm_cached_on_stream(
-                    gpu_ptrs.msm_mems[1],
-                    gpu_ptrs.cached_points,
+                    gpu_ptrs.g2_msm_mems[1],
+                    gpu_ptrs.cached_g2_points,
                     u32::try_from(n - 128).expect("point offset fits in u32"),
                     &(0..128)
                         .rev()
@@ -2096,8 +2171,8 @@ fn pairing_check_batched(
                     C_hat_w,
                 }) => C_hat_w,
                 None => super::g2_msm_cached_on_stream(
-                    gpu_ptrs.msm_mems[2],
-                    gpu_ptrs.cached_points,
+                    gpu_ptrs.g2_msm_mems[2],
+                    gpu_ptrs.cached_g2_points,
                     0,
                     &omega[..d + k + 4],
                     streams[2].0,
