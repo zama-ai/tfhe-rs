@@ -335,6 +335,36 @@ fn prove_impl(
     let C_R_bytes = C_R.to_le_bytes();
     let (phi, phi_hash) = R_hash.gen_phi(C_R_bytes.as_ref());
 
+    let mut t_sub = std::time::Instant::now();
+
+    // Precompute R^T * phi: for each column j of R, compute sum_i(phi[i] * R(i,j)).
+    // The full vector has 2*(d+k)+4 entries covering both the poly_1/C_h2/P_h2 range
+    // (first d+k+4 columns) and the poly_2/C_hat_h3/P_h3 range (next d+k columns).
+    // Each column is independent, so we parallelize across columns with rayon.
+    let r_transpose_phi: Vec<Zp> = (0..2 * (d + k) + 4)
+        .into_par_iter()
+        .map(|j| {
+            let mut acc = Zp::ZERO;
+            for (i, &phi_val) in phi.iter().enumerate() {
+                match R(i, j) {
+                    0 => {}
+                    1 => acc += phi_val,
+                    -1 => acc -= phi_val,
+                    _ => unreachable!(),
+                }
+            }
+            acc
+        })
+        .collect();
+
+    if timing {
+        eprintln!(
+            "[ZK_PROVE_TIMING]   r_transpose_phi: {:.1}ms (2*(d+k)+4={} cols)",
+            t_sub.elapsed().as_secs_f64() * 1000.0,
+            2 * (d + k) + 4,
+        );
+    }
+
     let m = m_bound;
 
     let w_R_bin = w_R
@@ -347,14 +377,24 @@ fn prove_impl(
         .chain(w_R_bin.iter().copied())
         .collect::<Box<[_]>>();
 
-    let C_hat_bin = g_hat.mul_scalar(gamma_bin)
-        + g_hat_list
-            .iter()
-            .zip(&*w_bin)
-            .filter(|&(_, &w)| w)
-            .map(|(&x, _)| x)
-            .map(G2::projective)
-            .sum::<G2>();
+    // Sparse point sum: add g_hat_list[i] for each bit set in w_bin.
+    // Parallelized via chunked partial sums to use multiple cores.
+    let C_hat_bin = {
+        const CHUNK: usize = 1024;
+        let partial_sums: Vec<G2> = g_hat_list
+            .par_chunks(CHUNK)
+            .zip(w_bin.par_chunks(CHUNK))
+            .map(|(bases, flags)| {
+                bases
+                    .iter()
+                    .zip(flags)
+                    .filter(|&(_, &w)| w)
+                    .map(|(&x, _)| G2::projective(x))
+                    .sum::<G2>()
+            })
+            .collect();
+        g_hat.mul_scalar(gamma_bin) + partial_sums.into_iter().sum::<G2>()
+    };
 
     let C_hat_bin_bytes = C_hat_bin.to_le_bytes();
     let (xi, xi_hash) = phi_hash.gen_xi::<Zp>(C_hat_bin_bytes.as_ref());
@@ -432,6 +472,9 @@ fn prove_impl(
     }
 
     // Build all polynomial pairs in parallel
+    if timing {
+        t_sub = std::time::Instant::now();
+    }
     let mut poly_0_lhs = None;
     let mut poly_0_rhs = None;
     let mut poly_1_lhs = None;
@@ -514,16 +557,7 @@ fn prove_impl(
                 }
 
                 if j < d + k + 4 {
-                    let mut acc2 = Zp::ZERO;
-                    for (i, &phi_val) in phi.iter().enumerate() {
-                        match R(i, j) {
-                            0 => {}
-                            1 => acc2 += phi_val,
-                            -1 => acc2 -= phi_val,
-                            _ => unreachable!(),
-                        }
-                    }
-                    acc += delta_r * acc2;
+                    acc += delta_r * r_transpose_phi[j];
                 }
                 *p += acc;
             }
@@ -562,17 +596,7 @@ fn prove_impl(
 
             for j in 0..d + k {
                 let p = &mut rhs[n - j];
-
-                let mut acc = Zp::ZERO;
-                for (i, &phi_val) in phi.iter().enumerate() {
-                    match R(i, d + k + 4 + j) {
-                        0 => {}
-                        1 => acc += phi_val,
-                        -1 => acc -= phi_val,
-                        _ => unreachable!(),
-                    }
-                }
-                *p = delta_r * acc - delta_theta_q * theta[j];
+                *p = delta_r * r_transpose_phi[d + k + 4 + j] - delta_theta_q * theta[j];
             }
 
             poly_2_lhs = Some(lhs);
@@ -661,6 +685,14 @@ fn prove_impl(
     let poly_5_lhs = poly_5_lhs.unwrap();
     let poly_5_rhs = poly_5_rhs.unwrap();
 
+    if timing {
+        eprintln!(
+            "[ZK_PROVE_TIMING]   poly_pairs: {:.1}ms",
+            t_sub.elapsed().as_secs_f64() * 1000.0,
+        );
+        t_sub = std::time::Instant::now();
+    }
+
     let poly = [
         (&poly_0_lhs, &poly_0_rhs),
         (&poly_1_lhs, &poly_1_rhs),
@@ -679,6 +711,14 @@ fn prove_impl(
             .unwrap();
         *tmp
     };
+
+    if timing {
+        eprintln!(
+            "[ZK_PROVE_TIMING]   poly_mul: {:.1}ms",
+            t_sub.elapsed().as_secs_f64() * 1000.0,
+        );
+        t_sub = std::time::Instant::now();
+    }
 
     let len = [
         poly_0.len(),
@@ -727,6 +767,14 @@ fn prove_impl(
                 }
             });
     }
+
+    if timing {
+        eprintln!(
+            "[ZK_PROVE_TIMING]   poly_accumulate: {:.1}ms",
+            t_sub.elapsed().as_secs_f64() * 1000.0,
+        );
+    }
+
     let mut P_pi = poly_0;
     if P_pi.len() > n + 1 {
         P_pi[n + 1] -= delta_theta * t_theta + delta_l * Zp::from_u128(B_squared);
@@ -819,16 +867,7 @@ fn prove_impl(
                     acc += delta_e * omega[j];
 
                     if j < d + k + 4 {
-                        let mut acc2 = Zp::ZERO;
-                        for (i, &phi_val) in phi.iter().enumerate() {
-                            match R(i, j) {
-                                0 => {}
-                                1 => acc2 += phi_val,
-                                -1 => acc2 -= phi_val,
-                                _ => unreachable!(),
-                            }
-                        }
-                        acc += delta_r * acc2;
+                        acc += delta_r * r_transpose_phi[j];
                     }
                     acc
                 })
@@ -859,16 +898,8 @@ fn prove_impl(
                                 &(0..d + k)
                                     .rev()
                                     .map(|j| {
-                                        let mut acc = Zp::ZERO;
-                                        for (i, &phi_val) in phi.iter().enumerate() {
-                                            match R(i, d + k + 4 + j) {
-                                                0 => {}
-                                                1 => acc += phi_val,
-                                                -1 => acc -= phi_val,
-                                                _ => unreachable!(),
-                                            }
-                                        }
-                                        delta_r * acc - delta_theta_q * theta[j]
+                                        delta_r * r_transpose_phi[d + k + 4 + j]
+                                            - delta_theta_q * theta[j]
                                     })
                                     .collect::<Box<[_]>>(),
                                 cache.streams[0].0,
@@ -997,16 +1028,7 @@ fn prove_impl(
                 *p += delta_e * omega[j];
 
                 if j < d + k + 4 {
-                    let mut acc = Zp::ZERO;
-                    for (i, &phi_val) in phi.iter().enumerate() {
-                        match R(i, j) {
-                            0 => {}
-                            1 => acc += phi_val,
-                            -1 => acc -= phi_val,
-                            _ => unreachable!(),
-                        }
-                    }
-                    *p += delta_r * acc;
+                    *p += delta_r * r_transpose_phi[j];
                 }
             }
             P_h2 = Some(poly);
@@ -1018,17 +1040,7 @@ fn prove_impl(
                     let mut poly = vec![Zp::ZERO; 1 + n];
                     for j in 0..d + k {
                         let p = &mut poly[n - j];
-
-                        let mut acc = Zp::ZERO;
-                        for (i, &phi_val) in phi.iter().enumerate() {
-                            match R(i, d + k + 4 + j) {
-                                0 => {}
-                                1 => acc += phi_val,
-                                -1 => acc -= phi_val,
-                                _ => unreachable!(),
-                            }
-                        }
-                        *p = delta_r * acc - delta_theta_q * theta[j];
+                        *p = delta_r * r_transpose_phi[d + k + 4 + j] - delta_theta_q * theta[j];
                     }
                     poly
                 }
