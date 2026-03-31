@@ -20,8 +20,8 @@ use tfhe_zk_pok::proofs::pke::{
 };
 
 use tfhe_zk_pok::proofs::pke_v2::{
-    commit as commit_v2, crs_gen as crs_gen_v2, PkeV2SupportedHashConfig, Proof as ProofV2,
-    PublicCommit as PublicCommitV2, VerificationPairingMode,
+    commit as commit_v2, crs_gen as crs_gen_v2, CompactPkeV2ProofConformanceParams,
+    Proof as ProofV2, PublicCommit as PublicCommitV2, VerificationPairingMode,
 };
 
 #[cfg(feature = "gpu-experimental-zk")]
