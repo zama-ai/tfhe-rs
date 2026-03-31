@@ -15,65 +15,65 @@
 	<rect x="0" y="40" width="300" height="400" fill="#fbbc04"/>
 	<rect x="300" y="40" width="420" height="400" fill="#f3f3f3"/>
 	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="60.0">Add / Sub (+,-)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="60.0">600 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="60.0">586 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="60.0">573 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="60.0">543 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="60.0">376 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="60.0">653 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="60.0">653 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="60.0">617 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="60.0">560 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="60.0">422 ops/s</text>
 	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="100.0">Mul (x)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="100.0">429 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="100.0">396 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="100.0">375 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="100.0">202 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="100.0">67.7 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="100.0">475 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="100.0">440 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="100.0">384 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="100.0">219 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="100.0">68.5 ops/s</text>
 	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="140.0">Equal / Not Equal (eq, ne)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="140.0">501 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="140.0">513 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="140.0">487 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="140.0">494 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="140.0">360 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="140.0">558 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="140.0">561 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="140.0">550 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="140.0">556 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="140.0">412 ops/s</text>
 	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="180.0">Comparisons (ge, gt, le, lt)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="180.0">346 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="180.0">352 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="180.0">342 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="180.0">310 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="180.0">238 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="180.0">380 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="180.0">380 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="180.0">381 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="180.0">347 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="180.0">268 ops/s</text>
 	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="220.0">Max / Min (max, min)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="220.0">277 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="220.0">279 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="220.0">264 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="220.0">226 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="220.0">156 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="220.0">309 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="220.0">304 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="220.0">292 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="220.0">254 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="220.0">171 ops/s</text>
 	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="260.0">Bitwise operations (&amp;, |, ^)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="260.0">2.13 k.ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="260.0">2.13 k.ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="260.0">2.04 k.ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="260.0">1.77 k.ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="260.0">1.27 k.ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="260.0">2.32 k.ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="260.0">2.31 k.ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="260.0">2.22 k.ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="260.0">1.98 k.ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="260.0">1.44 k.ops/s</text>
 	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="300.0">Div  (/)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="300.0">281 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="300.0">278 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="300.0">261 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="300.0">87.7 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="300.0">23.0 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="300.0">302 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="300.0">286 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="300.0">262 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="300.0">106 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="300.0">23.4 ops/s</text>
 	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="340.0">Rem  (%)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="340.0">140 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="340.0">132 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="340.0">126 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="340.0">74.1 ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="340.0">17.1 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="340.0">148 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="340.0">142 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="340.0">128 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="340.0">73.9 ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="340.0">16.8 ops/s</text>
 	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="380.0">Left / Right Shifts (&lt;&lt;, &gt;&gt;)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="380.0">2.19 k.ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="380.0">2.2 k.ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="380.0">2.12 k.ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="380.0">1.82 k.ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="380.0">1.3 k.ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="380.0">2.43 k.ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="380.0">2.44 k.ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="380.0">2.32 k.ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="380.0">2.11 k.ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="380.0">1.46 k.ops/s</text>
 	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="420.0">Left / Right Rotations (left_rotate, right_rotate)</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="420.0">2.19 k.ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="420.0">2.18 k.ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="420.0">2.09 k.ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="420.0">1.8 k.ops/s</text>
-	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="420.0">1.29 k.ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="342.0" y="420.0">2.44 k.ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="426.0" y="420.0">2.42 k.ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="510.0" y="420.0">2.29 k.ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="594.0" y="420.0">2.1 k.ops/s</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="678.0" y="420.0">1.46 k.ops/s</text>
 	<line stroke="white" stroke-width="2" x1="0" y1="0" x2="720" y2="0"/>
 	<line stroke="white" stroke-width="2" x1="0" y1="40" x2="720" y2="40"/>
 	<line stroke="white" stroke-width="2" x1="0" y1="80" x2="720" y2="80"/>
