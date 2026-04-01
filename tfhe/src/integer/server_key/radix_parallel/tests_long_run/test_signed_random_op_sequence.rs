@@ -1,18 +1,22 @@
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::oprf::{OprfPrivateKey, OprfServerKey};
 use crate::integer::server_key::radix_parallel::tests_long_run::{
     get_long_test_iterations, get_user_defined_seed, sanity_check_op_sequence_result_bool,
     sanity_check_op_sequence_result_i64, sanity_check_op_sequence_result_u64,
     OpSequenceFunctionExecutor, RandomOpSequenceDataGenerator, NB_CTXT_LONG_RUN,
 };
-use crate::integer::server_key::radix_parallel::tests_unsigned::OpSequenceCpuFunctionExecutor;
+use crate::integer::server_key::radix_parallel::tests_unsigned::{
+    CpuOprfExecutor, OpSequenceCpuFunctionExecutor,
+};
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
 use crate::shortint::parameters::*;
-use crate::{ClientKey, CompressedServerKey, Seed, Tag};
+use crate::{ClientKey, CompressedServerKey, Tag};
 use std::cmp::{max, min};
 use std::sync::Arc;
+use tfhe_csprng::seeders::Seed;
 
 create_parameterized_test!(random_op_sequence {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
@@ -497,12 +501,26 @@ where
         ),
     ];
 
-    let signed_oprf_executor = OpSequenceCpuFunctionExecutor::new(
-        &ServerKey::par_generate_oblivious_pseudo_random_signed_integer,
-    );
-    let signed_oprf_bounded_executor = OpSequenceCpuFunctionExecutor::new(
-        &ServerKey::par_generate_oblivious_pseudo_random_signed_integer_bounded,
-    );
+    let signed_oprf_executor =
+        CpuOprfExecutor::new(&|oprf_sks: &OprfServerKey,
+                               seed: Seed,
+                               num_blocks: u64,
+                               sk: &ServerKey| {
+            oprf_sks.par_generate_oblivious_pseudo_random_signed_integer(seed, num_blocks, sk)
+        });
+    let signed_oprf_bounded_executor =
+        CpuOprfExecutor::new(&|oprf_key: &OprfServerKey,
+                               seed: Seed,
+                               random_bits_count: u64,
+                               num_blocks: u64,
+                               target_sks: &ServerKey| {
+            oprf_key.par_generate_oblivious_pseudo_random_signed_integer_bounded(
+                seed,
+                random_bits_count,
+                num_blocks,
+                target_sks,
+            )
+        });
 
     let mut signed_oprf_ops: Vec<(SignedOprfExecutor, String)> = vec![(
         Box::new(signed_oprf_executor),
@@ -635,9 +653,18 @@ where
 
     let param = param.into();
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let oprf_private_key = OprfPrivateKey::new(&cks);
 
-    let temp_cks =
-        ClientKey::from_raw_parts(cks.clone(), None, None, None, None, None, Tag::default());
+    let temp_cks = ClientKey::from_raw_parts(
+        cks.clone(),
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(oprf_private_key),
+        Tag::default(),
+    );
     let comp_sks = CompressedServerKey::new(&temp_cks);
 
     sks.set_deterministic_pbs_execution(true);

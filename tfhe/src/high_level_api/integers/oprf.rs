@@ -4,8 +4,8 @@ use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
-use crate::shortint::MessageModulus;
-use crate::{FheInt, Seed};
+use crate::shortint::{MessageModulus, OprfSeed};
+use crate::FheInt;
 use std::num::NonZeroU64;
 
 impl<Id: FheUintId> FheUint<Id> {
@@ -27,14 +27,16 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// let dec_result: u16 = ct_res.decrypt(&client_key);
     /// ```
-    pub fn generate_oblivious_pseudo_random(seed: Seed) -> Self {
+    pub fn generate_oblivious_pseudo_random(seed: impl OprfSeed) -> Self {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
+                let sk = key.pbs_key();
                 let ct = key
-                    .pbs_key()
+                    .oprf_key()
                     .par_generate_oblivious_pseudo_random_unsigned_integer(
                         seed,
                         Id::num_blocks(key.message_modulus()) as u64,
+                        sk,
                     );
 
                 Self::new(ct, key.tag.clone(), ReRandomizationMetadata::default())
@@ -43,11 +45,11 @@ impl<Id: FheUintId> FheUint<Id> {
             InternalServerKey::Cuda(cuda_key) => {
                 let streams = &cuda_key.streams;
                 let d_ct: CudaUnsignedRadixCiphertext = cuda_key
-                    .key
-                    .key
+                    .oprf_key()
                     .par_generate_oblivious_pseudo_random_unsigned_integer(
                         seed,
                         Id::num_blocks(cuda_key.message_modulus()) as u64,
+                        cuda_key.pbs_key(),
                         streams,
                     );
 
@@ -86,9 +88,11 @@ impl<Id: FheUintId> FheUint<Id> {
             if let InternalServerKey::Cuda(cuda_key) = key {
                 let streams = &cuda_key.streams;
                 cuda_key
-                    .key
-                    .key
-                    .get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(streams)
+                    .oprf_key()
+                    .get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(
+                        cuda_key.pbs_key(),
+                        streams,
+                    )
             } else {
                 0
             }
@@ -115,15 +119,20 @@ impl<Id: FheUintId> FheUint<Id> {
     /// let dec_result: u16 = ct_res.decrypt(&client_key);
     /// assert!(dec_result < (1 << random_bits_count));
     /// ```
-    pub fn generate_oblivious_pseudo_random_bounded(seed: Seed, random_bits_count: u64) -> Self {
+    pub fn generate_oblivious_pseudo_random_bounded(
+        seed: impl OprfSeed,
+        random_bits_count: u64,
+    ) -> Self {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
+                let sk = key.pbs_key();
                 let ct = key
-                    .pbs_key()
+                    .oprf_key()
                     .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                         seed,
                         random_bits_count,
                         Id::num_blocks(key.message_modulus()) as u64,
+                        sk,
                     );
 
                 Self::new(ct, key.tag.clone(), ReRandomizationMetadata::default())
@@ -132,12 +141,12 @@ impl<Id: FheUintId> FheUint<Id> {
             InternalServerKey::Cuda(cuda_key) => {
                 let streams = &cuda_key.streams;
                 let d_ct: CudaUnsignedRadixCiphertext = cuda_key
-                    .key
-                    .key
+                    .oprf_key()
                     .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                         seed,
                         random_bits_count,
                         Id::num_blocks(cuda_key.message_modulus()) as u64,
+                        cuda_key.pbs_key(),
                         streams,
                     );
                 Self::new(
@@ -196,7 +205,7 @@ impl<Id: FheUintId> FheUint<Id> {
     /// assert!(dec_result < excluded_upper_bound.get() as u16);
     /// ```
     pub fn generate_oblivious_pseudo_random_custom_range(
-        seed: Seed,
+        seed: impl OprfSeed,
         range: &RangeForRandom,
         max_distance: Option<f64>,
     ) -> Self {
@@ -226,13 +235,15 @@ impl<Id: FheUintId> FheUint<Id> {
 
                     let num_blocks_output = Id::num_blocks(key.message_modulus()) as u64;
 
+                    let sk = key.pbs_key();
                     let ct = key
-                        .pbs_key()
+                        .oprf_key()
                         .par_generate_oblivious_pseudo_random_unsigned_custom_range(
                             seed,
                             num_input_random_bits,
                             excluded_upper_bound,
                             num_blocks_output,
+                            sk,
                         );
 
                     Self::new(ct, key.tag.clone(), ReRandomizationMetadata::default())
@@ -250,12 +261,13 @@ impl<Id: FheUintId> FheUint<Id> {
                     let num_blocks_output = Id::num_blocks(cuda_key.message_modulus()) as u64;
 
                     let ct = cuda_key
-                        .pbs_key()
+                        .oprf_key()
                         .par_generate_oblivious_pseudo_random_unsigned_custom_range(
                             seed,
                             num_input_random_bits,
                             excluded_upper_bound.get(),
                             num_blocks_output,
+                            cuda_key.pbs_key(),
                             &cuda_key.streams,
                         );
 
@@ -292,9 +304,9 @@ impl<Id: FheUintId> FheUint<Id> {
             if let InternalServerKey::Cuda(cuda_key) = key {
                 let streams = &cuda_key.streams;
                 cuda_key
-                    .key
-                    .key
+                    .oprf_key()
                     .get_par_generate_oblivious_pseudo_random_unsigned_integer_bounded_size_on_gpu(
+                        cuda_key.pbs_key(),
                         streams,
                     )
             } else {
@@ -325,14 +337,16 @@ impl<Id: FheIntId> FheInt<Id> {
     /// assert!(dec_result < 1 << 7);
     /// assert!(dec_result >= -(1 << 7));
     /// ```
-    pub fn generate_oblivious_pseudo_random(seed: Seed) -> Self {
+    pub fn generate_oblivious_pseudo_random(seed: impl OprfSeed) -> Self {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
+                let sk = key.pbs_key();
                 let ct = key
-                    .pbs_key()
+                    .oprf_key()
                     .par_generate_oblivious_pseudo_random_signed_integer(
                         seed,
                         Id::num_blocks(key.message_modulus()) as u64,
+                        sk,
                     );
                 Self::new(ct, key.tag.clone(), ReRandomizationMetadata::default())
             }
@@ -340,11 +354,11 @@ impl<Id: FheIntId> FheInt<Id> {
             InternalServerKey::Cuda(cuda_key) => {
                 let streams = &cuda_key.streams;
                 let d_ct: CudaSignedRadixCiphertext = cuda_key
-                    .key
-                    .key
+                    .oprf_key()
                     .par_generate_oblivious_pseudo_random_signed_integer(
                         seed,
                         Id::num_blocks(cuda_key.message_modulus()) as u64,
+                        cuda_key.pbs_key(),
                         streams,
                     );
 
@@ -384,9 +398,11 @@ impl<Id: FheIntId> FheInt<Id> {
             if let InternalServerKey::Cuda(cuda_key) = key {
                 let streams = &cuda_key.streams;
                 cuda_key
-                    .key
-                    .key
-                    .get_par_generate_oblivious_pseudo_random_signed_integer_size_on_gpu(streams)
+                    .oprf_key()
+                    .get_par_generate_oblivious_pseudo_random_signed_integer_size_on_gpu(
+                        cuda_key.pbs_key(),
+                        streams,
+                    )
             } else {
                 0
             }
@@ -414,15 +430,20 @@ impl<Id: FheIntId> FheInt<Id> {
     /// assert!(dec_result >= 0);
     /// assert!(dec_result < 1 << random_bits_count);
     /// ```
-    pub fn generate_oblivious_pseudo_random_bounded(seed: Seed, random_bits_count: u64) -> Self {
+    pub fn generate_oblivious_pseudo_random_bounded(
+        seed: impl OprfSeed,
+        random_bits_count: u64,
+    ) -> Self {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
+                let sk = key.pbs_key();
                 let ct = key
-                    .pbs_key()
+                    .oprf_key()
                     .par_generate_oblivious_pseudo_random_signed_integer_bounded(
                         seed,
                         random_bits_count,
                         Id::num_blocks(key.message_modulus()) as u64,
+                        sk,
                     );
 
                 Self::new(ct, key.tag.clone(), ReRandomizationMetadata::default())
@@ -431,12 +452,12 @@ impl<Id: FheIntId> FheInt<Id> {
             InternalServerKey::Cuda(cuda_key) => {
                 let streams = &cuda_key.streams;
                 let d_ct: CudaSignedRadixCiphertext = cuda_key
-                    .key
-                    .key
+                    .oprf_key()
                     .par_generate_oblivious_pseudo_random_signed_integer_bounded(
                         seed,
                         random_bits_count,
                         Id::num_blocks(cuda_key.message_modulus()) as u64,
+                        cuda_key.pbs_key(),
                         streams,
                     );
                 Self::new(
@@ -474,9 +495,9 @@ impl<Id: FheIntId> FheInt<Id> {
             if let InternalServerKey::Cuda(cuda_key) = key {
                 let streams = &cuda_key.streams;
                 cuda_key
-                    .key
-                    .key
+                    .oprf_key()
                     .get_par_generate_oblivious_pseudo_random_unsigned_integer_bounded_size_on_gpu(
+                        cuda_key.pbs_key(),
                         streams,
                     )
             } else {
@@ -570,6 +591,7 @@ mod test {
     };
     use crate::prelude::FheDecrypt;
     use crate::shortint::oprf::test::test_uniformity;
+    use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
     use crate::{generate_keys, set_server_key, ConfigBuilder, FheUint8, Seed};
     use num_bigint::BigUint;
@@ -707,7 +729,9 @@ mod test {
     #[test]
     fn test_uniformity_generate_oblivious_pseudo_random_custom_range_cpu() {
         let params = PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
-        let config = ConfigBuilder::with_custom_parameters(params).build();
+        let config = ConfigBuilder::with_custom_parameters(params)
+            .use_dedicated_oprf_key(true)
+            .build();
         let (cks, sks) = generate_keys(config);
         rayon::broadcast(|_| set_server_key(sks.clone()));
         let message_modulus = cks.message_modulus();
@@ -738,8 +762,10 @@ mod test {
                 let real_values: Vec<u64> = (0..sample_count)
                     .into_par_iter()
                     .map(|_| {
+                        let seed = Seed(rand::thread_rng().gen::<u128>());
+
                         let img = FheUint8::generate_oblivious_pseudo_random_custom_range(
-                            Seed(rand::thread_rng().gen::<u128>()),
+                            seed,
                             &range,
                             Some(max_distance),
                         );
@@ -820,6 +846,50 @@ mod test {
         }
     }
 
+    /// Test that OPRF generation works without a dedicated OPRF key by falling
+    /// back to the compute server key's bootstrapping key.
+    #[test]
+    fn test_oprf_fallback_without_dedicated_key() {
+        // Explicitly disable OPRF so no dedicated OPRF key is generated.
+        let config = ConfigBuilder::default()
+            .use_dedicated_oprf_key(false)
+            .build();
+        let (client_key, server_key) = generate_keys(config);
+        set_server_key(server_key);
+
+        let ct = FheUint8::generate_oblivious_pseudo_random(Seed(42));
+        let result: u16 = ct.decrypt(&client_key);
+        // 8-bit value must fit in [0, 256)
+        assert!(result < 256);
+
+        let ct_bounded = FheUint8::generate_oblivious_pseudo_random_bounded(Seed(42), 3);
+        let result_bounded: u16 = ct_bounded.decrypt(&client_key);
+        assert!(result_bounded < (1 << 3));
+    }
+
+    /// Test OPRF with BootstrapKeyswitch (PBS_KS) parameter order.
+    ///
+    /// This exercises the keyswitch-after-bootstrap code path in
+    /// `OprfBootstrappingKey::generate_pseudo_random_bits`.
+    #[test]
+    fn test_oprf_with_pbs_ks_params() {
+        let config = ConfigBuilder::with_custom_parameters(
+            TEST_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
+        )
+        .use_dedicated_oprf_key(true)
+        .build();
+        let (client_key, server_key) = generate_keys(config);
+        set_server_key(server_key);
+
+        let ct = FheUint8::generate_oblivious_pseudo_random(Seed(123));
+        let result: u16 = ct.decrypt(&client_key);
+        assert!(result < 256);
+
+        let ct_bounded = FheUint8::generate_oblivious_pseudo_random_bounded(Seed(456), 3);
+        let result_bounded: u16 = ct_bounded.decrypt(&client_key);
+        assert!(result_bounded < (1 << 3));
+    }
+
     #[cfg(feature = "gpu")]
     mod gpu {
         use super::*;
@@ -838,13 +908,11 @@ mod test {
         fn test_oprf_gpu() {
             for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
                 let _ck = setup_fn();
-                let seed = Seed(0);
-
-                let img = FheUint64::generate_oblivious_pseudo_random_bounded(seed, 1);
+                let img = FheUint64::generate_oblivious_pseudo_random_bounded(Seed(0), 1);
 
                 assert_eq!(img.ciphertext.into_cpu().blocks.len(), 32);
 
-                let img = FheInt128::generate_oblivious_pseudo_random_bounded(seed, 1);
+                let img = FheInt128::generate_oblivious_pseudo_random_bounded(Seed(0), 1);
 
                 assert_eq!(img.ciphertext.into_cpu().blocks.len(), 64);
             }
@@ -864,7 +932,9 @@ mod test {
         #[test]
         fn test_uniformity_generate_oblivious_pseudo_random_custom_range_gpu() {
             let params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-            let config = ConfigBuilder::with_custom_parameters(params).build();
+            let config = ConfigBuilder::with_custom_parameters(params)
+                .use_dedicated_oprf_key(true)
+                .build();
             let cks = ClientKey::generate(config);
             let message_modulus = cks.message_modulus();
 
@@ -921,8 +991,9 @@ mod test {
                                             rand::thread_rng()
                                         },
                                         |rng, _| {
+                                            let seed = Seed(rng.gen::<u128>());
                                             let img = FheUint8::generate_oblivious_pseudo_random_custom_range(
-                                                Seed(rng.gen::<u128>()),
+                                                seed,
                                                 &range,
                                                 Some(max_distance),
                                             );

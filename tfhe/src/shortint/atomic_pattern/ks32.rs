@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use tfhe_csprng::seeders::Seed;
 use tfhe_versionable::Versionize;
 
 use super::{
@@ -10,14 +9,12 @@ use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_lwe_keyswitch_key, extract_lwe_sample_from_glwe_ciphertext,
     keyswitch_lwe_ciphertext_with_scalar_change, CiphertextModulus as CoreCiphertextModulus,
-    LweCiphertext, LweCiphertextOwned, LweDimension, LweKeyswitchKeyOwned, MonomialDegree,
-    MsDecompressionType,
+    LweCiphertext, LweDimension, LweKeyswitchKeyOwned, MonomialDegree, MsDecompressionType,
 };
 use crate::shortint::backward_compatibility::atomic_pattern::KS32AtomicPatternServerKeyVersions;
-use crate::shortint::ciphertext::{CompressedModulusSwitchedCiphertext, Degree, NoiseLevel};
+use crate::shortint::ciphertext::{CompressedModulusSwitchedCiphertext, NoiseLevel};
 use crate::shortint::client_key::atomic_pattern::KS32AtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::oprf::generate_pseudo_random_from_pbs;
 use crate::shortint::parameters::KeySwitch32PBSParameters;
 use crate::shortint::server_key::{
     decompress_and_apply_lookup_table, switch_modulus_and_compress, LookupTableOwned,
@@ -189,21 +186,6 @@ impl AtomicPattern for KS32AtomicPatternServerKey {
 
     fn deterministic_execution(&self) -> bool {
         self.bootstrapping_key.deterministic_pbs_execution()
-    }
-
-    fn generate_oblivious_pseudo_random(
-        &self,
-        seed: Seed,
-        random_bits_count: u64,
-        full_bits_count: u64,
-    ) -> (LweCiphertextOwned<u64>, Degree) {
-        generate_pseudo_random_from_pbs(
-            &self.bootstrapping_key,
-            seed,
-            random_bits_count,
-            full_bits_count,
-            self.ciphertext_modulus(),
-        )
     }
 
     fn switch_modulus_and_compress(&self, ct: &Ciphertext) -> CompressedModulusSwitchedCiphertext {

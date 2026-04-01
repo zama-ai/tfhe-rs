@@ -17,18 +17,16 @@ pub use expanded::{
 use std::any::Any;
 
 use serde::{Deserialize, Serialize};
-use tfhe_csprng::seeders::Seed;
 use tfhe_versionable::Versionize;
 
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
-    GlweDimension, LweCiphertextOwned, LweDimension, MsDecompressionType, PolynomialSize,
+    GlweDimension, LweDimension, MsDecompressionType, PolynomialSize,
 };
 
 use super::backward_compatibility::atomic_pattern::*;
 use super::ciphertext::{
     CompressedModulusSwitchedCiphertext, CompressedModulusSwitchedCiphertextConformanceParams,
-    Degree,
 };
 use super::client_key::atomic_pattern::AtomicPatternClientKey;
 use super::engine::ShortintEngine;
@@ -125,19 +123,6 @@ pub trait AtomicPattern {
     fn lookup_table_size(&self) -> LookupTableSize;
 
     fn kind(&self) -> AtomicPatternKind;
-
-    /// Uniformly generates a random encrypted value in `[0, 2^random_bits_count[`
-    ///
-    /// `full_bits_count` is the size of the lwe message, ie the shortint message + carry + padding
-    /// bit.
-    /// The output in in the form 0000rrr000noise (random_bits_count=3, full_bits_count=7)
-    /// The encrypted value is oblivious to the server
-    fn generate_oblivious_pseudo_random(
-        &self,
-        seed: Seed,
-        random_bits_count: u64,
-        full_bits_count: u64,
-    ) -> (LweCiphertextOwned<u64>, Degree);
 
     /// Returns true if the Atomic Pattern will execute deterministically
     fn deterministic_execution(&self) -> bool;
@@ -259,15 +244,6 @@ impl<T: AtomicPattern> AtomicPattern for &T {
 
     fn kind(&self) -> AtomicPatternKind {
         (*self).kind()
-    }
-
-    fn generate_oblivious_pseudo_random(
-        &self,
-        seed: Seed,
-        random_bits_count: u64,
-        full_bits_count: u64,
-    ) -> (LweCiphertextOwned<u64>, Degree) {
-        (*self).generate_oblivious_pseudo_random(seed, random_bits_count, full_bits_count)
     }
 
     fn deterministic_execution(&self) -> bool {
@@ -393,25 +369,6 @@ impl AtomicPattern for AtomicPatternServerKey {
             Self::Standard(ap) => ap.deterministic_execution(),
             Self::KeySwitch32(ap) => ap.deterministic_execution(),
             Self::Dynamic(ap) => ap.deterministic_execution(),
-        }
-    }
-
-    fn generate_oblivious_pseudo_random(
-        &self,
-        seed: Seed,
-        random_bits_count: u64,
-        full_bits_count: u64,
-    ) -> (LweCiphertextOwned<u64>, Degree) {
-        match self {
-            Self::Standard(ap) => {
-                ap.generate_oblivious_pseudo_random(seed, random_bits_count, full_bits_count)
-            }
-            Self::KeySwitch32(ap) => {
-                ap.generate_oblivious_pseudo_random(seed, random_bits_count, full_bits_count)
-            }
-            Self::Dynamic(ap) => {
-                ap.generate_oblivious_pseudo_random(seed, random_bits_count, full_bits_count)
-            }
         }
     }
 

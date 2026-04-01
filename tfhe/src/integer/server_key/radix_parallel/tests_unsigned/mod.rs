@@ -39,6 +39,7 @@ use super::tests_cases_unsigned::*;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::oprf::OprfServerKey;
 use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
@@ -645,7 +646,7 @@ impl<F> OpSequenceCpuFunctionExecutor<F> {
         Self { sks: None, func }
     }
     pub(crate) fn setup_from_cpu_keys(&mut self, sks: &CompressedServerKey) {
-        let (isks, _, _, _, _, _, _, _) = sks.decompress().into_raw_parts();
+        let (isks, _, _, _, _, _, _, _, _) = sks.decompress().into_raw_parts();
         self.sks = Some(Arc::new(isks));
     }
 }
@@ -664,7 +665,7 @@ where
         sks: &CompressedServerKey,
         _seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
     ) {
-        let (isks, _, _, _, _, _, _, _) = sks.decompress().into_raw_parts();
+        let (isks, _, _, _, _, _, _, _, _) = sks.decompress().into_raw_parts();
         self.sks = Some(Arc::new(isks));
     }
 
@@ -732,6 +733,84 @@ where
     fn execute(&mut self, input: (I1, I2, I3, I4)) -> O {
         let sks = self.sks.as_ref().expect("setup was not properly called");
         (self.func)(sks, input.0, input.1, input.2, input.3)
+    }
+}
+
+/// Specialized executor that has a dedicated OprfServerKey
+/// in order to do oprf calls
+pub(crate) struct CpuOprfExecutor<F> {
+    pub(crate) sks: Option<(OprfServerKey, ServerKey)>,
+    pub(crate) func: F,
+}
+
+impl<F> CpuOprfExecutor<F> {
+    pub(crate) fn new(func: F) -> Self {
+        Self { sks: None, func }
+    }
+    pub(crate) fn setup_from_cpu_keys(&mut self, sks: &CompressedServerKey) {
+        let (isks, _, _, _, _, _, _, oprf_key, _) = sks.decompress().into_raw_parts();
+        let oprf_key = oprf_key.expect("OprfServerKey is required for the CpuOprfExecutor");
+        self.sks = Some((oprf_key, isks));
+    }
+}
+
+/// For binary operations
+impl<F, I1, I2, O> OpSequenceFunctionExecutor<(I1, I2), O> for CpuOprfExecutor<F>
+where
+    F: Fn(&OprfServerKey, I1, I2, &ServerKey) -> O,
+{
+    fn setup(
+        &mut self,
+        _cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        _seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_from_cpu_keys(sks);
+    }
+
+    fn execute(&mut self, input: (I1, I2)) -> O {
+        let (oprf_key, sks) = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(oprf_key, input.0, input.1, sks)
+    }
+}
+
+/// For ternary operations
+impl<F, I1, I2, I3, O> OpSequenceFunctionExecutor<(I1, I2, I3), O> for CpuOprfExecutor<F>
+where
+    F: Fn(&OprfServerKey, I1, I2, I3, &ServerKey) -> O,
+{
+    fn setup(
+        &mut self,
+        _cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        _seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_from_cpu_keys(sks);
+    }
+
+    fn execute(&mut self, input: (I1, I2, I3)) -> O {
+        let (oprf_key, sks) = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(oprf_key, input.0, input.1, input.2, sks)
+    }
+}
+
+/// For 4-ary operations
+impl<F, I1, I2, I3, I4, O> OpSequenceFunctionExecutor<(I1, I2, I3, I4), O> for CpuOprfExecutor<F>
+where
+    F: Fn(&OprfServerKey, I1, I2, I3, I4, &ServerKey) -> O,
+{
+    fn setup(
+        &mut self,
+        _cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        _seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_from_cpu_keys(sks);
+    }
+
+    fn execute(&mut self, input: (I1, I2, I3, I4)) -> O {
+        let (oprf_key, sks) = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(oprf_key, input.0, input.1, input.2, input.3, sks)
     }
 }
 
