@@ -10,7 +10,7 @@ language = "C"
 
 ############## Options for Wrapping the Contents of the Header #################
 
-header = "// Copyright © 2025 ZAMA.\n// All rights reserved."
+header = "// Copyright © 2026 ZAMA.\n// All rights reserved."
 # trailer = "/* Text to put at the end of the generated file */"
 include_guard = "TFHE_RS_C_API_H"
 # pragma_once = true
