@@ -33,7 +33,10 @@ impl FheBool {
             InternalServerKey::Cpu(key) => {
                 let sk = &key.pbs_key().key;
 
-                let ct = sk.generate_oblivious_pseudo_random(seed, 1);
+                let ct = key
+                    .require_oprf_key()
+                    .0
+                    .generate_oblivious_pseudo_random(seed, 1, sk);
                 (
                     InnerBoolean::Cpu(BooleanBlock::new_unchecked(ct)),
                     key.tag.clone(),
@@ -43,9 +46,8 @@ impl FheBool {
             InternalServerKey::Cuda(cuda_key) => {
                 let streams = &cuda_key.streams;
                 let d_ct: CudaUnsignedRadixCiphertext = cuda_key
-                    .key
-                    .key
-                    .generate_oblivious_pseudo_random(seed, 1, streams);
+                    .require_oprf_key()
+                    .generate_oblivious_pseudo_random(seed, 1, cuda_key.pbs_key(), streams);
                 (
                     InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
                         d_ct.ciphertext,
@@ -70,7 +72,7 @@ mod test {
 
     #[test]
     fn test_oprf_boolean() {
-        let config = crate::ConfigBuilder::default().build();
+        let config = crate::ConfigBuilder::default().enable_oprf(true).build();
         let client_key = crate::ClientKey::generate(config);
         let compressed_server_key = crate::CompressedServerKey::new(&client_key);
         let gpu_key = compressed_server_key.decompress_to_gpu();

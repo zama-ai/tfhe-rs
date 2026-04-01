@@ -9,4 +9,4 @@ pub mod server_key;
 pub mod zk;
 
 pub use ffi::*;
-pub use server_key::CudaServerKey;
+pub use server_key::{CudaOprfServerKey, CudaServerKey};

@@ -130,3 +130,23 @@ impl From<UninitializedDecompressionKey> for Error {
         Self::new(format!("{value}"))
     }
 }
+
+#[derive(Debug)]
+pub struct UninitializedOprfKey;
+
+impl Display for UninitializedOprfKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "The oprf key was not properly initialized.\n\
+             Did you forget to call `enable_oprf` when building your Config ?\
+            ",
+        )
+    }
+}
+
+impl From<UninitializedOprfKey> for Error {
+    fn from(value: UninitializedOprfKey) -> Self {
+        Self::new(format!("{value}"))
+    }
+}

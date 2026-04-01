@@ -130,6 +130,7 @@ extended-types = []
 
 pbs-stats = []
 noise-asserts = []
+allow-deprecated-oprf-fallback = []
 
 # Experimental section
 experimental = []

@@ -1,10 +1,13 @@
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::oprf::{OprfPrivateKey, OprfServerKey};
 use crate::integer::server_key::radix_parallel::tests_long_run::{
     get_long_test_iterations, get_user_defined_seed, sanity_check_op_sequence_result_bool,
     sanity_check_op_sequence_result_i64, sanity_check_op_sequence_result_u64,
     OpSequenceFunctionExecutor, RandomOpSequenceDataGenerator, NB_CTXT_LONG_RUN,
 };
-use crate::integer::server_key::radix_parallel::tests_unsigned::OpSequenceCpuFunctionExecutor;
+use crate::integer::server_key::radix_parallel::tests_unsigned::{
+    CpuOprfExecutor, OpSequenceCpuFunctionExecutor,
+};
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
@@ -497,11 +500,10 @@ where
         ),
     ];
 
-    let signed_oprf_executor = OpSequenceCpuFunctionExecutor::new(
-        &ServerKey::par_generate_oblivious_pseudo_random_signed_integer,
-    );
-    let signed_oprf_bounded_executor = OpSequenceCpuFunctionExecutor::new(
-        &ServerKey::par_generate_oblivious_pseudo_random_signed_integer_bounded,
+    let signed_oprf_executor =
+        CpuOprfExecutor::new(&OprfServerKey::par_generate_oblivious_pseudo_random_signed_integer);
+    let signed_oprf_bounded_executor = CpuOprfExecutor::new(
+        &OprfServerKey::par_generate_oblivious_pseudo_random_signed_integer_bounded,
     );
 
     let mut signed_oprf_ops: Vec<(SignedOprfExecutor, String)> = vec![(
@@ -635,9 +637,18 @@ where
 
     let param = param.into();
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let oprf_private_key = OprfPrivateKey::new(&cks);
 
-    let temp_cks =
-        ClientKey::from_raw_parts(cks.clone(), None, None, None, None, None, Tag::default());
+    let temp_cks = ClientKey::from_raw_parts(
+        cks.clone(),
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(oprf_private_key),
+        Tag::default(),
+    );
     let comp_sks = CompressedServerKey::new(&temp_cks);
 
     sks.set_deterministic_pbs_execution(true);

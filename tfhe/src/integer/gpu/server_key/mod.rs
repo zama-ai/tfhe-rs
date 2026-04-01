@@ -21,8 +21,11 @@ use crate::shortint::atomic_pattern::expanded::{
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;
+use crate::shortint::oprf::ExpandedOprfBootstrappingKey;
 use crate::shortint::parameters::ModulusSwitchType;
+use crate::shortint::prelude::PolynomialSize;
 use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
+pub use radix::CudaOprfServerKey;
 
 mod radix;
 
@@ -72,13 +75,51 @@ where
             }
         }
     }
-}
 
-impl<Scalar: UnsignedInteger> CudaBootstrappingKey<Scalar> {
+    pub(crate) fn polynomial_size(&self) -> PolynomialSize {
+        match self {
+            Self::Classic(bsk) => bsk.polynomial_size,
+            Self::MultiBit(mb_bsk) => mb_bsk.polynomial_size,
+        }
+    }
+
+    pub(crate) fn input_lwe_dimension(&self) -> LweDimension {
+        match self {
+            Self::Classic(bsk) => bsk.input_lwe_dimension,
+            Self::MultiBit(mb_bsk) => mb_bsk.input_lwe_dimension,
+        }
+    }
+
     pub(crate) fn output_lwe_dimension(&self) -> LweDimension {
         match self {
             Self::Classic(bsk) => bsk.output_lwe_dimension(),
             Self::MultiBit(mb_bsk) => mb_bsk.output_lwe_dimension(),
+        }
+    }
+}
+
+impl CudaBootstrappingKey<u64> {
+    pub(crate) fn from_expanded_oprf_server_key(
+        expanded_bsk: &ExpandedOprfBootstrappingKey,
+        streams: &CudaStreams,
+    ) -> crate::Result<Self> {
+        match expanded_bsk {
+            ExpandedOprfBootstrappingKey::Classic { bsk } => {
+                let d_bootstrap_key =
+                    CudaLweBootstrapKey::from_lwe_bootstrap_key(bsk, None, streams);
+
+                Ok(Self::Classic(d_bootstrap_key))
+            }
+            ExpandedOprfBootstrappingKey::MultiBit {
+                bsk,
+                thread_count: _,
+                deterministic_execution: _,
+            } => {
+                let d_bootstrap_key =
+                    CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(bsk, streams);
+
+                Ok(Self::MultiBit(d_bootstrap_key))
+            }
         }
     }
 }

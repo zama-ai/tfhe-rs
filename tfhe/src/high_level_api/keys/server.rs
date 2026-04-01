@@ -3,6 +3,8 @@ use crate::backward_compatibility::keys::{CompressedServerKeyVersions, ServerKey
 use crate::conformance::ParameterSetConformant;
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::CudaStreams;
+#[cfg(any(feature = "gpu", not(feature = "allow-deprecated-oprf-fallback")))]
+use crate::high_level_api::errors::{UninitializedOprfKey, UnwrapResultExt};
 #[cfg(feature = "gpu")]
 use crate::high_level_api::keys::inner::CudaReRandomizationKey;
 #[cfg(feature = "gpu")]
@@ -21,6 +23,9 @@ use crate::integer::compression_keys::{
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::re_randomization::CudaReRandomizationKey as IntegerCudaReRandomizationKey;
 use crate::integer::noise_squashing::{CompressedNoiseSquashingKey, NoiseSquashingKey};
+#[cfg(feature = "allow-deprecated-oprf-fallback")]
+use crate::integer::oprf::GenericOprfServerKey;
+use crate::integer::oprf::{CompressedOprfServerKey, OprfServerKey, OprfServerKeyView};
 use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use crate::integer::public_key::compact::CompactPublicKey;
 use crate::named::Named;
@@ -85,6 +90,7 @@ impl ServerKey {
         Option<NoiseSquashingKey>,
         Option<NoiseSquashingCompressionKey>,
         Option<ReRandomizationKey>,
+        Option<OprfServerKey>,
         Tag,
     ) {
         let IntegerServerKey {
@@ -95,6 +101,7 @@ impl ServerKey {
             noise_squashing_key,
             noise_squashing_compression_key,
             cpk_re_randomization_key,
+            oprf_key,
         } = (*self.key).clone();
 
         (
@@ -105,6 +112,7 @@ impl ServerKey {
             noise_squashing_key,
             noise_squashing_compression_key,
             cpk_re_randomization_key,
+            oprf_key,
             self.tag,
         )
     }
@@ -120,6 +128,7 @@ impl ServerKey {
         noise_squashing_key: Option<NoiseSquashingKey>,
         noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
         cpk_re_randomization_key: Option<ReRandomizationKey>,
+        oprf_key: Option<OprfServerKey>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -131,6 +140,7 @@ impl ServerKey {
                 noise_squashing_key,
                 noise_squashing_compression_key,
                 cpk_re_randomization_key,
+                oprf_key,
             }),
             tag,
         }
@@ -138,6 +148,29 @@ impl ServerKey {
 
     pub(in crate::high_level_api) fn pbs_key(&self) -> &crate::integer::ServerKey {
         self.key.pbs_key()
+    }
+
+    pub(in crate::high_level_api) fn oprf_key(
+        &self,
+    ) -> Option<&crate::integer::oprf::OprfServerKey> {
+        self.key.oprf_key.as_ref()
+    }
+
+    /// Returns an OPRF key reference for pseudo-random generation.
+    ///
+    /// If a dedicated OPRF key was generated, it is used.
+    /// Without one, the behavior depends on the `allow-deprecated-oprf-fallback` feature:
+    /// - enabled: falls back to the compute server key's bootstrapping key
+    /// - disabled (default): panics, pointing to `enable_oprf` on the config
+    pub(in crate::high_level_api) fn require_oprf_key(&self) -> OprfServerKeyView<'_> {
+        #[allow(clippy::option_if_let_else)]
+        match self.oprf_key() {
+            Some(dedicated) => dedicated.as_view(),
+            #[cfg(feature = "allow-deprecated-oprf-fallback")]
+            None => GenericOprfServerKey(self.pbs_key().key.as_oprf_key_view()),
+            #[cfg(not(feature = "allow-deprecated-oprf-fallback"))]
+            None => Err(UninitializedOprfKey).unwrap_display(),
+        }
     }
 
     #[cfg(feature = "strings")]
@@ -393,10 +426,11 @@ impl CompressedServerKey {
         Option<CompressedNoiseSquashingKey>,
         Option<CompressedNoiseSquashingCompressionKey>,
         Option<CompressedReRandomizationKey>,
+        Option<CompressedOprfServerKey>,
         Tag,
     ) {
-        let (a, b, c, d, e, f, g) = self.integer_key.into_raw_parts();
-        (a, b, c, d, e, f, g, self.tag)
+        let (a, b, c, d, e, f, g, h) = self.integer_key.into_raw_parts();
+        (a, b, c, d, e, f, g, h, self.tag)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -410,6 +444,7 @@ impl CompressedServerKey {
         noise_squashing_key: Option<CompressedNoiseSquashingKey>,
         noise_squashing_compression_key: Option<CompressedNoiseSquashingCompressionKey>,
         cpk_re_randomization_key: Option<CompressedReRandomizationKey>,
+        oprf_key: Option<CompressedOprfServerKey>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -421,6 +456,7 @@ impl CompressedServerKey {
                 noise_squashing_key,
                 noise_squashing_compression_key,
                 cpk_re_randomization_key,
+                oprf_key,
             ),
             tag,
         }
@@ -495,6 +531,15 @@ impl CudaServerKey {
             key_switching_key_material: self.key.cpk_key_switching_key_material.as_ref().unwrap(),
             dest_server_key: &self.key.key,
         }
+    }
+
+    pub(crate) fn oprf_key(&self) -> Option<&crate::integer::gpu::CudaOprfServerKey> {
+        self.key.oprf_key.as_ref()
+    }
+
+    #[track_caller]
+    pub(crate) fn require_oprf_key(&self) -> &crate::integer::gpu::CudaOprfServerKey {
+        self.oprf_key().ok_or(UninitializedOprfKey).unwrap_display()
     }
 
     pub fn gpu_indexes(&self) -> &[GpuIndex] {
