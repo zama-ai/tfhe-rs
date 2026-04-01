@@ -17,6 +17,10 @@ on:
         description: "Run GPU core-crypto benchmarks"
         type: boolean
         default: true
+      run-gpu-zk-benchmarks:
+        description: "Run GPU ZK benchmarks"
+        type: boolean
+        default: true
       run-hpu-benchmarks:
         description: "Run HPU benchmarks"
         type: boolean
@@ -165,21 +169,42 @@ jobs:
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
+  run-benchmarks-gpu-zk-server:
+    name: benchmark_documentation/run-benchmarks-gpu-zk-server
+    uses: ./.github/workflows/benchmark_gpu_common.yml
+    if: inputs.run-gpu-zk-benchmarks
+    with:
+      profile: multi-h100-sxm5
+      hardware_name: n3-H100-SXM5x8
+      command: integer_zk
+      op_flavor: default
+      bench_type: both
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
   generate-svgs-with-benchmarks-run:
     name: benchmark-documentation/generate-svgs-with-benchmarks-run
     if: ${{ always() &&
-      (inputs.run-cpu-benchmarks || inputs.run-gpu-integer-benchmarks || inputs.run-gpu-core-crypto-benchmarks ||inputs.run-hpu-benchmarks) &&
+      (inputs.run-cpu-benchmarks || inputs.run-gpu-integer-benchmarks || inputs.run-gpu-core-crypto-benchmarks || inputs.run-gpu-zk-benchmarks || inputs.run-hpu-benchmarks) &&
       inputs.generate-svgs }}
     needs: [
       run-benchmarks-cpu-integer, run-benchmarks-gpu-integer, run-benchmarks-hpu-integer,
       run-benchmarks-cpu-zk-server, run-benchmarks-cpu-zk-client,
-      run-benchmarks-cpu-core-crypto, run-benchmarks-gpu-core-crypto
+      run-benchmarks-cpu-core-crypto, run-benchmarks-gpu-core-crypto,
+      run-benchmarks-gpu-zk-server
     ]
     uses: ./.github/workflows/generate_svgs.yml
     with:
       time_span_days: 5
       generate-cpu-svgs: ${{ inputs.run-cpu-benchmarks }}
-      generate-gpu-svgs: ${{ inputs.run-gpu-integer-benchmarks || inputs.run-gpu-core-crypto-benchmarks }}
+      generate-gpu-svgs: ${{ inputs.run-gpu-integer-benchmarks || inputs.run-gpu-core-crypto-benchmarks || inputs.run-gpu-zk-benchmarks }}
       generate-hpu-svgs: ${{ inputs.run-hpu-benchmarks }}
     secrets:
       DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
@@ -188,7 +213,7 @@ jobs:
 
   generate-svgs-without-benchmarks-run:
     name: benchmark-documentation/generate-svgs-without-benchmarks-run
-    if: ${{ !(inputs.run-cpu-benchmarks || inputs.run-gpu-integer-benchmarks || inputs.run-gpu-core-crypto-benchmarks || inputs.run-hpu-benchmarks) &&
+    if: ${{ !(inputs.run-cpu-benchmarks || inputs.run-gpu-integer-benchmarks || inputs.run-gpu-core-crypto-benchmarks || inputs.run-gpu-zk-benchmarks || inputs.run-hpu-benchmarks) &&
       inputs.generate-svgs }}
     uses: ./.github/workflows/generate_svgs.yml
     with:

@@ -209,6 +209,44 @@ jobs:
       DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
       DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
 
+  gpu-zk-server-latency-table:
+    name: generate_documentation_svgs/gpu-zk-server-latency-table
+    uses: ./.github/workflows/generate_svg_common.yml
+    if: inputs.generate-gpu-svgs
+    with:
+      backend: gpu
+      hardware_name: n3-H100-SXM5x8
+      layer: integer
+      bench_subset: zk
+      pbs_kind: multi_bit
+      grouping_factor: 4
+      bench_type: latency
+      time_span_days: ${{ inputs.time_span_days }}
+      output_filename: gpu-zk-benchmark-latency
+    secrets:
+      DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
+      DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
+      DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
+
+  gpu-zk-server-throughput-table:
+    name: generate_documentation_svgs/gpu-zk-server-throughput-table
+    uses: ./.github/workflows/generate_svg_common.yml
+    if: inputs.generate-gpu-svgs
+    with:
+      backend: gpu
+      hardware_name: n3-H100-SXM5x8
+      layer: integer
+      bench_subset: zk
+      pbs_kind: multi_bit
+      grouping_factor: 4
+      bench_type: throughput
+      time_span_days: ${{ inputs.time_span_days }}
+      output_filename: gpu-zk-benchmark-throughput
+    secrets:
+      DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
+      DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
+      DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
+
   # -----------------------------------------------------------
   # ERC20 benchmarks tables
   # -----------------------------------------------------------
