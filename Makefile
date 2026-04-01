@@ -451,7 +451,7 @@ clippy_integer: install_rs_check_toolchain
 		--features=integer,experimental \
 		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=integer,experimental,extended-types \
+		--features=integer,experimental,extended-types,allow-deprecated-oprf-fallback \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy # Run clippy lints enabling the boolean, shortint, integer

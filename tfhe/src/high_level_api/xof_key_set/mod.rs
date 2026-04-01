@@ -6,6 +6,7 @@ use crate::backward_compatibility::xof_key_set::{
     CompressedXofKeySetVersions, XofSeedStartVersions,
 };
 use crate::core_crypto::commons::generators::MaskRandomGenerator;
+use crate::integer::oprf::CompressedOprfServerKey;
 use crate::keys::{
     CompressedReRandomizationKey, IntegerServerKeyConformanceParams, ReRandomizationKeyGenInfo,
 };
@@ -359,6 +360,14 @@ impl CompressedXofKeySet {
                 },
             );
 
+        let oprf_key = ck.key.oprf_private_key.as_ref().map(|sk| {
+            CompressedOprfServerKey::generate_with_pre_seeded_generator(
+                sk,
+                &ck.key.key,
+                &mut encryption_rand_gen,
+            )
+        });
+
         let compressed_server_key = CompressedServerKey::from_raw_parts(
             integer_compressed_server_key,
             Some(integer_ksk_material),
@@ -367,6 +376,7 @@ impl CompressedXofKeySet {
             noise_squashing_bs_key,
             noise_squashing_compression_key,
             cpk_re_randomization_key,
+            oprf_key,
             ck.tag.clone(),
         );
 

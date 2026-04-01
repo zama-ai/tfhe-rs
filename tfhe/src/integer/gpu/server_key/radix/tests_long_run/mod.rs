@@ -3,7 +3,7 @@ use crate::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::radix::tests_unsigned::GpuContext;
-use crate::integer::gpu::CudaServerKey;
+use crate::integer::gpu::{CudaOprfServerKey, CudaServerKey};
 use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
 use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, SignedRadixCiphertext, U256};
 use crate::{CompressedServerKey, CudaGpuChoice, CustomMultiGpuIndexes, GpuIndex, MatchValues};
@@ -83,10 +83,16 @@ impl<F> OpSequenceGpuMultiDeviceFunctionExecutor<F> {
         let streams = gpu_choice.build_streams();
 
         let cuda_key = CudaServerKey::decompress_from_cpu(&sks.integer_key.key, &streams);
+        let oprf_key = sks
+            .integer_key
+            .oprf_key
+            .as_ref()
+            .map(|k| CudaOprfServerKey::from_expanded_cpu(&k.expand(), &streams));
 
         let context = GpuContext {
             streams,
             sks: cuda_key,
+            oprf_key,
         };
         self.context = Some(context);
     }
@@ -1552,7 +1558,13 @@ where
 impl<F> OpSequenceFunctionExecutor<(Seed, u64), RadixCiphertext>
     for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
-    F: Fn(&CudaServerKey, Seed, u64, &CudaStreams) -> CudaUnsignedRadixCiphertext,
+    F: Fn(
+        &CudaOprfServerKey,
+        Seed,
+        u64,
+        &CudaServerKey,
+        &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext,
 {
     fn setup(
         &mut self,
@@ -1568,8 +1580,9 @@ where
             .context
             .as_ref()
             .expect("setup was not properly called");
+        let oprf_key = context.oprf_key.as_ref().expect("OPRF key not set");
 
-        let gpu_result = (self.func)(&context.sks, input.0, input.1, &context.streams);
+        let gpu_result = (self.func)(oprf_key, input.0, input.1, &context.sks, &context.streams);
 
         gpu_result.to_radix_ciphertext(&context.streams)
     }
@@ -1579,7 +1592,14 @@ where
 impl<F> OpSequenceFunctionExecutor<(Seed, u64, u64), RadixCiphertext>
     for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
-    F: Fn(&CudaServerKey, Seed, u64, u64, &CudaStreams) -> CudaUnsignedRadixCiphertext,
+    F: Fn(
+        &CudaOprfServerKey,
+        Seed,
+        u64,
+        u64,
+        &CudaServerKey,
+        &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext,
 {
     fn setup(
         &mut self,
@@ -1595,8 +1615,16 @@ where
             .context
             .as_ref()
             .expect("setup was not properly called");
+        let oprf_key = context.oprf_key.as_ref().expect("OPRF key not set");
 
-        let gpu_result = (self.func)(&context.sks, input.0, input.1, input.2, &context.streams);
+        let gpu_result = (self.func)(
+            oprf_key,
+            input.0,
+            input.1,
+            input.2,
+            &context.sks,
+            &context.streams,
+        );
 
         gpu_result.to_radix_ciphertext(&context.streams)
     }
@@ -1606,7 +1634,15 @@ where
 impl<F> OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>
     for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
-    F: Fn(&CudaServerKey, Seed, u64, u64, u64, &CudaStreams) -> CudaUnsignedRadixCiphertext,
+    F: Fn(
+        &CudaOprfServerKey,
+        Seed,
+        u64,
+        u64,
+        u64,
+        &CudaServerKey,
+        &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext,
 {
     fn setup(
         &mut self,
@@ -1622,13 +1658,15 @@ where
             .context
             .as_ref()
             .expect("setup was not properly called");
+        let oprf_key = context.oprf_key.as_ref().expect("OPRF key not set");
 
         let gpu_result = (self.func)(
-            &context.sks,
+            oprf_key,
             input.0,
             input.1,
             input.2,
             input.3,
+            &context.sks,
             &context.streams,
         );
 
@@ -1640,7 +1678,7 @@ where
 impl<F> OpSequenceFunctionExecutor<(Seed, u64), SignedRadixCiphertext>
     for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
-    F: Fn(&CudaServerKey, Seed, u64, &CudaStreams) -> CudaSignedRadixCiphertext,
+    F: Fn(&CudaOprfServerKey, Seed, u64, &CudaServerKey, &CudaStreams) -> CudaSignedRadixCiphertext,
 {
     fn setup(
         &mut self,
@@ -1656,8 +1694,9 @@ where
             .context
             .as_ref()
             .expect("setup was not properly called");
+        let oprf_key = context.oprf_key.as_ref().expect("OPRF key not set");
 
-        let gpu_result = (self.func)(&context.sks, input.0, input.1, &context.streams);
+        let gpu_result = (self.func)(oprf_key, input.0, input.1, &context.sks, &context.streams);
 
         gpu_result.to_signed_radix_ciphertext(&context.streams)
     }
@@ -1667,7 +1706,14 @@ where
 impl<F> OpSequenceFunctionExecutor<(Seed, u64, u64), SignedRadixCiphertext>
     for OpSequenceGpuMultiDeviceFunctionExecutor<F>
 where
-    F: Fn(&CudaServerKey, Seed, u64, u64, &CudaStreams) -> CudaSignedRadixCiphertext,
+    F: Fn(
+        &CudaOprfServerKey,
+        Seed,
+        u64,
+        u64,
+        &CudaServerKey,
+        &CudaStreams,
+    ) -> CudaSignedRadixCiphertext,
 {
     fn setup(
         &mut self,
@@ -1683,8 +1729,16 @@ where
             .context
             .as_ref()
             .expect("setup was not properly called");
+        let oprf_key = context.oprf_key.as_ref().expect("OPRF key not set");
 
-        let gpu_result = (self.func)(&context.sks, input.0, input.1, input.2, &context.streams);
+        let gpu_result = (self.func)(
+            oprf_key,
+            input.0,
+            input.1,
+            input.2,
+            &context.sks,
+            &context.streams,
+        );
 
         gpu_result.to_signed_radix_ciphertext(&context.streams)
     }

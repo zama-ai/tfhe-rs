@@ -453,6 +453,25 @@ where
             Self::MultiBit { .. } => None,
         }
     }
+
+    /// Returns a view of the bootstrapping key suitable for OPRF generation.
+    #[cfg(feature = "allow-deprecated-oprf-fallback")]
+    pub fn as_oprf_bsk_view(&self) -> crate::shortint::oprf::OprfBootstrappingKeyView<'_> {
+        match self {
+            Self::Classic { bsk, .. } => {
+                crate::shortint::oprf::OprfBootstrappingKey::Classic { bsk: bsk.as_view() }
+            }
+            Self::MultiBit {
+                fourier_bsk,
+                thread_count,
+                deterministic_execution,
+            } => crate::shortint::oprf::OprfBootstrappingKey::MultiBit {
+                fourier_bsk: fourier_bsk.as_view(),
+                thread_count: *thread_count,
+                deterministic_execution: *deterministic_execution,
+            },
+        }
+    }
 }
 
 /// A structure containing the server public key.
@@ -660,6 +679,27 @@ impl ServerKey {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.new_server_key_with_max_degree(cks, max_degree)
         })
+    }
+
+    /// Returns a view of the server key's bootstrapping key that can be used
+    /// for OPRF generation.
+    #[cfg(feature = "allow-deprecated-oprf-fallback")]
+    pub fn as_oprf_key_view(&self) -> crate::shortint::oprf::OprfServerKeyView<'_> {
+        use crate::shortint::oprf::{GenericAtomicPatternOprfServerKey, GenericOprfServerKey};
+        let inner = match &self.atomic_pattern {
+            AtomicPatternServerKey::Standard(std) => GenericAtomicPatternOprfServerKey::Standard(
+                std.bootstrapping_key.as_oprf_bsk_view(),
+            ),
+            AtomicPatternServerKey::KeySwitch32(ks32) => {
+                GenericAtomicPatternOprfServerKey::KeySwitch32(
+                    ks32.bootstrapping_key.as_oprf_bsk_view(),
+                )
+            }
+            AtomicPatternServerKey::Dynamic(_) => {
+                panic!("Dynamic atomic pattern does not support oprf")
+            }
+        };
+        GenericOprfServerKey { inner }
     }
 }
 
@@ -1489,14 +1529,15 @@ pub(crate) fn apply_ms_blind_rotate<InputScalar, InputCont, OutputScalar, Output
     }
 }
 
-pub(crate) fn apply_standard_blind_rotate<OutputScalar, OutputCont>(
-    fourier_bsk: &FourierLweBootstrapKeyOwned,
+pub(crate) fn apply_standard_blind_rotate<OutputScalar, OutputCont, BskCont>(
+    fourier_bsk: &FourierLweBootstrapKey<BskCont>,
     msed_lwe_in: &impl ModulusSwitchedLweCiphertext<usize>,
     acc: &mut GlweCiphertext<OutputCont>,
     buffers: &mut ComputationBuffers,
 ) where
     OutputScalar: UnsignedTorus + CastFrom<usize>,
     OutputCont: ContainerMut<Element = OutputScalar>,
+    BskCont: Container<Element = c64>,
 {
     #[cfg(feature = "pbs-stats")]
     let _ = PBS_COUNT.fetch_add(1, Ordering::Relaxed);

@@ -11,6 +11,7 @@ use crate::integer::key_switching_key::{
 };
 use crate::integer::noise_squashing::{CompressedNoiseSquashingKey, NoiseSquashingPrivateKey};
 
+use crate::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey};
 use crate::shortint::atomic_pattern::compressed::{
     CompressedAtomicPatternServerKey, CompressedKS32AtomicPatternServerKey,
     CompressedStandardAtomicPatternServerKey,
@@ -20,6 +21,7 @@ use crate::shortint::client_key::atomic_pattern::{
 };
 use crate::shortint::noise_squashing::atomic_pattern::compressed::CompressedAtomicPatternNoiseSquashingKey;
 use crate::shortint::noise_squashing::CompressedShortint128BootstrappingKey;
+use crate::shortint::oprf::ExpandedOprfServerKey;
 use crate::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, CompressionParameters,
     NoiseSquashingCompressionParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
@@ -154,6 +156,44 @@ impl crate::integer::ClientKey {
     }
 }
 
+impl OprfPrivateKey {
+    fn generate_with_pre_seeded_generator<G>(
+        params: AtomicPatternParameters,
+        max_norm_hwt: NormalizedHammingWeightBound,
+        secret_generator: &mut SecretRandomGenerator<G>,
+    ) -> Self
+    where
+        G: ByteRandomGenerator,
+    {
+        let sk = match params {
+            shortint::AtomicPatternParameters::Standard(std_params) => {
+                let mut lwe_secret_key =
+                    LweSecretKey::new_empty_key(0u64, std_params.lwe_dimension());
+                generate_binary_lwe_secret_key_with_bounded_hamming_weight(
+                    &mut lwe_secret_key,
+                    secret_generator,
+                    max_norm_hwt,
+                );
+
+                crate::shortint::oprf::AtomicPatternOprfPrivateKey::Standard(lwe_secret_key)
+            }
+            shortint::AtomicPatternParameters::KeySwitch32(ks32_params) => {
+                let mut lwe_secret_key =
+                    LweSecretKey::new_empty_key(0u32, ks32_params.lwe_dimension());
+                generate_binary_lwe_secret_key_with_bounded_hamming_weight(
+                    &mut lwe_secret_key,
+                    secret_generator,
+                    max_norm_hwt,
+                );
+
+                crate::shortint::oprf::AtomicPatternOprfPrivateKey::KeySwitch32(lwe_secret_key)
+            }
+        };
+
+        Self::from_raw_parts(crate::shortint::oprf::OprfPrivateKey::from_raw_parts(sk))
+    }
+}
+
 impl crate::integer::compression_keys::CompressionPrivateKeys {
     pub(super) fn generate_with_pre_seeded_generator<G>(
         params: CompressionParameters,
@@ -276,6 +316,14 @@ impl ClientKey {
             crate::integer::ciphertext::NoiseSquashingCompressionPrivateKey::generate_with_pre_seeded_generator(params, max_norm_hwt, secret_generator)
         });
 
+        let oprf_private_key = config.inner.oprf.then(|| {
+            OprfPrivateKey::generate_with_pre_seeded_generator(
+                config.inner.block_parameters,
+                max_norm_hwt,
+                secret_generator,
+            )
+        });
+
         Ok(Self {
             key: crate::high_level_api::keys::IntegerClientKey {
                 key: integer_ck,
@@ -288,6 +336,7 @@ impl ClientKey {
                 noise_squashing_compression_private_key:
                     integer_private_noise_squashing_compression_key,
                 cpk_re_randomization_params: config.inner.cpk_re_randomization_params,
+                oprf_private_key,
             },
             tag,
         })
@@ -462,6 +511,12 @@ impl crate::CompressedServerKey {
             .as_ref()
             .map(|ns_comp_key| ns_comp_key.decompress_with_pre_seeded_generator(generator));
 
+        let oprf_key = self
+            .integer_key
+            .oprf_key
+            .as_ref()
+            .map(|key| key.decompress_with_pre_seeded_generator(generator));
+
         IntegerExpandedServerKey {
             compute_key,
             cpk_key_switching_key_material,
@@ -470,6 +525,7 @@ impl crate::CompressedServerKey {
             noise_squashing_key,
             noise_squashing_compression_key,
             cpk_re_randomization_key,
+            oprf_key,
         }
     }
 }
@@ -623,6 +679,149 @@ impl integer::compression_keys::CompressedDecompressionKey {
             bsk: bsk.decompress_with_pre_seeded_generator(generator),
             lwe_per_glwe,
         }
+    }
+}
+
+impl CompressedOprfServerKey {
+    pub(super) fn generate_with_pre_seeded_generator<Gen>(
+        private_oprf_key: &OprfPrivateKey,
+        client_key: &crate::integer::ClientKey,
+        generator: &mut EncryptionRandomGenerator<Gen>,
+    ) -> Self
+    where
+        Gen: ByteRandomGenerator + ParallelByteRandomGenerator,
+    {
+        use crate::shortint::oprf::{
+            CompressedAtomicPatternOprfServerKey, CompressedOprfBootstrappingKey,
+        };
+
+        let ap_key = match (&private_oprf_key.0 .0, &client_key.key.atomic_pattern) {
+            (
+                crate::shortint::oprf::AtomicPatternOprfPrivateKey::Standard(oprf_lwe_sk),
+                AtomicPatternClientKey::Standard(ck),
+            ) => {
+                let bsk = match ck.parameters {
+                    PBSParameters::PBS(pbs_params) => {
+                        let seeded_bsk =
+                            allocate_and_generate_lwe_bootstrapping_key_with_pre_seeded_generator(
+                                oprf_lwe_sk,
+                                &ck.glwe_secret_key,
+                                pbs_params.pbs_base_log,
+                                pbs_params.pbs_level,
+                                pbs_params.glwe_noise_distribution,
+                                pbs_params.ciphertext_modulus,
+                                generator,
+                            );
+                        CompressedOprfBootstrappingKey::Classic { seeded_bsk }
+                    }
+                    PBSParameters::MultiBitPBS(mb_params) => {
+                        let mut seeded_bsk = SeededLweMultiBitBootstrapKeyOwned::new(
+                            0u64,
+                            ck.glwe_secret_key.glwe_dimension().to_glwe_size(),
+                            ck.glwe_secret_key.polynomial_size(),
+                            mb_params.pbs_base_log,
+                            mb_params.pbs_level,
+                            oprf_lwe_sk.lwe_dimension(),
+                            mb_params.grouping_factor,
+                            generator.mask_generator().current_compression_seed(),
+                            mb_params.ciphertext_modulus,
+                        );
+
+                        par_generate_seeded_lwe_multi_bit_bootstrap_key_with_pre_seeded_generator(
+                            oprf_lwe_sk,
+                            &ck.glwe_secret_key,
+                            &mut seeded_bsk,
+                            mb_params.glwe_noise_distribution,
+                            generator,
+                        );
+
+                        CompressedOprfBootstrappingKey::MultiBit {
+                            seeded_bsk,
+                            deterministic_execution: mb_params.deterministic_execution,
+                        }
+                    }
+                };
+                CompressedAtomicPatternOprfServerKey::Standard(bsk)
+            }
+            (
+                crate::shortint::oprf::AtomicPatternOprfPrivateKey::KeySwitch32(oprf_lwe_sk),
+                AtomicPatternClientKey::KeySwitch32(ck),
+            ) => {
+                let seeded_bsk =
+                    allocate_and_generate_lwe_bootstrapping_key_with_pre_seeded_generator(
+                        oprf_lwe_sk,
+                        &ck.glwe_secret_key,
+                        ck.parameters.pbs_base_log,
+                        ck.parameters.pbs_level,
+                        ck.parameters.glwe_noise_distribution,
+                        ck.parameters.ciphertext_modulus,
+                        generator,
+                    );
+                CompressedAtomicPatternOprfServerKey::KeySwitch32(
+                    CompressedOprfBootstrappingKey::Classic { seeded_bsk },
+                )
+            }
+            _ => panic!("Mismatched atomic patterns for oprf key and client key"),
+        };
+
+        Self(crate::shortint::oprf::CompressedOprfServerKey { inner: ap_key })
+    }
+
+    pub(super) fn decompress_with_pre_seeded_generator<Gen>(
+        &self,
+        generator: &mut MaskRandomGenerator<Gen>,
+    ) -> ExpandedOprfServerKey
+    where
+        Gen: ByteRandomGenerator + ParallelByteRandomGenerator,
+    {
+        use crate::shortint::oprf::{
+            CompressedAtomicPatternOprfServerKey, CompressedOprfBootstrappingKey,
+            ExpandedOprfBootstrappingKey,
+        };
+
+        let (ap_variant_ctor, compressed_bsk): (
+            fn(ExpandedOprfBootstrappingKey) -> ExpandedOprfServerKey,
+            _,
+        ) = match &self.0.inner {
+            CompressedAtomicPatternOprfServerKey::Standard(bsk) => {
+                (ExpandedOprfServerKey::Standard, bsk)
+            }
+            CompressedAtomicPatternOprfServerKey::KeySwitch32(bsk) => {
+                (ExpandedOprfServerKey::KeySwitch32, bsk)
+            }
+        };
+
+        let expanded = match compressed_bsk {
+            CompressedOprfBootstrappingKey::Classic { seeded_bsk } => {
+                let bsk = decompress_bootstrap_key_with_pre_seeded_generator(seeded_bsk, generator);
+                ExpandedOprfBootstrappingKey::Classic { bsk }
+            }
+            CompressedOprfBootstrappingKey::MultiBit {
+                seeded_bsk,
+                deterministic_execution,
+            } => {
+                let bsk =
+                    par_decompress_seeded_lwe_multi_bit_bootstrap_key_to_new_with_pre_seeded_generator(
+                        seeded_bsk, generator,
+                    );
+                let thread_count =
+                    crate::shortint::engine::ShortintEngine::get_thread_count_for_multi_bit_pbs(
+                        seeded_bsk.input_lwe_dimension(),
+                        seeded_bsk.glwe_size().to_glwe_dimension(),
+                        seeded_bsk.polynomial_size(),
+                        seeded_bsk.decomposition_base_log(),
+                        seeded_bsk.decomposition_level_count(),
+                        seeded_bsk.grouping_factor(),
+                    );
+                ExpandedOprfBootstrappingKey::MultiBit {
+                    bsk,
+                    thread_count,
+                    deterministic_execution: *deterministic_execution,
+                }
+            }
+        };
+
+        ap_variant_ctor(expanded)
     }
 }
 
