@@ -1,4 +1,4 @@
-use super::Degree;
+use super::{Degree, ExpandedCiphertextList};
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
 use crate::core_crypto::prelude::{LweCiphertextCount, LweCiphertextListConformanceParams};
@@ -116,10 +116,31 @@ impl ProvenCompactCiphertextList {
         self.expand_without_verification(casting_mode)
     }
 
+    /// Expands a ciphertext list without applying any casting or verification
+    ///
+    /// Returns None if the list is empty
     #[doc(hidden)]
+    pub fn expand_raw(&self) -> crate::Result<Option<ExpandedCiphertextList>> {
+        let mut result = None;
+        for (ct_list, _) in &self.proved_lists {
+            if ct_list.is_empty() {
+                continue;
+            }
+
+            let expanded = ct_list.expand_without_casting();
+            let merged = match result {
+                None => expanded,
+                Some(prev) => ExpandedCiphertextList::merge(prev, expanded)?,
+            };
+            result = Some(merged);
+        }
+        Ok(result)
+    }
+
     /// This function allows to expand a ciphertext without verifying the associated proof.
     ///
     /// If you are here you were probably looking for it: use at your own risks.
+    #[doc(hidden)]
     pub fn expand_without_verification(
         &self,
         casting_mode: ShortintCompactCiphertextListCastingMode<'_>,
