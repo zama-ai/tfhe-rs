@@ -1,8 +1,9 @@
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::tests_long_run::OpSequenceGpuMultiDeviceFunctionExecutor;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
-use crate::integer::gpu::CudaServerKey;
+use crate::integer::gpu::{CudaOprfServerKey, CudaServerKey};
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::oprf::OprfPrivateKey;
 use crate::integer::server_key::radix_parallel::tests_long_run::test_random_op_sequence::{
     random_op_sequence_test, BinaryOpExecutor, ComparisonOpExecutor, DivRemOpExecutor,
     Log2OpExecutor, MatchValueExecutor, MatchValueOrExecutor, OprfBoundedExecutor,
@@ -69,8 +70,18 @@ where
 {
     let param = param.into();
     let (cks0, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let oprf_private_key = OprfPrivateKey::new(&cks0);
 
-    let cks = ClientKey::from_raw_parts(cks0.clone(), None, None, None, None, None, Tag::default());
+    let cks = ClientKey::from_raw_parts(
+        cks0.clone(),
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(oprf_private_key),
+        Tag::default(),
+    );
     let comp_sks = CompressedServerKey::new(&cks);
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
@@ -800,13 +811,13 @@ where
 
     // OPRF Executors
     let oprf_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
-        &CudaServerKey::par_generate_oblivious_pseudo_random_unsigned_integer,
+        &CudaOprfServerKey::par_generate_oblivious_pseudo_random_unsigned_integer,
     );
     let oprf_bounded_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
-        &CudaServerKey::par_generate_oblivious_pseudo_random_unsigned_integer_bounded,
+        &CudaOprfServerKey::par_generate_oblivious_pseudo_random_unsigned_integer_bounded,
     );
     let oprf_custom_range_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
-        &CudaServerKey::par_generate_oblivious_pseudo_random_unsigned_custom_range,
+        &CudaOprfServerKey::par_generate_oblivious_pseudo_random_unsigned_custom_range,
     );
 
     let mut oprf_ops: Vec<(OprfExecutor, String)> = vec![(

@@ -33,6 +33,7 @@ pub(crate) fn setup_gpu(params: Option<impl Into<TestParameters>>) -> ClientKey 
         .map_or_else(ConfigBuilder::default, |p| {
             ConfigBuilder::with_custom_parameters(p.into())
         })
+        .enable_oprf(true)
         .build();
 
     let client_key = ClientKey::generate(config);

@@ -205,6 +205,7 @@ fn test_try_from_single_lwe_encryption_key() {
         None,
         None,
         None,
+        None,
         Tag::default(),
     );
     let sks = ServerKey::new(&client_key);

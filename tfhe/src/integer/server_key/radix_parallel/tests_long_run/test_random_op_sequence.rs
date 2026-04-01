@@ -1,10 +1,13 @@
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::oprf::{OprfPrivateKey, OprfServerKey};
 use crate::integer::server_key::radix_parallel::tests_long_run::{
     get_long_test_iterations, get_user_defined_seed, sanity_check_op_sequence_result_bool,
     sanity_check_op_sequence_result_u64, OpSequenceFunctionExecutor, RandomOpSequenceDataGenerator,
     NB_CTXT_LONG_RUN,
 };
-use crate::integer::server_key::radix_parallel::tests_unsigned::OpSequenceCpuFunctionExecutor;
+use crate::integer::server_key::radix_parallel::tests_unsigned::{
+    CpuOprfExecutor, OpSequenceCpuFunctionExecutor,
+};
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;
@@ -492,26 +495,40 @@ where
     )];
 
     // OPRF Executors
-    let oprf_executor = OpSequenceCpuFunctionExecutor::new(
-        &ServerKey::par_generate_oblivious_pseudo_random_unsigned_integer,
+    let oprf_executor = CpuOprfExecutor::new(
+        |oprf_sks: &OprfServerKey, seed: Seed, num_blocks: u64, sk: &ServerKey| {
+            oprf_sks.par_generate_oblivious_pseudo_random_unsigned_integer(seed, num_blocks, sk)
+        },
     );
-    let oprf_bounded_executor = OpSequenceCpuFunctionExecutor::new(
-        &ServerKey::par_generate_oblivious_pseudo_random_unsigned_integer_bounded,
+    let oprf_bounded_executor = CpuOprfExecutor::new(
+        |oprf_key: &OprfServerKey,
+         seed: Seed,
+         random_bits_count: u64,
+         num_blocks: u64,
+         target_sks: &ServerKey| {
+            oprf_key.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                seed,
+                random_bits_count,
+                num_blocks,
+                target_sks,
+            )
+        },
     );
-    let oprf_custom_range_executor = OpSequenceCpuFunctionExecutor::new(
-        &|sk: &ServerKey,
-          seed: Seed,
-          num_input_random_bits: u64,
-          excluded_upper_bound: u64,
-          num_blocks_output: u64| {
-            sk.par_generate_oblivious_pseudo_random_unsigned_custom_range(
+    let oprf_custom_range_executor =
+        CpuOprfExecutor::new(&|oprf_sk: &OprfServerKey,
+                               seed: Seed,
+                               num_input_random_bits: u64,
+                               excluded_upper_bound: u64,
+                               num_blocks_output: u64,
+                               sk: &ServerKey| {
+            oprf_sk.par_generate_oblivious_pseudo_random_unsigned_custom_range(
                 seed,
                 num_input_random_bits,
                 NonZeroU64::new(excluded_upper_bound).unwrap_or(NonZeroU64::new(1).unwrap()),
                 num_blocks_output,
+                sk,
             )
-        },
-    );
+        });
 
     let mut oprf_ops: Vec<(OprfExecutor, String)> = vec![(
         Box::new(oprf_executor),
@@ -616,9 +633,18 @@ where
 {
     let param = param.into();
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let oprf_priv_key = OprfPrivateKey::new(&cks);
 
-    let temp_cks =
-        ClientKey::from_raw_parts(cks.clone(), None, None, None, None, None, Tag::default());
+    let temp_cks = ClientKey::from_raw_parts(
+        cks.clone(),
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(oprf_priv_key),
+        Tag::default(),
+    );
     let comp_sks = CompressedServerKey::new(&temp_cks);
 
     let total_num_ops = binary_ops.len()
