@@ -340,11 +340,11 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                                     }
                                 }
                                 if iop.opcode() == IOpcode(40) {
-                                    let res = clear_res[0] + (clear_res[1] << 16);
-                                    let expected = (srcs_clear[0] * srcs_clear[1]) % (1 << 32);
-                                    println!("{i}: {:x} ?= ({:x} * {:x})%2**32 = {:?}", res, srcs_clear[0], srcs_clear[1], expected);
+                                    let res = clear_res[0] + (clear_res[1] << width/2);
+                                    let expected = (srcs_clear[0] * srcs_clear[1]) % (1 << width);
+                                    println!("{i}: {:x} ?= ({:x} * {:x})%2**{width:?} = {:?}", res, srcs_clear[0], srcs_clear[1], expected);
                                     if res != expected {
-                                        println!("ERROR {i}: {:x} /= ({:x} * {:x})%2**32", res, srcs_clear[0], srcs_clear[1]);
+                                        println!("ERROR {i}: {:x} /= ({:x} * {:x})%2**{width:?}", res, srcs_clear[0], srcs_clear[1]);
                                         err_cnt+=1;
                                     }
                                 }

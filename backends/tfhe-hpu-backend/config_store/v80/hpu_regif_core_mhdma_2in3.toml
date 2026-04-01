@@ -1,4 +1,4 @@
-module_name="hpu_regif_core_eth_2in3"
+module_name="hpu_regif_core_mhdma_2in3"
 description="HPU ethernet configuration register interface. Will be accessed by RPU to define registers."
 word_size_b = 32
 offset = 0x50000
@@ -217,8 +217,20 @@ offset= 0x100
   read_access="Read"
   write_access="None"
   default={Cst=0x0}
+[section.mhdma_request.register.stat_t_notify_to_ack_max]
+  description="Longuest time between notify tlast and ack reception in decoder (in this session)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x0}
 [section.mhdma_request.register.stat_t_rr_to_ce_received]
   description="time between read request tlast and all pkt received from ce"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x0}
+[section.mhdma_request.register.stat_t_rr_to_ce_received_max]
+  description="Longuest time between read request tlast and all pkt received from ce (in this session)"
   owner="Kernel"
   read_access="Read"
   write_access="None"
