@@ -56,6 +56,27 @@ impl ParameterSetConformant for CompactCiphertextList {
 }
 
 impl CompactCiphertextList {
+    /// Expands a `CompactCiphertextList` by extracting the individual LWEs, but do not perform any
+    /// operations (casting, sanitizing, ...)
+    pub(crate) fn expand_without_casting(&self) -> ExpandedCiphertextList {
+        let mut output_lwe_ciphertext_list = LweCiphertextList::new(
+            0u64,
+            self.ct_list.lwe_size(),
+            self.ct_list.lwe_ciphertext_count(),
+            self.ct_list.ciphertext_modulus(),
+        );
+
+        par_expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
+
+        ExpandedCiphertextList {
+            ct_list: output_lwe_ciphertext_list,
+            degree: self.degree,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            expansion_kind: self.expansion_kind,
+        }
+    }
+
     /// Expand a [`CompactCiphertextList`] to a `Vec` of [`Ciphertext`].
     ///
     /// The function takes a [`ShortintCompactCiphertextListCastingMode`] to indicate whether a
@@ -68,94 +89,9 @@ impl CompactCiphertextList {
         &self,
         casting_mode: ShortintCompactCiphertextListCastingMode<'_>,
     ) -> Result<Vec<Ciphertext>, crate::Error> {
-        let mut output_lwe_ciphertext_list = LweCiphertextList::new(
-            0u64,
-            self.ct_list.lwe_size(),
-            self.ct_list.lwe_ciphertext_count(),
-            self.ct_list.ciphertext_modulus(),
-        );
+        let expanded = self.expand_without_casting();
 
-        par_expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
-
-        match (self.expansion_kind, casting_mode) {
-            (
-                CompactCiphertextListExpansionKind::RequiresCasting,
-                ShortintCompactCiphertextListCastingMode::NoCasting,
-            ) => Err(crate::Error::new(String::from(
-                "Cannot expand a CompactCiphertextList that requires casting without casting, \
-                    please provide a shortint::KeySwitchingKey passing it with the enum variant \
-                    CompactCiphertextListExpansionMode::CastIfNecessary as casting_mode.",
-            ))),
-            (
-                CompactCiphertextListExpansionKind::RequiresCasting,
-                ShortintCompactCiphertextListCastingMode::CastIfNecessary {
-                    casting_key,
-                    functions,
-                },
-            ) => {
-                let functions = match functions {
-                    Some(functions) => {
-                        if functions.len() != output_lwe_ciphertext_list.lwe_ciphertext_count().0 {
-                            return Err(crate::Error::new(format!(
-                            "Cannot expand a CompactCiphertextList: got {} functions for casting, \
-                            expected {}",
-                            functions.len(),
-                            output_lwe_ciphertext_list.lwe_ciphertext_count().0
-                        )));
-                        }
-                        functions
-                    }
-                    None => &vec![None; output_lwe_ciphertext_list.lwe_ciphertext_count().0],
-                };
-
-                let atomic_pattern = casting_key.dest_server_key.atomic_pattern.kind();
-
-                let res = output_lwe_ciphertext_list
-                    .par_iter()
-                    .zip(functions.par_iter())
-                    .flat_map(|(lwe_view, functions)| {
-                        let lwe_to_cast = LweCiphertext::from_container(
-                            lwe_view.as_ref().to_vec(),
-                            self.ct_list.ciphertext_modulus(),
-                        );
-                        let shortint_ct_to_cast = Ciphertext::new(
-                            lwe_to_cast,
-                            self.degree,
-                            NoiseLevel::UNKNOWN,
-                            self.message_modulus,
-                            self.carry_modulus,
-                            atomic_pattern,
-                        );
-
-                        casting_key
-                            .cast_and_apply_functions(&shortint_ct_to_cast, functions.as_deref())
-                    })
-                    .collect::<Vec<_>>();
-                Ok(res)
-            }
-            (CompactCiphertextListExpansionKind::NoCasting(atomic_pattern), _) => {
-                let res = output_lwe_ciphertext_list
-                    .iter()
-                    .map(|lwe_view| {
-                        let ct = LweCiphertext::from_container(
-                            lwe_view.as_ref().to_vec(),
-                            self.ct_list.ciphertext_modulus(),
-                        );
-
-                        Ciphertext::new(
-                            ct,
-                            self.degree,
-                            NoiseLevel::NOMINAL,
-                            self.message_modulus,
-                            self.carry_modulus,
-                            atomic_pattern,
-                        )
-                    })
-                    .collect::<Vec<_>>();
-
-                Ok(res)
-            }
-        }
+        expanded.cast_and_sanitize_if_needed(casting_mode)
     }
 
     /// Deconstruct a [`CompactCiphertextList`] into its constituents.
@@ -219,5 +155,192 @@ impl CompactCiphertextList {
 
     pub fn is_packed(&self) -> bool {
         self.degree.get() > self.message_modulus.corresponding_max_degree().get()
+    }
+
+    pub fn len(&self) -> usize {
+        self.ct_list.lwe_ciphertext_count().0
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+/// A ciphertext list that has been expanded, but no post-processing (cast, unpack, sanitize) has
+/// been applied
+#[doc(hidden)]
+pub struct ExpandedCiphertextList {
+    ct_list: LweCiphertextListOwned<u64>,
+    degree: Degree,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    expansion_kind: CompactCiphertextListExpansionKind,
+}
+
+pub struct ExpandedCiphertextListConformanceParams {
+    pub(crate) ct_list_params: LweCiphertextListConformanceParams<u64>,
+    pub(crate) message_modulus: MessageModulus,
+    pub(crate) carry_modulus: CarryModulus,
+}
+
+impl ParameterSetConformant for ExpandedCiphertextList {
+    type ParameterSet = ExpandedCiphertextListConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let is_packed = self.is_packed();
+        let Self {
+            ct_list,
+            degree,
+            message_modulus,
+            carry_modulus,
+            expansion_kind: _expansion_kind,
+        } = self;
+
+        let ExpandedCiphertextListConformanceParams {
+            ct_list_params,
+            message_modulus: params_message_modulus,
+            carry_modulus: params_carry_modulus,
+        } = parameter_set;
+
+        let expected_degree = if is_packed {
+            Degree::new(message_modulus.0 * message_modulus.0 - 1)
+        } else {
+            Degree::new(message_modulus.0 - 1)
+        };
+
+        ct_list.is_conformant(ct_list_params)
+            && message_modulus == params_message_modulus
+            && carry_modulus == params_carry_modulus
+            && *degree == expected_degree
+    }
+}
+
+impl ExpandedCiphertextList {
+    pub fn is_packed(&self) -> bool {
+        self.degree.get() > self.message_modulus.corresponding_max_degree().get()
+    }
+
+    /// Merge 2 `ExpandedCiphertextList` that come from the same
+    /// `ProvenCompactCiphertextList` into a single one.
+    ///
+    /// Returns an error if both lists do not have the same metadata.
+    #[cfg(feature = "zk-pok")]
+    pub fn merge(mut self, other: Self) -> Result<Self, crate::Error> {
+        if self.ct_list.lwe_size() != other.ct_list.lwe_size()
+            || self.ct_list.ciphertext_modulus() != other.ct_list.ciphertext_modulus()
+            || self.degree != other.degree
+            || self.message_modulus != other.message_modulus
+            || self.carry_modulus != other.carry_modulus
+            || self.expansion_kind != other.expansion_kind
+        {
+            return Err(crate::error!(
+                "Parameters in the individual lists of the proven compact ciphertext list \
+                do not match, cannot merge lists with incompatible parameters",
+            ));
+        }
+
+        let lwe_size = self.ct_list.lwe_size();
+        let modulus = self.ct_list.ciphertext_modulus();
+        let mut data = self.ct_list.into_container();
+        data.extend(other.ct_list.into_container());
+        self.ct_list = LweCiphertextList::from_container(data, lwe_size, modulus);
+        Ok(self)
+    }
+
+    /// Applies the post-processing step to the compact list, based on its
+    /// CompactCiphertextListExpansionKind and the provided casting_mode.
+    pub fn cast_and_sanitize_if_needed(
+        self,
+        casting_mode: ShortintCompactCiphertextListCastingMode<'_>,
+    ) -> Result<Vec<Ciphertext>, crate::Error> {
+        match (self.expansion_kind, casting_mode) {
+            (
+                CompactCiphertextListExpansionKind::RequiresCasting,
+                ShortintCompactCiphertextListCastingMode::NoCasting,
+            ) => Err(crate::Error::new(String::from(
+                "Cannot expand a CompactCiphertextList that requires casting without casting, \
+                    please provide a shortint::KeySwitchingKey passing it with the enum variant \
+                    CompactCiphertextListExpansionMode::CastIfNecessary as casting_mode.",
+            ))),
+            (
+                CompactCiphertextListExpansionKind::RequiresCasting,
+                ShortintCompactCiphertextListCastingMode::CastIfNecessary {
+                    casting_key,
+                    functions,
+                },
+            ) => {
+                let functions = match functions {
+                    Some(functions) => {
+                        if functions.len() != self.ct_list.lwe_ciphertext_count().0 {
+                            return Err(crate::Error::new(format!(
+                            "Cannot expand a CompactCiphertextList: got {} functions for casting, \
+                            expected {}",
+                            functions.len(),
+                            self.ct_list.lwe_ciphertext_count().0
+                        )));
+                        }
+                        functions
+                    }
+                    None => &vec![None; self.ct_list.lwe_ciphertext_count().0],
+                };
+
+                let atomic_pattern = casting_key.dest_server_key.atomic_pattern.kind();
+
+                let res = self
+                    .ct_list
+                    .par_iter()
+                    .zip(functions.par_iter())
+                    .flat_map(|(lwe_view, functions)| {
+                        let lwe_to_cast = LweCiphertext::from_container(
+                            lwe_view.as_ref().to_vec(),
+                            self.ct_list.ciphertext_modulus(),
+                        );
+                        let shortint_ct_to_cast = Ciphertext::new(
+                            lwe_to_cast,
+                            self.degree,
+                            NoiseLevel::UNKNOWN,
+                            self.message_modulus,
+                            self.carry_modulus,
+                            atomic_pattern,
+                        );
+
+                        casting_key
+                            .cast_and_apply_functions(&shortint_ct_to_cast, functions.as_deref())
+                    })
+                    .collect::<Vec<_>>();
+                Ok(res)
+            }
+            (CompactCiphertextListExpansionKind::NoCasting(atomic_pattern), _) => {
+                let res = self
+                    .ct_list
+                    .iter()
+                    .map(|lwe_view| {
+                        let ct = LweCiphertext::from_container(
+                            lwe_view.as_ref().to_vec(),
+                            self.ct_list.ciphertext_modulus(),
+                        );
+
+                        Ciphertext::new(
+                            ct,
+                            self.degree,
+                            NoiseLevel::NOMINAL,
+                            self.message_modulus,
+                            self.carry_modulus,
+                            atomic_pattern,
+                        )
+                    })
+                    .collect::<Vec<_>>();
+
+                Ok(res)
+            }
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.ct_list.lwe_ciphertext_count().0
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }

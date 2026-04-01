@@ -1,5 +1,6 @@
 //! Module containing the definition of the [`LweCiphertextList`].
 
+use tfhe_safe_serialize::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 use crate::core_crypto::backward_compatibility::entities::lwe_ciphertext_list::LweCiphertextListVersions;
@@ -8,6 +9,7 @@ use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::prelude::misc::check_encrypted_content_respects_mod;
 
 /// A contiguous list containing
 /// [`LWE ciphertexts`](`crate::core_crypto::entities::LweCiphertext`).
@@ -232,6 +234,41 @@ pub type LweCiphertextListView<'data, Scalar> = LweCiphertextList<&'data [Scalar
 /// An [`LweCiphertextList`] mutably borrowing memory for its own storage.
 pub type LweCiphertextListMutView<'data, Scalar> = LweCiphertextList<&'data mut [Scalar]>;
 
+impl<C: Container> ParameterSetConformant for LweCiphertextList<C>
+where
+    C::Element: UnsignedInteger,
+{
+    type ParameterSet = LweCiphertextListConformanceParams<C::Element>;
+
+    fn is_conformant(
+        &self,
+        lwe_ct_parameters: &LweCiphertextListConformanceParams<C::Element>,
+    ) -> bool {
+        let Self {
+            data,
+            ciphertext_modulus,
+            lwe_size,
+        } = self;
+
+        let LweCiphertextListConformanceParams {
+            lwe_dim,
+            lwe_ciphertext_count_constraint,
+            ct_modulus,
+        } = lwe_ct_parameters;
+
+        if !data.container_len().is_multiple_of(lwe_size.0) {
+            return false;
+        }
+
+        let lwe_ciphertext_count = self.lwe_ciphertext_count();
+
+        lwe_ciphertext_count_constraint.is_valid(lwe_ciphertext_count.0)
+            && check_encrypted_content_respects_mod(data, *ct_modulus)
+            && *lwe_size == lwe_dim.to_lwe_size()
+            && ciphertext_modulus == ct_modulus
+    }
+}
+
 impl<Scalar: UnsignedInteger> LweCiphertextListOwned<Scalar> {
     /// Allocate memory and create a new owned [`LweCiphertextList`].
     ///
@@ -392,4 +429,51 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
         = LweCiphertextListMutView<'this, Self::Element>
     where
         Self: 'this;
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::conformance::ListSizeConstraint;
+
+    #[test]
+    fn test_non_conformant_list_invalid_container_size() {
+        let lwe_size = LweSize(10);
+        let lwe_dimension = lwe_size.to_lwe_dimension();
+        let modulus = CiphertextModulus::new_native();
+
+        // Check that conformance is rejected if the container size is not a multiple of the lwe
+        // size
+        let mut list = LweCiphertextList::new(0u64, lwe_size, LweCiphertextCount(3), modulus);
+        list.data = vec![0u64; 33];
+
+        let params = LweCiphertextListConformanceParams {
+            lwe_dim: lwe_dimension,
+            lwe_ciphertext_count_constraint: ListSizeConstraint::exact_size(
+                list.lwe_ciphertext_count().0,
+            ),
+            ct_modulus: modulus,
+        };
+
+        assert!(!list.is_conformant(&params));
+    }
+
+    #[test]
+    fn test_conformant_list() {
+        let lwe_size = LweSize(10);
+        let lwe_dimension = lwe_size.to_lwe_dimension();
+        let modulus = CiphertextModulus::new_native();
+
+        let list = LweCiphertextList::new(0u64, lwe_size, LweCiphertextCount(3), modulus);
+
+        let params = LweCiphertextListConformanceParams {
+            lwe_dim: lwe_dimension,
+            lwe_ciphertext_count_constraint: ListSizeConstraint::exact_size(
+                list.lwe_ciphertext_count().0,
+            ),
+            ct_modulus: modulus,
+        };
+
+        assert!(list.is_conformant(&params));
+    }
 }
