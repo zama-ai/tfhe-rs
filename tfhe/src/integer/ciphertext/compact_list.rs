@@ -9,9 +9,9 @@ use crate::integer::encryption::{create_clear_radix_block_iterator, KnowsMessage
 use crate::integer::parameters::CompactCiphertextListConformanceParams;
 pub use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use crate::integer::{CompactPublicKey, ServerKey};
-use crate::shortint::ciphertext::Degree;
 #[cfg(feature = "zk-pok")]
 use crate::shortint::ciphertext::ProvenCompactCiphertextListConformanceParams;
+use crate::shortint::ciphertext::{Degree, ExpandedCiphertextList};
 use crate::shortint::parameters::{
     CastingFunctionsOwned, CiphertextListConformanceParams,
     ShortintCompactCiphertextListCastingMode,
@@ -801,19 +801,19 @@ impl IntegerUnpackingToShortintCastingModeHelper {
     }
 }
 
-type ExpansionHelperCallback<'a, ListType> = &'a dyn Fn(
-    &ListType,
-    ShortintCompactCiphertextListCastingMode<'_>,
-) -> Result<Vec<Ciphertext>, crate::Error>;
-
-fn expansion_helper<ListType>(
+/// Applies post processing on expanded ciphertext, based on the list and the expansion_mode.
+///
+/// The possible processing are:
+/// * cast to different parameters
+/// * sanitize to remove invalid values for types that do not support any bit pattern (bool,
+///   strings)
+/// * unpack if the list is packed
+fn expansion_post_process(
     expansion_mode: IntegerCompactCiphertextListExpansionMode<'_>,
-    ct_list: &ListType,
-    list_degree: Degree,
+    expanded_list: ExpandedCiphertextList,
     info: &[DataKind],
-    is_packed: bool,
-    list_expansion_fn: ExpansionHelperCallback<'_, ListType>,
 ) -> Result<Vec<Ciphertext>, crate::Error> {
+    let is_packed = expanded_list.is_packed();
     if is_packed
         && matches!(
             expansion_mode,
@@ -840,38 +840,29 @@ fn expansion_helper<ListType>(
                 function_helper.generate_sanitize_without_unpacking_functions(info)
             };
 
-            list_expansion_fn(
-                ct_list,
-                ShortintCompactCiphertextListCastingMode::CastIfNecessary {
-                    casting_key: key_switching_key_view.key,
-                    functions: Some(functions.as_slice()),
-                },
-            )
+            expanded_list.cast(ShortintCompactCiphertextListCastingMode::CastIfNecessary {
+                casting_key: key_switching_key_view.key,
+                functions: Some(functions.as_slice()),
+            })
         }
         IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(sks) => {
+            let conformance_params = sks.key.conformance_params().into();
+            if !expanded_list.is_conformant(&conformance_params) {
+                return Err(crate::Error::new(
+                    "This compact list is not conformant with the given server key".to_string(),
+                ));
+            }
+
             let expanded_blocks =
-                list_expansion_fn(ct_list, ShortintCompactCiphertextListCastingMode::NoCasting)?;
-
+                expanded_list.cast(ShortintCompactCiphertextListCastingMode::NoCasting)?;
             if is_packed {
-                let mut conformance_params = sks.key.conformance_params();
-                conformance_params.degree = list_degree;
-
-                for ct in expanded_blocks.iter() {
-                    if !ct.is_conformant(&conformance_params) {
-                        return Err(crate::Error::new(
-                            "This compact list is not conformant with the given server key"
-                                .to_string(),
-                        ));
-                    }
-                }
-
                 Ok(unpack_and_sanitize(expanded_blocks, sks, info))
             } else {
                 Ok(sanitize_blocks(expanded_blocks, sks, info))
             }
         }
         IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking => {
-            list_expansion_fn(ct_list, ShortintCompactCiphertextListCastingMode::NoCasting)
+            expanded_list.cast(ShortintCompactCiphertextListCastingMode::NoCasting)
         }
     }
 }
@@ -1034,20 +1025,11 @@ impl CompactCiphertextList {
         if self.is_empty() {
             return Ok(CompactCiphertextListExpander::new(vec![], vec![]));
         }
-
-        let is_packed = self.is_packed();
-
-        let expanded_blocks = expansion_helper(
-            expansion_mode,
-            &self.ct_list,
-            self.ct_list.degree,
-            &self.info,
-            is_packed,
-            &crate::shortint::ciphertext::CompactCiphertextList::expand,
-        )?;
+        let expanded_blocks = self.ct_list.expand_without_casting();
+        let casted_blocks = expansion_post_process(expansion_mode, expanded_blocks, &self.info)?;
 
         Ok(CompactCiphertextListExpander::new(
-            expanded_blocks,
+            casted_blocks,
             self.info.clone(),
         ))
     }
@@ -1104,40 +1086,11 @@ impl ProvenCompactCiphertextList {
         metadata: &[u8],
         expansion_mode: IntegerCompactCiphertextListExpansionMode<'_>,
     ) -> crate::Result<CompactCiphertextListExpander> {
-        if self.is_empty() {
-            if self.verify(crs, public_key, metadata) == ZkVerificationOutcome::Invalid {
-                return Err(crate::ErrorKind::InvalidZkProof.into());
-            }
-            return Ok(CompactCiphertextListExpander::new(vec![], vec![]));
+        if self.verify(crs, public_key, metadata) == ZkVerificationOutcome::Invalid {
+            return Err(crate::ErrorKind::InvalidZkProof.into());
         }
 
-        let is_packed = self.is_packed();
-
-        // Type annotation needed rust is not able to coerce the type on its own, also forces us to
-        // use a trait object
-        let callback: ExpansionHelperCallback<'_, _> = &|ct_list, expansion_mode| {
-            crate::shortint::ciphertext::ProvenCompactCiphertextList::verify_and_expand(
-                ct_list,
-                crs,
-                &public_key.key,
-                metadata,
-                expansion_mode,
-            )
-        };
-
-        let expanded_blocks = expansion_helper(
-            expansion_mode,
-            &self.ct_list,
-            self.ct_list.proved_lists[0].0.degree,
-            &self.info,
-            is_packed,
-            callback,
-        )?;
-
-        Ok(CompactCiphertextListExpander::new(
-            expanded_blocks,
-            self.info.clone(),
-        ))
+        self.expand_without_verification(expansion_mode)
     }
 
     #[doc(hidden)]
@@ -1148,19 +1101,27 @@ impl ProvenCompactCiphertextList {
         &self,
         expansion_mode: IntegerCompactCiphertextListExpansionMode<'_>,
     ) -> crate::Result<CompactCiphertextListExpander> {
-        let is_packed = self.is_packed();
+        if self.is_empty() {
+            return Ok(CompactCiphertextListExpander::new(Vec::new(), Vec::new()));
+        }
 
-        let expanded_blocks = expansion_helper(
-            expansion_mode,
-            &self.ct_list,
-            self.ct_list.proved_lists[0].0.degree,
-            &self.info,
-            is_packed,
-            &crate::shortint::ciphertext::ProvenCompactCiphertextList::expand_without_verification,
-        )?;
+        let expanded_blocks = self.ct_list.expand_raw()?;
+        let casted_blocks = match expanded_blocks {
+            Some(expanded_blocks) => {
+                expansion_post_process(expansion_mode, expanded_blocks, &self.info)?
+            }
+            // Means ct_list is empty, but the info vec is not. This should be caught by conformance
+            // but we return an error here anyways
+            None => {
+                return Err(crate::error!(
+                    "Invalid ProvenCompactCiphertextList, ct_list is empty but the info metadata \
+is not"
+                ))
+            }
+        };
 
         Ok(CompactCiphertextListExpander::new(
-            expanded_blocks,
+            casted_blocks,
             self.info.clone(),
         ))
     }
