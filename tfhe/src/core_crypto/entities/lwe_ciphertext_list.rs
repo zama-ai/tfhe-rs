@@ -1,5 +1,6 @@
 //! Module containing the definition of the [`LweCiphertextList`].
 
+use tfhe_safe_serialize::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 use crate::core_crypto::backward_compatibility::entities::lwe_ciphertext_list::LweCiphertextListVersions;
@@ -8,6 +9,7 @@ use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::prelude::misc::check_encrypted_content_respects_mod;
 
 /// A contiguous list containing
 /// [`LWE ciphertexts`](`crate::core_crypto::entities::LweCiphertext`).
@@ -231,6 +233,41 @@ pub type LweCiphertextListOwned<Scalar> = LweCiphertextList<Vec<Scalar>>;
 pub type LweCiphertextListView<'data, Scalar> = LweCiphertextList<&'data [Scalar]>;
 /// An [`LweCiphertextList`] mutably borrowing memory for its own storage.
 pub type LweCiphertextListMutView<'data, Scalar> = LweCiphertextList<&'data mut [Scalar]>;
+
+impl<C: Container> ParameterSetConformant for LweCiphertextList<C>
+where
+    C::Element: UnsignedInteger,
+{
+    type ParameterSet = LweCiphertextListConformanceParams<C::Element>;
+
+    fn is_conformant(
+        &self,
+        lwe_ct_parameters: &LweCiphertextListConformanceParams<C::Element>,
+    ) -> bool {
+        let Self {
+            data,
+            ciphertext_modulus,
+            lwe_size,
+        } = self;
+
+        let LweCiphertextListConformanceParams {
+            lwe_dim,
+            lwe_ciphertext_count_constraint,
+            ct_modulus,
+        } = lwe_ct_parameters;
+
+        if !data.container_len().is_multiple_of(lwe_size.0) {
+            return false;
+        }
+
+        let lwe_ciphertext_count = self.lwe_ciphertext_count();
+
+        lwe_ciphertext_count_constraint.is_valid(lwe_ciphertext_count.0)
+            && check_encrypted_content_respects_mod(data, *ct_modulus)
+            && *lwe_size == lwe_dim.to_lwe_size()
+            && ciphertext_modulus == ct_modulus
+    }
+}
 
 impl<Scalar: UnsignedInteger> LweCiphertextListOwned<Scalar> {
     /// Allocate memory and create a new owned [`LweCiphertextList`].
