@@ -2,7 +2,7 @@
 
 This document details the performance benchmarks of [zero-knowledge proofs](../../fhe-computation/advanced-features/zk-pok.md) for [compact public key encryption](../../fhe-computation/advanced-features/public-key.md) using **TFHE-rs**.
 
-## Server-side computation
+## CPU server-side computation
 
 {% hint style="info" %}
 Benchmarks were launched on an `AWS hpc7a.96xlarge` instance equipped with two 96-core `AMD EPYC 9R14 CPU @ 2.60GHz` and 740GB of RAM.
@@ -25,6 +25,24 @@ Proving and verification are done with tfhe-rs native executable on a powerful s
 ### Slow proof / fast verify throughput
 
 ![](../../.gitbook/assets/cpu-zk-benchmark-slow-proof-fast-verify-throughput.svg)
+
+## GPU server-side computation
+
+{% hint style="info" %}
+Benchmarks were launched on an `AWS p5.48xlarge` instance equipped with `NVIDIA H100` GPUs.
+{% endhint %}
+
+Proving and verification are done with tfhe-rs built with `--features=gpu-experimental-zk`. For details on GPU ZK acceleration, see [GPU ZK-PoKs](../../configuration/gpu-acceleration/zk-pok.md).
+
+<!-- TODO: We must set the script to generated these SVGs -->
+
+### Fast proof / slow verify latency
+
+### Fast proof / slow verify throughput
+
+### Slow proof / fast verify latency
+
+### Slow proof / fast verify throughput
 
 ## Client-side computation
 
