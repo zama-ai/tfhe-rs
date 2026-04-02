@@ -64,8 +64,8 @@ void point_msm_g2_launch_async(cudaStream_t stream, uint32_t gpu_index,
 // Public MSM API for BigInt scalars
 // ============================================================================
 // These compose launch + sync + finalize. The temporary h_window_sums buffer
-// is host-heap-allocated (via malloc) since the blocking pattern does not benefit
-// from pinned memory — the sync happens before finalize reads the data.
+// is host-heap-allocated (via malloc) since the blocking pattern does not
+// benefit from pinned memory — the sync happens before finalize reads the data.
 
 void point_msm_g1_async(cudaStream_t stream, uint32_t gpu_index,
                         G1Projective *h_result, const G1Affine *d_points,

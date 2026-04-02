@@ -253,8 +253,13 @@ pub fn g1_msm_gpu(bases: &[G1Affine], scalars: &[Zp], gpu_index: u32) -> G1 {
     );
     let stream = tfhe_cuda_backend::CudaStream::new(gpu_index);
 
-    let result =
-        zk_cuda_backend::G1Projective::msm(&gpu_bases, &gpu_scalars, stream.ptr(), gpu_index, false);
+    let result = zk_cuda_backend::G1Projective::msm(
+        &gpu_bases,
+        &gpu_scalars,
+        stream.ptr(),
+        gpu_index,
+        false,
+    );
 
     let gpu_result = result.unwrap_or_else(|e| panic!("G1 GPU MSM failed: {e}"));
 

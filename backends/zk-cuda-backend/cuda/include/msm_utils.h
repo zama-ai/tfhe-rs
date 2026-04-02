@@ -13,9 +13,9 @@
 #include "checked_arithmetic.h"
 #include "device.h"
 #include "msm.h"
+#include <condition_variable>
 #include <cstdlib>
 #include <cstring>
-#include <condition_variable>
 #include <mutex>
 
 #include "../../../tfhe-cuda-backend/cuda/src/utils/helper_profile.cuh"
@@ -788,8 +788,7 @@ struct ZkMsmCache {
   // Eviction is deferred until ref_count reaches 0.
   uint32_t ref_count;
 
-  ZkMsmCache()
-      : num_gpus(0), key{0, 0, 0, 0}, populated(false), ref_count(0) {
+  ZkMsmCache() : num_gpus(0), key{0, 0, 0, 0}, populated(false), ref_count(0) {
     memset(g1_per_gpu, 0, sizeof(g1_per_gpu));
     memset(g2_per_gpu, 0, sizeof(g2_per_gpu));
     memset(mgmt_streams, 0, sizeof(mgmt_streams));
@@ -904,8 +903,9 @@ uint32_t zk_msm_cache_acquire(const G1Affine *g1_points, uint32_t n_g1,
 void zk_msm_cache_release() {
   std::lock_guard<std::mutex> lock(cache_mutex());
   ZkMsmCache &cache = global_cache();
-  PANIC_IF_FALSE(cache.ref_count > 0,
-                 "zk_msm_cache_release: ref_count is already 0 (double release?)");
+  PANIC_IF_FALSE(
+      cache.ref_count > 0,
+      "zk_msm_cache_release: ref_count is already 0 (double release?)");
   cache.ref_count--;
   // Wake any acquire() waiting to evict the cache with a different key.
   if (cache.ref_count == 0) {
