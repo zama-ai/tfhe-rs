@@ -111,6 +111,7 @@ fn main() {
                 .allowlist_function("scratch_zk_.*")
                 .allowlist_function("cleanup_zk_.*")
                 .allowlist_function("zk_g[12]_msm.*")
+                .allowlist_function("zk_msm_cache_.*")
                 // Allow the core types needed for FFI
                 .allowlist_type("G1Point")
                 .allowlist_type("G2Point")

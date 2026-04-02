@@ -193,6 +193,33 @@ void zk_g1_msm_cached_async(
     uint32_t n
 );
 
+// Split launch/finalize for pipelined G1 MSM.
+// Allows GPU MSM kernels to overlap with CPU work.
+//   1. zk_g1_msm_cached_launch_async — queues GPU work, returns immediately
+//   2. zk_g1_msm_finalize — syncs stream, runs CPU Horner, writes result
+
+// Launches G1 MSM using cached device base points. Queues H2D scalar copy,
+// GPU Pippenger phases, and D2H window-sum copy on `stream`. Does NOT
+// synchronize — call zk_g1_msm_finalize() when the result is needed.
+void zk_g1_msm_cached_launch_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    struct zk_g1_msm_mem* msm_mem,
+    const struct zk_cached_g1_points* cached,
+    uint32_t point_offset,
+    const Scalar* h_scalars,
+    uint32_t n
+);
+
+// Synchronizes the stream and runs CPU Horner combine on the window sums
+// that were D2H-copied during the launch phase. Writes final result to h_result.
+void zk_g1_msm_finalize(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    const struct zk_g1_msm_mem* msm_mem,
+    G1ProjectivePoint* h_result
+);
+
 // G2 MSM scratch/cleanup/async pattern
 // Pre-allocates device buffers once for reuse across multiple MSM calls,
 // eliminating per-call malloc/free overhead from the managed wrapper path.
@@ -326,6 +353,18 @@ bool is_on_curve_g2_wrapper(const G2Point* point);
 
 // Scalar modulus accessor - returns the scalar field modulus (group order)
 void scalar_modulus_limbs_wrapper(uint64_t* limbs);
+
+// Global MSM cache for CRS base points (singleton).
+// Populated once per CRS key, lives until reset() or process exit.
+uint32_t zk_msm_cache_acquire(
+    const G1Point* g1_points, uint32_t n_g1,
+    const G2Point* g2_points, uint32_t n_g2,
+    const uintptr_t key[4]);
+const struct zk_cached_g1_points* zk_msm_cache_get_g1(uint32_t gpu_index);
+const struct zk_cached_g2_points* zk_msm_cache_get_g2(uint32_t gpu_index);
+uint32_t zk_msm_cache_num_gpus(void);
+void zk_msm_cache_release(void);
+void zk_msm_cache_reset(void);
 
 #ifdef __cplusplus
 }

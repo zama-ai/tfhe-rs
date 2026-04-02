@@ -27,7 +27,29 @@ use crate::proofs::pke_v2::{
 };
 
 use rayon::prelude::*;
-use tfhe_cuda_backend::cuda_bind::{cuda_create_stream, cuda_destroy_stream};
+use tfhe_cuda_backend::CudaStream;
+
+// ---------------------------------------------------------------------------
+// Send wrapper for raw MSM memory pointers
+// ---------------------------------------------------------------------------
+
+/// Marks a raw pointer as `Send` so it can cross rayon scope boundaries.
+///
+/// Used exclusively for MSM scratch memory pointers (`*mut c_void`) that are
+/// allocated outside a rayon scope and handed to worker threads. Each slot is
+/// used by exactly one thread — no concurrent aliasing.
+//
+// Temporary: once the C++ MSM cache manages its own scratch buffers this
+// wrapper will no longer be needed.
+#[derive(Clone, Copy)]
+struct SendRawPtr(*mut std::ffi::c_void);
+
+// SAFETY: each SendRawPtr is used by a single rayon worker; no concurrent access.
+// Send is needed because the closures are moved into rayon threads.
+// Sync is needed because the array of SendRawPtr is borrowed (&[SendRawPtr; 3])
+// across multiple rayon::scope closures, and &T: Send requires T: Sync.
+unsafe impl Send for SendRawPtr {}
+unsafe impl Sync for SendRawPtr {}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -127,11 +149,12 @@ fn prove_impl(
     // For 1 GPU: [0, 0, 0]. For 3+ GPUs: [0, 1, 2].
     let num_gpus = cache.num_gpus;
     let gpu_indices: [u32; 3] = [0, 1 % num_gpus, 2 % num_gpus];
-    // SAFETY: gpu_indices[i] < num_gpus, which is always valid (get_num_gpus asserts >= 1)
-    let streams: [super::SendPtr; 3] = [
-        super::SendPtr(unsafe { cuda_create_stream(gpu_indices[0]) }),
-        super::SendPtr(unsafe { cuda_create_stream(gpu_indices[1]) }),
-        super::SendPtr(unsafe { cuda_create_stream(gpu_indices[2]) }),
+    // gpu_indices[i] < num_gpus, which is always valid (get_num_gpus asserts >= 1).
+    // CudaStream owns the handle and destroys it on drop.
+    let streams: [CudaStream; 3] = [
+        CudaStream::new(gpu_indices[0]),
+        CudaStream::new(gpu_indices[1]),
+        CudaStream::new(gpu_indices[2]),
     ];
 
     let g1_max_n = u32::try_from(g_list.len()).expect("g_list length fits in u32");
@@ -145,7 +168,7 @@ fn prove_impl(
         // SAFETY: streams[i] is valid. g1_typed receives the allocation.
         unsafe {
             zk_cuda_backend::bindings::scratch_zk_g1_msm(
-                streams[i].0 as zk_cuda_backend::bindings::cudaStream_t,
+                streams[i].ptr() as zk_cuda_backend::bindings::cudaStream_t,
                 gpu_indices[i],
                 &mut g1_typed,
                 g1_max_n,
@@ -153,13 +176,18 @@ fn prove_impl(
                 true,
             );
         }
+        assert!(
+            !g1_typed.is_null(),
+            "scratch_zk_g1_msm returned null on GPU {}",
+            gpu_indices[i]
+        );
         g1_msm_raw[i] = g1_typed as *mut std::ffi::c_void;
         let mut tracker: u64 = 0;
         let mut g2_typed: *mut zk_cuda_backend::bindings::zk_g2_msm_mem = std::ptr::null_mut();
         // SAFETY: streams[i] is valid. g2_typed receives the allocation.
         unsafe {
             zk_cuda_backend::bindings::scratch_zk_g2_msm(
-                streams[i].0 as zk_cuda_backend::bindings::cudaStream_t,
+                streams[i].ptr() as zk_cuda_backend::bindings::cudaStream_t,
                 gpu_indices[i],
                 &mut g2_typed,
                 g2_max_n,
@@ -167,12 +195,17 @@ fn prove_impl(
                 true,
             );
         }
+        assert!(
+            !g2_typed.is_null(),
+            "scratch_zk_g2_msm returned null on GPU {}",
+            gpu_indices[i]
+        );
         g2_msm_raw[i] = g2_typed as *mut std::ffi::c_void;
     }
-    // Wrap in SendPtr so the arrays can be borrowed across rayon scopes
+    // Wrap in SendRawPtr so the arrays can be borrowed across rayon scopes
     // (each slot is used by exactly one thread).
-    let g1_msm_mems = g1_msm_raw.map(super::SendPtr);
-    let g2_msm_mems = g2_msm_raw.map(super::SendPtr);
+    let g1_msm_mems = g1_msm_raw.map(SendRawPtr);
+    let g2_msm_mems = g2_msm_raw.map(SendRawPtr);
 
     let PrivateCommit { r, e1, m, e2, .. } = private_commit;
 
@@ -275,7 +308,7 @@ fn prove_impl(
                         cache.cached_g2[gpu_indices[0] as usize],
                         0,
                         &scalars_e,
-                        streams[0].0,
+                        streams[0].ptr(),
                         gpu_indices[0],
                     ),
             );
@@ -290,7 +323,7 @@ fn prove_impl(
                         cache.cached_g1[gpu_indices[1] as usize],
                         u32::try_from(n - (d + k + 4)).expect("point offset fits in u32"),
                         &scalars_e_rev,
-                        streams[1].0,
+                        streams[1].ptr(),
                         gpu_indices[1],
                     ),
             );
@@ -305,7 +338,7 @@ fn prove_impl(
                         cache.cached_g1[gpu_indices[2] as usize],
                         0,
                         &scalars_r,
-                        streams[2].0,
+                        streams[2].ptr(),
                         gpu_indices[2],
                     ),
             );
@@ -376,7 +409,7 @@ fn prove_impl(
             cache.cached_g1[gpu_indices[0] as usize],
             0,
             &w_R.iter().copied().map(Zp::from_i64).collect::<Box<[_]>>(),
-            streams[0].0,
+            streams[0].ptr(),
             gpu_indices[0],
         );
 
@@ -466,7 +499,7 @@ fn prove_impl(
             cache.cached_g1[gpu_indices[0] as usize],
             u32::try_from(n - (D + 128 * m)).expect("point offset fits in u32"),
             &scalars,
-            streams[0].0,
+            streams[0].ptr(),
             gpu_indices[0],
         );
 
@@ -570,7 +603,7 @@ fn prove_impl(
                 cache.cached_g1[gpu_indices[1] as usize],
                 u32::try_from(n - (D + 128 * m)).expect("point offset fits in u32"),
                 &scalars_h1,
-                streams[1].0,
+                streams[1].ptr(),
                 gpu_indices[1],
             ));
         });
@@ -598,7 +631,7 @@ fn prove_impl(
                 cache.cached_g1[gpu_indices[2] as usize],
                 0,
                 &scalars_h2,
-                streams[2].0,
+                streams[2].ptr(),
                 gpu_indices[2],
             ));
         });
@@ -623,7 +656,7 @@ fn prove_impl(
                                             - delta_theta_q * theta[j]
                                     })
                                     .collect::<Box<[_]>>(),
-                                streams[0].0,
+                                streams[0].ptr(),
                                 gpu_indices[0],
                             ));
                         });
@@ -634,7 +667,7 @@ fn prove_impl(
                                 cache.cached_g2[gpu_indices[1] as usize],
                                 0,
                                 &omega[..d + k + 4],
-                                streams[1].0,
+                                streams[1].ptr(),
                                 gpu_indices[1],
                             ));
                         });
@@ -656,7 +689,7 @@ fn prove_impl(
                 cache.cached_g2[gpu_indices[2] as usize],
                 0,
                 &t,
-                streams[2].0,
+                streams[2].ptr(),
                 gpu_indices[2],
             ));
         });
@@ -985,7 +1018,7 @@ fn prove_impl(
                         cache.cached_g1[gpu_indices[0] as usize],
                         0,
                         &P_pi[1..],
-                        streams[0].0,
+                        streams[0].ptr(),
                         gpu_indices[0],
                     )
             });
@@ -1218,7 +1251,7 @@ fn prove_impl(
             cache.cached_g1[gpu_indices[0] as usize],
             0,
             &q[1..n],
-            streams[0].0,
+            streams[0].ptr(),
             gpu_indices[0],
         );
 
@@ -1233,8 +1266,8 @@ fn prove_impl(
         );
     }
 
-    // Cleanup per-call scratch buffers and destroy streams.
-    // Extract raw pointers back from SendPtr wrappers for the cleanup FFI calls.
+    // Cleanup per-call scratch buffers. Streams are destroyed automatically
+    // when the CudaStream array drops at the end of this function.
     for i in 0..3 {
         let mut g1_typed = g1_msm_mems[i].0 as *mut zk_cuda_backend::bindings::zk_g1_msm_mem;
         let mut g2_typed = g2_msm_mems[i].0 as *mut zk_cuda_backend::bindings::zk_g2_msm_mem;
@@ -1242,18 +1275,17 @@ fn prove_impl(
         // on streams[i]. All MSM work has completed.
         unsafe {
             zk_cuda_backend::bindings::cleanup_zk_g1_msm(
-                streams[i].0 as zk_cuda_backend::bindings::cudaStream_t,
+                streams[i].ptr() as zk_cuda_backend::bindings::cudaStream_t,
                 gpu_indices[i],
                 &mut g1_typed,
                 true,
             );
             zk_cuda_backend::bindings::cleanup_zk_g2_msm(
-                streams[i].0 as zk_cuda_backend::bindings::cudaStream_t,
+                streams[i].ptr() as zk_cuda_backend::bindings::cudaStream_t,
                 gpu_indices[i],
                 &mut g2_typed,
                 true,
             );
-            cuda_destroy_stream(streams[i].0, gpu_indices[i]);
         }
     }
 

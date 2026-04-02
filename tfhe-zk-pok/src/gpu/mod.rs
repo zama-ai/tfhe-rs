@@ -10,16 +10,13 @@ pub mod pke_v2;
 mod tests;
 
 use std::cell::Cell;
-use std::sync::{Arc, Mutex};
 
 use crate::curve_446::{Fq, Fq2};
 use crate::curve_api::bls12_446::{G1Affine, G2Affine, Zp, G1, G2};
 use crate::curve_api::CurveGroupOps;
 use ark_ec::CurveGroup;
 use ark_ff::{BigInt, MontFp, PrimeField};
-use tfhe_cuda_backend::cuda_bind::{
-    cuda_create_stream, cuda_destroy_stream, cuda_get_number_of_gpus,
-};
+use tfhe_cuda_backend::cuda_bind::cuda_get_number_of_gpus;
 use zk_cuda_backend::{G1Affine as CudaG1Affine, G2Affine as CudaG2Affine, Scalar as CudaScalar};
 
 // ---------------------------------------------------------------------------
@@ -101,23 +98,6 @@ pub fn select_gpu_for_msm() -> u32 {
         .try_into()
         .expect("GPU index fits in u32")
 }
-
-// ---------------------------------------------------------------------------
-// Send wrapper for raw CUDA stream pointers
-// ---------------------------------------------------------------------------
-
-/// Wrapper that marks a raw pointer as `Send`.
-///
-/// CUDA streams are thread-safe for submission from any host thread, so it is
-/// sound to move a `*mut c_void` stream handle across threads.  This newtype
-/// exists solely to satisfy Rust's `Send` requirement in `rayon::scope` closures
-/// where we pre-create streams outside the scope and hand them to worker threads.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct SendPtr(pub *mut std::ffi::c_void);
-
-// SAFETY: CUDA stream handles are safe to use from any host thread.
-unsafe impl Send for SendPtr {}
-unsafe impl Sync for SendPtr {}
 
 // ---------------------------------------------------------------------------
 // Type conversion helpers
@@ -241,67 +221,6 @@ pub fn zp_to_cuda_scalar(zp: &Zp) -> CudaScalar {
 }
 
 // ---------------------------------------------------------------------------
-// Type conversion helpers for caching
-// ---------------------------------------------------------------------------
-
-/// Convert a slice of G1Affine points to FFI G1Point format.
-///
-/// Same pattern as [`g2_points_to_ffi`] but for G1 (Fp coordinates instead of Fp2).
-pub(crate) fn g1_points_to_ffi(points: &[G1Affine]) -> Vec<zk_cuda_backend::bindings::G1Point> {
-    use ark_ec::AffineRepr;
-
-    points
-        .iter()
-        .map(|b| {
-            if b.inner.is_zero() {
-                let mut point = zk_cuda_backend::bindings::G1Point::default();
-                // SAFETY: `point` is a valid, zero-initialized G1Point with repr(C) layout.
-                unsafe {
-                    zk_cuda_backend::bindings::g1_point_at_infinity_wrapper(&mut point);
-                }
-                return point;
-            }
-            let x = fq_to_cuda_fp(&b.inner.x);
-            let y = fq_to_cuda_fp(&b.inner.y);
-            zk_cuda_backend::bindings::G1Point {
-                x,
-                y,
-                infinity: false,
-            }
-        })
-        .collect()
-}
-
-/// Convert a slice of G2Affine points to FFI G2Point format.
-///
-/// This extracts the conversion logic used by `g2_msm_gpu_on_stream` so that
-/// callers who cache points on device can convert once and reuse the result.
-pub(crate) fn g2_points_to_ffi(points: &[G2Affine]) -> Vec<zk_cuda_backend::bindings::G2Point> {
-    use ark_ec::AffineRepr;
-
-    points
-        .iter()
-        .map(|b| {
-            if b.inner.is_zero() {
-                let mut point = zk_cuda_backend::bindings::G2Point::default();
-                // SAFETY: `point` is a valid, zero-initialized G2Point with repr(C) layout.
-                unsafe {
-                    zk_cuda_backend::bindings::g2_point_at_infinity_wrapper(&mut point);
-                }
-                return point;
-            }
-            let x = fq2_to_cuda_fp2(&b.inner.x);
-            let y = fq2_to_cuda_fp2(&b.inner.y);
-            zk_cuda_backend::bindings::G2Point {
-                x,
-                y,
-                infinity: false,
-            }
-        })
-        .collect()
-}
-
-// ---------------------------------------------------------------------------
 // GPU MSM functions
 // ---------------------------------------------------------------------------
 
@@ -332,15 +251,10 @@ pub fn g1_msm_gpu(bases: &[G1Affine], scalars: &[Zp], gpu_index: u32) -> G1 {
         gpu_index < num_gpus,
         "gpu_index {gpu_index} exceeds available GPUs ({num_gpus})",
     );
-    // SAFETY: gpu_index was validated by the assert above
-    let stream = unsafe { cuda_create_stream(gpu_index) };
+    let stream = tfhe_cuda_backend::CudaStream::new(gpu_index);
 
     let result =
-        zk_cuda_backend::G1Projective::msm(&gpu_bases, &gpu_scalars, stream, gpu_index, false);
-
-    // SAFETY: stream was created by cuda_create_stream above with the same gpu_index and is not
-    // used after this point
-    unsafe { cuda_destroy_stream(stream, gpu_index) };
+        zk_cuda_backend::G1Projective::msm(&gpu_bases, &gpu_scalars, stream.ptr(), gpu_index, false);
 
     let gpu_result = result.unwrap_or_else(|e| panic!("G1 GPU MSM failed: {e}"));
 
@@ -446,126 +360,21 @@ pub fn g2_msm_gpu(bases: &[G2Affine], scalars: &[Zp], gpu_index: u32) -> G2 {
         gpu_index < num_gpus,
         "gpu_index {gpu_index} exceeds available GPUs ({num_gpus})",
     );
-    // SAFETY: gpu_index was validated by the assert above
-    let stream = unsafe { cuda_create_stream(gpu_index) };
-    let result = g2_msm_gpu_on_stream(bases, scalars, stream, gpu_index);
-    // SAFETY: stream was created by cuda_create_stream above with the same gpu_index and is not
-    // used after this point
-    unsafe { cuda_destroy_stream(stream, gpu_index) };
-    result
+    let stream = tfhe_cuda_backend::CudaStream::new(gpu_index);
+    g2_msm_gpu_on_stream(bases, scalars, stream.ptr(), gpu_index)
 }
 
 // ---------------------------------------------------------------------------
-// Persistent device cache for CRS base points
+// Persistent device cache for CRS base points (backed by C++ singleton)
 // ---------------------------------------------------------------------------
 
-/// Persistent GPU cache for CRS base points (g_list and g_hat_list).
+/// Per-GPU cached base-point handles from the C++ singleton cache.
 ///
-/// Holds both g_list and g_hat_list on **every available GPU** in Montgomery form.
-/// Persists across prove/verify calls as long as the same CRS (identified
-/// by data pointers + lengths) is used.
-///
-/// Only *immutable* base points are cached here. Mutable per-call resources
-/// (CUDA streams, MSM scratch buffers) are created and destroyed by each
-/// caller, avoiding races when multiple prove/verify calls run concurrently.
-///
-/// # Multi-GPU layout
-///
-/// ```text
-///   GPU 0: cached_g1[0], cached_g2[0], mgmt_streams[0]
-///   GPU 1: cached_g1[1], cached_g2[1], mgmt_streams[1]
-///   ...
-///   GPU N: cached_g1[N], cached_g2[N], mgmt_streams[N]
-/// ```
-///
-/// Each GPU holds an independent copy of the CRS base points. Callers
-/// select which GPU to use via `i % num_gpus` and index into the per-GPU
-/// arrays to get the right device pointer.
-struct DevicePointCache {
-    /// Per-GPU opaque handles to zk_cached_g1_points (device memory, Montgomery form).
-    /// Index = gpu_index. Null if g_list was empty.
-    cached_g1: Vec<*mut std::ffi::c_void>,
-    /// Per-GPU opaque handles to zk_cached_g2_points (device memory, Montgomery form).
-    /// Index = gpu_index. Null if g_hat_list was empty.
-    cached_g2: Vec<*mut std::ffi::c_void>,
-    /// Per-GPU management streams used for initial H2D transfer and cleanup.
-    /// Index = gpu_index.
-    mgmt_streams: Vec<*mut std::ffi::c_void>,
-    /// Number of GPUs these caches cover.
-    num_gpus: u32,
-    /// Cache key: (g1 data pointer, g1 element count, g2 data pointer, g2 element count)
-    key: (usize, usize, usize, usize),
-}
-
-// SAFETY: All fields are stable device pointers. The cached point buffers
-// are immutable after setup and safe to read from any thread. The
-// management streams are only used during Drop (which runs when the last
-// Arc reference is released).
-unsafe impl Send for DevicePointCache {}
-unsafe impl Sync for DevicePointCache {}
-
-/// Frees all device resources when the last reference is dropped.
-///
-/// Because the cache is wrapped in `Arc`, this runs only when no caller
-/// still holds a `CachedMsmResources` referencing it. This prevents the
-/// use-after-free that occurs when a concurrent caller evicts the cache
-/// while another caller still holds raw pointers to the device memory.
-impl Drop for DevicePointCache {
-    fn drop(&mut self) {
-        for gpu_idx in 0..self.num_gpus as usize {
-            let stream = self.mgmt_streams[gpu_idx];
-            let cuda_stream = stream as zk_cuda_backend::bindings::cudaStream_t;
-            let gpu_index: u32 = gpu_idx.try_into().expect("gpu index fits in u32");
-
-            if !self.cached_g2[gpu_idx].is_null() {
-                // SAFETY: cached_g2[gpu_idx] was allocated by scratch_zk_cached_g2_points
-                // on mgmt_streams[gpu_idx]. This Drop runs only when no caller references
-                // these pointers anymore (Arc strong count reached 0).
-                let mut typed =
-                    self.cached_g2[gpu_idx] as *mut zk_cuda_backend::bindings::zk_cached_g2_points;
-                unsafe {
-                    zk_cuda_backend::bindings::cleanup_zk_cached_g2_points(
-                        cuda_stream,
-                        gpu_index,
-                        &mut typed,
-                        true,
-                    );
-                }
-            }
-
-            if !self.cached_g1[gpu_idx].is_null() {
-                // SAFETY: cached_g1[gpu_idx] was allocated by scratch_zk_cached_g1_points
-                // on mgmt_streams[gpu_idx]. This Drop runs only when no caller references
-                // these pointers anymore (Arc strong count reached 0).
-                let mut typed =
-                    self.cached_g1[gpu_idx] as *mut zk_cuda_backend::bindings::zk_cached_g1_points;
-                unsafe {
-                    zk_cuda_backend::bindings::cleanup_zk_cached_g1_points(
-                        cuda_stream,
-                        gpu_index,
-                        &mut typed,
-                        true,
-                    );
-                }
-            }
-
-            // SAFETY: mgmt_streams[gpu_idx] was created with cuda_create_stream(gpu_index).
-            // All device resources using this stream have been freed above.
-            unsafe {
-                cuda_destroy_stream(stream, gpu_index);
-            }
-        }
-    }
-}
-
-static DEVICE_CACHE: Mutex<Option<Arc<DevicePointCache>>> = Mutex::new(None);
-
-/// Immutable base-point pointers from the persistent device cache.
-///
-/// Holds an `Arc<DevicePointCache>` that keeps the underlying device memory
-/// alive for the lifetime of this struct. Even if the global `DEVICE_CACHE`
-/// is evicted (replaced with a new CRS), the device memory backing these
-/// pointers remains valid until this struct is dropped.
+/// The C++ `ZkMsmCache` singleton owns the device memory and manages its
+/// lifecycle. These pointers are immutable and valid as long as this struct
+/// is alive. Drop calls `zk_msm_cache_release` to decrement the C++ ref
+/// count — the cache is only eligible for eviction (by a different CRS key)
+/// once all `CachedMsmResources` instances are dropped.
 ///
 /// Callers index into `cached_g1` / `cached_g2` by gpu_index to get the
 /// device pointer for a specific GPU.
@@ -576,81 +385,72 @@ pub(crate) struct CachedMsmResources {
     pub cached_g2: Vec<*const std::ffi::c_void>,
     /// Number of GPUs these caches cover.
     pub num_gpus: u32,
-    /// Ownership anchor: prevents the device memory behind cached_g1/cached_g2
-    /// from being freed while this struct is alive. The Drop impl on
-    /// DevicePointCache only runs when the last Arc reference is released.
-    _owner: Arc<DevicePointCache>,
+}
+
+impl Drop for CachedMsmResources {
+    fn drop(&mut self) {
+        // SAFETY: zk_msm_cache_release is a simple atomic decrement inside
+        // the C++ singleton — no CUDA calls unless this is the last reference
+        // AND the cache is being evicted, which only happens inside a
+        // subsequent zk_msm_cache_acquire.
+        unsafe {
+            zk_cuda_backend::bindings::zk_msm_cache_release();
+        }
+    }
 }
 
 // SAFETY: The raw pointers point to immutable device memory (base points in
-// Montgomery form) that is never modified after initial setup. The Arc
-// guarantees the memory remains allocated while any CachedMsmResources exists.
-// Multiple threads can safely read these concurrently.
+// Montgomery form) inside the C++ singleton cache. The cache is thread-safe
+// (protected by a mutex on the C++ side) and the memory is never modified
+// after initial setup. Multiple threads can safely read these concurrently.
 unsafe impl Send for CachedMsmResources {}
 unsafe impl Sync for CachedMsmResources {}
 
 /// Acquire cached base-point pointers for the given CRS point lists.
 ///
-/// On cache miss (first call or CRS change), uploads both g_list and
-/// g_hat_list to **every available GPU** in Montgomery form. The FFI
-/// conversion (arkworks -> C structs) happens once, then the same host
-/// arrays are H2D-transferred to each GPU independently.
-///
-/// On cache hit, returns the existing per-GPU device pointers immediately.
+/// Delegates to the C++ `ZkMsmCache` singleton. On cache miss (first call
+/// or CRS change), uploads both g_list and g_hat_list to **every available
+/// GPU** in Montgomery form. On cache hit, returns immediately.
 ///
 /// Only immutable base points are cached. Callers are responsible for
 /// creating their own CUDA streams and MSM scratch buffers for each call.
-///
-/// # Ownership model
-///
-/// The returned `CachedMsmResources` holds an `Arc` reference to the
-/// underlying `DevicePointCache`. This guarantees the device memory
-/// remains valid even if a concurrent caller evicts the global cache
-/// (e.g., by calling with a different CRS). The device memory is freed
-/// only when the last `Arc` reference is dropped.
 pub(crate) fn acquire_cached_msm_resources(
     g_list: &[G1Affine],
     g_hat_list: &[G2Affine],
 ) -> CachedMsmResources {
-    let key = (
+    // Cache key: pointer identity + length for both point lists. The C++
+    // side compares these 4 words via memcmp for hit/miss detection.
+    let key: [usize; 4] = [
         g_list.as_ptr() as usize,
         g_list.len(),
         g_hat_list.as_ptr() as usize,
         g_hat_list.len(),
-    );
-    let mut guard = DEVICE_CACHE.lock().expect("DEVICE_CACHE lock poisoned");
+    ];
 
-    // Return existing cache if the CRS identity matches (fast path: Arc::clone)
-    if let Some(ref cache) = *guard {
-        if cache.key == key {
-            let owner = Arc::clone(cache);
-            return CachedMsmResources {
-                cached_g1: owner.cached_g1.iter().map(|p| *p as *const _).collect(),
-                cached_g2: owner.cached_g2.iter().map(|p| *p as *const _).collect(),
-                num_gpus: owner.num_gpus,
-                _owner: owner,
-            };
-        }
-    }
+    // Convert arkworks points to FFI G1Point/G2Point structs
+    let ffi_g1: Vec<zk_cuda_backend::bindings::G1Point> = g_list
+        .iter()
+        .map(|p| {
+            let cuda = g1_affine_to_cuda(p);
+            zk_cuda_backend::bindings::G1Point {
+                x: cuda.x(),
+                y: cuda.y(),
+                infinity: cuda.is_infinity(),
+            }
+        })
+        .collect();
 
-    // Evict old cache from the global slot. If any caller still holds an Arc
-    // to the old cache, the device memory stays alive until they drop it.
-    // If we hold the last reference, Drop runs immediately here.
-    guard.take();
-
-    let num_gpus = get_num_gpus();
-
-    // Convert points to FFI format once — reused for every GPU's H2D transfer
-    let ffi_g1_points = if g_list.is_empty() {
-        None
-    } else {
-        Some(g1_points_to_ffi(g_list))
-    };
-    let ffi_g2_points = if g_hat_list.is_empty() {
-        None
-    } else {
-        Some(g2_points_to_ffi(g_hat_list))
-    };
+    let ffi_g2: Vec<zk_cuda_backend::bindings::G2Point> = g_hat_list
+        .iter()
+        .map(|p| {
+            let cuda = g2_affine_to_cuda(p);
+            zk_cuda_backend::bindings::G2Point {
+                x: cuda.x(),
+                y: cuda.y(),
+                infinity: cuda.is_infinity(),
+            }
+        })
+        .collect();
 
     let n_g1: u32 = g_list.len().try_into().expect("g_list length fits in u32");
     let n_g2: u32 = g_hat_list
@@ -658,77 +458,44 @@ pub(crate) fn acquire_cached_msm_resources(
         .try_into()
         .expect("g_hat_list length fits in u32");
 
-    let mut cached_g1: Vec<*mut std::ffi::c_void> = vec![std::ptr::null_mut(); num_gpus as usize];
-    let mut cached_g2: Vec<*mut std::ffi::c_void> = vec![std::ptr::null_mut(); num_gpus as usize];
-    let mut mgmt_streams: Vec<*mut std::ffi::c_void> =
-        vec![std::ptr::null_mut(); num_gpus as usize];
-
-    for gpu_idx in 0..num_gpus {
-        // SAFETY: gpu_idx < num_gpus, validated by the loop bound
-        let stream = unsafe { cuda_create_stream(gpu_idx) };
-        let cuda_stream = stream as zk_cuda_backend::bindings::cudaStream_t;
-        mgmt_streams[gpu_idx as usize] = stream;
-
-        // Upload G1 base points to this GPU
-        if let Some(ref ffi_g1) = ffi_g1_points {
-            let mut size_tracker: u64 = 0;
-            let mut typed: *mut zk_cuda_backend::bindings::zk_cached_g1_points =
-                std::ptr::null_mut();
-            // SAFETY: stream is a valid CUDA stream on gpu_idx. ffi_g1 is a valid
-            // array of n_g1 G1Points. typed receives the handle.
-            unsafe {
-                zk_cuda_backend::bindings::scratch_zk_cached_g1_points(
-                    cuda_stream,
-                    gpu_idx,
-                    &mut typed,
-                    ffi_g1.as_ptr(),
-                    n_g1,
-                    &mut size_tracker,
-                    true,
-                );
-            }
-            cached_g1[gpu_idx as usize] = typed as *mut std::ffi::c_void;
-        }
-
-        // Upload G2 base points to this GPU
-        if let Some(ref ffi_g2) = ffi_g2_points {
-            let mut size_tracker: u64 = 0;
-            let mut typed: *mut zk_cuda_backend::bindings::zk_cached_g2_points =
-                std::ptr::null_mut();
-            // SAFETY: stream is a valid CUDA stream on gpu_idx. ffi_g2 is a valid
-            // array of n_g2 G2Points. typed receives the handle.
-            unsafe {
-                zk_cuda_backend::bindings::scratch_zk_cached_g2_points(
-                    cuda_stream,
-                    gpu_idx,
-                    &mut typed,
-                    ffi_g2.as_ptr(),
-                    n_g2,
-                    &mut size_tracker,
-                    true,
-                );
-            }
-            cached_g2[gpu_idx as usize] = typed as *mut std::ffi::c_void;
-        }
-    }
-
-    let owner = Arc::new(DevicePointCache {
-        cached_g1,
-        cached_g2,
-        mgmt_streams,
-        num_gpus,
-        key,
-    });
-
-    let resources = CachedMsmResources {
-        cached_g1: owner.cached_g1.iter().map(|p| *p as *const _).collect(),
-        cached_g2: owner.cached_g2.iter().map(|p| *p as *const _).collect(),
-        num_gpus: owner.num_gpus,
-        _owner: Arc::clone(&owner),
+    let g1_ptr = if ffi_g1.is_empty() {
+        std::ptr::null()
+    } else {
+        ffi_g1.as_ptr()
+    };
+    let g2_ptr = if ffi_g2.is_empty() {
+        std::ptr::null()
+    } else {
+        ffi_g2.as_ptr()
     };
 
-    *guard = Some(owner);
-    resources
+    // SAFETY: g1_ptr/g2_ptr are either null or valid pointers to n_g1/n_g2
+    // G1Point/G2Point structs. key is a valid 4-element array. The C++ side
+    // is internally thread-safe (mutex-protected).
+    let num_gpus = unsafe {
+        zk_cuda_backend::bindings::zk_msm_cache_acquire(g1_ptr, n_g1, g2_ptr, n_g2, key.as_ptr())
+    };
+
+    // Retrieve per-GPU device pointers from the C++ singleton
+    let cached_g1: Vec<*const std::ffi::c_void> = (0..num_gpus)
+        .map(|i| {
+            // SAFETY: cache is populated (zk_msm_cache_acquire just returned),
+            // and i < num_gpus.
+            unsafe { zk_cuda_backend::bindings::zk_msm_cache_get_g1(i) as *const std::ffi::c_void }
+        })
+        .collect();
+    let cached_g2: Vec<*const std::ffi::c_void> = (0..num_gpus)
+        .map(|i| {
+            // SAFETY: same as above.
+            unsafe { zk_cuda_backend::bindings::zk_msm_cache_get_g2(i) as *const std::ffi::c_void }
+        })
+        .collect();
+
+    CachedMsmResources {
+        cached_g1,
+        cached_g2,
+        num_gpus,
+    }
 }
 
 /// G1 MSM using cached device base points and pre-allocated scratch.

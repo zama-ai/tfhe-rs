@@ -119,12 +119,33 @@ void point_msm_g2(cudaStream_t stream, uint32_t gpu_index,
                   G2ProjectivePoint *d_scratch);
 
 // ============================================================================
-// Split Launch / Finalize for Pipelined G2 MSM
+// Split Launch / Finalize for Pipelined MSM
 // ============================================================================
 // Splits the MSM into a truly async GPU launch and a CPU finalize step,
 // allowing GPU kernel execution to overlap with CPU work (e.g., pairings).
 
-// Launches Pippenger phases 1-3 and queues async D2H copy of window sums.
+// --- G1 split primitives ---
+
+// Launches G1 Pippenger phases 1-3 and queues async D2H copy of window sums.
+// Does NOT synchronize or run the Horner combine. The caller must sync the
+// stream and then call point_msm_g1_horner_finalize() to get the result.
+void point_msm_g1_launch_async(cudaStream_t stream, uint32_t gpu_index,
+                               G1Projective *h_window_sums,
+                               const G1Affine *d_points,
+                               const Scalar *d_scalars, uint32_t n,
+                               G1Projective *d_scratch,
+                               uint32_t &out_num_windows,
+                               uint32_t &out_window_size);
+
+// Runs the CPU Horner combine on G1 window sums already in host memory.
+// The stream must have been synchronized before calling this.
+void point_msm_g1_horner_finalize(G1Projective *h_result,
+                                  const G1Projective *h_window_sums,
+                                  uint32_t num_windows, uint32_t window_size);
+
+// --- G2 split primitives ---
+
+// Launches G2 Pippenger phases 1-3 and queues async D2H copy of window sums.
 // Does NOT synchronize or run the Horner combine. The caller must sync the
 // stream and then call point_msm_g2_horner_finalize() to get the result.
 void point_msm_g2_launch_async(cudaStream_t stream, uint32_t gpu_index,
@@ -134,7 +155,7 @@ void point_msm_g2_launch_async(cudaStream_t stream, uint32_t gpu_index,
                                uint32_t &out_num_windows,
                                uint32_t &out_window_size);
 
-// Runs the CPU Horner combine on window sums already in host memory.
+// Runs the CPU Horner combine on G2 window sums already in host memory.
 // The stream must have been synchronized before calling this.
 void point_msm_g2_horner_finalize(G2ProjectivePoint *h_result,
                                   const G2ProjectivePoint *h_window_sums,

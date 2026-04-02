@@ -795,6 +795,13 @@ mod cuda {
                                 });
                             }
 
+                            // Rebind owned values as references so that `move`
+                            // closures inside s.spawn() capture a Copy reference
+                            // instead of moving the owned value.
+                            let pk = &pk;
+                            let crs = &crs;
+                            let metadata = metadata.as_slice();
+
                             bench_group.bench_function(&bench_id_verify, |b| {
                                 b.iter(|| {
                                     std::thread::scope(|s| {

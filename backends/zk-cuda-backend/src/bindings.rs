@@ -237,6 +237,25 @@ unsafe extern "C" {
         n: u32,
     );
 }
+unsafe extern "C" {
+    pub fn zk_g1_msm_cached_launch_async(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        msm_mem: *mut zk_g1_msm_mem,
+        cached: *const zk_cached_g1_points,
+        point_offset: u32,
+        h_scalars: *const Scalar,
+        n: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn zk_g1_msm_finalize(
+        stream: cudaStream_t,
+        gpu_index: u32,
+        msm_mem: *const zk_g1_msm_mem,
+        h_result: *mut G1ProjectivePoint,
+    );
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct zk_g2_msm_mem {
@@ -383,4 +402,28 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn scalar_modulus_limbs_wrapper(limbs: *mut u64);
+}
+unsafe extern "C" {
+    pub fn zk_msm_cache_acquire(
+        g1_points: *const G1Point,
+        n_g1: u32,
+        g2_points: *const G2Point,
+        n_g2: u32,
+        key: *const usize,
+    ) -> u32;
+}
+unsafe extern "C" {
+    pub fn zk_msm_cache_get_g1(gpu_index: u32) -> *const zk_cached_g1_points;
+}
+unsafe extern "C" {
+    pub fn zk_msm_cache_get_g2(gpu_index: u32) -> *const zk_cached_g2_points;
+}
+unsafe extern "C" {
+    pub fn zk_msm_cache_num_gpus() -> u32;
+}
+unsafe extern "C" {
+    pub fn zk_msm_cache_release();
+}
+unsafe extern "C" {
+    pub fn zk_msm_cache_reset();
 }

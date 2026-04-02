@@ -864,6 +864,29 @@ void point_msm_horner_finalize(ProjectiveType *h_result,
   horner_combine_cpu(*h_result, h_window_sums, num_windows, window_size);
 }
 
+// Non-template G1 wrappers for the launch/finalize split, callable from
+// other translation units (msm.cu, c_wrapper.cu) without template access.
+void point_msm_g1_pippenger_launch_async(
+    cudaStream_t stream, uint32_t gpu_index, G1Projective *h_window_sums,
+    const G1Affine *d_points, const Scalar *d_scalars, uint32_t n,
+    G1Projective *d_scratch, uint32_t &out_num_windows,
+    uint32_t &out_window_size) {
+  uint32_t window_size, bucket_count;
+  get_g1_window_params(n, window_size, bucket_count);
+
+  point_msm_pippenger_launch_async<G1Affine, G1Projective>(
+      stream, gpu_index, h_window_sums, d_points, d_scalars, n,
+      msm_threads_per_block<G1Affine>(n), window_size, bucket_count, d_scratch,
+      out_num_windows, out_window_size);
+}
+
+void point_msm_g1_horner_finalize(G1Projective *h_result,
+                                  const G1Projective *h_window_sums,
+                                  uint32_t num_windows, uint32_t window_size) {
+  point_msm_horner_finalize<G1Projective>(h_result, h_window_sums, num_windows,
+                                          window_size);
+}
+
 // Non-template G2 wrappers for the launch/finalize split, callable from
 // other translation units (msm.cu, c_wrapper.cu) without template access.
 void point_msm_g2_pippenger_launch_async(
