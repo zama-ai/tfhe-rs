@@ -411,6 +411,14 @@ where
     OP: FnOnce() -> R + Send,
     R: Send,
 {
+    // When GPU affinity is set, the caller has partitioned work into
+    // per-GPU pools. Skip sub-pool creation to keep rayon::scope
+    // tasks on the caller's pool, preserving thread-local affinity.
+    #[cfg(feature = "gpu-experimental")]
+    if crate::gpu::current_gpu_affinity().is_some() {
+        return f();
+    }
+
     let pools = get_or_init_pools();
 
     // Select the least loaded pool

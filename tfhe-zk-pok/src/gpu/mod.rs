@@ -9,6 +9,7 @@ pub mod pke_v2;
 #[cfg(test)]
 mod tests;
 
+use std::cell::Cell;
 use std::sync::{Arc, Mutex};
 
 use crate::curve_446::{Fq, Fq2};
@@ -20,6 +21,45 @@ use tfhe_cuda_backend::cuda_bind::{
     cuda_create_stream, cuda_destroy_stream, cuda_get_number_of_gpus,
 };
 use zk_cuda_backend::{G1Affine as CudaG1Affine, G2Affine as CudaG2Affine, Scalar as CudaScalar};
+
+// ---------------------------------------------------------------------------
+// Thread-local GPU affinity
+// ---------------------------------------------------------------------------
+
+thread_local! {
+    static GPU_AFFINITY: Cell<Option<u32>> = const { Cell::new(None) };
+}
+
+/// Run `f` with all GPU MSM operations pinned to `gpu_idx`.
+///
+/// While active, `select_gpu_for_msm()` returns `gpu_idx` instead of
+/// the rayon-thread-based default, and `run_in_pool` is bypassed
+/// (the caller is responsible for providing an appropriately-sized
+/// thread pool).
+pub fn with_gpu_affinity<R>(gpu_idx: u32, f: impl FnOnce() -> R) -> R {
+    struct ResetOnDrop;
+    impl Drop for ResetOnDrop {
+        fn drop(&mut self) {
+            GPU_AFFINITY.set(None);
+        }
+    }
+    GPU_AFFINITY.set(Some(gpu_idx));
+    let _guard = ResetOnDrop;
+    f()
+}
+
+/// Set GPU affinity for the current thread directly.
+///
+/// Intended for use with `rayon::ThreadPool::broadcast` to pin all pool
+/// threads to a specific GPU. Pass `None` to clear.
+pub fn set_gpu_affinity(gpu_idx: Option<u32>) {
+    GPU_AFFINITY.set(gpu_idx);
+}
+
+/// Returns the current thread's GPU affinity, if set.
+pub(crate) fn current_gpu_affinity() -> Option<u32> {
+    GPU_AFFINITY.get()
+}
 
 // ---------------------------------------------------------------------------
 // GPU helpers
@@ -41,10 +81,16 @@ pub(crate) fn get_num_gpus() -> u32 {
     })
 }
 
-/// Selects a GPU for MSM based on the rayon thread index, distributing work
-/// across all available GPUs. Returns `0` when only one GPU is present.
+/// Selects a GPU for MSM operations.
+///
+/// If GPU affinity is set (via `with_gpu_affinity`), returns that GPU index
+/// unconditionally. Otherwise falls back to distributing work across GPUs
+/// based on the rayon thread index. Returns `0` when only one GPU is present.
 #[inline]
 pub fn select_gpu_for_msm() -> u32 {
+    if let Some(idx) = GPU_AFFINITY.get() {
+        return idx;
+    }
     let num_gpus = get_num_gpus();
     if num_gpus <= 1 {
         return 0;
