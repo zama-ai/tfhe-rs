@@ -484,6 +484,7 @@ mod cuda {
     use tfhe::integer::gpu::zk::CudaProvenCompactCiphertextList;
     use tfhe::integer::gpu::CudaServerKey;
     use tfhe::integer::CompressedServerKey;
+    #[cfg(feature = "gpu-experimental-zk")]
     use tfhe::zk::set_gpu_affinity;
     use tfhe::GpuIndex;
 
@@ -789,6 +790,7 @@ mod cuda {
                                 })
                                 .collect();
 
+                            #[cfg(feature = "gpu-experimental-zk")]
                             for (gpu_idx, pool) in gpu_pools.iter().enumerate() {
                                 pool.broadcast(|_| {
                                     set_gpu_affinity(Some(gpu_idx as u32));
