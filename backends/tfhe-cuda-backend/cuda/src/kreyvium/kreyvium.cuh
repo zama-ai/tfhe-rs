@@ -122,6 +122,10 @@ kreyvium_compute_64_steps(CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
                        s->temp_c, &k127, s->temp_c->num_radix_blocks,
                        mem->params.message_modulus, mem->params.carry_modulus);
 
+  integer_radix_apply_univariate_lookup_table<Torus>(
+      streams, s->temp_c, s->temp_c, bsks, ksks, luts->flush_lut,
+      s->temp_c->num_radix_blocks);
+
   // Pack AND gate inputs: (c109 & c108), (a91 & a90), (b82 & b81)
   CudaRadixCiphertextFFI *lhs_ptrs[] = {&c109, &a91, &b82};
   CudaRadixCiphertextFFI *rhs_ptrs[] = {&c108, &a90, &b81};
@@ -205,7 +209,7 @@ kreyvium_compute_64_steps(CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
   // Apply flush PBS to extract message bits and reset noise
   integer_radix_apply_univariate_lookup_table<Torus>(
       streams, s->packed_flush_out, s->packed_flush_in, bsks, ksks,
-      luts->flush_lut, KREYVIUM_NUM_FLUSH_PATHS * batch_size_blocks);
+      luts->flush_lut, s->packed_flush_out->num_radix_blocks);
 
   // Unpack flushed results
   CudaRadixCiphertextFFI flushed_new_a, flushed_new_b, flushed_new_c,
@@ -405,6 +409,10 @@ __host__ void kreyvium_compute_64_steps_stateful(
                        ws->temp_c, &k127, ws->temp_c->num_radix_blocks,
                        mem->params.message_modulus, mem->params.carry_modulus);
 
+  integer_radix_apply_univariate_lookup_table<Torus>(
+      streams, ws->temp_c, ws->temp_c, bsks, ksks, luts->flush_lut,
+      ws->temp_c->num_radix_blocks);
+
   CudaRadixCiphertextFFI *lhs_ptrs[] = {&c109, &a91, &b82};
   CudaRadixCiphertextFFI *rhs_ptrs[] = {&c108, &a90, &b81};
   for (uint32_t i = 0; i < KREYVIUM_NUM_AND_GATES; i++) {
@@ -468,7 +476,8 @@ __host__ void kreyvium_compute_64_steps_stateful(
 
   integer_radix_apply_univariate_lookup_table<Torus>(
       streams, ws->packed_flush_out, ws->packed_flush_in, bsks, ksks,
-      luts->flush_lut, KREYVIUM_NUM_FLUSH_PATHS * batch_size_blocks);
+      luts->flush_lut, ws->packed_flush_out->num_radix_blocks);
+
   CudaRadixCiphertextFFI flushed_new_a, flushed_new_b, flushed_new_c,
       flushed_out;
   CudaRadixCiphertextFFI *flush_out_slices[] = {&flushed_new_a, &flushed_new_b,

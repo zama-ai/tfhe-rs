@@ -42,40 +42,35 @@ template <typename Torus> struct int_kreyvium_lut_buffers {
     uint32_t flush_ops =
         num_inputs * KREYVIUM_BATCH_SIZE * KREYVIUM_NUM_FLUSH_PATHS;
 
+    // BIVARIATE AND LUT
+    //
     this->and_lut = new int_radix_lut<Torus>(streams, params, 1, and_ops,
-                                             allocate_gpu_memory, size_tracker);
+                                             allocate_gpu_memory,
+                                             size_tracker);
 
     std::function<Torus(Torus, Torus)> and_lambda =
         [](Torus lhs, Torus rhs) -> Torus { return (lhs & 1) & (rhs & 1); };
 
-    generate_device_accumulator_bivariate<Torus>(
-        streams.stream(0), streams.gpu_index(0), this->and_lut->get_lut(0, 0),
-        this->and_lut->get_degree(0), this->and_lut->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, and_lambda, allocate_gpu_memory);
-
     auto active_streams_and =
         streams.active_gpu_subset(and_ops, params.pbs_type);
-    this->and_lut->broadcast_lut(active_streams_and);
-    this->and_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
 
-    this->flush_lut = new int_radix_lut<Torus>(
-        streams, params, 1, flush_ops, allocate_gpu_memory, size_tracker);
+    this->and_lut->generate_and_broadcast_bivariate_lut(
+        active_streams_and, {0}, {and_lambda}, LUT_0_FOR_ALL_BLOCKS);
 
+    // UNIVARIATE FLUSH LUTS
+    //
     std::function<Torus(Torus)> flush_lambda = [](Torus x) -> Torus {
       return x & 1;
     };
 
-    generate_device_accumulator<Torus>(
-        streams.stream(0), streams.gpu_index(0), this->flush_lut->get_lut(0, 0),
-        this->flush_lut->get_degree(0), this->flush_lut->get_max_degree(0),
-        params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, flush_lambda, allocate_gpu_memory);
-
+    // Flush LUT standard
+    this->flush_lut = new int_radix_lut<Torus>(
+        streams, params, 1, flush_ops, allocate_gpu_memory, size_tracker);
     auto active_streams_flush =
         streams.active_gpu_subset(flush_ops, params.pbs_type);
-    this->flush_lut->broadcast_lut(active_streams_flush);
-    this->flush_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
+
+    this->flush_lut->generate_and_broadcast_lut(
+        active_streams_flush, {0}, {flush_lambda}, LUT_0_FOR_ALL_BLOCKS);
   }
 
   void release(CudaStreams streams) {
