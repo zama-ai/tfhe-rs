@@ -2,7 +2,7 @@ use crate::integer::{
     BooleanBlock, IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext, ServerKey,
     SignedRadixCiphertext,
 };
-use crate::shortint::Ciphertext;
+use crate::shortint::{CarryModulus, Ciphertext, MessageModulus};
 use rayon::prelude::*;
 
 /// A 'bit' value
@@ -138,6 +138,12 @@ impl ServerKey {
     {
         if ct.blocks().is_empty() {
             return self.create_trivial_zero_radix(0);
+        }
+
+        if self.message_modulus() == MessageModulus(4) && self.carry_modulus() == CarryModulus(4) {
+            let unsigned_ct = RadixCiphertext::from_blocks(ct.blocks().to_vec());
+
+            return self.count_consecutive_bits_2_2_unsigned(&unsigned_ct, direction, bit_value);
         }
 
         let num_bits_in_message = self.key.message_modulus.0.ilog2();
