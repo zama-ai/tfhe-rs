@@ -1,4 +1,4 @@
-use super::Degree;
+use super::{Degree, ExpandedCiphertextList};
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
 use crate::core_crypto::prelude::{LweCiphertextCount, LweCiphertextListConformanceParams};
@@ -114,6 +114,22 @@ impl ProvenCompactCiphertextList {
 
         // We can call the function as we have verified the proofs
         self.expand_without_verification(casting_mode)
+    }
+
+    /// Expands a ciphertext list without applying any casting or verification
+    ///
+    /// Returns None if the list is empty
+    pub fn expand_raw(&self) -> crate::Result<Option<ExpandedCiphertextList>> {
+        let mut result = None;
+        for (ct_list, _) in &self.proved_lists {
+            let expanded = ct_list.expand_without_casting();
+            let merged = match result {
+                None => expanded,
+                Some(prev) => ExpandedCiphertextList::merge(prev, expanded)?,
+            };
+            result = Some(merged);
+        }
+        Ok(result)
     }
 
     #[doc(hidden)]
