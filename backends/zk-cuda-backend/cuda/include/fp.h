@@ -4,7 +4,7 @@
 #include <cuda_runtime.h>
 
 // Ceiling division: computes (M + N - 1) / N
-#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
 
 // CUDA architecture constant
 #define CUDA_WARP_SIZE 32 // NVIDIA warp size (threads per warp)
@@ -59,7 +59,9 @@ static_assert(LIMB_BITS == 32 || LIMB_BITS == 64,
 // Represents a big integer as N limbs of LIMB_BITS bits each
 // Little-endian: limb[0] is least significant word
 // Note: This is a POD (Plain Old Data) type for CUDA __constant__ compatibility
-template <int N> struct BigInt {
+template <int N>
+struct BigInt
+{
   UNSIGNED_LIMB limb[N];
 
   // Total bits in this BigInt
@@ -108,7 +110,9 @@ template <int N> struct BigInt {
 // 1. CUDA __constant__ memory aggregate initialization (DEVICE_MODULUS, etc.)
 // 2. Rust FFI bindings that expect POD layout (#[repr(C)])
 // Use helper functions like fp_zero() for initialization instead.
-struct Fp : BigInt<FP_LIMBS> {};
+struct Fp : BigInt<FP_LIMBS>
+{
+};
 
 // 64-bit: 7 limbs * 8 bytes = 56 bytes
 // 32-bit: 14 limbs * 4 bytes = 56 bytes
@@ -160,7 +164,8 @@ extern __constant__ const UNSIGNED_LIMB DEVICE_P_PRIME;
 // All operations are CUDA-compatible (can be called from host or device)
 
 // Comparison result enum
-enum class ComparisonType : int {
+enum class ComparisonType : int
+{
   Less = -1,  // a < b
   Equal = 0,  // a == b
   Greater = 1 // a > b
@@ -209,6 +214,17 @@ __host__ __device__ void fp_add(Fp &c, const Fp &a, const Fp &b);
 // MONTGOMERY: Both inputs and output must be in Montgomery form
 __host__ __device__ void fp_sub(Fp &c, const Fp &a, const Fp &b);
 
+// Lazy addition: c = a + b, output in [0, 2p) for inputs in [0, p).
+// Skips the final conditional subtraction of fp_add.
+// Safe as input to fp_mont_mul (CIOS accepts [0, 2p)); NOT safe for final
+// results or as input to fp_sub/fp_neg which require [0, p) inputs.
+__host__ __device__ void fp_add_lazy(Fp &c, const Fp &a, const Fp &b);
+
+// Lazy subtraction: c ≡ a - b (mod p), output in [0, 2p) for inputs in [0, p).
+// Adds p unconditionally, skipping the borrow-select of fp_sub.
+// Same safety concerns as fp_add_lazy.
+__host__ __device__ void fp_sub_lazy(Fp &c, const Fp &a, const Fp &b);
+
 // Multiplication: c = a * b (without reduction)
 // "Raw" means the operation is performed without modular reduction modulo p.
 // The result is stored in double-width (2*FP_LIMBS limbs) and may be >= p.
@@ -224,6 +240,11 @@ __host__ __device__ void fp_mont_reduce(Fp &c, const UNSIGNED_LIMB *a);
 // Montgomery multiplication: c = (a * b * R_INV) mod p
 // Both a and b are in Montgomery form, result is in Montgomery form
 __host__ __device__ void fp_mont_mul(Fp &c, const Fp &a, const Fp &b);
+
+// Montgomery squaring: c = (a^2 * R_INV) mod p
+// Both input and output in Montgomery form.
+// On device uses a triangular MAD chain (fewer multiplications).
+__host__ __device__ void fp_mont_sqr(Fp &c, const Fp &a);
 
 // CONVERSION: Input is normal form, output is Montgomery form
 __host__ __device__ void fp_to_montgomery(Fp &c, const Fp &a);

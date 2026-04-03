@@ -14,7 +14,8 @@
 // etc.)
 // 2. Rust FFI bindings that expect POD layout (#[repr(C)])
 // Use helper functions like fp2_zero() for initialization instead.
-struct Fp2 {
+struct Fp2
+{
   Fp c0; // Real part (coefficient of 1)
   Fp c1; // Imaginary part (coefficient of i)
 };
@@ -72,6 +73,11 @@ __host__ __device__ void fp2_add(Fp2 &c, const Fp2 &a, const Fp2 &b);
 // Subtraction: c = a - b
 __host__ __device__ void fp2_sub(Fp2 &c, const Fp2 &a, const Fp2 &b);
 
+// Lazy add/sub: each component output in [0, 2p) for inputs in [0, p).
+// Safe as input to fp2_mont_mul; same contract as fp_add_lazy / fp_sub_lazy.
+__host__ __device__ void fp2_add_lazy(Fp2 &c, const Fp2 &a, const Fp2 &b);
+__host__ __device__ void fp2_sub_lazy(Fp2 &c, const Fp2 &a, const Fp2 &b);
+
 // Multiplication: c = a * b
 // (a0 + a1*i) * (b0 + b1*i) = (a0*b0 - a1*b1) + (a0*b1 + a1*b0)*i
 // NOTE: Assumes inputs are in normal form and converts to/from Montgomery
@@ -84,7 +90,7 @@ __host__ __device__ void fp2_mont_mul(Fp2 &c, const Fp2 &a, const Fp2 &b);
 // Montgomery squaring: c = a^2 (all in Montgomery form)
 // Uses the complex-squaring identity: c0 = (a0+a1)(a0-a1), c1 = 2*a0*a1
 // Only 2 Fp multiplications vs 3 for fp2_mont_mul(c, a, a).
-// NOTE: All inputs and outputs are in Montgomery form (no conversions)
+// NOTE: All inputs should be in Montgomery form
 __host__ __device__ void fp2_mont_square(Fp2 &c, const Fp2 &a);
 
 // Squaring: c = a^2
