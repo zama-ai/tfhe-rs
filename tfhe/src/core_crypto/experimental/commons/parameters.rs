@@ -43,3 +43,6 @@ impl crate::core_crypto::commons::parameters::LweDimension {
         LweSecretKeyUnsharedCoefCount(self.0 - shared_coef_count.0)
     }
 }
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LweBootstrapExtensionFactor(pub usize);

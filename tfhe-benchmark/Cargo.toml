@@ -55,6 +55,9 @@ avx512 = ["tfhe/avx512"]
 pbs-stats = ["tfhe/pbs-stats"]
 zk-pok = ["tfhe/zk-pok", "dep:tfhe-zk-pok"]
 
+# experimental section
+experimental = ["tfhe/experimental"]
+
 [[bench]]
 name = "boolean"
 path = "benches/boolean/bench.rs"
@@ -204,6 +207,12 @@ name = "core_crypto-pbs128"
 path = "benches/core_crypto/pbs128_bench.rs"
 harness = false
 required-features = ["shortint", "internal-keycache"]
+
+[[bench]]
+name = "core_crypto-experimental_extended_pbs"
+path = "benches/core_crypto/experimental_extended_pbs.rs"
+harness = false
+required-features = ["experimental"]
 
 [[bench]]
 name = "zk-msm"
