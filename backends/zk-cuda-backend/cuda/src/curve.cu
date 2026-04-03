@@ -1413,7 +1413,7 @@ __host__ __device__ void projective_point_add(G1Projective &result,
   u = Y2Z1 - Y1Z2;
 
   // uu = u^2
-  fp_mont_mul(uu, u, u);
+  fp_mont_sqr(uu, u);
 
   // v = X2 * Z1 - X1 * Z2 = X2*Z1 - X1Z2
   Fp X2Z1;
@@ -1428,7 +1428,7 @@ __host__ __device__ void projective_point_add(G1Projective &result,
   }
 
   // vv = v^2
-  fp_mont_mul(vv, v, v);
+  fp_mont_sqr(vv, v);
   // vvv = v * vv
   fp_mont_mul(vvv, v, vv);
 
@@ -1568,9 +1568,9 @@ __host__ __device__ void projective_mixed_add(G1Projective &result,
   }
 
   // uu = u^2
-  fp_mont_mul(uu, u, u);
+  fp_mont_sqr(uu, u);
   // vv = v^2
-  fp_mont_mul(vv, v, v);
+  fp_mont_sqr(vv, v);
   // vvv = v * vv
   fp_mont_mul(vvv, v, vv);
 
@@ -1692,7 +1692,7 @@ __host__ __device__ void projective_point_double(G1Projective &result,
 
   // A = 3 * X^2
   Fp X_sq, A;
-  fp_mont_mul(X_sq, p.X, p.X);
+  fp_mont_sqr(X_sq, p.X);
   fp_mul3(A, X_sq);
 
   // B = Y * Z
@@ -1706,7 +1706,7 @@ __host__ __device__ void projective_point_double(G1Projective &result,
 
   // D = A^2 - 8*C
   Fp A_sq, eight_C;
-  fp_mont_mul(A_sq, A, A);
+  fp_mont_sqr(A_sq, A);
   fp_mul8(eight_C, C);
   Fp D = A_sq - eight_C;
 
@@ -1716,14 +1716,16 @@ __host__ __device__ void projective_point_double(G1Projective &result,
   fp_double(result.X, BD);
 
   // Y3 = A * (4*C - D) - 8 * Y^2 * B^2
-  Fp four_C, A_times_diff;
+  Fp four_C, four_C_minus_D, A_times_diff;
   fp_mul4(four_C, C);
-  Fp four_C_minus_D = four_C - D;
+  // Lazy sub: four_C_minus_D feeds fp_mont_mul, so skip the conditional
+  // subtract and output in [0, 2p) instead of [0, p).
+  fp_sub_lazy(four_C_minus_D, four_C, D);
   fp_mont_mul(A_times_diff, A, four_C_minus_D);
 
   Fp Y_sq, B_sq, Y_sq_B_sq, eight_Y_sq_B_sq;
-  fp_mont_mul(Y_sq, p.Y, p.Y);
-  fp_mont_mul(B_sq, B, B);
+  fp_mont_sqr(Y_sq, p.Y);
+  fp_mont_sqr(B_sq, B);
   fp_mont_mul(Y_sq_B_sq, Y_sq, B_sq);
   fp_mul8(eight_Y_sq_B_sq, Y_sq_B_sq);
   result.Y = A_times_diff - eight_Y_sq_B_sq;
@@ -1773,9 +1775,13 @@ __host__ __device__ void projective_point_double(G2Projective &result,
   fp2_double(result.X, BD);
 
   // Y3 = A * (4*C - D) - 8 * Y^2 * B^2
-  Fp2 four_C, A_times_diff;
+  Fp2 four_C, four_C_minus_D, A_times_diff;
   fp2_mul4(four_C, C);
-  Fp2 four_C_minus_D = four_C - D;
+
+  // we can't use lazy sub here because for fp2 with Karatsuba path we will end
+  // up with values in [0, 4p) instead of [0, 2p), which would break the final
+  // result
+  fp2_sub(four_C_minus_D, four_C, D);
   fp2_mont_mul(A_times_diff, A, four_C_minus_D);
 
   Fp2 Y_sq, B_sq, Y_sq_B_sq, eight_Y_sq_B_sq;
