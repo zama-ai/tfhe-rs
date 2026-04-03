@@ -7,8 +7,6 @@
 #include <cuda_runtime.h>
 
 // For CUDA device code, we use __constant__ memory
-// Constants are hardcoded at compile time (like sppark) to avoid
-// cudaMemcpyToSymbol
 // Note: DEVICE_MODULUS is in normal form (not Montgomery)
 __constant__ const Fp DEVICE_MODULUS = {BLS12_446_MODULUS_LIMBS};
 
@@ -104,7 +102,7 @@ __host__ __device__ ComparisonType fp_cmp(const Fp &a, const Fp &b) {
 
 __host__ __device__ bool fp_is_zero(const Fp &a) {
   // By doing this way we avoid branching
-  uint64_t acc = 0;
+  UNSIGNED_LIMB acc = 0;
   for (int i = 0; i < FP_LIMBS; i++) {
     acc |= a.limb[i];
   }
@@ -114,8 +112,8 @@ __host__ __device__ bool fp_is_zero(const Fp &a) {
 __host__ __device__ bool fp_is_one(const Fp &a) {
   if (a.limb[0] != 1)
     return false;
-  // By doing this way we avoid branching
-  uint64_t acc = 0;
+  // All higher limbs must be zero.
+  UNSIGNED_LIMB acc = 0;
   for (int i = 1; i < FP_LIMBS; i++) {
     acc |= a.limb[i];
   }
@@ -207,6 +205,40 @@ __host__ __device__ UNSIGNED_LIMB fp_add_raw(Fp &c, const Fp &a, const Fp &b) {
         "l"(b.limb[1]), "l"(b.limb[2]), "l"(b.limb[3]), "l"(b.limb[4]),
         "l"(b.limb[5]), "l"(b.limb[6]));
   return carry_out;
+#elif defined(__CUDA_ARCH__) && LIMB_BITS_CONFIG == 32
+  // 32-bit PTX carry chain: add.cc.u32 sets the hardware carry flag,
+  // addc.cc.u32 propagates it. Eliminates software carry-detect comparisons
+  // across all 14 limbs.
+  // Operand map: %0..%13 = c[0..13], %14 = carry_out,
+  //              %15..%28 = a[0..13], %29..%42 = b[0..13].
+  uint32_t carry_out;
+  asm("add.cc.u32   %0,  %15, %29;\n\t" // c[0]  = a[0]  + b[0],  set CF
+      "addc.cc.u32  %1,  %16, %30;\n\t" // c[1]  = a[1]  + b[1]  + CF
+      "addc.cc.u32  %2,  %17, %31;\n\t" // c[2]  = a[2]  + b[2]  + CF
+      "addc.cc.u32  %3,  %18, %32;\n\t" // c[3]  = a[3]  + b[3]  + CF
+      "addc.cc.u32  %4,  %19, %33;\n\t" // c[4]  = a[4]  + b[4]  + CF
+      "addc.cc.u32  %5,  %20, %34;\n\t" // c[5]  = a[5]  + b[5]  + CF
+      "addc.cc.u32  %6,  %21, %35;\n\t" // c[6]  = a[6]  + b[6]  + CF
+      "addc.cc.u32  %7,  %22, %36;\n\t" // c[7]  = a[7]  + b[7]  + CF
+      "addc.cc.u32  %8,  %23, %37;\n\t" // c[8]  = a[8]  + b[8]  + CF
+      "addc.cc.u32  %9,  %24, %38;\n\t" // c[9]  = a[9]  + b[9]  + CF
+      "addc.cc.u32  %10, %25, %39;\n\t" // c[10] = a[10] + b[10] + CF
+      "addc.cc.u32  %11, %26, %40;\n\t" // c[11] = a[11] + b[11] + CF
+      "addc.cc.u32  %12, %27, %41;\n\t" // c[12] = a[12] + b[12] + CF
+      "addc.cc.u32  %13, %28, %42;\n\t" // c[13] = a[13] + b[13] + CF
+      "addc.u32     %14, 0,   0;\n\t"   // carry_out = 0 + 0 + CF (0 or 1)
+      : "=r"(c.limb[0]), "=r"(c.limb[1]), "=r"(c.limb[2]), "=r"(c.limb[3]),
+        "=r"(c.limb[4]), "=r"(c.limb[5]), "=r"(c.limb[6]), "=r"(c.limb[7]),
+        "=r"(c.limb[8]), "=r"(c.limb[9]), "=r"(c.limb[10]), "=r"(c.limb[11]),
+        "=r"(c.limb[12]), "=r"(c.limb[13]), "=r"(carry_out)
+      : "r"(a.limb[0]), "r"(a.limb[1]), "r"(a.limb[2]), "r"(a.limb[3]),
+        "r"(a.limb[4]), "r"(a.limb[5]), "r"(a.limb[6]), "r"(a.limb[7]),
+        "r"(a.limb[8]), "r"(a.limb[9]), "r"(a.limb[10]), "r"(a.limb[11]),
+        "r"(a.limb[12]), "r"(a.limb[13]), "r"(b.limb[0]), "r"(b.limb[1]),
+        "r"(b.limb[2]), "r"(b.limb[3]), "r"(b.limb[4]), "r"(b.limb[5]),
+        "r"(b.limb[6]), "r"(b.limb[7]), "r"(b.limb[8]), "r"(b.limb[9]),
+        "r"(b.limb[10]), "r"(b.limb[11]), "r"(b.limb[12]), "r"(b.limb[13]));
+  return static_cast<UNSIGNED_LIMB>(carry_out);
 #else
   // Host path: portable software carry detection
   UNSIGNED_LIMB carry = 0;
@@ -248,6 +280,41 @@ __host__ __device__ UNSIGNED_LIMB fp_sub_raw(Fp &c, const Fp &a, const Fp &b) {
   // subc.u64 with 0-0-CF produces 0 if no borrow, or 0xFFFFFFFFFFFFFFFF if
   // borrow. Normalize to 0/1 for callers that check (borrow != 0) or add it.
   return borrow_out & 1;
+#elif defined(__CUDA_ARCH__) && LIMB_BITS_CONFIG == 32
+  // 32-bit PTX borrow chain: sub.cc.u32 sets the hardware borrow flag,
+  // subc.cc.u32 propagates it across all 14 limbs.
+  // subc.u32 with 0-0-BF gives 0xFFFFFFFF on borrow; normalize to 0/1.
+  // Operand map: %0..%13 = c[0..13], %14 = borrow_out,
+  //              %15..%28 = a[0..13], %29..%42 = b[0..13].
+  uint32_t borrow_out;
+  asm("sub.cc.u32   %0,  %15, %29;\n\t" // c[0]  = a[0]  - b[0],  set BF
+      "subc.cc.u32  %1,  %16, %30;\n\t" // c[1]  = a[1]  - b[1]  - BF
+      "subc.cc.u32  %2,  %17, %31;\n\t" // c[2]  = a[2]  - b[2]  - BF
+      "subc.cc.u32  %3,  %18, %32;\n\t" // c[3]  = a[3]  - b[3]  - BF
+      "subc.cc.u32  %4,  %19, %33;\n\t" // c[4]  = a[4]  - b[4]  - BF
+      "subc.cc.u32  %5,  %20, %34;\n\t" // c[5]  = a[5]  - b[5]  - BF
+      "subc.cc.u32  %6,  %21, %35;\n\t" // c[6]  = a[6]  - b[6]  - BF
+      "subc.cc.u32  %7,  %22, %36;\n\t" // c[7]  = a[7]  - b[7]  - BF
+      "subc.cc.u32  %8,  %23, %37;\n\t" // c[8]  = a[8]  - b[8]  - BF
+      "subc.cc.u32  %9,  %24, %38;\n\t" // c[9]  = a[9]  - b[9]  - BF
+      "subc.cc.u32  %10, %25, %39;\n\t" // c[10] = a[10] - b[10] - BF
+      "subc.cc.u32  %11, %26, %40;\n\t" // c[11] = a[11] - b[11] - BF
+      "subc.cc.u32  %12, %27, %41;\n\t" // c[12] = a[12] - b[12] - BF
+      "subc.cc.u32  %13, %28, %42;\n\t" // c[13] = a[13] - b[13] - BF
+      "subc.u32     %14, 0,   0;\n\t"   // borrow_out = 0 - 0 - BF (0 or
+                                        // 0xFFFFFFFF)
+      : "=r"(c.limb[0]), "=r"(c.limb[1]), "=r"(c.limb[2]), "=r"(c.limb[3]),
+        "=r"(c.limb[4]), "=r"(c.limb[5]), "=r"(c.limb[6]), "=r"(c.limb[7]),
+        "=r"(c.limb[8]), "=r"(c.limb[9]), "=r"(c.limb[10]), "=r"(c.limb[11]),
+        "=r"(c.limb[12]), "=r"(c.limb[13]), "=r"(borrow_out)
+      : "r"(a.limb[0]), "r"(a.limb[1]), "r"(a.limb[2]), "r"(a.limb[3]),
+        "r"(a.limb[4]), "r"(a.limb[5]), "r"(a.limb[6]), "r"(a.limb[7]),
+        "r"(a.limb[8]), "r"(a.limb[9]), "r"(a.limb[10]), "r"(a.limb[11]),
+        "r"(a.limb[12]), "r"(a.limb[13]), "r"(b.limb[0]), "r"(b.limb[1]),
+        "r"(b.limb[2]), "r"(b.limb[3]), "r"(b.limb[4]), "r"(b.limb[5]),
+        "r"(b.limb[6]), "r"(b.limb[7]), "r"(b.limb[8]), "r"(b.limb[9]),
+        "r"(b.limb[10]), "r"(b.limb[11]), "r"(b.limb[12]), "r"(b.limb[13]));
+  return static_cast<UNSIGNED_LIMB>(borrow_out & 1u);
 #else
   // Host path: portable software borrow detection
   UNSIGNED_LIMB borrow = 0;
@@ -290,6 +357,17 @@ __host__ __device__ void fp_add(Fp &c, const Fp &a, const Fp &b) {
   for (int i = 0; i < FP_LIMBS; i++) {
     c.limb[i] = (sum.limb[i] & mask) | (reduced.limb[i] & ~mask);
   }
+#elif defined(__CUDA_ARCH__) && LIMB_BITS_CONFIG == 32
+  // Same branchless logic as the 64-bit path; mask arithmetic is identical
+  // since UNSIGNED_LIMB is uint32_t: -1u == 0xFFFFFFFF (all-ones).
+  Fp reduced;
+  UNSIGNED_LIMB borrow = fp_sub_raw(reduced, sum, fp_modulus());
+  UNSIGNED_LIMB use_original = ((carry ^ 1u) & borrow);
+  UNSIGNED_LIMB mask = -use_original;
+
+  for (int i = 0; i < FP_LIMBS; i++) {
+    c.limb[i] = (sum.limb[i] & mask) | (reduced.limb[i] & ~mask);
+  }
 #else
   // Host path: branching is fine on CPU (branch predictor handles it well)
   const Fp &p = fp_modulus();
@@ -322,6 +400,15 @@ __host__ __device__ void fp_sub(Fp &c, const Fp &a, const Fp &b) {
   for (int i = 0; i < FP_LIMBS; i++) {
     c.limb[i] = (corrected.limb[i] & mask) | (diff.limb[i] & ~mask);
   }
+#elif defined(__CUDA_ARCH__) && LIMB_BITS_CONFIG == 32
+  // Same branchless logic as the 64-bit path; -1u == 0xFFFFFFFF for uint32_t.
+  Fp corrected;
+  fp_add_raw(corrected, diff, fp_modulus());
+  UNSIGNED_LIMB mask = -borrow;
+
+  for (int i = 0; i < FP_LIMBS; i++) {
+    c.limb[i] = (corrected.limb[i] & mask) | (diff.limb[i] & ~mask);
+  }
 #else
   // Host path: branching is fine on CPU
   const Fp &p = fp_modulus();
@@ -331,6 +418,26 @@ __host__ __device__ void fp_sub(Fp &c, const Fp &a, const Fp &b) {
     fp_copy(c, diff);
   }
 #endif
+}
+
+// Lazy addition: c = a + b, result in [0, 2p) for inputs in [0, p).
+// Skips the conditional subtraction of fp_add; valid as input to fp_mont_mul
+// since CIOS accepts operands in [0, 2p).
+__host__ __device__ void fp_add_lazy(Fp &c, const Fp &a, const Fp &b) {
+  fp_add_raw(c, a, b);
+}
+
+// Lazy subtraction: c ≡ a - b (mod p), result in [0, 2p) for inputs in [0, p).
+// Adds p unconditionally (no borrow-select), saving one conditional branch.
+// Valid as input to fp_mont_mul; must NOT be used where [0, p) is
+// required (e.g. final results, inputs to fp_sub/fp_neg).
+__host__ __device__ void fp_sub_lazy(Fp &c, const Fp &a, const Fp &b) {
+  Fp diff;
+  fp_sub_raw(diff, a, b);            // a - b, borrow absorbed into bit pattern
+  fp_add_raw(c, diff, fp_modulus()); // always add p; carry discarded
+  // For a >= b (no borrow): diff = a-b ∈ [0,p), result = a-b+p ∈ [p,2p)  ✓
+  // For a < b  (borrow=1):  diff wraps, result = a-b+2^N+p mod 2^N = a-b+p ∈
+  // [0,p) ✓
 }
 
 // Small-constant multiplication via addition chains.
@@ -483,14 +590,32 @@ __host__ __device__ void fp_mont_reduce(Fp &c, const UNSIGNED_LIMB *a) {
   for (int i = 0; i < FP_LIMBS; i++) {
     UNSIGNED_LIMB u = t[i] * p_prime; // u = t[i] * p' mod 2^LIMB_BITS
 
-    // Add u * p to t, starting at position i
+    // Add u * p to t, starting at position i.
+    // Use uint64_t accumulator in 32-bit mode to avoid carry overflow:
+    // hi + carry1 + carry2 can reach 2^32 which overflows uint32_t.
+#if LIMB_BITS_CONFIG == 32
+    uint64_t carry = 0;
+    for (int j = 0; j < FP_LIMBS; j++) {
+      uint64_t acc =
+          (uint64_t)t[i + j] + (uint64_t)u * (uint64_t)p.limb[j] + carry;
+      t[i + j] = (UNSIGNED_LIMB)acc;
+      carry = acc >> LIMB_BITS;
+    }
+    // Propagate remaining carry (carry ≤ 2^32-1 at this point)
+    int idx = i + FP_LIMBS;
+    while (carry != 0 && idx <= 2 * FP_LIMBS) {
+      uint64_t acc = (uint64_t)t[idx] + carry;
+      t[idx] = (UNSIGNED_LIMB)acc;
+      carry = acc >> LIMB_BITS;
+      idx++;
+    }
+#else
     UNSIGNED_LIMB carry = 0;
     for (int j = 0; j < FP_LIMBS; j++) {
       UNSIGNED_LIMB hi, lo;
       mul_limbs(u, p.limb[j], hi, lo);
 
       // Three-way addition: t[i+j] + lo + carry
-      // Do it in two steps to handle carries properly
       UNSIGNED_LIMB temp = t[i + j] + lo;
       UNSIGNED_LIMB carry1 = (temp < t[i + j]) ? 1 : 0;
 
@@ -499,7 +624,6 @@ __host__ __device__ void fp_mont_reduce(Fp &c, const UNSIGNED_LIMB *a) {
 
       t[i + j] = sum;
 
-      // Next carry is hi + carry1 + carry2
       carry = hi + carry1 + carry2;
     }
 
@@ -511,6 +635,7 @@ __host__ __device__ void fp_mont_reduce(Fp &c, const UNSIGNED_LIMB *a) {
       t[idx] = sum;
       idx++;
     }
+#endif
   }
 
   // Result is in t[FP_LIMBS..2*FP_LIMBS-1] (high half)
@@ -735,14 +860,369 @@ __device__ __noinline__ void fp_mont_mul_cios_ptx(Fp &c, const Fp &a,
 #endif // LIMB_BITS_CONFIG == 64
 #endif // __CUDA_ARCH__
 
+// 32-bit dual MAD-chain Montgomery multiplication (device path)
+
+#ifdef __CUDA_ARCH__
+
+// Initialize acc[0..n-1] with products of every other element of a and bi.
+// For each j (step 2): acc[j] = lo(a[j]*bi), acc[j+1] = hi(a[j]*bi).
+// No carry chain — this is a fresh store, not an accumulate.
+static __device__ __forceinline__ void
+fp_mul_n_32(uint32_t *acc, const uint32_t *a, uint32_t bi, int n) {
+#pragma unroll
+  for (int j = 0; j < n; j += 2)
+    asm("mul.lo.u32 %0, %2, %3; mul.hi.u32 %1, %2, %3;"
+        : "=r"(acc[j]), "=r"(acc[j + 1])
+        : "r"(a[j]), "r"(bi));
+}
+
+// Multiply-accumulate across n limbs with a hardware carry chain.
+// First pair uses mad.lo.cc + madc.hi.cc (initiates the chain).
+// Remaining pairs continue with madc.lo.cc + madc.hi.cc.
+// Carry flag exits in CC on return; caller must consume it.
+static __device__ __forceinline__ void
+fp_cmad_n_32(uint32_t *acc, const uint32_t *a, uint32_t bi, int n) {
+  asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.cc.u32 %1, %2, %3, %1;"
+      : "+r"(acc[0]), "+r"(acc[1])
+      : "r"(a[0]), "r"(bi));
+#pragma unroll
+  for (int j = 2; j < n; j += 2)
+    asm("madc.lo.cc.u32 %0, %2, %3, %0; madc.hi.cc.u32 %1, %2, %3, %1;"
+        : "+r"(acc[j]), "+r"(acc[j + 1])
+        : "r"(a[j]), "r"(bi));
+  // CC holds the final carry on return
+}
+
+// Multiply-accumulate with implicit right-shift of odd by two positions.
+// Each pair: odd[j] = lo/hi(a[j]*bi) + old_odd[j+2] + CC.
+// Reads are always two positions ahead of writes so forward iteration is safe.
+// Final pair terminates the chain with addend=0 and no carry-out (.hi only).
+static __device__ __forceinline__ void
+fp_madc_n_rshift_32(uint32_t *odd, const uint32_t *a, uint32_t bi, int n) {
+#pragma unroll
+  for (int j = 0; j < n - 2; j += 2)
+    asm("madc.lo.cc.u32 %0, %2, %3, %4; madc.hi.cc.u32 %1, %2, %3, %5;"
+        : "=r"(odd[j]), "=r"(odd[j + 1])
+        : "r"(a[j]), "r"(bi), "r"(odd[j + 2]), "r"(odd[j + 3]));
+  asm("madc.lo.cc.u32 %0, %2, %3, 0; madc.hi.u32 %1, %2, %3, 0;"
+      : "=r"(odd[n - 2]), "=r"(odd[n - 1])
+      : "r"(a[n - 2]), "r"(bi));
+  // Note: final madc.hi.u32 has no .cc so CC is clear on return
+}
+
+// After the call even[0] == 0 (by the Montgomery invariant), so the next
+// iteration's right-shift effectively advances the window by one limb.
+static __device__ __forceinline__ void
+fp_mad_n_redc_32(uint32_t *even, uint32_t *odd, const uint32_t *a,
+                 const uint32_t *p, uint32_t bi, uint32_t M0, bool first) {
+  constexpr int n = 14; // 32-bit limbs for BLS12-446 (446 bits → 14 × 32-bit)
+
+  if (first) {
+    // Fresh initialization: no carry from previous iteration.
+    // even[2j]   = lo(a[2j]   * bi),  even[2j+1] = hi(a[2j]   * bi)
+    // odd[2j]    = lo(a[2j+1] * bi),  odd[2j+1]  = hi(a[2j+1] * bi)
+    fp_mul_n_32(odd, a + 1, bi, n);
+    fp_mul_n_32(even, a, bi, n);
+  } else {
+    // Merge carry from previous iteration and advance both accumulators.
+    asm("add.cc.u32 %0, %0, %1;" : "+r"(even[0]) : "r"(odd[1]));
+    fp_madc_n_rshift_32(odd, a + 1, bi, n);
+    fp_cmad_n_32(even, a, bi, n);
+    asm("addc.u32 %0, %0, 0;" : "+r"(odd[n - 1]));
+  }
+
+  // Montgomery reduction: choose mi so that even[0] + lo(p[0]*mi) = 0 mod 2^32
+  uint32_t mi = even[0] * M0;
+  fp_cmad_n_32(odd, p + 1, mi, n);
+  fp_cmad_n_32(even, p, mi, n);
+  asm("addc.u32 %0, %0, 0;" : "+r"(odd[n - 1]));
+}
+
+// Carry-add: acc[i] += a[i] for i = 0..n-1 with PTX carry chain.
+// Starts with add.cc (initiates chain); all subsequent adds use addc.cc.
+// Carry flag is left set in CC on return for the caller to consume.
+static __device__ __forceinline__ void fp_cadd_n_32(uint32_t *acc,
+                                                    const uint32_t *a, int n) {
+  asm("add.cc.u32 %0, %0, %1;" : "+r"(acc[0]) : "r"(a[0]));
+#pragma unroll
+  for (int i = 1; i < n; i++)
+    asm("addc.cc.u32 %0, %0, %1;" : "+r"(acc[i]) : "r"(a[i]));
+}
+
+// Even row of the upper-triangle squaring pass.
+// Adds a[1..n-2]*bi into odd[0..n-3] (cmad chain), places a[n-1]*bi into
+// odd[n-2..n-1] fresh (terminates carry), then adds a[0..n-1]*bi into
+// even[0..n-1] (independent cmad chain), folding the even carry into odd[n-1].
+static __device__ __forceinline__ void fp_mad_row_32(uint32_t *odd,
+                                                     uint32_t *even,
+                                                     const uint32_t *a,
+                                                     uint32_t bi, int n) {
+  fp_cmad_n_32(odd, a + 1, bi, n - 2);
+  asm("madc.lo.cc.u32 %0, %2, %3, 0; madc.hi.u32 %1, %2, %3, 0;"
+      : "=r"(odd[n - 2]), "=r"(odd[n - 1])
+      : "r"(a[n - 1]), "r"(bi));
+  fp_cmad_n_32(even, a, bi, n);
+  asm("addc.u32 %0, %0, 0;" : "+r"(odd[n - 1]));
+}
+
+// Odd row of the upper-triangle squaring pass.
+// Adds a[0..n-3]*bi into odd[0..n-3] (cmad chain), places a[n-2]*bi into
+// odd[n-2..n-1] fresh, then adds a[1..n-2]*bi into even[0..n-3] (n-2 terms),
+// folding the even carry into odd[n-1].
+static __device__ __forceinline__ void fp_qad_row_32(uint32_t *odd,
+                                                     uint32_t *even,
+                                                     const uint32_t *a,
+                                                     uint32_t bi, int n) {
+  fp_cmad_n_32(odd, a, bi, n - 2);
+  asm("madc.lo.cc.u32 %0, %2, %3, 0; madc.hi.u32 %1, %2, %3, 0;"
+      : "=r"(odd[n - 2]), "=r"(odd[n - 1])
+      : "r"(a[n - 2]), "r"(bi));
+  fp_cmad_n_32(even, a + 1, bi, n - 2);
+  asm("addc.u32 %0, %0, 0;" : "+r"(odd[n - 1]));
+}
+
+// One Montgomery-reduction row without a multiply step (b_i = 0).
+// Used by fp_mont_sqr_mad32 to reduce the lower n words of the wide product.
+// Mirrors fp_mad_n_redc_32 but omits the initial product accumulation, leaving
+// only the annihilation step that drives even[0] to zero.
+static __device__ __forceinline__ void
+fp_mul_by_1_row_32(uint32_t *even, uint32_t *odd, const uint32_t *p,
+                   uint32_t M0, bool first) {
+  constexpr int n = 14;
+  // mi removes even[0]: even[0] + lo(p[0]*mi) == 0 mod 2^32.
+  // IMPORTANT: mi must be computed from even[0] *after* any add.cc that
+  // modifies it. Plain integer multiply does not touch CC.
+  uint32_t mi;
+  if (first) {
+    mi = even[0] * M0;
+    fp_mul_n_32(odd, p + 1, mi, n);
+    fp_cmad_n_32(even, p, mi, n);
+    asm("addc.u32 %0, %0, 0;" : "+r"(odd[n - 1]));
+  } else {
+    // Absorb the shifted carry word from the previous step, then reduce.
+    asm("add.cc.u32 %0, %0, %1;" : "+r"(even[0]) : "r"(odd[1]));
+    mi = even[0] * M0;
+    fp_madc_n_rshift_32(odd, p + 1, mi, n);
+    fp_cmad_n_32(even, p, mi, n);
+    asm("addc.u32 %0, %0, 0;" : "+r"(odd[n - 1]));
+  }
+}
+
+// Montgomery squaring using 32-bit triangular MAD chains.
+//
+// Computes c = a^2 * R^{-1} mod p (input and output in Montgomery form).
+__device__ __noinline__ void fp_mont_sqr_mad32(Fp &c, const Fp &a) {
+  constexpr int n = 14;
+
+  const uint32_t *a32 = reinterpret_cast<const uint32_t *>(a.limb);
+  const uint32_t *p32 = reinterpret_cast<const uint32_t *>(DEVICE_MODULUS.limb);
+  const uint32_t M0 = static_cast<uint32_t>(DEVICE_P_PRIME);
+
+  uint32_t wide[2 * n], wtemp[2 * n - 2];
+  // Phase 1: upper triangle a[i]*a[j] for j > i
+  fp_mul_n_32(wide + 2, a32 + 2, a32[0], n - 2);
+  fp_mul_n_32(wtemp, a32 + 1, a32[0], n);
+
+#pragma unroll
+  for (int i = 2; i <= n - 4; i += 2) {
+    fp_mad_row_32(&wide[2 * i], &wtemp[2 * i - 2], &a32[i], a32[i - 1], n - i);
+    fp_qad_row_32(&wtemp[2 * i], &wide[2 * i + 2], &a32[i + 1], a32[i], n - i);
+  }
+
+  asm("mul.lo.u32 %0, %2, %3; mul.hi.u32 %1, %2, %3;"
+      : "=r"(wide[2 * n - 4]), "=r"(wide[2 * n - 3])
+      : "r"(a32[n - 1]), "r"(a32[n - 3]));
+  asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.cc.u32 %1, %2, %3, %1;"
+      : "+r"(wtemp[2 * n - 6]), "+r"(wtemp[2 * n - 5])
+      : "r"(a32[n - 2]), "r"(a32[n - 3]));
+  asm("addc.u32 %0, %0, 0;" : "+r"(wide[2 * n - 3]));
+  asm("mul.lo.u32 %0, %2, %3; mul.hi.u32 %1, %2, %3;"
+      : "=r"(wtemp[2 * n - 4]), "=r"(wtemp[2 * n - 3])
+      : "r"(a32[n - 1]), "r"(a32[n - 2]));
+
+  fp_cadd_n_32(&wide[2], &wtemp[1], 2 * n - 4);
+  asm("addc.u32 %0, %1, 0;" : "=r"(wide[2 * n - 2]) : "r"(wtemp[2 * n - 3]));
+
+  // Phase 2: double the upper-triangle sum
+  wide[0] = 0;
+  asm("add.cc.u32 %0, %1, %1;" : "=r"(wide[1]) : "r"(wtemp[0]));
+#pragma unroll
+  for (int j = 2; j < 2 * n - 1; j++)
+    asm("addc.cc.u32 %0, %0, %0;" : "+r"(wide[j]));
+  asm("addc.u32 %0, 0, 0;" : "=r"(wide[2 * n - 1]));
+
+  // Phase 3 — add diagonal a[i]^2 terms
+  asm("mad.lo.cc.u32 %0, %2, %2, %0; madc.hi.cc.u32 %1, %2, %2, %1;"
+      : "+r"(wide[0]), "+r"(wide[1])
+      : "r"(a32[0]));
+#pragma unroll
+  for (int i = 1; i < n; i++)
+    asm("madc.lo.cc.u32 %0, %2, %2, %0; madc.hi.cc.u32 %1, %2, %2, %1;"
+        : "+r"(wide[2 * i]), "+r"(wide[2 * i + 1])
+        : "r"(a32[i]));
+
+  // Phase 4: Montgomery reduction
+  uint32_t red_odd[n];
+#pragma unroll
+  for (int i = 0; i < n; i += 2) {
+    fp_mul_by_1_row_32(&wide[0], &red_odd[0], p32, M0, i == 0);
+    fp_mul_by_1_row_32(&red_odd[0], &wide[0], p32, M0, false);
+  }
+  // Merge the final red_odd word into wide[0..n-1].
+  fp_cadd_n_32(&wide[0], &red_odd[1], n - 1);
+  asm("addc.u32 %0, %0, 0;" : "+r"(wide[n - 1]));
+
+  // Add reduced lower half into upper half wide[n..2n-1]; the result lives
+  // in wide[n..2n-1] and is in [0, 2p).
+  fp_cadd_n_32(&wide[n], &wide[0], n);
+  asm("addc.u32 %0, 0, 0;"
+      : "=r"(wide[0])); // discard overflow (always 0 for p<2^446)
+
+#if LIMB_BITS_CONFIG == 64
+  // Pack uint32_t pairs back into uint64_t limbs.
+#pragma unroll
+  for (int j = 0; j < 7; j++)
+    asm("mov.b64 %0, {%1, %2};"
+        : "=l"(c.limb[j])
+        : "r"(wide[n + 2 * j]), "r"(wide[n + 2 * j + 1]));
+
+  const uint64_t p0 = DEVICE_MODULUS.limb[0], p1 = DEVICE_MODULUS.limb[1],
+                 p2 = DEVICE_MODULUS.limb[2], p3 = DEVICE_MODULUS.limb[3],
+                 p4 = DEVICE_MODULUS.limb[4], p5 = DEVICE_MODULUS.limb[5],
+                 p6 = DEVICE_MODULUS.limb[6];
+  uint64_t r0, r1, r2, r3, r4, r5, r6, mask64;
+  asm("sub.cc.u64   %0, %8,  %15;\n\t"
+      "subc.cc.u64  %1, %9,  %16;\n\t"
+      "subc.cc.u64  %2, %10, %17;\n\t"
+      "subc.cc.u64  %3, %11, %18;\n\t"
+      "subc.cc.u64  %4, %12, %19;\n\t"
+      "subc.cc.u64  %5, %13, %20;\n\t"
+      "subc.cc.u64  %6, %14, %21;\n\t"
+      "subc.u64     %7, 0,   0;\n\t"
+      "shr.s64      %7, %7,  63;\n\t"
+      : "=l"(r0), "=l"(r1), "=l"(r2), "=l"(r3), "=l"(r4), "=l"(r5), "=l"(r6),
+        "=l"(mask64)
+      : "l"(c.limb[0]), "l"(c.limb[1]), "l"(c.limb[2]), "l"(c.limb[3]),
+        "l"(c.limb[4]), "l"(c.limb[5]), "l"(c.limb[6]), "l"(p0), "l"(p1),
+        "l"(p2), "l"(p3), "l"(p4), "l"(p5), "l"(p6));
+  c.limb[0] = (c.limb[0] & mask64) | (r0 & ~mask64);
+  c.limb[1] = (c.limb[1] & mask64) | (r1 & ~mask64);
+  c.limb[2] = (c.limb[2] & mask64) | (r2 & ~mask64);
+  c.limb[3] = (c.limb[3] & mask64) | (r3 & ~mask64);
+  c.limb[4] = (c.limb[4] & mask64) | (r4 & ~mask64);
+  c.limb[5] = (c.limb[5] & mask64) | (r5 & ~mask64);
+  c.limb[6] = (c.limb[6] & mask64) | (r6 & ~mask64);
+#else
+#pragma unroll
+  for (int j = 0; j < n; j++)
+    c.limb[j] = wide[n + j];
+  Fp reduced;
+  UNSIGNED_LIMB borrow = fp_sub_raw(reduced, c, fp_modulus());
+  UNSIGNED_LIMB mask32 = -borrow;
+#pragma unroll
+  for (int j = 0; j < n; j++)
+    c.limb[j] = (c.limb[j] & mask32) | (reduced.limb[j] & ~mask32);
+#endif
+}
+
+// Montgomery multiplication using 32-bit dual MAD chains.
+//
+// Computes c = a * b * R^{-1} mod p (all operands in Montgomery form).
+// Inputs are stored as uint64_t[7]; they are reinterpreted as uint32_t[14]
+// (little-endian: a64[j] == a32[2j] | (a32[2j+1] << 32)).
+__device__ __noinline__ void fp_mont_mul_mad32(Fp &c, const Fp &a,
+                                               const Fp &b) {
+  constexpr int n = 14;
+
+  // Reinterpret 64-bit limb arrays as 32-bit on little-endian hardware.
+  const uint32_t *a32 = reinterpret_cast<const uint32_t *>(a.limb);
+  const uint32_t *b32 = reinterpret_cast<const uint32_t *>(b.limb);
+  const uint32_t *p32 = reinterpret_cast<const uint32_t *>(DEVICE_MODULUS.limb);
+
+  // 32-bit Montgomery constant: low 32 bits of DEVICE_P_PRIME.
+  // Correct because -p^{-1} mod 2^32 == (-p^{-1} mod 2^64) mod 2^32.
+  const uint32_t M0 = static_cast<uint32_t>(DEVICE_P_PRIME);
+
+  uint32_t even[n], odd[n];
+
+  // Process every 32-bit limb of b in pairs, alternating primary accumulator.
+#pragma unroll
+  for (int i = 0; i < n; i += 2) {
+    fp_mad_n_redc_32(even, odd, a32, p32, b32[i], M0, i == 0);
+    fp_mad_n_redc_32(odd, even, a32, p32, b32[i + 1], M0, false);
+  }
+
+  // Merge: even[k] += odd[k+1] for k = 0..n-2, final carry into even[n-1].
+  asm("add.cc.u32 %0, %0, %1;" : "+r"(even[0]) : "r"(odd[1]));
+#pragma unroll
+  for (int i = 1; i < n - 1; i++)
+    asm("addc.cc.u32 %0, %0, %1;" : "+r"(even[i]) : "r"(odd[i + 1]));
+  asm("addc.u32 %0, %0, 0;" : "+r"(even[n - 1]));
+
+  // Pack and final reduction — layout depends on LIMB_BITS_CONFIG.
+  // In both cases UNSIGNED_LIMB* and uint32_t* point to the same 56-byte block.
+#if LIMB_BITS_CONFIG == 64
+  // 64-bit limbs: pack pairs into uint64_t with PTX mov.b64, then do a
+  // branchless 7-limb 64-bit conditional subtraction.
+#pragma unroll
+  for (int j = 0; j < 7; j++)
+    asm("mov.b64 %0, {%1, %2};"
+        : "=l"(c.limb[j])
+        : "r"(even[2 * j]), "r"(even[2 * j + 1]));
+
+  // subc.u64 0-0-borrow gives 0xFFFF... when c<p (keep), 0 when c>=p (reduce).
+  // shr.s64 sign-extends to a per-bit selection mask.
+  const uint64_t p0 = DEVICE_MODULUS.limb[0], p1 = DEVICE_MODULUS.limb[1],
+                 p2 = DEVICE_MODULUS.limb[2], p3 = DEVICE_MODULUS.limb[3],
+                 p4 = DEVICE_MODULUS.limb[4], p5 = DEVICE_MODULUS.limb[5],
+                 p6 = DEVICE_MODULUS.limb[6];
+  uint64_t r0, r1, r2, r3, r4, r5, r6, mask64;
+  asm("sub.cc.u64   %0, %8,  %15;\n\t"
+      "subc.cc.u64  %1, %9,  %16;\n\t"
+      "subc.cc.u64  %2, %10, %17;\n\t"
+      "subc.cc.u64  %3, %11, %18;\n\t"
+      "subc.cc.u64  %4, %12, %19;\n\t"
+      "subc.cc.u64  %5, %13, %20;\n\t"
+      "subc.cc.u64  %6, %14, %21;\n\t"
+      "subc.u64     %7, 0,   0;\n\t"
+      "shr.s64      %7, %7,  63;\n\t"
+      : "=l"(r0), "=l"(r1), "=l"(r2), "=l"(r3), "=l"(r4), "=l"(r5), "=l"(r6),
+        "=l"(mask64)
+      : "l"(c.limb[0]), "l"(c.limb[1]), "l"(c.limb[2]), "l"(c.limb[3]),
+        "l"(c.limb[4]), "l"(c.limb[5]), "l"(c.limb[6]), "l"(p0), "l"(p1),
+        "l"(p2), "l"(p3), "l"(p4), "l"(p5), "l"(p6));
+  c.limb[0] = (c.limb[0] & mask64) | (r0 & ~mask64);
+  c.limb[1] = (c.limb[1] & mask64) | (r1 & ~mask64);
+  c.limb[2] = (c.limb[2] & mask64) | (r2 & ~mask64);
+  c.limb[3] = (c.limb[3] & mask64) | (r3 & ~mask64);
+  c.limb[4] = (c.limb[4] & mask64) | (r4 & ~mask64);
+  c.limb[5] = (c.limb[5] & mask64) | (r5 & ~mask64);
+  c.limb[6] = (c.limb[6] & mask64) | (r6 & ~mask64);
+#else
+#pragma unroll
+  for (int j = 0; j < n; j++)
+    c.limb[j] = even[j];
+
+  Fp reduced;
+  UNSIGNED_LIMB borrow = fp_sub_raw(reduced, c, fp_modulus());
+  UNSIGNED_LIMB mask32 = -borrow; // all-ones if c<p (keep), all-zeros if c>=p
+#pragma unroll
+  for (int j = 0; j < n; j++)
+    c.limb[j] = (c.limb[j] & mask32) | (reduced.limb[j] & ~mask32);
+#endif
+}
+
+#endif // __CUDA_ARCH__
+
 // CIOS (Coarsely Integrated Operand Scanning) Montgomery multiplication
 // Fuses multiplication and reduction in a single pass for better efficiency.
 // Uses only FP_LIMBS+1 limbs of working space instead of 2*FP_LIMBS.
 // Both a and b are in Montgomery form, result is in Montgomery form.
 __host__ __device__ void fp_mont_mul_cios(Fp &c, const Fp &a, const Fp &b) {
-#if defined(__CUDA_ARCH__) && LIMB_BITS_CONFIG == 64
-  // Device path: fully unrolled PTX with hardware carry flags
-  fp_mont_mul_cios_ptx(c, a, b);
+#ifdef __CUDA_ARCH__
+  // Device path: 32-bit dual MAD chain — faster than 64-bit CIOS on all GPU
+  // architectures because 32-bit multiply is the hardware-native unit.
+  fp_mont_mul_mad32(c, a, b);
 #else
   // Host path: portable C++ implementation
   const Fp &p = fp_modulus();
@@ -750,11 +1230,41 @@ __host__ __device__ void fp_mont_mul_cios(Fp &c, const Fp &a, const Fp &b) {
 
   // Working array: only n+1 limbs needed (vs 2n for separate mul+reduce)
   UNSIGNED_LIMB t[FP_LIMBS + 1];
+  // memset is not guaranteed available in all device compilation contexts;
+  // use an explicit loop which the compiler will unroll anyway.
+#ifdef __CUDA_ARCH__
+  for (int i = 0; i <= FP_LIMBS; i++) {
+    t[i] = 0;
+  }
+#else
   memset(t, 0, (FP_LIMBS + 1) * sizeof(UNSIGNED_LIMB));
+#endif
 
   // Main CIOS loop: for each limb of b
   for (int i = 0; i < FP_LIMBS; i++) {
     // Step 1: Multiply-accumulate t += a * b[i]
+    //
+    // IMPORTANT: for 32-bit limbs, `carry = hi + c1 + c2` using UNSIGNED_LIMB
+    // (uint32_t) overflows when hi = 0xFFFFFFFF and c1+c2 > 0, silently
+    // dropping a carry bit. Use a uint64_t accumulator instead: acc = t[j] +
+    // a[j]*b[i] + carry_in always fits in 64 bits (max = (2^32-1) + (2^32-1)^2
+    // + (2^32-1) = 2^64 - 1), so the carry-out acc>>32 is correct.
+    //
+    // For 64-bit limbs the analogous overflow would require __uint128_t, but
+    // the existing hi/c1/c2 path works in practice for this prime (overflow
+    // never triggers), so we leave 64-bit unchanged.
+#if LIMB_BITS_CONFIG == 32
+    uint64_t carry64 = 0;
+    for (int j = 0; j < FP_LIMBS; j++) {
+      uint64_t acc =
+          (uint64_t)t[j] + (uint64_t)a.limb[j] * (uint64_t)b.limb[i] + carry64;
+      t[j] = (UNSIGNED_LIMB)acc;
+      carry64 = acc >> LIMB_BITS;
+    }
+    uint64_t sum64 = (uint64_t)t[FP_LIMBS] + carry64;
+    UNSIGNED_LIMB overflow = (UNSIGNED_LIMB)(sum64 >> LIMB_BITS);
+    t[FP_LIMBS] = (UNSIGNED_LIMB)sum64;
+#else
     UNSIGNED_LIMB carry = 0;
     for (int j = 0; j < FP_LIMBS; j++) {
       UNSIGNED_LIMB hi, lo;
@@ -767,18 +1277,31 @@ __host__ __device__ void fp_mont_mul_cios(Fp &c, const Fp &a, const Fp &b) {
       UNSIGNED_LIMB c2 = (sum2 < sum1) ? 1 : 0;
       t[j] = sum2;
 
-      // carry = hi + c1 + c2
       carry = hi + c1 + c2;
     }
-    // Add carry to t[n]
     UNSIGNED_LIMB sum = t[FP_LIMBS] + carry;
     UNSIGNED_LIMB overflow = (sum < t[FP_LIMBS]) ? 1 : 0;
     t[FP_LIMBS] = sum;
+#endif
 
     // Step 2: Reduction - compute m = t[0] * p' mod 2^LIMB_BITS
     UNSIGNED_LIMB m = t[0] * p_prime;
 
     // Add m * p to t (this zeros out t[0])
+#if LIMB_BITS_CONFIG == 32
+    carry64 = 0;
+    for (int j = 0; j < FP_LIMBS; j++) {
+      uint64_t acc =
+          (uint64_t)t[j] + (uint64_t)m * (uint64_t)p.limb[j] + carry64;
+      t[j] = (UNSIGNED_LIMB)acc;
+      carry64 = acc >> LIMB_BITS;
+    }
+    // Merge carry from reduction with the overflow from step 1.
+    // sum64 ≤ (2^32-1) + (2^32-1) + 1 = 2^33-1, so the new overflow is 0 or 1.
+    uint64_t s64 = (uint64_t)t[FP_LIMBS] + carry64 + (uint64_t)overflow;
+    t[FP_LIMBS] = (UNSIGNED_LIMB)s64;
+    overflow = (UNSIGNED_LIMB)(s64 >> LIMB_BITS);
+#else
     carry = 0;
     for (int j = 0; j < FP_LIMBS; j++) {
       UNSIGNED_LIMB hi, lo;
@@ -800,6 +1323,7 @@ __host__ __device__ void fp_mont_mul_cios(Fp &c, const Fp &a, const Fp &b) {
     UNSIGNED_LIMB c2 = (s2 < s1) ? 1 : 0;
     t[FP_LIMBS] = s2;
     overflow = c1 + c2; // Track overflow for final reduction
+#endif
 
     // Step 3: Shift right by one limb (divide by 2^LIMB_BITS)
     // t[0..n-1] = t[1..n], t[n] = overflow
@@ -810,7 +1334,13 @@ __host__ __device__ void fp_mont_mul_cios(Fp &c, const Fp &a, const Fp &b) {
   }
 
   // Copy result to output
+#ifdef __CUDA_ARCH__
+  for (int i = 0; i < FP_LIMBS; i++) {
+    c.limb[i] = t[i];
+  }
+#else
   memcpy(&c.limb[0], t, FP_LIMBS * sizeof(UNSIGNED_LIMB));
+#endif
 
   // Final reduction: if result >= p or there's overflow, subtract p
   if (t[FP_LIMBS] != 0 || fp_cmp(c, p) != ComparisonType::Less) {
@@ -827,6 +1357,19 @@ __host__ __device__ void fp_mont_mul_cios(Fp &c, const Fp &a, const Fp &b) {
 // Uses CIOS algorithm for fused multiply-reduce
 __host__ __device__ void fp_mont_mul(Fp &c, const Fp &a, const Fp &b) {
   fp_mont_mul_cios(c, a, b);
+}
+
+// Montgomery squaring: c = (a^2 * R_INV) mod p
+// Input and output in Montgomery form.
+// On device: uses fp_mont_sqr_mad32 (triangular MAD chain, ~30-40% fewer
+// multiplications than fp_mont_mul(c, a, a)).
+// On host: delegates to fp_mont_mul_cios(c, a, a).
+__host__ __device__ void fp_mont_sqr(Fp &c, const Fp &a) {
+#ifdef __CUDA_ARCH__
+  fp_mont_sqr_mad32(c, a);
+#else
+  fp_mont_mul_cios(c, a, a);
+#endif
 }
 
 // CONVERSION: Convert from normal form to Montgomery form
@@ -900,9 +1443,9 @@ __host__ __device__ static void fp_pow_internal_mont(Fp &result,
     int start_bit = (limb_idx == msb_idx) ? bit_pos : LIMB_BITS - 1;
 
     for (int bit = start_bit; bit >= 0; bit--) {
-      // Square result
+      // Square result using the optimised squaring path
       Fp temp;
-      fp_mont_mul(temp, result, result);
+      fp_mont_sqr(temp, result);
       fp_copy(result, temp);
 
       // Multiply by base if current bit is set
@@ -1081,7 +1624,7 @@ __host__ __device__ bool fp_sqrt(Fp &c, const Fp &a) {
   // Verify: c^2 should equal a (mod p) - using Montgomery form
   Fp c_mont, c_squared_mont;
   fp_to_montgomery(c_mont, c);
-  fp_mont_mul(c_squared_mont, c_mont, c_mont);
+  fp_mont_sqr(c_squared_mont, c_mont);
 
   if (fp_cmp(c_squared_mont, a_mont) == ComparisonType::Equal) {
     return true;
@@ -1091,7 +1634,7 @@ __host__ __device__ bool fp_sqrt(Fp &c, const Fp &a) {
   Fp alt_c, alt_c_mont;
   fp_sub(alt_c, p, c);
   fp_to_montgomery(alt_c_mont, alt_c);
-  fp_mont_mul(c_squared_mont, alt_c_mont, alt_c_mont);
+  fp_mont_sqr(c_squared_mont, alt_c_mont);
   if (fp_cmp(c_squared_mont, a_mont) == ComparisonType::Equal) {
     fp_copy(c, alt_c);
     return true;
@@ -1103,7 +1646,7 @@ __host__ __device__ bool fp_sqrt(Fp &c, const Fp &a) {
     fp_sub(reduced_c, c, p);
     fp_copy(c, reduced_c);
     fp_to_montgomery(reduced_c_mont, reduced_c);
-    fp_mont_mul(c_squared_mont, reduced_c_mont, reduced_c_mont);
+    fp_mont_sqr(c_squared_mont, reduced_c_mont);
     if (fp_cmp(c_squared_mont, a_mont) == ComparisonType::Equal) {
       return true;
     }
