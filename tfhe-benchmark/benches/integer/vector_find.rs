@@ -7,8 +7,32 @@ use tfhe::keycache::NamedParam;
 use tfhe::shortint::AtomicPatternParameters;
 use tfhe::MatchValues;
 
+// fn match_value_scenarios() -> Vec<(usize, usize, usize)> {
+//     vec![(64, 10, 32), (8, 256, 4)]
+// }
 fn match_value_scenarios() -> Vec<(usize, usize, usize)> {
-    vec![(64, 10, 32), (8, 256, 4)]
+    vec![
+        (8, 10, 4),
+        (8, 30, 4),
+        (8, 60, 4),
+        (8, 100, 4),
+        (16, 10, 8),
+        (16, 30, 8),
+        (16, 60, 8),
+        (16, 100, 8),
+        (32, 10, 16),
+        (32, 30, 16),
+        (32, 60, 16),
+        (32, 100, 16),
+        (64, 10, 32),
+        (64, 30, 32),
+        (64, 60, 32),
+        (64, 100, 32),
+        (128, 10, 64),
+        (128, 30, 64),
+        (128, 60, 64),
+        (128, 100, 64),
+    ]
 }
 
 pub fn match_value(c: &mut Criterion) {
