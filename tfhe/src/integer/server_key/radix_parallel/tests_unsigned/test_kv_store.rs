@@ -29,6 +29,63 @@ create_parameterized_test!(
     }
 );
 create_parameterized_test!(
+    integer_default_kv_store_contains_key
+    {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
+        },
+        no_coverage => {
+            TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
+            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        }
+    }
+);
+create_parameterized_test!(
+    integer_default_kv_store_contains_value
+    {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
+        },
+        no_coverage => {
+            TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
+            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        }
+    }
+);
+create_parameterized_test!(
+    integer_default_kv_store_contains_clear_value
+    {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
+        },
+        no_coverage => {
+            TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
+            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        }
+    }
+);
+create_parameterized_test!(
     integer_default_kv_store_map
     {
         coverage => {
@@ -52,6 +109,21 @@ fn integer_default_kv_store_get_update(params: impl Into<TestParameters>) {
     let get_executor = CpuFunctionExecutor::new(&ServerKey::kv_store_get);
     let update_executor = CpuFunctionExecutor::new(&ServerKey::kv_store_update);
     default_kv_store_get_update_test(params, get_executor, update_executor);
+}
+fn integer_default_kv_store_contains_key(params: impl Into<TestParameters>) {
+    let contains_executor = CpuFunctionExecutor::new(&ServerKey::kv_store_contains_key);
+    default_kv_store_contains_test(params, contains_executor);
+}
+
+fn integer_default_kv_store_contains_value(params: impl Into<TestParameters>) {
+    let contains_value_executor = CpuFunctionExecutor::new(&ServerKey::kv_store_contains_value);
+    default_kv_store_contains_value_test(params, contains_value_executor);
+}
+
+fn integer_default_kv_store_contains_clear_value(params: impl Into<TestParameters>) {
+    let contains_clear_value_executor =
+        CpuFunctionExecutor::new(&ServerKey::kv_store_contains_clear_value);
+    default_kv_store_contains_clear_value_test(params, contains_clear_value_executor);
 }
 
 fn integer_default_kv_store_map(params: impl Into<TestParameters>) {
@@ -104,6 +176,23 @@ fn default_kv_store_get_update_test<P, T1, T2>(
 
     kv_store_get.setup(&cks, sks.clone());
     kv_store_update.setup(&cks, sks);
+
+    // Test on an empty store
+    {
+        let mut empty_map: KVStore<KeyType, RadixCiphertext> = KVStore::new();
+        let key = rand::random::<u8>();
+        let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
+
+        let (result, is_some) = kv_store_get.execute((&empty_map, &encrypted_key));
+        assert!(!cks.decrypt_bool(&is_some));
+        assert_eq!(cks.decrypt::<u64>(&result), 0);
+
+        let new_value = rand::random::<u64>() % modulus;
+        let encrypted_new_value: RadixCiphertext = cks.encrypt(new_value);
+        let is_some =
+            kv_store_update.execute((&mut empty_map, &encrypted_key, &encrypted_new_value));
+        assert!(!cks.decrypt_bool(&is_some));
+    }
 
     let num_keys = 20usize;
     let (mut map, mut clear_store) = create_filled_stores(num_keys, modulus, &cks);
@@ -173,6 +262,16 @@ where
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     kv_store_map.setup(&cks, sks);
+
+    // Test on an empty store
+    {
+        let mut empty_map: KVStore<KeyType, RadixCiphertext> = KVStore::new();
+        let key = rand::random::<u8>();
+        let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
+        let identity: &dyn Fn(RadixCiphertext) -> RadixCiphertext = &|x| x;
+        let (_, _, is_some) = kv_store_map.execute((&mut empty_map, &encrypted_key, identity));
+        assert!(!cks.decrypt_bool(&is_some));
+    }
 
     let num_keys = 20usize;
     let (mut map, mut clear_store) = create_filled_stores(num_keys, modulus, &cks);
@@ -272,6 +371,169 @@ fn panic_if_not_the_same(
             "Value is not the same for key={key}\
              expected={original_value}, stored={decrypted_value}"
         );
+    }
+}
+
+fn default_kv_store_contains_test<P, T1>(params: P, mut kv_store_contains_key: T1)
+where
+    P: Into<TestParameters>,
+    T1: for<'a> FunctionExecutor<
+        (&'a KVStore<KeyType, RadixCiphertext>, &'a RadixCiphertext),
+        BooleanBlock,
+    >,
+{
+    let params = params.into();
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    let nb_blocks_key = get_num_block_for_key(params.message_modulus());
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
+
+    kv_store_contains_key.setup(&cks, sks);
+
+    // Test on an empty store
+    {
+        let empty_map: KVStore<KeyType, RadixCiphertext> = KVStore::new();
+        let key = rand::random::<u8>();
+        let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
+        let is_contained = kv_store_contains_key.execute((&empty_map, &encrypted_key));
+        assert!(!cks.decrypt_bool(&is_contained));
+    }
+
+    let num_keys = 20usize;
+    let (map, clear_store) = create_filled_stores(num_keys, modulus, &cks);
+
+    // Test a key that does not exist
+    for _ in 0..num_keys.div_ceil(2) {
+        let key = generate_unused_key(&clear_store);
+        let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
+
+        let is_contained = kv_store_contains_key.execute((&map, &encrypted_key));
+        assert!(!cks.decrypt_bool(&is_contained));
+    }
+
+    // Test a key that exists
+    for _ in 0..num_keys.div_ceil(2) {
+        let key_index = rand::random::<usize>() % num_keys;
+        let key_target = *clear_store.iter().nth(key_index).unwrap().0;
+        let encrypted_key = cks.as_ref().encrypt_radix(key_target, nb_blocks_key);
+
+        let is_contained = kv_store_contains_key.execute((&map, &encrypted_key));
+        assert!(cks.decrypt_bool(&is_contained));
+    }
+}
+
+fn default_kv_store_contains_value_test<P, T1>(params: P, mut kv_store_contains_value: T1)
+where
+    P: Into<TestParameters>,
+    T1: for<'a> FunctionExecutor<
+        (&'a KVStore<KeyType, RadixCiphertext>, &'a RadixCiphertext),
+        BooleanBlock,
+    >,
+{
+    let params = params.into();
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
+
+    kv_store_contains_value.setup(&cks, sks);
+
+    // Test on an empty store
+    {
+        let empty_map: KVStore<KeyType, RadixCiphertext> = KVStore::new();
+        let value: RadixCiphertext = cks.encrypt(rand::random::<u64>() % modulus);
+        let is_contained = kv_store_contains_value.execute((&empty_map, &value));
+        assert!(!cks.decrypt_bool(&is_contained));
+    }
+
+    let num_keys = 20usize;
+    let (map, clear_store) = create_filled_stores(num_keys, modulus, &cks);
+
+    // Test a value that exists in the store
+    for _ in 0..num_keys.div_ceil(2) {
+        let value_index = rand::random::<usize>() % num_keys;
+        let target_value = *clear_store.values().nth(value_index).unwrap();
+        let encrypted_value: RadixCiphertext = cks.encrypt(target_value);
+
+        let is_contained = kv_store_contains_value.execute((&map, &encrypted_value));
+        assert!(cks.decrypt_bool(&is_contained));
+    }
+
+    // Test a value that does not exist in the store
+    for _ in 0..num_keys.div_ceil(2) {
+        let value = loop {
+            let candidate = rand::random::<u64>() % modulus;
+            if !clear_store.values().any(|&v| v == candidate) {
+                break candidate;
+            }
+        };
+        let encrypted_value: RadixCiphertext = cks.encrypt(value);
+
+        let is_contained = kv_store_contains_value.execute((&map, &encrypted_value));
+        assert!(!cks.decrypt_bool(&is_contained));
+    }
+}
+
+fn default_kv_store_contains_clear_value_test<P, T1>(
+    params: P,
+    mut kv_store_contains_clear_value: T1,
+) where
+    P: Into<TestParameters>,
+    T1: for<'a> FunctionExecutor<(&'a KVStore<KeyType, RadixCiphertext>, u64), BooleanBlock>,
+{
+    let params = params.into();
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
+
+    kv_store_contains_clear_value.setup(&cks, sks);
+
+    // Test on an empty store
+    {
+        let empty_map: KVStore<KeyType, RadixCiphertext> = KVStore::new();
+        let is_contained =
+            kv_store_contains_clear_value.execute((&empty_map, rand::random::<u64>() % modulus));
+        assert!(!cks.decrypt_bool(&is_contained));
+    }
+
+    let num_keys = 20usize;
+    let (map, clear_store) = create_filled_stores(num_keys, modulus, &cks);
+
+    // Test a value that exists in the store
+    for _ in 0..num_keys.div_ceil(2) {
+        let value_index = rand::random::<usize>() % num_keys;
+        let target_value = *clear_store.values().nth(value_index).unwrap();
+
+        let is_contained = kv_store_contains_clear_value.execute((&map, target_value));
+        assert!(cks.decrypt_bool(&is_contained));
+    }
+
+    // Test a value that does not exist in the store
+    for _ in 0..num_keys.div_ceil(2) {
+        let value = loop {
+            let candidate = rand::random::<u64>() % modulus;
+            if !clear_store.values().any(|&v| v == candidate) {
+                break candidate;
+            }
+        };
+
+        let is_contained = kv_store_contains_clear_value.execute((&map, value));
+        assert!(!cks.decrypt_bool(&is_contained));
     }
 }
 
