@@ -730,3 +730,182 @@ void point_msm_g2_pippenger_async(cudaStream_t stream, uint32_t gpu_index,
       stream, gpu_index, h_result, d_points, d_scalars, n,
       msm_threads_per_block<G2Point>(n), window_size, bucket_count, d_scratch);
 }
+
+// ============================================================================
+// Split Launch / Finalize for Pipelined MSM
+// ============================================================================
+// For pipelining, we split the MSM into two phases:
+//   1. Launch: GPU kernels (phases 1-3) + async D2H copy of window sums
+//   2. Finalize: stream sync + CPU Horner combine
+// This allows the GPU work to overlap with CPU work (e.g., pairings)
+// between launch and finalize.
+
+// Launches Pippenger phases 1-3 and queues an async D2H copy of the window
+// sums into h_window_sums. Does NOT synchronize the stream or run the Horner
+// combine. The caller must sync the stream and call point_msm_horner_finalize()
+// to obtain the final result.
+//
+// On return, out_num_windows and out_window_size are populated so finalize
+// knows the Horner parameters without recomputing them.
+template <typename AffineType, typename ProjectiveType>
+void point_msm_pippenger_launch_async(
+    cudaStream_t stream, uint32_t gpu_index,
+    ProjectiveType *h_window_sums, // host buffer (must hold num_windows elems)
+    const AffineType *d_points, const Scalar *d_scalars, uint32_t n,
+    uint32_t threads_per_block, uint32_t window_size, uint32_t bucket_count,
+    ProjectiveType *d_scratch, uint32_t &out_num_windows,
+    uint32_t &out_window_size) {
+  using ProjectivePoint = Projective<ProjectiveType>;
+
+  PANIC_IF_FALSE(n > 0, "point_msm_pippenger_launch_async: n must be positive");
+  PANIC_IF_FALSE(h_window_sums != nullptr && d_points != nullptr &&
+                     d_scalars != nullptr && d_scratch != nullptr,
+                 "point_msm_pippenger_launch_async: null pointer argument");
+
+  cuda_set_device(gpu_index);
+
+  const uint32_t num_windows = CEIL_DIV(Scalar::NUM_BITS, window_size);
+
+  // Publish Horner parameters for finalize
+  out_num_windows = num_windows;
+  out_window_size = window_size;
+
+  Phase1KernelLaunchParams<AffineType> launch_params(n, threads_per_block,
+                                                     bucket_count, gpu_index);
+
+  // Scratch layout is identical to point_msm_pippenger_impl_async
+  const size_t all_block_buckets_size = static_cast<size_t>(num_windows) *
+                                        launch_params.num_blocks_per_window *
+                                        bucket_count;
+  const size_t all_final_buckets_size =
+      static_cast<size_t>(num_windows) * bucket_count;
+  const size_t total_scratch =
+      all_block_buckets_size + all_final_buckets_size + num_windows;
+
+  ProjectiveType *d_all_block_buckets = d_scratch;
+  ProjectiveType *d_all_final_buckets = d_scratch + all_block_buckets_size;
+  ProjectiveType *d_window_sums = d_all_final_buckets + all_final_buckets_size;
+
+  // Clear scratch
+  const uint32_t clear_blocks = CEIL_DIV(total_scratch, KERNEL_THREADS_MAX);
+  PANIC_IF_FALSE(clear_blocks * KERNEL_THREADS_MAX >= total_scratch,
+                 "kernel_clear_buckets: insufficient threads (%zu) to clear "
+                 "buffer (%zu elements)",
+                 static_cast<size_t>(clear_blocks) * KERNEL_THREADS_MAX,
+                 total_scratch);
+  kernel_clear_buckets<ProjectiveType>
+      <<<clear_blocks, KERNEL_THREADS_MAX, 0, stream>>>(d_scratch,
+                                                        total_scratch);
+  check_cuda_error(cudaGetLastError());
+
+  // Phase 1: Bucket accumulation
+  const uint32_t total_accum_blocks =
+      num_windows * launch_params.num_blocks_per_window;
+  PANIC_IF_FALSE(
+      total_accum_blocks * bucket_count <= all_block_buckets_size,
+      "kernel_accumulate_all_windows: max write index (%zu) exceeds buffer "
+      "(%zu)",
+      static_cast<size_t>(total_accum_blocks) * bucket_count,
+      all_block_buckets_size);
+  kernel_accumulate_all_windows<AffineType, ProjectiveType>
+      <<<total_accum_blocks, launch_params.adjusted_threads_per_block,
+         launch_params.accum_shared_mem, stream>>>(
+          d_all_block_buckets, d_points, d_scalars, n, num_windows,
+          launch_params.num_blocks_per_window, window_size, bucket_count);
+  check_cuda_error(cudaGetLastError());
+
+  // Phase 2: Cross-block bucket reduction
+  const uint32_t total_reduce_blocks = num_windows * bucket_count;
+  Phase2KernelLaunchParams<ProjectiveType> reduce_params(
+      launch_params.num_blocks_per_window, gpu_index);
+  PANIC_IF_FALSE(
+      total_reduce_blocks <= all_final_buckets_size,
+      "kernel_reduce_all_windows: blocks (%u) exceeds output buffer (%zu)",
+      total_reduce_blocks, all_final_buckets_size);
+  kernel_reduce_all_windows<ProjectiveType>
+      <<<total_reduce_blocks, reduce_params.adjusted_threads,
+         reduce_params.shared_mem, stream>>>(
+          d_all_final_buckets, d_all_block_buckets, num_windows,
+          launch_params.num_blocks_per_window, bucket_count);
+  check_cuda_error(cudaGetLastError());
+
+  // Phase 3: Per-window bucket combination
+  const uint32_t combine_threads = ((bucket_count - 1) + 31) & ~31u;
+  const size_t combine_shared_mem =
+      safe_mul_sizeof<ProjectiveType>(static_cast<size_t>(combine_threads));
+  PANIC_IF_FALSE(num_windows * bucket_count <= all_final_buckets_size,
+                 "kernel_compute_window_sums: max read index (%zu) exceeds "
+                 "input buffer (%zu)",
+                 static_cast<size_t>(num_windows) * bucket_count,
+                 all_final_buckets_size);
+  kernel_compute_window_sums<ProjectiveType>
+      <<<num_windows, combine_threads, combine_shared_mem, stream>>>(
+          d_window_sums, d_all_final_buckets, num_windows, bucket_count);
+  check_cuda_error(cudaGetLastError());
+
+  // Queue async D2H copy of window sums — the stream is NOT synchronized here
+  cuda_memcpy_async_to_cpu(
+      h_window_sums, d_window_sums,
+      safe_mul_sizeof<ProjectiveType>(static_cast<size_t>(num_windows)), stream,
+      gpu_index);
+}
+
+// Runs the CPU Horner combine on window sums that were copied D2H during
+// the launch phase. The caller must have synchronized the stream before
+// calling this so that h_window_sums contains valid data.
+template <typename ProjectiveType>
+void point_msm_horner_finalize(ProjectiveType *h_result,
+                               const ProjectiveType *h_window_sums,
+                               uint32_t num_windows, uint32_t window_size) {
+  PANIC_IF_FALSE(h_result != nullptr && h_window_sums != nullptr,
+                 "point_msm_horner_finalize: null pointer argument");
+  PANIC_IF_FALSE(num_windows > 0,
+                 "point_msm_horner_finalize: num_windows must be positive");
+  horner_combine_cpu(*h_result, h_window_sums, num_windows, window_size);
+}
+
+// Non-template G1 wrappers for the launch/finalize split, callable from
+// other translation units (msm.cu, c_wrapper.cu) without template access.
+void point_msm_g1_pippenger_launch_async(
+    cudaStream_t stream, uint32_t gpu_index, G1Projective *h_window_sums,
+    const G1Affine *d_points, const Scalar *d_scalars, uint32_t n,
+    G1Projective *d_scratch, uint32_t &out_num_windows,
+    uint32_t &out_window_size) {
+  uint32_t window_size, bucket_count;
+  get_g1_window_params(n, window_size, bucket_count);
+
+  point_msm_pippenger_launch_async<G1Affine, G1Projective>(
+      stream, gpu_index, h_window_sums, d_points, d_scalars, n,
+      msm_threads_per_block<G1Affine>(n), window_size, bucket_count, d_scratch,
+      out_num_windows, out_window_size);
+}
+
+void point_msm_g1_horner_finalize(G1Projective *h_result,
+                                  const G1Projective *h_window_sums,
+                                  uint32_t num_windows, uint32_t window_size) {
+  point_msm_horner_finalize<G1Projective>(h_result, h_window_sums, num_windows,
+                                          window_size);
+}
+
+// Non-template G2 wrappers for the launch/finalize split, callable from
+// other translation units (msm.cu, c_wrapper.cu) without template access.
+void point_msm_g2_pippenger_launch_async(
+    cudaStream_t stream, uint32_t gpu_index, G2ProjectivePoint *h_window_sums,
+    const G2Point *d_points, const Scalar *d_scalars, uint32_t n,
+    G2ProjectivePoint *d_scratch, uint32_t &out_num_windows,
+    uint32_t &out_window_size) {
+  uint32_t window_size, bucket_count;
+  get_g2_window_params(n, window_size, bucket_count);
+
+  point_msm_pippenger_launch_async<G2Point, G2ProjectivePoint>(
+      stream, gpu_index, h_window_sums, d_points, d_scalars, n,
+      msm_threads_per_block<G2Point>(n), window_size, bucket_count, d_scratch,
+      out_num_windows, out_window_size);
+}
+
+void point_msm_g2_horner_finalize(G2ProjectivePoint *h_result,
+                                  const G2ProjectivePoint *h_window_sums,
+                                  uint32_t num_windows, uint32_t window_size) {
+  point_msm_horner_finalize<G2ProjectivePoint>(h_result, h_window_sums,
+                                               num_windows, window_size);
+}

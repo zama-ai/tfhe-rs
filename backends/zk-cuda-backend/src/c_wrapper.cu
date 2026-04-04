@@ -5,6 +5,7 @@
 #include "curve.h"
 #include "device.h"
 #include "msm.h"
+#include "msm_utils.h"
 #include "bls12_446_params.h"
 #include <stdint.h>
 #include <stdbool.h>
@@ -12,16 +13,6 @@
 #include <cstring>
 
 #include "../../tfhe-cuda-backend/cuda/src/utils/helper_profile.cuh"
-
-// C++ helper functions (not exported, used internally)
-// These can call template functions since they have C++ linkage
-static void convert_g1_points_to_montgomery(cudaStream_t stream, uint32_t gpu_index, G1Affine* d_points, uint32_t n) {
-    point_to_montgomery_batch_async<G1Affine>(stream, gpu_index, d_points, n);
-}
-
-static void convert_g2_points_to_montgomery(cudaStream_t stream, uint32_t gpu_index, G2Affine* d_points, uint32_t n) {
-    point_to_montgomery_batch_async<G2Affine>(stream, gpu_index, d_points, n);
-}
 
 extern "C" {
 
@@ -261,6 +252,191 @@ void g2_msm_managed_wrapper(
     POP_RANGE();
 }
 
+// ============================================================================
+// Thin forwarding wrappers for MSM scratch/cleanup/async functions.
+// Implementations live in msm_utils.h (zk_msm namespace).
+// ============================================================================
+
+void scratch_zk_g1_msm(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_g1_msm_mem** mem,
+    uint32_t max_n,
+    uint64_t* size_tracker,
+    bool allocate_gpu_memory
+) {
+    zk_msm::scratch_zk_g1_msm(stream, gpu_index, mem, max_n, size_tracker, allocate_gpu_memory);
+}
+
+void cleanup_zk_g1_msm(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_g1_msm_mem** mem,
+    bool allocate_gpu_memory
+) {
+    zk_msm::cleanup_zk_g1_msm(stream, gpu_index, mem, allocate_gpu_memory);
+}
+
+void zk_g1_msm_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_g1_msm_mem* mem,
+    G1Projective* h_result,
+    const G1Affine* h_points,
+    const Scalar* h_scalars,
+    uint32_t n,
+    bool points_in_montgomery
+) {
+    zk_msm::zk_g1_msm_async(stream, gpu_index, mem, h_result, h_points, h_scalars, n, points_in_montgomery);
+}
+
+void scratch_zk_cached_g1_points(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_cached_g1_points** mem,
+    const G1Affine* h_points,
+    uint32_t n,
+    uint64_t* size_tracker,
+    bool allocate_gpu_memory
+) {
+    zk_msm::scratch_zk_cached_g1_points(stream, gpu_index, mem, h_points, n, size_tracker, allocate_gpu_memory);
+}
+
+void cleanup_zk_cached_g1_points(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_cached_g1_points** mem,
+    bool allocate_gpu_memory
+) {
+    zk_msm::cleanup_zk_cached_g1_points(stream, gpu_index, mem, allocate_gpu_memory);
+}
+
+void zk_g1_msm_cached_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_g1_msm_mem* msm_mem,
+    G1Projective* h_result,
+    const zk_cached_g1_points* cached,
+    uint32_t point_offset,
+    const Scalar* h_scalars,
+    uint32_t n
+) {
+    zk_msm::zk_g1_msm_cached_async(stream, gpu_index, msm_mem, h_result, cached, point_offset, h_scalars, n);
+}
+
+void zk_g1_msm_cached_launch_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_g1_msm_mem* msm_mem,
+    const zk_cached_g1_points* cached,
+    uint32_t point_offset,
+    const Scalar* h_scalars,
+    uint32_t n
+) {
+    zk_msm::zk_g1_msm_cached_launch_async(stream, gpu_index, msm_mem, cached, point_offset, h_scalars, n);
+}
+
+void zk_g1_msm_finalize(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    const zk_g1_msm_mem* msm_mem,
+    G1Projective* h_result
+) {
+    zk_msm::zk_g1_msm_finalize(stream, gpu_index, msm_mem, h_result);
+}
+
+void scratch_zk_g2_msm(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_g2_msm_mem** mem,
+    uint32_t max_n,
+    uint64_t* size_tracker,
+    bool allocate_gpu_memory
+) {
+    zk_msm::scratch_zk_g2_msm(stream, gpu_index, mem, max_n, size_tracker, allocate_gpu_memory);
+}
+
+void cleanup_zk_g2_msm(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_g2_msm_mem** mem,
+    bool allocate_gpu_memory
+) {
+    zk_msm::cleanup_zk_g2_msm(stream, gpu_index, mem, allocate_gpu_memory);
+}
+
+void zk_g2_msm_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_g2_msm_mem* mem,
+    G2Projective* h_result,
+    const G2Affine* h_points,
+    const Scalar* h_scalars,
+    uint32_t n,
+    bool points_in_montgomery
+) {
+    zk_msm::zk_g2_msm_async(stream, gpu_index, mem, h_result, h_points, h_scalars, n, points_in_montgomery);
+}
+
+void scratch_zk_cached_g2_points(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_cached_g2_points** mem,
+    const G2Affine* h_points,
+    uint32_t n,
+    uint64_t* size_tracker,
+    bool allocate_gpu_memory
+) {
+    zk_msm::scratch_zk_cached_g2_points(stream, gpu_index, mem, h_points, n, size_tracker, allocate_gpu_memory);
+}
+
+void cleanup_zk_cached_g2_points(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_cached_g2_points** mem,
+    bool allocate_gpu_memory
+) {
+    zk_msm::cleanup_zk_cached_g2_points(stream, gpu_index, mem, allocate_gpu_memory);
+}
+
+void zk_g2_msm_cached_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_g2_msm_mem* msm_mem,
+    G2Projective* h_result,
+    const zk_cached_g2_points* cached,
+    uint32_t point_offset,
+    const Scalar* h_scalars,
+    uint32_t n
+) {
+    zk_msm::zk_g2_msm_cached_async(stream, gpu_index, msm_mem, h_result, cached, point_offset, h_scalars, n);
+}
+
+void zk_g2_msm_cached_launch_async(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    zk_g2_msm_mem* msm_mem,
+    const zk_cached_g2_points* cached,
+    uint32_t point_offset,
+    const Scalar* h_scalars,
+    uint32_t n
+) {
+    zk_msm::zk_g2_msm_cached_launch_async(stream, gpu_index, msm_mem, cached, point_offset, h_scalars, n);
+}
+
+void zk_g2_msm_finalize(
+    cudaStream_t stream,
+    uint32_t gpu_index,
+    const zk_g2_msm_mem* msm_mem,
+    G2Projective* h_result
+) {
+    zk_msm::zk_g2_msm_finalize(stream, gpu_index, msm_mem, h_result);
+}
+
+// ============================================================================
+// Montgomery conversion and point utility wrappers
+// ============================================================================
+
 void g1_from_montgomery_wrapper(G1Affine* result, const G1Affine* point) {
     PANIC_IF_FALSE(result != nullptr, "g1_from_montgomery error: result is null");
     PANIC_IF_FALSE(point != nullptr, "g1_from_montgomery error: point is null");
@@ -355,6 +531,38 @@ void scalar_modulus_limbs_wrapper(uint64_t* limbs) {
     const UNSIGNED_LIMB modulus[ZP_LIMBS] = BLS12_446_SCALAR_MODULUS_LIMBS;
     // Byte layout is identical for little-endian regardless of limb size
     std::memcpy(limbs, modulus, 5 * sizeof(uint64_t));
+}
+
+// ============================================================================
+// Global MSM cache for CRS base points (singleton)
+// ============================================================================
+
+uint32_t zk_msm_cache_acquire(
+    const G1Affine* g1_points, uint32_t n_g1,
+    const G2Affine* g2_points, uint32_t n_g2,
+    const uintptr_t key[4]
+) {
+    return zk_msm::zk_msm_cache_acquire(g1_points, n_g1, g2_points, n_g2, key);
+}
+
+const zk_cached_g1_points* zk_msm_cache_get_g1(uint32_t gpu_index) {
+    return zk_msm::zk_msm_cache_get_g1(gpu_index);
+}
+
+const zk_cached_g2_points* zk_msm_cache_get_g2(uint32_t gpu_index) {
+    return zk_msm::zk_msm_cache_get_g2(gpu_index);
+}
+
+uint32_t zk_msm_cache_num_gpus() {
+    return zk_msm::zk_msm_cache_num_gpus();
+}
+
+void zk_msm_cache_release() {
+    zk_msm::zk_msm_cache_release();
+}
+
+void zk_msm_cache_reset() {
+    zk_msm::zk_msm_cache_reset();
 }
 
 } // extern "C"

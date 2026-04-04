@@ -484,6 +484,8 @@ mod cuda {
     use tfhe::integer::gpu::zk::CudaProvenCompactCiphertextList;
     use tfhe::integer::gpu::CudaServerKey;
     use tfhe::integer::CompressedServerKey;
+    #[cfg(feature = "gpu-experimental-zk")]
+    use tfhe::zk::set_gpu_affinity;
     use tfhe::GpuIndex;
 
     /// Per-GPU element count for verify+expand throughput benchmarks.
@@ -774,70 +776,156 @@ mod cuda {
                                 })
                                 .collect();
 
+                            // Per-GPU rayon pools so each pool's threads have
+                            // GPU affinity pinned, ensuring select_gpu_for_msm()
+                            // routes work to the correct device.
+                            let per_gpu = elements as usize / gpu_count;
+                            let threads_per_gpu = (rayon::current_num_threads() / gpu_count).max(1);
+                            let gpu_pools: Vec<rayon::ThreadPool> = (0..gpu_count)
+                                .map(|_| {
+                                    rayon::ThreadPoolBuilder::new()
+                                        .num_threads(threads_per_gpu)
+                                        .build()
+                                        .unwrap()
+                                })
+                                .collect();
+
+                            #[cfg(feature = "gpu-experimental-zk")]
+                            for (gpu_idx, pool) in gpu_pools.iter().enumerate() {
+                                pool.broadcast(|_| {
+                                    set_gpu_affinity(Some(gpu_idx as u32));
+                                });
+                            }
+
+                            // Rebind owned values as references so that `move`
+                            // closures inside s.spawn() capture a Copy reference
+                            // instead of moving the owned value.
+                            let pk = &pk;
+                            let crs = &crs;
+                            let metadata = metadata.as_slice();
+
                             bench_group.bench_function(&bench_id_verify, |b| {
                                 b.iter(|| {
-                                    cts.par_iter().for_each(|ct1| {
-                                        ct1.verify(&crs, &pk, &metadata);
-                                    })
+                                    std::thread::scope(|s| {
+                                        for gpu_idx in 0..gpu_count {
+                                            let start = gpu_idx * per_gpu;
+                                            let end = start + per_gpu;
+                                            let batch = &cts[start..end];
+                                            let pool = &gpu_pools[gpu_idx];
+                                            s.spawn(move || {
+                                                pool.install(|| {
+                                                    batch.par_iter().for_each(|ct1| {
+                                                        ct1.verify(&crs, &pk, &metadata);
+                                                    });
+                                                });
+                                            });
+                                        }
+                                    });
                                 });
                             });
 
                             bench_group.bench_function(&bench_id_expand_without_verify, |b| {
-                                    let setup_encrypted_values = || {
-                                        let gpu_cts = cts.iter().enumerate().map(|(i, ct)| {
-                                            let local_stream = &local_streams[i % local_streams.len()];
+                                let local_streams = &local_streams;
+                                let setup_encrypted_values = || {
+                                    cts.iter()
+                                        .enumerate()
+                                        .map(|(i, ct)| {
+                                            let local_stream =
+                                                &local_streams[i % local_streams.len()];
                                             CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
                                                 ct, local_stream,
                                             )
-                                        }).collect_vec();
+                                        })
+                                        .collect_vec()
+                                };
 
-                                        gpu_cts
-                                    };
-
-                                    b.iter_batched(setup_encrypted_values,
-                                                   |gpu_cts| {
-                                                       gpu_cts.par_iter().enumerate().for_each
-                                                       (|(i, gpu_ct)| {
-                                                           let stream_idx = i % local_streams.len();
-                                                           let local_stream = &local_streams[stream_idx];
-                                                           let gpu_idx = i % gpu_count;
-                                                           let d_ksk = &d_ksks[gpu_idx];
-
-                                                           gpu_ct
-                                                               .expand_without_verification(d_ksk, local_stream)
-                                                               .unwrap();
-                                                       });
-                                                   }, BatchSize::PerIteration);
-                                });
+                                b.iter_batched(
+                                    setup_encrypted_values,
+                                    |gpu_cts| {
+                                        // Strided indexing: element i lives on GPU i%gpu_count
+                                        // (matching the round-robin stream assignment).
+                                        std::thread::scope(|s| {
+                                            for gpu_idx in 0..gpu_count {
+                                                let pool = &gpu_pools[gpu_idx];
+                                                let d_ksk = &d_ksks[gpu_idx];
+                                                let gpu_cts_ref = &gpu_cts;
+                                                let indices: Vec<usize> = (gpu_idx
+                                                    ..gpu_cts_ref.len())
+                                                    .step_by(gpu_count)
+                                                    .collect();
+                                                s.spawn(move || {
+                                                    pool.install(|| {
+                                                        indices.par_iter().for_each(|&i| {
+                                                            let stream_idx =
+                                                                i % local_streams.len();
+                                                            let local_stream =
+                                                                &local_streams[stream_idx];
+                                                            gpu_cts_ref[i]
+                                                                .expand_without_verification(
+                                                                    d_ksk, local_stream,
+                                                                )
+                                                                .unwrap();
+                                                        });
+                                                    });
+                                                });
+                                            }
+                                        });
+                                    },
+                                    BatchSize::PerIteration,
+                                );
+                            });
 
                             bench_group.bench_function(&bench_id_verify_and_expand, |b| {
-                                    let setup_encrypted_values = || {
-                                        let gpu_cts = cts.iter().enumerate().map(|(i, ct)| {
+                                let local_streams = &local_streams;
+                                let setup_encrypted_values = || {
+                                    cts.iter()
+                                        .enumerate()
+                                        .map(|(i, ct)| {
                                             CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
-                                                ct, &local_streams[i % local_streams.len()],
+                                                ct,
+                                                &local_streams[i % local_streams.len()],
                                             )
-                                        }).collect_vec();
+                                        })
+                                        .collect_vec()
+                                };
 
-                                        gpu_cts
-                                    };
-
-                                    b.iter_batched(setup_encrypted_values,
-                                                   |gpu_cts| {
-                                                       gpu_cts.par_iter().enumerate().for_each
-                                                       (|(i, gpu_ct)| {
-                                                           let stream_idx = i % local_streams.len();
-                                                           let local_stream = &local_streams[stream_idx];
-                                                           let gpu_idx = i % gpu_count;
-                                                           let d_ksk = &d_ksks[gpu_idx];
-
-                                                           gpu_ct
-                                                               .verify_and_expand(
-                                                                   &crs, &pk, &metadata, d_ksk, local_stream,
-                                                               )
-                                                               .unwrap();
-                                                       });
-                                                   }, BatchSize::PerIteration);
-                                });
+                                b.iter_batched(
+                                    setup_encrypted_values,
+                                    |gpu_cts| {
+                                        std::thread::scope(|s| {
+                                            for gpu_idx in 0..gpu_count {
+                                                let pool = &gpu_pools[gpu_idx];
+                                                let d_ksk = &d_ksks[gpu_idx];
+                                                let gpu_cts_ref = &gpu_cts;
+                                                let indices: Vec<usize> = (gpu_idx
+                                                    ..gpu_cts_ref.len())
+                                                    .step_by(gpu_count)
+                                                    .collect();
+                                                s.spawn(move || {
+                                                    pool.install(|| {
+                                                        indices.par_iter().for_each(|&i| {
+                                                            let stream_idx =
+                                                                i % local_streams.len();
+                                                            let local_stream =
+                                                                &local_streams[stream_idx];
+                                                            gpu_cts_ref[i]
+                                                                .verify_and_expand(
+                                                                    &crs,
+                                                                    &pk,
+                                                                    &metadata,
+                                                                    d_ksk,
+                                                                    local_stream,
+                                                                )
+                                                                .unwrap();
+                                                        });
+                                                    });
+                                                });
+                                            }
+                                        });
+                                    },
+                                    BatchSize::PerIteration,
+                                );
+                            });
                         }
                     }
 
