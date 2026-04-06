@@ -1,3 +1,8 @@
+pub mod dex;
+pub mod erc7984;
+
+use dex::Dex;
+use erc7984::Erc7984;
 use std::fmt;
 use strum::Display;
 
@@ -17,18 +22,23 @@ pub use super::hl_integer_op::HlIntegerOp;
 #[strum(serialize_all = "snake_case")]
 pub enum HlapiBench {
     Ops(HlIntegerOp),
+    Erc7984(Erc7984),
+    Dex(Dex),
 }
 
 impl HlapiBench {
-    fn op(&self) -> &dyn fmt::Display {
+    fn op(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            HlapiBench::Ops(op) => op,
+            HlapiBench::Ops(op) => write!(f, "::{op}"),
+            HlapiBench::Erc7984(op) => op.fmt_spec(f),
+            HlapiBench::Dex(op) => op.fmt_spec(f),
         }
     }
 }
 
 impl SpecFmt for HlapiBench {
     fn fmt_spec(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "::{}::{}", self, self.op())
+        write!(f, "::{}", self)?;
+        self.op(f)
     }
 }

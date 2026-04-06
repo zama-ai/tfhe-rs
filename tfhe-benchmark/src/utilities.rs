@@ -1,4 +1,4 @@
-use benchmark_spec::{Backend, BenchmarkSpec, OperandType};
+use benchmark_spec::{BenchmarkSpec, OperandType};
 use criterion::Criterion;
 use serde::Serialize;
 use std::path::PathBuf;
@@ -9,16 +9,6 @@ use tfhe::core_crypto::gpu::{get_number_of_gpus, get_number_of_sms};
 use tfhe::core_crypto::prelude::*;
 #[cfg(feature = "integer")]
 use tfhe::prelude::*;
-
-pub fn bench_backend_from_cfg() -> Backend {
-    if cfg!(feature = "gpu") {
-        Backend::Cuda
-    } else if cfg!(feature = "hpu") {
-        Backend::Hpu
-    } else {
-        Backend::Cpu
-    }
-}
 
 #[cfg(feature = "boolean")]
 pub mod boolean_utils {
