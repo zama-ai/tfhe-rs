@@ -1,8 +1,7 @@
 use benchmark::params::get_classical_tuniform_groups;
 use benchmark::params_aliases::*;
 use benchmark::utilities::{write_to_json_unchecked, CryptoParametersRecord, OperatorType};
-use std::fs::{File, OpenOptions};
-use std::io::Write;
+use benchmark_spec::BenchmarkTestResult;
 use std::path::Path;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey;
@@ -17,12 +16,6 @@ use tfhe::shortint::{
     ClientKey, CompactPrivateKey, CompressedCompactPublicKey, CompressedKeySwitchingKey,
     CompressedServerKey, PBSParameters, ServerKey,
 };
-
-fn write_result(file: &mut File, name: &str, value: usize) {
-    let line = format!("{name},{value}\n");
-    let error_message = format!("cannot write {name} result into file");
-    file.write_all(line.as_bytes()).expect(&error_message);
-}
 
 fn client_server_key_sizes(results_file: &Path) {
     let shortint_params_vec: Vec<PBSParameters> = vec![
@@ -59,11 +52,8 @@ fn client_server_key_sizes(results_file: &Path) {
         BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128.into(),
         BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128.into(),
     ];
-    File::create(results_file).expect("create results file failed");
-    let mut file = OpenOptions::new()
-        .append(true)
-        .open(results_file)
-        .expect("cannot open results file");
+
+    let mut benchmark_test_result = BenchmarkTestResult::from_path(results_file);
 
     let operator = OperatorType::Atomic;
 
@@ -83,7 +73,8 @@ fn client_server_key_sizes(results_file: &Path) {
         let ksk_size = sks.key_switching_key_size_bytes();
         let test_name = format!("shortint_key_sizes_{}_ksk", params.name());
 
-        write_result(&mut file, &test_name, ksk_size);
+        benchmark_test_result.write_result(&test_name, ksk_size);
+
         write_to_json_unchecked::<u64, _>(
             &test_name,
             params,
@@ -103,7 +94,8 @@ fn client_server_key_sizes(results_file: &Path) {
         let bsk_size = sks.bootstrapping_key_size_bytes();
         let test_name = format!("shortint_key_sizes_{}_bsk", params.name());
 
-        write_result(&mut file, &test_name, bsk_size);
+        benchmark_test_result.write_result(&test_name, bsk_size);
+
         write_to_json_unchecked::<u64, _>(
             &test_name,
             params,
@@ -124,7 +116,8 @@ fn client_server_key_sizes(results_file: &Path) {
         let bsk_compressed_size = sks_compressed.bootstrapping_key_size_bytes();
         let test_name = format!("shortint_key_sizes_{}_bsk_compressed", params.name());
 
-        write_result(&mut file, &test_name, bsk_compressed_size);
+        benchmark_test_result.write_result(&test_name, bsk_compressed_size);
+
         write_to_json_unchecked::<u64, _>(
             &test_name,
             params,
@@ -152,12 +145,12 @@ fn measure_serialized_size<T: serde::Serialize, P: Into<CryptoParametersRecord<u
     param_name: &str,
     test_name_suffix: &str,
     display_name: &str,
-    file: &mut File,
+    file: &mut BenchmarkTestResult,
 ) {
     let serialized = bincode::serialize(to_serialize).unwrap();
     let size = serialized.len();
     let test_name = format!("shortint_key_sizes_{param_name}_{test_name_suffix}");
-    write_result(file, &test_name, size);
+    file.write_result(&test_name, size);
     write_to_json_unchecked::<u64, _>(
         &test_name,
         param.clone(),
@@ -172,11 +165,7 @@ fn measure_serialized_size<T: serde::Serialize, P: Into<CryptoParametersRecord<u
 }
 
 fn tuniform_key_set_sizes(results_file: &Path) {
-    File::create(results_file).expect("create results file failed");
-    let mut file = OpenOptions::new()
-        .append(true)
-        .open(results_file)
-        .expect("cannot open results file");
+    let mut benchmark_test_result = BenchmarkTestResult::from_path(results_file);
 
     println!("Measuring shortint key sizes:");
 
@@ -200,7 +189,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                     &param_fhe_name,
                     "ksk",
                     "KSK",
-                    &mut file,
+                    &mut benchmark_test_result,
                 );
                 measure_serialized_size(
                     &ap.bootstrapping_key,
@@ -208,7 +197,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                     &param_fhe_name,
                     "bsk",
                     "BSK",
-                    &mut file,
+                    &mut benchmark_test_result,
                 );
             }
             AtomicPatternServerKey::KeySwitch32(ap) => {
@@ -218,7 +207,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                     &param_fhe_name,
                     "ksk",
                     "KSK",
-                    &mut file,
+                    &mut benchmark_test_result,
                 );
                 measure_serialized_size(
                     &ap.bootstrapping_key,
@@ -226,7 +215,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                     &param_fhe_name,
                     "bsk",
                     "BSK",
-                    &mut file,
+                    &mut benchmark_test_result,
                 );
             }
             AtomicPatternServerKey::Dynamic(_) => panic!("Dynamic atomic pattern not supported"),
@@ -240,7 +229,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                     &param_fhe_name,
                     "ksk_compressed",
                     "KSK",
-                    &mut file,
+                    &mut benchmark_test_result,
                 );
                 measure_serialized_size(
                     &comp_ap.bootstrapping_key(),
@@ -248,7 +237,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                     &param_fhe_name,
                     "bsk_compressed",
                     "BSK",
-                    &mut file,
+                    &mut benchmark_test_result,
                 );
             }
             CompressedAtomicPatternServerKey::KeySwitch32(comp_ap) => {
@@ -258,7 +247,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                     &param_fhe_name,
                     "ksk_compressed",
                     "KSK",
-                    &mut file,
+                    &mut benchmark_test_result,
                 );
                 measure_serialized_size(
                     &comp_ap.bootstrapping_key(),
@@ -266,7 +255,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                     &param_fhe_name,
                     "bsk_compressed",
                     "BSK",
-                    &mut file,
+                    &mut benchmark_test_result,
                 );
             }
         }
@@ -278,14 +267,21 @@ fn tuniform_key_set_sizes(results_file: &Path) {
             let compressed_pk = CompressedCompactPublicKey::new(&compact_private_key);
             let pk = compressed_pk.decompress();
 
-            measure_serialized_size(&pk, pke_param, &param_pke_name, "cpk", "CPK", &mut file);
+            measure_serialized_size(
+                &pk,
+                pke_param,
+                &param_pke_name,
+                "cpk",
+                "CPK",
+                &mut benchmark_test_result,
+            );
             measure_serialized_size(
                 &compressed_pk,
                 pke_param,
                 &param_pke_name,
                 "cpk_compressed",
                 "CPK",
-                &mut file,
+                &mut benchmark_test_result,
             );
 
             let casting_param = dedicated_pke_params.ksk_params;
@@ -303,7 +299,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                 &param_casting_name,
                 "casting_key",
                 "CastKey",
-                &mut file,
+                &mut benchmark_test_result,
             );
             measure_serialized_size(
                 &compressed_casting_key.into_raw_parts().0,
@@ -311,7 +307,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                 &param_casting_name,
                 "casting_key_compressed",
                 "CastKey",
-                &mut file,
+                &mut benchmark_test_result,
             );
         }
 
@@ -329,7 +325,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                 &param_compression_name,
                 "compression_key",
                 "CompressionKey",
-                &mut file,
+                &mut benchmark_test_result,
             );
             measure_serialized_size(
                 &decompression_key,
@@ -337,7 +333,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                 &param_compression_name,
                 "decompression_key",
                 "CompressionKey",
-                &mut file,
+                &mut benchmark_test_result,
             );
 
             let (compressed_compression_key, compressed_decompression_key) =
@@ -349,7 +345,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                 &param_compression_name,
                 "compressed_compression_key",
                 "CompressedCompressionKey",
-                &mut file,
+                &mut benchmark_test_result,
             );
             measure_serialized_size(
                 &compressed_decompression_key,
@@ -357,7 +353,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                 &param_compression_name,
                 "compressed_decompression_key",
                 "CompressedCompressionKey",
-                &mut file,
+                &mut benchmark_test_result,
             );
         }
 
@@ -373,7 +369,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                 &noise_squashing_param.name(),
                 "noise_squashing_key",
                 "NoiseSquashingKey",
-                &mut file,
+                &mut benchmark_test_result,
             );
             if let Some(noise_squashing_comp_param) =
                 meta_noise_squashing_param.compression_parameters
@@ -392,7 +388,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                     &noise_squashing_comp_param.name(),
                     "noise_squashing_compression_key",
                     "NoiseSquashingCompressionKey",
-                    &mut file,
+                    &mut benchmark_test_result,
                 );
             }
         }

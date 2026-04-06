@@ -5,12 +5,12 @@ use benchmark::params_aliases::{
     BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
+use benchmark::utilities::{bench_backend_from_cfg, write_to_json, OperatorType};
 #[cfg(feature = "gpu")]
 use benchmark::utilities::{configure_gpu, get_param_type, ParamType};
-use benchmark::utilities::{write_to_json_unchecked, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType};
-use criterion::measurement::WallTime;
-use criterion::{BenchmarkGroup, Criterion, Throughput};
+use benchmark_spec::tfhe::hlapi::dex::{Dex, DexOp};
+use benchmark_spec::{get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, OperandType};
+use criterion::{Criterion, Throughput};
 use rand::prelude::*;
 use rand::thread_rng;
 use rayon::prelude::*;
@@ -220,21 +220,15 @@ where
 
 #[cfg(feature = "pbs-stats")]
 mod pbs_stats {
-    use super::*;
-    use std::fs::{File, OpenOptions};
-    use std::io::Write;
-    use std::path::Path;
 
-    fn write_result(file: &mut File, name: &str, value: usize) {
-        let line = format!("{name},{value}\n");
-        let error_message = format!("cannot write {name} result into file");
-        file.write_all(line.as_bytes()).expect(&error_message);
-    }
+    use benchmark_spec::BenchmarkTestResult;
+
+    use super::*;
 
     pub fn print_swap_request_update_dex_balance_pbs_counts<FheType, F>(
         client_key: &ClientKey,
         type_name: &str,
-        fn_name: &str,
+        fn_name: Dex,
         swap_request_update_dex_balance_func: F,
     ) where
         FheType: FheEncrypt<u64, ClientKey>,
@@ -258,29 +252,24 @@ mod pbs_stats {
         let params = client_key.computation_parameters();
         let params_name = params.name();
 
-        let test_name = if cfg!(feature = "gpu") {
-            format!("hlapi::cuda::dex::pbs_count::swap_request_update_dex_balance::{fn_name}::{params_name}::{type_name}")
-        } else {
-            format!(
-                "hlapi::dex::pbs_count::swap_request_update_dex_balance::{fn_name}::{params_name}::{type_name}"
-            )
-        };
+        let test_name = BenchmarkSpec::new_hlapi_dex(
+            fn_name,
+            &params_name,
+            &OperandType::CipherText,
+            Some(type_name),
+            BenchmarkMetric::PbsCount,
+            bench_backend_from_cfg(),
+            None,
+        );
 
-        let results_file = Path::new("dex_swap_request_update_dex_balance_pbs_count.csv");
-        if !results_file.exists() {
-            File::create(results_file).expect("create results file failed");
-        }
-        let mut file = OpenOptions::new()
-            .append(true)
-            .open(results_file)
-            .expect("cannot open results file");
+        let mut benchmark_test_result =
+            BenchmarkTestResult::new("dex_swap_request_update_dex_balance_pbs_count.csv");
 
-        write_result(&mut file, &test_name, count as usize);
+        benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json::<u64, _>(
             &test_name,
             params,
-            params_name,
             "pbs-count",
             &OperatorType::Atomic,
             0,
@@ -290,6 +279,7 @@ mod pbs_stats {
     pub fn print_swap_request_finalize_pbs_counts<FheType, F>(
         client_key: &ClientKey,
         type_name: &str,
+        fn_name: Dex,
         swap_request_finalize_func: F,
     ) where
         FheType: FheEncrypt<u64, ClientKey>,
@@ -313,29 +303,24 @@ mod pbs_stats {
         let params = client_key.computation_parameters();
         let params_name = params.name();
 
-        let test_name = if cfg!(feature = "gpu") {
-            format!(
-                "hlapi::cuda::dex::pbs_count::swap_request_finalize::{params_name}::{type_name}"
-            )
-        } else {
-            format!("hlapi::dex::pbs_count::swap_request_finalize::{params_name}::{type_name}")
-        };
+        let test_name = BenchmarkSpec::new_hlapi_dex(
+            fn_name,
+            &params_name,
+            &OperandType::CipherText,
+            Some(type_name),
+            BenchmarkMetric::PbsCount,
+            bench_backend_from_cfg(),
+            None,
+        );
 
-        let results_file = Path::new("dex_swap_request_finalize_pbs_count.csv");
-        if !results_file.exists() {
-            File::create(results_file).expect("create results file failed");
-        }
-        let mut file = OpenOptions::new()
-            .append(true)
-            .open(results_file)
-            .expect("cannot open results file");
+        let mut benchmark_test_result =
+            BenchmarkTestResult::new("dex_swap_request_finalize_pbs_count.csv");
 
-        write_result(&mut file, &test_name, count as usize);
+        benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json::<u64, _>(
             &test_name,
             params,
-            params_name,
             "pbs-count",
             &OperatorType::Atomic,
             0,
@@ -345,6 +330,7 @@ mod pbs_stats {
     pub fn print_swap_claim_prepare_pbs_counts<FheType, F>(
         client_key: &ClientKey,
         type_name: &str,
+        fn_name: Dex,
         swap_claim_prepare_func: F,
     ) where
         FheType: FheEncrypt<u64, ClientKey>,
@@ -378,27 +364,24 @@ mod pbs_stats {
         let params = client_key.computation_parameters();
         let params_name = params.name();
 
-        let test_name = if cfg!(feature = "gpu") {
-            format!("hlapi::cuda::pbs_count::dex::swap_claim_prepare::{params_name}::{type_name}")
-        } else {
-            format!("hlapi::dex::pbs_count::swap_claim_prepare::{params_name}::{type_name}")
-        };
+        let test_name = BenchmarkSpec::new_hlapi_dex(
+            fn_name,
+            &params_name,
+            &OperandType::CipherText,
+            Some(type_name),
+            BenchmarkMetric::PbsCount,
+            bench_backend_from_cfg(),
+            None,
+        );
 
-        let results_file = Path::new("dex_swap_claim_prepare_pbs_count.csv");
-        if !results_file.exists() {
-            File::create(results_file).expect("create results file failed");
-        }
-        let mut file = OpenOptions::new()
-            .append(true)
-            .open(results_file)
-            .expect("cannot open results file");
+        let mut benchmark_test_result =
+            BenchmarkTestResult::new("dex_swap_claim_prepare_pbs_count.csv");
 
-        write_result(&mut file, &test_name, count as usize);
+        benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json::<u64, _>(
             &test_name,
             params,
-            params_name,
             "pbs-count",
             &OperatorType::Atomic,
             0,
@@ -408,7 +391,7 @@ mod pbs_stats {
     pub fn print_swap_claim_update_dex_balance_pbs_counts<FheType, F>(
         client_key: &ClientKey,
         type_name: &str,
-        fn_name: &str,
+        fn_name: Dex,
         swap_claim_update_dex_balance_func: F,
     ) where
         FheType: FheEncrypt<u64, ClientKey>,
@@ -438,27 +421,24 @@ mod pbs_stats {
         let params = client_key.computation_parameters();
         let params_name = params.name();
 
-        let test_name = if cfg!(feature = "gpu") {
-            format!("hlapi::cuda::pbs_count::dex::swap_claim_update_dex_balance::{fn_name}::{params_name}::{type_name}")
-        } else {
-            format!("hlapi::dex::pbs_count::swap_claim_update_dex_balance::{fn_name}::{params_name}::{type_name}")
-        };
+        let test_name = BenchmarkSpec::new_hlapi_dex(
+            fn_name,
+            &params_name,
+            &OperandType::CipherText,
+            Some(type_name),
+            BenchmarkMetric::PbsCount,
+            bench_backend_from_cfg(),
+            None,
+        );
 
-        let results_file = Path::new("dex_swap_claim_update_dex_balance_pbs_count.csv");
-        if !results_file.exists() {
-            File::create(results_file).expect("create results file failed");
-        }
-        let mut file = OpenOptions::new()
-            .append(true)
-            .open(results_file)
-            .expect("cannot open results file");
+        let mut benchmark_test_result =
+            BenchmarkTestResult::new("dex_swap_claim_update_dex_balance_pbs_count.csv");
 
-        write_result(&mut file, &test_name, count as usize);
+        benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json::<u64, _>(
             &test_name,
             params,
-            params_name,
             "pbs-count",
             &OperatorType::Atomic,
             0,
@@ -468,11 +448,10 @@ mod pbs_stats {
 }
 
 fn bench_swap_request_latency<FheType, F1, F2>(
-    c: &mut BenchmarkGroup<'_, WallTime>,
+    c: &mut Criterion,
     client_key: &ClientKey,
-    bench_name: &str,
     type_name: &str,
-    fn_name: &str,
+    fn_name: Dex,
     swap_request_update_dex_balance_func: F1,
     swap_request_finalize_func: F2,
 ) where
@@ -486,8 +465,19 @@ fn bench_swap_request_latency<FheType, F1, F2>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
-    let bench_id = format!("{bench_name}::{fn_name}::{type_name}");
-    c.bench_function(&bench_id, |b| {
+    let mut c = c.benchmark_group(type_name);
+
+    let bench_spec = BenchmarkSpec::new_hlapi_dex(
+        fn_name,
+        &params_name,
+        &OperandType::CipherText,
+        Some(type_name),
+        BenchmarkMetric::Latency,
+        bench_backend_from_cfg(),
+        None,
+    );
+
+    c.bench_function(&bench_spec.to_string(), |b| {
         let mut rng = thread_rng();
 
         let from_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
@@ -525,10 +515,9 @@ fn bench_swap_request_latency<FheType, F1, F2>(
         })
     });
 
-    write_to_json_unchecked::<u64, _>(
-        &bench_id,
+    write_to_json::<u64, _>(
+        &bench_spec,
         params,
-        params_name,
         "dex-swap-request",
         &OperatorType::Atomic,
         64,
@@ -538,11 +527,10 @@ fn bench_swap_request_latency<FheType, F1, F2>(
 
 #[cfg(not(feature = "gpu"))]
 fn bench_swap_request_throughput<FheType, F1, F2>(
-    group: &mut BenchmarkGroup<'_, WallTime>,
+    c: &mut Criterion,
     client_key: &ClientKey,
-    bench_name: &str,
     type_name: &str,
-    fn_name: &str,
+    fn_name: Dex,
     swap_request_update_dex_balance_func: F1,
     swap_request_finalize_func: F2,
 ) where
@@ -555,12 +543,22 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
+    let mut group = c.benchmark_group(type_name);
+
     for num_elems in [10, 50, 100] {
         group.throughput(Throughput::Elements(num_elems));
-        let bench_id = format!(
-            "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
+
+        let bench_spec = BenchmarkSpec::new_hlapi_dex(
+            fn_name,
+            &params_name,
+            &OperandType::CipherText,
+            Some(type_name),
+            BenchmarkMetric::Throughput,
+            bench_backend_from_cfg(),
+            Some(num_elems.try_into().unwrap()),
         );
-        group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
+
+        group.bench_with_input(bench_spec.to_string(), &num_elems, |b, &num_elems| {
             let from_balances_0 = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                 .collect::<Vec<_>>();
@@ -641,10 +639,9 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
             })
         });
 
-        write_to_json_unchecked::<u64, _>(
-            &bench_id,
+        write_to_json::<u64, _>(
+            &bench_spec,
             params,
-            &params_name,
             "dex-swap-request",
             &OperatorType::Atomic,
             64,
@@ -654,11 +651,10 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
 }
 #[cfg(feature = "gpu")]
 fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
-    group: &mut BenchmarkGroup<'_, WallTime>,
+    c: &mut Criterion,
     client_key: &ClientKey,
-    bench_name: &str,
     type_name: &str,
-    fn_name: &str,
+    fn_name: Dex,
     swap_request_update_dex_balance_func: F1,
     swap_request_finalize_func: F2,
 ) where
@@ -678,12 +674,20 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
+    let mut group = c.benchmark_group(type_name);
+
     for num_elems in [5 * num_gpus, 10 * num_gpus, 20 * num_gpus] {
         group.throughput(Throughput::Elements(num_elems));
-        let bench_id = format!(
-            "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
+        let bench_spec = BenchmarkSpec::new_hlapi_dex(
+            fn_name,
+            &params_name,
+            &OperandType::CipherText,
+            Some(type_name),
+            BenchmarkMetric::Throughput,
+            bench_backend_from_cfg(),
+            Some(num_elems.try_into().unwrap()),
         );
-        group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
+        group.bench_with_input(bench_spec.to_string(), &num_elems, |b, &num_elems| {
             let from_balances_0 = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                 .collect::<Vec<_>>();
@@ -853,10 +857,9 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
                                 })
         });
 
-        write_to_json_unchecked::<u64, _>(
-            &bench_id,
+        write_to_json::<u64, _>(
+            &bench_spec,
             params,
-            &params_name,
             "dex-swap-request",
             &OperatorType::Atomic,
             64,
@@ -866,11 +869,10 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
 }
 
 fn bench_swap_claim_latency<FheType, F1, F2>(
-    c: &mut BenchmarkGroup<'_, WallTime>,
+    c: &mut Criterion,
     client_key: &ClientKey,
-    bench_name: &str,
     type_name: &str,
-    fn_name: &str,
+    fn_name: Dex,
     swap_claim_prepare_func: F1,
     swap_claim_update_dex_balance_func: F2,
 ) where
@@ -884,8 +886,19 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
-    let bench_id = format!("{bench_name}::{fn_name}::{params_name}::{type_name}");
-    c.bench_function(&bench_id, |b| {
+    let mut c = c.benchmark_group(type_name);
+
+    let bench_spec = BenchmarkSpec::new_hlapi_dex(
+        fn_name,
+        &params_name,
+        &OperandType::CipherText,
+        Some(type_name),
+        BenchmarkMetric::Latency,
+        bench_backend_from_cfg(),
+        None,
+    );
+
+    c.bench_function(&bench_spec.to_string(), |b| {
         let mut rng = thread_rng();
 
         let pending_0_in = FheType::encrypt(rng.gen::<u64>(), client_key);
@@ -929,10 +942,9 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
         });
     });
 
-    write_to_json_unchecked::<u64, _>(
-        &bench_id,
+    write_to_json::<u64, _>(
+        &bench_spec,
         params,
-        &params_name,
         "dex-swap-claim",
         &OperatorType::Atomic,
         64,
@@ -942,11 +954,10 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
 
 #[cfg(not(feature = "gpu"))]
 fn bench_swap_claim_throughput<FheType, F1, F2>(
-    group: &mut BenchmarkGroup<'_, WallTime>,
+    c: &mut Criterion,
     client_key: &ClientKey,
-    bench_name: &str,
     type_name: &str,
-    fn_name: &str,
+    fn_name: Dex,
     swap_claim_prepare_func: F1,
     swap_claim_update_dex_balance_func: F2,
 ) where
@@ -959,12 +970,22 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
+    let mut group = c.benchmark_group(type_name);
+
     for num_elems in [2, 6, 10] {
         group.throughput(Throughput::Elements(num_elems));
-        let bench_id = format!(
-            "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
+
+        let bench_spec = BenchmarkSpec::new_hlapi_dex(
+            fn_name,
+            &params_name,
+            &OperandType::CipherText,
+            Some(type_name),
+            BenchmarkMetric::Throughput,
+            bench_backend_from_cfg(),
+            Some(num_elems.try_into().unwrap()),
         );
-        group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
+
+        group.bench_with_input(bench_spec.to_string(), &num_elems, |b, &num_elems| {
             let pending_0_in = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                 .collect::<Vec<_>>();
@@ -1063,10 +1084,9 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
             });
         });
 
-        write_to_json_unchecked::<u64, _>(
-            &bench_id,
+        write_to_json::<u64, _>(
+            &bench_spec,
             params,
-            &params_name,
             "dex-swap-claim",
             &OperatorType::Atomic,
             64,
@@ -1076,11 +1096,10 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
 }
 #[cfg(feature = "gpu")]
 fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
-    group: &mut BenchmarkGroup<'_, WallTime>,
+    c: &mut Criterion,
     client_key: &ClientKey,
-    bench_name: &str,
     type_name: &str,
-    fn_name: &str,
+    fn_name: Dex,
     swap_claim_prepare_func: F1,
     swap_claim_update_dex_balance_func: F2,
 ) where
@@ -1100,12 +1119,20 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
+    let mut group = c.benchmark_group(type_name);
+
     for num_elems in [num_gpus, 2 * num_gpus] {
         group.throughput(Throughput::Elements(num_elems));
-        let bench_id = format!(
-            "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
+        let bench_spec = BenchmarkSpec::new_hlapi_dex(
+            fn_name,
+            &params_name,
+            &OperandType::CipherText,
+            Some(type_name),
+            BenchmarkMetric::Throughput,
+            bench_backend_from_cfg(),
+            Some(num_elems.try_into().unwrap()),
         );
-        group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
+        group.bench_with_input(bench_spec.to_string(), &num_elems, |b, &num_elems| {
             let pending_0_in = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                 .collect::<Vec<_>>();
@@ -1270,10 +1297,9 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
             });
         });
 
-        write_to_json_unchecked::<u64, _>(
-            &bench_id,
+        write_to_json::<u64, _>(
+            &bench_spec,
             params,
-            &params_name,
             "dex-swap-claim",
             &OperatorType::Atomic,
             64,
@@ -1306,8 +1332,6 @@ fn main() {
 
     let mut c = Criterion::default().sample_size(10).configure_from_args();
 
-    let bench_name = "hlapi::dex";
-
     // FheUint64 PBS counts
     // We don't run multiple times since every input is encrypted
     // PBS count is always the same
@@ -1316,120 +1340,109 @@ fn main() {
         print_swap_request_update_dex_balance_pbs_counts(
             &cks,
             "FheUint64",
-            "whitepaper",
+            Dex::SwapRequest(DexOp::Whitepaper),
             swap_request_update_dex_balance_whitepaper::<FheUint64>,
         );
         print_swap_request_update_dex_balance_pbs_counts(
             &cks,
             "FheUint64",
-            "no_cmux",
+            Dex::SwapRequest(DexOp::NoCmux),
             swap_request_update_dex_balance_no_cmux::<FheUint64>,
         );
         print_swap_request_finalize_pbs_counts(
             &cks,
             "FheUint64",
+            Dex::SwapRequest(DexOp::Finalize),
             swap_request_finalize::<FheUint64>,
         );
         print_swap_claim_prepare_pbs_counts(
             &cks,
             "FheUint64",
+            Dex::SwapClaim(DexOp::Prepare),
             swap_claim_prepare::<FheUint64, FheUint128>,
         );
         print_swap_claim_update_dex_balance_pbs_counts(
             &cks,
             "FheUint64",
-            "whitepaper",
+            Dex::SwapClaim(DexOp::Whitepaper),
             swap_claim_update_dex_balance_whitepaper::<FheUint64>,
         );
         print_swap_claim_update_dex_balance_pbs_counts(
             &cks,
             "FheUint64",
-            "no_cmux",
+            Dex::SwapClaim(DexOp::NoCmux),
             swap_claim_update_dex_balance_no_cmux::<FheUint64>,
         );
     }
 
     match get_bench_type() {
         BenchmarkType::Latency => {
-            let mut group = c.benchmark_group(bench_name);
             bench_swap_request_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "swap_request::whitepaper",
+                Dex::SwapRequest(DexOp::Whitepaper),
                 swap_request_update_dex_balance_whitepaper::<FheUint64>,
                 swap_request_finalize::<FheUint64>,
             );
             bench_swap_request_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "swap_request::no_cmux",
+                Dex::SwapRequest(DexOp::NoCmux),
                 swap_request_update_dex_balance_no_cmux::<FheUint64>,
                 swap_request_finalize::<FheUint64>,
             );
             bench_swap_claim_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "swap_claim::whitepaper",
+                Dex::SwapClaim(DexOp::Whitepaper),
                 swap_claim_prepare::<FheUint64, FheUint128>,
                 swap_claim_update_dex_balance_whitepaper::<FheUint64>,
             );
             bench_swap_claim_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "swap_claim::no_cmux",
+                Dex::SwapClaim(DexOp::NoCmux),
                 swap_claim_prepare::<FheUint64, FheUint128>,
                 swap_claim_update_dex_balance_no_cmux::<FheUint64>,
             );
-
-            group.finish();
         }
         BenchmarkType::Throughput => {
-            let mut group = c.benchmark_group(bench_name);
             bench_swap_request_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "swap_request::whitepaper",
+                Dex::SwapRequest(DexOp::Whitepaper),
                 swap_request_update_dex_balance_whitepaper::<FheUint64>,
                 swap_request_finalize::<FheUint64>,
             );
             bench_swap_request_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "swap_request::no_cmux",
+                Dex::SwapRequest(DexOp::NoCmux),
                 swap_request_update_dex_balance_no_cmux::<FheUint64>,
                 swap_request_finalize::<FheUint64>,
             );
             bench_swap_claim_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "swap_claim::whitepaper",
+                Dex::SwapClaim(DexOp::Whitepaper),
                 swap_claim_prepare::<FheUint64, FheUint128>,
                 swap_claim_update_dex_balance_whitepaper::<FheUint64>,
             );
             bench_swap_claim_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "swap_claim::no_cmux",
+                Dex::SwapClaim(DexOp::NoCmux),
                 swap_claim_prepare::<FheUint64, FheUint128>,
                 swap_claim_update_dex_balance_no_cmux::<FheUint64>,
             );
-            group.finish();
         }
     };
 
@@ -1449,8 +1462,6 @@ fn main() {
 
     let mut c = Criterion::default().sample_size(10).configure_from_args();
 
-    let bench_name = "hlapi::cuda::dex";
-
     // FheUint64 PBS counts
     // We don't run multiple times since every input is encrypted
     // PBS count is always the same
@@ -1459,121 +1470,110 @@ fn main() {
         print_swap_request_update_dex_balance_pbs_counts(
             &cks,
             "FheUint64",
-            "whitepaper",
+            Dex::SwapRequest(DexOp::Whitepaper),
             swap_request_update_dex_balance_whitepaper::<FheUint64>,
         );
         print_swap_request_update_dex_balance_pbs_counts(
             &cks,
             "FheUint64",
-            "no_cmux",
+            Dex::SwapRequest(DexOp::NoCmux),
             swap_request_update_dex_balance_no_cmux::<FheUint64>,
         );
         print_swap_request_finalize_pbs_counts(
             &cks,
             "FheUint64",
+            Dex::SwapRequest(DexOp::Finalize),
             swap_request_finalize::<FheUint64>,
         );
         print_swap_claim_prepare_pbs_counts(
             &cks,
             "FheUint64",
+            Dex::SwapClaim(DexOp::Prepare),
             swap_claim_prepare::<FheUint64, FheUint128>,
         );
         print_swap_claim_update_dex_balance_pbs_counts(
             &cks,
             "FheUint64",
-            "whitepaper",
+            Dex::SwapClaim(DexOp::Whitepaper),
             swap_claim_update_dex_balance_whitepaper::<FheUint64>,
         );
         print_swap_claim_update_dex_balance_pbs_counts(
             &cks,
             "FheUint64",
-            "no_cmux",
+            Dex::SwapClaim(DexOp::NoCmux),
             swap_claim_update_dex_balance_no_cmux::<FheUint64>,
         );
     }
 
     match get_bench_type() {
         BenchmarkType::Latency => {
-            let mut group = c.benchmark_group(bench_name);
             bench_swap_request_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "swap_request::whitepaper",
+                Dex::SwapRequest(DexOp::Whitepaper),
                 swap_request_update_dex_balance_whitepaper::<FheUint64>,
                 swap_request_finalize::<FheUint64>,
             );
             bench_swap_request_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "swap_request::no_cmux",
+                Dex::SwapRequest(DexOp::NoCmux),
                 swap_request_update_dex_balance_no_cmux::<FheUint64>,
                 swap_request_finalize::<FheUint64>,
             );
             bench_swap_claim_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "swap_claim::whitepaper",
+                Dex::SwapClaim(DexOp::Whitepaper),
                 swap_claim_prepare::<FheUint64, FheUint128>,
                 swap_claim_update_dex_balance_whitepaper::<FheUint64>,
             );
             bench_swap_claim_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "swap_claim::no_cmux",
+                Dex::SwapClaim(DexOp::NoCmux),
                 swap_claim_prepare::<FheUint64, FheUint128>,
                 swap_claim_update_dex_balance_no_cmux::<FheUint64>,
             );
-
-            group.finish();
         }
 
         BenchmarkType::Throughput => {
-            let mut group = c.benchmark_group(bench_name);
             cuda_bench_swap_request_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "swap_request::whitepaper",
+                Dex::SwapRequest(DexOp::Whitepaper),
                 swap_request_update_dex_balance_whitepaper::<FheUint64>,
                 swap_request_finalize::<FheUint64>,
             );
             cuda_bench_swap_request_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "swap_request::no_cmux",
+                Dex::SwapRequest(DexOp::NoCmux),
                 swap_request_update_dex_balance_no_cmux::<FheUint64>,
                 swap_request_finalize::<FheUint64>,
             );
             cuda_bench_swap_claim_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "swap_claim::whitepaper",
+                Dex::SwapClaim(DexOp::Whitepaper),
                 swap_claim_prepare::<FheUint64, FheUint128>,
                 swap_claim_update_dex_balance_whitepaper::<FheUint64>,
             );
             cuda_bench_swap_claim_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "swap_claim::no_cmux",
+                Dex::SwapClaim(DexOp::NoCmux),
                 swap_claim_prepare::<FheUint64, FheUint128>,
                 swap_claim_update_dex_balance_no_cmux::<FheUint64>,
             );
-            group.finish();
         }
     };
 
