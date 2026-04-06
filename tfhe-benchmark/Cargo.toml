@@ -40,7 +40,7 @@ default = ["avx512"]
 boolean = ["tfhe/boolean"]
 shortint = ["tfhe/shortint"]
 integer = ["shortint", "tfhe/integer"]
-gpu = ["tfhe/gpu"]
+gpu = ["tfhe/gpu", "benchmark_spec/gpu"]
 # gpu enables tfhe-cuda-backend which provides CUDA stream management used by tfhe-zk-pok
 gpu-experimental-zk = [
     "gpu",
@@ -48,7 +48,7 @@ gpu-experimental-zk = [
     "tfhe/gpu-experimental-zk",
     "tfhe-zk-pok/gpu-experimental",
 ]
-hpu = ["tfhe/hpu"]
+hpu = ["tfhe/hpu", "benchmark_spec/hpu"]
 hpu-v80 = ["tfhe/hpu-v80"]
 internal-keycache = ["tfhe/internal-keycache"]
 avx512 = ["tfhe/avx512"]

@@ -3,14 +3,51 @@ mod bench_crate;
 pub mod tfhe;
 mod traits;
 
-pub use backend::Backend;
+pub use backend::{Backend, bench_backend_from_cfg};
 pub use bench_crate::BenchCrate;
 use serde::Serialize;
+use std::fs::{File, OpenOptions};
+use std::io::Write;
+use std::path::Path;
 use std::{env, fmt};
 pub use tfhe::hlapi::HlapiBench;
 pub use tfhe::{HlIntegerOp, TfheLayer};
 
-#[derive(Serialize)]
+use crate::tfhe::hlapi::dex::Dex;
+use crate::tfhe::hlapi::erc7984::Erc7984;
+
+pub struct CsvResultWriter {
+    file: File,
+}
+
+impl CsvResultWriter {
+    pub fn new(file_name: &str) -> Self {
+        let file_path = Path::new(file_name);
+        Self::from_path(file_path)
+    }
+
+    pub fn from_path(path: &Path) -> Self {
+        if !path.exists() {
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent).expect("cannot create parent dirs");
+            }
+            File::create(path).expect("cannot create result file");
+        }
+        let file = OpenOptions::new()
+            .append(true)
+            .open(path)
+            .expect("cannot open result file");
+        Self { file }
+    }
+
+    pub fn write_result(&mut self, name: &str, value: usize) {
+        let line = format!("{name},{value}\n");
+        let error_message = format!("cannot write {name} result into file");
+        self.file.write_all(line.as_bytes()).expect(&error_message);
+    }
+}
+
+#[derive(Serialize, Clone, Copy)]
 pub enum OperandType {
     CipherText,
     PlainText,
@@ -22,14 +59,36 @@ impl OperandType {
     }
 }
 
-#[derive(Serialize)]
+/// Benchmark type driven by the `__TFHE_RS_BENCH_TYPE` environment variable.
+///
+/// Only `Latency` and `Throughput` can come from the environment; `PbsCount`
+/// is hard-coded at specific call sites.
+#[derive(Clone, Copy, Serialize)]
 pub enum BenchmarkType {
     Latency,
     Throughput,
 }
 
+/// The metric being recorded by a benchmark, used in [`BenchmarkSpec`].
+#[derive(Clone, Copy, Serialize)]
+pub enum BenchmarkMetric {
+    Latency,
+    Throughput,
+    PbsCount,
+}
+
+impl From<BenchmarkType> for BenchmarkMetric {
+    fn from(ct: BenchmarkType) -> Self {
+        match ct {
+            BenchmarkType::Latency => BenchmarkMetric::Latency,
+            BenchmarkType::Throughput => BenchmarkMetric::Throughput,
+        }
+    }
+}
+
 impl BenchmarkType {
-    pub fn from_env() -> Result<Self, String> {
+    /// Retrieves the benchmark type from the environment variable `__TFHE_RS_BENCH_TYPE`.
+    fn from_env() -> Result<Self, String> {
         let raw_value = env::var("__TFHE_RS_BENCH_TYPE").unwrap_or("latency".to_string());
         match raw_value.to_lowercase().as_str() {
             "latency" => Ok(BenchmarkType::Latency),
@@ -39,6 +98,9 @@ impl BenchmarkType {
     }
 }
 
+/// Retrieves the benchmark type from the environment variable `__TFHE_RS_BENCH_TYPE`.
+///
+/// Returns only `Latency` or `Throughput` — never `PbsCount`.
 pub fn get_bench_type() -> &'static BenchmarkType {
     use std::sync::OnceLock;
     static BENCH_TYPE: OnceLock<BenchmarkType> = OnceLock::new();
@@ -48,7 +110,7 @@ pub fn get_bench_type() -> &'static BenchmarkType {
 /// Enforces the naming convention for benchmark IDs.
 ///
 /// ```text
-/// {crate}::{layer}::{bench}::{op}(::{backend})?(::throughput)?::{param}(::scalar)?(::{type})?
+/// {crate}::{layer}::{bench}::{op}(::{backend})?(::{benchmark_type})?::{param}(::scalar)?(::{type})?(::{num_elements}_elements)?
 /// ```
 ///
 /// `param_name` and `type_name` are kept as `&str` because their values
@@ -58,9 +120,10 @@ pub struct BenchmarkSpec<'a> {
     pub bench_crate: BenchCrate,
     pub backend: Backend,
     pub param_name: &'a str,
-    pub operand_type: &'a OperandType,
+    pub operand_type: OperandType,
     pub type_name: Option<&'a str>,
-    pub bench_type: &'a BenchmarkType,
+    pub bench_type: BenchmarkMetric,
+    pub num_elements: Option<usize>,
 }
 
 impl<'a> BenchmarkSpec<'a> {
@@ -68,9 +131,10 @@ impl<'a> BenchmarkSpec<'a> {
         bench_crate: BenchCrate,
         backend: Backend,
         param_name: &'a str,
-        operand_type: &'a OperandType,
+        operand_type: OperandType,
         type_name: Option<&'a str>,
-        bench_type: &'a BenchmarkType,
+        bench_type: impl Into<BenchmarkMetric>,
+        num_elements: Option<usize>,
     ) -> Self {
         Self {
             bench_crate,
@@ -78,25 +142,63 @@ impl<'a> BenchmarkSpec<'a> {
             param_name,
             operand_type,
             type_name,
-            bench_type,
+            bench_type: bench_type.into(),
+            num_elements,
         }
     }
 
-    pub fn new_hlapi(
+    pub fn new_hlapi_ops(
         hlapi_op: HlIntegerOp,
         param_name: &'a str,
-        operand_type: &'a OperandType,
+        operand_type: OperandType,
         type_name: Option<&'a str>,
-        bench_type: &'a BenchmarkType,
-        backend: Backend,
+        bench_type: impl Into<BenchmarkMetric>,
     ) -> Self {
         Self {
             bench_crate: BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Ops(hlapi_op))),
-            backend,
+            backend: bench_backend_from_cfg(),
             param_name,
             operand_type,
             type_name,
-            bench_type,
+            bench_type: bench_type.into(),
+            num_elements: None,
+        }
+    }
+
+    pub fn new_hlapi_erc7984(
+        hlapi_erc7984_op: Erc7984,
+        param_name: &'a str,
+        operand_type: OperandType,
+        type_name: Option<&'a str>,
+        bench_type: impl Into<BenchmarkMetric>,
+        num_elements: Option<usize>,
+    ) -> Self {
+        Self {
+            bench_crate: BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Erc7984(hlapi_erc7984_op))),
+            backend: bench_backend_from_cfg(),
+            param_name,
+            operand_type,
+            type_name,
+            bench_type: bench_type.into(),
+            num_elements,
+        }
+    }
+    pub fn new_hlapi_dex(
+        hlapi_dex: Dex,
+        param_name: &'a str,
+        operand_type: OperandType,
+        type_name: Option<&'a str>,
+        bench_type: impl Into<BenchmarkMetric>,
+        num_elements: Option<usize>,
+    ) -> Self {
+        Self {
+            bench_crate: BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Dex(hlapi_dex))),
+            backend: bench_backend_from_cfg(),
+            param_name,
+            operand_type,
+            type_name,
+            bench_type: bench_type.into(),
+            num_elements,
         }
     }
 }
@@ -107,8 +209,10 @@ impl fmt::Display for BenchmarkSpec<'_> {
         if !matches!(self.backend, Backend::Cpu) {
             write!(f, "::{}", self.backend)?;
         }
-        if matches!(self.bench_type, BenchmarkType::Throughput) {
-            write!(f, "::throughput")?;
+        match self.bench_type {
+            BenchmarkMetric::Throughput => write!(f, "::throughput")?,
+            BenchmarkMetric::PbsCount => write!(f, "::pbs_count")?,
+            BenchmarkMetric::Latency => {}
         }
         write!(f, "::{}", self.param_name)?;
         if self.operand_type.is_scalar() {
@@ -116,6 +220,9 @@ impl fmt::Display for BenchmarkSpec<'_> {
         }
         if let Some(type_name) = self.type_name {
             write!(f, "::{type_name}")?;
+        }
+        if let Some(num_elements) = self.num_elements {
+            write!(f, "::{num_elements}_elements")?;
         }
         Ok(())
     }
@@ -127,13 +234,12 @@ mod tests {
 
     #[test]
     fn hlapi_cpu_latency() {
-        let spec = BenchmarkSpec::new(
-            BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Ops(HlIntegerOp::Add))),
-            Backend::Cpu,
+        let spec = BenchmarkSpec::new_hlapi_ops(
+            HlIntegerOp::Add,
             "PARAM_MESSAGE_2_CARRY_2",
-            &OperandType::CipherText,
+            OperandType::CipherText,
             Some("FheUint64"),
-            &BenchmarkType::Latency,
+            BenchmarkMetric::Latency,
         );
         assert_eq!(
             spec.to_string(),
@@ -147,9 +253,10 @@ mod tests {
             BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Ops(HlIntegerOp::Mul))),
             Backend::Cuda,
             "PARAM_MESSAGE_2_CARRY_2",
-            &OperandType::CipherText,
+            OperandType::CipherText,
             Some("FheUint128"),
-            &BenchmarkType::Latency,
+            BenchmarkMetric::Latency,
+            None,
         );
         assert_eq!(
             spec.to_string(),
@@ -163,9 +270,10 @@ mod tests {
             BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Ops(HlIntegerOp::Add))),
             Backend::Hpu,
             "PARAM_MESSAGE_2_CARRY_2",
-            &OperandType::CipherText,
+            OperandType::CipherText,
             Some("FheUint64"),
-            &BenchmarkType::Throughput,
+            BenchmarkMetric::Throughput,
+            None,
         );
         assert_eq!(
             spec.to_string(),
@@ -175,13 +283,12 @@ mod tests {
 
     #[test]
     fn hlapi_scalar() {
-        let spec = BenchmarkSpec::new(
-            BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Ops(HlIntegerOp::LeftShift))),
-            Backend::Cpu,
+        let spec = BenchmarkSpec::new_hlapi_ops(
+            HlIntegerOp::LeftShift,
             "PARAM_MESSAGE_2_CARRY_2",
-            &OperandType::PlainText,
+            OperandType::PlainText,
             Some("FheUint64"),
-            &BenchmarkType::Latency,
+            BenchmarkMetric::Latency,
         );
         assert_eq!(
             spec.to_string(),
@@ -191,17 +298,166 @@ mod tests {
 
     #[test]
     fn hlapi_no_type_name() {
-        let spec = BenchmarkSpec::new(
-            BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Ops(HlIntegerOp::Neg))),
-            Backend::Cpu,
+        let spec = BenchmarkSpec::new_hlapi_ops(
+            HlIntegerOp::Neg,
             "PARAM_MESSAGE_2_CARRY_2",
-            &OperandType::CipherText,
+            OperandType::CipherText,
             None,
-            &BenchmarkType::Latency,
+            BenchmarkMetric::Latency,
         );
         assert_eq!(
             spec.to_string(),
             "tfhe::hlapi::ops::neg::PARAM_MESSAGE_2_CARRY_2"
+        );
+    }
+
+    #[test]
+    fn hlapi_erc7984_with_num_elements() {
+        use crate::tfhe::hlapi::erc7984::TransferFlavor;
+
+        let spec = BenchmarkSpec::new_hlapi_erc7984(
+            Erc7984::Transfer(TransferFlavor::Whitepaper),
+            "PARAM_MESSAGE_2_CARRY_2",
+            OperandType::CipherText,
+            None,
+            BenchmarkMetric::Latency,
+            Some(10),
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::hlapi::erc7984::transfer::whitepaper::PARAM_MESSAGE_2_CARRY_2::10_elements"
+        );
+    }
+
+    #[test]
+    fn hlapi_erc7984_without_num_elements() {
+        use crate::tfhe::hlapi::erc7984::TransferFlavor;
+
+        let spec = BenchmarkSpec::new_hlapi_erc7984(
+            Erc7984::Transfer(TransferFlavor::NoCmux),
+            "PARAM_MESSAGE_2_CARRY_2",
+            OperandType::CipherText,
+            None,
+            BenchmarkMetric::Latency,
+            None,
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::hlapi::erc7984::transfer::no_cmux::PARAM_MESSAGE_2_CARRY_2"
+        );
+    }
+
+    #[test]
+    fn hlapi_erc7984_num_elements_with_backend() {
+        use crate::tfhe::hlapi::erc7984::TransferFlavor;
+
+        let spec = BenchmarkSpec::new(
+            BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Erc7984(Erc7984::Transfer(
+                TransferFlavor::Overflow,
+            )))),
+            Backend::Cuda,
+            "PARAM_MESSAGE_2_CARRY_2",
+            OperandType::CipherText,
+            None,
+            BenchmarkMetric::Latency,
+            Some(5),
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::hlapi::erc7984::transfer::overflow::cuda::PARAM_MESSAGE_2_CARRY_2::5_elements"
+        );
+    }
+
+    #[test]
+    fn hlapi_erc7984_num_elements_with_throughput() {
+        use crate::tfhe::hlapi::erc7984::TransferFlavor;
+
+        let spec = BenchmarkSpec::new_hlapi_erc7984(
+            Erc7984::Transfer(TransferFlavor::Safe),
+            "PARAM_MESSAGE_2_CARRY_2",
+            OperandType::CipherText,
+            None,
+            BenchmarkMetric::Throughput,
+            Some(20),
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::hlapi::erc7984::transfer::safe::throughput::PARAM_MESSAGE_2_CARRY_2::20_elements"
+        );
+    }
+
+    #[test]
+    fn hlapi_erc7984_with_pbs_count() {
+        use crate::tfhe::hlapi::erc7984::TransferFlavor;
+
+        let spec = BenchmarkSpec::new_hlapi_erc7984(
+            Erc7984::Transfer(TransferFlavor::Safe),
+            "PARAM_MESSAGE_2_CARRY_2",
+            OperandType::CipherText,
+            None,
+            BenchmarkMetric::PbsCount,
+            None,
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::hlapi::erc7984::transfer::safe::pbs_count::PARAM_MESSAGE_2_CARRY_2"
+        );
+    }
+
+    #[test]
+    fn hlapi_dex_swap_request_latency() {
+        use crate::tfhe::hlapi::dex::DexFlavor;
+
+        let spec = BenchmarkSpec::new_hlapi_dex(
+            Dex::SwapRequest(DexFlavor::Whitepaper),
+            "PARAM_MESSAGE_2_CARRY_2",
+            OperandType::CipherText,
+            Some("FheUint64"),
+            BenchmarkMetric::Latency,
+            None,
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::hlapi::dex::swap_request::whitepaper::PARAM_MESSAGE_2_CARRY_2::FheUint64"
+        );
+    }
+
+    #[test]
+    fn hlapi_dex_swap_claim_throughput_with_elements() {
+        use crate::tfhe::hlapi::dex::DexFlavor;
+
+        let spec = BenchmarkSpec::new(
+            BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Dex(Dex::SwapClaim(
+                DexFlavor::NoCmux,
+            )))),
+            Backend::Cuda,
+            "PARAM_MESSAGE_2_CARRY_2",
+            OperandType::CipherText,
+            Some("FheUint64"),
+            BenchmarkMetric::Throughput,
+            Some(10),
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::hlapi::dex::swap_claim::no_cmux::cuda::throughput::PARAM_MESSAGE_2_CARRY_2::FheUint64::10_elements"
+        );
+    }
+
+    #[test]
+    fn hlapi_dex_with_pbs_count() {
+        use crate::tfhe::hlapi::dex::DexFlavor;
+
+        let spec = BenchmarkSpec::new_hlapi_dex(
+            Dex::SwapRequest(DexFlavor::Finalize),
+            "PARAM_MESSAGE_2_CARRY_2",
+            OperandType::CipherText,
+            Some("FheUint64"),
+            BenchmarkMetric::PbsCount,
+            None,
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::hlapi::dex::swap_request::finalize::pbs_count::PARAM_MESSAGE_2_CARRY_2::FheUint64"
         );
     }
 }
