@@ -17,7 +17,7 @@ use benchmark::utilities::configure_gpu;
 use benchmark::utilities::{
     will_this_bench_run, write_to_json_unchecked, BitSizesSet, EnvConfig, OperatorType,
 };
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark_spec::{get_bench_type, CriteriaBenchType};
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
 use rand::thread_rng;
@@ -86,7 +86,7 @@ fn bench_sns_only_fhe_type<FheType>(
     let bench_id;
 
     match get_bench_type() {
-        BenchmarkType::Latency => {
+        CriteriaBenchType::Latency => {
             bench_id = format!("{bench_id_prefix}::{bench_id_suffix}");
 
             #[cfg(feature = "gpu")]
@@ -100,7 +100,7 @@ fn bench_sns_only_fhe_type<FheType>(
                 })
             });
         }
-        BenchmarkType::Throughput => {
+        CriteriaBenchType::Throughput => {
             bench_id = format!("{bench_id_prefix}::throughput::{bench_id_suffix}");
 
             let elements = if will_this_bench_run(type_name, &bench_id) {
@@ -261,7 +261,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
     let bench_id;
 
     match get_bench_type() {
-        BenchmarkType::Latency => {
+        CriteriaBenchType::Latency => {
             bench_id = format!("{bench_id_prefix}::{bench_id_suffix}");
 
             #[cfg(feature = "gpu")]
@@ -283,7 +283,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
                 })
             });
         }
-        BenchmarkType::Throughput => {
+        CriteriaBenchType::Throughput => {
             bench_id = format!("{bench_id_prefix}::throughput::{bench_id_suffix}");
 
             let elements = if will_this_bench_run(type_name, &bench_id) {

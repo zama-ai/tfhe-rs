@@ -5,7 +5,7 @@ use benchmark::params_aliases::{
     BENCH_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
 };
 use benchmark::utilities::{write_to_json_unchecked, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark_spec::{get_bench_type, CriteriaBenchType};
 use criterion::{black_box, criterion_group, BatchSize, Criterion, Throughput};
 #[cfg(feature = "gpu")]
 use cuda::gpu_re_randomize_group;
@@ -88,7 +88,7 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize, rerand_mode: Ben
     let bench_id;
 
     match get_bench_type() {
-        BenchmarkType::Latency => {
+        CriteriaBenchType::Latency => {
             // Encrypt and compress a single ciphertext
             let message = 42u64;
             let ct = cks.encrypt_radix(message, num_blocks);
@@ -125,7 +125,7 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize, rerand_mode: Ben
                 )
             });
         }
-        BenchmarkType::Throughput => {
+        CriteriaBenchType::Throughput => {
             let setup = |batch_size: usize| {
                 (0..batch_size)
                     .into_par_iter()
@@ -235,7 +235,7 @@ mod cuda {
     };
     use benchmark::utilities::cuda_integer_utils::cuda_local_streams;
     use benchmark::utilities::{throughput_num_threads, write_to_json_unchecked, OperatorType};
-    use benchmark_spec::{get_bench_type, BenchmarkType};
+    use benchmark_spec::{get_bench_type, CriteriaBenchType};
     use criterion::{black_box, criterion_group, BatchSize, Criterion, Throughput};
     use rayon::prelude::*;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
@@ -322,7 +322,7 @@ mod cuda {
         let bench_id;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 // Encrypt and compress a single ciphertext
                 let message = 42u64;
                 let ct = cks.encrypt_radix(message, num_blocks);
@@ -368,7 +368,7 @@ mod cuda {
                     )
                 });
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 let elements = throughput_num_threads(num_blocks, 1);
                 bench_group.throughput(Throughput::Elements(elements));
 

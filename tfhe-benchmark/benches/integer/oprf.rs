@@ -2,7 +2,7 @@ use benchmark::params::ParamsAndNumBlocksIter;
 #[cfg(any(feature = "gpu", feature = "hpu"))]
 use benchmark::utilities::throughput_num_threads;
 use benchmark::utilities::{write_to_json_unchecked, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark_spec::{get_bench_type, CriteriaBenchType};
 use criterion::{black_box, Criterion, Throughput};
 use rayon::prelude::*;
 #[cfg(any(feature = "gpu", feature = "hpu"))]
@@ -29,7 +29,7 @@ pub fn unsigned_oprf(c: &mut Criterion) {
         let bench_id_oprf_bounded;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 bench_id_oprf = format!("{bench_name}::{param_name}::{bit_size}_bits");
                 bench_id_oprf_bounded =
                     format!("{bench_name}_bounded::{param_name}::{bit_size}_bits");
@@ -59,7 +59,7 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                     })
                 });
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 let (_, sk) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
                 bench_id_oprf = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
@@ -166,7 +166,7 @@ pub mod cuda {
             let bench_id_oprf_bounded;
 
             match get_bench_type() {
-                BenchmarkType::Latency => {
+                CriteriaBenchType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
 
                     bench_id_oprf = format!("{bench_name}::{param_name}::{bit_size}_bits");
@@ -207,7 +207,7 @@ pub mod cuda {
                         })
                     });
                 }
-                BenchmarkType::Throughput => {
+                CriteriaBenchType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                     let gpu_sks_vec = cuda_local_keys(&cks);
 

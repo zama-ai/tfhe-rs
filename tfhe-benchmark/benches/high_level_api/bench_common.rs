@@ -3,7 +3,7 @@ use benchmark::high_level_api::benchmark_op::*;
 use benchmark::utilities::{
     bench_backend_from_cfg, will_this_bench_run, write_to_json, OperatorType,
 };
-use benchmark_spec::{get_bench_type, BenchmarkSpec, BenchmarkType, HlIntegerOp, OperandType};
+use benchmark_spec::{get_bench_type, BenchmarkSpec, CriteriaBenchType, HlIntegerOp, OperandType};
 use criterion::{black_box, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -36,18 +36,18 @@ pub fn bench_fhe_type_op<FheType, Op>(
     let inputs = op.setup_inputs(client_key, &mut rng);
 
     let bench_type = get_bench_type();
-    let benchmark_spec = BenchmarkSpec::new_hlapi(
+    let benchmark_spec = BenchmarkSpec::new_hlapi_ops(
         hlapi_op,
         &param_name,
         &operand_type,
         Some(type_name),
-        bench_type,
+        *bench_type,
         bench_backend_from_cfg(),
     );
     let bench_id = benchmark_spec.to_string();
 
     match bench_type {
-        BenchmarkType::Latency => {
+        CriteriaBenchType::Latency => {
             bench_group.bench_function(&bench_id, |b| {
                 b.iter(|| {
                     let res = op.execute(&inputs);
@@ -56,7 +56,7 @@ pub fn bench_fhe_type_op<FheType, Op>(
                 })
             });
         }
-        BenchmarkType::Throughput => {
+        CriteriaBenchType::Throughput => {
             let setup = |batch_size: usize| {
                 (0..batch_size)
                     .into_par_iter()

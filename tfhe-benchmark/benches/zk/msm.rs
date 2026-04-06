@@ -20,7 +20,7 @@
 //! ```
 
 use benchmark::utilities::{write_to_json_unchecked, CryptoParametersRecord, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark_spec::{get_bench_type, CriteriaBenchType};
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion, Throughput};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
@@ -150,7 +150,7 @@ fn bench_cpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
         let bench_id;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 let mut rng = StdRng::seed_from_u64(42);
                 let bases = T::generate_points(&mut rng, n);
                 let scalars = generate_scalars(&mut rng, n);
@@ -160,7 +160,7 @@ fn bench_cpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
                     b.iter(|| T::cpu_msm(&bases, &scalars));
                 });
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 let elements = msm_throughput_elements(n);
                 group.throughput(Throughput::Elements(elements));
 
@@ -227,7 +227,7 @@ fn bench_gpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
         let bench_id;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 let mut rng = StdRng::seed_from_u64(42);
                 let bases = T::generate_points(&mut rng, n);
                 let scalars = generate_scalars(&mut rng, n);
@@ -237,7 +237,7 @@ fn bench_gpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
                     b.iter(|| T::gpu_msm(&bases, &scalars, gpu_index));
                 });
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 let elements = msm_throughput_elements(n);
                 group.throughput(Throughput::Elements(elements));
 

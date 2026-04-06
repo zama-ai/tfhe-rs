@@ -1,9 +1,11 @@
+use benchmark::utilities::{bench_backend_from_cfg, write_to_json, OperatorType};
 #[cfg(feature = "gpu")]
 use benchmark::utilities::{configure_gpu, get_param_type, ParamType};
-use benchmark::utilities::{write_to_json_unchecked, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType};
-use criterion::measurement::WallTime;
-use criterion::{BenchmarkGroup, Criterion, Throughput};
+use benchmark_spec::tfhe::hlapi::erc20::{Erc20, TransferOp};
+use benchmark_spec::{
+    get_bench_type, BenchmarkSpec, BenchmarkType, CriteriaBenchType, OperandType,
+};
+use criterion::{Criterion, Throughput};
 use rand::prelude::*;
 use rand::thread_rng;
 #[cfg(not(feature = "hpu"))]
@@ -300,7 +302,7 @@ mod pbs_stats {
     pub fn print_transfer_pbs_counts<FheType, F>(
         client_key: &ClientKey,
         type_name: &str,
-        fn_name: &str,
+        fn_name: Erc20,
         transfer_func: F,
     ) where
         FheType: FheEncrypt<u64, ClientKey>,
@@ -324,11 +326,15 @@ mod pbs_stats {
         let params = client_key.computation_parameters();
         let params_name = params.name();
 
-        let test_name = if cfg!(feature = "gpu") {
-            format!("hlapi::cuda::erc20::pbs_count::{fn_name}::{params_name}::{type_name}")
-        } else {
-            format!("hlapi::erc20::pbs_count::{fn_name}::{params_name}::{type_name}")
-        };
+        let test_name = BenchmarkSpec::new_hlapi_erc20(
+            fn_name,
+            &params_name,
+            &OperandType::CipherText,
+            Some(type_name),
+            BenchmarkType::PbsCount,
+            bench_backend_from_cfg(),
+            None,
+        );
 
         let results_file = Path::new("erc20_pbs_count.csv");
         if !results_file.exists() {
@@ -339,12 +345,11 @@ mod pbs_stats {
             .open(results_file)
             .expect("cannot open results file");
 
-        write_result(&mut file, &test_name, count as usize);
+        write_result(&mut file, &test_name.to_string(), count as usize);
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json::<u64, _>(
             &test_name,
             params,
-            params_name,
             "pbs-count",
             &OperatorType::Atomic,
             0,
@@ -354,11 +359,10 @@ mod pbs_stats {
 }
 
 fn bench_transfer_latency<FheType, F>(
-    c: &mut BenchmarkGroup<'_, WallTime>,
+    c: &mut Criterion,
     client_key: &ClientKey,
-    bench_name: &str,
     type_name: &str,
-    fn_name: &str,
+    fn_name: Erc20,
     transfer_func: F,
 ) where
     FheType: FheEncrypt<u64, ClientKey>,
@@ -371,7 +375,16 @@ fn bench_transfer_latency<FheType, F>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
-    let bench_id = format!("{bench_name}::{fn_name}::{params_name}::{type_name}");
+    let bench_spec = BenchmarkSpec::new_hlapi_erc20(
+        fn_name,
+        &params_name,
+        &OperandType::CipherText,
+        Some(type_name),
+        BenchmarkType::Latency,
+        bench_backend_from_cfg(),
+        None,
+    );
+    let bench_id = bench_spec.to_string();
     c.bench_function(&bench_id, |b| {
         let mut rng = thread_rng();
 
@@ -388,10 +401,9 @@ fn bench_transfer_latency<FheType, F>(
         })
     });
 
-    write_to_json_unchecked::<u64, _>(
-        &bench_id,
+    write_to_json::<u64, _>(
+        &bench_spec,
         params,
-        params_name,
         "erc20-transfer",
         &OperatorType::Atomic,
         64,
@@ -401,11 +413,10 @@ fn bench_transfer_latency<FheType, F>(
 
 #[cfg(feature = "hpu")]
 fn bench_transfer_latency_simd<FheType, F>(
-    c: &mut BenchmarkGroup<'_, WallTime>,
+    c: &mut Criterion,
     client_key: &ClientKey,
-    bench_name: &str,
     type_name: &str,
-    fn_name: &str,
+    fn_name: Erc20,
     transfer_func: F,
 ) where
     FheType: FheEncrypt<u64, ClientKey>,
@@ -424,8 +435,16 @@ fn bench_transfer_latency_simd<FheType, F>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
-    let bench_id = format!("{bench_name}::{fn_name}::{params_name}::{type_name}");
-    c.bench_function(&bench_id, |b| {
+    let bench_spec = BenchmarkSpec::new_hlapi_erc20(
+        fn_name,
+        &params_name,
+        &OperandType::CipherText,
+        Some(type_name),
+        BenchmarkType::Throughput,
+        bench_backend_from_cfg(),
+        None,
+    );
+    c.bench_function(bench_spec.to_string(), |b| {
         let mut rng = thread_rng();
 
         let mut from_amounts: Vec<FheType> = vec![];
@@ -449,10 +468,9 @@ fn bench_transfer_latency_simd<FheType, F>(
         })
     });
 
-    write_to_json_unchecked::<u64, _>(
-        &bench_id,
+    write_to_json::<u64, _>(
+        &bench_spec,
         params,
-        params_name,
         "erc20-simd-transfer",
         &OperatorType::Atomic,
         64,
@@ -462,11 +480,10 @@ fn bench_transfer_latency_simd<FheType, F>(
 
 #[cfg(not(any(feature = "gpu", feature = "hpu")))]
 fn bench_transfer_throughput<FheType, F>(
-    group: &mut BenchmarkGroup<'_, WallTime>,
+    c: &mut Criterion,
     client_key: &ClientKey,
-    bench_name: &str,
     type_name: &str,
-    fn_name: &str,
+    fn_name: Erc20,
     transfer_func: F,
 ) where
     FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
@@ -477,11 +494,20 @@ fn bench_transfer_throughput<FheType, F>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
+    let mut group = c.benchmark_group(type_name);
+
     for num_elems in [10, 100, 500] {
         group.throughput(Throughput::Elements(num_elems));
-        let bench_id = format!(
-            "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
+        let bench_spec = BenchmarkSpec::new_hlapi_erc20(
+            fn_name,
+            &params_name,
+            &OperandType::CipherText,
+            Some(type_name),
+            BenchmarkType::Throughput,
+            bench_backend_from_cfg(),
+            Some(num_elems.try_into().unwrap()),
         );
+        let bench_id = bench_spec.to_string();
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_amounts = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
@@ -503,10 +529,9 @@ fn bench_transfer_throughput<FheType, F>(
             })
         });
 
-        write_to_json_unchecked::<u64, _>(
-            &bench_id,
+        write_to_json::<u64, _>(
+            &bench_spec,
             params,
-            &params_name,
             "erc20-transfer",
             &OperatorType::Atomic,
             64,
@@ -517,11 +542,10 @@ fn bench_transfer_throughput<FheType, F>(
 
 #[cfg(feature = "gpu")]
 fn cuda_bench_transfer_throughput<FheType, F>(
-    group: &mut BenchmarkGroup<'_, WallTime>,
+    c: &mut Criterion,
     client_key: &ClientKey,
-    bench_name: &str,
     type_name: &str,
-    fn_name: &str,
+    fn_name: Erc20,
     transfer_func: F,
 ) where
     FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
@@ -542,11 +566,19 @@ fn cuda_bench_transfer_throughput<FheType, F>(
     // and is a multiple of the number of streams per GPU to avoid a bigger batch on one stream
     let num_elems = 300 * num_gpus;
 
+    let mut group = c.benchmark_group(type_name);
     group.throughput(Throughput::Elements(num_elems));
-    let bench_id = format!(
-        "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
+
+    let bench_spec = BenchmarkSpec::new_hlapi_erc20(
+        fn_name,
+        &params_name,
+        &OperandType::CipherText,
+        Some(type_name),
+        BenchmarkType::Throughput,
+        bench_backend_from_cfg(),
+        Some(num_elems.try_into().unwrap()),
     );
-    group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
+    group.bench_with_input(bench_spec.to_string(), &num_elems, |b, &num_elems| {
         let from_amounts = (0..num_elems)
             .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
             .collect::<Vec<_>>();
@@ -593,10 +625,9 @@ fn cuda_bench_transfer_throughput<FheType, F>(
         });
     });
 
-    write_to_json_unchecked::<u64, _>(
-        &bench_id,
+    write_to_json::<u64, _>(
+        &bench_spec,
         params,
-        &params_name,
         "erc20-transfer",
         &OperatorType::Atomic,
         64,
@@ -606,11 +637,10 @@ fn cuda_bench_transfer_throughput<FheType, F>(
 
 #[cfg(feature = "hpu")]
 fn hpu_bench_transfer_throughput<FheType, F>(
-    group: &mut BenchmarkGroup<'_, WallTime>,
+    group: &mut Criterion,
     client_key: &ClientKey,
-    bench_name: &str,
     type_name: &str,
-    fn_name: &str,
+    fn_name: Erc20,
     transfer_func: F,
 ) where
     FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
@@ -622,12 +652,19 @@ fn hpu_bench_transfer_throughput<FheType, F>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
+    let mut group = group.benchmark_group(type_name);
     for num_elems in [10, 100] {
         group.throughput(Throughput::Elements(num_elems));
-        let bench_id = format!(
-            "{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{num_elems}_elems"
+        let bench_spec = BenchmarkSpec::new_hlapi_erc20(
+            fn_name,
+            &params_name,
+            &OperandType::CipherText,
+            Some(type_name),
+            BenchmarkType::Throughput,
+            bench_backend_from_cfg(),
+            Some(num_elems.try_into().unwrap()),
         );
-        group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
+        group.bench_with_input(bench_spec.to_string(), &num_elems, |b, &num_elems| {
             let from_amounts = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                 .collect::<Vec<_>>();
@@ -657,10 +694,9 @@ fn hpu_bench_transfer_throughput<FheType, F>(
             });
         });
 
-        write_to_json_unchecked::<u64, _>(
-            &bench_id,
+        write_to_json::<u64, _>(
+            &bench_spec,
             params,
-            &params_name,
             "erc20-transfer",
             &OperatorType::Atomic,
             64,
@@ -671,11 +707,10 @@ fn hpu_bench_transfer_throughput<FheType, F>(
 
 #[cfg(feature = "hpu")]
 fn hpu_bench_transfer_throughput_simd<FheType, F>(
-    group: &mut BenchmarkGroup<'_, WallTime>,
+    group: &mut Criterion,
     client_key: &ClientKey,
-    bench_name: &str,
     type_name: &str,
-    fn_name: &str,
+    fn_name: Erc20,
     transfer_func: F,
 ) where
     FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
@@ -698,9 +733,16 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
     for num_elems in [2, 8] {
         let real_num_elems = num_elems * (hpu_simd_n as u64);
         group.throughput(Throughput::Elements(real_num_elems));
-        let bench_id =
-            format!("{bench_name}::throughput::{fn_name}::{params_name}::{type_name}::{real_num_elems}_elems");
-        group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
+        let bench_spec = BenchmarkSpec::new_hlapi_erc20(
+            fn_name,
+            &params_name,
+            &OperandType::CipherText,
+            Some(type_name),
+            BenchmarkType::Throughput,
+            bench_backend_from_cfg(),
+            Some(real_num_elems.try_into().unwrap()),
+        );
+        group.bench_with_input(bench_spec.to_string(), &num_elems, |b, &num_elems| {
             let from_amounts = (0..num_elems)
                 .map(|_| {
                     (0..hpu_simd_n)
@@ -742,11 +784,10 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
             });
         });
 
-        write_to_json_unchecked::<u64, _>(
-            &bench_id,
+        write_to_json::<u64, _>(
+            &bench_spec,
             params,
-            &params_name,
-            "erc20-simd-ransfer",
+            "erc20-simd-transfer",
             &OperatorType::Atomic,
             64,
             vec![],
@@ -769,7 +810,7 @@ fn main() {
 
     let mut c = Criterion::default().sample_size(10).configure_from_args();
 
-    let bench_name = "hlapi::erc20";
+    let bench_type = get_bench_type();
 
     // FheUint64 PBS counts
     // We don't run multiple times since every input is encrypted
@@ -780,99 +821,90 @@ fn main() {
         print_transfer_pbs_counts(
             &cks,
             "FheUint64",
-            "transfer::whitepaper",
+            Erc20::Transfer(TransferOp::Whitepaper),
             par_transfer_whitepaper::<FheUint64>,
         );
         print_transfer_pbs_counts(
             &cks,
             "FheUint64",
-            "no_cmux",
+            Erc20::Transfer(TransferOp::NoCmux),
             par_transfer_no_cmux::<FheUint64>,
         );
         print_transfer_pbs_counts(
             &cks,
             "FheUint64",
-            "transfer::overflow",
+            Erc20::Transfer(TransferOp::Overflow),
             par_transfer_overflow::<FheUint64>,
         );
-        print_transfer_pbs_counts(&cks, "FheUint64", "safe", par_transfer_safe::<FheUint64>);
+        print_transfer_pbs_counts(
+            &cks,
+            "FheUint64",
+            Erc20::Transfer(TransferOp::Safe),
+            par_transfer_safe::<FheUint64>,
+        );
     }
 
-    match get_bench_type() {
-        BenchmarkType::Latency => {
-            let mut group = c.benchmark_group(bench_name);
+    match bench_type {
+        CriteriaBenchType::Latency => {
             bench_transfer_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::whitepaper",
+                Erc20::Transfer(TransferOp::Whitepaper),
                 par_transfer_whitepaper::<FheUint64>,
             );
             bench_transfer_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::no_cmux",
+                Erc20::Transfer(TransferOp::NoCmux),
                 par_transfer_no_cmux::<FheUint64>,
             );
             bench_transfer_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::overflow",
+                Erc20::Transfer(TransferOp::Overflow),
                 par_transfer_overflow::<FheUint64>,
             );
             bench_transfer_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::safe",
+                Erc20::Transfer(TransferOp::Safe),
                 par_transfer_safe::<FheUint64>,
             );
-
-            group.finish();
         }
 
-        BenchmarkType::Throughput => {
-            let mut group = c.benchmark_group(bench_name);
+        CriteriaBenchType::Throughput => {
             bench_transfer_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::whitepaper",
+                Erc20::Transfer(TransferOp::Whitepaper),
                 par_transfer_whitepaper::<FheUint64>,
             );
             bench_transfer_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::no_cmux",
+                Erc20::Transfer(TransferOp::NoCmux),
                 par_transfer_no_cmux::<FheUint64>,
             );
             bench_transfer_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::overflow",
+                Erc20::Transfer(TransferOp::Overflow),
                 par_transfer_overflow::<FheUint64>,
             );
             bench_transfer_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::safe",
+                Erc20::Transfer(TransferOp::Safe),
                 par_transfer_safe::<FheUint64>,
             );
-
-            group.finish();
         }
     };
 
@@ -896,8 +928,6 @@ fn main() {
 
     let mut c = Criterion::default().sample_size(10).configure_from_args();
 
-    let bench_name = "hlapi::cuda::erc20";
-
     // FheUint64 PBS counts
     // We don't run multiple times since every input is encrypted
     // PBS count is always the same
@@ -907,98 +937,90 @@ fn main() {
         print_transfer_pbs_counts(
             &cks,
             "FheUint64",
-            "transfer::whitepaper",
+            Erc20::Transfer(TransferOp::Whitepaper),
             par_transfer_whitepaper::<FheUint64>,
         );
         print_transfer_pbs_counts(
             &cks,
             "FheUint64",
-            "no_cmux",
+            Erc20::Transfer(TransferOp::NoCmux),
             par_transfer_no_cmux::<FheUint64>,
         );
         print_transfer_pbs_counts(
             &cks,
             "FheUint64",
-            "transfer::overflow",
+            Erc20::Transfer(TransferOp::Overflow),
             par_transfer_overflow::<FheUint64>,
         );
-        print_transfer_pbs_counts(&cks, "FheUint64", "safe", par_transfer_safe::<FheUint64>);
+        print_transfer_pbs_counts(
+            &cks,
+            "FheUint64",
+            Erc20::Transfer(TransferOp::Safe),
+            par_transfer_safe::<FheUint64>,
+        );
     }
 
     match get_bench_type() {
-        BenchmarkType::Latency => {
-            let mut group = c.benchmark_group(bench_name);
+        CriteriaBenchType::Latency => {
             bench_transfer_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::whitepaper",
+                Erc20::Transfer(TransferOp::Whitepaper),
                 par_transfer_whitepaper::<FheUint64>,
             );
             bench_transfer_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::no_cmux",
+                Erc20::Transfer(TransferOp::NoCmux),
                 par_transfer_no_cmux::<FheUint64>,
             );
             bench_transfer_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::overflow",
+                Erc20::Transfer(TransferOp::Overflow),
                 par_transfer_overflow::<FheUint64>,
             );
             bench_transfer_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::safe",
+                Erc20::Transfer(TransferOp::Safe),
                 par_transfer_safe::<FheUint64>,
             );
-
-            group.finish();
         }
 
-        BenchmarkType::Throughput => {
-            let mut group = c.benchmark_group(bench_name);
+        CriteriaBenchType::Throughput => {
             cuda_bench_transfer_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::whitepaper",
+                Erc20::Transfer(TransferOp::Whitepaper),
                 transfer_whitepaper::<FheUint64>,
             );
             cuda_bench_transfer_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::no_cmux",
+                Erc20::Transfer(TransferOp::NoCmux),
                 transfer_no_cmux::<FheUint64>,
             );
             cuda_bench_transfer_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::overflow",
+                Erc20::Transfer(TransferOp::Overflow),
                 transfer_overflow::<FheUint64>,
             );
             cuda_bench_transfer_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::safe",
+                Erc20::Transfer(TransferOp::Safe),
                 transfer_safe::<FheUint64>,
             );
-            group.finish();
         }
     };
 
@@ -1027,69 +1049,57 @@ fn main() {
 
     let mut c = Criterion::default().sample_size(10).configure_from_args();
 
-    let bench_name = "hlapi::hpu::erc20";
-
     match get_bench_type() {
-        BenchmarkType::Latency => {
-            let mut group = c.benchmark_group(bench_name);
+        CriteriaBenchType::Latency => {
             bench_transfer_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::whitepaper",
+                Erc20::Transfer(TransferOp::Whitepaper),
                 transfer_whitepaper::<FheUint64>,
             );
             // Erc20 optimized instruction only available on Hpu
             bench_transfer_latency(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::hpu_optim",
+                Erc20::Transfer(TransferOp::HpuOptim),
                 transfer_hpu::<FheUint64>,
             );
             // Erc20 SIMD instruction only available on Hpu
             bench_transfer_latency_simd(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::hpu_simd",
+                Erc20::Transfer(TransferOp::HpuSimd),
                 transfer_hpu_simd::<FheUint64>,
             );
-            group.finish();
         }
 
-        BenchmarkType::Throughput => {
-            let mut group = c.benchmark_group(bench_name);
+        CriteriaBenchType::Throughput => {
             hpu_bench_transfer_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::whitepaper",
+                Erc20::Transfer(TransferOp::Whitepaper),
                 transfer_whitepaper::<FheUint64>,
             );
             // Erc20 optimized instruction only available on Hpu
             hpu_bench_transfer_throughput(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::hpu_optim",
+                Erc20::Transfer(TransferOp::HpuOptim),
                 transfer_hpu::<FheUint64>,
             );
             // Erc20 SIMD instruction only available on Hpu
             hpu_bench_transfer_throughput_simd(
-                &mut group,
+                &mut c,
                 &cks,
-                bench_name,
                 "FheUint64",
-                "transfer::hpu_simd",
+                Erc20::Transfer(TransferOp::HpuSimd),
                 transfer_hpu_simd::<FheUint64>,
             );
-            group.finish();
         }
     };
 

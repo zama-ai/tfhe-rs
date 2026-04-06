@@ -167,7 +167,7 @@ mod cuda {
         write_to_json_unchecked, CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes,
         CudaLocalKeys, OperatorType,
     };
-    use benchmark_spec::{get_bench_type, BenchmarkType};
+    use benchmark_spec::{get_bench_type, CriteriaBenchType};
     use criterion::{black_box, Criterion, Throughput};
     use rayon::prelude::*;
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
@@ -260,7 +260,7 @@ mod cuda {
         let bench_id;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 let gpu_keys = CudaLocalKeys::from_cpu_keys(
                     &cpu_keys,
                     modulus_switch_noise_reduction_configuration,
@@ -311,7 +311,7 @@ mod cuda {
                     });
                 }
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 let gpu_keys_vec =
                     cuda_local_keys_core(&cpu_keys, modulus_switch_noise_reduction_configuration);
                 let gpu_count = get_number_of_gpus() as usize;
@@ -505,7 +505,7 @@ mod cuda {
         let bench_id;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 let streams = CudaStreams::new_multi_gpu();
                 let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, None, &streams);
 
@@ -559,7 +559,7 @@ mod cuda {
                     });
                 }
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 let gpu_keys_vec = cuda_local_keys_core(&cpu_keys, None);
                 let gpu_count = get_number_of_gpus() as usize;
 

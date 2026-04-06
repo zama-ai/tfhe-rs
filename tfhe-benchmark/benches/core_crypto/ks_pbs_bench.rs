@@ -5,7 +5,7 @@ use benchmark::params::{
 use benchmark::utilities::{
     get_param_type, write_to_json_unchecked, CryptoParametersRecord, OperatorType, ParamType,
 };
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark_spec::{get_bench_type, CriteriaBenchType};
 use criterion::{black_box, Criterion, Throughput};
 use rayon::prelude::*;
 use serde::Serialize;
@@ -65,7 +65,7 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
         let bench_id;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 // Allocate a new LweCiphertext and encrypt our plaintext
                 let input_ks_ct: LweCiphertextOwned<Scalar> =
                     allocate_and_encrypt_new_lwe_ciphertext(
@@ -132,7 +132,7 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                     });
                 }
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{name}");
                 let fft = Fft::new(fourier_bsk.polynomial_size());
                 let mut setup = |batch_size: usize| {
@@ -348,7 +348,7 @@ fn multi_bit_ks_pbs<
         let bench_id;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 // Allocate a new LweCiphertext and encrypt our plaintext
                 let input_ks_ct: LweCiphertextOwned<Scalar> =
                     allocate_and_encrypt_new_lwe_ciphertext(
@@ -399,7 +399,7 @@ fn multi_bit_ks_pbs<
                     })
                 });
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{name}");
                 let mut setup = |batch_size: usize| {
                     let input_ks_cts = (0..batch_size)
@@ -525,7 +525,7 @@ mod cuda {
         write_to_json_unchecked, CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes,
         CudaLocalKeys, OperatorType, GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE,
     };
-    use benchmark_spec::{get_bench_type, BenchmarkType};
+    use benchmark_spec::{get_bench_type, CriteriaBenchType};
     use criterion::{black_box, Criterion, Throughput};
     use rayon::prelude::*;
     use serde::Serialize;
@@ -602,7 +602,7 @@ mod cuda {
             let bench_id;
 
             match get_bench_type() {
-                BenchmarkType::Latency => {
+                CriteriaBenchType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
                     let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, None, &streams);
 
@@ -675,7 +675,7 @@ mod cuda {
                         });
                     }
                 }
-                BenchmarkType::Throughput => {
+                CriteriaBenchType::Throughput => {
                     let gpu_keys_vec = cuda_local_keys_core(&cpu_keys, None);
                     let gpu_count = get_number_of_gpus() as usize;
 
@@ -914,7 +914,7 @@ mod cuda {
             let bench_id;
 
             match get_bench_type() {
-                BenchmarkType::Latency => {
+                CriteriaBenchType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
                     let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, None, &streams);
 
@@ -985,7 +985,7 @@ mod cuda {
                         })
                     });
                 }
-                BenchmarkType::Throughput => {
+                CriteriaBenchType::Throughput => {
                     let gpu_keys_vec = cuda_local_keys_core(&cpu_keys, None);
                     let gpu_count = get_number_of_gpus() as usize;
 

@@ -1,6 +1,6 @@
 use benchmark::params_aliases::*;
 use benchmark::utilities::{write_to_json_unchecked, BitSizesSet, EnvConfig, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark_spec::{get_bench_type, CriteriaBenchType};
 use criterion::{black_box, criterion_group, Criterion, Throughput};
 use rayon::prelude::*;
 use tfhe::integer::ciphertext::CompressedCiphertextListBuilder;
@@ -61,7 +61,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
         let bench_id_unpack;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 let ct = cks.encrypt_radix(0_u32, num_blocks);
 
                 let mut builder = CompressedCiphertextListBuilder::new();
@@ -89,7 +89,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
                     })
                 });
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 let elements = {
                     #[cfg(any(feature = "gpu", feature = "hpu"))]
                     {
@@ -253,7 +253,7 @@ mod cuda {
         let bench_id_pack;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 // Generate and convert compression keys
                 let (radix_cks, _) = gen_keys_radix_gpu(param, num_blocks, &stream);
                 let (compressed_compression_key, _) = radix_cks
@@ -279,7 +279,7 @@ mod cuda {
                     })
                 });
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 // Generate and convert compression keys
                 let (radix_cks, _) = gen_keys_radix_gpu(param, num_blocks, &stream);
                 let (compressed_compression_key, _) = radix_cks
@@ -371,7 +371,7 @@ mod cuda {
         let bench_id_unpack;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 // Generate and convert compression keys
                 let (radix_cks, _) = gen_keys_radix_gpu(param, num_blocks, &stream);
                 let (compressed_compression_key, compressed_decompression_key) = radix_cks
@@ -410,7 +410,7 @@ mod cuda {
                     })
                 });
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 // Generate and convert compression keys
                 let (radix_cks, _) = gen_keys_radix_gpu(param, num_blocks, &stream);
                 let (compressed_compression_key, compressed_decompression_key) = radix_cks

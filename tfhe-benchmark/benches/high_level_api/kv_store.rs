@@ -2,7 +2,7 @@
 use benchmark::find_optimal_batch::find_optimal_batch;
 use benchmark::high_level_api::type_display::*;
 use benchmark::utilities::{write_to_json_unchecked, BitSizesSet, EnvConfig, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark_spec::{get_bench_type, CriteriaBenchType};
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -45,7 +45,7 @@ where
     let bench_id_map;
 
     match get_bench_type() {
-        BenchmarkType::Latency => {
+        CriteriaBenchType::Latency => {
             while kv_store.len() != num_elements {
                 let key = rng.gen::<Key>();
                 let value = rng.gen::<u128>();
@@ -81,7 +81,7 @@ where
                 })
             });
         }
-        BenchmarkType::Throughput => {
+        CriteriaBenchType::Throughput => {
             while kv_store.len() != num_elements {
                 let key = rng.gen::<Key>();
                 let value = rng.gen::<u128>();

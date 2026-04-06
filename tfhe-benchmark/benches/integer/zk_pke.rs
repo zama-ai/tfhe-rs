@@ -1,6 +1,6 @@
 use benchmark::params_aliases::*;
 use benchmark::utilities::{throughput_num_threads, write_to_json_unchecked, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark_spec::{get_bench_type, CriteriaBenchType};
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -143,7 +143,7 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
                     let bench_id;
 
                     match get_bench_type() {
-                        BenchmarkType::Latency => {
+                        CriteriaBenchType::Latency => {
                             bench_id = format!(
                                 "{bench_name}::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                             );
@@ -160,7 +160,7 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
                                 })
                             });
                         }
-                        BenchmarkType::Throughput => {
+                        CriteriaBenchType::Throughput => {
                             // The zk proof is currently not pooled, so we simply use the number of
                             // threads as heuristic for the batch size
                             let elements = (rayon::current_num_threads() / num_block).max(1) + 1;
@@ -292,7 +292,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                     let bench_id_verify_and_expand;
 
                     match get_bench_type() {
-                        BenchmarkType::Latency => {
+                        CriteriaBenchType::Latency => {
                             bench_id_verify = format!(
                             "{bench_name}::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                         );
@@ -374,7 +374,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                             });
                         });
                         }
-                        BenchmarkType::Throughput => {
+                        CriteriaBenchType::Throughput => {
                             // In throughput mode object sizes are not recorded.
 
                             bench_id_verify = format!(
@@ -612,7 +612,7 @@ mod cuda {
                     let bench_id_expand_without_verify;
 
                     match get_bench_type() {
-                        BenchmarkType::Latency => {
+                        CriteriaBenchType::Latency => {
                             let streams = CudaStreams::new_multi_gpu();
                             let gpu_sks = CudaServerKey::decompress_from_cpu(
                                 &compressed_server_key,
@@ -714,7 +714,7 @@ mod cuda {
                                 });
                             });
                         }
-                        BenchmarkType::Throughput => {
+                        CriteriaBenchType::Throughput => {
                             let elements = gpu_zk_verify_throughput_elements(crs_size, *bits)
                                 * get_number_of_gpus() as u64;
                             bench_group.throughput(Throughput::Elements(elements));
@@ -927,7 +927,7 @@ mod cuda {
                         let bench_id;
 
                         match get_bench_type() {
-                            BenchmarkType::Latency => {
+                            CriteriaBenchType::Latency => {
                                 bench_id = format!(
                                     "{bench_name}::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                                 );
@@ -946,7 +946,7 @@ mod cuda {
                                     })
                                 });
                             }
-                            BenchmarkType::Throughput => {
+                            CriteriaBenchType::Throughput => {
                                 // Each proof uses GPU MSM internally, and
                                 // select_gpu_for_msm() distributes across GPUs by rayon
                                 // thread index, so we scale by GPU count and use par_iter.

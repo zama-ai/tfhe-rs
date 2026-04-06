@@ -3,7 +3,7 @@ mod cuda {
     use benchmark::params_aliases::*;
     use benchmark::utilities::cuda_integer_utils::cuda_local_streams;
     use benchmark::utilities::{cuda_local_keys, write_to_json_unchecked, OperatorType};
-    use benchmark_spec::{get_bench_type, BenchmarkType};
+    use benchmark_spec::{get_bench_type, CriteriaBenchType};
     use criterion::{black_box, criterion_group, Criterion, Throughput};
     use rayon::prelude::*;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
@@ -65,7 +65,7 @@ mod cuda {
         let bench_id_pack;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 let (_, cuda_sks) = gen_keys_radix_gpu(param, num_blocks, &stream);
                 let cuda_noise_squashing_key =
                     compressed_noise_squashing_compression_key.decompress_to_cuda(&stream);
@@ -97,7 +97,7 @@ mod cuda {
                     })
                 });
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 let cuda_sks = cuda_local_keys(&cks);
                 let num_block =
                     (bit_size as f64 / (param.message_modulus().0 as f64).log(2.0)).ceil() as usize;
@@ -207,7 +207,7 @@ mod cuda {
         let bench_id_unpack;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 let (_, cuda_sks) = gen_keys_radix_gpu(param, num_blocks, &stream);
                 let cuda_noise_squashing_key =
                     compressed_noise_squashing_compression_key.decompress_to_cuda(&stream);
@@ -241,7 +241,7 @@ mod cuda {
                     })
                 });
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 let cuda_sks = cuda_local_keys(&cks);
                 let num_block =
                     (bit_size as f64 / (param.message_modulus().0 as f64).log(2.0)).ceil() as usize;

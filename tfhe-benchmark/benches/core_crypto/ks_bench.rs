@@ -6,7 +6,7 @@ use benchmark::params::{
 use benchmark::utilities::{
     get_param_type, write_to_json_unchecked, CryptoParametersRecord, OperatorType, ParamType,
 };
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark_spec::{get_bench_type, CriteriaBenchType};
 use criterion::{black_box, Criterion, Throughput};
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -57,7 +57,7 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
         let bench_id;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 let ct = allocate_and_encrypt_new_lwe_ciphertext(
                     &big_lwe_sk,
                     Plaintext(Scalar::ONE),
@@ -82,7 +82,7 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                     });
                 }
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{name}");
                 let mut setup = |batch_size: usize| {
                     let input_cts = (0..batch_size)
@@ -213,7 +213,7 @@ fn packing_keyswitch<Scalar, F>(
         let bench_id;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 let mut input_lwe_list = LweCiphertextList::new(
                     Scalar::ZERO,
                     lwe_sk.lwe_dimension().to_lwe_size(),
@@ -251,7 +251,7 @@ fn packing_keyswitch<Scalar, F>(
                     });
                 }
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{name}");
                 let mut setup = |batch_size: usize| {
                     let input_lwe_lists = (0..batch_size)
@@ -350,7 +350,7 @@ mod cuda {
         write_to_json_unchecked, CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes,
         CudaLocalKeys, OperatorType,
     };
-    use benchmark_spec::{get_bench_type, BenchmarkType};
+    use benchmark_spec::{get_bench_type, CriteriaBenchType};
     use criterion::{black_box, Criterion, Throughput};
     use itertools::Itertools;
     use rayon::prelude::*;
@@ -449,7 +449,7 @@ mod cuda {
             let mut bench_id;
 
             match get_bench_type() {
-                BenchmarkType::Latency => {
+                CriteriaBenchType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
                     let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, None, &streams);
 
@@ -507,7 +507,7 @@ mod cuda {
                         vec![bit_size],
                     );
                 }
-                BenchmarkType::Throughput => {
+                CriteriaBenchType::Throughput => {
                     let gpu_keys_vec = cuda_local_keys_core(&cpu_keys, None);
                     let gpu_count = get_number_of_gpus() as usize;
 
@@ -698,7 +698,7 @@ mod cuda {
 
             let bench_id;
             match get_bench_type() {
-                BenchmarkType::Latency => {
+                CriteriaBenchType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
 
                     let mem_size = get_packing_keyswitch_list_64_size_on_gpu(
@@ -765,7 +765,7 @@ mod cuda {
                         });
                     }
                 }
-                BenchmarkType::Throughput => {
+                CriteriaBenchType::Throughput => {
                     let gpu_keys_vec = cuda_local_keys_core(&cpu_keys, None);
                     let gpu_count = get_number_of_gpus() as usize;
 

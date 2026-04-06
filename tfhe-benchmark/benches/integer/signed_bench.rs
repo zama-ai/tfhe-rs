@@ -2,7 +2,7 @@ use benchmark::params::ParamsAndNumBlocksIter;
 use benchmark::utilities::{
     throughput_num_threads, write_to_json_unchecked, EnvConfig, OperatorType,
 };
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark_spec::{get_bench_type, CriteriaBenchType};
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -45,7 +45,7 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
         let bench_id;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 let bench_data = LazyCell::new(|| {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -64,7 +64,7 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
                     })
                 });
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
@@ -153,7 +153,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
         let bench_id;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 let bench_data = LazyCell::new(|| {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -174,7 +174,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
                     })
                 });
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
                 // Execute the operation once to know its cost.
@@ -255,7 +255,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
         let bench_id;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 let bench_data = LazyCell::new(|| {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -271,7 +271,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
                     })
                 });
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
                 // Execute the operation once to know its cost.
@@ -334,7 +334,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
         let bench_id;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 let bench_data = LazyCell::new(|| {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -353,7 +353,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
                     b.iter(|| sks.if_then_else_parallelized(condition, true_ct, false_ct))
                 });
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
                 // Execute the operation once to know its cost.
@@ -869,7 +869,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
         let bench_id;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
                 bench_group.bench_function(&bench_id, |b| {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -895,7 +895,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
                     )
                 });
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
                 // Execute the operation once to know its cost.
@@ -1043,7 +1043,7 @@ fn signed_flip_parallelized(c: &mut Criterion) {
         let bench_id;
 
         match get_bench_type() {
-            BenchmarkType::Latency => {
+            CriteriaBenchType::Latency => {
                 let bench_data = LazyCell::new(|| {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -1066,7 +1066,7 @@ fn signed_flip_parallelized(c: &mut Criterion) {
                     b.iter(|| sks.flip_parallelized(condition, true_ct, false_ct))
                 });
             }
-            BenchmarkType::Throughput => {
+            CriteriaBenchType::Throughput => {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
                 // Execute the operation once to know its cost.
@@ -1552,7 +1552,7 @@ mod cuda {
             let bench_id;
 
             match get_bench_type() {
-                BenchmarkType::Latency => {
+                CriteriaBenchType::Latency => {
                     let stream = CudaStreams::new_multi_gpu();
 
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
@@ -1592,7 +1592,7 @@ mod cuda {
                         )
                     });
                 }
-                BenchmarkType::Throughput => {
+                CriteriaBenchType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                     let gpu_count = get_number_of_gpus() as usize;
                     let gpu_sks_vec = cuda_local_keys(&cks);
@@ -1723,7 +1723,7 @@ mod cuda {
             let bench_id;
 
             match get_bench_type() {
-                BenchmarkType::Latency => {
+                CriteriaBenchType::Latency => {
                     let stream = CudaStreams::new_multi_gpu();
 
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
@@ -1751,7 +1751,7 @@ mod cuda {
                         )
                     });
                 }
-                BenchmarkType::Throughput => {
+                CriteriaBenchType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                     let gpu_count = get_number_of_gpus() as usize;
                     let gpu_sks_vec = cuda_local_keys(&cks);
@@ -1866,7 +1866,7 @@ mod cuda {
             let bench_id;
 
             match get_bench_type() {
-                BenchmarkType::Latency => {
+                CriteriaBenchType::Latency => {
                     let stream = CudaStreams::new_multi_gpu();
 
                     bench_id =
@@ -1900,7 +1900,7 @@ mod cuda {
                         )
                     });
                 }
-                BenchmarkType::Throughput => {
+                CriteriaBenchType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                     let gpu_count = get_number_of_gpus() as usize;
                     let gpu_sks_vec = cuda_local_keys(&cks);
@@ -2029,7 +2029,7 @@ mod cuda {
             let bench_id;
 
             match get_bench_type() {
-                BenchmarkType::Latency => {
+                CriteriaBenchType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
 
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
@@ -2068,7 +2068,7 @@ mod cuda {
                         )
                     });
                 }
-                BenchmarkType::Throughput => {
+                CriteriaBenchType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                     let gpu_count = get_number_of_gpus() as usize;
                     let gpu_sks_vec = cuda_local_keys(&cks);
@@ -2194,7 +2194,7 @@ mod cuda {
             let bench_id;
 
             match get_bench_type() {
-                BenchmarkType::Latency => {
+                CriteriaBenchType::Latency => {
                     let stream = CudaStreams::new_multi_gpu();
 
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
@@ -2232,7 +2232,7 @@ mod cuda {
                         )
                     });
                 }
-                BenchmarkType::Throughput => {
+                CriteriaBenchType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                     let gpu_count = get_number_of_gpus() as usize;
                     let gpu_sks_vec = cuda_local_keys(&cks);
