@@ -1,12 +1,10 @@
 use benchmark::params_aliases::*;
 use benchmark::utilities::{throughput_num_threads, write_to_json_unchecked, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark_spec::{get_bench_type, BenchmarkTestResult, BenchmarkType};
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
 use std::env;
-use std::fs::{File, OpenOptions};
-use std::io::Write;
 use std::path::Path;
 use tfhe::core_crypto::prelude::LweCiphertextCount;
 use tfhe::integer::key_switching_key::KeySwitchingKey;
@@ -59,12 +57,6 @@ fn compute_load_config() -> Vec<ZkComputeLoad> {
     };
 
     conf
-}
-
-fn write_result(file: &mut File, name: &str, value: usize) {
-    let line = format!("{name},{value}\n");
-    let error_message = format!("cannot write {name} result into file");
-    file.write_all(line.as_bytes()).expect(&error_message);
 }
 
 fn zk_throughput_num_elements() -> u64 {
@@ -217,11 +209,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    File::create(results_file).expect("create results file failed");
-    let mut file = OpenOptions::new()
-        .append(true)
-        .open(results_file)
-        .expect("cannot open results file");
+    let mut benchmark_test_result = BenchmarkTestResult::from_path(results_file);
 
     for (param_pke, param_casting, param_fhe) in [(
         BENCH_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -271,7 +259,8 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                 let test_name =
                     format!("zk::crs_sizes::{param_name}::{bits}_bits_packed_ZK{zk_vers:?}");
 
-                write_result(&mut file, &test_name, crs_data.len());
+                benchmark_test_result.write_result(&test_name, crs_data.len());
+
                 write_to_json_unchecked::<u64, _>(
                     &test_name,
                     shortint_params,
@@ -321,11 +310,9 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                             "zk::proven_list_size::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                         );
 
-                            write_result(
-                                &mut file,
-                                &test_name,
-                                proven_ciphertext_list_serialized.len(),
-                            );
+                            benchmark_test_result
+                                .write_result(&test_name, proven_ciphertext_list_serialized.len());
+
                             write_to_json_unchecked::<u64, _>(
                                 &test_name,
                                 shortint_params,
@@ -342,7 +329,8 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                             let test_name =
                             format!("zk::proof_sizes::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}");
 
-                            write_result(&mut file, &test_name, proof_size);
+                            benchmark_test_result.write_result(&test_name, proof_size);
+
                             write_to_json_unchecked::<u64, _>(
                                 &test_name,
                                 shortint_params,
@@ -522,11 +510,7 @@ mod cuda {
             .sample_size(15)
             .measurement_time(std::time::Duration::from_secs(60));
 
-        File::create(results_file).expect("create results file failed");
-        let mut file = OpenOptions::new()
-            .append(true)
-            .open(results_file)
-            .expect("cannot open results file");
+        let mut benchmark_test_result = BenchmarkTestResult::from_path(results_file);
 
         let (param_pke, param_ksk, param_fhe): (
             CompactPublicKeyEncryptionParameters,
@@ -590,7 +574,7 @@ mod cuda {
                 let test_name =
                     format!("zk::crs_sizes::{param_name}::{bits}_bits_packed_ZK{zk_vers:?}");
 
-                write_result(&mut file, &test_name, crs_data.len());
+                benchmark_test_result.write_result(&test_name, crs_data.len());
                 write_to_json_unchecked::<u64, _>(
                     &test_name,
                     param_fhe,
@@ -660,11 +644,8 @@ mod cuda {
                                     "zk::proven_list_size::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
                                 );
 
-                            write_result(
-                                &mut file,
-                                &test_name,
-                                proven_ciphertext_list_serialized.len(),
-                            );
+                            benchmark_test_result
+                                .write_result(&test_name, proven_ciphertext_list_serialized.len());
                             write_to_json_unchecked::<u64, _>(
                                 &test_name,
                                 param_fhe,
@@ -681,7 +662,7 @@ mod cuda {
                             let test_name =
                                     format!("zk::proof_sizes::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}");
 
-                            write_result(&mut file, &test_name, proof_size);
+                            benchmark_test_result.write_result(&test_name, proof_size);
                             write_to_json_unchecked::<u64, _>(
                                 &test_name,
                                 param_fhe,

@@ -1,9 +1,8 @@
 use benchmark::utilities::{write_to_json_unchecked, OperatorType};
+use benchmark_spec::BenchmarkTestResult;
 use clap::Parser;
 use std::collections::HashMap;
 use std::fs;
-use std::fs::{File, OpenOptions};
-use std::io::Write;
 use std::path::Path;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::get_shortint_parameter_set_from_name;
@@ -29,18 +28,8 @@ fn params_from_name(name: &str) -> ClassicPBSParameters {
     }
 }
 
-fn write_result(file: &mut File, name: &str, value: usize) {
-    let line = format!("{name},{value}\n");
-    let error_message = format!("cannot write {name} result into file");
-    file.write_all(line.as_bytes()).expect(&error_message);
-}
-
 pub fn parse_wasm_benchmarks(results_file: &Path, raw_results_file: &Path) {
-    File::create(results_file).expect("create results file failed");
-    let mut file = OpenOptions::new()
-        .append(true)
-        .open(results_file)
-        .expect("cannot open parsed results file");
+    let mut benchmark_test_result = BenchmarkTestResult::from_path(results_file);
 
     let operator = OperatorType::Atomic;
 
@@ -60,10 +49,10 @@ pub fn parse_wasm_benchmarks(results_file: &Path, raw_results_file: &Path) {
         let params: PBSParameters = params_from_name(name_parts[1]).into();
         println!("{name_parts:?}");
         if full_name.contains("_size") {
-            write_result(&mut file, &prefixed_full_name, *val as usize);
+            benchmark_test_result.write_result(&prefixed_full_name, *val as usize);
         } else {
             let value_in_ns = (val * 1_000_000_f32) as usize;
-            write_result(&mut file, &prefixed_full_name, value_in_ns);
+            benchmark_test_result.write_result(&prefixed_full_name, value_in_ns);
         }
 
         write_to_json_unchecked::<u64, _>(
