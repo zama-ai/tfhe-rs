@@ -1,9 +1,8 @@
 use benchmark::params::{get_classical_tuniform_groups, get_multi_bit_tuniform_groups};
 use benchmark::params_aliases::*;
 use benchmark::utilities::{write_to_json_unchecked, OperatorType};
+use benchmark_spec::TestResult;
 use rand::Rng;
-use std::fs::{File, OpenOptions};
-use std::io::Write;
 use std::path::Path;
 use tfhe::integer::U256;
 use tfhe::keycache::NamedParam;
@@ -15,22 +14,10 @@ use tfhe::{
     CompressedSquashedNoiseCiphertextList, ConfigBuilder, FheUint64,
 };
 
-fn write_result(file: &mut File, name: &str, value: usize) {
-    let line = format!("{name},{value}\n");
-    let error_message = format!("cannot write {name} result into file");
-    file.write_all(line.as_bytes()).expect(&error_message);
-}
-
 pub fn ct_sizes(results_file: &Path) {
     let mut rng = rand::thread_rng();
 
-    File::create(results_file).expect("create results file failed");
-    let mut file = OpenOptions::new()
-        .create(true)
-        .truncate(true)
-        .write(true)
-        .open(results_file)
-        .expect("cannot open results file");
+    let mut benchmark_test_result = TestResult::from_path(results_file);
 
     let operator = OperatorType::Atomic;
 
@@ -87,7 +74,7 @@ pub fn ct_sizes(results_file: &Path) {
         let params_record = param_fhe;
 
         let mut write_and_record_result = |res: usize, test_name: &str, display_name: &str| {
-            write_result(&mut file, test_name, res);
+            benchmark_test_result.write_result(test_name, res);
             write_to_json_unchecked::<u64, _>(
                 test_name,
                 params_record,
@@ -174,13 +161,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
     let mut rng = rand::thread_rng();
 
-    File::create(results_file).expect("create results file failed");
-    let mut file = OpenOptions::new()
-        .create(true)
-        .truncate(true)
-        .write(true)
-        .open(results_file)
-        .expect("cannot open results file");
+    let mut benchmark_test_result = TestResult::from_path(results_file);
 
     let operator = OperatorType::Atomic;
 
@@ -205,7 +186,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
         let cpk_size = bincode::serialize(&public_key).unwrap().len();
 
         println!("PK size: {cpk_size} bytes");
-        write_result(&mut file, &test_name, cpk_size);
+        benchmark_test_result.write_result(&test_name, cpk_size);
         write_to_json_unchecked::<u64, _>(
             &test_name,
             params,
@@ -227,7 +208,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
         println!("Compact CT list for {NB_CTXT} CTs: {cctl_size} bytes");
 
-        write_result(&mut file, &test_name, cctl_size);
+        benchmark_test_result.write_result(&test_name, cctl_size);
         write_to_json_unchecked::<u64, _>(
             &test_name,
             params,
@@ -273,7 +254,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
         println!("Compact CT list for {NB_CTXT} CTs: {cctl_size} bytes");
 
-        write_result(&mut file, &test_name, cctl_size);
+        benchmark_test_result.write_result(&test_name, cctl_size);
         write_to_json_unchecked::<u64, _>(
             &test_name,
             params,
