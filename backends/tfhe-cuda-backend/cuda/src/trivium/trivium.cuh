@@ -7,8 +7,28 @@
 #include "../integer/scalar_addition.cuh"
 #include "../linearalgebra/addition.cuh"
 
+// CUDA kernel to reverse groups of N blocks within a buffer.
+// Each group of N consecutive blocks is treated as a single "bit" and the
+// order of bits is reversed.
+template <typename Torus>
+__global__ void reverse_blocks_kernel(Torus *dest, const Torus *src,
+                                      uint32_t num_groups,
+                                      uint32_t blocks_per_group,
+                                      uint32_t lwe_size,
+                                      uint32_t total_elements) {
+  int tid = blockIdx.x * blockDim.x + threadIdx.x;
+  if (tid < total_elements) {
+    uint32_t group_elements = blocks_per_group * lwe_size;
+    uint32_t group_idx = tid / group_elements;
+    uint32_t element_in_group = tid % group_elements;
+    uint32_t reversed_group_idx = num_groups - 1 - group_idx;
+    dest[reversed_group_idx * group_elements + element_in_group] =
+        src[group_idx * group_elements + element_in_group];
+  }
+}
+
 // Reverses the order of bits (blocks) in a ciphertext buffer.
-// Used to align the input Key/IV with the internal state format if needed.
+// Uses a single CUDA kernel instead of N individual copy operations.
 template <typename Torus>
 void reverse_bitsliced_radix_inplace(CudaStreams streams,
                                      int_trivium_buffer<Torus> *mem,
@@ -16,22 +36,37 @@ void reverse_bitsliced_radix_inplace(CudaStreams streams,
                                      uint32_t num_bits_in_reg) {
   uint32_t N = mem->num_inputs;
   CudaRadixCiphertextFFI *temp = mem->state->shift_workspace;
+  uint32_t total_blocks = num_bits_in_reg * N;
+  uint32_t lwe_size = radix->lwe_dimension + 1;
+  uint32_t total_elements = total_blocks * lwe_size;
 
+  cuda_set_device(streams.gpu_index(0));
+  int num_cuda_blocks = 0, num_threads = 0;
+  getNumBlocksAndThreads(total_elements, 512, num_cuda_blocks, num_threads);
+
+  reverse_blocks_kernel<Torus>
+      <<<num_cuda_blocks, num_threads, 0, streams.stream(0)>>>(
+          (Torus *)temp->ptr, (Torus *)radix->ptr, num_bits_in_reg, N,
+          lwe_size, total_elements);
+  check_cuda_error(cudaGetLastError());
+
+  // Reverse metadata on CPU
   for (uint32_t i = 0; i < num_bits_in_reg; i++) {
-    uint32_t src_start = i * N;
-    uint32_t src_end = (i + 1) * N;
-
-    uint32_t dest_start = (num_bits_in_reg - 1 - i) * N;
-    uint32_t dest_end = (num_bits_in_reg - i) * N;
-
-    copy_radix_ciphertext_slice_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), temp, dest_start, dest_end,
-        radix, src_start, src_end);
+    uint32_t rev = num_bits_in_reg - 1 - i;
+    for (uint32_t j = 0; j < N; j++) {
+      temp->degrees[rev * N + j] = radix->degrees[i * N + j];
+      temp->noise_levels[rev * N + j] = radix->noise_levels[i * N + j];
+    }
   }
 
-  copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), radix, 0, num_bits_in_reg * N,
-      temp, 0, num_bits_in_reg * N);
+  // Copy result back to radix
+  cuda_memcpy_async_gpu_to_gpu(radix->ptr, temp->ptr,
+                               safe_mul_sizeof<Torus>(total_blocks, lwe_size),
+                               streams.stream(0), streams.gpu_index(0));
+  memcpy(radix->degrees, temp->degrees,
+         safe_mul_sizeof<uint64_t>(total_blocks));
+  memcpy(radix->noise_levels, temp->noise_levels,
+         safe_mul_sizeof<uint64_t>(total_blocks));
 }
 
 // Creates a slice of specific bits in a register without copying data.
@@ -46,6 +81,8 @@ __host__ void slice_reg_batch(CudaRadixCiphertextFFI *slice,
 
 // Handles the shift-register update: discards old bits, shifts the rest,
 // and inserts the newly computed bits at the beginning.
+// Uses in-place shifting since kept region (reg_size-64 < 64) never overlaps
+// the destination region (starting at offset 64).
 template <typename Torus>
 __host__ void shift_and_insert_batch(CudaStreams streams,
                                      int_trivium_buffer<Torus> *mem,
@@ -54,21 +91,19 @@ __host__ void shift_and_insert_batch(CudaStreams streams,
                                      uint32_t reg_size, uint32_t num_inputs) {
 
   constexpr uint32_t BATCH = 64;
-  CudaRadixCiphertextFFI *temp = mem->state->shift_workspace;
-
   uint32_t num_blocks_to_keep = (reg_size - BATCH) * num_inputs;
 
+  // Move old kept bits to the end of the register (non-overlapping since
+  // reg_size - BATCH < BATCH for all Trivium registers: 93-64=29, 84-64=20,
+  // 111-64=47, all < 64)
   copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), temp, 0, BATCH * num_inputs,
-      new_bits, 0, BATCH * num_inputs);
-
-  copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), temp, BATCH * num_inputs,
+      streams.stream(0), streams.gpu_index(0), reg, BATCH * num_inputs,
       reg_size * num_inputs, reg, 0, num_blocks_to_keep);
 
+  // Insert new bits at the beginning
   copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), reg, 0, reg_size * num_inputs,
-      temp, 0, reg_size * num_inputs);
+      streams.stream(0), streams.gpu_index(0), reg, 0, BATCH * num_inputs,
+      new_bits, 0, BATCH * num_inputs);
 }
 
 // core logic: computes 64 parallel updates for the state registers.
@@ -164,62 +199,56 @@ trivium_compute_64_steps(CudaStreams streams, int_trivium_buffer<Torus> *mem,
                                    2 * batch_size_blocks,
                                    3 * batch_size_blocks);
 
-  // a = t3 + a69 + and_res_a
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), s->new_a,
-                       s->temp_t3, &a68_slice, s->new_a->num_radix_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), s->new_a,
-                       s->new_a, &and_res_a, s->new_a->num_radix_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
+  // Create slices pointing directly into the flush input buffer to avoid
+  // intermediate copies
+  CudaRadixCiphertextFFI flush_new_a, flush_new_b, flush_new_c, flush_out;
+  as_radix_ciphertext_slice<Torus>(&flush_new_a, s->packed_flush_in, 0,
+                                   batch_size_blocks);
+  as_radix_ciphertext_slice<Torus>(&flush_new_b, s->packed_flush_in,
+                                   batch_size_blocks, 2 * batch_size_blocks);
+  as_radix_ciphertext_slice<Torus>(&flush_new_c, s->packed_flush_in,
+                                   2 * batch_size_blocks,
+                                   3 * batch_size_blocks);
 
-  // b = t1 + b78 + and_res_b
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), s->new_b,
-                       s->temp_t1, &b77_slice, s->new_b->num_radix_blocks,
+  // a = t3 + a69 + and_res_a (computed directly into flush buffer)
+  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_new_a,
+                       s->temp_t3, &a68_slice, batch_size_blocks,
                        mem->params.message_modulus, mem->params.carry_modulus);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), s->new_b,
-                       s->new_b, &and_res_b, s->new_b->num_radix_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
-
-  // c = t2 + c87 + and_res_c
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), s->new_c,
-                       s->temp_t2, &c86_slice, s->new_c->num_radix_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), s->new_c,
-                       s->new_c, &and_res_c, s->new_c->num_radix_blocks,
+  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_new_a,
+                       &flush_new_a, &and_res_a, batch_size_blocks,
                        mem->params.message_modulus, mem->params.carry_modulus);
 
-  if (output_dest != nullptr) {
-    // z = t1 + t2 + t3
-    host_addition<Torus>(streams.stream(0), streams.gpu_index(0), output_dest,
-                         s->temp_t1, s->temp_t2, output_dest->num_radix_blocks,
-                         mem->params.message_modulus,
-                         mem->params.carry_modulus);
-    host_addition<Torus>(streams.stream(0), streams.gpu_index(0), output_dest,
-                         output_dest, s->temp_t3, output_dest->num_radix_blocks,
-                         mem->params.message_modulus,
-                         mem->params.carry_modulus);
-  }
+  // b = t1 + b78 + and_res_b (computed directly into flush buffer)
+  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_new_b,
+                       s->temp_t1, &b77_slice, batch_size_blocks,
+                       mem->params.message_modulus, mem->params.carry_modulus);
+  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_new_b,
+                       &flush_new_b, &and_res_b, batch_size_blocks,
+                       mem->params.message_modulus, mem->params.carry_modulus);
 
-  copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), s->packed_flush_in, 0,
-      batch_size_blocks, s->new_a, 0, batch_size_blocks);
-
-  copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), s->packed_flush_in,
-      batch_size_blocks, 2 * batch_size_blocks, s->new_b, 0, batch_size_blocks);
-
-  copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), s->packed_flush_in,
-      2 * batch_size_blocks, 3 * batch_size_blocks, s->new_c, 0,
-      batch_size_blocks);
+  // c = t2 + c87 + and_res_c (computed directly into flush buffer)
+  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_new_c,
+                       s->temp_t2, &c86_slice, batch_size_blocks,
+                       mem->params.message_modulus, mem->params.carry_modulus);
+  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_new_c,
+                       &flush_new_c, &and_res_c, batch_size_blocks,
+                       mem->params.message_modulus, mem->params.carry_modulus);
 
   uint32_t total_flush_blocks = 3 * batch_size_blocks;
 
   if (output_dest != nullptr) {
-    copy_radix_ciphertext_slice_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), s->packed_flush_in,
-        3 * batch_size_blocks, 4 * batch_size_blocks, output_dest, 0,
-        batch_size_blocks);
+    // z = t1 + t2 + t3 (computed directly into flush buffer)
+    as_radix_ciphertext_slice<Torus>(&flush_out, s->packed_flush_in,
+                                     3 * batch_size_blocks,
+                                     4 * batch_size_blocks);
+    host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_out,
+                         s->temp_t1, s->temp_t2, batch_size_blocks,
+                         mem->params.message_modulus,
+                         mem->params.carry_modulus);
+    host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_out,
+                         &flush_out, s->temp_t3, batch_size_blocks,
+                         mem->params.message_modulus,
+                         mem->params.carry_modulus);
     total_flush_blocks += batch_size_blocks;
   }
 

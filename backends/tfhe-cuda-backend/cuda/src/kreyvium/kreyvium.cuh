@@ -19,7 +19,9 @@ __host__ void slice_reg_batch_kreyvium(CudaRadixCiphertextFFI *slice,
 }
 
 // Standard shift-and-insert for Kreyvium registers A, B, C.
-// Shifts the register and inserts new bits at the start.
+// Shifts the register and inserts new bits at the end.
+// Uses in-place shifting since kept region never overlaps the source region
+// (reg_size <= 128, so reg_size-64 <= 64).
 template <typename Torus>
 __host__ void shift_and_insert_batch_kreyvium(CudaStreams streams,
                                               int_kreyvium_buffer<Torus> *mem,
@@ -28,24 +30,41 @@ __host__ void shift_and_insert_batch_kreyvium(CudaStreams streams,
                                               uint32_t reg_size,
                                               uint32_t num_inputs) {
   constexpr uint32_t BATCH = KREYVIUM_BATCH_SIZE;
-  CudaRadixCiphertextFFI *temp = mem->state->shift_workspace;
   uint32_t num_blocks_to_keep = (reg_size - BATCH) * num_inputs;
 
+  // Move old kept bits to the front of the register (non-overlapping since
+  // reg_size - BATCH < BATCH for all Kreyvium registers: 93-64=29, 84-64=20,
+  // 111-64=47, all < 64)
   copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), temp, 0, num_blocks_to_keep, reg,
+      streams.stream(0), streams.gpu_index(0), reg, 0, num_blocks_to_keep, reg,
       BATCH * num_inputs, reg_size * num_inputs);
 
+  // Insert new bits at the end
   copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), temp, num_blocks_to_keep,
+      streams.stream(0), streams.gpu_index(0), reg, num_blocks_to_keep,
       reg_size * num_inputs, new_bits, 0, BATCH * num_inputs);
+}
 
-  copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), reg, 0, reg_size * num_inputs,
-      temp, 0, reg_size * num_inputs);
+// CUDA kernel to reverse groups of N blocks within a buffer.
+template <typename Torus>
+__global__ void reverse_blocks_kernel_kreyvium(Torus *dest, const Torus *src,
+                                               uint32_t num_groups,
+                                               uint32_t blocks_per_group,
+                                               uint32_t lwe_size,
+                                               uint32_t total_elements) {
+  int tid = blockIdx.x * blockDim.x + threadIdx.x;
+  if (tid < total_elements) {
+    uint32_t group_elements = blocks_per_group * lwe_size;
+    uint32_t group_idx = tid / group_elements;
+    uint32_t element_in_group = tid % group_elements;
+    uint32_t reversed_group_idx = num_groups - 1 - group_idx;
+    dest[reversed_group_idx * group_elements + element_in_group] =
+        src[group_idx * group_elements + element_in_group];
+  }
 }
 
 // Reverses the order of blocks in a ciphertext buffer.
-// Essential for aligning Key/IV bit ordering.
+// Uses a single CUDA kernel instead of N individual copy operations.
 template <typename Torus>
 void reverse_bitsliced_radix_inplace_kreyvium(CudaStreams streams,
                                               int_kreyvium_buffer<Torus> *mem,
@@ -53,21 +72,35 @@ void reverse_bitsliced_radix_inplace_kreyvium(CudaStreams streams,
                                               uint32_t num_bits_in_reg) {
   uint32_t N = mem->num_inputs;
   CudaRadixCiphertextFFI *temp = mem->state->shift_workspace;
+  uint32_t total_blocks = num_bits_in_reg * N;
+  uint32_t lwe_size = radix->lwe_dimension + 1;
+  uint32_t total_elements = total_blocks * lwe_size;
+
+  cuda_set_device(streams.gpu_index(0));
+  int num_cuda_blocks = 0, num_threads = 0;
+  getNumBlocksAndThreads(total_elements, 512, num_cuda_blocks, num_threads);
+
+  reverse_blocks_kernel_kreyvium<Torus>
+      <<<num_cuda_blocks, num_threads, 0, streams.stream(0)>>>(
+          (Torus *)temp->ptr, (Torus *)radix->ptr, num_bits_in_reg, N,
+          lwe_size, total_elements);
+  check_cuda_error(cudaGetLastError());
 
   for (uint32_t i = 0; i < num_bits_in_reg; i++) {
-    uint32_t src_start = i * N;
-    uint32_t src_end = (i + 1) * N;
-    uint32_t dest_start = (num_bits_in_reg - 1 - i) * N;
-    uint32_t dest_end = (num_bits_in_reg - i) * N;
-
-    copy_radix_ciphertext_slice_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), temp, dest_start, dest_end,
-        radix, src_start, src_end);
+    uint32_t rev = num_bits_in_reg - 1 - i;
+    for (uint32_t j = 0; j < N; j++) {
+      temp->degrees[rev * N + j] = radix->degrees[i * N + j];
+      temp->noise_levels[rev * N + j] = radix->noise_levels[i * N + j];
+    }
   }
 
-  copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), radix, 0, num_bits_in_reg * N,
-      temp, 0, num_bits_in_reg * N);
+  cuda_memcpy_async_gpu_to_gpu(radix->ptr, temp->ptr,
+                               safe_mul_sizeof<Torus>(total_blocks, lwe_size),
+                               streams.stream(0), streams.gpu_index(0));
+  memcpy(radix->degrees, temp->degrees,
+         safe_mul_sizeof<uint64_t>(total_blocks));
+  memcpy(radix->noise_levels, temp->noise_levels,
+         safe_mul_sizeof<uint64_t>(total_blocks));
 }
 
 // Core Kreyvium step function: computes 64 steps in parallel.
@@ -166,16 +199,14 @@ kreyvium_compute_64_steps(CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
   }
 
   // Create slices pointing directly into flush input buffer
-  // We utilize a loop here to slice the packed buffer into 4 distinct views
-  CudaRadixCiphertextFFI flush_new_a, flush_new_b, flush_new_c, flush_out;
-  CudaRadixCiphertextFFI *flush_in_slices[] = {&flush_new_a, &flush_new_b,
-                                               &flush_new_c, &flush_out};
-
-  for (uint32_t i = 0; i < KREYVIUM_NUM_FLUSH_PATHS; i++) {
-    as_radix_ciphertext_slice<Torus>(flush_in_slices[i], s->packed_flush_in,
-                                     i * batch_size_blocks,
-                                     (i + 1) * batch_size_blocks);
-  }
+  CudaRadixCiphertextFFI flush_new_a, flush_new_b, flush_new_c;
+  as_radix_ciphertext_slice<Torus>(&flush_new_a, s->packed_flush_in, 0,
+                                   batch_size_blocks);
+  as_radix_ciphertext_slice<Torus>(&flush_new_b, s->packed_flush_in,
+                                   batch_size_blocks, 2 * batch_size_blocks);
+  as_radix_ciphertext_slice<Torus>(&flush_new_c, s->packed_flush_in,
+                                   2 * batch_size_blocks,
+                                   3 * batch_size_blocks);
 
   // new_a = (c109 & c108) + a68 + temp_c
   host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_new_a,
@@ -204,30 +235,37 @@ kreyvium_compute_64_steps(CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
                        &flush_new_c, s->temp_b, batch_size_blocks,
                        mem->params.message_modulus, mem->params.carry_modulus);
 
-  // out = temp_a + temp_b + temp_c
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_out,
-                       s->temp_a, s->temp_b, batch_size_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_out,
-                       &flush_out, s->temp_c, batch_size_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
+  // Only compute and flush the output path when generating keystream
+  uint32_t num_flush_paths = 3;
+  if (output_dest != nullptr) {
+    CudaRadixCiphertextFFI flush_out;
+    as_radix_ciphertext_slice<Torus>(&flush_out, s->packed_flush_in,
+                                     3 * batch_size_blocks,
+                                     4 * batch_size_blocks);
+    // out = temp_a + temp_b + temp_c
+    host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_out,
+                         s->temp_a, s->temp_b, batch_size_blocks,
+                         mem->params.message_modulus, mem->params.carry_modulus);
+    host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_out,
+                         &flush_out, s->temp_c, batch_size_blocks,
+                         mem->params.message_modulus, mem->params.carry_modulus);
+    num_flush_paths = 4;
+  }
 
   // Apply flush PBS to extract message bits and reset noise
   integer_radix_apply_univariate_lookup_table<Torus>(
       streams, s->packed_flush_out, s->packed_flush_in, bsks, ksks,
-      luts->flush_lut, KREYVIUM_NUM_FLUSH_PATHS * batch_size_blocks);
+      luts->flush_lut, num_flush_paths * batch_size_blocks);
 
   // Unpack flushed results
-  CudaRadixCiphertextFFI flushed_new_a, flushed_new_b, flushed_new_c,
-      flushed_out;
-  CudaRadixCiphertextFFI *flush_out_slices[] = {&flushed_new_a, &flushed_new_b,
-                                                &flushed_new_c, &flushed_out};
-
-  for (uint32_t i = 0; i < KREYVIUM_NUM_FLUSH_PATHS; i++) {
-    as_radix_ciphertext_slice<Torus>(flush_out_slices[i], s->packed_flush_out,
-                                     i * batch_size_blocks,
-                                     (i + 1) * batch_size_blocks);
-  }
+  CudaRadixCiphertextFFI flushed_new_a, flushed_new_b, flushed_new_c;
+  as_radix_ciphertext_slice<Torus>(&flushed_new_a, s->packed_flush_out, 0,
+                                   batch_size_blocks);
+  as_radix_ciphertext_slice<Torus>(&flushed_new_b, s->packed_flush_out,
+                                   batch_size_blocks, 2 * batch_size_blocks);
+  as_radix_ciphertext_slice<Torus>(&flushed_new_c, s->packed_flush_out,
+                                   2 * batch_size_blocks,
+                                   3 * batch_size_blocks);
 
   // Update registers: shift and insert new 64 bits
   shift_and_insert_batch_kreyvium(streams, mem, s->a_reg, &flushed_new_a, 93,
@@ -239,6 +277,10 @@ kreyvium_compute_64_steps(CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
 
   // Copy output keystream if destination provided
   if (output_dest != nullptr) {
+    CudaRadixCiphertextFFI flushed_out;
+    as_radix_ciphertext_slice<Torus>(&flushed_out, s->packed_flush_out,
+                                     3 * batch_size_blocks,
+                                     4 * batch_size_blocks);
     copy_radix_ciphertext_slice_async<Torus>(
         streams.stream(0), streams.gpu_index(0), output_dest, 0,
         batch_size_blocks, &flushed_out, 0, batch_size_blocks);
