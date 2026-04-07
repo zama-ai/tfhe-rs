@@ -11,6 +11,8 @@
 //! × 32 combinations of valid/invalid inputs (e1, e2, r, m, metadata) × 2 compute
 //! loads (Proof, Verify) × 2 pairing modes (TwoSteps, Batched).
 
+#![allow(non_snake_case)]
+
 use crate::curve_api::Bls12_446;
 use crate::gpu::pke_v2 as gpu_pke_v2;
 use crate::proofs::pke_v2::VerificationPairingMode;
@@ -21,14 +23,41 @@ use rand::{thread_rng, Rng, SeedableRng};
 
 type Curve = Bls12_446;
 
+const NB_ZK_PKE_V2_EQ_ROUNDS: usize = 20;
+const NB_ZK_PKE_V2_EQ_ROUNDS_MINIMAL: usize = 3;
+
+fn get_zk_long_run_rounds() -> usize {
+    if let Ok(val) = std::env::var("TFHE_RS_ZK_GPU_LONGRUN_ROUNDS") {
+        return val.parse::<usize>().unwrap_or_else(|e| {
+            panic!("TFHE_RS_ZK_GPU_LONGRUN_ROUNDS={val:?} is not a valid usize: {e}")
+        });
+    }
+
+    match std::env::var("TFHE_RS_TEST_LONG_TESTS_MINIMAL") {
+        Ok(val) if val.to_uppercase() == "TRUE" => NB_ZK_PKE_V2_EQ_ROUNDS_MINIMAL,
+        Ok(val) => {
+            panic!("TFHE_RS_TEST_LONG_TESTS_MINIMAL={val:?} is not valid, expected \"TRUE\"")
+        }
+        Err(_) => NB_ZK_PKE_V2_EQ_ROUNDS,
+    }
+}
+
+fn get_zk_long_run_base_seed() -> u64 {
+    if let Ok(val) = std::env::var("TFHE_RS_LONGRUN_TESTS_SEED") {
+        if let Ok(s) = val.parse::<u128>() {
+            return s as u64;
+        }
+    }
+    thread_rng().gen()
+}
+
 /// Exhaustive GPU-vs-CPU equivalence test for PKE v2.
 ///
 ///   - Uses `PKEV2_TEST_PARAMS` and `pke_v2::*` functions.
 ///   - Seed bytes are little-endian (`to_le_bytes`) per v2 convention.
 ///   - Verify takes a `VerificationPairingMode`; we test both `TwoSteps` and `Batched` and assert
 ///     they agree.
-#[test]
-fn test_pke_v2_gpu_cpu_equivalence() {
+fn run_pke_v2_gpu_cpu_equivalence_round(seed: u64) {
     let params = crate::proofs::pke_v2::tests::PKEV2_TEST_PARAMS;
     let PkeTestParameters {
         d,
@@ -39,8 +68,6 @@ fn test_pke_v2_gpu_cpu_equivalence() {
         msbs_zero_padding_bit_count,
     } = params;
 
-    let seed: u64 = thread_rng().gen();
-    println!("test_pke_v2_gpu_cpu_equivalence seed: {seed:x}");
     let rng = &mut StdRng::seed_from_u64(seed);
 
     let testcase = PkeTestcase::gen(rng, params);
@@ -145,9 +172,9 @@ fn test_pke_v2_gpu_cpu_equivalence() {
             assert_eq!(
                 bincode::serialize(&cpu_proof).unwrap(),
                 bincode::serialize(&gpu_proof).unwrap(),
-                "v2 proof mismatch: load={load}, invalid_r={use_invalid_r}, \
-                 invalid_e1={use_invalid_e1}, invalid_e2={use_invalid_e2}, \
-                 invalid_m={use_invalid_m}",
+                "v2 proof mismatch: seed={seed:#x}, load={load}, \
+                 invalid_r={use_invalid_r}, invalid_e1={use_invalid_e1}, \
+                 invalid_e2={use_invalid_e2}, invalid_m={use_invalid_m}",
             );
 
             // When invalid metadata is used at verification time (but not at
@@ -182,8 +209,8 @@ fn test_pke_v2_gpu_cpu_equivalence() {
                 assert_eq!(
                     cpu_verify_result.is_err(),
                     should_fail,
-                    "v2 CPU verify mismatch: load={load}, mode={pairing_mode:?}, \
-                     should_fail={should_fail}",
+                    "v2 CPU verify mismatch: seed={seed:#x}, load={load}, \
+                     mode={pairing_mode:?}, should_fail={should_fail}",
                 );
 
                 // --- Verify GPU proof on GPU ---
@@ -196,13 +223,14 @@ fn test_pke_v2_gpu_cpu_equivalence() {
                 assert_eq!(
                     gpu_verify_result.is_err(),
                     should_fail,
-                    "v2 GPU verify mismatch: load={load}, mode={pairing_mode:?}, \
-                     should_fail={should_fail}",
+                    "v2 GPU verify mismatch: seed={seed:#x}, load={load}, \
+                     mode={pairing_mode:?}, should_fail={should_fail}",
                 );
 
                 assert_eq!(
                     cpu_verify_result, gpu_verify_result,
-                    "v2 CPU/GPU verify disagree: load={load}, mode={pairing_mode:?}",
+                    "v2 CPU/GPU verify disagree: seed={seed:#x}, load={load}, \
+                     mode={pairing_mode:?}",
                 );
 
                 // --- Cross-direction: GPU verify of CPU-produced proof ---
@@ -218,10 +246,33 @@ fn test_pke_v2_gpu_cpu_equivalence() {
                 );
                 assert_eq!(
                     gpu_verify_cpu_proof, cpu_verify_result,
-                    "v2 GPU-verify-of-CPU-proof disagrees with CPU-verify: load={load}, \
-                     mode={pairing_mode:?}",
+                    "v2 GPU-verify-of-CPU-proof disagrees with CPU-verify: \
+                     seed={seed:#x}, load={load}, mode={pairing_mode:?}",
                 );
             }
         }
+    }
+}
+
+#[test]
+fn test_pke_v2_gpu_cpu_equivalence() {
+    let seed: u64 = get_zk_long_run_base_seed();
+    println!("test_pke_v2_gpu_cpu_equivalence seed: {seed:#x}");
+    run_pke_v2_gpu_cpu_equivalence_round(seed);
+}
+
+#[test]
+fn test_pke_v2_gpu_cpu_equivalence_long_run() {
+    let base_seed = get_zk_long_run_base_seed();
+    let rounds = get_zk_long_run_rounds();
+
+    println!("test_pke_v2_gpu_cpu_equivalence_long_run: base_seed={base_seed:#x}, rounds={rounds}");
+
+    // Derive better quality per-round seeds from the base seed.
+    let mut seed_rng = StdRng::seed_from_u64(base_seed);
+    for round in 0..rounds {
+        let round_seed: u64 = seed_rng.gen();
+        println!("  round {round}/{rounds}: seed={round_seed:#x}");
+        run_pke_v2_gpu_cpu_equivalence_round(round_seed);
     }
 }
