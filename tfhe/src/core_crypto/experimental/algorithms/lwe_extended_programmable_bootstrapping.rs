@@ -5,7 +5,7 @@
 use crate::core_crypto::algorithms::glwe_linear_algebra::glwe_ciphertext_sub_assign;
 use crate::core_crypto::algorithms::glwe_sample_extraction::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::algorithms::modulus_switch::{
-    lwe_ciphertext_modulus_switch, ModulusSwitchedLweCiphertext,
+    lwe_ciphertext_modulus_switch, modulus_switch, ModulusSwitchedLweCiphertext,
 };
 use crate::core_crypto::algorithms::polynomial_algorithms::{
     polynomial_wrapping_monic_monomial_div, polynomial_wrapping_monic_monomial_mul,
@@ -20,8 +20,10 @@ use crate::core_crypto::commons::traits::{
     Container, ContainerMut, ContiguousEntityContainer, ContiguousEntityContainerMut,
 };
 use crate::core_crypto::entities::glwe_ciphertext::GlweCiphertext;
-use crate::core_crypto::entities::lwe_ciphertext::LweCiphertext;
-use crate::core_crypto::experimental::commons::parameters::LweBootstrapExtensionFactor;
+use crate::core_crypto::entities::lwe_ciphertext::{LweCiphertext, LweCiphertextMutView};
+use crate::core_crypto::experimental::commons::parameters::{
+    LweBootstrapExtensionFactor, LweExtendedBootstrapShortcutCoeffCount,
+};
 use crate::core_crypto::fft_impl::fft64::c64;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
@@ -35,7 +37,7 @@ use itertools::izip;
 use std::cell::UnsafeCell;
 
 #[derive(Copy, Clone)]
-pub struct UnsafeSlice<'a, T> {
+pub(crate) struct UnsafeSlice<'a, T> {
     slice: &'a [UnsafeCell<T>],
 }
 unsafe impl<T: Send + Sync> Send for UnsafeSlice<'_, T> {}
@@ -176,7 +178,7 @@ pub fn extended_programmable_bootstrap_lwe_ciphertext_mem_optimized_parallelized
     extension_factor: LweBootstrapExtensionFactor,
     fft: FftView<'_>,
     stack: &mut PodStack,
-    thread_buffers: &mut [&mut PodStack],
+    thread_stacks: &mut [&mut PodStack],
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize>,
@@ -211,7 +213,7 @@ pub fn extended_programmable_bootstrap_lwe_ciphertext_mem_optimized_parallelized
         lwe_out.as_mut_view(),
         fft,
         stack,
-        thread_buffers,
+        thread_stacks,
     );
 }
 
@@ -224,9 +226,9 @@ fn extended_programmable_bootstrap_lwe_ciphertext_mem_optimized_parallelized_imp
 >(
     bsk: &FourierLweBootstrapKey<KeyCont>,
     extension_factor: LweBootstrapExtensionFactor,
-    input_lut: &GlweCiphertext<LutCont>,
+    accumulator: &GlweCiphertext<LutCont>,
     msed_lwe: &MsedLwe,
-    mut lwe_out: LweCiphertext<&mut [Scalar]>,
+    mut lwe_out: LweCiphertextMutView<'_, Scalar>,
     fft: FftView<'_>,
     stack: &mut PodStack,
     thread_stacks: &mut [&mut PodStack],
@@ -238,8 +240,8 @@ fn extended_programmable_bootstrap_lwe_ciphertext_mem_optimized_parallelized_imp
 {
     assert_eq!(thread_stacks.len(), extension_factor.get());
 
-    let lut_poly_size = input_lut.polynomial_size();
-    let ciphertext_modulus = input_lut.ciphertext_modulus();
+    let lut_poly_size = accumulator.polynomial_size();
+    let ciphertext_modulus = accumulator.ciphertext_modulus();
 
     assert!(ciphertext_modulus.is_compatible_with_native_modulus());
     assert_eq!(
@@ -253,17 +255,17 @@ fn extended_programmable_bootstrap_lwe_ciphertext_mem_optimized_parallelized_imp
 
     let monomial_degree = MonomialDegree(msed_lwe.body());
 
-    let (lut_data, stack) = stack.make_aligned_raw(input_lut.as_ref().len(), CACHELINE_ALIGN);
+    let (lut_data, stack) = stack.make_aligned_raw(accumulator.as_ref().len(), CACHELINE_ALIGN);
 
     let mut lut = GlweCiphertext::from_container(
         &mut *lut_data,
-        input_lut.polynomial_size(),
-        input_lut.ciphertext_modulus(),
+        accumulator.polynomial_size(),
+        accumulator.ciphertext_modulus(),
     );
 
     lut.as_mut_polynomial_list()
         .iter_mut()
-        .zip(input_lut.as_polynomial_list().iter())
+        .zip(accumulator.as_polynomial_list().iter())
         .for_each(|(mut dst_poly, src_poly)| {
             polynomial_wrapping_monic_monomial_div(&mut dst_poly, &src_poly, monomial_degree)
         });
@@ -506,4 +508,356 @@ pub fn extended_programmable_bootstrap_lwe_ciphertext_mem_optimized_parallelized
         // external product
         add_external_product_assign_scratch::<OutputScalar>(glwe_size, small_polynomial_size, fft),
     ])
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn sorted_extended_programmable_bootstrap_lwe_ciphertext_mem_optimized_parallelized<
+    Scalar,
+    KeyCont,
+    OutputCont,
+    InputCont,
+    AccCont,
+>(
+    bsk: &FourierLweBootstrapKey<KeyCont>,
+    lwe_out: &mut LweCiphertext<OutputCont>,
+    lwe_in: &LweCiphertext<InputCont>,
+    accumulator: &GlweCiphertext<AccCont>,
+    extension_factor: LweBootstrapExtensionFactor,
+    shortcut_coeff_count: LweExtendedBootstrapShortcutCoeffCount,
+    fft: FftView<'_>,
+    stack: &mut PodStack,
+    thread_stacks: &mut [&mut PodStack],
+) where
+    // CastInto required for PBS modulus switch which returns a usize
+    Scalar: UnsignedTorus + CastInto<usize>,
+    KeyCont: Container<Element = c64> + Sync,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    AccCont: Container<Element = Scalar>,
+{
+    assert_eq!(
+        lwe_out.ciphertext_modulus(),
+        accumulator.ciphertext_modulus()
+    );
+
+    assert_eq!(
+        bsk.polynomial_size().0 * extension_factor.get(),
+        accumulator.polynomial_size().0
+    );
+
+    assert_eq!(thread_stacks.len(), extension_factor.get());
+
+    let (lwe_mask, lwe_body) = lwe_in.get_mask_and_body();
+
+    let lut_poly_size = accumulator.polynomial_size();
+    let br_input_modulus_log = lut_poly_size.to_blind_rotation_input_modulus_log();
+    let ciphertext_modulus = accumulator.ciphertext_modulus();
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
+    assert_eq!(
+        bsk.polynomial_size().0 * extension_factor.get(),
+        lut_poly_size.0
+    );
+    let monomial_degree = MonomialDegree(modulus_switch(
+        (*lwe_body.data).cast_into(),
+        // This one should be the extended polynomial size
+        br_input_modulus_log,
+    ));
+
+    let (lut_data, stack) = stack.make_aligned_raw(accumulator.as_ref().len(), CACHELINE_ALIGN);
+
+    let mut lut = GlweCiphertext::from_container(
+        &mut *lut_data,
+        accumulator.polynomial_size(),
+        accumulator.ciphertext_modulus(),
+    );
+
+    lut.as_mut_polynomial_list()
+        .iter_mut()
+        .zip(accumulator.as_polynomial_list().iter())
+        .for_each(|(mut dst_poly, src_poly)| {
+            polynomial_wrapping_monic_monomial_div(&mut dst_poly, &src_poly, monomial_degree)
+        });
+
+    // Remove mutability to make things more readable and use 0/1 notation to refer to computation
+    // buffers
+    let ct0 = lut;
+
+    let mut split_ct0 = Vec::with_capacity(extension_factor.get());
+    let mut split_ct1 = Vec::with_capacity(extension_factor.get());
+
+    let substack0 = {
+        let mut current_stack = stack;
+        for _ in 0..extension_factor.get() {
+            let (glwe_cont, substack) = current_stack.make_aligned_raw::<Scalar>(
+                bsk.glwe_size().0 * bsk.polynomial_size().0,
+                CACHELINE_ALIGN,
+            );
+            split_ct0.push(GlweCiphertext::from_container(
+                glwe_cont,
+                bsk.polynomial_size(),
+                ct0.ciphertext_modulus(),
+            ));
+            current_stack = substack;
+        }
+        current_stack
+    };
+
+    let _substack1 = {
+        let mut current_stack = substack0;
+        for _ in 0..extension_factor.get() {
+            let (glwe_cont, substack) = current_stack.make_aligned_raw::<Scalar>(
+                bsk.glwe_size().0 * bsk.polynomial_size().0,
+                CACHELINE_ALIGN,
+            );
+            split_ct1.push(GlweCiphertext::from_container(
+                glwe_cont,
+                bsk.polynomial_size(),
+                ct0.ciphertext_modulus(),
+            ));
+            current_stack = substack;
+        }
+        current_stack
+    };
+
+    unchecked_split_extended_lut_into_small_luts(&ct0, &mut split_ct0, extension_factor);
+
+    let thread_split_ct0 = UnsafeSlice::new(&mut split_ct0);
+    let thread_split_ct1 = UnsafeSlice::new(&mut split_ct1);
+
+    use std::sync::Barrier;
+    let extension_factor_log2 = extension_factor.get().ilog2();
+    let extension_factor_rem_mask = extension_factor.get() - 1;
+    let congruence_classes_count = extension_factor_log2 as usize + 1;
+    let mut congruence_classes: Vec<_> = (0..congruence_classes_count)
+        .map(|idx| (vec![], Barrier::new(extension_factor.get() / (1 << idx))))
+        .collect();
+
+    let mut shortcut_destinations = vec![vec![]; congruence_classes_count];
+
+    'outer: for (mask_idx, &mask_element) in lwe_mask.as_ref().iter().enumerate() {
+        let mod_switched: usize = modulus_switch(mask_element.cast_into(), br_input_modulus_log);
+
+        if mod_switched % 2 == 1 {
+            let modulus_switch_log = (lut_poly_size.0 * 2).ilog2() as usize;
+            let rounding_bit = (mask_element >> (Scalar::BITS - modulus_switch_log)) & Scalar::ONE;
+            let altered_mod_switch = if rounding_bit == Scalar::ZERO {
+                mod_switched.wrapping_add(1) % (1 << modulus_switch_log)
+            } else {
+                mod_switched.wrapping_sub(1) % (1 << modulus_switch_log)
+            };
+            // for mod_idx in 1..congruence_classes.len() - 1
+            for (mod_idx, shortcut_dest) in shortcut_destinations
+                .iter_mut()
+                .enumerate()
+                .take(congruence_classes.len() - 1)
+                .skip(1)
+            {
+                let mod_power = mod_idx + 1;
+                let modulus: usize = (Scalar::ONE << mod_power).cast_into();
+                let expected_remainder = modulus >> 1;
+
+                if altered_mod_switch % modulus == expected_remainder {
+                    shortcut_dest.push((mask_idx, (mod_switched, altered_mod_switch)));
+                    continue 'outer;
+                }
+            }
+            shortcut_destinations[congruence_classes_count - 1]
+                .push((mask_idx, (mod_switched, altered_mod_switch)));
+            continue;
+        }
+
+        // println!();
+        // println!("{mod_switched:064b}");
+
+        for mod_idx in 1..congruence_classes.len() - 1 {
+            let mod_power = mod_idx + 1;
+            let modulus: usize = (Scalar::ONE << mod_power).cast_into();
+            // println!("modulus={modulus}");
+            let expected_remainder = modulus >> 1;
+            // println!("expected_remainder={expected_remainder}");
+
+            if mod_switched % modulus == expected_remainder {
+                // println!("In class {expected_remainder}");
+                congruence_classes[mod_idx].0.push((mask_idx, mod_switched));
+                continue 'outer;
+            }
+        }
+        // println!("In other class");
+        congruence_classes[congruence_classes_count - 1]
+            .0
+            .push((mask_idx, mod_switched));
+    }
+
+    let mut shortcut_remaining = shortcut_coeff_count.0;
+
+    for (shortcut_class_idx, shortcut_class) in shortcut_destinations.iter().enumerate().rev() {
+        for (mask_idx, (mod_switched, altered_mod_switch)) in shortcut_class.iter().copied() {
+            if shortcut_remaining > 0 {
+                shortcut_remaining -= 1;
+                congruence_classes[shortcut_class_idx]
+                    .0
+                    .push((mask_idx, altered_mod_switch));
+            } else {
+                congruence_classes[0].0.push((mask_idx, mod_switched));
+            }
+        }
+    }
+
+    let gathered_dim = congruence_classes.iter().map(|x| x.0.len()).sum::<usize>();
+    assert_eq!(gathered_dim, lwe_mask.as_ref().len());
+
+    std::thread::scope(|s| {
+        let thread_processing = |id: usize, stack: &mut PodStack| {
+            let ct_dst_idx = id;
+            let (diff_dyn_array, stack) = stack.make_aligned_raw::<Scalar>(
+                bsk.glwe_size().0 * bsk.polynomial_size().0,
+                CACHELINE_ALIGN,
+            );
+
+            let mut diff_buffer = GlweCiphertext::from_container(
+                diff_dyn_array,
+                bsk.polynomial_size(),
+                ct0.ciphertext_modulus(),
+            );
+
+            let ggsw_vec = bsk.as_view().into_ggsw_iter().collect::<Vec<_>>();
+
+            let mut overall_loop_idx = 0;
+
+            for (congruence_class_idx, (mask_indices, barrier)) in
+                congruence_classes.iter().enumerate()
+            {
+                let should_process = ct_dst_idx.is_multiple_of(1 << congruence_class_idx);
+
+                if !should_process {
+                    return;
+                }
+
+                for (mask_idx, monomial_degree) in mask_indices.iter().copied() {
+                    let ggsw = ggsw_vec[mask_idx];
+                    let monomial_degree = MonomialDegree(monomial_degree);
+
+                    // Update the LUT the current thread looks at simulating the rotation in the
+                    // extended LUT
+                    //
+                    // One thread is responsible of a destination LUT index at all times
+                    // (alternating between two work buffers), we simulate the
+                    // rotation by seeing which "source" LUT would end up in the
+                    // index the thread is responsible for, this avoids memory
+                    // copies
+                    //
+                    // The index mapping combined with a well chosen monomial multiplication
+                    // simulates the rotation in the extended LUT from rotations
+                    // of the small split LUTs
+                    let ct_src_idx =
+                        (ct_dst_idx.wrapping_sub(monomial_degree.0)) & extension_factor_rem_mask;
+
+                    // The well chosen monomial degree allowing to complete the simulated rotation
+                    // in the extended LUT, see function comment for the formula
+                    let small_monomial_degree =
+                        small_lut_monomial_degree_from_extended_lut_monomial_degree(
+                            monomial_degree,
+                            extension_factor,
+                            ct_dst_idx,
+                        );
+
+                    let rotated_buffer = {
+                        let (src_to_rotate, dst_rotated, src_unrotated) =
+                            if (overall_loop_idx % 2) == 0 {
+                                unsafe {
+                                    (
+                                        thread_split_ct0.read(ct_src_idx),
+                                        thread_split_ct1.write(ct_dst_idx),
+                                        thread_split_ct0.read(ct_dst_idx),
+                                    )
+                                }
+                            } else {
+                                unsafe {
+                                    (
+                                        thread_split_ct1.read(ct_src_idx),
+                                        thread_split_ct0.write(ct_dst_idx),
+                                        thread_split_ct1.read(ct_dst_idx),
+                                    )
+                                }
+                            };
+
+                        // Prepare the destination for the ext prod by copying the unrotated
+                        // accumulator there
+                        dst_rotated.as_mut().copy_from_slice(src_unrotated.as_ref());
+                        for (mut diff_poly, src_to_rotate_poly) in izip!(
+                            diff_buffer.as_mut_polynomial_list().iter_mut(),
+                            src_to_rotate.as_polynomial_list().iter(),
+                        ) {
+                            // Rotate the lut that ends up in our slot and add to the destination
+                            // This is computing Rot(ACCj)
+                            polynomial_wrapping_monic_monomial_mul(
+                                &mut diff_poly,
+                                &src_to_rotate_poly,
+                                small_monomial_degree,
+                            );
+                        }
+
+                        // This is computing Rot(ACCj) - ACCj
+                        glwe_ciphertext_sub_assign(&mut diff_buffer, src_unrotated);
+
+                        dst_rotated
+                    };
+
+                    // ACCj ← BSKi x (Rot(ACCj) - ACCj) + ACCj
+                    add_external_product_assign(
+                        rotated_buffer.as_mut_view(),
+                        ggsw,
+                        diff_buffer.as_view(),
+                        fft,
+                        stack,
+                    );
+                    let _ = barrier.wait();
+                    overall_loop_idx += 1;
+                }
+            }
+        };
+
+        #[allow(clippy::needless_collect)]
+        let threads: Vec<_> = thread_stacks
+            .iter_mut()
+            .enumerate()
+            .map(|(id, stack)| s.spawn(move || thread_processing(id, stack)))
+            .collect();
+
+        for t in threads {
+            t.join().unwrap();
+        }
+    });
+
+    let lwe_dimension = bsk.input_lwe_dimension().0;
+    let buffer_to_use = if lwe_dimension.is_multiple_of(2) {
+        split_ct0
+    } else {
+        split_ct1
+    };
+
+    let mut lut_0 = buffer_to_use.into_iter().next().unwrap();
+
+    if !ciphertext_modulus.is_native_modulus() {
+        // When we convert back from the fourier domain, integer values will contain up to 53
+        // MSBs with information. In our representation of power of 2 moduli < native modulus we
+        // fill the MSBs and leave the LSBs empty, this usage of the signed decomposer allows to
+        // round while keeping the data in the MSBs
+        let signed_decomposer = SignedDecomposer::new(
+            DecompositionBaseLog(ciphertext_modulus.get_custom_modulus().ilog2() as usize),
+            DecompositionLevelCount(1),
+        );
+        lut_0
+            .as_mut()
+            .iter_mut()
+            .for_each(|x| *x = signed_decomposer.closest_representable(*x));
+    }
+
+    let split_accumulator = GlweCiphertext::from_container(
+        lut_0.as_ref().to_vec(),
+        lut_0.polynomial_size(),
+        lut_0.ciphertext_modulus(),
+    );
+
+    extract_lwe_sample_from_glwe_ciphertext(&split_accumulator, lwe_out, MonomialDegree(0));
 }

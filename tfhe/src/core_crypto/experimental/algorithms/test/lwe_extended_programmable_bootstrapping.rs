@@ -159,7 +159,7 @@ pub struct ExtendedPBSTestParameters {
 }
 
 // p-fail = 2^-128.147, algorithmic cost ~ 67456140, 2-norm = 5, extension factor = 16,
-pub const TEST_PARAM_MESSAGE_2_CARRY_2_PARALLEL_PBS_EF_16_2M128: ExtendedPBSTestParameters =
+const TEST_PARAM_MESSAGE_2_CARRY_2_EPBS_EF_16_2M128: ExtendedPBSTestParameters =
     ExtendedPBSTestParameters {
         lwe_dimension: LweDimension(884),
         glwe_dimension: GlweDimension(4),
@@ -333,5 +333,209 @@ fn lwe_encrypt_extended_pbs_decrypt(params: ExtendedPBSTestParameters) {
 }
 
 create_parameterized_test!(lwe_encrypt_extended_pbs_decrypt {
-    TEST_PARAM_MESSAGE_2_CARRY_2_PARALLEL_PBS_EF_16_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_EPBS_EF_16_2M128,
+});
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug)]
+pub struct SortedExtendedPBSTestParameters {
+    extended_params: ExtendedPBSTestParameters,
+    shortcut_coeff_count: LweExtendedBootstrapShortcutCoeffCount,
+}
+
+// p-fail = 2^-128.018, algorithmic cost ~ 146109605, 2-norm = 5, extension factor = 2,
+const TEST_PARAM_MESSAGE_2_CARRY_2_SEPBS_MS_123_EF_2_128: SortedExtendedPBSTestParameters =
+    SortedExtendedPBSTestParameters {
+        extended_params: ExtendedPBSTestParameters {
+            lwe_dimension: LweDimension(859),
+            glwe_dimension: GlweDimension(1),
+            polynomial_size: PolynomialSize(2048),
+            extension_factor: LweBootstrapExtensionFactor::new(2),
+            lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+                2.3088161607134664e-06,
+            )),
+            glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+                2.845267479601915e-15,
+            )),
+            pbs_base_log: DecompositionBaseLog(23),
+            pbs_level: DecompositionLevelCount(1),
+            ks_base_log: DecompositionBaseLog(3),
+            ks_level: DecompositionLevelCount(5),
+            message_modulus: CleartextModulus::new(4),
+            carry_modulus: CleartextModulus::new(4),
+            max_norm2: MaxNorm2(5f64),
+            log2_p_fail: -128.018,
+            ciphertext_modulus: CiphertextModulus::new_native(),
+            encryption_key_choice: EncryptionKeyChoice::Big,
+        },
+        shortcut_coeff_count: LweExtendedBootstrapShortcutCoeffCount(123),
+    };
+
+fn lwe_encrypt_sorted_extended_pbs_decrypt(params: SortedExtendedPBSTestParameters) {
+    let SortedExtendedPBSTestParameters {
+        extended_params:
+            ExtendedPBSTestParameters {
+                lwe_dimension,
+                glwe_dimension,
+                polynomial_size: base_polynomial_size,
+                extension_factor,
+                lwe_noise_distribution,
+                glwe_noise_distribution,
+                pbs_base_log,
+                pbs_level: pbs_level_count,
+                ks_base_log: _,
+                ks_level: _,
+                message_modulus,
+                carry_modulus,
+                max_norm2: _,
+                log2_p_fail: _,
+                ciphertext_modulus,
+                encryption_key_choice: _,
+            },
+        shortcut_coeff_count,
+    } = params;
+
+    let plaintext_modulus = message_modulus.0 * carry_modulus.0;
+    let extended_polynomial_size = PolynomialSize(base_polynomial_size.0 * extension_factor.get());
+    let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
+
+    let mut rsc = TestResources::new();
+
+    let f = |x: u64| x;
+
+    let delta: u64 = encoding_with_padding / plaintext_modulus;
+    let mut msg = plaintext_modulus;
+
+    let accumulator = generate_programmable_bootstrap_glwe_lut(
+        extended_polynomial_size,
+        glwe_dimension.to_glwe_size(),
+        plaintext_modulus.cast_into(),
+        ciphertext_modulus,
+        delta,
+        f,
+    );
+
+    assert!(check_encrypted_content_respects_mod(
+        &accumulator,
+        ciphertext_modulus
+    ));
+
+    let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+        lwe_dimension,
+        &mut rsc.secret_random_generator,
+    );
+
+    let output_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+        glwe_dimension,
+        base_polynomial_size,
+        &mut rsc.secret_random_generator,
+    );
+
+    let output_lwe_secret_key = output_glwe_secret_key.as_lwe_secret_key();
+
+    let bsk = par_allocate_and_generate_new_lwe_bootstrap_key(
+        &input_lwe_secret_key,
+        &output_glwe_secret_key,
+        pbs_base_log,
+        pbs_level_count,
+        glwe_noise_distribution,
+        ciphertext_modulus,
+        &mut rsc.encryption_random_generator,
+    );
+
+    let mut fbsk = FourierLweBootstrapKey::new(
+        bsk.input_lwe_dimension(),
+        bsk.glwe_size(),
+        bsk.polynomial_size(),
+        bsk.decomposition_base_log(),
+        bsk.decomposition_level_count(),
+    );
+
+    par_convert_standard_lwe_bootstrap_key_to_fourier(&bsk, &mut fbsk);
+
+    let fft = Fft::new(base_polynomial_size);
+    let fft = fft.as_view();
+
+    let mut buffers = ComputationBuffers::new();
+
+    // TODO: have req for main thread and for workers ?
+    use extended_programmable_bootstrap_lwe_ciphertext_mem_optimized_parallelized_requirement as rq;
+
+    let requirement = rq::<u64>(
+        glwe_dimension.to_glwe_size(),
+        base_polynomial_size,
+        extension_factor,
+        fft,
+    )
+    .unaligned_bytes_required();
+
+    buffers.resize(requirement);
+
+    let mut thread_buffers = Vec::with_capacity(extension_factor.get());
+    for _ in 0..extension_factor.get() {
+        let mut buffer = ComputationBuffers::new();
+        buffer.resize(requirement);
+        thread_buffers.push(buffer);
+    }
+
+    let mut thread_stacks: Vec<_> = thread_buffers.iter_mut().map(|x| x.stack()).collect();
+
+    while msg != 0 {
+        msg = msg.wrapping_sub(1);
+
+        for _ in 0..10 {
+            let plaintext = Plaintext(msg * delta);
+
+            let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
+                &input_lwe_secret_key,
+                plaintext,
+                lwe_noise_distribution,
+                ciphertext_modulus,
+                &mut rsc.encryption_random_generator,
+            );
+
+            assert!(check_encrypted_content_respects_mod(
+                &lwe_ciphertext_in,
+                ciphertext_modulus
+            ));
+
+            let mut out_pbs_ct = LweCiphertext::new(
+                0,
+                output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                ciphertext_modulus,
+            );
+
+            sorted_extended_programmable_bootstrap_lwe_ciphertext_mem_optimized_parallelized(
+                &fbsk,
+                &mut out_pbs_ct,
+                &lwe_ciphertext_in,
+                &accumulator,
+                extension_factor,
+                shortcut_coeff_count,
+                fft,
+                buffers.stack(),
+                &mut thread_stacks,
+            );
+
+            assert!(check_encrypted_content_respects_mod(
+                &out_pbs_ct,
+                ciphertext_modulus
+            ));
+
+            let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &out_pbs_ct);
+
+            let decoded = round_decode(decrypted.0, delta) % plaintext_modulus;
+
+            assert_eq!(decoded, f(msg));
+        }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(tarpaulin)]
+        break;
+    }
+}
+
+create_parameterized_test!(lwe_encrypt_sorted_extended_pbs_decrypt {
+    TEST_PARAM_MESSAGE_2_CARRY_2_SEPBS_MS_123_EF_2_128,
 });

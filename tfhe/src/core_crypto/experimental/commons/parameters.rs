@@ -84,3 +84,6 @@ impl LweBootstrapExtensionFactor {
         self.0
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LweExtendedBootstrapShortcutCoeffCount(pub usize);
