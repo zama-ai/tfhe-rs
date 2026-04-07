@@ -11,13 +11,13 @@ pub mod cuda {
     use tfhe::integer::keycache::KEY_CACHE;
     use tfhe::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey};
     use tfhe::keycache::NamedParam;
-    use tfhe::shortint::AtomicPatternParameters;
+    use tfhe::shortint::{AtomicPatternParameters, Ciphertext};
 
-    fn encrypt_bit_stream(cks: &RadixClientKey, bits: &[u64]) -> RadixCiphertext {
+    fn encrypt_bits(cks: &RadixClientKey, bits: &[u64]) -> RadixCiphertext {
         RadixCiphertext::from(
             bits.iter()
                 .map(|&bit| cks.encrypt_one_block(bit))
-                .collect::<Vec<_>>(),
+                .collect::<Vec<Ciphertext>>(),
         )
     }
 
@@ -43,16 +43,56 @@ pub mod cuda {
         let sks = CudaServerKey::new(&cpu_cks, &streams);
         let cks = RadixClientKey::from((cpu_cks, 1));
 
-        let ct_key = encrypt_bit_stream(&cks, &key_bits);
-        let ct_iv = encrypt_bit_stream(&cks, &iv_bits);
+        let ct_key = encrypt_bits(&cks, &key_bits);
+        let ct_iv = encrypt_bits(&cks, &iv_bits);
 
         let d_key = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_key, &streams);
         let d_iv = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_iv, &streams);
 
-        for num_steps in [64, 512] {
-            let bench_id = format!("{bench_name}::{param_name}::generate_{num_steps}_bits");
+        // 1. Benchmark: init
+        let init_bench_id = format!("{bench_name}::{param_name}::init");
+        bench_group.bench_function(&init_bench_id, |b| {
+            b.iter(|| {
+                black_box(sks.trivium_init(&d_key, &d_iv, &streams).unwrap());
+            })
+        });
 
-            bench_group.bench_function(&bench_id, |b| {
+        write_to_json_unchecked::<u64, _>(
+            &init_bench_id,
+            atomic_param,
+            param.name(),
+            "trivium_init",
+            &OperatorType::Atomic,
+            80,
+            vec![atomic_param.message_modulus().0.ilog2(); 80],
+        );
+
+        let mut state = sks.trivium_init(&d_key, &d_iv, &streams).unwrap();
+
+        for num_steps in [64, 512] {
+            // 2. Benchmark: next
+            let next_bench_id = format!("{bench_name}::{param_name}::next_{num_steps}_bits");
+
+            bench_group.bench_function(&next_bench_id, |b| {
+                b.iter(|| {
+                    black_box(sks.trivium_next(&mut state, num_steps, &streams).unwrap());
+                })
+            });
+
+            write_to_json_unchecked::<u64, _>(
+                &next_bench_id,
+                atomic_param,
+                param.name(),
+                &format!("trivium_next_{}_bits", num_steps),
+                &OperatorType::Atomic,
+                80,
+                vec![atomic_param.message_modulus().0.ilog2(); 80],
+            );
+
+            // 3. Benchmark: generate_keystream
+            let gen_bench_id = format!("{bench_name}::{param_name}::generate_{num_steps}_bits");
+
+            bench_group.bench_function(&gen_bench_id, |b| {
                 b.iter(|| {
                     black_box(
                         sks.trivium_generate_keystream(&d_key, &d_iv, num_steps, &streams)
@@ -62,7 +102,7 @@ pub mod cuda {
             });
 
             write_to_json_unchecked::<u64, _>(
-                &bench_id,
+                &gen_bench_id,
                 atomic_param,
                 param.name(),
                 &format!("trivium_generation_{}_bits", num_steps),

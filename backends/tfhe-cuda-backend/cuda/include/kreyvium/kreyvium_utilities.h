@@ -45,8 +45,7 @@ template <typename Torus> struct int_kreyvium_lut_buffers {
     // BIVARIATE AND LUT
     //
     this->and_lut = new int_radix_lut<Torus>(streams, params, 1, and_ops,
-                                             allocate_gpu_memory,
-                                             size_tracker);
+                                             allocate_gpu_memory, size_tracker);
 
     std::function<Torus(Torus, Torus)> and_lambda =
         [](Torus lhs, Torus rhs) -> Torus { return (lhs & 1) & (rhs & 1); };
