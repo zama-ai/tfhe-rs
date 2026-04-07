@@ -1298,6 +1298,19 @@ test_zk_pok_experimental_gpu:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		-p tfhe-zk-pok --features experimental,gpu-experimental -- gpu
 
+.PHONY: test_zk_pok_experimental_long_run_gpu # Run long-run ZK GPU/CPU equivalence tests (multiple seeds)
+test_zk_pok_experimental_long_run_gpu:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		-p tfhe-zk-pok --features experimental,gpu-experimental -- \
+		test_pke_v2_gpu_cpu_equivalence_long_run --test-threads=1 --nocapture
+
+.PHONY: test_zk_pok_experimental_short_run_gpu
+test_zk_pok_experimental_short_run_gpu:
+	TFHE_RS_TEST_LONG_TESTS_MINIMAL=TRUE \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		-p tfhe-zk-pok --features experimental,gpu-experimental -- \
+		test_pke_v2_gpu_cpu_equivalence_long_run --test-threads=1 --nocapture
+
 .PHONY: test_integer_zk_gpu # Run tfhe-zk-pok tests
 test_integer_zk_gpu:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
