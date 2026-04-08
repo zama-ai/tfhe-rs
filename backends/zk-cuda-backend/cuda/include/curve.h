@@ -17,7 +17,12 @@ __host__ __device__ void fp2_zero(Fp2 &a);
 
 // G1 point: (x, y) coordinates in Fp
 // Curve equation: y^2 = x^3 + b (short Weierstrass form with a = 0)
-struct G1Affine {
+//
+// alignas(8): The bool infinity field causes the struct to be padded to the
+// largest field alignment (4 bytes in 32-bit limb mode, 8 bytes in 64-bit).
+// Forcing alignas(8) ensures sizeof(G1Affine)==120 in both modes, matching
+// the Rust FFI bindings which are always generated from the 64-bit layout.
+struct alignas(8) G1Affine {
   Fp x;
   Fp y;
   bool infinity; // true if point at infinity (identity element)
@@ -36,7 +41,9 @@ struct G1Affine {
 
 // G2 point: (x, y) coordinates in Fp2
 // Curve equation: y^2 = x^3 + b' (twisted curve over Fp2)
-struct G2Affine {
+//
+// alignas(8): same ABI-stability reason as G1Affine above.
+struct alignas(8) G2Affine {
   Fp2 x;
   Fp2 y;
   bool infinity; // true if point at infinity (identity element)
