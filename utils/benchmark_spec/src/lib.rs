@@ -47,6 +47,33 @@ impl TestResult {
     }
 }
 
+pub trait TypeName {
+    fn type_name(&self) -> String;
+}
+
+pub struct TypedKeyValue<'a> {
+    key: &'a str,
+    value: &'a str,
+}
+
+impl<'a> TypedKeyValue<'a> {
+    pub fn new(key: &'a str, value: &'a str) -> Self {
+        Self { key, value }
+    }
+}
+
+impl TypeName for TypedKeyValue<'_> {
+    fn type_name(&self) -> String {
+        format!("key_{}::value_{}", self.key, self.value)
+    }
+}
+
+impl TypeName for str {
+    fn type_name(&self) -> String {
+        self.to_string()
+    }
+}
+
 #[derive(Serialize)]
 pub enum OperandType {
     CipherText,
@@ -116,23 +143,23 @@ pub fn get_bench_type() -> &'static BenchmarkType {
 /// `param_name` and `type_name` are kept as `&str` because their values
 /// are generated dynamically: `type_name` comes from `stringify!()` in
 /// bench macros, and `param_name` comes from `NamedParam::name()` at runtime.
-pub struct BenchmarkSpec<'a> {
+pub struct BenchmarkSpec<'a, T: TypeName + ?Sized> {
     pub bench_crate: BenchCrate,
     pub backend: Backend,
     pub param_name: &'a str,
     pub operand_type: &'a OperandType,
-    pub type_name: Option<&'a str>,
+    pub type_name: Option<&'a T>,
     pub bench_type: BenchmarkMetric,
     pub num_elements: Option<usize>,
 }
 
-impl<'a> BenchmarkSpec<'a> {
+impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
     pub fn new(
         bench_crate: BenchCrate,
         backend: Backend,
         param_name: &'a str,
         operand_type: &'a OperandType,
-        type_name: Option<&'a str>,
+        type_name: Option<&'a T>,
         bench_type: impl Into<BenchmarkMetric>,
         num_elements: Option<usize>,
     ) -> Self {
@@ -151,7 +178,7 @@ impl<'a> BenchmarkSpec<'a> {
         hlapi_op: HlIntegerOp,
         param_name: &'a str,
         operand_type: &'a OperandType,
-        type_name: Option<&'a str>,
+        type_name: Option<&'a T>,
         bench_type: impl Into<BenchmarkMetric>,
         backend: Backend,
     ) -> Self {
@@ -170,7 +197,7 @@ impl<'a> BenchmarkSpec<'a> {
         hlapi_erc7984_op: Erc7984,
         param_name: &'a str,
         operand_type: &'a OperandType,
-        type_name: Option<&'a str>,
+        type_name: Option<&'a T>,
         bench_type: impl Into<BenchmarkMetric>,
         backend: Backend,
         num_elements: Option<usize>,
@@ -189,7 +216,7 @@ impl<'a> BenchmarkSpec<'a> {
         hlapi_dex: Dex,
         param_name: &'a str,
         operand_type: &'a OperandType,
-        type_name: Option<&'a str>,
+        type_name: Option<&'a T>,
         bench_type: impl Into<BenchmarkMetric>,
         backend: Backend,
         num_elements: Option<usize>,
@@ -204,9 +231,29 @@ impl<'a> BenchmarkSpec<'a> {
             num_elements,
         }
     }
+
+    pub fn new_hlapi(
+        hlapi_bench: HlapiBench,
+        param_name: &'a str,
+        operand_type: &'a OperandType,
+        type_name: Option<&'a T>,
+        bench_type: impl Into<BenchmarkMetric>,
+        backend: Backend,
+        num_elements: Option<usize>,
+    ) -> Self {
+        Self {
+            bench_crate: BenchCrate::Tfhe(TfheLayer::Hlapi(hlapi_bench)),
+            backend,
+            param_name,
+            operand_type,
+            type_name,
+            bench_type: bench_type.into(),
+            num_elements,
+        }
+    }
 }
 
-impl fmt::Display for BenchmarkSpec<'_> {
+impl<T: TypeName + ?Sized> fmt::Display for BenchmarkSpec<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.bench_crate.fmt_crate(f)?;
         if !matches!(self.backend, Backend::Cpu) {
@@ -222,7 +269,7 @@ impl fmt::Display for BenchmarkSpec<'_> {
             write!(f, "::scalar")?;
         }
         if let Some(type_name) = self.type_name {
-            write!(f, "::{type_name}")?;
+            write!(f, "::{}", type_name.type_name())?;
         }
         if let Some(num_elements) = self.num_elements {
             write!(f, "::{num_elements}_elements")?;
@@ -305,7 +352,7 @@ mod tests {
 
     #[test]
     fn hlapi_no_type_name() {
-        let spec = BenchmarkSpec::new(
+        let spec = BenchmarkSpec::<str>::new(
             BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Ops(HlIntegerOp::Neg))),
             Backend::Cpu,
             "PARAM_MESSAGE_2_CARRY_2",
@@ -469,6 +516,79 @@ mod tests {
         assert_eq!(
             spec.to_string(),
             "tfhe::hlapi::dex::swap_request::finalize::pbs_count::PARAM_MESSAGE_2_CARRY_2::FheUint64"
+        );
+    }
+
+    #[test]
+    fn hlapi_noise_squash_latency() {
+        let spec = BenchmarkSpec::new_hlapi(
+            HlapiBench::NoiseSquash,
+            "PARAM_MESSAGE_2_CARRY_2",
+            &OperandType::CipherText,
+            Some("FheUint64"),
+            BenchmarkType::Latency,
+            Backend::Cpu,
+            None,
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::hlapi::noise_squash::PARAM_MESSAGE_2_CARRY_2::FheUint64"
+        );
+    }
+
+    #[test]
+    fn hlapi_decomp_noise_squash_comp_throughput() {
+        let spec = BenchmarkSpec::new_hlapi(
+            HlapiBench::DecompNoiseSquashComp,
+            "PARAM_MESSAGE_2_CARRY_2",
+            &OperandType::CipherText,
+            Some("FheUint64"),
+            BenchmarkType::Throughput,
+            Backend::Cuda,
+            None,
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::hlapi::decomp_noise_squash_comp::cuda::throughput::PARAM_MESSAGE_2_CARRY_2::FheUint64"
+        );
+    }
+
+    #[test]
+    fn hlapi_kv_store_get_with_elements() {
+        use crate::tfhe::hlapi::kv_store::KvStoreOp;
+
+        let spec = BenchmarkSpec::new_hlapi(
+            HlapiBench::KvStore(KvStoreOp::Get),
+            "PARAM_MESSAGE_2_CARRY_2",
+            &OperandType::CipherText,
+            Some("FheUint64"),
+            BenchmarkType::Latency,
+            Backend::Cpu,
+            Some(1024),
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::hlapi::kv_store::get::PARAM_MESSAGE_2_CARRY_2::FheUint64::1024_elements"
+        );
+    }
+
+    #[test]
+    fn hlapi_kv_store_with_typed_key_value() {
+        use crate::tfhe::hlapi::kv_store::KvStoreOp;
+
+        let tkv = TypedKeyValue::new("FheUint64", "FheUint32");
+        let spec = BenchmarkSpec::new_hlapi(
+            HlapiBench::KvStore(KvStoreOp::Update),
+            "PARAM_MESSAGE_2_CARRY_2",
+            &OperandType::CipherText,
+            Some(&tkv),
+            BenchmarkType::Latency,
+            Backend::Cpu,
+            Some(512),
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::hlapi::kv_store::update::PARAM_MESSAGE_2_CARRY_2::key_FheUint64::value_FheUint32::512_elements"
         );
     }
 }

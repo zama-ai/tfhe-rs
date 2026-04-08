@@ -1,8 +1,13 @@
 #[cfg(not(any(feature = "gpu", feature = "hpu")))]
 use benchmark::find_optimal_batch::find_optimal_batch;
 use benchmark::high_level_api::type_display::*;
-use benchmark::utilities::{write_to_json_unchecked, BitSizesSet, EnvConfig, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark::utilities::{
+    bench_backend_from_cfg, write_to_json, BitSizesSet, EnvConfig, OperatorType,
+};
+use benchmark_spec::tfhe::hlapi::kv_store::KvStoreOp;
+use benchmark_spec::{
+    get_bench_type, BenchmarkSpec, BenchmarkType, HlapiBench, OperandType, TypedKeyValue,
+};
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -31,18 +36,29 @@ where
     let mut kv_store = KVStore::new();
     let mut rng = rand::thread_rng();
 
-    let format_id_bench = |op_name: &str| -> String {
-        format!(
-            "hlapi::kv_store::{op_name}::{}::key_{}_value_{}_elements_{num_elements}",
-            param.name(),
-            TypeDisplayer::<Key>::default(),
-            TypeDisplayer::<Value>::default(),
+    let key_name = TypeDisplayer::<Key>::default().to_string();
+    let value_name = TypeDisplayer::<Value>::default().to_string();
+    let tkv = TypedKeyValue::new(&key_name, &value_name);
+
+    let param_name = param.name();
+    let bench_type = get_bench_type();
+    let backend = bench_backend_from_cfg();
+
+    let generate_bench_spec = |op: KvStoreOp| {
+        BenchmarkSpec::new_hlapi(
+            HlapiBench::KvStore(op),
+            &param_name,
+            &OperandType::CipherText,
+            Some(&tkv),
+            *bench_type,
+            backend,
+            None,
         )
     };
 
-    let bench_id_get;
-    let bench_id_update;
-    let bench_id_map;
+    let bench_spec_get = generate_bench_spec(KvStoreOp::Get);
+    let bench_spec_update = generate_bench_spec(KvStoreOp::Update);
+    let bench_spec_map = generate_bench_spec(KvStoreOp::Map);
 
     match get_bench_type() {
         BenchmarkType::Latency => {
@@ -60,22 +76,19 @@ where
             let value = rng.gen::<u128>();
             let value_to_add = Value::encrypt(value, cks);
 
-            bench_id_get = format_id_bench("get");
-            bench_group.bench_function(&bench_id_get, |b| {
+            bench_group.bench_function(bench_spec_get.to_string(), |b| {
                 b.iter(|| {
                     let _ = kv_store.get(&encrypted_key);
                 })
             });
 
-            bench_id_update = format_id_bench("update");
-            bench_group.bench_function(&bench_id_update, |b| {
+            bench_group.bench_function(bench_spec_update.to_string(), |b| {
                 b.iter(|| {
                     let _ = kv_store.update(&encrypted_key, &value_to_add);
                 })
             });
 
-            bench_id_map = format_id_bench("map");
-            bench_group.bench_function(&bench_id_map, |b| {
+            bench_group.bench_function(bench_spec_map.to_string(), |b| {
                 b.iter(|| {
                     kv_store.map(&encrypted_key, |v| v);
                 })
@@ -136,8 +149,7 @@ where
 
             bench_group.throughput(Throughput::Elements(elements));
 
-            bench_id_get = format_id_bench("get::throughput");
-            bench_group.bench_function(&bench_id_get, |b| {
+            bench_group.bench_function(bench_spec_get.to_string(), |b| {
                 b.iter(|| {
                     kv_stores.par_iter_mut().for_each(|kv_store| {
                         kv_store.get(&encrypted_key);
@@ -145,8 +157,7 @@ where
                 })
             });
 
-            bench_id_update = format_id_bench("update::throughput");
-            bench_group.bench_function(&bench_id_update, |b| {
+            bench_group.bench_function(bench_spec_update.to_string(), |b| {
                 b.iter(|| {
                     kv_stores.par_iter_mut().for_each(|kv_store| {
                         kv_store.update(&encrypted_key, &value_to_add);
@@ -154,8 +165,7 @@ where
                 })
             });
 
-            bench_id_map = format_id_bench("map::throughput");
-            bench_group.bench_function(&bench_id_map, |b| {
+            bench_group.bench_function(bench_spec_map.to_string(), |b| {
                 b.iter(|| {
                     kv_stores.par_iter_mut().for_each(|kv_store| {
                         kv_store.map(&encrypted_key, |v| v);
@@ -165,15 +175,14 @@ where
         }
     }
 
-    for (bench_id, display_name) in [
-        (bench_id_get, "get"),
-        (bench_id_update, "update"),
-        (bench_id_map, "map"),
+    for (bench_spec, display_name) in [
+        (bench_spec_get, "get"),
+        (bench_spec_update, "update"),
+        (bench_spec_map, "map"),
     ] {
-        write_to_json_unchecked::<u64, _>(
-            &bench_id,
+        write_to_json::<u64, _, _>(
+            &bench_spec,
             param,
-            param.name(),
             display_name,
             &OperatorType::Atomic,
             Key::BITS as u32,

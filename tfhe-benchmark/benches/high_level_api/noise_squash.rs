@@ -15,9 +15,10 @@ use benchmark::params_aliases::{
 #[cfg(feature = "gpu")]
 use benchmark::utilities::configure_gpu;
 use benchmark::utilities::{
-    will_this_bench_run, write_to_json_unchecked, BitSizesSet, EnvConfig, OperatorType,
+    bench_backend_from_cfg, will_this_bench_run, write_to_json, BitSizesSet, EnvConfig,
+    OperatorType,
 };
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark_spec::{get_bench_type, BenchmarkSpec, BenchmarkType, HlapiBench, OperandType};
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
 use rand::thread_rng;
@@ -73,36 +74,36 @@ fn bench_sns_only_fhe_type<FheType>(
     }
 
     let mut bench_group = c.benchmark_group(type_name);
-    let bench_id_prefix = if cfg!(feature = "gpu") {
-        "hlapi::cuda".to_string()
-    } else {
-        "hlapi".to_string()
-    };
     let noise_param_name = noise_param.name();
-    let bench_id_suffix = format!("noise_squash::{noise_param_name}::{type_name}");
 
     let mut rng = thread_rng();
 
-    let bench_id;
+    let bench_type = get_bench_type();
+    let bench_spec = BenchmarkSpec::new_hlapi(
+        HlapiBench::NoiseSquash,
+        &noise_param_name,
+        &OperandType::CipherText,
+        Some(type_name),
+        *bench_type,
+        bench_backend_from_cfg(),
+        None,
+    );
+    let bench_id = bench_spec.to_string();
 
-    match get_bench_type() {
+    match bench_type {
         BenchmarkType::Latency => {
-            bench_id = format!("{bench_id_prefix}::{bench_id_suffix}");
-
             #[cfg(feature = "gpu")]
             configure_gpu(&client_key);
 
             let input = FheType::encrypt(rng.gen(), &client_key);
 
-            bench_group.bench_function(&bench_id, |b| {
+            bench_group.bench_function(bench_id.as_str(), |b| {
                 b.iter(|| {
                     let _ = input.squash_noise();
                 })
             });
         }
         BenchmarkType::Throughput => {
-            bench_id = format!("{bench_id_prefix}::throughput::{bench_id_suffix}");
-
             let elements = if will_this_bench_run(type_name, &bench_id) {
                 #[cfg(feature = "gpu")]
                 {
@@ -153,7 +154,7 @@ fn bench_sns_only_fhe_type<FheType>(
                     })
                     .collect::<Vec<_>>();
 
-                bench_group.bench_function(&bench_id, |b| {
+                bench_group.bench_function(bench_id.as_str(), |b| {
                     let encrypt_values = || {
                         (0..elements)
                             .map(|_| FheType::encrypt(rng.gen(), &client_key))
@@ -178,7 +179,7 @@ fn bench_sns_only_fhe_type<FheType>(
             {
                 bench_group.throughput(Throughput::Elements(elements));
                 println!("elements: {elements}");
-                bench_group.bench_function(&bench_id, |b| {
+                bench_group.bench_function(bench_id.as_str(), |b| {
                     let encrypt_values = || {
                         (0..elements)
                             .map(|_| FheType::encrypt(rng.gen(), &client_key))
@@ -200,10 +201,9 @@ fn bench_sns_only_fhe_type<FheType>(
     }
     let params = client_key.computation_parameters();
 
-    write_to_json_unchecked::<u64, _>(
-        &bench_id,
+    write_to_json::<u64, _, _>(
+        &bench_spec,
         params,
-        params.name(),
         "noise_squash",
         &OperatorType::Atomic,
         64,
@@ -248,22 +248,24 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
     }
 
     let mut bench_group = c.benchmark_group(type_name);
-    let bench_id_prefix = if cfg!(feature = "gpu") {
-        "hlapi::cuda".to_string()
-    } else {
-        "hlapi".to_string()
-    };
     let noise_param_name = noise_param.name();
-    let bench_id_suffix = format!("decomp_noise_squash_comp::{noise_param_name}::{type_name}");
 
     let mut rng = thread_rng();
 
-    let bench_id;
+    let bench_type = get_bench_type();
+    let bench_spec = BenchmarkSpec::new_hlapi(
+        HlapiBench::DecompNoiseSquashComp,
+        &noise_param_name,
+        &OperandType::CipherText,
+        Some(type_name),
+        *bench_type,
+        bench_backend_from_cfg(),
+        None,
+    );
+    let bench_id = bench_spec.to_string();
 
-    match get_bench_type() {
+    match bench_type {
         BenchmarkType::Latency => {
-            bench_id = format!("{bench_id_prefix}::{bench_id_suffix}");
-
             #[cfg(feature = "gpu")]
             configure_gpu(&client_key);
 
@@ -273,7 +275,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
             builder.push(input);
             let compressed = builder.build().unwrap();
 
-            bench_group.bench_function(&bench_id, |b| {
+            bench_group.bench_function(bench_id.as_str(), |b| {
                 b.iter(|| {
                     let decompressed = compressed.get::<FheType>(0).unwrap().unwrap();
                     let squashed = decompressed.squash_noise().unwrap();
@@ -284,8 +286,6 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
             });
         }
         BenchmarkType::Throughput => {
-            bench_id = format!("{bench_id_prefix}::throughput::{bench_id_suffix}");
-
             let elements = if will_this_bench_run(type_name, &bench_id) {
                 #[cfg(feature = "gpu")]
                 {
@@ -340,7 +340,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
                     })
                     .collect::<Vec<_>>();
 
-                bench_group.bench_function(&bench_id, |b| {
+                bench_group.bench_function(bench_id.as_str(), |b| {
                     let compressed_values = || {
                         (0..elements)
                             .map(|_| {
@@ -377,7 +377,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
             #[cfg(all(not(feature = "hpu"), not(feature = "gpu")))]
             {
                 bench_group.throughput(Throughput::Elements(elements));
-                bench_group.bench_function(&bench_id, |b| {
+                bench_group.bench_function(bench_id.as_str(), |b| {
                     let compressed_values = || {
                         (0..elements)
                             .map(|_| {
@@ -409,10 +409,9 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
     }
     let params = client_key.computation_parameters();
 
-    write_to_json_unchecked::<u64, _>(
-        &bench_id,
+    write_to_json::<u64, _, _>(
+        &bench_spec,
         params,
-        params.name(),
         "decomp_noise_squash_comp",
         &OperatorType::Atomic,
         64,
