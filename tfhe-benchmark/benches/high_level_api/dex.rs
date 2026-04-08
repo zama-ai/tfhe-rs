@@ -9,7 +9,9 @@ use benchmark::params_aliases::{
 use benchmark::utilities::{configure_gpu, get_param_type, ParamType};
 use benchmark::utilities::{write_to_json, OperatorType};
 use benchmark_spec::tfhe::hlapi::dex::{Dex, DexFlavor};
-use benchmark_spec::{get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, OperandType};
+use benchmark_spec::{
+    get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, HlapiBench, OperandType,
+};
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
 use rand::thread_rng;
@@ -252,8 +254,8 @@ mod pbs_stats {
         let params = client_key.computation_parameters();
         let params_name = params.name();
 
-        let test_name = BenchmarkSpec::new_hlapi_dex(
-            dex_bench_spec,
+        let test_name = BenchmarkSpec::new_hlapi(
+            HlapiBench::Dex(dex_bench_spec),
             &params_name,
             OperandType::CipherText,
             Some(type_name),
@@ -266,7 +268,7 @@ mod pbs_stats {
 
         benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &test_name,
             params,
             "pbs-count",
@@ -302,8 +304,8 @@ mod pbs_stats {
         let params = client_key.computation_parameters();
         let params_name = params.name();
 
-        let test_name = BenchmarkSpec::new_hlapi_dex(
-            dex_bench_spec,
+        let test_name = BenchmarkSpec::new_hlapi(
+            HlapiBench::Dex(dex_bench_spec),
             &params_name,
             OperandType::CipherText,
             Some(type_name),
@@ -316,7 +318,7 @@ mod pbs_stats {
 
         benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &test_name,
             params,
             "pbs-count",
@@ -362,8 +364,8 @@ mod pbs_stats {
         let params = client_key.computation_parameters();
         let params_name = params.name();
 
-        let test_name = BenchmarkSpec::new_hlapi_dex(
-            dex_bench_spec,
+        let test_name = BenchmarkSpec::new_hlapi(
+            HlapiBench::Dex(dex_bench_spec),
             &params_name,
             OperandType::CipherText,
             Some(type_name),
@@ -376,7 +378,7 @@ mod pbs_stats {
 
         benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &test_name,
             params,
             "pbs-count",
@@ -418,8 +420,8 @@ mod pbs_stats {
         let params = client_key.computation_parameters();
         let params_name = params.name();
 
-        let test_name = BenchmarkSpec::new_hlapi_dex(
-            dex_bench_spec,
+        let test_name = BenchmarkSpec::new_hlapi(
+            HlapiBench::Dex(dex_bench_spec),
             &params_name,
             OperandType::CipherText,
             Some(type_name),
@@ -432,7 +434,7 @@ mod pbs_stats {
 
         benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &test_name,
             params,
             "pbs-count",
@@ -463,8 +465,8 @@ fn bench_swap_request_latency<FheType, F1, F2>(
 
     let mut c = c.benchmark_group(type_name);
 
-    let bench_spec = BenchmarkSpec::new_hlapi_dex(
-        dex_bench_spec,
+    let bench_spec = BenchmarkSpec::new_hlapi(
+        HlapiBench::Dex(dex_bench_spec),
         &params_name,
         OperandType::CipherText,
         Some(type_name),
@@ -510,7 +512,7 @@ fn bench_swap_request_latency<FheType, F1, F2>(
         })
     });
 
-    write_to_json::<u64, _>(
+    write_to_json::<u64, _, _>(
         &bench_spec,
         params,
         "dex-swap-request",
@@ -543,8 +545,8 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
     for num_elems in [10, 50, 100] {
         group.throughput(Throughput::Elements(num_elems));
 
-        let bench_spec = BenchmarkSpec::new_hlapi_dex(
-            dex_bench_spec,
+        let bench_spec = BenchmarkSpec::new_hlapi(
+            HlapiBench::Dex(dex_bench_spec),
             &params_name,
             OperandType::CipherText,
             Some(type_name),
@@ -633,7 +635,7 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
             })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &bench_spec,
             params,
             "dex-swap-request",
@@ -672,8 +674,8 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
 
     for num_elems in [5 * num_gpus, 10 * num_gpus, 20 * num_gpus] {
         group.throughput(Throughput::Elements(num_elems));
-        let bench_spec = BenchmarkSpec::new_hlapi_dex(
-            dex_bench_spec,
+        let bench_spec = BenchmarkSpec::new_hlapi(
+            HlapiBench::Dex(dex_bench_spec),
             &params_name,
             OperandType::CipherText,
             Some(type_name),
@@ -850,7 +852,7 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
                                 })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &bench_spec,
             params,
             "dex-swap-request",
@@ -881,8 +883,8 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
 
     let mut c = c.benchmark_group(type_name);
 
-    let bench_spec = BenchmarkSpec::new_hlapi_dex(
-        dex_bench_spec,
+    let bench_spec = BenchmarkSpec::new_hlapi(
+        HlapiBench::Dex(dex_bench_spec),
         &params_name,
         OperandType::CipherText,
         Some(type_name),
@@ -934,7 +936,7 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
         });
     });
 
-    write_to_json::<u64, _>(
+    write_to_json::<u64, _, _>(
         &bench_spec,
         params,
         "dex-swap-claim",
@@ -967,8 +969,8 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
     for num_elems in [2, 6, 10] {
         group.throughput(Throughput::Elements(num_elems));
 
-        let bench_spec = BenchmarkSpec::new_hlapi_dex(
-            dex_bench_spec,
+        let bench_spec = BenchmarkSpec::new_hlapi(
+            HlapiBench::Dex(dex_bench_spec),
             &params_name,
             OperandType::CipherText,
             Some(type_name),
@@ -1075,7 +1077,7 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
             });
         });
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &bench_spec,
             params,
             "dex-swap-claim",
@@ -1114,8 +1116,8 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
 
     for num_elems in [num_gpus, 2 * num_gpus] {
         group.throughput(Throughput::Elements(num_elems));
-        let bench_spec = BenchmarkSpec::new_hlapi_dex(
-            dex_bench_spec,
+        let bench_spec = BenchmarkSpec::new_hlapi(
+            HlapiBench::Dex(dex_bench_spec),
             &params_name,
             OperandType::CipherText,
             Some(type_name),
@@ -1287,7 +1289,7 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
             });
         });
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &bench_spec,
             params,
             "dex-swap-claim",

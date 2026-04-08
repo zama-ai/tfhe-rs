@@ -3,9 +3,9 @@ use benchmark::params::{
     multi_bit_benchmark_parameters_with_grouping, multi_bit_num_threads,
 };
 use benchmark::utilities::{
-    get_param_type, write_to_json_unchecked, CryptoParametersRecord, OperatorType, ParamType,
+    get_param_type, write_to_json, CryptoParametersRecord, OperatorType, ParamType,
 };
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark_spec::{get_bench_type, BenchmarkSpec, BenchmarkType, CoreCryptoBench};
 use criterion::{black_box, Criterion, Throughput};
 use rayon::prelude::*;
 use serde::Serialize;
@@ -17,8 +17,9 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
     c: &mut Criterion,
     parameters: &[(String, CryptoParametersRecord<Scalar>)],
 ) {
-    let bench_name = "core_crypto::pbs_mem_optimized";
-    let mut bench_group = c.benchmark_group(bench_name);
+    let cc_bench = CoreCryptoBench::PbsMemOptimized;
+    let bench_type = get_bench_type();
+    let mut bench_group = c.benchmark_group(cc_bench.to_string());
     bench_group
         .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(30));
@@ -53,9 +54,11 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
             params.pbs_level.unwrap(),
         );
 
-        let bench_id;
+        let benchmark_spec =
+            BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, None, *bench_type);
+        let bench_id = benchmark_spec.to_string();
 
-        match get_bench_type() {
+        match bench_type {
             BenchmarkType::Latency => {
                 // Allocate a new LweCiphertext and encrypt our plaintext
                 let lwe_ciphertext_in: LweCiphertextOwned<Scalar> =
@@ -95,8 +98,6 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                     .unaligned_bytes_required(),
                 );
 
-                bench_id = format!("{bench_name}::{name}");
-
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter(|| {
                         programmable_bootstrap_lwe_ciphertext_mem_optimized(
@@ -112,7 +113,6 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                 });
             }
             BenchmarkType::Throughput => {
-                bench_id = format!("{bench_name}::throughput::{name}");
                 let fft = Fft::new(fourier_bsk.polynomial_size());
                 let mut setup = |batch_size: usize| {
                     let input_cts = (0..batch_size)
@@ -220,10 +220,9 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
         };
 
         let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
-        write_to_json_unchecked(
-            &bench_id,
+        write_to_json(
+            &benchmark_spec,
             *params,
-            name,
             "pbs",
             &OperatorType::Atomic,
             bit_size,
@@ -236,8 +235,9 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
     c: &mut Criterion,
     parameters: &[(String, CryptoParametersRecord<Scalar>)],
 ) {
-    let bench_name = "core_crypto::batched_pbs_mem_optimized";
-    let mut bench_group = c.benchmark_group(bench_name);
+    let cc_bench = CoreCryptoBench::BatchedPbsMemOptimized;
+    let bench_type = get_bench_type();
+    let mut bench_group = c.benchmark_group(cc_bench.to_string());
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(10));
@@ -274,9 +274,11 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
 
         let count = 10; // FIXME Is it a representative value (big enough?)
 
-        let bench_id;
+        let benchmark_spec =
+            BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, None, *bench_type);
+        let bench_id = benchmark_spec.to_string();
 
-        match get_bench_type() {
+        match bench_type {
             BenchmarkType::Latency => {
                 // Allocate a new LweCiphertext and encrypt our plaintext
                 let mut lwe_ciphertext_in = LweCiphertextListOwned::<Scalar>::new(
@@ -325,7 +327,6 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
             .unaligned_bytes_required(),
         );
 
-                bench_id = format!("{bench_name}::{name}");
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter(|| {
                         batch_programmable_bootstrap_lwe_ciphertext_mem_optimized(
@@ -341,7 +342,6 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
                 });
             }
             BenchmarkType::Throughput => {
-                bench_id = format!("{bench_name}::throughput::{name}");
                 let fft = Fft::new(fourier_bsk.polynomial_size());
                 let mut setup = |batch_size: usize| {
                     let input_cts = (0..batch_size)
@@ -460,10 +460,9 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
         };
 
         let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
-        write_to_json_unchecked(
-            &bench_id,
+        write_to_json(
+            &benchmark_spec,
             *params,
-            name,
             "pbs",
             &OperatorType::Atomic,
             bit_size,
@@ -479,12 +478,13 @@ fn multi_bit_pbs<
     parameters: &[(String, CryptoParametersRecord<Scalar>, LweBskGroupingFactor)],
     deterministic_pbs: bool,
 ) {
-    let bench_name = if deterministic_pbs {
-        "core_crypto::multi_bit_deterministic_pbs"
+    let cc_bench = if deterministic_pbs {
+        CoreCryptoBench::MultiBitDeterministicPbs
     } else {
-        "core_crypto::multi_bit_pbs"
+        CoreCryptoBench::MultiBitPbs
     };
-    let mut bench_group = c.benchmark_group(bench_name);
+    let bench_type = get_bench_type();
+    let mut bench_group = c.benchmark_group(cc_bench.to_string());
     bench_group
         .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(30));
@@ -526,9 +526,15 @@ fn multi_bit_pbs<
         )
         .unwrap() as usize;
 
-        let bench_id;
+        let parallelized = match bench_type {
+            BenchmarkType::Latency => Some("parallelized"),
+            BenchmarkType::Throughput => None,
+        };
+        let benchmark_spec =
+            BenchmarkSpec::new_core_crypto(cc_bench, name, parallelized, *bench_type);
+        let bench_id = benchmark_spec.to_string();
 
-        match get_bench_type() {
+        match bench_type {
             BenchmarkType::Latency => {
                 // Allocate a new LweCiphertext and encrypt our plaintext
                 let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
@@ -552,8 +558,6 @@ fn multi_bit_pbs<
                     output_lwe_secret_key.lwe_dimension().to_lwe_size(),
                     params.ciphertext_modulus.unwrap(),
                 );
-
-                bench_id = format!("{bench_name}::{name}::parallelized");
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter(|| {
                         multi_bit_programmable_bootstrap_lwe_ciphertext(
@@ -569,7 +573,6 @@ fn multi_bit_pbs<
                 });
             }
             BenchmarkType::Throughput => {
-                bench_id = format!("{bench_name}::throughput::{name}");
                 let mut setup = |batch_size: usize| {
                     let input_cts = (0..batch_size)
                         .map(|_| {
@@ -656,10 +659,9 @@ fn multi_bit_pbs<
         };
 
         let bit_size = params.message_modulus.unwrap().ilog2();
-        write_to_json_unchecked(
-            &bench_id,
+        write_to_json(
+            &benchmark_spec,
             *params,
-            name,
             "pbs",
             &OperatorType::Atomic,
             bit_size,
@@ -669,8 +671,9 @@ fn multi_bit_pbs<
 }
 
 fn mem_optimized_pbs_ntt(c: &mut Criterion) {
-    let bench_name = "core_crypto::pbs_ntt";
-    let mut bench_group = c.benchmark_group(bench_name);
+    let cc_bench = CoreCryptoBench::PbsNtt;
+    let bench_type = get_bench_type();
+    let mut bench_group = c.benchmark_group(cc_bench.to_string());
     bench_group
         .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(30));
@@ -754,9 +757,11 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
 
         drop(bsk);
 
-        let bench_id;
+        let benchmark_spec =
+            BenchmarkSpec::<str>::new_core_crypto(cc_bench, &name, None, *bench_type);
+        let bench_id = benchmark_spec.to_string();
 
-        match get_bench_type() {
+        match bench_type {
             BenchmarkType::Latency => {
                 // Allocate a new LweCiphertext and encrypt our plaintext
                 let lwe_ciphertext_in: LweCiphertextOwned<u64> =
@@ -796,8 +801,6 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
                     .unaligned_bytes_required();
 
                 buffers.resize(stack_size);
-
-                bench_id = format!("{bench_name}::{name}");
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter(|| {
                         programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized(
@@ -813,7 +816,6 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
                 });
             }
             BenchmarkType::Throughput => {
-                bench_id = format!("{bench_name}::throughput::{name}");
                 let ntt = Ntt64::new(params.ciphertext_modulus.unwrap(), nbsk.polynomial_size());
 
                 let mut setup = |batch_size: usize| {
@@ -920,10 +922,9 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
         };
 
         let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
-        write_to_json_unchecked(
-            &bench_id,
+        write_to_json(
+            &benchmark_spec,
             *params,
-            name,
             "pbs",
             &OperatorType::Atomic,
             bit_size,
@@ -936,11 +937,11 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
 mod cuda {
     use benchmark::params::{benchmark_parameters, multi_bit_benchmark_parameters};
     use benchmark::utilities::{
-        cuda_local_keys_core, cuda_local_streams_core, throughput_num_threads,
-        write_to_json_unchecked, CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes,
-        CudaLocalKeys, OperatorType, GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE,
+        cuda_local_keys_core, cuda_local_streams_core, throughput_num_threads, write_to_json,
+        CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes, CudaLocalKeys, OperatorType,
+        GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE,
     };
-    use benchmark_spec::{get_bench_type, BenchmarkType};
+    use benchmark_spec::{get_bench_type, BenchmarkSpec, BenchmarkType, CoreCryptoBench};
     use criterion::{black_box, Criterion, Throughput};
     use rayon::prelude::*;
     use serde::Serialize;
@@ -956,8 +957,9 @@ mod cuda {
         c: &mut Criterion,
         parameters: &[(String, CryptoParametersRecord<Scalar>)],
     ) {
-        let bench_name = "core_crypto::cuda::pbs";
-        let mut bench_group = c.benchmark_group(bench_name);
+        let cc_bench = CoreCryptoBench::PbsMemOptimized;
+        let bench_type = get_bench_type();
+        let mut bench_group = c.benchmark_group(cc_bench.to_string());
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
@@ -1001,9 +1003,11 @@ mod cuda {
 
             let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new().bootstrap_key(bsk).build();
 
-            let bench_id;
+            let benchmark_spec =
+                BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, None, *bench_type);
+            let bench_id = benchmark_spec.to_string();
 
-            match get_bench_type() {
+            match bench_type {
                 BenchmarkType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
                     let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, None, &streams);
@@ -1040,7 +1044,6 @@ mod cuda {
                     let h_indexes = [Scalar::ZERO];
                     let cuda_indexes = CudaIndexes::new(&h_indexes, &streams, 0);
 
-                    bench_id = format!("{bench_name}::{name}");
                     {
                         bench_group.bench_function(&bench_id, |b| {
                             b.iter(|| {
@@ -1063,7 +1066,6 @@ mod cuda {
                     let gpu_keys_vec = cuda_local_keys_core(&cpu_keys, None);
                     let gpu_count = get_number_of_gpus() as usize;
 
-                    bench_id = format!("{bench_name}::throughput::{name}");
                     let blocks: usize = 1;
                     let elements = throughput_num_threads(blocks, 1);
                     let elements_per_stream = elements as usize / gpu_count;
@@ -1189,10 +1191,9 @@ mod cuda {
             };
 
             let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
-            write_to_json_unchecked(
-                &bench_id,
+            write_to_json(
+                &benchmark_spec,
                 *params,
-                name,
                 "pbs",
                 &OperatorType::Atomic,
                 bit_size,
@@ -1213,8 +1214,9 @@ mod cuda {
         c: &mut Criterion,
         parameters: &[(String, CryptoParametersRecord<Scalar>, LweBskGroupingFactor)],
     ) {
-        let bench_name = "core_crypto::cuda::multi_bit_pbs";
-        let mut bench_group = c.benchmark_group(bench_name);
+        let cc_bench = CoreCryptoBench::MultiBitPbs;
+        let bench_type = get_bench_type();
+        let mut bench_group = c.benchmark_group(cc_bench.to_string());
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
@@ -1261,9 +1263,11 @@ mod cuda {
                 .multi_bit_bootstrap_key(multi_bit_bsk)
                 .build();
 
-            let bench_id;
+            let benchmark_spec =
+                BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, None, *bench_type);
+            let bench_id = benchmark_spec.to_string();
 
-            match get_bench_type() {
+            match bench_type {
                 BenchmarkType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
                     let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, None, &streams);
@@ -1300,7 +1304,6 @@ mod cuda {
                     let h_indexes = [Scalar::ZERO];
                     let cuda_indexes = CudaIndexes::new(&h_indexes, &streams, 0);
 
-                    bench_id = format!("{bench_name}::{name}");
                     bench_group.bench_function(&bench_id, |b| {
                         b.iter(|| {
                             cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(
@@ -1321,7 +1324,6 @@ mod cuda {
                     let gpu_keys_vec = cuda_local_keys_core(&cpu_keys, None);
                     let gpu_count = get_number_of_gpus() as usize;
 
-                    bench_id = format!("{bench_name}::throughput::{name}");
                     let blocks: usize = 1;
                     let elements = throughput_num_threads(blocks, 1);
                     let elements_per_stream = elements as usize / gpu_count;
@@ -1447,10 +1449,9 @@ mod cuda {
             };
 
             let bit_size = params.message_modulus.unwrap().ilog2();
-            write_to_json_unchecked(
-                &bench_id,
+            write_to_json(
+                &benchmark_spec,
                 *params,
-                name,
                 "pbs",
                 &OperatorType::Atomic,
                 bit_size,

@@ -1,8 +1,10 @@
 pub mod dex;
 pub mod erc7984;
+pub mod kv_store;
 
 use dex::Dex;
 use erc7984::Erc7984;
+use kv_store::KvStoreOp;
 use std::fmt;
 use strum::Display;
 
@@ -18,12 +20,15 @@ pub use super::hl_integer_op::HlIntegerOp;
 /// 2. Add a match arm in `op()` to return the inner op
 ///
 /// `SpecFmt` is already implemented generically — no change needed there.
-#[derive(Display)]
+#[derive(Debug, Clone, Copy, Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum HlapiBench {
     Ops(HlIntegerOp),
     Erc7984(Erc7984),
     Dex(Dex),
+    KvStore(KvStoreOp),
+    NoiseSquash,
+    DecompNoiseSquashComp,
 }
 
 impl HlapiBench {
@@ -32,6 +37,8 @@ impl HlapiBench {
             HlapiBench::Ops(op) => write!(f, "::{op}"),
             HlapiBench::Erc7984(op) => op.fmt_spec(f),
             HlapiBench::Dex(op) => op.fmt_spec(f),
+            HlapiBench::KvStore(op) => write!(f, "::{op}"),
+            HlapiBench::NoiseSquash | HlapiBench::DecompNoiseSquashComp => Ok(()),
         }
     }
 }
