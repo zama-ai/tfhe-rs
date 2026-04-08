@@ -1,4 +1,4 @@
-use benchmark_spec::{BenchmarkSpec, OperandType};
+use benchmark_spec::{BenchmarkSpec, OperandType, TypeName};
 use criterion::Criterion;
 use serde::Serialize;
 use std::path::PathBuf;
@@ -291,8 +291,9 @@ struct BenchmarkParametersRecord<Scalar: UnsignedInteger> {
 pub fn write_to_json<
     Scalar: UnsignedInteger + Serialize,
     T: Into<CryptoParametersRecord<Scalar>>,
+    U: TypeName + ?Sized,
 >(
-    benchmark_spec: &BenchmarkSpec,
+    benchmark_spec: &BenchmarkSpec<U>,
     params: T,
     display_name: impl Into<String>,
     operator_type: &OperatorType,

@@ -1,13 +1,17 @@
+pub mod core_crypto;
 pub mod hl_integer_op;
 pub mod hlapi;
+pub mod shortint;
 
 use std::fmt;
 use strum::Display;
 
 use crate::traits::SpecFmt;
 
+pub use core_crypto::CoreCryptoBench;
 pub use hl_integer_op::HlIntegerOp;
 pub use hlapi::HlapiBench;
+pub use shortint::ShortintBench;
 
 /// Layers of the `tfhe` crate.
 ///
@@ -16,16 +20,20 @@ pub use hlapi::HlapiBench;
 /// 2. Add a match arm in `bench()` — the inner type must implement `SpecFmt`
 ///
 /// `SpecFmt` is already implemented generically — no change needed there.
-#[derive(Display)]
+#[derive(Debug, Clone, Copy, Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum TfheLayer {
+    CoreCrypto(CoreCryptoBench),
     Hlapi(HlapiBench),
+    Shortint(ShortintBench),
 }
 
 impl TfheLayer {
     fn bench(&self) -> &dyn SpecFmt {
         match self {
+            TfheLayer::CoreCrypto(bench) => bench,
             TfheLayer::Hlapi(bench) => bench,
+            TfheLayer::Shortint(bench) => bench,
         }
     }
 }

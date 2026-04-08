@@ -1,7 +1,7 @@
 use strum::Display;
 
 /// Atomic operations shared across layers (hlapi, integer...).
-#[derive(Clone, Copy, Display)]
+#[derive(Debug, Clone, Copy, Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum HlIntegerOp {
     Add,
