@@ -4,9 +4,9 @@ use benchmark::params::{
     benchmark_compression_parameters, benchmark_parameters, multi_bit_benchmark_parameters,
 };
 use benchmark::utilities::{
-    get_param_type, write_to_json_unchecked, CryptoParametersRecord, OperatorType, ParamType,
+    get_param_type, write_to_json, CryptoParametersRecord, OperatorType, ParamType,
 };
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark_spec::{get_bench_type, BenchmarkSpec, BenchmarkType, CoreCryptoBench};
 use criterion::{black_box, Criterion, Throughput};
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -18,8 +18,9 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
     criterion: &mut Criterion,
     parameters: &[(String, CryptoParametersRecord<Scalar>)],
 ) {
-    let bench_name = "core_crypto::keyswitch";
-    let mut bench_group = criterion.benchmark_group(bench_name);
+    let cc_bench = CoreCryptoBench::Keyswitch;
+    let bench_type = get_bench_type();
+    let mut bench_group = criterion.benchmark_group(cc_bench.to_string());
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -54,9 +55,11 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
             &mut encryption_generator,
         );
 
-        let bench_id;
+        let benchmark_spec =
+            BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, None, *bench_type);
+        let bench_id = benchmark_spec.to_string();
 
-        match get_bench_type() {
+        match bench_type {
             BenchmarkType::Latency => {
                 let ct = allocate_and_encrypt_new_lwe_ciphertext(
                     &big_lwe_sk,
@@ -72,7 +75,6 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                     params.ciphertext_modulus.unwrap(),
                 );
 
-                bench_id = format!("{bench_name}::{name}");
                 {
                     bench_group.bench_function(&bench_id, |b| {
                         b.iter(|| {
@@ -83,7 +85,6 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                 }
             }
             BenchmarkType::Throughput => {
-                bench_id = format!("{bench_name}::throughput::{name}");
                 let mut setup = |batch_size: usize| {
                     let input_cts = (0..batch_size)
                         .map(|_| {
@@ -146,10 +147,10 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
         };
 
         let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
-        write_to_json_unchecked(
-            &bench_id,
+
+        write_to_json(
+            &benchmark_spec,
             *params,
-            name,
             "ks",
             &OperatorType::Atomic,
             bit_size,
@@ -160,7 +161,7 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
 
 fn packing_keyswitch<Scalar, F>(
     criterion: &mut Criterion,
-    bench_name: &str,
+    cc_bench: CoreCryptoBench,
     parameters: &[(String, CryptoParametersRecord<Scalar>)],
     ks_op: F,
 ) where
@@ -172,8 +173,8 @@ fn packing_keyswitch<Scalar, F>(
         ) + Sync
         + Send,
 {
-    let bench_name = format!("core_crypto::{bench_name}");
-    let mut bench_group = criterion.benchmark_group(&bench_name);
+    let bench_type = get_bench_type();
+    let mut bench_group = criterion.benchmark_group(cc_bench.to_string());
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -210,9 +211,11 @@ fn packing_keyswitch<Scalar, F>(
             &mut encryption_generator,
         );
 
-        let bench_id;
+        let benchmark_spec =
+            BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, None, *bench_type);
+        let bench_id = benchmark_spec.to_string();
 
-        match get_bench_type() {
+        match bench_type {
             BenchmarkType::Latency => {
                 let mut input_lwe_list = LweCiphertextList::new(
                     Scalar::ZERO,
@@ -241,7 +244,6 @@ fn packing_keyswitch<Scalar, F>(
                     ciphertext_modulus,
                 );
 
-                bench_id = format!("{bench_name}::{name}");
                 {
                     bench_group.bench_function(&bench_id, |b| {
                         b.iter(|| {
@@ -252,7 +254,6 @@ fn packing_keyswitch<Scalar, F>(
                 }
             }
             BenchmarkType::Throughput => {
-                bench_id = format!("{bench_name}::throughput::{name}");
                 let mut setup = |batch_size: usize| {
                     let input_lwe_lists = (0..batch_size)
                         .map(|_| {
@@ -330,10 +331,9 @@ fn packing_keyswitch<Scalar, F>(
         };
 
         let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
-        write_to_json_unchecked(
-            &bench_id,
+        write_to_json(
+            &benchmark_spec,
             *params,
-            name,
             "packing_ks",
             &OperatorType::Atomic,
             bit_size,
@@ -346,11 +346,12 @@ fn packing_keyswitch<Scalar, F>(
 mod cuda {
     use benchmark::params::{benchmark_parameters, multi_bit_benchmark_parameters};
     use benchmark::utilities::{
-        cuda_local_keys_core, cuda_local_streams_core, throughput_num_threads,
-        write_to_json_unchecked, CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes,
-        CudaLocalKeys, OperatorType,
+        cuda_local_keys_core, cuda_local_streams_core, throughput_num_threads, write_to_json,
+        CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes, CudaLocalKeys, OperatorType,
     };
-    use benchmark_spec::{get_bench_type, BenchmarkType};
+    use benchmark_spec::{
+        get_bench_type, BenchmarkSpec, BenchmarkType, CoreCryptoBench, CudaKeyswitchConfig,
+    };
     use criterion::{black_box, Criterion, Throughput};
     use itertools::Itertools;
     use rayon::prelude::*;
@@ -373,8 +374,9 @@ mod cuda {
         criterion: &mut Criterion,
         parameters: &[(String, CryptoParametersRecord<Scalar>)],
     ) {
-        let bench_name = "core_crypto::cuda::keyswitch";
-        let mut bench_group = criterion.benchmark_group(bench_name);
+        let cc_bench = CoreCryptoBench::Keyswitch;
+        let bench_type = get_bench_type();
+        let mut bench_group = criterion.benchmark_group(cc_bench.to_string());
 
         // Create the PRNG
         let mut seeder = new_seeder();
@@ -446,9 +448,9 @@ mod cuda {
                 .keyswitch_key(ksk_big_to_small)
                 .build();
 
-            let mut bench_id;
+            let ks_bits = KeyswitchScalar::BITS as u32;
 
-            match get_bench_type() {
+            match bench_type {
                 BenchmarkType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
                     let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, None, &streams);
@@ -473,10 +475,14 @@ mod cuda {
                     let h_indexes = [Scalar::ZERO];
                     let cuda_indexes = CudaIndexes::new(&h_indexes, &streams, 0);
 
-                    bench_id = format!(
-                        "{bench_name}::latency::{:?}b::{name}",
-                        KeyswitchScalar::BITS
+                    let ks_config = CudaKeyswitchConfig::new(ks_bits, None, None);
+                    let benchmark_spec = BenchmarkSpec::new_core_crypto(
+                        cc_bench,
+                        name,
+                        Some(&ks_config),
+                        *bench_type,
                     );
+                    let bench_id = benchmark_spec.to_string();
                     {
                         bench_group.bench_function(&bench_id, |b| {
                             b.iter(|| {
@@ -497,10 +503,9 @@ mod cuda {
                     }
 
                     let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
-                    write_to_json_unchecked(
-                        &bench_id,
+                    write_to_json(
+                        &benchmark_spec,
                         *params,
-                        name,
                         "ks",
                         &OperatorType::Atomic,
                         bit_size,
@@ -513,16 +518,18 @@ mod cuda {
 
                     for uses_gemm_ks in [false, true] {
                         for uses_trivial_indices in [false, true] {
-                            let indices_str = if uses_trivial_indices {
-                                "trivial"
-                            } else {
-                                "complex"
-                            };
-                            let gemm_str = if uses_gemm_ks { "gemm" } else { "classical" };
-                            bench_id = format!(
-                                "{bench_name}::throughput::{:?}b::{gemm_str}::{indices_str}_indices::{name}",
-                                KeyswitchScalar::BITS
+                            let ks_config = CudaKeyswitchConfig::new(
+                                ks_bits,
+                                Some(uses_gemm_ks),
+                                Some(uses_trivial_indices),
                             );
+                            let benchmark_spec = BenchmarkSpec::new_core_crypto(
+                                cc_bench,
+                                name,
+                                Some(&ks_config),
+                                *bench_type,
+                            );
+                            let bench_id = benchmark_spec.to_string();
 
                             let blocks: usize = 256;
                             let elements = gpu_count * blocks;
@@ -631,10 +638,9 @@ mod cuda {
                             });
 
                             let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
-                            write_to_json_unchecked(
-                                &bench_id,
+                            write_to_json(
+                                &benchmark_spec,
                                 *params,
-                                name,
                                 "ks",
                                 &OperatorType::Atomic,
                                 bit_size,
@@ -653,8 +659,9 @@ mod cuda {
         criterion: &mut Criterion,
         parameters: &[(String, CryptoParametersRecord<Scalar>)],
     ) {
-        let bench_name = "core_crypto::cuda::packing_keyswitch";
-        let mut bench_group = criterion.benchmark_group(bench_name);
+        let cc_bench = CoreCryptoBench::PackingKeyswitch;
+        let bench_type = get_bench_type();
+        let mut bench_group = criterion.benchmark_group(cc_bench.to_string());
 
         // Create the PRNG
         let mut seeder = new_seeder();
@@ -696,8 +703,10 @@ mod cuda {
 
             let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new().packing_keyswitch_key(pksk).build();
 
-            let bench_id;
-            match get_bench_type() {
+            let benchmark_spec =
+                BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, None, *bench_type);
+            let bench_id = benchmark_spec.to_string();
+            match bench_type {
                 BenchmarkType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
 
@@ -750,7 +759,6 @@ mod cuda {
 
                     streams.synchronize();
 
-                    bench_id = format!("{bench_name}::{name}");
                     {
                         bench_group.bench_function(&bench_id, |b| {
                             b.iter(|| {
@@ -768,8 +776,6 @@ mod cuda {
                 BenchmarkType::Throughput => {
                     let gpu_keys_vec = cuda_local_keys_core(&cpu_keys, None);
                     let gpu_count = get_number_of_gpus() as usize;
-
-                    bench_id = format!("{bench_name}::throughput::{name}");
 
                     let mem_size = get_packing_keyswitch_list_64_size_on_gpu(
                         &CudaStreams::new_single_gpu(GpuIndex::new(0)),
@@ -874,10 +880,9 @@ mod cuda {
             };
 
             let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
-            write_to_json_unchecked(
-                &bench_id,
+            write_to_json(
+                &benchmark_spec,
                 *params,
-                name,
                 "packing_ks",
                 &OperatorType::Atomic,
                 bit_size,
@@ -963,13 +968,13 @@ pub fn packing_ks_group() {
     .configure_from_args();
     packing_keyswitch(
         &mut criterion,
-        "packing_keyswitch",
+        CoreCryptoBench::PackingKeyswitch,
         &benchmark_compression_parameters(),
         keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext,
     );
     packing_keyswitch(
         &mut criterion,
-        "par_packing_keyswitch",
+        CoreCryptoBench::ParPackingKeyswitch,
         &benchmark_compression_parameters(),
         par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext,
     );

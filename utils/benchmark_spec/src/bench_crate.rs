@@ -4,7 +4,7 @@ use strum::Display;
 use crate::tfhe::TfheLayer;
 use crate::traits::SpecFmt;
 
-#[derive(Display)]
+#[derive(Debug, Clone, Copy, Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum BenchCrate {
     Tfhe(TfheLayer),
