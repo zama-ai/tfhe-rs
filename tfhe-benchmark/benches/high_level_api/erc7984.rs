@@ -331,7 +331,7 @@ mod pbs_stats {
 
         benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &test_name,
             params,
             "pbs-count",
@@ -385,7 +385,7 @@ fn bench_transfer_latency<FheType, F>(
         })
     });
 
-    write_to_json::<u64, _>(
+    write_to_json::<u64, _, _>(
         &bench_spec,
         params,
         "erc7984-transfer",
@@ -452,7 +452,7 @@ fn bench_transfer_latency_simd<FheType, F>(
         })
     });
 
-    write_to_json::<u64, _>(
+    write_to_json::<u64, _, _>(
         &bench_spec,
         params,
         "erc7984-simd-transfer",
@@ -513,7 +513,7 @@ fn bench_transfer_throughput<FheType, F>(
             })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &bench_spec,
             params,
             "erc7984-transfer",
@@ -609,7 +609,7 @@ fn cuda_bench_transfer_throughput<FheType, F>(
         });
     });
 
-    write_to_json::<u64, _>(
+    write_to_json::<u64, _, _>(
         &bench_spec,
         params,
         "erc7984-transfer",
@@ -678,7 +678,7 @@ fn hpu_bench_transfer_throughput<FheType, F>(
             });
         });
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &bench_spec,
             params,
             "erc7984-transfer",
@@ -768,7 +768,7 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
             });
         });
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &bench_spec,
             params,
             "erc7984-simd-transfer",
