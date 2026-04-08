@@ -5,7 +5,7 @@ use strum::Display;
 use crate::traits::SpecFmt;
 
 /// ERC-7984 token transfer benchmark operations for the HLAPI layer.
-#[derive(Clone, Copy, Display)]
+#[derive(Debug, Clone, Copy, Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum Erc7984 {
     Transfer(TransferFlavor),
@@ -25,7 +25,7 @@ impl SpecFmt for Erc7984 {
     }
 }
 
-#[derive(Clone, Copy, Display)]
+#[derive(Debug, Clone, Copy, Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum TransferFlavor {
     Whitepaper,

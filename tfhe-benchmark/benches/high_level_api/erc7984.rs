@@ -2,7 +2,9 @@
 use benchmark::utilities::{configure_gpu, get_param_type, ParamType};
 use benchmark::utilities::{write_to_json, OperatorType};
 use benchmark_spec::tfhe::hlapi::erc7984::{Erc7984, TransferFlavor};
-use benchmark_spec::{get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, OperandType};
+use benchmark_spec::{
+    get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, HlapiBench, OperandType,
+};
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
 use rand::thread_rng;
@@ -317,8 +319,8 @@ mod pbs_stats {
         let params = client_key.computation_parameters();
         let params_name = params.name();
 
-        let test_name = BenchmarkSpec::new_hlapi_erc7984(
-            erc7984_bench_spec,
+        let test_name = BenchmarkSpec::new_hlapi(
+            HlapiBench::Erc7984(erc7984_bench_spec),
             &params_name,
             OperandType::CipherText,
             Some(type_name),
@@ -330,7 +332,7 @@ mod pbs_stats {
 
         benchmark_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &test_name,
             params,
             "pbs-count",
@@ -360,8 +362,8 @@ fn bench_transfer_latency<FheType, F>(
 
     let mut c = c.benchmark_group(type_name);
 
-    let bench_spec = BenchmarkSpec::new_hlapi_erc7984(
-        erc7984_bench_spec,
+    let bench_spec = BenchmarkSpec::new_hlapi(
+        HlapiBench::Erc7984(erc7984_bench_spec),
         &params_name,
         OperandType::CipherText,
         Some(type_name),
@@ -385,7 +387,7 @@ fn bench_transfer_latency<FheType, F>(
         })
     });
 
-    write_to_json::<u64, _>(
+    write_to_json::<u64, _, _>(
         &bench_spec,
         params,
         "erc7984-transfer",
@@ -420,8 +422,8 @@ fn bench_transfer_latency_simd<FheType, F>(
     let params_name = params.name();
     let mut c = c.benchmark_group(type_name);
 
-    let bench_spec = BenchmarkSpec::new_hlapi_erc7984(
-        erc7984_bench_spec,
+    let bench_spec = BenchmarkSpec::new_hlapi(
+        HlapiBench::Erc7984(erc7984_bench_spec),
         &params_name,
         OperandType::CipherText,
         Some(type_name),
@@ -452,7 +454,7 @@ fn bench_transfer_latency_simd<FheType, F>(
         })
     });
 
-    write_to_json::<u64, _>(
+    write_to_json::<u64, _, _>(
         &bench_spec,
         params,
         "erc7984-simd-transfer",
@@ -482,8 +484,8 @@ fn bench_transfer_throughput<FheType, F>(
 
     for num_elems in [10, 100, 500] {
         group.throughput(Throughput::Elements(num_elems));
-        let bench_spec = BenchmarkSpec::new_hlapi_erc7984(
-            erc7984_bench_spec,
+        let bench_spec = BenchmarkSpec::new_hlapi(
+            HlapiBench::Erc7984(erc7984_bench_spec),
             &params_name,
             OperandType::CipherText,
             Some(type_name),
@@ -512,7 +514,7 @@ fn bench_transfer_throughput<FheType, F>(
             })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &bench_spec,
             params,
             "erc7984-transfer",
@@ -552,8 +554,8 @@ fn cuda_bench_transfer_throughput<FheType, F>(
     let mut group = c.benchmark_group(type_name);
     group.throughput(Throughput::Elements(num_elems));
 
-    let bench_spec = BenchmarkSpec::new_hlapi_erc7984(
-        erc7984_bench_spec,
+    let bench_spec = BenchmarkSpec::new_hlapi(
+        HlapiBench::Erc7984(erc7984_bench_spec),
         &params_name,
         OperandType::CipherText,
         Some(type_name),
@@ -607,7 +609,7 @@ fn cuda_bench_transfer_throughput<FheType, F>(
         });
     });
 
-    write_to_json::<u64, _>(
+    write_to_json::<u64, _, _>(
         &bench_spec,
         params,
         "erc7984-transfer",
@@ -637,8 +639,8 @@ fn hpu_bench_transfer_throughput<FheType, F>(
     let mut group = group.benchmark_group(type_name);
     for num_elems in [10, 100] {
         group.throughput(Throughput::Elements(num_elems));
-        let bench_spec = BenchmarkSpec::new_hlapi_erc7984(
-            erc7984_bench_spec,
+        let bench_spec = BenchmarkSpec::new_hlapi(
+            HlapiBench::Erc7984(erc7984_bench_spec),
             &params_name,
             OperandType::CipherText,
             Some(type_name),
@@ -675,7 +677,7 @@ fn hpu_bench_transfer_throughput<FheType, F>(
             });
         });
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &bench_spec,
             params,
             "erc7984-transfer",
@@ -714,8 +716,8 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
     for num_elems in [2, 8] {
         let real_num_elems = num_elems * (hpu_simd_n as u64);
         group.throughput(Throughput::Elements(real_num_elems));
-        let bench_spec = BenchmarkSpec::new_hlapi_erc7984(
-            erc7984_bench_spec,
+        let bench_spec = BenchmarkSpec::new_hlapi(
+            HlapiBench::Erc7984(erc7984_bench_spec),
             &params_name,
             OperandType::CipherText,
             Some(type_name),
@@ -764,7 +766,7 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
             });
         });
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &bench_spec,
             params,
             "erc7984-simd-transfer",

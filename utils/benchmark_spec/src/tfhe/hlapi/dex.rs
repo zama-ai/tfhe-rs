@@ -5,7 +5,7 @@ use strum::Display;
 use crate::traits::SpecFmt;
 
 /// DEX (decentralized exchange) benchmark operations for the HLAPI layer.
-#[derive(Clone, Copy, Display)]
+#[derive(Debug, Clone, Copy, Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum Dex {
     SwapRequest(DexFlavor),
@@ -27,7 +27,7 @@ impl SpecFmt for Dex {
     }
 }
 
-#[derive(Clone, Copy, Display)]
+#[derive(Debug, Clone, Copy, Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum DexFlavor {
     Whitepaper,
