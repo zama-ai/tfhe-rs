@@ -1,12 +1,12 @@
 As TFHE-rs is the underlying library of the Zama Confidential Blockchain Protocol, to illustrate real-world performance,  
-consider an ERC20 transfer that requires executing the following sequence of operations:
+consider an ERC7984 transfer that requires executing the following sequence of operations:
 ```rust
 use tfhe::FheUint64;
 use tfhe::prelude::FheOrd;
 use tfhe::prelude::FheTrivialEncrypt;
 use tfhe::prelude::IfThenElse;
 #[allow(dead_code)]
-fn erc20_transfer_whitepaper(
+fn erc7984_transfer_whitepaper(
     from_amount: &FheUint64,
     to_amount: &FheUint64,
     amount: &FheUint64,
@@ -21,14 +21,14 @@ fn erc20_transfer_whitepaper(
     (new_from_amount, new_to_amount)
 }
 ```
-This is one way to compute an encrypted ERC20 transfer, but it is not the most efficient.
+This is one way to compute an encrypted ERC7984 transfer, but it is not the most efficient.
 Instead, it is possible to compute the same transfer in a more efficient way by not using the `select` operation:
 ```rust
 use tfhe::FheUint64;
 use tfhe::prelude::FheOrd;
 use tfhe::prelude::CastFrom;
 #[allow(dead_code)]
-fn erc20_transfer_no_cmux(
+fn erc7984_transfer_no_cmux(
     from_amount: &FheUint64,
     to_amount: &FheUint64,
     amount: &FheUint64,
@@ -43,14 +43,14 @@ fn erc20_transfer_no_cmux(
     (new_from_amount, new_to_amount)
 }
 ```
-An even more efficient way to compute an encrypted ERC20 transfer is to use the `overflowing_sub` operation as follows:
+An even more efficient way to compute an encrypted ERC7984 transfer is to use the `overflowing_sub` operation as follows:
 ```rust
 use tfhe::FheUint64;
 use tfhe::prelude::OverflowingSub;
 use tfhe::prelude::CastFrom;
 use tfhe::prelude::IfThenElse;
 #[allow(dead_code)]
-fn erc20_transfer_overflow(
+fn erc7984_transfer_overflow(
     from_amount: &FheUint64,
     to_amount: &FheUint64,
     amount: &FheUint64,
@@ -70,9 +70,9 @@ In a blockchain protocol, the FHE operations would not be the only ones used to 
 ciphertext compression and decompression, as well as rerandomization, would also be used. 
 Network communications would also introduce significant overhead.
 For the sake of simplicity, here the focus is only placed on the performance of the FHE operations.
-The latency and throughput of these three ERC20 FHE transfer implementations are compared in the following table:
+The latency and throughput of these three ERC7984 FHE transfer implementations are compared in the following table:
 
-![](../../../.gitbook/assets/cpu-hlapi-erc20-benchmark-latency-throughput.svg)
+![](../../../.gitbook/assets/cpu-hlapi-erc7984-benchmark-latency-throughput.svg)
 
 The throughput shown here is the maximum that can be achieved with TFHE-rs on CPU, in an ideal scenario where all transactions are independent. 
 In a blockchain protocol, the throughput would be limited by the latency of the network, but also by the necessity to apply other operations 

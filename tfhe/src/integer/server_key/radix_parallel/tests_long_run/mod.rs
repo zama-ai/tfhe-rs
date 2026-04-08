@@ -10,9 +10,9 @@ use rand::Rng;
 use tfhe_csprng::generators::DefaultRandomGenerator;
 use tfhe_csprng::seeders::{Seed, Seeder};
 
-pub(crate) mod test_erc20;
+pub(crate) mod test_erc7984;
 pub(crate) mod test_random_op_sequence;
-pub(crate) mod test_signed_erc20;
+pub(crate) mod test_signed_erc7984;
 pub(crate) mod test_signed_random_op_sequence;
 
 pub(crate) const NB_CTXT_LONG_RUN: usize = 32;

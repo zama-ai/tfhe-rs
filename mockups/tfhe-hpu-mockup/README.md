@@ -164,7 +164,7 @@ cargo run --release --features="hpu" --test hpu -- u8
 # * bitwise: for ct x ct bitwise IOps
 # * cmp: for comparison IOps
 # * ternary: for if-then-else and like IOps
-# * algo: for IOps dedicated to offload sub-algorithm like ERC_20
+# * algo: for IOps dedicated to offload sub-algorithm like ERC_7984
 # Command below only run comparison IOps, for convenience, `just hpu_test "cmp"` could be also used
 cargo run --release --features="hpu" --test hpu -- cmp
 ```

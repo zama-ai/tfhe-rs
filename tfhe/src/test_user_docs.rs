@@ -17,8 +17,8 @@ mod test_cpu_doc {
 
     // BENCHMARKS
     doctest!(
-        "../docs/getting-started/benchmarks/cpu/cpu-erc20.md",
-        benchmarks_cpu_erc20
+        "../docs/getting-started/benchmarks/cpu/cpu-erc7984.md",
+        benchmarks_cpu_erc7984
     );
 
     // FHE COMPUTATION

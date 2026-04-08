@@ -10,9 +10,9 @@ use crate::{CompressedServerKey, CudaGpuChoice, CustomMultiGpuIndexes, GpuIndex,
 use tfhe_csprng::generators::DefaultRandomGenerator;
 use tfhe_csprng::seeders::{Seed, Seeder};
 
-pub(crate) mod test_erc20;
+pub(crate) mod test_erc7984;
 pub(crate) mod test_random_op_sequence;
-pub(crate) mod test_signed_erc20;
+pub(crate) mod test_signed_erc7984;
 pub(crate) mod test_signed_random_op_sequence;
 
 /// Fisher-Yates shuffle using the seeded random number generator

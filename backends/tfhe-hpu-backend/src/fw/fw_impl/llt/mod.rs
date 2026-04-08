@@ -70,7 +70,7 @@ crate::impl_fw!("Llt" [
     IF_THEN_ZERO => fw_impl::ilp::iop_if_then_zero;
     IF_THEN_ELSE => fw_impl::ilp::iop_if_then_else;
 
-    ERC_20 => fw_impl::llt::iop_erc_20;
+    ERC_7984 => fw_impl::llt::iop_erc_7984;
     MEMCPY => fw_impl::ilp::iop_memcpy;
 
     COUNT0 => fw_impl::ilp_log::iop_count0;
@@ -83,7 +83,7 @@ crate::impl_fw!("Llt" [
 
     // SIMD Implementations
     ADD_SIMD     => fw_impl::llt::iop_add_simd;
-    ERC_20_SIMD  => fw_impl::llt::iop_erc_20_simd;
+    ERC_7984_SIMD  => fw_impl::llt::iop_erc_7984_simd;
 ]);
 
 // ----------------------------------------------------------------------------
@@ -225,24 +225,24 @@ pub fn iop_muls(prog: &mut Program) {
 }
 
 #[instrument(level = "trace", skip(prog))]
-pub fn iop_erc_20(prog: &mut Program) {
+pub fn iop_erc_7984(prog: &mut Program) {
     // Add Comment header
-    prog.push_comment("ERC_20 (new_from, new_to) <- (from, to, amount)".to_string());
+    prog.push_comment("ERC_7984 (new_from, new_to) <- (from, to, amount)".to_string());
     // TODO: Make sweep of kogge_blk_w
     // All these little parameters would be very handy to write an
     // exploration/compilation program which would try to minimize latency by
     // playing with these.
-    iop_erc_20_rtl(prog, 0, Some(10)).add_to_prog(prog);
+    iop_erc_7984_rtl(prog, 0, Some(10)).add_to_prog(prog);
 }
 
 #[instrument(level = "trace", skip(prog))]
-pub fn iop_erc_20_simd(prog: &mut Program) {
+pub fn iop_erc_7984_simd(prog: &mut Program) {
     // Add Comment header
-    prog.push_comment("ERC_20_SIMD (new_from, new_to) <- (from, to, amount)".to_string());
+    prog.push_comment("ERC_7984_SIMD (new_from, new_to) <- (from, to, amount)".to_string());
     simd(
         prog,
         crate::asm::iop::SIMD_N,
-        fw_impl::llt::iop_erc_20_rtl,
+        fw_impl::llt::iop_erc_7984_rtl,
         None,
     );
 }
@@ -379,7 +379,7 @@ pub fn iop_rotate_scalar_left(prog: &mut Program) {
 // Helper Functions
 // ----------------------------------------------------------------------------
 
-/// Implement erc_20 fund xfer
+/// Implement erc_7984 fund xfer
 /// Targeted algorithm is as follow:
 /// 1. Check that from has enough funds
 /// 2. Compute real_amount to xfer (i.e. amount or 0)
@@ -391,7 +391,7 @@ pub fn iop_rotate_scalar_left(prog: &mut Program) {
 ///     (dst_from[0], dst_to[0], ..., dst_from[N-1], dst_to[N-1])
 /// Where N is the batch size
 #[instrument(level = "trace", skip(prog))]
-pub fn iop_erc_20_rtl(prog: &mut Program, batch_index: u8, kogge_blk_w: Option<usize>) -> Rtl {
+pub fn iop_erc_7984_rtl(prog: &mut Program, batch_index: u8, kogge_blk_w: Option<usize>) -> Rtl {
     // Allocate metavariables:
     // Dest -> Operand
     let dst_from = prog.iop_template_var(OperandKind::Dst, 2 * batch_index);

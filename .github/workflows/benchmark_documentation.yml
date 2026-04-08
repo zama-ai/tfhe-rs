@@ -40,7 +40,7 @@ jobs:
     uses: ./.github/workflows/benchmark_cpu_common.yml
     if: inputs.run-cpu-benchmarks
     with:
-      command: integer,hlapi_erc20
+      command: integer,hlapi_erc7984
       op_flavor: fast_default
       bench_type: both
       precisions_set: documentation
@@ -95,7 +95,7 @@ jobs:
     with:
       profile: multi-h100-sxm5
       hardware_name: n3-H100-SXM5x8
-      command: integer_multi_bit,hlapi_erc20
+      command: integer_multi_bit,hlapi_erc7984
       op_flavor: fast_default
       bench_type: both
       precisions_set: documentation
@@ -114,7 +114,7 @@ jobs:
     uses: ./.github/workflows/benchmark_hpu_common.yml
     if: inputs.run-hpu-benchmarks
     with:
-      command: integer,hlapi_erc20
+      command: integer,hlapi_erc7984
       op_flavor: default
       bench_type: both
       precisions_set: documentation

@@ -74,9 +74,9 @@ pub const IF_THEN_ZERO: u8 = 0xCA;
 pub const IF_THEN_ELSE: u8 = 0xCB;
 
 // Custom algorithm
-// ERC20 -> Found xfer algorithm
+// ERC7984 -> Found xfer algorithm
 // 2Ct <- func(3Ct)
-pub const ERC_20: u8 = 0x80;
+pub const ERC_7984: u8 = 0x80;
 
 // Count bits
 pub const COUNT0: u8 = 0x81;
@@ -89,7 +89,7 @@ pub const TRAIL1: u8 = 0x87;
 
 // SIMD for maximum throughput
 pub const ADD_SIMD: u8 = 0xF0;
-pub const ERC_20_SIMD: u8 = 0xF1;
+pub const ERC_7984_SIMD: u8 = 0xF1;
 //
 // Utility operations
 // Used to handle real clone of ciphertext already uploaded in the Hpu memory

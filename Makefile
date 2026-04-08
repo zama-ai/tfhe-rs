@@ -1934,25 +1934,25 @@ bench_hlapi_hpu: install_rs_check_toolchain
 	--bench hlapi \
 	--features=integer,internal-keycache,hpu,hpu-v80,pbs-stats -p tfhe-benchmark --
 
-.PHONY: bench_hlapi_erc20 # Run benchmarks for ERC20 operations
-bench_hlapi_erc20: install_rs_check_toolchain
+.PHONY: bench_hlapi_erc7984 # Run benchmarks for ERC7984 operations
+bench_hlapi_erc7984: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench hlapi-erc20 \
+	--bench hlapi-erc7984 \
 	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
-.PHONY: bench_hlapi_erc20_gpu # Run benchmarks for ERC20 operations on GPU
-bench_hlapi_erc20_gpu: install_rs_check_toolchain
+.PHONY: bench_hlapi_erc7984_gpu # Run benchmarks for ERC7984 operations on GPU
+bench_hlapi_erc7984_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench hlapi-erc20 \
+	--bench hlapi-erc7984 \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
-.PHONY: bench_hlapi_erc20_gpu_classical # Run benchmarks for ERC20 operations on GPU with classical parameters
-bench_hlapi_erc20_gpu_classical: install_rs_check_toolchain
+.PHONY: bench_hlapi_erc7984_gpu_classical # Run benchmarks for ERC7984 operations on GPU with classical parameters
+bench_hlapi_erc7984_gpu_classical: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=classical \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench hlapi-erc20 \
+	--bench hlapi-erc7984 \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_hlapi_dex # Run benchmarks for DEX operations
@@ -1976,13 +1976,13 @@ bench_hlapi_dex_gpu_classical: install_rs_check_toolchain
 	--bench hlapi-dex \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
-.PHONY: bench_hlapi_erc20_hpu # Run benchmarks for ECR20 operations on HPU
-bench_hlapi_erc20_hpu: install_rs_check_toolchain
+.PHONY: bench_hlapi_erc7984_hpu # Run benchmarks for ECR20 operations on HPU
+bench_hlapi_erc7984_hpu: install_rs_check_toolchain
 	source ./setup_hpu.sh --config $(HPU_CONFIG); \
 	export V80_PCIE_DEV=${V80_PCIE_DEV}; \
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench hlapi-erc20 \
+	--bench hlapi-erc7984 \
 	--features=integer,internal-keycache,hpu,hpu-v80,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_tfhe_zk_pok # Run benchmarks for the tfhe_zk_pok crate
@@ -2038,10 +2038,10 @@ bench_summary: install_rs_check_toolchain
 	--bench hlapi-noise-squash \
 	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark -- '::decomp_noise_squash_comp::'
 
-	# ERC20
+	# ERC7984
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench hlapi-erc20 \
+	--bench hlapi-erc7984 \
 	--features=integer,internal-keycache -p tfhe-benchmark -- '::transfer::overflow'
 
 	# DEX
@@ -2083,10 +2083,10 @@ bench_summary_gpu: install_rs_check_toolchain
 	--bench hlapi-noise-squash \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::decomp_noise_squash_comp::'
 
-	# ERC20
+	# ERC7984
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench hlapi-erc20 \
+	--bench hlapi-erc7984 \
 	--features=integer,gpu,internal-keycache -p tfhe-benchmark --profile release_lto_off -- '::transfer::overflow'
 
 	# DEX

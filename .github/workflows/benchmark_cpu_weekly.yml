@@ -108,14 +108,14 @@ jobs:
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
-  run-benchmarks-hlapi-erc20:
-    name: benchmark_cpu_weekly/run-benchmarks-hlapi-erc20
+  run-benchmarks-hlapi-erc7984:
+    name: benchmark_cpu_weekly/run-benchmarks-hlapi-erc7984
     if: needs.prepare-inputs.outputs.is_weekly_bench_group_2 == 'true'
     needs: prepare-inputs
     uses: ./.github/workflows/benchmark_cpu_common.yml
     with:
-      command: hlapi_erc20
-      additional_file_to_parse: erc20_pbs_count.csv
+      command: hlapi_erc7984
+      additional_file_to_parse: erc7984_pbs_count.csv
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}

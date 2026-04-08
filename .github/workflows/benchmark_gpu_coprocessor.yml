@@ -42,7 +42,7 @@ env:
   OPTIMIZATION_TARGET: "throughput"
   BATCH_SIZE: "5000"
   SCHEDULING_POLICY: "MAX_PARALLELISM"
-  BENCHMARKS: "erc20"
+  BENCHMARKS: "erc7984"
   BRANCH_NAME: ${{ github.ref_name }}
   COMMIT_SHA: ${{ github.sha }}
   SLAB_SECRET: ${{ secrets.JOB_SECRET }}
@@ -248,13 +248,13 @@ jobs:
           npm install && npm run deploy:emptyProxies && npx hardhat compile
         working-directory: fhevm/
 
-      - name: Profile erc20 no-cmux benchmark on GPU
+      - name: Profile erc7984 no-cmux benchmark on GPU
         run: |
           BENCHMARK_BATCH_SIZE="${BATCH_SIZE}" \
           FHEVM_DF_SCHEDULE="${SCHEDULING_POLICY}" \
           BENCHMARK_TYPE="THROUGHPUT_200" \
           OPTIMIZATION_TARGET="${OPTIMIZATION_TARGET}" \
-          make -e "profile_erc20_gpu"
+          make -e "profile_erc7984_gpu"
         working-directory: fhevm/coprocessor/fhevm-engine/tfhe-worker
 
       - name: Get nsys profile name

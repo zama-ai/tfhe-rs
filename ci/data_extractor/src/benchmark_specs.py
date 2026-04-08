@@ -302,7 +302,7 @@ class BenchType(enum.StrEnum):
 
 class BenchSubset(enum.StrEnum):
     All = "all"
-    Erc20 = "erc20"
+    Erc7984 = "erc7984"
     Zk = "zk"
 
     @staticmethod
@@ -310,8 +310,8 @@ class BenchSubset(enum.StrEnum):
         match bench_subset.lower():
             case "all":
                 return BenchSubset.All
-            case "erc20":
-                return BenchSubset.Erc20
+            case "erc7984":
+                return BenchSubset.Erc7984
             case "zk":
                 return BenchSubset.Zk
             case _:
@@ -611,14 +611,14 @@ class BenchDetails:
                         # Case for arithmetic operations (add, sub, mul,...)
                         self.operation_name = "::".join(parts[2:-2])
                     else:
-                        # Case for higher-level operation (erc20 transfer, dex,...)
+                        # Case for higher-level operation (erc7984 transfer, dex,...)
                         self.operation_name = "::".join(parts[2:-1])
                 else:
                     if "_PARAM_" in parts[-2]:
                         # Case for arithmetic operations (add, sub, mul,...)
                         self.operation_name = "::".join(parts[1:-2])
                     else:
-                        # Case for higher-level operation (erc20 transfer, dex,...)
+                        # Case for higher-level operation (erc7984 transfer, dex,...)
                         self.operation_name = "::".join(parts[1:-1])
                 self.rust_type = parts[-1].partition("_mean")[0]
             case Layer.Shortint:

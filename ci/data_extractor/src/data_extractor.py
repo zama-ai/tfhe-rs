@@ -137,7 +137,7 @@ parser.add_argument(
 parser.add_argument(
     "--bench-subset",
     dest="bench_subset",
-    choices=["all", "erc20", "zk"],
+    choices=["all", "erc7984", "zk"],
     default="all",
     help="Subset of benchmarks to filter against, dedicated formatting will be applied",
 )
@@ -285,8 +285,8 @@ def perform_hardware_comparison(
 
 def get_formatter(layer: Layer, bench_subset: BenchSubset):
     match bench_subset:
-        case BenchSubset.Erc20:
-            return formatters.hlapi.Erc20Formatter
+        case BenchSubset.Erc7984:
+            return formatters.hlapi.Erc7984Formatter
         case BenchSubset.Zk:
             if layer == Layer.Wasm:
                 return formatters.wasm.ZKFormatter
@@ -442,7 +442,7 @@ def get_operands_types(layer: Layer, bench_subset: BenchSubset = None):
         return ciphertext_only
     elif bench_subset:
         match bench_subset:
-            case BenchSubset.Zk | BenchSubset.Erc20:
+            case BenchSubset.Zk | BenchSubset.Erc7984:
                 return ciphertext_only
             case BenchSubset.All:
                 return ciphertext_and_plaintext

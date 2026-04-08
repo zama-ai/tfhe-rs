@@ -13,14 +13,14 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parameterized_test!(whitepaper_erc20 {
+create_parameterized_test!(whitepaper_erc7984 {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
-create_parameterized_test!(no_cmux_erc20 {
+create_parameterized_test!(no_cmux_erc7984 {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 
-fn whitepaper_erc20<P>(param: P)
+fn whitepaper_erc7984<P>(param: P)
 where
     P: Into<TestParameters>,
 {
@@ -28,7 +28,7 @@ where
     let add_executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized);
     let if_then_else_executor = CpuFunctionExecutor::new(&ServerKey::cmux_parallelized);
     let sub_executor = CpuFunctionExecutor::new(&ServerKey::sub_parallelized);
-    signed_whitepaper_erc20_test(
+    signed_whitepaper_erc7984_test(
         param,
         ge_executor,
         add_executor,
@@ -37,7 +37,7 @@ where
     );
 }
 
-fn no_cmux_erc20<P>(param: P)
+fn no_cmux_erc7984<P>(param: P)
 where
     P: Into<TestParameters>,
 {
@@ -45,10 +45,10 @@ where
     let mul_executor = CpuFunctionExecutor::new(&ServerKey::mul_parallelized);
     let add_executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized);
     let sub_executor = CpuFunctionExecutor::new(&ServerKey::sub_parallelized);
-    signed_no_cmux_erc20_test(param, ge_executor, mul_executor, add_executor, sub_executor);
+    signed_no_cmux_erc7984_test(param, ge_executor, mul_executor, add_executor, sub_executor);
 }
 
-pub(crate) fn signed_whitepaper_erc20_test<P, T1, T2, T3, T4>(
+pub(crate) fn signed_whitepaper_erc7984_test<P, T1, T2, T3, T4>(
     param: P,
     mut ge_executor: T1,
     mut add_executor: T2,
@@ -126,11 +126,11 @@ pub(crate) fn signed_whitepaper_erc20_test<P, T1, T2, T3, T4>(
 
         assert_eq!(
             decrypt_signed_new_from_amount, expected_new_from_amount,
-            "Invalid erc20 result on from amount: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}, expected new from amount: {expected_new_from_amount}."
+            "Invalid erc7984 result on from amount: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}, expected new from amount: {expected_new_from_amount}."
         );
         assert_eq!(
             decrypt_signed_new_to_amount, expected_new_to_amount,
-            "Invalid erc20 result on to amount."
+            "Invalid erc7984 result on to amount."
         );
 
         // Determinism check
@@ -146,16 +146,16 @@ pub(crate) fn signed_whitepaper_erc20_test<P, T1, T2, T3, T4>(
 
         assert_eq!(
             new_from_amount, new_from_amount_1,
-            "Determinism check failed on erc20 from amount"
+            "Determinism check failed on erc7984 from amount"
         );
         assert_eq!(
             new_to_amount, new_to_amount_1,
-            "Determinism check failed on erc20 to amount"
+            "Determinism check failed on erc7984 to amount"
         );
     }
 }
 
-pub(crate) fn signed_no_cmux_erc20_test<P, T1, T2, T3, T4>(
+pub(crate) fn signed_no_cmux_erc7984_test<P, T1, T2, T3, T4>(
     param: P,
     mut ge_executor: T1,
     mut mul_executor: T2,
@@ -225,11 +225,11 @@ pub(crate) fn signed_no_cmux_erc20_test<P, T1, T2, T3, T4>(
 
         assert_eq!(
             decrypt_signed_new_from_amount, expected_new_from_amount,
-            "Invalid erc20 result on from amount: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}, expected new from amount: {expected_new_from_amount}."
+            "Invalid erc7984 result on from amount: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}, expected new from amount: {expected_new_from_amount}."
         );
         assert_eq!(
             decrypt_signed_new_to_amount, expected_new_to_amount,
-            "Invalid erc20 result on to amount."
+            "Invalid erc7984 result on to amount."
         );
 
         // Determinism check
@@ -241,11 +241,11 @@ pub(crate) fn signed_no_cmux_erc20_test<P, T1, T2, T3, T4>(
 
         assert_eq!(
             new_from_amount, new_from_amount_1,
-            "Determinism check failed on no cmux erc20 from amount"
+            "Determinism check failed on no cmux erc7984 from amount"
         );
         assert_eq!(
             new_to_amount, new_to_amount_1,
-            "Determinism check failed on no cmux erc20 to amount"
+            "Determinism check failed on no cmux erc7984 to amount"
         );
     }
 }
