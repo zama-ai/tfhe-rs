@@ -39,9 +39,9 @@ class HlApiFormatter(GenericFormatter):
 TRANSFER_IMPLEM_COLUMN_HEADER = "Transfer implementation"
 
 
-class Erc20Formatter(HlApiFormatter):
+class Erc7984Formatter(HlApiFormatter):
     """
-    Formatter for ERC20 benchmarks.
+    Formatter for ERC7984 benchmarks.
     """
 
     @staticmethod
@@ -63,7 +63,7 @@ class Erc20Formatter(HlApiFormatter):
                 bench_type = BenchType.Latency
                 conversion_func = utils.convert_latency_value_to_readable_text
 
-            # For now ERC20 benchmarks are only made on 64-bit ciphertexts.
+            # For now ERC7984 benchmarks are only made on 64-bit ciphertexts.
             value = conversion_func(timings[-1])
             formatted[test_name][bench_type] = value
 

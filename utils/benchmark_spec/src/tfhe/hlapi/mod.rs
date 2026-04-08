@@ -7,7 +7,7 @@ pub use super::hl_integer_op::HlIntegerOp;
 
 /// Benchmark categories within the HLAPI layer.
 ///
-/// Each variant represents a category of benchmarks (ops, erc20, dex, etc.)
+/// Each variant represents a category of benchmarks (ops, erc7984, dex, etc.)
 /// and carries its own op enum. Adding a new category requires:
 /// 1. Add the variant here (strum handles the name)
 /// 2. Add a match arm in `op()` to return the inner op

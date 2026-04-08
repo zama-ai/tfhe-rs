@@ -66,7 +66,7 @@ target.hlapi-dex = [
     "swap_claim::whitepaper",
     "swap_claim::no_cmux"
 ]
-target.hlapi-erc20 = ["transfer::whitepaper", "transfer::no_cmux"]
+target.hlapi-erc7984 = ["transfer::whitepaper", "transfer::no_cmux"]
 target.core_crypto-ks = ["keyswitch"]
 target.core_crypto-pbs = ["multi_bit_pbs"]
 parameters_filter = "PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128"
@@ -99,7 +99,7 @@ target.hlapi-dex = [
     "swap_claim::whitepaper",
     "swap_claim::no_cmux"
 ]
-target.hlapi-erc20 = ["transfer::whitepaper", "transfer::no_cmux"]
+target.hlapi-erc7984 = ["transfer::whitepaper", "transfer::no_cmux"]
 target.shortint = ["bitand"]
 target.core_crypto-ks = ["keyswitch"]
 target.core_crypto-pbs = [ "pbs_mem_optimized"]

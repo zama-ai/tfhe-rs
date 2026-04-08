@@ -37,7 +37,7 @@ on:
           - integer_zk_experimental
           - integer_aes
           - integer_aes256
-          - hlapi_erc20
+          - hlapi_erc7984
           - hlapi_dex
           - hlapi_noise_squash
       op_flavor:
@@ -123,8 +123,8 @@ jobs:
 
           if inputs_command == "integer_zk":
             files_to_parse.append("pke_zk_crs_sizes.csv")
-          elif inputs_command == "hlapi_erc20":
-            files_to_parse.append("erc20_pbs_count.csv")
+          elif inputs_command == "hlapi_erc7984":
+            files_to_parse.append("erc7984_pbs_count.csv")
           elif inputs_command == "hlapi_dex":
             files_to_parse.extend(
               [

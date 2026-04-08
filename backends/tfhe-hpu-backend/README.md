@@ -297,8 +297,8 @@ source setup_hpu.sh --config v80 -p
 # Run hlapi benches
 make test_high_level_api_hpu
 
-# Run hlapi erc20 benches
-make bench_hlapi_erc20_hpu 
+# Run hlapi erc7984 benches
+make bench_hlapi_erc7984_hpu 
 
 # Run integer level benches
 make bench_integer_hpu

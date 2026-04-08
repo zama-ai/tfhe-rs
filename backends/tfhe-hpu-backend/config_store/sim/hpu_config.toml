@@ -109,7 +109,7 @@
   flush_behaviour = "Patient"
   flush = true
 
-[firmware.op_cfg.by_op.ERC_20]
+[firmware.op_cfg.by_op.ERC_7984]
   fill_batch_fifo = true
   min_batch_size = false
   use_tiers = true

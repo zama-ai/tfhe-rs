@@ -12,20 +12,20 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parameterized_test!(safe_erc20 {
+create_parameterized_test!(safe_erc7984 {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
-create_parameterized_test!(whitepaper_erc20 {
+create_parameterized_test!(whitepaper_erc7984 {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
-create_parameterized_test!(no_cmux_erc20 {
+create_parameterized_test!(no_cmux_erc7984 {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
-create_parameterized_test!(overflow_erc20 {
+create_parameterized_test!(overflow_erc7984 {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 
-fn safe_erc20<P>(param: P)
+fn safe_erc7984<P>(param: P)
 where
     P: Into<TestParameters>,
 {
@@ -35,7 +35,7 @@ where
         CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_sub_parallelized);
     let if_then_else_executor = CpuFunctionExecutor::new(&ServerKey::cmux_parallelized);
     let bitwise_or_executor = CpuFunctionExecutor::new(&ServerKey::bitor_parallelized);
-    safe_erc20_test(
+    safe_erc7984_test(
         param,
         overflowing_add_executor,
         overflowing_sub_executor,
@@ -44,7 +44,7 @@ where
     );
 }
 
-fn whitepaper_erc20<P>(param: P)
+fn whitepaper_erc7984<P>(param: P)
 where
     P: Into<TestParameters>,
 {
@@ -52,7 +52,7 @@ where
     let add_executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized);
     let if_then_else_executor = CpuFunctionExecutor::new(&ServerKey::cmux_parallelized);
     let sub_executor = CpuFunctionExecutor::new(&ServerKey::sub_parallelized);
-    whitepaper_erc20_test(
+    whitepaper_erc7984_test(
         param,
         ge_executor,
         add_executor,
@@ -61,7 +61,7 @@ where
     );
 }
 
-fn no_cmux_erc20<P>(param: P)
+fn no_cmux_erc7984<P>(param: P)
 where
     P: Into<TestParameters>,
 {
@@ -69,10 +69,10 @@ where
     let mul_executor = CpuFunctionExecutor::new(&ServerKey::mul_parallelized);
     let add_executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized);
     let sub_executor = CpuFunctionExecutor::new(&ServerKey::sub_parallelized);
-    no_cmux_erc20_test(param, ge_executor, mul_executor, add_executor, sub_executor);
+    no_cmux_erc7984_test(param, ge_executor, mul_executor, add_executor, sub_executor);
 }
 
-fn overflow_erc20<P>(param: P)
+fn overflow_erc7984<P>(param: P)
 where
     P: Into<TestParameters>,
 {
@@ -82,7 +82,7 @@ where
     let not_executor = CpuFunctionExecutor::new(&ServerKey::boolean_bitnot);
     let mul_executor = CpuFunctionExecutor::new(&ServerKey::mul_parallelized);
     let add_executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized);
-    overflow_erc20_test(
+    overflow_erc7984_test(
         param,
         overflowing_sub_executor,
         if_then_else_executor,
@@ -92,7 +92,7 @@ where
     );
 }
 
-pub(crate) fn safe_erc20_test<P, T1, T2, T3, T4>(
+pub(crate) fn safe_erc7984_test<P, T1, T2, T3, T4>(
     param: P,
     mut overflowing_add_executor: T1,
     mut overflowing_sub_executor: T2,
@@ -184,23 +184,23 @@ pub(crate) fn safe_erc20_test<P, T1, T2, T3, T4>(
 
         assert_eq!(
             decrypted_did_not_have_enough_funds, expected_did_not_have_enough_funds,
-            "Invalid erc20 result on enough funds: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}."
+            "Invalid erc7984 result on enough funds: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}."
         );
         assert_eq!(
             decrypted_did_not_have_enough_space, expected_did_not_have_enough_space,
-            "Invalid erc20 result on enough space: amount: {clear_amount}, to amount: {clear_to_amount}."
+            "Invalid erc7984 result on enough space: amount: {clear_amount}, to amount: {clear_to_amount}."
         );
         assert_eq!(
             decrypted_something_not_ok, expected_something_not_ok,
-            "Invalid erc20 result on something nok: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}."
+            "Invalid erc7984 result on something nok: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}."
         );
         assert_eq!(
             decrypted_new_from_amount, expected_new_from_amount,
-            "Invalid erc20 result on from amount: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}, expected new from amount: {expected_new_from_amount}."
+            "Invalid erc7984 result on from amount: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}, expected new from amount: {expected_new_from_amount}."
         );
         assert_eq!(
             decrypted_new_to_amount, expected_new_to_amount,
-            "Invalid erc20 result on to amount."
+            "Invalid erc7984 result on to amount."
         );
 
         // Determinism check
@@ -226,16 +226,16 @@ pub(crate) fn safe_erc20_test<P, T1, T2, T3, T4>(
             if_then_else_executor.execute((&something_not_ok_1, &to_amount, &new_to_1));
         assert_eq!(
             new_from_amount, new_from_amount_1,
-            "Determinism check failed on erc20 from amount"
+            "Determinism check failed on erc7984 from amount"
         );
         assert_eq!(
             new_to_amount, new_to_amount_1,
-            "Determinism check failed on erc20 to amount"
+            "Determinism check failed on erc7984 to amount"
         );
     }
 }
 
-pub(crate) fn whitepaper_erc20_test<P, T1, T2, T3, T4>(
+pub(crate) fn whitepaper_erc7984_test<P, T1, T2, T3, T4>(
     param: P,
     mut ge_executor: T1,
     mut add_executor: T2,
@@ -300,11 +300,11 @@ pub(crate) fn whitepaper_erc20_test<P, T1, T2, T3, T4>(
 
         assert_eq!(
             decrypted_new_from_amount, expected_new_from_amount,
-            "Invalid erc20 result on from amount: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}, expected new from amount: {expected_new_from_amount}."
+            "Invalid erc7984 result on from amount: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}, expected new from amount: {expected_new_from_amount}."
         );
         assert_eq!(
             decrypted_new_to_amount, expected_new_to_amount,
-            "Invalid erc20 result on to amount."
+            "Invalid erc7984 result on to amount."
         );
 
         // Determinism check
@@ -320,16 +320,16 @@ pub(crate) fn whitepaper_erc20_test<P, T1, T2, T3, T4>(
 
         assert_eq!(
             new_from_amount, new_from_amount_1,
-            "Determinism check failed on erc20 from amount"
+            "Determinism check failed on erc7984 from amount"
         );
         assert_eq!(
             new_to_amount, new_to_amount_1,
-            "Determinism check failed on erc20 to amount"
+            "Determinism check failed on erc7984 to amount"
         );
     }
 }
 
-pub(crate) fn no_cmux_erc20_test<P, T1, T2, T3, T4>(
+pub(crate) fn no_cmux_erc7984_test<P, T1, T2, T3, T4>(
     param: P,
     mut ge_executor: T1,
     mut mul_executor: T2,
@@ -387,11 +387,11 @@ pub(crate) fn no_cmux_erc20_test<P, T1, T2, T3, T4>(
 
         assert_eq!(
             decrypted_new_from_amount, expected_new_from_amount,
-            "Invalid erc20 result on from amount: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}, expected new from amount: {expected_new_from_amount}."
+            "Invalid erc7984 result on from amount: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}, expected new from amount: {expected_new_from_amount}."
         );
         assert_eq!(
             decrypted_new_to_amount, expected_new_to_amount,
-            "Invalid erc20 result on to amount."
+            "Invalid erc7984 result on to amount."
         );
 
         // Determinism check
@@ -403,16 +403,16 @@ pub(crate) fn no_cmux_erc20_test<P, T1, T2, T3, T4>(
 
         assert_eq!(
             new_from_amount, new_from_amount_1,
-            "Determinism check failed on no cmux erc20 from amount"
+            "Determinism check failed on no cmux erc7984 from amount"
         );
         assert_eq!(
             new_to_amount, new_to_amount_1,
-            "Determinism check failed on no cmux erc20 to amount"
+            "Determinism check failed on no cmux erc7984 to amount"
         );
     }
 }
 
-pub(crate) fn overflow_erc20_test<P, T1, T2, T3, T4, T5>(
+pub(crate) fn overflow_erc7984_test<P, T1, T2, T3, T4, T5>(
     param: P,
     mut overflowing_sub_executor: T1,
     mut if_then_else_executor: T2,
@@ -491,15 +491,15 @@ pub(crate) fn overflow_erc20_test<P, T1, T2, T3, T4, T5>(
 
         assert_eq!(
             decrypted_did_not_have_enough_funds, expected_did_not_have_enough_funds,
-            "Invalid erc20 result on enough funds: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}."
+            "Invalid erc7984 result on enough funds: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}."
         );
         assert_eq!(
             decrypted_new_from_amount, expected_new_from_amount,
-            "Invalid erc20 result on from amount: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}, expected new from amount: {expected_new_from_amount}."
+            "Invalid erc7984 result on from amount: original from amount: {clear_from_amount}, amount: {clear_amount}, to amount: {clear_to_amount}, expected new from amount: {expected_new_from_amount}."
         );
         assert_eq!(
             decrypted_new_to_amount, expected_new_to_amount,
-            "Invalid erc20 result on to amount."
+            "Invalid erc7984 result on to amount."
         );
 
         // Determinism check
@@ -518,11 +518,11 @@ pub(crate) fn overflow_erc20_test<P, T1, T2, T3, T4, T5>(
         let new_to_amount_1 = add_executor.execute((&to_amount, &new_amount_1));
         assert_eq!(
             new_from_amount, new_from_amount_1,
-            "Determinism check failed on erc20 from amount"
+            "Determinism check failed on erc7984 from amount"
         );
         assert_eq!(
             new_to_amount, new_to_amount_1,
-            "Determinism check failed on erc20 to amount"
+            "Determinism check failed on erc7984 to amount"
         );
     }
 }

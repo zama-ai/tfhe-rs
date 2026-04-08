@@ -230,7 +230,7 @@ iop!(
     [IOP_CMP -> "CMP_NEQ", opcode::CMP_NEQ],
     [IOP_CT_F_CT_BOOL -> "IF_THEN_ZERO", opcode::IF_THEN_ZERO],
     [IOP_CT_F_2CT_BOOL -> "IF_THEN_ELSE", opcode::IF_THEN_ELSE],
-    [IOP_2CT_F_3CT -> "ERC_20", opcode::ERC_20],
+    [IOP_2CT_F_3CT -> "ERC_7984", opcode::ERC_7984],
     [IOP_CT_F_CT -> "MEMCPY", opcode::MEMCPY],
     [IOP_CT_F_CT -> "ILOG2", opcode::ILOG2],
     [IOP_CT_F_CT -> "COUNT0", opcode::COUNT0],
@@ -240,5 +240,5 @@ iop!(
     [IOP_CT_F_CT -> "TRAIL0", opcode::TRAIL0],
     [IOP_CT_F_CT -> "TRAIL1", opcode::TRAIL1],
     [IOP_NCT_F_2NCT -> "ADD_SIMD", opcode::ADD_SIMD],
-    [IOP_2NCT_F_3NCT -> "ERC_20_SIMD", opcode::ERC_20_SIMD],
+    [IOP_2NCT_F_3NCT -> "ERC_7984_SIMD", opcode::ERC_7984_SIMD],
 );

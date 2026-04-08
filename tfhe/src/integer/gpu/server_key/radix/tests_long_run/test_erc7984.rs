@@ -1,17 +1,17 @@
 use crate::integer::gpu::server_key::radix::tests_signed::GpuMultiDeviceFunctionExecutor;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
 use crate::integer::gpu::CudaServerKey;
-use crate::integer::server_key::radix_parallel::tests_long_run::test_erc20::{
-    no_cmux_erc20_test, safe_erc20_test, whitepaper_erc20_test,
+use crate::integer::server_key::radix_parallel::tests_long_run::test_erc7984::{
+    no_cmux_erc7984_test, safe_erc7984_test, whitepaper_erc7984_test,
 };
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
-create_gpu_parameterized_test!(safe_erc20);
-create_gpu_parameterized_test!(whitepaper_erc20);
-create_gpu_parameterized_test!(no_cmux_erc20);
+create_gpu_parameterized_test!(safe_erc7984);
+create_gpu_parameterized_test!(whitepaper_erc7984);
+create_gpu_parameterized_test!(no_cmux_erc7984);
 
-fn safe_erc20<P>(param: P)
+fn safe_erc7984<P>(param: P)
 where
     P: Into<TestParameters>,
 {
@@ -21,7 +21,7 @@ where
         GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_sub);
     let if_then_else_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::if_then_else);
     let bitwise_or_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitor);
-    safe_erc20_test(
+    safe_erc7984_test(
         param,
         overflowing_add_executor,
         overflowing_sub_executor,
@@ -30,7 +30,7 @@ where
     );
 }
 
-fn whitepaper_erc20<P>(param: P)
+fn whitepaper_erc7984<P>(param: P)
 where
     P: Into<TestParameters>,
 {
@@ -38,7 +38,7 @@ where
     let add_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::add);
     let if_then_else_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::if_then_else);
     let sub_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::sub);
-    whitepaper_erc20_test(
+    whitepaper_erc7984_test(
         param,
         ge_executor,
         add_executor,
@@ -47,7 +47,7 @@ where
     );
 }
 
-fn no_cmux_erc20<P>(param: P)
+fn no_cmux_erc7984<P>(param: P)
 where
     P: Into<TestParameters>,
 {
@@ -55,5 +55,5 @@ where
     let mul_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::mul);
     let add_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::add);
     let sub_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::sub);
-    no_cmux_erc20_test(param, ge_executor, mul_executor, add_executor, sub_executor);
+    no_cmux_erc7984_test(param, ge_executor, mul_executor, add_executor, sub_executor);
 }

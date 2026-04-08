@@ -252,8 +252,8 @@ where
         boolean: vec![],
         imm: vec![],
     };
-    let mut res_handle = FheHpu::iop_exec(&hpu_asm::iop::IOP_ERC_20, src);
-    // Iop erc_20 return new_from, new_to
+    let mut res_handle = FheHpu::iop_exec(&hpu_asm::iop::IOP_ERC_7984, src);
+    // Iop erc_7984 return new_from, new_to
     let new_to = res_handle.native.pop().unwrap();
     let new_from = res_handle.native.pop().unwrap();
     (new_from, new_to)
@@ -278,8 +278,8 @@ where
         boolean: vec![],
         imm: vec![],
     };
-    let res_handle = FheHpu::iop_exec(&hpu_asm::iop::IOP_ERC_20_SIMD, src);
-    // Iop erc_20 return new_from, new_to
+    let res_handle = FheHpu::iop_exec(&hpu_asm::iop::IOP_ERC_7984_SIMD, src);
+    // Iop erc_7984 return new_from, new_to
     let res = res_handle.native;
     res
 }
@@ -319,18 +319,18 @@ mod pbs_stats {
         let (_, _) = transfer_func(&from_amount, &to_amount, &amount);
         let count = tfhe::get_pbs_count();
 
-        println!("ERC20 transfer/{fn_name}::{type_name}: {count} PBS");
+        println!("ERC7984 transfer/{fn_name}::{type_name}: {count} PBS");
 
         let params = client_key.computation_parameters();
         let params_name = params.name();
 
         let test_name = if cfg!(feature = "gpu") {
-            format!("hlapi::cuda::erc20::pbs_count::{fn_name}::{params_name}::{type_name}")
+            format!("hlapi::cuda::erc7984::pbs_count::{fn_name}::{params_name}::{type_name}")
         } else {
-            format!("hlapi::erc20::pbs_count::{fn_name}::{params_name}::{type_name}")
+            format!("hlapi::erc7984::pbs_count::{fn_name}::{params_name}::{type_name}")
         };
 
-        let results_file = Path::new("erc20_pbs_count.csv");
+        let results_file = Path::new("erc7984_pbs_count.csv");
         if !results_file.exists() {
             File::create(results_file).expect("create results file failed");
         }
@@ -392,7 +392,7 @@ fn bench_transfer_latency<FheType, F>(
         &bench_id,
         params,
         params_name,
-        "erc20-transfer",
+        "erc7984-transfer",
         &OperatorType::Atomic,
         64,
         vec![],
@@ -413,7 +413,7 @@ fn bench_transfer_latency_simd<FheType, F>(
     F: for<'a> Fn(&'a Vec<FheType>, &'a Vec<FheType>, &'a Vec<FheType>) -> Vec<FheType>,
 {
     use tfhe::tfhe_hpu_backend::prelude::hpu_asm;
-    let hpu_simd_n = hpu_asm::iop::IOP_ERC_20_SIMD
+    let hpu_simd_n = hpu_asm::iop::IOP_ERC_7984_SIMD
         .format()
         .unwrap()
         .proto
@@ -453,7 +453,7 @@ fn bench_transfer_latency_simd<FheType, F>(
         &bench_id,
         params,
         params_name,
-        "erc20-simd-transfer",
+        "erc7984-simd-transfer",
         &OperatorType::Atomic,
         64,
         vec![],
@@ -507,7 +507,7 @@ fn bench_transfer_throughput<FheType, F>(
             &bench_id,
             params,
             &params_name,
-            "erc20-transfer",
+            "erc7984-transfer",
             &OperatorType::Atomic,
             64,
             vec![],
@@ -597,7 +597,7 @@ fn cuda_bench_transfer_throughput<FheType, F>(
         &bench_id,
         params,
         &params_name,
-        "erc20-transfer",
+        "erc7984-transfer",
         &OperatorType::Atomic,
         64,
         vec![],
@@ -661,7 +661,7 @@ fn hpu_bench_transfer_throughput<FheType, F>(
             &bench_id,
             params,
             &params_name,
-            "erc20-transfer",
+            "erc7984-transfer",
             &OperatorType::Atomic,
             64,
             vec![],
@@ -683,7 +683,7 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
     F: for<'a> Fn(&'a Vec<FheType>, &'a Vec<FheType>, &'a Vec<FheType>) -> Vec<FheType> + Sync,
 {
     use tfhe::tfhe_hpu_backend::prelude::hpu_asm;
-    let hpu_simd_n = hpu_asm::iop::IOP_ERC_20_SIMD
+    let hpu_simd_n = hpu_asm::iop::IOP_ERC_7984_SIMD
         .format()
         .unwrap()
         .proto
@@ -746,7 +746,7 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
             &bench_id,
             params,
             &params_name,
-            "erc20-simd-ransfer",
+            "erc7984-simd-ransfer",
             &OperatorType::Atomic,
             64,
             vec![],
@@ -769,7 +769,7 @@ fn main() {
 
     let mut c = Criterion::default().sample_size(10).configure_from_args();
 
-    let bench_name = "hlapi::erc20";
+    let bench_name = "hlapi::erc7984";
 
     // FheUint64 PBS counts
     // We don't run multiple times since every input is encrypted
@@ -896,7 +896,7 @@ fn main() {
 
     let mut c = Criterion::default().sample_size(10).configure_from_args();
 
-    let bench_name = "hlapi::cuda::erc20";
+    let bench_name = "hlapi::cuda::erc7984";
 
     // FheUint64 PBS counts
     // We don't run multiple times since every input is encrypted
@@ -1027,7 +1027,7 @@ fn main() {
 
     let mut c = Criterion::default().sample_size(10).configure_from_args();
 
-    let bench_name = "hlapi::hpu::erc20";
+    let bench_name = "hlapi::hpu::erc7984";
 
     match get_bench_type() {
         BenchmarkType::Latency => {
@@ -1040,7 +1040,7 @@ fn main() {
                 "transfer::whitepaper",
                 transfer_whitepaper::<FheUint64>,
             );
-            // Erc20 optimized instruction only available on Hpu
+            // Erc7984 optimized instruction only available on Hpu
             bench_transfer_latency(
                 &mut group,
                 &cks,
@@ -1049,7 +1049,7 @@ fn main() {
                 "transfer::hpu_optim",
                 transfer_hpu::<FheUint64>,
             );
-            // Erc20 SIMD instruction only available on Hpu
+            // Erc7984 SIMD instruction only available on Hpu
             bench_transfer_latency_simd(
                 &mut group,
                 &cks,
@@ -1071,7 +1071,7 @@ fn main() {
                 "transfer::whitepaper",
                 transfer_whitepaper::<FheUint64>,
             );
-            // Erc20 optimized instruction only available on Hpu
+            // Erc7984 optimized instruction only available on Hpu
             hpu_bench_transfer_throughput(
                 &mut group,
                 &cks,
@@ -1080,7 +1080,7 @@ fn main() {
                 "transfer::hpu_optim",
                 transfer_hpu::<FheUint64>,
             );
-            // Erc20 SIMD instruction only available on Hpu
+            // Erc7984 SIMD instruction only available on Hpu
             hpu_bench_transfer_throughput_simd(
                 &mut group,
                 &cks,

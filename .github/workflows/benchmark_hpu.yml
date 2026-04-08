@@ -14,7 +14,7 @@ on:
           - integer
           - hlapi_unsigned
           - hlapi_signed
-          - hlapi_erc20
+          - hlapi_erc7984
       op_flavor:
         description: "Operations set to run"
         type: choice

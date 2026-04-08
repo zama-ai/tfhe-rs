@@ -248,59 +248,59 @@ jobs:
       DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
 
   # -----------------------------------------------------------
-  # ERC20 benchmarks tables
+  # ERC7984 benchmarks tables
   # -----------------------------------------------------------
 
-  cpu-erc20-latency-throughput-table:
-    name: generate_documentation_svgs/cpu-erc20-latency-throughput-table
+  cpu-erc7984-latency-throughput-table:
+    name: generate_documentation_svgs/cpu-erc7984-latency-throughput-table
     uses: ./.github/workflows/generate_svg_common.yml
     if: inputs.generate-cpu-svgs
     with:
       backend: cpu
       hardware_name: hpc7a.96xlarge
       layer: hlapi
-      bench_subset: erc20
+      bench_subset: erc7984
       pbs_kind: classical
       bench_type: both
       time_span_days: ${{ inputs.time_span_days }}
-      output_filename: cpu-hlapi-erc20-benchmark-latency-throughput
+      output_filename: cpu-hlapi-erc7984-benchmark-latency-throughput
     secrets:
       DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
       DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
       DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
 
-  gpu-erc20-latency-throughput-table:
-    name: generate_documentation_svgs/gpu-erc20-latency-throughput-table
+  gpu-erc7984-latency-throughput-table:
+    name: generate_documentation_svgs/gpu-erc7984-latency-throughput-table
     uses: ./.github/workflows/generate_svg_common.yml
     if: inputs.generate-gpu-svgs
     with:
       backend: gpu
       hardware_name: n3-H100-SXM5x8
       layer: hlapi
-      bench_subset: erc20
+      bench_subset: erc7984
       pbs_kind: multi_bit
       grouping_factor: 4
       bench_type: both
       time_span_days: ${{ inputs.time_span_days }}
-      output_filename: gpu-hlapi-erc20-benchmark-h100x8-sxm5-latency-throughput
+      output_filename: gpu-hlapi-erc7984-benchmark-h100x8-sxm5-latency-throughput
     secrets:
       DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
       DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
       DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
 
-  hpu-erc20-latency-throughput-table:
-    name: generate_documentation_svgs/hpu-erc20-latency-throughput-table
+  hpu-erc7984-latency-throughput-table:
+    name: generate_documentation_svgs/hpu-erc7984-latency-throughput-table
     uses: ./.github/workflows/generate_svg_common.yml
     if: inputs.generate-hpu-svgs
     with:
       backend: hpu
       hardware_name: hpu_x1
       layer: hlapi
-      bench_subset: erc20
+      bench_subset: erc7984
       pbs_kind: classical
       bench_type: both
       time_span_days: ${{ inputs.time_span_days }}
-      output_filename: hpu-hlapi-erc20-benchmark-hpux1-latency-throughput.svg
+      output_filename: hpu-hlapi-erc7984-benchmark-hpux1-latency-throughput.svg
     secrets:
       DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
       DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}

@@ -31,7 +31,7 @@ crate::impl_fw!("Demo" [
     IF_THEN_ZERO => fw_impl::ilp::iop_if_then_zero;
     IF_THEN_ELSE => fw_impl::ilp::iop_if_then_else;
 
-    ERC_20 => fw_impl::ilp::iop_erc_20;
+    ERC_7984 => fw_impl::ilp::iop_erc_7984;
 
     CMP_GT  => cmp_gt;
     CMP_GTE => cmp_gte;

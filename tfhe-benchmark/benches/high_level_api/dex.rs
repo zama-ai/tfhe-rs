@@ -253,7 +253,7 @@ mod pbs_stats {
         let _ = swap_request_update_dex_balance_func(&from_balance, &current_dex_balance, &amount);
         let count = tfhe::get_pbs_count() * 2;
 
-        println!("ERC20 swap request update dex balance/::{type_name}: {count} PBS");
+        println!("ERC7984 swap request update dex balance/::{type_name}: {count} PBS");
 
         let params = client_key.computation_parameters();
         let params_name = params.name();
@@ -308,7 +308,7 @@ mod pbs_stats {
         let (_, _) = swap_request_finalize_func(&to_balance_0, &total_dex_token_0_in, &sent_0);
         let count = tfhe::get_pbs_count() * 2;
 
-        println!("ERC20 swap request finalize/::{type_name}: {count} PBS");
+        println!("ERC7984 swap request finalize/::{type_name}: {count} PBS");
 
         let params = client_key.computation_parameters();
         let params_name = params.name();
@@ -373,7 +373,7 @@ mod pbs_stats {
         );
         let count = tfhe::get_pbs_count();
 
-        println!("ERC20 swap claim prepare/::{type_name}: {count} PBS");
+        println!("ERC7984 swap claim prepare/::{type_name}: {count} PBS");
 
         let params = client_key.computation_parameters();
         let params_name = params.name();
@@ -433,7 +433,7 @@ mod pbs_stats {
         );
         let count = tfhe::get_pbs_count() * 2;
 
-        println!("ERC20 swap claim update dex balance/::{type_name}: {count} PBS");
+        println!("ERC7984 swap claim update dex balance/::{type_name}: {count} PBS");
 
         let params = client_key.computation_parameters();
         let params_name = params.name();

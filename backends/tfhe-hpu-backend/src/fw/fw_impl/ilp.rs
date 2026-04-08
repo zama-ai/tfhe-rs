@@ -61,7 +61,7 @@ crate::impl_fw!("Ilp" [
     IF_THEN_ZERO => fw_impl::ilp::iop_if_then_zero;
     IF_THEN_ELSE => fw_impl::ilp::iop_if_then_else;
 
-    ERC_20 => fw_impl::ilp::iop_erc_20;
+    ERC_7984 => fw_impl::ilp::iop_erc_7984;
 
     MEMCPY => fw_impl::ilp::iop_memcpy;
 
@@ -74,7 +74,7 @@ crate::impl_fw!("Ilp" [
     TRAIL1 => fw_impl::ilp_log::iop_trail1;
     // SIMD Implementations
     ADD_SIMD     => fw_impl::llt::iop_add_simd;
-    ERC_20_SIMD  => fw_impl::llt::iop_erc_20_simd;
+    ERC_7984_SIMD  => fw_impl::llt::iop_erc_7984_simd;
 ]);
 
 #[instrument(level = "trace", skip(prog))]
@@ -1296,13 +1296,13 @@ pub fn iop_if_then_else(prog: &mut Program) {
         });
 }
 
-/// Implement erc_20 fund xfer
+/// Implement erc_7984 fund xfer
 /// Targeted algorithm is as follow:
 /// 1. Check that from has enough funds
 /// 2. Compute real_amount to xfer (i.e. amount or 0)
 /// 3. Compute new amount (from - new_amount, to + new_amount)
 #[instrument(level = "info", skip(prog))]
-pub fn iop_erc_20(prog: &mut Program) {
+pub fn iop_erc_7984(prog: &mut Program) {
     // Allocate metavariables:
     // Dest -> Operand
     let mut dst_from = prog.iop_template_var(OperandKind::Dst, 0);
@@ -1314,7 +1314,7 @@ pub fn iop_erc_20(prog: &mut Program) {
     let src_amount = prog.iop_template_var(OperandKind::Src, 2);
 
     // Add Comment header
-    prog.push_comment("ERC_20 (new_from, new_to) <- (from, to, amount)".to_string());
+    prog.push_comment("ERC_7984 (new_from, new_to) <- (from, to, amount)".to_string());
 
     let props = prog.params();
     let tfhe_params: asm::DigitParameters = props.clone().into();

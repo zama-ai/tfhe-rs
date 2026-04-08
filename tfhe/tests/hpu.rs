@@ -351,8 +351,8 @@ mod hpu_test {
     hpu_testcase!("IF_THEN_ELSE" => [u8, u16, u32, u64, u128]
     |ct, imm| [if ct[2] != 0 {ct[0]} else { ct[1]}]);
 
-    // ERC 20 found xfer
-    hpu_testcase!("ERC_20" => [u8, u16, u32, u64, u128]
+    // ERC 7984 found xfer
+    hpu_testcase!("ERC_7984" => [u8, u16, u32, u64, u128]
         |ct, imm| {
             let from = ct[0];
             let to = ct[1];
@@ -460,7 +460,7 @@ mod hpu_test {
 
     #[cfg(feature = "hpu")]
     hpu_testbundle!("algo"::8 => [
-        "erc_20"
+        "erc_7984"
     ]);
 
     #[cfg(feature = "hpu")]
@@ -552,7 +552,7 @@ mod hpu_test {
 
     #[cfg(feature = "hpu")]
     hpu_testbundle!("algo"::16 => [
-        "erc_20"
+        "erc_7984"
     ]);
 
     #[cfg(feature = "hpu")]
@@ -644,7 +644,7 @@ mod hpu_test {
 
     #[cfg(feature = "hpu")]
     hpu_testbundle!("algo"::32 => [
-        "erc_20"
+        "erc_7984"
     ]);
 
     #[cfg(feature = "hpu")]
@@ -736,7 +736,7 @@ mod hpu_test {
 
     #[cfg(feature = "hpu")]
     hpu_testbundle!("algo"::64 => [
-        "erc_20"
+        "erc_7984"
     ]);
 
     #[cfg(feature = "hpu")]
@@ -828,7 +828,7 @@ mod hpu_test {
 
     #[cfg(feature = "hpu")]
     hpu_testbundle!("algo"::128 => [
-        "erc_20"
+        "erc_7984"
     ]);
 
     #[cfg(feature = "hpu")]
