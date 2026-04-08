@@ -9,5 +9,5 @@ All GPU benchmarks were launched on H100 GPUs, and rely on the multithreaded PBS
 {% endhint %}
 
 * [Integer operations](gpu-integer-operations.md)
-* [ERC20](gpu-erc20.md)
+* [ERC7984](gpu-erc7984.md)
 * [Programmable Bootstrapping](gpu-programmable-bootstrapping.md)

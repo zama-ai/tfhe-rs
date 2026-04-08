@@ -1,4 +1,4 @@
-Similarly to the [CPU benchmarks](../cpu/cpu-erc20.md), the latency and throughput of a confidential ERC20 token transfer can be measured.
+Similarly to the [CPU benchmarks](../cpu/cpu-erc7984.md), the latency and throughput of a confidential ERC7984 token transfer can be measured.
 
 ![](../../../.gitbook/assets/gpu-hlapi-erc20-benchmark-h100x8-sxm5-latency-throughput.svg)
 
