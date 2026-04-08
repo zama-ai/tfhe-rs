@@ -282,7 +282,7 @@ mod pbs_stats {
 
         write_result(&mut file, test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &test_name,
             params,
             "pbs-count",
@@ -339,7 +339,7 @@ mod pbs_stats {
 
         write_result(&mut file, test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &test_name,
             params,
             "pbs-count",
@@ -406,7 +406,7 @@ mod pbs_stats {
 
         write_result(&mut file, test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &test_name,
             params,
             "pbs-count",
@@ -469,7 +469,7 @@ mod pbs_stats {
 
         write_result(&mut file, test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &test_name,
             params,
             "pbs-count",
@@ -546,7 +546,7 @@ fn bench_swap_request_latency<FheType, F1, F2>(
         })
     });
 
-    write_to_json::<u64, _>(
+    write_to_json::<u64, _, _>(
         &bench_spec,
         params,
         "dex-swap-request",
@@ -670,7 +670,7 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
             })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &bench_spec,
             params,
             "dex-swap-request",
@@ -888,7 +888,7 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
                                 })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &bench_spec,
             params,
             "dex-swap-request",
@@ -971,7 +971,7 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
         });
     });
 
-    write_to_json::<u64, _>(
+    write_to_json::<u64, _, _>(
         &bench_spec,
         params,
         "dex-swap-claim",
@@ -1113,7 +1113,7 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
             });
         });
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &bench_spec,
             params,
             "dex-swap-claim",
@@ -1326,7 +1326,7 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
             });
         });
 
-        write_to_json::<u64, _>(
+        write_to_json::<u64, _, _>(
             &bench_spec,
             params,
             "dex-swap-claim",

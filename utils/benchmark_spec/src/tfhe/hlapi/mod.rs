@@ -1,8 +1,10 @@
 pub mod dex;
 pub mod erc20;
+pub mod kv_store;
 
 use dex::Dex;
 use erc20::Erc20;
+use kv_store::KvStoreOp;
 use std::fmt;
 use strum::Display;
 
@@ -24,6 +26,11 @@ pub enum HlapiBench {
     Ops(HlIntegerOp),
     Erc20(Erc20),
     Dex(Dex),
+    /// Leaf benchmarks with no sub-operations — their name is the full operation.
+    DecompNoiseSquashComp,
+    /// Leaf benchmarks with no sub-operations — their name is the full operation.
+    NoiseSquash,
+    KvStore(KvStoreOp),
 }
 
 impl HlapiBench {
@@ -32,6 +39,9 @@ impl HlapiBench {
             HlapiBench::Ops(op) => write!(f, "::{op}"),
             HlapiBench::Erc20(op) => op.fmt_spec(f),
             HlapiBench::Dex(op) => op.fmt_spec(f),
+            // Leaf benchmarks — no inner op to format.
+            HlapiBench::DecompNoiseSquashComp | HlapiBench::NoiseSquash => Ok(()),
+            HlapiBench::KvStore(op) => write!(f, "::{op}"),
         }
     }
 }
