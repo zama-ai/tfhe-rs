@@ -1,3 +1,5 @@
+#[cfg(feature = "zk-pok")]
+use super::ReRandomizationSeed;
 use super::{DataKind, Expandable};
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::prelude::{LweCiphertextListConformanceParams, Numeric};
@@ -1109,6 +1111,32 @@ impl ProvenCompactCiphertextList {
         self.expand_without_verification(expansion_mode)
     }
 
+    pub fn verify_re_randomize_and_expand(
+        &self,
+        crs: &CompactPkeCrs,
+        public_key: &CompactPublicKey,
+        metadata: &[u8],
+        expansion_mode: IntegerCompactCiphertextListExpansionMode<'_>,
+        seed: ReRandomizationSeed,
+    ) -> crate::Result<CompactCiphertextListExpander> {
+        if self.verify(crs, public_key, metadata) == ZkVerificationOutcome::Invalid {
+            return Err(crate::ErrorKind::InvalidZkProof.into());
+        }
+
+        self.re_randomize_and_expand_without_verification(expansion_mode, public_key, seed)
+    }
+
+    pub fn re_randomize(
+        &mut self,
+        public_key: &CompactPublicKey,
+        seed: ReRandomizationSeed,
+    ) -> crate::Result<()> {
+        public_key.key.re_randomize_compact_ciphertext_lists(
+            self.ct_list.proved_lists.iter_mut().map(|(list, _)| list),
+            seed,
+        )
+    }
+
     #[doc(hidden)]
     /// This function allows to expand a ciphertext without verifying the associated proof.
     ///
@@ -1140,6 +1168,23 @@ is not"
             casted_blocks,
             self.info.clone(),
         ))
+    }
+
+    #[doc(hidden)]
+    /// This function allows to re_randomize and expand a ciphertext without verifying the
+    /// associated proof.
+    ///
+    /// If you are here you were probably looking for it: use at your own risks.
+    pub fn re_randomize_and_expand_without_verification(
+        &self,
+        expansion_mode: IntegerCompactCiphertextListExpansionMode<'_>,
+        public_key: &CompactPublicKey,
+        seed: ReRandomizationSeed,
+    ) -> crate::Result<CompactCiphertextListExpander> {
+        let mut rerandomized = self.clone();
+        rerandomized.re_randomize(public_key, seed)?;
+
+        rerandomized.expand_without_verification(expansion_mode)
     }
 
     pub fn is_packed(&self) -> bool {
