@@ -1,6 +1,7 @@
 use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{CiphertextModulus, LweCiphertextCount};
+use crate::integer::ciphertext::ReRandomizationSeed;
 use crate::integer::gpu::ciphertext::compact_list::{
     CudaCompactCiphertextListExpander, CudaFlattenedVecCompactCiphertextList,
 };
@@ -75,6 +76,29 @@ impl CudaProvenCompactCiphertextList {
     ) -> crate::Result<CudaCompactCiphertextListExpander> {
         self.d_flattened_compact_lists
             .expand(key, super::ZKType::Casting, streams)
+    }
+
+    pub fn re_randomize(
+        &mut self,
+        public_key: &CompactPublicKey,
+        seed: ReRandomizationSeed,
+        streams: &CudaStreams,
+    ) -> crate::Result<()> {
+        self.h_proved_lists.re_randomize(public_key, seed)?;
+        let cpu_lists = self
+            .h_proved_lists
+            .ct_list
+            .proved_lists
+            .iter()
+            .map(|(list, _)| list.clone())
+            .collect();
+        self.d_flattened_compact_lists =
+            CudaFlattenedVecCompactCiphertextList::from_vec_shortint_compact_ciphertext_list(
+                cpu_lists,
+                self.h_proved_lists.info.clone(),
+                streams,
+            );
+        Ok(())
     }
 
     pub fn from_proven_compact_ciphertext_list(
