@@ -1,6 +1,7 @@
 use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{CiphertextModulus, LweCiphertextCount};
+use crate::integer::ciphertext::ReRandomizationSeed;
 use crate::integer::gpu::ciphertext::compact_list::{
     CudaCompactCiphertextListExpander, CudaFlattenedVecCompactCiphertextList,
 };
@@ -64,6 +65,42 @@ impl CudaProvenCompactCiphertextList {
         Err(crate::ErrorKind::InvalidZkProof.into())
     }
 
+    pub fn verify_re_randomize_and_expand(
+        &self,
+        crs: &CompactPkeCrs,
+        public_key: &CompactPublicKey,
+        metadata: &[u8],
+        key: &CudaKeySwitchingKey,
+        seed: ReRandomizationSeed,
+        streams: &CudaStreams,
+    ) -> crate::Result<CudaCompactCiphertextListExpander> {
+        let (all_valid, r) = rayon::join(
+            || {
+                self.h_proved_lists
+                    .ct_list
+                    .proved_lists
+                    .par_iter()
+                    .all(|(ct_list, proof)| {
+                        verify_lwe_compact_ciphertext_list(
+                            &ct_list.ct_list,
+                            &public_key.key.key,
+                            proof,
+                            crs,
+                            metadata,
+                        )
+                        .is_valid()
+                    })
+            },
+            || self.re_randomize_and_expand_without_verification(key, public_key, seed, streams),
+        );
+
+        if all_valid {
+            return r;
+        }
+
+        Err(crate::ErrorKind::InvalidZkProof.into())
+    }
+
     /// # Safety
     ///
     /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
@@ -75,6 +112,46 @@ impl CudaProvenCompactCiphertextList {
     ) -> crate::Result<CudaCompactCiphertextListExpander> {
         self.d_flattened_compact_lists
             .expand(key, super::ZKType::Casting, streams)
+    }
+
+    /// # Safety
+    ///
+    /// - [CudaStreams::synchronize] __must__ be called after this function as soon as
+    ///   synchronization is required
+    pub fn re_randomize_and_expand_without_verification(
+        &self,
+        key: &CudaKeySwitchingKey,
+        public_key: &CompactPublicKey,
+        seed: ReRandomizationSeed,
+        streams: &CudaStreams,
+    ) -> crate::Result<CudaCompactCiphertextListExpander> {
+        let mut rerandomized = self.duplicate(streams);
+        rerandomized.re_randomize(public_key, seed, streams)?;
+
+        rerandomized.expand_without_verification(key, streams)
+    }
+
+    pub fn re_randomize(
+        &mut self,
+        public_key: &CompactPublicKey,
+        seed: ReRandomizationSeed,
+        streams: &CudaStreams,
+    ) -> crate::Result<()> {
+        self.h_proved_lists.re_randomize(public_key, seed)?;
+        let cpu_lists = self
+            .h_proved_lists
+            .ct_list
+            .proved_lists
+            .iter()
+            .map(|(list, _)| list.clone())
+            .collect();
+        self.d_flattened_compact_lists =
+            CudaFlattenedVecCompactCiphertextList::from_vec_shortint_compact_ciphertext_list(
+                cpu_lists,
+                self.h_proved_lists.info.clone(),
+                streams,
+            );
+        Ok(())
     }
 
     pub fn from_proven_compact_ciphertext_list(

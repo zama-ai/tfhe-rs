@@ -10,6 +10,7 @@ use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, XofSeed}
 use crate::core_crypto::commons::parameters::{LweCiphertextCount, PlaintextCount};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::{LweCiphertext, LweCompactCiphertextList, PlaintextList};
+use crate::core_crypto::prelude::lwe_compact_ciphertext_list_add_assign;
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::key_switching_key::KeySwitchingKeyMaterialView;
 use crate::shortint::{Ciphertext, CompactPublicKey, PBSOrder};
@@ -17,6 +18,8 @@ use crate::shortint::{Ciphertext, CompactPublicKey, PBSOrder};
 use rayon::prelude::*;
 use sha3::digest::{ExtendableOutput, Update};
 use std::io::Read;
+
+use super::CompactCiphertextList;
 
 /// Size of the re-randomization seed in bits
 const RERAND_SEED_BITS: usize = 256;
@@ -248,6 +251,14 @@ impl CompactPublicKey {
         let mut encryption_generator =
             NoiseRandomGenerator::<DefaultRandomGenerator>::new_from_seed(seed.0);
 
+        self.prepare_cpk_zero_for_rerand_with_generator(&mut encryption_generator, zero_count)
+    }
+
+    pub(crate) fn prepare_cpk_zero_for_rerand_with_generator(
+        &self,
+        encryption_generator: &mut NoiseRandomGenerator<DefaultRandomGenerator>,
+        zero_count: LweCiphertextCount,
+    ) -> LweCompactCiphertextList<Vec<u64>> {
         let mut encryption_of_zero = LweCompactCiphertextList::new(
             0,
             self.parameters().encryption_lwe_dimension.to_lwe_size(),
@@ -268,7 +279,7 @@ impl CompactPublicKey {
             &plaintext_list,
             cpk_encryption_noise_distribution,
             cpk_encryption_noise_distribution,
-            &mut encryption_generator,
+            encryption_generator,
         );
 
         encryption_of_zero
@@ -310,8 +321,7 @@ impl CompactPublicKey {
                 KeySwitchingKeyMaterialView.";
                 return Err(crate::error!("{}", err));
             } else if ksk_output_lwe_size != ct.ct.lwe_size() {
-                let err =
-                    "Mismatched LweSwize between Ciphertext being re-randomized and provided \
+                let err = "Mismatched LweSize between Ciphertext being re-randomized and provided \
                 KeySwitchingKeyMaterialView.";
                 return Err(crate::error!("{}", err));
             } else if ct.noise_level() > NoiseLevel::NOMINAL {
@@ -391,7 +401,7 @@ impl CompactPublicKey {
 
         for ct in cts.iter() {
             if key_lwe_size != ct.ct.lwe_size() {
-                let err = "Mismatched LweSwize between Ciphertexts \
+                let err = "Mismatched LweSize between Ciphertexts \
                     being re-randomized and provided CompactPublicKey";
                 return Err(crate::error!("{}", err));
             } else if ct.noise_level() > NoiseLevel::NOMINAL {
@@ -417,22 +427,53 @@ impl CompactPublicKey {
 
         Ok(())
     }
+
+    /// Re-randomize compact ciphertext lists using the provided seed.
+    pub fn re_randomize_compact_ciphertext_lists<'a>(
+        &self,
+        compact_lists: impl Iterator<Item = &'a mut CompactCiphertextList>,
+        seed: ReRandomizationSeed,
+    ) -> crate::Result<()> {
+        let key_lwe_size = self.key.lwe_dimension().to_lwe_size();
+        let mut encryption_generator =
+            NoiseRandomGenerator::<DefaultRandomGenerator>::new_from_seed(seed.0);
+
+        for list in compact_lists {
+            if key_lwe_size != list.ct_list.lwe_size() {
+                return Err(crate::error!(
+                    "Mismatched LweSize between Compact Lists \
+                    being re-randomized and provided CompactPublicKey",
+                ));
+            }
+            let encryption_of_zero = self.prepare_cpk_zero_for_rerand_with_generator(
+                &mut encryption_generator,
+                list.ct_list.lwe_ciphertext_count(),
+            );
+            lwe_compact_ciphertext_list_add_assign(&mut list.ct_list, &encryption_of_zero);
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod test {
 
+    use rand::Rng;
+
     use super::*;
+    use crate::shortint::ciphertext::ShortintCompactCiphertextListCastingMode;
     use crate::shortint::key_switching_key::{KeySwitchingKeyBuildHelper, KeySwitchingKeyMaterial};
     use crate::shortint::parameters::test_params::{
         TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
     };
     use crate::shortint::parameters::{
         AtomicPatternParameters, CompactPublicKeyEncryptionParameters, ReRandomizationParameters,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS,
     };
-    use crate::shortint::{gen_keys, CompactPrivateKey};
+    use crate::shortint::{gen_keys, CompactPrivateKey, KeySwitchingKeyView};
 
     /// Test the case where we rerand more ciphertexts that what can be stored in one cpk lwe
     /// Test the trivial case
@@ -558,6 +599,127 @@ mod test {
 
             let dec = cks.decrypt(&not_trivial);
             assert_eq!(dec, 3);
+        }
+    }
+
+    #[test]
+    fn test_rerand_compact_list_ci_run_filter() {
+        let mut rng = rand::thread_rng();
+        let compute_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        let cpk_params = TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+        let ks_params = TEST_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        const CT_COUNT: usize = 37;
+
+        let (cks, sks) = gen_keys(compute_params);
+
+        let privk = CompactPrivateKey::new(cpk_params);
+        let pubk = CompactPublicKey::new(&privk);
+
+        let ksk_builder = KeySwitchingKeyBuildHelper::new((&privk, None), (&cks, &sks), ks_params);
+        let casting_key: KeySwitchingKeyView<'_> = ksk_builder.as_key_switching_key_view();
+
+        let casting_mode = ShortintCompactCiphertextListCastingMode::CastIfNecessary {
+            casting_key,
+            functions: None,
+        };
+
+        let messages: [u64; CT_COUNT] =
+            core::array::from_fn(|_| rng.gen_range(0..cpk_params.message_modulus.0));
+        let mut enc = pubk.encrypt_slice(&messages);
+
+        let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rng.gen());
+        let mut re_rand_context = ReRandomizationContext::new(*b"TFHE_Rrd", *b"TFHE_Enc");
+
+        re_rand_context.add_ciphertext_data_slice(enc.ct_list.as_ref());
+        re_rand_context.add_bytes(&nonce);
+        re_rand_context.add_bytes(b"expand");
+
+        let mut seeder = re_rand_context.finalize();
+
+        pubk.re_randomize_compact_ciphertext_lists(std::iter::once(&mut enc), seeder.next_seed())
+            .unwrap();
+
+        let cast = enc.expand(casting_mode).unwrap();
+
+        assert_eq!(cast.len(), CT_COUNT);
+        for (ct, clear) in cast.iter().zip(&messages) {
+            assert_eq!(cks.decrypt(ct), *clear)
+        }
+    }
+
+    #[cfg(feature = "zk-pok")]
+    #[test]
+    fn test_rerand_proven_compact_list_ci_run_filter() {
+        use crate::zk::{CompactPkeCrs, ZkComputeLoad};
+
+        let mut rng = rand::thread_rng();
+        let compute_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        let cpk_params = TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+        let ks_params = TEST_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        // Make sure that the resulting proven list will be composed of multiple inner compact lists
+        const CT_COUNT: usize = 37;
+
+        let (cks, sks) = gen_keys(compute_params);
+
+        let privk = CompactPrivateKey::new(cpk_params);
+        let pubk = CompactPublicKey::new(&privk);
+
+        let crs = CompactPkeCrs::from_shortint_params(cpk_params, LweCiphertextCount(4)).unwrap();
+        let metadata = [b's', b'h', b'o', b'r', b't', b'i', b'n', b't'];
+
+        let ksk_builder = KeySwitchingKeyBuildHelper::new((&privk, None), (&cks, &sks), ks_params);
+        let casting_key: KeySwitchingKeyView<'_> = ksk_builder.as_key_switching_key_view();
+
+        let id = |x: u64| x;
+        let dyn_id: &(dyn Fn(u64) -> u64 + Sync) = &id;
+
+        let functions = vec![Some(vec![dyn_id; 1]); CT_COUNT];
+
+        let casting_mode = ShortintCompactCiphertextListCastingMode::CastIfNecessary {
+            casting_key,
+            functions: Some(functions.as_slice()),
+        };
+
+        let messages: [u64; CT_COUNT] =
+            core::array::from_fn(|_| rng.gen_range(0..cpk_params.message_modulus.0));
+        let mut enc = pubk
+            .encrypt_and_prove_slice(
+                &messages,
+                &crs,
+                &metadata,
+                ZkComputeLoad::Verify,
+                cpk_params.message_modulus.0,
+            )
+            .unwrap();
+
+        let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rng.gen());
+        let mut re_rand_context = ReRandomizationContext::new(*b"TFHE_Rrd", *b"TFHE_Enc");
+
+        re_rand_context.add_ciphertext_data_slice(
+            &enc.proved_lists
+                .iter()
+                .flat_map(|list| list.0.ct_list.as_ref())
+                .copied()
+                .collect::<Vec<_>>(),
+        );
+        re_rand_context.add_bytes(&nonce);
+        re_rand_context.add_bytes(b"expand");
+
+        let mut seeder = re_rand_context.finalize();
+
+        pubk.re_randomize_compact_ciphertext_lists(
+            enc.proved_lists.iter_mut().map(|(list, _)| list),
+            seeder.next_seed(),
+        )
+        .unwrap();
+
+        let cast = enc.expand_without_verification(casting_mode).unwrap();
+
+        assert_eq!(cast.len(), CT_COUNT);
+        for (ct, clear) in cast.iter().zip(&messages) {
+            assert_eq!(cks.decrypt(ct), *clear)
         }
     }
 }
