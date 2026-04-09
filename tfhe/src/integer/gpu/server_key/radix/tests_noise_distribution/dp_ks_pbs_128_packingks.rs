@@ -33,10 +33,10 @@ use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulat
     NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
-    write_empty_json_file, write_to_json_file, NoiseCheckWithoutNormalityCheck, TestResult,
+    TestJsonGuard, TestResult,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::{
-    mean_and_variance_check, DecryptionAndNoiseResult, NoiseSample,
+    mean_and_variance_check, noise_check, DecryptionAndNoiseResult, NoiseSample,
 };
 use crate::shortint::{PaddingBit, ShortintEncoding, ShortintParameterSet};
 use crate::{this_function_name, GpuIndex};
@@ -48,12 +48,8 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_gpu(
     meta_params: MetaParameters,
     filename_suffix: &str,
 ) {
-    write_empty_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-    )
-    .unwrap();
+    let function_name = this_function_name!();
+    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
     let (atomic_params, noise_squashing_params, noise_squashing_compression_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
         (
@@ -197,15 +193,13 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_gpu(
     // Bodies that were not filled are discarded
     after_packing.get_mut_body().as_mut()[lwe_per_glwe.0..].fill(0);
 
-    write_to_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-        after_packing.as_view() == extracted_glwe.as_view(),
-        None,
-        TestResult::Empty {},
-    )
-    .unwrap();
+    guard
+        .write_results(
+            after_packing.as_view() == extracted_glwe.as_view(),
+            None,
+            TestResult::Empty {},
+        )
+        .unwrap();
 
     assert_eq!(after_packing.as_view(), extracted_glwe.as_view());
 }
@@ -216,12 +210,8 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(
     meta_params: MetaParameters,
     filename_suffix: &str,
 ) {
-    write_empty_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-    )
-    .unwrap();
+    let function_name = this_function_name!();
+    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
     let (params, noise_squashing_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
         (
@@ -375,15 +365,13 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(
         })
         .collect();
 
-    write_to_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-        vector_pattern_cpu == vector_non_pattern_cpu,
-        None,
-        TestResult::Empty {},
-    )
-    .unwrap();
+    guard
+        .write_results(
+            vector_pattern_cpu == vector_non_pattern_cpu,
+            None,
+            TestResult::Empty {},
+        )
+        .unwrap();
 
     // Compare that all the results are equivalent
     assert_eq!(vector_pattern_cpu, vector_non_pattern_cpu);
@@ -742,12 +730,8 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise_gpu(
     meta_params: MetaParameters,
     filename_suffix: &str,
 ) {
-    write_empty_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-    )
-    .unwrap();
+    let function_name = this_function_name!();
+    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
     let (atomic_params, noise_squashing_params, noise_squashing_compression_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
         (
@@ -911,35 +895,17 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise_gpu(
         .map(|x| x.value)
         .collect();
 
-    let (after_packing_is_ok, bounded_variance_measurement, bounded_mean_measurement) =
-        mean_and_variance_check(
-            &noise_samples_after_packing_flattened,
-            "after_packing",
-            0.0,
-            after_packing_sim.variance(),
-            noise_squashing_compression_params.packing_ks_key_noise_distribution,
-            after_packing_sim.lwe_dimension(),
-            after_packing_sim.modulus().as_f64(),
-        );
+    let mean_variance_result = mean_and_variance_check(
+        &noise_samples_after_packing_flattened,
+        "after_packing",
+        0.0,
+        after_packing_sim.variance(),
+        noise_squashing_compression_params.packing_ks_key_noise_distribution,
+        after_packing_sim.lwe_dimension(),
+        after_packing_sim.modulus().as_f64(),
+    );
 
-    let noise_check = TestResult::NoiseCheckWithoutNormalityCheck(Box::new(
-        NoiseCheckWithoutNormalityCheck::new(
-            bounded_variance_measurement,
-            bounded_mean_measurement,
-        ),
-    ));
-
-    write_to_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-        after_packing_is_ok,
-        None,
-        noise_check,
-    )
-    .unwrap();
-
-    assert!(after_packing_is_ok);
+    noise_check(&guard, mean_variance_result, None);
 }
 
 create_gpu_parameterized_stringified_test!(
