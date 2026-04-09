@@ -440,6 +440,44 @@ impl<G: Curve> Proof<G> {
     pub fn hash_config(&self) -> PkeV2SupportedHashConfig {
         self.hash_config
     }
+
+    pub fn to_le_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+
+        let Self {
+            C_hat_e,
+            C_e,
+            C_r_tilde,
+            C_R,
+            C_hat_bin,
+            C_y,
+            C_h1,
+            C_h2,
+            C_hat_t,
+            pi,
+            pi_kzg,
+            compute_load_proof_fields,
+            hash_config: _,
+        } = self;
+
+        bytes.extend_from_slice(C_hat_e.to_le_bytes().as_ref());
+        bytes.extend_from_slice(C_e.to_le_bytes().as_ref());
+        bytes.extend_from_slice(C_r_tilde.to_le_bytes().as_ref());
+        bytes.extend_from_slice(C_R.to_le_bytes().as_ref());
+        bytes.extend_from_slice(C_hat_bin.to_le_bytes().as_ref());
+        bytes.extend_from_slice(C_y.to_le_bytes().as_ref());
+        bytes.extend_from_slice(C_h1.to_le_bytes().as_ref());
+        bytes.extend_from_slice(C_h2.to_le_bytes().as_ref());
+        bytes.extend_from_slice(C_hat_t.to_le_bytes().as_ref());
+        bytes.extend_from_slice(pi.to_le_bytes().as_ref());
+        bytes.extend_from_slice(pi_kzg.to_le_bytes().as_ref());
+        let (C_hat_h3_bytes, C_hat_w_bytes) =
+            ComputeLoadProofFields::to_le_bytes(compute_load_proof_fields);
+        bytes.extend_from_slice(&C_hat_h3_bytes);
+        bytes.extend_from_slice(&C_hat_w_bytes);
+
+        bytes
+    }
 }
 
 /// These fields can be pre-computed on the prover side in the faster Verifier scheme. If that's the

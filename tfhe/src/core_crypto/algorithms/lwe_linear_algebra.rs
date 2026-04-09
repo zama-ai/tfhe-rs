@@ -816,6 +816,111 @@ pub fn lwe_ciphertext_sub<Scalar, OutputCont, LhsCont, RhsCont>(
     lwe_ciphertext_sub_assign(output, rhs);
 }
 
+/// Add the right-hand side [`LWE compact ciphertext list`](`LweCompactCiphertextList`) to the
+/// left-hand side [`LWE compact ciphertext list`](`LweCompactCiphertextList`) updating it in-place.
+///
+/// # Example
+///
+/// ```rust
+/// use tfhe::core_crypto::prelude::*;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for LweCompactCiphertextList creation
+/// let lwe_dimension = LweDimension(2048);
+/// let lwe_ciphertext_count = LweCiphertextCount(3);
+/// let noise_distribution =
+///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let seeder = seeder.as_mut();
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+///
+/// // Create the LweSecretKey
+/// let lwe_secret_key =
+///     allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
+///
+/// let lwe_compact_public_key = allocate_and_generate_new_lwe_compact_public_key(
+///     &lwe_secret_key,
+///     noise_distribution,
+///     ciphertext_modulus,
+///     &mut encryption_generator,
+/// );
+///
+/// // Create the plaintext
+/// let msg = 3u64;
+/// let encoded_msg = msg << 60;
+/// let input_plaintext_list =
+///     PlaintextList::new(encoded_msg, PlaintextCount(lwe_ciphertext_count.0));
+///
+/// // Create and encrypt a new LweCompactCiphertextList
+/// let mut lwe_compact_ct_list = LweCompactCiphertextList::new(
+///     0u64,
+///     lwe_dimension.to_lwe_size(),
+///     lwe_ciphertext_count,
+///     ciphertext_modulus,
+/// );
+/// encrypt_lwe_compact_ciphertext_list_with_compact_public_key(
+///     &lwe_compact_public_key,
+///     &mut lwe_compact_ct_list,
+///     &input_plaintext_list,
+///     noise_distribution,
+///     noise_distribution,
+///     encryption_generator.noise_generator_mut(),
+/// );
+///
+/// let rhs = lwe_compact_ct_list.clone();
+///
+/// lwe_compact_ciphertext_list_add_assign(&mut lwe_compact_ct_list, &rhs);
+///
+/// // Expand and decrypt
+/// let lwe_ciphertext_list = lwe_compact_ct_list.expand_into_lwe_ciphertext_list();
+///
+/// let mut output_plaintext_list =
+///     PlaintextList::new(0u64, PlaintextCount(lwe_ciphertext_count.0));
+///
+/// decrypt_lwe_ciphertext_list(
+///     &lwe_secret_key,
+///     &lwe_ciphertext_list,
+///     &mut output_plaintext_list,
+/// );
+///
+/// // Round and remove encoding
+/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
+/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+///
+/// // Round and remove encoding in the output plaintext list
+/// output_plaintext_list
+///     .iter_mut()
+///     .for_each(|x| *x.0 = decomposer.closest_representable(*x.0) >> 60);
+///
+/// // Check we recovered the expected result
+/// assert!(output_plaintext_list.iter().all(|x| *x.0 == msg + msg));
+/// ```
+pub fn lwe_compact_ciphertext_list_add_assign<Scalar, LhsCont, RhsCont>(
+    lhs: &mut LweCompactCiphertextList<LhsCont>,
+    rhs: &LweCompactCiphertextList<RhsCont>,
+) where
+    Scalar: UnsignedInteger,
+    LhsCont: ContainerMut<Element = Scalar>,
+    RhsCont: Container<Element = Scalar>,
+{
+    assert_eq!(
+        lhs.ciphertext_modulus(),
+        rhs.ciphertext_modulus(),
+        "Mismatched moduli between lhs ({:?}) and rhs ({:?}) LweCompactCiphertextList",
+        lhs.ciphertext_modulus(),
+        rhs.ciphertext_modulus()
+    );
+    assert!(lhs.ciphertext_modulus().is_power_of_two());
+
+    slice_wrapping_add_assign(lhs.as_mut(), rhs.as_ref());
+}
+
 // ============== Noise measurement trait implementations ============== //
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     LweUncorrelatedAdd, LweUncorrelatedSub, ScalarMul, ScalarMulAssign,
