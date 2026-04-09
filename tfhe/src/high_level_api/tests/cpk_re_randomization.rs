@@ -325,6 +325,121 @@ fn execute_re_rand_test(cks: &ClientKey, cpk: &CompactPublicKey) {
     }
 }
 
+#[cfg(feature = "zk-pok")]
+mod zk {
+    use super::*;
+    use crate::high_level_api::{FheInt64, FheUint32};
+    use crate::zk::{CompactPkeCrs, ZkComputeLoad};
+    use crate::{Config, ProvenCompactCiphertextList};
+
+    #[test]
+    fn test_compact_list_re_rand() {
+        use crate::shortint::parameters::test_params::TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+
+        let params = TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+        let (cks, sks, cpk) = setup_re_rand_test(params);
+        set_server_key(sks.decompress());
+
+        let config = Config::from(params);
+
+        let compact_public_encryption_domain_separator = *b"TFHE_Enc";
+        let rerand_domain_separator = *b"TFHE_Rrd";
+
+        // Intentionally low so that we test when multiple lists and proofs are needed
+        let crs = CompactPkeCrs::from_config(config, 32).unwrap();
+        let metadata = [b'r', b'e', b'r', b'a', b'n', b'd'];
+
+        // Case where we want to re-randomize a CompactCiphertextList containing
+        // FheUint64, FheInt8, and FheBool
+        {
+            let clear_a = rand::random::<u64>();
+            let clear_b = rand::random::<i8>();
+
+            let compact_list = ProvenCompactCiphertextList::builder(&cpk)
+                .push(clear_a)
+                .push(clear_b)
+                .push(false)
+                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .unwrap();
+
+            // Simulate a 256 bits nonce
+            let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
+
+            let mut re_rand_context = ReRandomizationContext::new(
+                rerand_domain_separator,
+                [b"expand".as_slice(), nonce.as_slice()],
+                compact_public_encryption_domain_separator,
+            );
+
+            // Add the compact list to the context
+            re_rand_context.add_ciphertext(&compact_list);
+
+            let mut seed_gen = re_rand_context.finalize();
+
+            // Verify, re_randomize and expand
+            let expander = compact_list
+                .verify_re_randomize_and_expand(
+                    &crs,
+                    &cpk,
+                    &metadata,
+                    seed_gen.next_seed().unwrap(),
+                )
+                .unwrap();
+
+            let a: FheUint64 = expander.get(0).unwrap().unwrap();
+            let b: FheInt8 = expander.get(1).unwrap().unwrap();
+            let c: FheBool = expander.get(2).unwrap().unwrap();
+
+            let dec_a: u64 = a.decrypt(&cks);
+            assert_eq!(dec_a, clear_a);
+            let dec_b: i8 = b.decrypt(&cks);
+            assert_eq!(dec_b, clear_b);
+            let dec_c: bool = c.decrypt(&cks);
+            assert!(!dec_c);
+        }
+
+        // Also test expand_and_re_randomize_without_verification
+        {
+            let clear_a = rand::random::<u32>();
+            let clear_b = rand::random::<i64>();
+
+            let compact_list = ProvenCompactCiphertextList::builder(&cpk)
+                .push(clear_a)
+                .push(clear_b)
+                .push(false)
+                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .unwrap();
+
+            let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
+
+            let mut re_rand_context = ReRandomizationContext::new(
+                rerand_domain_separator,
+                [b"expand".as_slice(), nonce.as_slice()],
+                compact_public_encryption_domain_separator,
+            );
+
+            re_rand_context.add_ciphertext(&compact_list);
+
+            let mut seed_gen = re_rand_context.finalize();
+
+            let expander = compact_list
+                .re_randomize_and_expand_without_verification(&cpk, seed_gen.next_seed().unwrap())
+                .unwrap();
+
+            let a: FheUint32 = expander.get(0).unwrap().unwrap();
+            let b: FheInt64 = expander.get(1).unwrap().unwrap();
+            let c: FheBool = expander.get(2).unwrap().unwrap();
+
+            let dec_a: u32 = a.decrypt(&cks);
+            assert_eq!(dec_a, clear_a);
+            let dec_b: i64 = b.decrypt(&cks);
+            assert_eq!(dec_b, clear_b);
+            let dec_c: bool = c.decrypt(&cks);
+            assert!(!dec_c);
+        }
+    }
+}
+
 fn setup_re_rand_test(
     mut params: MetaParameters,
 ) -> (crate::ClientKey, CompressedServerKey, CompactPublicKey) {
@@ -394,5 +509,100 @@ mod gpu {
         let (cks, sks, cpk) = setup_re_rand_test(params);
         set_server_key(sks.decompress_to_gpu());
         execute_dyn_rerand_test(&cks, &cpk);
+    }
+
+    #[cfg(feature = "zk-pok")]
+    #[test]
+    fn test_compact_list_re_rand_cpu_gpu_compatibility() {
+        use crate::core_crypto::gpu::CudaStreams;
+        use crate::integer::gpu::zk::CudaProvenCompactCiphertextList;
+        use crate::shortint::parameters::test_params::TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+        use crate::zk::{CompactPkeCrs, ZkComputeLoad};
+        use crate::{Config, ProvenCompactCiphertextList};
+
+        let params = TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+        let (_cks, _sks, cpk) = setup_re_rand_test(params);
+
+        let config = Config::from(params);
+
+        let compact_public_encryption_domain_separator = *b"TFHE_Enc";
+        let rerand_domain_separator = *b"TFHE_Rrd";
+
+        // Intentionally low so that we test when multiple lists and proofs are needed
+        let crs = CompactPkeCrs::from_config(config, 32).unwrap();
+        let metadata = [b'r', b'e', b'r', b'a', b'n', b'd'];
+
+        let clear_a = rand::random::<u64>();
+        let clear_b = rand::random::<i8>();
+
+        let compact_list = ProvenCompactCiphertextList::builder(&cpk)
+            .push(clear_a)
+            .push(clear_b)
+            .push(false)
+            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+            .unwrap();
+
+        // Clone the list so both CPU and GPU start from the same state
+        let integer_list = compact_list.inner.on_cpu();
+        let mut cpu_list = integer_list.clone();
+
+        // Simulate a 256 bits nonce
+        let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
+
+        // Create two identical seeds from the same context inputs
+        let cpu_seed = {
+            let mut ctx = ReRandomizationContext::new(
+                rerand_domain_separator,
+                [b"expand".as_slice(), nonce.as_slice()],
+                compact_public_encryption_domain_separator,
+            );
+            ctx.add_ciphertext(&compact_list);
+            ctx.finalize().next_seed().unwrap()
+        };
+
+        let gpu_seed = {
+            let mut ctx = ReRandomizationContext::new(
+                rerand_domain_separator,
+                [b"expand".as_slice(), nonce.as_slice()],
+                compact_public_encryption_domain_separator,
+            );
+            ctx.add_ciphertext(&compact_list);
+            ctx.finalize().next_seed().unwrap()
+        };
+
+        // Re-randomize on CPU
+        cpu_list.re_randomize(&cpk.key.key, cpu_seed).unwrap();
+
+        // Re-randomize on GPU
+        let streams = CudaStreams::new_multi_gpu();
+        let integer_list = compact_list.inner.on_cpu();
+        let mut gpu_list = CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
+            integer_list,
+            &streams,
+        );
+        gpu_list
+            .re_randomize(&cpk.key.key, gpu_seed, &streams)
+            .unwrap();
+
+        // Read ciphertext data back from GPU and reconstruct an hl proven list
+        let gpu_compact_lists = gpu_list
+            .d_flattened_compact_lists
+            .to_vec_shortint_compact_ciphertext_list(&streams)
+            .unwrap();
+
+        let gpu_proved_lists: Vec<_> = gpu_compact_lists
+            .into_iter()
+            .zip(gpu_list.h_proved_lists.ct_list.proved_lists.iter())
+            .map(|(ct, (_, proof))| (ct, proof.clone()))
+            .collect();
+
+        let gpu_on_cpu = crate::integer::ProvenCompactCiphertextList {
+            ct_list: crate::shortint::ciphertext::ProvenCompactCiphertextList {
+                proved_lists: gpu_proved_lists,
+            },
+            info: gpu_list.h_proved_lists.info.clone(),
+        };
+
+        assert!(cpu_list == gpu_on_cpu);
     }
 }
