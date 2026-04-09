@@ -126,15 +126,10 @@ jobs:
     needs: prepare-matrix
     runs-on: ubuntu-latest
     outputs:
-      # Use permanent remote instance label first as on-demand remote instance label output is set before the end of start-remote-instance step.
-      # If the latter fails due to a failed GitHub action runner set up, we have to fallback on the permanent instance.
-      # Since the on-demand remote label is set before failure, we have to do the logical OR in this order,
-      # otherwise we'll try to run the next job on a non-existing on-demand instance.
-      runner-name: ${{ steps.use-permanent-instance.outputs.runner_group || steps.start-remote-instance.outputs.label }}
-      remote-instance-outcome: ${{ steps.start-remote-instance.outcome }}
+      runner-name: ${{ steps.start-instance.outputs.label }}
     steps:
-      - name: Start remote instance
-        id: start-remote-instance
+      - name: Start instance
+        id: start-instance
         continue-on-error: true
         uses: zama-ai/slab-github-runner@5aee5d157f4a0201e5eaefc9cc648e5f9f5472a5 # v1.6.0
         with:
@@ -144,25 +139,6 @@ jobs:
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: ${{ inputs.backend }}
           profile: ${{ inputs.profile }}
-
-      - name: Acknowledge remote instance failure
-        if: steps.start-remote-instance.outcome == 'failure' &&
-          inputs.profile != 'single-h100'
-        run: |
-          echo "Remote instance instance has failed to start (profile provided: '${INPUTS_PROFILE}')"
-          echo "Permanent instance instance cannot be used as a substitute (profile needed: 'single-h100')"
-          exit 1
-        env:
-          INPUTS_PROFILE: ${{ inputs.profile }}
-
-      # This will allow to fallback on permanent instances running on Hyperstack.
-      - name: Use permanent remote instance
-        id: use-permanent-instance
-        if: env.SECRETS_AVAILABLE == 'true' &&
-          steps.start-remote-instance.outcome == 'failure' &&
-          inputs.profile == 'single-h100'
-        run: |
-          echo "runner_group=h100x1" >> "$GITHUB_OUTPUT"
 
   # Install dependencies only once since cuda-benchmarks uses a matrix strategy, thus running multiple times.
   install-dependencies:
@@ -184,7 +160,6 @@ jobs:
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Setup Hyperstack dependencies
-        if: needs.setup-instance.outputs.remote-instance-outcome == 'success'
         uses: ./.github/actions/gpu_setup
         with:
           cuda-version: ${{ matrix.cuda }}
@@ -333,7 +308,7 @@ jobs:
 
   teardown-instance:
     name: benchmark_gpu_common/teardown-instance
-    if: ${{ always() && needs.setup-instance.outputs.remote-instance-outcome == 'success' }}
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, cuda-benchmarks, slack-notify ]
     runs-on: ubuntu-latest
     steps:

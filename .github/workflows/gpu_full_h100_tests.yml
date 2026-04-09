@@ -25,15 +25,10 @@ jobs:
     name: gpu_full_h100_tests/setup-instance
     runs-on: ubuntu-latest
     outputs:
-      # Use permanent remote instance label first as on-demand remote instance label output is set before the end of start-remote-instance step.
-      # If the latter fails due to a failed GitHub action runner set up, we have to fallback on the permanent instance.
-      # Since the on-demand remote label is set before failure, we have to do the logical OR in this order,
-      # otherwise we'll try to run the next job on a non-existing on-demand instance.
-      runner-name: ${{ steps.use-permanent-instance.outputs.runner_group || steps.start-remote-instance.outputs.label }}
-      remote-instance-outcome: ${{ steps.start-remote-instance.outcome }}
+      runner-name: ${{ steps.start-instance.outputs.label }}
     steps:
-      - name: Start remote instance
-        id: start-remote-instance
+      - name: Start instance
+        id: start-instance
         continue-on-error: true
         uses: zama-ai/slab-github-runner@5aee5d157f4a0201e5eaefc9cc648e5f9f5472a5 # v1.6.0
         with:
@@ -43,13 +38,6 @@ jobs:
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: hyperstack
           profile: single-h100
-
-      # This will allow to fallback on permanent instances running on Hyperstack.
-      - name: Use permanent remote instance
-        id: use-permanent-instance
-        if: env.SECRETS_AVAILABLE == 'true' && steps.start-remote-instance.outcome == 'failure'
-        run: |
-          echo "runner_group=h100x1" >> "$GITHUB_OUTPUT"
 
   cuda-tests-linux:
     name: gpu_full_h100_tests/cuda-tests-linux
@@ -74,7 +62,6 @@ jobs:
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Setup Hyperstack dependencies
-        if: needs.setup-instance.outputs.remote-instance-outcome == 'success'
         uses: ./.github/actions/gpu_setup
         with:
           cuda-version: ${{ matrix.cuda }}
@@ -118,7 +105,7 @@ jobs:
 
   teardown-instance:
     name: gpu_full_h100_tests/teardown-instance
-    if: ${{ always() && needs.setup-instance.outputs.remote-instance-outcome == 'success' }}
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
     steps:
