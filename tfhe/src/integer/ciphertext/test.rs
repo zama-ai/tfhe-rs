@@ -219,3 +219,155 @@ fn test_ciphertext_re_randomization_after_compression_impl(
         }
     }
 }
+
+#[cfg(feature = "zk-pok")]
+#[test]
+fn test_proven_compact_ciphertext_list_re_randomization() {
+    use crate::core_crypto::prelude::LweCiphertextCount;
+    use crate::integer::ciphertext::ProvenCompactCiphertextList;
+    use crate::integer::key_switching_key::KeySwitchingKey;
+    use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
+    use crate::integer::{ClientKey, ServerKey};
+    use crate::zk::{CompactPkeCrs, ZkComputeLoad};
+
+    let pke_params = TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+    let ksk_params = TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let fhe_params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+    let num_blocks = 4usize;
+    let metadata = [b't', b'e', b's', b't'];
+    let rerand_domain_separator = *b"TFHE_Rrd";
+    let compact_public_encryption_domain_separator = *b"TFHE_Enc";
+
+    let cks = ClientKey::new(fhe_params);
+    let sks = ServerKey::new_radix_server_key(&cks);
+    let compact_private_key = CompactPrivateKey::new(pke_params);
+    let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sks), ksk_params);
+    let pk = CompactPublicKey::new(&compact_private_key);
+
+    let crs = CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(512)).unwrap();
+
+    let mut rng = rand::thread_rng();
+    let message_modulus = pke_params.message_modulus.0 as u128;
+
+    // Unsigned
+    {
+        let modulus = message_modulus.pow(num_blocks as u32);
+        let message = rng.gen::<u128>() % modulus;
+
+        let mut builder = ProvenCompactCiphertextList::builder(&pk);
+        builder.push_with_num_blocks(message, num_blocks);
+
+        let proven_ct = builder
+            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+            .unwrap();
+
+        let mut re_rand_context = ReRandomizationContext::new(
+            rerand_domain_separator,
+            [metadata.as_slice()],
+            compact_public_encryption_domain_separator,
+        );
+
+        re_rand_context.add_proven_ciphertext_list(&proven_ct);
+
+        let mut seed_gen = re_rand_context.finalize();
+
+        let mut re_randomized = proven_ct.clone();
+        re_randomized
+            .re_randomize(&pk, seed_gen.next_seed().unwrap())
+            .unwrap();
+
+        assert_ne!(proven_ct, re_randomized);
+
+        let expander = re_randomized
+            .expand_without_verification(
+                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
+            )
+            .unwrap();
+
+        let expanded: RadixCiphertext = expander.get(0).unwrap().unwrap();
+        let decrypted: u128 = cks.decrypt_radix(&expanded);
+        assert_eq!(decrypted, message);
+    }
+
+    // Signed
+    {
+        let modulus = message_modulus.pow((num_blocks - 1) as u32) as i128;
+        let message = rng.gen::<i128>() % modulus;
+
+        let mut builder = ProvenCompactCiphertextList::builder(&pk);
+        builder.push_with_num_blocks(message, num_blocks);
+
+        let proven_ct = builder
+            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+            .unwrap();
+
+        let mut re_rand_context = ReRandomizationContext::new(
+            rerand_domain_separator,
+            [metadata.as_slice()],
+            compact_public_encryption_domain_separator,
+        );
+
+        re_rand_context.add_proven_ciphertext_list(&proven_ct);
+
+        let mut seed_gen = re_rand_context.finalize();
+
+        let mut re_randomized = proven_ct.clone();
+        re_randomized
+            .re_randomize(&pk, seed_gen.next_seed().unwrap())
+            .unwrap();
+
+        assert_ne!(proven_ct, re_randomized);
+
+        let expander = re_randomized
+            .expand_without_verification(
+                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
+            )
+            .unwrap();
+
+        let expanded: SignedRadixCiphertext = expander.get(0).unwrap().unwrap();
+        let decrypted: i128 = cks.decrypt_signed_radix(&expanded);
+        assert_eq!(decrypted, message);
+    }
+
+    // Boolean
+    {
+        for message in [false, true] {
+            let mut builder = ProvenCompactCiphertextList::builder(&pk);
+            builder.push(message);
+
+            let proven_ct = builder
+                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .unwrap();
+
+            let mut re_rand_context = ReRandomizationContext::new(
+                rerand_domain_separator,
+                [metadata.as_slice()],
+                compact_public_encryption_domain_separator,
+            );
+
+            re_rand_context.add_proven_ciphertext_list(&proven_ct);
+
+            let mut seed_gen = re_rand_context.finalize();
+
+            let mut re_randomized = proven_ct.clone();
+            re_randomized
+                .re_randomize(&pk, seed_gen.next_seed().unwrap())
+                .unwrap();
+
+            assert_ne!(proven_ct, re_randomized);
+
+            let expander = re_randomized
+                .expand_without_verification(
+                    IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
+                        ksk.as_view(),
+                    ),
+                )
+                .unwrap();
+
+            let expanded: BooleanBlock = expander.get(0).unwrap().unwrap();
+            let decrypted = cks.decrypt_bool(&expanded);
+            assert_eq!(decrypted, message);
+        }
+    }
+}
