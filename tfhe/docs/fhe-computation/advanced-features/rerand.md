@@ -97,6 +97,81 @@ pub fn main() {
 }
 ```
 
+## Example: Re-randomization of a `ProvenCompactCiphertextList`
+
+Untrusted user inputs received in a `ProvenCompactCiphertextList` should also be re-randomized.
+Here is how to do it:
+
+```rust
+use tfhe::prelude::*;
+use tfhe::shortint::parameters::v1_6::meta::cpu::V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
+use tfhe::{
+    CompactPublicKey, Config, FheBool, FheInt8, FheUint64, ProvenCompactCiphertextList,
+    ReRandomizationContext, generate_keys, set_server_key,
+};
+
+pub fn main() {
+    let config = Config::from(V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
+    let (cks, sks) = generate_keys(config);
+    let cpk = CompactPublicKey::new(&cks);
+
+    let compact_public_encryption_domain_separator = *b"TFHE_Enc";
+    let rerand_domain_separator = *b"TFHE_Rrd";
+
+    let crs = CompactPkeCrs::from_config(config, 2048).unwrap();
+    let metadata = [b'r', b'e', b'r', b'a', b'n', b'd'];
+
+    set_server_key(sks);
+
+    // Generate a list of ciphertexts
+    let clear_a = rand::random::<u64>();
+    let clear_b = rand::random::<i8>();
+
+    let mut compact_list = ProvenCompactCiphertextList::builder(&cpk)
+        .push(clear_a)
+        .push(clear_b)
+        .push(false)
+        .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+        .unwrap();
+
+    // Simulate a 256 bits nonce
+    let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
+
+    let mut re_rand_context = ReRandomizationContext::new(
+        rerand_domain_separator,
+        [b"expand".as_slice(), nonce.as_slice()],
+        compact_public_encryption_domain_separator,
+    );
+
+    // Add the compact list to the context
+    re_rand_context.add_ciphertext(&compact_list);
+
+    let mut seed_gen = re_rand_context.finalize();
+
+    // Re-randomize
+    compact_list
+        .re_randomize(&cpk, seed_gen.next_seed().unwrap())
+        .unwrap();
+
+    // Verify and expand
+    let expander = compact_list
+        .verify_and_expand(&crs, &cpk, &metadata)
+        .unwrap();
+
+    let a: FheUint64 = expander.get(0).unwrap().unwrap();
+    let b: FheInt8 = expander.get(1).unwrap().unwrap();
+    let c: FheBool = expander.get(2).unwrap().unwrap();
+
+    let dec_a: u64 = a.decrypt(&cks);
+    assert_eq!(dec_a, clear_a);
+    let dec_b: i8 = b.decrypt(&cks);
+    assert_eq!(dec_b, clear_b);
+    let dec_c: bool = c.decrypt(&cks);
+    assert!(!dec_c);
+}
+```
+
 ## Managing legacy Re-Randomization API
 
 Because of an API change in version 1.6 you may find yourself needing to manage older keys using the old API, the following example shows how it can be done:

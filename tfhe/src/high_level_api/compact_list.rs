@@ -462,7 +462,10 @@ mod zk {
     use crate::conformance::ParameterSetConformant;
     use crate::high_level_api::global_state::device_of_internal_keys;
     use crate::high_level_api::keys::InternalServerKey;
-    use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
+    use crate::high_level_api::re_randomization::ReRandContextAdd;
+    use crate::integer::ciphertext::{
+        IntegerProvenCompactCiphertextListConformanceParams, ReRandomizationSeed,
+    };
     #[cfg(feature = "gpu")]
     use crate::integer::gpu::zk::CudaProvenCompactCiphertextList;
     use serde::Serializer;
@@ -620,6 +623,13 @@ mod zk {
         const NAME: &'static str = "high_level_api::ProvenCompactCiphertextList";
     }
 
+    impl ReRandContextAdd for ProvenCompactCiphertextList {
+        fn add_to_re_randomization_context(&self, context: &mut crate::ReRandomizationContext) {
+            let on_cpu = self.inner.on_cpu();
+            context.inner.add_proven_ciphertext_list(on_cpu)
+        }
+    }
+
     impl ProvenCompactCiphertextList {
         pub fn builder(pk: &CompactPublicKey) -> CompactCiphertextListBuilder {
             CompactCiphertextListBuilder::new(pk)
@@ -666,8 +676,24 @@ mod zk {
             self.maybe_verify_and_expand(None)
         }
 
-        /// Internal helper that does expansion, and verification only if crs, public key and
-        /// metadata are provided
+        pub fn re_randomize(
+            &mut self,
+            pk: &CompactPublicKey,
+            seed: ReRandomizationSeed,
+        ) -> crate::Result<()> {
+            match &mut self.inner {
+                InnerProvenCompactCiphertextList::Cpu(inner) => {
+                    inner.re_randomize(&pk.key.key, seed)
+                }
+                #[cfg(feature = "gpu")]
+                InnerProvenCompactCiphertextList::Cuda(inner) => with_cuda_internal_keys(|keys| {
+                    inner.re_randomize(&pk.key.key, seed, &keys.streams)
+                }),
+            }
+        }
+
+        /// Internal helper that does expansion, and optionally verification and re_randomization if
+        /// the required materials are provided
         fn maybe_verify_and_expand(
             &self,
             verification_materials: Option<(&CompactPkeCrs, &CompactPublicKey, &[u8])>,
