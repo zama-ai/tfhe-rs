@@ -8,6 +8,9 @@ pub use crate::shortint::ciphertext::{ReRandomizationSeed, ReRandomizationSeedHa
 use crate::shortint::Ciphertext;
 use crate::Result;
 
+#[cfg(feature = "zk-pok")]
+use super::ProvenCompactCiphertextList;
+
 #[derive(Clone, Copy)]
 pub enum ReRandomizationKey<'key> {
     LegacyDedicatedCPK {
@@ -103,6 +106,18 @@ impl ReRandomizationContext {
                 .iter()
                 .flat_map(|ct| ct.ct.as_ref()),
         );
+        self.ct_count += 1;
+    }
+
+    #[cfg(feature = "zk-pok")]
+    pub fn add_proven_ciphertext_list(&mut self, list: &ProvenCompactCiphertextList) {
+        self.ct_coeffs_buffer.extend(
+            list.ct_list
+                .proved_lists
+                .iter()
+                .flat_map(|list| list.0.ct_list.as_ref()),
+        );
+        // We draw only one seed for the full list
         self.ct_count += 1;
     }
 

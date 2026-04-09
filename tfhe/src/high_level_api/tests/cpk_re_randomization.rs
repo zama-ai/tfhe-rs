@@ -3,13 +3,19 @@ use crate::high_level_api::{
     CompactPublicKey, CompressedCiphertextListBuilder, FheBool, FheInt8, FheUint64,
     ReRandomizationContext,
 };
+#[cfg(feature = "zk-pok")]
+use crate::high_level_api::{FheInt64, FheUint32};
 use crate::shortint::parameters::v1_5::meta::cpu::V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
 use crate::shortint::parameters::v1_6::meta::cpu::V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
 use crate::shortint::parameters::MetaParameters;
+#[cfg(feature = "zk-pok")]
+use crate::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::{
     set_server_key, ClientKey, CompressedServerKey, ReRandomizationMode, ReRandomizationSupport,
     ServerKey,
 };
+#[cfg(feature = "zk-pok")]
+use crate::{Config, ProvenCompactCiphertextList};
 
 #[test]
 fn test_dyn_rerand() {
@@ -322,6 +328,110 @@ fn execute_re_rand_test(cks: &ClientKey, cpk: &CompactPublicKey) {
                 assert_eq!(clear_a && clear_b, dec);
             }
         }
+    }
+}
+
+#[cfg(feature = "zk-pok")]
+#[test]
+fn test_compact_list_re_rand() {
+    use crate::shortint::parameters::test_params::TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+
+    let params = TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+    let (cks, sks, cpk) = setup_re_rand_test(params);
+    set_server_key(sks.decompress());
+
+    let config = Config::from(params);
+
+    let compact_public_encryption_domain_separator = *b"TFHE_Enc";
+    let rerand_domain_separator = *b"TFHE_Rrd";
+
+    // Intentionally low so that we test when multiple lists and proofs are needed
+    let crs = CompactPkeCrs::from_config(config, 32).unwrap();
+    let metadata = [b'r', b'e', b'r', b'a', b'n', b'd'];
+
+    // Case where we want to re-randomize a CompactCiphertextList containing
+    // FheUint64, FheInt8, and FheBool
+    {
+        let clear_a = rand::random::<u64>();
+        let clear_b = rand::random::<i8>();
+
+        let mut compact_list = ProvenCompactCiphertextList::builder(&cpk)
+            .push(clear_a)
+            .push(clear_b)
+            .push(false)
+            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+            .unwrap();
+
+        // Simulate a 256 bits nonce
+        let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
+
+        let mut re_rand_context = ReRandomizationContext::new(
+            rerand_domain_separator,
+            [b"expand".as_slice(), nonce.as_slice()],
+            compact_public_encryption_domain_separator,
+        );
+
+        // Add the compact list to the context
+        re_rand_context.add_ciphertext(&compact_list);
+
+        let mut seed_gen = re_rand_context.finalize();
+
+        // Re-randomize
+        compact_list
+            .re_randomize(&cpk, seed_gen.next_seed().unwrap())
+            .unwrap();
+
+        // Verify, and expand
+        let expander = compact_list
+            .verify_and_expand(&crs, &cpk, &metadata)
+            .unwrap();
+
+        let a: FheUint64 = expander.get(0).unwrap().unwrap();
+        let b: FheInt8 = expander.get(1).unwrap().unwrap();
+        let c: FheBool = expander.get(2).unwrap().unwrap();
+
+        let dec_a: u64 = a.decrypt(&cks);
+        assert_eq!(dec_a, clear_a);
+        let dec_b: i8 = b.decrypt(&cks);
+        assert_eq!(dec_b, clear_b);
+        let dec_c: bool = c.decrypt(&cks);
+        assert!(!dec_c);
+    }
+
+    // Also test expand_and_re_randomize_without_verification
+    {
+        let clear_a = 42u32;
+        let clear_b = -7i64;
+
+        let compact_list = ProvenCompactCiphertextList::builder(&cpk)
+            .push(clear_a)
+            .push(clear_b)
+            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+            .unwrap();
+
+        let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
+
+        let mut re_rand_context = ReRandomizationContext::new(
+            rerand_domain_separator,
+            [b"expand".as_slice(), nonce.as_slice()],
+            compact_public_encryption_domain_separator,
+        );
+
+        re_rand_context.add_ciphertext(&compact_list);
+
+        let mut seed_gen = re_rand_context.finalize();
+
+        let expander = compact_list
+            .expand_and_re_randomize_without_verification(&cpk, seed_gen.next_seed().unwrap())
+            .unwrap();
+
+        let a: FheUint32 = expander.get(0).unwrap().unwrap();
+        let b: FheInt64 = expander.get(1).unwrap().unwrap();
+
+        let dec_a: u32 = a.decrypt(&cks);
+        assert_eq!(dec_a, clear_a);
+        let dec_b: i64 = b.decrypt(&cks);
+        assert_eq!(dec_b, clear_b);
     }
 }
 
