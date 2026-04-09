@@ -46,6 +46,15 @@ impl Named for CompactPkeProof {
     const NAME: &'static str = "zk::CompactPkeProof";
 }
 
+impl CompactPkeProof {
+    pub fn to_le_bytes(&self) -> Vec<u8> {
+        match self {
+            Self::PkeV1(proof) => proof.to_le_bytes(),
+            Self::PkeV2(proof) => proof.to_le_bytes(),
+        }
+    }
+}
+
 #[derive(Copy, Clone)]
 /// Used to specify the kind of proofs that are allowed to be checked by the verifier.
 ///
