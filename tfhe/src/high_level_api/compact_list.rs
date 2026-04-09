@@ -462,7 +462,10 @@ mod zk {
     use crate::conformance::ParameterSetConformant;
     use crate::high_level_api::global_state::device_of_internal_keys;
     use crate::high_level_api::keys::InternalServerKey;
-    use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
+    use crate::high_level_api::re_randomization::ReRandContextAdd;
+    use crate::integer::ciphertext::{
+        IntegerProvenCompactCiphertextListConformanceParams, ReRandomizationSeed,
+    };
     #[cfg(feature = "gpu")]
     use crate::integer::gpu::zk::CudaProvenCompactCiphertextList;
     use serde::Serializer;
@@ -620,6 +623,13 @@ mod zk {
         const NAME: &'static str = "high_level_api::ProvenCompactCiphertextList";
     }
 
+    impl ReRandContextAdd for ProvenCompactCiphertextList {
+        fn add_to_re_randomization_context(&self, context: &mut crate::ReRandomizationContext) {
+            let on_cpu = self.inner.on_cpu();
+            context.inner.add_proven_ciphertext_list(on_cpu)
+        }
+    }
+
     impl ProvenCompactCiphertextList {
         pub fn builder(pk: &CompactPublicKey) -> CompactCiphertextListBuilder {
             CompactCiphertextListBuilder::new(pk)
@@ -655,7 +665,7 @@ mod zk {
             pk: &CompactPublicKey,
             metadata: &[u8],
         ) -> crate::Result<CompactCiphertextListExpander> {
-            self.maybe_verify_and_expand(Some((crs, pk, metadata)))
+            self.maybe_verify_maybe_re_randomize_and_expand(Some((crs, pk, metadata)), None)
         }
 
         #[doc(hidden)]
@@ -663,27 +673,68 @@ mod zk {
         ///
         /// If you are here you were probably looking for it: use at your own risks.
         pub fn expand_without_verification(&self) -> crate::Result<CompactCiphertextListExpander> {
-            self.maybe_verify_and_expand(None)
+            self.maybe_verify_maybe_re_randomize_and_expand(None, None)
         }
 
-        /// Internal helper that does expansion, and verification only if crs, public key and
-        /// metadata are provided
-        fn maybe_verify_and_expand(
+        pub fn verify_re_randomize_and_expand(
+            &self,
+            crs: &CompactPkeCrs,
+            pk: &CompactPublicKey,
+            metadata: &[u8],
+            seed: ReRandomizationSeed,
+        ) -> crate::Result<CompactCiphertextListExpander> {
+            self.maybe_verify_maybe_re_randomize_and_expand(
+                Some((crs, pk, metadata)),
+                Some((pk, seed)),
+            )
+        }
+
+        #[doc(hidden)]
+        /// This function allows to re_randomize and expand a ciphertext without verifying the
+        /// associated proof.
+        ///
+        /// If you are here you were probably looking for it: use at your own risks.
+        pub fn re_randomize_and_expand_without_verification(
+            &self,
+            pk: &CompactPublicKey,
+            seed: ReRandomizationSeed,
+        ) -> crate::Result<CompactCiphertextListExpander> {
+            self.maybe_verify_maybe_re_randomize_and_expand(None, Some((pk, seed)))
+        }
+
+        /// Internal helper that does expansion, and optionally verification and re_randomization if
+        /// the required materials are provided
+        fn maybe_verify_maybe_re_randomize_and_expand(
             &self,
             verification_materials: Option<(&CompactPkeCrs, &CompactPublicKey, &[u8])>,
+            re_randomization_materials: Option<(&CompactPublicKey, ReRandomizationSeed)>,
         ) -> crate::Result<CompactCiphertextListExpander> {
             #[allow(irrefutable_let_patterns)]
             if let InnerProvenCompactCiphertextList::Cpu(inner) = &self.inner {
                 // For WASM
                 if !inner.is_packed() && !inner.needs_casting() {
-                    let expander = match verification_materials {
-                        Some((crs, pk, metadata)) => inner.verify_and_expand(
+                    let expander = match (verification_materials, re_randomization_materials) {
+                        (Some((crs, pk, metadata)), Some((_, seed))) => inner
+                            .verify_re_randomize_and_expand(
+                                crs,
+                                &pk.key.key,
+                                metadata,
+                                IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking,
+                                seed,
+                            ),
+                        (None, Some((pk, seed))) => inner
+                            .re_randomize_and_expand_without_verification(
+                                IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking,
+                                &pk.key.key,
+                                seed,
+                            ),
+                        (Some((crs, pk, metadata)), None) => inner.verify_and_expand(
                             crs,
                             &pk.key.key,
                             metadata,
                             IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking,
                         ),
-                        None => inner.expand_without_verification(
+                        (None, None) => inner.expand_without_verification(
                             IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking,
                         ),
                     }?;
@@ -705,14 +756,28 @@ mod zk {
                         InnerProvenCompactCiphertextList::Cuda(inner) => &inner.h_proved_lists,
                     };
 
-                    let expander = match verification_materials {
-                        Some((crs, pk, metadata)) => proven_ct.verify_and_expand(
+                    let expander = match (verification_materials, re_randomization_materials) {
+                        (Some((crs, pk, metadata)), Some((_, seed))) => proven_ct
+                            .verify_re_randomize_and_expand(
+                                crs,
+                                &pk.key.key,
+                                metadata,
+                                cpu_key.integer_compact_ciphertext_list_expansion_mode(),
+                                seed,
+                            ),
+                        (Some((crs, pk, metadata)), None) => proven_ct.verify_and_expand(
                             crs,
                             &pk.key.key,
                             metadata,
                             cpu_key.integer_compact_ciphertext_list_expansion_mode(),
                         ),
-                        None => proven_ct.expand_without_verification(
+                        (None, Some((pk, seed))) => proven_ct
+                            .re_randomize_and_expand_without_verification(
+                                cpu_key.integer_compact_ciphertext_list_expansion_mode(),
+                                &pk.key.key,
+                                seed,
+                            ),
+                        (None, None) => proven_ct.expand_without_verification(
                             cpu_key.integer_compact_ciphertext_list_expansion_mode(),
                         ),
                     }?;
@@ -734,11 +799,28 @@ mod zk {
                     };
 
                     let ksk = gpu_key.cpk_key_switching_key();
-                    let expander = match verification_materials {
-                        Some((crs, pk, metadata)) => {
+                    let expander = match (verification_materials, re_randomization_materials) {
+                        (Some((crs, pk, metadata)), Some((_, seed))) => proven_ct
+                            .verify_re_randomize_and_expand(
+                                crs,
+                                &pk.key.key,
+                                metadata,
+                                &ksk,
+                                seed,
+                                streams,
+                            ),
+                        (Some((crs, pk, metadata)), None) => {
                             proven_ct.verify_and_expand(crs, &pk.key.key, metadata, &ksk, streams)
                         }
-                        None => proven_ct.expand_without_verification(&ksk, streams),
+
+                        (None, Some((pk, seed))) => proven_ct
+                            .re_randomize_and_expand_without_verification(
+                                &ksk,
+                                &pk.key.key,
+                                seed,
+                                streams,
+                            ),
+                        (None, None) => proven_ct.expand_without_verification(&ksk, streams),
                     }?;
 
                     Ok(CompactCiphertextListExpander {

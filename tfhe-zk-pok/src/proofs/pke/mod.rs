@@ -342,6 +342,28 @@ impl<G: Curve> Proof<G> {
             None => ComputeLoad::Verify,
         }
     }
+
+    pub fn to_le_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+
+        let Self {
+            c_hat,
+            c_y,
+            pi,
+            compute_load_proof_fields,
+        } = self;
+
+        bytes.extend_from_slice(c_hat.to_le_bytes().as_ref());
+        bytes.extend_from_slice(c_y.to_le_bytes().as_ref());
+        bytes.extend_from_slice(pi.to_le_bytes().as_ref());
+        let (c_hat_t_bytes, c_h_bytes, pi_kzg_bytes) =
+            ComputeLoadProofFields::to_le_bytes(compute_load_proof_fields);
+        bytes.extend_from_slice(&c_hat_t_bytes);
+        bytes.extend_from_slice(&c_h_bytes);
+        bytes.extend_from_slice(&pi_kzg_bytes);
+
+        bytes
+    }
 }
 
 impl<G: Curve> ParameterSetConformant for Proof<G> {
@@ -402,6 +424,26 @@ pub(crate) struct ComputeLoadProofFields<G: Curve> {
     pub(crate) c_hat_t: G::G2,
     pub(crate) c_h: G::G1,
     pub(crate) pi_kzg: G::G1,
+}
+
+impl<G: Curve> ComputeLoadProofFields<G> {
+    #[allow(clippy::type_complexity)]
+    fn to_le_bytes(fields: &Option<Self>) -> (Box<[u8]>, Box<[u8]>, Box<[u8]>) {
+        if let Some(ComputeLoadProofFields {
+            c_hat_t,
+            c_h,
+            pi_kzg,
+        }) = fields.as_ref()
+        {
+            (
+                Box::from(G::G2::to_le_bytes(*c_hat_t).as_ref()),
+                Box::from(G::G1::to_le_bytes(*c_h).as_ref()),
+                Box::from(G::G1::to_le_bytes(*pi_kzg).as_ref()),
+            )
+        } else {
+            (Box::from([]), Box::from([]), Box::from([]))
+        }
+    }
 }
 
 type CompressedG2<G> = <<G as Curve>::G2 as Compressible>::Compressed;
