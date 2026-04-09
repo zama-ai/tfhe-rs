@@ -92,6 +92,7 @@ pub fn glwe_ciphertext_add_assign<Scalar, LhsCont, RhsCont>(
         lhs.ciphertext_modulus(),
         rhs.ciphertext_modulus()
     );
+    assert!(lhs.ciphertext_modulus().is_power_of_two());
 
     slice_wrapping_add_assign(lhs.as_mut(), rhs.as_ref());
 }
@@ -196,6 +197,7 @@ pub fn glwe_ciphertext_add<Scalar, OutputCont, LhsCont, RhsCont>(
         output.ciphertext_modulus(),
         rhs.ciphertext_modulus()
     );
+    assert!(lhs.ciphertext_modulus().is_power_of_two());
 
     slice_wrapping_add(output.as_mut(), lhs.as_ref(), rhs.as_ref());
 }
@@ -640,6 +642,7 @@ where
     Scalar: UnsignedInteger,
     InCont: ContainerMut<Element = Scalar>,
 {
+    assert!(ct.ciphertext_modulus().is_power_of_two());
     slice_wrapping_opposite_assign(ct.as_mut());
 }
 
@@ -723,6 +726,8 @@ pub fn glwe_ciphertext_cleartext_mul_assign<Scalar, InCont>(
     Scalar: UnsignedInteger,
     InCont: ContainerMut<Element = Scalar>,
 {
+    assert!(lhs.ciphertext_modulus().is_power_of_two());
+
     slice_wrapping_scalar_mul_assign(lhs.as_mut(), rhs.0);
 }
 
@@ -908,6 +913,7 @@ pub fn glwe_ciphertext_sub_assign<Scalar, LhsCont, RhsCont>(
         lhs.ciphertext_modulus(),
         rhs.ciphertext_modulus()
     );
+    assert!(lhs.ciphertext_modulus().is_power_of_two());
 
     slice_wrapping_sub_assign(lhs.as_mut(), rhs.as_ref());
 }
