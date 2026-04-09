@@ -35,15 +35,16 @@ use crate::core_crypto::entities::lwe_secret_key::LweSecretKey;
 use crate::core_crypto::entities::{Cleartext, Plaintext, PlaintextList};
 use crate::shortint::encoding::ShortintEncoding;
 use crate::shortint::parameters::{
-    AtomicPatternParameters, CarryModulus, MessageModulus, MetaParameters, PBSParameters,
+    AtomicPatternParameters, CarryModulus, MessageModulus, PBSParameters,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
     DynLwe, DynLweSecretKeyView, DynModSwitchedLwe, DynStandardMultiBitModulusSwitchedCt,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
-    write_to_json_file, BoundedLog2Measurement, BoundedMeasurement, ConfidenceInterval,
-    ConfidenceIntervalWithLog2, Measurement, NoBounds, PfailMetadata, PfailTestResultJson,
-    StringConfidenceInterval, StringConfidenceIntervalWithLog2, ValueWithLog2,
+    BoundedLog2Measurement, BoundedMeasurement, ConfidenceInterval, ConfidenceIntervalWithLog2,
+    Measurement, NoBounds, NoiseCheckWithNormalityCheck, NoiseCheckWithoutNormalityCheck,
+    PfailMetadata, PfailTestResultJson, StringConfidenceInterval, StringConfidenceIntervalWithLog2,
+    TestJsonGuard, TestResult, ValueWithLog2,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -340,6 +341,33 @@ impl PfailTestMeta {
     }
 }
 
+pub fn noise_check(
+    guard: &TestJsonGuard,
+    mean_variance_result: (bool, BoundedMeasurement, BoundedMeasurement),
+    normality_valid: Option<bool>,
+) {
+    let (mv_ok, bounded_variance, bounded_mean) = mean_variance_result;
+
+    let (valid, test_result) =
+        match normality_valid {
+            Some(norm_ok) => (
+                mv_ok && norm_ok,
+                TestResult::NoiseCheckWithNormalityCheck(Box::new(
+                    NoiseCheckWithNormalityCheck::new(bounded_variance, bounded_mean, norm_ok),
+                )),
+            ),
+            None => (
+                mv_ok,
+                TestResult::NoiseCheckWithoutNormalityCheck(Box::new(
+                    NoiseCheckWithoutNormalityCheck::new(bounded_variance, bounded_mean),
+                )),
+            ),
+        };
+
+    guard.write_results(valid, None, test_result).unwrap();
+    assert!(valid);
+}
+
 #[derive(Clone, Copy)]
 pub struct PfailTestResult {
     pub measured_fails: f64,
@@ -348,9 +376,7 @@ pub struct PfailTestResult {
 pub fn pfail_check(
     pfail_test_meta: &PfailTestMeta,
     pfail_test_result: PfailTestResult,
-    param_name: &MetaParameters,
-    test_name: &str,
-    test_module_path: &str,
+    guard: &TestJsonGuard,
 ) {
     let measured_fails = pfail_test_result.measured_fails;
     let total_runs_for_expected_fails = pfail_test_meta.total_runs_for_expected_fails;
@@ -418,21 +444,19 @@ pub fn pfail_check(
                       pass: bool,
                       pfail_serialized: BoundedMeasurement,
                       pfail_original_serialized: BoundedLog2Measurement| {
-        write_to_json_file(
-            param_name,
-            test_name,
-            test_module_path,
-            pass,
-            warning,
-            PfailTestResultJson::new(
-                pfail_meta_serialized.clone(),
-                fails_serialized.clone(),
-                pfail_serialized,
-                pfail_original_serialized,
+        guard
+            .write_results(
+                pass,
+                warning,
+                PfailTestResultJson::new(
+                    pfail_meta_serialized.clone(),
+                    fails_serialized.clone(),
+                    pfail_serialized,
+                    pfail_original_serialized,
+                )
+                .into_test_result(),
             )
-            .into_test_result(),
-        )
-        .unwrap();
+            .unwrap();
     };
 
     if measured_fails > 0.0 {

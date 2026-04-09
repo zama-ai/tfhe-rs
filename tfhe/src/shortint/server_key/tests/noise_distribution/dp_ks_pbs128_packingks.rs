@@ -1,9 +1,9 @@
 use super::dp_ks_ms::any_ms;
 use super::should_use_single_key_debug;
 use super::utils::noise_simulation::*;
-use super::utils::to_json::{write_to_json_file, TestResult};
+use super::utils::to_json::TestResult;
 use super::utils::traits::*;
-use super::utils::{mean_and_variance_check, DecryptionAndNoiseResult, NoiseSample};
+use super::utils::{mean_and_variance_check, noise_check, DecryptionAndNoiseResult, NoiseSample};
 use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::generate_programmable_bootstrap_glwe_lut;
 use crate::core_crypto::commons::dispersion::Variance;
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
@@ -23,7 +23,7 @@ use crate::shortint::parameters::test_params::{
 use crate::shortint::parameters::{
     AtomicPatternParameters, MetaParameters, NoiseSquashingCompressionParameters,
 };
-use crate::shortint::server_key::tests::noise_distribution::utils::to_json::write_empty_json_file;
+use crate::shortint::server_key::tests::noise_distribution::utils::to_json::TestJsonGuard;
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_stringified_test;
 use crate::shortint::server_key::ServerKey;
 use crate::this_function_name;
@@ -247,12 +247,8 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks(
     meta_params: MetaParameters,
     filename_suffix: &str,
 ) {
-    write_empty_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-    )
-    .unwrap();
+    let function_name = this_function_name!();
+    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
 
     let (params, noise_squashing_params, noise_squashing_compression_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
@@ -346,15 +342,9 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks(
 
     let sanity_check_valid = after_packing.as_view() == extracted.as_view();
 
-    write_to_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-        sanity_check_valid,
-        None,
-        TestResult::Empty {},
-    )
-    .unwrap();
+    guard
+        .write_results(sanity_check_valid, None, TestResult::Empty {})
+        .unwrap();
 
     assert_eq!(after_packing.as_view(), extracted.as_view());
 }
@@ -624,12 +614,8 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise(
     meta_params: MetaParameters,
     filename_suffix: &str,
 ) {
-    write_empty_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-    )
-    .unwrap();
+    let function_name = this_function_name!();
+    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
     let (params, noise_squashing_params, noise_squashing_compression_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
         (
@@ -765,35 +751,17 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise(
         );
     }
 
-    let (after_packing_is_ok, bounded_variance_measurement, bounded_mean_measurement) =
-        mean_and_variance_check(
-            &noise_samples_after_packing,
-            "after_packing",
-            0.0,
-            after_packing_sim.variance(),
-            noise_squashing_compression_params.packing_ks_key_noise_distribution,
-            after_packing_sim.lwe_dimension(),
-            after_packing_sim.modulus().as_f64(),
-        );
+    let mean_variance_result = mean_and_variance_check(
+        &noise_samples_after_packing,
+        "after_packing",
+        0.0,
+        after_packing_sim.variance(),
+        noise_squashing_compression_params.packing_ks_key_noise_distribution,
+        after_packing_sim.lwe_dimension(),
+        after_packing_sim.modulus().as_f64(),
+    );
 
-    let noise_check = TestResult::NoiseCheckWithoutNormalityCheck(Box::new(
-        super::utils::to_json::NoiseCheckWithoutNormalityCheck::new(
-            bounded_variance_measurement,
-            bounded_mean_measurement,
-        ),
-    ));
-
-    write_to_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-        after_packing_is_ok,
-        None,
-        noise_check,
-    )
-    .unwrap();
-
-    assert!(after_packing_is_ok);
+    noise_check(&guard, mean_variance_result, None);
 }
 
 create_parameterized_stringified_test!(

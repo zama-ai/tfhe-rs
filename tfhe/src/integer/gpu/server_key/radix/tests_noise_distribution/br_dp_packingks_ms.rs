@@ -24,12 +24,12 @@ use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulat
     NoiseSimulationLwePackingKeyswitchKey, NoiseSimulationModulus,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
-    write_empty_json_file, write_to_json_file, NoiseCheckWithNormalityCheck, TestResult,
+    TestJsonGuard, TestResult,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::{
-    expected_pfail_for_precision, mean_and_variance_check, normality_check, pfail_check,
-    precision_with_padding, update_ap_params_msg_and_carry_moduli, DecryptionAndNoiseResult,
-    NoiseSample, PfailAndPrecision, PfailTestMeta, PfailTestResult,
+    expected_pfail_for_precision, mean_and_variance_check, noise_check, normality_check,
+    pfail_check, precision_with_padding, update_ap_params_msg_and_carry_moduli,
+    DecryptionAndNoiseResult, NoiseSample, PfailAndPrecision, PfailTestMeta, PfailTestResult,
 };
 use crate::shortint::server_key::tests::noise_distribution::{
     should_run_short_pfail_tests_debug, should_use_single_key_debug,
@@ -43,12 +43,8 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 pub const SAMPLES_PER_MSG_PACKING_KS_NOISE: usize = 1000;
 
 fn sanity_check_encrypt_br_dp_packing_ks_ms(meta_params: MetaParameters, filename_suffix: &str) {
-    write_empty_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-    )
-    .unwrap();
+    let function_name = this_function_name!();
+    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
     let (params, comp_params) = (
         meta_params.compute_parameters,
         meta_params.compression_parameters.unwrap(),
@@ -151,15 +147,13 @@ fn sanity_check_encrypt_br_dp_packing_ks_ms(meta_params: MetaParameters, filenam
     // Bodies that were not filled are discarded
     after_ms.get_mut_body().as_mut()[lwe_per_glwe.0..].fill(0);
 
-    write_to_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-        after_ms.as_view() == extracted_glwe.as_view(),
-        None,
-        TestResult::Empty {},
-    )
-    .unwrap();
+    guard
+        .write_results(
+            after_ms.as_view() == extracted_glwe.as_view(),
+            None,
+            TestResult::Empty {},
+        )
+        .unwrap();
 
     assert_eq!(after_ms.as_view(), extracted_glwe.as_view());
 }
@@ -419,12 +413,8 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_noise_gpu(
     meta_params: MetaParameters,
     filename_suffix: &str,
 ) {
-    write_empty_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-    )
-    .unwrap();
+    let function_name = this_function_name!();
+    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
     let (params, comp_params) = (
         meta_params.compute_parameters,
         meta_params.compression_parameters.unwrap(),
@@ -590,41 +580,23 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_noise_gpu(
     let before_ms_normality =
         normality_check(&noise_samples_before_ms_flattened, "before ms", 0.01);
 
-    let (after_ms_is_ok, bounded_variance_measurement, bounded_mean_measurement) =
-        mean_and_variance_check(
-            &noise_samples_after_ms_flattened,
-            "after_ms",
-            0.0,
-            after_ms_sim.variance_per_occupied_slot(),
-            comp_params.packing_ks_key_noise_distribution(),
-            after_ms_sim
-                .glwe_dimension()
-                .to_equivalent_lwe_dimension(after_ms_sim.polynomial_size()),
-            after_ms_sim.modulus().as_f64(),
-        );
+    let mean_variance_result = mean_and_variance_check(
+        &noise_samples_after_ms_flattened,
+        "after_ms",
+        0.0,
+        after_ms_sim.variance_per_occupied_slot(),
+        comp_params.packing_ks_key_noise_distribution(),
+        after_ms_sim
+            .glwe_dimension()
+            .to_equivalent_lwe_dimension(after_ms_sim.polynomial_size()),
+        after_ms_sim.modulus().as_f64(),
+    );
 
-    let before_ms_normality_valid = before_ms_normality.null_hypothesis_is_valid;
-
-    let sanity_check_valid = before_ms_normality_valid && after_ms_is_ok;
-
-    let noise_check =
-        TestResult::NoiseCheckWithNormalityCheck(Box::new(NoiseCheckWithNormalityCheck::new(
-            bounded_variance_measurement,
-            bounded_mean_measurement,
-            before_ms_normality_valid,
-        )));
-
-    write_to_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-        sanity_check_valid,
-        None,
-        noise_check,
-    )
-    .unwrap();
-
-    assert!(sanity_check_valid);
+    noise_check(
+        &guard,
+        mean_variance_result,
+        Some(before_ms_normality.null_hypothesis_is_valid),
+    );
 }
 create_gpu_parameterized_stringified_test!(noise_check_encrypt_br_dp_packing_ks_ms_noise_gpu {
     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
@@ -635,12 +607,8 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_pfail_gpu(
     meta_params: MetaParameters,
     filename_suffix: &str,
 ) {
-    write_empty_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-    )
-    .unwrap();
+    let function_name = this_function_name!();
+    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
     let (pfail_test_meta, params, comp_params) = {
         let (mut params, comp_params) = (
             meta_params.compute_parameters,
@@ -813,13 +781,7 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_pfail_gpu(
 
     let test_result = PfailTestResult { measured_fails };
 
-    pfail_check(
-        &pfail_test_meta,
-        test_result,
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-    );
+    pfail_check(&pfail_test_meta, test_result, &guard);
 }
 
 create_gpu_parameterized_stringified_test!(noise_check_encrypt_br_dp_packing_ks_ms_pfail_gpu {

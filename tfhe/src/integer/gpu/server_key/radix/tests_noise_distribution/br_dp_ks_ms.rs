@@ -26,10 +26,10 @@ use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulat
     NoiseSimulationLweKeyswitchKey, NoiseSimulationModulus,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
-    write_empty_json_file, write_to_json_file, NoiseCheckWithNormalityCheck, TestResult,
+    TestJsonGuard, TestResult,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::{
-    mean_and_variance_check, normality_check, pfail_check, update_ap_params_for_pfail,
+    mean_and_variance_check, noise_check, normality_check, pfail_check, update_ap_params_for_pfail,
     DecryptionAndNoiseResult, NoiseSample, PfailTestMeta, PfailTestResult,
 };
 use crate::this_function_name;
@@ -41,12 +41,8 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 /// Test function to verify that the noise checking tools match the actual atomic patterns
 /// implemented in shortint for GPU
 fn sanity_check_encrypt_br_dp_ks_pbs_gpu(meta_params: MetaParameters, filename_suffix: &str) {
-    write_empty_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-    )
-    .unwrap();
+    let function_name = this_function_name!();
+    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
     let atomic_params = meta_params.compute_parameters;
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
@@ -170,15 +166,9 @@ fn sanity_check_encrypt_br_dp_ks_pbs_gpu(meta_params: MetaParameters, filename_s
         .iter()
         .all(|(lhs, rhs)| lhs.as_view() == rhs.as_view());
 
-    write_to_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-        res_cond,
-        None,
-        TestResult::Empty {},
-    )
-    .unwrap();
+    guard
+        .write_results(res_cond, None, TestResult::Empty {})
+        .unwrap();
 
     // We check each step to preserve failure details and print the invalid case if one occurs
     for (after_pbs_ct, shortint_res_ct) in results.iter() {
@@ -372,12 +362,8 @@ fn encrypt_br_dp_ks_any_ms_pfail_helper_gpu(
 }
 
 fn noise_check_encrypt_br_dp_ks_ms_noise(meta_params: MetaParameters, filename_suffix: &str) {
-    write_empty_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-    )
-    .unwrap();
+    let function_name = this_function_name!();
+    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
     let params: AtomicPatternParameters = meta_params.compute_parameters;
 
     let noise_simulation_ksk =
@@ -506,39 +492,21 @@ fn noise_check_encrypt_br_dp_ks_ms_noise(meta_params: MetaParameters, filename_s
     }
     let before_ms_normality = normality_check(&noise_samples_before_ms, "before ms", 0.01);
 
-    let (after_ms_is_ok, bounded_variance_measurement, bounded_mean_measurement) =
-        mean_and_variance_check(
-            &noise_samples_after_ms,
-            "after_ms",
-            expected_average_after_ms,
-            after_ms_sim.variance(),
-            params.lwe_noise_distribution(),
-            after_ms_sim.lwe_dimension(),
-            after_ms_sim.modulus().as_f64(),
-        );
+    let mean_variance_result = mean_and_variance_check(
+        &noise_samples_after_ms,
+        "after_ms",
+        expected_average_after_ms,
+        after_ms_sim.variance(),
+        params.lwe_noise_distribution(),
+        after_ms_sim.lwe_dimension(),
+        after_ms_sim.modulus().as_f64(),
+    );
 
-    let before_ms_normality_valid = before_ms_normality.null_hypothesis_is_valid;
-
-    let sanity_check_valid = before_ms_normality_valid && after_ms_is_ok;
-
-    let noise_check =
-        TestResult::NoiseCheckWithNormalityCheck(Box::new(NoiseCheckWithNormalityCheck::new(
-            bounded_variance_measurement,
-            bounded_mean_measurement,
-            before_ms_normality_valid,
-        )));
-
-    write_to_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-        sanity_check_valid,
-        None,
-        noise_check,
-    )
-    .unwrap();
-
-    assert!(sanity_check_valid);
+    noise_check(
+        &guard,
+        mean_variance_result,
+        Some(before_ms_normality.null_hypothesis_is_valid),
+    );
 }
 
 create_gpu_parameterized_stringified_test!(noise_check_encrypt_br_dp_ks_ms_noise {
@@ -548,12 +516,8 @@ create_gpu_parameterized_stringified_test!(noise_check_encrypt_br_dp_ks_ms_noise
 });
 
 fn noise_check_encrypt_br_dp_ks_ms_pfail_gpu(meta_params: MetaParameters, filename_suffix: &str) {
-    write_empty_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-    )
-    .unwrap();
+    let function_name = this_function_name!();
+    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
     let (pfail_test_meta, params) = {
         let mut ap_params: AtomicPatternParameters = meta_params.compute_parameters;
 
@@ -631,13 +595,7 @@ fn noise_check_encrypt_br_dp_ks_ms_pfail_gpu(meta_params: MetaParameters, filena
         .sum();
     let test_result = PfailTestResult { measured_fails };
 
-    pfail_check(
-        &pfail_test_meta,
-        test_result,
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-    );
+    pfail_check(&pfail_test_meta, test_result, &guard);
 }
 
 create_gpu_parameterized_stringified_test!(noise_check_encrypt_br_dp_ks_ms_pfail_gpu {

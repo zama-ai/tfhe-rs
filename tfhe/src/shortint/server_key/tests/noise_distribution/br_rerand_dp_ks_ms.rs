@@ -3,10 +3,10 @@ use super::utils::noise_simulation::{
     DynLwe, DynLweSecretKeyView, NoiseSimulationGenericBootstrapKey, NoiseSimulationGlwe,
     NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
 };
-use super::utils::to_json::{write_to_json_file, TestResult};
+use super::utils::to_json::TestResult;
 use super::utils::traits::*;
 use super::utils::{
-    mean_and_variance_check, normality_check, pfail_check, update_ap_params_for_pfail,
+    mean_and_variance_check, noise_check, normality_check, pfail_check, update_ap_params_for_pfail,
     DecryptionAndNoiseResult, NoiseSample, PfailTestMeta, PfailTestResult,
 };
 use super::{should_run_short_pfail_tests_debug, should_use_single_key_debug};
@@ -42,7 +42,7 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::public_key::compact::{CompactPrivateKey, CompactPublicKey};
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::NoiseSimulationModulus;
-use crate::shortint::server_key::tests::noise_distribution::utils::to_json::write_empty_json_file;
+use crate::shortint::server_key::tests::noise_distribution::utils::to_json::TestJsonGuard;
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_stringified_test;
 use crate::shortint::server_key::ServerKey;
 use crate::shortint::{Ciphertext, PaddingBit};
@@ -527,12 +527,8 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise(
     meta_params: MetaParameters,
     filename_suffix: &str,
 ) {
-    write_empty_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-    )
-    .unwrap();
+    let function_name = this_function_name!();
+    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
     let (compute_params, re_rand_parameters, compression_params) = {
         let compute_params = meta_params
             .compute_parameters
@@ -751,40 +747,21 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise(
 
     let before_ms_normality = normality_check(&noise_samples_before_ms, "before ms", 0.01);
 
-    let (after_ms_is_ok, bounded_variance_measurement, bounded_mean_measurement) =
-        mean_and_variance_check(
-            &noise_samples_after_ms,
-            "after_ms",
-            expected_average_after_ms,
-            after_ms_sim.variance(),
-            compute_params.lwe_noise_distribution(),
-            after_ms_sim.lwe_dimension(),
-            after_ms_sim.modulus().as_f64(),
-        );
+    let mean_variance_result = mean_and_variance_check(
+        &noise_samples_after_ms,
+        "after_ms",
+        expected_average_after_ms,
+        after_ms_sim.variance(),
+        compute_params.lwe_noise_distribution(),
+        after_ms_sim.lwe_dimension(),
+        after_ms_sim.modulus().as_f64(),
+    );
 
-    let before_ms_normality_valid = before_ms_normality.null_hypothesis_is_valid;
-
-    let noise_check_valid = before_ms_normality_valid && after_ms_is_ok;
-
-    let noise_check = TestResult::NoiseCheckWithNormalityCheck(Box::new(
-        super::utils::to_json::NoiseCheckWithNormalityCheck::new(
-            bounded_variance_measurement,
-            bounded_mean_measurement,
-            before_ms_normality_valid,
-        ),
-    ));
-
-    write_to_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-        noise_check_valid,
-        None,
-        noise_check,
-    )
-    .unwrap();
-
-    assert!(noise_check_valid);
+    noise_check(
+        &guard,
+        mean_variance_result,
+        Some(before_ms_normality.null_hypothesis_is_valid),
+    );
 }
 
 create_parameterized_stringified_test!(noise_check_encrypt_br_rerand_dp_ks_ms_noise {
@@ -798,12 +775,8 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail(
     meta_params: MetaParameters,
     filename_suffix: &str,
 ) {
-    write_empty_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-    )
-    .unwrap();
+    let function_name = this_function_name!();
+    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
     let (compute_params, re_rand_parameters, compression_params) = {
         let compute_params = meta_params
             .compute_parameters
@@ -919,13 +892,7 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail(
 
     let test_result = PfailTestResult { measured_fails };
 
-    pfail_check(
-        &pfail_test_meta,
-        test_result,
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-    );
+    pfail_check(&pfail_test_meta, test_result, &guard);
 }
 
 create_parameterized_stringified_test!(noise_check_encrypt_br_rerand_dp_ks_ms_pfail {
@@ -936,12 +903,8 @@ create_parameterized_stringified_test!(noise_check_encrypt_br_rerand_dp_ks_ms_pf
 });
 
 fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters, filename_suffix: &str) {
-    write_empty_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-    )
-    .unwrap();
+    let function_name = this_function_name!();
+    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
     let (compute_params, re_rand_parameters, compression_params) = {
         let compute_params = meta_params
             .compute_parameters
@@ -1122,15 +1085,9 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters, file
         .iter()
         .all(|(lhs, rhs)| lhs.as_lwe_64() == rhs.ct.as_view());
 
-    write_to_json_file(
-        &meta_params,
-        filename_suffix,
-        this_function_name!().as_str(),
-        all_result_match,
-        None,
-        TestResult::Empty {},
-    )
-    .unwrap();
+    guard
+        .write_results(all_result_match, None, TestResult::Empty {})
+        .unwrap();
 
     // We check each step to preserve failure details and print the invalid case if one occurs
     for (pbs_result, shortint_res) in results.iter() {

@@ -325,39 +325,69 @@ macro_rules! this_function_name {
     }};
 }
 
-pub fn write_empty_json_file(
-    meta_param: &MetaParameters,
-    test_name: &str,
-    test_module_path: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    write_to_json_file(
-        meta_param,
-        test_name,
-        test_module_path,
-        false,
-        None,
-        TestResult::Empty {},
-    )
+pub struct TestJsonGuard<'a> {
+    meta_param: &'a MetaParameters,
+    test_name: &'a str,
+    test_module_path: &'a str,
 }
 
-pub fn write_to_json_file(
-    meta_param: &MetaParameters,
-    test_name: &str,
-    test_module_path: &str,
-    pass: bool,
-    warning: Option<String>,
-    results: TestResult,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let test_id = format!("{test_module_path}::{test_name}").to_lowercase();
-    let short_name = test_module_path
-        .rsplit_once("::")
-        .map_or(test_module_path, |(_, p)| p);
-    let output_data = TestJsonOutput::new(&test_id, short_name, pass, warning, meta_param, results);
-    let serialized_output = serde_json::to_string_pretty(&output_data)?;
-    let mut path = PathBuf::new();
-    path.push("tests_results");
-    fs::create_dir_all(&path)?;
-    path.push(format!("{test_id}.json"));
-    fs::write(&path, serialized_output)?;
-    Ok(())
+impl<'a> TestJsonGuard<'a> {
+    pub fn new(
+        meta_param: &'a MetaParameters,
+        test_name: &'a str,
+        test_module_path: &'a str,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        Self::write_json_file(
+            meta_param,
+            test_name,
+            test_module_path,
+            false,
+            None,
+            TestResult::Empty {},
+        )?;
+        Ok(TestJsonGuard {
+            meta_param,
+            test_name,
+            test_module_path,
+        })
+    }
+
+    pub fn write_results(
+        &self,
+        pass: bool,
+        warning: Option<String>,
+        results: TestResult,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        Self::write_json_file(
+            self.meta_param,
+            self.test_name,
+            self.test_module_path,
+            pass,
+            warning,
+            results,
+        )
+    }
+
+    fn write_json_file(
+        meta_param: &MetaParameters,
+        test_name: &str,
+        test_module_path: &str,
+        pass: bool,
+        warning: Option<String>,
+        results: TestResult,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let test_id = format!("{test_module_path}::{test_name}").to_lowercase();
+        let short_name = test_module_path
+            .rsplit_once("::")
+            .map_or(test_module_path, |(_, p)| p);
+        let output_data =
+            TestJsonOutput::new(&test_id, short_name, pass, warning, meta_param, results);
+        let serialized_output = serde_json::to_string_pretty(&output_data)?;
+        let mut path = PathBuf::new();
+        path.push("tests_results");
+        fs::create_dir_all(&path)?;
+        path.push(format!("{test_id}.json"));
+        fs::write(&path, serialized_output)?;
+        Ok(())
+    }
 }
