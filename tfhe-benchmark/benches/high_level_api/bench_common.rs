@@ -36,12 +36,12 @@ pub fn bench_fhe_type_op<FheType, Op>(
     let inputs = op.setup_inputs(client_key, &mut rng);
 
     let bench_type = get_bench_type();
-    let benchmark_spec = BenchmarkSpec::new_hlapi(
+    let benchmark_spec = BenchmarkSpec::new_hlapi_ops(
         hlapi_op,
         &param_name,
         &operand_type,
         Some(type_name),
-        bench_type,
+        *bench_type,
         bench_backend_from_cfg(),
     );
     let bench_id = benchmark_spec.to_string();
