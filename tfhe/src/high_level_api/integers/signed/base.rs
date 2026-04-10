@@ -137,6 +137,31 @@ where
     ) -> Self {
         Self::new(inner, tag, re_randomization_metadata)
     }
+
+    #[cfg(feature = "gpu")]
+    fn on_gpu(
+        &self,
+        streams: &crate::core_crypto::gpu::CudaStreams,
+    ) -> MaybeCloned<'_, <Self::Id as IntegerId>::InnerGpu> {
+        self.ciphertext.on_gpu(streams)
+    }
+
+    #[cfg(feature = "gpu")]
+    fn into_gpu(
+        self,
+        streams: &crate::core_crypto::gpu::CudaStreams,
+    ) -> <Self::Id as IntegerId>::InnerGpu {
+        self.ciphertext.into_gpu(streams)
+    }
+
+    #[cfg(feature = "gpu")]
+    fn from_gpu(
+        inner: <Self::Id as IntegerId>::InnerGpu,
+        tag: Tag,
+        re_randomization_metadata: ReRandomizationMetadata,
+    ) -> Self {
+        Self::new(inner, tag, re_randomization_metadata)
+    }
 }
 
 impl<Id> FheInt<Id>
@@ -208,6 +233,30 @@ where
     /// Returns the device where the ciphertext is currently on
     pub fn current_device(&self) -> Device {
         self.ciphertext.current_device()
+    }
+
+    /// Returns an encrypted `true` if `value` is found in `cts`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheInt16::encrypt(1i16, &client_key);
+    /// let b = FheInt16::encrypt(-2i16, &client_key);
+    /// let c = FheInt16::encrypt(3i16, &client_key);
+    /// let value = FheInt16::encrypt(-2i16, &client_key);
+    ///
+    /// let result = FheInt16::contains(&[a, b, c], &value);
+    /// let decrypted = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, true);
+    /// ```
+    pub fn contains(cts: &[Self], value: &Self) -> FheBool {
+        crate::high_level_api::array::fhe_array_contains(cts, value)
     }
 
     /// Returns the absolute value

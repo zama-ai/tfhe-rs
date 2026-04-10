@@ -102,6 +102,21 @@ fn test_cpu_dyn_bitand_scalar_slice() {
 }
 
 #[test]
+fn test_contains() {
+    let ck = super::setup_default_cpu();
+    super::test_case_contains::<crate::FheUint8, u8>(&ck);
+}
+
+#[test]
+#[cfg(feature = "gpu")]
+fn test_contains_gpu() {
+    for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+        let ck = setup_fn();
+        super::test_case_contains::<crate::FheUint8, u8>(&ck);
+    }
+}
+
+#[test]
 fn test_single_dimension() {
     let config = ConfigBuilder::default().build();
     let (cks, sks) = generate_keys(config);

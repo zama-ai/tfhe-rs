@@ -13,7 +13,7 @@ pub(in crate::high_level_api) mod traits;
 use crate::array::traits::TensorSlice;
 use crate::high_level_api::array::traits::HasClear;
 use crate::high_level_api::global_state;
-use crate::high_level_api::integers::{FheIntId, FheUintId};
+use crate::high_level_api::integers::{FheIntId, FheIntegerType, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::{FheBool, FheId, FheInt, FheUint, Tag};
@@ -24,6 +24,8 @@ pub use traits::{IOwnedArray, Slicing, SlicingMut};
 use crate::array::stride::DynDimensions;
 use crate::core_crypto::prelude::{Numeric, OverflowingAdd, SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::DecomposableInto;
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::RadixCiphertext;
 use crate::prelude::{CastFrom, CastInto};
 pub use cpu::{
@@ -446,6 +448,55 @@ pub fn fhe_uint_array_contains_sub_slice<Id: FheUintId>(
         #[cfg(feature = "hpu")]
         InternalServerKey::Hpu(_device) => {
             panic!("Hpu does not support Array yet.")
+        }
+    })
+}
+
+pub fn fhe_array_contains<T>(data: &[T], value: &T) -> FheBool
+where
+    T: FheIntegerType,
+{
+    global_state::with_internal_keys(|sks| match sks {
+        InternalServerKey::Cpu(cpu_key) => {
+            let tmp_data = data
+                .iter()
+                .map(|element| element.on_cpu().into_owned())
+                .collect::<Vec<_>>();
+            let tmp_value = value.on_cpu();
+
+            let result = cpu_key
+                .pbs_key()
+                .contains_parallelized(&tmp_data, &*tmp_value);
+            FheBool::new(
+                result,
+                cpu_key.tag.clone(),
+                ReRandomizationMetadata::default(),
+            )
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(gpu_key) => {
+            use crate::high_level_api::details::MaybeCloned;
+
+            let streams = &gpu_key.streams;
+            let tmp_data = data
+                .iter()
+                .map(|element| match element.on_gpu(streams) {
+                    MaybeCloned::Borrowed(ct) => ct.duplicate(streams),
+                    MaybeCloned::Cloned(ct) => ct,
+                })
+                .collect::<Vec<_>>();
+            let tmp_value = value.on_gpu(streams);
+
+            let result = gpu_key.pbs_key().contains(&tmp_data, &*tmp_value, streams);
+            FheBool::new(
+                result,
+                gpu_key.tag.clone(),
+                ReRandomizationMetadata::default(),
+            )
+        }
+        #[cfg(feature = "hpu")]
+        InternalServerKey::Hpu(_) => {
+            panic!("HPU does not support contains() on FheIntegerType yet")
         }
     })
 }
