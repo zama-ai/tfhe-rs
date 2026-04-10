@@ -102,6 +102,12 @@ fn test_cpu_dyn_bitand_scalar_slice() {
 }
 
 #[test]
+fn test_contains() {
+    let ck = super::setup_default_cpu();
+    super::test_case_contains::<crate::FheUint8, u8>(&ck);
+}
+
+#[test]
 fn test_single_dimension() {
     let config = ConfigBuilder::default().build();
     let (cks, sks) = generate_keys(config);

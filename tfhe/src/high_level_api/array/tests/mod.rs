@@ -2,6 +2,8 @@ mod booleans;
 mod signed;
 mod unsigned;
 
+use crate::high_level_api::array::fhe_array_contains;
+use crate::high_level_api::integers::FheIntegerType;
 use crate::{generate_keys, set_server_key, ClientKey, ConfigBuilder, FheId};
 use rand::distributions::{Distribution, Standard};
 use rand::random;
@@ -10,7 +12,7 @@ use std::fmt::Debug;
 use crate::array::traits::IOwnedArray;
 use crate::array::ClearArray;
 use crate::high_level_api::array::{FheBackendArray, FheBackendArraySlice};
-use crate::prelude::{FheDecrypt, FheTryEncrypt};
+use crate::prelude::{FheDecrypt, FheEncrypt, FheTryEncrypt};
 use std::ops::{BitAnd, BitOr, BitXor};
 
 fn draw_random_values<T>(num_values: usize) -> Vec<T>
@@ -273,4 +275,43 @@ where
         let result = (lhs & &rhs).decrypt(ck);
         assert_eq!(result, expected_result);
     }
+}
+
+fn test_case_contains<T, Clear>(ck: &ClientKey)
+where
+    T: FheIntegerType + FheEncrypt<Clear, ClientKey>,
+    Standard: Distribution<Clear>,
+    Clear: Copy + Eq,
+{
+    let values = draw_random_values::<Clear>(5);
+
+    // Pick one element that is guaranteed to be in the slice
+    let present_value = values[random::<usize>() % values.len()];
+
+    // Generate an absent value that is not in the slice
+    let absent_value = loop {
+        let candidate: Clear = random();
+        if !values.contains(&candidate) {
+            break candidate;
+        }
+    };
+
+    let data: Vec<T> = values.iter().map(|&v| T::encrypt(v, ck)).collect();
+
+    let present = T::encrypt(present_value, ck);
+    let result: bool = fhe_array_contains(&data, &present).decrypt(ck);
+    assert!(result);
+
+    let absent = T::encrypt(absent_value, ck);
+    let result: bool = fhe_array_contains(&data, &absent).decrypt(ck);
+    assert!(!result);
+
+    // Test with a duplicated value in the slice
+    let mut values_with_dup = values.clone();
+    values_with_dup.push(values[0]);
+    let data_with_dup: Vec<T> = values_with_dup.iter().map(|&v| T::encrypt(v, ck)).collect();
+
+    let present_dup = T::encrypt(values[0], ck);
+    let result: bool = fhe_array_contains(&data_with_dup, &present_dup).decrypt(ck);
+    assert!(result);
 }

@@ -107,9 +107,9 @@ expand_pub_use_fhe_type!(
     };
 );
 pub use array::{
-    ClearArray, CpuFheIntArray, CpuFheIntSlice, CpuFheIntSliceMut, CpuFheUintArray,
-    CpuFheUintSlice, CpuFheUintSliceMut, FheBoolId, FheIntArray, FheIntSlice, FheIntSliceMut,
-    FheUintArray, FheUintSlice, FheUintSliceMut,
+    fhe_array_contains, ClearArray, CpuFheIntArray, CpuFheIntSlice, CpuFheIntSliceMut,
+    CpuFheUintArray, CpuFheUintSlice, CpuFheUintSliceMut, FheBoolId, FheIntArray, FheIntSlice,
+    FheIntSliceMut, FheUintArray, FheUintSlice, FheUintSliceMut,
 };
 export_concrete_array_types!(
     pub use array{
