@@ -308,6 +308,7 @@ void cleanup_cuda_multi_bit_programmable_bootstrap_noise_tests_128(
     void *stream, uint32_t gpu_index, int8_t **pbs_buffer) {
   cleanup_cuda_multi_bit_programmable_bootstrap_128(stream, gpu_index,
                                                     pbs_buffer);
+  cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
 }
 
 // Noise tests variant of the 128-bit multi-bit PBS, restricted to
