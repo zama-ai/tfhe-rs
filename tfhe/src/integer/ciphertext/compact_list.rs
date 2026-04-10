@@ -1,3 +1,5 @@
+#[cfg(feature = "zk-pok")]
+use super::ReRandomizationSeed;
 use super::{DataKind, Expandable};
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::prelude::{LweCiphertextListConformanceParams, Numeric};
@@ -1107,6 +1109,17 @@ impl ProvenCompactCiphertextList {
         }
 
         self.expand_without_verification(expansion_mode)
+    }
+
+    pub fn re_randomize(
+        &mut self,
+        public_key: &CompactPublicKey,
+        seed: ReRandomizationSeed,
+    ) -> crate::Result<()> {
+        public_key.key.re_randomize_compact_ciphertext_lists(
+            self.ct_list.proved_lists.iter_mut().map(|(list, _)| list),
+            seed,
+        )
     }
 
     #[doc(hidden)]
