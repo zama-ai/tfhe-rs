@@ -312,7 +312,7 @@ semgrep_and_lint_gpu_code: semgrep_lint_setup_venv
 	find "$(TFHECUDA_SRC)" -name '*.h' -o -name '*.cuh' -o -name '*.cu' \
 		| grep -v '/cmake-build-debug/' \
 		| grep -v '/build/' \
-		| xargs venv/bin/semgrep --config "$(TFHECUDA_SRC)/.semgrep/release-ordering.yaml" --scan-unknown-extensions
+		| xargs venv/bin/semgrep --error --config "$(TFHECUDA_SRC)/.semgrep/release-ordering.yaml" --scan-unknown-extensions
 	venv/bin/python3 "scripts/check_scratch_cleanup.py"
 
 .PHONY: semver_check_cuda_backend # Run semver checks on tfhe-cuda-backend

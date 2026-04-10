@@ -489,7 +489,7 @@ template <typename Torus>
 __host__ void host_modulus_switch_multi_bit(
     cudaStream_t stream, uint32_t gpu_index, Torus *array_out, Torus *array_in,
     int size, uint32_t log_modulus, uint32_t degree, uint32_t grouping_factor) {
-  cudaSetDevice(gpu_index);
+  check_cuda_error(cudaSetDevice(gpu_index));
   int multibit_size = size / grouping_factor;
   int num_threads = 0, num_blocks = 0;
   getNumBlocksAndThreads(multibit_size, 1024, num_blocks, num_threads);
