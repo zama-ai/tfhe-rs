@@ -24,6 +24,8 @@ pub use traits::{IOwnedArray, Slicing, SlicingMut};
 use crate::array::stride::DynDimensions;
 use crate::core_crypto::prelude::{Numeric, OverflowingAdd, SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::DecomposableInto;
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::RadixCiphertext;
 use crate::prelude::{CastFrom, CastInto};
 pub use cpu::{
@@ -472,8 +474,25 @@ where
             )
         }
         #[cfg(feature = "gpu")]
-        InternalServerKey::Cuda(_) => {
-            panic!("GPU does not support contains() on FheIntegerType yet")
+        InternalServerKey::Cuda(gpu_key) => {
+            use crate::high_level_api::details::MaybeCloned;
+
+            let streams = &gpu_key.streams;
+            let tmp_data = data
+                .iter()
+                .map(|element| match element.on_gpu(streams) {
+                    MaybeCloned::Borrowed(ct) => ct.duplicate(streams),
+                    MaybeCloned::Cloned(ct) => ct,
+                })
+                .collect::<Vec<_>>();
+            let tmp_value = value.on_gpu(streams);
+
+            let result = gpu_key.pbs_key().contains(&tmp_data, &*tmp_value, streams);
+            FheBool::new(
+                result,
+                gpu_key.tag.clone(),
+                ReRandomizationMetadata::default(),
+            )
         }
         #[cfg(feature = "hpu")]
         InternalServerKey::Hpu(_) => {
