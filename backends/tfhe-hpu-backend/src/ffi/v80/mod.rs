@@ -1,6 +1,6 @@
 //! Implement V80 driver abstraction
 //!
-//! V80 rely on 2 driver for communication
+//! V80 relies on 2 drivers for communication
 //! * Register access/Rpu interaction -> AMI
 //! * Data xfer -> QDMA
 
@@ -27,6 +27,13 @@ use rand::RngExt;
 
 const DMA_XFER_ALIGN: usize = 4096_usize;
 
+fn update_pcie_perms() {
+    Command::new("sh")
+        .arg(ShellString::new("${HPU_BACKEND_DIR}/scripts/v80-pcie-perms.sh".to_string()).expand())
+        .status()
+        .expect("Unable to update v80 pcie sysfs rights");
+}
+
 pub struct HpuHw {
     pub(super) ami: AmiDriver,
     pub(super) qdma: Arc<Mutex<QdmaDriver>>,
@@ -34,12 +41,12 @@ pub struct HpuHw {
 }
 
 impl HpuHw {
-    /// Check current Hw state and lazyly reload it if required
-    /// NB: If ami driver doesn't respond, the board state couldn't be red, thus all board are
-    /// reload Otherwise, only reload board with invalid UUID.
-    /// NB'': Check on Qdma queue state are done at the end
+    /// Check current Hw state and lazily reload it if required
+    /// NB: If ami driver doesn't respond, the board state couldn't be read, thus all boards are
+    /// reloaded. Otherwise, only reload boards with invalid UUID.
+    /// NB'': Checks on Qdma queue state are done at the end
     ///
-    /// NB: This procedure required unload of Qdma/Ami driver and thus couldn't be directly
+    /// NB: This procedure requires unloading of Qdma/Ami driver and thus can't be directly
     /// implemented in the AMI
     pub fn lazy_load(
         dev_sn: Vec<(String, String)>,
@@ -64,7 +71,7 @@ impl HpuHw {
             // Reload all stage_1 through JTAG
             Self::load_stage_1(&trgt_dev_sn, &hpu_pdi, &pdi_uuid);
 
-            // Write stage_2 through JTAG
+            // Write stage_2 through DMA
             Self::load_stage_2(&trgt_dev_sn, &hpu_pdi);
 
             // Reload Ami driver
@@ -94,7 +101,9 @@ impl HpuHw {
                 // Check state and version
                 match AmiDriver::new(dev, &hpu_pdi.metadata.amc.his_version, None) {
                     Ok(ami) => {
-                        if hpu_pdi.metadata.bitstream.uuid.to_lowercase() == ami.uuid().to_lowercase() {
+                        if hpu_pdi.metadata.bitstream.uuid.to_lowercase()
+                            == ami.uuid().to_lowercase()
+                        {
                             tracing::info!("Board[{dev}::{sn}] -> [{hpu_uuid}]");
                             None
                         } else {
@@ -116,6 +125,28 @@ impl HpuHw {
         trgt
     }
 
+    fn jtag_program_board(sn: &str, pdi_path: &str) -> Result<(), String> {
+        let hw = Command::new(ShellString::new("${XILINX_VIVADO}/bin/vivado".to_string()).expand())
+            .arg("-mode")
+            .arg("batch")
+            .arg("-source")
+            .arg(ShellString::new("${HPU_BACKEND_DIR}/scripts/pdi_jtag.tcl".to_string()).expand())
+            .arg("-tclargs")
+            .arg(pdi_path)
+            .arg(sn)
+            .output()
+            .map_err(|e| format!("Failed to launch vivado: {e}"))?;
+        if hw.status.success() {
+            Ok(())
+        } else {
+            Err(format!(
+                "JTAG programming of stage 1 failed ({})\nstderr: {}",
+                hw.status,
+                String::from_utf8_lossy(&hw.stderr)
+            ))
+        }
+    }
+
     fn load_stage_1(
         dev_sn: &[(String, String)],
         hpu_pdi: &pdi::HpuV80Pdi,
@@ -123,19 +154,28 @@ impl HpuHw {
     ) {
         tracing::info!("Boards [{dev_sn:?}] will be loaded with pdi -> [{hpu_uuid}]");
 
-        //Prerequist. Enforce that ami/qdma driver are unloaded
-        // Use to distinct commands to ease matching with sudoer rules
+        // Prerequisite. Enforce that ami/qdma driver are unloaded
+        // Use two distinct commands to ease matching with sudoer rules
+        // If either we fail to unload ami or qdma we must raise an error
         tracing::info!("Unload drivers ami/qdma_pf");
         let _ = Command::new("sudo")
             .arg("/usr/sbin/rmmod")
             .arg("--syslog") // Output to syslog instead of stderr
             .arg("ami")
             .status();
+        assert!(
+            !std::path::Path::new("/sys/module/ami").exists(),
+            "Failed to unload ami driver: module still loaded"
+        );
         let _ = Command::new("sudo")
             .arg("/usr/sbin/rmmod")
             .arg("--syslog") // Output to syslog instead of stderr
             .arg("qdma_pf")
             .status();
+        assert!(
+            !std::path::Path::new("/sys/module/qdma_pf").exists(),
+            "Failed to unload qdma_pf driver: module still loaded"
+        );
 
         // Load pdi stg1 content in filesystem to exchange with VivadoTool
         let pdi_stg1_tmp = format!(
@@ -153,6 +193,7 @@ impl HpuHw {
             .expect("Error while expanding stg1 pdi on filesystem");
 
         // 1. Load PDI stage one through JTAG --------------------------------------
+        let pdi_path = format!("{}/{}", tmp_dir_str, &pdi_stg1_tmp);
         for (i, (dev, sn)) in dev_sn.iter().enumerate() {
             // -> Use Xilinx hw_manager. Currently used through vivado for ease setup.
             // hw manager expect stage 1 in a file, thus start by expanding the stg1_pdi in a tmp
@@ -162,37 +203,14 @@ impl HpuHw {
                 i + 1,
                 dev_sn.len()
             );
-
-            let hw_monitor =
-                Command::new(ShellString::new("${XILINX_VIVADO}/bin/vivado".to_string()).expand())
-                    .arg("-mode")
-                    .arg("batch")
-                    .arg("-source")
-                    .arg(
-                        ShellString::new("${HPU_BACKEND_DIR}/scripts/pdi_jtag.tcl".to_string())
-                            .expand(),
-                    )
-                    .arg("-tclargs")
-                    .arg(format!("{}/{}", tmp_dir_str, &pdi_stg1_tmp))
-                    .arg(format!("{}", &sn))
-                    .output()
-                    .expect("Stage1 loading encounters error");
-            tracing::debug!(
-                "Board[{}/{}][{dev}::{sn}] Stage1 loaded: {hw_monitor:?}",
-                i + 1,
-                dev_sn.len()
-            );
+            Self::jtag_program_board(sn, &pdi_path).unwrap_or_else(|e| {
+                panic!("Board[{}/{}][{dev}::{sn}] Stage1: {e}", i + 1, dev_sn.len())
+            });
         }
 
         // 2. Rescan Pcie bus to detect new PF function ----------------------------
         // Update right on V80 pcie subsystem
-        Command::new("sh")
-            .arg(
-                ShellString::new("${HPU_BACKEND_DIR}/scripts/v80-pcie-perms.sh".to_string())
-                    .expand(),
-            )
-            .status()
-            .expect("Unable to update v80 pcie sysfs right");
+        update_pcie_perms();
 
         for (i, (dev, sn)) in dev_sn.iter().enumerate() {
             tracing::info!(
@@ -206,7 +224,7 @@ impl HpuHw {
                 .ok();
             if let Some(mut pf0) = rm_pf0 {
                 pf0.write_all(b"1\n")
-                    .expect("Unable to triggered a remove of pci pf0");
+                    .expect("Unable to trigger a remove of pci pf0");
             } else {
                 tracing::debug!(
                     "Board[{}/{}][{dev}::{sn}] Pcie PF0 not present.",
@@ -220,31 +238,74 @@ impl HpuHw {
                 .open(format!("/sys/bus/pci/devices/0000:{dev:0>2}:00.1/remove"))
                 .expect("Unable to open pci remove cmd file")
                 .write_all(b"1\n")
-                .expect("Unable to triggered a remove of pci pf1");
+                .expect("Unable to trigger a remove of pci pf1");
         }
         OpenOptions::new()
             .write(true)
             .open("/sys/bus/pci/rescan")
             .expect("Unable to open pci rescan cmd file")
             .write_all(b"1\n")
-            .expect("Unable to triggered a pci rescan");
+            .expect("Unable to trigger a pci rescan");
 
         // wait for QDMA to create its fs
         std::thread::sleep(std::time::Duration::from_secs(2));
 
         // Update right on V80 pcie subsystem
         // NB: sysfs is recreated upon rescan
-        Command::new("sh")
-            .arg(
-                ShellString::new("${HPU_BACKEND_DIR}/scripts/v80-pcie-perms.sh".to_string())
-                    .expand(),
-            )
+        update_pcie_perms();
+    }
+
+    fn dma_program_board(dev: &str, stg2_data: &[u8]) -> Result<(), String> {
+        // Configure qmax
+        OpenOptions::new()
+            .write(true)
+            .open(format!("/sys/bus/pci/devices/0000:{dev}:00.1/qdma/qmax"))
+            .expect("Unable to open qdma qmax cmd file")
+            .write_all(b"100\n")
+            .unwrap_or_else(|_| tracing::debug!("Dma: Failed to configure qmax. Must have been already done after the last rescan"));
+
+        // Create and start h2c queue at idx 0
+        Command::new("dma-ctl")
+            .arg(format!("qdma{dev}001"))
+            .arg("q")
+            .arg("add")
+            .arg("idx")
+            .arg("0")
+            .arg("dir")
+            .arg("h2c")
             .status()
-            .expect("Unable to update v80 pcie sysfs right");
+            .expect("dma-ctl q add idx 0 h2c failed");
+        Command::new("dma-ctl")
+            .arg(format!("qdma{dev}001"))
+            .arg("q")
+            .arg("start")
+            .arg("idx")
+            .arg("0")
+            .arg("dir")
+            .arg("h2c")
+            .arg("aperture_sz")
+            .arg(DMA_XFER_ALIGN.to_string())
+            .status()
+            .expect("dma-ctl q start idx 0 h2c failed");
+
+        // Write stage2 PDI through QDMA
+        let qdma_h2c = OpenOptions::new()
+            .read(false)
+            .write(true)
+            .create(false)
+            .open(format!("/dev/qdma{dev}001-MM-0"))
+            .map_err(|e| format!("Unable to open Qdma queue 0: {e}"))?;
+        let ret = nix::sys::uio::pwrite(&qdma_h2c, stg2_data, 0x000102100000_i64)
+            .map_err(|e| format!("pwrite failed: {e}"))?;
+        if ret != stg2_data.len() {
+            return Err(format!("Partial pwrite: {ret}/{} bytes", stg2_data.len()));
+        }
+
+        Ok(())
     }
 
     fn load_stage_2(dev_sn: &[(String, String)], hpu_pdi: &HpuV80Pdi) {
-        // NB: Dma required same alignment as aperture.
+        // NB: Dma requires same alignment aperture.
         let stg2_aligned = {
             let len = hpu_pdi.pdi_stg2_bin.len();
             let layout = std::alloc::Layout::from_size_align(len, DMA_XFER_ALIGN)
@@ -257,64 +318,14 @@ impl HpuHw {
 
         for (i, (dev, sn)) in dev_sn.iter().enumerate() {
             tracing::info!(
-                "Board[{}/{}][{dev}::{sn}] Load stage2 through Qdma",
-                i + 1,
-                dev_sn.len()
-            );
-            // Create h2c queue at idx 0
-            tracing::info!(
-                "Board[{}/{}][{dev}::{sn}] Initializing queues",
-                i + 1,
-                dev_sn.len()
-            );
-            OpenOptions::new()
-                .write(true)
-                .open(format!("/sys/bus/pci/devices/0000:{dev}:00.1/qdma/qmax"))
-                .expect("Unable to open qdma qmax cmd file")
-                .write_all(b"100\n")
-        .unwrap_or_else(|_| tracing::debug!("Dma: Failed to configure qmax. Must have been already done after the last rescan"));
-            Command::new("dma-ctl")
-                .arg(format!("qdma{dev}001"))
-                .arg("q")
-                .arg("add")
-                .arg("idx")
-                .arg("0")
-                .arg("dir")
-                .arg("h2c")
-                .status()
-                .expect("Unable to create Qdma queue0");
-            Command::new("dma-ctl")
-                .arg(format!("qdma{dev}001"))
-                .arg("q")
-                .arg("start")
-                .arg("idx")
-                .arg("0")
-                .arg("dir")
-                .arg("h2c")
-                .arg("aperture_sz")
-                .arg(DMA_XFER_ALIGN.to_string())
-                .status()
-                .expect("Unable to start Qdma queue0");
-
-            tracing::debug!(
-                "Board[{}/{}][{dev}::{sn}] Start uploading stage2: [{} bytes]",
+                "Board[{}/{}][{dev}::{sn}] Load stage2 through Qdma [{} bytes]",
                 i + 1,
                 dev_sn.len(),
                 hpu_pdi.pdi_stg2_bin.len()
             );
-            let qdma_h2c = OpenOptions::new()
-                .read(false)
-                .write(true)
-                .create(false)
-                .open(format!("/dev/qdma{dev}001-MM-0"))
-                .expect("Unable to open Qdma queue 0");
-            let ret = nix::sys::uio::pwrite(&qdma_h2c, stg2_aligned, 0x000102100000_i64)
-                .expect("Unable to write stage2 pdi");
-            tracing::debug!(
-                "Board[{}/{}][{dev}::{sn}] QDMA written {ret} bytes to device",
-                i + 1,
-                dev_sn.len()
-            );
+            Self::dma_program_board(dev, stg2_aligned).unwrap_or_else(|e| {
+                panic!("Board[{}/{}][{dev}::{sn}] Stage2: {e}", i + 1, dev_sn.len())
+            });
 
             tracing::debug!(
                 "Board[{}/{}][{dev}::{sn}] Updating Pcie physical functions 0 status",
@@ -326,8 +337,9 @@ impl HpuHw {
                 .open(format!("/sys/bus/pci/devices/0000:{dev}:00.0/remove"))
                 .expect("Unable to open pci remove cmd file")
                 .write_all(b"1\n")
-                .expect("Unable to triggered a remove of pci pf0");
+                .expect("Unable to trigger a remove of pci pf0");
         }
+
         // Properly release custom allocated memory
         unsafe { nix::libc::free(stg2_aligned.as_mut_ptr() as *mut _) };
 
@@ -337,11 +349,11 @@ impl HpuHw {
             .open("/sys/bus/pci/rescan")
             .expect("Unable to open pci rescan cmd file")
             .write_all(b"1\n")
-            .expect("Unable to triggered a pci rescan");
+            .expect("Unable to trigger a pci rescan");
     }
 
     /// Create Dma queues
-    /// Since all node rely on same qdma driver, reload of a node break the dma interface
+    /// Since all nodes rely on the same qdma driver, reloading a node breaks the dma interface
     /// Thus dma_queues must be recreated for each node when any of the cluster node is reloaded -_-
     pub fn cfg_dma_queues(dev: &str) {
         // Configure maximum Dma queues
