@@ -2,19 +2,14 @@
 #include "aes.cuh"
 
 uint64_t scratch_cuda_integer_aes_ctr_encrypt_64_async(
-    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t lwe_dimension, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type, uint32_t num_aes_inputs,
-    uint32_t sbox_parallelism) {
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type,
+    uint32_t num_aes_inputs, uint32_t sbox_parallelism) {
 
-  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          glwe_dimension * polynomial_size, lwe_dimension,
-                          ks_level, ks_base_log, pbs_level, pbs_base_log,
-                          grouping_factor, message_modulus, carry_modulus,
-                          noise_reduction_type);
+  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+                          carry_modulus, noise_reduction_type);
 
   return scratch_cuda_integer_aes_encrypt<uint64_t>(
       CudaStreams(streams), (int_aes_encrypt_buffer<uint64_t> **)mem_ptr,
@@ -22,19 +17,14 @@ uint64_t scratch_cuda_integer_aes_ctr_encrypt_64_async(
 }
 
 uint64_t scratch_cuda_integer_aes_ctr_256_encrypt_64_async(
-    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t lwe_dimension, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type, uint32_t num_aes_inputs,
-    uint32_t sbox_parallelism) {
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type,
+    uint32_t num_aes_inputs, uint32_t sbox_parallelism) {
 
-  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          glwe_dimension * polynomial_size, lwe_dimension,
-                          ks_level, ks_base_log, pbs_level, pbs_base_log,
-                          grouping_factor, message_modulus, carry_modulus,
-                          noise_reduction_type);
+  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+                          carry_modulus, noise_reduction_type);
 
   return scratch_cuda_integer_aes_encrypt<uint64_t>(
       CudaStreams(streams), (int_aes_encrypt_buffer<uint64_t> **)mem_ptr,
@@ -78,18 +68,13 @@ void cleanup_cuda_integer_aes_ctr_256_encrypt_64(CudaStreamsFFI streams,
 }
 
 uint64_t scratch_cuda_integer_key_expansion_64_async(
-    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t lwe_dimension, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
-    uint32_t grouping_factor, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
 
-  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          glwe_dimension * polynomial_size, lwe_dimension,
-                          ks_level, ks_base_log, pbs_level, pbs_base_log,
-                          grouping_factor, message_modulus, carry_modulus,
-                          noise_reduction_type);
+  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+                          carry_modulus, noise_reduction_type);
 
   return scratch_cuda_integer_key_expansion<uint64_t>(
       CudaStreams(streams), (int_key_expansion_buffer<uint64_t> **)mem_ptr,

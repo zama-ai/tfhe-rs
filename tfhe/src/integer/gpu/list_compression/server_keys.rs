@@ -6,7 +6,7 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::packed_integers::PackedIntegers;
 use crate::core_crypto::prelude::{
     glwe_mask_size, CiphertextModulus, CiphertextModulusLog, GlweCiphertextCount,
-    LweBskGroupingFactor, LweCiphertextCount, PolynomialSize, UnsignedInteger,
+    LweCiphertextCount, PolynomialSize, UnsignedInteger,
 };
 use crate::error;
 use crate::high_level_api::keys::expanded::ExpandedDecompressionKey;
@@ -18,7 +18,7 @@ use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     cuda_backend_compress, cuda_backend_decompress, cuda_backend_get_compression_size_on_gpu,
-    cuda_backend_get_decompression_size_on_gpu, extract_glwe, PBSType,
+    cuda_backend_get_decompression_size_on_gpu, extract_glwe,
 };
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::{
@@ -527,11 +527,7 @@ impl CudaDecompressionKey {
                         encryption_polynomial_size,
                         compression_glwe_dimension,
                         compression_polynomial_size,
-                        lwe_dimension,
-                        bsk.decomp_base_log(),
-                        bsk.decomp_level_count(),
-                        LweBskGroupingFactor(0),
-                        PBSType::Classical,
+                        bsk,
                         indexes_array.as_slice(),
                         indexes_array_len.0 as u32,
                     );
@@ -560,11 +556,7 @@ impl CudaDecompressionKey {
                         encryption_polynomial_size,
                         compression_glwe_dimension,
                         compression_polynomial_size,
-                        lwe_dimension,
-                        bsk.decomp_base_log(),
-                        bsk.decomp_level_count(),
-                        bsk.grouping_factor,
-                        PBSType::MultiBit,
+                        bsk,
                         indexes_array.as_slice(),
                         indexes_array_len.0 as u32,
                     );
@@ -630,8 +622,6 @@ impl CudaDecompressionKey {
                     bsk.ms_noise_reduction_configuration.is_none(),
                     "Decompression key should not do modulus switch noise reduction"
                 );
-                let lwe_dimension = bsk.output_lwe_dimension();
-
                 cuda_backend_get_decompression_size_on_gpu(
                     streams,
                     message_modulus,
@@ -640,33 +630,21 @@ impl CudaDecompressionKey {
                     encryption_polynomial_size,
                     compression_glwe_dimension,
                     compression_polynomial_size,
-                    lwe_dimension,
-                    bsk.decomp_base_log(),
-                    bsk.decomp_level_count(),
-                    LweBskGroupingFactor(0),
-                    PBSType::Classical,
+                    bsk,
                     indexes_array_len.0 as u32,
                 )
             }
-            CudaBootstrappingKey::MultiBit(bsk) => {
-                let lwe_dimension = bsk.output_lwe_dimension();
-
-                cuda_backend_get_decompression_size_on_gpu(
-                    streams,
-                    message_modulus,
-                    carry_modulus,
-                    encryption_glwe_dimension,
-                    encryption_polynomial_size,
-                    compression_glwe_dimension,
-                    compression_polynomial_size,
-                    lwe_dimension,
-                    bsk.decomp_base_log(),
-                    bsk.decomp_level_count(),
-                    bsk.grouping_factor,
-                    PBSType::MultiBit,
-                    indexes_array_len.0 as u32,
-                )
-            }
+            CudaBootstrappingKey::MultiBit(bsk) => cuda_backend_get_decompression_size_on_gpu(
+                streams,
+                message_modulus,
+                carry_modulus,
+                encryption_glwe_dimension,
+                encryption_polynomial_size,
+                compression_glwe_dimension,
+                compression_polynomial_size,
+                bsk,
+                indexes_array_len.0 as u32,
+            ),
         }
     }
     pub fn get_cpu_list_unpack_size_on_gpu(
@@ -703,8 +681,6 @@ impl CudaDecompressionKey {
                     bsk.ms_noise_reduction_configuration.is_none(),
                     "Decompression key should not do modulus switch noise reduction"
                 );
-                let lwe_dimension = bsk.output_lwe_dimension();
-
                 cuda_backend_get_decompression_size_on_gpu(
                     streams,
                     message_modulus,
@@ -713,33 +689,21 @@ impl CudaDecompressionKey {
                     encryption_polynomial_size,
                     compression_glwe_dimension,
                     compression_polynomial_size,
-                    lwe_dimension,
-                    bsk.decomp_base_log(),
-                    bsk.decomp_level_count(),
-                    LweBskGroupingFactor(0),
-                    PBSType::Classical,
+                    bsk,
                     indexes_array_len.0 as u32,
                 )
             }
-            CudaBootstrappingKey::MultiBit(bsk) => {
-                let lwe_dimension = bsk.output_lwe_dimension();
-
-                cuda_backend_get_decompression_size_on_gpu(
-                    streams,
-                    message_modulus,
-                    carry_modulus,
-                    encryption_glwe_dimension,
-                    encryption_polynomial_size,
-                    compression_glwe_dimension,
-                    compression_polynomial_size,
-                    lwe_dimension,
-                    bsk.decomp_base_log(),
-                    bsk.decomp_level_count(),
-                    bsk.grouping_factor,
-                    PBSType::MultiBit,
-                    indexes_array_len.0 as u32,
-                )
-            }
+            CudaBootstrappingKey::MultiBit(bsk) => cuda_backend_get_decompression_size_on_gpu(
+                streams,
+                message_modulus,
+                carry_modulus,
+                encryption_glwe_dimension,
+                encryption_polynomial_size,
+                compression_glwe_dimension,
+                compression_polynomial_size,
+                bsk,
+                indexes_array_len.0 as u32,
+            ),
         }
     }
 }
