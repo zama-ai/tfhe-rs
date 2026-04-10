@@ -537,6 +537,30 @@ where
         collection.as_ref().iter().copied().sum()
     }
 
+    /// Returns an encrypted `true` if `value` is found in `cts`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheUint16::encrypt(1u16, &client_key);
+    /// let b = FheUint16::encrypt(2u16, &client_key);
+    /// let c = FheUint16::encrypt(3u16, &client_key);
+    /// let value = FheUint16::encrypt(2u16, &client_key);
+    ///
+    /// let result = FheUint16::contains(&[a, b, c], &value);
+    /// let decrypted = result.decrypt(&client_key);
+    /// assert!(decrypted);
+    /// ```
+    pub fn contains(cts: &[Self], value: &Self) -> FheBool {
+        crate::high_level_api::array::fhe_array_contains(cts, value)
+    }
+
     /// Returns the number of leading zeros in the binary representation of self.
     ///
     /// # Example

@@ -13,7 +13,7 @@ pub(in crate::high_level_api) mod traits;
 use crate::array::traits::TensorSlice;
 use crate::high_level_api::array::traits::HasClear;
 use crate::high_level_api::global_state;
-use crate::high_level_api::integers::{FheIntId, FheUintId};
+use crate::high_level_api::integers::{FheIntId, FheIntegerType, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::{FheBool, FheId, FheInt, FheUint, Tag};
@@ -446,6 +446,38 @@ pub fn fhe_uint_array_contains_sub_slice<Id: FheUintId>(
         #[cfg(feature = "hpu")]
         InternalServerKey::Hpu(_device) => {
             panic!("Hpu does not support Array yet.")
+        }
+    })
+}
+
+pub fn fhe_array_contains<T>(data: &[T], value: &T) -> FheBool
+where
+    T: FheIntegerType,
+{
+    global_state::with_internal_keys(|sks| match sks {
+        InternalServerKey::Cpu(cpu_key) => {
+            let tmp_data = data
+                .iter()
+                .map(|element| element.on_cpu().into_owned())
+                .collect::<Vec<_>>();
+            let tmp_value = value.on_cpu();
+
+            let result = cpu_key
+                .pbs_key()
+                .contains_parallelized(&tmp_data, &*tmp_value);
+            FheBool::new(
+                result,
+                cpu_key.tag.clone(),
+                ReRandomizationMetadata::default(),
+            )
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(_) => {
+            panic!("GPU does not support contains() on FheIntegerType yet")
+        }
+        #[cfg(feature = "hpu")]
+        InternalServerKey::Hpu(_) => {
+            panic!("HPU does not support contains() on FheIntegerType yet")
         }
     })
 }
