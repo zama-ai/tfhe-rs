@@ -131,6 +131,10 @@ jobs:
         env:
           GCC_VERSION: ${{ matrix.gcc }}
 
+      - name: Run semgrep and lint checks on CUDA code
+        run: |
+          make semgrep_and_lint_gpu_code
+
       - name: Run fmt checks
         run: |
           make check_fmt_gpu
@@ -138,10 +142,6 @@ jobs:
       - name: Run clippy checks
         run: |
           make pcc_gpu
-
-      - name: Run semgrep and lint checks on CUDA code
-        run: |
-          make semgrep_and_lint_gpu_code
 
       - name: Run semver checks on tfhe-cuda-backend
         run: |
