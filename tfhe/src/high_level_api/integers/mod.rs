@@ -58,6 +58,9 @@ pub(super) mod unsigned;
 pub trait IntegerId: FheId + 'static {
     type InnerCpu: crate::integer::IntegerRadixCiphertext;
 
+    #[cfg(feature = "gpu")]
+    type InnerGpu: crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
+    #[cfg(not(feature = "gpu"))]
     type InnerGpu;
 
     type InnerHpu;
@@ -86,6 +89,25 @@ pub trait FheIntegerType: Tagged + private::Sealed {
 
     fn from_cpu(
         inner: <Self::Id as IntegerId>::InnerCpu,
+        tag: Tag,
+        re_randomization_metadata: ReRandomizationMetadata,
+    ) -> Self;
+
+    #[cfg(feature = "gpu")]
+    fn on_gpu(
+        &self,
+        streams: &crate::core_crypto::gpu::CudaStreams,
+    ) -> MaybeCloned<'_, <Self::Id as IntegerId>::InnerGpu>;
+
+    #[cfg(feature = "gpu")]
+    fn into_gpu(
+        self,
+        streams: &crate::core_crypto::gpu::CudaStreams,
+    ) -> <Self::Id as IntegerId>::InnerGpu;
+
+    #[cfg(feature = "gpu")]
+    fn from_gpu(
+        inner: <Self::Id as IntegerId>::InnerGpu,
         tag: Tag,
         re_randomization_metadata: ReRandomizationMetadata,
     ) -> Self;

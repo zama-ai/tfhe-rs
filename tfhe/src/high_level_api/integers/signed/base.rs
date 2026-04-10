@@ -137,6 +137,31 @@ where
     ) -> Self {
         Self::new(inner, tag, re_randomization_metadata)
     }
+
+    #[cfg(feature = "gpu")]
+    fn on_gpu(
+        &self,
+        streams: &crate::core_crypto::gpu::CudaStreams,
+    ) -> MaybeCloned<'_, <Self::Id as IntegerId>::InnerGpu> {
+        self.ciphertext.on_gpu(streams)
+    }
+
+    #[cfg(feature = "gpu")]
+    fn into_gpu(
+        self,
+        streams: &crate::core_crypto::gpu::CudaStreams,
+    ) -> <Self::Id as IntegerId>::InnerGpu {
+        self.ciphertext.into_gpu(streams)
+    }
+
+    #[cfg(feature = "gpu")]
+    fn from_gpu(
+        inner: <Self::Id as IntegerId>::InnerGpu,
+        tag: Tag,
+        re_randomization_metadata: ReRandomizationMetadata,
+    ) -> Self {
+        Self::new(inner, tag, re_randomization_metadata)
+    }
 }
 
 impl<Id> FheInt<Id>
