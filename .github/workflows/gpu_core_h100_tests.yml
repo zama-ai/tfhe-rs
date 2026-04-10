@@ -63,7 +63,6 @@ jobs:
               - tfhe/src/integer/server_key/radix_parallel/tests_cases_unsigned.rs
               - tfhe/src/shortint/parameters/**
               - tfhe/src/c_api/**
-              - 'tfhe/docs/**/**.md'
               - '.github/workflows/gpu_core_h100_tests.yml'
             core_crypto:
               - tfhe/src/core_crypto/gpu/**
