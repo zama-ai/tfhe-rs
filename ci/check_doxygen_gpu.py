@@ -33,9 +33,12 @@ SKIP_PARAMS = {
     ("bool", "allocate_gpu_memory"),
     ("uint64_t", "size_tracker"),
     ("void", "bsks"),
-    ("KSTorus", "ksks"),
+    ("Torus", "ksks"),
     ("cudaStream_t", "stream"),
     ("uint32_t", "gpu_index"),
+    ("uint32_t", "message_modulus"),
+    ("uint32_t", "carry_modulus"),
+    ("buffer", "mem_ptr"),
 }
 
 # Struct/class members that don't require inline documentation.
@@ -43,10 +46,14 @@ SKIP_PARAMS = {
 SKIP_MEMBERS = {
     ("int_radix_params", "params"),
     ("bool", "gpu_memory_allocated"),
+    ("bool", "allocate_gpu_memory"),
 }
 
 # Template parameters that don't require @tparam documentation.
 SKIP_TPARAMS = {"Torus", "KSTorus"}
+
+# Functions which don't require documentation.
+SKIP_FUNCTIONS = {"release"}
 
 
 def run(cmd, **kwargs):
@@ -196,6 +203,12 @@ def parse_xml_issues(xml_dir, added, root):
             continue
         doc_root = tree.getroot()
 
+        # Constructors and destructors ignored.
+        compound_names = {
+            c.findtext("compoundname", "").split("::")[-1]
+            for c in doc_root.iter("compounddef")
+        }
+
         # Structs and classes
         for compound in doc_root.iter("compounddef"):
             if compound.get("kind") not in ("struct", "class"):
@@ -244,6 +257,8 @@ def parse_xml_issues(xml_dir, added, root):
                 continue
             name = memberdef.findtext("name", "")
             if kind == "function":
+                if name in SKIP_FUNCTIONS or name.lstrip("~") in compound_names:
+                    continue
                 issues = check_entity(name, kind, memberdef, memberdef.findall("param"))
                 for issue in issues:
                     failures.append((fpath, line, f"function '{name}': {issue}"))

@@ -7293,6 +7293,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
             .0,
     )
     .unwrap();
+    // Values: decomposed Packed, 2 digits per block (base message_modulus^2)
+    // Toy example (message_modulus = 4): value 156 -> base 16 -> [12, 9]
+    //   (unpacked base 4 would be [0, 3, 1, 2]).
+    // host_aggregate_one_hot_vector unpacks them at the end.
     let num_output_packed_blocks = num_output_unpacked_blocks.div_ceil(2);
 
     let h_match_outputs: Vec<u64> = matches
@@ -8783,10 +8787,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
         .get(num_blocks_in_ct as usize..)
         .is_some_and(|sub_slice| sub_slice.iter().any(|&scalar_block| scalar_block != 0));
 
-    scalar_blocks.truncate(num_blocks_in_ct as usize);
-    let num_scalar_blocks = u32::try_from(scalar_blocks.len()).unwrap();
-
-    let d_scalar_blocks: CudaVec<u64> = CudaVec::from_cpu_async(&scalar_blocks, streams, 0);
+    scalar_blocks.resize(num_blocks_in_ct as usize, 0u64);
 
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
@@ -8864,11 +8865,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
         &raw mut ffi_index,
         &raw mut ffi_match,
         ffi_inputs.as_ptr(),
-        d_scalar_blocks.as_c_ptr(0),
+        scalar_blocks.as_ptr(),
         is_scalar_obviously_bigger,
         num_inputs,
         num_blocks_in_ct,
-        num_scalar_blocks,
         num_blocks_index,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),

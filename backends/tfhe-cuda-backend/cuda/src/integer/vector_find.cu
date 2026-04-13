@@ -482,10 +482,9 @@ uint64_t scratch_cuda_unchecked_index_of_clear_64_async(
 void cuda_unchecked_index_of_clear_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct,
     CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
-    const void *d_scalar_blocks, bool is_scalar_obviously_bigger,
-    uint32_t num_inputs, uint32_t num_blocks, uint32_t num_scalar_blocks,
-    uint32_t num_blocks_index, int8_t *mem, void *const *bsks,
-    void *const *ksks) {
+    const uint64_t *h_clear_val, bool is_scalar_obviously_bigger,
+    uint32_t num_inputs, uint32_t num_blocks, uint32_t num_blocks_index,
+    int8_t *mem, void *const *bsks, void *const *ksks) {
   PANIC_IF_FALSE(index_ct != inputs, "Output and input pointers must be "
                                      "different for out-of-place operations");
   PANIC_IF_FALSE(match_ct != inputs, "Output and input pointers must be "
@@ -495,9 +494,8 @@ void cuda_unchecked_index_of_clear_64_async(
                  "out-of-place operations");
 
   host_unchecked_index_of_clear<uint64_t>(
-      CudaStreams(streams), index_ct, match_ct, inputs,
-      (const uint64_t *)d_scalar_blocks, is_scalar_obviously_bigger, num_inputs,
-      num_blocks, num_scalar_blocks, num_blocks_index,
+      CudaStreams(streams), index_ct, match_ct, inputs, h_clear_val,
+      is_scalar_obviously_bigger, num_inputs, num_blocks, num_blocks_index,
       (int_unchecked_index_of_clear_buffer<uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
 }

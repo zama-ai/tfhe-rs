@@ -313,9 +313,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
   auto glwe_dimension = mem_ptr->params.glwe_dimension;
   auto polynomial_size = mem_ptr->params.polynomial_size;
   auto small_lwe_dimension = mem_ptr->params.small_lwe_dimension;
-  auto chunk_size =
-      (mem_ptr->params.message_modulus * mem_ptr->params.carry_modulus - 1) /
-      (mem_ptr->params.message_modulus - 1);
+  auto chunk_size = mem_ptr->params.max_degree();
 
   size_t total_blocks_in_vec = num_radix_blocks * num_radix_in_vec;
 
