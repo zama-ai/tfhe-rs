@@ -5,9 +5,13 @@
 #include "integer/comparison.cuh"
 #include "integer/integer.cuh"
 #include "integer/radix_ciphertext.cuh"
-#include "integer/scalar_comparison.cuh"
 #include "integer/vector_find.h"
 
+// Computes equality selectors of a ciphertext against a list of cleartexts.
+// Inputs: ciphertext x, cleartext list V = (v_0, ..., v_{n-1}).
+// Operation: out[k] = AND_j (x_j == (v_k)_j), batched over match_parallelism
+// values via additive-AND with periodic carry flush.
+// Outputs: list of n boolean ciphertexts.
 template <typename Torus>
 __host__ void host_compute_equality_selectors(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_list,
@@ -18,72 +22,168 @@ __host__ void host_compute_equality_selectors(
 
   uint32_t num_possible_values = mem_ptr->num_possible_values;
   uint32_t message_modulus = mem_ptr->params.message_modulus;
+  uint32_t carry_modulus = mem_ptr->params.carry_modulus;
+  uint32_t match_parallelism = mem_ptr->match_parallelism;
+  uint32_t max_items = mem_ptr->max_items;
 
   integer_radix_apply_many_univariate_lookup_table<Torus>(
       streams, mem_ptr->tmp_many_luts_output, lwe_array_in, bsks,
       (Torus *const *)ksks, mem_ptr->comparison_luts, message_modulus,
       mem_ptr->lut_stride);
 
-  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
-      streams);
+  for (uint32_t i = 0; i < num_possible_values; i += match_parallelism) {
+    uint32_t parallel_chunk =
+        std::min(match_parallelism, num_possible_values - i);
 
-  uint32_t num_streams = mem_ptr->num_streams;
-
-  for (uint32_t i = 0; i < num_possible_values; i++) {
-
-    uint32_t stream_idx = i % num_streams;
-
-    CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
-
-    CudaRadixCiphertextFFI *current_tmp_block_comparisons =
-        mem_ptr->tmp_block_comparisons[stream_idx];
-    int_comparison_buffer<Torus> *current_reduction_buffer =
-        mem_ptr->reduction_buffers[stream_idx];
-
-    const uint64_t *current_clear_blocks =
-        &h_decomposed_cleartexts[i * num_blocks];
-
-    for (uint32_t j = 0; j < num_blocks; j++) {
-      uint64_t block_value = current_clear_blocks[j];
-
-      if (block_value >= message_modulus) {
-        PANIC("Cuda error: block value in compute_equality_selectors "
-              "exceeds message modulus");
-      }
-
-      uint32_t input_start = (uint32_t)block_value * num_blocks + j;
-
+    for (uint32_t c = 0; c < parallel_chunk; c++) {
+      uint32_t idx = i + c;
+      uint64_t block_value = h_decomposed_cleartexts[idx * num_blocks];
+      uint32_t input_start = (uint32_t)block_value * num_blocks;
       copy_radix_ciphertext_slice_async<Torus>(
-          current_stream.stream(0), current_stream.gpu_index(0),
-          current_tmp_block_comparisons, j, j + 1,
-          mem_ptr->tmp_many_luts_output, input_start, input_start + 1);
+          streams.stream(0), streams.gpu_index(0), mem_ptr->packed_accumulator,
+          c, c + 1, mem_ptr->tmp_many_luts_output, input_start,
+          input_start + 1);
     }
 
-    CudaRadixCiphertextFFI *current_output_block = &lwe_array_out_list[i];
+    CudaRadixCiphertextFFI acc_slice, curr_slice;
+    as_radix_ciphertext_slice<Torus>(&acc_slice, mem_ptr->packed_accumulator, 0,
+                                     parallel_chunk);
+    as_radix_ciphertext_slice<Torus>(&curr_slice, mem_ptr->packed_current_block,
+                                     0, parallel_chunk);
 
-    host_integer_are_all_comparisons_block_true<Torus>(
-        current_stream, current_output_block, current_tmp_block_comparisons,
-        current_reduction_buffer, bsks, (Torus **)ksks, num_blocks);
+    uint32_t items_in_acc = 1;
+    for (uint32_t j = 1; j < num_blocks; j++) {
+      for (uint32_t c = 0; c < parallel_chunk; c++) {
+        uint32_t idx = i + c;
+        uint64_t block_value = h_decomposed_cleartexts[idx * num_blocks + j];
+        uint32_t input_start = (uint32_t)block_value * num_blocks + j;
+        copy_radix_ciphertext_slice_async<Torus>(
+            streams.stream(0), streams.gpu_index(0),
+            mem_ptr->packed_current_block, c, c + 1,
+            mem_ptr->tmp_many_luts_output, input_start, input_start + 1);
+      }
+
+      host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &acc_slice,
+                           &acc_slice, &curr_slice, parallel_chunk,
+                           message_modulus, carry_modulus);
+      items_in_acc++;
+
+      if (items_in_acc == max_items || j == num_blocks - 1) {
+        integer_radix_apply_univariate_lookup_table<Torus>(
+            streams, &acc_slice, &acc_slice, bsks, ksks,
+            mem_ptr->luts_eq[items_in_acc], parallel_chunk);
+        items_in_acc = 1;
+      }
+    }
+
+    for (uint32_t c = 0; c < parallel_chunk; c++) {
+      uint32_t idx = i + c;
+      copy_radix_ciphertext_slice_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), &lwe_array_out_list[idx], 0,
+          1, mem_ptr->packed_accumulator, c, c + 1);
+    }
   }
+}
 
-  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
-      streams);
+// Computes equality selectors of a list of ciphertexts against a reference
+// ciphertext.
+// Inputs: ciphertext list X = (x_0, ..., x_{n-1}), ciphertext y.
+// Operation: out[i] = AND_j ((x_i)_j == y_j), batched over match_parallelism
+// inputs via additive-AND with periodic carry flush.
+// Outputs: list of n boolean ciphertexts.
+template <typename Torus>
+__host__ void host_compute_equality_selectors_vs_ciphertext(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_list,
+    CudaRadixCiphertextFFI const *inputs,
+    CudaRadixCiphertextFFI const *value, uint32_t num_inputs,
+    uint32_t num_blocks,
+    int_equality_selectors_vs_ciphertext_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks) {
+
+  uint32_t message_modulus = mem_ptr->params.message_modulus;
+  uint32_t carry_modulus = mem_ptr->params.carry_modulus;
+  uint32_t match_parallelism = mem_ptr->match_parallelism;
+  uint32_t max_items = mem_ptr->max_items;
+
+  for (uint32_t i = 0; i < num_inputs; i += match_parallelism) {
+    uint32_t parallel_chunk =
+        std::min(match_parallelism, num_inputs - i);
+
+    for (uint32_t c = 0; c < parallel_chunk; c++) {
+      copy_radix_ciphertext_slice_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), mem_ptr->packed_current_block,
+          c, c + 1, &inputs[i + c], 0, 1);
+      copy_radix_ciphertext_slice_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), mem_ptr->packed_value_block,
+          c, c + 1, value, 0, 1);
+    }
+
+    CudaRadixCiphertextFFI acc_slice, curr_slice, val_slice;
+    as_radix_ciphertext_slice<Torus>(&acc_slice, mem_ptr->packed_accumulator, 0,
+                                     parallel_chunk);
+    as_radix_ciphertext_slice<Torus>(&curr_slice, mem_ptr->packed_current_block,
+                                     0, parallel_chunk);
+    as_radix_ciphertext_slice<Torus>(&val_slice, mem_ptr->packed_value_block, 0,
+                                     parallel_chunk);
+
+    integer_radix_apply_bivariate_lookup_table<Torus>(
+        streams, &acc_slice, &curr_slice, &val_slice, bsks, ksks,
+        mem_ptr->equality_lut, parallel_chunk, message_modulus);
+
+    uint32_t items_in_acc = 1;
+    for (uint32_t j = 1; j < num_blocks; j++) {
+      for (uint32_t c = 0; c < parallel_chunk; c++) {
+        copy_radix_ciphertext_slice_async<Torus>(
+            streams.stream(0), streams.gpu_index(0),
+            mem_ptr->packed_current_block, c, c + 1, &inputs[i + c], j, j + 1);
+        copy_radix_ciphertext_slice_async<Torus>(
+            streams.stream(0), streams.gpu_index(0),
+            mem_ptr->packed_value_block, c, c + 1, value, j, j + 1);
+      }
+
+      integer_radix_apply_bivariate_lookup_table<Torus>(
+          streams, &curr_slice, &curr_slice, &val_slice, bsks, ksks,
+          mem_ptr->equality_lut, parallel_chunk, message_modulus);
+
+      host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &acc_slice,
+                           &acc_slice, &curr_slice, parallel_chunk,
+                           message_modulus, carry_modulus);
+      items_in_acc++;
+
+      if (items_in_acc == max_items || j == num_blocks - 1) {
+        integer_radix_apply_univariate_lookup_table<Torus>(
+            streams, &acc_slice, &acc_slice, bsks, ksks,
+            mem_ptr->luts_eq[items_in_acc], parallel_chunk);
+        items_in_acc = 1;
+      }
+    }
+
+    for (uint32_t c = 0; c < parallel_chunk; c++) {
+      copy_radix_ciphertext_slice_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), &lwe_array_out_list[i + c], 0,
+          1, mem_ptr->packed_accumulator, c, c + 1);
+    }
+  }
 }
 
 template <typename Torus>
 uint64_t scratch_cuda_compute_equality_selectors(
     CudaStreams streams, int_equality_selectors_buffer<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_possible_values, uint32_t num_blocks,
-    bool allocate_gpu_memory) {
+    uint32_t match_parallelism, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_equality_selectors_buffer<Torus>(
-      streams, params, num_possible_values, num_blocks, allocate_gpu_memory,
-      size_tracker);
+      streams, params, num_possible_values, num_blocks, match_parallelism,
+      allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
+// Expands a selector list into a list of gated candidate ciphertexts.
+// Inputs: selector list s = (s_0, ..., s_{n-1}), candidate list V.
+// Operation: out[i] = s_i * v_i, via batched many-LUT PBS over packed blocks.
+// Outputs: list of n radix ciphertexts.
 template <typename Torus>
 __host__ void host_create_possible_results(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_list,
@@ -95,77 +195,90 @@ __host__ void host_create_possible_results(
   uint32_t max_packed_value = mem_ptr->max_packed_value;
   uint32_t max_luts_per_call = mem_ptr->max_luts_per_call;
   uint32_t num_lut_accumulators = mem_ptr->num_lut_accumulators;
-  uint32_t num_streams = mem_ptr->num_streams;
+  uint32_t match_parallelism = mem_ptr->match_parallelism;
 
-  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
-      streams);
+  for (uint32_t i = 0; i < num_possible_values; i += match_parallelism) {
+    uint32_t parallel_chunk =
+        std::min(match_parallelism, num_possible_values - i);
 
-  for (uint32_t i = 0; i < num_possible_values; i++) {
+    set_zero_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), mem_ptr->packed_selectors, 0,
+        match_parallelism);
 
-    uint32_t stream_idx = i % num_streams;
-    CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
-    CudaRadixCiphertextFFI *current_tmp_buffer =
-        mem_ptr->tmp_many_luts_output[stream_idx];
+    for (uint32_t c = 0; c < parallel_chunk; c++) {
+      copy_radix_ciphertext_slice_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), mem_ptr->packed_selectors, c,
+          c + 1, &lwe_array_in_list[i + c], 0, 1);
+    }
 
-    CudaRadixCiphertextFFI const *current_selector = &lwe_array_in_list[i];
-    CudaRadixCiphertextFFI *current_output = &lwe_array_out_list[i];
-    const uint64_t *current_clear_blocks =
-        &h_decomposed_cleartexts[i * num_blocks];
+    CudaRadixCiphertextFFI current_packed_selectors;
+    as_radix_ciphertext_slice<Torus>(&current_packed_selectors,
+                                     mem_ptr->packed_selectors, 0,
+                                     match_parallelism);
 
     for (uint32_t k = 0; k < num_lut_accumulators; k++) {
-
-      uint32_t lut_index = stream_idx * num_lut_accumulators + k;
-
-      int_radix_lut<Torus> *current_lut = mem_ptr->stream_luts[lut_index];
-
+      int_radix_lut<Torus> *current_lut = mem_ptr->luts[k];
       uint32_t luts_in_this_call = current_lut->num_many_lut;
 
+      CudaRadixCiphertextFFI current_packed_output;
+      as_radix_ciphertext_slice<Torus>(
+          &current_packed_output, mem_ptr->packed_tmp_many_luts_output, 0,
+          match_parallelism * luts_in_this_call);
+
       integer_radix_apply_many_univariate_lookup_table<Torus>(
-          current_stream, current_tmp_buffer, current_selector, bsks,
+          streams, &current_packed_output, &current_packed_selectors, bsks,
           (Torus *const *)ksks, current_lut, luts_in_this_call,
           mem_ptr->lut_stride);
 
-      for (uint32_t j = 0; j < num_blocks; j++) {
-        uint64_t packed_block_value = current_clear_blocks[j];
-        if (packed_block_value >= max_packed_value) {
-          PANIC("Cuda error: block value in create_possible_results "
-                "exceeds max packed value");
+      for (uint32_t c = 0; c < parallel_chunk; c++) {
+        uint32_t idx = i + c;
+        const uint64_t *current_clear_blocks =
+            &h_decomposed_cleartexts[idx * num_blocks];
+
+        for (uint32_t j = 0; j < num_blocks; j++) {
+          uint64_t packed_block_value = current_clear_blocks[j];
+          if (packed_block_value >= max_packed_value)
+            PANIC("Exceeds max packed value");
+
+          uint32_t accumulator_index = packed_block_value / max_luts_per_call;
+          if (accumulator_index != k)
+            continue;
+
+          uint32_t lut_index_in_accumulator =
+              packed_block_value % max_luts_per_call;
+
+          uint32_t packed_output_idx =
+              lut_index_in_accumulator * match_parallelism + c;
+
+          copy_radix_ciphertext_slice_async<Torus>(
+              streams.stream(0), streams.gpu_index(0), &lwe_array_out_list[idx],
+              j, j + 1, &current_packed_output, packed_output_idx,
+              packed_output_idx + 1);
         }
-
-        uint32_t accumulator_index = packed_block_value / max_luts_per_call;
-        if (accumulator_index != k) {
-          continue;
-        }
-
-        uint32_t lut_index_in_accumulator =
-            packed_block_value % max_luts_per_call;
-
-        copy_radix_ciphertext_slice_async<Torus>(
-            current_stream.stream(0), current_stream.gpu_index(0),
-            current_output, j, j + 1, current_tmp_buffer,
-            lut_index_in_accumulator, lut_index_in_accumulator + 1);
       }
     }
   }
-
-  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
-      streams);
 }
 
 template <typename Torus>
 uint64_t scratch_cuda_create_possible_results(
     CudaStreams streams, int_possible_results_buffer<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_blocks, uint32_t num_possible_values,
-    bool allocate_gpu_memory) {
+    uint32_t match_parallelism, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_possible_results_buffer<Torus>(
-      streams, params, num_blocks, num_possible_values, allocate_gpu_memory,
-      size_tracker);
+      streams, params, num_blocks, num_possible_values, match_parallelism,
+      allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
+// Sums a one-hot list of ciphertexts into a single ciphertext.
+// Inputs: ciphertext list X = (x_0, ..., x_{n-1}).
+// Operation: out = sum_{i=0}^{n-1} x_i, via chunked additive reduction with
+// periodic carry flush and final message/carry extraction.
+// Outputs: single radix ciphertext.
 template <typename Torus>
 __host__ void host_aggregate_one_hot_vector(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
@@ -175,155 +288,92 @@ __host__ void host_aggregate_one_hot_vector(
     Torus *const *ksks) {
 
   int_radix_params params = mem_ptr->params;
-  if (params.message_modulus > 4 && params.carry_modulus > 4) {
-    PANIC("Cuda error: aggregate one hot vector is only implemented for 1_1 "
-          "and 2_2 params");
-  }
   uint32_t chunk_size = mem_ptr->chunk_size;
-  uint32_t num_streams = mem_ptr->num_streams;
+  uint32_t match_parallelism = mem_ptr->match_parallelism;
 
-  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
-      streams);
+  CudaRadixCiphertextFFI *final_agg = mem_ptr->final_aggregated_vector;
+  set_zero_radix_ciphertext_slice_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), final_agg, 0, num_blocks);
 
-  uint32_t inputs_per_stream = CEIL_DIV(num_input_ciphertexts, num_streams);
+  uint32_t num_chunks = CEIL_DIV(num_input_ciphertexts, chunk_size);
+  uint32_t chunks_accumulated = 0;
 
-  for (uint32_t s = 0; s < num_streams; s++) {
+  for (uint32_t chunk_idx = 0; chunk_idx < num_chunks;
+       chunk_idx += match_parallelism) {
+    uint32_t parallel_chunks =
+        std::min(match_parallelism, num_chunks - chunk_idx);
 
-    CudaStreams current_stream = mem_ptr->internal_cuda_streams[s];
+    set_zero_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0),
+        mem_ptr->packed_partial_temp_vectors, 0,
+        match_parallelism * num_blocks);
 
-    CudaRadixCiphertextFFI *current_agg =
-        mem_ptr->partial_aggregated_vectors[s];
-    CudaRadixCiphertextFFI *current_temp = mem_ptr->partial_temp_vectors[s];
-    int_radix_lut<Torus> *current_identity_lut =
-        mem_ptr->stream_identity_luts[s];
+    for (uint32_t c = 0; c < parallel_chunks; c++) {
+      uint32_t current_chunk = chunk_idx + c;
+      uint32_t chunk_start = current_chunk * chunk_size;
+      uint32_t chunk_end =
+          std::min(chunk_start + chunk_size, num_input_ciphertexts);
 
-    uint32_t start_idx = s * inputs_per_stream;
-    uint32_t end_idx =
-        std::min(start_idx + inputs_per_stream, num_input_ciphertexts);
-    uint32_t count_in_stream =
-        (end_idx > start_idx) ? (end_idx - start_idx) : 0;
+      CudaRadixCiphertextFFI current_temp;
+      as_radix_ciphertext_slice<Torus>(&current_temp,
+                                       mem_ptr->packed_partial_temp_vectors,
+                                       c * num_blocks, (c + 1) * num_blocks);
 
-    //
-    // Initialize the partial aggregated vector to zero for the current stream
-    //
-    set_zero_radix_ciphertext_slice_async<Torus>(current_stream.stream(0),
-                                                 current_stream.gpu_index(0),
-                                                 current_agg, 0, num_blocks);
-
-    if (count_in_stream == 0)
-      continue;
-
-    uint32_t num_chunks = CEIL_DIV(count_in_stream, chunk_size);
-
-    //
-    // Process chunks of input ciphertexts for the current stream
-    //
-    for (uint32_t chunk_idx = 0; chunk_idx < num_chunks; chunk_idx++) {
-      uint32_t chunk_start_relative = chunk_idx * chunk_size;
-      uint32_t chunk_end_relative =
-          std::min(chunk_start_relative + chunk_size, count_in_stream);
-      uint32_t current_chunk_size = chunk_end_relative - chunk_start_relative;
-
-      //
-      // Accumulate ciphertexts in the current chunk
-      //
-      for (uint32_t k = 0; k < current_chunk_size; k++) {
-        uint32_t global_idx = start_idx + chunk_start_relative + k;
-        CudaRadixCiphertextFFI const *current_one_hot_ct =
-            &lwe_array_in_list[global_idx];
-
-        host_addition<Torus>(current_stream.stream(0),
-                             current_stream.gpu_index(0), current_agg,
-                             current_agg, current_one_hot_ct, num_blocks,
+      for (uint32_t k = chunk_start; k < chunk_end; k++) {
+        host_addition<Torus>(streams.stream(0), streams.gpu_index(0),
+                             &current_temp, &current_temp,
+                             &lwe_array_in_list[k], num_blocks,
                              params.message_modulus, params.carry_modulus);
       }
+    }
 
-      //
-      // Apply identity LUT to reduce noise after accumulation
-      //
-      copy_radix_ciphertext_slice_async<Torus>(
-          current_stream.stream(0), current_stream.gpu_index(0), current_temp,
-          0, num_blocks, current_agg, 0, num_blocks);
+    CudaRadixCiphertextFFI current_packed_partial;
+    as_radix_ciphertext_slice<Torus>(
+        &current_packed_partial, mem_ptr->packed_partial_temp_vectors, 0,
+        match_parallelism * num_blocks);
 
-      integer_radix_apply_univariate_lookup_table<Torus>(
-          current_stream, current_agg, current_temp, bsks, ksks,
-          current_identity_lut, num_blocks);
+    integer_radix_apply_univariate_lookup_table<Torus>(
+        streams, &current_packed_partial, &current_packed_partial, bsks, ksks,
+        mem_ptr->batched_identity_lut, match_parallelism * num_blocks);
+
+    for (uint32_t c = 0; c < parallel_chunks; c++) {
+      CudaRadixCiphertextFFI current_temp;
+      as_radix_ciphertext_slice<Torus>(&current_temp,
+                                       mem_ptr->packed_partial_temp_vectors,
+                                       c * num_blocks, (c + 1) * num_blocks);
+
+      host_addition<Torus>(streams.stream(0), streams.gpu_index(0), final_agg,
+                           final_agg, &current_temp, num_blocks,
+                           params.message_modulus, params.carry_modulus);
+
+      chunks_accumulated++;
+      if (chunks_accumulated >= mem_ptr->chunk_size - 1) {
+        integer_radix_apply_univariate_lookup_table<Torus>(
+            streams, final_agg, final_agg, bsks, ksks, mem_ptr->identity_lut,
+            num_blocks);
+        chunks_accumulated = 0;
+      }
     }
   }
 
-  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
-      streams);
-
-  CudaRadixCiphertextFFI *final_agg = mem_ptr->partial_aggregated_vectors[0];
-
-  //
-  // Aggregate partial results from all streams into the final aggregated vector
-  // num_streams has to be less than the max noise level otherwise we accumulate
-  // too much and the noise limit is exceeded
-  //
-  CHECK_NOISE_LEVEL(num_streams, params.message_modulus, params.carry_modulus);
-  for (uint32_t s = 1; s < num_streams; s++) {
-    uint32_t start_idx = s * inputs_per_stream;
-    if (start_idx >= num_input_ciphertexts)
-      break;
-
-    host_addition<Torus>(streams.stream(0), streams.gpu_index(0), final_agg,
-                         final_agg, mem_ptr->partial_aggregated_vectors[s],
-                         num_blocks, params.message_modulus,
-                         params.carry_modulus);
-  }
-
-  CudaRadixCiphertextFFI *temp_agg = mem_ptr->partial_temp_vectors[0];
-  CudaRadixCiphertextFFI *message_ct = mem_ptr->message_ct;
-  CudaRadixCiphertextFFI *carry_ct = mem_ptr->carry_ct;
-
-  //
-  // Copy the final aggregated result to a temporary buffer for extraction
-  //
-  copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), temp_agg, 0, num_blocks,
-      final_agg, 0, num_blocks);
-
-  CudaStreams message_stream = mem_ptr->internal_cuda_streams[0];
-  CudaStreams carry_stream = mem_ptr->internal_cuda_streams[1];
-
-  uint32_t stream_indexes[] = {0, 1};
-  size_t num_stream_indexes = 2;
-
-  mem_ptr->internal_cuda_streams.internal_streams_slice_wait_for_main_stream_0(
-      streams, stream_indexes, num_stream_indexes);
-
-  //
-  // Extract message part on a first substream
-  //
   integer_radix_apply_univariate_lookup_table<Torus>(
-      message_stream, message_ct, temp_agg, bsks, ksks,
+      streams, mem_ptr->message_ct, final_agg, bsks, ksks,
       mem_ptr->message_extract_lut, num_blocks);
 
-  //
-  // Extract carry part on a second substream
-  //
   integer_radix_apply_univariate_lookup_table<Torus>(
-      carry_stream, carry_ct, temp_agg, bsks, ksks, mem_ptr->carry_extract_lut,
-      num_blocks);
+      streams, mem_ptr->carry_ct, final_agg, bsks, ksks,
+      mem_ptr->carry_extract_lut, num_blocks);
 
-  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams_slice(
-      streams, stream_indexes, num_stream_indexes);
-
-  //
-  // Pack the message and carry parts into the output LWE array
-  //
   for (uint32_t index = 0; index < num_blocks; index++) {
     if (2 * index < lwe_array_out->num_radix_blocks) {
       copy_radix_ciphertext_slice_async<Torus>(
           streams.stream(0), streams.gpu_index(0), lwe_array_out, 2 * index,
-          2 * index + 1, message_ct, index, index + 1);
+          2 * index + 1, mem_ptr->message_ct, index, index + 1);
     }
-
     if (2 * index + 1 < lwe_array_out->num_radix_blocks) {
       copy_radix_ciphertext_slice_async<Torus>(
           streams.stream(0), streams.gpu_index(0), lwe_array_out, 2 * index + 1,
-          2 * index + 2, carry_ct, index, index + 1);
+          2 * index + 2, mem_ptr->carry_ct, index, index + 1);
     }
   }
 }
@@ -332,16 +382,20 @@ template <typename Torus>
 uint64_t scratch_cuda_aggregate_one_hot_vector(
     CudaStreams streams, int_aggregate_one_hot_buffer<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_blocks, uint32_t num_matches,
-    bool allocate_gpu_memory) {
+    uint32_t match_parallelism, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_aggregate_one_hot_buffer<Torus>(
-      streams, params, num_blocks, num_matches, allocate_gpu_memory,
-      size_tracker);
+      streams, params, num_blocks, num_matches, match_parallelism,
+      allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
+// Matches an input against a cleartext (input, output) table.
+// Inputs: ciphertext x, cleartext inputs K, cleartext outputs V.
+// Operation: s_i = (x == K_i); result = sum_i s_i * V_i; matched = OR_i s_i.
+// Outputs: result ciphertext and match boolean.
 template <typename Torus>
 __host__ void host_unchecked_match_value(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_result,
@@ -350,6 +404,7 @@ __host__ void host_unchecked_match_value(
     const uint64_t *h_match_inputs, const uint64_t *h_match_outputs,
     int_unchecked_match_buffer<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks) {
+
   host_compute_equality_selectors<Torus>(
       streams, mem_ptr->selectors_list, lwe_array_in_ct,
       mem_ptr->num_input_blocks, h_match_inputs, mem_ptr->eq_selectors_buffer,
@@ -393,12 +448,12 @@ uint64_t scratch_cuda_unchecked_match_value(
     CudaStreams streams, int_unchecked_match_buffer<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_matches, uint32_t num_input_blocks,
     uint32_t num_output_packed_blocks, bool max_output_is_zero,
-    bool allocate_gpu_memory) {
+    uint32_t match_parallelism, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_unchecked_match_buffer<Torus>(
       streams, params, num_matches, num_input_blocks, num_output_packed_blocks,
-      max_output_is_zero, allocate_gpu_memory, size_tracker);
+      max_output_is_zero, match_parallelism, allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
@@ -408,16 +463,22 @@ uint64_t scratch_cuda_unchecked_match_value_or(
     CudaStreams streams, int_unchecked_match_value_or_buffer<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_matches, uint32_t num_input_blocks,
     uint32_t num_match_packed_blocks, uint32_t num_final_blocks,
-    bool max_output_is_zero, bool allocate_gpu_memory) {
+    bool max_output_is_zero, uint32_t match_parallelism,
+    bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_unchecked_match_value_or_buffer<Torus>(
       streams, params, num_matches, num_input_blocks, num_match_packed_blocks,
-      num_final_blocks, max_output_is_zero, allocate_gpu_memory, size_tracker);
+      num_final_blocks, max_output_is_zero, match_parallelism,
+      allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
+// Matches an input against a cleartext table, falling back to a default value.
+// Inputs: ciphertext x, cleartext inputs K, cleartext outputs V, cleartext or.
+// Operation: (r, m) = match(x, K, V); out = m ? r : or.
+// Outputs: single radix ciphertext.
 template <typename Torus>
 __host__ void host_unchecked_match_value_or(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
@@ -451,16 +512,22 @@ uint64_t
 scratch_cuda_unchecked_contains(CudaStreams streams,
                                 int_unchecked_contains_buffer<Torus> **mem_ptr,
                                 int_radix_params params, uint32_t num_inputs,
-                                uint32_t num_blocks, bool allocate_gpu_memory) {
+                                uint32_t num_blocks,
+                                uint32_t match_parallelism,
+                                bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_unchecked_contains_buffer<Torus>(
-      streams, params, num_inputs, num_blocks, allocate_gpu_memory,
-      size_tracker);
+      streams, params, num_inputs, num_blocks, match_parallelism,
+      allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
+// Tests whether a target ciphertext occurs in a ciphertext list.
+// Inputs: ciphertext list X = (x_0, ..., x_{n-1}), ciphertext y.
+// Operation: out = OR_i (x_i == y).
+// Outputs: boolean ciphertext.
 template <typename Torus>
 __host__ void
 host_unchecked_contains(CudaStreams streams, CudaRadixCiphertextFFI *output,
@@ -470,28 +537,9 @@ host_unchecked_contains(CudaStreams streams, CudaRadixCiphertextFFI *output,
                         int_unchecked_contains_buffer<Torus> *mem_ptr,
                         void *const *bsks, Torus *const *ksks) {
 
-  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
-      streams);
-
-  uint32_t num_streams = mem_ptr->num_streams;
-
-  for (uint32_t i = 0; i < num_inputs; i++) {
-    uint32_t stream_idx = i % num_streams;
-    CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
-
-    CudaRadixCiphertextFFI const *input_ct = &inputs[i];
-
-    CudaRadixCiphertextFFI current_selector_block;
-    as_radix_ciphertext_slice<Torus>(&current_selector_block,
-                                     mem_ptr->packed_selectors, i, i + 1);
-
-    host_equality_check<Torus>(current_stream, &current_selector_block,
-                               input_ct, value, mem_ptr->eq_buffers[stream_idx],
-                               bsks, ksks, num_blocks);
-  }
-
-  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
-      streams);
+  host_compute_equality_selectors_vs_ciphertext<Torus>(
+      streams, mem_ptr->unpacked_selectors, inputs, value, num_inputs,
+      num_blocks, mem_ptr->eq_selectors_buf, bsks, ksks);
 
   host_integer_is_at_least_one_comparisons_block_true<Torus>(
       streams, output, mem_ptr->packed_selectors, mem_ptr->reduction_buffer,
@@ -502,16 +550,20 @@ template <typename Torus>
 uint64_t scratch_cuda_unchecked_contains_clear(
     CudaStreams streams, int_unchecked_contains_clear_buffer<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_inputs, uint32_t num_blocks,
-    bool allocate_gpu_memory) {
+    uint32_t match_parallelism, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_unchecked_contains_clear_buffer<Torus>(
-      streams, params, num_inputs, num_blocks, allocate_gpu_memory,
-      size_tracker);
+      streams, params, num_inputs, num_blocks, match_parallelism,
+      allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
+// Tests whether a cleartext value occurs in a ciphertext list.
+// Inputs: ciphertext list X = (x_0, ..., x_{n-1}), cleartext c.
+// Operation: out = OR_i (x_i == c), via trivial encryption of c.
+// Outputs: boolean ciphertext.
 template <typename Torus>
 __host__ void host_unchecked_contains_clear(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
@@ -529,29 +581,9 @@ __host__ void host_unchecked_contains_clear(
       mem_ptr->d_clear_val, (Torus *)h_clear_val, num_blocks,
       mem_ptr->params.message_modulus, mem_ptr->params.carry_modulus);
 
-  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
-      streams);
-
-  uint32_t num_streams = mem_ptr->num_streams;
-
-  for (uint32_t i = 0; i < num_inputs; i++) {
-    uint32_t stream_idx = i % num_streams;
-    CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
-
-    CudaRadixCiphertextFFI const *input_ct = &inputs[i];
-
-    CudaRadixCiphertextFFI current_selector_block;
-    as_radix_ciphertext_slice<Torus>(&current_selector_block,
-                                     mem_ptr->packed_selectors, i, i + 1);
-
-    host_equality_check<Torus>(current_stream, &current_selector_block,
-                               input_ct, mem_ptr->tmp_clear_val,
-                               mem_ptr->eq_buffers[stream_idx], bsks, ksks,
-                               num_blocks);
-  }
-
-  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
-      streams);
+  host_compute_equality_selectors_vs_ciphertext<Torus>(
+      streams, mem_ptr->unpacked_selectors, inputs, mem_ptr->tmp_clear_val,
+      num_inputs, num_blocks, mem_ptr->eq_selectors_buf, bsks, ksks);
 
   host_integer_is_at_least_one_comparisons_block_true<Torus>(
       streams, output, mem_ptr->packed_selectors, mem_ptr->reduction_buffer,
@@ -562,16 +594,20 @@ template <typename Torus>
 uint64_t scratch_cuda_unchecked_is_in_clears(
     CudaStreams streams, int_unchecked_is_in_clears_buffer<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_clears, uint32_t num_blocks,
-    bool allocate_gpu_memory) {
+    uint32_t match_parallelism, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_unchecked_is_in_clears_buffer<Torus>(
-      streams, params, num_clears, num_blocks, allocate_gpu_memory,
-      size_tracker);
+      streams, params, num_clears, num_blocks, match_parallelism,
+      allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
+// Tests whether a ciphertext equals any value from a cleartext list.
+// Inputs: ciphertext x, cleartext list C = (c_0, ..., c_{n-1}).
+// Operation: out = OR_i (x == c_i).
+// Outputs: boolean ciphertext.
 template <typename Torus>
 __host__ void
 host_unchecked_is_in_clears(CudaStreams streams, CudaRadixCiphertextFFI *output,
@@ -590,6 +626,10 @@ host_unchecked_is_in_clears(CudaStreams streams, CudaRadixCiphertextFFI *output,
       bsks, (Torus **)ksks, num_clears);
 }
 
+// Turns a selector vector into an encrypted index plus a match boolean.
+// Inputs: selector list s = (s_0, ..., s_{n-1}), cleartext indices I.
+// Operation: index = sum_i s_i * I_i; matched = OR_i s_i.
+// Outputs: index ciphertext and match boolean.
 template <typename Torus>
 __host__ void host_compute_final_index_from_selectors(
     CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
@@ -626,12 +666,12 @@ template <typename Torus>
 uint64_t scratch_cuda_compute_final_index_from_selectors(
     CudaStreams streams, int_final_index_from_selectors_buffer<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_inputs, uint32_t num_blocks_index,
-    bool allocate_gpu_memory) {
+    uint32_t match_parallelism, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_final_index_from_selectors_buffer<Torus>(
-      streams, params, num_inputs, num_blocks_index, allocate_gpu_memory,
-      size_tracker);
+      streams, params, num_inputs, num_blocks_index, match_parallelism,
+      allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
@@ -640,16 +680,21 @@ template <typename Torus>
 uint64_t scratch_cuda_unchecked_index_in_clears(
     CudaStreams streams, int_unchecked_index_in_clears_buffer<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_clears, uint32_t num_blocks,
-    uint32_t num_blocks_index, bool allocate_gpu_memory) {
+    uint32_t num_blocks_index, uint32_t match_parallelism,
+    bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_unchecked_index_in_clears_buffer<Torus>(
       streams, params, num_clears, num_blocks, num_blocks_index,
-      allocate_gpu_memory, size_tracker);
+      match_parallelism, allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
+// Returns the index of the (unique) cleartext candidate equal to the input.
+// Inputs: ciphertext x, cleartext list C, cleartext indices I.
+// Operation: s_i = (x == C_i); index = sum_i s_i * I_i; matched = OR_i s_i.
+// Outputs: index ciphertext and match boolean.
 template <typename Torus>
 __host__ void host_unchecked_index_in_clears(
     CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
@@ -687,16 +732,22 @@ uint64_t scratch_cuda_unchecked_first_index_in_clears(
     CudaStreams streams,
     int_unchecked_first_index_in_clears_buffer<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_unique, uint32_t num_blocks,
-    uint32_t num_blocks_index, bool allocate_gpu_memory) {
+    uint32_t num_blocks_index, uint32_t match_parallelism,
+    bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_unchecked_first_index_in_clears_buffer<Torus>(
       streams, params, num_unique, num_blocks, num_blocks_index,
-      allocate_gpu_memory, size_tracker);
+      match_parallelism, allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
+// Returns the first-occurrence index of a cleartext candidate equal to the
+// input, using a precomputed unique-value table.
+// Inputs: ciphertext x, cleartext unique values U, cleartext first indices I.
+// Operation: s_i = (x == U_i); index = sum_i s_i * I_i; matched = OR_i s_i.
+// Outputs: index ciphertext and match boolean.
 template <typename Torus>
 __host__ void host_unchecked_first_index_in_clears(
     CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
@@ -731,16 +782,23 @@ uint64_t scratch_cuda_unchecked_first_index_of_clear(
     CudaStreams streams,
     int_unchecked_first_index_of_clear_buffer<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t num_blocks_index, bool allocate_gpu_memory) {
+    uint32_t num_blocks_index, uint32_t match_parallelism,
+    bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_unchecked_first_index_of_clear_buffer<Torus>(
       streams, params, num_inputs, num_blocks, num_blocks_index,
-      allocate_gpu_memory, size_tracker);
+      match_parallelism, allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
+// Returns the index of the first occurrence of a cleartext in a ciphertext
+// list.
+// Inputs: ciphertext list X = (x_0, ..., x_{n-1}), cleartext c.
+// Operation: s_i = (x_i == c); f_i = s_i AND NOT OR_{k<i} s_k (doubling-step
+// prefix); index = sum_i f_i * i; matched = OR_i s_i.
+// Outputs: index ciphertext and match boolean.
 template <typename Torus>
 __host__ void host_unchecked_first_index_of_clear(
     CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
@@ -759,29 +817,9 @@ __host__ void host_unchecked_first_index_of_clear(
       mem_ptr->d_clear_val, (Torus *)h_clear_val, num_blocks,
       mem_ptr->params.message_modulus, mem_ptr->params.carry_modulus);
 
-  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
-      streams);
-
-  uint32_t num_streams = mem_ptr->num_streams;
-
-  for (uint32_t i = 0; i < num_inputs; i++) {
-    uint32_t stream_idx = i % num_streams;
-    CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
-
-    CudaRadixCiphertextFFI const *input_ct = &inputs[i];
-
-    CudaRadixCiphertextFFI current_selector_block;
-    as_radix_ciphertext_slice<Torus>(&current_selector_block,
-                                     mem_ptr->packed_selectors, i, i + 1);
-
-    host_equality_check<Torus>(current_stream, &current_selector_block,
-                               input_ct, mem_ptr->tmp_clear_val,
-                               mem_ptr->eq_buffers[stream_idx], bsks, ksks,
-                               num_blocks);
-  }
-
-  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
-      streams);
+  host_compute_equality_selectors_vs_ciphertext<Torus>(
+      streams, mem_ptr->unpacked_selectors, inputs, mem_ptr->tmp_clear_val,
+      num_inputs, num_blocks, mem_ptr->eq_selectors_buf, bsks, ksks);
 
   for (uint32_t offset = 1; offset < num_inputs; offset <<= 1) {
     uint32_t count = num_inputs - offset;
@@ -823,16 +861,23 @@ template <typename Torus>
 uint64_t scratch_cuda_unchecked_first_index_of(
     CudaStreams streams, int_unchecked_first_index_of_buffer<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t num_blocks_index, bool allocate_gpu_memory) {
+    uint32_t num_blocks_index, uint32_t match_parallelism,
+    bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_unchecked_first_index_of_buffer<Torus>(
       streams, params, num_inputs, num_blocks, num_blocks_index,
-      allocate_gpu_memory, size_tracker);
+      match_parallelism, allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
+// Returns the index of the first occurrence of a ciphertext in a ciphertext
+// list.
+// Inputs: ciphertext list X = (x_0, ..., x_{n-1}), ciphertext y.
+// Operation: s_i = (x_i == y); f_i = s_i AND NOT OR_{k<i} s_k (doubling-step
+// prefix); index = sum_i f_i * i; matched = OR_i s_i.
+// Outputs: index ciphertext and match boolean.
 template <typename Torus>
 __host__ void host_unchecked_first_index_of(
     CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
@@ -842,28 +887,9 @@ __host__ void host_unchecked_first_index_of(
     int_unchecked_first_index_of_buffer<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks) {
 
-  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
-      streams);
-
-  uint32_t num_streams = mem_ptr->num_streams;
-
-  for (uint32_t i = 0; i < num_inputs; i++) {
-    uint32_t stream_idx = i % num_streams;
-    CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
-
-    CudaRadixCiphertextFFI const *input_ct = &inputs[i];
-
-    CudaRadixCiphertextFFI current_selector_block;
-    as_radix_ciphertext_slice<Torus>(&current_selector_block,
-                                     mem_ptr->packed_selectors, i, i + 1);
-
-    host_equality_check<Torus>(current_stream, &current_selector_block,
-                               input_ct, value, mem_ptr->eq_buffers[stream_idx],
-                               bsks, ksks, num_blocks);
-  }
-
-  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
-      streams);
+  host_compute_equality_selectors_vs_ciphertext<Torus>(
+      streams, mem_ptr->unpacked_selectors, inputs, value, num_inputs,
+      num_blocks, mem_ptr->eq_selectors_buf, bsks, ksks);
 
   for (uint32_t offset = 1; offset < num_inputs; offset <<= 1) {
     uint32_t count = num_inputs - offset;
@@ -905,16 +931,21 @@ template <typename Torus>
 uint64_t scratch_cuda_unchecked_index_of(
     CudaStreams streams, int_unchecked_index_of_buffer<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t num_blocks_index, bool allocate_gpu_memory) {
+    uint32_t num_blocks_index, uint32_t match_parallelism,
+    bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_unchecked_index_of_buffer<Torus>(
       streams, params, num_inputs, num_blocks, num_blocks_index,
-      allocate_gpu_memory, size_tracker);
+      match_parallelism, allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
+// Returns the index of the (unique) occurrence of a ciphertext in a list.
+// Inputs: ciphertext list X = (x_0, ..., x_{n-1}), ciphertext y.
+// Operation: s_i = (x_i == y); index = sum_i s_i * i; matched = OR_i s_i.
+// Outputs: index ciphertext and match boolean.
 template <typename Torus>
 __host__ void host_unchecked_index_of(
     CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
@@ -924,29 +955,9 @@ __host__ void host_unchecked_index_of(
     int_unchecked_index_of_buffer<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks) {
 
-  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
-      streams);
-
-  uint32_t num_streams = mem_ptr->num_streams;
-
-  for (uint32_t i = 0; i < num_inputs; i++) {
-    uint32_t stream_idx = i % num_streams;
-    CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
-
-    CudaRadixCiphertextFFI const *input_ct = &inputs[i];
-
-    CudaRadixCiphertextFFI current_selector_block;
-    as_radix_ciphertext_slice<Torus>(&current_selector_block,
-                                     mem_ptr->final_index_buf->packed_selectors,
-                                     i, i + 1);
-
-    host_equality_check<Torus>(current_stream, &current_selector_block,
-                               input_ct, value, mem_ptr->eq_buffers[stream_idx],
-                               bsks, ksks, num_blocks);
-  }
-
-  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
-      streams);
+  host_compute_equality_selectors_vs_ciphertext<Torus>(
+      streams, mem_ptr->final_index_buf->unpacked_selectors, inputs, value,
+      num_inputs, num_blocks, mem_ptr->eq_selectors_buf, bsks, ksks);
 
   uint32_t packed_len = (num_blocks_index + 1) / 2;
 
@@ -971,22 +982,28 @@ template <typename Torus>
 uint64_t scratch_cuda_unchecked_index_of_clear(
     CudaStreams streams, int_unchecked_index_of_clear_buffer<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t num_blocks_index, bool allocate_gpu_memory) {
+    uint32_t num_blocks_index, uint32_t match_parallelism,
+    bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_unchecked_index_of_clear_buffer<Torus>(
       streams, params, num_inputs, num_blocks, num_blocks_index,
-      allocate_gpu_memory, size_tracker);
+      match_parallelism, allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
 
+// Returns the index of the (unique) occurrence of a cleartext in a ciphertext
+// list, or zero when the scalar is out of range.
+// Inputs: ciphertext list X, cleartext c, flag b = (c out of range).
+// Operation: s_i = b ? 0 : (x_i == c); index = sum_i s_i * i; matched = OR_i s_i.
+// Outputs: index ciphertext and match boolean.
 template <typename Torus>
 __host__ void host_unchecked_index_of_clear(
     CudaStreams streams, CudaRadixCiphertextFFI *index_ct,
     CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
-    const Torus *d_scalar_blocks, bool is_scalar_obviously_bigger,
-    uint32_t num_inputs, uint32_t num_blocks, uint32_t num_scalar_blocks,
+    const uint64_t *h_clear_val, bool is_scalar_obviously_bigger,
+    uint32_t num_inputs, uint32_t num_blocks,
     uint32_t num_blocks_index,
     int_unchecked_index_of_clear_buffer<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks) {
@@ -999,29 +1016,19 @@ __host__ void host_unchecked_index_of_clear(
         streams.stream(0), streams.gpu_index(0), packed_selectors, 0,
         num_inputs);
   } else {
-    mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
-        streams);
+    cuda_memcpy_async_to_gpu(mem_ptr->d_clear_val, h_clear_val,
+                             safe_mul_sizeof<Torus>(num_blocks),
+                             streams.stream(0), streams.gpu_index(0));
 
-    uint32_t num_streams = mem_ptr->num_streams;
+    set_trivial_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), mem_ptr->tmp_clear_val,
+        mem_ptr->d_clear_val, (Torus *)h_clear_val, num_blocks,
+        mem_ptr->params.message_modulus, mem_ptr->params.carry_modulus);
 
-    for (uint32_t i = 0; i < num_inputs; i++) {
-      uint32_t stream_idx = i % num_streams;
-      CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
-
-      CudaRadixCiphertextFFI const *input_ct = &inputs[i];
-
-      CudaRadixCiphertextFFI current_selector_dest;
-      as_radix_ciphertext_slice<Torus>(&current_selector_dest, packed_selectors,
-                                       i, i + 1);
-
-      host_scalar_equality_check<Torus>(
-          current_stream, &current_selector_dest, input_ct, d_scalar_blocks,
-          mem_ptr->eq_buffers[stream_idx], bsks, (Torus **)ksks, num_blocks,
-          num_scalar_blocks);
-    }
-
-    mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
-        streams);
+    host_compute_equality_selectors_vs_ciphertext<Torus>(
+        streams, mem_ptr->final_index_buf->unpacked_selectors, inputs,
+        mem_ptr->tmp_clear_val, num_inputs, num_blocks,
+        mem_ptr->eq_selectors_buf, bsks, ksks);
   }
 
   uint32_t packed_len = (num_blocks_index + 1) / 2;

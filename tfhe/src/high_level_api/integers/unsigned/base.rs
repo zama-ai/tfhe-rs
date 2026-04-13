@@ -1265,7 +1265,7 @@ where
                 let size = cuda_key
                     .key
                     .key
-                    .get_unchecked_match_value_size_on_gpu(&ct_on_gpu, matches, streams);
+                    .get_unchecked_match_value_size_on_gpu(&ct_on_gpu, matches, 1, streams);
                 Ok(size)
             }
             #[cfg(feature = "hpu")]

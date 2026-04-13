@@ -27,16 +27,22 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
     where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+        Clear:
+            UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + CastInto<u64> + Sync + Send,
     {
-        if matches.get_values().is_empty() {
-            let trivial_ct: CudaUnsignedRadixCiphertext = self.create_trivial_radix(0, 1, streams);
-            let trivial_bool = CudaBooleanBlock::from_cuda_radix_ciphertext(
-                trivial_ct.duplicate(streams).into_inner(),
+        let num_matches = matches.get_values().len();
+
+        if num_matches == 0 {
+            let result_ct: CudaUnsignedRadixCiphertext = self.create_trivial_zero_radix(1, streams);
+            let result_bool: CudaBooleanBlock = CudaBooleanBlock(
+                self.create_trivial_zero_radix::<CudaUnsignedRadixCiphertext>(1, streams),
             );
-            return (trivial_ct, trivial_bool);
+            return (result_ct, result_bool);
         }
 
+        let match_parallelism = num_matches as u32;
+
+        let num_bits_in_message = self.message_modulus.0.ilog2();
         let max_output_value = matches
             .get_values()
             .iter()
@@ -44,17 +50,22 @@ impl CudaServerKey {
             .max_by(|(_, outputl), (_, outputr)| outputl.cmp(outputr))
             .expect("luts is not empty at this point")
             .1;
+        let max_val_u64: u64 = max_output_value.cast_into();
+        let num_output_unpacked_blocks = if max_val_u64 == 0 {
+            1
+        } else {
+            (max_val_u64.ilog2() + 1).div_ceil(num_bits_in_message)
+        };
 
-        let num_output_unpacked_blocks =
-            self.num_blocks_to_represent_unsigned_value(max_output_value);
+        let mut result: CudaUnsignedRadixCiphertext =
+            self.create_trivial_zero_radix(num_output_unpacked_blocks as usize, streams);
 
-        let mut result_ct: CudaUnsignedRadixCiphertext =
-            self.create_trivial_zero_radix(num_output_unpacked_blocks, streams);
-        let mut result_bool: CudaBooleanBlock = CudaBooleanBlock(
+        let mut boolean_result: CudaBooleanBlock = CudaBooleanBlock(
             self.create_trivial_zero_radix::<CudaUnsignedRadixCiphertext>(1, streams),
         );
 
-        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key
+        else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
@@ -63,8 +74,8 @@ impl CudaServerKey {
                 CudaBootstrappingKey::Classic(d_bsk) => {
                     cuda_backend_unchecked_match_value(
                         streams,
-                        &mut result_ct,
-                        &mut result_bool,
+                        &mut result,
+                        &mut boolean_result,
                         ct.as_ref(),
                         matches,
                         self.message_modulus,
@@ -81,14 +92,15 @@ impl CudaServerKey {
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
+                        match_parallelism,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                     cuda_backend_unchecked_match_value(
                         streams,
-                        &mut result_ct,
-                        &mut result_bool,
+                        &mut result,
+                        &mut boolean_result,
                         ct.as_ref(),
                         matches,
                         self.message_modulus,
@@ -105,19 +117,21 @@ impl CudaServerKey {
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
+                        match_parallelism,
                         None,
                     );
                 }
             }
         }
 
-        (result_ct, result_bool)
+        (result, boolean_result)
     }
 
     pub fn get_unchecked_match_value_size_on_gpu<Clear>(
         &self,
         ct: &CudaUnsignedRadixCiphertext,
         matches: &MatchValues<Clear>,
+        match_parallelism: u32,
         streams: &CudaStreams,
     ) -> u64
     where
@@ -150,6 +164,7 @@ impl CudaServerKey {
                     self.message_modulus,
                     self.carry_modulus,
                     PBSType::Classical,
+                    match_parallelism,
                     d_bsk.ms_noise_reduction_configuration.as_ref(),
                 )
             }
@@ -170,6 +185,7 @@ impl CudaServerKey {
                     self.message_modulus,
                     self.carry_modulus,
                     PBSType::MultiBit,
+                    match_parallelism,
                     None,
                 )
             }
@@ -294,6 +310,8 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
+        let match_parallelism = matches.get_values().len() as u32;
+
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -317,6 +335,7 @@ impl CudaServerKey {
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
+                        match_parallelism,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -341,6 +360,7 @@ impl CudaServerKey {
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
+                        match_parallelism,
                         None,
                     );
                 }
@@ -509,6 +529,8 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
+        let match_parallelism = cts.len() as u32;
+
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -531,6 +553,7 @@ impl CudaServerKey {
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
+                        match_parallelism,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -554,6 +577,7 @@ impl CudaServerKey {
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
+                        match_parallelism,
                         None,
                     );
                 }
@@ -660,6 +684,8 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
+        let match_parallelism = cts.len() as u32;
+
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -682,6 +708,7 @@ impl CudaServerKey {
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
+                        match_parallelism,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -705,6 +732,7 @@ impl CudaServerKey {
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
+                        match_parallelism,
                         None,
                     );
                 }
@@ -802,6 +830,8 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
+        let match_parallelism = clears.len() as u32;
+
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -824,6 +854,7 @@ impl CudaServerKey {
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
+                        match_parallelism,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -847,6 +878,7 @@ impl CudaServerKey {
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
+                        match_parallelism,
                         None,
                     );
                 }
@@ -957,6 +989,8 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
+        let match_parallelism = clears.len() as u32;
+
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -980,6 +1014,7 @@ impl CudaServerKey {
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
+                        match_parallelism,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -1004,6 +1039,7 @@ impl CudaServerKey {
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
+                        match_parallelism,
                         None,
                     );
                 }
@@ -1124,6 +1160,8 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
+        let match_parallelism = clears.len() as u32;
+
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -1147,6 +1185,7 @@ impl CudaServerKey {
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
+                        match_parallelism,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -1171,6 +1210,7 @@ impl CudaServerKey {
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
+                        match_parallelism,
                         None,
                     );
                 }
@@ -1278,6 +1318,8 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
+        let match_parallelism = cts.len() as u32;
+
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -1301,6 +1343,7 @@ impl CudaServerKey {
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
+                        match_parallelism,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -1325,6 +1368,7 @@ impl CudaServerKey {
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
+                        match_parallelism,
                         None,
                     );
                 }
@@ -1461,6 +1505,8 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
+        let match_parallelism = cts.len() as u32;
+
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -1484,6 +1530,7 @@ impl CudaServerKey {
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
+                        match_parallelism,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -1508,6 +1555,7 @@ impl CudaServerKey {
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
+                        match_parallelism,
                         None,
                     );
                 }
@@ -1633,6 +1681,8 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
+        let match_parallelism = cts.len() as u32;
+
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -1656,6 +1706,7 @@ impl CudaServerKey {
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
+                        match_parallelism,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -1680,6 +1731,7 @@ impl CudaServerKey {
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
+                        match_parallelism,
                         None,
                     );
                 }
@@ -1803,6 +1855,8 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
+        let match_parallelism = cts.len() as u32;
+
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -1826,6 +1880,7 @@ impl CudaServerKey {
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
+                        match_parallelism,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -1850,6 +1905,7 @@ impl CudaServerKey {
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
+                        match_parallelism,
                         None,
                     );
                 }
