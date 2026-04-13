@@ -1,4 +1,5 @@
 #include "programmable_bootstrap.cuh"
+#include "programmable_bootstrap_coexistent_cg_multibit.cuh"
 
 template <>
 __device__ int get_this_block_rank(grid_group &group, bool support_dsm) {
@@ -64,3 +65,22 @@ __device__ double *get_join_buffer_element_128_tbc(int level_id, int glwe_id,
   return buffer_slice;
 }
 #endif
+
+// CountdownBarrier specializations for the coexistent-CG persistent
+// accumulator. Identical in body to the grid_group versions: always use
+// global memory (no DSM), block rank from blockIdx.y.
+template <>
+__device__ int get_this_block_rank(CountdownBarrier &group, bool support_dsm) {
+  return blockIdx.y;
+}
+
+template <>
+__device__ double2 *
+get_join_buffer_element(int level_id, int glwe_id, CountdownBarrier &group,
+                        double2 *global_memory_buffer, uint32_t polynomial_size,
+                        uint32_t glwe_dimension, bool support_dsm) {
+  double2 *buffer_slice =
+      global_memory_buffer +
+      (glwe_id + level_id * (glwe_dimension + 1)) * polynomial_size / 2;
+  return buffer_slice;
+}

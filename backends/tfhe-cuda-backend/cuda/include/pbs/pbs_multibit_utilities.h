@@ -3,6 +3,11 @@
 
 #include "checked_arithmetic.h"
 #include "pbs_utilities.h"
+#include <cuda/atomic>
+
+// Must match sizeof(CoexistentCgSyncState); enforced by static_assert in
+// programmable_bootstrap_coexistent_cg_multibit.cuh
+static constexpr size_t COEXISTENT_CG_SYNC_STATE_SIZE = 64;
 
 template <typename Torus>
 bool supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
@@ -37,6 +42,23 @@ uint64_t scratch_cuda_cg_multi_bit_programmable_bootstrap(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, MULTI_BIT> **pbs_buffer,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
+
+template <typename Torus>
+uint64_t scratch_cuda_coexistent_cg_multi_bit_programmable_bootstrap(
+    void *stream, uint32_t gpu_index, pbs_buffer<Torus, MULTI_BIT> **pbs_buffer,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
+
+template <typename Torus>
+void cuda_coexistent_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
+    void *stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
+    pbs_buffer<Torus, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t num_many_lut, uint32_t lut_stride);
 
 template <typename Torus>
 void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
@@ -120,6 +142,22 @@ struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> : public pbs_buffer_base {
 
   PBS_VARIANT pbs_variant;
   bool gpu_memory_allocated;
+
+  // Coexistent-CG fields: allocated only when pbs_variant == COEXISTENT_CG
+  // When false, the GPU cannot fit both persistent kernels simultaneously
+  // and the host launch falls back to the regular CG path.
+  bool coexistent_feasible = true;
+  // Second keybundle buffer for double-buffered pipelining: KB writes to
+  // buffer[(chunk_idx % 2)] while ACC reads from buffer[((chunk_idx-1) % 2)].
+  double2 *coexistent_keybundle_fft_b = nullptr;
+  // Opaque pointer; defined in
+  // programmable_bootstrap_coexistent_cg_multibit.cuh
+  void *coexistent_sync_state = nullptr;
+  cuda::atomic<uint32_t, cuda::thread_scope_device> *cb_counter = nullptr;
+  cuda::atomic<uint32_t, cuda::thread_scope_device> *cb_generation = nullptr;
+  cudaStream_t coexistent_stream_kb = nullptr;
+  cudaStream_t coexistent_stream_acc = nullptr;
+  cudaEvent_t coexistent_done_event = nullptr;
 
   pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t glwe_dimension,
              uint32_t polynomial_size, uint32_t level_count,
@@ -238,6 +276,53 @@ struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> : public pbs_buffer_base {
             gpu_index, size_tracker, allocate_gpu_memory);
       break;
 #endif
+    case PBS_VARIANT::COEXISTENT_CG:
+      // Reuse the CG accumulator's device memory layout
+      if (max_shared_memory < partial_sm_cg_accumulate)
+        d_mem_acc_cg = (int8_t *)cuda_malloc_with_size_tracking_async(
+            safe_mul(num_blocks_acc_cg, full_sm_cg_accumulate), stream,
+            gpu_index, size_tracker, allocate_gpu_memory);
+      else if (max_shared_memory < full_sm_cg_accumulate)
+        d_mem_acc_cg = (int8_t *)cuda_malloc_with_size_tracking_async(
+            safe_mul(num_blocks_acc_cg, partial_sm_cg_accumulate), stream,
+            gpu_index, size_tracker, allocate_gpu_memory);
+
+      // Allocate inter-kernel sync state (CoexistentCgSyncState).
+      // Must match sizeof(CoexistentCgSyncState); enforced by a
+      // static_assert in the .cuh file.
+      // Not tracked: negligible sizes (sync state = 64 bytes, two 4-byte
+      // counters)
+      coexistent_sync_state =
+          cuda_malloc_async(COEXISTENT_CG_SYNC_STATE_SIZE, stream, gpu_index);
+
+      // CountdownBarrier atomics: one counter + one generation
+      cb_counter = (cuda::atomic<uint32_t, cuda::thread_scope_device> *)
+          cuda_malloc_async(
+              sizeof(cuda::atomic<uint32_t, cuda::thread_scope_device>), stream,
+              gpu_index);
+      cb_generation = (cuda::atomic<uint32_t, cuda::thread_scope_device> *)
+          cuda_malloc_async(
+              sizeof(cuda::atomic<uint32_t, cuda::thread_scope_device>), stream,
+              gpu_index);
+
+      // Second keybundle buffer for double-buffered pipelining
+      coexistent_keybundle_fft_b =
+          (double2 *)cuda_malloc_with_size_tracking_async(
+              safe_mul_sizeof<double2>(num_blocks_keybundle,
+                                       (size_t)(polynomial_size / 2)),
+              stream, gpu_index, size_tracker, allocate_gpu_memory);
+
+      // Dedicated streams and event for the persistent kernels.
+      // NonBlocking: prevents implicit synchronization with the default stream,
+      // which would serialize the two persistent kernels that must run
+      // concurrently.
+      check_cuda_error(cudaStreamCreateWithFlags(&coexistent_stream_kb,
+                                                 cudaStreamNonBlocking));
+      check_cuda_error(cudaStreamCreateWithFlags(&coexistent_stream_acc,
+                                                 cudaStreamNonBlocking));
+      check_cuda_error(cudaEventCreateWithFlags(&coexistent_done_event,
+                                                cudaEventDisableTiming));
+      break;
     default:
       PANIC("Cuda error (PBS): unsupported implementation variant.")
     }
@@ -284,6 +369,30 @@ struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> : public pbs_buffer_base {
                                            gpu_memory_allocated);
       break;
 #endif
+    case COEXISTENT_CG:
+      if (d_mem_acc_cg)
+        cuda_drop_with_size_tracking_async(d_mem_acc_cg, stream, gpu_index,
+                                           gpu_memory_allocated);
+      if (coexistent_keybundle_fft_b)
+        cuda_drop_with_size_tracking_async(coexistent_keybundle_fft_b, stream,
+                                           gpu_index, gpu_memory_allocated);
+      if (coexistent_sync_state)
+        cuda_drop_async(coexistent_sync_state, stream, gpu_index);
+      if (cb_counter)
+        cuda_drop_async(cb_counter, stream, gpu_index);
+      if (cb_generation)
+        cuda_drop_async(cb_generation, stream, gpu_index);
+      if (coexistent_stream_kb) {
+        check_cuda_error(cudaStreamSynchronize(coexistent_stream_kb));
+        check_cuda_error(cudaStreamDestroy(coexistent_stream_kb));
+      }
+      if (coexistent_stream_acc) {
+        check_cuda_error(cudaStreamSynchronize(coexistent_stream_acc));
+        check_cuda_error(cudaStreamDestroy(coexistent_stream_acc));
+      }
+      if (coexistent_done_event)
+        check_cuda_error(cudaEventDestroy(coexistent_done_event));
+      break;
     default:
       PANIC("Cuda error (PBS): unsupported implementation variant.")
     }

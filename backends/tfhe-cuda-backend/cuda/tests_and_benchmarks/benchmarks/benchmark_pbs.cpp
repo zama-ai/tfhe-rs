@@ -195,6 +195,43 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TbcMultiBit)
 }
 #endif
 
+BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, CoexistentCgMultiBit)
+(benchmark::State &st) {
+  scratch_cuda_coexistent_cg_multi_bit_programmable_bootstrap<uint64_t>(
+      stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)&buffer,
+      glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
+      true);
+  auto *typed_buf = reinterpret_cast<pbs_buffer<uint64_t, MULTI_BIT> *>(buffer);
+  if (!typed_buf->coexistent_feasible) {
+    // GPU cannot fit both kernels simultaneously — result would be fallback
+    // CG/DEFAULT performance, not coexistent-cg. Mark skip so it doesn't
+    // pollute the comparison with the real CgMultiBit benchmark.
+    cleanup_cuda_coexistent_cg_multi_bit_programmable_bootstrap_64(
+        stream, gpu_index, &buffer);
+    st.SkipWithError("Coexistent-CG infeasible for this configuration");
+    return;
+  }
+  uint32_t num_many_lut = 1;
+  uint32_t lut_stride = 0;
+  for (auto _ : st) {
+    cuda_coexistent_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<
+        uint64_t>(
+        stream, gpu_index, d_lwe_ct_out_array,
+        (const uint64_t *)d_lwe_output_indexes,
+        (const uint64_t *)d_lut_pbs_identity,
+        (const uint64_t *)d_lut_pbs_indexes,
+        (const uint64_t *)d_lwe_ct_in_array,
+        (const uint64_t *)d_lwe_input_indexes, (const uint64_t *)d_bsk,
+        (pbs_buffer<uint64_t, MULTI_BIT> *)buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, grouping_factor, pbs_base_log,
+        pbs_level, input_lwe_ciphertext_count, num_many_lut, lut_stride);
+    cuda_synchronize_stream(stream, gpu_index);
+  }
+
+  cleanup_cuda_coexistent_cg_multi_bit_programmable_bootstrap_64(
+      stream, gpu_index, &buffer);
+}
+
 BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, CgMultiBit)
 (benchmark::State &st) {
   if (!has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
@@ -395,6 +432,12 @@ BENCHMARK_REGISTER_F(MultiBitBootstrap_u64, TbcMultiBit)
                 "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count",
                 "grouping_factor"});
 #endif
+
+BENCHMARK_REGISTER_F(MultiBitBootstrap_u64, CoexistentCgMultiBit)
+    ->Apply(MultiBitPBSBenchmarkGenerateParams)
+    ->ArgNames({"lwe_dimension", "glwe_dimension", "polynomial_size",
+                "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count",
+                "grouping_factor"});
 
 BENCHMARK_REGISTER_F(MultiBitBootstrap_u64, CgMultiBit)
     ->Apply(MultiBitPBSBenchmarkGenerateParams)

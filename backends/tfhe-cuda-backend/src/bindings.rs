@@ -3515,3 +3515,45 @@ unsafe extern "C" {
         lut_stride: u32,
     );
 }
+unsafe extern "C" {
+    pub fn scratch_cuda_coexistent_cg_multi_bit_programmable_bootstrap_64_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        pbs_buffer: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        level_count: u32,
+        input_lwe_ciphertext_count: u32,
+        allocate_gpu_memory: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_coexistent_cg_multi_bit_programmable_bootstrap_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        pbs_buffer: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_coexistent_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_output_indexes: *const ffi::c_void,
+        lut_vector: *const ffi::c_void,
+        lut_vector_indexes: *const ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        lwe_input_indexes: *const ffi::c_void,
+        bootstrapping_key: *const ffi::c_void,
+        buffer: *mut i8,
+        lwe_dimension: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        grouping_factor: u32,
+        base_log: u32,
+        level_count: u32,
+        num_samples: u32,
+        num_many_lut: u32,
+        lut_stride: u32,
+    );
+}

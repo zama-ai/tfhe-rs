@@ -2,6 +2,7 @@
 #include "checked_arithmetic.h"
 #include "pbs/programmable_bootstrap_multibit.h"
 #include "programmable_bootstrap_cg_multibit.cuh"
+#include "programmable_bootstrap_coexistent_cg_multibit.cuh"
 #include "programmable_bootstrap_multibit.cuh"
 #include <type_traits>
 
@@ -290,6 +291,19 @@ void cuda_multi_bit_programmable_bootstrap_64_async(
         glwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
         num_samples, num_many_lut, lut_stride);
     break;
+  case PBS_VARIANT::COEXISTENT_CG:
+    cuda_coexistent_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<
+        uint64_t>(stream, gpu_index, static_cast<uint64_t *>(lwe_array_out),
+                  static_cast<const uint64_t *>(lwe_output_indexes),
+                  static_cast<const uint64_t *>(lut_vector),
+                  static_cast<const uint64_t *>(lut_vector_indexes),
+                  static_cast<const uint64_t *>(lwe_array_in),
+                  static_cast<const uint64_t *>(lwe_input_indexes),
+                  static_cast<const uint64_t *>(bootstrapping_key), buffer,
+                  lwe_dimension, glwe_dimension, polynomial_size,
+                  grouping_factor, base_log, level_count, num_samples,
+                  num_many_lut, lut_stride);
+    break;
   default:
     PANIC("Cuda error (multi-bit PBS): unsupported implementation variant.")
   }
@@ -504,6 +518,146 @@ uint64_t scratch_cuda_cg_multi_bit_programmable_bootstrap(
   }
 }
 
+// Coexistent-CG scratch dispatcher (polynomial_size -> template param)
+template <typename Torus>
+uint64_t scratch_cuda_coexistent_cg_multi_bit_programmable_bootstrap(
+    void *stream, uint32_t gpu_index, pbs_buffer<Torus, MULTI_BIT> **buffer,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
+
+  switch (polynomial_size) {
+  case 256:
+    return scratch_coexistent_cg_multi_bit_programmable_bootstrap<
+        Torus, AmortizedDegree<256>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
+        polynomial_size, level_count, input_lwe_ciphertext_count,
+        allocate_gpu_memory);
+  case 512:
+    return scratch_coexistent_cg_multi_bit_programmable_bootstrap<
+        Torus, AmortizedDegree<512>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
+        polynomial_size, level_count, input_lwe_ciphertext_count,
+        allocate_gpu_memory);
+  case 1024:
+    return scratch_coexistent_cg_multi_bit_programmable_bootstrap<
+        Torus, AmortizedDegree<1024>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
+        polynomial_size, level_count, input_lwe_ciphertext_count,
+        allocate_gpu_memory);
+  case 2048:
+    return scratch_coexistent_cg_multi_bit_programmable_bootstrap<
+        Torus, AmortizedDegree<2048>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
+        polynomial_size, level_count, input_lwe_ciphertext_count,
+        allocate_gpu_memory);
+  case 4096:
+    return scratch_coexistent_cg_multi_bit_programmable_bootstrap<
+        Torus, AmortizedDegree<4096>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
+        polynomial_size, level_count, input_lwe_ciphertext_count,
+        allocate_gpu_memory);
+  case 8192:
+    return scratch_coexistent_cg_multi_bit_programmable_bootstrap<
+        Torus, AmortizedDegree<8192>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
+        polynomial_size, level_count, input_lwe_ciphertext_count,
+        allocate_gpu_memory);
+  case 16384:
+    return scratch_coexistent_cg_multi_bit_programmable_bootstrap<
+        Torus, AmortizedDegree<16384>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
+        polynomial_size, level_count, input_lwe_ciphertext_count,
+        allocate_gpu_memory);
+  default:
+    PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
+          "N's are powers of two"
+          " in the interval [256..16384].")
+  }
+}
+
+// Coexistent-CG execute dispatcher (polynomial_size -> template param)
+template <typename Torus>
+void cuda_coexistent_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
+    void *stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
+    pbs_buffer<Torus, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    uint32_t num_many_lut, uint32_t lut_stride) {
+
+  switch (polynomial_size) {
+  case 256:
+    host_coexistent_cg_multi_bit_programmable_bootstrap<Torus,
+                                                        AmortizedDegree<256>>(
+        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+        lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
+        lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        num_samples, num_many_lut, lut_stride);
+    break;
+  case 512:
+    host_coexistent_cg_multi_bit_programmable_bootstrap<Torus,
+                                                        AmortizedDegree<512>>(
+        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+        lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
+        lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        num_samples, num_many_lut, lut_stride);
+    break;
+  case 1024:
+    host_coexistent_cg_multi_bit_programmable_bootstrap<Torus,
+                                                        AmortizedDegree<1024>>(
+        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+        lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
+        lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        num_samples, num_many_lut, lut_stride);
+    break;
+  case 2048:
+    host_coexistent_cg_multi_bit_programmable_bootstrap<Torus,
+                                                        AmortizedDegree<2048>>(
+        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+        lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
+        lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        num_samples, num_many_lut, lut_stride);
+    break;
+  case 4096:
+    host_coexistent_cg_multi_bit_programmable_bootstrap<Torus,
+                                                        AmortizedDegree<4096>>(
+        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+        lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
+        lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        num_samples, num_many_lut, lut_stride);
+    break;
+  case 8192:
+    host_coexistent_cg_multi_bit_programmable_bootstrap<Torus,
+                                                        AmortizedDegree<8192>>(
+        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+        lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
+        lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        num_samples, num_many_lut, lut_stride);
+    break;
+  case 16384:
+    host_coexistent_cg_multi_bit_programmable_bootstrap<Torus,
+                                                        AmortizedDegree<16384>>(
+        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+        lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
+        lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
+        lwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        num_samples, num_many_lut, lut_stride);
+    break;
+  default:
+    PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
+          "N's are powers of two"
+          " in the interval [256..16384].")
+  }
+}
+
 template <typename Torus>
 uint64_t scratch_cuda_multi_bit_programmable_bootstrap(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, MULTI_BIT> **buffer,
@@ -643,6 +797,55 @@ void cleanup_cuda_multi_bit_programmable_bootstrap_64(void *stream,
   x->release(static_cast<cudaStream_t>(stream), gpu_index);
   delete x;
   *buffer = nullptr;
+}
+
+void cleanup_cuda_coexistent_cg_multi_bit_programmable_bootstrap_64(
+    void *stream, uint32_t gpu_index, int8_t **pbs_buffer) {
+  cleanup_cuda_multi_bit_programmable_bootstrap_64(stream, gpu_index,
+                                                   pbs_buffer);
+}
+
+// Coexistent-CG C-linkage wrappers
+uint64_t scratch_cuda_coexistent_cg_multi_bit_programmable_bootstrap_64_async(
+    void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
+  return scratch_cuda_coexistent_cg_multi_bit_programmable_bootstrap<uint64_t>(
+      stream, gpu_index,
+      reinterpret_cast<pbs_buffer<uint64_t, MULTI_BIT> **>(buffer),
+      glwe_dimension, polynomial_size, level_count, input_lwe_ciphertext_count,
+      allocate_gpu_memory);
+}
+
+void cuda_coexistent_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64_async(
+    void *stream, uint32_t gpu_index, void *lwe_array_out,
+    void const *lwe_output_indexes, void const *lut_vector,
+    void const *lut_vector_indexes, void const *lwe_array_in,
+    void const *lwe_input_indexes, void const *bootstrapping_key,
+    int8_t *mem_ptr, uint32_t lwe_dimension, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
+    uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
+    uint32_t lut_stride) {
+  PANIC_IF_FALSE(base_log <= 64,
+                 "Cuda error (multi-bit PBS): base log (%d) should be <= 64",
+                 base_log);
+
+  pbs_buffer<uint64_t, MULTI_BIT> *buffer =
+      (pbs_buffer<uint64_t, MULTI_BIT> *)mem_ptr;
+  PANIC_IF_FALSE(
+      buffer->pbs_variant == PBS_VARIANT::COEXISTENT_CG,
+      "Cuda error (multi-bit PBS): expected a COEXISTENT_CG buffer.");
+
+  cuda_coexistent_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<
+      uint64_t>(stream, gpu_index, static_cast<uint64_t *>(lwe_array_out),
+                static_cast<const uint64_t *>(lwe_output_indexes),
+                static_cast<const uint64_t *>(lut_vector),
+                static_cast<const uint64_t *>(lut_vector_indexes),
+                static_cast<const uint64_t *>(lwe_array_in),
+                static_cast<const uint64_t *>(lwe_input_indexes),
+                static_cast<const uint64_t *>(bootstrapping_key), buffer,
+                lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
+                base_log, level_count, num_samples, num_many_lut, lut_stride);
 }
 
 // Noise-tests-namespaced wrappers: delegate to the standard scratch/cleanup so
@@ -868,6 +1071,26 @@ cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride);
+
+template uint64_t
+scratch_cuda_coexistent_cg_multi_bit_programmable_bootstrap<uint64_t>(
+    void *stream, uint32_t gpu_index,
+    pbs_buffer<uint64_t, MULTI_BIT> **pbs_buffer, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
+
+template void
+cuda_coexistent_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<
+    uint64_t>(void *stream, uint32_t gpu_index, uint64_t *lwe_array_out,
+              uint64_t const *lwe_output_indexes, uint64_t const *lut_vector,
+              uint64_t const *lut_vector_indexes, uint64_t const *lwe_array_in,
+              uint64_t const *lwe_input_indexes,
+              uint64_t const *bootstrapping_key,
+              pbs_buffer<uint64_t, MULTI_BIT> *pbs_buffer,
+              uint32_t lwe_dimension, uint32_t glwe_dimension,
+              uint32_t polynomial_size, uint32_t grouping_factor,
+              uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+              uint32_t num_many_lut, uint32_t lut_stride);
 
 template bool
 has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(

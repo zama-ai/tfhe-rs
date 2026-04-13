@@ -254,6 +254,127 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64, multi_bit_tbc) {
                                                    &pbs_buffer);
 }
 
+TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64,
+       multi_bit_coexistent_cg) {
+  // COEXISTENT_CG uses its own scratch/launch/cleanup API. When the GPU
+  // cannot fit both persistent kernels simultaneously, the scratch function
+  // marks the buffer as infeasible and the host launch transparently falls
+  // back to the regular CG path.
+  pbs_buffer<uint64_t, MULTI_BIT> *typed_buffer = nullptr;
+  scratch_cuda_coexistent_cg_multi_bit_programmable_bootstrap<uint64_t>(
+      stream, gpu_index, &typed_buffer, glwe_dimension, polynomial_size,
+      pbs_level, number_of_inputs, true);
+  int8_t *pbs_buffer = reinterpret_cast<int8_t *>(typed_buffer);
+
+  uint32_t num_many_lut = 1;
+  uint32_t lut_stride = 0;
+  run_and_check_pbs(
+      [&](uint64_t *d_lwe_ct_in, uint64_t *d_bsk, int8_t *buffer) {
+        auto *typed =
+            reinterpret_cast<::pbs_buffer<uint64_t, MULTI_BIT> *>(buffer);
+        cuda_coexistent_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<
+            uint64_t>(stream, gpu_index, d_lwe_ct_out_array,
+                      d_lwe_output_indexes, d_lut_pbs_identity,
+                      d_lut_pbs_indexes, d_lwe_ct_in, d_lwe_input_indexes,
+                      d_bsk, typed, lwe_dimension, glwe_dimension,
+                      polynomial_size, grouping_factor, pbs_base_log, pbs_level,
+                      number_of_inputs, num_many_lut, lut_stride);
+      },
+      pbs_buffer);
+
+  cleanup_cuda_coexistent_cg_multi_bit_programmable_bootstrap_64(
+      stream, gpu_index, &pbs_buffer);
+}
+
+// Verifies that COEXISTENT_CG and CG produce bit-identical outputs for the
+// same inputs, keys, and LUT.  Both variants implement the same mathematical
+// function; any divergence indicates a bug in the producer-consumer protocol.
+TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64,
+       multi_bit_coexistent_cg_matches_cg) {
+  if (!supports_multibit_cg()) {
+    GTEST_SKIP() << "CG multibit PBS is not supported on this architecture.";
+  }
+
+  // CG reference buffer
+  pbs_buffer<uint64_t, MULTI_BIT> *cg_buffer = nullptr;
+  scratch_cuda_cg_multi_bit_programmable_bootstrap<uint64_t>(
+      stream, gpu_index, &cg_buffer, glwe_dimension, polynomial_size, pbs_level,
+      number_of_inputs, true);
+
+  // COEXISTENT_CG buffer
+  pbs_buffer<uint64_t, MULTI_BIT> *coex_buffer = nullptr;
+  scratch_cuda_coexistent_cg_multi_bit_programmable_bootstrap<uint64_t>(
+      stream, gpu_index, &coex_buffer, glwe_dimension, polynomial_size,
+      pbs_level, number_of_inputs, true);
+
+  int bsk_size = (lwe_dimension / grouping_factor) * pbs_level *
+                 (glwe_dimension + 1) * (glwe_dimension + 1) * polynomial_size *
+                 (1 << grouping_factor);
+  size_t out_size = (glwe_dimension * polynomial_size + 1) * number_of_inputs *
+                    sizeof(uint64_t);
+
+  // Allocate a second output array to hold the CG results for comparison
+  uint64_t *d_lwe_ct_out_cg =
+      (uint64_t *)cuda_malloc_async(out_size, stream, gpu_index);
+  uint64_t *lwe_ct_out_cg = (uint64_t *)malloc(out_size);
+
+  uint32_t num_many_lut = 1;
+  uint32_t lut_stride = 0;
+
+  for (int r = 0; r < repetitions; r++) {
+    uint64_t *d_bsk = d_bsk_array + (ptrdiff_t)(bsk_size * r);
+    for (int s = 0; s < samples; s++) {
+      uint64_t *d_lwe_ct_in =
+          d_lwe_ct_in_array +
+          (ptrdiff_t)((r * samples * number_of_inputs + s * number_of_inputs) *
+                      (lwe_dimension + 1));
+
+      // Run CG
+      cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
+          stream, gpu_index, d_lwe_ct_out_cg, d_lwe_output_indexes,
+          d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in,
+          d_lwe_input_indexes, d_bsk, cg_buffer, lwe_dimension, glwe_dimension,
+          polynomial_size, grouping_factor, pbs_base_log, pbs_level,
+          number_of_inputs, num_many_lut, lut_stride);
+      cuda_synchronize_stream(stream, gpu_index);
+
+      // Run COEXISTENT_CG
+      cuda_coexistent_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<
+          uint64_t>(stream, gpu_index, d_lwe_ct_out_array, d_lwe_output_indexes,
+                    d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in,
+                    d_lwe_input_indexes, d_bsk, coex_buffer, lwe_dimension,
+                    glwe_dimension, polynomial_size, grouping_factor,
+                    pbs_base_log, pbs_level, number_of_inputs, num_many_lut,
+                    lut_stride);
+      cuda_synchronize_stream(stream, gpu_index);
+
+      // Copy both outputs to host
+      cuda_memcpy_async_to_cpu(lwe_ct_out_array, d_lwe_ct_out_array, out_size,
+                               stream, gpu_index);
+      cuda_memcpy_async_to_cpu(lwe_ct_out_cg, d_lwe_ct_out_cg, out_size, stream,
+                               gpu_index);
+      cuda_synchronize_stream(stream, gpu_index);
+
+      // Bit-exact comparison: same math must produce identical results
+      for (size_t i = 0; i < out_size / sizeof(uint64_t); i++) {
+        EXPECT_EQ(lwe_ct_out_array[i], lwe_ct_out_cg[i])
+            << "Output mismatch between COEXISTENT_CG and CG at word " << i
+            << " (repetition=" << r << ", sample=" << s << ")";
+      }
+    }
+  }
+
+  free(lwe_ct_out_cg);
+  cuda_drop_async(d_lwe_ct_out_cg, stream, gpu_index);
+
+  int8_t *cg_buf_ptr = reinterpret_cast<int8_t *>(cg_buffer);
+  cleanup_cuda_multi_bit_programmable_bootstrap_64(stream, gpu_index,
+                                                   &cg_buf_ptr);
+  int8_t *coex_buf_ptr = reinterpret_cast<int8_t *>(coex_buffer);
+  cleanup_cuda_coexistent_cg_multi_bit_programmable_bootstrap_64(
+      stream, gpu_index, &coex_buf_ptr);
+}
+
 TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64, multi_bit_tbc_2_2) {
   if (!supports_multibit_tbc()) {
     GTEST_SKIP() << "TBC multibit PBS is not supported on this architecture.";
@@ -298,6 +419,23 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64, multi_bit_tbc_2_2) {
         // V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
         (MultiBitProgrammableBootstrapTestParams){
             920, 1, 2048, new_t_uniform(45), new_t_uniform(17), 22, 1, 4, 4, 10,
+            4, 1, 1},
+        // Single-sample edge case for the COEXISTENT_CG producer-consumer
+        // protocol: number_of_inputs=1 minimises the accumulator grid, making
+        // the coexistent_chunk_size calculation as tight as possible and
+        // exercising the "only one sample, single-block accumulator" path.
+        (MultiBitProgrammableBootstrapTestParams){
+            760, 1, 2048, new_t_uniform(49), new_t_uniform(17), 22, 1, 2, 2, 1,
+            4, 1, 1},
+        // Many-sample stress test: 64 simultaneous inputs force the
+        // accumulator grid to occupy many SMs, shrinking sms_for_kb and thus
+        // coexistent_chunk_size. On large GPUs (>=80 SMs) this maximises the
+        // number of producer-consumer handshake iterations (total_chunks) and
+        // exercises the CountdownBarrier reuse path across multiple chunks.
+        // On smaller GPUs the coexistent variant is infeasible and the launch
+        // transparently falls back to regular CG.
+        (MultiBitProgrammableBootstrapTestParams){
+            760, 1, 2048, new_t_uniform(49), new_t_uniform(17), 22, 1, 2, 2, 64,
             4, 1, 1});
 
 std::string printParamName(
