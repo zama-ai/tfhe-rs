@@ -4,6 +4,9 @@ ignore = [
     "RUSTSEC-2024-0436",
     # Ignoring unmaintained 'bincode' crate. Getting rid of it would be too complex on the short term.
     "RUSTSEC-2025-0141",
+    # Ignoring unsoundness in 'rand' with custom logger. Rand update is currently blocked by
+    # arkworks and we do not use custom loggers.
+    "RUSTSEC-2026-0097",
 ]
 
 [output]
