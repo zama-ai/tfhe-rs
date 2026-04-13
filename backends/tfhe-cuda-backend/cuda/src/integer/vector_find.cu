@@ -5,15 +5,15 @@ uint64_t scratch_cuda_unchecked_match_value_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t num_matches, uint32_t num_input_blocks,
     uint32_t num_output_packed_blocks, uint32_t max_output_is_zero,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t max_batch_size, uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_cuda_unchecked_match_value<uint64_t>(
       CudaStreams(streams), (int_unchecked_match_buffer<uint64_t> **)mem_ptr,
       params, num_matches, num_input_blocks, num_output_packed_blocks,
-      max_output_is_zero, allocate_gpu_memory);
+      max_output_is_zero, max_batch_size, allocate_gpu_memory);
 }
 
 void cuda_unchecked_match_value_64_async(
@@ -55,8 +55,8 @@ uint64_t scratch_cuda_unchecked_match_value_or_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t num_matches, uint32_t num_input_blocks,
     uint32_t num_match_packed_blocks, uint32_t num_final_blocks,
-    uint32_t max_output_is_zero, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory,
+    uint32_t max_output_is_zero, uint32_t max_batch_size,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
                           carry_modulus, noise_reduction_type);
@@ -65,7 +65,7 @@ uint64_t scratch_cuda_unchecked_match_value_or_64_async(
       CudaStreams(streams),
       (int_unchecked_match_value_or_buffer<uint64_t> **)mem_ptr, params,
       num_matches, num_input_blocks, num_match_packed_blocks, num_final_blocks,
-      max_output_is_zero, allocate_gpu_memory);
+      max_output_is_zero, max_batch_size, allocate_gpu_memory);
 }
 
 void cuda_unchecked_match_value_or_64_async(
@@ -100,14 +100,14 @@ uint64_t scratch_cuda_unchecked_contains_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t max_batch_size, uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_cuda_unchecked_contains<uint64_t>(
       CudaStreams(streams), (int_unchecked_contains_buffer<uint64_t> **)mem_ptr,
-      params, num_inputs, num_blocks, allocate_gpu_memory);
+      params, num_inputs, num_blocks, max_batch_size, allocate_gpu_memory);
 }
 
 void cuda_unchecked_contains_64_async(CudaStreamsFFI streams,
@@ -145,15 +145,15 @@ uint64_t scratch_cuda_unchecked_contains_clear_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t max_batch_size, uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_cuda_unchecked_contains_clear<uint64_t>(
       CudaStreams(streams),
       (int_unchecked_contains_clear_buffer<uint64_t> **)mem_ptr, params,
-      num_inputs, num_blocks, allocate_gpu_memory);
+      num_inputs, num_blocks, max_batch_size, allocate_gpu_memory);
 }
 
 void cuda_unchecked_contains_clear_64_async(
@@ -185,15 +185,15 @@ uint64_t scratch_cuda_unchecked_is_in_clears_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t num_clears, uint32_t num_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t max_batch_size, uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_cuda_unchecked_is_in_clears<uint64_t>(
       CudaStreams(streams),
       (int_unchecked_is_in_clears_buffer<uint64_t> **)mem_ptr, params,
-      num_clears, num_blocks, allocate_gpu_memory);
+      num_clears, num_blocks, max_batch_size, allocate_gpu_memory);
 }
 
 void cuda_unchecked_is_in_clears_64_async(
@@ -225,15 +225,17 @@ uint64_t scratch_cuda_unchecked_index_in_clears_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t num_clears, uint32_t num_blocks,
-    uint32_t num_blocks_index, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t num_blocks_index, uint32_t max_batch_size,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_cuda_unchecked_index_in_clears<uint64_t>(
       CudaStreams(streams),
       (int_unchecked_index_in_clears_buffer<uint64_t> **)mem_ptr, params,
-      num_clears, num_blocks, num_blocks_index, allocate_gpu_memory);
+      num_clears, num_blocks, num_blocks_index, max_batch_size,
+      allocate_gpu_memory);
 }
 
 void cuda_unchecked_index_in_clears_64_async(
@@ -272,15 +274,17 @@ uint64_t scratch_cuda_unchecked_first_index_in_clears_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t num_unique, uint32_t num_blocks,
-    uint32_t num_blocks_index, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t num_blocks_index, uint32_t max_batch_size,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_cuda_unchecked_first_index_in_clears<uint64_t>(
       CudaStreams(streams),
       (int_unchecked_first_index_in_clears_buffer<uint64_t> **)mem_ptr, params,
-      num_unique, num_blocks, num_blocks_index, allocate_gpu_memory);
+      num_unique, num_blocks, num_blocks_index, max_batch_size,
+      allocate_gpu_memory);
 }
 
 void cuda_unchecked_first_index_in_clears_64_async(
@@ -319,15 +323,17 @@ uint64_t scratch_cuda_unchecked_first_index_of_clear_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t num_blocks_index, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t num_blocks_index, uint32_t max_batch_size,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_cuda_unchecked_first_index_of_clear<uint64_t>(
       CudaStreams(streams),
       (int_unchecked_first_index_of_clear_buffer<uint64_t> **)mem_ptr, params,
-      num_inputs, num_blocks, num_blocks_index, allocate_gpu_memory);
+      num_inputs, num_blocks, num_blocks_index, max_batch_size,
+      allocate_gpu_memory);
 }
 
 void cuda_unchecked_first_index_of_clear_64_async(
@@ -366,15 +372,17 @@ uint64_t scratch_cuda_unchecked_first_index_of_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t num_blocks_index, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t num_blocks_index, uint32_t max_batch_size,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_cuda_unchecked_first_index_of<uint64_t>(
       CudaStreams(streams),
       (int_unchecked_first_index_of_buffer<uint64_t> **)mem_ptr, params,
-      num_inputs, num_blocks, num_blocks_index, allocate_gpu_memory);
+      num_inputs, num_blocks, num_blocks_index, max_batch_size,
+      allocate_gpu_memory);
 }
 
 void cuda_unchecked_first_index_of_64_async(
@@ -413,14 +421,16 @@ uint64_t scratch_cuda_unchecked_index_of_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t num_blocks_index, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t num_blocks_index, uint32_t max_batch_size,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_cuda_unchecked_index_of<uint64_t>(
       CudaStreams(streams), (int_unchecked_index_of_buffer<uint64_t> **)mem_ptr,
-      params, num_inputs, num_blocks, num_blocks_index, allocate_gpu_memory);
+      params, num_inputs, num_blocks, num_blocks_index, max_batch_size,
+      allocate_gpu_memory);
 }
 
 void cuda_unchecked_index_of_64_async(CudaStreamsFFI streams,
@@ -461,24 +471,25 @@ uint64_t scratch_cuda_unchecked_index_of_clear_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
     uint32_t ks_base_log, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t num_blocks_index, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t num_blocks_index, uint32_t max_batch_size,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_cuda_unchecked_index_of_clear<uint64_t>(
       CudaStreams(streams),
       (int_unchecked_index_of_clear_buffer<uint64_t> **)mem_ptr, params,
-      num_inputs, num_blocks, num_blocks_index, allocate_gpu_memory);
+      num_inputs, num_blocks, num_blocks_index, max_batch_size,
+      allocate_gpu_memory);
 }
 
 void cuda_unchecked_index_of_clear_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct,
     CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
-    const void *d_scalar_blocks, bool is_scalar_obviously_bigger,
-    uint32_t num_inputs, uint32_t num_blocks, uint32_t num_scalar_blocks,
-    uint32_t num_blocks_index, int8_t *mem, void *const *bsks,
-    void *const *ksks) {
+    const uint64_t *h_clear_val, bool is_scalar_obviously_bigger,
+    uint32_t num_inputs, uint32_t num_blocks, uint32_t num_blocks_index,
+    int8_t *mem, void *const *bsks, void *const *ksks) {
   PANIC_IF_FALSE(index_ct != inputs, "Output and input pointers must be "
                                      "different for out-of-place operations");
   PANIC_IF_FALSE(match_ct != inputs, "Output and input pointers must be "
@@ -488,9 +499,8 @@ void cuda_unchecked_index_of_clear_64_async(
                  "out-of-place operations");
 
   host_unchecked_index_of_clear<uint64_t>(
-      CudaStreams(streams), index_ct, match_ct, inputs,
-      (const uint64_t *)d_scalar_blocks, is_scalar_obviously_bigger, num_inputs,
-      num_blocks, num_scalar_blocks, num_blocks_index,
+      CudaStreams(streams), index_ct, match_ct, inputs, h_clear_val,
+      is_scalar_obviously_bigger, num_inputs, num_blocks, num_blocks_index,
       (int_unchecked_index_of_clear_buffer<uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
 }
