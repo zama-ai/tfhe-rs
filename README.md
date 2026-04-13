@@ -81,9 +81,6 @@ tfhe = { version = "*", features = ["boolean", "shortint", "integer"] }
 > [!Note]
 > Note: You need Rust version 1.91.1 or newer to compile TFHE-rs. You can check your version with `rustc --version`.
 
-> [!Note]
-> Note: AArch64-based machines are not supported for Windows as it's currently missing an entropy source to be able to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in TFHE-rs.
-
 <p align="right">
   <a href="#about" > ↑ Back to top </a>
 </p>

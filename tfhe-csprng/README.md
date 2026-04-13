@@ -8,7 +8,7 @@ The implementation is based on the AES blockcipher used in CTR mode, as describe
 
 Two implementations are available, an accelerated one on x86_64 CPUs with the `aes` feature and the `sse2` feature, and a pure software one that can be used on other platforms.
 
-The crate also makes two seeders available, one needing the x86_64 instruction `rdseed` and another one based on the Unix random device `/dev/random` the latter requires the user to provide a secret.
+The crate also makes seeders available: one using the x86_64 `rdseed` instruction when present, and one using OS entropy via the `getrandom` crate on Unix-like systems and on Windows (the latter takes a user-supplied secret mixed into the entropy, as documented on the type).
 
 ## Running the benchmarks
 

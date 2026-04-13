@@ -9,7 +9,10 @@ pub use crate::core_crypto::commons::math::random::Seeder;
 pub use tfhe_csprng::seeders::AppleSecureEnclaveSeeder;
 #[cfg(all(target_arch = "x86_64", not(feature = "__wasm_api")))]
 pub use tfhe_csprng::seeders::RdseedSeeder;
-#[cfg(all(target_family = "unix", not(feature = "__wasm_api")))]
+#[cfg(all(
+    any(target_family = "unix", target_os = "windows"),
+    not(feature = "__wasm_api")
+))]
 pub use tfhe_csprng::seeders::UnixSeeder;
 
 #[cfg(feature = "__wasm_api")]
@@ -51,6 +54,9 @@ mod wasm_seeder {
 /// On Unix platforms, this will use `getrandom` or `getentropy` system call if available. Otherwise
 /// it will draw from `/dev/urandom` after successfully polling `/dev/random`.
 ///
+/// On Windows, a `getrandom`-backed OS entropy source is used when hardware seeding is not used (for
+/// example on AArch64 or when the `rdseed` instruction is unavailable).
+///
 /// For the wasm32 target the [`getrandom`](`https://docs.rs/getrandom/latest/getrandom/`)
 /// js random number generator is used as a source of
 /// [`cryptographically random numbers per the W3C documentation`](`https://www.w3.org/TR/WebCryptoAPI/#Crypto-method-getRandomValues`).
@@ -90,7 +96,7 @@ pub fn new_seeder() -> Box<dyn Seeder> {
             }
         }
 
-        #[cfg(target_family = "unix")]
+        #[cfg(any(target_family = "unix", target_os = "windows"))]
         {
             if seeder.is_none() && UnixSeeder::is_available() {
                 seeder = Some(Box::new(UnixSeeder::new(0)));
