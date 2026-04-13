@@ -390,7 +390,7 @@ __host__ void vectorized_sbox_n_bytes(CudaStreams streams,
   XOR(&wires_a[6], &wires_a[15], &input_bits[7]);
   XOR(&wires_a[10], &wires_a[15], &wires_b[0]);
   XOR(&wires_a[11], &wires_a[20], &wires_a[9]);
-  FLUSH(&wires_a[6], &wires_a[10]);
+  FLUSH(&wires_a[6], &wires_a[10], &wires_a[11]);
   XOR(&wires_a[7], &input_bits[7], &wires_a[11]);
   FLUSH(&wires_a[7]);
   XOR(&wires_a[17], &wires_a[10], &wires_a[11]);
@@ -426,7 +426,7 @@ __host__ void vectorized_sbox_n_bytes(CudaStreams streams,
   XOR(&wires_b[22], &wires_b[18], &wires_a[19]);
   XOR(&wires_b[23], &wires_b[19], &wires_a[21]);
   XOR(&wires_b[24], &wires_b[20], &wires_a[18]);
-  FLUSH(&wires_b[21], &wires_b[23], &wires_b[24]);
+  FLUSH(&wires_b[21], &wires_b[22], &wires_b[23], &wires_b[24]);
   XOR(&wires_b[25], &wires_b[21], &wires_b[22]);
   FLUSH(&wires_b[25]);
 
@@ -468,7 +468,7 @@ __host__ void vectorized_sbox_n_bytes(CudaStreams streams,
 
   XOR(&wires_b[37], &wires_b[36], &wires_b[34]);
   XOR(&wires_b[38], &wires_b[27], &wires_b[36]);
-  FLUSH(&wires_b[38]);
+  FLUSH(&wires_b[38], &wires_b[37]);
   XOR(&wires_b[44], &wires_b[33], &wires_b[37]);
 
   CudaRadixCiphertextFFI *and_outs_6[] = {&wires_b[39]};
@@ -479,7 +479,7 @@ __host__ void vectorized_sbox_n_bytes(CudaStreams streams,
   XOR(&wires_b[40], &wires_b[25], &wires_b[39]);
   XOR(&wires_b[41], &wires_b[40], &wires_b[37]);
   XOR(&wires_b[43], &wires_b[29], &wires_b[40]);
-  FLUSH(&wires_b[41]);
+  FLUSH(&wires_b[41], &wires_b[40], &wires_b[43], &wires_b[44]);
   XOR(&wires_b[45], &wires_b[42], &wires_b[41]);
   FLUSH(&wires_b[45]);
 
@@ -514,6 +514,7 @@ __host__ void vectorized_sbox_n_bytes(CudaStreams streams,
   XOR(&wires_b[57], &wires_b[50], &wires_b[53]);
   XOR(&wires_b[58], &wires_c[4], &wires_b[46]);
   XOR(&wires_b[59], &wires_c[3], &wires_b[54]);
+  FLUSH(&wires_b[57], &wires_b[58]);
   XOR(&wires_b[60], &wires_b[46], &wires_b[57]);
   XOR(&wires_b[61], &wires_c[14], &wires_b[57]);
   XOR(&wires_b[62], &wires_b[52], &wires_b[58]);
@@ -589,6 +590,7 @@ __host__ void vectorized_sbox_n_bytes(CudaStreams streams,
 #undef FLUSH
 #undef AND
 #undef ADD_ONE_FLUSH
+#undef ADD_ONE
 }
 
 /**
