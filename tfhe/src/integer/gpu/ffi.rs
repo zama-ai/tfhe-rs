@@ -8336,6 +8336,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
     pbs_base_log: DecompositionBaseLog,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    match_parallelism: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
@@ -8480,6 +8481,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
         num_input_blocks,
         num_output_packed_blocks,
         max_output_is_zero as u32,
+        match_parallelism,
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
@@ -8531,6 +8533,7 @@ pub(crate) fn cuda_backend_get_unchecked_match_value_size_on_gpu<Clear>(
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     pbs_type: PBSType,
+    match_parallelism: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64
 where
@@ -8579,6 +8582,7 @@ where
             num_input_blocks,
             num_output_packed_blocks,
             max_output_is_zero as u32,
+            match_parallelism,
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
@@ -8673,6 +8677,7 @@ where
             num_match_packed_blocks,
             num_output_blocks,
             max_output_is_zero as u32,
+            1,
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             pbs_type as u32,
@@ -8808,6 +8813,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
     pbs_base_log: DecompositionBaseLog,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    match_parallelism: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
@@ -8935,6 +8941,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
         num_match_packed_blocks,
         num_final_blocks,
         max_output_is_zero as u32,
+        match_parallelism,
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
@@ -8988,6 +8995,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains<
     pbs_base_log: DecompositionBaseLog,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    match_parallelism: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
@@ -9058,6 +9066,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains<
         u32::try_from(grouping_factor.0).unwrap(),
         num_inputs,
         num_blocks,
+        match_parallelism,
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
@@ -9112,6 +9121,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
     pbs_base_log: DecompositionBaseLog,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    match_parallelism: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
@@ -9188,6 +9198,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
         u32::try_from(grouping_factor.0).unwrap(),
         num_inputs,
         num_blocks,
+        match_parallelism,
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
@@ -9241,6 +9252,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_in_clears<
     pbs_base_log: DecompositionBaseLog,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    match_parallelism: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
@@ -9292,6 +9304,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_in_clears<
         u32::try_from(grouping_factor.0).unwrap(),
         num_clears,
         num_blocks,
+        match_parallelism,
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
@@ -9346,6 +9359,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
     pbs_base_log: DecompositionBaseLog,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    match_parallelism: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
@@ -9414,6 +9428,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
         num_clears,
         num_blocks,
         num_blocks_index,
+        match_parallelism,
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
@@ -9471,6 +9486,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
     pbs_base_log: DecompositionBaseLog,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    match_parallelism: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
@@ -9564,6 +9580,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
         num_unique,
         num_blocks,
         num_blocks_index,
+        match_parallelism,
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
@@ -9623,6 +9640,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
     pbs_base_log: DecompositionBaseLog,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    match_parallelism: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
@@ -9710,6 +9728,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
         num_inputs,
         num_blocks,
         num_blocks_index,
+        match_parallelism,
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
@@ -9767,6 +9786,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
     pbs_base_log: DecompositionBaseLog,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    match_parallelism: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
@@ -9854,6 +9874,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
         num_inputs,
         num_blocks,
         num_blocks_index,
+        match_parallelism,
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
@@ -9911,6 +9932,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of<
     pbs_base_log: DecompositionBaseLog,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    match_parallelism: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
@@ -9998,6 +10020,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of<
         num_inputs,
         num_blocks,
         num_blocks_index,
+        match_parallelism,
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
@@ -10056,6 +10079,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
     pbs_base_log: DecompositionBaseLog,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    match_parallelism: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
@@ -10076,9 +10100,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
         .is_some_and(|sub_slice| sub_slice.iter().any(|&scalar_block| scalar_block != 0));
 
     scalar_blocks.truncate(num_blocks_in_ct as usize);
-    let num_scalar_blocks = u32::try_from(scalar_blocks.len()).unwrap();
-
-    let d_scalar_blocks: CudaVec<u64> = CudaVec::from_cpu_async(&scalar_blocks, streams, 0);
+    scalar_blocks.resize(num_blocks_in_ct as usize, 0u64);
 
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
@@ -10152,6 +10174,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
         num_inputs,
         num_blocks_in_ct,
         num_blocks_index,
+        match_parallelism,
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         pbs_type as u32,
@@ -10164,11 +10187,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
         &raw mut ffi_index,
         &raw mut ffi_match,
         ffi_inputs.as_ptr(),
-        d_scalar_blocks.as_c_ptr(0),
+        scalar_blocks.as_ptr(),
         is_scalar_obviously_bigger,
         num_inputs,
         num_blocks_in_ct,
-        num_scalar_blocks,
         num_blocks_index,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
