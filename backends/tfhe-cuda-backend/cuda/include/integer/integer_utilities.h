@@ -362,6 +362,11 @@ struct int_radix_params {
 
   int_radix_params() = default;
 
+  /// @brief Maximum number of consecutive unbootstrapped additions per block.
+  uint32_t max_degree() const {
+    return (message_modulus * carry_modulus - 1) / (message_modulus - 1);
+  }
+
   void print() {
     printf("pbs_type: %u, glwe_dimension: %u, "
            "polynomial_size: %u, "
@@ -1579,8 +1584,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     this->num_blocks_in_radix = num_blocks_in_radix;
     this->max_num_radix_in_vec = max_num_radix_in_vec;
     this->gpu_memory_allocated = allocate_gpu_memory;
-    this->chunk_size = (params.message_modulus * params.carry_modulus - 1) /
-                       (params.message_modulus - 1);
+    this->chunk_size = params.max_degree();
     this->allocated_luts_message_carry = false;
     this->reduce_degrees_for_single_carry_propagation =
         reduce_degrees_for_single_carry_propagation;
@@ -1625,8 +1629,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     this->num_blocks_in_radix = num_blocks_in_radix;
     this->max_num_radix_in_vec = max_num_radix_in_vec;
     this->gpu_memory_allocated = allocate_gpu_memory;
-    this->chunk_size = (params.message_modulus * params.carry_modulus - 1) /
-                       (params.message_modulus - 1);
+    this->chunk_size = params.max_degree();
     this->allocated_luts_message_carry = true;
     this->reduce_degrees_for_single_carry_propagation =
         reduce_degrees_for_single_carry_propagation;
