@@ -53,6 +53,10 @@ pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_
     aes_256_fixed_parallelism_2_inputs_test,
 };
 #[cfg(feature = "gpu")]
+pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_bitonic_sort::{
+    default_bitonic_sort_test, unchecked_bitonic_sort_test,
+};
+#[cfg(feature = "gpu")]
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_neg::default_neg_test;
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_neg::unchecked_neg_test;
 #[cfg(feature = "gpu")]

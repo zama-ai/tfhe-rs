@@ -1,6 +1,8 @@
 mod modulus_switch_compression;
 pub(crate) mod test_abs;
 pub(crate) mod test_add;
+#[cfg(feature = "gpu")]
+pub(crate) mod test_bitonic_sort;
 pub(crate) mod test_bitwise_op;
 mod test_block_shift;
 pub(crate) mod test_cmux;
