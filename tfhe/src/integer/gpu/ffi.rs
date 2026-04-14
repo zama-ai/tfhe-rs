@@ -9655,3 +9655,245 @@ pub(crate) unsafe fn cuda_backend_kreyvium_generate_keystream<T: UnsignedInteger
 
     update_noise_degree(keystream_output, &cuda_ffi_keystream);
 }
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_unchecked_bitonic_shuffle<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    keys: &mut [&mut CudaRadixCiphertext],
+    values: &mut [&mut CudaRadixCiphertext],
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    key_num_blocks: u32,
+    data_num_blocks: u32,
+    data_is_signed: bool,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    let num_values = values.len();
+    assert_eq!(
+        keys.len(),
+        num_values,
+        "keys and values must have the same length, got {} and {}",
+        keys.len(),
+        num_values
+    );
+    assert!(
+        num_values >= 2,
+        "Bitonic shuffle requires at least 2 values, got {num_values}"
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
+    );
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut keys_degrees: Vec<Vec<u64>> = keys
+        .iter()
+        .map(|v| v.info.blocks.iter().map(|b| b.degree.0).collect())
+        .collect();
+    let mut keys_noise_levels: Vec<Vec<u64>> = keys
+        .iter()
+        .map(|v| v.info.blocks.iter().map(|b| b.noise_level.0).collect())
+        .collect();
+    let mut data_degrees: Vec<Vec<u64>> = values
+        .iter()
+        .map(|v| v.info.blocks.iter().map(|b| b.degree.0).collect())
+        .collect();
+    let mut data_noise_levels: Vec<Vec<u64>> = values
+        .iter()
+        .map(|v| v.info.blocks.iter().map(|b| b.noise_level.0).collect())
+        .collect();
+
+    let mut keys_ffi: Vec<CudaRadixCiphertextFFI> = (0..num_values)
+        .map(|i| prepare_cuda_radix_ffi(keys[i], &mut keys_degrees[i], &mut keys_noise_levels[i]))
+        .collect();
+    let mut data_ffi: Vec<CudaRadixCiphertextFFI> = (0..num_values)
+        .map(|i| prepare_cuda_radix_ffi(values[i], &mut data_degrees[i], &mut data_noise_levels[i]))
+        .collect();
+
+    let mut keys_ptrs: Vec<*mut CudaRadixCiphertextFFI> =
+        keys_ffi.iter_mut().map(std::ptr::from_mut).collect();
+    let mut data_ptrs: Vec<*mut CudaRadixCiphertextFFI> =
+        data_ffi.iter_mut().map(std::ptr::from_mut).collect();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_integer_bitonic_shuffle_64_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        key_num_blocks,
+        data_num_blocks,
+        u32::try_from(num_values).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        pbs_type as u32,
+        data_is_signed,
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_integer_bitonic_shuffle_64_async(
+        streams.ffi(),
+        keys_ptrs.as_mut_ptr(),
+        data_ptrs.as_mut_ptr(),
+        u32::try_from(num_values).unwrap(),
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_integer_bitonic_shuffle_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    for (v, ffi) in keys.iter_mut().zip(keys_ffi.iter()) {
+        update_noise_degree(v, ffi);
+    }
+    for (v, ffi) in values.iter_mut().zip(data_ffi.iter()) {
+        update_noise_degree(v, ffi);
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    values: &mut [&mut CudaRadixCiphertext],
+    seeded_lwe_input: &CudaVec<u64>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    key_num_blocks: u32,
+    data_num_blocks: u32,
+    data_is_signed: bool,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    let num_values = values.len();
+    assert!(
+        num_values >= 2,
+        "Bitonic shuffle requires at least 2 values, got {num_values}"
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
+    );
+    assert_eq!(streams.gpu_indexes[0], seeded_lwe_input.gpu_index(0));
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut data_degrees: Vec<Vec<u64>> = values
+        .iter()
+        .map(|v| v.info.blocks.iter().map(|b| b.degree.0).collect())
+        .collect();
+    let mut data_noise_levels: Vec<Vec<u64>> = values
+        .iter()
+        .map(|v| v.info.blocks.iter().map(|b| b.noise_level.0).collect())
+        .collect();
+
+    let mut data_ffi: Vec<CudaRadixCiphertextFFI> = (0..num_values)
+        .map(|i| prepare_cuda_radix_ffi(values[i], &mut data_degrees[i], &mut data_noise_levels[i]))
+        .collect();
+
+    let mut data_ptrs: Vec<*mut CudaRadixCiphertextFFI> =
+        data_ffi.iter_mut().map(std::ptr::from_mut).collect();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_integer_oprf_bitonic_shuffle_64_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        key_num_blocks,
+        data_num_blocks,
+        u32::try_from(num_values).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        pbs_type as u32,
+        data_is_signed,
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_integer_oprf_bitonic_shuffle_64_async(
+        streams.ffi(),
+        data_ptrs.as_mut_ptr(),
+        u32::try_from(num_values).unwrap(),
+        seeded_lwe_input.as_c_ptr(0),
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_integer_oprf_bitonic_shuffle_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    for (v, ffi) in values.iter_mut().zip(data_ffi.iter()) {
+        update_noise_degree(v, ffi);
+    }
+}
