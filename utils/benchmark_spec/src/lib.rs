@@ -11,7 +11,7 @@ use std::io::Write;
 use std::path::Path;
 use std::{env, fmt};
 pub use tfhe::hlapi::HlapiBench;
-pub use tfhe::{HlIntegerOp, TfheLayer};
+pub use tfhe::{HlIntegerOp, ShortintBench, TfheLayer};
 
 use crate::tfhe::hlapi::dex::Dex;
 use crate::tfhe::hlapi::erc7984::Erc7984;
@@ -246,6 +246,23 @@ impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
             type_name,
             bench_type: bench_type.into(),
             num_elements,
+        }
+    }
+
+    pub fn new_shortint(
+        shortint_bench: ShortintBench,
+        param_name: &'a str,
+        bench_type: impl Into<BenchmarkMetric>,
+        backend: Backend,
+    ) -> Self {
+        Self {
+            bench_crate: BenchCrate::Tfhe(TfheLayer::Shortint(shortint_bench)),
+            backend,
+            param_name,
+            operand_type: &OperandType::CipherText,
+            type_name: None,
+            bench_type: bench_type.into(),
+            num_elements: None,
         }
     }
 }
@@ -566,6 +583,48 @@ mod tests {
         assert_eq!(
             spec.to_string(),
             "tfhe::hlapi::kv_store::get::PARAM_MESSAGE_2_CARRY_2::FheUint64::1024_elements"
+        );
+    }
+
+    #[test]
+    fn shortint_cpu_latency() {
+        let spec = BenchmarkSpec::<str>::new_shortint(
+            ShortintBench::UncheckedAdd,
+            "PARAM_MESSAGE_2_CARRY_2_KS_PBS",
+            BenchmarkMetric::Latency,
+            Backend::Cpu,
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::shortint::unchecked_add::PARAM_MESSAGE_2_CARRY_2_KS_PBS"
+        );
+    }
+
+    #[test]
+    fn shortint_scalar_op() {
+        let spec = BenchmarkSpec::<str>::new_shortint(
+            ShortintBench::UncheckedScalarAdd,
+            "PARAM_MESSAGE_2_CARRY_2_KS_PBS",
+            BenchmarkMetric::Latency,
+            Backend::Cpu,
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::shortint::unchecked_scalar_add::PARAM_MESSAGE_2_CARRY_2_KS_PBS"
+        );
+    }
+
+    #[test]
+    fn shortint_cuda_latency() {
+        let spec = BenchmarkSpec::<str>::new_shortint(
+            ShortintBench::ProgrammableBootstrap,
+            "PARAM_MESSAGE_2_CARRY_2_KS_PBS",
+            BenchmarkMetric::Latency,
+            Backend::Cuda,
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::shortint::programmable_bootstrap::cuda::PARAM_MESSAGE_2_CARRY_2_KS_PBS"
         );
     }
 
