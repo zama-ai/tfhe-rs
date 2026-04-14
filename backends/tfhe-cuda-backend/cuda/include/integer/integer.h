@@ -981,6 +981,40 @@ void cuda_cast_to_signed_64_async(CudaStreamsFFI streams,
 
 void cleanup_cuda_cast_to_signed_64(CudaStreamsFFI streams,
                                     int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_integer_bitonic_shuffle_64_async(
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t key_num_radix_blocks,
+    uint32_t data_num_radix_blocks, uint32_t num_values,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
+void cuda_integer_bitonic_shuffle_64_async(CudaStreamsFFI streams,
+                                           CudaRadixCiphertextFFI **keys,
+                                           CudaRadixCiphertextFFI **values,
+                                           uint32_t num_values, int8_t *mem_ptr,
+                                           void *const *bsks,
+                                           void *const *ksks);
+
+void cleanup_cuda_integer_bitonic_shuffle_64(CudaStreamsFFI streams,
+                                             int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_integer_oprf_bitonic_shuffle_64_async(
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t key_num_radix_blocks,
+    uint32_t data_num_radix_blocks, uint32_t num_values,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
+void cuda_integer_oprf_bitonic_shuffle_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI **values,
+    uint32_t num_values, const void *seeded_lwe_input, int8_t *mem_ptr,
+    void *const *oprf_bsks, void *const *bsks, void *const *ksks);
+
+void cleanup_cuda_integer_oprf_bitonic_shuffle_64(CudaStreamsFFI streams,
+                                                  int8_t **mem_ptr_void);
 } // extern C
 
 #endif // CUDA_INTEGER_H

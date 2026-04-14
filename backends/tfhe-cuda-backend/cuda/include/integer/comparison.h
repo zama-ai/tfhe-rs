@@ -94,7 +94,10 @@ template <typename Torus> struct int_comparison_eq_buffer {
         streams, op, params, num_radix_blocks, allocate_gpu_memory,
         size_tracker);
 
-    // f(x) -> x == 0
+    // This LUT determines if the input which is the result of a subtraction
+    // is <0, ==0, or >0. It relies on the negacyclic behavior of the PBS
+    //  when lhs - rhs < 0, the padding bit is set which makes the PBS
+    // output -LUT[(lhs - rhs) % 16 == 0] = -1.
     auto is_non_zero_lut_f = [total_modulus](Torus x) -> Torus {
       return (x % total_modulus) != 0;
     };

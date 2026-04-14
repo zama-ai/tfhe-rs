@@ -2166,6 +2166,71 @@ unsafe extern "C" {
     pub fn cleanup_cuda_cast_to_signed_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_integer_bitonic_shuffle_64_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
+        key_num_radix_blocks: u32,
+        data_num_radix_blocks: u32,
+        num_values: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_integer_bitonic_shuffle_64_async(
+        streams: CudaStreamsFFI,
+        keys: *mut *mut CudaRadixCiphertextFFI,
+        values: *mut *mut CudaRadixCiphertextFFI,
+        num_values: u32,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_integer_bitonic_shuffle_64(
+        streams: CudaStreamsFFI,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_integer_oprf_bitonic_shuffle_64_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
+        key_num_radix_blocks: u32,
+        data_num_radix_blocks: u32,
+        num_values: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_integer_oprf_bitonic_shuffle_64_async(
+        streams: CudaStreamsFFI,
+        values: *mut *mut CudaRadixCiphertextFFI,
+        num_values: u32,
+        seeded_lwe_input: *const ffi::c_void,
+        mem_ptr: *mut i8,
+        oprf_bsks: *const *mut ffi::c_void,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_integer_oprf_bitonic_shuffle_64(
+        streams: CudaStreamsFFI,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
     pub fn scratch_cuda_integer_compress_radix_ciphertext_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,

@@ -25,6 +25,7 @@ BENCH_TYPE?=latency
 BENCH_PARAM_TYPE?=classical
 BENCH_PARAMS_SET?=default
 BENCH_CUSTOM_COMMAND:=
+BENCH_TARGET?=invalid
 NODE_VERSION=24.12
 BACKWARD_COMPAT_DATA_DIR=utils/tfhe-backward-compat-data
 BACKWARD_COMPAT_DATA_GEN_VERSION:=$(TFHE_VERSION)
@@ -2098,7 +2099,14 @@ bench_hlapi_signed: install_rs_check_toolchain
 bench_hlapi_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench hlapi \
+	--bench hlapi_unsigned \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+
+.PHONY: bench_hlapi_custom_gpu # Run benchmarks for integer operations on GPU
+bench_hlapi_custom_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench $(BENCH_TARGET) \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_hlapi_unsigned_hpu # Run benchmarks for HLAPI operations on HPU
