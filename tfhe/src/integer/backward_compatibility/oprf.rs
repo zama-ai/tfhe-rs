@@ -1,8 +1,6 @@
 use tfhe_versionable::VersionsDispatch;
 
-use crate::core_crypto::prelude::Container;
-use crate::integer::oprf::{CompressedOprfServerKey, GenericOprfServerKey, OprfPrivateKey};
-use tfhe_fft::c64;
+use crate::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey, OprfServerKey};
 
 #[derive(VersionsDispatch)]
 pub enum OprfPrivateKeyVersions {
@@ -10,8 +8,8 @@ pub enum OprfPrivateKeyVersions {
 }
 
 #[derive(VersionsDispatch)]
-pub enum OprfServerKeyVersions<C: Container<Element = c64>> {
-    V0(GenericOprfServerKey<C>),
+pub enum OprfServerKeyVersions {
+    V0(OprfServerKey),
 }
 
 #[derive(VersionsDispatch)]

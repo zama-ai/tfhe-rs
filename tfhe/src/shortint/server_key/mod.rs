@@ -453,25 +453,6 @@ where
             Self::MultiBit { .. } => None,
         }
     }
-
-    /// Returns a view of the bootstrapping key suitable for OPRF generation.
-    #[cfg(feature = "allow-deprecated-oprf-fallback")]
-    pub fn as_oprf_bsk_view(&self) -> crate::shortint::oprf::OprfBootstrappingKeyView<'_> {
-        match self {
-            Self::Classic { bsk, .. } => {
-                crate::shortint::oprf::OprfBootstrappingKey::Classic { bsk: bsk.as_view() }
-            }
-            Self::MultiBit {
-                fourier_bsk,
-                thread_count,
-                deterministic_execution,
-            } => crate::shortint::oprf::OprfBootstrappingKey::MultiBit {
-                fourier_bsk: fourier_bsk.as_view(),
-                thread_count: *thread_count,
-                deterministic_execution: *deterministic_execution,
-            },
-        }
-    }
 }
 
 /// A structure containing the server public key.
@@ -683,20 +664,19 @@ impl ServerKey {
 
     /// Returns a view of the server key's bootstrapping key that can be used
     /// for OPRF generation.
+    ///
+    /// Only supports the Standard atomic pattern. For KeySwitch32, use a dedicated
+    /// OPRF key via `enable_oprf` on the config.
     #[cfg(feature = "allow-deprecated-oprf-fallback")]
     pub fn as_oprf_key_view(&self) -> crate::shortint::oprf::OprfServerKeyView<'_> {
-        use crate::shortint::oprf::{GenericAtomicPatternOprfServerKey, GenericOprfServerKey};
+        use crate::shortint::oprf::GenericOprfServerKey;
         let inner = match &self.atomic_pattern {
-            AtomicPatternServerKey::Standard(std) => GenericAtomicPatternOprfServerKey::Standard(
-                std.bootstrapping_key.as_oprf_bsk_view(),
-            ),
-            AtomicPatternServerKey::KeySwitch32(ks32) => {
-                GenericAtomicPatternOprfServerKey::KeySwitch32(
-                    ks32.bootstrapping_key.as_oprf_bsk_view(),
+            AtomicPatternServerKey::Standard(std) => &std.bootstrapping_key,
+            _ => {
+                panic!(
+                    "OPRF fallback is only supported with the Standard atomic pattern. \
+                     Use `enable_oprf(true)` on the config to generate a dedicated OPRF key."
                 )
-            }
-            AtomicPatternServerKey::Dynamic(_) => {
-                panic!("Dynamic atomic pattern does not support oprf")
             }
         };
         GenericOprfServerKey { inner }

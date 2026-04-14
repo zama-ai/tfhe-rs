@@ -422,13 +422,16 @@ macro_rules! create_fhe_uint_wrapper_type {
                 #[no_mangle]
                 pub unsafe extern "C" fn [<generate_oblivious_pseudo_random_ $name:snake>](
                     out_result: *mut *mut $name,
-                    seed_low_bytes: u64,
-                    seed_high_bytes: u64,
+                    seed: *const u8,
+                    seed_len: usize,
                 ) -> c_int {
                     $crate::c_api::utils::catch_panic(|| {
-                        let seed_low_bytes: u128 = seed_low_bytes.into();
-                        let seed_high_bytes: u128 = seed_high_bytes.into();
-                        let seed = crate::Seed((seed_high_bytes << 64) | seed_low_bytes);
+                        let seed = if seed.is_null() {
+                            &[]
+                        } else {
+                            let _seed_check_ptr = $crate::c_api::utils::get_ref_checked(seed).unwrap();
+                            core::slice::from_raw_parts(seed, seed_len)
+                        };
 
                         let result = crate::FheUint::generate_oblivious_pseudo_random(
                             seed,
@@ -440,15 +443,18 @@ macro_rules! create_fhe_uint_wrapper_type {
                 #[no_mangle]
                 pub unsafe extern "C" fn [<generate_oblivious_pseudo_random_bounded_ $name:snake>](
                     out_result: *mut *mut $name,
-                    seed_low_bytes: u64,
-                    seed_high_bytes: u64,
+                    seed: *const u8,
+                    seed_len: usize,
                     random_bits_count: u64,
                 ) -> c_int {
 
                 $crate::c_api::utils::catch_panic(|| {
-                    let seed_low_bytes: u128 = seed_low_bytes.into();
-                    let seed_high_bytes: u128 = seed_high_bytes.into();
-                    let seed = crate::Seed((seed_high_bytes << 64) | seed_low_bytes);
+                    let seed = if seed.is_null() {
+                        &[]
+                    } else {
+                        let _seed_check_ptr = $crate::c_api::utils::get_ref_checked(seed).unwrap();
+                        core::slice::from_raw_parts(seed, seed_len)
+                    };
 
                     let result = crate::FheUint::generate_oblivious_pseudo_random_bounded(
                     seed,
@@ -539,13 +545,16 @@ macro_rules! create_fhe_int_wrapper_type {
                 #[no_mangle]
                 pub unsafe extern "C" fn [<generate_oblivious_pseudo_random_ $name:snake>](
                     out_result: *mut *mut $name,
-                    seed_low_bytes: u64,
-                    seed_high_bytes: u64,
+                    seed: *const u8,
+                    seed_len: usize,
                 ) -> c_int {
                     $crate::c_api::utils::catch_panic(|| {
-                        let seed_low_bytes: u128 = seed_low_bytes.into();
-                        let seed_high_bytes: u128 = seed_high_bytes.into();
-                        let seed = crate::Seed((seed_high_bytes << 64) | seed_low_bytes);
+                        let seed = if seed.is_null() {
+                            &[]
+                        } else {
+                            let _seed_check_ptr = $crate::c_api::utils::get_ref_checked(seed).unwrap();
+                            core::slice::from_raw_parts(seed, seed_len)
+                        };
 
                         let result = crate::FheInt::generate_oblivious_pseudo_random(
                             seed,
@@ -557,14 +566,17 @@ macro_rules! create_fhe_int_wrapper_type {
                 #[no_mangle]
                 pub unsafe extern "C" fn [<generate_oblivious_pseudo_random_bounded_ $name:snake>](
                     out_result: *mut *mut $name,
-                    seed_low_bytes: u64,
-                    seed_high_bytes: u64,
+                    seed: *const u8,
+                    seed_len: usize,
                     random_bits_count: u64,
                 ) -> c_int {
                     $crate::c_api::utils::catch_panic(|| {
-                        let seed_low_bytes: u128 = seed_low_bytes.into();
-                        let seed_high_bytes: u128 = seed_high_bytes.into();
-                        let seed = crate::Seed((seed_high_bytes << 64) | seed_low_bytes);
+                        let seed = if seed.is_null() {
+                            &[]
+                        } else {
+                            let _seed_check_ptr = $crate::c_api::utils::get_ref_checked(seed).unwrap();
+                            core::slice::from_raw_parts(seed, seed_len)
+                        };
 
                         let result =
                             crate::FheInt::generate_oblivious_pseudo_random_bounded(

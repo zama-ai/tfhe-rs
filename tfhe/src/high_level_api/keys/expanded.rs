@@ -142,7 +142,9 @@ impl IntegerExpandedServerKey {
         });
 
         let oprf_key = oprf_key.map(|oprf_key| {
-            crate::integer::oprf::OprfServerKey::from_raw_parts(oprf_key.to_fourier())
+            let shortint_key =
+                crate::shortint::oprf::OprfServerKey::from_raw_parts(oprf_key.into_fourier());
+            crate::integer::oprf::OprfServerKey::from_raw_parts(shortint_key)
         });
 
         IntegerServerKey {

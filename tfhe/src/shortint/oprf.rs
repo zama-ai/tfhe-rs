@@ -1,5 +1,7 @@
 use tfhe_versionable::Versionize;
 
+use crate::named::Named;
+
 use super::backward_compatibility::oprf::*;
 use super::client_key::atomic_pattern::AtomicPatternClientKey;
 use super::server_key::LookupTableSize;
@@ -11,18 +13,16 @@ use crate::core_crypto::prelude::*;
 use crate::shortint::atomic_pattern::{AtomicPattern, AtomicPatternServerKey};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::{KeySwitch32PBSParameters, NoiseLevel};
+use crate::shortint::parameters::NoiseLevel;
 use crate::shortint::server_key::{
     apply_multi_bit_blind_rotate, apply_standard_blind_rotate, generate_lookup_table_no_encode,
     LookupTableOwned, PBSConformanceParams, PbsTypeConformanceParams,
 };
 use crate::shortint::{AtomicPatternParameters, ClientKey, PBSParameters, ServerKey};
-use aligned_vec::ABox;
 use itertools::Itertools;
 use rayon::prelude::*;
 use sha3::digest::Digest;
 use tfhe_csprng::seeders::XofSeed;
-use tfhe_fft::c64;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(AtomicPatternOprfPrivateKeyVersions)]
@@ -71,162 +71,95 @@ impl OprfPrivateKey {
     }
 }
 
-/// Bootstrapping Key with elements in the standard (i.e not fourier) domain
-#[derive(PartialEq, Eq)]
-pub enum ExpandedOprfBootstrappingKey {
-    Classic {
-        bsk: LweBootstrapKeyOwned<u64>,
-    },
-    MultiBit {
-        bsk: LweMultiBitBootstrapKeyOwned<u64>,
-        thread_count: ThreadCount,
-        deterministic_execution: bool,
-    },
-}
+use crate::shortint::server_key::compressed::ShortintCompressedBootstrappingKey;
+use crate::shortint::server_key::expanded::ShortintExpandedBootstrappingKey;
+use crate::shortint::server_key::{
+    CompressedModulusSwitchConfiguration, ModulusSwitchConfiguration, ShortintBootstrappingKey,
+};
+use std::borrow::Borrow;
 
-impl ExpandedOprfBootstrappingKey {
-    pub fn to_fourier(&self) -> OprfBootstrappingKeyOwned {
-        match self {
-            Self::Classic { bsk } => {
-                let mut fourier_bsk = FourierLweBootstrapKeyOwned::new(
-                    bsk.input_lwe_dimension(),
-                    bsk.glwe_size(),
-                    bsk.polynomial_size(),
-                    bsk.decomposition_base_log(),
-                    bsk.decomposition_level_count(),
-                );
-                par_convert_standard_lwe_bootstrap_key_to_fourier(bsk, &mut fourier_bsk);
-                OprfBootstrappingKey::Classic { bsk: fourier_bsk }
-            }
-            Self::MultiBit {
-                bsk,
-                thread_count,
-                deterministic_execution,
-            } => {
-                let mut fourier_bsk = FourierLweMultiBitBootstrapKey::new(
-                    bsk.input_lwe_dimension(),
-                    bsk.glwe_size(),
-                    bsk.polynomial_size(),
-                    bsk.decomposition_base_log(),
-                    bsk.decomposition_level_count(),
-                    bsk.grouping_factor(),
-                );
+pub type ExpandedOprfBootstrappingKey = ShortintExpandedBootstrappingKey<u64, u64>;
+pub type CompressedOprfBootstrappingKey = ShortintCompressedBootstrappingKey<u64>;
 
-                par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(bsk, &mut fourier_bsk);
-
-                OprfBootstrappingKey::MultiBit {
-                    fourier_bsk,
-                    thread_count: *thread_count,
-                    deterministic_execution: *deterministic_execution,
-                }
-            }
-        }
-    }
-}
-
-#[derive(PartialEq, Eq)]
-pub enum ExpandedOprfServerKey {
-    Standard(ExpandedOprfBootstrappingKey),
-    KeySwitch32(ExpandedOprfBootstrappingKey),
-}
+#[derive(PartialEq)]
+pub struct ExpandedOprfServerKey(pub(crate) ExpandedOprfBootstrappingKey);
 
 impl ExpandedOprfServerKey {
-    #[allow(clippy::wrong_self_convention)]
-    pub fn to_fourier(self) -> OprfServerKey {
-        match self {
-            Self::Standard(std) => OprfServerKey::from_raw_parts(
-                AtomicPatternOprfServerKey::Standard(std.to_fourier()),
-            ),
-            Self::KeySwitch32(ks32) => OprfServerKey::from_raw_parts(
-                AtomicPatternOprfServerKey::KeySwitch32(ks32.to_fourier()),
-            ),
-        }
+    pub fn from_raw_parts(inner: ExpandedOprfBootstrappingKey) -> Self {
+        Self(inner)
     }
-}
 
-#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
-#[versionize(CompressedOprfBootstrappingKeyVersions)]
-pub enum CompressedOprfBootstrappingKey {
-    Classic {
-        seeded_bsk: SeededLweBootstrapKeyOwned<u64>,
-    },
-    MultiBit {
-        seeded_bsk: SeededLweMultiBitBootstrapKeyOwned<u64>,
-        deterministic_execution: bool,
-    },
-}
-
-impl CompressedOprfBootstrappingKey {
-    pub fn expand(&self) -> ExpandedOprfBootstrappingKey {
-        match self {
-            Self::Classic { seeded_bsk } => {
-                let core_bsk = seeded_bsk.as_view().par_decompress_into_lwe_bootstrap_key();
-                ExpandedOprfBootstrappingKey::Classic { bsk: core_bsk }
-            }
-            Self::MultiBit {
-                seeded_bsk,
-                deterministic_execution,
-            } => {
-                let core_bsk = seeded_bsk
-                    .as_view()
-                    .par_decompress_into_lwe_multi_bit_bootstrap_key();
-
-                let thread_count = ShortintEngine::get_thread_count_for_multi_bit_pbs(
-                    core_bsk.input_lwe_dimension(),
-                    core_bsk.glwe_size().to_glwe_dimension(),
-                    core_bsk.polynomial_size(),
-                    core_bsk.decomposition_base_log(),
-                    core_bsk.decomposition_level_count(),
-                    core_bsk.grouping_factor(),
-                );
-
-                ExpandedOprfBootstrappingKey::MultiBit {
-                    bsk: core_bsk,
-                    thread_count,
-                    deterministic_execution: *deterministic_execution,
-                }
-            }
-        }
+    pub fn into_raw_parts(self) -> ExpandedOprfBootstrappingKey {
+        self.0
     }
-}
 
-#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
-#[versionize(CompressedAtomicPatternOprfServerKeyVersions)]
-pub enum CompressedAtomicPatternOprfServerKey {
-    KeySwitch32(CompressedOprfBootstrappingKey),
-    Standard(CompressedOprfBootstrappingKey),
+    pub fn into_fourier(self) -> ShortintBootstrappingKey<u64> {
+        self.0.into_fourier()
+    }
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressedOprfServerKeyVersions)]
 pub struct CompressedOprfServerKey {
-    pub(crate) inner: CompressedAtomicPatternOprfServerKey,
+    pub(crate) inner: CompressedOprfBootstrappingKey,
 }
 
 impl CompressedOprfServerKey {
     pub fn new(sk: &OprfPrivateKey, target_ck: &ClientKey) -> crate::Result<Self> {
-        let key = match (&sk.0, &target_ck.atomic_pattern) {
+        let inner = match (&sk.0, &target_ck.atomic_pattern) {
             (
                 AtomicPatternOprfPrivateKey::KeySwitch32(sk),
                 AtomicPatternClientKey::KeySwitch32(ck),
             ) => ShortintEngine::with_thread_local_mut(|engine| {
-                let bsk = engine.new_compressed_oprf_bootstrapping_key_ks32(
-                    ck.parameters,
+                let bsk = engine.new_compressed_classic_bootstrapping_key(
                     sk,
                     &ck.glwe_secret_key,
+                    ck.parameters.glwe_noise_distribution,
+                    ck.parameters.pbs_base_log,
+                    ck.parameters.pbs_level,
+                    ck.parameters.ciphertext_modulus,
                 );
-
-                CompressedAtomicPatternOprfServerKey::KeySwitch32(bsk)
+                ShortintCompressedBootstrappingKey::Classic {
+                    bsk,
+                    modulus_switch_noise_reduction_key:
+                        CompressedModulusSwitchConfiguration::Standard,
+                }
             }),
             (AtomicPatternOprfPrivateKey::Standard(sk), AtomicPatternClientKey::Standard(ck)) => {
-                let bsk = ShortintEngine::with_thread_local_mut(|engine| {
-                    engine.new_compressed_oprf_bootstrapping_key_standard(
-                        ck.parameters,
-                        sk,
-                        &ck.glwe_secret_key,
-                    )
-                });
-                CompressedAtomicPatternOprfServerKey::Standard(bsk)
+                ShortintEngine::with_thread_local_mut(|engine| match ck.parameters {
+                    PBSParameters::PBS(pbs_params) => {
+                        let bsk = engine.new_compressed_classic_bootstrapping_key(
+                            sk,
+                            &ck.glwe_secret_key,
+                            pbs_params.glwe_noise_distribution,
+                            pbs_params.pbs_base_log,
+                            pbs_params.pbs_level,
+                            pbs_params.ciphertext_modulus,
+                        );
+                        ShortintCompressedBootstrappingKey::Classic {
+                            bsk,
+                            modulus_switch_noise_reduction_key:
+                                CompressedModulusSwitchConfiguration::Standard,
+                        }
+                    }
+                    PBSParameters::MultiBitPBS(pbs_params) => {
+                        let seeded_bsk =
+                            par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
+                                sk,
+                                &ck.glwe_secret_key,
+                                pbs_params.pbs_base_log,
+                                pbs_params.pbs_level,
+                                pbs_params.glwe_noise_distribution,
+                                pbs_params.grouping_factor,
+                                pbs_params.ciphertext_modulus,
+                                &mut engine.seeder,
+                            );
+                        ShortintCompressedBootstrappingKey::MultiBit {
+                            seeded_bsk,
+                            deterministic_execution: pbs_params.deterministic_execution,
+                        }
+                    }
+                })
             }
             _ => {
                 return Err(crate::error!(
@@ -235,283 +168,43 @@ impl CompressedOprfServerKey {
             }
         };
 
-        Ok(Self { inner: key })
+        Ok(Self { inner })
+    }
+
+    pub fn from_raw_parts(inner: CompressedOprfBootstrappingKey) -> Self {
+        Self { inner }
+    }
+
+    pub fn into_raw_parts(self) -> CompressedOprfBootstrappingKey {
+        self.inner
     }
 
     pub fn expand(&self) -> ExpandedOprfServerKey {
-        match &self.inner {
-            CompressedAtomicPatternOprfServerKey::KeySwitch32(ks32) => {
-                ExpandedOprfServerKey::KeySwitch32(ks32.expand())
-            }
-            CompressedAtomicPatternOprfServerKey::Standard(std) => {
-                ExpandedOprfServerKey::Standard(std.expand())
-            }
-        }
+        ExpandedOprfServerKey(self.inner.expand())
     }
 }
 
-impl ShortintEngine {
-    fn new_compressed_oprf_bootstrapping_key_ks32<
-        InKeycont: Container<Element = u32> + Sync,
-        OutKeyCont: Container<Element = u64> + Sync,
-    >(
-        &mut self,
-        pbs_params: KeySwitch32PBSParameters,
-        in_key: &LweSecretKey<InKeycont>,
-        out_key: &GlweSecretKey<OutKeyCont>,
-    ) -> CompressedOprfBootstrappingKey {
-        let seeded_bsk = self.new_compressed_classic_bootstrapping_key(
-            in_key,
-            out_key,
-            pbs_params.glwe_noise_distribution,
-            pbs_params.pbs_base_log,
-            pbs_params.pbs_level,
-            pbs_params.ciphertext_modulus,
-        );
-        CompressedOprfBootstrappingKey::Classic { seeded_bsk }
-    }
-
-    fn new_oprf_bootstrapping_key_ks32<
-        InKeycont: Container<Element = u32> + Sync,
-        OutKeyCont: Container<Element = u64> + Sync,
-    >(
-        &mut self,
-        pbs_params: KeySwitch32PBSParameters,
-        in_key: &LweSecretKey<InKeycont>,
-        out_key: &GlweSecretKey<OutKeyCont>,
-    ) -> OprfBootstrappingKeyOwned {
-        let bsk = self.new_classic_bootstrapping_key(
-            in_key,
-            out_key,
-            pbs_params.glwe_noise_distribution,
-            pbs_params.pbs_base_log,
-            pbs_params.pbs_level,
-            pbs_params.ciphertext_modulus,
-        );
-        OprfBootstrappingKey::Classic { bsk }
-    }
-
-    fn new_oprf_bootstrapping_key_standard<
-        InKeycont: Container<Element = u64>,
-        OutKeyCont: Container<Element = u64> + Sync,
-    >(
-        &mut self,
-        pbs_params: PBSParameters,
-        in_key: &LweSecretKey<InKeycont>,
-        out_key: &GlweSecretKey<OutKeyCont>,
-    ) -> OprfBootstrappingKeyOwned {
-        match pbs_params {
-            PBSParameters::PBS(pbs_params) => {
-                let bsk = self.new_classic_bootstrapping_key(
-                    in_key,
-                    out_key,
-                    pbs_params.glwe_noise_distribution,
-                    pbs_params.pbs_base_log,
-                    pbs_params.pbs_level,
-                    pbs_params.ciphertext_modulus,
-                );
-
-                OprfBootstrappingKey::Classic { bsk }
-            }
-            PBSParameters::MultiBitPBS(pbs_params) => {
-                let fourier_bsk = self.new_multibit_bootstrapping_key(
-                    in_key,
-                    out_key,
-                    pbs_params.glwe_noise_distribution,
-                    pbs_params.pbs_base_log,
-                    pbs_params.pbs_level,
-                    pbs_params.grouping_factor,
-                    pbs_params.ciphertext_modulus,
-                );
-
-                let thread_count = Self::get_thread_count_for_multi_bit_pbs(
-                    pbs_params.lwe_dimension,
-                    pbs_params.glwe_dimension,
-                    pbs_params.polynomial_size,
-                    pbs_params.pbs_base_log,
-                    pbs_params.pbs_level,
-                    pbs_params.grouping_factor,
-                );
-                OprfBootstrappingKey::MultiBit {
-                    fourier_bsk,
-                    thread_count,
-                    deterministic_execution: pbs_params.deterministic_execution,
-                }
-            }
-        }
-    }
-
-    fn new_compressed_oprf_bootstrapping_key_standard<
-        InKeycont: Container<Element = u64>,
-        OutKeyCont: Container<Element = u64> + Sync,
-    >(
-        &mut self,
-        pbs_params: PBSParameters,
-        in_key: &LweSecretKey<InKeycont>,
-        out_key: &GlweSecretKey<OutKeyCont>,
-    ) -> CompressedOprfBootstrappingKey {
-        match pbs_params {
-            PBSParameters::PBS(pbs_params) => {
-                let seeded_bsk = self.new_compressed_classic_bootstrapping_key(
-                    in_key,
-                    out_key,
-                    pbs_params.glwe_noise_distribution,
-                    pbs_params.pbs_base_log,
-                    pbs_params.pbs_level,
-                    pbs_params.ciphertext_modulus,
-                );
-
-                CompressedOprfBootstrappingKey::Classic { seeded_bsk }
-            }
-            PBSParameters::MultiBitPBS(pbs_params) => {
-                let seeded_bsk = par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
-                    in_key,
-                    out_key,
-                    pbs_params.pbs_base_log,
-                    pbs_params.pbs_level,
-                    pbs_params.glwe_noise_distribution,
-                    pbs_params.grouping_factor,
-                    pbs_params.ciphertext_modulus,
-                    &mut self.seeder,
-                );
-
-                CompressedOprfBootstrappingKey::MultiBit {
-                    seeded_bsk,
-                    deterministic_execution: pbs_params.deterministic_execution,
-                }
-            }
-        }
-    }
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(GenericOprfServerKeyVersions)]
+pub struct GenericOprfServerKey<K> {
+    pub(crate) inner: K,
 }
 
-// Different than the ShortintBootstrappingKey as the PRF uses its own modulus switch.
-#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
-#[serde(bound(deserialize = "C: IntoContainerOwned"))]
-#[versionize(OprfBootstrappingKeyVersions)]
-pub enum OprfBootstrappingKey<C: Container<Element = c64>> {
-    Classic {
-        bsk: FourierLweBootstrapKey<C>,
-    },
-    MultiBit {
-        fourier_bsk: FourierLweMultiBitBootstrapKey<C>,
-        thread_count: ThreadCount,
-        deterministic_execution: bool,
-    },
-}
-
-pub type OprfBootstrappingKeyOwned = OprfBootstrappingKey<ABox<[c64]>>;
-pub type OprfBootstrappingKeyView<'a> = OprfBootstrappingKey<&'a [c64]>;
-
-impl<C: Container<Element = c64>> OprfBootstrappingKey<C> {
-    pub(crate) fn input_lwe_dimension(&self) -> LweDimension {
-        match self {
-            Self::Classic { bsk } => bsk.input_lwe_dimension(),
-            Self::MultiBit { fourier_bsk, .. } => fourier_bsk.input_lwe_dimension(),
-        }
-    }
-
-    pub(crate) fn polynomial_size(&self) -> PolynomialSize {
-        match self {
-            Self::Classic { bsk } => bsk.polynomial_size(),
-            Self::MultiBit { fourier_bsk, .. } => fourier_bsk.polynomial_size(),
-        }
-    }
-
-    pub(crate) fn glwe_size(&self) -> GlweSize {
-        match self {
-            Self::Classic { bsk } => bsk.glwe_size(),
-            Self::MultiBit { fourier_bsk, .. } => fourier_bsk.glwe_size(),
-        }
-    }
-
-    pub(crate) fn output_lwe_dimension(&self) -> LweDimension {
-        match self {
-            Self::Classic { bsk } => bsk.output_lwe_dimension(),
-            Self::MultiBit { fourier_bsk, .. } => fourier_bsk.output_lwe_dimension(),
-        }
-    }
-
-    fn assert_compatible_with_target_bsk(
-        &self,
-        target_input_lwe_dimension: LweDimension,
-        target_output_lwe_dimension: LweDimension,
-        target_polynomial_size: PolynomialSize,
-    ) {
-        assert_eq!(target_input_lwe_dimension, self.input_lwe_dimension());
-        assert_eq!(target_output_lwe_dimension, self.output_lwe_dimension());
-        assert_eq!(target_polynomial_size, self.polynomial_size());
-    }
-}
-
-impl OprfBootstrappingKeyOwned {
-    pub fn as_view(&self) -> OprfBootstrappingKeyView<'_> {
-        match self {
-            Self::Classic { bsk } => OprfBootstrappingKeyView::Classic { bsk: bsk.as_view() },
-            Self::MultiBit {
-                fourier_bsk,
-                thread_count,
-                deterministic_execution,
-            } => OprfBootstrappingKeyView::MultiBit {
-                fourier_bsk: fourier_bsk.as_view(),
-                thread_count: *thread_count,
-                deterministic_execution: *deterministic_execution,
-            },
-        }
-    }
-}
-
-impl ParameterSetConformant for OprfBootstrappingKeyOwned {
-    type ParameterSet = PBSConformanceParams;
-
-    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        match (self, &parameter_set.pbs_type) {
-            (Self::Classic { bsk }, PbsTypeConformanceParams::Classic { .. }) => {
-                let param: LweBootstrapKeyConformanceParams<_> = parameter_set.into();
-                bsk.is_conformant(&param)
-            }
-            (
-                Self::MultiBit {
-                    fourier_bsk,
-                    thread_count: _,
-                    deterministic_execution: _,
-                },
-                PbsTypeConformanceParams::MultiBit { .. },
-            ) => MultiBitBootstrapKeyConformanceParams::try_from(parameter_set)
-                .is_ok_and(|param| fourier_bsk.is_conformant(&param)),
-            _ => false,
-        }
-    }
-}
-
-#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
-#[serde(bound(deserialize = "C: IntoContainerOwned"))]
-#[versionize(AtomicPatternOprfServerKeyVersions)]
-pub enum GenericAtomicPatternOprfServerKey<C: Container<Element = c64>> {
-    KeySwitch32(OprfBootstrappingKey<C>),
-    Standard(OprfBootstrappingKey<C>),
-}
-
-pub type AtomicPatternOprfServerKey = GenericAtomicPatternOprfServerKey<ABox<[c64]>>;
-
-#[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
-#[serde(bound(deserialize = "C: IntoContainerOwned"))]
-#[versionize(OprfServerKeyVersions)]
-pub struct GenericOprfServerKey<C: Container<Element = c64>> {
-    pub(crate) inner: GenericAtomicPatternOprfServerKey<C>,
-}
-
-pub type OprfServerKey = GenericOprfServerKey<ABox<[c64]>>;
-pub type OprfServerKeyView<'a> = GenericOprfServerKey<&'a [c64]>;
+pub type OprfServerKey = GenericOprfServerKey<ShortintBootstrappingKey<u64>>;
+pub type OprfServerKeyView<'a> = GenericOprfServerKey<&'a ShortintBootstrappingKey<u64>>;
 
 // Shared methods for both owned and view types.
-impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
+impl<K> GenericOprfServerKey<K>
+where
+    K: Borrow<ShortintBootstrappingKey<u64>> + Sync,
+{
     /// Uniformly generates a random encrypted ciphertexts
     ///
     ///
     /// Generates `bit_count` random bits split over multiple blocks
     ///
     /// Each ciphertexts encrypt a value in `[0, 2^random_bits_per_block[`
-    /// execpt for the last one which may have less random bits:
+    /// except for the last one which may have less random bits:
     /// `bit_count=3, random_bits_per_block=2` -> first_block: 2 bits, last blocks: 1 bit
     ///
     ///
@@ -525,20 +218,13 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
         random_bits_count: u64,
         target_sks: &ServerKey,
     ) -> Vec<Ciphertext> {
-        match &self.inner {
-            GenericAtomicPatternOprfServerKey::KeySwitch32(bsk) => bsk.generate_pseudo_random_bits(
-                seed,
-                random_bits_count,
-                target_sks.message_modulus.0.ilog2() as u64,
-                target_sks,
-            ),
-            GenericAtomicPatternOprfServerKey::Standard(bsk) => bsk.generate_pseudo_random_bits(
-                seed,
-                random_bits_count,
-                target_sks.message_modulus.0.ilog2() as u64,
-                target_sks,
-            ),
-        }
+        generate_pseudo_random_bits(
+            self.inner.borrow(),
+            seed,
+            random_bits_count,
+            target_sks.message_modulus.0.ilog2() as u64,
+            target_sks,
+        )
     }
 
     /// Uniformly generates a random encrypted value in `[0, 2^random_bits_count[`
@@ -552,14 +238,7 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
         random_bits_count: u64,
         target_sks: &ServerKey,
     ) -> Ciphertext {
-        match &self.inner {
-            GenericAtomicPatternOprfServerKey::KeySwitch32(bsk) => {
-                bsk.generate_oblivious_pseudo_random(seed, random_bits_count, target_sks)
-            }
-            GenericAtomicPatternOprfServerKey::Standard(bsk) => {
-                bsk.generate_oblivious_pseudo_random(seed, random_bits_count, target_sks)
-            }
-        }
+        generate_oblivious_pseudo_random(self.inner.borrow(), seed, random_bits_count, target_sks)
     }
 
     /// Uniformly generates a random value in `[0, 2^random_bits_count[`
@@ -573,45 +252,78 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
         random_bits_count: u64,
         target_sks: &ServerKey,
     ) -> Ciphertext {
-        match &self.inner {
-            GenericAtomicPatternOprfServerKey::KeySwitch32(bsk) => bsk
-                .generate_oblivious_pseudo_random_message_and_carry(
-                    seed,
-                    random_bits_count,
-                    target_sks,
-                ),
-            GenericAtomicPatternOprfServerKey::Standard(bsk) => bsk
-                .generate_oblivious_pseudo_random_message_and_carry(
-                    seed,
-                    random_bits_count,
-                    target_sks,
-                ),
-        }
+        generate_oblivious_pseudo_random_message_and_carry(
+            self.inner.borrow(),
+            seed,
+            random_bits_count,
+            target_sks,
+        )
     }
 }
 
 // Owned-only methods.
 impl OprfServerKey {
     pub fn new(sk: &OprfPrivateKey, target_ck: &ClientKey) -> crate::Result<Self> {
-        let key = match (&sk.0, &target_ck.atomic_pattern) {
+        let inner = match (&sk.0, &target_ck.atomic_pattern) {
             (
                 AtomicPatternOprfPrivateKey::KeySwitch32(sk),
                 AtomicPatternClientKey::KeySwitch32(ck),
             ) => ShortintEngine::with_thread_local_mut(|engine| {
-                let bsk =
-                    engine.new_oprf_bootstrapping_key_ks32(ck.parameters, sk, &ck.glwe_secret_key);
-
-                GenericAtomicPatternOprfServerKey::KeySwitch32(bsk)
+                let bsk = engine.new_classic_bootstrapping_key(
+                    sk,
+                    &ck.glwe_secret_key,
+                    ck.parameters.glwe_noise_distribution,
+                    ck.parameters.pbs_base_log,
+                    ck.parameters.pbs_level,
+                    ck.parameters.ciphertext_modulus,
+                );
+                ShortintBootstrappingKey::Classic {
+                    bsk,
+                    modulus_switch_noise_reduction_key: ModulusSwitchConfiguration::Standard,
+                }
             }),
             (AtomicPatternOprfPrivateKey::Standard(sk), AtomicPatternClientKey::Standard(ck)) => {
-                let bsk = ShortintEngine::with_thread_local_mut(|engine| {
-                    engine.new_oprf_bootstrapping_key_standard(
-                        ck.parameters,
-                        sk,
-                        &ck.glwe_secret_key,
-                    )
-                });
-                GenericAtomicPatternOprfServerKey::Standard(bsk)
+                ShortintEngine::with_thread_local_mut(|engine| match ck.parameters {
+                    PBSParameters::PBS(pbs_params) => {
+                        let bsk = engine.new_classic_bootstrapping_key(
+                            sk,
+                            &ck.glwe_secret_key,
+                            pbs_params.glwe_noise_distribution,
+                            pbs_params.pbs_base_log,
+                            pbs_params.pbs_level,
+                            pbs_params.ciphertext_modulus,
+                        );
+                        ShortintBootstrappingKey::Classic {
+                            bsk,
+                            modulus_switch_noise_reduction_key:
+                                ModulusSwitchConfiguration::Standard,
+                        }
+                    }
+                    PBSParameters::MultiBitPBS(pbs_params) => {
+                        let fourier_bsk = engine.new_multibit_bootstrapping_key(
+                            sk,
+                            &ck.glwe_secret_key,
+                            pbs_params.glwe_noise_distribution,
+                            pbs_params.pbs_base_log,
+                            pbs_params.pbs_level,
+                            pbs_params.grouping_factor,
+                            pbs_params.ciphertext_modulus,
+                        );
+                        let thread_count = ShortintEngine::get_thread_count_for_multi_bit_pbs(
+                            pbs_params.lwe_dimension,
+                            pbs_params.glwe_dimension,
+                            pbs_params.polynomial_size,
+                            pbs_params.pbs_base_log,
+                            pbs_params.pbs_level,
+                            pbs_params.grouping_factor,
+                        );
+                        ShortintBootstrappingKey::MultiBit {
+                            fourier_bsk,
+                            thread_count,
+                            deterministic_execution: pbs_params.deterministic_execution,
+                        }
+                    }
+                })
             }
             _ => {
                 return Err(crate::error!(
@@ -620,45 +332,19 @@ impl OprfServerKey {
             }
         };
 
-        Ok(Self { inner: key })
+        Ok(Self { inner })
     }
 
-    pub fn from_raw_parts(inner: AtomicPatternOprfServerKey) -> Self {
+    pub fn from_raw_parts(inner: ShortintBootstrappingKey<u64>) -> Self {
         Self { inner }
     }
 
-    pub fn into_raw_parts(self) -> AtomicPatternOprfServerKey {
+    pub fn into_raw_parts(self) -> ShortintBootstrappingKey<u64> {
         self.inner
     }
 
     pub fn as_view(&self) -> OprfServerKeyView<'_> {
-        let inner = match &self.inner {
-            GenericAtomicPatternOprfServerKey::KeySwitch32(bsk) => {
-                GenericAtomicPatternOprfServerKey::KeySwitch32(bsk.as_view())
-            }
-            GenericAtomicPatternOprfServerKey::Standard(bsk) => {
-                GenericAtomicPatternOprfServerKey::Standard(bsk.as_view())
-            }
-        };
-        GenericOprfServerKey { inner }
-    }
-}
-
-impl ParameterSetConformant for AtomicPatternOprfServerKey {
-    type ParameterSet = AtomicPatternParameters;
-
-    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        match (self, parameter_set) {
-            (Self::Standard(bsk), AtomicPatternParameters::Standard(std_params)) => {
-                let pbs_conformance_params: PBSConformanceParams = std_params.into();
-                bsk.is_conformant(&pbs_conformance_params)
-            }
-            (Self::KeySwitch32(bsk), AtomicPatternParameters::KeySwitch32(ks32_params)) => {
-                let pbs_conformance_params: PBSConformanceParams = ks32_params.into();
-                bsk.is_conformant(&pbs_conformance_params)
-            }
-            _ => false,
-        }
+        GenericOprfServerKey { inner: &self.inner }
     }
 }
 
@@ -666,47 +352,11 @@ impl ParameterSetConformant for OprfServerKey {
     type ParameterSet = AtomicPatternParameters;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.inner.is_conformant(parameter_set)
-    }
-}
-
-impl ParameterSetConformant for CompressedOprfBootstrappingKey {
-    type ParameterSet = PBSConformanceParams;
-
-    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        match (self, &parameter_set.pbs_type) {
-            (Self::Classic { seeded_bsk }, PbsTypeConformanceParams::Classic { .. }) => {
-                let param: LweBootstrapKeyConformanceParams<_> = parameter_set.into();
-                seeded_bsk.is_conformant(&param)
-            }
-            (
-                Self::MultiBit {
-                    seeded_bsk,
-                    deterministic_execution: _,
-                },
-                PbsTypeConformanceParams::MultiBit { .. },
-            ) => MultiBitBootstrapKeyConformanceParams::try_from(parameter_set)
-                .is_ok_and(|param| seeded_bsk.is_conformant(&param)),
-            _ => false,
-        }
-    }
-}
-
-impl ParameterSetConformant for CompressedAtomicPatternOprfServerKey {
-    type ParameterSet = AtomicPatternParameters;
-
-    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        match (self, parameter_set) {
-            (Self::Standard(bsk), AtomicPatternParameters::Standard(std_params)) => {
-                let pbs_conformance_params: PBSConformanceParams = std_params.into();
-                bsk.is_conformant(&pbs_conformance_params)
-            }
-            (Self::KeySwitch32(bsk), AtomicPatternParameters::KeySwitch32(ks32_params)) => {
-                let pbs_conformance_params: PBSConformanceParams = ks32_params.into();
-                bsk.is_conformant(&pbs_conformance_params)
-            }
-            _ => false,
-        }
+        let pbs_conformance_params: PBSConformanceParams = match parameter_set {
+            AtomicPatternParameters::Standard(std_params) => std_params.into(),
+            AtomicPatternParameters::KeySwitch32(ks32_params) => ks32_params.into(),
+        };
+        oprf_bsk_is_conformant(&self.inner, &pbs_conformance_params)
     }
 }
 
@@ -714,7 +364,69 @@ impl ParameterSetConformant for CompressedOprfServerKey {
     type ParameterSet = AtomicPatternParameters;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.inner.is_conformant(parameter_set)
+        let pbs_conformance_params: PBSConformanceParams = match parameter_set {
+            AtomicPatternParameters::Standard(std_params) => std_params.into(),
+            AtomicPatternParameters::KeySwitch32(ks32_params) => ks32_params.into(),
+        };
+        compressed_oprf_bsk_is_conformant(&self.inner, &pbs_conformance_params)
+    }
+}
+
+impl Named for AtomicPatternOprfPrivateKey {
+    const NAME: &'static str = "shortint::AtomicPatternOprfPrivateKey";
+}
+
+impl Named for OprfPrivateKey {
+    const NAME: &'static str = "shortint::OprfPrivateKey";
+}
+
+impl<K> Named for GenericOprfServerKey<K> {
+    const NAME: &'static str = "shortint::GenericOprfServerKey";
+}
+
+impl Named for CompressedOprfServerKey {
+    const NAME: &'static str = "shortint::CompressedOprfServerKey";
+}
+
+fn oprf_bsk_is_conformant(
+    bsk: &ShortintBootstrappingKey<u64>,
+    parameter_set: &PBSConformanceParams,
+) -> bool {
+    match (bsk, &parameter_set.pbs_type) {
+        (
+            ShortintBootstrappingKey::Classic { bsk, .. },
+            PbsTypeConformanceParams::Classic { .. },
+        ) => {
+            let param: LweBootstrapKeyConformanceParams<_> = parameter_set.into();
+            bsk.is_conformant(&param)
+        }
+        (
+            ShortintBootstrappingKey::MultiBit { fourier_bsk, .. },
+            PbsTypeConformanceParams::MultiBit { .. },
+        ) => MultiBitBootstrapKeyConformanceParams::try_from(parameter_set)
+            .is_ok_and(|param| fourier_bsk.is_conformant(&param)),
+        _ => false,
+    }
+}
+
+fn compressed_oprf_bsk_is_conformant(
+    bsk: &ShortintCompressedBootstrappingKey<u64>,
+    parameter_set: &PBSConformanceParams,
+) -> bool {
+    match (bsk, &parameter_set.pbs_type) {
+        (
+            ShortintCompressedBootstrappingKey::Classic { bsk, .. },
+            PbsTypeConformanceParams::Classic { .. },
+        ) => {
+            let param: LweBootstrapKeyConformanceParams<_> = parameter_set.into();
+            bsk.is_conformant(&param)
+        }
+        (
+            ShortintCompressedBootstrappingKey::MultiBit { seeded_bsk, .. },
+            PbsTypeConformanceParams::MultiBit { .. },
+        ) => MultiBitBootstrapKeyConformanceParams::try_from(parameter_set)
+            .is_ok_and(|param| seeded_bsk.is_conformant(&param)),
+        _ => false,
     }
 }
 
@@ -880,232 +592,227 @@ fn generate_oprf_lut(
     (lut, post_pbs_constant)
 }
 
-impl<C: Container<Element = c64> + Sync> OprfBootstrappingKey<C> {
-    /// Uniformly generates a random encrypted value in `[0, 2^random_bits_count[`
-    /// `2^random_bits_count` must be smaller than the message modulus
-    /// The encrypted value is oblivious to the server
-    pub(crate) fn generate_oblivious_pseudo_random(
-        &self,
-        seed: &[u8],
-        random_bits_count: u64,
-        target_sks: &ServerKey,
-    ) -> Ciphertext {
-        assert!(
-            random_bits_count < 64,
-            "random_bits_count >= 64 is not supported",
-        );
-        assert!(
-            1 << random_bits_count <= target_sks.message_modulus.0,
-            "The range asked for a random value (=[0, 2^{}[) does not fit in the available range [0, {}[",
-            random_bits_count, target_sks.message_modulus.0
-        );
+fn generate_oblivious_pseudo_random(
+    bsk: &ShortintBootstrappingKey<u64>,
+    seed: &[u8],
+    random_bits_count: u64,
+    target_sks: &ServerKey,
+) -> Ciphertext {
+    assert!(
+        random_bits_count < 64,
+        "random_bits_count >= 64 is not supported",
+    );
+    assert!(
+        1 << random_bits_count <= target_sks.message_modulus.0,
+        "The range asked for a random value (=[0, 2^{}[) does not fit in the available range [0, {}[",
+        random_bits_count, target_sks.message_modulus.0
+    );
 
-        let mut blocks = self.generate_pseudo_random_bits(
-            seed,
-            random_bits_count,
-            random_bits_count, // This means we will have one block,
-            target_sks,
-        );
-        assert_eq!(blocks.len(), 1);
-        blocks.pop().unwrap()
-    }
+    let mut blocks = generate_pseudo_random_bits(
+        bsk,
+        seed,
+        random_bits_count,
+        random_bits_count, // This means we will have one block,
+        target_sks,
+    );
+    assert_eq!(blocks.len(), 1);
+    blocks.pop().unwrap()
+}
 
-    /// Uniformly generates a random value in `[0, 2^random_bits_count[`
-    /// The encrypted value is oblivious to the server
-    pub(crate) fn generate_oblivious_pseudo_random_message_and_carry(
-        &self,
-        seed: &[u8],
-        random_bits_count: u64,
-        target_sks: &ServerKey,
-    ) -> Ciphertext {
-        assert!(
-            target_sks.message_modulus.0.is_power_of_two(),
-            "The message modulus(={}), must be a power of 2 to use the OPRF",
-            target_sks.message_modulus.0
-        );
-        let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
+fn generate_oblivious_pseudo_random_message_and_carry(
+    bsk: &ShortintBootstrappingKey<u64>,
+    seed: &[u8],
+    random_bits_count: u64,
+    target_sks: &ServerKey,
+) -> Ciphertext {
+    assert!(
+        target_sks.message_modulus.0.is_power_of_two(),
+        "The message modulus(={}), must be a power of 2 to use the OPRF",
+        target_sks.message_modulus.0
+    );
+    let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
 
-        assert!(
-            target_sks.carry_modulus.0.is_power_of_two(),
-            "The carry modulus(={}), must be a power of 2 to use the OPRF",
-            target_sks.carry_modulus.0
-        );
-        let carry_bits_count = target_sks.carry_modulus.0.ilog2() as u64;
+    assert!(
+        target_sks.carry_modulus.0.is_power_of_two(),
+        "The carry modulus(={}), must be a power of 2 to use the OPRF",
+        target_sks.carry_modulus.0
+    );
+    let carry_bits_count = target_sks.carry_modulus.0.ilog2() as u64;
 
-        assert!(
-            random_bits_count <= carry_bits_count + message_bits_count,
-            "The number of random bits asked for (={random_bits_count}) is bigger than carry_bits_count (={carry_bits_count}) + message_bits_count(={message_bits_count})",
-        );
+    assert!(
+        random_bits_count <= carry_bits_count + message_bits_count,
+        "The number of random bits asked for (={random_bits_count}) is bigger than carry_bits_count (={carry_bits_count}) + message_bits_count(={message_bits_count})",
+    );
 
-        let mut blocks = self.generate_pseudo_random_bits(
-            seed,
-            random_bits_count,
-            random_bits_count, // This means we will have one block,
-            target_sks,
-        );
-        assert_eq!(blocks.len(), 1);
-        blocks.pop().unwrap()
-    }
+    let mut blocks = generate_pseudo_random_bits(
+        bsk,
+        seed,
+        random_bits_count,
+        random_bits_count, // This means we will have one block,
+        target_sks,
+    );
+    assert_eq!(blocks.len(), 1);
+    blocks.pop().unwrap()
+}
 
-    /// Uniformly generates a random encrypted ciphertexts
-    ///
-    ///
-    /// Generates `bit_count` random bits split over multiple blocks
-    ///
-    /// Each ciphertexts encrypt a value in `[0, 2^random_bits_per_block[`
-    /// execpt for the last one which may have less random bits:
-    /// `bit_count=3, random_bits_per_block=2` -> first_block: 2 bits, last blocks: 1 bit
-    ///
-    ///
-    /// # Panics
-    ///
-    /// * Panics if `randim_bits_per_blocks` is greater than the total number of bits in a block
-    /// * Panics if `self` is not compatible with `target_sks`
-    fn generate_pseudo_random_bits(
-        &self,
-        bytes: &[u8],
-        bit_count: u64,
-        random_bits_per_block: u64,
-        target_sks: &ServerKey,
-    ) -> Vec<Ciphertext> {
-        let ks_key = match &target_sks.atomic_pattern {
-            AtomicPatternServerKey::Standard(std) => {
-                self.assert_compatible_with_target_bsk(
-                    std.bootstrapping_key.input_lwe_dimension(),
-                    std.bootstrapping_key.output_lwe_dimension(),
-                    std.bootstrapping_key.polynomial_size(),
-                );
+fn generate_pseudo_random_bits(
+    bsk: &ShortintBootstrappingKey<u64>,
+    bytes: &[u8],
+    bit_count: u64,
+    random_bits_per_block: u64,
+    target_sks: &ServerKey,
+) -> Vec<Ciphertext> {
+    let ks_key = match &target_sks.atomic_pattern {
+        AtomicPatternServerKey::Standard(std) => {
+            assert_eq!(
+                std.bootstrapping_key.input_lwe_dimension(),
+                bsk.input_lwe_dimension()
+            );
+            assert_eq!(
+                std.bootstrapping_key.output_lwe_dimension(),
+                bsk.output_lwe_dimension()
+            );
+            assert_eq!(
+                std.bootstrapping_key.polynomial_size(),
+                bsk.polynomial_size()
+            );
 
-                match std.pbs_order {
-                    PBSOrder::KeyswitchBootstrap => None,
-                    PBSOrder::BootstrapKeyswitch => Some(&std.key_switching_key),
-                }
+            match std.pbs_order {
+                PBSOrder::KeyswitchBootstrap => None,
+                PBSOrder::BootstrapKeyswitch => Some(&std.key_switching_key),
             }
-            AtomicPatternServerKey::KeySwitch32(ks32) => {
-                self.assert_compatible_with_target_bsk(
-                    ks32.bootstrapping_key.input_lwe_dimension(),
-                    ks32.bootstrapping_key.output_lwe_dimension(),
-                    ks32.bootstrapping_key.polynomial_size(),
-                );
-                None
-            }
-            AtomicPatternServerKey::Dynamic(_) => {
-                panic!("Dynamic atomic pattern does not support oprf")
-            }
-        };
+        }
+        AtomicPatternServerKey::KeySwitch32(ks32) => {
+            assert_eq!(
+                ks32.bootstrapping_key.input_lwe_dimension(),
+                bsk.input_lwe_dimension()
+            );
+            assert_eq!(
+                ks32.bootstrapping_key.output_lwe_dimension(),
+                bsk.output_lwe_dimension()
+            );
+            assert_eq!(
+                ks32.bootstrapping_key.polynomial_size(),
+                bsk.polynomial_size()
+            );
+            None
+        }
+        AtomicPatternServerKey::Dynamic(_) => {
+            panic!("Dynamic atomic pattern does not support oprf")
+        }
+    };
 
-        let message_bits = target_sks.message_modulus.0.ilog2() as u64;
-        let carry_bits = target_sks.carry_modulus.0.ilog2() as u64;
-        let bits_in_one_block = 1 + message_bits + carry_bits;
-        assert!(
-            random_bits_per_block <= bits_in_one_block,
-            "The number of random bits asked for (={random_bits_per_block}) is bigger than full_bits_count (={bits_in_one_block})"
-        );
+    let message_bits = target_sks.message_modulus.0.ilog2() as u64;
+    let carry_bits = target_sks.carry_modulus.0.ilog2() as u64;
+    let bits_in_one_block = 1 + message_bits + carry_bits;
+    assert!(
+        random_bits_per_block <= bits_in_one_block,
+        "The number of random bits asked for (={random_bits_per_block}) is bigger than full_bits_count (={bits_in_one_block})"
+    );
 
-        let polynomial_size = self.polynomial_size();
-        let in_lwe_size = self.input_lwe_dimension().to_lwe_size();
-        let num_blocks = bit_count.div_ceil(random_bits_per_block) as usize;
+    let polynomial_size = bsk.polynomial_size();
+    let in_lwe_size = bsk.input_lwe_dimension().to_lwe_size();
+    let num_blocks = bit_count.div_ceil(random_bits_per_block) as usize;
 
-        let seeded_cts = create_random_from_seed_modulus_switched(
-            bytes,
-            in_lwe_size,
-            polynomial_size,
-            LweCiphertextCount(num_blocks),
-        );
+    let seeded_cts = create_random_from_seed_modulus_switched(
+        bytes,
+        in_lwe_size,
+        polynomial_size,
+        LweCiphertextCount(num_blocks),
+    );
 
-        let ciphertext_modulus = target_sks.ciphertext_modulus;
-        let last_block_bits = bit_count % random_bits_per_block;
+    let ciphertext_modulus = target_sks.ciphertext_modulus;
+    let last_block_bits = bit_count % random_bits_per_block;
 
-        let regular_lut = generate_oprf_lut(
-            random_bits_per_block,
+    let regular_lut = generate_oprf_lut(
+        random_bits_per_block,
+        bits_in_one_block,
+        polynomial_size,
+        bsk.glwe_size(),
+        ciphertext_modulus,
+    );
+    let last_block_lut = if last_block_bits != 0 {
+        Some(generate_oprf_lut(
+            last_block_bits,
             bits_in_one_block,
             polynomial_size,
-            self.glwe_size(),
+            bsk.glwe_size(),
             ciphertext_modulus,
-        );
-        let last_block_lut = if last_block_bits != 0 {
-            Some(generate_oprf_lut(
-                last_block_bits,
-                bits_in_one_block,
-                polynomial_size,
-                self.glwe_size(),
-                ciphertext_modulus,
-            ))
-        } else {
-            None
-        };
+        ))
+    } else {
+        None
+    };
 
-        seeded_cts
-            .into_par_iter()
-            .enumerate()
-            .map(|(i, seeded)| {
-                let (LookupTableOwned { mut acc, degree }, post_pbs_constant) =
-                    if i == num_blocks - 1 && last_block_lut.is_some() {
-                        last_block_lut.clone().unwrap()
-                    } else {
-                        regular_lut.clone()
-                    };
-
-                match self {
-                    Self::Classic { bsk } => {
-                        ShortintEngine::with_thread_local_mut(|engine| {
-                            let buffers = engine.get_computation_buffers();
-
-                            apply_standard_blind_rotate(bsk, &seeded, &mut acc, buffers);
-                        });
-                    }
-                    Self::MultiBit {
-                        fourier_bsk,
-                        thread_count,
-                        deterministic_execution,
-                    } => {
-                        let seeded_multi_bit = PrfMultiBitSeededModulusSwitched::from_raw_parts(
-                            seeded,
-                            fourier_bsk.grouping_factor(),
-                        );
-
-                        apply_multi_bit_blind_rotate(
-                            &seeded_multi_bit,
-                            &mut acc,
-                            fourier_bsk,
-                            *thread_count,
-                            *deterministic_execution,
-                        );
-                    }
-                }
-
-                let mut pbs_output = LweCiphertext::new(
-                    0u64,
-                    self.output_lwe_dimension().to_lwe_size(),
-                    ciphertext_modulus,
-                );
-                extract_lwe_sample_from_glwe_ciphertext(&acc, &mut pbs_output, MonomialDegree(0));
-                lwe_ciphertext_plaintext_add_assign(&mut pbs_output, post_pbs_constant);
-
-                let final_lwe = if let Some(ks_key) = ks_key {
-                    let mut ct_ksed = LweCiphertext::new(
-                        0,
-                        ks_key.input_key_lwe_dimension().to_lwe_size(),
-                        ks_key.ciphertext_modulus(),
-                    );
-
-                    keyswitch_lwe_ciphertext(ks_key, &pbs_output, &mut ct_ksed);
-                    ct_ksed
+    seeded_cts
+        .into_par_iter()
+        .enumerate()
+        .map(|(i, seeded)| {
+            let (LookupTableOwned { mut acc, degree }, post_pbs_constant) =
+                if i == num_blocks - 1 && last_block_lut.is_some() {
+                    last_block_lut.clone().unwrap()
                 } else {
-                    pbs_output
+                    regular_lut.clone()
                 };
 
-                Ciphertext::new(
-                    final_lwe,
-                    degree,
-                    NoiseLevel::NOMINAL,
-                    target_sks.message_modulus,
-                    target_sks.carry_modulus,
-                    target_sks.atomic_pattern.kind(),
-                )
-            })
-            .collect()
-    }
+            match bsk {
+                ShortintBootstrappingKey::Classic { bsk, .. } => {
+                    ShortintEngine::with_thread_local_mut(|engine| {
+                        let buffers = engine.get_computation_buffers();
+
+                        apply_standard_blind_rotate(bsk, &seeded, &mut acc, buffers);
+                    });
+                }
+                ShortintBootstrappingKey::MultiBit {
+                    fourier_bsk,
+                    thread_count,
+                    deterministic_execution,
+                } => {
+                    let seeded_multi_bit = PrfMultiBitSeededModulusSwitched::from_raw_parts(
+                        seeded,
+                        fourier_bsk.grouping_factor(),
+                    );
+
+                    apply_multi_bit_blind_rotate(
+                        &seeded_multi_bit,
+                        &mut acc,
+                        fourier_bsk,
+                        *thread_count,
+                        *deterministic_execution,
+                    );
+                }
+            }
+
+            let mut pbs_output = LweCiphertext::new(
+                0u64,
+                bsk.output_lwe_dimension().to_lwe_size(),
+                ciphertext_modulus,
+            );
+            extract_lwe_sample_from_glwe_ciphertext(&acc, &mut pbs_output, MonomialDegree(0));
+            lwe_ciphertext_plaintext_add_assign(&mut pbs_output, post_pbs_constant);
+
+            let final_lwe = if let Some(ks_key) = ks_key {
+                let mut ct_ksed = LweCiphertext::new(
+                    0,
+                    ks_key.input_key_lwe_dimension().to_lwe_size(),
+                    ks_key.ciphertext_modulus(),
+                );
+
+                keyswitch_lwe_ciphertext(ks_key, &pbs_output, &mut ct_ksed);
+                ct_ksed
+            } else {
+                pbs_output
+            };
+
+            Ciphertext::new(
+                final_lwe,
+                degree,
+                NoiseLevel::NOMINAL,
+                target_sks.message_modulus,
+                target_sks.carry_modulus,
+                target_sks.atomic_pattern.kind(),
+            )
+        })
+        .collect()
 }
 
 #[cfg(test)]
