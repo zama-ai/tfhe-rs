@@ -9,8 +9,8 @@ use crate::prelude::ShellString;
 
 use std::error::Error;
 use std::fs::OpenOptions;
-use std::io::Write;
-use std::process::Command;
+use std::io::{BufRead, Write};
+use std::process::{Command, Stdio};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
@@ -125,25 +125,45 @@ impl HpuHw {
         trgt
     }
 
-    fn jtag_program_board(sn: &str, pdi_path: &str) -> Result<(), String> {
-        let hw = Command::new(ShellString::new("${XILINX_VIVADO}/bin/vivado".to_string()).expand())
-            .arg("-mode")
+    /// Program all boards in a single Vivado session (one hw_manager open)
+    /// Streams lines prefixed with INFO/WARNING/ERROR via tracing while
+    /// suppressing the verbose Vivado log.
+    fn jtag_program_boards(serial_numbers: &[&str], pdi_path: &str) -> Result<(), String> {
+        let mut cmd =
+            Command::new(ShellString::new("${XILINX_VIVADO}/bin/vivado".to_string()).expand());
+        cmd.arg("-mode")
             .arg("batch")
             .arg("-source")
             .arg(ShellString::new("${HPU_BACKEND_DIR}/scripts/pdi_jtag.tcl".to_string()).expand())
             .arg("-tclargs")
-            .arg(pdi_path)
-            .arg(sn)
-            .output()
+            .arg(pdi_path);
+        for sn in serial_numbers {
+            cmd.arg(sn);
+        }
+        cmd.stdout(Stdio::piped());
+
+        let mut child = cmd
+            .spawn()
             .map_err(|e| format!("Failed to launch vivado: {e}"))?;
-        if hw.status.success() {
+
+        let stdout = child.stdout.take().expect("stdout was piped");
+        for line in std::io::BufReader::new(stdout).lines().flatten() {
+            if line.starts_with("INFO") {
+                tracing::info!("{line}");
+            } else if line.starts_with("WARNING") {
+                tracing::warn!("{line}");
+            } else if line.starts_with("ERROR") {
+                tracing::error!("{line}");
+            }
+        }
+
+        let status = child
+            .wait()
+            .map_err(|e| format!("Failed to wait for vivado: {e}"))?;
+        if status.success() {
             Ok(())
         } else {
-            Err(format!(
-                "JTAG programming of stage 1 failed ({})\nstderr: {}",
-                hw.status,
-                String::from_utf8_lossy(&hw.stderr)
-            ))
+            Err(format!("JTAG programming of stage 1 failed ({status})"))
         }
     }
 
@@ -193,20 +213,15 @@ impl HpuHw {
             .expect("Error while expanding stg1 pdi on filesystem");
 
         // 1. Load PDI stage one through JTAG --------------------------------------
+        // Open Vivado hw_manager once and program all boards in a single session
         let pdi_path = format!("{}/{}", tmp_dir_str, &pdi_stg1_tmp);
-        for (i, (dev, sn)) in dev_sn.iter().enumerate() {
-            // -> Use Xilinx hw_manager. Currently used through vivado for ease setup.
-            // hw manager expect stage 1 in a file, thus start by expanding the stg1_pdi in a tmp
-            // file
-            tracing::info!(
-                "Board[{}/{}][{dev}::{sn}] Load stage1 through JTAG",
-                i + 1,
-                dev_sn.len()
-            );
-            Self::jtag_program_board(sn, &pdi_path).unwrap_or_else(|e| {
-                panic!("Board[{}/{}][{dev}::{sn}] Stage1: {e}", i + 1, dev_sn.len())
-            });
-        }
+        let serial_numbers: Vec<&str> = dev_sn.iter().map(|(_, sn)| sn.as_str()).collect();
+        tracing::info!(
+            "Load stage1 through JTAG for {} board(s) in single Vivado session",
+            serial_numbers.len()
+        );
+        Self::jtag_program_boards(&serial_numbers, &pdi_path)
+            .unwrap_or_else(|e| panic!("Stage1 JTAG programming failed: {e}"));
 
         // 2. Rescan Pcie bus to detect new PF function ----------------------------
         // Update right on V80 pcie subsystem
@@ -315,30 +330,36 @@ impl HpuHw {
             data.copy_from_slice(hpu_pdi.pdi_stg2_bin.as_slice());
             data
         };
+        let stg2_data: &[u8] = stg2_aligned;
 
-        for (i, (dev, sn)) in dev_sn.iter().enumerate() {
-            tracing::info!(
-                "Board[{}/{}][{dev}::{sn}] Load stage2 through Qdma [{} bytes]",
-                i + 1,
-                dev_sn.len(),
-                hpu_pdi.pdi_stg2_bin.len()
-            );
-            Self::dma_program_board(dev, stg2_aligned).unwrap_or_else(|e| {
-                panic!("Board[{}/{}][{dev}::{sn}] Stage2: {e}", i + 1, dev_sn.len())
-            });
+        // Program all boards in parallel — each has independent PCIe/QDMA paths
+        std::thread::scope(|s| {
+            for (i, (dev, sn)) in dev_sn.iter().enumerate() {
+                s.spawn(move || {
+                    tracing::info!(
+                        "Board[{}/{}][{dev}::{sn}] Load stage2 through Qdma [{} bytes]",
+                        i + 1,
+                        dev_sn.len(),
+                        stg2_data.len()
+                    );
+                    Self::dma_program_board(dev, stg2_data).unwrap_or_else(|e| {
+                        panic!("Board[{}/{}][{dev}::{sn}] Stage2: {e}", i + 1, dev_sn.len())
+                    });
 
-            tracing::debug!(
-                "Board[{}/{}][{dev}::{sn}] Updating Pcie physical functions 0 status",
-                i + 1,
-                dev_sn.len()
-            );
-            OpenOptions::new()
-                .write(true)
-                .open(format!("/sys/bus/pci/devices/0000:{dev}:00.0/remove"))
-                .expect("Unable to open pci remove cmd file")
-                .write_all(b"1\n")
-                .expect("Unable to trigger a remove of pci pf0");
-        }
+                    tracing::debug!(
+                        "Board[{}/{}][{dev}::{sn}] Removing Pcie PF0",
+                        i + 1,
+                        dev_sn.len()
+                    );
+                    OpenOptions::new()
+                        .write(true)
+                        .open(format!("/sys/bus/pci/devices/0000:{dev}:00.0/remove"))
+                        .expect("Unable to open pci remove cmd file")
+                        .write_all(b"1\n")
+                        .expect("Unable to trigger a remove of pci pf0");
+                });
+            }
+        });
 
         // Properly release custom allocated memory
         unsafe { nix::libc::free(stg2_aligned.as_mut_ptr() as *mut _) };

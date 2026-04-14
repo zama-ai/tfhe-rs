@@ -91,6 +91,7 @@ impl HpuHw {
         }
         #[cfg(not(feature = "hw-v80"))]
         {
+            Vec::new()
         }
     }
 
