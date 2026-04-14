@@ -1,7 +1,6 @@
 use super::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::conformance::ParameterSetConformant;
-use crate::core_crypto::commons::generators::DeterministicSeeder;
-use crate::core_crypto::prelude::{Container, DefaultRandomGenerator, IntoContainerOwned};
+use crate::core_crypto::prelude::{Container, IntoContainerOwned};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ClientKey;
 use crate::shortint::oprf::{
@@ -11,7 +10,6 @@ use crate::shortint::oprf::{
 };
 use crate::shortint::AtomicPatternParameters;
 use aligned_vec::ABox;
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use std::num::NonZeroU64;
 use tfhe_fft::c64;
 use tfhe_versionable::Versionize;
@@ -70,25 +68,18 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     /// Generates all blocks at full message width — used by the unbounded methods.
     fn par_generate_oblivious_pseudo_random_integer_full_impl<T: IntegerRadixCiphertext>(
         &self,
-        seed: Seed,
+        seed: &[u8],
         num_blocks: u64,
         target_sks: &ServerKey,
     ) -> T {
         assert!(target_sks.message_modulus().0.is_power_of_two());
         let message_bits_count = target_sks.message_modulus().0.ilog2() as u64;
 
-        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
-        let seeds: Vec<Seed> = (0..num_blocks)
-            .map(|_| deterministic_seeder.seed())
-            .collect();
-
-        let blocks = seeds
-            .into_par_iter()
-            .map(|seed| {
-                self.0
-                    .generate_oblivious_pseudo_random(seed, message_bits_count, &target_sks.key)
-            })
-            .collect::<Vec<_>>();
+        let blocks = self.0.generate_oblivious_pseudo_random_bits(
+            seed,
+            num_blocks * message_bits_count,
+            &target_sks.key,
+        );
 
         T::from(blocks)
     }
@@ -96,7 +87,7 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     /// Generates blocks with per-block bit trimming — used by the bounded methods.
     fn par_generate_oblivious_pseudo_random_integer_bounded_impl<T: IntegerRadixCiphertext>(
         &self,
-        seed: Seed,
+        seed: &[u8],
         random_bits_count: u64,
         num_blocks: u64,
         target_sks: &ServerKey,
@@ -121,42 +112,12 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
             );
         }
 
-        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
-        let seeds: Vec<Seed> = (0..num_blocks)
-            .map(|_| deterministic_seeder.seed())
-            .collect();
-
-        let blocks = seeds
-            .into_par_iter()
-            .enumerate()
-            .map(|(i, seed)| {
-                let i = i as u64;
-
-                if i * message_bits_count < random_bits_count {
-                    // if we generate 5 bits of noise in n blocks of 2 bits, the third (i=2) block
-                    // must have only one bit of random
-                    if random_bits_count < (i + 1) * message_bits_count {
-                        let top_message_bits_count = random_bits_count - i * message_bits_count;
-
-                        assert!(top_message_bits_count <= message_bits_count);
-
-                        self.0.generate_oblivious_pseudo_random(
-                            seed,
-                            top_message_bits_count,
-                            &target_sks.key,
-                        )
-                    } else {
-                        self.0.generate_oblivious_pseudo_random(
-                            seed,
-                            message_bits_count,
-                            &target_sks.key,
-                        )
-                    }
-                } else {
-                    target_sks.key.create_trivial(0)
-                }
-            })
-            .collect::<Vec<_>>();
+        let mut blocks =
+            self.0
+                .generate_oblivious_pseudo_random_bits(seed, random_bits_count, &target_sks.key);
+        if blocks.len() < num_blocks as usize {
+            blocks.resize(num_blocks as usize, target_sks.key.create_trivial(0));
+        }
 
         T::from(blocks)
     }
@@ -170,7 +131,6 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::oprf::{OprfPrivateKey, OprfServerKey};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    /// use tfhe::Seed;
     ///
     /// let size = 4;
     ///
@@ -180,8 +140,11 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     /// let oprf_pk = OprfPrivateKey::new(cks.as_ref());
     /// let oprf_sk = OprfServerKey::new(&oprf_pk, cks.as_ref()).unwrap();
     ///
-    /// let ct_res =
-    ///     oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(Seed(0), size as u64, &sks);
+    /// let ct_res = oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(
+    ///     &0u128.to_le_bytes(),
+    ///     size as u64,
+    ///     &sks,
+    /// );
     ///
     /// // Decrypt:
     /// let dec_result: u64 = cks.decrypt(&ct_res);
@@ -190,7 +153,7 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_unsigned_integer(
         &self,
-        seed: Seed,
+        seed: &[u8],
         num_blocks: u64,
         target_sks: &ServerKey,
     ) -> RadixCiphertext {
@@ -206,7 +169,6 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::oprf::{OprfPrivateKey, OprfServerKey};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    /// use tfhe::Seed;
     ///
     /// let size = 4;
     ///
@@ -219,7 +181,7 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     /// let random_bits_count = 3;
     ///
     /// let ct_res = oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
-    ///     Seed(0),
+    ///     &0u128.to_le_bytes(),
     ///     random_bits_count,
     ///     size as u64,
     ///     &sks,
@@ -231,7 +193,7 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
         &self,
-        seed: Seed,
+        seed: &[u8],
         random_bits_count: u64,
         num_blocks: u64,
         target_sks: &ServerKey,
@@ -258,7 +220,6 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::oprf::{OprfPrivateKey, OprfServerKey};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    /// use tfhe::Seed;
     ///
     /// let size = 4;
     ///
@@ -273,7 +234,7 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     /// let num_blocks_output = 8;
     ///
     /// let ct_res = oprf_sk.par_generate_oblivious_pseudo_random_unsigned_custom_range(
-    ///     Seed(0),
+    ///     &0u128.to_le_bytes(),
     ///     num_input_random_bits,
     ///     excluded_upper_bound,
     ///     num_blocks_output,
@@ -287,7 +248,7 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_unsigned_custom_range(
         &self,
-        seed: Seed,
+        seed: &[u8],
         num_input_random_bits: u64,
         excluded_upper_bound: NonZeroU64,
         num_blocks_output: u64,
@@ -341,7 +302,6 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::oprf::{OprfPrivateKey, OprfServerKey};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    /// use tfhe::Seed;
     ///
     /// let size = 4;
     ///
@@ -351,8 +311,11 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     /// let oprf_pk = OprfPrivateKey::new(cks.as_ref());
     /// let oprf_sk = OprfServerKey::new(&oprf_pk, cks.as_ref()).unwrap();
     ///
-    /// let ct_res =
-    ///     oprf_sk.par_generate_oblivious_pseudo_random_signed_integer(Seed(0), size as u64, &sks);
+    /// let ct_res = oprf_sk.par_generate_oblivious_pseudo_random_signed_integer(
+    ///     &0u128.to_le_bytes(),
+    ///     size as u64,
+    ///     &sks,
+    /// );
     ///
     /// // Decrypt:
     /// let dec_result: i64 = cks.decrypt_signed(&ct_res);
@@ -361,7 +324,7 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_signed_integer(
         &self,
-        seed: Seed,
+        seed: &[u8],
         num_blocks: u64,
         target_sks: &ServerKey,
     ) -> SignedRadixCiphertext {
@@ -377,7 +340,6 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::oprf::{OprfPrivateKey, OprfServerKey};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    /// use tfhe::Seed;
     ///
     /// let size = 4;
     ///
@@ -390,7 +352,7 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     /// let oprf_sk = OprfServerKey::new(&oprf_pk, cks.as_ref()).unwrap();
     ///
     /// let ct_res = oprf_sk.par_generate_oblivious_pseudo_random_signed_integer_bounded(
-    ///     Seed(0),
+    ///     &0u128.to_le_bytes(),
     ///     random_bits_count,
     ///     size as u64,
     ///     &sks,
@@ -403,7 +365,7 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_signed_integer_bounded(
         &self,
-        seed: Seed,
+        seed: &[u8],
         random_bits_count: u64,
         num_blocks: u64,
         target_sks: &ServerKey,

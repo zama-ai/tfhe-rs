@@ -5,7 +5,7 @@ use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::shortint::MessageModulus;
-use crate::{FheInt, Seed};
+use crate::FheInt;
 use std::num::NonZeroU64;
 
 impl<Id: FheUintId> FheUint<Id> {
@@ -16,18 +16,18 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// ```rust
     /// use tfhe::prelude::FheDecrypt;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, Seed};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
     ///
     /// let config = ConfigBuilder::default().build();
     /// let (client_key, server_key) = generate_keys(config);
     ///
     /// set_server_key(server_key);
     ///
-    /// let ct_res = FheUint8::generate_oblivious_pseudo_random(Seed(0));
+    /// let ct_res = FheUint8::generate_oblivious_pseudo_random(&0u128.to_le_bytes());
     ///
     /// let dec_result: u16 = ct_res.decrypt(&client_key);
     /// ```
-    pub fn generate_oblivious_pseudo_random(seed: Seed) -> Self {
+    pub fn generate_oblivious_pseudo_random(seed: &[u8]) -> Self {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let sk = key.pbs_key();
@@ -105,7 +105,7 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// ```rust
     /// use tfhe::prelude::FheDecrypt;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, Seed};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
     ///
     /// let config = ConfigBuilder::default().build();
     /// let (client_key, server_key) = generate_keys(config);
@@ -114,12 +114,13 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// let random_bits_count = 3;
     ///
-    /// let ct_res = FheUint8::generate_oblivious_pseudo_random_bounded(Seed(0), random_bits_count);
+    /// let ct_res =
+    ///     FheUint8::generate_oblivious_pseudo_random_bounded(&0u128.to_le_bytes(), random_bits_count);
     ///
     /// let dec_result: u16 = ct_res.decrypt(&client_key);
     /// assert!(dec_result < (1 << random_bits_count));
     /// ```
-    pub fn generate_oblivious_pseudo_random_bounded(seed: Seed, random_bits_count: u64) -> Self {
+    pub fn generate_oblivious_pseudo_random_bounded(seed: &[u8], random_bits_count: u64) -> Self {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let sk = key.pbs_key();
@@ -185,7 +186,7 @@ impl<Id: FheUintId> FheUint<Id> {
     /// ```rust
     /// use std::num::NonZeroU64;
     /// use tfhe::prelude::FheDecrypt;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, RangeForRandom, Seed};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, RangeForRandom};
     ///
     /// let config = ConfigBuilder::default().build();
     /// let (client_key, server_key) = generate_keys(config);
@@ -196,13 +197,14 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// let range = RangeForRandom::new_from_excluded_upper_bound(excluded_upper_bound);
     ///
-    /// let ct_res = FheUint8::generate_oblivious_pseudo_random_custom_range(Seed(0), &range, None);
+    /// let ct_res =
+    ///     FheUint8::generate_oblivious_pseudo_random_custom_range(&0u128.to_le_bytes(), &range, None);
     ///
     /// let dec_result: u16 = ct_res.decrypt(&client_key);
     /// assert!(dec_result < excluded_upper_bound.get() as u16);
     /// ```
     pub fn generate_oblivious_pseudo_random_custom_range(
-        seed: Seed,
+        seed: &[u8],
         range: &RangeForRandom,
         max_distance: Option<f64>,
     ) -> Self {
@@ -321,20 +323,20 @@ impl<Id: FheIntId> FheInt<Id> {
     ///
     /// ```rust
     /// use tfhe::prelude::FheDecrypt;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8, Seed};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8};
     ///
     /// let config = ConfigBuilder::default().build();
     /// let (client_key, server_key) = generate_keys(config);
     ///
     /// set_server_key(server_key);
     ///
-    /// let ct_res = FheInt8::generate_oblivious_pseudo_random(Seed(0));
+    /// let ct_res = FheInt8::generate_oblivious_pseudo_random(&0u128.to_le_bytes());
     ///
     /// let dec_result: i16 = ct_res.decrypt(&client_key);
     /// assert!(dec_result < 1 << 7);
     /// assert!(dec_result >= -(1 << 7));
     /// ```
-    pub fn generate_oblivious_pseudo_random(seed: Seed) -> Self {
+    pub fn generate_oblivious_pseudo_random(seed: &[u8]) -> Self {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let sk = key.pbs_key();
@@ -412,7 +414,7 @@ impl<Id: FheIntId> FheInt<Id> {
     ///
     /// ```rust
     /// use tfhe::prelude::FheDecrypt;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8, Seed};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8};
     ///
     /// let config = ConfigBuilder::default().build();
     /// let (client_key, server_key) = generate_keys(config);
@@ -421,13 +423,14 @@ impl<Id: FheIntId> FheInt<Id> {
     ///
     /// let random_bits_count = 3;
     ///
-    /// let ct_res = FheInt8::generate_oblivious_pseudo_random_bounded(Seed(0), random_bits_count);
+    /// let ct_res =
+    ///     FheInt8::generate_oblivious_pseudo_random_bounded(&0u128.to_le_bytes(), random_bits_count);
     ///
     /// let dec_result: i16 = ct_res.decrypt(&client_key);
     /// assert!(dec_result >= 0);
     /// assert!(dec_result < 1 << random_bits_count);
     /// ```
-    pub fn generate_oblivious_pseudo_random_bounded(seed: Seed, random_bits_count: u64) -> Self {
+    pub fn generate_oblivious_pseudo_random_bounded(seed: &[u8], random_bits_count: u64) -> Self {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let sk = key.pbs_key();
@@ -586,8 +589,9 @@ mod test {
     use crate::prelude::FheDecrypt;
     use crate::shortint::oprf::test::test_uniformity;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
-    use crate::{generate_keys, set_server_key, ConfigBuilder, FheUint8, Seed};
+    use crate::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
     use num_bigint::BigUint;
+    use rand::prelude::*;
     use rand::{thread_rng, Rng};
     use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
@@ -755,8 +759,11 @@ mod test {
                 let real_values: Vec<u64> = (0..sample_count)
                     .into_par_iter()
                     .map(|_| {
+                        let mut seed = [0u8; 16];
+                        rand::thread_rng().fill_bytes(&mut seed);
+
                         let img = FheUint8::generate_oblivious_pseudo_random_custom_range(
-                            Seed(rand::thread_rng().gen::<u128>()),
+                            seed.as_slice(),
                             &range,
                             Some(max_distance),
                         );
@@ -847,12 +854,13 @@ mod test {
         let (client_key, server_key) = generate_keys(config);
         set_server_key(server_key);
 
-        let ct = FheUint8::generate_oblivious_pseudo_random(Seed(42));
+        let ct = FheUint8::generate_oblivious_pseudo_random(&42u128.to_le_bytes());
         let result: u16 = ct.decrypt(&client_key);
         // 8-bit value must fit in [0, 256)
         assert!(result < 256);
 
-        let ct_bounded = FheUint8::generate_oblivious_pseudo_random_bounded(Seed(42), 3);
+        let ct_bounded =
+            FheUint8::generate_oblivious_pseudo_random_bounded(&42u128.to_le_bytes(), 3);
         let result_bounded: u16 = ct_bounded.decrypt(&client_key);
         assert!(result_bounded < (1 << 3));
     }
@@ -875,13 +883,13 @@ mod test {
         fn test_oprf_gpu() {
             for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
                 let _ck = setup_fn();
-                let seed = Seed(0);
+                let seed = 0u128.to_le_bytes();
 
-                let img = FheUint64::generate_oblivious_pseudo_random_bounded(seed, 1);
+                let img = FheUint64::generate_oblivious_pseudo_random_bounded(&seed, 1);
 
                 assert_eq!(img.ciphertext.into_cpu().blocks.len(), 32);
 
-                let img = FheInt128::generate_oblivious_pseudo_random_bounded(seed, 1);
+                let img = FheInt128::generate_oblivious_pseudo_random_bounded(&seed, 1);
 
                 assert_eq!(img.ciphertext.into_cpu().blocks.len(), 64);
             }
@@ -960,8 +968,9 @@ mod test {
                                             rand::thread_rng()
                                         },
                                         |rng, _| {
+                                            let seed = rng.gen::<u128>().to_le_bytes();
                                             let img = FheUint8::generate_oblivious_pseudo_random_custom_range(
-                                                Seed(rng.gen::<u128>()),
+                                                &seed,
                                                 &range,
                                                 Some(max_distance),
                                             );

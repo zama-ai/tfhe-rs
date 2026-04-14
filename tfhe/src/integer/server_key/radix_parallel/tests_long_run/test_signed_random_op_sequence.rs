@@ -13,7 +13,7 @@ use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
 use crate::shortint::parameters::*;
-use crate::{ClientKey, CompressedServerKey, Seed, Tag};
+use crate::{ClientKey, CompressedServerKey, Tag};
 use std::cmp::{max, min};
 use std::sync::Arc;
 
@@ -89,9 +89,9 @@ pub(crate) type SignedLog2OpExecutor =
 
 // Add these new types for Signed OPRF operations
 pub(crate) type SignedOprfExecutor =
-    Box<dyn for<'a> OpSequenceFunctionExecutor<(Seed, u64), SignedRadixCiphertext>>;
+    Box<dyn for<'a> OpSequenceFunctionExecutor<(Vec<u8>, u64), SignedRadixCiphertext>>;
 pub(crate) type SignedOprfBoundedExecutor =
-    Box<dyn for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64), SignedRadixCiphertext>>;
+    Box<dyn for<'a> OpSequenceFunctionExecutor<(Vec<u8>, u64, u64), SignedRadixCiphertext>>;
 
 fn random_op_sequence<P>(param: P)
 where
@@ -501,10 +501,25 @@ where
     ];
 
     let signed_oprf_executor =
-        CpuOprfExecutor::new(&OprfServerKey::par_generate_oblivious_pseudo_random_signed_integer);
-    let signed_oprf_bounded_executor = CpuOprfExecutor::new(
-        &OprfServerKey::par_generate_oblivious_pseudo_random_signed_integer_bounded,
-    );
+        CpuOprfExecutor::new(&|oprf_sks: &OprfServerKey,
+                               seed: Vec<u8>,
+                               num_blocks: u64,
+                               sk: &ServerKey| {
+            oprf_sks.par_generate_oblivious_pseudo_random_signed_integer(&seed, num_blocks, sk)
+        });
+    let signed_oprf_bounded_executor =
+        CpuOprfExecutor::new(&|oprf_key: &OprfServerKey,
+                               seed: Vec<u8>,
+                               random_bits_count: u64,
+                               num_blocks: u64,
+                               target_sks: &ServerKey| {
+            oprf_key.par_generate_oblivious_pseudo_random_signed_integer_bounded(
+                &seed,
+                random_bits_count,
+                num_blocks,
+                target_sks,
+            )
+        });
 
     let mut signed_oprf_ops: Vec<(SignedOprfExecutor, String)> = vec![(
         Box::new(signed_oprf_executor),
@@ -1245,6 +1260,7 @@ pub(crate) fn signed_random_op_sequence_test(
             let (op_executor, fn_name) = &mut signed_oprf_ops[index];
 
             let seed = datagen.gen_seed();
+            let seed_bytes = seed.0.to_le_bytes().to_vec();
             let num_blocks = NB_CTXT_LONG_RUN as u64;
 
             println!(
@@ -1252,8 +1268,8 @@ pub(crate) fn signed_random_op_sequence_test(
                 seed.0
             );
 
-            let res = op_executor.execute((seed, num_blocks));
-            let res_1 = op_executor.execute((seed, num_blocks));
+            let res = op_executor.execute((seed_bytes.clone(), num_blocks));
+            let res_1 = op_executor.execute((seed_bytes, num_blocks));
 
             let decrypted_res: i64 = cks.decrypt_signed(&res);
 
@@ -1282,6 +1298,7 @@ pub(crate) fn signed_random_op_sequence_test(
             let (op_executor, fn_name) = &mut signed_oprf_bounded_ops[index];
 
             let seed = datagen.gen_seed();
+            let seed_bytes = seed.0.to_le_bytes().to_vec();
             let num_blocks = NB_CTXT_LONG_RUN as u64;
             let bits_per_block = sks.message_modulus().0.ilog2();
             let max_bits = num_blocks * bits_per_block as u64 - 1;
@@ -1292,8 +1309,8 @@ pub(crate) fn signed_random_op_sequence_test(
                 seed.0
             );
 
-            let res = op_executor.execute((seed, random_bits_count, num_blocks));
-            let res_1 = op_executor.execute((seed, random_bits_count, num_blocks));
+            let res = op_executor.execute((seed_bytes.clone(), random_bits_count, num_blocks));
+            let res_1 = op_executor.execute((seed_bytes, random_bits_count, num_blocks));
 
             let decrypted_res: i64 = cks.decrypt_signed(&res);
 
