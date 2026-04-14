@@ -30,7 +30,7 @@ use crate::shortint::server_key::{
     generate_lookup_table, LookupTableOwned, LookupTableSize, ManyLookupTableOwned,
 };
 use crate::shortint::{PBSOrder, PaddingBit, ShortintEncoding};
-pub use oprf::CudaOprfServerKey;
+pub use oprf::{CudaOprfServerKey, CudaOprfServerKeyView, GenericCudaOprfServerKey};
 
 mod abs;
 mod add;

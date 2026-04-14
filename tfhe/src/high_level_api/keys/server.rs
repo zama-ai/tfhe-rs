@@ -3,7 +3,7 @@ use crate::backward_compatibility::keys::{CompressedServerKeyVersions, ServerKey
 use crate::conformance::ParameterSetConformant;
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::CudaStreams;
-#[cfg(any(feature = "gpu", not(feature = "allow-deprecated-oprf-fallback")))]
+#[cfg(not(feature = "allow-deprecated-oprf-fallback"))]
 use crate::high_level_api::errors::{UninitializedOprfKey, UnwrapResultExt};
 #[cfg(feature = "gpu")]
 use crate::high_level_api::keys::inner::CudaReRandomizationKey;
@@ -23,8 +23,6 @@ use crate::integer::compression_keys::{
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::re_randomization::CudaReRandomizationKey as IntegerCudaReRandomizationKey;
 use crate::integer::noise_squashing::{CompressedNoiseSquashingKey, NoiseSquashingKey};
-#[cfg(feature = "allow-deprecated-oprf-fallback")]
-use crate::integer::oprf::GenericOprfServerKey;
 use crate::integer::oprf::{CompressedOprfServerKey, OprfServerKey, OprfServerKeyView};
 use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use crate::integer::public_key::compact::CompactPublicKey;
@@ -167,7 +165,7 @@ impl ServerKey {
         match self.oprf_key() {
             Some(dedicated) => dedicated.as_view(),
             #[cfg(feature = "allow-deprecated-oprf-fallback")]
-            None => GenericOprfServerKey(self.pbs_key().key.as_oprf_key_view()),
+            None => self.pbs_key().key.as_oprf_key_view(),
             #[cfg(not(feature = "allow-deprecated-oprf-fallback"))]
             None => Err(UninitializedOprfKey).unwrap_display(),
         }
@@ -300,6 +298,10 @@ impl ServerKey {
 
     pub fn supports_compression(&self) -> bool {
         self.key.compression_key.is_some()
+    }
+
+    pub fn supports_oprf(&self) -> bool {
+        self.key.oprf_key.is_some()
     }
 
     pub(in crate::high_level_api) fn message_modulus(&self) -> MessageModulus {
@@ -538,8 +540,17 @@ impl CudaServerKey {
     }
 
     #[track_caller]
-    pub(crate) fn require_oprf_key(&self) -> &crate::integer::gpu::CudaOprfServerKey {
-        self.oprf_key().ok_or(UninitializedOprfKey).unwrap_display()
+    pub(crate) fn require_oprf_key(&self) -> crate::integer::gpu::CudaOprfServerKeyView<'_> {
+        #[allow(clippy::option_if_let_else)]
+        match self.oprf_key() {
+            Some(dedicated) => dedicated.as_view(),
+            #[cfg(feature = "allow-deprecated-oprf-fallback")]
+            None => crate::integer::gpu::GenericCudaOprfServerKey::from_borrowed_bsk(
+                &self.key.key.bootstrapping_key,
+            ),
+            #[cfg(not(feature = "allow-deprecated-oprf-fallback"))]
+            None => Err(UninitializedOprfKey).unwrap_display(),
+        }
     }
 
     pub fn gpu_indexes(&self) -> &[GpuIndex] {
@@ -902,6 +913,7 @@ mod test {
                     noise_squashing_param: None,
                     noise_squashing_compression_param: None,
                     cpk_re_randomization_params: None,
+                    oprf: false,
                 };
 
                 assert!(!sk.is_conformant(&conformance_params));
@@ -932,6 +944,7 @@ mod test {
                 noise_squashing_param: None,
                 noise_squashing_compression_param: None,
                 cpk_re_randomization_params: None,
+                oprf: false,
             };
 
             assert!(!sk.is_conformant(&conformance_params));
@@ -1069,6 +1082,7 @@ mod test {
                     noise_squashing_param: None,
                     noise_squashing_compression_param: None,
                     cpk_re_randomization_params: None,
+                    oprf: false,
                 };
 
                 assert!(!sk.is_conformant(&conformance_params));
@@ -1099,6 +1113,7 @@ mod test {
                 noise_squashing_param: None,
                 noise_squashing_compression_param: None,
                 cpk_re_randomization_params: None,
+                oprf: false,
             };
 
             assert!(!sk.is_conformant(&conformance_params));

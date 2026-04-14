@@ -1,17 +1,16 @@
 use super::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::conformance::ParameterSetConformant;
-use crate::core_crypto::prelude::{Container, IntoContainerOwned};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ClientKey;
+use crate::named::Named;
 use crate::shortint::oprf::{
     CompressedOprfServerKey as ShortintCompressedOprfServerKey, ExpandedOprfServerKey,
-    GenericOprfServerKey as ShortintGenericOprfServerKey, OprfPrivateKey as ShortintOprfPrivateKey,
-    OprfServerKey as ShortintOprfServerKey,
+    OprfPrivateKey as ShortintOprfPrivateKey, OprfServerKey as ShortintOprfServerKey,
 };
+use crate::shortint::server_key::ShortintBootstrappingKey;
 use crate::shortint::AtomicPatternParameters;
-use aligned_vec::ABox;
+use std::borrow::Borrow;
 use std::num::NonZeroU64;
-use tfhe_fft::c64;
 use tfhe_versionable::Versionize;
 
 pub use tfhe_csprng::seeders::{Seed, Seeder};
@@ -45,6 +44,14 @@ impl CompressedOprfServerKey {
         ShortintCompressedOprfServerKey::new(&sk.0, &target_ck.key).map(Self)
     }
 
+    pub fn from_raw_parts(inner: ShortintCompressedOprfServerKey) -> Self {
+        Self(inner)
+    }
+
+    pub fn into_raw_parts(self) -> ShortintCompressedOprfServerKey {
+        self.0
+    }
+
     pub fn expand(&self) -> ExpandedOprfServerKey {
         self.0.expand()
     }
@@ -55,73 +62,130 @@ impl CompressedOprfServerKey {
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
-#[serde(bound(deserialize = "C: IntoContainerOwned"))]
 #[versionize(OprfServerKeyVersions)]
-pub struct GenericOprfServerKey<C: Container<Element = c64>>(
-    pub(crate) ShortintGenericOprfServerKey<C>,
-);
+pub struct OprfServerKey(pub(crate) ShortintOprfServerKey);
 
-pub type OprfServerKey = GenericOprfServerKey<ABox<[c64]>>;
-pub type OprfServerKeyView<'a> = GenericOprfServerKey<&'a [c64]>;
+pub type OprfServerKeyView<'a> =
+    crate::shortint::oprf::GenericOprfServerKey<&'a ShortintBootstrappingKey<u64>>;
 
-impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
-    /// Generates all blocks at full message width — used by the unbounded methods.
-    fn par_generate_oblivious_pseudo_random_integer_full_impl<T: IntegerRadixCiphertext>(
-        &self,
-        seed: &[u8],
-        num_blocks: u64,
-        target_sks: &ServerKey,
-    ) -> T {
-        assert!(target_sks.message_modulus().0.is_power_of_two());
-        let message_bits_count = target_sks.message_modulus().0.ilog2() as u64;
+// Helper functions for integer-level OPRF operations, used by both OprfServerKey and
+// OprfServerKeyView.
+fn par_generate_oblivious_pseudo_random_integer_full_impl<
+    T: IntegerRadixCiphertext,
+    K: Borrow<ShortintBootstrappingKey<u64>> + Sync,
+>(
+    shortint_key: &crate::shortint::oprf::GenericOprfServerKey<K>,
+    seed: &[u8],
+    num_blocks: u64,
+    target_sks: &ServerKey,
+) -> T {
+    assert!(target_sks.message_modulus().0.is_power_of_two());
+    let message_bits_count = target_sks.message_modulus().0.ilog2() as u64;
 
-        let blocks = self.0.generate_oblivious_pseudo_random_bits(
-            seed,
-            num_blocks * message_bits_count,
-            &target_sks.key,
-        );
+    let blocks = shortint_key.generate_oblivious_pseudo_random_bits(
+        seed,
+        num_blocks * message_bits_count,
+        &target_sks.key,
+    );
 
-        T::from(blocks)
-    }
+    T::from(blocks)
+}
 
-    /// Generates blocks with per-block bit trimming — used by the bounded methods.
-    fn par_generate_oblivious_pseudo_random_integer_bounded_impl<T: IntegerRadixCiphertext>(
-        &self,
-        seed: &[u8],
-        random_bits_count: u64,
-        num_blocks: u64,
-        target_sks: &ServerKey,
-    ) -> T {
-        assert!(target_sks.message_modulus().0.is_power_of_two());
-        let message_bits_count = target_sks.message_modulus().0.ilog2() as u64;
-        let range_log_size = message_bits_count * num_blocks;
+fn par_generate_oblivious_pseudo_random_integer_bounded_impl<
+    T: IntegerRadixCiphertext,
+    K: Borrow<ShortintBootstrappingKey<u64>> + Sync,
+>(
+    shortint_key: &crate::shortint::oprf::GenericOprfServerKey<K>,
+    seed: &[u8],
+    random_bits_count: u64,
+    num_blocks: u64,
+    target_sks: &ServerKey,
+) -> T {
+    assert!(target_sks.message_modulus().0.is_power_of_two());
+    let message_bits_count = target_sks.message_modulus().0.ilog2() as u64;
+    let range_log_size = message_bits_count * num_blocks;
 
-        if T::IS_SIGNED {
-            #[allow(clippy::int_plus_one)]
-            {
-                assert!(
-                    random_bits_count + 1 <= range_log_size,
-                    "The range asked for a random value (=[0, 2^{}[) does not fit in the available range [-2^{}, 2^{}[",
-                    random_bits_count, range_log_size - 1, range_log_size - 1,
-                );
-            }
-        } else {
+    if T::IS_SIGNED {
+        #[allow(clippy::int_plus_one)]
+        {
             assert!(
-                random_bits_count <= range_log_size,
-                "The range asked for a random value (=[0, 2^{random_bits_count}[) does not fit in the available range [0, 2^{range_log_size}[",
+                random_bits_count + 1 <= range_log_size,
+                "The range asked for a random value (=[0, 2^{}[) does not fit in the available range [-2^{}, 2^{}[",
+                random_bits_count, range_log_size - 1, range_log_size - 1,
             );
         }
-
-        let mut blocks =
-            self.0
-                .generate_oblivious_pseudo_random_bits(seed, random_bits_count, &target_sks.key);
-        if blocks.len() < num_blocks as usize {
-            blocks.resize(num_blocks as usize, target_sks.key.create_trivial(0));
-        }
-
-        T::from(blocks)
+    } else {
+        assert!(
+            random_bits_count <= range_log_size,
+            "The range asked for a random value (=[0, 2^{random_bits_count}[) does not fit in the available range [0, 2^{range_log_size}[",
+        );
     }
 
+    let mut blocks = shortint_key.generate_oblivious_pseudo_random_bits(
+        seed,
+        random_bits_count,
+        &target_sks.key,
+    );
+    if blocks.len() < num_blocks as usize {
+        blocks.resize(num_blocks as usize, target_sks.key.create_trivial(0));
+    }
+
+    T::from(blocks)
+}
+
+fn par_generate_oblivious_pseudo_random_unsigned_custom_range_impl<
+    K: Borrow<ShortintBootstrappingKey<u64>> + Sync,
+>(
+    shortint_key: &crate::shortint::oprf::GenericOprfServerKey<K>,
+    seed: &[u8],
+    num_input_random_bits: u64,
+    excluded_upper_bound: NonZeroU64,
+    num_blocks_output: u64,
+    target_sks: &ServerKey,
+) -> RadixCiphertext {
+    let excluded_upper_bound = excluded_upper_bound.get();
+
+    assert!(target_sks.message_modulus().0.is_power_of_two());
+    let message_bits_count = target_sks.message_modulus().0.ilog2() as u64;
+
+    assert!(
+        !excluded_upper_bound.is_power_of_two(),
+        "Use the cheaper par_generate_oblivious_pseudo_random_unsigned_integer_bounded function instead"
+    );
+
+    let num_bits_output = num_blocks_output * message_bits_count;
+    assert!(
+        (excluded_upper_bound as f64) < 2_f64.powi(num_bits_output as i32),
+        "num_blocks_output(={num_blocks_output}) is too small to hold an integer up to excluded_upper_bound(=excluded_upper_bound)"
+    );
+
+    let post_mul_num_bits =
+        num_input_random_bits + (excluded_upper_bound as f64).log2().ceil() as u64;
+
+    let num_blocks = post_mul_num_bits.div_ceil(message_bits_count);
+
+    let random_input: RadixCiphertext = par_generate_oblivious_pseudo_random_integer_bounded_impl(
+        shortint_key,
+        seed,
+        num_input_random_bits,
+        num_blocks,
+        target_sks,
+    );
+
+    let random_multiplied = target_sks.scalar_mul_parallelized(&random_input, excluded_upper_bound);
+
+    let mut result =
+        target_sks.scalar_right_shift_parallelized(&random_multiplied, num_input_random_bits);
+
+    // Adjust the number of leading (MSB) trivial zeros blocks
+    result
+        .blocks
+        .resize(num_blocks_output as usize, target_sks.key.create_trivial(0));
+
+    result
+}
+
+impl OprfServerKey {
     /// Generates an encrypted `num_block` blocks unsigned integer
     /// taken uniformly in its full range using the given seed.
     /// The encrypted value is oblivious to the server.
@@ -157,7 +221,9 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
         num_blocks: u64,
         target_sks: &ServerKey,
     ) -> RadixCiphertext {
-        self.par_generate_oblivious_pseudo_random_integer_full_impl(seed, num_blocks, target_sks)
+        par_generate_oblivious_pseudo_random_integer_full_impl(
+            &self.0, seed, num_blocks, target_sks,
+        )
     }
 
     /// Generates an encrypted `num_block` blocks unsigned integer
@@ -198,7 +264,8 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
         num_blocks: u64,
         target_sks: &ServerKey,
     ) -> RadixCiphertext {
-        self.par_generate_oblivious_pseudo_random_integer_bounded_impl(
+        par_generate_oblivious_pseudo_random_integer_bounded_impl(
+            &self.0,
             seed,
             random_bits_count,
             num_blocks,
@@ -254,43 +321,14 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
         num_blocks_output: u64,
         target_sks: &ServerKey,
     ) -> RadixCiphertext {
-        let excluded_upper_bound = excluded_upper_bound.get();
-
-        assert!(target_sks.message_modulus().0.is_power_of_two());
-        let message_bits_count = target_sks.message_modulus().0.ilog2() as u64;
-
-        assert!(
-            !excluded_upper_bound.is_power_of_two(),
-            "Use the cheaper par_generate_oblivious_pseudo_random_unsigned_integer_bounded function instead"
-        );
-
-        let num_bits_output = num_blocks_output * message_bits_count;
-        assert!((excluded_upper_bound as f64) < 2_f64.powi(num_bits_output as i32), "num_blocks_output(={num_blocks_output}) is too small to hold an integer up to excluded_upper_bound(=excluded_upper_bound)");
-
-        let post_mul_num_bits =
-            num_input_random_bits + (excluded_upper_bound as f64).log2().ceil() as u64;
-
-        let num_blocks = post_mul_num_bits.div_ceil(message_bits_count);
-
-        let random_input = self.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+        par_generate_oblivious_pseudo_random_unsigned_custom_range_impl(
+            &self.0,
             seed,
             num_input_random_bits,
-            num_blocks,
+            excluded_upper_bound,
+            num_blocks_output,
             target_sks,
-        );
-
-        let random_multiplied =
-            target_sks.scalar_mul_parallelized(&random_input, excluded_upper_bound);
-
-        let mut result =
-            target_sks.scalar_right_shift_parallelized(&random_multiplied, num_input_random_bits);
-
-        // Adjust the number of leading (MSB) trivial zeros blocks
-        result
-            .blocks
-            .resize(num_blocks_output as usize, target_sks.key.create_trivial(0));
-
-        result
+        )
     }
 
     /// Generates an encrypted `num_block` blocks signed integer
@@ -328,7 +366,9 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
         num_blocks: u64,
         target_sks: &ServerKey,
     ) -> SignedRadixCiphertext {
-        self.par_generate_oblivious_pseudo_random_integer_full_impl(seed, num_blocks, target_sks)
+        par_generate_oblivious_pseudo_random_integer_full_impl(
+            &self.0, seed, num_blocks, target_sks,
+        )
     }
 
     /// Generates an encrypted `num_block` blocks signed integer
@@ -370,10 +410,81 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
         num_blocks: u64,
         target_sks: &ServerKey,
     ) -> SignedRadixCiphertext {
-        self.par_generate_oblivious_pseudo_random_integer_bounded_impl(
+        par_generate_oblivious_pseudo_random_integer_bounded_impl(
+            &self.0,
             seed,
             random_bits_count,
             num_blocks,
+            target_sks,
+        )
+    }
+}
+
+impl OprfServerKeyView<'_> {
+    pub fn par_generate_oblivious_pseudo_random_unsigned_integer(
+        &self,
+        seed: &[u8],
+        num_blocks: u64,
+        target_sks: &ServerKey,
+    ) -> RadixCiphertext {
+        par_generate_oblivious_pseudo_random_integer_full_impl(self, seed, num_blocks, target_sks)
+    }
+
+    pub fn par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+        &self,
+        seed: &[u8],
+        random_bits_count: u64,
+        num_blocks: u64,
+        target_sks: &ServerKey,
+    ) -> RadixCiphertext {
+        par_generate_oblivious_pseudo_random_integer_bounded_impl(
+            self,
+            seed,
+            random_bits_count,
+            num_blocks,
+            target_sks,
+        )
+    }
+
+    pub fn par_generate_oblivious_pseudo_random_signed_integer(
+        &self,
+        seed: &[u8],
+        num_blocks: u64,
+        target_sks: &ServerKey,
+    ) -> SignedRadixCiphertext {
+        par_generate_oblivious_pseudo_random_integer_full_impl(self, seed, num_blocks, target_sks)
+    }
+
+    pub fn par_generate_oblivious_pseudo_random_signed_integer_bounded(
+        &self,
+        seed: &[u8],
+        random_bits_count: u64,
+        num_blocks: u64,
+        target_sks: &ServerKey,
+    ) -> SignedRadixCiphertext {
+        par_generate_oblivious_pseudo_random_integer_bounded_impl(
+            self,
+            seed,
+            random_bits_count,
+            num_blocks,
+            target_sks,
+        )
+    }
+
+    pub fn par_generate_oblivious_pseudo_random_unsigned_custom_range(
+        &self,
+        seed: &[u8],
+        num_input_random_bits: u64,
+        excluded_upper_bound: NonZeroU64,
+        num_blocks_output: u64,
+        target_sks: &ServerKey,
+    ) -> RadixCiphertext {
+        par_generate_oblivious_pseudo_random_unsigned_custom_range_impl(
+            self,
+            seed,
+            num_input_random_bits,
+            excluded_upper_bound,
+            num_blocks_output,
             target_sks,
         )
     }
@@ -398,6 +509,26 @@ impl OprfServerKey {
     }
 
     pub fn as_view(&self) -> OprfServerKeyView<'_> {
-        GenericOprfServerKey(self.0.as_view())
+        self.0.as_view()
     }
+}
+
+impl ParameterSetConformant for OprfServerKey {
+    type ParameterSet = AtomicPatternParameters;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        self.0.is_conformant(parameter_set)
+    }
+}
+
+impl Named for OprfPrivateKey {
+    const NAME: &'static str = "integer::OprfPrivateKey";
+}
+
+impl Named for OprfServerKey {
+    const NAME: &'static str = "integer::OprfServerKey";
+}
+
+impl Named for CompressedOprfServerKey {
+    const NAME: &'static str = "integer::CompressedOprfServerKey";
 }

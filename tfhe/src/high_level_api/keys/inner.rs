@@ -65,7 +65,7 @@ impl IntegerConfig {
             noise_squashing_parameters: None,
             noise_squashing_compression_parameters: None,
             cpk_re_randomization_params: None,
-            oprf: false,
+            oprf: true,
         }
     }
 
@@ -983,6 +983,7 @@ pub struct IntegerServerKeyConformanceParams {
     pub noise_squashing_param: Option<NoiseSquashingParameters>,
     pub noise_squashing_compression_param: Option<NoiseSquashingCompressionParameters>,
     pub cpk_re_randomization_params: Option<ReRandomizationParameters>,
+    pub oprf: bool,
 }
 
 impl<C: Into<Config>> From<C> for IntegerServerKeyConformanceParams {
@@ -995,6 +996,7 @@ impl<C: Into<Config>> From<C> for IntegerServerKeyConformanceParams {
             noise_squashing_param: config.inner.noise_squashing_parameters,
             noise_squashing_compression_param: config.inner.noise_squashing_compression_parameters,
             cpk_re_randomization_params: config.inner.cpk_re_randomization_params,
+            oprf: config.inner.oprf,
         }
     }
 }
@@ -1181,9 +1183,14 @@ impl ParameterSetConformant for IntegerServerKey {
             }
         };
 
-        let oprf_is_ok = oprf_key
-            .as_ref()
-            .map_or_else(|| true, |key| key.is_conformant(&parameter_set.sk_param));
+        let oprf_is_ok = match (parameter_set.oprf, oprf_key.as_ref()) {
+            (false, None) => true,
+            (true, Some(key)) => key.is_conformant(&parameter_set.sk_param),
+            // No dedicated key but oprf expected: OK with fallback, error without
+            #[cfg(feature = "allow-deprecated-oprf-fallback")]
+            (true, None) => true,
+            _ => return false,
+        };
 
         key.is_conformant(&parameter_set.sk_param)
             && cpk_key_switching_key_material_is_ok
@@ -1330,9 +1337,14 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
             }
         };
 
-        let oprf_is_ok = oprf_key
-            .as_ref()
-            .is_none_or(|key| key.is_conformant(&parameter_set.sk_param));
+        let oprf_is_ok = match (parameter_set.oprf, oprf_key.as_ref()) {
+            (false, None) => true,
+            (true, Some(key)) => key.is_conformant(&parameter_set.sk_param),
+            // No dedicated key but oprf expected: OK with fallback, error without
+            #[cfg(feature = "allow-deprecated-oprf-fallback")]
+            (true, None) => true,
+            _ => return false,
+        };
 
         key.is_conformant(&parameter_set.sk_param)
             && cpk_key_switching_key_material_is_ok

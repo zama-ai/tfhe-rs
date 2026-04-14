@@ -994,6 +994,7 @@ dependencies = [
  "tfhe-csprng",
  "tfhe-fft",
  "tfhe-ntt",
+ "tfhe-safe-serialize",
  "tfhe-versionable",
  "tfhe-zk-pok",
 ]
@@ -1046,6 +1047,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tfhe-safe-serialize"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "serde",
+ "tfhe-versionable",
+]
+
+[[package]]
 name = "tfhe-versionable"
 version = "0.7.0"
 dependencies = [
@@ -1073,11 +1083,13 @@ dependencies = [
  "ark-ff",
  "ark-poly",
  "getrandom",
+ "itertools 0.14.0",
  "num-bigint",
  "rand",
  "rayon",
  "serde",
  "sha3",
+ "tfhe-safe-serialize",
  "tfhe-versionable",
  "zeroize",
 ]
