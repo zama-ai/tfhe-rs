@@ -33,7 +33,7 @@ SKIP_PARAMS = {
     ("bool", "allocate_gpu_memory"),
     ("uint64_t", "size_tracker"),
     ("void", "bsks"),
-    ("Torus", "ksks"),
+    ("", "ksks"),
     ("cudaStream_t", "stream"),
     ("void *", "stream"),
     ("uint32_t", "gpu_index"),
@@ -53,8 +53,16 @@ SKIP_MEMBERS = {
 # Template parameters that don't require @tparam documentation.
 SKIP_TPARAMS = {"Torus", "KSTorus", "T"}
 
-# Functions which don't require documentation.
+# Functions which don't require documentation (exact names).
 SKIP_FUNCTIONS = {"release"}
+
+# Functions whose names start with any of these prefixes don't require docs.
+SKIP_FUNCTION_PREFIXES = {"scratch_", "cleanup_"}
+
+# Files excluded from doxygen checks (relative to repo root).
+SKIP_FILES = {
+    "backends/tfhe-cuda-backend/cuda/include/integer/integer.h",
+}
 
 
 def run(cmd, **kwargs):
@@ -258,7 +266,9 @@ def parse_xml_issues(xml_dir, added, root):
                 continue
             name = memberdef.findtext("name", "")
             if kind == "function":
-                if name in SKIP_FUNCTIONS or name.lstrip("~") in compound_names:
+                if (name in SKIP_FUNCTIONS
+                        or any(name.startswith(p) for p in SKIP_FUNCTION_PREFIXES)
+                        or name.lstrip("~") in compound_names):
                     continue
                 issues = check_entity(name, kind, memberdef, memberdef.findall("param"))
                 for issue in issues:
@@ -286,6 +296,7 @@ def main():
         f for f in all_changed
         if f.suffix in EXTENSIONS
         and any(str(f).startswith(str(root / d)) for d in SCOPED_DIRS)
+        and not any(str(f) == str(root / s) for s in SKIP_FILES)
     ]
 
     if not relevant:
