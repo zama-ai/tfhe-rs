@@ -86,7 +86,7 @@ impl BitonicShuffleKeySize {
         Self::NumBits(num_bits)
     }
 
-    fn num_blocks_of_keys(&self, num_elements: usize, msg_mod: MessageModulus) -> u32 {
+    pub(crate) fn num_blocks_of_keys(&self, num_elements: usize, msg_mod: MessageModulus) -> u32 {
         let bits = match self {
             Self::CollisionProbability(CollisionProbability(proba)) => {
                 let n_squared = (num_elements * num_elements) as f64;
@@ -272,10 +272,16 @@ impl ServerKey {
             stage
                 .into_par_iter()
                 .map(|(i, j, ascending)| {
+                    // For ascending pairs, swap when `keys[i] > keys[j]` (strict gt).
+                    // For descending pairs, swap when `keys[i] <= keys[j]` (lt-or-equal).
+                    // The asymmetry on equal keys matches the GPU backend's `predicate_lut`
+                    // which selects the swap branch whenever the comparison sign is not SUP
+                    // (so EQ is grouped with INF), so CPU and GPU produce identical
+                    // permutations for the same seed.
                     let cmp = if ascending {
                         self.unchecked_gt_parallelized(&keys[i], &keys[j])
                     } else {
-                        self.unchecked_lt_parallelized(&keys[i], &keys[j])
+                        self.unchecked_le_parallelized(&keys[i], &keys[j])
                     };
 
                     // If we use unchecked_flip, both outputs will have noise_level = 2
@@ -313,5 +319,27 @@ impl ServerKey {
 
         data.truncate(n);
         data
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::bitonic_network;
+
+    #[test]
+    fn bitonic_network_builds_expected_pairs_for_n8() {
+        let network = bitonic_network(8);
+
+        assert_eq!(
+            network,
+            vec![
+                vec![(0, 1, true), (2, 3, false), (4, 5, true), (6, 7, false)],
+                vec![(0, 2, true), (1, 3, true), (4, 6, false), (5, 7, false)],
+                vec![(0, 1, true), (2, 3, true), (4, 5, false), (6, 7, false)],
+                vec![(0, 4, true), (1, 5, true), (2, 6, true), (3, 7, true)],
+                vec![(0, 2, true), (1, 3, true), (4, 6, true), (5, 7, true)],
+                vec![(0, 1, true), (2, 3, true), (4, 5, true), (6, 7, true)],
+            ]
+        );
     }
 }

@@ -41,9 +41,21 @@ where
                 .collect())
         }
         #[cfg(feature = "gpu")]
-        InternalServerKey::Cuda(_) => Err(crate::Error::new(
-            "bitonic_shuffle is not supported on Cuda".to_string(),
-        )),
+        InternalServerKey::Cuda(cuda_key) => {
+            let streams = &cuda_key.streams;
+            let inner = data.into_iter().map(|v| v.into_gpu(streams)).collect();
+            let result = cuda_key.pbs_key().bitonic_shuffle(
+                &cuda_key.oprf_key(),
+                inner,
+                key_size,
+                seed,
+                streams,
+            )?;
+            Ok(result
+                .into_iter()
+                .map(|ct| T::from_gpu(ct, cuda_key.tag.clone(), ReRandomizationMetadata::default()))
+                .collect())
+        }
         #[cfg(feature = "hpu")]
         InternalServerKey::Hpu(_) => Err(crate::Error::new(
             "bitonic_shuffle is not supported on Hpu".to_string(),
@@ -55,6 +67,8 @@ where
 mod test {
     use super::{bitonic_shuffle, BitonicShuffleKeySize};
     use crate::core_crypto::prelude::new_seeder;
+    #[cfg(feature = "gpu")]
+    use crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN;
     use crate::high_level_api::prelude::*;
     use crate::high_level_api::tests::setup_default_cpu;
     use crate::{FheInt8, FheUint8};
@@ -128,5 +142,80 @@ mod test {
         clear_values.sort_unstable();
         decrypted.sort_unstable();
         assert_eq!(decrypted, clear_values);
+    }
+
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn test_bitonic_shuffle_fheuint_gpu() {
+        for setup_fn in GPU_SETUP_FN {
+            let cks = setup_fn();
+            let mut rng = rand::thread_rng();
+            let mut clear_values: Vec<u8> = (0..15).map(|_| rng.gen()).collect();
+
+            let encrypted: Vec<FheUint8> = clear_values
+                .iter()
+                .map(|&v| FheUint8::try_encrypt(v, &cks).unwrap())
+                .collect();
+
+            let seed = new_seeder().seed();
+            let shuffled =
+                bitonic_shuffle(encrypted, BitonicShuffleKeySize::num_bits(32), seed).unwrap();
+
+            let mut decrypted: Vec<u8> = shuffled.iter().map(|ct| ct.decrypt(&cks)).collect();
+
+            clear_values.sort_unstable();
+            decrypted.sort_unstable();
+            assert_eq!(decrypted, clear_values);
+        }
+    }
+
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn test_bitonic_shuffle_fheint_gpu() {
+        for setup_fn in GPU_SETUP_FN {
+            let cks = setup_fn();
+            let mut rng = rand::thread_rng();
+            let mut clear_values: Vec<i8> = (0..15).map(|_| rng.gen()).collect();
+
+            let encrypted: Vec<FheInt8> = clear_values
+                .iter()
+                .map(|&v| FheInt8::try_encrypt(v, &cks).unwrap())
+                .collect();
+
+            let seed = new_seeder().seed();
+            let shuffled =
+                bitonic_shuffle(encrypted, BitonicShuffleKeySize::num_bits(32), seed).unwrap();
+
+            let mut decrypted: Vec<i8> = shuffled.iter().map(|ct| ct.decrypt(&cks)).collect();
+
+            clear_values.sort_unstable();
+            decrypted.sort_unstable();
+            assert_eq!(decrypted, clear_values);
+        }
+    }
+
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn test_bitonic_shuffle_collision_probability_gpu() {
+        for setup_fn in GPU_SETUP_FN {
+            let cks = setup_fn();
+            let mut rng = rand::thread_rng();
+            let mut clear_values: Vec<u8> = (0..15).map(|_| rng.gen()).collect();
+
+            let encrypted: Vec<FheUint8> = clear_values
+                .iter()
+                .map(|&v| FheUint8::try_encrypt(v, &cks).unwrap())
+                .collect();
+
+            let seed = new_seeder().seed();
+            let key_size = BitonicShuffleKeySize::collision_probability(4e-8);
+            let shuffled = bitonic_shuffle(encrypted, key_size, seed).unwrap();
+
+            let mut decrypted: Vec<u8> = shuffled.iter().map(|ct| ct.decrypt(&cks)).collect();
+
+            clear_values.sort_unstable();
+            decrypted.sort_unstable();
+            assert_eq!(decrypted, clear_values);
+        }
     }
 }

@@ -10,5 +10,6 @@ pub mod zk;
 
 pub use ffi::*;
 pub use server_key::{
-    CudaOprfServerKey, CudaOprfServerKeyView, CudaServerKey, GenericCudaOprfServerKey,
+    BitonicShuffleKeySize, CollisionProbability, CudaOprfServerKey, CudaOprfServerKeyView,
+    CudaServerKey, GenericCudaOprfServerKey,
 };

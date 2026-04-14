@@ -1,5 +1,6 @@
 pub(crate) mod test_abs;
 pub(crate) mod test_add;
+pub(crate) mod test_bitonic_shuffle;
 pub(crate) mod test_bitwise_op;
 pub(crate) mod test_cmux;
 pub(crate) mod test_comparison;
@@ -1372,5 +1373,178 @@ where
         );
 
         d_res.to_signed_radix_ciphertext(&context.streams)
+    }
+}
+
+/// For in-place sort functions operating on Vec of signed ciphertexts
+impl<F> FunctionExecutor<Vec<SignedRadixCiphertext>, Vec<SignedRadixCiphertext>>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(&CudaServerKey, &mut [CudaSignedRadixCiphertext], &CudaStreams),
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: Vec<SignedRadixCiphertext>) -> Vec<SignedRadixCiphertext> {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let mut d_values: Vec<CudaSignedRadixCiphertext> = input
+            .iter()
+            .map(|ct| CudaSignedRadixCiphertext::from_signed_radix_ciphertext(ct, &context.streams))
+            .collect();
+
+        (self.func)(&context.sks, &mut d_values, &context.streams);
+
+        d_values
+            .iter()
+            .map(|ct| ct.to_signed_radix_ciphertext(&context.streams))
+            .collect()
+    }
+}
+
+/// For `bitonic_shuffle_with_keys` (returns `Result`) on signed data
+impl<F>
+    FunctionExecutor<
+        (Vec<SignedRadixCiphertext>, Vec<RadixCiphertext>),
+        Result<Vec<SignedRadixCiphertext>, crate::Error>,
+    > for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        Vec<CudaSignedRadixCiphertext>,
+        Vec<CudaUnsignedRadixCiphertext>,
+        &CudaStreams,
+    ) -> Result<Vec<CudaSignedRadixCiphertext>, crate::Error>,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(
+        &mut self,
+        input: (Vec<SignedRadixCiphertext>, Vec<RadixCiphertext>),
+    ) -> Result<Vec<SignedRadixCiphertext>, crate::Error> {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_data: Vec<CudaSignedRadixCiphertext> = input
+            .0
+            .iter()
+            .map(|ct| CudaSignedRadixCiphertext::from_signed_radix_ciphertext(ct, &context.streams))
+            .collect();
+        let d_keys: Vec<CudaUnsignedRadixCiphertext> = input
+            .1
+            .iter()
+            .map(|ct| CudaUnsignedRadixCiphertext::from_radix_ciphertext(ct, &context.streams))
+            .collect();
+
+        let d_result = (self.func)(&context.sks, d_data, d_keys, &context.streams)?;
+
+        Ok(d_result
+            .iter()
+            .map(|ct| ct.to_signed_radix_ciphertext(&context.streams))
+            .collect())
+    }
+}
+
+/// For `unchecked_bitonic_shuffle_with_keys` (returns `Vec`) on signed data
+impl<F>
+    FunctionExecutor<(Vec<SignedRadixCiphertext>, Vec<RadixCiphertext>), Vec<SignedRadixCiphertext>>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        Vec<CudaSignedRadixCiphertext>,
+        Vec<CudaUnsignedRadixCiphertext>,
+        &CudaStreams,
+    ) -> Vec<CudaSignedRadixCiphertext>,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(
+        &mut self,
+        input: (Vec<SignedRadixCiphertext>, Vec<RadixCiphertext>),
+    ) -> Vec<SignedRadixCiphertext> {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_data: Vec<CudaSignedRadixCiphertext> = input
+            .0
+            .iter()
+            .map(|ct| CudaSignedRadixCiphertext::from_signed_radix_ciphertext(ct, &context.streams))
+            .collect();
+        let d_keys: Vec<CudaUnsignedRadixCiphertext> = input
+            .1
+            .iter()
+            .map(|ct| CudaUnsignedRadixCiphertext::from_radix_ciphertext(ct, &context.streams))
+            .collect();
+
+        let d_result = (self.func)(&context.sks, d_data, d_keys, &context.streams);
+
+        d_result
+            .iter()
+            .map(|ct| ct.to_signed_radix_ciphertext(&context.streams))
+            .collect()
+    }
+}
+
+/// For `bitonic_shuffle` (key generation + shuffle) on signed data
+impl<F>
+    FunctionExecutor<
+        (
+            Vec<SignedRadixCiphertext>,
+            crate::integer::server_key::radix_parallel::bitonic_shuffle::BitonicShuffleKeySize,
+            Seed,
+        ),
+        Result<Vec<SignedRadixCiphertext>, crate::Error>,
+    > for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        Vec<CudaSignedRadixCiphertext>,
+        crate::integer::server_key::radix_parallel::bitonic_shuffle::BitonicShuffleKeySize,
+        Seed,
+        &CudaStreams,
+    ) -> Result<Vec<CudaSignedRadixCiphertext>, crate::Error>,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(
+        &mut self,
+        input: (
+            Vec<SignedRadixCiphertext>,
+            crate::integer::server_key::radix_parallel::bitonic_shuffle::BitonicShuffleKeySize,
+            Seed,
+        ),
+    ) -> Result<Vec<SignedRadixCiphertext>, crate::Error> {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_data: Vec<CudaSignedRadixCiphertext> = input
+            .0
+            .iter()
+            .map(|ct| CudaSignedRadixCiphertext::from_signed_radix_ciphertext(ct, &context.streams))
+            .collect();
+
+        let d_result = (self.func)(&context.sks, d_data, input.1, input.2, &context.streams)?;
+
+        Ok(d_result
+            .iter()
+            .map(|ct| ct.to_signed_radix_ciphertext(&context.streams))
+            .collect())
     }
 }
