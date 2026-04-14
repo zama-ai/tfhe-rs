@@ -703,3 +703,9 @@ fn test_match_value_or() {
     let client_key = setup_default_cpu();
     super::test_case_match_value_or(&client_key);
 }
+
+#[test]
+fn test_uint16_fused_mul_div() {
+    let client_key = setup_default_cpu();
+    super::test_case_uint16_fused_mul_div(&client_key);
+}

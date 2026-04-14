@@ -1004,3 +1004,11 @@ fn test_gpu_get_match_value_or_size_on_gpu() {
         assert!(memory_size > 0);
     }
 }
+
+#[test]
+fn test_uint16_fused_mul_div_gpu() {
+    for setup_fn in GPU_SETUP_FN {
+        let client_key = setup_fn();
+        super::test_case_uint16_fused_mul_div(&client_key);
+    }
+}

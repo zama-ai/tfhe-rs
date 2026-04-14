@@ -32,6 +32,7 @@ mod squashed_noise;
 mod static_;
 
 mod encrypt;
+mod fused_ops;
 mod inner;
 mod ops;
 mod overflowing_ops;
