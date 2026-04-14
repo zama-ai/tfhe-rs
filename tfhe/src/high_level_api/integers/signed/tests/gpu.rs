@@ -373,3 +373,11 @@ fn test_gpu_get_div_size_on_gpu() {
         check_valid_cuda_malloc_assert_oom(scalar_div_rem_tmp_buffer_size, GpuIndex::new(0));
     }
 }
+
+#[test]
+fn test_int16_fused_mul_div_gpu() {
+    for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+        let client_key = setup_fn();
+        super::test_case_int16_fused_mul_div(&client_key);
+    }
+}

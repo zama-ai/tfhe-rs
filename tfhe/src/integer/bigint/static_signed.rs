@@ -421,10 +421,28 @@ impl<const N: usize> From<(u64, u64, u64, u64)> for StaticSignedBigInt<N> {
     }
 }
 
-impl<const N: usize> CastFrom<Self> for StaticSignedBigInt<N> {
-    #[inline(always)]
-    fn cast_from(input: Self) -> Self {
-        input
+impl<const N_IN: usize, const N_OUT: usize> CastFrom<StaticSignedBigInt<N_IN>>
+    for StaticSignedBigInt<N_OUT>
+{
+    fn cast_from(input: StaticSignedBigInt<N_IN>) -> Self {
+        // Get rid of special case, will be removed at compile time, no runtime impact
+        if N_IN == 0 {
+            return Self::ZERO;
+        }
+
+        // Safe to unwrap, N_IN > 0
+        let sign = input.0.last().unwrap() >> 63;
+        // If sign == 1, i.e. top bit was set, then the BigInt was negative, taking the wrapping_neg
+        // yields u64::MAX == -1 == 0xffffffffffffffff, if sign == 0, wrapping_neg does nothing and
+        // we get 0, this is a branchless way of getting the fill u64 for sign extension
+        let fill = sign.wrapping_neg();
+
+        let smallest = N_IN.min(N_OUT);
+        // init data with fill will naturally sign extend as required, since the low bits will be
+        // copied and the high bits will be 1s or 0s depending on sign
+        let mut data = [fill; N_OUT];
+        data[..smallest].copy_from_slice(&input.0[..smallest]);
+        Self(data)
     }
 }
 
@@ -474,6 +492,36 @@ impl<const N: usize> CastFrom<u128> for StaticSignedBigInt<N> {
 
         converted[1] = (input >> 64) as u64;
         Self(converted)
+    }
+}
+
+impl<const N: usize> CastFrom<i8> for StaticSignedBigInt<N> {
+    fn cast_from(input: i8) -> Self {
+        Self::from(input as i128)
+    }
+}
+
+impl<const N: usize> CastFrom<i16> for StaticSignedBigInt<N> {
+    fn cast_from(input: i16) -> Self {
+        Self::from(input as i128)
+    }
+}
+
+impl<const N: usize> CastFrom<i32> for StaticSignedBigInt<N> {
+    fn cast_from(input: i32) -> Self {
+        Self::from(input as i128)
+    }
+}
+
+impl<const N: usize> CastFrom<i64> for StaticSignedBigInt<N> {
+    fn cast_from(input: i64) -> Self {
+        Self::from(input as i128)
+    }
+}
+
+impl<const N: usize> CastFrom<i128> for StaticSignedBigInt<N> {
+    fn cast_from(input: i128) -> Self {
+        Self::from(input)
     }
 }
 
@@ -540,12 +588,31 @@ mod test {
 
     #[test]
     fn test_i128_cast() {
-        let a = 1_i128 << 64;
+        {
+            let a = 1_i128 << 64;
 
-        let b: StaticSignedBigInt<4> = a.into();
+            let b: StaticSignedBigInt<4> = a.into();
 
-        let c = i128::cast_from(b);
+            let c = i128::cast_from(b);
 
-        assert_eq!(a, c);
+            assert_eq!(a, c);
+        }
+
+        {
+            let a = -1_i128 << 64;
+
+            let b: StaticSignedBigInt<4> = a.into();
+
+            let c = i128::cast_from(b);
+
+            assert_eq!(a, c);
+            assert_eq!(b, StaticSignedBigInt::<4>::ONE.wrapping_neg() << 64u32);
+
+            let d = StaticSignedBigInt::<5>::cast_from(b);
+            let e = i128::cast_from(d);
+
+            assert_eq!(a, e);
+            assert_eq!(d, StaticSignedBigInt::<5>::ONE.wrapping_neg() << 64u32);
+        }
     }
 }
