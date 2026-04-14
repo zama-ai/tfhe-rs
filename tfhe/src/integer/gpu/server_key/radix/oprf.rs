@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
 use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
 use crate::core_crypto::gpu::CudaStreams;
@@ -23,25 +25,18 @@ use crate::integer::gpu::{
     cuda_backend_grouped_oprf_custom_range, PBSType,
 };
 
-pub enum CudaOprfServerKey {
-    Standard(CudaBootstrappingKey<u64>),
-    KeySwitch32(CudaBootstrappingKey<u64>),
+pub struct GenericCudaOprfServerKey<K> {
+    bootstrapping_key: K,
 }
 
+pub type CudaOprfServerKey = GenericCudaOprfServerKey<CudaBootstrappingKey<u64>>;
+pub type CudaOprfServerKeyView<'a> = GenericCudaOprfServerKey<&'a CudaBootstrappingKey<u64>>;
+
 impl CudaOprfServerKey {
-    fn assert_compatible_with_target_bsk(&self, target_bsk: &CudaBootstrappingKey<u64>) {
-        let oprf_bsk = match self {
-            Self::Standard(bsk) | Self::KeySwitch32(bsk) => bsk,
-        };
-        assert_eq!(
-            target_bsk.input_lwe_dimension(),
-            oprf_bsk.input_lwe_dimension()
-        );
-        assert_eq!(
-            target_bsk.output_lwe_dimension(),
-            oprf_bsk.output_lwe_dimension()
-        );
-        assert_eq!(target_bsk.polynomial_size(), oprf_bsk.polynomial_size());
+    pub fn as_view(&self) -> CudaOprfServerKeyView<'_> {
+        GenericCudaOprfServerKey {
+            bootstrapping_key: &self.bootstrapping_key,
+        }
     }
 
     pub fn decompress_from_cpu(
@@ -49,61 +44,61 @@ impl CudaOprfServerKey {
         streams: &CudaStreams,
     ) -> Self {
         let expanded = cpu_key.expand();
-        match expanded {
-            ExpandedOprfServerKey::Standard(bsk) => Self::Standard(
-                CudaBootstrappingKey::from_expanded_oprf_server_key(&bsk, streams).unwrap(),
-            ),
-            ExpandedOprfServerKey::KeySwitch32(bsk) => Self::KeySwitch32(
-                CudaBootstrappingKey::from_expanded_oprf_server_key(&bsk, streams).unwrap(),
-            ),
+        Self {
+            bootstrapping_key: CudaBootstrappingKey::from_expanded_oprf_server_key(
+                &expanded.0,
+                streams,
+            )
+            .unwrap(),
         }
     }
 
     pub fn from_expanded_cpu(expanded: &ExpandedOprfServerKey, streams: &CudaStreams) -> Self {
-        match expanded {
-            ExpandedOprfServerKey::Standard(std) => {
-                let bsk = match std {
-                    crate::shortint::oprf::ExpandedOprfBootstrappingKey::Classic { bsk } => {
-                        let d_bootstrap_key =
-                            CudaLweBootstrapKey::from_lwe_bootstrap_key(bsk, None, streams);
-                        CudaBootstrappingKey::Classic(d_bootstrap_key)
-                    }
-                    crate::shortint::oprf::ExpandedOprfBootstrappingKey::MultiBit {
-                        bsk,
-                        thread_count: _,
-                        deterministic_execution: _,
-                    } => {
-                        let d_bootstrap_key =
-                            CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(
-                                bsk, streams,
-                            );
-                        CudaBootstrappingKey::MultiBit(d_bootstrap_key)
-                    }
-                };
-                Self::Standard(bsk)
+        let bootstrapping_key = match &expanded.0 {
+            crate::shortint::oprf::ExpandedOprfBootstrappingKey::Classic { bsk, .. } => {
+                let d_bootstrap_key =
+                    CudaLweBootstrapKey::from_lwe_bootstrap_key(bsk, None, streams);
+                CudaBootstrappingKey::Classic(d_bootstrap_key)
             }
-            ExpandedOprfServerKey::KeySwitch32(ks32) => {
-                let bsk = match ks32 {
-                    crate::shortint::oprf::ExpandedOprfBootstrappingKey::Classic { bsk } => {
-                        let d_bootstrap_key =
-                            CudaLweBootstrapKey::from_lwe_bootstrap_key(bsk, None, streams);
-                        CudaBootstrappingKey::Classic(d_bootstrap_key)
-                    }
-                    crate::shortint::oprf::ExpandedOprfBootstrappingKey::MultiBit {
-                        bsk,
-                        thread_count: _,
-                        deterministic_execution: _,
-                    } => {
-                        let d_bootstrap_key =
-                            CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(
-                                bsk, streams,
-                            );
-                        CudaBootstrappingKey::MultiBit(d_bootstrap_key)
-                    }
-                };
-                Self::KeySwitch32(bsk)
+            crate::shortint::oprf::ExpandedOprfBootstrappingKey::MultiBit {
+                bsk,
+                thread_count: _,
+                deterministic_execution: _,
+            } => {
+                let d_bootstrap_key =
+                    CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(bsk, streams);
+                CudaBootstrappingKey::MultiBit(d_bootstrap_key)
             }
+        };
+        Self { bootstrapping_key }
+    }
+}
+
+impl<'a> CudaOprfServerKeyView<'a> {
+    pub fn from_borrowed_bsk(bsk: &'a CudaBootstrappingKey<u64>) -> Self {
+        Self {
+            bootstrapping_key: bsk,
         }
+    }
+}
+
+impl<K> GenericCudaOprfServerKey<K>
+where
+    K: Borrow<CudaBootstrappingKey<u64>>,
+{
+    fn assert_compatible_with_target_bsk(&self, target_bsk: &CudaBootstrappingKey<u64>) {
+        assert_eq!(
+            target_bsk.input_lwe_dimension(),
+            self.bootstrapping_key.borrow().input_lwe_dimension()
+        );
+        assert_eq!(
+            target_bsk.output_lwe_dimension(),
+            self.bootstrapping_key.borrow().output_lwe_dimension()
+        );
+        assert_eq!(
+            target_bsk.polynomial_size(),
+            self.bootstrapping_key.borrow().polynomial_size()
+        );
     }
 
     /// Generates an encrypted `num_block` blocks unsigned integer
@@ -449,9 +444,6 @@ impl CudaOprfServerKey {
         target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) {
-        let Self::Standard(bootstrapping_key) = self else {
-            panic!("Only the standard atomic pattern is supported on Gpu");
-        };
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &target_sks.key_switching_key
         else {
             panic!("Only the standard atomic pattern is supported");
@@ -459,6 +451,7 @@ impl CudaOprfServerKey {
 
         self.assert_compatible_with_target_bsk(&target_sks.bootstrapping_key);
 
+        let bootstrapping_key = self.bootstrapping_key.borrow();
         let input_lwe_dimension = bootstrapping_key.input_lwe_dimension();
         let polynomial_size = bootstrapping_key.polynomial_size();
         let in_lwe_size = input_lwe_dimension.to_lwe_size();
@@ -561,9 +554,6 @@ impl CudaOprfServerKey {
             "num_blocks_output(={num_blocks_output}) is too small to hold an integer up to excluded_upper_bound(={excluded_upper_bound})"
         );
 
-        let Self::Standard(bootstrapping_key) = self else {
-            panic!("Only the standard atomic pattern is supported on Gpu");
-        };
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &target_sks.key_switching_key
         else {
             panic!("Only the standard atomic pattern is supported");
@@ -571,6 +561,7 @@ impl CudaOprfServerKey {
 
         self.assert_compatible_with_target_bsk(&target_sks.bootstrapping_key);
 
+        let bootstrapping_key = self.bootstrapping_key.borrow();
         let input_lwe_dimension = bootstrapping_key.input_lwe_dimension();
         let polynomial_size = bootstrapping_key.polynomial_size();
         let in_lwe_size = input_lwe_dimension.to_lwe_size();
@@ -682,15 +673,12 @@ impl CudaOprfServerKey {
         streams: &CudaStreams,
     ) -> u64 {
         let message_bits = target_sks.message_modulus.0.ilog2();
-        let Self::Standard(bootstrapping_key) = self else {
-            panic!("Only the standard atomic pattern is supported on Gpu");
-        };
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &target_sks.key_switching_key
         else {
             panic!("Only the standard atomic pattern is supported");
         };
 
-        match bootstrapping_key {
+        match &self.bootstrapping_key.borrow() {
             CudaBootstrappingKey::Classic(d_bsk) => cuda_backend_get_grouped_oprf_size_on_gpu(
                 streams,
                 1,

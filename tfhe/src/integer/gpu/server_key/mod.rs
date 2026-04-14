@@ -25,7 +25,7 @@ use crate::shortint::oprf::ExpandedOprfBootstrappingKey;
 use crate::shortint::parameters::ModulusSwitchType;
 use crate::shortint::prelude::PolynomialSize;
 use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
-pub use radix::CudaOprfServerKey;
+pub use radix::{CudaOprfServerKey, CudaOprfServerKeyView, GenericCudaOprfServerKey};
 
 mod radix;
 
@@ -104,7 +104,7 @@ impl CudaBootstrappingKey<u64> {
         streams: &CudaStreams,
     ) -> crate::Result<Self> {
         match expanded_bsk {
-            ExpandedOprfBootstrappingKey::Classic { bsk } => {
+            ExpandedOprfBootstrappingKey::Classic { bsk, .. } => {
                 let d_bootstrap_key =
                     CudaLweBootstrapKey::from_lwe_bootstrap_key(bsk, None, streams);
 

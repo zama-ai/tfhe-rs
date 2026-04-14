@@ -34,7 +34,6 @@ impl FheBool {
 
                 let ct = key
                     .require_oprf_key()
-                    .0
                     .generate_oblivious_pseudo_random(seed, 1, sk);
                 (
                     InnerBoolean::Cpu(BooleanBlock::new_unchecked(ct)),
