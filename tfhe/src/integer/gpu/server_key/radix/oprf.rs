@@ -10,8 +10,7 @@ use crate::integer::gpu::server_key::{
 };
 use itertools::Itertools;
 
-use crate::core_crypto::commons::generators::DeterministicSeeder;
-use crate::core_crypto::prelude::{DefaultRandomGenerator, LweBskGroupingFactor};
+use crate::core_crypto::prelude::{LweBskGroupingFactor, LweCiphertextCount};
 
 use crate::shortint::oprf::{
     create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe, ExpandedOprfServerKey,
@@ -23,7 +22,6 @@ use crate::integer::gpu::{
     cuda_backend_get_grouped_oprf_size_on_gpu, cuda_backend_grouped_oprf,
     cuda_backend_grouped_oprf_custom_range, PBSType,
 };
-pub use tfhe_csprng::seeders::{Seed, Seeder};
 
 pub enum CudaOprfServerKey {
     Standard(CudaBootstrappingKey<u64>),
@@ -120,7 +118,6 @@ impl CudaOprfServerKey {
     /// use tfhe::integer::gpu::CudaOprfServerKey;
     /// use tfhe::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey};
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    /// use tfhe::Seed;
     ///
     /// let size = 4;
     /// let gpu_index = 0;
@@ -134,7 +131,7 @@ impl CudaOprfServerKey {
     /// let compressed_oprf_sk = CompressedOprfServerKey::new(&oprf_pk, &cks).unwrap();
     /// let cuda_oprf_sk = CudaOprfServerKey::decompress_from_cpu(&compressed_oprf_sk, &streams);
     ///
-    /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(Seed(0), size as u64, &sks, &streams);
+    /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(&0u128.to_le_bytes(), size as u64, &sks, &streams);
     /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     /// // Decrypt:
     /// let dec_result: u64 = cks.decrypt_radix(&ct_res);
@@ -143,7 +140,7 @@ impl CudaOprfServerKey {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_unsigned_integer(
         &self,
-        seed: Seed,
+        seed: &[u8],
         num_blocks: u64,
         target_sks: &CudaServerKey,
         streams: &CudaStreams,
@@ -165,7 +162,6 @@ impl CudaOprfServerKey {
     /// use tfhe::integer::gpu::CudaOprfServerKey;
     /// use tfhe::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey};
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    /// use tfhe::Seed;
     ///
     /// let gpu_index = 0;
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
@@ -182,7 +178,7 @@ impl CudaOprfServerKey {
     /// let random_bits_count = 3;
     ///
     /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
-    ///     Seed(0),
+    ///     &0u128.to_le_bytes(),
     ///     random_bits_count,
     ///     size as u64,
     ///     &sks,
@@ -195,7 +191,7 @@ impl CudaOprfServerKey {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
         &self,
-        seed: Seed,
+        seed: &[u8],
         random_bits_count: u64,
         num_blocks: u64,
         target_sks: &CudaServerKey,
@@ -230,7 +226,6 @@ impl CudaOprfServerKey {
     /// use tfhe::integer::gpu::CudaOprfServerKey;
     /// use tfhe::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey};
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    /// use tfhe::Seed;
     ///
     /// let gpu_index = 0;
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
@@ -244,7 +239,7 @@ impl CudaOprfServerKey {
     /// let compressed_oprf_sk = CompressedOprfServerKey::new(&oprf_pk, &cks).unwrap();
     /// let cuda_oprf_sk = CudaOprfServerKey::decompress_from_cpu(&compressed_oprf_sk, &streams);
     ///
-    /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_signed_integer(Seed(0), size as u64, &sks, &streams);
+    /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_signed_integer(&0u128.to_le_bytes(), size as u64, &sks, &streams);
     /// let ct_res = d_ct_res.to_signed_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
@@ -254,7 +249,7 @@ impl CudaOprfServerKey {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_signed_integer(
         &self,
-        seed: Seed,
+        seed: &[u8],
         num_blocks: u64,
         target_sks: &CudaServerKey,
         streams: &CudaStreams,
@@ -276,7 +271,6 @@ impl CudaOprfServerKey {
     /// use tfhe::integer::gpu::CudaOprfServerKey;
     /// use tfhe::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey};
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    /// use tfhe::Seed;
     ///
     /// let gpu_index = 0;
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
@@ -293,7 +287,7 @@ impl CudaOprfServerKey {
     /// let random_bits_count = 3;
     ///
     /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_signed_integer_bounded(
-    ///     Seed(0),
+    ///     &0u128.to_le_bytes(),
     ///     random_bits_count,
     ///     size as u64,
     ///     &sks,
@@ -308,7 +302,7 @@ impl CudaOprfServerKey {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_signed_integer_bounded(
         &self,
-        seed: Seed,
+        seed: &[u8],
         random_bits_count: u64,
         num_blocks: u64,
         target_sks: &CudaServerKey,
@@ -340,7 +334,7 @@ impl CudaOprfServerKey {
     //
     pub fn generate_oblivious_pseudo_random<T>(
         &self,
-        seed: Seed,
+        seed: &[u8],
         random_bits_count: u64,
         target_sks: &CudaServerKey,
         streams: &CudaStreams,
@@ -374,7 +368,7 @@ impl CudaOprfServerKey {
     //
     fn generate_oblivious_pseudo_random_unbounded_integer<T>(
         &self,
-        seed: Seed,
+        seed: &[u8],
         num_blocks: u64,
         target_sks: &CudaServerKey,
         streams: &CudaStreams,
@@ -409,7 +403,7 @@ impl CudaOprfServerKey {
     //
     fn generate_oblivious_pseudo_random_bounded_integer<T>(
         &self,
-        seed: Seed,
+        seed: &[u8],
         random_bits_count: u64,
         num_blocks: u64,
         target_sks: &CudaServerKey,
@@ -449,7 +443,7 @@ impl CudaOprfServerKey {
     fn generate_multiblocks_oblivious_pseudo_random(
         &self,
         result: &mut CudaRadixCiphertext,
-        seed: Seed,
+        seed: &[u8],
         num_active_blocks: u64,
         total_random_bits: u64,
         target_sks: &CudaServerKey,
@@ -469,25 +463,17 @@ impl CudaOprfServerKey {
         let polynomial_size = bootstrapping_key.polynomial_size();
         let in_lwe_size = input_lwe_dimension.to_lwe_size();
 
-        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
-        let seeds: Vec<Seed> = (0..num_active_blocks)
-            .map(|_| deterministic_seeder.seed())
-            .collect();
-
-        let h_seeded_lwe_list: Vec<u64> = seeds
-            .into_iter()
-            .flat_map(|seed| {
-                raw_seeded_msed_to_lwe(
-                    &create_random_from_seed_modulus_switched::<u64>(
-                        seed,
-                        in_lwe_size,
-                        polynomial_size.to_blind_rotation_input_modulus_log(),
-                    ),
-                    target_sks.ciphertext_modulus,
-                )
-                .into_container()
-            })
-            .collect();
+        let h_seeded_lwe_list: Vec<u64> = create_random_from_seed_modulus_switched(
+            seed,
+            in_lwe_size,
+            polynomial_size,
+            LweCiphertextCount(num_active_blocks as usize),
+        )
+        .into_iter()
+        .flat_map(|seeded| {
+            raw_seeded_msed_to_lwe(&seeded, target_sks.ciphertext_modulus).into_container()
+        })
+        .collect();
 
         let mut d_seeded_lwe_input =
             unsafe { CudaVec::<u64>::new_async(h_seeded_lwe_list.len(), streams, 0) };
@@ -551,7 +537,7 @@ impl CudaOprfServerKey {
 
     pub fn par_generate_oblivious_pseudo_random_unsigned_custom_range(
         &self,
-        seed: Seed,
+        seed: &[u8],
         num_input_random_bits: u64,
         excluded_upper_bound: u64,
         num_blocks_output: u64,
@@ -606,25 +592,17 @@ impl CudaOprfServerKey {
             .iter_as::<u64>()
             .collect::<Vec<_>>();
 
-        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
-        let seeds: Vec<Seed> = (0..num_blocks_intermediate)
-            .map(|_| deterministic_seeder.seed())
-            .collect();
-
-        let h_seeded_lwe_list: Vec<u64> = seeds
-            .into_iter()
-            .flat_map(|seed| {
-                raw_seeded_msed_to_lwe(
-                    &create_random_from_seed_modulus_switched::<u64>(
-                        seed,
-                        in_lwe_size,
-                        polynomial_size.to_blind_rotation_input_modulus_log(),
-                    ),
-                    target_sks.ciphertext_modulus,
-                )
-                .into_container()
-            })
-            .collect();
+        let h_seeded_lwe_list: Vec<u64> = create_random_from_seed_modulus_switched(
+            seed,
+            in_lwe_size,
+            polynomial_size,
+            LweCiphertextCount(num_blocks_intermediate as usize),
+        )
+        .into_iter()
+        .flat_map(|seeded| {
+            raw_seeded_msed_to_lwe(&seeded, target_sks.ciphertext_modulus).into_container()
+        })
+        .collect();
 
         let mut d_seeded_lwe_input =
             unsafe { CudaVec::<u64>::new_async(h_seeded_lwe_list.len(), streams, 0) };

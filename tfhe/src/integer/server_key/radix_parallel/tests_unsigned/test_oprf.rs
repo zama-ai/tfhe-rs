@@ -31,9 +31,19 @@ fn oprf_uniformity_unsigned<P>(param: P)
 where
     P: Into<TestParameters>,
 {
-    let executor = CpuOprfExecutor::new(
-        &OprfServerKey::par_generate_oblivious_pseudo_random_unsigned_integer_bounded,
-    );
+    let executor =
+        CpuOprfExecutor::new(&|oprf_key: &OprfServerKey,
+                               seed: Vec<u8>,
+                               random_bits_count: u64,
+                               num_blocks: u64,
+                               sk: &ServerKey| {
+            oprf_key.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                &seed,
+                random_bits_count,
+                num_blocks,
+                sk,
+            )
+        });
     oprf_uniformity_test(param, executor);
 }
 
@@ -43,13 +53,13 @@ where
 {
     let executor =
         CpuOprfExecutor::new(&|oprf_key: &OprfServerKey,
-                               seed: Seed,
+                               seed: Vec<u8>,
                                num_input_random_bits: u64,
                                excluded_upper_bound: u64,
                                num_blocks_output: u64,
                                sk: &ServerKey| {
             oprf_key.par_generate_oblivious_pseudo_random_unsigned_custom_range(
-                seed,
+                &seed,
                 num_input_random_bits,
                 NonZeroU64::new(excluded_upper_bound).unwrap(),
                 num_blocks_output,
@@ -65,13 +75,13 @@ where
 {
     let executor =
         CpuOprfExecutor::new(&|oprf_key: &OprfServerKey,
-                               seed: Seed,
+                               seed: Vec<u8>,
                                num_input_random_bits: u64,
                                excluded_upper_bound: u64,
                                num_blocks_output: u64,
                                sk: &ServerKey| {
             oprf_key.par_generate_oblivious_pseudo_random_unsigned_custom_range(
-                seed,
+                &seed,
                 num_input_random_bits,
                 NonZeroU64::new(excluded_upper_bound).unwrap(),
                 num_blocks_output,
@@ -156,7 +166,7 @@ where
 pub(crate) fn oprf_uniformity_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
-    E: for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64), RadixCiphertext>,
+    E: for<'a> OpSequenceFunctionExecutor<(Vec<u8>, u64, u64), RadixCiphertext>,
 {
     let cks = setup_oprf_test(param, &mut executor);
 
@@ -167,8 +177,11 @@ where
     let distinct_values = 1u64 << random_bits_count;
 
     internal_test_uniformity(sample_count, p_value_limit, distinct_values, |seed| {
-        let img: RadixCiphertext =
-            executor.execute((Seed(seed as u128), random_bits_count, num_blocks as u64));
+        let img: RadixCiphertext = executor.execute((
+            (seed as u128).to_le_bytes().to_vec(),
+            random_bits_count,
+            num_blocks as u64,
+        ));
         cks.decrypt(&img)
     });
 }
@@ -176,20 +189,20 @@ where
 pub(crate) fn oprf_any_range_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
-    E: for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>,
+    E: for<'a> OpSequenceFunctionExecutor<(Vec<u8>, u64, u64, u64), RadixCiphertext>,
 {
     let cks = setup_oprf_test(param, &mut executor);
 
     let num_loops = 100;
 
     for s in 0..num_loops {
-        let seed = Seed(s);
+        let seed = (s as u128).to_le_bytes().to_vec();
 
         for num_input_random_bits in [1, 2, 63, 64] {
             for (excluded_upper_bound, num_blocks_output) in [(3, 1), (3, 32), ((1 << 32) + 1, 64)]
             {
                 let img = executor.execute((
-                    seed,
+                    seed.clone(),
                     num_input_random_bits,
                     excluded_upper_bound,
                     num_blocks_output as u64,
@@ -208,7 +221,7 @@ where
 pub(crate) fn oprf_almost_uniformity_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
-    E: for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>,
+    E: for<'a> OpSequenceFunctionExecutor<(Vec<u8>, u64, u64, u64), RadixCiphertext>,
 {
     let cks = setup_oprf_test(param, &mut executor);
 
@@ -221,7 +234,7 @@ where
     let values: Vec<u64> = (0..sample_count)
         .map(|seed| {
             let img = executor.execute((
-                Seed(seed as u128),
+                (seed as u128).to_le_bytes().to_vec(),
                 num_input_random_bits,
                 excluded_upper_bound,
                 num_blocks_output,
