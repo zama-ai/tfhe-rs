@@ -120,13 +120,13 @@ impl NoiseSquashingCompressionKey {
 
 #[cfg(test)]
 mod test {
-    use crate::shortint::ciphertext::MaxDegree;
+    use crate::shortint::ciphertext::{Degree, MaxDegree};
     use crate::shortint::keycache::KEY_CACHE;
     use crate::shortint::list_compression::private_key::NoiseSquashingCompressionPrivateKey;
     use crate::shortint::noise_squashing::{
         NoiseSquashingKey, NoiseSquashingPrivateKey, NoiseSquashingPrivateKeyView,
     };
-    use crate::shortint::parameters::*;
+    use crate::shortint::parameters::test_params::*;
 
     use rand::prelude::*;
     use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -134,15 +134,15 @@ mod test {
     #[test]
     fn test_noise_squashing_compression_ci_run_filter() {
         let keycache_entry =
-            KEY_CACHE.get_from_param(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+            KEY_CACHE.get_from_param(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
         let (cks, sks) = (keycache_entry.client_key(), keycache_entry.server_key());
         let noise_squashing_private_key = NoiseSquashingPrivateKey::new(
-            NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         );
         let noise_squashing_key = NoiseSquashingKey::new(cks, &noise_squashing_private_key);
 
         let compression_private_key = NoiseSquashingCompressionPrivateKey::new(
-            NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         );
 
         let compression_key = noise_squashing_private_key
@@ -152,7 +152,8 @@ mod test {
 
         let id_lut = sks.generate_lookup_table(|x| x);
         let max_ct_count =
-            NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.lwe_per_glwe;
+            TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+                .lwe_per_glwe;
 
         for ct_count in [0, 1, max_ct_count.0] {
             // Generate random msgs
