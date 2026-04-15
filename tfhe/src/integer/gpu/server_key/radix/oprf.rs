@@ -49,8 +49,7 @@ impl CudaOprfServerKey {
             bootstrapping_key: CudaBootstrappingKey::from_expanded_oprf_server_key(
                 &expanded.0,
                 streams,
-            )
-            .unwrap(),
+            ),
         }
     }
 

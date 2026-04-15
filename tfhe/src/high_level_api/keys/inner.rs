@@ -196,8 +196,13 @@ impl IntegerClientKey {
             first_index: tfhe_csprng::generators::aes_ctr::TableIndex::SECOND,
         };
         let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(aes_ctr_params);
-        let cks = crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
-            .new_client_key(config.block_parameters);
+        let mut engine = crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder);
+        let cks = engine.new_client_key(config.block_parameters);
+
+        let previous_engine =
+            crate::shortint::engine::ShortintEngine::with_thread_local_mut(|local_engine| {
+                std::mem::replace(local_engine, engine)
+            });
 
         let key = crate::integer::ClientKey::from(cks);
 
@@ -220,6 +225,10 @@ impl IntegerClientKey {
         let cpk_re_randomization_params = config.cpk_re_randomization_params;
 
         let oprf_private_key = config.oprf.then(|| OprfPrivateKey::new(&key));
+
+        crate::shortint::engine::ShortintEngine::with_thread_local_mut(|local_engine| {
+            *local_engine = previous_engine;
+        });
 
         Self {
             key,

@@ -102,13 +102,13 @@ impl CudaBootstrappingKey<u64> {
     pub(crate) fn from_expanded_oprf_server_key(
         expanded_bsk: &ExpandedOprfBootstrappingKey,
         streams: &CudaStreams,
-    ) -> crate::Result<Self> {
+    ) -> Self {
         match expanded_bsk {
             ExpandedOprfBootstrappingKey::Classic { bsk, .. } => {
                 let d_bootstrap_key =
                     CudaLweBootstrapKey::from_lwe_bootstrap_key(bsk, None, streams);
 
-                Ok(Self::Classic(d_bootstrap_key))
+                Self::Classic(d_bootstrap_key)
             }
             ExpandedOprfBootstrappingKey::MultiBit {
                 bsk,
@@ -118,7 +118,7 @@ impl CudaBootstrappingKey<u64> {
                 let d_bootstrap_key =
                     CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(bsk, streams);
 
-                Ok(Self::MultiBit(d_bootstrap_key))
+                Self::MultiBit(d_bootstrap_key)
             }
         }
     }
