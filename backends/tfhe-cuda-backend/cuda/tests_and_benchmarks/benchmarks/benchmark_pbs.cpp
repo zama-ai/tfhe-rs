@@ -264,7 +264,7 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, TbcPBC)
   scratch_cuda_programmable_bootstrap_tbc<uint64_t>(
       stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)&buffer,
       lwe_dimension, glwe_dimension, polynomial_size, pbs_level,
-      input_lwe_ciphertext_count, true, false);
+      input_lwe_ciphertext_count, true, PBS_MS_REDUCTION_T::NO_REDUCTION);
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
   for (auto _ : st) {
