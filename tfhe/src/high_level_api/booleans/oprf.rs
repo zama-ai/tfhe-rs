@@ -7,6 +7,7 @@ use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::BooleanBlock;
+use crate::shortint::OprfSeed;
 
 impl FheBool {
     /// Generates an encrypted boolean
@@ -16,18 +17,18 @@ impl FheBool {
     ///
     /// ```rust
     /// use tfhe::prelude::FheDecrypt;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, Seed};
     ///
     /// let config = ConfigBuilder::default().build();
     /// let (client_key, server_key) = generate_keys(config);
     ///
     /// set_server_key(server_key);
     ///
-    /// let ct_res = FheBool::generate_oblivious_pseudo_random(&0u128.to_le_bytes());
+    /// let ct_res = FheBool::generate_oblivious_pseudo_random(Seed(0));
     ///
     /// let dec_result: bool = ct_res.decrypt(&client_key);
     /// ```
-    pub fn generate_oblivious_pseudo_random(seed: &[u8]) -> Self {
+    pub fn generate_oblivious_pseudo_random(seed: impl OprfSeed) -> Self {
         let (ciphertext, tag) = global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let sk = &key.pbs_key().key;

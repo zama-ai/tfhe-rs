@@ -17,6 +17,7 @@ use crate::core_crypto::prelude::{LweBskGroupingFactor, LweCiphertextCount};
 use crate::shortint::oprf::{
     create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe, ExpandedOprfServerKey,
 };
+use crate::shortint::OprfSeed;
 
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::integer::block_decomposition::BlockDecomposer;
@@ -135,7 +136,7 @@ where
     /// ```
     pub fn par_generate_oblivious_pseudo_random_unsigned_integer(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         num_blocks: u64,
         target_sks: &CudaServerKey,
         streams: &CudaStreams,
@@ -186,7 +187,7 @@ where
     /// ```
     pub fn par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         random_bits_count: u64,
         num_blocks: u64,
         target_sks: &CudaServerKey,
@@ -244,7 +245,7 @@ where
     /// ```
     pub fn par_generate_oblivious_pseudo_random_signed_integer(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         num_blocks: u64,
         target_sks: &CudaServerKey,
         streams: &CudaStreams,
@@ -297,7 +298,7 @@ where
     /// ```
     pub fn par_generate_oblivious_pseudo_random_signed_integer_bounded(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         random_bits_count: u64,
         num_blocks: u64,
         target_sks: &CudaServerKey,
@@ -329,7 +330,7 @@ where
     //
     pub fn generate_oblivious_pseudo_random<T>(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         random_bits_count: u64,
         target_sks: &CudaServerKey,
         streams: &CudaStreams,
@@ -363,7 +364,7 @@ where
     //
     fn generate_oblivious_pseudo_random_unbounded_integer<T>(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         num_blocks: u64,
         target_sks: &CudaServerKey,
         streams: &CudaStreams,
@@ -398,7 +399,7 @@ where
     //
     fn generate_oblivious_pseudo_random_bounded_integer<T>(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         random_bits_count: u64,
         num_blocks: u64,
         target_sks: &CudaServerKey,
@@ -438,7 +439,7 @@ where
     fn generate_multiblocks_oblivious_pseudo_random(
         &self,
         result: &mut CudaRadixCiphertext,
-        seed: &[u8],
+        seed: impl OprfSeed,
         num_active_blocks: u64,
         total_random_bits: u64,
         target_sks: &CudaServerKey,
@@ -530,7 +531,7 @@ where
 
     pub fn par_generate_oblivious_pseudo_random_unsigned_custom_range(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         num_input_random_bits: u64,
         excluded_upper_bound: u64,
         num_blocks_output: u64,
