@@ -2,7 +2,8 @@ use benchmark::params_aliases::{
     BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
-use benchmark::utilities::{write_to_json_unchecked, CryptoParametersRecord, OperatorType};
+use benchmark::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
+use benchmark_spec::{Backend, BenchmarkMetric, BenchmarkSpec, CoreCryptoBench};
 use criterion::{black_box, Criterion};
 use dyn_stack::PodStack;
 use tfhe::core_crypto::fft_impl::fft128::crypto::bootstrap::bootstrap_scratch;
@@ -10,8 +11,8 @@ use tfhe::core_crypto::prelude::*;
 use tfhe::keycache::NamedParam;
 
 fn pbs_128(c: &mut Criterion) {
-    let bench_name = "core_crypto::pbs128";
-    let mut bench_group = c.benchmark_group(bench_name);
+    let cc_bench = CoreCryptoBench::Pbs128;
+    let mut bench_group = c.benchmark_group(cc_bench.to_string());
     bench_group
         .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(30));
@@ -120,7 +121,15 @@ fn pbs_128(c: &mut Criterion) {
         .unaligned_bytes_required()
     ];
 
-    let id = format!("{bench_name}::{}", noise_params.name());
+    let param_name = noise_params.name();
+
+    let benchmark_spec = BenchmarkSpec::<str>::new_core_crypto(
+        cc_bench,
+        &param_name,
+        BenchmarkMetric::Latency,
+        Backend::Cpu,
+    );
+    let id = benchmark_spec.to_string();
     bench_group.bench_function(&id, |b| {
         b.iter(|| {
             fourier_bsk.bootstrap(
@@ -149,10 +158,9 @@ fn pbs_128(c: &mut Criterion) {
     };
 
     let bit_size = (message_modulus as u32).ilog2();
-    write_to_json_unchecked(
-        &id,
+    write_to_json(
+        &benchmark_spec,
         params_record,
-        noise_params.name(),
         "pbs",
         &OperatorType::Atomic,
         bit_size,
@@ -163,11 +171,10 @@ fn pbs_128(c: &mut Criterion) {
 #[cfg(feature = "gpu")]
 mod cuda {
     use benchmark::utilities::{
-        cuda_local_keys_core, cuda_local_streams_core, throughput_num_threads,
-        write_to_json_unchecked, CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes,
-        CudaLocalKeys, OperatorType,
+        cuda_local_keys_core, cuda_local_streams_core, throughput_num_threads, write_to_json,
+        CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes, CudaLocalKeys, OperatorType,
     };
-    use benchmark_spec::{get_bench_type, BenchmarkType};
+    use benchmark_spec::{get_bench_type, Backend, BenchmarkSpec, BenchmarkType, CoreCryptoBench};
     use criterion::{black_box, Criterion, Throughput};
     use rayon::prelude::*;
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
@@ -186,8 +193,9 @@ mod cuda {
     };
 
     fn cuda_pbs_128(c: &mut Criterion) {
-        let bench_name = "core_crypto::cuda::pbs128";
-        let mut bench_group = c.benchmark_group(bench_name);
+        let cc_bench = CoreCryptoBench::Pbs128;
+        let bench_type = get_bench_type();
+        let mut bench_group = c.benchmark_group(cc_bench.to_string());
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
@@ -257,9 +265,15 @@ mod cuda {
         let delta: u64 = (1 << (u64::BITS - 1)) / message_modulus;
         let plaintext = Plaintext(input_message * delta);
 
-        let bench_id;
+        let benchmark_spec = BenchmarkSpec::<str>::new_core_crypto(
+            cc_bench,
+            params_name,
+            *bench_type,
+            Backend::Cuda,
+        );
+        let bench_id = benchmark_spec.to_string();
 
-        match get_bench_type() {
+        match bench_type {
             BenchmarkType::Latency => {
                 let gpu_keys = CudaLocalKeys::from_cpu_keys(
                     &cpu_keys,
@@ -295,7 +309,6 @@ mod cuda {
                 let mut out_pbs_ct_gpu =
                     CudaLweCiphertextList::from_lwe_ciphertext(&out_pbs_ct, &streams);
 
-                bench_id = format!("{bench_name}::{params_name}");
                 {
                     bench_group.bench_function(&bench_id, |b| {
                         b.iter(|| {
@@ -315,8 +328,6 @@ mod cuda {
                 let gpu_keys_vec =
                     cuda_local_keys_core(&cpu_keys, modulus_switch_noise_reduction_configuration);
                 let gpu_count = get_number_of_gpus() as usize;
-
-                bench_id = format!("{bench_name}::throughput::{params_name}");
                 let blocks: usize = 1;
                 let elements = throughput_num_threads(blocks, 1);
                 let elements_per_stream = elements as usize / gpu_count;
@@ -431,10 +442,9 @@ mod cuda {
         };
 
         let bit_size = (message_modulus as u32).ilog2();
-        write_to_json_unchecked(
-            &bench_id,
+        write_to_json(
+            &benchmark_spec,
             params_record,
-            params_name,
             "pbs",
             &OperatorType::Atomic,
             bit_size,
@@ -443,8 +453,9 @@ mod cuda {
     }
 
     fn cuda_multi_bit_pbs_128(c: &mut Criterion) {
-        let bench_name = "core_crypto::cuda::multi_bit_pbs128";
-        let mut bench_group = c.benchmark_group(bench_name);
+        let cc_bench = CoreCryptoBench::MultiBitPbs128;
+        let bench_type = get_bench_type();
+        let mut bench_group = c.benchmark_group(cc_bench.to_string());
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
@@ -502,9 +513,15 @@ mod cuda {
         let delta: u64 = (1 << (u64::BITS - 1)) / message_modulus;
         let plaintext = Plaintext(input_message * delta);
 
-        let bench_id;
+        let benchmark_spec = BenchmarkSpec::<str>::new_core_crypto(
+            cc_bench,
+            params_name,
+            *bench_type,
+            Backend::Cuda,
+        );
+        let bench_id = benchmark_spec.to_string();
 
-        match get_bench_type() {
+        match bench_type {
             BenchmarkType::Latency => {
                 let streams = CudaStreams::new_multi_gpu();
                 let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, None, &streams);
@@ -540,7 +557,6 @@ mod cuda {
                 let h_indexes = [0];
                 let cuda_indexes = CudaIndexes::new(&h_indexes, &streams, 0);
 
-                bench_id = format!("{bench_name}::{params_name}");
                 {
                     bench_group.bench_function(&bench_id, |b| {
                         b.iter(|| {
@@ -563,7 +579,6 @@ mod cuda {
                 let gpu_keys_vec = cuda_local_keys_core(&cpu_keys, None);
                 let gpu_count = get_number_of_gpus() as usize;
 
-                bench_id = format!("{bench_name}::throughput::{params_name}");
                 let blocks: usize = 1;
                 let elements = throughput_num_threads(blocks, 1);
                 let elements_per_stream = elements as usize / gpu_count;
@@ -696,10 +711,9 @@ mod cuda {
         };
 
         let bit_size = (message_modulus as u32).ilog2();
-        write_to_json_unchecked(
-            &bench_id,
+        write_to_json(
+            &benchmark_spec,
             params_record,
-            params_name,
             "pbs",
             &OperatorType::Atomic,
             bit_size,

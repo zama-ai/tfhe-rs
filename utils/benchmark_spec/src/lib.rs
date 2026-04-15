@@ -11,7 +11,7 @@ use std::io::Write;
 use std::path::Path;
 use std::{env, fmt};
 pub use tfhe::hlapi::HlapiBench;
-pub use tfhe::{HlIntegerOp, ShortintBench, TfheLayer};
+pub use tfhe::{CoreCryptoBench, HlIntegerOp, ShortintBench, TfheLayer};
 
 use crate::tfhe::hlapi::dex::Dex;
 use crate::tfhe::hlapi::erc7984::Erc7984;
@@ -257,6 +257,23 @@ impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
     ) -> Self {
         Self {
             bench_crate: BenchCrate::Tfhe(TfheLayer::Shortint(shortint_bench)),
+            backend,
+            param_name,
+            operand_type: &OperandType::CipherText,
+            type_name: None,
+            bench_type: bench_type.into(),
+            num_elements: None,
+        }
+    }
+
+    pub fn new_core_crypto(
+        core_crypto_bench: CoreCryptoBench,
+        param_name: &'a str,
+        bench_type: impl Into<BenchmarkMetric>,
+        backend: Backend,
+    ) -> Self {
+        Self {
+            bench_crate: BenchCrate::Tfhe(TfheLayer::CoreCrypto(core_crypto_bench)),
             backend,
             param_name,
             operand_type: &OperandType::CipherText,
@@ -645,6 +662,65 @@ mod tests {
         assert_eq!(
             spec.to_string(),
             "tfhe::hlapi::kv_store::update::PARAM_MESSAGE_2_CARRY_2::key_FheUint64::value_FheUint32::512_elements"
+        );
+    }
+
+    #[test]
+    fn core_crypto_cpu_latency() {
+        let spec = BenchmarkSpec::<str>::new_core_crypto(
+            CoreCryptoBench::Keyswitch,
+            "PARAM_MESSAGE_2_CARRY_2_KS_PBS",
+            BenchmarkMetric::Latency,
+            Backend::Cpu,
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::core_crypto::keyswitch::PARAM_MESSAGE_2_CARRY_2_KS_PBS"
+        );
+    }
+
+    #[test]
+    fn core_crypto_cpu_throughput() {
+        let spec = BenchmarkSpec::<str>::new_core_crypto(
+            CoreCryptoBench::PbsMemOptimized,
+            "PARAM_MESSAGE_2_CARRY_2_KS_PBS",
+            BenchmarkMetric::Throughput,
+            Backend::Cpu,
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::core_crypto::pbs_mem_optimized::throughput::PARAM_MESSAGE_2_CARRY_2_KS_PBS"
+        );
+    }
+
+    #[test]
+    fn core_crypto_cuda_latency() {
+        let spec = BenchmarkSpec::<str>::new_core_crypto(
+            CoreCryptoBench::KsPbs,
+            "PARAM_MESSAGE_2_CARRY_2_KS_PBS",
+            BenchmarkMetric::Latency,
+            Backend::Cuda,
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::core_crypto::ks_pbs::cuda::PARAM_MESSAGE_2_CARRY_2_KS_PBS"
+        );
+    }
+
+    #[test]
+    fn core_crypto_with_type_name() {
+        let spec = BenchmarkSpec::new(
+            BenchCrate::Tfhe(TfheLayer::CoreCrypto(CoreCryptoBench::MultiBitPbs)),
+            Backend::Cpu,
+            "PARAM_MESSAGE_2_CARRY_2_KS_PBS",
+            &OperandType::CipherText,
+            Some("parallelized"),
+            BenchmarkMetric::Latency,
+            None,
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::core_crypto::multi_bit_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS::parallelized"
         );
     }
 }
