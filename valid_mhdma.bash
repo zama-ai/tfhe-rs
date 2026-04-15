@@ -48,3 +48,9 @@ if cargo run --profile devo --features=integer,internal-keycache,hw-v80,hpu --ex
 else
     exit 1
 fi
+echo "Testing x10 chain of IOp 33 & 40 (64b & 32b)"
+if cargo run --profile devo --features=integer,internal-keycache,hw-v80,hpu --example hpu_bench -- --iter 10 --integer-w 64 --iop IOP[40] --user-proto "[2]<H,H>::<N,N><0>" --check-res --chain-iop 2>&1 | grep -q "Score 0/10"; then
+    echo "No error !!"
+else
+    exit 1
+fi

@@ -3113,9 +3113,9 @@ mod hpu {
                     let hpu_node_nb = hpu_config.fpga.node_id.len();
                     // Enforce that 64 Iop is sent over each HpuNode
                     let elements = if bench_name.contains("div") || bench_name.contains("mod") {
-                        10 * hpu_node_nb as u64;
+                        10 * hpu_node_nb as u64
                     } else {
-                        64 * hpu_node_nb as u64;
+                        64 * hpu_node_nb as u64
                     };
 
                     bench_group.throughput(Throughput::Elements(elements));

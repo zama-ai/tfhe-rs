@@ -65,6 +65,9 @@ pub struct Args {
     #[arg(long)]
     pub check_res: bool,
 
+    #[arg(long)]
+    pub chain_iop: bool,
+
     /// Force ct input values
     #[arg(long, value_parser = maybe_hex::<u128>)]
     pub src: Vec<u128>,
@@ -306,10 +309,25 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     let bench_res = bench_inputs[i]
                         .iter()
                         .map(|(srcs_clear, srcs_enc, imms)| {
-                            let hpu_enc_res =
-                                HpuRadixCiphertext::exec(&proto, iop.opcode(), srcs_enc, imms);
+                            let hpu_enc_res_0 = match args.chain_iop {
+                                false => {
+                                    HpuRadixCiphertext::exec(&proto, iop.opcode(), srcs_enc, imms)
+                                }
+                                true => {
+                                    let local_proto = "[2]<N>::<N><0>".parse::<hpu_asm::IOpProto>().unwrap();
+                                    let lsrcs_enc = srcs_enc.split_at(1);
+                                    let hpu_enc_res_1 = HpuRadixCiphertext::exec(&local_proto, IOpcode(33), &lsrcs_enc.0, imms);
+                                    let hpu_enc_res_2 = HpuRadixCiphertext::exec(&local_proto, IOpcode(33), &lsrcs_enc.1, imms);
+                                    let combined_inputs = [hpu_enc_res_1[0].clone(),hpu_enc_res_2[0].clone()];
+                                    let hpu_enc_res_3 = HpuRadixCiphertext::exec(&proto, iop.opcode(), &combined_inputs, imms);
+                                    let local_proto2 = "[2]<H>::<H><0>".parse::<hpu_asm::IOpProto>().unwrap();
+                                    let hpu_enc_res_4 = HpuRadixCiphertext::exec(&local_proto2, IOpcode(33), &[hpu_enc_res_3[0].clone()], imms);
+                                    let hpu_enc_res_5 = HpuRadixCiphertext::exec(&local_proto2, IOpcode(33), &[hpu_enc_res_3[1].clone()], imms);
+                                    vec![hpu_enc_res_4[0].clone(), hpu_enc_res_5[0].clone()]
+                                }
+                            };
                             if args.check_res {
-                                let clear_res = hpu_enc_res
+                                let clear_res = hpu_enc_res_0
                                     .iter()
                                     .map(|x| {
                                         let y = x.to_radix_ciphertext();
@@ -398,7 +416,7 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                                     }
                                 }
                             }
-                            hpu_enc_res
+                            hpu_enc_res_0
                         })
                         .collect::<Vec<_>>();
                     if i == (args.iter - 1) {
