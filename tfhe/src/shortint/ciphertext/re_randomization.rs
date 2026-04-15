@@ -424,13 +424,9 @@ mod test {
 
     use super::*;
     use crate::shortint::key_switching_key::{KeySwitchingKeyBuildHelper, KeySwitchingKeyMaterial};
-    use crate::shortint::parameters::test_params::{
-        TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
-    };
+    use crate::shortint::parameters::test_params::*;
     use crate::shortint::parameters::{
         AtomicPatternParameters, CompactPublicKeyEncryptionParameters, ReRandomizationParameters,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
     };
     use crate::shortint::{gen_keys, CompactPrivateKey};
 
@@ -438,7 +434,7 @@ mod test {
     /// Test the trivial case
     #[test]
     fn test_rerand_with_dedicated_cpk_ci_run_filter() {
-        let compute_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        let compute_params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let cpk_params = TEST_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
         let rerand_ksk_params =
             TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
@@ -451,7 +447,7 @@ mod test {
 
     #[test]
     fn test_rerand_with_derived_cpk_ci_run_filter() {
-        let compute_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        let compute_params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let rerand_params = ReRandomizationParameters::DerivedCPKWithoutKeySwitch;
 
         test_rerand_impl(compute_params.into(), None, rerand_params);

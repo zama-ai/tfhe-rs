@@ -342,11 +342,13 @@ pub(crate) mod test {
     #[test]
     fn oprf_compare_plain_ci_run_filter() {
         use crate::shortint::gen_keys;
-        use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
-        use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        use crate::shortint::parameters::test_params::{
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        };
 
         for params in [
-            ShortintParameterSet::from(PARAM_MESSAGE_2_CARRY_2_KS_PBS),
+            ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
             ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128),
         ] {
             let (ck, sk) = gen_keys(params);
@@ -447,15 +449,15 @@ pub(crate) mod test {
         use crate::shortint::gen_keys;
         use crate::shortint::parameters::test_params::{
             TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
         };
-        use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
         for params in [
             ShortintParameterSet::from(
                 TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
             ),
-            ShortintParameterSet::from(PARAM_MESSAGE_2_CARRY_2_KS_PBS),
+            ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
             ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128),
         ] {
             let (ck, sk) = gen_keys(params);
