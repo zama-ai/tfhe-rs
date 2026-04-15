@@ -358,7 +358,8 @@ mod tests {
     use crate::conformance::ParameterSetConformant;
     use crate::core_crypto::prelude::LweCiphertextCount;
     use crate::shortint::ciphertext::ProvenCompactCiphertextListConformanceParams;
-    use crate::shortint::parameters::*;
+    use crate::shortint::parameters::test_params::*;
+    use crate::shortint::parameters::ShortintCompactCiphertextListCastingMode;
     use crate::shortint::{
         ClientKey, CompactPrivateKey, CompactPublicKey, KeySwitchingKey, ServerKey,
     };
@@ -369,9 +370,9 @@ mod tests {
 
     #[test]
     fn test_zk_ciphertext_encryption_ci_run_filter() {
-        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let pke_params = TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let ksk_params = TEST_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let crs = CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(4)).unwrap();
         let priv_key = CompactPrivateKey::new(pke_params);
@@ -431,9 +432,9 @@ mod tests {
 
     #[test]
     fn test_zk_compact_ciphertext_list_encryption_ci_run_filter() {
-        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let pke_params = TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let ksk_params = TEST_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let crs = CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(4)).unwrap();
         let priv_key = CompactPrivateKey::new(pke_params);
@@ -485,9 +486,9 @@ mod tests {
     /// Test a case where we need to keyswitch to compute params but no functions are applied
     #[test]
     fn test_zk_compact_ciphertext_list_encryption_no_fn_ci_run_filter() {
-        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let pke_params = TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let ksk_params = TEST_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let crs = CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(4)).unwrap();
         let priv_key = CompactPrivateKey::new(pke_params);
@@ -533,8 +534,8 @@ mod tests {
 
     #[test]
     fn test_zk_proof_conformance_ci_run_filter() {
-        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let pke_params = TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let max_lwe_count_per_compact_list = LweCiphertextCount(320);
         let total_lwe_count = 512;
