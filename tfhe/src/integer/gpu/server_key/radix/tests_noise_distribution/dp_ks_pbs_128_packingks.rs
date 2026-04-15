@@ -53,8 +53,12 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_gpu(
     let (atomic_params, noise_squashing_params, noise_squashing_compression_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
         (
-            meta_params.compute_parameters,
-            meta_noise_squashing_params.parameters,
+            meta_params
+                .compute_parameters
+                .with_deterministic_execution(),
+            meta_noise_squashing_params
+                .parameters
+                .with_deterministic_execution(),
             meta_noise_squashing_params.compression_parameters.unwrap(),
         )
     };
@@ -215,8 +219,12 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(
     let (params, noise_squashing_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
         (
-            meta_params.compute_parameters,
-            meta_noise_squashing_params.parameters,
+            meta_params
+                .compute_parameters
+                .with_deterministic_execution(),
+            meta_noise_squashing_params
+                .parameters
+                .with_deterministic_execution(),
         )
     };
     let gpu_index = 0;
@@ -306,6 +314,7 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(
                     &id_lut_gpu,
                     side_resources,
                 );
+            side_resources.streams.synchronize();
 
             (
                 input,
@@ -327,21 +336,29 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(
             )
         })
         .collect();
+    let local_stream_count = rayon::current_num_threads().max(1);
+    let vec_local_streams = (0..local_stream_count)
+        .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(gpu_index)))
+        .collect::<Vec<_>>();
 
     let vector_non_pattern: Vec<_> = input_zeros_non_pattern
         .into_par_iter()
-        .map(|mut d_ct_input2| {
+        .enumerate()
+        .map(|(i, mut d_ct_input2)| {
+            let local_streams = &vec_local_streams[i % local_stream_count];
             unchecked_small_scalar_mul_integer(
-                &streams,
+                local_streams,
                 &mut d_ct_input2.ciphertext,
                 max_scalar_mul,
                 params.message_modulus(),
                 params.carry_modulus(),
             );
 
-            cuda_noise_squashing_key
-                .squash_radix_ciphertext_noise(&cuda_sks, &d_ct_input2.ciphertext, &streams)
-                .unwrap()
+            let squashed = cuda_noise_squashing_key
+                .squash_radix_ciphertext_noise(&cuda_sks, &d_ct_input2.ciphertext, local_streams)
+                .unwrap();
+            local_streams.synchronize();
+            squashed
         })
         .collect();
 
@@ -356,9 +373,11 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(
 
     let vector_non_pattern_cpu: Vec<_> = vector_non_pattern
         .into_par_iter()
-        .map(|cuda_squashed_radix_ct| {
+        .enumerate()
+        .map(|(i, cuda_squashed_radix_ct)| {
+            let local_streams = &vec_local_streams[i % local_stream_count];
             let squashed_noise_ct_cpu =
-                cuda_squashed_radix_ct.to_squashed_noise_radix_ciphertext(&streams);
+                cuda_squashed_radix_ct.to_squashed_noise_radix_ciphertext(local_streams);
             squashed_noise_ct_cpu.packed_blocks()[0]
                 .lwe_ciphertext()
                 .clone()
