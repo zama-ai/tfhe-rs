@@ -71,6 +71,9 @@ pub struct Args {
 =======
 >>>>>>> 245865d1c (chore(hpu): update to debug multi-hpu IOp)
 
+    #[arg(long)]
+    pub chain_iop: bool,
+
     /// Force ct input values
     #[arg(long, value_parser = maybe_hex::<u128>)]
     pub src: Vec<u128>,
@@ -314,18 +317,18 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                         .map(|(srcs_clear, srcs_enc, imms)| {
                             let hpu_enc_res_0 = match args.chain_iop {
                                 false => {
-                                    HpuRadixCiphertext::exec(&proto, iop.opcode(), srcs_enc, imms)
+                                    HpuRadixCiphertext::exec(&proto, iop.opcode(), srcs_enc, imms, None)
                                 }
                                 true => {
                                     let local_proto = "[2]<N>::<N><0>".parse::<hpu_asm::IOpProto>().unwrap();
                                     let lsrcs_enc = srcs_enc.split_at(1);
-                                    let hpu_enc_res_1 = HpuRadixCiphertext::exec(&local_proto, IOpcode(33), &lsrcs_enc.0, imms);
-                                    let hpu_enc_res_2 = HpuRadixCiphertext::exec(&local_proto, IOpcode(33), &lsrcs_enc.1, imms);
+                                    let hpu_enc_res_1 = HpuRadixCiphertext::exec(&local_proto, IOpcode(33), &lsrcs_enc.0, imms, None);
+                                    let hpu_enc_res_2 = HpuRadixCiphertext::exec(&local_proto, IOpcode(33), &lsrcs_enc.1, imms, None);
                                     let combined_inputs = [hpu_enc_res_1[0].clone(),hpu_enc_res_2[0].clone()];
-                                    let hpu_enc_res_3 = HpuRadixCiphertext::exec(&proto, iop.opcode(), &combined_inputs, imms);
+                                    let hpu_enc_res_3 = HpuRadixCiphertext::exec(&proto, iop.opcode(), &combined_inputs, imms, None);
                                     let local_proto2 = "[2]<H>::<H><0>".parse::<hpu_asm::IOpProto>().unwrap();
-                                    let hpu_enc_res_4 = HpuRadixCiphertext::exec(&local_proto2, IOpcode(33), &[hpu_enc_res_3[0].clone()], imms);
-                                    let hpu_enc_res_5 = HpuRadixCiphertext::exec(&local_proto2, IOpcode(33), &[hpu_enc_res_3[1].clone()], imms);
+                                    let hpu_enc_res_4 = HpuRadixCiphertext::exec(&local_proto2, IOpcode(33), &[hpu_enc_res_3[0].clone()], imms, None);
+                                    let hpu_enc_res_5 = HpuRadixCiphertext::exec(&local_proto2, IOpcode(33), &[hpu_enc_res_3[1].clone()], imms, None);
                                     vec![hpu_enc_res_4[0].clone(), hpu_enc_res_5[0].clone()]
                                 }
                             };
@@ -387,7 +390,6 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                                         err_cnt += 1;
                                     }
                                 }
-<<<<<<< HEAD
                                 if iop.opcode() == IOpcode(40) {
                                     let res = clear_res[0] + (clear_res[1] << width / 2);
                                     let expected = (srcs_clear[0] * srcs_clear[1]) % (1 << width);
@@ -421,10 +423,6 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                                 }
                             }
                             hpu_enc_res_0
-=======
-                            }
-                            hpu_enc_res
->>>>>>> 245865d1c (chore(hpu): update to debug multi-hpu IOp)
                         })
                         .collect::<Vec<_>>();
                     if i == (args.iter - 1) {
