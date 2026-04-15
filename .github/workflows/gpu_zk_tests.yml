@@ -59,6 +59,7 @@ jobs:
               - tfhe/src/zk/**
               - tfhe-zk-pok/**
               - '.github/workflows/gpu_zk_tests.yml'
+              - '.github/workflows/gpu_zk_long_run_tests.yml'
               - ci/slab.toml
 
   setup-instance:
