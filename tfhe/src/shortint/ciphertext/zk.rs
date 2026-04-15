@@ -183,10 +183,7 @@ impl ProvenCompactCiphertextList {
                     }
                     modes
                 }
-                None => vec![
-                    ShortintCompactCiphertextListCastingMode::NoCasting;
-                    self.proved_lists.len()
-                ],
+                None => vec![casting_mode; self.proved_lists.len()],
             },
             ShortintCompactCiphertextListCastingMode::NoCasting => {
                 vec![ShortintCompactCiphertextListCastingMode::NoCasting; self.proved_lists.len()]
@@ -475,6 +472,55 @@ mod tests {
                 ShortintCompactCiphertextListCastingMode::CastIfNecessary {
                     casting_key: ksk.as_view(),
                     functions: Some(functions.as_slice()),
+                },
+            )
+            .unwrap();
+        let decrypted = expanded
+            .iter()
+            .map(|ciphertext| ck.decrypt(ciphertext))
+            .collect::<Vec<_>>();
+        assert_eq!(msgs, decrypted);
+    }
+
+    /// Test a case where we need to keyswitch to compute params but no functions are applied
+    #[test]
+    fn test_zk_compact_ciphertext_list_encryption_no_fn_ci_run_filter() {
+        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let crs = CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(4)).unwrap();
+        let priv_key = CompactPrivateKey::new(pke_params);
+        let pub_key = CompactPublicKey::new(&priv_key);
+        let ck = ClientKey::new(params);
+        let sk = ServerKey::new(&ck);
+        let ksk = KeySwitchingKey::new((&priv_key, None), (&ck, &sk), ksk_params);
+
+        let metadata = [b's', b'h', b'o', b'r', b't', b'i', b'n', b't'];
+
+        let msgs = (0..512)
+            .map(|_| random::<u64>() % params.message_modulus.0)
+            .collect::<Vec<_>>();
+
+        let proven_ct = pub_key
+            .encrypt_and_prove_slice(
+                &msgs,
+                &crs,
+                &metadata,
+                ZkComputeLoad::Proof,
+                params.message_modulus.0,
+            )
+            .unwrap();
+        assert!(proven_ct.verify(&crs, &pub_key, &metadata).is_valid());
+
+        let expanded = proven_ct
+            .verify_and_expand(
+                &crs,
+                &pub_key,
+                &metadata,
+                ShortintCompactCiphertextListCastingMode::CastIfNecessary {
+                    casting_key: ksk.as_view(),
+                    functions: None,
                 },
             )
             .unwrap();
