@@ -1,6 +1,7 @@
 pub(crate) mod test_add;
 pub(crate) mod test_aes;
 pub(crate) mod test_aes256;
+pub(crate) mod test_bitonic_sort;
 pub(crate) mod test_bitwise_op;
 pub(crate) mod test_cmux;
 pub(crate) mod test_comparison;
@@ -1652,5 +1653,34 @@ where
         );
 
         d_res.to_radix_ciphertext(&context.streams)
+    }
+}
+
+/// For in-place sort functions operating on Vec of ciphertexts
+impl<F> FunctionExecutor<Vec<RadixCiphertext>, Vec<RadixCiphertext>> for GpuFunctionExecutor<F>
+where
+    F: Fn(&CudaServerKey, &mut [CudaUnsignedRadixCiphertext], &CudaStreams),
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: Vec<RadixCiphertext>) -> Vec<RadixCiphertext> {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let mut d_values: Vec<CudaUnsignedRadixCiphertext> = input
+            .iter()
+            .map(|ct| CudaUnsignedRadixCiphertext::from_radix_ciphertext(ct, &context.streams))
+            .collect();
+
+        (self.func)(&context.sks, &mut d_values, &context.streams);
+
+        d_values
+            .iter()
+            .map(|ct| ct.to_radix_ciphertext(&context.streams))
+            .collect()
     }
 }

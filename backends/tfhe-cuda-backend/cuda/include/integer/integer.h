@@ -1039,6 +1039,24 @@ void cuda_cast_to_signed_64_async(CudaStreamsFFI streams,
 
 void cleanup_cuda_cast_to_signed_64(CudaStreamsFFI streams,
                                     int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_integer_bitonic_sort_64_async(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_radix_blocks, uint32_t num_values, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, bool is_signed,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+
+void cuda_integer_bitonic_sort_64_async(CudaStreamsFFI streams,
+                                        CudaRadixCiphertextFFI **values,
+                                        uint32_t num_values, int8_t *mem_ptr,
+                                        void *const *bsks, void *const *ksks,
+                                        int32_t direction);
+
+void cleanup_cuda_integer_bitonic_sort_64(CudaStreamsFFI streams,
+                                          int8_t **mem_ptr_void);
 } // extern C
 
 #endif // CUDA_INTEGER_H
