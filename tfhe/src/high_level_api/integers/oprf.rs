@@ -4,7 +4,7 @@ use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
-use crate::shortint::MessageModulus;
+use crate::shortint::{MessageModulus, OprfSeed};
 use crate::FheInt;
 use std::num::NonZeroU64;
 
@@ -16,18 +16,18 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// ```rust
     /// use tfhe::prelude::FheDecrypt;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, Seed};
     ///
     /// let config = ConfigBuilder::default().build();
     /// let (client_key, server_key) = generate_keys(config);
     ///
     /// set_server_key(server_key);
     ///
-    /// let ct_res = FheUint8::generate_oblivious_pseudo_random(&0u128.to_le_bytes());
+    /// let ct_res = FheUint8::generate_oblivious_pseudo_random(Seed(0));
     ///
     /// let dec_result: u16 = ct_res.decrypt(&client_key);
     /// ```
-    pub fn generate_oblivious_pseudo_random(seed: &[u8]) -> Self {
+    pub fn generate_oblivious_pseudo_random(seed: impl OprfSeed) -> Self {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let sk = key.pbs_key();
@@ -105,7 +105,7 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// ```rust
     /// use tfhe::prelude::FheDecrypt;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, Seed};
     ///
     /// let config = ConfigBuilder::default().build();
     /// let (client_key, server_key) = generate_keys(config);
@@ -114,13 +114,15 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// let random_bits_count = 3;
     ///
-    /// let ct_res =
-    ///     FheUint8::generate_oblivious_pseudo_random_bounded(&0u128.to_le_bytes(), random_bits_count);
+    /// let ct_res = FheUint8::generate_oblivious_pseudo_random_bounded(Seed(0), random_bits_count);
     ///
     /// let dec_result: u16 = ct_res.decrypt(&client_key);
     /// assert!(dec_result < (1 << random_bits_count));
     /// ```
-    pub fn generate_oblivious_pseudo_random_bounded(seed: &[u8], random_bits_count: u64) -> Self {
+    pub fn generate_oblivious_pseudo_random_bounded(
+        seed: impl OprfSeed,
+        random_bits_count: u64,
+    ) -> Self {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let sk = key.pbs_key();
@@ -186,7 +188,7 @@ impl<Id: FheUintId> FheUint<Id> {
     /// ```rust
     /// use std::num::NonZeroU64;
     /// use tfhe::prelude::FheDecrypt;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, RangeForRandom};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, RangeForRandom, Seed};
     ///
     /// let config = ConfigBuilder::default().build();
     /// let (client_key, server_key) = generate_keys(config);
@@ -197,14 +199,13 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// let range = RangeForRandom::new_from_excluded_upper_bound(excluded_upper_bound);
     ///
-    /// let ct_res =
-    ///     FheUint8::generate_oblivious_pseudo_random_custom_range(&0u128.to_le_bytes(), &range, None);
+    /// let ct_res = FheUint8::generate_oblivious_pseudo_random_custom_range(Seed(0), &range, None);
     ///
     /// let dec_result: u16 = ct_res.decrypt(&client_key);
     /// assert!(dec_result < excluded_upper_bound.get() as u16);
     /// ```
     pub fn generate_oblivious_pseudo_random_custom_range(
-        seed: &[u8],
+        seed: impl OprfSeed,
         range: &RangeForRandom,
         max_distance: Option<f64>,
     ) -> Self {
@@ -323,20 +324,20 @@ impl<Id: FheIntId> FheInt<Id> {
     ///
     /// ```rust
     /// use tfhe::prelude::FheDecrypt;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8, Seed};
     ///
     /// let config = ConfigBuilder::default().build();
     /// let (client_key, server_key) = generate_keys(config);
     ///
     /// set_server_key(server_key);
     ///
-    /// let ct_res = FheInt8::generate_oblivious_pseudo_random(&0u128.to_le_bytes());
+    /// let ct_res = FheInt8::generate_oblivious_pseudo_random(Seed(0));
     ///
     /// let dec_result: i16 = ct_res.decrypt(&client_key);
     /// assert!(dec_result < 1 << 7);
     /// assert!(dec_result >= -(1 << 7));
     /// ```
-    pub fn generate_oblivious_pseudo_random(seed: &[u8]) -> Self {
+    pub fn generate_oblivious_pseudo_random(seed: impl OprfSeed) -> Self {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let sk = key.pbs_key();
@@ -414,7 +415,7 @@ impl<Id: FheIntId> FheInt<Id> {
     ///
     /// ```rust
     /// use tfhe::prelude::FheDecrypt;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8, Seed};
     ///
     /// let config = ConfigBuilder::default().build();
     /// let (client_key, server_key) = generate_keys(config);
@@ -423,14 +424,16 @@ impl<Id: FheIntId> FheInt<Id> {
     ///
     /// let random_bits_count = 3;
     ///
-    /// let ct_res =
-    ///     FheInt8::generate_oblivious_pseudo_random_bounded(&0u128.to_le_bytes(), random_bits_count);
+    /// let ct_res = FheInt8::generate_oblivious_pseudo_random_bounded(Seed(0), random_bits_count);
     ///
     /// let dec_result: i16 = ct_res.decrypt(&client_key);
     /// assert!(dec_result >= 0);
     /// assert!(dec_result < 1 << random_bits_count);
     /// ```
-    pub fn generate_oblivious_pseudo_random_bounded(seed: &[u8], random_bits_count: u64) -> Self {
+    pub fn generate_oblivious_pseudo_random_bounded(
+        seed: impl OprfSeed,
+        random_bits_count: u64,
+    ) -> Self {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
                 let sk = key.pbs_key();

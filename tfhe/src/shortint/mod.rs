@@ -59,6 +59,7 @@ pub mod keycache;
 pub mod list_compression;
 pub mod noise_squashing;
 pub mod oprf;
+pub mod oprf_seed;
 pub mod parameters;
 pub mod prelude;
 pub mod public_key;
@@ -75,6 +76,7 @@ pub use ciphertext::{Ciphertext, CompressedCiphertext, PBSOrder};
 pub use client_key::ClientKey;
 pub(crate) use encoding::{PaddingBit, ShortintEncoding};
 pub use key_switching_key::{CompressedKeySwitchingKey, KeySwitchingKey, KeySwitchingKeyView};
+pub use oprf_seed::OprfSeed;
 pub use parameters::{
     AtomicPatternKind, AtomicPatternParameters, CarryModulus, CiphertextModulus,
     ClassicPBSParameters, EncryptionKeyChoice, MaxNoiseLevel, MessageModulus,

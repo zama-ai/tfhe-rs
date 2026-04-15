@@ -8,7 +8,7 @@ use crate::shortint::oprf::{
     OprfPrivateKey as ShortintOprfPrivateKey, OprfServerKey as ShortintOprfServerKey,
 };
 use crate::shortint::server_key::ShortintBootstrappingKey;
-use crate::shortint::AtomicPatternParameters;
+use crate::shortint::{AtomicPatternParameters, OprfSeed};
 use std::borrow::Borrow;
 use std::num::NonZeroU64;
 use tfhe_versionable::Versionize;
@@ -75,7 +75,7 @@ fn par_generate_oblivious_pseudo_random_integer_full_impl<
     K: Borrow<ShortintBootstrappingKey<u64>> + Sync,
 >(
     shortint_key: &crate::shortint::oprf::GenericOprfServerKey<K>,
-    seed: &[u8],
+    seed: impl OprfSeed,
     num_blocks: u64,
     target_sks: &ServerKey,
 ) -> T {
@@ -96,7 +96,7 @@ fn par_generate_oblivious_pseudo_random_integer_bounded_impl<
     K: Borrow<ShortintBootstrappingKey<u64>> + Sync,
 >(
     shortint_key: &crate::shortint::oprf::GenericOprfServerKey<K>,
-    seed: &[u8],
+    seed: impl OprfSeed,
     random_bits_count: u64,
     num_blocks: u64,
     target_sks: &ServerKey,
@@ -137,7 +137,7 @@ fn par_generate_oblivious_pseudo_random_unsigned_custom_range_impl<
     K: Borrow<ShortintBootstrappingKey<u64>> + Sync,
 >(
     shortint_key: &crate::shortint::oprf::GenericOprfServerKey<K>,
-    seed: &[u8],
+    seed: impl OprfSeed,
     num_input_random_bits: u64,
     excluded_upper_bound: NonZeroU64,
     num_blocks_output: u64,
@@ -195,6 +195,7 @@ impl OprfServerKey {
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::oprf::{OprfPrivateKey, OprfServerKey};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+    /// use tfhe::Seed;
     ///
     /// let size = 4;
     ///
@@ -204,11 +205,9 @@ impl OprfServerKey {
     /// let oprf_pk = OprfPrivateKey::new(cks.as_ref());
     /// let oprf_sk = OprfServerKey::new(&oprf_pk, cks.as_ref()).unwrap();
     ///
-    /// let ct_res = oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(
-    ///     &0u128.to_le_bytes(),
-    ///     size as u64,
-    ///     &sks,
-    /// );
+    /// // `seed` can be either a `Seed` or any byte-like input (`&[u8]`, `&[u8; N]`, ...).
+    /// let ct_res =
+    ///     oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(Seed(0), size as u64, &sks);
     ///
     /// // Decrypt:
     /// let dec_result: u64 = cks.decrypt(&ct_res);
@@ -217,7 +216,7 @@ impl OprfServerKey {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_unsigned_integer(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         num_blocks: u64,
         target_sks: &ServerKey,
     ) -> RadixCiphertext {
@@ -259,7 +258,7 @@ impl OprfServerKey {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         random_bits_count: u64,
         num_blocks: u64,
         target_sks: &ServerKey,
@@ -315,7 +314,7 @@ impl OprfServerKey {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_unsigned_custom_range(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         num_input_random_bits: u64,
         excluded_upper_bound: NonZeroU64,
         num_blocks_output: u64,
@@ -350,7 +349,7 @@ impl OprfServerKey {
     /// let oprf_sk = OprfServerKey::new(&oprf_pk, cks.as_ref()).unwrap();
     ///
     /// let ct_res = oprf_sk.par_generate_oblivious_pseudo_random_signed_integer(
-    ///     &0u128.to_le_bytes(),
+    ///     tfhe::Seed(0),
     ///     size as u64,
     ///     &sks,
     /// );
@@ -362,7 +361,7 @@ impl OprfServerKey {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_signed_integer(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         num_blocks: u64,
         target_sks: &ServerKey,
     ) -> SignedRadixCiphertext {
@@ -405,7 +404,7 @@ impl OprfServerKey {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_signed_integer_bounded(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         random_bits_count: u64,
         num_blocks: u64,
         target_sks: &ServerKey,
@@ -423,7 +422,7 @@ impl OprfServerKey {
 impl OprfServerKeyView<'_> {
     pub fn par_generate_oblivious_pseudo_random_unsigned_integer(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         num_blocks: u64,
         target_sks: &ServerKey,
     ) -> RadixCiphertext {
@@ -432,7 +431,7 @@ impl OprfServerKeyView<'_> {
 
     pub fn par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         random_bits_count: u64,
         num_blocks: u64,
         target_sks: &ServerKey,
@@ -448,7 +447,7 @@ impl OprfServerKeyView<'_> {
 
     pub fn par_generate_oblivious_pseudo_random_signed_integer(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         num_blocks: u64,
         target_sks: &ServerKey,
     ) -> SignedRadixCiphertext {
@@ -457,7 +456,7 @@ impl OprfServerKeyView<'_> {
 
     pub fn par_generate_oblivious_pseudo_random_signed_integer_bounded(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         random_bits_count: u64,
         num_blocks: u64,
         target_sks: &ServerKey,
@@ -473,7 +472,7 @@ impl OprfServerKeyView<'_> {
 
     pub fn par_generate_oblivious_pseudo_random_unsigned_custom_range(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         num_input_random_bits: u64,
         excluded_upper_bound: NonZeroU64,
         num_blocks_output: u64,

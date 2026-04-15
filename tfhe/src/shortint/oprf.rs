@@ -13,6 +13,7 @@ use crate::core_crypto::prelude::*;
 use crate::shortint::atomic_pattern::{AtomicPattern, AtomicPatternServerKey};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
+use crate::shortint::oprf_seed::OprfSeed;
 use crate::shortint::parameters::NoiseLevel;
 use crate::shortint::server_key::{
     apply_multi_bit_blind_rotate, apply_standard_blind_rotate, generate_lookup_table_no_encode,
@@ -214,7 +215,7 @@ where
     /// * Panics if `self` is not compatible with `target_sks`
     pub fn generate_oblivious_pseudo_random_bits(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         random_bits_count: u64,
         target_sks: &ServerKey,
     ) -> Vec<Ciphertext> {
@@ -234,7 +235,7 @@ where
     /// The encrypted value is oblivious to the server
     pub fn generate_oblivious_pseudo_random(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         random_bits_count: u64,
         target_sks: &ServerKey,
     ) -> Ciphertext {
@@ -248,7 +249,7 @@ where
     /// The encrypted value is oblivious to the server
     pub fn generate_oblivious_pseudo_random_message_and_carry(
         &self,
-        seed: &[u8],
+        seed: impl OprfSeed,
         random_bits_count: u64,
         target_sks: &ServerKey,
     ) -> Ciphertext {
@@ -514,14 +515,15 @@ impl MultiBitModulusSwitchedLweCiphertext for PrfMultiBitSeededModulusSwitched {
 }
 
 pub(crate) fn create_random_from_seed_modulus_switched(
-    seed: &[u8],
+    seed: impl OprfSeed,
     lwe_size: LweSize,
     polynomial_size: PolynomialSize,
     count: LweCiphertextCount,
 ) -> Vec<PrfSeededModulusSwitched> {
+    let bytes = seed.into_bytes();
     let mut hasher = sha3::Sha3_256::default();
     hasher.update(b"TFHE_PRF");
-    hasher.update(seed);
+    hasher.update(bytes.as_ref());
     let seed = hasher.finalize();
 
     let mut xof =
@@ -594,7 +596,7 @@ fn generate_oprf_lut(
 
 fn generate_oblivious_pseudo_random(
     bsk: &ShortintBootstrappingKey<u64>,
-    seed: &[u8],
+    seed: impl OprfSeed,
     random_bits_count: u64,
     target_sks: &ServerKey,
 ) -> Ciphertext {
@@ -621,7 +623,7 @@ fn generate_oblivious_pseudo_random(
 
 fn generate_oblivious_pseudo_random_message_and_carry(
     bsk: &ShortintBootstrappingKey<u64>,
-    seed: &[u8],
+    seed: impl OprfSeed,
     random_bits_count: u64,
     target_sks: &ServerKey,
 ) -> Ciphertext {
@@ -657,7 +659,7 @@ fn generate_oblivious_pseudo_random_message_and_carry(
 
 fn generate_pseudo_random_bits(
     bsk: &ShortintBootstrappingKey<u64>,
-    bytes: &[u8],
+    seed: impl OprfSeed,
     bit_count: u64,
     random_bits_per_block: u64,
     target_sks: &ServerKey,
@@ -715,7 +717,7 @@ fn generate_pseudo_random_bits(
     let num_blocks = bit_count.div_ceil(random_bits_per_block) as usize;
 
     let seeded_cts = create_random_from_seed_modulus_switched(
-        bytes,
+        seed,
         in_lwe_size,
         polynomial_size,
         LweCiphertextCount(num_blocks),
@@ -869,7 +871,7 @@ pub(crate) mod test {
 
         let poly_delta = 2 * params.polynomial_size().0 as u64 / p_prime;
 
-        let img = oprf_sk.generate_oblivious_pseudo_random(seed, random_bits_count, &sk);
+        let img = oprf_sk.generate_oblivious_pseudo_random(seed, random_bits_count, sk);
 
         let plain_prf_input = match &oprf_ck.0 {
             AtomicPatternOprfPrivateKey::Standard(sk) => gen_prf_input(&sk.as_view(), seed, params),
@@ -1141,7 +1143,7 @@ pub(crate) mod test {
                     sample_count,
                     p_value_limit,
                     1 << random_bits_count,
-                    &|seed| {
+                    |seed| {
                         let seed = (seed as u128).to_le_bytes();
                         let blocks = oprf_sk.generate_oblivious_pseudo_random_bits(
                             seed.as_slice(),

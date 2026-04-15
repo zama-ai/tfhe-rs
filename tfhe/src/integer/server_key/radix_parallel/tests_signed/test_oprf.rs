@@ -7,6 +7,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::CpuOprfExecutor;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{ServerKey, SignedRadixCiphertext};
 use crate::shortint::parameters::*;
+use tfhe_csprng::seeders::Seed;
 
 create_parameterized_test!(oprf_signed_uniformity_bounded {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
@@ -22,12 +23,12 @@ where
 {
     let executor =
         CpuOprfExecutor::new(&|oprf_key: &OprfServerKey,
-                               seed: Vec<u8>,
+                               seed: Seed,
                                random_bits_count: u64,
                                num_blocks: u64,
                                sk: &ServerKey| {
             oprf_key.par_generate_oblivious_pseudo_random_signed_integer_bounded(
-                &seed,
+                seed,
                 random_bits_count,
                 num_blocks,
                 sk,
@@ -42,10 +43,10 @@ where
 {
     let executor =
         CpuOprfExecutor::new(&|oprf_key: &OprfServerKey,
-                               seed: Vec<u8>,
+                               seed: Seed,
                                num_blocks: u64,
                                sk: &ServerKey| {
-            oprf_key.par_generate_oblivious_pseudo_random_signed_integer(&seed, num_blocks, sk)
+            oprf_key.par_generate_oblivious_pseudo_random_signed_integer(seed, num_blocks, sk)
         });
     oprf_uniformity_unbounded_test(param, executor);
 }
@@ -53,7 +54,7 @@ where
 pub fn oprf_uniformity_bounded_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
-    E: for<'a> OpSequenceFunctionExecutor<(Vec<u8>, u64, u64), SignedRadixCiphertext>,
+    E: for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64), SignedRadixCiphertext>,
 {
     let cks = setup_oprf_test(param, &mut executor);
 
@@ -64,11 +65,8 @@ where
     let distinct_values = 1u64 << random_bits_count;
 
     internal_test_uniformity(sample_count, p_value_limit, distinct_values, |seed| {
-        let img: SignedRadixCiphertext = executor.execute((
-            (seed as u128).to_le_bytes().to_vec(),
-            random_bits_count,
-            num_blocks as u64,
-        ));
+        let img: SignedRadixCiphertext =
+            executor.execute((Seed(seed as u128), random_bits_count, num_blocks as u64));
         let result = cks.decrypt_signed::<i64>(&img);
         assert!(result >= 0);
         result as u64
@@ -78,7 +76,7 @@ where
 pub fn oprf_uniformity_unbounded_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
-    E: for<'a> OpSequenceFunctionExecutor<(Vec<u8>, u64), SignedRadixCiphertext>,
+    E: for<'a> OpSequenceFunctionExecutor<(Seed, u64), SignedRadixCiphertext>,
 {
     let cks = setup_oprf_test(param, &mut executor);
 
@@ -91,8 +89,7 @@ where
     let offset = 1u64 << (total_bits - 1);
 
     internal_test_uniformity(sample_count, p_value_limit, distinct_values, |seed| {
-        let img: SignedRadixCiphertext =
-            executor.execute(((seed as u128).to_le_bytes().to_vec(), num_blocks as u64));
+        let img: SignedRadixCiphertext = executor.execute((Seed(seed as u128), num_blocks as u64));
         let decrypted = cks.decrypt_signed::<i64>(&img);
         (decrypted as i64 + offset as i64) as u64
     });

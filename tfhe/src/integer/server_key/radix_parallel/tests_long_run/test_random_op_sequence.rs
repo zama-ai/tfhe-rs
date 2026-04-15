@@ -15,6 +15,7 @@ use crate::{ClientKey, CompressedServerKey, MatchValues, Tag};
 use std::cmp::{max, min};
 use std::num::NonZeroU64;
 use std::sync::Arc;
+use tfhe_csprng::seeders::Seed;
 
 create_parameterized_test!(random_op_sequence {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
@@ -91,13 +92,13 @@ pub(crate) type MatchValueOrExecutor = Box<
 >;
 
 pub(crate) type OprfExecutor =
-    Box<dyn for<'a> OpSequenceFunctionExecutor<(Vec<u8>, u64), RadixCiphertext>>;
+    Box<dyn for<'a> OpSequenceFunctionExecutor<(Seed, u64), RadixCiphertext>>;
 
 pub(crate) type OprfBoundedExecutor =
-    Box<dyn for<'a> OpSequenceFunctionExecutor<(Vec<u8>, u64, u64), RadixCiphertext>>;
+    Box<dyn for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64), RadixCiphertext>>;
 
 pub(crate) type OprfCustomRangeExecutor =
-    Box<dyn for<'a> OpSequenceFunctionExecutor<(Vec<u8>, u64, u64, u64), RadixCiphertext>>;
+    Box<dyn for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>>;
 
 fn random_op_sequence<P>(param: P)
 where
@@ -496,18 +497,18 @@ where
 
     // OPRF Executors
     let oprf_executor = CpuOprfExecutor::new(
-        |oprf_sks: &OprfServerKey, seed: Vec<u8>, num_blocks: u64, sk: &ServerKey| {
-            oprf_sks.par_generate_oblivious_pseudo_random_unsigned_integer(&seed, num_blocks, sk)
+        |oprf_sks: &OprfServerKey, seed: Seed, num_blocks: u64, sk: &ServerKey| {
+            oprf_sks.par_generate_oblivious_pseudo_random_unsigned_integer(seed, num_blocks, sk)
         },
     );
     let oprf_bounded_executor = CpuOprfExecutor::new(
         |oprf_key: &OprfServerKey,
-         seed: Vec<u8>,
+         seed: Seed,
          random_bits_count: u64,
          num_blocks: u64,
          target_sks: &ServerKey| {
             oprf_key.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
-                &seed,
+                seed,
                 random_bits_count,
                 num_blocks,
                 target_sks,
@@ -516,13 +517,13 @@ where
     );
     let oprf_custom_range_executor =
         CpuOprfExecutor::new(&|oprf_sk: &OprfServerKey,
-                               seed: Vec<u8>,
+                               seed: Seed,
                                num_input_random_bits: u64,
                                excluded_upper_bound: u64,
                                num_blocks_output: u64,
                                sk: &ServerKey| {
             oprf_sk.par_generate_oblivious_pseudo_random_unsigned_custom_range(
-                &seed,
+                seed,
                 num_input_random_bits,
                 NonZeroU64::new(excluded_upper_bound).unwrap_or(NonZeroU64::new(1).unwrap()),
                 num_blocks_output,
@@ -1247,7 +1248,6 @@ pub(crate) fn random_op_sequence_test(
             let index = i - oprf_ops_range.start;
             let (op_executor, fn_name) = &mut oprf_ops[index];
             let seed = datagen.gen_seed();
-            let seed_bytes = seed.0.to_le_bytes().to_vec();
             let num_blocks = NB_CTXT_LONG_RUN as u64;
 
             println!(
@@ -1255,8 +1255,8 @@ pub(crate) fn random_op_sequence_test(
                 seed.0
             );
 
-            let res = op_executor.execute((seed_bytes.clone(), num_blocks));
-            let res_1 = op_executor.execute((seed_bytes, num_blocks));
+            let res = op_executor.execute((seed, num_blocks));
+            let res_1 = op_executor.execute((seed, num_blocks));
 
             let decrypted_res: u64 = cks.decrypt(&res);
 
@@ -1282,7 +1282,6 @@ pub(crate) fn random_op_sequence_test(
             let index = i - oprf_bounded_ops_range.start;
             let (op_executor, fn_name) = &mut oprf_bounded_ops[index];
             let seed = datagen.gen_seed();
-            let seed_bytes = seed.0.to_le_bytes().to_vec();
             let num_blocks = NB_CTXT_LONG_RUN as u64;
             let bits_per_block = sks.message_modulus().0.ilog2();
             let max_bits = num_blocks * bits_per_block as u64;
@@ -1293,8 +1292,8 @@ pub(crate) fn random_op_sequence_test(
                 seed.0
             );
 
-            let res = op_executor.execute((seed_bytes.clone(), random_bits_count, num_blocks));
-            let res_1 = op_executor.execute((seed_bytes, random_bits_count, num_blocks));
+            let res = op_executor.execute((seed, random_bits_count, num_blocks));
+            let res_1 = op_executor.execute((seed, random_bits_count, num_blocks));
 
             let decrypted_res: u64 = cks.decrypt(&res);
 
@@ -1318,7 +1317,6 @@ pub(crate) fn random_op_sequence_test(
             let index = i - oprf_custom_range_ops_range.start;
             let (op_executor, fn_name) = &mut oprf_custom_range_ops[index];
             let seed = datagen.gen_seed();
-            let seed_bytes = seed.0.to_le_bytes().to_vec();
             let num_blocks_output = NB_CTXT_LONG_RUN as u64;
             let excluded_upper_bound = datagen.gen_excluded_upper_bound();
             let bits_per_block = sks.message_modulus().0.ilog2();
@@ -1331,13 +1329,13 @@ pub(crate) fn random_op_sequence_test(
             );
 
             let res = op_executor.execute((
-                seed_bytes.clone(),
+                seed,
                 num_input_random_bits,
                 excluded_upper_bound,
                 num_blocks_output,
             ));
             let res_1 = op_executor.execute((
-                seed_bytes,
+                seed,
                 num_input_random_bits,
                 excluded_upper_bound,
                 num_blocks_output,
