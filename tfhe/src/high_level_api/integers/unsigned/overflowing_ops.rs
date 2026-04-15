@@ -103,6 +103,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
+                    None
                 );
                 let overflow = hpu_result.pop().expect("IOP_OVF_ADD must return 2 value");
                 let result = hpu_result.pop().expect("IOP_OVF_ADD must return 2 value");
@@ -252,6 +253,7 @@ where
                     opcode,
                     std::slice::from_ref(&hpu_lhs),
                     &[imm_rhs],
+                    None
                 );
                 let overflow = hpu_result.pop().expect("IOP_OVF_ADDS must return 2 value");
                 let result = hpu_result.pop().expect("IOP_OVF_ADDS must return 2 value");
@@ -439,6 +441,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
+                    None
                 );
                 let overflow = hpu_result.pop().expect("IOP_OVF_SUB must return 2 value");
                 let result = hpu_result.pop().expect("IOP_OVF_SUB must return 2 value");
@@ -571,6 +574,7 @@ where
                     opcode,
                     std::slice::from_ref(&hpu_lhs),
                     &[imm_rhs],
+                    None
                 );
                 let overflow = hpu_result.pop().expect("IOP_OVF_SUBS must return 2 value");
                 let result = hpu_result.pop().expect("IOP_OVF_SUBS must return 2 value");
@@ -700,6 +704,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
+                    None
                 );
                 let overflow = hpu_result.pop().expect("IOP_OVF_MUL must return 2 value");
                 let result = hpu_result.pop().expect("IOP_OVF_MUL must return 2 value");

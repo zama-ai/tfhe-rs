@@ -270,7 +270,7 @@ mod hpu_test {
                         .collect::<Vec<_>>();
 
                     // execute on Hpu
-                    let res_hpu = HpuRadixCiphertext::exec(&proto, iop.opcode(), &srcs_enc, &imms);
+                    let res_hpu = HpuRadixCiphertext::exec(&proto, iop.opcode(), &srcs_enc, &imms, None);
                     let res_fhe = res_hpu
                         .iter()
                         .map(|x| x.to_radix_ciphertext()).collect::<Vec<_>>();

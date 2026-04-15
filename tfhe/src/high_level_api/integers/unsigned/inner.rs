@@ -70,7 +70,7 @@ impl Clone for RadixCiphertext {
                     )
                 };
                 let deep_clone =
-                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(inner), &[])
+                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(inner), &[], None)
                         .pop()
                         .expect("IOP_MEMCPY must return 1 operand");
                 Self::Hpu(deep_clone)

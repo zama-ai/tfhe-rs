@@ -246,7 +246,7 @@ where
                 )
             };
             // These clones are cheap as they are just Arc
-            let hpu_res = HpuRadixCiphertext::exec(proto, opcode, &srcs, &src.imm);
+            let hpu_res = HpuRadixCiphertext::exec(proto, opcode, &srcs, &src.imm, None);
             HpuHandle {
                 native: hpu_res
                     .iter()
@@ -649,7 +649,7 @@ where
                     )
                 };
                 let hpu_result =
-                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[])
+                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[], None)
                         .pop()
                         .expect("IOP_LEAD0 must return 1 value");
                 super::FheUint32::new(
@@ -724,7 +724,7 @@ where
                     )
                 };
                 let hpu_result =
-                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[])
+                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[],None)
                         .pop()
                         .expect("IOP_LEAD1 must return 1 value");
                 super::FheUint32::new(
@@ -799,7 +799,7 @@ where
                     )
                 };
                 let hpu_result =
-                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[])
+                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[], None)
                         .pop()
                         .expect("IOP_TRAIL0 must return 1 value");
                 super::FheUint32::new(
@@ -874,7 +874,7 @@ where
                     )
                 };
                 let hpu_result =
-                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[])
+                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[], None)
                         .pop()
                         .expect("IOP_TRAIL1 must return 1 value");
                 super::FheUint32::new(
@@ -936,7 +936,7 @@ where
                     )
                 };
                 let hpu_result =
-                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[])
+                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[], None)
                         .pop()
                         .expect("IOP_COUNT0 must return 1 value");
                 super::FheUint32::new(
@@ -998,7 +998,7 @@ where
                     )
                 };
                 let hpu_result =
-                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[])
+                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[], None)
                         .pop()
                         .expect("IOP_COUNT1 must return 1 value");
                 super::FheUint32::new(
@@ -1075,7 +1075,7 @@ where
                     )
                 };
                 let hpu_result =
-                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[])
+                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[], None)
                         .pop()
                         .expect("IOP_ILOG2 must return 1 value");
                 super::FheUint32::new(

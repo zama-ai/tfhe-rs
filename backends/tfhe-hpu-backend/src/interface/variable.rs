@@ -125,8 +125,7 @@ impl HpuVarWrapped {
 
     /// Create a new HpuVarWrapped with same properties
     /// Associated data is != only share properties
-    /// Always allocated on same node
-    pub(crate) fn fork(&self, trgt_mode: VarMode) -> Self {
+    pub(crate) fn fork(&self, trgt_mode: VarMode, trgt_pos: PhysId) -> Self {
         let Self {
             params,
             width,
@@ -143,7 +142,7 @@ impl HpuVarWrapped {
             (VarMode::Half, VarMode::Half) => width,
             _ => panic!("Unsupported mode, couldn't use a Boolean to build a bigger variable"),
         };
-        Self::new_on(self.hpu_id, parent, params, width, trgt_mode)
+        Self::new_on(trgt_pos, parent, params, width, trgt_mode)
     }
 
     pub fn try_into(self) -> Result<Vec<HpuLweCiphertextOwned<u64>>, HpuError> {

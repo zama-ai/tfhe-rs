@@ -3089,8 +3089,13 @@ mod hpu {
                         b.iter_batched(
                             gen_inputs,
                             |(srcs, imms)| {
-                                let res =
-                                    HpuRadixCiphertext::exec(&proto, iop.opcode(), &srcs, &imms);
+                                let res = HpuRadixCiphertext::exec(
+                                    &proto,
+                                    iop.opcode(),
+                                    &srcs,
+                                    &imms,
+                                    None,
+                                );
                                 res.into_iter().for_each(|ct| {
                                     ct.wait();
                                     black_box(ct);

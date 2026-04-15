@@ -175,11 +175,13 @@ impl HpuCmd {
         opcode: crate::asm::IOpcode,
         rhs_ct: &[HpuVarWrapped],
         rhs_imm: &[HpuImm],
+        dst_pos: Option<crate::asm::PhysId>,
     ) -> Vec<HpuVarWrapped> {
+        let pos = dst_pos.unwrap_or(rhs_ct[0].hpu_id);
         let dst = proto
             .dst
             .iter()
-            .map(|m| rhs_ct[0].fork(*m))
+            .map(|m| rhs_ct[0].fork(*m, pos))
             .collect::<Vec<_>>();
         Self::exec_raw(proto, opcode, &dst, rhs_ct, rhs_imm);
         dst
