@@ -33,12 +33,12 @@ where
 {
     let executor =
         CpuOprfExecutor::new(&|oprf_key: &OprfServerKey,
-                               seed: Vec<u8>,
+                               seed: Seed,
                                random_bits_count: u64,
                                num_blocks: u64,
                                sk: &ServerKey| {
             oprf_key.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
-                &seed,
+                seed,
                 random_bits_count,
                 num_blocks,
                 sk,
@@ -53,13 +53,13 @@ where
 {
     let executor =
         CpuOprfExecutor::new(&|oprf_key: &OprfServerKey,
-                               seed: Vec<u8>,
+                               seed: Seed,
                                num_input_random_bits: u64,
                                excluded_upper_bound: u64,
                                num_blocks_output: u64,
                                sk: &ServerKey| {
             oprf_key.par_generate_oblivious_pseudo_random_unsigned_custom_range(
-                &seed,
+                seed,
                 num_input_random_bits,
                 NonZeroU64::new(excluded_upper_bound).unwrap(),
                 num_blocks_output,
@@ -75,13 +75,13 @@ where
 {
     let executor =
         CpuOprfExecutor::new(&|oprf_key: &OprfServerKey,
-                               seed: Vec<u8>,
+                               seed: Seed,
                                num_input_random_bits: u64,
                                excluded_upper_bound: u64,
                                num_blocks_output: u64,
                                sk: &ServerKey| {
             oprf_key.par_generate_oblivious_pseudo_random_unsigned_custom_range(
-                &seed,
+                seed,
                 num_input_random_bits,
                 NonZeroU64::new(excluded_upper_bound).unwrap(),
                 num_blocks_output,
@@ -166,7 +166,7 @@ where
 pub(crate) fn oprf_uniformity_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
-    E: for<'a> OpSequenceFunctionExecutor<(Vec<u8>, u64, u64), RadixCiphertext>,
+    E: for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64), RadixCiphertext>,
 {
     let cks = setup_oprf_test(param, &mut executor);
 
@@ -177,11 +177,8 @@ where
     let distinct_values = 1u64 << random_bits_count;
 
     internal_test_uniformity(sample_count, p_value_limit, distinct_values, |seed| {
-        let img: RadixCiphertext = executor.execute((
-            (seed as u128).to_le_bytes().to_vec(),
-            random_bits_count,
-            num_blocks as u64,
-        ));
+        let img: RadixCiphertext =
+            executor.execute((Seed(seed as u128), random_bits_count, num_blocks as u64));
         cks.decrypt(&img)
     });
 }
@@ -189,20 +186,20 @@ where
 pub(crate) fn oprf_any_range_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
-    E: for<'a> OpSequenceFunctionExecutor<(Vec<u8>, u64, u64, u64), RadixCiphertext>,
+    E: for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>,
 {
     let cks = setup_oprf_test(param, &mut executor);
 
     let num_loops = 100;
 
     for s in 0..num_loops {
-        let seed = (s as u128).to_le_bytes().to_vec();
+        let seed = Seed(s as u128);
 
         for num_input_random_bits in [1, 2, 63, 64] {
             for (excluded_upper_bound, num_blocks_output) in [(3, 1), (3, 32), ((1 << 32) + 1, 64)]
             {
                 let img = executor.execute((
-                    seed.clone(),
+                    seed,
                     num_input_random_bits,
                     excluded_upper_bound,
                     num_blocks_output as u64,
@@ -221,7 +218,7 @@ where
 pub(crate) fn oprf_almost_uniformity_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
-    E: for<'a> OpSequenceFunctionExecutor<(Vec<u8>, u64, u64, u64), RadixCiphertext>,
+    E: for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>,
 {
     let cks = setup_oprf_test(param, &mut executor);
 
@@ -234,7 +231,7 @@ where
     let values: Vec<u64> = (0..sample_count)
         .map(|seed| {
             let img = executor.execute((
-                (seed as u128).to_le_bytes().to_vec(),
+                Seed(seed as u128),
                 num_input_random_bits,
                 excluded_upper_bound,
                 num_blocks_output,
