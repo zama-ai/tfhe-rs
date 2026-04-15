@@ -1,6 +1,6 @@
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::keycache::KEY_CACHE;
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use crate::shortint::{Ciphertext, MaxNoiseLevel, ServerKey};
 
 fn test_ct_unary_op_noise_level_propagation(sk: &ServerKey, ct: &Ciphertext) {
@@ -319,7 +319,7 @@ fn test_ct_scalar_op_assign_noise_level_propagation(sk: &ServerKey, ct: &Ciphert
 #[cfg(not(tarpaulin))] // This test is ignored in coverage, it takes around 4 hours to run otherwise.
 #[test]
 fn test_noise_level_propagation_ci_run_filter() {
-    let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let keys = KEY_CACHE.get_from_param(params);
     let (ck, sk) = (keys.client_key(), keys.server_key());
