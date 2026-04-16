@@ -1103,12 +1103,51 @@ impl<C: Container<Element = c64> + Sync> OprfBootstrappingKey<C> {
     }
 }
 
+// Made public to help KMS check their results and avoid code duplication
+pub mod test_utils {
+    /// Takes as input a cleartext (for tests you should decrypt the PRF input to get the cleartext
+    /// that would be fed into the encrypted PRF) and returns the expected PRF result for it.
+    ///
+    /// input_cleartext: cleartext decrypted from the PRF input
+    /// random_bits_count: how many random bits should the PRF output, for example even if you have
+    /// a total cleartext space of 4 bits, you may want to keep the top two bits (carry bits) equal
+    /// to 0 to keep the carry free.
+    /// output_modulus: the output cleartext space, continuing the above example, it must contain
+    /// the padding bit, so for 4 bits of cleartext this is actually 2^(1 + 4)==32
+    pub fn cleatext_prf(
+        input_cleartext: u64,
+        random_bits_count: u64,
+        output_modulus: u64,
+        prf_polynomial_size: u64,
+    ) -> u64 {
+        let input_modulus = 2 * prf_polynomial_size;
+        let random_value_modulus = 1 << random_bits_count;
+        let poly_delta = 2 * prf_polynomial_size / random_value_modulus;
+
+        let half_negacyclic_part = |x| 2 * (x / poly_delta) + 1;
+        let negacyclic_part = |x| {
+            assert!(x < input_modulus);
+            if x < input_modulus / 2 {
+                half_negacyclic_part(x)
+            } else {
+                2 * output_modulus - half_negacyclic_part(x - (input_modulus / 2))
+            }
+        };
+
+        let a: u64 =
+            (negacyclic_part(input_cleartext) + random_value_modulus - 1) % (2 * output_modulus);
+        assert!(a.is_multiple_of(2));
+        a / 2
+    }
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
 
 #[cfg(test)]
 pub(crate) mod test {
+    use super::test_utils::cleatext_prf;
     use super::*;
     use crate::core_crypto::commons::math::random::Seed;
     use crate::core_crypto::prelude::{decrypt_lwe_ciphertext, CastInto, LweSecretKeyView};
@@ -1120,6 +1159,12 @@ pub(crate) mod test {
 
     fn square(a: f64) -> f64 {
         a * a
+    }
+
+    struct PlainPrfResult {
+        seed: Seed,
+        output: u64,
+        expected_output: u64,
     }
 
     #[test]
@@ -1136,9 +1181,28 @@ pub(crate) mod test {
             let oprf_ck = OprfPrivateKey::new(&ck);
             let oprf_sk = OprfServerKey::new(&oprf_ck, &ck).unwrap();
 
-            for seed in 0..1000u128 {
-                oprf_compare_plain_from_seed(Seed(seed), &ck, &oprf_ck, &oprf_sk, &sk);
+            let results: Vec<_> = (0..1000)
+                .into_par_iter()
+                .map(|seed| oprf_compare_plain_from_seed(Seed(seed), &ck, &oprf_ck, &oprf_sk, &sk))
+                .collect();
+
+            let mut all_ok = true;
+            for res in results {
+                if let Err(PlainPrfResult {
+                    seed,
+                    output,
+                    expected_output,
+                }) = res
+                {
+                    all_ok = false;
+
+                    println!(
+                        "Error with seed {seed:?}, got output={output}, expected={expected_output}"
+                    );
+                }
             }
+
+            assert!(all_ok, "Test failed, see above log");
         }
     }
 
@@ -1148,18 +1212,10 @@ pub(crate) mod test {
         oprf_ck: &OprfPrivateKey,
         oprf_sk: &OprfServerKey,
         sk: &ServerKey,
-    ) {
+    ) -> Result<(), PlainPrfResult> {
         let params = ck.parameters();
 
-        let random_bits_count = 2;
-
-        let input_p = 2 * params.polynomial_size().0 as u64;
-
-        let p_prime = 1 << random_bits_count;
-
-        let output_p = 2 * params.carry_modulus().0 * params.message_modulus().0;
-
-        let poly_delta = 2 * params.polynomial_size().0 as u64 / p_prime;
+        let random_bits_count = params.message_modulus().0.ilog2().into();
 
         let img = oprf_sk.generate_oblivious_pseudo_random(seed, random_bits_count, sk);
 
@@ -1170,28 +1226,32 @@ pub(crate) mod test {
             }
         };
 
-        let half_negacyclic_part = |x| 2 * (x / poly_delta) + 1;
-
-        let negacyclic_part = |x| {
-            assert!(x < input_p);
-            if x < input_p / 2 {
-                half_negacyclic_part(x)
-            } else {
-                2 * output_p - half_negacyclic_part(x - (input_p / 2))
-            }
-        };
-
-        let prf = |x| {
-            let a: u64 = (negacyclic_part(x) + p_prime - 1) % (2 * output_p);
-            assert!(a.is_multiple_of(2));
-            a / 2
-        };
-
-        let expected_output = prf(plain_prf_input);
+        // includes padding bit
+        let output_modulus = 2 * params.message_modulus().0 * params.carry_modulus().0;
+        let expected_output = cleatext_prf(
+            plain_prf_input,
+            random_bits_count,
+            output_modulus,
+            params.polynomial_size().0 as u64,
+        );
         let output = ck.decrypt_message_and_carry(&img);
 
-        assert!(output < p_prime);
-        assert_eq!(output, expected_output);
+        let output_random_value_modulus = 1 << random_bits_count;
+
+        let output_range_ok = output < output_random_value_modulus;
+        let output_is_expected_value = output == expected_output;
+
+        let result_is_ok = output_range_ok && output_is_expected_value;
+
+        if result_is_ok {
+            Ok(())
+        } else {
+            Err(PlainPrfResult {
+                seed,
+                output,
+                expected_output,
+            })
+        }
     }
 
     /// Returns the value used as input of the pbs for the prf with the provided seed
