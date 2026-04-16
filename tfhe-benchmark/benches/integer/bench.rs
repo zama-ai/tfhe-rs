@@ -3117,7 +3117,7 @@ mod hpu {
                     };
                     let hpu_node_nb = hpu_config.fpga.node_id.len();
                     // Enforce that 64 Iop is sent over each HpuNode
-                    let elements = if bench_name.contains("div") || bench_name.contains("mod") {
+                    let elements = if bench_name.contains("div") || bench_name.contains("mod") || bit_size == 128 {
                         10 * hpu_node_nb as u64
                     } else {
                         64 * hpu_node_nb as u64
@@ -3180,6 +3180,7 @@ mod hpu {
                                         iop.opcode(),
                                         &input.0,
                                         &input.1,
+                                        None,
                                     )
                                 })
                                 .collect::<Vec<_>>();
