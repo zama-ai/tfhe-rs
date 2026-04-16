@@ -99,7 +99,7 @@ serde-wasm-bindgen = { workspace = true, optional = true }
 getrandom = { workspace = true, optional = true }
 bytemuck = { workspace = true }
 
-tfhe-hpu-backend = { version = "0.4", path = "../backends/tfhe-hpu-backend", optional = true }
+tfhe-hpu-backend = { version = "0.5", path = "../backends/tfhe-hpu-backend", optional = true }
 
 [features]
 default = ["avx512"]
