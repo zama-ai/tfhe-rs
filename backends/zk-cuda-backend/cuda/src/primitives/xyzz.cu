@@ -2,7 +2,6 @@
 #include "fp2.h"
 #include "xyzz.h"
 
-
 __host__ __device__ void xyzz_infinity(G1XYZZ &p) {
   fp_zero(p.ZZ);
   fp_zero(p.ZZZ);
