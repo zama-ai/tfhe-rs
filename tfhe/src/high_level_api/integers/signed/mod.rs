@@ -3,6 +3,7 @@ mod compressed;
 mod squashed_noise;
 
 mod encrypt;
+mod fused_ops;
 mod inner;
 mod ops;
 mod overflowing_ops;
