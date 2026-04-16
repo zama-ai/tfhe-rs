@@ -78,7 +78,6 @@ on:
           - classical_documentation + multi_bit_documentation
 
 
-
 permissions: {}
 
 # zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow

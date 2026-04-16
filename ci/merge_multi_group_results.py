@@ -1,44 +1,56 @@
 #!/usr/bin/env python3
-# TODO: ADD COMMENT
+# This script aggregates multi-process-group benchmark results
+# that are obtained by running benchmarks in a multi-process approach
+import argparse
 import json
 import sys
 
+ACCEPTED_TEST_PREFIXES = [
+    "hlapi::cuda::erc7984::throughput",
+]
 
-# TODO: ADD COMMENT
-def merge_multi_group_results(file1, file2, output_file):
-    with open(file1) as f:
-        data1 = json.load(f)
-    with open(file2) as f:
-        data2 = json.load(f)
 
-    # TODO: ADD COMMENT
-    points2 = {p["test"]: p for p in data2["points"]}
+# Looks at the Slab JSON benchmark results, accumulates the "value" field
+# which contains the measurement. This script will only accept to
+# aggregate throughput results of the ACCEPTED benchmarks.
+def merge_multi_group_results(input_files, output_file):
+    accumulated = {}
+    metadata = None
 
-    merged_points = []
-    for point in data1["points"]:
-        test = point["test"]
-        if test in points2:
-            # TODO: ADD COMMENT
-            merged = dict(point)
-            merged["value"] = point["value"] + points2[test]["value"]
-            merged_points.append(merged)
-            del points2[test]
-        else:
-            # TODO: ADD COMMENT
-            merged_points.append(point)
+    for path in input_files:
+        with open(path) as f:
+            data = json.load(f)
+        if metadata is None:
+            metadata = {k: v for k, v in data.items() if k != "points"}
+        for point in data["points"]:
+            test = point["test"]
+            if not any(test.startswith(prefix) for prefix in ACCEPTED_TEST_PREFIXES):
+                print(
+                    f"Error: unexpected test '{test}' in {path}: "
+                    f"this script only supports aggregation of: {ACCEPTED_TEST_PREFIXES}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            if test in accumulated:
+                accumulated[test]["value"] += point["value"]
+            else:
+                accumulated[test] = dict(point)
 
-    # TODO: ADD COMMENT
-    merged_points.extend(points2.values())
-
-    result = dict(data1)
-    result["points"] = merged_points
+    result = dict(metadata)
+    result["points"] = list(accumulated.values())
 
     with open(output_file, "w") as f:
         json.dump(result, f, indent=2)
 
 
+# The output is a positional argument, for file names we accept 2+
+parser = argparse.ArgumentParser()
+parser.add_argument("input_files", nargs="+")
+parser.add_argument("--output", required=True)
+
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
-        print(f"Usage: {sys.argv[0]} file1.json file2.json output.json")
+    args = parser.parse_args()
+    if len(args.input_files) < 2:
+        print("Error: at least 2 input files required", file=sys.stderr)
         sys.exit(1)
-    merge_multi_group_results(sys.argv[1], sys.argv[2], sys.argv[3])
+    merge_multi_group_results(args.input_files, args.output)

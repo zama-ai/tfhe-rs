@@ -237,6 +237,7 @@ jobs:
           BENCH_PARAMS_TYPE: ${{ matrix.params_type }}
           BENCH_COMMAND: ${{ matrix.command }}
           PRECISIONS_SET: ${{ inputs.precisions_set }}
+          __TFHE_RS_BENCH_MULTI_PROC_GROUPS: 2
 
       - name: Parse results
         if: ${{ inputs.command != 'hlapi_erc7984_multi_group' }}
@@ -260,7 +261,6 @@ jobs:
       - name: Parse and merge erc7984_multi_group results
         if: ${{ inputs.command == 'hlapi_erc7984_multi_group' }}
         run: |
-          pwd
           python3 ./ci/benchmark_parser.py tfhe-benchmark/target_p0/criterion "${RESULTS_FILENAME_P0}" \
           --database tfhe_rs \
           --hardware "${INPUTS_HARDWARE_NAME}" \
@@ -283,7 +283,7 @@ jobs:
           --walk-subdirs \
           --name-suffix avx512 \
           --bench-type "${BENCH_TYPE}"
-          python3 ./ci/merge_multi_group_results.py "${RESULTS_FILENAME_P0}" "${RESULTS_FILENAME_P1}" "${RESULTS_FILENAME}"
+          python3 ./ci/merge_multi_group_results.py --output "${RESULTS_FILENAME}" "${RESULTS_FILENAME_P0}" "${RESULTS_FILENAME_P1}"
         env:
           INPUTS_HARDWARE_NAME: ${{ inputs.hardware_name }}
           REF_NAME: ${{ github.ref_name }}
