@@ -587,6 +587,17 @@ clippy_backward_compat_data: install_rs_check_toolchain # the toolchain is selec
 		echo "Cannot run clippy for backward compat crate on non x86 platform for now."; \
 	fi
 
+.PHONY: check_backward_compat_locks_did_not_change # Check backward compat Cargo.lock files are up to date
+check_backward_compat_locks_did_not_change:
+	@for crate in `ls -1 $(BACKWARD_COMPAT_DATA_DIR)/crates/ | grep generate_`; do \
+		echo "checking Cargo.lock for $$crate"; \
+		cargo -Z unstable-options \
+			-C $(BACKWARD_COMPAT_DATA_DIR)/crates/$$crate metadata --locked --format-version 1 > /dev/null || \
+		( echo "Cargo.lock for $$crate is out of date. Update it with:" && \
+		  echo "  cd $(BACKWARD_COMPAT_DATA_DIR)/crates/$$crate && cargo metadata --format-version 1 > /dev/null" && \
+		  echo "then commit the updated Cargo.lock." && exit 1 ); \
+	done
+
 .PHONY: clippy_test_vectors # Run clippy lints on the test vectors app
 clippy_test_vectors: install_rs_check_toolchain
 	cd apps/test-vectors; RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
@@ -2265,6 +2276,7 @@ pcc_batch_5:
 	$(call run_recipe_with_details,clippy_tfhe_lints)
 	$(call run_recipe_with_details,check_compile_tests)
 	$(call run_recipe_with_details,clippy_backward_compat_data)
+	$(call run_recipe_with_details,check_backward_compat_locks_did_not_change)
 
 .PHONY: pcc_batch_6  # duration: 6'32''
 pcc_batch_6:
