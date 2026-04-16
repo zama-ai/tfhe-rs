@@ -64,12 +64,6 @@ pub struct Args {
 
     #[arg(long)]
     pub check_res: bool,
-<<<<<<< HEAD
-
-    #[arg(long)]
-    pub chain_iop: bool,
-=======
->>>>>>> 245865d1c (chore(hpu): update to debug multi-hpu IOp)
 
     #[arg(long)]
     pub chain_iop: bool,
