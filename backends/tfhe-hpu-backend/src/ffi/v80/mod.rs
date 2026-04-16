@@ -24,7 +24,7 @@ use mem_alloc::{MemAlloc, MemChunk};
 
 mod qdma;
 use qdma::QdmaDriver;
-use rand::Rng;
+use rand::RngExt;
 
 const DMA_XFER_ALIGN: usize = 4096_usize;
 
@@ -148,8 +148,8 @@ impl HpuHw {
         tracing::debug!("Load stage1 through JTAG");
         let pdi_stg1_tmp = format!(
             "hpu_stg1_{}.pdi",
-            rand::thread_rng()
-                .sample_iter(rand::distributions::Alphanumeric)
+            rand::rng()
+                .sample_iter(rand::distr::Alphanumeric)
                 .take(5)
                 .map(char::from)
                 .collect::<String>()
