@@ -253,3 +253,9 @@ fn test_safe_deserialize_conformant_compressed_fhe_int32() {
     let decrypted: i32 = deserialized_a.decompress().decrypt(&client_key);
     assert_eq!(decrypted, clear_a);
 }
+
+#[test]
+fn test_int16_fused_mul_div() {
+    let client_key = setup_default_cpu();
+    super::test_case_int16_fused_mul_div(&client_key);
+}

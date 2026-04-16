@@ -519,3 +519,71 @@ fn test_case_min_max(cks: &ClientKey) {
     assert_eq!(decrypted_min, a_val.min(b_val));
     assert_eq!(decrypted_max, a_val.max(b_val));
 }
+
+fn test_case_int16_fused_mul_div(cks: &ClientKey) {
+    let mut rng = rand::thread_rng();
+
+    // Widening prevents incorrect result with signed values:
+    // (-200) * 200 = -40_000 which overflows i16 (min -32_768),
+    // but with widening: -40_000 / 100 = -400, correct.
+    {
+        let input = -200i16;
+        let mul = 200i16;
+        let div = 100i16;
+        let expected = -400i16;
+
+        let a = FheInt16::try_encrypt(input, cks).unwrap();
+        let b = FheInt16::try_encrypt(mul, cks).unwrap();
+
+        let result = (&a).fused_mul_scalar_div(&b, div);
+        let decrypted: i16 = result.decrypt(cks);
+        assert_eq!(decrypted, expected);
+
+        let result = (&a).fused_scalar_mul_scalar_div(mul, div);
+        let decrypted: i16 = result.decrypt(cks);
+        assert_eq!(decrypted, expected);
+    }
+
+    for _ in 0..5 {
+        let clear_a: i16 = rng.gen();
+        let clear_b: i16 = rng.gen();
+        let clear_c: i16 = loop {
+            let v: i16 = rng.gen();
+            if v != 0 {
+                break v;
+            }
+        };
+
+        let a = FheInt16::try_encrypt(clear_a, cks).unwrap();
+        let b = FheInt16::try_encrypt(clear_b, cks).unwrap();
+
+        let expected = (i32::from(clear_a) * i32::from(clear_b) / i32::from(clear_c)) as i16;
+
+        // encrypted * encrypted / scalar
+        {
+            let result = (&a).fused_mul_scalar_div(&b, clear_c);
+            let decrypted: i16 = result.decrypt(cks);
+            assert_eq!(decrypted, expected);
+        }
+
+        // encrypted * scalar / scalar
+        {
+            let result = (&a).fused_scalar_mul_scalar_div(clear_b, clear_c);
+            let decrypted: i16 = result.decrypt(cks);
+            assert_eq!(decrypted, expected);
+        }
+
+        // Owned variants
+        {
+            let result = a.fused_mul_scalar_div(b, clear_c);
+            let decrypted: i16 = result.decrypt(cks);
+            assert_eq!(decrypted, expected);
+
+            // Need to encrypt again since "a" was consumed above
+            let a = FheInt16::try_encrypt(clear_a, cks).unwrap();
+            let result = a.fused_scalar_mul_scalar_div(clear_b, clear_c);
+            let decrypted: i16 = result.decrypt(cks);
+            assert_eq!(decrypted, expected);
+        }
+    }
+}

@@ -1,7 +1,9 @@
 use crate::high_level_api::traits::BitSlice;
 use crate::integer::U256;
 use crate::prelude::*;
-use crate::{ClientKey, FheBool, FheUint256, FheUint32, FheUint64, FheUint8, MatchValues};
+use crate::{
+    ClientKey, FheBool, FheUint16, FheUint256, FheUint32, FheUint64, FheUint8, MatchValues,
+};
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
 
@@ -908,5 +910,68 @@ fn test_case_match_value_or(cks: &ClientKey) {
             dec_result, expected_value,
             "Mismatch on result value for input {clear_in}. Should match: {should_match}"
         );
+    }
+}
+
+fn test_case_uint16_fused_mul_div(cks: &ClientKey) {
+    let mut rng = rand::thread_rng();
+
+    // Widening prevents incorrect result:
+    // 300 * 300 = 90_000 which overflows u16 (max 65_535),
+    // but with widening: 90_000 / 100 = 900, correct.
+    {
+        let input = 300u16;
+        let mul = 300u16;
+        let div = 100u16;
+        let expected = 900u16;
+
+        let a = FheUint16::try_encrypt(input, cks).unwrap();
+        let b = FheUint16::try_encrypt(mul, cks).unwrap();
+
+        let result = (&a).fused_mul_scalar_div(&b, div);
+        let decrypted: u16 = result.decrypt(cks);
+        assert_eq!(decrypted, expected);
+
+        let result = (&a).fused_scalar_mul_scalar_div(mul, div);
+        let decrypted: u16 = result.decrypt(cks);
+        assert_eq!(decrypted, expected);
+    }
+
+    for _ in 0..5 {
+        let clear_a: u16 = rng.gen();
+        let clear_b: u16 = rng.gen();
+        let clear_c: u16 = rng.gen_range(1..=u16::MAX);
+
+        let a = FheUint16::try_encrypt(clear_a, cks).unwrap();
+        let b = FheUint16::try_encrypt(clear_b, cks).unwrap();
+
+        let expected = (u32::from(clear_a) * u32::from(clear_b) / u32::from(clear_c)) as u16;
+
+        // encrypted * encrypted / scalar
+        {
+            let result = (&a).fused_mul_scalar_div(&b, clear_c);
+            let decrypted: u16 = result.decrypt(cks);
+            assert_eq!(decrypted, expected);
+        }
+
+        // encrypted * scalar / scalar
+        {
+            let result = (&a).fused_scalar_mul_scalar_div(clear_b, clear_c);
+            let decrypted: u16 = result.decrypt(cks);
+            assert_eq!(decrypted, expected);
+        }
+
+        // Owned variants
+        {
+            let result = a.fused_mul_scalar_div(b, clear_c);
+            let decrypted: u16 = result.decrypt(cks);
+            assert_eq!(decrypted, expected);
+
+            // Need to encrypt again since "a" was consumed above
+            let a = FheUint16::try_encrypt(clear_a, cks).unwrap();
+            let result = a.fused_scalar_mul_scalar_div(clear_b, clear_c);
+            let decrypted: u16 = result.decrypt(cks);
+            assert_eq!(decrypted, expected);
+        }
     }
 }

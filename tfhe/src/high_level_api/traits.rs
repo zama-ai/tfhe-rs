@@ -139,6 +139,30 @@ pub trait DivRem<Rhs = Self> {
     fn div_rem(self, amount: Rhs) -> Self::Output;
 }
 
+/// Computes `(self * mul) / div_scalar` where `self` and `mul` are encrypted and `div_scaalr` is a
+/// plaintext divisor.
+///
+/// The intermediate multiplication is performed to have the exact result without overflowing.
+/// The final result is truncated back to the original width, which may wrap if the full precision
+/// division result does not fit in the original type.
+pub trait FusedMulScalarDiv<Mul, DivScalar> {
+    type Output;
+
+    fn fused_mul_scalar_div(self, mul: Mul, div_scalar: DivScalar) -> Self::Output;
+}
+
+/// Computes `(self * mul_scalar) / div_scalar` where `self` is encrypted and both scalars are
+/// plaintext.
+///
+/// The intermediate multiplication is performed to have the exact result without overflowing.
+/// The final result is truncated back to the original width, which may wrap if the full precision
+/// division result does not fit in the original type.
+pub trait FusedScalarMulScalarDiv<Scalar> {
+    type Output;
+
+    fn fused_scalar_mul_scalar_div(self, mul_scalar: Scalar, div_scalar: Scalar) -> Self::Output;
+}
+
 pub trait IfThenElse<Ciphertext> {
     fn if_then_else(&self, ct_then: &Ciphertext, ct_else: &Ciphertext) -> Ciphertext;
     fn select(&self, ct_when_true: &Ciphertext, ct_when_false: &Ciphertext) -> Ciphertext {
