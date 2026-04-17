@@ -472,6 +472,106 @@ pub fn get_param_type() -> &'static ParamType {
     PARAM_TYPE.get_or_init(|| ParamType::from_env().unwrap())
 }
 
+pub fn get_bench_gpu_instances() -> Option<usize> {
+    env::var("__TFHE_RS_BENCH_GPU_PROCESS_COUNT").ok().map(|v| {
+        v.parse::<usize>().unwrap_or_else(|_| {
+            panic!("__TFHE_RS_BENCH_GPU_PROCESS_COUNT must be a positive integer, got '{v}'")
+        })
+    })
+}
+
+/// Multi-process barrier that ensures num_instances processes
+/// start at the same time
+#[cfg(target_os = "linux")]
+pub fn bench_sync_barrier(num_instances: usize) {
+    use std::ffi::CString;
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+    const BARRIER_TIMEOUT_SECS: u64 = 120;
+    const MUTEX_NAME_PREFIX: &str = "tfhe_bench";
+
+    // Three POSIX semaphores are used for synchronization
+    // The first one is used to make sure the processes increment the
+    // counter and get the value of the counter atomically .
+    let sem_mutex = CString::new(format!("/{MUTEX_NAME_PREFIX}_mutex")).unwrap();
+    let sem_arrive = CString::new(format!("/{MUTEX_NAME_PREFIX}_arrive")).unwrap();
+    let sem_gate = CString::new(format!("/{MUTEX_NAME_PREFIX}_gate")).unwrap();
+
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    let deadline_t = now + Duration::from_secs(BARRIER_TIMEOUT_SECS);
+    let deadline = libc::timespec {
+        tv_sec: deadline_t.as_secs() as libc::time_t,
+        tv_nsec: deadline_t.subsec_nanos() as libc::c_long,
+    };
+
+    let open_sem = |name: &CString, init: u32| {
+        let sem = unsafe { libc::sem_open(name.as_ptr(), libc::O_CREAT, 0o600u32, init) };
+        assert!(
+            sem != libc::SEM_FAILED,
+            "sem_open({:?}) failed: {}",
+            name,
+            std::io::Error::last_os_error()
+        );
+        sem
+    };
+
+    let timed_wait = |sem: *mut libc::sem_t, label: &str| {
+        let ret = unsafe { libc::sem_timedwait(sem, &deadline) };
+        if ret != 0 {
+            panic!(
+                "bench_sync_barrier: timed out on '{label}' after {BARRIER_TIMEOUT_SECS}s \
+                 (__TFHE_RS_BENCH_GPU_PROCESS_COUNT={num_instances}). \
+                 If semaphores are stale from a prior crash, clean up with: \
+                 rm -f /dev/shm/sem.{MUTEX_NAME_PREFIX}_*\n\
+                 OS error: {}",
+                std::io::Error::last_os_error()
+            );
+        }
+    };
+
+    let mutex = open_sem(&sem_mutex, 1);
+    let arrive = open_sem(&sem_arrive, 0);
+    let gate = open_sem(&sem_gate, 0);
+
+    // Process 0 to arrive doesn't need to wait
+    // Processes 1..N to arrive need to wait
+    timed_wait(mutex, "mutex");
+    // Each process posts to the arrive semaphore, incrementing its value
+    unsafe { libc::sem_post(arrive) };
+    // The last process to post to "arrive" will read a value equal to "num_instances"
+    // The other processes read a lower value. "mutex" ensures
+    // the post + get_value are atomic
+    let mut count = 0i32;
+    unsafe { libc::sem_getvalue(arrive, &mut count) };
+
+    // Once a process has posted to arrive and got the value (atomic)
+    // it allows the other processes to do the same
+    unsafe { libc::sem_post(mutex) };
+
+    // The last process reads the "num_instances" value from arrive.
+    // it must then tell the others to continue work. if it doesn't
+    // the other processes will time out at the "gate"
+    if count as usize == num_instances {
+        for _ in 0..num_instances {
+            // Open the gate
+            unsafe { libc::sem_post(gate) };
+        }
+    }
+
+    // Every process waits at the gate. If it doesn't open in a certain time, then we panic
+    timed_wait(gate, "gate");
+
+    // Clean up
+    unsafe {
+        libc::sem_close(mutex);
+        libc::sem_close(arrive);
+        libc::sem_close(gate);
+        libc::sem_unlink(sem_mutex.as_ptr());
+        libc::sem_unlink(sem_arrive.as_ptr());
+        libc::sem_unlink(sem_gate.as_ptr());
+    }
+}
+
 /// Generate a number of threads to use to saturate current machine for throughput measurements.
 pub fn throughput_num_threads(num_block: usize, op_pbs_count: u64) -> u64 {
     let ref_block_count = 32; // Represent a ciphertext of 64 bits for 2_2 parameters set
