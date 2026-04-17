@@ -661,6 +661,40 @@ impl ServerKey {
             engine.new_server_key_with_max_degree(cks, max_degree)
         })
     }
+
+    /// Returns a view of the server key's bootstrapping key that can be used
+    /// for OPRF generation.
+    pub fn as_oprf_key_view(&self) -> crate::shortint::oprf::OprfServerKeyView<'_> {
+        use crate::shortint::oprf::{GenericOprfServerKey, OprfBootstrappingKeyView};
+
+        fn bsk_view<S: UnsignedInteger>(
+            bsk: &ShortintBootstrappingKey<S>,
+        ) -> OprfBootstrappingKeyView<'_> {
+            match bsk {
+                ShortintBootstrappingKey::Classic { bsk, .. } => {
+                    OprfBootstrappingKeyView::Classic { bsk: bsk.as_view() }
+                }
+                ShortintBootstrappingKey::MultiBit {
+                    fourier_bsk,
+                    thread_count,
+                    deterministic_execution,
+                } => OprfBootstrappingKeyView::MultiBit {
+                    fourier_bsk: fourier_bsk.as_view(),
+                    thread_count: *thread_count,
+                    deterministic_execution: *deterministic_execution,
+                },
+            }
+        }
+
+        let inner = match &self.atomic_pattern {
+            AtomicPatternServerKey::Standard(std) => bsk_view(&std.bootstrapping_key),
+            AtomicPatternServerKey::KeySwitch32(ks32) => bsk_view(&ks32.bootstrapping_key),
+            AtomicPatternServerKey::Dynamic(_) => {
+                panic!("Dynamic atomic pattern does not support OPRF fallback")
+            }
+        };
+        GenericOprfServerKey { inner }
+    }
 }
 
 impl<AP: AtomicPattern> GenericServerKey<AP> {
@@ -1489,14 +1523,15 @@ pub(crate) fn apply_ms_blind_rotate<InputScalar, InputCont, OutputScalar, Output
     }
 }
 
-pub(crate) fn apply_standard_blind_rotate<OutputScalar, OutputCont>(
-    fourier_bsk: &FourierLweBootstrapKeyOwned,
+pub(crate) fn apply_standard_blind_rotate<OutputScalar, OutputCont, BskCont>(
+    fourier_bsk: &FourierLweBootstrapKey<BskCont>,
     msed_lwe_in: &impl ModulusSwitchedLweCiphertext<usize>,
     acc: &mut GlweCiphertext<OutputCont>,
     buffers: &mut ComputationBuffers,
 ) where
     OutputScalar: UnsignedTorus + CastFrom<usize>,
     OutputCont: ContainerMut<Element = OutputScalar>,
+    BskCont: Container<Element = c64>,
 {
     #[cfg(feature = "pbs-stats")]
     let _ = PBS_COUNT.fetch_add(1, Ordering::Relaxed);

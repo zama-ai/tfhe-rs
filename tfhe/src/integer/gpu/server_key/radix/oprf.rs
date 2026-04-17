@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaSignedRadixCiphertext,
@@ -8,10 +10,12 @@ use crate::integer::gpu::server_key::{
 };
 use itertools::Itertools;
 
-use crate::core_crypto::commons::generators::DeterministicSeeder;
-use crate::core_crypto::prelude::{DefaultRandomGenerator, LweBskGroupingFactor};
+use crate::core_crypto::prelude::{LweBskGroupingFactor, LweCiphertextCount};
 
-use crate::shortint::oprf::{create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe};
+use crate::shortint::oprf::{
+    create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe, ExpandedOprfServerKey,
+};
+use crate::shortint::OprfSeed;
 
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::integer::block_decomposition::BlockDecomposer;
@@ -19,9 +23,63 @@ use crate::integer::gpu::{
     cuda_backend_get_grouped_oprf_size_on_gpu, cuda_backend_grouped_oprf,
     cuda_backend_grouped_oprf_custom_range, PBSType,
 };
-pub use tfhe_csprng::seeders::{Seed, Seeder};
 
-impl CudaServerKey {
+pub struct GenericCudaOprfServerKey<K> {
+    bootstrapping_key: K,
+}
+
+pub type CudaOprfServerKey = GenericCudaOprfServerKey<CudaBootstrappingKey<u64>>;
+pub type CudaOprfServerKeyView<'a> = GenericCudaOprfServerKey<&'a CudaBootstrappingKey<u64>>;
+
+impl CudaOprfServerKey {
+    pub fn as_view(&self) -> CudaOprfServerKeyView<'_> {
+        GenericCudaOprfServerKey {
+            bootstrapping_key: &self.bootstrapping_key,
+        }
+    }
+
+    pub fn decompress_from_cpu(
+        cpu_key: &crate::integer::oprf::CompressedOprfServerKey,
+        streams: &CudaStreams,
+    ) -> Self {
+        let expanded = cpu_key.expand();
+        Self::from_expanded_cpu(&expanded, streams)
+    }
+
+    pub fn from_expanded_cpu(expanded: &ExpandedOprfServerKey, streams: &CudaStreams) -> Self {
+        let bsk = &expanded.0;
+        let bootstrapping_key = CudaBootstrappingKey::from_expanded_oprf_server_key(bsk, streams);
+        Self { bootstrapping_key }
+    }
+}
+
+impl<'a> CudaOprfServerKeyView<'a> {
+    pub fn from_borrowed_bsk(bsk: &'a CudaBootstrappingKey<u64>) -> Self {
+        Self {
+            bootstrapping_key: bsk,
+        }
+    }
+}
+
+impl<K> GenericCudaOprfServerKey<K>
+where
+    K: Borrow<CudaBootstrappingKey<u64>>,
+{
+    fn assert_compatible_with_target_bsk(&self, target_bsk: &CudaBootstrappingKey<u64>) {
+        assert_eq!(
+            target_bsk.input_lwe_dimension(),
+            self.bootstrapping_key.borrow().input_lwe_dimension()
+        );
+        assert_eq!(
+            target_bsk.output_lwe_dimension(),
+            self.bootstrapping_key.borrow().output_lwe_dimension()
+        );
+        assert_eq!(
+            target_bsk.polynomial_size(),
+            self.bootstrapping_key.borrow().polynomial_size()
+        );
+    }
+
     /// Generates an encrypted `num_block` blocks unsigned integer
     /// taken uniformly in its full range using the given seed.
     /// The encrypted value is oblivious to the server.
@@ -31,6 +89,8 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::gen_keys_gpu;
+    /// use tfhe::integer::gpu::CudaOprfServerKey;
+    /// use tfhe::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey};
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// use tfhe::Seed;
     ///
@@ -41,7 +101,12 @@ impl CudaServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
-    /// let d_ct_res = sks.par_generate_oblivious_pseudo_random_unsigned_integer(Seed(0), size as u64, &streams);
+    /// // Generate the OPRF key:
+    /// let oprf_pk = OprfPrivateKey::new(&cks);
+    /// let compressed_oprf_sk = CompressedOprfServerKey::new(&oprf_pk, &cks).unwrap();
+    /// let cuda_oprf_sk = CudaOprfServerKey::decompress_from_cpu(&compressed_oprf_sk, &streams);
+    ///
+    /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(Seed(0), size as u64, &sks, &streams);
     /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     /// // Decrypt:
     /// let dec_result: u64 = cks.decrypt_radix(&ct_res);
@@ -50,11 +115,14 @@ impl CudaServerKey {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_unsigned_integer(
         &self,
-        seed: Seed,
+        seed: impl OprfSeed,
         num_blocks: u64,
+        target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
-        self.generate_oblivious_pseudo_random_unbounded_integer(seed, num_blocks, streams)
+        self.generate_oblivious_pseudo_random_unbounded_integer(
+            seed, num_blocks, target_sks, streams,
+        )
     }
 
     /// Generates an encrypted `num_block` blocks unsigned integer
@@ -66,6 +134,8 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::gen_keys_gpu;
+    /// use tfhe::integer::gpu::CudaOprfServerKey;
+    /// use tfhe::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey};
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// use tfhe::Seed;
     ///
@@ -76,12 +146,18 @@ impl CudaServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
+    /// // Generate the OPRF key:
+    /// let oprf_pk = OprfPrivateKey::new(&cks);
+    /// let compressed_oprf_sk = CompressedOprfServerKey::new(&oprf_pk, &cks).unwrap();
+    /// let cuda_oprf_sk = CudaOprfServerKey::decompress_from_cpu(&compressed_oprf_sk, &streams);
+    ///
     /// let random_bits_count = 3;
     ///
-    /// let d_ct_res = sks.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+    /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
     ///     Seed(0),
     ///     random_bits_count,
     ///     size as u64,
+    ///     &sks,
     ///     &streams,
     /// );
     /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
@@ -91,12 +167,13 @@ impl CudaServerKey {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
         &self,
-        seed: Seed,
+        seed: impl OprfSeed,
         random_bits_count: u64,
         num_blocks: u64,
+        target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
-        let message_bits_count = self.message_modulus.0.ilog2() as u64;
+        let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
         let range_log_size = message_bits_count * num_blocks;
 
         assert!(
@@ -108,6 +185,7 @@ impl CudaServerKey {
             seed,
             random_bits_count,
             num_blocks,
+            target_sks,
             streams,
         )
     }
@@ -121,6 +199,8 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::gen_keys_gpu;
+    /// use tfhe::integer::gpu::CudaOprfServerKey;
+    /// use tfhe::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey};
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// use tfhe::Seed;
     ///
@@ -131,7 +211,12 @@ impl CudaServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
-    /// let d_ct_res = sks.par_generate_oblivious_pseudo_random_signed_integer(Seed(0), size as u64, &streams);
+    /// // Generate the OPRF key:
+    /// let oprf_pk = OprfPrivateKey::new(&cks);
+    /// let compressed_oprf_sk = CompressedOprfServerKey::new(&oprf_pk, &cks).unwrap();
+    /// let cuda_oprf_sk = CudaOprfServerKey::decompress_from_cpu(&compressed_oprf_sk, &streams);
+    ///
+    /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_signed_integer(Seed(0), size as u64, &sks, &streams);
     /// let ct_res = d_ct_res.to_signed_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
@@ -141,11 +226,14 @@ impl CudaServerKey {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_signed_integer(
         &self,
-        seed: Seed,
+        seed: impl OprfSeed,
         num_blocks: u64,
+        target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> CudaSignedRadixCiphertext {
-        self.generate_oblivious_pseudo_random_unbounded_integer(seed, num_blocks, streams)
+        self.generate_oblivious_pseudo_random_unbounded_integer(
+            seed, num_blocks, target_sks, streams,
+        )
     }
 
     /// Generates an encrypted `num_block` blocks signed integer
@@ -157,6 +245,8 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::gen_keys_gpu;
+    /// use tfhe::integer::gpu::CudaOprfServerKey;
+    /// use tfhe::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey};
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// use tfhe::Seed;
     ///
@@ -167,12 +257,18 @@ impl CudaServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
+    /// // Generate the OPRF key:
+    /// let oprf_pk = OprfPrivateKey::new(&cks);
+    /// let compressed_oprf_sk = CompressedOprfServerKey::new(&oprf_pk, &cks).unwrap();
+    /// let cuda_oprf_sk = CudaOprfServerKey::decompress_from_cpu(&compressed_oprf_sk, &streams);
+    ///
     /// let random_bits_count = 3;
     ///
-    /// let d_ct_res = sks.par_generate_oblivious_pseudo_random_signed_integer_bounded(
+    /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_signed_integer_bounded(
     ///     Seed(0),
     ///     random_bits_count,
     ///     size as u64,
+    ///     &sks,
     ///     &streams,
     /// );
     /// let ct_res = d_ct_res.to_signed_radix_ciphertext(&streams);
@@ -184,12 +280,13 @@ impl CudaServerKey {
     /// ```
     pub fn par_generate_oblivious_pseudo_random_signed_integer_bounded(
         &self,
-        seed: Seed,
+        seed: impl OprfSeed,
         random_bits_count: u64,
         num_blocks: u64,
+        target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> CudaSignedRadixCiphertext {
-        let message_bits_count = self.message_modulus.0.ilog2() as u64;
+        let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
         let range_log_size = message_bits_count * num_blocks;
 
         #[allow(clippy::int_plus_one)]
@@ -205,6 +302,7 @@ impl CudaServerKey {
             seed,
             random_bits_count,
             num_blocks,
+            target_sks,
             streams,
         )
     }
@@ -214,26 +312,33 @@ impl CudaServerKey {
     //
     pub fn generate_oblivious_pseudo_random<T>(
         &self,
-        seed: Seed,
+        seed: impl OprfSeed,
         random_bits_count: u64,
+        target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
         assert!(
-            1 << random_bits_count <= self.message_modulus.0,
+            1 << random_bits_count <= target_sks.message_modulus.0,
             "The range asked for a random value (=[0, 2^{random_bits_count}[) does not fit in the available range [0, {}[",
-            self.message_modulus.0
+            target_sks.message_modulus.0
         );
-        let carry_bits_count = self.carry_modulus.0.ilog2() as u64;
-        let message_bits_count = self.message_modulus.0.ilog2() as u64;
+        let carry_bits_count = target_sks.carry_modulus.0.ilog2() as u64;
+        let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
         assert!(
             random_bits_count <= carry_bits_count + message_bits_count,
             "The number of random bits asked for (={random_bits_count}) is bigger than carry_bits_count (={carry_bits_count}) + message_bits_count(={message_bits_count})",
         );
 
-        self.generate_oblivious_pseudo_random_bounded_integer(seed, random_bits_count, 1, streams)
+        self.generate_oblivious_pseudo_random_bounded_integer(
+            seed,
+            random_bits_count,
+            1,
+            target_sks,
+            streams,
+        )
     }
 
     // Generic internal implementation for unbounded pseudo-random generation.
@@ -241,18 +346,19 @@ impl CudaServerKey {
     //
     fn generate_oblivious_pseudo_random_unbounded_integer<T>(
         &self,
-        seed: Seed,
+        seed: impl OprfSeed,
         num_blocks: u64,
+        target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
-        assert!(self.message_modulus.0.is_power_of_two());
+        assert!(target_sks.message_modulus.0.is_power_of_two());
 
-        let message_bits_count = self.message_modulus.0.ilog2() as u64;
+        let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
 
-        let mut result = self.create_trivial_zero_radix(num_blocks as usize, streams);
+        let mut result = target_sks.create_trivial_zero_radix(num_blocks as usize, streams);
 
         if num_blocks == 0 {
             return result;
@@ -263,6 +369,7 @@ impl CudaServerKey {
             seed,
             num_blocks,
             num_blocks * message_bits_count,
+            target_sks,
             streams,
         );
 
@@ -274,19 +381,20 @@ impl CudaServerKey {
     //
     fn generate_oblivious_pseudo_random_bounded_integer<T>(
         &self,
-        seed: Seed,
+        seed: impl OprfSeed,
         random_bits_count: u64,
         num_blocks: u64,
+        target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
-        assert!(self.message_modulus.0.is_power_of_two());
-        let message_bits_count = self.message_modulus.0.ilog2() as u64;
+        assert!(target_sks.message_modulus.0.is_power_of_two());
+        let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
         let num_active_blocks = random_bits_count.div_ceil(message_bits_count);
 
-        let mut result = self.create_trivial_zero_radix(num_blocks as usize, streams);
+        let mut result = target_sks.create_trivial_zero_radix(num_blocks as usize, streams);
 
         assert!(
             num_blocks >= num_active_blocks,
@@ -301,6 +409,7 @@ impl CudaServerKey {
             seed,
             num_active_blocks,
             random_bits_count,
+            target_sks,
             streams,
         );
         result
@@ -312,40 +421,35 @@ impl CudaServerKey {
     fn generate_multiblocks_oblivious_pseudo_random(
         &self,
         result: &mut CudaRadixCiphertext,
-        seed: Seed,
+        seed: impl OprfSeed,
         num_active_blocks: u64,
         total_random_bits: u64,
+        target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) {
-        let (input_lwe_dimension, polynomial_size) = match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                (d_bsk.input_lwe_dimension, d_bsk.polynomial_size)
-            }
-            CudaBootstrappingKey::MultiBit(d_bsk) => {
-                (d_bsk.input_lwe_dimension, d_bsk.polynomial_size)
-            }
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &target_sks.key_switching_key
+        else {
+            panic!("Only the standard atomic pattern is supported");
         };
+
+        self.assert_compatible_with_target_bsk(&target_sks.bootstrapping_key);
+
+        let bootstrapping_key = self.bootstrapping_key.borrow();
+        let input_lwe_dimension = bootstrapping_key.input_lwe_dimension();
+        let polynomial_size = bootstrapping_key.polynomial_size();
         let in_lwe_size = input_lwe_dimension.to_lwe_size();
 
-        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
-        let seeds: Vec<Seed> = (0..num_active_blocks)
-            .map(|_| deterministic_seeder.seed())
-            .collect();
-
-        let h_seeded_lwe_list: Vec<u64> = seeds
-            .into_iter()
-            .flat_map(|seed| {
-                raw_seeded_msed_to_lwe(
-                    &create_random_from_seed_modulus_switched::<u64>(
-                        seed,
-                        in_lwe_size,
-                        polynomial_size.to_blind_rotation_input_modulus_log(),
-                    ),
-                    self.ciphertext_modulus,
-                )
-                .into_container()
-            })
-            .collect();
+        let h_seeded_lwe_list: Vec<u64> = create_random_from_seed_modulus_switched(
+            seed,
+            in_lwe_size,
+            polynomial_size,
+            LweCiphertextCount(num_active_blocks as usize),
+        )
+        .into_iter()
+        .flat_map(|seeded| {
+            raw_seeded_msed_to_lwe(&seeded, target_sks.ciphertext_modulus).into_container()
+        })
+        .collect();
 
         let mut d_seeded_lwe_input =
             unsafe { CudaVec::<u64>::new_async(h_seeded_lwe_list.len(), streams, 0) };
@@ -353,13 +457,10 @@ impl CudaServerKey {
             d_seeded_lwe_input.copy_from_cpu_async(&h_seeded_lwe_list, streams, 0);
         }
 
-        let message_bits_count = self.message_modulus.0.ilog2();
-        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
-            panic!("Only the standard atomic pattern is supported on GPU")
-        };
+        let message_bits_count = target_sks.message_modulus.0.ilog2();
 
         unsafe {
-            match &self.bootstrapping_key {
+            match bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
                     cuda_backend_grouped_oprf(
                         streams,
@@ -375,8 +476,8 @@ impl CudaServerKey {
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
                         LweBskGroupingFactor(0),
-                        self.message_modulus,
-                        self.carry_modulus,
+                        target_sks.message_modulus,
+                        target_sks.carry_modulus,
                         PBSType::Classical,
                         message_bits_count,
                         total_random_bits as u32,
@@ -398,8 +499,8 @@ impl CudaServerKey {
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
                         d_bsk.grouping_factor,
-                        self.message_modulus,
-                        self.carry_modulus,
+                        target_sks.message_modulus,
+                        target_sks.carry_modulus,
                         PBSType::MultiBit,
                         message_bits_count,
                         total_random_bits as u32,
@@ -412,17 +513,18 @@ impl CudaServerKey {
 
     pub fn par_generate_oblivious_pseudo_random_unsigned_custom_range(
         &self,
-        seed: Seed,
+        seed: impl OprfSeed,
         num_input_random_bits: u64,
         excluded_upper_bound: u64,
         num_blocks_output: u64,
+        target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
         assert!(
-            self.message_modulus.0.is_power_of_two(),
+            target_sks.message_modulus.0.is_power_of_two(),
             "Message modulus must be a power of two"
         );
-        let message_bits_count = self.message_modulus.0.ilog2() as u64;
+        let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
 
         assert!(
             !excluded_upper_bound.is_power_of_two(),
@@ -434,6 +536,18 @@ impl CudaServerKey {
             (excluded_upper_bound as f64) < 2_f64.powi(num_bits_output as i32),
             "num_blocks_output(={num_blocks_output}) is too small to hold an integer up to excluded_upper_bound(={excluded_upper_bound})"
         );
+
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &target_sks.key_switching_key
+        else {
+            panic!("Only the standard atomic pattern is supported");
+        };
+
+        self.assert_compatible_with_target_bsk(&target_sks.bootstrapping_key);
+
+        let bootstrapping_key = self.bootstrapping_key.borrow();
+        let input_lwe_dimension = bootstrapping_key.input_lwe_dimension();
+        let polynomial_size = bootstrapping_key.polynomial_size();
+        let in_lwe_size = input_lwe_dimension.to_lwe_size();
 
         let post_mul_num_bits =
             num_input_random_bits + (excluded_upper_bound as f64).log2().ceil() as u64;
@@ -452,35 +566,17 @@ impl CudaServerKey {
             .iter_as::<u64>()
             .collect::<Vec<_>>();
 
-        let (input_lwe_dimension, polynomial_size) = match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                (d_bsk.input_lwe_dimension, d_bsk.polynomial_size)
-            }
-            CudaBootstrappingKey::MultiBit(d_bsk) => {
-                (d_bsk.input_lwe_dimension, d_bsk.polynomial_size)
-            }
-        };
-        let in_lwe_size = input_lwe_dimension.to_lwe_size();
-
-        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
-        let seeds: Vec<Seed> = (0..num_blocks_intermediate)
-            .map(|_| deterministic_seeder.seed())
-            .collect();
-
-        let h_seeded_lwe_list: Vec<u64> = seeds
-            .into_iter()
-            .flat_map(|seed| {
-                raw_seeded_msed_to_lwe(
-                    &create_random_from_seed_modulus_switched::<u64>(
-                        seed,
-                        in_lwe_size,
-                        polynomial_size.to_blind_rotation_input_modulus_log(),
-                    ),
-                    self.ciphertext_modulus,
-                )
-                .into_container()
-            })
-            .collect();
+        let h_seeded_lwe_list: Vec<u64> = create_random_from_seed_modulus_switched(
+            seed,
+            in_lwe_size,
+            polynomial_size,
+            LweCiphertextCount(num_blocks_intermediate as usize),
+        )
+        .into_iter()
+        .flat_map(|seeded| {
+            raw_seeded_msed_to_lwe(&seeded, target_sks.ciphertext_modulus).into_container()
+        })
+        .collect();
 
         let mut d_seeded_lwe_input =
             unsafe { CudaVec::<u64>::new_async(h_seeded_lwe_list.len(), streams, 0) };
@@ -488,15 +584,16 @@ impl CudaServerKey {
         streams.synchronize();
 
         let mut result: CudaUnsignedRadixCiphertext =
-            self.create_trivial_zero_radix(num_blocks_output as usize, streams);
-
-        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
-            panic!("Only the standard atomic pattern is supported on GPU")
-        };
+            target_sks.create_trivial_zero_radix(num_blocks_output as usize, streams);
 
         unsafe {
-            match &self.bootstrapping_key {
+            match bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
+                    let CudaBootstrappingKey::Classic(compute_d_bsk) =
+                        &target_sks.bootstrapping_key
+                    else {
+                        panic!("OPRF and compute bootstrapping keys must have matching types");
+                    };
                     cuda_backend_grouped_oprf_custom_range(
                         streams,
                         result.as_mut(),
@@ -506,6 +603,7 @@ impl CudaServerKey {
                         has_at_least_one_set.as_slice(),
                         num_input_random_bits as u32,
                         &d_bsk.d_vec,
+                        &compute_d_bsk.d_vec,
                         &computing_ks_key.d_vec,
                         d_bsk.input_lwe_dimension,
                         d_bsk.glwe_dimension,
@@ -515,8 +613,8 @@ impl CudaServerKey {
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
                         LweBskGroupingFactor(0),
-                        self.message_modulus,
-                        self.carry_modulus,
+                        target_sks.message_modulus,
+                        target_sks.carry_modulus,
                         PBSType::Classical,
                         message_bits_count as u32,
                         post_mul_num_bits as u32,
@@ -524,6 +622,11 @@ impl CudaServerKey {
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_bsk) => {
+                    let CudaBootstrappingKey::MultiBit(compute_d_bsk) =
+                        &target_sks.bootstrapping_key
+                    else {
+                        panic!("OPRF and compute bootstrapping keys must have matching types");
+                    };
                     cuda_backend_grouped_oprf_custom_range(
                         streams,
                         result.as_mut(),
@@ -533,6 +636,7 @@ impl CudaServerKey {
                         has_at_least_one_set.as_slice(),
                         num_input_random_bits as u32,
                         &d_bsk.d_vec,
+                        &compute_d_bsk.d_vec,
                         &computing_ks_key.d_vec,
                         d_bsk.input_lwe_dimension,
                         d_bsk.glwe_dimension,
@@ -542,8 +646,8 @@ impl CudaServerKey {
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
                         d_bsk.grouping_factor,
-                        self.message_modulus,
-                        self.carry_modulus,
+                        target_sks.message_modulus,
+                        target_sks.carry_modulus,
                         PBSType::MultiBit,
                         message_bits_count as u32,
                         post_mul_num_bits as u32,
@@ -560,14 +664,16 @@ impl CudaServerKey {
     //
     pub fn get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(
         &self,
+        target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> u64 {
-        let message_bits = self.message_modulus.0.ilog2();
-        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
-            panic!("Only the standard atomic pattern is supported on GPU")
+        let message_bits = target_sks.message_modulus.0.ilog2();
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &target_sks.key_switching_key
+        else {
+            panic!("Only the standard atomic pattern is supported");
         };
 
-        match &self.bootstrapping_key {
+        match &self.bootstrapping_key.borrow() {
             CudaBootstrappingKey::Classic(d_bsk) => cuda_backend_get_grouped_oprf_size_on_gpu(
                 streams,
                 1,
@@ -579,8 +685,8 @@ impl CudaServerKey {
                 d_bsk.decomp_level_count,
                 d_bsk.decomp_base_log,
                 LweBskGroupingFactor(0),
-                self.message_modulus,
-                self.carry_modulus,
+                target_sks.message_modulus,
+                target_sks.carry_modulus,
                 PBSType::Classical,
                 message_bits,
                 message_bits,
@@ -597,8 +703,8 @@ impl CudaServerKey {
                 d_bsk.decomp_level_count,
                 d_bsk.decomp_base_log,
                 d_bsk.grouping_factor,
-                self.message_modulus,
-                self.carry_modulus,
+                target_sks.message_modulus,
+                target_sks.carry_modulus,
                 PBSType::MultiBit,
                 message_bits,
                 message_bits,
@@ -609,22 +715,31 @@ impl CudaServerKey {
 
     pub fn get_par_generate_oblivious_pseudo_random_unsigned_integer_bounded_size_on_gpu(
         &self,
+        target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(streams)
+        self.get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(
+            target_sks, streams,
+        )
     }
 
     pub fn get_par_generate_oblivious_pseudo_random_signed_integer_size_on_gpu(
         &self,
+        target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(streams)
+        self.get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(
+            target_sks, streams,
+        )
     }
 
     pub fn get_par_generate_oblivious_pseudo_random_signed_integer_bounded_size_on_gpu(
         &self,
+        target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(streams)
+        self.get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(
+            target_sks, streams,
+        )
     }
 }

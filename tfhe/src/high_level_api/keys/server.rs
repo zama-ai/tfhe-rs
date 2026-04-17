@@ -21,6 +21,7 @@ use crate::integer::compression_keys::{
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::re_randomization::CudaReRandomizationKey as IntegerCudaReRandomizationKey;
 use crate::integer::noise_squashing::{CompressedNoiseSquashingKey, NoiseSquashingKey};
+use crate::integer::oprf::{CompressedOprfServerKey, OprfServerKey, OprfServerKeyView};
 use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use crate::integer::public_key::compact::CompactPublicKey;
 use crate::named::Named;
@@ -85,6 +86,7 @@ impl ServerKey {
         Option<NoiseSquashingKey>,
         Option<NoiseSquashingCompressionKey>,
         Option<ReRandomizationKey>,
+        Option<OprfServerKey>,
         Tag,
     ) {
         let IntegerServerKey {
@@ -95,6 +97,7 @@ impl ServerKey {
             noise_squashing_key,
             noise_squashing_compression_key,
             cpk_re_randomization_key,
+            oprf_key,
         } = (*self.key).clone();
 
         (
@@ -105,6 +108,7 @@ impl ServerKey {
             noise_squashing_key,
             noise_squashing_compression_key,
             cpk_re_randomization_key,
+            oprf_key,
             self.tag,
         )
     }
@@ -120,6 +124,7 @@ impl ServerKey {
         noise_squashing_key: Option<NoiseSquashingKey>,
         noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
         cpk_re_randomization_key: Option<ReRandomizationKey>,
+        oprf_key: Option<OprfServerKey>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -131,6 +136,7 @@ impl ServerKey {
                 noise_squashing_key,
                 noise_squashing_compression_key,
                 cpk_re_randomization_key,
+                oprf_key,
             }),
             tag,
         }
@@ -138,6 +144,17 @@ impl ServerKey {
 
     pub(in crate::high_level_api) fn pbs_key(&self) -> &crate::integer::ServerKey {
         self.key.pbs_key()
+    }
+
+    /// Returns an OPRF key reference for pseudo-random generation.
+    ///
+    /// If a dedicated OPRF key was generated, it is used.
+    /// Otherwise, falls back to the compute server key's bootstrapping key.
+    pub(in crate::high_level_api) fn oprf_key(&self) -> OprfServerKeyView<'_> {
+        self.key.oprf_key.as_ref().map_or_else(
+            || self.pbs_key().as_oprf_key_view(),
+            |dedicated| dedicated.as_view(),
+        )
     }
 
     #[cfg(feature = "strings")]
@@ -269,6 +286,10 @@ impl ServerKey {
         self.key.compression_key.is_some()
     }
 
+    pub fn supports_oprf(&self) -> bool {
+        true
+    }
+
     pub(in crate::high_level_api) fn message_modulus(&self) -> MessageModulus {
         self.key.message_modulus()
     }
@@ -393,10 +414,11 @@ impl CompressedServerKey {
         Option<CompressedNoiseSquashingKey>,
         Option<CompressedNoiseSquashingCompressionKey>,
         Option<CompressedReRandomizationKey>,
+        Option<CompressedOprfServerKey>,
         Tag,
     ) {
-        let (a, b, c, d, e, f, g) = self.integer_key.into_raw_parts();
-        (a, b, c, d, e, f, g, self.tag)
+        let (a, b, c, d, e, f, g, h) = self.integer_key.into_raw_parts();
+        (a, b, c, d, e, f, g, h, self.tag)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -410,6 +432,7 @@ impl CompressedServerKey {
         noise_squashing_key: Option<CompressedNoiseSquashingKey>,
         noise_squashing_compression_key: Option<CompressedNoiseSquashingCompressionKey>,
         cpk_re_randomization_key: Option<CompressedReRandomizationKey>,
+        oprf_key: Option<CompressedOprfServerKey>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -421,6 +444,7 @@ impl CompressedServerKey {
                 noise_squashing_key,
                 noise_squashing_compression_key,
                 cpk_re_randomization_key,
+                oprf_key,
             ),
             tag,
         }
@@ -495,6 +519,17 @@ impl CudaServerKey {
             key_switching_key_material: self.key.cpk_key_switching_key_material.as_ref().unwrap(),
             dest_server_key: &self.key.key,
         }
+    }
+
+    pub(crate) fn oprf_key(&self) -> crate::integer::gpu::CudaOprfServerKeyView<'_> {
+        self.key.oprf_key.as_ref().map_or_else(
+            || {
+                crate::integer::gpu::GenericCudaOprfServerKey::from_borrowed_bsk(
+                    &self.key.key.bootstrapping_key,
+                )
+            },
+            |dedicated| dedicated.as_view(),
+        )
     }
 
     pub fn gpu_indexes(&self) -> &[GpuIndex] {
@@ -857,6 +892,7 @@ mod test {
                     noise_squashing_param: None,
                     noise_squashing_compression_param: None,
                     cpk_re_randomization_params: None,
+                    dedicated_oprf_key: false,
                 };
 
                 assert!(!sk.is_conformant(&conformance_params));
@@ -887,6 +923,7 @@ mod test {
                 noise_squashing_param: None,
                 noise_squashing_compression_param: None,
                 cpk_re_randomization_params: None,
+                dedicated_oprf_key: false,
             };
 
             assert!(!sk.is_conformant(&conformance_params));
@@ -1024,6 +1061,7 @@ mod test {
                     noise_squashing_param: None,
                     noise_squashing_compression_param: None,
                     cpk_re_randomization_params: None,
+                    dedicated_oprf_key: false,
                 };
 
                 assert!(!sk.is_conformant(&conformance_params));
@@ -1054,6 +1092,7 @@ mod test {
                 noise_squashing_param: None,
                 noise_squashing_compression_param: None,
                 cpk_re_randomization_params: None,
+                dedicated_oprf_key: false,
             };
 
             assert!(!sk.is_conformant(&conformance_params));

@@ -1,16 +1,20 @@
+use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::tests::{
     cumulate, dkw_alpha_from_epsilon, sup_diff,
 };
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
-use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
+use crate::integer::oprf::{OprfPrivateKey, OprfServerKey};
+use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
+use crate::integer::server_key::radix_parallel::tests_unsigned::CpuOprfExecutor;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;
+use crate::Tag;
+use rand::Rng;
 use statrs::distribution::ContinuousCDF;
 use std::collections::HashMap;
 use std::num::NonZeroU64;
-use std::sync::Arc;
+use tfhe_csprng::generators::DefaultRandomGenerator;
 use tfhe_csprng::seeders::Seed;
 
 create_parameterized_test!(oprf_uniformity_unsigned {
@@ -27,9 +31,19 @@ fn oprf_uniformity_unsigned<P>(param: P)
 where
     P: Into<TestParameters>,
 {
-    let executor = CpuFunctionExecutor::new(
-        &ServerKey::par_generate_oblivious_pseudo_random_unsigned_integer_bounded,
-    );
+    let executor =
+        CpuOprfExecutor::new(&|oprf_key: &OprfServerKey,
+                               seed: Seed,
+                               random_bits_count: u64,
+                               num_blocks: u64,
+                               sk: &ServerKey| {
+            oprf_key.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                seed,
+                random_bits_count,
+                num_blocks,
+                sk,
+            )
+        });
     oprf_uniformity_test(param, executor);
 }
 
@@ -38,16 +52,18 @@ where
     P: Into<TestParameters>,
 {
     let executor =
-        CpuFunctionExecutor::new(&|sk: &ServerKey,
-                                   seed: Seed,
-                                   num_input_random_bits: u64,
-                                   excluded_upper_bound: u64,
-                                   num_blocks_output: u64| {
-            sk.par_generate_oblivious_pseudo_random_unsigned_custom_range(
+        CpuOprfExecutor::new(&|oprf_key: &OprfServerKey,
+                               seed: Seed,
+                               num_input_random_bits: u64,
+                               excluded_upper_bound: u64,
+                               num_blocks_output: u64,
+                               sk: &ServerKey| {
+            oprf_key.par_generate_oblivious_pseudo_random_unsigned_custom_range(
                 seed,
                 num_input_random_bits,
                 NonZeroU64::new(excluded_upper_bound).unwrap(),
                 num_blocks_output,
+                sk,
             )
         });
     oprf_any_range_test(param, executor);
@@ -58,26 +74,28 @@ where
     P: Into<TestParameters>,
 {
     let executor =
-        CpuFunctionExecutor::new(&|sk: &ServerKey,
-                                   seed: Seed,
-                                   num_input_random_bits: u64,
-                                   excluded_upper_bound: u64,
-                                   num_blocks_output: u64| {
-            sk.par_generate_oblivious_pseudo_random_unsigned_custom_range(
+        CpuOprfExecutor::new(&|oprf_key: &OprfServerKey,
+                               seed: Seed,
+                               num_input_random_bits: u64,
+                               excluded_upper_bound: u64,
+                               num_blocks_output: u64,
+                               sk: &ServerKey| {
+            oprf_key.par_generate_oblivious_pseudo_random_unsigned_custom_range(
                 seed,
                 num_input_random_bits,
                 NonZeroU64::new(excluded_upper_bound).unwrap(),
                 num_blocks_output,
+                sk,
             )
         });
     oprf_almost_uniformity_test(param, executor);
 }
 
-fn square(a: f64) -> f64 {
+pub(crate) fn square(a: f64) -> f64 {
     a * a
 }
 
-fn uniformity_p_value<F>(f: F, sample_count: usize, distinct_values: u64) -> f64
+pub(crate) fn uniformity_p_value<F>(f: F, sample_count: usize, distinct_values: u64) -> f64
 where
     F: FnMut(usize) -> u64,
 {
@@ -99,8 +117,12 @@ where
         .sf(distance)
 }
 
-fn internal_test_uniformity<F>(sample_count: usize, p_value_limit: f64, distinct_values: u64, f: F)
-where
+pub(crate) fn internal_test_uniformity<F>(
+    sample_count: usize,
+    p_value_limit: f64,
+    distinct_values: u64,
+    f: F,
+) where
     F: FnMut(usize) -> u64,
 {
     let p_value = uniformity_p_value(f, sample_count, distinct_values);
@@ -110,16 +132,43 @@ where
     );
 }
 
+pub(crate) fn setup_oprf_test<I, O, E>(
+    param: impl Into<TestParameters>,
+    executor: &mut E,
+) -> RadixClientKey
+where
+    E: OpSequenceFunctionExecutor<I, O>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    sks.set_deterministic_pbs_execution(true);
+    let oprf_priv_key = OprfPrivateKey::new(&cks);
+
+    let mut rng = rand::thread_rng();
+    let seed: u128 = rng.gen();
+    println!("seed: {seed:?}");
+    let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(seed));
+    let temp_cks = crate::ClientKey::from_raw_parts(
+        cks.clone(),
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(oprf_priv_key),
+        Tag::default(),
+    );
+    let comp_sks = crate::CompressedServerKey::new(&temp_cks);
+    let cks = RadixClientKey::from((cks, 1));
+    executor.setup(&cks, &comp_sks, &mut deterministic_seeder);
+    cks
+}
+
 pub(crate) fn oprf_uniformity_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
-    E: for<'a> FunctionExecutor<(Seed, u64, u64), RadixCiphertext>,
+    E: for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64), RadixCiphertext>,
 {
-    let param = param.into();
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, 1));
-    let sks = Arc::new(sks);
-    executor.setup(&cks, sks);
+    let cks = setup_oprf_test(param, &mut executor);
 
     let sample_count: usize = 10_000;
     let p_value_limit: f64 = 0.000_01;
@@ -137,18 +186,14 @@ where
 pub(crate) fn oprf_any_range_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
-    E: for<'a> FunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>,
+    E: for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>,
 {
-    let param = param.into();
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, 1));
-    let sks = Arc::new(sks);
-    executor.setup(&cks, sks);
+    let cks = setup_oprf_test(param, &mut executor);
 
     let num_loops = 100;
 
     for s in 0..num_loops {
-        let seed = Seed(s);
+        let seed = Seed(s as u128);
 
         for num_input_random_bits in [1, 2, 63, 64] {
             for (excluded_upper_bound, num_blocks_output) in [(3, 1), (3, 32), ((1 << 32) + 1, 64)]
@@ -173,13 +218,9 @@ where
 pub(crate) fn oprf_almost_uniformity_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
-    E: for<'a> FunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>,
+    E: for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>,
 {
-    let param = param.into();
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, 1));
-    let sks = Arc::new(sks);
-    executor.setup(&cks, sks);
+    let cks = setup_oprf_test(param, &mut executor);
 
     let sample_count: usize = 10_000;
     let p_value_limit: f64 = 0.001;
