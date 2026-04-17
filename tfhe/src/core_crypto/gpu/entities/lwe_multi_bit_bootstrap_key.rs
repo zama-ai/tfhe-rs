@@ -1,3 +1,4 @@
+use crate::core_crypto::gpu::entities::lwe_bootstrap_key::CudaBskParams;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{
     convert_lwe_multi_bit_programmable_bootstrap_key_async, CudaStreams,
@@ -7,6 +8,7 @@ use crate::core_crypto::prelude::{
     GlweDimension, LweBskGroupingFactor, LweDimension, LweMultiBitBootstrapKey, PolynomialSize,
     UnsignedInteger,
 };
+use tfhe_cuda_backend::bindings::{CudaLweBootstrapKeyParamsFFI, PBS_TYPE_MULTI_BIT};
 
 /// A structure representing a vector of GLWE ciphertexts with 64 bits of precision on the GPU.
 #[derive(Debug)]
@@ -102,5 +104,25 @@ impl<Scalar: UnsignedInteger> CudaLweMultiBitBootstrapKey<Scalar> {
 
     pub(crate) fn grouping_factor(&self) -> LweBskGroupingFactor {
         self.grouping_factor
+    }
+}
+
+impl<Scalar: UnsignedInteger> CudaBskParams for CudaLweMultiBitBootstrapKey<Scalar> {
+    fn params_ffi(&self) -> CudaLweBootstrapKeyParamsFFI {
+        CudaLweBootstrapKeyParamsFFI {
+            input_lwe_dimension: u32::try_from(self.input_lwe_dimension.0).unwrap(),
+            glwe_dimension: u32::try_from(self.glwe_dimension.0).unwrap(),
+            polynomial_size: u32::try_from(self.polynomial_size.0).unwrap(),
+            base_log: u32::try_from(self.decomp_base_log.0).unwrap(),
+            level_count: u32::try_from(self.decomp_level_count.0).unwrap(),
+            big_lwe_dimension: u32::try_from(
+                self.glwe_dimension
+                    .to_equivalent_lwe_dimension(self.polynomial_size)
+                    .0,
+            )
+            .unwrap(),
+            pbs_type: PBS_TYPE_MULTI_BIT,
+            grouping_factor: u32::try_from(self.grouping_factor.0).unwrap(),
+        }
     }
 }
