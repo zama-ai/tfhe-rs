@@ -3,6 +3,7 @@
 #include "curve.h"
 #include "fp.h"
 #include "fp2.h"
+#include "xyzz.h"
 
 // ============================================================================
 // Unified Trait System for Elliptic Curve Points
@@ -275,4 +276,66 @@ template <> struct SelectorChooser<G1Projective> {
 
 template <> struct SelectorChooser<G2Projective> {
   using Selection = Projective<G2Projective>;
+};
+
+// XYZZ<T>: trait for XYZZ extended Jacobian operations (used in MSM)
+template <typename XYZZType> struct XYZZ;
+
+template <> struct XYZZ<G1XYZZ> {
+  using FieldType = Fp;
+  using AffineType = G1Affine;
+  using ProjectiveType = G1Projective;
+
+  __host__ __device__ static void point_at_infinity(G1XYZZ &p) {
+    xyzz_infinity(p);
+  }
+  __host__ __device__ static bool is_infinity(const G1XYZZ &p) {
+    return xyzz_is_infinity(p);
+  }
+  __host__ __device__ static void from_affine(G1XYZZ &xyzz,
+                                              const G1Affine &affine) {
+    xyzz_from_affine(xyzz, affine);
+  }
+  __host__ __device__ static void mixed_add(G1XYZZ &acc, const G1Affine &p) {
+    xyzz_mixed_add(acc, p);
+  }
+  __host__ __device__ static void to_projective(G1Projective &proj,
+                                                const G1XYZZ &xyzz) {
+    xyzz_to_projective(proj, xyzz);
+  }
+};
+
+template <> struct XYZZ<G2XYZZ> {
+  using FieldType = Fp2;
+  using AffineType = G2Affine;
+  using ProjectiveType = G2Projective;
+
+  __host__ __device__ static void point_at_infinity(G2XYZZ &p) {
+    xyzz_infinity(p);
+  }
+  __host__ __device__ static bool is_infinity(const G2XYZZ &p) {
+    return xyzz_is_infinity(p);
+  }
+  __host__ __device__ static void from_affine(G2XYZZ &xyzz,
+                                              const G2Affine &affine) {
+    xyzz_from_affine(xyzz, affine);
+  }
+  __host__ __device__ static void mixed_add(G2XYZZ &acc, const G2Affine &p) {
+    xyzz_mixed_add(acc, p);
+  }
+  __host__ __device__ static void to_projective(G2Projective &proj,
+                                                const G2XYZZ &xyzz) {
+    xyzz_to_projective(proj, xyzz);
+  }
+};
+
+// XYZZFor<ProjectiveType>: maps a projective type to its XYZZ accumulator type
+template <typename ProjectiveType> struct XYZZFor;
+
+template <> struct XYZZFor<G1Projective> {
+  using Type = G1XYZZ;
+};
+
+template <> struct XYZZFor<G2Projective> {
+  using Type = G2XYZZ;
 };
