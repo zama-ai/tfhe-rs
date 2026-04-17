@@ -283,7 +283,7 @@ jobs:
           --walk-subdirs \
           --name-suffix avx512 \
           --bench-type "${BENCH_TYPE}"
-          python3 ./ci/merge_multi_group_results.py --output "${RESULTS_FILENAME}" "${RESULTS_FILENAME_P0}" "${RESULTS_FILENAME_P1}"
+          python3 ./ci/merge_multi_group_results.py --bench-type "${BENCH_TYPE}" --output "${RESULTS_FILENAME}" "${RESULTS_FILENAME_P0}" "${RESULTS_FILENAME_P1}"
         env:
           INPUTS_HARDWARE_NAME: ${{ inputs.hardware_name }}
           REF_NAME: ${{ github.ref_name }}

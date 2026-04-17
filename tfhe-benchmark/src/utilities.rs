@@ -472,14 +472,6 @@ pub fn get_param_type() -> &'static ParamType {
     PARAM_TYPE.get_or_init(|| ParamType::from_env().unwrap())
 }
 
-pub fn get_bench_gpu_process_id() -> Option<usize> {
-    env::var("__TFHE_RS_BENCH_GPU_PROCESS_ID").ok().map(|v| {
-        v.parse::<usize>().unwrap_or_else(|_| {
-            panic!("__TFHE_RS_BENCH_GPU_PROCESS_ID must be a non-negative integer, got '{v}'")
-        })
-    })
-}
-
 pub fn get_bench_gpu_instances() -> Option<usize> {
     env::var("__TFHE_RS_BENCH_GPU_PROCESS_COUNT").ok().map(|v| {
         v.parse::<usize>().unwrap_or_else(|_| {

@@ -1967,7 +1967,8 @@ bench_hlapi_erc7984_multi_group_gpu: install_rs_check_toolchain
 	trap "echo 'User interrupted the benchmark, stopping all workers!'; rm -f /dev/shm/sem.tfhe_bench_*; kill 0" INT TERM; \
 	for i in $$(seq 0 $$((NUM_GROUPS - 1))); do \
 		GPU_LIST=$$(python3 ci/split_gpus.py $$i $$NUM_GROUPS) || exit 1; \
-		CUDA_VISIBLE_DEVICES=$$GPU_LIST CARGO_TARGET_DIR=target_p$$i RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=throughput __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_GPU_PROCESS_COUNT=$$NUM_GROUPS \
+		echo "Starting benchmark group $$i with CUDA_VISIBLE_DEVICES=$$GPU_LIST"; \
+		CUDA_VISIBLE_DEVICES=$$GPU_LIST CARGO_TARGET_DIR=target_p$$i RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_GPU_PROCESS_COUNT=$$NUM_GROUPS \
 		cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 		--bench hlapi-erc7984 \
 		--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::transfer::overflow' & \
