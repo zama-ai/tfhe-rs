@@ -74,6 +74,12 @@ do
             shift
             backend="$1"
             ;;
+
+        "--gpufeature" )
+            shift
+            gpu_feature="$1"
+            ;;
+
         "--avx512-support" )
             shift
             if [[ "$1" == "ON" ]]; then
@@ -122,7 +128,7 @@ if [[ "${NO_BIG_PARAMS_GPU}" == TRUE ]]; then
     no_big_params_argument_gpu=--no-big-params-gpu
 fi
 
-if [[ "${backend}" == "gpu" ]]; then
+if [[ "${backend}" == "gpu" && -z "${gpu_feature}" ]]; then
     gpu_feature="gpu"
 fi
 

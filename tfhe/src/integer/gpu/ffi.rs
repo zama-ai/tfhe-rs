@@ -6478,6 +6478,8 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<
     output_degrees: &mut Vec<u64>,
     output_noise_levels: &mut Vec<u64>,
     input: &CudaSlice<u64>,
+    input_degrees: &mut Vec<u64>,
+    input_noise_levels: &mut Vec<u64>,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<KST>,
     bsk: &impl CudaBskParams,
@@ -6532,8 +6534,8 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<
     );
     let cuda_ffi_input = prepare_cuda_radix_ffi_from_slice(
         input,
-        output_degrees,
-        output_noise_levels,
+        input_degrees,
+        input_noise_levels,
         original_num_blocks,
         u32::try_from(
             input_glwe_dimension

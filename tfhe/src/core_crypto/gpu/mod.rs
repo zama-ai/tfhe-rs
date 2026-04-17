@@ -34,9 +34,10 @@ impl CudaStreams {
     /// Create a new `CudaStreams` structure with as many GPUs as there are on the machine
     #[cfg(feature = "gpu-debug-fake-multi-gpu")]
     pub fn new_multi_gpu() -> Self {
-        let gpu_count = 4;
+        let gpu_count = 2;
         assert_eq!(
-            gpu_count, 4,
+            get_number_of_gpus(),
+            1,
             "The fake multi-gpu debug target can only be used on single GPU machines"
         );
 

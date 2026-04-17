@@ -36,22 +36,30 @@ void host_sub_and_propagate_single_carry(
     int_sub_and_propagate<Torus> *mem, void *const *bsks, KSTorus *const *ksks,
     uint32_t requested_flag, uint32_t uses_carry) {
 
-  host_negation<Torus>(streams, mem->neg_rhs_array, rhs_array,
-                       mem->params.message_modulus, mem->params.carry_modulus,
-                       mem->neg_rhs_array->num_radix_blocks);
+  host_negation_with_correcting_term<Torus>(
+      streams, mem->neg_rhs_array, rhs_array, mem->params.message_modulus,
+      mem->params.carry_modulus, mem->neg_rhs_array->num_radix_blocks);
 
   host_add_and_propagate_single_carry<Torus>(
       streams, lhs_array, mem->neg_rhs_array, carry_out, input_carries,
       mem->sc_prop_mem, bsks, ksks, requested_flag, uses_carry);
 }
 
+/** @brief Subtracts lwe_array_in_2 (rhs) from lwe_array_in_1 (lhs) over
+ * num_radix_blocks blocks by negating rhs with a correcting term (via
+ * host_negation_with_correcting_term) then adding lhs. This is a fully
+ * levelled subtraction and no PBS is performed.
+ * @param lwe_array_out destination radix-ciphertext
+ * @param lwe_array_in_1 lhs radix-ciphertext
+ * @param lwe_array_in_2 rhs radix-ciphertext
+ * @param num_radix_blocks number of blocks to subtract
+ */
 template <typename Torus>
-__host__ void host_subtraction(CudaStreams streams,
-                               CudaRadixCiphertextFFI *lwe_array_out,
-                               CudaRadixCiphertextFFI const *lwe_array_in_1,
-                               CudaRadixCiphertextFFI const *lwe_array_in_2,
-                               uint64_t message_modulus, uint64_t carry_modulus,
-                               uint32_t num_radix_blocks) {
+__host__ void host_subtraction_with_correcting_term(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in_1,
+    CudaRadixCiphertextFFI const *lwe_array_in_2, uint32_t message_modulus,
+    uint32_t carry_modulus, uint32_t num_radix_blocks) {
   cuda_set_device(streams.gpu_index(0));
 
   if (lwe_array_out->num_radix_blocks < num_radix_blocks ||
@@ -65,8 +73,9 @@ __host__ void host_subtraction(CudaStreams streams,
     PANIC("Cuda error: lwe_array_in and lwe_array_out lwe_dimension must be "
           "the same")
 
-  host_negation<Torus>(streams, lwe_array_out, lwe_array_in_2, message_modulus,
-                       carry_modulus, num_radix_blocks);
+  host_negation_with_correcting_term<Torus>(streams, lwe_array_out,
+                                            lwe_array_in_2, message_modulus,
+                                            carry_modulus, num_radix_blocks);
   host_addition<Torus>(streams.stream(0), streams.gpu_index(0), lwe_array_out,
                        lwe_array_out, lwe_array_in_1, num_radix_blocks,
                        message_modulus, carry_modulus);
