@@ -100,6 +100,53 @@ impl<F> GpuFunctionExecutor<F> {
     }
 }
 
+impl<'a, S, FInit, FNext>
+    FunctionExecutor<
+        (&'a RadixCiphertext, &'a RadixCiphertext, &'a [usize]),
+        crate::Result<Vec<RadixCiphertext>>,
+    > for GpuFunctionExecutor<(FInit, FNext)>
+where
+    FInit: Fn(
+        &CudaServerKey,
+        &CudaUnsignedRadixCiphertext,
+        &CudaUnsignedRadixCiphertext,
+        &CudaStreams,
+    ) -> crate::Result<S>,
+    FNext: Fn(
+        &CudaServerKey,
+        &mut S,
+        usize,
+        &CudaStreams,
+    ) -> crate::Result<CudaUnsignedRadixCiphertext>,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(
+        &mut self,
+        input: (&'a RadixCiphertext, &'a RadixCiphertext, &'a [usize]),
+    ) -> crate::Result<Vec<RadixCiphertext>> {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_key = CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.0, &context.streams);
+        let d_iv = CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.1, &context.streams);
+
+        let mut state = (self.func.0)(&context.sks, &d_key, &d_iv, &context.streams)?;
+
+        let mut results = Vec::with_capacity(input.2.len());
+        for &steps in input.2 {
+            let d_res = (self.func.1)(&context.sks, &mut state, steps, &context.streams)?;
+            results.push(d_res.to_radix_ciphertext(&context.streams));
+        }
+
+        Ok(results)
+    }
+}
+
 impl<'a, F>
     FunctionExecutor<
         (&'a RadixCiphertext, &'a RadixCiphertext, usize),
