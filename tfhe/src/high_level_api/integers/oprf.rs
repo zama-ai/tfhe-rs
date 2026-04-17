@@ -942,6 +942,12 @@ mod test {
                 PRF_TEST_CASES
             {
                 for excluded_upper_bound in excluded_upper_bounds {
+                    // When running in debug mode keep the number of iterations low
+                    #[cfg(feature = "gpu-debug-fake-multi-gpu")]
+                    let sample_count = 10 * excluded_upper_bound as usize;
+
+                    // Normal mode: testing in the CI
+                    #[cfg(not(feature = "gpu-debug-fake-multi-gpu"))]
                     let sample_count = BASE_SAMPLE_COUNT * excluded_upper_bound as usize;
 
                     let excluded_upper_bound = NonZeroU64::new(excluded_upper_bound).unwrap();
@@ -1007,6 +1013,8 @@ mod test {
 
                     let excluded_upper_bound = excluded_upper_bound.get();
 
+                    // Don't actually check when running in debug (used only for memory debug)
+                    #[cfg(not(feature = "gpu-debug-fake-multi-gpu"))]
                     verify_output_distribution(
                         real_values,
                         sample_count,

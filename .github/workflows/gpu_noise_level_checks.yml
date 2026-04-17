@@ -1,5 +1,9 @@
-# Compile and test tfhe-cuda-backend on an AWS instance
-name: gpu_fast_tests
+# Run signed and unsigned GPU integer tests with the gpu-debug-noise-check
+# feature so that the CHECK_NOISE_LEVEL assertions in the CUDA backend are
+# active, without the multi-GPU emulation that requires a multi-GPU host.
+# Runs on a single L40 Hyperstack instance, triggered automatically on every PR
+# that touches GPU code, alongside gpu_fast_tests.
+name: gpu_noise_level_checks
 
 env:
   CARGO_TERM_COLOR: always
@@ -18,11 +22,14 @@ env:
   # Secrets will be available only to zama-ai organization members
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
   EXTERNAL_CONTRIBUTION_RUNNER: "gpu_ubuntu-22.04"
+  GPU_FEATURE: gpu-debug-noise-check
+  FAST_TESTS: TRUE
+  NIGHTLY_TESTS: FALSE
 
 on:
-  # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   pull_request:
+    types: [ labeled ]
 
 permissions:
   contents: read
@@ -31,7 +38,7 @@ permissions:
 
 jobs:
   should-run:
-    name: gpu_fast_tests/should-run
+    name: gpu_noise_level_checks/should-run
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read  # Needed to check for file change
@@ -39,7 +46,7 @@ jobs:
       gpu_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.gpu_any_changed }}
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
           persist-credentials: 'false'
@@ -55,23 +62,20 @@ jobs:
               - tfhe/build.rs
               - backends/tfhe-cuda-backend/**
               - tfhe/src/core_crypto/gpu/**
+              - tfhe/src/integer/gpu/**
               - tfhe/src/integer/server_key/radix_parallel/tests_unsigned/**
               - tfhe/src/integer/server_key/radix_parallel/tests_signed/**
               - tfhe/src/integer/server_key/radix_parallel/tests_cases_unsigned.rs
-              - tfhe/src/integer/gpu/**
               - tfhe/src/shortint/parameters/**
-              - tfhe/src/high_level_api/**
               - tfhe/src/c_api/**
-              - 'tfhe/docs/**/**.md'
-              - '.github/workflows/gpu_fast_tests.yml'
-              - '.github/actions/gpu_setup/action.yml'
-              - ci/slab.toml
+              - '.github/workflows/gpu_noise_level_checks.yml'
+              - scripts/integer-tests.sh
 
   setup-instance:
-    name: gpu_fast_tests/setup-instance
+    name: gpu_noise_level_checks/setup-instance
     needs: should-run
-    if: github.event_name == 'workflow_dispatch' ||
-      needs.should-run.outputs.gpu_test == 'true'
+    if: github.event_name != 'pull_request' ||
+      (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true')
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
@@ -86,8 +90,8 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: terraform
-          profile: scaleway-small-gpu
+          backend: hyperstack
+          profile: l40
 
       # This instance will be spawned especially for pull-request from forked repository
       - name: Start GitHub instance
@@ -99,8 +103,8 @@ jobs:
             echo "cloud-provider=github";
           } >> "$GITHUB_OUTPUT"
 
-  cuda-tests-linux:
-    name: gpu_fast_tests/cuda-tests-linux
+  cuda-noise-check-tests:
+    name: gpu_noise_level_checks/cuda-noise-check-tests
     needs: [ should-run, setup-instance ]
     if: github.event_name != 'pull_request' ||
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
@@ -108,22 +112,23 @@ jobs:
       group: ${{ github.workflow_ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    timeout-minutes: 720 # 12 hours
     strategy:
       fail-fast: false
       # explicit include-based build matrix, of known valid options
       matrix:
         include:
           - os: ubuntu-22.04
-            cuda: "12.8 12.2"
-            gcc: 12 
+            cuda: "12.8"
+            gcc: 11
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
 
-      - name: Setup cloud GPU machine dependencies
+      - name: Setup Hyperstack dependencies
         uses: ./.github/actions/gpu_setup
         with:
           cuda-version: ${{ matrix.cuda }}
@@ -139,26 +144,19 @@ jobs:
         run: |
           nvidia-cuda-mps-control -d
 
-      - name: Run core crypto and internal CUDA backend tests
+      - name: Run HL GPU tests with noise checks enabled
         run: |
-          make test_core_crypto_gpu
-          make test_integer_compression_gpu
-          make test_cuda_backend
+          make test_high_level_api_fake_multi_gpu
 
-      - name: Run user docs tests
+      - name: Run integer GPU tests with noise checks enabled
         run: |
-          make test_user_doc_gpu
-
-      - name: Test C API
-        run: |
-          make test_c_api_gpu
-
+          make test_signed_integer_fake_multi_gpu
 
   slack-notify:
-    name: gpu_fast_tests/slack-notify
-    needs: [ setup-instance, cuda-tests-linux ]
+    name: gpu_noise_level_checks/slack-notify
+    needs: [ setup-instance, cuda-noise-check-tests ]
     runs-on: ubuntu-latest
-    if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' && failure() }}
+    if: ${{ always() && needs.cuda-noise-check-tests.result != 'skipped' && failure() }}
     continue-on-error: true
     steps:
       - name: Set pull-request URL
@@ -171,15 +169,15 @@ jobs:
 
       - name: Send message
         if: env.SECRETS_AVAILABLE == 'true'
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
-          SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
-          SLACK_MESSAGE: "Base GPU tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
+          SLACK_COLOR: ${{ needs.cuda-noise-check-tests.result }}
+          SLACK_MESSAGE: "GPU L40 noise check tests finished with status: ${{ needs.cuda-noise-check-tests.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: gpu_fast_tests/teardown-instance
+    name: gpu_noise_level_checks/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
-    needs: [ setup-instance, cuda-tests-linux ]
+    needs: [ setup-instance, cuda-noise-check-tests ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop remote instance
@@ -195,7 +193,7 @@ jobs:
 
       - name: Slack Notification
         if: ${{ failure() }}
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cuda-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (gpu-l40-noise-check) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

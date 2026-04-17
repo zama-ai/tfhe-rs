@@ -35,6 +35,7 @@ SKIP_PARAMS = {
     ("void", "bsks"),
     ("Torus", "ksks"),
     ("cudaStream_t", "stream"),
+    ("void *", "stream"),
     ("uint32_t", "gpu_index"),
     ("uint32_t", "message_modulus"),
     ("uint32_t", "carry_modulus"),
@@ -50,7 +51,7 @@ SKIP_MEMBERS = {
 }
 
 # Template parameters that don't require @tparam documentation.
-SKIP_TPARAMS = {"Torus", "KSTorus"}
+SKIP_TPARAMS = {"Torus", "KSTorus", "T"}
 
 # Functions which don't require documentation.
 SKIP_FUNCTIONS = {"release"}

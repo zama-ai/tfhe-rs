@@ -1162,6 +1162,9 @@ impl CudaServerKey {
     ) {
         let num_output_blocks = output.packed_d_blocks.lwe_ciphertext_count().0;
 
+        let mut input_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
+        let mut input_noise_levels = input.info.blocks.iter().map(|b| b.noise_level.0).collect();
+
         let mut output_degrees = vec![0_u64; num_output_blocks];
         let mut output_noise_levels = vec![0_u64; num_output_blocks];
         let input_slice = input.d_blocks.0.d_vec.as_slice(.., 0).unwrap();
@@ -1194,6 +1197,8 @@ impl CudaServerKey {
                         &mut output_degrees,
                         &mut output_noise_levels,
                         &input_slice,
+                        &mut input_degrees,
+                        &mut input_noise_levels,
                         &bsk.d_vec,
                         &computing_ks_key.d_vec,
                         bsk,
@@ -1219,6 +1224,8 @@ impl CudaServerKey {
                         &mut output_degrees,
                         &mut output_noise_levels,
                         &input_slice,
+                        &mut input_degrees,
+                        &mut input_noise_levels,
                         &mb_bsk.d_vec,
                         &computing_ks_key.d_vec,
                         mb_bsk,
