@@ -505,8 +505,8 @@ template <typename Torus, typename KSTorus>
 __host__ void integer_radix_apply_univariate_lookup_table(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, void *const *bsks,
-    KSTorus *const *ksks, int_radix_lut<Torus> *lut,
-    uint32_t num_radix_blocks) {
+    KSTorus *const *ksks, int_radix_lut<Torus> *lut, uint32_t num_radix_blocks,
+    bool skip_input_noise_check = false) {
   PUSH_RANGE("apply lut")
   // apply_lookup_table
   auto params = lut->params;
@@ -530,6 +530,14 @@ __host__ void integer_radix_apply_univariate_lookup_table(
   if (num_radix_blocks > lwe_array_out->num_radix_blocks)
     PANIC("Cuda error: num radix blocks on which lut is applied should be "
           "smaller or equal to the number of input & output radix blocks")
+
+  if (!skip_input_noise_check) {
+    for (uint32_t i = 0; i < num_radix_blocks; i++) {
+      auto idx = lut->using_trivial_lwe_indexes ? i : lut->h_lwe_indexes_in[i];
+      CHECK_NOISE_LEVEL(lwe_array_in->noise_levels[idx], params.message_modulus,
+                        params.carry_modulus);
+    }
+  }
 
   // In the case of extracting a single LWE this parameters are dummy
   uint32_t num_many_lut = 1;
@@ -738,7 +746,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
     CudaRadixCiphertextFFI const *lwe_array_1,
     CudaRadixCiphertextFFI const *lwe_array_2, void *const *bsks,
     KSTorus *const *ksks, int_radix_lut<Torus> *lut, uint32_t num_radix_blocks,
-    uint32_t shift) {
+    uint32_t shift, bool skip_input_noise_check = false) {
   PUSH_RANGE("apply bivar lut")
   if (lwe_array_out->lwe_dimension != lwe_array_1->lwe_dimension ||
       lwe_array_out->lwe_dimension != lwe_array_2->lwe_dimension)
@@ -764,6 +772,16 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
   auto grouping_factor = params.grouping_factor;
+
+  if (!skip_input_noise_check) {
+    for (uint32_t i = 0; i < num_radix_blocks; i++) {
+      auto idx = lut->using_trivial_lwe_indexes ? i : lut->h_lwe_indexes_in[i];
+      CHECK_NOISE_LEVEL(lwe_array_1->noise_levels[idx], params.message_modulus,
+                        params.carry_modulus);
+      CHECK_NOISE_LEVEL(lwe_array_2->noise_levels[idx], params.message_modulus,
+                        params.carry_modulus);
+    }
+  }
 
   // In the case of extracting a single LWE this parameters are dummy
   uint32_t num_many_lut = 1;
