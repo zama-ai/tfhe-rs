@@ -1,26 +1,16 @@
 use benchmark::utilities::{write_to_json_unchecked, OperatorType};
-use std::fs::{File, OpenOptions};
-use std::io::Write;
+use benchmark_spec::BenchmarkTestResult;
 use std::path::Path;
 use tfhe::boolean::parameters::{DEFAULT_PARAMETERS, PARAMETERS_ERROR_PROB_2_POW_MINUS_165};
 use tfhe::boolean::{client_key, server_key};
-
-fn write_result(file: &mut File, name: &str, value: usize) {
-    let line = format!("{name},{value}\n");
-    let error_message = format!("cannot write {name} result into file");
-    file.write_all(line.as_bytes()).expect(&error_message);
-}
 
 fn client_server_key_sizes(results_file: &Path) {
     let boolean_params_vec = [
         (DEFAULT_PARAMETERS, "DEFAULT_PARAMETERS"),
         (PARAMETERS_ERROR_PROB_2_POW_MINUS_165, "TFHE_LIB_PARAMETERS"),
     ];
-    File::create(results_file).expect("create results file failed");
-    let mut file = OpenOptions::new()
-        .append(true)
-        .open(results_file)
-        .expect("cannot open results file");
+
+    let mut benchmark_test_result = BenchmarkTestResult::from_path(results_file);
 
     let operator = OperatorType::Atomic;
 
@@ -38,7 +28,7 @@ fn client_server_key_sizes(results_file: &Path) {
         let ksk_size = sks.key_switching_key_size_bytes();
         let test_name = format!("boolean_key_sizes_{params_name}_ksk");
 
-        write_result(&mut file, &test_name, ksk_size);
+        benchmark_test_result.write_result(&test_name, ksk_size);
         write_to_json_unchecked::<u32, _>(
             &test_name,
             *params,
@@ -58,7 +48,7 @@ fn client_server_key_sizes(results_file: &Path) {
         let bsk_size = sks.bootstrapping_key_size_bytes();
         let test_name = format!("boolean_key_sizes_{params_name}_bsk");
 
-        write_result(&mut file, &test_name, bsk_size);
+        benchmark_test_result.write_result(&test_name, bsk_size);
         write_to_json_unchecked::<u32, _>(
             &test_name,
             *params,
