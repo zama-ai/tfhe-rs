@@ -106,8 +106,8 @@ install_rs_check_toolchain:
 # We don't check that it exists, because we always want the latest
 # and the command below will install/update
 install_rs_latest_nightly_toolchain:
-	rustup toolchain install --profile default nightly  || \
-	( echo "Unable to install nightly  toolchain, check your rustup installation. \
+	rustup toolchain install --profile default nightly || \
+	( echo "Unable to install nightly toolchain, check your rustup installation. \
 	Rustup can be downloaded at https://rustup.rs/" && exit 1 )
 
 .PHONY: install_rs_msrv_toolchain # Install the msrv toolchain
@@ -160,7 +160,7 @@ install_node:
 	$(SHELL) -i -c 'nvm install $(NODE_VERSION)' || \
 	( echo "Unable to install node, unknown error." && exit 1 )
 
-.PHONY: node_version  # Return Node version that will be installed
+.PHONY: node_version # Return Node version that will be installed
 node_version:
 	@echo "$(NODE_VERSION)"
 
@@ -195,7 +195,7 @@ install_typos_checker:
 install_zizmor:
 	@./scripts/install_zizmor.sh --zizmor-version $(ZIZMOR_VERSION)
 
-.PHONY: zizmor_version  # Return zizmor version that will be installed
+.PHONY: zizmor_version # Return zizmor version that will be installed
 zizmor_version:
 	@echo "$(ZIZMOR_VERSION)"
 
@@ -334,7 +334,7 @@ fmt_c_tests:
 fmt_toml: install_taplo
 	taplo fmt
 
-.PHONY: check_fmt_c_tests  # Check C tests format
+.PHONY: check_fmt_c_tests # Check C tests format
 check_fmt_c_tests:
 	find tfhe/c_api_tests/ -regex '.*\.\(cpp\|hpp\|cu\|c\|h\)' -exec clang-format --dry-run --Werror -style=file {} \;
 
@@ -1126,7 +1126,7 @@ test_high_level_api:
 test_high_level_api_gpu_fast: install_cargo_nextest # Run all the GPU tests for high_level_api except test_uniformity for oprf which is too long
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
-	  -E "test(/high_level_api::.*gpu.*/) and not test(/uniformity/)"
+		-E "test(/high_level_api::.*gpu.*/) and not test(/uniformity/)"
 
 
 test_high_level_api_gpu: install_cargo_nextest # Run all the GPU tests for high_level_api
@@ -1142,12 +1142,12 @@ test_list_gpu: install_cargo_nextest
 .PHONY: build_one_hl_api_test_gpu
 build_one_hl_api_test_gpu:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --no-run \
-		   --features=integer,gpu-debug -vv -p tfhe -- "$${TEST}" --test-threads=1 --nocapture
+		--features=integer,gpu-debug -vv -p tfhe -- "$${TEST}" --test-threads=1 --nocapture
 
 .PHONY: build_one_hl_api_test_fake_multi_gpu
 build_one_hl_api_test_fake_multi_gpu:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --no-run \
-		   --features=integer,gpu-debug-fake-multi-gpu -vv -p tfhe -- "$${TEST}" --test-threads=1 --nocapture
+		--features=integer,gpu-debug-fake-multi-gpu -vv -p tfhe -- "$${TEST}" --test-threads=1 --nocapture
 
 test_high_level_api_hpu: install_cargo_nextest
 ifeq ($(HPU_CONFIG), v80)
@@ -1419,7 +1419,7 @@ run_web_js_api_parallel: build_web_js_api_parallel setup_venv
 	python ci/webdriver.py \
 	--browser-path $(browser_path) \
 	--driver-path $(driver_path) \
-	--browser-kind  $(browser_kind) \
+	--browser-kind $(browser_kind) \
 	--server-cmd $(server_cmd) \
 	--server-workdir "$(WEB_SERVER_DIR)" \
 	--id-pattern $(filter) \
@@ -1572,8 +1572,12 @@ clippy_bench: install_rs_check_toolchain
 		--features=boolean,shortint,integer,internal-keycache,pbs-stats,zk-pok \
 		-p tfhe-benchmark -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-	  --features=shortint,internal-keycache \
+		--features=shortint,internal-keycache \
 		-p tfhe-benchmark -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=experimental \
+		-p tfhe-benchmark -- --no-deps -D warnings
+
 
 .PHONY: clippy_bench_gpu # Run clippy lints on tfhe-benchmark
 clippy_bench_gpu: install_rs_check_toolchain
@@ -1964,14 +1968,14 @@ bench_hlapi_dex: install_rs_check_toolchain
 
 .PHONY: bench_hlapi_dex_gpu # Run benchmarks for DEX operations on GPU
 bench_hlapi_dex_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE)  __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-dex \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_hlapi_dex_gpu_classical # Run benchmarks for DEX operations on GPU with classical parameters
 bench_hlapi_dex_gpu_classical: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE)  __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-dex \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
@@ -2090,7 +2094,7 @@ bench_summary_gpu: install_rs_check_toolchain
 	--features=integer,gpu,internal-keycache -p tfhe-benchmark --profile release_lto_off -- '::transfer::overflow'
 
 	# DEX
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE)  __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-dex \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::no_cmux::'
@@ -2243,7 +2247,7 @@ pcc_batch_1:
 pcc_batch_2:
 	$(call run_recipe_with_details,clippy)
 	$(call run_recipe_with_details,clippy_all_targets)
-	$(call run_recipe_with_details,check_fmt_js)  # This needs to stay there, CI pipeline rely on this recipe to conditionally install Node
+	$(call run_recipe_with_details,check_fmt_js) # This needs to stay there, CI pipeline rely on this recipe to conditionally install Node
 	$(call run_recipe_with_details,clippy_test_vectors)
 	$(call run_recipe_with_details,check_test_vectors)
 	$(call run_recipe_with_details,clippy_wasm_par_mq)
@@ -2266,7 +2270,7 @@ pcc_batch_5:
 	$(call run_recipe_with_details,check_compile_tests)
 	$(call run_recipe_with_details,clippy_backward_compat_data)
 
-.PHONY: pcc_batch_6  # duration: 6'32''
+.PHONY: pcc_batch_6 # duration: 6'32''
 pcc_batch_6:
 	$(call run_recipe_with_details,clippy_boolean)
 	$(call run_recipe_with_details,clippy_c_api)
