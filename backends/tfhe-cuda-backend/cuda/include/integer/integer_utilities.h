@@ -77,7 +77,7 @@ public:
   static const uint64_t UNKNOWN = std::numeric_limits<uint64_t>::max();
 };
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(DEBUG_FAKE_MULTI_GPU)
 #define CHECK_NOISE_LEVEL(noise_level_expr, msg_mod, carry_mod)                \
   do {                                                                         \
     if ((msg_mod) == 2 && (carry_mod) == 2) {                                  \

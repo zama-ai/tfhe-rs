@@ -835,6 +835,7 @@ mod test {
         use rayon::ThreadPoolBuilder;
 
         #[test]
+        #[cfg(not(feature = "gpu-debug-fake-multi-gpu"))]
         fn test_oprf_gpu() {
             for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
                 let _ck = setup_fn();
@@ -851,6 +852,7 @@ mod test {
         }
 
         #[test]
+        #[cfg(not(feature = "gpu-debug-fake-multi-gpu"))]
         fn test_oprf_size_on_gpu() {
             for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
                 let _ck = setup_fn();
