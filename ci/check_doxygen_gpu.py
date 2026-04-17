@@ -35,7 +35,10 @@ SKIP_PARAMS = {
     ("void", "bsks"),
     ("KSTorus", "ksks"),
     ("cudaStream_t", "stream"),
+    ("void *", "stream"),
     ("uint32_t", "gpu_index"),
+    ("uint32_t", "message_modulus"),
+    ("uint32_t", "carry_modulus"),
 }
 
 # Struct/class members that don't require inline documentation.

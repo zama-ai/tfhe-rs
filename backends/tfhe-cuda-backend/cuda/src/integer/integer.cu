@@ -1,6 +1,23 @@
 #include "integer/integer.cuh"
 #include "integer/subtraction.cuh"
 
+/** @brief Adds two radix ciphertext vectors in-place, storing the result in
+ * lwe_array_inout. This is a fully levelled addition and no PBS is performed.
+ * @param lwe_array_inout first operand and destination; modified in-place
+ * @param input_2 second operand; must have the same number of radix blocks as
+ * lwe_array_inout
+ */
+void cuda_add_lwe_ciphertext_vector_inplace_64(
+    void *stream, uint32_t gpu_index, CudaRadixCiphertextFFI *lwe_array_inout,
+    CudaRadixCiphertextFFI const *input_2) {
+  if (lwe_array_inout->num_radix_blocks != input_2->num_radix_blocks)
+    PANIC("Cuda error: input and output num radix blocks must be the same")
+  host_addition<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index,
+                          lwe_array_inout, lwe_array_inout, input_2,
+                          lwe_array_inout->num_radix_blocks, 0, 0);
+  cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
+}
+
 void cuda_full_propagation_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *input_blocks,
     int8_t *mem_ptr, void *const *ksks, void *const *bsks,
