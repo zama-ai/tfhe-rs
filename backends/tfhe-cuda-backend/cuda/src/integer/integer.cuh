@@ -8,15 +8,170 @@
 #include "helper_profile.cuh"
 #include "integer/comparison.h"
 #include "integer/integer_utilities.h"
+#include "integer/negation.cuh"
 #include "integer/scalar_addition.cuh"
 #include "linearalgebra/addition.cuh"
-#include "linearalgebra/negation.cuh"
+#include "linearalgebra/multiplication.cuh"
+
 #include "pbs/pbs_128_utilities.h"
 #include "polynomial/functions.cuh"
 #include "utils/helper.cuh"
 #include "utils/helper_multi_gpu.cuh"
 #include <algorithm>
 #include <functional>
+
+/** @brief Adds the first num_radix_blocks blocks of two radix ciphertexts.
+ * Degrees and noise levels are updated. This is a fully levelled addition and
+ * no PBS is performed.
+ * @param output destination radix-ciphertext
+ * @param input_1 first operand radix-ciphertext
+ * @param input_2 second operand radix-ciphertext; must have the same
+ * lwe_dimension as input_1
+ * @param num_radix_blocks number of blocks to add
+ */
+template <typename T>
+__host__ void
+host_addition(cudaStream_t stream, uint32_t gpu_index,
+              CudaRadixCiphertextFFI *output,
+              CudaRadixCiphertextFFI const *input_1,
+              CudaRadixCiphertextFFI const *input_2, uint32_t num_radix_blocks,
+              const uint32_t message_modulus, const uint32_t carry_modulus) {
+  if (output->lwe_dimension != input_1->lwe_dimension ||
+      output->lwe_dimension != input_2->lwe_dimension)
+    PANIC("Cuda error: input and output num radix blocks must be the same")
+  if (output->num_radix_blocks < num_radix_blocks ||
+      input_1->num_radix_blocks < num_radix_blocks ||
+      input_2->num_radix_blocks < num_radix_blocks)
+    PANIC("Cuda error: input and output num radix blocks must be larger or "
+          "equal to the num blocks to add")
+
+  cuda_set_device(gpu_index);
+  int lwe_size = output->lwe_dimension + 1;
+  int num_blocks = 0, num_threads = 0;
+  int num_entries = num_radix_blocks * lwe_size;
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  dim3 grid(num_blocks, 1, 1);
+  dim3 thds(num_threads, 1, 1);
+
+  addition<T><<<grid, thds, 0, stream>>>(
+      static_cast<T *>(output->ptr), static_cast<const T *>(input_1->ptr),
+      static_cast<const T *>(input_2->ptr), num_entries);
+  check_cuda_error(cudaGetLastError());
+  for (uint i = 0; i < num_radix_blocks; i++) {
+    output->degrees[i] = input_1->degrees[i] + input_2->degrees[i];
+    output->noise_levels[i] =
+        input_1->noise_levels[i] + input_2->noise_levels[i];
+    CHECK_NOISE_LEVEL(output->noise_levels[i], message_modulus, carry_modulus);
+  }
+}
+
+/** @brief Adds a single-block radix-ciphertext to every block of a multi-block
+ * radix-ciphertext. This is a fully levelled addition and no PBS is performed.
+ * @param output destination radix-ciphertext
+ * @param input_with_multiple_blocks multi-block operand radix-ciphertext
+ * @param input_with_single_block single-block radix-ciphertext added to every
+ * block of input_with_multiple_blocks
+ */
+template <typename T>
+__host__ void host_add_the_same_block_to_all_blocks(
+    cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI const *input_with_multiple_blocks,
+    CudaRadixCiphertextFFI const *input_with_single_block,
+    const uint32_t message_modulus, const uint32_t carry_modulus) {
+  if (output->num_radix_blocks != input_with_multiple_blocks->num_radix_blocks)
+    PANIC("Cuda error: input and output num radix blocks must be the same")
+  if (input_with_single_block->num_radix_blocks != 1)
+    PANIC(
+        "Cuda error: input_with_single_block must be a single-block ciphertext")
+  if (output->lwe_dimension != input_with_multiple_blocks->lwe_dimension ||
+      output->lwe_dimension != input_with_single_block->lwe_dimension)
+    PANIC("Cuda error: input and output lwe dimensions must be the same")
+
+  cuda_set_device(gpu_index);
+  int lwe_size = output->lwe_dimension + 1;
+  int num_blocks = 0, num_threads = 0;
+  int num_entries = output->num_radix_blocks * lwe_size;
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  dim3 grid(num_blocks, 1, 1);
+  dim3 thds(num_threads, 1, 1);
+
+  constant_addition<T><<<grid, thds, 0, stream>>>(
+      static_cast<T *>(output->ptr),
+      static_cast<const T *>(input_with_multiple_blocks->ptr),
+      static_cast<const T *>(input_with_single_block->ptr), lwe_size,
+      num_entries);
+  check_cuda_error(cudaGetLastError());
+  for (uint i = 0; i < output->num_radix_blocks; i++) {
+    output->degrees[i] = input_with_multiple_blocks->degrees[i] +
+                         input_with_single_block->degrees[0];
+    output->noise_levels[i] = input_with_multiple_blocks->noise_levels[i] +
+                              input_with_single_block->noise_levels[0];
+    CHECK_NOISE_LEVEL(output->noise_levels[i], message_modulus, carry_modulus);
+  }
+}
+
+/** @brief Subtracts the first num_radix_blocks blocks of input_2 (rhs) from
+ * input_1 (lhs). Normal subtraction for the mask, but the message is subtracted
+ * by computing lhs + (z - rhs), where z = ceil(degree /
+ * message_modulus) * message_modulus is a correcting term added to each block
+ * body (encoded as w = z * delta) to prevent message underflow. No carry
+ * propagation is performed. This is a fully levelled subtraction and no PBS is
+ * performed.
+ * @param output destination radix-ciphertext
+ * @param input_1 lhs radix-ciphertext
+ * @param input_2 rhs radix-ciphertext
+ * @param num_radix_blocks number of blocks to subtract
+ */
+template <typename T>
+__host__ void host_unchecked_sub_with_correcting_term(
+    cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI const *input_1,
+    CudaRadixCiphertextFFI const *input_2, uint32_t num_radix_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus) {
+
+  if (output->lwe_dimension != input_1->lwe_dimension ||
+      output->lwe_dimension != input_2->lwe_dimension)
+    PANIC("Cuda error: input and output num radix blocks must be the same")
+  if (output->num_radix_blocks < num_radix_blocks ||
+      input_1->num_radix_blocks < num_radix_blocks ||
+      input_2->num_radix_blocks < num_radix_blocks)
+    PANIC("Cuda error: input and output num radix blocks must be larger or "
+          "equal to the num blocks to add")
+
+  cuda_set_device(gpu_index);
+  int lwe_size = output->lwe_dimension + 1;
+  int num_blocks = 0, num_threads = 0;
+  int num_entries = num_radix_blocks * lwe_size;
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  dim3 grid(num_blocks, 1, 1);
+  dim3 thds(num_threads, 1, 1);
+
+  unchecked_sub_with_correcting_term<T><<<grid, thds, 0, stream>>>(
+      (T *)output->ptr, (T *)input_1->ptr, (T *)input_2->ptr, num_entries,
+      lwe_size, message_modulus, carry_modulus, message_modulus - 1);
+  check_cuda_error(cudaGetLastError());
+  uint8_t zb = 0;
+  for (uint i = 0; i < num_radix_blocks; i++) {
+    auto input_2_degree = input_2->degrees[i];
+
+    // input_2_degree contains the input burrow degree + current degree
+    if (zb != 0) {
+      input_2_degree += static_cast<uint64_t>(zb);
+    }
+    // If input_2_degree is 7, and message_modulus = 4
+    // Then z, the correcting term: ceil(7 / 4) * 4 = 2 * 4 = 8
+    T z = std::max(static_cast<T>(1),
+                   static_cast<T>(CEIL_DIV(input_2_degree, message_modulus))) *
+          message_modulus;
+
+    // The correcting term is applied here
+    output->degrees[i] = input_1->degrees[i] + z - static_cast<uint64_t>(zb);
+    output->noise_levels[i] =
+        input_1->noise_levels[i] + input_2->noise_levels[i];
+    zb = z / message_modulus;
+    CHECK_NOISE_LEVEL(output->noise_levels[i], message_modulus, carry_modulus);
+  }
+}
 
 // function rotates right  radix ciphertext with specific value
 // grid is one dimensional
@@ -505,8 +660,8 @@ template <typename Torus, typename KSTorus>
 __host__ void integer_radix_apply_univariate_lookup_table(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, void *const *bsks,
-    KSTorus *const *ksks, int_radix_lut<Torus> *lut,
-    uint32_t num_radix_blocks) {
+    KSTorus *const *ksks, int_radix_lut<Torus> *lut, uint32_t num_radix_blocks,
+    bool skip_input_noise_check = false) {
   PUSH_RANGE("apply lut")
   // apply_lookup_table
   auto params = lut->params;
@@ -530,6 +685,14 @@ __host__ void integer_radix_apply_univariate_lookup_table(
   if (num_radix_blocks > lwe_array_out->num_radix_blocks)
     PANIC("Cuda error: num radix blocks on which lut is applied should be "
           "smaller or equal to the number of input & output radix blocks")
+
+  if (!skip_input_noise_check) {
+    for (uint32_t i = 0; i < num_radix_blocks; i++) {
+      auto idx = lut->using_trivial_lwe_indexes ? i : lut->h_lwe_indexes_in[i];
+      CHECK_NOISE_LEVEL(lwe_array_in->noise_levels[idx], params.message_modulus,
+                        params.carry_modulus);
+    }
+  }
 
   // In the case of extracting a single LWE this parameters are dummy
   uint32_t num_many_lut = 1;
@@ -656,6 +819,13 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
           "lwe dimension")
 
   auto num_radix_blocks = lwe_array_in->num_radix_blocks;
+
+  for (uint32_t i = 0; i < num_radix_blocks; i++) {
+    auto idx = lut->using_trivial_lwe_indexes ? i : lut->h_lwe_indexes_in[i];
+    CHECK_NOISE_LEVEL(lwe_array_in->noise_levels[idx], params.message_modulus,
+                      params.carry_modulus);
+  }
+
   /// For multi GPU execution we create vectors of pointers for inputs and
   /// outputs
   std::vector<Torus *> lwe_array_in_vec = lut->lwe_array_in_vec;
@@ -736,7 +906,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
     CudaRadixCiphertextFFI const *lwe_array_1,
     CudaRadixCiphertextFFI const *lwe_array_2, void *const *bsks,
     KSTorus *const *ksks, int_radix_lut<Torus> *lut, uint32_t num_radix_blocks,
-    uint32_t shift) {
+    uint32_t shift, bool skip_input_noise_check = false) {
   PUSH_RANGE("apply bivar lut")
   if (lwe_array_out->lwe_dimension != lwe_array_1->lwe_dimension ||
       lwe_array_out->lwe_dimension != lwe_array_2->lwe_dimension)
@@ -762,6 +932,16 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
   auto grouping_factor = params.grouping_factor;
+
+  if (!skip_input_noise_check) {
+    for (uint32_t i = 0; i < num_radix_blocks; i++) {
+      auto idx = lut->using_trivial_lwe_indexes ? i : lut->h_lwe_indexes_in[i];
+      CHECK_NOISE_LEVEL(lwe_array_1->noise_levels[idx], params.message_modulus,
+                        params.carry_modulus);
+      CHECK_NOISE_LEVEL(lwe_array_2->noise_levels[idx], params.message_modulus,
+                        params.carry_modulus);
+    }
+  }
 
   // In the case of extracting a single LWE this parameters are dummy
   uint32_t num_many_lut = 1;
@@ -1647,7 +1827,8 @@ template <typename Torus>
 __host__ void pack_blocks(cudaStream_t stream, uint32_t gpu_index,
                           CudaRadixCiphertextFFI *lwe_array_out,
                           CudaRadixCiphertextFFI const *lwe_array_in,
-                          uint32_t num_radix_blocks, uint32_t factor) {
+                          uint32_t num_radix_blocks, uint32_t factor,
+                          uint32_t message_modulus, uint32_t carry_modulus) {
   if (lwe_array_in->lwe_dimension != lwe_array_out->lwe_dimension)
     PANIC("Cuda error: the input and output should have the same lwe dimension")
   if (lwe_array_in->num_radix_blocks < num_radix_blocks)
@@ -1667,6 +1848,24 @@ __host__ void pack_blocks(cudaStream_t stream, uint32_t gpu_index,
       (Torus *)lwe_array_out->ptr, (Torus *)lwe_array_in->ptr, lwe_dimension,
       num_radix_blocks, factor);
   check_cuda_error(cudaGetLastError());
+
+  for (uint bid = 0; bid < num_radix_blocks / 2; bid++) {
+    lwe_array_out->degrees[bid] = lwe_array_in->degrees[2 * bid] +
+                                  factor * lwe_array_in->degrees[2 * bid + 1];
+    lwe_array_out->noise_levels[bid] =
+        lwe_array_in->noise_levels[2 * bid] +
+        factor * lwe_array_in->noise_levels[2 * bid + 1];
+    CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[bid], message_modulus,
+                      carry_modulus);
+  }
+  if (num_radix_blocks % 2 == 1) {
+    lwe_array_out->degrees[num_radix_blocks / 2] =
+        lwe_array_in->degrees[num_radix_blocks - 1];
+    lwe_array_out->noise_levels[num_radix_blocks / 2] =
+        lwe_array_in->noise_levels[num_radix_blocks - 1];
+    CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[num_radix_blocks / 2],
+                      message_modulus, carry_modulus);
+  }
 }
 
 template <typename Torus>
@@ -1765,7 +1964,8 @@ reduce_signs(CudaStreams streams, CudaRadixCiphertextFFI *signs_array_out,
 
     while (num_sign_blocks > 2) {
       pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), signs_b,
-                         signs_a, num_sign_blocks, message_modulus);
+                         signs_a, num_sign_blocks, message_modulus,
+                         message_modulus, carry_modulus);
       integer_radix_apply_univariate_lookup_table<Torus>(
           streams, signs_a, signs_b, bsks, ksks, lut, num_sign_blocks / 2);
 
@@ -1793,7 +1993,8 @@ reduce_signs(CudaStreams streams, CudaRadixCiphertextFFI *signs_array_out,
                                     {diff_buffer->preallocated_h_lut2});
 
     pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), signs_b,
-                       signs_a, num_sign_blocks, message_modulus);
+                       signs_a, num_sign_blocks, message_modulus,
+                       message_modulus, carry_modulus);
     integer_radix_apply_univariate_lookup_table<Torus>(
         streams, signs_array_out, signs_b, bsks, ksks, lut, 1);
 
@@ -2187,6 +2388,49 @@ void host_add_and_propagate_single_carry(
   POP_RANGE()
 }
 
+/** @brief Subtracts the first num_radix_blocks blocks of input_2 (rhs) from
+ * input_1 (lhs) using wrapping LWE subtraction. Degrees and noise levels are
+ * updated accordingly. This is a fully levelled subtraction and no PBS is
+ * performed.
+ * @param output destination radix-ciphertext
+ * @param input_1 lhs radix-ciphertext
+ * @param input_2 rhs radix-ciphertext
+ * @param num_radix_blocks number of blocks to subtract
+ */
+template <typename T>
+__host__ void host_subtraction(cudaStream_t stream, uint32_t gpu_index,
+                               CudaRadixCiphertextFFI *output,
+                               CudaRadixCiphertextFFI const *input_1,
+                               CudaRadixCiphertextFFI const *input_2,
+                               uint32_t num_radix_blocks,
+                               uint32_t message_modulus,
+                               uint32_t carry_modulus) {
+
+  GPU_ASSERT(output->lwe_dimension == input_1->lwe_dimension &&
+                 output->lwe_dimension == input_2->lwe_dimension,
+             "Cuda error: input and output lwe_dimensions must be the same");
+  cuda_set_device(gpu_index);
+  int lwe_size = output->lwe_dimension + 1;
+  int num_blocks = 0, num_threads = 0;
+  int num_entries = num_radix_blocks * lwe_size;
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  dim3 grid(num_blocks, 1, 1);
+  dim3 thds(num_threads, 1, 1);
+
+  subtraction<T>
+      <<<grid, thds, 0, stream>>>((T *)output->ptr, (T const *)input_1->ptr,
+                                  (T const *)input_2->ptr, num_entries);
+  check_cuda_error(cudaGetLastError());
+  for (uint i = 0; i < num_radix_blocks; i++) {
+    // This degree can overflow the input PBS maximum degree
+    // so we set the worst case degree on the output
+    output->degrees[i] = carry_modulus * message_modulus * 2 - 1;
+    output->noise_levels[i] =
+        input_1->noise_levels[i] + input_2->noise_levels[i];
+    CHECK_NOISE_LEVEL(output->noise_levels[i], message_modulus, carry_modulus);
+  }
+}
+
 template <typename Torus>
 uint64_t scratch_cuda_integer_overflowing_sub(
     CudaStreams streams, int_borrow_prop_memory<Torus> **mem_ptr,
@@ -2246,14 +2490,16 @@ void host_single_borrow_propagate(CudaStreams streams,
       streams, borrow_states, params, mem->prop_simu_group_carries_mem, bsks,
       ksks, num_radix_blocks, num_groups);
 
-  auto shifted_blocks =
-      (Torus *)mem->shifted_blocks_borrow_state_mem->shifted_blocks->ptr;
   auto prepared_blocks = mem->prop_simu_group_carries_mem->prepared_blocks;
-  auto simulators = (Torus *)mem->prop_simu_group_carries_mem->simulators->ptr;
 
+  GPU_ASSERT(
+      big_lwe_dimension == prepared_blocks->lwe_dimension,
+      "Cuda error: big_lwe_dimension must match ciphertexts' lwe_dimension");
   host_subtraction<Torus>(streams.stream(0), streams.gpu_index(0),
-                          (Torus *)prepared_blocks->ptr, shifted_blocks,
-                          simulators, big_lwe_dimension, num_radix_blocks);
+                          prepared_blocks,
+                          mem->shifted_blocks_borrow_state_mem->shifted_blocks,
+                          mem->prop_simu_group_carries_mem->simulators,
+                          num_radix_blocks, message_modulus, carry_modulus);
 
   host_add_scalar_one_inplace<Torus>(streams, prepared_blocks, message_modulus,
                                      carry_modulus);
@@ -2296,10 +2542,12 @@ void host_single_borrow_propagate(CudaStreams streams,
   }
 
   auto resolved_carries = mem->prop_simu_group_carries_mem->resolved_carries;
+  GPU_ASSERT(
+      big_lwe_dimension == resolved_carries->lwe_dimension,
+      "Cuda error: big_lwe_dimension must match ciphertexts' lwe_dimension");
   host_negation<Torus>(sub_streams_2.stream(0), sub_streams_2.gpu_index(0),
-                       (Torus *)resolved_carries->ptr,
-                       (Torus *)resolved_carries->ptr, big_lwe_dimension,
-                       num_groups);
+                       resolved_carries, resolved_carries, num_groups,
+                       message_modulus, carry_modulus);
 
   host_radix_sum_in_groups<Torus>(
       sub_streams_2.stream(0), sub_streams_2.gpu_index(0), prepared_blocks,
@@ -2353,7 +2601,8 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
   // We know carry is empty so we can pack two blocks in one
   pack_blocks<InputTorus>(
       streams.stream(0), streams.gpu_index(0), lwe_array_pbs_in, lwe_array_in,
-      lwe_array_in->num_radix_blocks, params.message_modulus);
+      lwe_array_in->num_radix_blocks, params.message_modulus,
+      params.message_modulus, params.carry_modulus);
 
   // Since the radix ciphertexts are packed, we have to use the num_radix_blocks
   // from the output ct
@@ -2426,6 +2675,158 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
                       params.carry_modulus);
   }
   POP_RANGE()
+}
+
+/** @brief Adds a vector of plaintexts to a radix-ciphertext by modifying only
+ * the body of each block. Noise levels are propagated unchanged. This is a
+ * fully levelled addition and no PBS is performed.
+ * @param output destination radix-ciphertext
+ * @param lwe_input input radix-ciphertext
+ * @param d_plaintext_input GPU array of plaintexts, one per ciphertext block
+ * @param h_plaintext_degrees CPU copy of the plaintexts, one per block, used as
+ * degrees
+ * @param lwe_dimension number of mask elements in each LWE ciphertext
+ * @param lwe_ciphertext_count number of ciphertext blocks
+ */
+template <typename T>
+__host__ void host_addition_plaintext(
+    cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI const *lwe_input, T const *d_plaintext_input,
+    uint64_t const *h_plaintext_degrees, const uint32_t lwe_dimension,
+    const uint32_t lwe_ciphertext_count, const uint32_t message_modulus,
+    const uint32_t carry_modulus) {
+
+  cuda_set_device(gpu_index);
+  int num_blocks = 0, num_threads = 0;
+  int num_entries = lwe_ciphertext_count;
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  dim3 grid(num_blocks, 1, 1);
+  dim3 thds(num_threads, 1, 1);
+
+  cuda_memcpy_async_gpu_to_gpu((T *)output->ptr, (T const *)lwe_input->ptr,
+                               safe_mul_sizeof<T>((size_t)(lwe_dimension + 1),
+                                                  (size_t)lwe_ciphertext_count),
+                               stream, gpu_index);
+  plaintext_addition<T><<<grid, thds, 0, stream>>>(
+      (T *)output->ptr, (T const *)lwe_input->ptr, d_plaintext_input,
+      lwe_dimension, num_entries);
+  check_cuda_error(cudaGetLastError());
+  for (uint i = 0; i < lwe_ciphertext_count; i++) {
+    output->noise_levels[i] = lwe_input->noise_levels[i];
+    // The plaintext is decomposed rust-side
+    // along with its degrees
+    output->degrees[i] = lwe_input->degrees[i] + h_plaintext_degrees[i];
+    CHECK_NOISE_LEVEL(output->noise_levels[i], message_modulus, carry_modulus);
+  }
+}
+
+/** @brief Adds a single plaintext scalar to all blocks of a radix-ciphertext
+ * by modifying only the body of each block. Noise levels are propagated
+ * unchanged. This is a fully levelled addition and no PBS is performed.
+ * @param output destination radix-ciphertext
+ * @param lwe_input input radix-ciphertext
+ * @param plaintext_input scalar plaintext added to every block body
+ * @param plaintext_degree degree of the plaintext scalar
+ * @param lwe_dimension number of mask elements in each LWE ciphertext
+ * @param lwe_ciphertext_count number of ciphertext blocks
+ */
+template <typename T>
+__host__ void host_addition_plaintext_scalar(
+    cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI const *lwe_input, const T plaintext_input,
+    const uint64_t plaintext_degree, const uint32_t lwe_dimension,
+    const uint32_t lwe_ciphertext_count, const uint32_t message_modulus,
+    const uint32_t carry_modulus) {
+
+  cuda_set_device(gpu_index);
+  int num_blocks = 0, num_threads = 0;
+  int num_entries = lwe_ciphertext_count;
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  dim3 grid(num_blocks, 1, 1);
+  dim3 thds(num_threads, 1, 1);
+
+  cuda_memcpy_async_gpu_to_gpu((T *)output->ptr, (T const *)lwe_input->ptr,
+                               safe_mul_sizeof<T>((size_t)(lwe_dimension + 1),
+                                                  (size_t)lwe_ciphertext_count),
+                               stream, gpu_index);
+  plaintext_addition_scalar<T>
+      <<<grid, thds, 0, stream>>>((T *)output->ptr, (T const *)lwe_input->ptr,
+                                  plaintext_input, lwe_dimension, num_entries);
+  check_cuda_error(cudaGetLastError());
+  for (uint i = 0; i < lwe_ciphertext_count; i++) {
+    output->noise_levels[i] = lwe_input->noise_levels[i];
+    output->degrees[i] = lwe_input->degrees[i] + plaintext_degree;
+    CHECK_NOISE_LEVEL(output->noise_levels[i], message_modulus, carry_modulus);
+  }
+}
+
+/** @brief Multiplies each block of a radix-ciphertext by a corresponding
+ * cleartext scalar from a vector. This is a fully levelled multiplication and
+ * no PBS is performed.
+ * @param output destination radix-ciphertext
+ * @param lwe_input input radix-ciphertext
+ * @param d_cleartext_input GPU array of cleartext scalars, one per block
+ * @param h_cleartext_degrees CPU array of cleartext degrees, one per block
+ * @param lwe_dimension number of mask elements in each LWE ciphertext
+ * @param lwe_ciphertext_count number of ciphertext blocks
+ */
+template <typename T>
+__host__ void host_cleartext_vec_multiplication(
+    cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI const *lwe_input, T const *d_cleartext_input,
+    uint64_t const *h_cleartext_degrees, const uint32_t lwe_dimension,
+    const uint32_t lwe_ciphertext_count, const uint32_t message_modulus,
+    const uint32_t carry_modulus) {
+
+  cuda_set_device(gpu_index);
+  int lwe_size = lwe_dimension + 1;
+  int num_blocks = 0, num_threads = 0;
+  int num_entries = lwe_ciphertext_count * lwe_size;
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  dim3 grid(num_blocks, 1, 1);
+  dim3 thds(num_threads, 1, 1);
+
+  cleartext_vec_multiplication<T><<<grid, thds, 0, stream>>>(
+      (T *)output->ptr, (T const *)lwe_input->ptr, d_cleartext_input,
+      lwe_dimension, num_entries);
+  check_cuda_error(cudaGetLastError());
+  for (uint i = 0; i < lwe_ciphertext_count; i++) {
+    output->noise_levels[i] =
+        lwe_input->noise_levels[i] * h_cleartext_degrees[i];
+    output->degrees[i] = lwe_input->degrees[i] * h_cleartext_degrees[i];
+    CHECK_NOISE_LEVEL(output->noise_levels[i], message_modulus, carry_modulus);
+  }
+}
+
+/** @brief Multiplies all blocks of a radix-ciphertext by a single cleartext
+ * scalar. This is a fully levelled multiplication and no PBS is performed.
+ * @param output destination radix-ciphertext
+ * @param lwe_input input radix-ciphertext
+ * @param cleartext_input scalar cleartext multiplied with every block
+ */
+template <typename T>
+__host__ void host_cleartext_multiplication(
+    cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI const *lwe_input, T cleartext_input,
+    const uint32_t message_modulus, const uint32_t carry_modulus) {
+
+  cuda_set_device(gpu_index);
+  int num_blocks = 0, num_threads = 0;
+  uint32_t num_entries =
+      lwe_input->num_radix_blocks * (lwe_input->lwe_dimension + 1);
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  dim3 grid(num_blocks, 1, 1);
+  dim3 thds(num_threads, 1, 1);
+
+  cleartext_multiplication<T>
+      <<<grid, thds, 0, stream>>>((T *)output->ptr, (T const *)lwe_input->ptr,
+                                  cleartext_input, num_entries);
+  check_cuda_error(cudaGetLastError());
+  for (uint i = 0; i < lwe_input->num_radix_blocks; i++) {
+    output->noise_levels[i] = lwe_input->noise_levels[i] * cleartext_input;
+    output->degrees[i] = lwe_input->degrees[i] * cleartext_input;
+    CHECK_NOISE_LEVEL(output->noise_levels[i], message_modulus, carry_modulus);
+  }
 }
 
 #endif // TFHE_RS_INTERNAL_INTEGER_CUH
