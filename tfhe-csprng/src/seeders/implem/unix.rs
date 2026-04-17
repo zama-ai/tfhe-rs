@@ -1,9 +1,12 @@
 use crate::seeders::{Seed, Seeder};
 
-/// A seeder which uses the system entropy source on unix-like systems.
+/// A seeder which uses the OS entropy source via the [`getrandom`](https://docs.rs/getrandom)
+/// crate.
 ///
-/// If available, this will use `getrandom` or `getentropy` system call. Otherwise it will draw from
-/// `/dev/urandom` after successfully polling `/dev/random`.
+/// On Unix-like systems, this uses `getrandom` or `getentropy` when available, otherwise
+/// `/dev/urandom` (after polling `/dev/random` as implemented by `getrandom`).
+///
+/// On Windows, this uses the system APIs backed by `getrandom` (for example `BCryptGenRandom`).
 pub struct UnixSeeder {
     secret: u128,
 }
@@ -37,8 +40,7 @@ impl Seeder for UnixSeeder {
     /// but should not be blocking after.
     ///
     /// # Panics
-    /// This may panic if the `getrandom` system call is not available and no file descriptor is
-    /// available on the system.
+    /// This may panic if the platform cannot provide entropy through `getrandom`.
     fn seed(&mut self) -> Seed {
         let output = self.secret ^ get_system_entropy();
 
@@ -46,17 +48,14 @@ impl Seeder for UnixSeeder {
     }
 
     fn is_available() -> bool {
-        cfg!(target_family = "unix")
+        cfg!(any(target_family = "unix", target_os = "windows"))
     }
 }
 
 fn get_system_entropy() -> u128 {
     let mut buf = [0u8; 16];
-    // This will use the getrandom syscall if possible (from linux 3.17). This syscall is not
-    // vulnerable to fd exhaustion since it directly pulls from kernel entropy sources.
-    //
-    // This syscall will use the urandom entropy source but block at startup until it is correctly
-    // seeded. See <https://www.2uo.de/myths-about-urandom/> for a rational around random/urandom.
+    // On Linux this prefers the getrandom syscall when available. On Windows, getrandom uses the
+    // appropriate system RNG. See the getrandom crate for per-OS behavior.
     getrandom::getrandom(&mut buf).expect("Failed to read entropy from system");
     // For consistency between big and small endian, Seed exposing accidentally the endianness via
     // the pub u128 field

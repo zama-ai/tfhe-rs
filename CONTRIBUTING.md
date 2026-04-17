@@ -13,7 +13,6 @@ Start by [forking](https://docs.github.com/en/pull-requests/collaborating-with-p
 
 {% hint style="info" %}
 - **Rust version**:  Ensure that you use a Rust version >= 1.81 to compile **TFHE-rs**.
-- **Incompatibility**: AArch64-based machines are not yet supported for Windows as it's currently missing an entropy source to be able to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in **TFHE-rs**.
 - **Performance**: For optimal performance, it is highly recommended to run **TFHE-rs** code in release mode with cargo's `--release` flag.
 {% endhint %}
 

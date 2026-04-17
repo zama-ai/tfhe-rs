@@ -8,7 +8,7 @@ mod rdseed;
 #[cfg(target_arch = "x86_64")]
 pub use rdseed::RdseedSeeder;
 
-#[cfg(target_family = "unix")]
+#[cfg(any(target_family = "unix", target_os = "windows"))]
 mod unix;
-#[cfg(target_family = "unix")]
+#[cfg(any(target_family = "unix", target_os = "windows"))]
 pub use unix::UnixSeeder;
