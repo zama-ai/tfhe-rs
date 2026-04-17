@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::process::ExitCode;
@@ -375,6 +376,15 @@ impl Registry {
     fn diff_enum(old_enum: &EnumSnapshot, new_enum: &EnumSnapshot, entries: &mut Vec<DiffEntry>) {
         let name = &old_enum.enum_name;
 
+        let mut rename_map: HashMap<&str, &str> = HashMap::new();
+        for ov in &old_enum.variants {
+            if let Some(nv) = new_enum.variants.iter().find(|nv| nv.index == ov.index) {
+                if ov.inner_type_def_path != nv.inner_type_def_path {
+                    rename_map.insert(&ov.inner_type_def_path, &nv.inner_type_def_path);
+                }
+            }
+        }
+
         // Variant additions & modifications
         for nv in &new_enum.variants {
             match old_enum.variants.iter().find(|ov| ov.index == nv.index) {
@@ -396,7 +406,11 @@ impl Registry {
         // Upgrade additions & modifications
         for nu in &new_enum.upgrades {
             match old_enum.upgrades.iter().find(|ou| {
-                ou.source_def_path == nu.source_def_path && ou.target_def_path == nu.target_def_path
+                let resolved_target = rename_map
+                    .get(ou.target_def_path.as_str())
+                    .copied()
+                    .unwrap_or(ou.target_def_path.as_str());
+                ou.source_def_path == nu.source_def_path && resolved_target == nu.target_def_path
             }) {
                 None => entries.push(DiffEntry::upgrade_added(name, nu)),
                 Some(ou) if ou.body_hash != nu.body_hash => {
@@ -409,7 +423,11 @@ impl Registry {
         // Upgrade removals
         for ou in &old_enum.upgrades {
             if !new_enum.upgrades.iter().any(|nu| {
-                nu.source_def_path == ou.source_def_path && nu.target_def_path == ou.target_def_path
+                let resolved_target = rename_map
+                    .get(ou.target_def_path.as_str())
+                    .copied()
+                    .unwrap_or(ou.target_def_path.as_str());
+                nu.source_def_path == ou.source_def_path && resolved_target == nu.target_def_path
             }) {
                 entries.push(DiffEntry::upgrade_removed(name, ou));
             }
@@ -674,6 +692,110 @@ mod tests {
         assert_eq!(count_by_severity(&entries, Severity::Neutral), 3); // new enum + new variant + new upgrade
         assert_eq!(count_by_severity(&entries, Severity::Warning), 0);
         assert_eq!(count_by_severity(&entries, Severity::Error), 0);
+    }
+
+    // ---- upgrade target rename (adding a new enum version) ----
+
+    /// Simulates adding V2 to an enum: Foo (at V1) becomes FooV1, new Foo is V2.
+    /// The existing upgrade FooV0 → Foo should be recognized as FooV0 → FooV1
+    /// (same upgrade, just renamed target) and NOT produce a false UpgradeRemoved + UpgradeAdded.
+    #[test]
+    fn no_false_positive_when_new_version_renames_target() {
+        // Before: V0(FooV0), V1(Foo) with upgrade FooV0 → Foo
+        let old = registry(vec![enum_snap(
+            "FooVersions",
+            vec![variant(0, "FooV0", "aaa"), variant(1, "Foo", "bbb")],
+            vec![upgrade("FooV0", "Foo", "uuu")],
+        )]);
+        // After: V0(FooV0), V1(FooV1), V2(Foo) with upgrades FooV0 → FooV1, FooV1 → Foo
+        let new = registry(vec![enum_snap(
+            "FooVersions",
+            vec![
+                variant(0, "FooV0", "aaa"),
+                variant(1, "FooV1", "bbb"), // same hash, just renamed
+                variant(2, "Foo", "ccc"),
+            ],
+            vec![
+                upgrade("FooV0", "FooV1", "uuu"), // same body hash as the old FooV0 → Foo
+                upgrade("FooV1", "Foo", "vvv"),   // genuinely new upgrade
+            ],
+        )]);
+
+        let entries = old.diff(&new);
+
+        // Expected: new variant V2 + new upgrade FooV1→Foo = 2 neutral, 0 warnings, 0 errors
+        assert_eq!(count_by_severity(&entries, Severity::Neutral), 2);
+        assert_eq!(count_by_severity(&entries, Severity::Warning), 0);
+        assert_eq!(count_by_severity(&entries, Severity::Error), 0);
+
+        // Verify the 2 neutral entries are exactly: variant added + upgrade added
+        assert!(
+            entries
+                .iter()
+                .any(|e| matches!(e, DiffEntry::VersionsDispatchVariantAdded { index: 2, .. }))
+        );
+        assert!(entries.iter().any(|e| matches!(
+            e,
+            DiffEntry::UpgradeAdded {
+                source,
+                target,
+                ..
+            } if source == "FooV1" && target == "Foo"
+        )));
+    }
+
+    /// Same scenario but the upgrade body also changed — should produce a hash-changed warning
+    /// instead of a false removed+added pair.
+    #[test]
+    fn renamed_target_with_changed_upgrade_body() {
+        let old = registry(vec![enum_snap(
+            "FooVersions",
+            vec![variant(0, "FooV0", "aaa"), variant(1, "Foo", "bbb")],
+            vec![upgrade("FooV0", "Foo", "uuu")],
+        )]);
+        let new = registry(vec![enum_snap(
+            "FooVersions",
+            vec![
+                variant(0, "FooV0", "aaa"),
+                variant(1, "FooV1", "bbb"),
+                variant(2, "Foo", "ccc"),
+            ],
+            vec![
+                upgrade("FooV0", "FooV1", "CHANGED"), // same logical upgrade, body changed
+                upgrade("FooV1", "Foo", "vvv"),
+            ],
+        )]);
+
+        let entries = old.diff(&new);
+
+        // The renamed upgrade has a changed body → 1 warning (UpgradeHashChanged)
+        // New variant + new upgrade → 2 neutral
+        assert_eq!(count_by_severity(&entries, Severity::Neutral), 2);
+        assert_eq!(count_by_severity(&entries, Severity::Warning), 1);
+        assert_eq!(count_by_severity(&entries, Severity::Error), 0);
+        assert!(
+            entries
+                .iter()
+                .any(|e| matches!(e, DiffEntry::UpgradeHashChanged { .. }))
+        );
+    }
+
+    /// When no rename happens (target name is stable), upgrades still match normally.
+    #[test]
+    fn no_rename_upgrades_still_match() {
+        let old = registry(vec![enum_snap(
+            "E",
+            vec![variant(0, "V0", "aaa"), variant(1, "V1", "bbb")],
+            vec![upgrade("V0", "V1", "uuu")],
+        )]);
+        let new = registry(vec![enum_snap(
+            "E",
+            vec![variant(0, "V0", "aaa"), variant(1, "V1", "bbb")],
+            vec![upgrade("V0", "V1", "uuu")],
+        )]);
+
+        let entries = old.diff(&new);
+        assert!(entries.is_empty());
     }
 
     #[test]
