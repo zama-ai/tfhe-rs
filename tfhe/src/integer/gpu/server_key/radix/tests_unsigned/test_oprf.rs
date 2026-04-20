@@ -1,6 +1,6 @@
-use crate::integer::gpu::server_key::radix::tests_signed::GpuMultiDeviceFunctionExecutor;
+use crate::integer::gpu::server_key::radix::tests_long_run::OpSequenceGpuMultiDeviceFunctionExecutor;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
-use crate::integer::gpu::CudaServerKey;
+use crate::integer::gpu::CudaOprfServerKey;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_oprf::{
     oprf_almost_uniformity_test, oprf_any_range_test, oprf_uniformity_test,
 };
@@ -22,8 +22,8 @@ fn oprf_uniformity_unsigned<P>(param: P)
 where
     P: Into<TestParameters>,
 {
-    let executor = GpuMultiDeviceFunctionExecutor::new(
-        &CudaServerKey::par_generate_oblivious_pseudo_random_unsigned_integer_bounded,
+    let executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
+        &CudaOprfServerKey::par_generate_oblivious_pseudo_random_unsigned_integer_bounded,
     );
     oprf_uniformity_test(param, executor);
 }
@@ -32,8 +32,8 @@ fn oprf_any_range_unsigned<P>(param: P)
 where
     P: Into<TestParameters>,
 {
-    let executor = GpuMultiDeviceFunctionExecutor::new(
-        &CudaServerKey::par_generate_oblivious_pseudo_random_unsigned_custom_range,
+    let executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
+        &CudaOprfServerKey::par_generate_oblivious_pseudo_random_unsigned_custom_range,
     );
     oprf_any_range_test(param, executor);
 }
@@ -42,8 +42,8 @@ fn oprf_almost_uniformity_unsigned<P>(param: P)
 where
     P: Into<TestParameters>,
 {
-    let executor = GpuMultiDeviceFunctionExecutor::new(
-        &CudaServerKey::par_generate_oblivious_pseudo_random_unsigned_custom_range,
+    let executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
+        &CudaOprfServerKey::par_generate_oblivious_pseudo_random_unsigned_custom_range,
     );
     oprf_almost_uniformity_test(param, executor);
 }

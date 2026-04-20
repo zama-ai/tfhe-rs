@@ -132,6 +132,11 @@ impl ConfigBuilder {
         self
     }
 
+    pub fn use_dedicated_oprf_key(mut self, enabled: bool) -> Self {
+        self.config.inner.use_dedicated_oprf_key(enabled);
+        self
+    }
+
     pub fn use_custom_parameters<P>(mut self, block_parameters: P) -> Self
     where
         P: Into<crate::shortint::atomic_pattern::AtomicPatternParameters>,
@@ -167,6 +172,7 @@ impl From<MetaParameters> for Config {
                     .noise_squashing_parameters
                     .and_then(|ns_p| ns_p.compression_parameters),
                 cpk_re_randomization_params: meta_params.rerandomization_parameters(),
+                dedicated_oprf_key: true,
             },
         }
     }

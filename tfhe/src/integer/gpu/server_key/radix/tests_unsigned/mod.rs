@@ -28,7 +28,7 @@ pub(crate) mod test_vector_find;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-use crate::integer::gpu::CudaServerKey;
+use crate::integer::gpu::{CudaOprfServerKey, CudaServerKey};
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::*;
 pub use crate::integer::server_key::radix_parallel::MatchValues;
 use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey, U256};
@@ -74,6 +74,7 @@ pub(crate) use {create_gpu_parameterized_stringified_test, create_gpu_parameteri
 pub(crate) struct GpuContext {
     pub(crate) streams: CudaStreams,
     pub(crate) sks: CudaServerKey,
+    pub(crate) oprf_key: Option<CudaOprfServerKey>,
 }
 pub(crate) struct GpuFunctionExecutor<F> {
     pub(crate) context: Option<GpuContext>,
@@ -95,7 +96,11 @@ impl<F> GpuFunctionExecutor<F> {
 
         let sks = CudaServerKey::new(cks.as_ref(), &streams);
         streams.synchronize();
-        let context = GpuContext { streams, sks };
+        let context = GpuContext {
+            streams,
+            sks,
+            oprf_key: None,
+        };
         self.context = Some(context);
     }
 }
