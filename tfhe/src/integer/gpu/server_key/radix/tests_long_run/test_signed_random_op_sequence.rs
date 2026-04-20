@@ -1,7 +1,8 @@
 use crate::integer::gpu::server_key::radix::tests_long_run::OpSequenceGpuMultiDeviceFunctionExecutor;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
-use crate::integer::gpu::CudaServerKey;
+use crate::integer::gpu::{CudaOprfServerKey, CudaServerKey};
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::oprf::OprfPrivateKey;
 use crate::integer::server_key::radix_parallel::tests_long_run::test_signed_random_op_sequence::{
     signed_random_op_sequence_test, SignedBinaryOpExecutor, SignedComparisonOpExecutor,
     SignedDivRemOpExecutor, SignedLog2OpExecutor, SignedOprfBoundedExecutor, SignedOprfExecutor,
@@ -86,6 +87,19 @@ where
 {
     let param = param.into();
     let (cks0, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let oprf_private_key = OprfPrivateKey::new(&cks0);
+
+    let cks = ClientKey::from_raw_parts(
+        cks0.clone(),
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(oprf_private_key),
+        Tag::default(),
+    );
+    let comp_sks = CompressedServerKey::new(&cks);
 
     let total_num_ops = binary_ops.len()
         + unary_ops.len()
@@ -102,9 +116,6 @@ where
         + scalar_rotate_shift_ops.len()
         + signed_oprf_ops.len()
         + signed_oprf_bounded_ops.len();
-
-    let cks = ClientKey::from_raw_parts(cks0.clone(), None, None, None, None, None, Tag::default());
-    let comp_sks = CompressedServerKey::new(&cks);
 
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
@@ -600,10 +611,10 @@ where
     ];
 
     let signed_oprf_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
-        &CudaServerKey::par_generate_oblivious_pseudo_random_signed_integer,
+        &CudaOprfServerKey::par_generate_oblivious_pseudo_random_signed_integer,
     );
     let signed_oprf_bounded_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
-        &CudaServerKey::par_generate_oblivious_pseudo_random_signed_integer_bounded,
+        &CudaOprfServerKey::par_generate_oblivious_pseudo_random_signed_integer_bounded,
     );
 
     let mut signed_oprf_ops: Vec<(SignedOprfExecutor, String)> = vec![(

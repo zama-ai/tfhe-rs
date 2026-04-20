@@ -6,8 +6,8 @@ use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstr
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_lwe_keyswitch_key, par_allocate_and_generate_new_lwe_bootstrap_key,
-    par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key, LweBootstrapKeyOwned, LweDimension,
-    LweMultiBitBootstrapKeyOwned, UnsignedInteger,
+    par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key, GlweSize, LweBootstrapKeyOwned,
+    LweDimension, LweMultiBitBootstrapKeyOwned, UnsignedInteger,
 };
 use crate::high_level_api::keys::expanded::{
     ShortintExpandedBootstrappingKey, ShortintExpandedServerKey,
@@ -21,8 +21,11 @@ use crate::shortint::atomic_pattern::expanded::{
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;
+use crate::shortint::oprf::ExpandedOprfBootstrappingKey;
 use crate::shortint::parameters::ModulusSwitchType;
+use crate::shortint::prelude::PolynomialSize;
 use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
+pub use radix::{CudaOprfServerKey, CudaOprfServerKeyView, GenericCudaOprfServerKey};
 
 mod radix;
 
@@ -72,13 +75,58 @@ where
             }
         }
     }
-}
 
-impl<Scalar: UnsignedInteger> CudaBootstrappingKey<Scalar> {
+    pub(crate) fn polynomial_size(&self) -> PolynomialSize {
+        match self {
+            Self::Classic(bsk) => bsk.polynomial_size,
+            Self::MultiBit(mb_bsk) => mb_bsk.polynomial_size,
+        }
+    }
+
+    pub(crate) fn input_lwe_dimension(&self) -> LweDimension {
+        match self {
+            Self::Classic(bsk) => bsk.input_lwe_dimension,
+            Self::MultiBit(mb_bsk) => mb_bsk.input_lwe_dimension,
+        }
+    }
+
     pub(crate) fn output_lwe_dimension(&self) -> LweDimension {
         match self {
             Self::Classic(bsk) => bsk.output_lwe_dimension(),
             Self::MultiBit(mb_bsk) => mb_bsk.output_lwe_dimension(),
+        }
+    }
+
+    pub(crate) fn glwe_size(&self) -> GlweSize {
+        match self {
+            Self::Classic(bsk) => bsk.glwe_dimension().to_glwe_size(),
+            Self::MultiBit(mb_bsk) => mb_bsk.glwe_dimension().to_glwe_size(),
+        }
+    }
+}
+
+impl CudaBootstrappingKey<u64> {
+    pub(crate) fn from_expanded_oprf_server_key(
+        expanded_bsk: &ExpandedOprfBootstrappingKey,
+        streams: &CudaStreams,
+    ) -> Self {
+        match expanded_bsk {
+            ExpandedOprfBootstrappingKey::Classic { bsk, .. } => {
+                let d_bootstrap_key =
+                    CudaLweBootstrapKey::from_lwe_bootstrap_key(bsk, None, streams);
+
+                Self::Classic(d_bootstrap_key)
+            }
+            ExpandedOprfBootstrappingKey::MultiBit {
+                bsk,
+                thread_count: _,
+                deterministic_execution: _,
+            } => {
+                let d_bootstrap_key =
+                    CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(bsk, streams);
+
+                Self::MultiBit(d_bootstrap_key)
+            }
         }
     }
 }

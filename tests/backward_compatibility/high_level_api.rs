@@ -25,7 +25,7 @@ use tfhe::{
     CompressedKVStore, CompressedPublicKey, CompressedServerKey,
     CompressedSquashedNoiseCiphertextList, CompressedSquashedNoiseCiphertextListBuilder, FheBool,
     FheInt8, FheUint32, FheUint64, FheUint8, ReRandomizationContext, ReRandomizationMode,
-    ReRandomizationSupport, ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt,
+    ReRandomizationSupport, Seed, ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt,
     SquashedNoiseFheUint,
 };
 use tfhe_backward_compat_data::load::{
@@ -746,6 +746,22 @@ fn test_hl_key_features(
                 ));
             }
         }
+    }
+
+    // OPRF: check that oblivious pseudo-random generation works with the dedicated key.
+    // The decrypted values only need to be within range; the seed is deterministic but we
+    // don't compare to specific bit values (those are validated in the unit tests).
+    if server_key.supports_oprf() {
+        let seed = Seed(42u128);
+
+        let rand_bool = FheBool::generate_oblivious_pseudo_random(seed);
+        let _: bool = rand_bool.decrypt(client_key);
+
+        let rand_uint = FheUint8::generate_oblivious_pseudo_random(seed);
+        let _: u8 = rand_uint.decrypt(client_key);
+
+        let rand_int = FheInt8::generate_oblivious_pseudo_random(seed);
+        let _: i8 = rand_int.decrypt(client_key);
     }
 
     Ok(())
