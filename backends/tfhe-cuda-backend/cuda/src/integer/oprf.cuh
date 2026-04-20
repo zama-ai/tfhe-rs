@@ -114,7 +114,7 @@ void host_integer_grouped_oprf_custom_range(
     const Torus *decomposed_scalar, const Torus *has_at_least_one_set,
     uint32_t num_scalars, uint32_t shift,
     int_grouped_oprf_custom_range_memory<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+    void *const *compute_bsks, Torus *const *ksks) {
 
   CudaRadixCiphertextFFI *computation_buffer = mem_ptr->tmp_oprf_output;
   set_zero_radix_ciphertext_slice_async<Torus>(
@@ -127,12 +127,12 @@ void host_integer_grouped_oprf_custom_range(
 
   host_integer_scalar_mul_radix<Torus>(
       streams, computation_buffer, decomposed_scalar, has_at_least_one_set,
-      mem_ptr->scalar_mul_buffer, bsks, ksks, mem_ptr->params.message_modulus,
-      num_scalars);
+      mem_ptr->scalar_mul_buffer, compute_bsks, ksks,
+      mem_ptr->params.message_modulus, num_scalars);
 
-  host_logical_scalar_shift_inplace<Torus>(streams, computation_buffer, shift,
-                                           mem_ptr->logical_scalar_shift_buffer,
-                                           bsks, ksks, num_blocks_intermediate);
+  host_logical_scalar_shift_inplace<Torus>(
+      streams, computation_buffer, shift, mem_ptr->logical_scalar_shift_buffer,
+      compute_bsks, ksks, num_blocks_intermediate);
 
   uint32_t num_blocks_output = radix_lwe_out->num_radix_blocks;
   uint32_t blocks_to_copy =
