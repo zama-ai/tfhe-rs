@@ -319,7 +319,7 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                                     let hpu_enc_res_1 = HpuRadixCiphertext::exec(&local_proto, IOpcode(33), &lsrcs_enc.0, imms, Some(hpu_asm::PhysId(1)));
                                     let hpu_enc_res_2 = HpuRadixCiphertext::exec(&local_proto, IOpcode(33), &lsrcs_enc.1, imms, Some(hpu_asm::PhysId(2)));
                                     let combined_inputs = [hpu_enc_res_1[0].clone(),hpu_enc_res_2[0].clone()];
-                                    let hpu_enc_res_3 = HpuRadixCiphertext::exec(&proto, iop.opcode(), &combined_inputs, imms, Some(hpu_asm::PhysId(1)));
+                                    let hpu_enc_res_3 = HpuRadixCiphertext::exec(&proto, iop.opcode(), &combined_inputs, imms, Some(hpu_asm::PhysId(2)));
                                     let local_proto2 = "[2]<H>::<H><0>".parse::<hpu_asm::IOpProto>().unwrap();
                                     let hpu_enc_res_4 = HpuRadixCiphertext::exec(&local_proto2, IOpcode(33), &[hpu_enc_res_3[0].clone()], imms, Some(hpu_asm::PhysId(2)));
                                     let hpu_enc_res_5 = HpuRadixCiphertext::exec(&local_proto2, IOpcode(33), &[hpu_enc_res_3[1].clone()], imms, Some(hpu_asm::PhysId(1)));
