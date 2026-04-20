@@ -8,6 +8,7 @@ use rayon::prelude::*;
 #[cfg(any(feature = "gpu", feature = "hpu"))]
 use std::cmp::max;
 use tfhe::integer::keycache::KEY_CACHE;
+use tfhe::integer::oprf::{OprfPrivateKey, OprfServerKey};
 use tfhe::integer::IntegerKeyKind;
 use tfhe::keycache::NamedParam;
 #[cfg(any(feature = "gpu", feature = "hpu"))]
@@ -35,32 +36,42 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                     format!("{bench_name}_bounded::{param_name}::{bit_size}_bits");
 
                 bench_group.bench_function(&bench_id_oprf, |b| {
-                    let (_, sk) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let oprf_pk = OprfPrivateKey::new(&cks);
+                    let oprf_sk = OprfServerKey::new(&oprf_pk, &cks).unwrap();
 
                     b.iter(|| {
-                        _ = black_box(sk.par_generate_oblivious_pseudo_random_unsigned_integer(
-                            Seed(0),
-                            num_block as u64,
-                        ));
+                        _ = black_box(
+                            oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(
+                                Seed(0),
+                                num_block as u64,
+                                &sks,
+                            ),
+                        );
                     })
                 });
 
                 bench_group.bench_function(&bench_id_oprf_bounded, |b| {
-                    let (_, sk) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let oprf_pk = OprfPrivateKey::new(&cks);
+                    let oprf_sk = OprfServerKey::new(&oprf_pk, &cks).unwrap();
 
                     b.iter(|| {
                         _ = black_box(
-                            sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                            oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                                 Seed(0),
                                 bit_size as u64,
                                 num_block as u64,
+                                &sks,
                             ),
                         );
                     })
                 });
             }
             BenchmarkType::Throughput => {
-                let (_, sk) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let oprf_pk = OprfPrivateKey::new(&cks);
+                let oprf_sk = OprfServerKey::new(&oprf_pk, &cks).unwrap();
 
                 bench_id_oprf = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 bench_id_oprf_bounded =
@@ -71,10 +82,11 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                     {
                         // Execute the operation once to know its cost.
                         reset_pbs_count();
-                        sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                        oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                             Seed(0),
                             bit_size as u64,
                             num_block as u64,
+                            &sks,
                         );
                         let pbs_count = max(get_pbs_count(), 1);
                         throughput_num_threads(num_block, pbs_count)
@@ -85,11 +97,13 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                         let setup = |_batch_size: usize| ();
                         let run = |_: &mut (), batch_size: usize| {
                             (0..batch_size).into_par_iter().for_each(|_| {
-                                sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
-                                    Seed(0),
-                                    bit_size as u64,
-                                    num_block as u64,
-                                );
+                                oprf_sk
+                                    .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                                        Seed(0),
+                                        bit_size as u64,
+                                        num_block as u64,
+                                        &sks,
+                                    );
                             });
                         };
                         find_optimal_batch(run, setup) as u64
@@ -100,9 +114,10 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                 bench_group.bench_function(&bench_id_oprf, |b| {
                     b.iter(|| {
                         (0..elements).into_par_iter().for_each(|_| {
-                            sk.par_generate_oblivious_pseudo_random_unsigned_integer(
+                            oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(
                                 Seed(0),
                                 num_block as u64,
+                                &sks,
                             );
                         })
                     })
@@ -111,10 +126,11 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                 bench_group.bench_function(&bench_id_oprf_bounded, |b| {
                     b.iter(|| {
                         (0..elements).into_par_iter().for_each(|_| {
-                            sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                            oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                                 Seed(0),
                                 bit_size as u64,
                                 num_block as u64,
+                                &sks,
                             );
                         })
                     })
@@ -148,6 +164,8 @@ pub mod cuda {
     use criterion::black_box;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::gpu::server_key::CudaServerKey;
+    use tfhe::integer::gpu::CudaOprfServerKey;
+    use tfhe::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey};
     use tfhe::GpuIndex;
     use tfhe_csprng::seeders::Seed;
 
@@ -177,12 +195,18 @@ pub mod cuda {
                         let (cks, _cpu_sks) =
                             KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                         let gpu_sks = CudaServerKey::new(&cks, &streams);
+                        let oprf_pk = OprfPrivateKey::new(&cks);
+                        let compressed_oprf_sk =
+                            CompressedOprfServerKey::new(&oprf_pk, &cks).unwrap();
+                        let cuda_oprf_sk =
+                            CudaOprfServerKey::decompress_from_cpu(&compressed_oprf_sk, &streams);
 
                         b.iter(|| {
                             _ = black_box(
-                                gpu_sks.par_generate_oblivious_pseudo_random_unsigned_integer(
+                                cuda_oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(
                                     Seed(0),
                                     num_block as u64,
+                                    &gpu_sks,
                                     &streams,
                                 ),
                             );
@@ -193,14 +217,20 @@ pub mod cuda {
                         let (cks, _cpu_sks) =
                             KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                         let gpu_sks = CudaServerKey::new(&cks, &streams);
+                        let oprf_pk = OprfPrivateKey::new(&cks);
+                        let compressed_oprf_sk =
+                            CompressedOprfServerKey::new(&oprf_pk, &cks).unwrap();
+                        let cuda_oprf_sk =
+                            CudaOprfServerKey::decompress_from_cpu(&compressed_oprf_sk, &streams);
 
                         b.iter(|| {
                             _ = black_box(
-                                gpu_sks
+                                cuda_oprf_sk
                                     .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                                         Seed(0),
                                         bit_size as u64,
                                         num_block as u64,
+                                        &gpu_sks,
                                         &streams,
                                     ),
                             );
@@ -210,13 +240,25 @@ pub mod cuda {
                 BenchmarkType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                     let gpu_sks_vec = cuda_local_keys(&cks);
+                    let cpu_oprf_pk = OprfPrivateKey::new(&cks);
+                    let cpu_oprf_sk = OprfServerKey::new(&cpu_oprf_pk, &cks).unwrap();
+                    let compressed_oprf_sk =
+                        CompressedOprfServerKey::new(&cpu_oprf_pk, &cks).unwrap();
+                    // One CudaOprfServerKey per GPU, matching `gpu_sks_vec`.
+                    let cuda_oprf_sks_vec: Vec<CudaOprfServerKey> = (0..get_number_of_gpus())
+                        .map(|gpu_index| {
+                            let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+                            CudaOprfServerKey::decompress_from_cpu(&compressed_oprf_sk, &stream)
+                        })
+                        .collect();
 
                     // Execute the operation once to know its cost.
                     reset_pbs_count();
-                    cpu_sks.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                    cpu_oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                         Seed(0),
                         bit_size as u64,
                         num_block as u64,
+                        &cpu_sks,
                     );
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
@@ -232,10 +274,11 @@ pub mod cuda {
                             (0..elements).into_par_iter().for_each(|i| {
                                 let gpu_index: u32 = i as u32 % get_number_of_gpus();
                                 let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-                                gpu_sks_vec[gpu_index as usize]
+                                cuda_oprf_sks_vec[gpu_index as usize]
                                     .par_generate_oblivious_pseudo_random_unsigned_integer(
                                         Seed(0),
                                         num_block as u64,
+                                        &gpu_sks_vec[gpu_index as usize],
                                         &stream,
                                     );
                             })
@@ -247,11 +290,12 @@ pub mod cuda {
                             (0..elements).into_par_iter().for_each(|i| {
                                 let gpu_index: u32 = i as u32 % get_number_of_gpus();
                                 let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-                                gpu_sks_vec[gpu_index as usize]
+                                cuda_oprf_sks_vec[gpu_index as usize]
                                     .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                                         Seed(0),
                                         bit_size as u64,
                                         num_block as u64,
+                                        &gpu_sks_vec[gpu_index as usize],
                                         &stream,
                                     );
                             })

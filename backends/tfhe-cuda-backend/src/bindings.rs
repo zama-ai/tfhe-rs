@@ -1647,6 +1647,7 @@ unsafe extern "C" {
         shift: u32,
         mem: *mut i8,
         bsks: *const *mut ffi::c_void,
+        compute_bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
     );
 }

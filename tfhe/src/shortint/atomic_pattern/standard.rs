@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use tfhe_csprng::seeders::Seed;
 use tfhe_versionable::Versionize;
 
 use super::{
@@ -9,14 +8,13 @@ use super::{
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_lwe_keyswitch_key, extract_lwe_sample_from_glwe_ciphertext,
-    keyswitch_lwe_ciphertext, LweCiphertext, LweCiphertextOwned, LweDimension,
-    LweKeyswitchKeyOwned, MonomialDegree, MsDecompressionType,
+    keyswitch_lwe_ciphertext, LweCiphertext, LweDimension, LweKeyswitchKeyOwned, MonomialDegree,
+    MsDecompressionType,
 };
 use crate::shortint::backward_compatibility::atomic_pattern::StandardAtomicPatternServerKeyVersions;
-use crate::shortint::ciphertext::{CompressedModulusSwitchedCiphertext, Degree, NoiseLevel};
+use crate::shortint::ciphertext::{CompressedModulusSwitchedCiphertext, NoiseLevel};
 use crate::shortint::client_key::atomic_pattern::StandardAtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::oprf::generate_pseudo_random_from_pbs;
 use crate::shortint::server_key::{
     decompress_and_apply_lookup_table, switch_modulus_and_compress, LookupTableOwned,
     LookupTableSize, ManyLookupTableOwned, ShortintBootstrappingKey,
@@ -216,36 +214,6 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
 
     fn deterministic_execution(&self) -> bool {
         self.bootstrapping_key.deterministic_pbs_execution()
-    }
-
-    fn generate_oblivious_pseudo_random(
-        &self,
-        seed: Seed,
-        random_bits_count: u64,
-        full_bits_count: u64,
-    ) -> (LweCiphertextOwned<u64>, Degree) {
-        let (ct, degree) = generate_pseudo_random_from_pbs(
-            &self.bootstrapping_key,
-            seed,
-            random_bits_count,
-            full_bits_count,
-            self.ciphertext_modulus(),
-        );
-
-        match self.pbs_order {
-            PBSOrder::KeyswitchBootstrap => (ct, degree),
-            PBSOrder::BootstrapKeyswitch => {
-                let mut ct_ksed = LweCiphertext::new(
-                    0,
-                    self.bootstrapping_key.input_lwe_dimension().to_lwe_size(),
-                    self.ciphertext_modulus(),
-                );
-
-                keyswitch_lwe_ciphertext(&self.key_switching_key, &ct, &mut ct_ksed);
-
-                (ct_ksed, degree)
-            }
-        }
     }
 
     fn switch_modulus_and_compress(&self, ct: &Ciphertext) -> CompressedModulusSwitchedCiphertext {

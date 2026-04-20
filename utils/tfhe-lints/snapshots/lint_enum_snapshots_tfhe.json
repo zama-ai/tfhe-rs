@@ -1966,6 +1966,42 @@
     "upgrades": []
   },
   {
+    "enum_name": "integer::backward_compatibility::oprf::OprfPrivateKeyVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "integer::oprf::OprfPrivateKey",
+        "inner_type_display": "integer::oprf::OprfPrivateKey",
+        "type_hash": "190b779d34ed1e3b42538259c249df7091286b79316ae357b2b20993762c1e17"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "integer::backward_compatibility::oprf::GenericOprfServerKeyVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "integer::oprf::GenericOprfServerKey",
+        "inner_type_display": "integer::oprf::GenericOprfServerKey<C>",
+        "type_hash": "a24c749a15df2a06cd4f4018194d65356b3fa3888d17ec101d014c51a28d3924"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "integer::backward_compatibility::oprf::CompressedOprfServerKeyVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "integer::oprf::CompressedOprfServerKey",
+        "inner_type_display": "integer::oprf::CompressedOprfServerKey",
+        "type_hash": "19c5dcecc71187fa73b117db58bef6b2d7a3bda86f46ad69dbe84d0672d0ba52"
+      }
+    ],
+    "upgrades": []
+  },
+  {
     "enum_name": "integer::backward_compatibility::public_key::PublicKeyVersions",
     "variants": [
       {
@@ -2961,6 +2997,78 @@
         "inner_type_def_path": "shortint::noise_squashing::atomic_pattern::compressed::ks32::CompressedKS32AtomicPatternNoiseSquashingKey",
         "inner_type_display": "shortint::noise_squashing::atomic_pattern::compressed::ks32::CompressedKS32AtomicPatternNoiseSquashingKey",
         "type_hash": "1e92ae81eecff36361d84605e0328cf61edadb453f7124cc35b7b0a1d4d94c16"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "shortint::backward_compatibility::oprf::OprfBootstrappingKeyVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "shortint::oprf::OprfBootstrappingKey",
+        "inner_type_display": "shortint::oprf::OprfBootstrappingKey<C>",
+        "type_hash": "8cd794caa8ea813c700701276285bf4ca175e762a0eb942374ff980e29b37920"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "shortint::backward_compatibility::oprf::AtomicPatternOprfPrivateKeyVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "shortint::oprf::AtomicPatternOprfPrivateKey",
+        "inner_type_display": "shortint::oprf::AtomicPatternOprfPrivateKey",
+        "type_hash": "1ea36e085af444eb6a17b7ddbdb6fc2dfd9df1a6fefceacdbbc2ec33eabbc134"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "shortint::backward_compatibility::oprf::OprfPrivateKeyVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "shortint::oprf::OprfPrivateKey",
+        "inner_type_display": "shortint::oprf::OprfPrivateKey",
+        "type_hash": "405eb7ad888c13a9d72bdccc3983b5d7e7a34f23a59aa7fa480c2724a3902549"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "shortint::backward_compatibility::oprf::GenericOprfServerKeyVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "shortint::oprf::GenericOprfServerKey",
+        "inner_type_display": "shortint::oprf::GenericOprfServerKey<C>",
+        "type_hash": "4181a2553fc7b44dcd3fa61a99f34cdd38dbdd23d70fe20a46d1c5b88815113d"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "shortint::backward_compatibility::oprf::CompressedOprfBootstrappingKeyVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "shortint::oprf::CompressedOprfBootstrappingKey",
+        "inner_type_display": "shortint::oprf::CompressedOprfBootstrappingKey",
+        "type_hash": "066449a618990ff8bfd02d6476f6187e9262bac4e35cb22db9a9893ce1777c30"
+      }
+    ],
+    "upgrades": []
+  },
+  {
+    "enum_name": "shortint::backward_compatibility::oprf::CompressedOprfServerKeyVersions",
+    "variants": [
+      {
+        "index": 0,
+        "inner_type_def_path": "shortint::oprf::CompressedOprfServerKey",
+        "inner_type_display": "shortint::oprf::CompressedOprfServerKey",
+        "type_hash": "2f4d02c420a0a669bd7d3d6f461575949d01cdc0096bd0a2680b9a7b5ac0a7a1"
       }
     ],
     "upgrades": []
@@ -4371,12 +4479,24 @@
     "variants": [
       {
         "index": 0,
+        "inner_type_def_path": "high_level_api::backward_compatibility::keys::IntegerConfigV0",
+        "inner_type_display": "high_level_api::backward_compatibility::keys::IntegerConfigV0",
+        "type_hash": "035ac7b016c2609cac454530cb1a39b84d1d56b54ddc744340b80d2fa8ca9ba6"
+      },
+      {
+        "index": 1,
         "inner_type_def_path": "high_level_api::keys::inner::IntegerConfig",
         "inner_type_display": "high_level_api::keys::inner::IntegerConfig",
-        "type_hash": "035ac7b016c2609cac454530cb1a39b84d1d56b54ddc744340b80d2fa8ca9ba6"
+        "type_hash": "e7f3bbdfe71e7f6995e0181f106140b9f18ff399e4fb7150a1c2f52901aacb76"
       }
     ],
-    "upgrades": []
+    "upgrades": [
+      {
+        "source_def_path": "high_level_api::backward_compatibility::keys::IntegerConfigV0",
+        "target_def_path": "high_level_api::keys::inner::IntegerConfig",
+        "body_hash": "6bdac8de8aec85eb6308aa3cf79e7ab71e150029c8feae1e0c91aa96aef996bb"
+      }
+    ]
   },
   {
     "enum_name": "high_level_api::backward_compatibility::keys::IntegerClientKeyVersions",
@@ -4425,9 +4545,15 @@
       },
       {
         "index": 7,
+        "inner_type_def_path": "high_level_api::backward_compatibility::keys::IntegerClientKeyV7",
+        "inner_type_display": "high_level_api::backward_compatibility::keys::IntegerClientKeyV7",
+        "type_hash": "ea680987c79bcb410c79d313b8dcaec017726f665796295792c7699730398d44"
+      },
+      {
+        "index": 8,
         "inner_type_def_path": "high_level_api::keys::inner::IntegerClientKey",
         "inner_type_display": "high_level_api::keys::inner::IntegerClientKey",
-        "type_hash": "ea680987c79bcb410c79d313b8dcaec017726f665796295792c7699730398d44"
+        "type_hash": "230bc0f89801b0f46a3f48a7b9854a0ef94f5c1e8a8a8be7a766edc2aa28d386"
       }
     ],
     "upgrades": [
@@ -4453,8 +4579,13 @@
       },
       {
         "source_def_path": "high_level_api::backward_compatibility::keys::IntegerClientKeyV6",
+        "target_def_path": "high_level_api::backward_compatibility::keys::IntegerClientKeyV7",
+        "body_hash": "d6f6964315a737da75bf9628ace067cb88a27015a108710a2faf8cfa1c600e38"
+      },
+      {
+        "source_def_path": "high_level_api::backward_compatibility::keys::IntegerClientKeyV7",
         "target_def_path": "high_level_api::keys::inner::IntegerClientKey",
-        "body_hash": "cab735acf8e6a19c6a55030e19a80195113c4fa685bc951387225cd8650aa658"
+        "body_hash": "e3e82caabda7c8cc50dce5bdc27b9b23b9692f05e4ba70ab8dda009f12167fd9"
       }
     ]
   },
@@ -4511,9 +4642,15 @@
       },
       {
         "index": 8,
+        "inner_type_def_path": "high_level_api::backward_compatibility::keys::IntegerServerKeyV8",
+        "inner_type_display": "high_level_api::backward_compatibility::keys::IntegerServerKeyV8",
+        "type_hash": "463bc8ef717be3c000c7cc3cb18eaaf317a2529fea71e02b6b9c503c6ef05f60"
+      },
+      {
+        "index": 9,
         "inner_type_def_path": "high_level_api::keys::inner::IntegerServerKey",
         "inner_type_display": "high_level_api::keys::inner::IntegerServerKey",
-        "type_hash": "463bc8ef717be3c000c7cc3cb18eaaf317a2529fea71e02b6b9c503c6ef05f60"
+        "type_hash": "5cf4fb148356f28e7fea89d98907412736f9e15345b58df19166b8d4864cdbda"
       }
     ],
     "upgrades": [
@@ -4534,8 +4671,13 @@
       },
       {
         "source_def_path": "high_level_api::backward_compatibility::keys::IntegerServerKeyV7",
-        "target_def_path": "high_level_api::keys::inner::IntegerServerKey",
+        "target_def_path": "high_level_api::backward_compatibility::keys::IntegerServerKeyV8",
         "body_hash": "ab2d92f2742bc18901d2381a6d66d321be4be62702b6cae745b2846347481b0b"
+      },
+      {
+        "source_def_path": "high_level_api::backward_compatibility::keys::IntegerServerKeyV8",
+        "target_def_path": "high_level_api::keys::inner::IntegerServerKey",
+        "body_hash": "d1c7c2d2d1c4986b5982dcf46f7ce08741b33c6a0f34c4ce04fc54b390fd7cb3"
       }
     ]
   },
@@ -4580,9 +4722,15 @@
       },
       {
         "index": 6,
+        "inner_type_def_path": "high_level_api::backward_compatibility::keys::IntegerCompressedServerKeyV6",
+        "inner_type_display": "high_level_api::backward_compatibility::keys::IntegerCompressedServerKeyV6",
+        "type_hash": "9a47dd156d2bd45ab532cd4d8081bd631482f0f6ab9736828c8d3b9aa7e2a615"
+      },
+      {
+        "index": 7,
         "inner_type_def_path": "high_level_api::keys::inner::IntegerCompressedServerKey",
         "inner_type_display": "high_level_api::keys::inner::IntegerCompressedServerKey",
-        "type_hash": "9a47dd156d2bd45ab532cd4d8081bd631482f0f6ab9736828c8d3b9aa7e2a615"
+        "type_hash": "521822ca1ef28a9ac6f34846b06b6903eec95c0de097416fc4ae091005494536"
       }
     ],
     "upgrades": [
@@ -4603,8 +4751,13 @@
       },
       {
         "source_def_path": "high_level_api::backward_compatibility::keys::IntegerCompressedServerKeyV5",
-        "target_def_path": "high_level_api::keys::inner::IntegerCompressedServerKey",
+        "target_def_path": "high_level_api::backward_compatibility::keys::IntegerCompressedServerKeyV6",
         "body_hash": "617ee0d6b423862a44e21d6200b0574514aef406ab207d9238f3e73838c0ec5c"
+      },
+      {
+        "source_def_path": "high_level_api::backward_compatibility::keys::IntegerCompressedServerKeyV6",
+        "target_def_path": "high_level_api::keys::inner::IntegerCompressedServerKey",
+        "body_hash": "3616481a3f1a164a90982b13f2584fda6b7fa4eefca2b7e46e95afa3baa2abda"
       }
     ]
   },
