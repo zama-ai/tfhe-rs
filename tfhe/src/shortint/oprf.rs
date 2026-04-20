@@ -803,22 +803,54 @@ impl MultiBitModulusSwitchedLweCiphertext for PrfMultiBitSeededModulusSwitched {
 // XOF-based seeded modulus switch (current implementation, uses OprfSeed)
 // ============================================================================
 
+/// Takes as input the `bit_count` to be generated (e.g. 21),
+/// the `random_bits_per_blocks` (e.g. 2) and output as many
+/// [PrfSeededModulusSwitched] as needed (ceil(bit_count/random_bits_per_blocks))
+///
+/// Also returns how many random bits the last block shall have.
+/// e.g 1 in the case of 21 bits over blocks of 2 bits
 pub(crate) fn create_random_from_seed_modulus_switched(
     seed: impl OprfSeed,
     lwe_size: LweSize,
     polynomial_size: PolynomialSize,
-    count: LweCiphertextCount,
-) -> Vec<PrfSeededModulusSwitched> {
+    bit_count: u64,
+    random_bits_per_block: u64,
+) -> (Vec<PrfSeededModulusSwitched>, u64) {
+    if bit_count == 0 || random_bits_per_block == 0 {
+        return (Vec::new(), 0);
+    }
+
+    let num_blocks = bit_count.div_ceil(random_bits_per_block);
+
+    let mut last_block_bits = bit_count % random_bits_per_block;
+    if last_block_bits == 0 {
+        last_block_bits = random_bits_per_block;
+    }
+
     let bytes = seed.into_bytes();
     let mut hasher = sha3::Sha3_256::default();
     hasher.update(b"TFHE_PRF");
     hasher.update(bytes.as_ref());
+    if last_block_bits == random_bits_per_block {
+        // All blocks contain the same number of random bits
+        hasher.update(num_blocks.to_le_bytes());
+        hasher.update(random_bits_per_block.to_le_bytes());
+    } else {
+        let head_count = num_blocks - 1;
+        if head_count != 0 {
+            hasher.update(head_count.to_le_bytes());
+            hasher.update(random_bits_per_block.to_le_bytes());
+        }
+        hasher.update(1u64.to_le_bytes());
+        hasher.update(last_block_bits.to_le_bytes());
+    }
+
     let seed = hasher.finalize();
 
     let mut xof =
         RandomGenerator::<DefaultRandomGenerator>::new(XofSeed::new(seed.to_vec(), *b"PRF_INIT"));
 
-    (0..count.0)
+    let seeded = (0..num_blocks)
         .map(|_| {
             let mut mask = vec![0usize; lwe_size.to_lwe_dimension().0];
             for mask_element in &mut mask {
@@ -833,7 +865,9 @@ pub(crate) fn create_random_from_seed_modulus_switched(
                 log_modulus: polynomial_size.to_blind_rotation_input_modulus_log(),
             }
         })
-        .collect::<Vec<_>>()
+        .collect::<Vec<_>>();
+
+    (seeded, last_block_bits)
 }
 
 // ============================================================================
@@ -965,17 +999,16 @@ impl<C: Container<Element = c64> + Sync> OprfBootstrappingKey<C> {
 
         let polynomial_size = self.polynomial_size();
         let in_lwe_size = self.input_lwe_dimension().to_lwe_size();
-        let num_blocks = bit_count.div_ceil(random_bits_per_block) as usize;
 
-        let seeded_cts = create_random_from_seed_modulus_switched(
+        let (seeded_cts, last_block_bits) = create_random_from_seed_modulus_switched(
             seed,
             in_lwe_size,
             polynomial_size,
-            LweCiphertextCount(num_blocks),
+            bit_count,
+            random_bits_per_block,
         );
 
         let ciphertext_modulus = target_sks.ciphertext_modulus;
-        let last_block_bits = bit_count % random_bits_per_block;
 
         let regular_lut = generate_oprf_lut(
             random_bits_per_block,
@@ -984,7 +1017,9 @@ impl<C: Container<Element = c64> + Sync> OprfBootstrappingKey<C> {
             self.glwe_size(),
             ciphertext_modulus,
         );
-        let last_block_lut = if last_block_bits != 0 {
+        let last_block_lut = if last_block_bits == random_bits_per_block {
+            None
+        } else {
             Some(generate_oprf_lut(
                 last_block_bits,
                 bits_in_one_block,
@@ -992,10 +1027,9 @@ impl<C: Container<Element = c64> + Sync> OprfBootstrappingKey<C> {
                 self.glwe_size(),
                 ciphertext_modulus,
             ))
-        } else {
-            None
         };
 
+        let num_blocks = seeded_cts.len();
         seeded_cts
             .into_par_iter()
             .enumerate()
@@ -1179,8 +1213,10 @@ pub(crate) mod test {
             seed,
             lwe_size,
             params.polynomial_size(),
-            LweCiphertextCount(1),
+            params.message_modulus().0.ilog2() as u64,
+            params.message_modulus().0.ilog2() as u64,
         )
+        .0
         .pop()
         .unwrap();
 
