@@ -3084,6 +3084,7 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
     has_at_least_one_set: &[T],
     shift: u32,
     bootstrapping_key: &CudaVec<B>,
+    compute_bootstrapping_key: &CudaVec<B>,
     key_switching_key: &CudaVec<KST>,
     lwe_dimension: LweDimension,
     glwe_dimension: GlweDimension,
@@ -3106,6 +3107,10 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
     );
     assert_eq!(streams.gpu_indexes[0], seeded_lwe_input.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(
+        streams.gpu_indexes[0],
+        compute_bootstrapping_key.gpu_index(0)
+    );
     assert_eq!(streams.gpu_indexes[0], key_switching_key.gpu_index(0));
 
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
@@ -3162,6 +3167,7 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
         shift,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
+        compute_bootstrapping_key.ptr.as_ptr(),
         key_switching_key.ptr.as_ptr(),
     );
 

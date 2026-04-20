@@ -126,9 +126,13 @@ fn test_server_key_decompression() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_with_seed() {
+    use crate::shortint::parameters::test_params::TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
     use crate::Seed;
-    let builder = ConfigBuilder::default();
-    let config = builder.build();
+
+    // Use the most complete meta-params available so that the seed-determinism check
+    // covers every optional key in the config
+    let config =
+        crate::Config::from(TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
 
     let cks1 = ClientKey::generate_with_seed(config, Seed(125));
     let cks2 = ClientKey::generate(config);
@@ -200,6 +204,7 @@ fn test_try_from_single_lwe_encryption_key() {
         crate::shortint::ClientKey::try_from_lwe_encryption_key(lwe_sk, parameters).unwrap();
     let client_key = ClientKey::from_raw_parts(
         shortint_key.into(),
+        None,
         None,
         None,
         None,

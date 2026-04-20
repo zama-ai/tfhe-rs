@@ -75,6 +75,7 @@ pub use ciphertext::{Ciphertext, CompressedCiphertext, PBSOrder};
 pub use client_key::ClientKey;
 pub(crate) use encoding::{PaddingBit, ShortintEncoding};
 pub use key_switching_key::{CompressedKeySwitchingKey, KeySwitchingKey, KeySwitchingKeyView};
+pub use oprf::OprfSeed;
 pub use parameters::{
     AtomicPatternKind, AtomicPatternParameters, CarryModulus, CiphertextModulus,
     ClassicPBSParameters, EncryptionKeyChoice, MaxNoiseLevel, MessageModulus,

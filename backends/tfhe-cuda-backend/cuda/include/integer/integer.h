@@ -721,7 +721,7 @@ void cuda_integer_grouped_oprf_custom_range_64_async(
     uint32_t num_blocks_intermediate, const void *seeded_lwe_input,
     const uint64_t *decomposed_scalar, const uint64_t *has_at_least_one_set,
     uint32_t num_scalars, uint32_t shift, int8_t *mem, void *const *bsks,
-    void *const *ksks);
+    void *const *compute_bsks, void *const *ksks);
 
 void cleanup_cuda_integer_grouped_oprf_custom_range_64(CudaStreamsFFI streams,
                                                        int8_t **mem_ptr_void);
