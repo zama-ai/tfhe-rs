@@ -10,7 +10,7 @@ use crate::integer::gpu::server_key::{
 };
 use itertools::Itertools;
 
-use crate::core_crypto::prelude::{LweBskGroupingFactor, LweCiphertextCount};
+use crate::core_crypto::prelude::LweBskGroupingFactor;
 
 use crate::shortint::oprf::{
     create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe, ExpandedOprfServerKey,
@@ -442,26 +442,27 @@ where
         let input_lwe_dimension = bootstrapping_key.input_lwe_dimension();
         let polynomial_size = bootstrapping_key.polynomial_size();
         let in_lwe_size = input_lwe_dimension.to_lwe_size();
+        let message_bits_count = target_sks.message_modulus.0.ilog2();
 
-        let h_seeded_lwe_list: Vec<u64> = create_random_from_seed_modulus_switched(
+        let (seeded, _last_block_bits) = create_random_from_seed_modulus_switched(
             seed,
             in_lwe_size,
             polynomial_size,
-            LweCiphertextCount(num_active_blocks as usize),
-        )
-        .into_iter()
-        .flat_map(|seeded| {
-            raw_seeded_msed_to_lwe(&seeded, target_sks.ciphertext_modulus).into_container()
-        })
-        .collect();
+            total_random_bits,
+            message_bits_count as u64,
+        );
+        let h_seeded_lwe_list: Vec<u64> = seeded
+            .into_iter()
+            .flat_map(|seeded| {
+                raw_seeded_msed_to_lwe(&seeded, target_sks.ciphertext_modulus).into_container()
+            })
+            .collect();
 
         let mut d_seeded_lwe_input =
             unsafe { CudaVec::<u64>::new_async(h_seeded_lwe_list.len(), streams, 0) };
         unsafe {
             d_seeded_lwe_input.copy_from_cpu_async(&h_seeded_lwe_list, streams, 0);
         }
-
-        let message_bits_count = target_sks.message_modulus.0.ilog2();
 
         unsafe {
             match bootstrapping_key {
@@ -570,17 +571,20 @@ where
             .iter_as::<u64>()
             .collect::<Vec<_>>();
 
-        let h_seeded_lwe_list: Vec<u64> = create_random_from_seed_modulus_switched(
+        let (seeded, _last_block_bits) = create_random_from_seed_modulus_switched(
             seed,
             in_lwe_size,
             polynomial_size,
-            LweCiphertextCount(num_blocks_intermediate as usize),
-        )
-        .into_iter()
-        .flat_map(|seeded| {
-            raw_seeded_msed_to_lwe(&seeded, target_sks.ciphertext_modulus).into_container()
-        })
-        .collect();
+            num_input_random_bits,
+            message_bits_count,
+        );
+
+        let h_seeded_lwe_list: Vec<u64> = seeded
+            .into_iter()
+            .flat_map(|seeded| {
+                raw_seeded_msed_to_lwe(&seeded, target_sks.ciphertext_modulus).into_container()
+            })
+            .collect();
 
         let mut d_seeded_lwe_input =
             unsafe { CudaVec::<u64>::new_async(h_seeded_lwe_list.len(), streams, 0) };
