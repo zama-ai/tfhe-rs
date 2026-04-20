@@ -683,7 +683,11 @@ impl<F> GpuMultiDeviceFunctionExecutor<F> {
 
         let sks = CudaServerKey::new(cks.as_ref(), &streams);
         streams.synchronize();
-        let context = GpuContext { streams, sks };
+        let context = GpuContext {
+            streams,
+            sks,
+            oprf_key: None,
+        };
         self.context = Some(context);
     }
 }

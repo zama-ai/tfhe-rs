@@ -10,6 +10,7 @@ use crate::high_level_api::SquashedNoiseCiphertextState;
 use crate::integer::ciphertext::NoiseSquashingCompressionPrivateKey;
 use crate::integer::compression_keys::CompressionPrivateKeys;
 use crate::integer::noise_squashing::{NoiseSquashingPrivateKey, NoiseSquashingPrivateKeyView};
+use crate::integer::oprf::OprfPrivateKey;
 use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::parameters::ReRandomizationParameters;
@@ -88,12 +89,14 @@ impl ClientKey {
         Option<NoiseSquashingPrivateKey>,
         Option<NoiseSquashingCompressionPrivateKey>,
         Option<ReRandomizationParameters>,
+        Option<OprfPrivateKey>,
         Tag,
     ) {
-        let (cks, cpk, cppk, nsk, nscpk, cpkrndp) = self.key.into_raw_parts();
-        (cks, cpk, cppk, nsk, nscpk, cpkrndp, self.tag)
+        let (cks, cpk, cppk, nsk, nscpk, cpkrndp, oprf) = self.key.into_raw_parts();
+        (cks, cpk, cppk, nsk, nscpk, cpkrndp, oprf, self.tag)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn from_raw_parts(
         key: crate::integer::ClientKey,
         dedicated_compact_private_key: Option<(
@@ -104,6 +107,7 @@ impl ClientKey {
         noise_squashing_key: Option<NoiseSquashingPrivateKey>,
         noise_squashing_compression_key: Option<NoiseSquashingCompressionPrivateKey>,
         cpk_re_randomization_params: Option<ReRandomizationParameters>,
+        oprf_private_key: Option<OprfPrivateKey>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -114,6 +118,7 @@ impl ClientKey {
                 noise_squashing_key,
                 noise_squashing_compression_key,
                 cpk_re_randomization_params,
+                oprf_private_key,
             ),
             tag,
         }

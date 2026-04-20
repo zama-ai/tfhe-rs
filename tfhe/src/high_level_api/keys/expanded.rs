@@ -23,6 +23,7 @@ use crate::shortint::atomic_pattern::expanded::{
 };
 pub use crate::shortint::noise_squashing::atomic_pattern::ExpandedAtomicPatternNoiseSquashingKey;
 pub use crate::shortint::noise_squashing::ExpandedNoiseSquashingKey;
+use crate::shortint::oprf::ExpandedOprfServerKey;
 pub use crate::shortint::server_key::expanded::{
     ShortintExpandedBootstrappingKey, ShortintExpandedServerKey,
 };
@@ -43,6 +44,7 @@ pub struct IntegerExpandedServerKey {
     pub noise_squashing_key: Option<ExpandedNoiseSquashingKey>,
     pub noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
     pub cpk_re_randomization_key: Option<ReRandomizationKey>,
+    pub oprf_key: Option<ExpandedOprfServerKey>,
 }
 
 impl IntegerExpandedServerKey {
@@ -63,6 +65,7 @@ impl IntegerExpandedServerKey {
             noise_squashing_key,
             noise_squashing_compression_key,
             cpk_re_randomization_key,
+            oprf_key,
         } = self;
 
         let atomic_pattern_key = match compute_key.atomic_pattern {
@@ -138,6 +141,11 @@ impl IntegerExpandedServerKey {
             )
         });
 
+        let oprf_key = oprf_key.map(|oprf_key| {
+            let shortint_key = oprf_key.to_fourier();
+            crate::integer::oprf::OprfServerKey::from_raw_parts(shortint_key)
+        });
+
         IntegerServerKey {
             key,
             cpk_key_switching_key_material,
@@ -146,6 +154,7 @@ impl IntegerExpandedServerKey {
             noise_squashing_key,
             noise_squashing_compression_key,
             cpk_re_randomization_key,
+            oprf_key,
         }
     }
 }
@@ -175,6 +184,7 @@ impl IntegerExpandedServerKey {
             noise_squashing_key,
             noise_squashing_compression_key,
             cpk_re_randomization_key,
+            oprf_key,
         } = self;
 
         let key = CudaServerKey::from_expanded_server_key(compute_key, streams)?;
@@ -239,6 +249,10 @@ impl IntegerExpandedServerKey {
                     }
                 });
 
+        let oprf_key = oprf_key.as_ref().map(|expanded_oprf_key| {
+            crate::integer::gpu::CudaOprfServerKey::from_expanded_cpu(expanded_oprf_key, streams)
+        });
+
         Ok(crate::high_level_api::keys::inner::IntegerCudaServerKey {
             key,
             cpk_key_switching_key_material,
@@ -247,6 +261,7 @@ impl IntegerExpandedServerKey {
             noise_squashing_key,
             noise_squashing_compression_key,
             cpk_re_randomization_key,
+            oprf_key,
         })
     }
 }
