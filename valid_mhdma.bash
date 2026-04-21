@@ -45,13 +45,13 @@ if $1 == "complete"; then
 fi
 for i in `seq 50`; do
     echo "loop $i"
-    #echo "Testing x120 IOP 40 (MUL64)"
-    ## Mul 64 (manual)
-    #if cargo run --profile devo --features=integer,internal-keycache,hw-v80,hpu --example hpu_bench -- --iter 120 --integer-w 64 --iop IOP[40] --user-proto "[2]<H,H>::<N,N><0>" --check-res 2>&1 | grep -q "Score 0/120"; then
-    #    echo "No error !!"
-    #else
-    #    exit 1
-    #fi
+    echo "Testing x120 IOP 40 (MUL64)"
+    # Mul 64 (manual)
+    if cargo run --profile devo --features=integer,internal-keycache,hw-v80,hpu --example hpu_bench -- --iter 120 --integer-w 64 --iop IOP[40] --user-proto "[2]<H,H>::<N,N><0>" --check-res 2>&1 | grep -q "Score 0/120"; then
+        echo "No error !!"
+    else
+        exit 1
+    fi
     echo "Testing x100 chain of IOp 33 & 40 (64b & 32b)"
     if cargo run --profile devo --features=integer,internal-keycache,hw-v80,hpu --example hpu_bench -- --iter 100 --integer-w 64 --iop IOP[40] --user-proto "[2]<H,H>::<N,N><0>" --check-res --chain-iop 2>&1 | grep -q "Score 0/10"; then
         echo "No error !!"
