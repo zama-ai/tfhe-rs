@@ -32,7 +32,7 @@ fn main() {
         // Check Linux distribution (reuse script from tfhe-cuda-backend)
         let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
             .expect("CARGO_MANIFEST_DIR must be set by cargo during build");
-        let script_path = PathBuf::from(&manifest_dir).join("../tfhe-cuda-backend/get_os_name.sh");
+        let script_path = PathBuf::from(&manifest_dir).join("./get_os_name.sh");
         let output = Command::new(&script_path)
             .output()
             .expect("Failed to run get_os_name.sh — is tfhe-cuda-backend present?");
