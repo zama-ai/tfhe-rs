@@ -87,7 +87,7 @@ jobs:
 
       - name: Upload tables
         if: inputs.backend_comparison == false
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ github.sha }}_${{ inputs.backend }}_${{ inputs.layer }}_subset_${{inputs.bench_subset}}_${{ inputs.pbs_kind }}_${{ inputs.bench_type }}_tables
           # This will upload all the file generated
@@ -111,7 +111,7 @@ jobs:
 
       - name: Upload comparison tables
         if: inputs.backend_comparison == true
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ github.sha }}_backends_comparison_tables
           # This will upload all the file generated
