@@ -68,6 +68,25 @@ __global__ void cleartext_multiplication(T *output, T const *lwe_input,
 
 template <typename T>
 __host__ void host_cleartext_multiplication(
+    cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI const *lwe_input, T cleartext_input) {
+
+  cuda_set_device(gpu_index);
+  // Create a 1-dimensional grid of threads
+  int num_blocks = 0, num_threads = 0;
+  uint32_t num_entries =
+      lwe_input->num_radix_blocks * (lwe_input->lwe_dimension + 1);
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+  dim3 grid(num_blocks, 1, 1);
+  dim3 thds(num_threads, 1, 1);
+
+  cleartext_multiplication<T><<<grid, thds, 0, stream>>>(
+      (T *)output->ptr, (T const *)lwe_input->ptr, cleartext_input, num_entries);
+  check_cuda_error(cudaGetLastError());
+}
+
+template <typename T>
+__host__ void host_cleartext_multiplication_unsafe_no_degrees(
     cudaStream_t stream, uint32_t gpu_index, T *output,
     CudaLweCiphertextListFFI const *lwe_input, T cleartext_input) {
 

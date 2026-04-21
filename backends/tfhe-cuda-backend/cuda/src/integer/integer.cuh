@@ -2267,14 +2267,13 @@ void host_single_borrow_propagate(CudaStreams streams,
       streams, borrow_states, params, mem->prop_simu_group_carries_mem, bsks,
       ksks, num_radix_blocks, num_groups);
 
-  auto shifted_blocks =
-      (Torus *)mem->shifted_blocks_borrow_state_mem->shifted_blocks->ptr;
   auto prepared_blocks = mem->prop_simu_group_carries_mem->prepared_blocks;
-  auto simulators = (Torus *)mem->prop_simu_group_carries_mem->simulators->ptr;
 
-  host_subtraction<Torus>(streams.stream(0), streams.gpu_index(0),
-                          (Torus *)prepared_blocks->ptr, shifted_blocks,
-                          simulators, big_lwe_dimension, num_radix_blocks);
+  host_subtraction<Torus>(
+      streams.stream(0), streams.gpu_index(0), prepared_blocks,
+      mem->shifted_blocks_borrow_state_mem->shifted_blocks,
+      mem->prop_simu_group_carries_mem->simulators, big_lwe_dimension,
+      num_radix_blocks);
 
   host_add_scalar_one_inplace<Torus>(streams, prepared_blocks, message_modulus,
                                      carry_modulus);
@@ -2318,8 +2317,7 @@ void host_single_borrow_propagate(CudaStreams streams,
 
   auto resolved_carries = mem->prop_simu_group_carries_mem->resolved_carries;
   host_negation<Torus>(sub_streams_2.stream(0), sub_streams_2.gpu_index(0),
-                       (Torus *)resolved_carries->ptr,
-                       (Torus *)resolved_carries->ptr, big_lwe_dimension,
+                       resolved_carries, resolved_carries, big_lwe_dimension,
                        num_groups);
 
   host_radix_sum_in_groups<Torus>(

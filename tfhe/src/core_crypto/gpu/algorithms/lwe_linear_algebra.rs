@@ -6,7 +6,7 @@ use crate::core_crypto::gpu::{
     add_lwe_ciphertext_vector_plaintext_vector_assign_async,
     add_lwe_ciphertext_vector_plaintext_vector_async, mult_lwe_ciphertext_vector_cleartext_vector,
     mult_lwe_ciphertext_vector_cleartext_vector_assign_async,
-    negate_lwe_ciphertext_vector_assign_async, negate_lwe_ciphertext_vector_async, CudaStreams,
+     CudaStreams,
 };
 use crate::core_crypto::prelude::UnsignedInteger;
 
@@ -250,93 +250,6 @@ pub fn cuda_lwe_ciphertext_plaintext_add_assign<Scalar>(
             streams,
             &mut lhs.0.d_vec,
             rhs,
-            *lwe_dimension,
-            num_samples,
-        );
-        streams.synchronize();
-    }
-}
-
-pub fn cuda_lwe_ciphertext_negate<Scalar>(
-    output: &mut CudaLweCiphertextList<Scalar>,
-    input: &CudaLweCiphertextList<Scalar>,
-    streams: &CudaStreams,
-) where
-    Scalar: UnsignedInteger,
-{
-    assert_eq!(
-        input.lwe_ciphertext_count(),
-        output.lwe_ciphertext_count(),
-        "Mismatched number of ciphertexts between input ({:?}) and output ({:?})",
-        input.lwe_ciphertext_count(),
-        output.lwe_ciphertext_count()
-    );
-    assert_eq!(
-        output.ciphertext_modulus(),
-        input.ciphertext_modulus(),
-        "Mismatched moduli between output ({:?}) and input ({:?}) LweCiphertext",
-        output.ciphertext_modulus(),
-        input.ciphertext_modulus()
-    );
-    assert!(
-        input
-            .ciphertext_modulus()
-            .is_compatible_with_native_modulus(),
-        "GPU LWE ciphertext cleartext mul currently only supports power of 2 moduli"
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        input.0.d_vec.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        input.0.d_vec.gpu_index(0).get(),
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        output.0.d_vec.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        output.0.d_vec.gpu_index(0).get(),
-    );
-    let num_samples = u32::try_from(output.lwe_ciphertext_count().0).unwrap();
-    let lwe_dimension = &output.lwe_dimension();
-
-    unsafe {
-        negate_lwe_ciphertext_vector_async(
-            streams,
-            &mut output.0.d_vec,
-            &input.0.d_vec,
-            *lwe_dimension,
-            num_samples,
-        );
-        streams.synchronize();
-    }
-}
-
-pub fn cuda_lwe_ciphertext_negate_assign<Scalar>(
-    ct: &mut CudaLweCiphertextList<Scalar>,
-    streams: &CudaStreams,
-) where
-    Scalar: UnsignedInteger,
-{
-    assert!(
-        ct.ciphertext_modulus().is_compatible_with_native_modulus(),
-        "GPU LWE ciphertext cleartext mul currently only supports power of 2 moduli"
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        ct.0.d_vec.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        ct.0.d_vec.gpu_index(0).get(),
-    );
-    let num_samples = u32::try_from(ct.lwe_ciphertext_count().0).unwrap();
-    let lwe_dimension = &ct.lwe_dimension();
-
-    unsafe {
-        negate_lwe_ciphertext_vector_assign_async(
-            streams,
-            &mut ct.0.d_vec,
             *lwe_dimension,
             num_samples,
         );

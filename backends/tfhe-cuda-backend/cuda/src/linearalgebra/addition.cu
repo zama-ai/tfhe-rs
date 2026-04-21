@@ -182,18 +182,15 @@ void cuda_add_lwe_ciphertext_vector_plaintext_vector_64(
  * performs the operation on the GPU.
  */
 void cuda_add_lwe_ciphertext_vector_plaintext_64(
-    void *stream, uint32_t gpu_index, void *lwe_array_out,
-    void const *lwe_array_in, const uint64_t plaintext_in,
-    const uint32_t input_lwe_dimension,
-    const uint32_t input_lwe_ciphertext_count) {
+    void *stream, uint32_t gpu_index, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in, const uint64_t plaintext_in) {
   PANIC_IF_FALSE(lwe_array_out != lwe_array_in,
                  "Output and input pointers must be different for out-of-place "
                  "operations");
 
   host_addition_plaintext_scalar<uint64_t>(
-      static_cast<cudaStream_t>(stream), gpu_index,
-      static_cast<uint64_t *>(lwe_array_out),
-      static_cast<const uint64_t *>(lwe_array_in), plaintext_in,
-      input_lwe_dimension, input_lwe_ciphertext_count);
+      static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lwe_array_in,
+      plaintext_in, lwe_array_out->lwe_dimension,
+      lwe_array_out->num_radix_blocks);
   cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
 }
