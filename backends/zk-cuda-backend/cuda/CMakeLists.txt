@@ -71,11 +71,6 @@ set(CMAKE_CUDA_FLAGS_DEBUG "-g -O0 -G")
 # Additional CUDA flags (aligned with tfhe-cuda-backend)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall -Xcompiler -Wextra --use_fast_math --expt-relaxed-constexpr")
 
-# =============================================================================
-# Path to tfhe-cuda-backend for device utilities
-# =============================================================================
-set(TFHE_CUDA_BACKEND_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../tfhe-cuda-backend/cuda)
-
 # Core source files (without device utilities) Device utilities come from tfhe-cuda-backend.
 set(FP_CORE_SOURCES src/primitives/fp.cu src/primitives/fp2.cu src/curve.cu src/msm/pippenger/msm_pippenger.cu
                     src/msm/msm.cu)
@@ -112,7 +107,7 @@ endif()
 target_link_libraries(zk_cuda_backend PUBLIC cudart)
 
 # Include both local headers and tfhe-cuda-backend headers (for device.h)
-target_include_directories(zk_cuda_backend PUBLIC include ../src/include ${TFHE_CUDA_BACKEND_DIR}/include)
+target_include_directories(zk_cuda_backend PUBLIC include ../src/include)
 
 # =============================================================================
 # Tests and Benchmarks (optional, controlled by ZK_CUDA_BACKEND_BUILD_TESTS/BENCHMARKS)
@@ -135,4 +130,3 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
 message(STATUS "C++ standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "CUDA standard: ${CMAKE_CUDA_STANDARD}")
-message(STATUS "tfhe-cuda-backend path: ${TFHE_CUDA_BACKEND_DIR}")

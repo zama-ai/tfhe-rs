@@ -11,7 +11,7 @@
 #include <stddef.h>
 #include <cstring>
 
-#include "../../tfhe-cuda-backend/cuda/src/utils/helper_profile.cuh"
+#include "helper_profile.cuh"
 
 // C++ helper functions (not exported, used internally)
 // These can call template functions since they have C++ linkage
