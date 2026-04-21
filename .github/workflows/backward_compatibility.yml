@@ -1,0 +1,112 @@
+# Checks backward compatibility and generates a diff report on PRs.
+# On push to main, only checks (no report).
+name: backward_compatibility
+
+env:
+  CARGO_TERM_COLOR: always
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  SLACKIFY_MARKDOWN: true
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  backward-compatibility:
+    name: backward_compatibility/backward-compatibility (bpr)
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write # Need to write a PR comment
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+      cancel-in-progress: ${{ github.event_name != 'push' }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: 'false'
+
+      - name: Fetch base commit
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: git fetch origin "$BASE_REF" --depth=1
+
+      - name: Generate base snapshot
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: make backward_snapshot_worktree BASE_REF="$BASE_REF" SNAPSHOT_OUTPUT_DIR=/tmp/snapshots/base
+
+      - name: Generate head snapshot
+        run: make backward_snapshot SNAPSHOT_OUTPUT_DIR=/tmp/snapshots/head
+
+      - name: Check backward compatibility
+        id: check
+        continue-on-error: true
+        run: |
+          make backward_snapshot_check \
+            BASE_SNAPSHOT_DIR=/tmp/snapshots/base \
+            HEAD_SNAPSHOT_DIR=/tmp/snapshots/head
+
+      - name: Generate diff report
+        if: github.event_name == 'pull_request'
+        id: report
+        run: |
+          make backward_snapshot_report \
+            BASE_SNAPSHOT_DIR=/tmp/snapshots/base \
+            HEAD_SNAPSHOT_DIR=/tmp/snapshots/head \
+            OUTPUT_FILE=report.md
+
+          if [ -s report.md ]; then
+            HASH=$(sha256sum report.md | cut -d' ' -f1)
+            printf '\n<!-- content-hash:%s -->\n' "$HASH" >> report.md
+            echo "has_report=true" >> "$GITHUB_OUTPUT"
+            echo "hash=$HASH" >> "$GITHUB_OUTPUT"
+          elif [ -f report.md ]; then
+            echo "has_report=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::report.md was not created — something went wrong"
+            exit 1
+          fi
+
+      - name: Find existing comment with same content
+        if: github.event_name == 'pull_request' && steps.report.outputs.has_report == 'true'
+        uses: peter-evans/find-comment@b30e6a3c0ed37e7c023ccd3f1db5c6c0b0c23aad # v4.0.0
+        id: existing
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: content-hash:${{ steps.report.outputs.hash }}
+
+      - name: Post/refresh backward-compatibility report
+        if: github.event_name == 'pull_request' && steps.report.outputs.has_report == 'true' && !steps.existing.outputs.comment-id
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0
+        with:
+          header: backward-compatibility-snapshot
+          hide_and_recreate: true
+          hide_classify: OUTDATED
+          path: report.md
+
+      - name: Slack Notification
+        if: steps.check.outcome == 'failure'
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
+        env:
+          SLACK_COLOR: failure
+          SLACK_MESSAGE: >-
+            Backward compatibility check: failure.
+            [See details](${{ env.ACTION_RUN_URL }})
+
+      - name: Fail if check failed
+        if: steps.check.outcome == 'failure'
+        run: exit 1
