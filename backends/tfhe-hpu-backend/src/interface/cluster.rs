@@ -174,11 +174,11 @@ impl HpuCluster {
             let var_num = var_pos.iter().sum::<usize>();
             let hpu_weight = std::iter::zip(var_pos.iter(), self.workload.iter())
                 .enumerate()
-                .map(|(i,(p, w))| {
-                    let dflt_weight = 2* var_num * VAR_POS_WEIGHT;
+                .map(|(i, (p, w))| {
+                    let dflt_weight = 2 * var_num * VAR_POS_WEIGHT;
                     let work_weight = w.load(atomic::Ordering::SeqCst);
                     let pos_weight = *p * VAR_POS_WEIGHT;
-                    (i,dflt_weight + work_weight - pos_weight)
+                    (i, dflt_weight + work_weight - pos_weight)
                 })
                 .collect::<Vec<_>>();
 
