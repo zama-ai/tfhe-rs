@@ -79,19 +79,11 @@ jobs:
             exit 1
           fi
 
-      - name: Find existing comment
+      - name: Post/refresh backward-compat report
         if: steps.report.outputs.has_report == 'true'
-        id: find-comment
-        uses: peter-evans/find-comment@b30e6a3c0ed37e7c023ccd3f1db5c6c0b0c23aad # v4.0.0
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0
         with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body-includes: '**Backward-compat snapshot:'
-
-      - name: Comment on PR
-        if: steps.report.outputs.has_report == 'true'
-        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5.0.0
-        with:
-          comment-id: ${{ steps.find-comment.outputs.comment-id }}
-          issue-number: ${{ github.event.pull_request.number }}
-          body-path: report.md
-          edit-mode: replace
+          header: backward-compat-snapshot
+          hide_and_recreate: true
+          hide_classify: OUTDATED
+          path: report.md
