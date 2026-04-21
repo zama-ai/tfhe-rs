@@ -1,5 +1,14 @@
 use std::path::PathBuf;
-use std::process::Command;
+
+fn get_linux_distribution_name() -> Option<String> {
+    let content = std::fs::read_to_string("/etc/os-release").ok()?;
+    for line in content.lines() {
+        if let Some(value) = line.strip_prefix("NAME=") {
+            return Some(value.trim_matches('"').to_string());
+        }
+    }
+    None
+}
 
 fn main() {
     // Handle docs.rs builds (no CUDA available)
@@ -29,16 +38,10 @@ fn main() {
         println!("cargo:rustc-link-arg=-Wl,--allow-multiple-definition");
         println!("cargo:rustc-link-arg=-Wl,--no-as-needed");
 
-        // Check Linux distribution (reuse script from tfhe-cuda-backend)
         let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
             .expect("CARGO_MANIFEST_DIR must be set by cargo during build");
-        let script_path = PathBuf::from(&manifest_dir).join("./get_os_name.sh");
-        let output = Command::new(&script_path)
-            .output()
-            .expect("Failed to run get_os_name.sh — is tfhe-cuda-backend present?");
-        let distribution =
-            String::from_utf8(output.stdout).expect("get_os_name.sh output must be valid UTF-8");
-        if distribution != "Ubuntu\n" {
+
+        if get_linux_distribution_name().as_deref() != Some("Ubuntu") {
             println!(
                 "cargo:warning=This Linux distribution is not officially supported. \
                 Only Ubuntu is supported by zk-cuda-backend at this time. Build may fail\n"
