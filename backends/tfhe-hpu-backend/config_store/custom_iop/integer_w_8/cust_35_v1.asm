@@ -13,7 +13,7 @@ LD R1 TS[0].1
 LD R2 TS[0].2
 LD R3 TS[0].3
 
-# Stock localy
+# Stock locally
 ST TH.0 R0
 ST TH.1 R1
 ST TH.2 R2

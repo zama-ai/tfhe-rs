@@ -50,7 +50,12 @@ impl HpuCluster {
             .fpga
             .node_id
             .par_iter()
-            .map(|id| (*id, HpuNodeWrapped::new_wrapped(*id, *cluster_first_nid, *cluster_last_nid, config)))
+            .map(|id| {
+                (
+                    *id,
+                    HpuNodeWrapped::new_wrapped(*id, *cluster_first_nid, *cluster_last_nid, config),
+                )
+            })
             .collect::<HashMap<_, _>>();
 
         // Enforce that all node within the cluster used same HpuParameters

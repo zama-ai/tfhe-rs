@@ -16,8 +16,8 @@ use tfhe::core_crypto::commons::generators::DeterministicSeeder;
 use tfhe::core_crypto::prelude::DefaultRandomGenerator;
 use tfhe::shortint::parameters::KeySwitch32PBSParameters;
 use tfhe::*;
-use tfhe_hpu_backend::prelude::*;
 use tfhe_hpu_backend::asm::IOpcode;
+use tfhe_hpu_backend::prelude::*;
 
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -61,7 +61,7 @@ pub struct Args {
     /// WARN: Do not used with native `multi-hpu` IOp
     #[arg(long)]
     pub tput: bool,
-    
+
     #[arg(long)]
     pub check_res: bool,
 
@@ -255,46 +255,47 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             let bench_inputs = (0..args.iter)
                 .map(|_| {
                     hpu_nodes
-                    .iter()
-                    .map(|node| {
-                        let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
-                            .src
-                            .iter()
-                            .enumerate()
-                            .map(|(pos, mode)| {
-                                let (bw, block) = match mode {
-                                    hpu_asm::iop::VarMode::Native => (*width, num_block),
-                                    hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
-                                    hpu_asm::iop::VarMode::Bool => (1, 1),
-                                };
+                        .iter()
+                        .map(|node| {
+                            let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
+                                .src
+                                .iter()
+                                .enumerate()
+                                .map(|(pos, mode)| {
+                                    let (bw, block) = match mode {
+                                        hpu_asm::iop::VarMode::Native => (*width, num_block),
+                                        hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
+                                        hpu_asm::iop::VarMode::Bool => (1, 1),
+                                    };
 
-                                let clear = *args.src.get(pos).unwrap_or(
-                                    &rng.gen_range(0..=u128::MAX >> (u128::BITS - (bw as u32))),
-                                );
-                                let fhe = if args.trivial {
-                                    sks.create_trivial_radix(clear, block)
-                                } else {
-                                    cks.encrypt_radix(clear, block)
-                                };
-                                let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(
-                                    &fhe,
-                                    &hpu_device,
-                                    Some(hpu_asm::PhysId(*node)),
-                                );
-                                (clear, hpu_fhe)
-                            })
-                            .unzip();
+                                    let clear = *args.src.get(pos).unwrap_or(
+                                        &rng.gen_range(0..=u128::MAX >> (u128::BITS - (bw as u32))),
+                                    );
+                                    let fhe = if args.trivial {
+                                        sks.create_trivial_radix(clear, block)
+                                    } else {
+                                        cks.encrypt_radix(clear, block)
+                                    };
+                                    let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(
+                                        &fhe,
+                                        &hpu_device,
+                                        Some(hpu_asm::PhysId(*node)),
+                                    );
+                                    (clear, hpu_fhe)
+                                })
+                                .unzip();
 
-                        let imms = (0..proto.imm)
-                            .map(|pos| {
-                                *args.imm.get(pos).unwrap_or(
-                                    &rng.gen_range(0..u128::MAX >> (u128::BITS - (*width as u32))),
-                                )
-                            })
-                            .collect::<Vec<_>>();
-                        (srcs_clear, srcs_enc, imms)
-                    })
-                    .collect::<Vec<_>>()
+                            let imms =
+                                (0..proto.imm)
+                                    .map(|pos| {
+                                        *args.imm.get(pos).unwrap_or(&rng.gen_range(
+                                            0..u128::MAX >> (u128::BITS - (*width as u32)),
+                                        ))
+                                    })
+                                    .collect::<Vec<_>>();
+                            (srcs_clear, srcs_enc, imms)
+                        })
+                        .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>();
 
@@ -305,7 +306,8 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     let bench_res = bench_inputs[i]
                         .iter()
                         .map(|(srcs_clear, srcs_enc, imms)| {
-                            let hpu_enc_res = HpuRadixCiphertext::exec(&proto, iop.opcode(), srcs_enc, imms);
+                            let hpu_enc_res =
+                                HpuRadixCiphertext::exec(&proto, iop.opcode(), srcs_enc, imms);
                             if args.check_res {
                                 let clear_res = hpu_enc_res
                                     .iter()
@@ -318,41 +320,81 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                                 println!("step {i}: res {:?}", clear_res);
                                 if iop.opcode() == IOpcode(33) || iop.opcode() == IOpcode(35) {
                                     if clear_res[0] != srcs_clear[0] {
-                                        println!("ERROR {i}: {:?} /= {:?}", clear_res[0], srcs_clear[0]);
-                                        err_cnt+=1;
+                                        println!(
+                                            "ERROR {i}: {:?} /= {:?}",
+                                            clear_res[0], srcs_clear[0]
+                                        );
+                                        err_cnt += 1;
                                     }
                                 }
                                 if iop.opcode() == IOpcode(32) {
-                                    if  clear_res[0] != ((srcs_clear[0] & 0xF) + ((srcs_clear[1] & 0xF) << 4)) {
-                                        println!("ERROR {i}: {:x} /= {:x}", clear_res[0], ((srcs_clear[0] & 0xF) + ((srcs_clear[1] & 0xF) << 4)));
-                                        err_cnt+=1;
+                                    if clear_res[0]
+                                        != ((srcs_clear[0] & 0xF) + ((srcs_clear[1] & 0xF) << 4))
+                                    {
+                                        println!(
+                                            "ERROR {i}: {:x} /= {:x}",
+                                            clear_res[0],
+                                            ((srcs_clear[0] & 0xF) + ((srcs_clear[1] & 0xF) << 4))
+                                        );
+                                        err_cnt += 1;
                                     }
-                                    if  clear_res[1] != (((srcs_clear[0] & 0xF0) >> 4) + (srcs_clear[1] & 0xF0)) {
-                                        println!("ERROR {i}: {:x} /= {:x}", clear_res[1], (((srcs_clear[0] & 0xF0) >> 4) + (srcs_clear[1] & 0xF0)));
-                                        err_cnt+=1;
+                                    if clear_res[1]
+                                        != (((srcs_clear[0] & 0xF0) >> 4) + (srcs_clear[1] & 0xF0))
+                                    {
+                                        println!(
+                                            "ERROR {i}: {:x} /= {:x}",
+                                            clear_res[1],
+                                            (((srcs_clear[0] & 0xF0) >> 4)
+                                                + (srcs_clear[1] & 0xF0))
+                                        );
+                                        err_cnt += 1;
                                     }
                                 }
                                 if iop.opcode() == IOpcode(36) {
-                                    println!("{i}: {:x} ?= ({:x} * {:x})%256 = {:?}", clear_res[0], srcs_clear[0], srcs_clear[1], (srcs_clear[0] * srcs_clear[1]) % 256);
+                                    println!(
+                                        "{i}: {:x} ?= ({:x} * {:x})%256 = {:?}",
+                                        clear_res[0],
+                                        srcs_clear[0],
+                                        srcs_clear[1],
+                                        (srcs_clear[0] * srcs_clear[1]) % 256
+                                    );
                                     if clear_res[0] != (srcs_clear[0] * srcs_clear[1]) % 256 {
-                                        println!("ERROR {i}: {:x} /= ({:x} * {:x})%256", clear_res[0], srcs_clear[0], srcs_clear[1]);
-                                        err_cnt+=1;
+                                        println!(
+                                            "ERROR {i}: {:x} /= ({:x} * {:x})%256",
+                                            clear_res[0], srcs_clear[0], srcs_clear[1]
+                                        );
+                                        err_cnt += 1;
                                     }
                                 }
                                 if iop.opcode() == IOpcode(40) {
-                                    let res = clear_res[0] + (clear_res[1] << width/2);
+                                    let res = clear_res[0] + (clear_res[1] << width / 2);
                                     let expected = (srcs_clear[0] * srcs_clear[1]) % (1 << width);
-                                    println!("{i}: {:x} ?= ({:x} * {:x})%2**{width:?} = {:?}", res, srcs_clear[0], srcs_clear[1], expected);
+                                    println!(
+                                        "{i}: {:x} ?= ({:x} * {:x})%2**{width:?} = {:?}",
+                                        res, srcs_clear[0], srcs_clear[1], expected
+                                    );
                                     if res != expected {
-                                        println!("ERROR {i}: {:x} /= ({:x} * {:x})%2**{width:?}", res, srcs_clear[0], srcs_clear[1]);
-                                        err_cnt+=1;
+                                        println!(
+                                            "ERROR {i}: {:x} /= ({:x} * {:x})%2**{width:?}",
+                                            res, srcs_clear[0], srcs_clear[1]
+                                        );
+                                        err_cnt += 1;
                                     }
                                 }
                                 if iop.opcode() == IOpcode(34) {
-                                    println!("{i}: {:x} ?= ({:x} + {:x})%256 = {:?}", clear_res[0], srcs_clear[0], srcs_clear[1], (srcs_clear[0] + srcs_clear[1]) % 256);
+                                    println!(
+                                        "{i}: {:x} ?= ({:x} + {:x})%256 = {:?}",
+                                        clear_res[0],
+                                        srcs_clear[0],
+                                        srcs_clear[1],
+                                        (srcs_clear[0] + srcs_clear[1]) % 256
+                                    );
                                     if clear_res[0] != (srcs_clear[0] + srcs_clear[1]) % 256 {
-                                        println!("ERROR {i}: {:x} /= ({:x} + {:x})%256", clear_res[0], srcs_clear[0], srcs_clear[1]);
-                                        err_cnt+=1;
+                                        println!(
+                                            "ERROR {i}: {:x} /= ({:x} + {:x})%256",
+                                            clear_res[0], srcs_clear[0], srcs_clear[1]
+                                        );
+                                        err_cnt += 1;
                                     }
                                 }
                             }
@@ -395,11 +437,12 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 .collect::<Vec<_>>();
             println!("Integer_{width}b:: Execution report: {iop}");
             for (node, (res, inputs)) in
-                std::iter::zip(bench_res.iter(), bench_inputs[args.iter-1].iter()).enumerate()
+                std::iter::zip(bench_res.iter(), bench_inputs[args.iter - 1].iter()).enumerate()
             {
                 let (srcs_clear, _, imms) = inputs;
                 println!(
-                    "Node {node} ------------------------------------------------------------");
+                    "Node {node} ------------------------------------------------------------"
+                );
                 println!("Score {:?}/{:?}", err_cnt, args.iter);
                 println!(
                     "Behavior         : {res:?}  <- {iop} <{:?}> <{:?}> {{{}}}",

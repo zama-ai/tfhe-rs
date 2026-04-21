@@ -61,7 +61,7 @@ pub enum TraceParsingError {
     #[error("Incomplete stream")]
     EmptyStream,
     #[error("Incorrect value {0}")]
-    IncorrectValue(String), 
+    IncorrectValue(String),
     #[error("Incorrect insn {0}")]
     IncorrectDOp(dop::ParsingError),
 }
@@ -85,17 +85,16 @@ impl IscTrace {
         let cmd = unsafe { std::mem::transmute(flit0.cmd()) };
         let asm = match cmd {
             IscCommand::None => "Garbage".to_string(),
-            _ => {
-                dop::DOp::from_hex(flit0.insn())
+            _ => dop::DOp::from_hex(flit0.insn())
                 .map_err(|x| TraceParsingError::IncorrectValue(x.to_string()))?
-                .to_string()
-            }
+                .to_string(),
         };
 
         let insn = match cmd {
             IscCommand::None => None,
             _ => {
-                let dop = dop::DOp::from_hex(flit0.insn()).map_err(|e| TraceParsingError::IncorrectDOp(e))?;
+                let dop = dop::DOp::from_hex(flit0.insn())
+                    .map_err(|e| TraceParsingError::IncorrectDOp(e))?;
                 Some(dop)
             }
         };

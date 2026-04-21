@@ -164,10 +164,13 @@ impl CiphertextMemory {
         for slot in pool.into_iter() {
             array_queue.push(slot).expect("Check ArrayQueue allocation");
         }
-        (Self {
-            pool: std::sync::Arc::new(array_queue),
-            retry_rate_us: props.retry_rate_us,
-        }, paddr)
+        (
+            Self {
+                pool: std::sync::Arc::new(array_queue),
+                retry_rate_us: props.retry_rate_us,
+            },
+            paddr,
+        )
     }
 
     #[tracing::instrument(level = "trace", skip(ffi_hw), ret)]
