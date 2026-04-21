@@ -1,5 +1,14 @@
 use std::path::PathBuf;
-use std::process::Command;
+
+fn get_linux_distribution_name() -> Option<String> {
+    let content = std::fs::read_to_string("/etc/os-release").ok()?;
+    for line in content.lines() {
+        if let Some(value) = line.strip_prefix("NAME=") {
+            return Some(value.trim_matches('"').to_string());
+        }
+    }
+    None
+}
 
 fn main() {
     if let Ok(val) = std::env::var("DOCS_RS") {
@@ -28,9 +37,7 @@ fn main() {
     println!("cargo::rerun-if-changed=src");
 
     if std::env::consts::OS == "linux" {
-        let output = Command::new("./get_os_name.sh").output().unwrap();
-        let distribution = String::from_utf8(output.stdout).unwrap();
-        if distribution != "Ubuntu\n" {
+        if get_linux_distribution_name().as_deref() != Some("Ubuntu") {
             println!(
                 "cargo:warning=This Linux distribution is not officially supported. \
                 Only Ubuntu is supported by tfhe-cuda-backend at this time. Build may fail\n"
