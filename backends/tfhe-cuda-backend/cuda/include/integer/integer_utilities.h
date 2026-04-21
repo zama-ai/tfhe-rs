@@ -345,6 +345,21 @@ struct int_radix_params {
         message_modulus(message_modulus), carry_modulus(carry_modulus),
         noise_reduction_type(noise_reduction_type){};
 
+  int_radix_params(CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
+                   uint32_t ks_base_log, uint32_t message_modulus,
+                   uint32_t carry_modulus,
+                   PBS_MS_REDUCTION_T noise_reduction_type)
+      : pbs_type((PBS_TYPE)bsk_params.pbs_type),
+        glwe_dimension(bsk_params.glwe_dimension),
+        polynomial_size(bsk_params.polynomial_size),
+        big_lwe_dimension(bsk_params.big_lwe_dimension),
+        small_lwe_dimension(bsk_params.input_lwe_dimension), ks_level(ks_level),
+        ks_base_log(ks_base_log), pbs_level(bsk_params.level_count),
+        pbs_base_log(bsk_params.base_log),
+        grouping_factor(bsk_params.grouping_factor),
+        message_modulus(message_modulus), carry_modulus(carry_modulus),
+        noise_reduction_type(noise_reduction_type){};
+
   int_radix_params() = default;
 
   void print() {
