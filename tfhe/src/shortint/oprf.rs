@@ -293,6 +293,14 @@ impl ExpandedOprfBootstrappingKey {
 pub struct ExpandedOprfServerKey(pub(crate) ExpandedOprfBootstrappingKey);
 
 impl ExpandedOprfServerKey {
+    pub fn from_raw_parts(inner: ExpandedOprfBootstrappingKey) -> Self {
+        Self(inner)
+    }
+
+    pub fn into_raw_parts(self) -> ExpandedOprfBootstrappingKey {
+        self.0
+    }
+
     pub fn to_fourier(&self) -> OprfServerKey {
         GenericOprfServerKey {
             inner: self.0.to_fourier(),
@@ -412,6 +420,14 @@ impl CompressedOprfServerKey {
         };
 
         Ok(Self { inner })
+    }
+
+    pub fn from_raw_parts(inner: CompressedOprfBootstrappingKey) -> Self {
+        Self { inner }
+    }
+
+    pub fn into_raw_parts(self) -> CompressedOprfBootstrappingKey {
+        self.inner
     }
 
     pub fn expand(&self) -> ExpandedOprfServerKey {
