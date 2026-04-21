@@ -1,5 +1,4 @@
-# On PR: when snapshot files are modified, generates a diff report between
-# the base branch and the PR snapshots, then posts it as a PR comment.
+# On PR: generates a backward compat diff report and posts it as a PR comment.
 # Helps reviewers understand what versioned types changed.
 name: backward_compat_pr_change_report
 
@@ -17,62 +16,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  should-run:
-    name: backward_compat_pr_change_report/should-run
+  change-report:
+    name: backward_compat_pr_change_report/change-report (bpr)
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read  # Needed to check for file change
-    outputs:
-      backward_report: ${{ steps.changed-files.outputs.backward_any_changed }}
+      pull-requests: write # To send and modify message in the PR
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          fetch-depth: 0
           persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
 
-      - name: Check for file changes
-        id: changed-files
-        uses: tj-actions/changed-files@22103cc46bda19c2b464ffe86db46df6922fd323 # v47.0.5
-        with:
-          files_yaml: |
-            backward:
-              - utils/tfhe-lints/snapshots/*.json
-
-  change-report:
-    name: backward_compat_pr_change_report/change-report (bpr)
-    runs-on: ubuntu-latest
-    needs: should-run
-    if:
-      needs.should-run.outputs.backward_report == 'true'
-    permissions:
-      pull-requests: write # To send and modify message in the PR
-    steps:
-      - name: Checkout PR head
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          persist-credentials: 'false'
-          path: head
-
-      - name: Checkout base branch
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          persist-credentials: 'false'
-          ref: ${{ github.event.pull_request.base.sha }}
-          path: base
+      - name: Fetch base commit
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: git fetch origin "$BASE_REF" --depth=1
 
       - name: Generate diff report
         id: report
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
         run: |
-          cd head && make backward_snapshot_report \
-            BASE_SNAPSHOT_DIR=../base/utils/tfhe-lints/snapshots \
-            HEAD_SNAPSHOT_DIR=utils/tfhe-lints/snapshots \
-            OUTPUT_FILE=../report.md
+          make backward_report \
+            BASE_REF="$BASE_REF" \
+            OUTPUT_FILE=report.md
 
-          if [ -s ../report.md ]; then
+          if [ -s report.md ]; then
             echo "has_report=true" >> "$GITHUB_OUTPUT"
-          elif [ -f ../report.md ]; then
+          elif [ -f report.md ]; then
             echo "has_report=false" >> "$GITHUB_OUTPUT"
           else
             echo "::error::report.md was not created — something went wrong"
