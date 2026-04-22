@@ -47,8 +47,9 @@ macro_rules! export_concrete_array_types {
     };
 }
 
-pub use crate::core_crypto::commons::math::random::{Seed, XofSeed};
+pub use crate::core_crypto::commons::math::random::{Seed, Seeder, XofSeed};
 pub use crate::high_level_api::integers::oprf::RangeForRandom;
+pub use crate::high_level_api::integers::shuffle::bitonic_shuffle;
 pub use crate::integer::server_key::MatchValues;
 pub use crate::shortint::OprfSeed;
 use crate::{error, Error, Versionize};

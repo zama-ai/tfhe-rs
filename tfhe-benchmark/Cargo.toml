@@ -98,6 +98,12 @@ harness = false
 required-features = ["integer", "internal-keycache"]
 
 [[bench]]
+name = "hlapi-bitonic-shuffle"
+path = "benches/high_level_api/bitonic_shuffle.rs"
+harness = false
+required-features = ["integer", "internal-keycache"]
+
+[[bench]]
 name = "hlapi-dex"
 path = "benches/high_level_api/dex.rs"
 harness = false
