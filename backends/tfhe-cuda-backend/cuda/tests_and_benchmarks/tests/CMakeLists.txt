@@ -46,6 +46,7 @@ endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 include_directories(${CONCRETE_CUDA_SOURCE_DIR}/include)
+include_directories(${TFHE_CUDA_COMMON_INCLUDE_DIR})
 include_directories(${TFHE_RS_BINARY_DIR})
 include_directories(${TFHE_RS_BINARY_DIR}/deps)
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}")

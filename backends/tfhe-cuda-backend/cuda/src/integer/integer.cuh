@@ -5,6 +5,7 @@
 #include "crypto/keyswitch.cuh"
 #include "device.h"
 #include "helper_multi_gpu.h"
+#include "helper_profile.cuh"
 #include "integer/comparison.h"
 #include "integer/integer_utilities.h"
 #include "integer/scalar_addition.cuh"
@@ -14,7 +15,6 @@
 #include "polynomial/functions.cuh"
 #include "utils/helper.cuh"
 #include "utils/helper_multi_gpu.cuh"
-#include "utils/helper_profile.cuh"
 #include <algorithm>
 #include <functional>
 
