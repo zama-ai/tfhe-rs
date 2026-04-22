@@ -805,6 +805,29 @@ test_zk_cuda_backend:
 	cd "$(ZKCUDARS_SRC)" && \
 		cargo test --release
 
+.PHONY: test_zk_cuda_backend_race_check # Build and run ZK CUDA backend tests with Compute Sanitizer racecheck
+test_zk_cuda_backend_race_check:
+	mkdir -p "$(ZKCUDA_BUILD)" && \
+		cd "$(ZKCUDA_BUILD)" && \
+		cmake .. -DCMAKE_BUILD_TYPE=Release -DZK_CUDA_BACKEND_BUILD_TESTS=ON && \
+		"$(MAKE)" -j "$(CPU_COUNT)" test_fp test_fp2 test_msm test_point_ops && \
+		for t in test_fp test_fp2 test_msm test_point_ops; do \
+			compute-sanitizer --tool racecheck --target-processes all \
+				./tests_and_benchmarks/tests/$$t || exit 1; \
+		done
+
+.PHONY: test_zk_cuda_backend_memcheck # Build and run ZK CUDA backend tests with Compute Sanitizer memcheck
+test_zk_cuda_backend_memcheck:
+	mkdir -p "$(ZKCUDA_BUILD)" && \
+		cd "$(ZKCUDA_BUILD)" && \
+		cmake .. -DCMAKE_BUILD_TYPE=Release -DZK_CUDA_BACKEND_BUILD_TESTS=ON && \
+		"$(MAKE)" -j "$(CPU_COUNT)" test_fp test_fp2 test_msm test_point_ops && \
+		for t in test_fp test_fp2 test_msm test_point_ops; do \
+			compute-sanitizer --tool memcheck --leak-check=full \
+				--error-exitcode=1 --target-processes=all \
+				./tests_and_benchmarks/tests/$$t || exit 1; \
+		done
+
 
 .PHONY: test_gpu # Run the tests of the core_crypto module including experimental on the gpu backend
 test_gpu: test_core_crypto_gpu test_integer_gpu test_cuda_backend test_zk_cuda_backend
@@ -840,6 +863,28 @@ test_high_level_api_gpu_valgrind: install_cargo_nextest
 test_high_level_api_gpu_sanitizer: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" &&	scripts/check_memory_errors.sh --gpu
+
+.PHONY: test_zk_pok_gpu_sanitizer # Run compute-sanitizer memcheck on Rust zk-pok GPU tests
+test_zk_pok_gpu_sanitizer: install_cargo_nextest
+	export RUSTFLAGS="-C target-cpu=x86-64" && \
+	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
+	export SANITIZER_CARGO_PACKAGE=tfhe-zk-pok && \
+	export SANITIZER_CARGO_FEATURES_GPU=experimental,gpu-experimental && \
+	export SANITIZER_TEST_FILTER_GPU='gpu::' && \
+	export SANITIZER_TEST_EXCLUDES_GPU='conversion_roundtrip|scalar_validation' && \
+	export SANITIZER_TEST_EXE_GLOB='tfhe_zk_pok-*' && \
+		scripts/check_memory_errors.sh --gpu
+
+.PHONY: test_zk_pok_gpu_valgrind # Run valgrind on Rust zk-pok GPU tests (CPU-side leaks)
+test_zk_pok_gpu_valgrind: install_cargo_nextest
+	export RUSTFLAGS="-C target-cpu=x86-64" && \
+	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
+	export SANITIZER_CARGO_PACKAGE=tfhe-zk-pok && \
+	export SANITIZER_CARGO_FEATURES_CPU=experimental,gpu-experimental && \
+	export SANITIZER_TEST_FILTER_CPU='gpu::' && \
+	export SANITIZER_TEST_EXCLUDES_CPU='conversion_roundtrip|scalar_validation' && \
+	export SANITIZER_TEST_EXE_GLOB='tfhe_zk_pok-*' && \
+		scripts/check_memory_errors.sh --cpu
 
 .PHONY: test_integer_hl_test_gpu_check_warnings
 test_integer_hl_test_gpu_check_warnings:

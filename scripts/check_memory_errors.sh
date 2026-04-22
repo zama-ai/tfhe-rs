@@ -28,26 +28,39 @@ if [[ "${RUN_VALGRIND}" == "0" && "${RUN_COMPUTE_SANITIZER}" == "0" ]]; then
   exit 1
 fi
 
+# Parameters (overridable via env vars) — defaults preserve the historical
+# tfhe-cuda-backend invocation.
+SANITIZER_CARGO_PACKAGE="${SANITIZER_CARGO_PACKAGE:-tfhe}"
+SANITIZER_CARGO_FEATURES_CPU="${SANITIZER_CARGO_FEATURES_CPU:-integer,internal-keycache,gpu-debug,zk-pok}"
+SANITIZER_CARGO_FEATURES_GPU="${SANITIZER_CARGO_FEATURES_GPU:-integer,internal-keycache,gpu,zk-pok}"
+SANITIZER_TEST_FILTER_CPU="${SANITIZER_TEST_FILTER_CPU:-high_level_api::.*gpu.*}"
+SANITIZER_TEST_EXCLUDES_CPU="${SANITIZER_TEST_EXCLUDES_CPU:-test_uniformity|array|flip}"
+SANITIZER_TEST_FILTER_GPU="${SANITIZER_TEST_FILTER_GPU:-high_level_api::.*gpu.*|core_crypto::.*gpu.*}"
+SANITIZER_TEST_EXCLUDES_GPU="${SANITIZER_TEST_EXCLUDES_GPU:-array|modulus_switch|3_3|noise_distribution|flip|test_uniformity}"
+SANITIZER_TEST_EXE_GLOB="${SANITIZER_TEST_EXE_GLOB:-tfhe-*}"
+
 # Array to collect error messages for final summary
 ERROR_MESSAGES=()
 
-# List the tests into a temporary file
-RUSTFLAGS="$RUSTFLAGS" cargo nextest list --cargo-profile "${CARGO_PROFILE}" \
-          --features=integer,internal-keycache,gpu-debug,zk-pok -p tfhe &> /tmp/test_list.txt
-
 if [[ "${RUN_VALGRIND}" == "1" ]]; then
-  # The tests are filtered using grep (to keep only HL) GPU tests.
-  # Since, when output is directed to a file, nextest outputs a list of `<executable name> <test name>` the `grep -o '[^ ]\+$'` filter
-  # will keep only the test name and the `tfhe` executable is assumed. To sanitize tests from another
-  # executable changes might be needed
-  TESTS_TO_RUN=$(sed -e $'s/\x1b\[[0-9;]*m//g' < /tmp/test_list.txt | grep -E 'high_level_api::.*gpu.*' | grep -v 'test_uniformity' | grep -v 'array' | grep -v 'flip' | grep -o '[^ ]\+$')
+  # List the tests into a temporary file using the CPU feature set
+  RUSTFLAGS="$RUSTFLAGS" cargo nextest list --cargo-profile "${CARGO_PROFILE}" \
+            --features="${SANITIZER_CARGO_FEATURES_CPU}" -p "${SANITIZER_CARGO_PACKAGE}" &> /tmp/test_list.txt
+
+  # The tests are filtered using grep. Since, when output is directed to a file, nextest
+  # outputs a list of `<executable name> <test name>` the `grep -o '[^ ]\+$'` filter will
+  # keep only the test name. The executable glob is controlled by SANITIZER_TEST_EXE_GLOB.
+  TESTS_TO_RUN=$(sed -e $'s/\x1b\[[0-9;]*m//g' < /tmp/test_list.txt \
+      | grep -E "${SANITIZER_TEST_FILTER_CPU}" \
+      | grep -vE "${SANITIZER_TEST_EXCLUDES_CPU}" \
+      | grep -o '[^ ]\+$')
 
   # Build the tests but don't run them
   RUSTFLAGS="$RUSTFLAGS" cargo test --no-run --profile "${CARGO_PROFILE}" \
-    --features=integer,internal-keycache,gpu-debug,zk-pok -p tfhe
+    --features="${SANITIZER_CARGO_FEATURES_CPU}" -p "${SANITIZER_CARGO_PACKAGE}"
 
   # Find the test executable -> last one to have been modified
-  EXECUTABLE=target/release/deps/$(find target/release/deps/ -type f -executable -name "tfhe-*" -printf "%T@ %f\n" |sort -nr|sed 's/^.* //; q;')
+  EXECUTABLE=target/release/deps/$(find target/release/deps/ -type f -executable -name "${SANITIZER_TEST_EXE_GLOB}" -printf "%T@ %f\n" |sort -nr|sed 's/^.* //; q;')
 
   RESULT=0
   while read -r t; do
@@ -77,17 +90,20 @@ if [[ "${RUN_VALGRIND}" == "1" ]]; then
 fi
 
 if [[ "${RUN_COMPUTE_SANITIZER}" == "1" ]]; then
-  # The tests are filtered using grep (to keep only HL / corecrypto) GPU tests.
-  # Since, when output is directed to a file, nextest outputs a list of `<executable name> <test name>` the `grep -o '[^ ]\+$'` filter
-  # will keep only the test name and the `tfhe` executable is assumed. To sanitize tests from another
-  # executable changes might be needed
-  TESTS_TO_RUN=$(sed -e $'s/\x1b\[[0-9;]*m//g' < /tmp/test_list.txt | grep -E 'high_level_api::.*gpu.*|core_crypto::.*gpu.*' | grep -v 'array' | grep -v 'modulus_switch' | grep -v '3_3' | grep -v 'noise_distribution' | grep -v 'flip' | grep -v 'test_uniformity' | grep -o '[^ ]\+$')
+  # List the tests into a temporary file using the GPU feature set
+  RUSTFLAGS="$RUSTFLAGS" cargo nextest list --cargo-profile "${CARGO_PROFILE}" \
+            --features="${SANITIZER_CARGO_FEATURES_GPU}" -p "${SANITIZER_CARGO_PACKAGE}" &> /tmp/test_list.txt
+
+  TESTS_TO_RUN=$(sed -e $'s/\x1b\[[0-9;]*m//g' < /tmp/test_list.txt \
+      | grep -E "${SANITIZER_TEST_FILTER_GPU}" \
+      | grep -vE "${SANITIZER_TEST_EXCLUDES_GPU}" \
+      | grep -o '[^ ]\+$')
   # Build the tests but don't run them
   RUSTFLAGS="$RUSTFLAGS" cargo test --no-run --profile "${CARGO_PROFILE}" \
-    --features=integer,internal-keycache,gpu,zk-pok -p tfhe
+    --features="${SANITIZER_CARGO_FEATURES_GPU}" -p "${SANITIZER_CARGO_PACKAGE}"
 
   # Find the test executable -> last one to have been modified
-  EXECUTABLE=target/release/deps/$(find target/release/deps/ -type f -executable -name "tfhe-*" -printf "%T@ %f\n" |sort -nr|sed 's/^.* //; q;')
+  EXECUTABLE=target/release/deps/$(find target/release/deps/ -type f -executable -name "${SANITIZER_TEST_EXE_GLOB}" -printf "%T@ %f\n" |sort -nr|sed 's/^.* //; q;')
 
   RESULT=0
   while read -r t; do
