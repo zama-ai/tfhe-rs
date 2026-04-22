@@ -1,5 +1,3 @@
-SNAPSHOT_DIR := utils/tfhe-lints/snapshots
-
 # Guard macro: fails with a clear message if a variable is not set
 # Usage: $(call require,VAR_NAME)
 require = $(if $($(1)),,$(error $(1) is required. Usage: make $@ $(1)=<value>))
@@ -22,12 +20,12 @@ run-dylint = $(if $(2),TFHE_BACKWARD_COMPAT_DATA_DIR=$(2)) \
 	RUSTFLAGS="$(RUSTFLAGS) -Dwarnings" \
 	cargo dylint --lib $(1) --no-deps
 
-# Run all crates with a given dylint lib, $(1) = lib name, $(2) = optional data dir
+# Run all crates with a given dylint lib, $(1) = lib name, $(2) = optional data dir, $(3) = optional working dir
 define run-all-crates
-	$(call run-dylint,$(1),$(2)) $(LINT_TFHE_ARGS)
-	$(call run-dylint,$(1),$(2)) $(LINT_TFHE_ZK_POK_ARGS)
-	$(call run-dylint,$(1),$(2)) $(LINT_TFHE_CSPRNG_ARGS)
-	$(call run-dylint,$(1),$(2)) $(LINT_TFHE_SAFE_SERIALIZE_ARGS)
+	$(if $(3),cd $(3) && )$(call run-dylint,$(1),$(2)) $(LINT_TFHE_ARGS)
+	$(if $(3),cd $(3) && )$(call run-dylint,$(1),$(2)) $(LINT_TFHE_ZK_POK_ARGS)
+	$(if $(3),cd $(3) && )$(call run-dylint,$(1),$(2)) $(LINT_TFHE_CSPRNG_ARGS)
+	$(if $(3),cd $(3) && )$(call run-dylint,$(1),$(2)) $(LINT_TFHE_SAFE_SERIALIZE_ARGS)
 endef
 
 .PHONY: install_cargo_dylint # Install custom tfhe-rs lints
@@ -57,28 +55,21 @@ tfhe_lints_crate: install_cargo_dylint install_tfhe_lints_toolchain
 	$(call require,CRATE)
 	$(call run-dylint,tfhe_lints) $(call crate-args,$(CRATE))
 
-.PHONY: backward_snapshot_base # Generate the base snapshot for all crates
-backward_snapshot_base: install_cargo_dylint install_tfhe_lints_toolchain
-	@echo "Generating base snapshot"
-	$(call run-all-crates,tfhe_lints_snapshot,$(SNAPSHOT_DIR))
+.PHONY: backward_snapshot # Generate snapshots for all crates. Required: SNAPSHOT_OUTPUT_DIR
+backward_snapshot: install_cargo_dylint install_tfhe_lints_toolchain
+	$(call require,SNAPSHOT_OUTPUT_DIR)
+	@mkdir -p $(SNAPSHOT_OUTPUT_DIR)
+	$(call run-all-crates,tfhe_lints_snapshot,$(SNAPSHOT_OUTPUT_DIR))
 
-.PHONY: backward_snapshot_base_crate # Generate the base snapshot for a single crate. Required: CRATE (tfhe, tfhe-zk-pok, tfhe-csprng)
-backward_snapshot_base_crate: install_cargo_dylint install_tfhe_lints_toolchain
-	$(call require,CRATE)
-	$(call run-dylint,tfhe_lints_snapshot,$(SNAPSHOT_DIR)) $(call crate-args,$(CRATE))
-
-.PHONY: backward_snapshot_head # Generate the head snapshot for all crates
-backward_snapshot_head: install_cargo_dylint install_tfhe_lints_toolchain
-	@echo "Generating head snapshot"
-	@rm -rf $(SNAPSHOT_DIR)/head
-	@mkdir -p $(SNAPSHOT_DIR)/head
-	$(call run-all-crates,tfhe_lints_snapshot,$(SNAPSHOT_DIR)/head)
-
-.PHONY: backward_snapshot_head_crate # Generate the head snapshot for a single crate. Required: CRATE (tfhe, tfhe-zk-pok, tfhe-csprng)
-backward_snapshot_head_crate: install_cargo_dylint install_tfhe_lints_toolchain
-	@mkdir -p $(SNAPSHOT_DIR)/head
-	$(call require,CRATE)
-	$(call run-dylint,tfhe_lints_snapshot,$(SNAPSHOT_DIR)/head) $(call crate-args,$(CRATE))
+.PHONY: backward_snapshot_worktree # Generate snapshots from a worktree at BASE_REF. Required: BASE_REF, SNAPSHOT_OUTPUT_DIR
+backward_snapshot_worktree: install_cargo_dylint install_tfhe_lints_toolchain
+	$(call require,BASE_REF)
+	$(call require,SNAPSHOT_OUTPUT_DIR)
+	$(eval WORKTREE_DIR := $(shell mktemp -u))
+	git worktree add $(WORKTREE_DIR) $(BASE_REF)
+	@mkdir -p $(SNAPSHOT_OUTPUT_DIR)
+	$(call run-all-crates,tfhe_lints_snapshot,$(abspath $(SNAPSHOT_OUTPUT_DIR)),$(WORKTREE_DIR))
+	git worktree remove --force $(WORKTREE_DIR)
 
 .PHONY: backward_snapshot_report # Generate a diff report. Required: BASE_SNAPSHOT_DIR, HEAD_SNAPSHOT_DIR, OUTPUT_FILE
 backward_snapshot_report:
@@ -98,7 +89,21 @@ backward_snapshot_check:
 		--base-dir $(BASE_SNAPSHOT_DIR) \
 		--head-dir $(HEAD_SNAPSHOT_DIR)
 
-.PHONY: backward_correctness # Check backward compat against the reference snapshots
-backward_correctness: install_cargo_dylint install_tfhe_lints_toolchain
+.PHONY: backward_correctness # Check backward compat of current code against BASE_REF. Required: BASE_REF
+backward_correctness:
 	$(call require,BASE_REF)
-	./scripts/check_snapshot_correctness.sh $(BASE_REF)
+	$(eval _BASE_DIR := $(shell mktemp -d))
+	$(eval _HEAD_DIR := $(shell mktemp -d))
+	$(MAKE) backward_snapshot_worktree BASE_REF=$(BASE_REF) SNAPSHOT_OUTPUT_DIR=$(_BASE_DIR)
+	$(MAKE) backward_snapshot SNAPSHOT_OUTPUT_DIR=$(_HEAD_DIR)
+	$(MAKE) backward_snapshot_check BASE_SNAPSHOT_DIR=$(_BASE_DIR) HEAD_SNAPSHOT_DIR=$(_HEAD_DIR)
+
+.PHONY: backward_report # Generate a backward compat diff report against BASE_REF. Required: BASE_REF, OUTPUT_FILE
+backward_report:
+	$(call require,BASE_REF)
+	$(call require,OUTPUT_FILE)
+	$(eval _BASE_DIR := $(shell mktemp -d))
+	$(eval _HEAD_DIR := $(shell mktemp -d))
+	$(MAKE) backward_snapshot_worktree BASE_REF=$(BASE_REF) SNAPSHOT_OUTPUT_DIR=$(_BASE_DIR)
+	$(MAKE) backward_snapshot SNAPSHOT_OUTPUT_DIR=$(_HEAD_DIR)
+	$(MAKE) backward_snapshot_report BASE_SNAPSHOT_DIR=$(_BASE_DIR) HEAD_SNAPSHOT_DIR=$(_HEAD_DIR) OUTPUT_FILE=$(OUTPUT_FILE)

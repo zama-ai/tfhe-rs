@@ -1,5 +1,4 @@
-# Generates snapshots from code and diffs against committed base files.
-# Ensures snapshots are up to date on PRs and catches stale ones on main.
+# Checks backward compatibility between the PR head and its base branch.
 name: backward_compat_snapshot_consistency
 
 env:
@@ -36,19 +35,22 @@ jobs:
         with:
           persist-credentials: 'false'
 
-      - name: Generate snapshots from current code
-        run: make backward_snapshot_head
+      - name: Fetch base commit
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: git fetch origin "$BASE_REF" --depth=1
 
-      - name: Check snapshot consistency
-        run: ./scripts/check_snapshot_consistency.sh
+      - name: Check backward compatibility
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: make backward_correctness BASE_REF="$BASE_REF"
 
       - name: Slack Notification
-        if: ${{ failure() || (cancelled() && github.event_name == 'push') }}
+        if: ${{ failure() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: >-
-            Backward compatibility snapshot consistency check: ${{ job.status }}.
-            Snapshots may be outdated — run `make backward_snapshot_base` and commit.
+            Backward compatibility check: ${{ job.status }}.
             [See details](${{ env.ACTION_RUN_URL }})
