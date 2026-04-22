@@ -476,7 +476,7 @@ fn test_re_rand() {
 #[cfg(feature = "gpu")]
 mod gpu {
     use super::*;
-    // for legacy params
+    use crate::high_level_api::ReRandomizationSeedGen;
     use crate::shortint::parameters::v1_5::meta::gpu::V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
     use crate::shortint::parameters::v1_6::meta::gpu::V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
 
@@ -509,5 +509,207 @@ mod gpu {
         let (cks, sks, cpk) = setup_re_rand_test(params);
         set_server_key(sks.decompress_to_gpu());
         execute_dyn_rerand_test(&cks, &cpk);
+    }
+
+    // This macro is used to avoid code duplication for different parameter set types while keeping
+    // it easy to reproduce failures
+    macro_rules! create_rerand_gpu_cpu_equivalence_test {
+        ($($param:ident),* $(,)?) => {
+            ::paste::paste! {
+                $(
+                #[test]
+                fn [<test_rerand_gpu_cpu_equivalence_ $param:lower>]() {
+                    rerand_gpu_cpu_equivalence_for_param($param);
+                }
+                )*
+            }
+        };
+    }
+
+    fn rerand_gpu_cpu_equivalence_for_param(params: MetaParameters) {
+        use rand::rngs::StdRng;
+        use rand::{Rng, SeedableRng};
+
+        let seed: u64 = std::env::var("TFHE_RS_RERAND_TEST_SEED").ok().map_or_else(
+            || rand::thread_rng().gen(),
+            |val| {
+                u64::from_str_radix(&val, 16).unwrap_or_else(|_| {
+                    panic!("TFHE_RS_RERAND_TEST_SEED={val} is not valid hex u64")
+                })
+            },
+        );
+        println!("seed: {seed:x}");
+        let mut rng = StdRng::seed_from_u64(seed);
+
+        let (cks, sks, cpk) = setup_re_rand_test(params);
+        let cpu_sks = sks.decompress();
+        let gpu_sks = sks.decompress_to_gpu();
+
+        execute_rerand_gpu_cpu_equivalence(&cks, &cpk, &cpu_sks, &gpu_sks, &mut rng);
+    }
+
+    create_rerand_gpu_cpu_equivalence_test!(
+        V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+        V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+    );
+
+    fn execute_rerand_gpu_cpu_equivalence(
+        cks: &crate::ClientKey,
+        cpk: &CompactPublicKey,
+        cpu_sks: &crate::ServerKey,
+        gpu_sks: &crate::CudaServerKey,
+        rng: &mut rand::rngs::StdRng,
+    ) {
+        use rand::Rng;
+
+        rerand_equivalence_for_type::<FheUint64, _>(
+            cks,
+            cpk,
+            cpu_sks,
+            gpu_sks,
+            b"FheUint64+FheUint64",
+            rng.gen(),
+            (rng.gen::<u64>(), rng.gen::<u64>()),
+            |ct| ct.move_to_current_device(),
+        );
+        rerand_equivalence_for_type::<FheInt8, _>(
+            cks,
+            cpk,
+            cpu_sks,
+            gpu_sks,
+            b"FheInt8+FheInt8",
+            rng.gen(),
+            (rng.gen::<i8>(), rng.gen::<i8>()),
+            |ct| ct.move_to_current_device(),
+        );
+        rerand_equivalence_for_type::<FheBool, _>(
+            cks,
+            cpk,
+            cpu_sks,
+            gpu_sks,
+            b"FheBool&FheBool",
+            rng.gen(),
+            (rng.gen::<bool>(), rng.gen::<bool>()),
+            |ct| ct.move_to_current_device(),
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn rerand_equivalence_for_type<T, Clear>(
+        cks: &crate::ClientKey,
+        cpk: &CompactPublicKey,
+        cpu_sks: &crate::ServerKey,
+        gpu_sks: &crate::CudaServerKey,
+        function_description: &[u8],
+        nonce: [u8; 32],
+        (clear_a, clear_b): (Clear, Clear),
+        move_to_current_device: impl Fn(&mut T),
+    ) where
+        T: crate::high_level_api::prelude::ReRandomize
+            + Clone
+            + serde::Serialize
+            + FheEncrypt<Clear, crate::ClientKey>
+            + FheDecrypt<Clear>,
+        Clear: Copy + PartialEq + std::fmt::Debug,
+    {
+        let rerand_domain_separator = *b"TFHE_Rrd";
+        let compact_public_encryption_domain_separator = *b"TFHE_Enc";
+
+        set_server_key(cpu_sks.clone());
+        let a_orig = T::encrypt(clear_a, cks);
+        let b_orig = T::encrypt(clear_b, cks);
+
+        let mut a_cpu = a_orig.clone();
+        let mut b_cpu = b_orig.clone();
+        let mut a_gpu = a_orig.clone();
+        let mut b_gpu = b_orig.clone();
+
+        let build_context = |a: &T, b: &T| {
+            let mut ctx = ReRandomizationContext::new(
+                rerand_domain_separator,
+                [function_description, nonce.as_slice()],
+                compact_public_encryption_domain_separator,
+            );
+            ctx.add_ciphertext(a);
+            ctx.add_ciphertext(b);
+            ctx.finalize()
+        };
+
+        let mut seed_gen_cpu = build_context(&a_cpu, &b_cpu);
+        let mut seed_gen_gpu = build_context(&a_gpu, &b_gpu);
+
+        let mode = ServerKey::current_server_key_re_randomization_support().unwrap();
+
+        let apply_rerand = |ct: &mut T, seed_gen: &mut ReRandomizationSeedGen| match mode {
+            ReRandomizationSupport::NoSupport => {
+                panic!("ServerKey does not support re-randomization")
+            }
+            ReRandomizationSupport::LegacyDedicatedCPKWithKeySwitch => {
+                ct.re_randomize(
+                    ReRandomizationMode::UseLegacyCPKIfNeeded { cpk },
+                    seed_gen.next_seed().unwrap(),
+                )
+                .unwrap();
+            }
+            ReRandomizationSupport::DerivedCPKWithoutKeySwitch => {
+                ct.re_randomize(
+                    ReRandomizationMode::UseAvailableMode,
+                    seed_gen.next_seed().unwrap(),
+                )
+                .unwrap();
+            }
+        };
+
+        apply_rerand(&mut a_cpu, &mut seed_gen_cpu);
+        apply_rerand(&mut b_cpu, &mut seed_gen_cpu);
+
+        set_server_key(gpu_sks.clone());
+
+        move_to_current_device(&mut a_gpu);
+        move_to_current_device(&mut b_gpu);
+
+        apply_rerand(&mut a_gpu, &mut seed_gen_gpu);
+        apply_rerand(&mut b_gpu, &mut seed_gen_gpu);
+
+        assert_ne!(
+            bincode::serialize(&a_cpu).unwrap(),
+            bincode::serialize(&a_orig).unwrap(),
+            "a: CPU results before and after rerand must differ"
+        );
+
+        assert_ne!(
+            bincode::serialize(&a_gpu).unwrap(),
+            bincode::serialize(&a_orig).unwrap(),
+            "a: GPU results before and after rerand must differ"
+        );
+
+        assert_ne!(
+            bincode::serialize(&b_cpu).unwrap(),
+            bincode::serialize(&b_orig).unwrap(),
+            "b: CPU results before and after rerand must differ"
+        );
+
+        assert_ne!(
+            bincode::serialize(&b_gpu).unwrap(),
+            bincode::serialize(&b_orig).unwrap(),
+            "b: GPU results before and after rerand must differ"
+        );
+
+        assert_eq!(
+            bincode::serialize(&a_cpu).unwrap(),
+            bincode::serialize(&a_gpu).unwrap(),
+            "a: CPU and GPU rerand produced byte-different ciphertexts (clear_a={clear_a:?})"
+        );
+        assert_eq!(
+            bincode::serialize(&b_cpu).unwrap(),
+            bincode::serialize(&b_gpu).unwrap(),
+            "b: CPU and GPU rerand produced byte-different ciphertexts (clear_b={clear_b:?})"
+        );
+
+        set_server_key(cpu_sks.clone());
+        let dec_a: Clear = a_cpu.decrypt(cks);
+        let dec_b: Clear = b_cpu.decrypt(cks);
+        assert_eq!(dec_a, clear_a);
+        assert_eq!(dec_b, clear_b);
     }
 }
