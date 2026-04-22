@@ -6,11 +6,13 @@ use std::process::Command;
 
 const DIR_TO_IGNORE: [&str; 1] = ["apps/test-vectors"];
 
-const FILES_TO_IGNORE: [&str; 12] = [
+const FILES_TO_IGNORE: [&str; 13] = [
     // This contains fragments of code that are unrelated to TFHE-rs
     "tfhe/docs/tutorials/sha256-bool.md",
     // TODO: This contains code that could be executed as a trivium docstring
     "apps/trivium/README.md",
+    // TODO: This contains code that could be executed as a princev2 docstring
+    "apps/princev2/README.md",
     // TODO: should we test this ?
     "utils/tfhe-versionable/README.md",
     "utils/wasm-par-mq/README.md",
