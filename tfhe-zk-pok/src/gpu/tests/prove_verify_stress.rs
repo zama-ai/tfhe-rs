@@ -22,13 +22,12 @@ fn get_zk_long_run_rounds() -> usize {
         });
     }
 
-    let is_minimal =
-        std::env::var("TFHE_RS_TEST_LONG_TESTS_MINIMAL").is_ok_and(|v| v.to_uppercase() == "TRUE");
-
-    if is_minimal {
-        NB_ZK_PKE_V2_EQ_ROUNDS_MINIMAL
-    } else {
-        NB_ZK_PKE_V2_EQ_ROUNDS
+    match std::env::var("TFHE_RS_TEST_LONG_TESTS_MINIMAL") {
+        Ok(val) if val.to_uppercase() == "TRUE" => NB_ZK_PKE_V2_EQ_ROUNDS_MINIMAL,
+        Ok(val) => {
+            panic!("TFHE_RS_TEST_LONG_TESTS_MINIMAL={val:?} is not valid, expected \"TRUE\"")
+        }
+        Err(_) => NB_ZK_PKE_V2_EQ_ROUNDS,
     }
 }
 
@@ -59,7 +58,7 @@ fn run_pke_v2_gpu_cpu_equivalence_round(seed: u64) {
 
     let invalid_testcase = PkeTestcase::gen(rng, params);
 
-    // Mirrors production where CRS is larger than message count.
+    // Mirrors production case where CRS is frequently larger than message count.
     let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
 
     let original_public_param =
@@ -216,7 +215,7 @@ fn run_pke_v2_gpu_cpu_equivalence_round(seed: u64) {
 
 #[test]
 fn test_pke_v2_gpu_cpu_equivalence() {
-    let seed: u64 = thread_rng().gen();
+    let seed: u64 = get_zk_long_run_base_seed();
     println!("test_pke_v2_gpu_cpu_equivalence seed: {seed:#x}");
     run_pke_v2_gpu_cpu_equivalence_round(seed);
 }
