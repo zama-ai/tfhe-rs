@@ -179,7 +179,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     pub fn unchecked_div_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         let value_on_div_by_zero = ct_left.message_modulus.0 - 1;
         self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |x, y| {
-            safe_division(x, y, value_on_div_by_zero)
+            x.checked_div(y).unwrap_or(value_on_div_by_zero)
         });
     }
 
@@ -218,7 +218,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     pub fn smart_div(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
         let value_on_div_by_zero = ct_left.message_modulus.0 - 1;
         self.smart_evaluate_bivariate_function(ct_left, ct_right, |x, y| {
-            safe_division(x, y, value_on_div_by_zero)
+            x.checked_div(y).unwrap_or(value_on_div_by_zero)
         })
     }
 
@@ -257,16 +257,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     pub fn smart_div_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         let value_on_div_by_zero = ct_left.message_modulus.0 - 1;
         self.smart_evaluate_bivariate_function_assign(ct_left, ct_right, |x, y| {
-            safe_division(x, y, value_on_div_by_zero)
+            x.checked_div(y).unwrap_or(value_on_div_by_zero)
         });
-    }
-}
-
-// Specific division function returning value_on_div_by_zero in case of a division by 0
-pub(crate) fn safe_division(x: u64, y: u64, value_on_div_by_zero: u64) -> u64 {
-    if y == 0 {
-        value_on_div_by_zero
-    } else {
-        x / y
     }
 }

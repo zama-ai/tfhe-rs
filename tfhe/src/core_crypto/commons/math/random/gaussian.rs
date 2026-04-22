@@ -53,7 +53,7 @@ macro_rules! implement_gaussian {
                     for a in uniform_rand_bytes_v.iter_mut() {
                         *a = generator.generate_next();
                     }
-                    let size = <$T>::BITS as i32;
+                    let size = <$T as crate::core_crypto::commons::numeric::Numeric>::BITS as i32;
                     let mut u: $T = <$S>::from_le_bytes(uniform_rand_bytes_u).cast_into();
                     u *= <$T>::TWO.powi(-size + 1);
                     let mut v: $T = <$S>::from_le_bytes(uniform_rand_bytes_v).cast_into();

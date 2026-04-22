@@ -47,7 +47,7 @@ fn test_tag_propagation_zk_pok() {
             .build();
     let crs = crate::zk::CompactPkeCrs::from_config(config, (2 * 32) + (2 * 64) + 2).unwrap();
 
-    let metadata = [b'h', b'l', b'a', b'p', b'i'];
+    let metadata = b"hlapi";
 
     let mut cks = ClientKey::generate(config);
     let tag_value = random();
@@ -70,15 +70,13 @@ fn test_tag_propagation_zk_pok() {
         .push(i64::MIN)
         .push(false)
         .push(true)
-        .build_with_proof_packed(&crs, &metadata, crate::zk::ZkComputeLoad::Proof)
+        .build_with_proof_packed(&crs, metadata, crate::zk::ZkComputeLoad::Proof)
         .unwrap();
 
     let list_packed: ProvenCompactCiphertextList = serialize_then_deserialize(&list_packed);
     assert_eq!(list_packed.tag(), cks.tag());
 
-    let expander = list_packed
-        .verify_and_expand(&crs, &cpk, &metadata)
-        .unwrap();
+    let expander = list_packed.verify_and_expand(&crs, &cpk, metadata).unwrap();
 
     {
         let au32: FheUint32 = expander.get(0).unwrap().unwrap();
@@ -157,7 +155,7 @@ fn test_tag_propagation_zk_pok_gpu() {
             .build();
     let crs = crate::zk::CompactPkeCrs::from_config(config, (2 * 32) + (2 * 64) + 2).unwrap();
 
-    let metadata = [b'h', b'l', b'a', b'p', b'i'];
+    let metadata = b"hlapi";
 
     let mut cks = ClientKey::generate(config);
     let tag_value = random();
@@ -182,12 +180,10 @@ fn test_tag_propagation_zk_pok_gpu() {
         .push(i64::MIN)
         .push(false)
         .push(true)
-        .build_with_proof_packed(&crs, &metadata, crate::zk::ZkComputeLoad::Proof)
+        .build_with_proof_packed(&crs, metadata, crate::zk::ZkComputeLoad::Proof)
         .unwrap();
 
-    let expander = list_packed
-        .verify_and_expand(&crs, &cpk, &metadata)
-        .unwrap();
+    let expander = list_packed.verify_and_expand(&crs, &cpk, metadata).unwrap();
 
     {
         let au32: FheUint32 = expander.get(0).unwrap().unwrap();

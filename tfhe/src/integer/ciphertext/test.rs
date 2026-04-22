@@ -245,7 +245,7 @@ mod zk {
         let fhe_params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let num_blocks = 4usize;
-        let metadata = [b't', b'e', b's', b't'];
+        let metadata = *b"test";
         let rerand_domain_separator = *b"TFHE_Rrd";
         let compact_public_encryption_domain_separator = *b"TFHE_Enc";
 
@@ -403,7 +403,7 @@ mod zk {
 
         // Intentionally low so that we test when multiple lists and proofs are needed
         let crs = CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(8)).unwrap();
-        let metadata = [b'r', b'e', b'r', b'a', b'n', b'd'];
+        let metadata = b"rerand";
 
         let clear_a = rand::random::<u64>();
         let clear_b = rand::random::<i8>();
@@ -412,7 +412,7 @@ mod zk {
             .push(clear_a)
             .push(clear_b)
             .push(false)
-            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+            .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
             .unwrap();
 
         // Clone the list so both CPU and GPU start from the same state

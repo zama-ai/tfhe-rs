@@ -192,7 +192,7 @@ impl ProvenCompactCiphertextList {
         let expanded = self
             .proved_lists
             .iter()
-            .zip(per_list_casting_mode.into_iter())
+            .zip(per_list_casting_mode)
             .map(|((ct_list, _proof), casting_mode)| ct_list.expand(casting_mode))
             .collect::<Result<Vec<Vec<_>>, _>>()?
             .into_iter()
@@ -385,7 +385,7 @@ mod tests {
 
         let functions = vec![Some(vec![dyn_id; 1]); 1];
 
-        let metadata = [b's', b'h', b'o', b'r', b't', b'i', b'n', b't'];
+        let metadata = b"shortint";
 
         let msg = random::<u64>() % pke_params.message_modulus.0;
         // No packing
@@ -395,7 +395,7 @@ mod tests {
             .encrypt_and_prove(
                 msg,
                 &crs,
-                &metadata,
+                metadata,
                 ZkComputeLoad::Proof,
                 encryption_modulus,
             )
@@ -417,7 +417,7 @@ mod tests {
         let proven_ct = proven_ct.verify_and_expand(
             &crs,
             &pub_key,
-            &metadata,
+            metadata,
             ShortintCompactCiphertextListCastingMode::CastIfNecessary {
                 casting_key: ksk.as_view(),
                 functions: Some(functions.as_slice()),
@@ -447,7 +447,7 @@ mod tests {
 
         let functions = vec![Some(vec![dyn_id; 1]); 512];
 
-        let metadata = [b's', b'h', b'o', b'r', b't', b'i', b'n', b't'];
+        let metadata = b"shortint";
 
         let msgs = (0..512)
             .map(|_| random::<u64>() % params.message_modulus.0)
@@ -457,18 +457,18 @@ mod tests {
             .encrypt_and_prove_slice(
                 &msgs,
                 &crs,
-                &metadata,
+                metadata,
                 ZkComputeLoad::Proof,
                 params.message_modulus.0,
             )
             .unwrap();
-        assert!(proven_ct.verify(&crs, &pub_key, &metadata).is_valid());
+        assert!(proven_ct.verify(&crs, &pub_key, metadata).is_valid());
 
         let expanded = proven_ct
             .verify_and_expand(
                 &crs,
                 &pub_key,
-                &metadata,
+                metadata,
                 ShortintCompactCiphertextListCastingMode::CastIfNecessary {
                     casting_key: ksk.as_view(),
                     functions: Some(functions.as_slice()),
@@ -496,7 +496,7 @@ mod tests {
         let sk = ServerKey::new(&ck);
         let ksk = KeySwitchingKey::new((&priv_key, None), (&ck, &sk), ksk_params);
 
-        let metadata = [b's', b'h', b'o', b'r', b't', b'i', b'n', b't'];
+        let metadata = b"shortint";
 
         let msgs = (0..512)
             .map(|_| random::<u64>() % params.message_modulus.0)
@@ -506,18 +506,18 @@ mod tests {
             .encrypt_and_prove_slice(
                 &msgs,
                 &crs,
-                &metadata,
+                metadata,
                 ZkComputeLoad::Proof,
                 params.message_modulus.0,
             )
             .unwrap();
-        assert!(proven_ct.verify(&crs, &pub_key, &metadata).is_valid());
+        assert!(proven_ct.verify(&crs, &pub_key, metadata).is_valid());
 
         let expanded = proven_ct
             .verify_and_expand(
                 &crs,
                 &pub_key,
-                &metadata,
+                metadata,
                 ShortintCompactCiphertextListCastingMode::CastIfNecessary {
                     casting_key: ksk.as_view(),
                     functions: None,
@@ -544,7 +544,7 @@ mod tests {
         let priv_key = CompactPrivateKey::new(pke_params);
         let pub_key = CompactPublicKey::new(&priv_key);
 
-        let metadata = [b's', b'h', b'o', b'r', b't', b'i', b'n', b't'];
+        let metadata = b"shortint";
 
         let msgs = (0..total_lwe_count)
             .map(|_| random::<u64>() % params.message_modulus.0)
@@ -554,12 +554,12 @@ mod tests {
             .encrypt_and_prove_slice(
                 &msgs,
                 &crs,
-                &metadata,
+                metadata,
                 ZkComputeLoad::Verify,
                 params.message_modulus.0 * params.carry_modulus.0,
             )
             .unwrap();
-        assert!(proven_ct.verify(&crs, &pub_key, &metadata).is_valid());
+        assert!(proven_ct.verify(&crs, &pub_key, metadata).is_valid());
 
         let zk_conformance_params = CompactPkeProofConformanceParams::new(crs.scheme_version());
 

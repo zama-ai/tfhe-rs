@@ -75,4 +75,5 @@ macro_rules! create_parameterized_test_classical_params {
         });
     };
 }
-pub(crate) use {create_parameterized_test, create_parameterized_test_classical_params};
+pub(crate) use create_parameterized_test;
+pub(crate) use create_parameterized_test_classical_params;

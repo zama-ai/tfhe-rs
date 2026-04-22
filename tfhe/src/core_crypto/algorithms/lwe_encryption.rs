@@ -1251,7 +1251,7 @@ pub fn encrypt_lwe_ciphertext_iterator_with_seeded_public_key<Scalar, KeyCont, O
         }
     }
 
-    for (output_ct, plaintext) in output.iter_mut().zip(encoded.into_iter()) {
+    for (output_ct, plaintext) in output.iter_mut().zip(encoded) {
         lwe_ciphertext_plaintext_add_assign(output_ct, plaintext);
     }
 }
@@ -2123,7 +2123,7 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 ///
 /// // We can add custom metadata that will be required for verification, allowing to tie the proof
 /// // to some arbitrary data.
-/// let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
+/// let metadata = b"TFHE-rs";
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -2170,14 +2170,14 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 ///     glwe_noise_distribution,
 ///     encryption_generator.noise_generator_mut(),
 ///     &crs,
-///     &metadata,
+///     metadata,
 ///     ZkComputeLoad::Proof,
 /// )
 /// .unwrap();
 ///
 /// // verify the ciphertext list with the proof
 /// assert!(
-///     verify_lwe_ciphertext(&lwe, &lwe_compact_public_key, &proof, &crs, &metadata).is_valid()
+///     verify_lwe_ciphertext(&lwe, &lwe_compact_public_key, &proof, &crs, metadata).is_valid()
 /// );
 ///
 /// let decrypted_plaintext = decrypt_lwe_ciphertext(&lwe_secret_key, &lwe);
@@ -2572,7 +2572,7 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///
 /// // We can add custom metadata that will be required for verification, allowing to tie the proof
 /// // to some arbitrary data.
-/// let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
+/// let metadata = b"TFHE-rs";
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -2623,7 +2623,7 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     glwe_noise_distribution,
 ///     encryption_generator.noise_generator_mut(),
 ///     &crs,
-///     &metadata,
+///     metadata,
 ///     ZkComputeLoad::Proof,
 /// )
 /// .unwrap();
@@ -2634,7 +2634,7 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     &lwe_compact_public_key,
 ///     &proof,
 ///     &crs,
-///     &metadata,
+///     metadata,
 /// )
 /// .is_valid());
 ///
@@ -3045,7 +3045,7 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///
 /// // We can add custom metadata that will be required for verification, allowing to tie the proof
 /// // to some arbitrary data.
-/// let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
+/// let metadata = b"TFHE-rs";
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -3096,7 +3096,7 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     glwe_noise_distribution,
 ///     encryption_generator.noise_generator_mut(),
 ///     &crs,
-///     &metadata,
+///     metadata,
 ///     ZkComputeLoad::Proof,
 /// )
 /// .unwrap();
@@ -3107,7 +3107,7 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 ///     &lwe_compact_public_key,
 ///     &proof,
 ///     &crs,
-///     &metadata,
+///     metadata,
 /// )
 /// .is_valid());
 ///

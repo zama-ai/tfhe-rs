@@ -870,7 +870,7 @@ mod zk {
             let crs = CompactPkeCrs::from_config(config.into(), 64).unwrap();
             let public_key = crate::CompactPublicKey::try_new(&client_key).unwrap();
 
-            let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
+            let metadata = b"TFHE-rs";
 
             let clear_a = rng.gen::<u64>();
             let clear_b = rng.gen::<bool>();
@@ -878,7 +878,7 @@ mod zk {
             let proven_compact_list = crate::ProvenCompactCiphertextList::builder(&public_key)
                 .push(clear_a)
                 .push(clear_b)
-                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
                 .unwrap();
 
             let params =
@@ -1628,7 +1628,7 @@ mod tests {
         // Intentionally low so that we test when multiple lists and proofs are needed
         let crs = CompactPkeCrs::from_config(config, 32).unwrap();
 
-        let metadata = [b'h', b'l', b'a', b'p', b'i'];
+        let metadata = b"hlapi";
 
         let compact_list = ProvenCompactCiphertextList::builder(&pk)
             .push(17u32)
@@ -1636,14 +1636,12 @@ mod tests {
             .push(false)
             .push_with_num_bits(3u32, 2)
             .unwrap()
-            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+            .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
             .unwrap();
 
         let serialized = bincode::serialize(&compact_list).unwrap();
         let compact_list: ProvenCompactCiphertextList = bincode::deserialize(&serialized).unwrap();
-        let expander = compact_list
-            .verify_and_expand(&crs, &pk, &metadata)
-            .unwrap();
+        let expander = compact_list.verify_and_expand(&crs, &pk, metadata).unwrap();
 
         {
             let a: FheUint32 = expander.get(0).unwrap().unwrap();
@@ -1709,7 +1707,7 @@ mod tests {
         set_server_key(sks);
 
         let crs = CompactPkeCrs::from_config(config, 32).unwrap();
-        let metadata = [b's', b'e', b'e', b'd'];
+        let metadata = b"seed";
 
         let mut rng = thread_rng();
         let seed_a: [u8; 16] = rng.gen();
@@ -1721,7 +1719,7 @@ mod tests {
                 .push(17u32)
                 .push(-1i64)
                 .push(false)
-                .build_with_proof_packed_seeded(&crs, &metadata, ZkComputeLoad::Proof, seed)
+                .build_with_proof_packed_seeded(&crs, metadata, ZkComputeLoad::Proof, seed)
                 .unwrap()
         };
 
@@ -1738,7 +1736,7 @@ mod tests {
             "different seeds must produce different output"
         );
 
-        let expander = list_a1.verify_and_expand(&crs, &pk, &metadata).unwrap();
+        let expander = list_a1.verify_and_expand(&crs, &pk, metadata).unwrap();
         let a: FheUint32 = expander.get(0).unwrap().unwrap();
         let b: FheInt64 = expander.get(1).unwrap().unwrap();
         let c: FheBool = expander.get(2).unwrap().unwrap();
@@ -1769,15 +1767,13 @@ mod tests {
 
         let crs = CompactPkeCrs::from_config(config, 32).unwrap();
 
-        let metadata = [b'h', b'l', b'a', b'p', b'i'];
+        let metadata = b"hlapi";
 
         let compact_list = CompactCiphertextList::builder(&pk)
-            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+            .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
             .unwrap();
 
-        let expander = compact_list
-            .verify_and_expand(&crs, &pk, &metadata)
-            .unwrap();
+        let expander = compact_list.verify_and_expand(&crs, &pk, metadata).unwrap();
 
         assert!(expander.get::<FheBool>(0).unwrap().is_none());
     }
@@ -1818,7 +1814,7 @@ mod tests {
             // Intentionally low so that we test when multiple lists and proofs are needed
             let crs = CompactPkeCrs::from_config(config, 32).unwrap();
 
-            let metadata = [b'h', b'l', b'a', b'p', b'i'];
+            let metadata = b"hlapi";
 
             let compact_list = ProvenCompactCiphertextList::builder(&pk)
                 .push(17u32)
@@ -1826,15 +1822,13 @@ mod tests {
                 .push(false)
                 .push_with_num_bits(3u32, 2)
                 .unwrap()
-                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
                 .unwrap();
 
             let serialized = bincode::serialize(&compact_list).unwrap();
             let compact_list: ProvenCompactCiphertextList =
                 bincode::deserialize(&serialized).unwrap();
-            let expander = compact_list
-                .verify_and_expand(&crs, &pk, &metadata)
-                .unwrap();
+            let expander = compact_list.verify_and_expand(&crs, &pk, metadata).unwrap();
 
             {
                 let a: FheUint32 = expander.get(0).unwrap().unwrap();
