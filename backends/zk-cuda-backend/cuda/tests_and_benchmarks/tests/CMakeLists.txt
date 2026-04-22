@@ -12,29 +12,26 @@ set(gtest_force_shared_crt
     CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-# Path to tfhe-cuda-backend for device utilities
-set(TFHE_CUDA_BACKEND_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../tfhe-cuda-backend/cuda)
+set(TFHE_CUDA_COMMON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../tfhe-cuda-common/cuda)
 
 # Path to main source (needed for CUDA device linking)
 set(ZK_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../src)
 set(ZK_PRIMITIVES_DIR ${ZK_SRC_DIR}/primitives)
 
-# Build device library from tfhe-cuda-backend
-add_library(tfhe_device STATIC ${TFHE_CUDA_BACKEND_DIR}/src/device.cu
-                               ${TFHE_CUDA_BACKEND_DIR}/src/utils/helper_profile.cu)
+add_library(common_device STATIC ${TFHE_CUDA_COMMON_DIR}/src/device.cu ${TFHE_CUDA_COMMON_DIR}/src/helper_profile.cu)
 set_target_properties(
-  tfhe_device
+  common_device
   PROPERTIES CUDA_SEPARABLE_COMPILATION ON
              POSITION_INDEPENDENT_CODE ON
              CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-target_include_directories(tfhe_device PUBLIC ${TFHE_CUDA_BACKEND_DIR}/include)
-target_link_libraries(tfhe_device PUBLIC cudart)
+target_include_directories(common_device PUBLIC ${TFHE_CUDA_COMMON_DIR}/include)
+target_link_libraries(common_device PUBLIC cudart)
 
 # Test executable for Fp Include fp.cu, fp2.cu and curve.cu directly to enable proper CUDA device linking with test
 # kernels (curve.cu depends on both fp and fp2)
 add_executable(test_fp primitives/test_fp.cu primitives/test_fp_gpu_helpers.cu primitives/fp_helpers.cu
                        ${ZK_PRIMITIVES_DIR}/fp.cu ${ZK_PRIMITIVES_DIR}/fp2.cu ${ZK_SRC_DIR}/curve.cu)
-target_link_libraries(test_fp tfhe_device GTest::gtest_main)
+target_link_libraries(test_fp common_device GTest::gtest_main)
 target_include_directories(test_fp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../include)
 set_target_properties(
   test_fp
@@ -46,7 +43,7 @@ set_target_properties(
 # kernels
 add_executable(test_fp2 primitives/test_fp2.cu primitives/test_fp2_gpu_helpers.cu primitives/fp2_helpers.cu
                         ${ZK_PRIMITIVES_DIR}/fp.cu ${ZK_PRIMITIVES_DIR}/fp2.cu ${ZK_SRC_DIR}/curve.cu)
-target_link_libraries(test_fp2 tfhe_device GTest::gtest_main)
+target_link_libraries(test_fp2 common_device GTest::gtest_main)
 target_include_directories(test_fp2 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../include)
 set_target_properties(
   test_fp2
@@ -56,7 +53,7 @@ set_target_properties(
 
 # Test executable for MSM
 add_executable(test_msm test_msm.cu)
-target_link_libraries(test_msm zk_cuda_backend tfhe_device GTest::gtest_main)
+target_link_libraries(test_msm zk_cuda_backend common_device GTest::gtest_main)
 set_target_properties(
   test_msm
   PROPERTIES CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES}
@@ -65,7 +62,7 @@ set_target_properties(
 
 # Test executable for point operations
 add_executable(test_point_ops test_point_ops.cu)
-target_link_libraries(test_point_ops zk_cuda_backend tfhe_device GTest::gtest_main)
+target_link_libraries(test_point_ops zk_cuda_backend common_device GTest::gtest_main)
 set_target_properties(
   test_point_ops
   PROPERTIES CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES}

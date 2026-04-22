@@ -26,7 +26,7 @@ num-bigint = "0.4.5"
 tfhe-versionable = { version = "0.7.0", path = "../utils/tfhe-versionable" }
 tfhe-safe-serialize = { version = "0.1.0", path = "../utils/tfhe-safe-serialize" }
 zk-cuda-backend = { version = "0.1.0", path = "../backends/zk-cuda-backend", optional = true }
-tfhe-cuda-backend = { version = "=0.14.0", path = "../backends/tfhe-cuda-backend", optional = true }
+tfhe-cuda-common = { version = "0.1.0", path = "../backends/tfhe-cuda-common", optional = true }
 itertools.workspace = true
 [target.'cfg(target_family = "wasm")'.dependencies]
 getrandom = { workspace = true, features = ["js"] }
@@ -37,7 +37,7 @@ wasm-par-mq = { version = "0.1.0", path = "../utils/wasm-par-mq", features = [
 [features]
 experimental = []
 cross-origin-wasm = ["dep:wasm-par-mq"]
-gpu-experimental = ["dep:zk-cuda-backend", "dep:tfhe-cuda-backend"]
+gpu-experimental = ["dep:zk-cuda-backend", "dep:tfhe-cuda-common"]
 
 [dev-dependencies]
 serde_json = "~1.0"

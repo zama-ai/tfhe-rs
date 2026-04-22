@@ -1,7 +1,7 @@
 #ifndef HELPER_CUH
 #define HELPER_CUH
 
-#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
+#include "device.h"
 
 inline int nextPow2(int x) {
   --x;
