@@ -27,7 +27,7 @@ members = [
     "utils/wasm-par-mq/web_tests",
 ]
 
-exclude = ["utils/tfhe-lints", "apps/trivium"]
+exclude = ["utils/tfhe-lints", "apps/trivium", "apps/princev2"]
 
 [workspace.package]
 rust-version = "1.91.1"

@@ -288,6 +288,7 @@ fmt_internal: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt $(FMT_CHECK)
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C utils/tfhe-lints fmt $(FMT_CHECK)
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C apps/trivium fmt $(FMT_CHECK)
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C apps/princev2 fmt $(FMT_CHECK)
 	for crate in `ls -1 $(BACKWARD_COMPAT_DATA_DIR)/crates/ | grep generate_`; do \
 		echo "fmt $$crate"; \
 		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C $(BACKWARD_COMPAT_DATA_DIR)/crates/$$crate fmt $(FMT_CHECK); \
@@ -513,6 +514,11 @@ clippy_trivium: install_rs_check_toolchain
 	cd apps/trivium; RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-trivium -- --no-deps -D warnings
 
+.PHONY: clippy_princev2 # Run clippy lints on PRINCEv2 app
+clippy_princev2: install_rs_check_toolchain
+	cd apps/princev2; RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p tfhe-princev2 -- --no-deps -D warnings
+
 .PHONY: clippy_ws_tests # Run clippy on the workspace level tests
 clippy_ws_tests: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --tests \
@@ -607,7 +613,7 @@ clippy_test_vectors: install_rs_check_toolchain
 # MAKE SURE TO ALSO ADD IT TO A PCC BATCH BELOW
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
-clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_zk_pok_wasm clippy_trivium \
+clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_zk_pok_wasm clippy_trivium clippy_princev2 \
 clippy_versionable clippy_safe_serialize clippy_tfhe_lints clippy_ws_tests clippy_bench clippy_param_dedup \
 clippy_test_vectors clippy_backward_compat_data clippy_wasm_par_mq
 
@@ -2287,6 +2293,7 @@ pcc_batch_6:
 	$(call run_recipe_with_details,clippy_zk_pok)
 	$(call run_recipe_with_details,clippy_zk_pok_wasm)
 	$(call run_recipe_with_details,clippy_trivium)
+	$(call run_recipe_with_details,clippy_princev2)
 	$(call run_recipe_with_details,clippy_versionable)
 	$(call run_recipe_with_details,clippy_safe_serialize)
 	$(call run_recipe_with_details,clippy_param_dedup)
