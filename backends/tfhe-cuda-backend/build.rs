@@ -1,15 +1,5 @@
 use std::path::PathBuf;
 
-fn get_linux_distribution_name() -> Option<String> {
-    let content = std::fs::read_to_string("/etc/os-release").ok()?;
-    for line in content.lines() {
-        if let Some(value) = line.strip_prefix("NAME=") {
-            return Some(value.trim_matches('"').to_string());
-        }
-    }
-    None
-}
-
 fn main() {
     if let Ok(val) = std::env::var("DOCS_RS") {
         if val.parse::<u32>() == Ok(1) {
@@ -36,14 +26,9 @@ fn main() {
     println!("cargo::rerun-if-changed=cuda/CMakeLists.txt");
     println!("cargo::rerun-if-changed=src");
 
+    // Platform/distro check is performed by tfhe-cuda-common's build.rs, which
+    // Cargo builds first as a dependency.
     if std::env::consts::OS == "linux" {
-        if get_linux_distribution_name().as_deref() != Some("Ubuntu") {
-            println!(
-                "cargo:warning=This Linux distribution is not officially supported. \
-                Only Ubuntu is supported by tfhe-cuda-backend at this time. Build may fail\n"
-            );
-        }
-
         let mut cmake_config = cmake::Config::new("cuda");
 
         // Conditionally pass the "MULTI_ARCH" variable to CMake if the feature is enabled
@@ -65,6 +50,10 @@ fn main() {
             cmake_config.define("CMAKE_BUILD_TYPE", "DebugOnlyCpu");
             cmake_config.define("CMAKE_VERBOSE_MAKEFILE", "ON");
             cmake_config.define("FAKE_MULTI_GPU", "ON");
+        }
+
+        if let Ok(common_include) = std::env::var("DEP_TFHE_CUDA_COMMON_INCLUDE") {
+            cmake_config.define("TFHE_CUDA_COMMON_INCLUDE_DIR", &common_include);
         }
 
         // Build the CMake project

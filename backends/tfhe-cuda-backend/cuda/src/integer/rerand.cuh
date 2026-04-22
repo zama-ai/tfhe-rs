@@ -1,12 +1,12 @@
 #pragma once
 
 #include "device.h"
+#include "helper_profile.cuh"
 #include "integer/integer.h"
 #include "integer/radix_ciphertext.h"
 #include "integer/rerand.h"
 #include "integer/rerand_utilities.h"
 #include "utils/helper.cuh"
-#include "utils/helper_profile.cuh"
 #include "zk/zk_utilities.h"
 
 template <typename Torus, class params>

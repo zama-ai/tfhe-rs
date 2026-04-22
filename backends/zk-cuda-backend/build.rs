@@ -1,27 +1,12 @@
 use std::path::PathBuf;
 
-fn get_linux_distribution_name() -> Option<String> {
-    let content = std::fs::read_to_string("/etc/os-release").ok()?;
-    for line in content.lines() {
-        if let Some(value) = line.strip_prefix("NAME=") {
-            return Some(value.trim_matches('"').to_string());
-        }
-    }
-    None
-}
-
 fn main() {
-    // Handle docs.rs builds (no CUDA available)
     if let Ok(val) = std::env::var("DOCS_RS") {
         if val.parse::<u32>() == Ok(1) {
             return;
         }
     }
 
-    // Workaround for cbindgen running during builds: cbindgen can trigger a second
-    // compilation pass that may forward incorrect arguments to cmake, crashing builds
-    // on make < 4.4. Since zk-cuda-backend has no macro expansions for cbindgen to
-    // inspect, skipping this compilation also speeds up C API builds.
     if std::env::var("_CBINDGEN_IS_RUNNING").is_ok() {
         return;
     }
@@ -32,24 +17,18 @@ fn main() {
     println!("cargo::rerun-if-changed=cuda/CMakeLists.txt");
     println!("cargo::rerun-if-changed=src");
 
+    // Platform/distro check is performed by tfhe-cuda-common's build.rs, which
+    // Cargo builds first as a dependency.
     if std::env::consts::OS == "linux" {
-        // GNU linker flags for handling duplicate symbols between tfhe-cuda-backend
-        // and zk-cuda-backend (e.g., shared device utilities)
-        println!("cargo:rustc-link-arg=-Wl,--allow-multiple-definition");
-        println!("cargo:rustc-link-arg=-Wl,--no-as-needed");
-
         let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
             .expect("CARGO_MANIFEST_DIR must be set by cargo during build");
 
-        if get_linux_distribution_name().as_deref() != Some("Ubuntu") {
-            println!(
-                "cargo:warning=This Linux distribution is not officially supported. \
-                Only Ubuntu is supported by zk-cuda-backend at this time. Build may fail\n"
-            );
+        let mut cmake_config = cmake::Config::new("cuda");
+
+        if let Ok(common_include) = std::env::var("DEP_TFHE_CUDA_COMMON_INCLUDE") {
+            cmake_config.define("TFHE_CUDA_COMMON_INCLUDE_DIR", &common_include);
         }
 
-        // Build CUDA library using cmake crate
-        let mut cmake_config = cmake::Config::new("cuda");
         let dest = cmake_config.build();
 
         // cmake crate installs to dest/lib subdirectory
