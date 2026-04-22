@@ -3,10 +3,10 @@
 
 #include "checked_arithmetic.h"
 #include "device.h"
+#include "helper_profile.cuh"
 #include "integer/integer.h"
 #include "integer/radix_ciphertext.h"
 #include "utils/helper.cuh"
-#include "utils/helper_profile.cuh"
 
 inline CudaLweCiphertextListFFI
 to_lwe_ciphertext_list(CudaRadixCiphertextFFI *radix) {

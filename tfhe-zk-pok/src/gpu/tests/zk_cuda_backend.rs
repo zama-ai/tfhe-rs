@@ -3,7 +3,7 @@
 use crate::curve_api::bls12_446::{Zp, G1, G2};
 use crate::curve_api::CurveGroupOps;
 use crate::gpu::{g1_affine_from_cuda, g1_affine_to_cuda, g2_affine_from_cuda, g2_affine_to_cuda};
-use tfhe_cuda_backend::cuda_bind::{cuda_create_stream, cuda_destroy_stream};
+use tfhe_cuda_common::cuda_bind::{cuda_create_stream, cuda_destroy_stream};
 use zk_cuda_backend::conversions::{g1_affine_from_montgomery, g2_affine_from_montgomery};
 use zk_cuda_backend::{
     G1Affine as CudaG1Affine, G1Projective as CudaG1Projective, G2Affine as CudaG2Affine,

@@ -3,8 +3,7 @@
 #include <cstdint>
 #include <cuda_runtime.h>
 
-// Ceiling division: computes (M + N - 1) / N
-#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
+#include "device.h"
 
 // CUDA architecture constant
 #define CUDA_WARP_SIZE 32 // NVIDIA warp size (threads per warp)
