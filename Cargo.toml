@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
     "apps/test-vectors",
+    "backends/tfhe-cuda-common",
     "backends/tfhe-cuda-backend",
     "backends/tfhe-hpu-backend",
     "backends/zk-cuda-backend",

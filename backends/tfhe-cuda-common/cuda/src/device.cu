@@ -1,5 +1,4 @@
 #include "device.h"
-#include "utils/helper.cuh"
 #include <cstdint>
 #include <cuda_runtime.h>
 #include <mutex>
