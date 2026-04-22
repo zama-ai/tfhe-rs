@@ -360,7 +360,7 @@ check_fmt_toml: install_taplo
 
 .PHONY: check_typos # Check for typos in codebase
 check_typos: install_typos_checker
-	@git ls-files ":!*.png" ":!*.cbor" ":!*.bcode" ":!*.ico" ":!*/twiddles.cu" | typos --file-list - && echo "No typos found"
+	@git ls-files ":!*.png" ":!*.cbor" ":!*.bcode" ":!*.ico" ":!*/twiddles.cu" ":!*.hpu" | typos --file-list - && echo "No typos found"
 
 .PHONY: clippy_gpu # Run clippy lints on tfhe with "gpu" enabled
 clippy_gpu: install_rs_check_toolchain
