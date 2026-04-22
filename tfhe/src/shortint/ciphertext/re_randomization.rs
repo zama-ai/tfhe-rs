@@ -667,7 +667,7 @@ mod test {
         let pubk = CompactPublicKey::new(&privk);
 
         let crs = CompactPkeCrs::from_shortint_params(cpk_params, LweCiphertextCount(4)).unwrap();
-        let metadata = [b's', b'h', b'o', b'r', b't', b'i', b'n', b't'];
+        let metadata = b"shortint";
 
         let ksk_builder = KeySwitchingKeyBuildHelper::new((&privk, None), (&cks, &sks), ks_params);
         let casting_key: KeySwitchingKeyView<'_> = ksk_builder.as_key_switching_key_view();
@@ -688,7 +688,7 @@ mod test {
             .encrypt_and_prove_slice(
                 &messages,
                 &crs,
-                &metadata,
+                metadata,
                 ZkComputeLoad::Verify,
                 cpk_params.message_modulus.0,
             )

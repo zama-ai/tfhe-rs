@@ -97,7 +97,8 @@ macro_rules! create_parameterized_test{
     };
 }
 
-pub(crate) use {create_parameterized_stringified_test, create_parameterized_test};
+pub(crate) use create_parameterized_stringified_test;
+pub(crate) use create_parameterized_test;
 
 //These functions are compatible with all parameter sets.
 create_parameterized_test!(shortint_encrypt_decrypt);

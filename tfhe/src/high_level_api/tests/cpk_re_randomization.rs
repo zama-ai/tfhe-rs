@@ -347,7 +347,7 @@ mod zk {
 
         // Intentionally low so that we test when multiple lists and proofs are needed
         let crs = CompactPkeCrs::from_config(config, 32).unwrap();
-        let metadata = [b'r', b'e', b'r', b'a', b'n', b'd'];
+        let metadata = b"rerand";
 
         // Case where we want to re-randomize a CompactCiphertextList containing
         // FheUint64, FheInt8, and FheBool
@@ -359,7 +359,7 @@ mod zk {
                 .push(clear_a)
                 .push(clear_b)
                 .push(false)
-                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
                 .unwrap();
 
             // Simulate a 256 bits nonce
@@ -378,12 +378,7 @@ mod zk {
 
             // Verify, re_randomize and expand
             let expander = compact_list
-                .verify_re_randomize_and_expand(
-                    &crs,
-                    &cpk,
-                    &metadata,
-                    seed_gen.next_seed().unwrap(),
-                )
+                .verify_re_randomize_and_expand(&crs, &cpk, metadata, seed_gen.next_seed().unwrap())
                 .unwrap();
 
             let a: FheUint64 = expander.get(0).unwrap().unwrap();
@@ -407,7 +402,7 @@ mod zk {
                 .push(clear_a)
                 .push(clear_b)
                 .push(false)
-                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
                 .unwrap();
 
             let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());

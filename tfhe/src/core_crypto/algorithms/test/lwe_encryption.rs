@@ -1010,7 +1010,7 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
 
-    let metadata = [b'c', b'o', b'r', b'e'];
+    let metadata = b"core";
 
     let mut rsc = TestResources::new();
     let mut random_generator = RandomGenerator::<DefaultRandomGenerator>::new(rsc.seeder.seed());
@@ -1073,7 +1073,7 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
                     glwe_noise_distribution,
                     rsc.encryption_random_generator.noise_generator_mut(),
                     crs,
-                    &metadata,
+                    metadata,
                     ZkComputeLoad::Proof,
                 )
                 .unwrap();
@@ -1090,13 +1090,13 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
                 assert_eq!(msg, decoded);
 
                 // Verify the proof
-                assert!(verify_lwe_ciphertext(&ct, &pk, &proof, crs, &metadata).is_valid());
+                assert!(verify_lwe_ciphertext(&ct, &pk, &proof, crs, metadata).is_valid());
 
                 // verify proof with invalid ciphertext
                 let index = random_generator.gen::<usize>() % ct.as_ref().len();
                 let value_to_add = random_generator.gen::<Scalar>();
                 ct.as_mut()[index] = ct.as_mut()[index].wrapping_add(value_to_add);
-                assert!(verify_lwe_ciphertext(&ct, &pk, &proof, crs, &metadata).is_invalid());
+                assert!(verify_lwe_ciphertext(&ct, &pk, &proof, crs, metadata).is_invalid());
             }
 
             // In coverage, we break after one while loop iteration, changing message values does
@@ -1122,7 +1122,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
     let glwe_noise_distribution = TUniform::new(9);
     let ciphertext_modulus = CiphertextModulus::new_native();
 
-    let metadata = [b'c', b'o', b'r', b'e'];
+    let metadata = b"core";
 
     let delta_log = 59;
     let delta = 1u64 << delta_log;
@@ -1195,7 +1195,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 glwe_noise_distribution,
                 encryption_random_generator.noise_generator_mut(),
                 &crs,
-                &metadata,
+                metadata,
                 ZkComputeLoad::Proof,
             )
             .unwrap();
@@ -1205,7 +1205,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 &compact_lwe_pk,
                 &proof,
                 &crs,
-                &metadata
+                metadata
             )
             .is_valid());
 
@@ -1236,7 +1236,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 &compact_lwe_pk,
                 &proof,
                 &crs,
-                &metadata
+                metadata
             )
             .is_invalid());
 
@@ -1284,7 +1284,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 glwe_noise_distribution,
                 encryption_random_generator.noise_generator_mut(),
                 &crs,
-                &metadata,
+                metadata,
                 ZkComputeLoad::Proof,
             )
             .unwrap();
@@ -1294,7 +1294,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 &compact_lwe_pk,
                 &proof,
                 &crs,
-                &metadata
+                metadata
             )
             .is_valid());
 
@@ -1325,7 +1325,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
                 &compact_lwe_pk,
                 &proof,
                 &crs,
-                &metadata
+                metadata
             )
             .is_invalid());
 

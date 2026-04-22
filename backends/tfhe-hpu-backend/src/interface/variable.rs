@@ -156,7 +156,7 @@ impl HpuVarWrapped {
         {
             let mut inner = var.inner.lock().unwrap();
 
-            for (slot, ct) in std::iter::zip(inner.bundle.iter_mut(), ct.into_iter()) {
+            for (slot, ct) in std::iter::zip(inner.bundle.iter_mut(), ct) {
                 #[cfg(feature = "io-dump")]
                 let params = ct.params().clone();
                 for (id, cut) in ct.into_container().iter().enumerate() {

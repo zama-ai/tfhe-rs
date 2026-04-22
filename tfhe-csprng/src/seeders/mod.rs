@@ -168,7 +168,7 @@ mod generic_tests {
     fn test_xof_seed_getters() {
         let seed_bytes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         let bits = u128::from_le_bytes(seed_bytes);
-        let dsep = [b't', b'f', b'h', b'e', b'k', b's', b'p', b's'];
+        let dsep = *b"tfheksps";
         let seed = XofSeed::new_u128(bits, dsep);
 
         let s = u128::from_le_bytes(seed.seed().try_into().unwrap());

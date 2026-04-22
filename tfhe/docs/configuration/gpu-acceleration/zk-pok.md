@@ -85,7 +85,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let public_key = tfhe::CompactPublicKey::try_new(&client_key).unwrap();
     // This can be left empty, but if provided allows to tie the proof to arbitrary data
-    let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
+    let metadata = b"TFHE-rs";
 
     let clear_a = random::<u64>();
     let clear_b = random::<u64>();
@@ -93,7 +93,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let proven_compact_list = tfhe::ProvenCompactCiphertextList::builder(&public_key)
         .push(clear_a)
         .push(clear_b)
-        .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Verify)?;
+        .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Verify)?;
 
     // Server side
     let result = {
@@ -101,7 +101,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Verify the proofs and expand the ciphertexts
         let expander =
-            proven_compact_list.verify_and_expand(&crs, &public_key, &metadata)?;
+            proven_compact_list.verify_and_expand(&crs, &public_key, metadata)?;
         let a: tfhe::FheUint64 = expander.get(0)?.unwrap();
         let b: tfhe::FheUint64 = expander.get(1)?.unwrap();
 

@@ -538,4 +538,5 @@ macro_rules! create_parameterized_test_with_non_native_parameters {
     };
 }
 
-pub(crate) use {create_parameterized_test, create_parameterized_test_with_non_native_parameters};
+pub(crate) use create_parameterized_test;
+pub(crate) use create_parameterized_test_with_non_native_parameters;

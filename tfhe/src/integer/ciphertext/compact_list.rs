@@ -1403,7 +1403,7 @@ mod zk_pok_tests {
         let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
+        let metadata = b"integer";
 
         let num_blocks = 4usize;
         let modulus = pke_params
@@ -1433,11 +1433,11 @@ mod zk_pok_tests {
 
         let proven_ct = if is_packed {
             builder
-                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
                 .unwrap()
         } else {
             builder
-                .build_with_proof(&crs, &metadata, ZkComputeLoad::Proof)
+                .build_with_proof(&crs, metadata, ZkComputeLoad::Proof)
                 .unwrap()
         };
 
@@ -1452,7 +1452,7 @@ mod zk_pok_tests {
             .verify_and_expand(
                 &crs,
                 &pk,
-                &metadata,
+                metadata,
                 IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
             )
             .unwrap();
@@ -1495,7 +1495,7 @@ mod zk_pok_tests {
         let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
+        let metadata = b"integer";
 
         let crs = CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(512)).unwrap();
         let cks = ClientKey::new(fhe_params);
@@ -1514,13 +1514,13 @@ mod zk_pok_tests {
             let proven_ct = CompactCiphertextList::builder(&pk)
                 .push_with_num_blocks(1u8, 0)
                 .push_with_num_blocks(-1i8, 0)
-                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
                 .unwrap();
 
             assert!(proven_ct.is_empty());
             assert_eq!(proven_ct.len(), 0);
             assert_eq!(
-                proven_ct.verify(&crs, &pk, &metadata),
+                proven_ct.verify(&crs, &pk, metadata),
                 ZkVerificationOutcome::Valid
             );
             assert!(proven_ct.is_conformant(&conformance_params));
@@ -1528,7 +1528,7 @@ mod zk_pok_tests {
                 proven_ct.verify_and_expand(
                     &crs,
                     &pk,
-                    &metadata,
+                    metadata,
                     IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
                 ),
                 Ok(vec) if vec.is_empty()
@@ -1538,13 +1538,13 @@ mod zk_pok_tests {
         // Test by pushing with nothing
         {
             let proven_ct = CompactCiphertextList::builder(&pk)
-                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
                 .unwrap();
 
             assert!(proven_ct.is_empty());
             assert_eq!(proven_ct.len(), 0);
             assert_eq!(
-                proven_ct.verify(&crs, &pk, &metadata),
+                proven_ct.verify(&crs, &pk, metadata),
                 ZkVerificationOutcome::Valid
             );
             assert!(proven_ct.is_conformant(&conformance_params));
@@ -1552,7 +1552,7 @@ mod zk_pok_tests {
                 proven_ct.verify_and_expand(
                     &crs,
                     &pk,
-                    &metadata,
+                    metadata,
                     IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
                 ),
                 Ok(vec) if vec.is_empty()
@@ -1564,7 +1564,7 @@ mod zk_pok_tests {
             let mut proven_ct = CompactCiphertextList::builder(&pk)
                 .push(1u8)
                 .push(-1i8)
-                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
                 .unwrap();
 
             proven_ct.ct_list.proved_lists = Vec::new();
@@ -1577,7 +1577,7 @@ mod zk_pok_tests {
             let mut proven_ct = CompactCiphertextList::builder(&pk)
                 .push(1u8)
                 .push(-1i8)
-                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
                 .unwrap();
 
             proven_ct.info = Vec::new();
@@ -1647,7 +1647,7 @@ mod zk_pok_tests {
         let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
+        let metadata = b"integer";
 
         let crs = CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(2)).unwrap();
         let cks = ClientKey::new(fhe_params);
@@ -1664,7 +1664,7 @@ mod zk_pok_tests {
         let mut proven_ct = CompactCiphertextList::builder(&pk)
             .push_with_num_blocks(1u8, 4)
             .push_with_num_blocks(-1i8, 4)
-            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+            .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
             .unwrap();
 
         assert_eq!(proven_ct.len(), 2);
@@ -1684,14 +1684,14 @@ mod zk_pok_tests {
         assert!(!proven_ct.is_conformant(&conformance_params));
         assert!(proven_ct.is_empty());
         assert_eq!(
-            proven_ct.verify(&crs, &pk, &metadata),
+            proven_ct.verify(&crs, &pk, metadata),
             ZkVerificationOutcome::Valid
         );
         assert!(matches!(
             proven_ct.verify_and_expand(
                 &crs,
                 &pk,
-                &metadata,
+                metadata,
                 IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.
                     as_view()),
             ),
@@ -1706,14 +1706,14 @@ mod zk_pok_tests {
         assert!(!proven_ct.is_empty());
         assert!(proven_ct.is_packed());
         assert_eq!(
-            proven_ct.verify(&crs, &pk, &metadata),
+            proven_ct.verify(&crs, &pk, metadata),
             ZkVerificationOutcome::Valid
         );
         assert!(proven_ct
             .verify_and_expand(
                 &crs,
                 &pk,
-                &metadata,
+                metadata,
                 IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view())
             )
             .is_err());
@@ -1729,14 +1729,14 @@ mod zk_pok_tests {
         assert!(!proven_ct.is_empty());
         assert!(proven_ct.is_packed());
         assert_eq!(
-            proven_ct.verify(&crs, &pk, &metadata),
+            proven_ct.verify(&crs, &pk, metadata),
             ZkVerificationOutcome::Valid
         );
         assert!(proven_ct
             .verify_and_expand(
                 &crs,
                 &pk,
-                &metadata,
+                metadata,
                 IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view())
             )
             .is_ok());
@@ -1748,14 +1748,14 @@ mod zk_pok_tests {
         assert!(!proven_ct.is_empty());
         assert!(proven_ct.is_packed());
         assert_eq!(
-            proven_ct.verify(&crs, &pk, &metadata),
+            proven_ct.verify(&crs, &pk, metadata),
             ZkVerificationOutcome::Valid
         );
         assert!(proven_ct
             .verify_and_expand(
                 &crs,
                 &pk,
-                &metadata,
+                metadata,
                 IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view())
             )
             .is_err());
@@ -1767,7 +1767,7 @@ mod zk_pok_tests {
         let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
+        let metadata = b"integer";
 
         let crs = CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(2)).unwrap();
         let cks = ClientKey::new(fhe_params);
@@ -1784,7 +1784,7 @@ mod zk_pok_tests {
         let mut proven_ct = CompactCiphertextList::builder(&pk)
             .push_with_num_blocks(1u8, 4)
             .push_with_num_blocks(-1i8, 4)
-            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+            .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
             .unwrap();
 
         assert!(proven_ct.is_conformant(&conformance_params));
@@ -1803,7 +1803,7 @@ mod zk_pok_tests {
         let expander = proven_ct.verify_and_expand(
             &crs,
             &pk,
-            &metadata,
+            metadata,
             IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
         );
         assert!(expander.is_err());
@@ -1817,7 +1817,7 @@ mod zk_pok_tests {
             TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
         let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
+        let metadata = b"integer";
 
         let num_blocks = 4usize;
         let modulus = pke_params
@@ -1839,14 +1839,14 @@ mod zk_pok_tests {
 
         let proven_ct = CompactCiphertextList::builder(&pk)
             .extend_with_num_blocks(msgs.iter().copied(), num_blocks)
-            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+            .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
             .unwrap();
 
         let expander = proven_ct
             .verify_and_expand(
                 &crs,
                 &pk,
-                &metadata,
+                metadata,
                 IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
             )
             .unwrap();
@@ -1879,7 +1879,7 @@ mod zk_pok_tests {
         let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
+        let metadata = b"integer";
 
         let crs_blocks_for_64_bits =
             64 / ((pke_params.message_modulus.0 * pke_params.carry_modulus.0).ilog2() as usize);
@@ -1900,14 +1900,14 @@ mod zk_pok_tests {
 
         let proven_ct = CompactCiphertextList::builder(&pk)
             .extend_with_num_blocks(msgs.iter().copied(), encryption_num_blocks)
-            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+            .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
             .unwrap();
 
         let expander = proven_ct
             .verify_and_expand(
                 &crs,
                 &pk,
-                &metadata,
+                metadata,
                 IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
             )
             .unwrap();
@@ -1942,7 +1942,7 @@ mod zk_pok_tests {
         let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
+        let metadata = b"integer";
 
         let crs_blocks_for_64_bits =
             64 / ((pke_params.message_modulus.0 * pke_params.carry_modulus.0).ilog2() as usize);
@@ -1963,7 +1963,7 @@ mod zk_pok_tests {
 
         let proven_ct = CompactCiphertextList::builder(&pk)
             .extend_with_num_blocks(msgs.iter().copied(), encryption_num_blocks)
-            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+            .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
             .unwrap();
 
         let infos_block_count = {
@@ -2023,7 +2023,7 @@ mod zk_pok_tests {
             .verify_and_expand(
                 &crs,
                 &pk,
-                &metadata,
+                metadata,
                 IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
             )
             .unwrap();

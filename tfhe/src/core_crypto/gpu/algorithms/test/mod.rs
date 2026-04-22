@@ -99,7 +99,6 @@ macro_rules! create_gpu_multi_bit_ks32_parameterized_test{
 }
 use crate::core_crypto::gpu::algorithms::test::params::MultiBitTestKS32Params;
 use crate::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
-use {
-    create_gpu_multi_bit_ks32_parameterized_test, create_gpu_multi_bit_parameterized_test,
-    create_gpu_parameterized_test,
-};
+use create_gpu_multi_bit_ks32_parameterized_test;
+use create_gpu_multi_bit_parameterized_test;
+use create_gpu_parameterized_test;

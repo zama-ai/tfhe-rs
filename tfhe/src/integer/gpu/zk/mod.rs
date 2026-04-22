@@ -271,7 +271,7 @@ mod tests {
         ];
 
         for (ksk_params, pke_params, fhe_params) in params {
-            let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
+            let metadata = b"integer";
 
             let num_blocks = 4usize;
             let modulus = pke_params
@@ -304,7 +304,7 @@ mod tests {
 
             let proven_ct = CompactCiphertextList::builder(&pk)
                 .extend_with_num_blocks(msgs.iter().copied(), num_blocks)
-                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
                 .unwrap();
             let gpu_proven_ct =
                 CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
@@ -312,7 +312,7 @@ mod tests {
                 );
 
             let gpu_expander = gpu_proven_ct
-                .verify_and_expand(&crs, &pk, &metadata, &d_ksk, &streams)
+                .verify_and_expand(&crs, &pk, metadata, &d_ksk, &streams)
                 .unwrap();
 
             for (idx, msg) in msgs.iter().copied().enumerate() {
@@ -362,7 +362,7 @@ mod tests {
         ];
 
         for (ksk_params, pke_params, fhe_params) in params {
-            let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
+            let metadata = b"integer";
 
             let crs_blocks_for_64_bits =
                 64 / ((pke_params.message_modulus.0 * pke_params.carry_modulus.0).ilog2() as usize);
@@ -392,7 +392,7 @@ mod tests {
 
             let proven_ct = CompactCiphertextList::builder(&pk)
                 .extend_with_num_blocks(msgs.iter().copied(), encryption_num_blocks)
-                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
                 .unwrap();
             let gpu_proven_ct =
                 CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
@@ -400,7 +400,7 @@ mod tests {
                 );
 
             let gpu_expander = gpu_proven_ct
-                .verify_and_expand(&crs, &pk, &metadata, &d_ksk, &streams)
+                .verify_and_expand(&crs, &pk, metadata, &d_ksk, &streams)
                 .unwrap();
 
             for (idx, msg) in msgs.iter().copied().enumerate() {
@@ -452,7 +452,7 @@ mod tests {
         ];
 
         for (ksk_params, pke_params, fhe_params) in params {
-            let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
+            let metadata = b"integer";
 
             let crs_blocks_for_64_bits =
                 64 / ((pke_params.message_modulus.0 * pke_params.carry_modulus.0).ilog2() as usize);
@@ -482,7 +482,7 @@ mod tests {
 
             let proven_ct = CompactCiphertextList::builder(&pk)
                 .extend_with_num_blocks(msgs.iter().copied(), encryption_num_blocks)
-                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
                 .unwrap();
 
             let infos_block_count = {
@@ -543,7 +543,7 @@ mod tests {
                 );
 
             let gpu_expander = gpu_proven_ct
-                .verify_and_expand(&crs, &pk, &metadata, &d_ksk, &streams)
+                .verify_and_expand(&crs, &pk, metadata, &d_ksk, &streams)
                 .unwrap();
 
             for idx in boolean_block_idx.iter().copied() {
@@ -595,7 +595,7 @@ mod tests {
 
         let crs = CompactPkeCrs::from_config(config, 64).unwrap();
         let public_key = crate::CompactPublicKey::try_new(&client_key).unwrap();
-        let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
+        let metadata = b"TFHE-rs";
 
         // Create a proven compact list with 6 items (matching user's scenario)
         let m0 = true;
@@ -611,7 +611,7 @@ mod tests {
             .push(m3)
             .push(m4)
             .push(m5)
-            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Verify)
+            .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Verify)
             .unwrap();
 
         // Set GPU server key
@@ -619,7 +619,7 @@ mod tests {
 
         // Verify and expand on GPU
         let expander = proven_compact_list
-            .verify_and_expand(&crs, &public_key, &metadata)
+            .verify_and_expand(&crs, &public_key, metadata)
             .unwrap();
 
         // The expander should have length 6 (number of data items), not 66 (total blocks)

@@ -16,7 +16,7 @@ use tfhe::zk::CompactPkeCrs;
 use tfhe::{ClientKey, CompactPublicKey, ConfigBuilder, ProvenCompactCiphertextList};
 
 const SIZE_LIMIT: u64 = 1024 * 1024 * 1024;
-const METADATA: [u8; 6] = [b'w', b'a', b's', b'm', b'6', b'4'];
+const METADATA: [u8; 6] = *b"wasm64";
 
 fn gen_key_and_crs() -> (CompactPublicKey, CompactPkeCrs) {
     println!("Generating keys");

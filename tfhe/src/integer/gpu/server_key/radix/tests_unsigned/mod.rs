@@ -68,8 +68,9 @@ macro_rules! create_gpu_parameterized_stringified_test{
 }
 
 use crate::integer::gpu::server_key::radix::tests_signed::GpuMultiDeviceFunctionExecutor;
+pub(crate) use create_gpu_parameterized_stringified_test;
+pub(crate) use create_gpu_parameterized_test;
 use tfhe_csprng::seeders::Seed;
-pub(crate) use {create_gpu_parameterized_stringified_test, create_gpu_parameterized_test};
 
 pub(crate) struct GpuContext {
     pub(crate) streams: CudaStreams,

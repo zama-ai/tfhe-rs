@@ -570,7 +570,7 @@ mod test {
                 for num_blocks in 1..64 {
                     let num_bits = 2 * num_blocks;
 
-                    println!("num_bits: {num_bits}",);
+                    println!("num_bits: {num_bits}");
 
                     for target_result in 0..=num_bits {
                         for _ in 0..10 {

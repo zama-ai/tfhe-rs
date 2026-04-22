@@ -266,15 +266,15 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
         match self.length_checks(str, &trivial_or_enc_from) {
             IsMatch::Clear(false) => return result,
 
-            IsMatch::Clear(true) => {
-                // If `from` is empty and str too, there's only one match and one replacement
-                if str.is_empty() {
-                    if let UIntArg::Clear(_) = count {
+            // If `from` is empty and str too, there's only one match and one replacement
+            IsMatch::Clear(true) if str.is_empty() => {
+                match count {
+                    UIntArg::Clear(_) => {
                         return to.clone();
                     }
 
                     // We have to take into account that encrypted n could be 0
-                    if let UIntArg::Enc(enc_n) = count {
+                    UIntArg::Enc(enc_n) => {
                         let n_is_zero = sk.scalar_eq_parallelized(enc_n.cipher(), 0);
 
                         let mut re = self.conditional_string(&n_is_zero, &result, to);
@@ -290,21 +290,22 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
             // This happens when str is empty, so it's again one replacement if there's match or
             // if there isn't we return the str
             IsMatch::Cipher(val) => {
-                if let UIntArg::Clear(_) = count {
-                    return self.conditional_string(&val, to, str);
-                }
+                match count {
+                    UIntArg::Clear(_) => {
+                        return self.conditional_string(&val, to, str);
+                    }
+                    UIntArg::Enc(enc_n) => {
+                        let n_not_zero = sk.scalar_ne_parallelized(enc_n.cipher(), 0);
+                        let and_val = sk.boolean_bitand(&n_not_zero, &val);
 
-                if let UIntArg::Enc(enc_n) = count {
-                    let n_not_zero = sk.scalar_ne_parallelized(enc_n.cipher(), 0);
-                    let and_val = sk.boolean_bitand(&n_not_zero, &val);
+                        let mut re = self.conditional_string(&and_val, to, str);
 
-                    let mut re = self.conditional_string(&and_val, to, str);
-
-                    // When result or to are empty we get padding via the conditional_string
-                    // (pad_ciphertexts_lsb). And the condition result may or may not have
-                    // padding in this case.
-                    re.append_null(self);
-                    return re;
+                        // When result or to are empty we get padding via the conditional_string
+                        // (pad_ciphertexts_lsb). And the condition result may or may not have
+                        // padding in this case.
+                        re.append_null(self);
+                        return re;
+                    }
                 }
             }
             _ => (),
@@ -383,11 +384,9 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
 
         match self.length_checks(str, &trivial_or_enc_from) {
             IsMatch::Clear(false) => return result,
-            IsMatch::Clear(true) => {
-                // If `from` is empty and str too, there's only one match and one replacement
-                if str.is_empty() {
-                    return to.clone();
-                }
+            // If `from` is empty and str too, there's only one match and one replacement
+            IsMatch::Clear(true) if str.is_empty() => {
+                return to.clone();
             }
             // This happens when str is empty, so it's again one replacement if there's match or
             // if there isn't we return the str

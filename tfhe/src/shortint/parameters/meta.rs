@@ -167,7 +167,7 @@ impl MetaParameters {
             return self;
         }
 
-        panic!("Invalid MetaParameters",);
+        panic!("Invalid MetaParameters");
     }
 }
 
