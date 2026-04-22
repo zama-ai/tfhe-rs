@@ -1,6 +1,7 @@
 mod abs;
 mod add;
 mod bit_extractor;
+pub(crate) mod bitonic_shuffle;
 mod bitwise_op;
 mod block_shift;
 pub(crate) mod cmux;
@@ -47,6 +48,7 @@ use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::RadixCiphertext;
 use crate::shortint::ciphertext::{Ciphertext, NoiseLevel};
 pub(crate) use add::OutputFlag;
+pub use bitonic_shuffle::{BitonicShuffleKeySize, CollisionProbability};
 use rayon::prelude::*;
 pub use scalar_div_mod::{MiniUnsignedInteger, Reciprocable};
 pub use vector_find::MatchValues;
@@ -321,6 +323,20 @@ impl ServerKey {
             Cow::Owned(cloned)
         } else {
             Cow::Borrowed(ct)
+        }
+    }
+
+    /// Cleans the input inplace so that it is ready to be used in a default ops
+    pub(crate) fn clean_inplace_for_default_op<T>(&self, ct: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        if ct
+            .blocks()
+            .iter()
+            .any(|block| !block.carry_is_empty() || block.noise_level() != NoiseLevel::NOMINAL)
+        {
+            self.full_propagate_parallelized(ct);
         }
     }
 }
