@@ -68,6 +68,14 @@ path = "benches/shortint/bench.rs"
 harness = false
 required-features = ["shortint", "internal-keycache"]
 
+
+[[bench]]
+name = "automorphism_bench"
+path = "benches/core_crypto/automorphism_blind_rotate.rs"
+harness = false
+required-features = ["shortint", "experimental"]
+
+
 [[bench]]
 name = "shortint-oprf"
 path = "benches/shortint/oprf.rs"
