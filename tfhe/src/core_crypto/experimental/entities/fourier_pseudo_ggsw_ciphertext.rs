@@ -1,15 +1,12 @@
+use crate::core_crypto::algorithms::polynomial_algorithms::convert_standard_polynomial_list_to_fourier_mem_optimized;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, PolynomialSize,
 };
-use crate::core_crypto::commons::traits::{
-    Container, ContiguousEntityContainer, IntoContainerOwned, Split,
-};
-use crate::core_crypto::commons::utils::izip_eq;
+use crate::core_crypto::commons::traits::{Container, IntoContainerOwned, Split};
 use crate::core_crypto::experimental::entities::PseudoGgswCiphertext;
 use crate::core_crypto::fft_impl::fft64::math::decomposition::DecompositionLevel;
 use crate::core_crypto::fft_impl::fft64::math::fft::{FftView, FourierPolynomialList};
-use crate::core_crypto::fft_impl::fft64::math::polynomial::FourierPolynomialMutView;
 use aligned_vec::{avec, ABox};
 use dyn_stack::PodStack;
 use tfhe_fft::c64;
@@ -267,24 +264,17 @@ impl FourierPseudoGgswCiphertextMutView<'_> {
         Scalar: UnsignedTorus,
         InputCont: Container<Element = Scalar>,
     >(
-        self,
+        mut self,
         coef_ggsw: &PseudoGgswCiphertext<InputCont>,
         fft: FftView<'_>,
         stack: &mut PodStack,
     ) {
-        debug_assert_eq!(coef_ggsw.polynomial_size(), self.polynomial_size());
-        let fourier_poly_size = coef_ggsw.polynomial_size().to_fourier_polynomial_size().0;
-
-        for (fourier_poly, coef_poly) in izip_eq!(
-            self.data().into_chunks(fourier_poly_size),
-            coef_ggsw.as_polynomial_list().iter()
-        ) {
-            fft.forward_as_torus(
-                FourierPolynomialMutView { data: fourier_poly },
-                coef_poly,
-                stack,
-            );
-        }
+        convert_standard_polynomial_list_to_fourier_mem_optimized(
+            &coef_ggsw.as_polynomial_list(),
+            &mut self.fourier,
+            fft,
+            stack,
+        );
     }
 }
 
