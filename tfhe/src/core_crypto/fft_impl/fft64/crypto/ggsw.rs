@@ -1,6 +1,7 @@
 use super::super::math::decomposition::TensorSignedDecompositionLendingIter;
 use super::super::math::fft::{FftView, FourierPolynomialList};
 use super::super::math::polynomial::FourierPolynomialMutView;
+use crate::core_crypto::algorithms::convert_standard_polynomial_list_to_fourier_mem_optimized;
 use crate::core_crypto::backward_compatibility::fft_impl::FourierGgswCiphertextVersions;
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
@@ -264,24 +265,17 @@ impl FourierGgswCiphertextMutView<'_> {
     /// Fill a GGSW ciphertext with the Fourier transform of a GGSW ciphertext in the standard
     /// domain.
     pub fn fill_with_forward_fourier<Scalar: UnsignedTorus>(
-        self,
+        mut self,
         coef_ggsw: GgswCiphertextView<'_, Scalar>,
         fft: FftView<'_>,
         stack: &mut PodStack,
     ) {
-        debug_assert_eq!(coef_ggsw.polynomial_size(), self.polynomial_size());
-        let fourier_poly_size = coef_ggsw.polynomial_size().to_fourier_polynomial_size().0;
-
-        for (fourier_poly, coef_poly) in izip_eq!(
-            self.data().into_chunks(fourier_poly_size),
-            coef_ggsw.as_polynomial_list().iter()
-        ) {
-            fft.forward_as_torus(
-                FourierPolynomialMutView { data: fourier_poly },
-                coef_poly,
-                stack,
-            );
-        }
+        convert_standard_polynomial_list_to_fourier_mem_optimized(
+            &coef_ggsw.as_polynomial_list(),
+            self.as_mut_polynomial_list(),
+            fft,
+            stack,
+        );
     }
 }
 

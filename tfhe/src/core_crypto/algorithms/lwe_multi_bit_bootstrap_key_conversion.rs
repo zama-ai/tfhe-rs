@@ -7,9 +7,8 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
 use crate::core_crypto::fft_impl::fft64::math::fft::{
-    par_convert_polynomials_list_to_fourier, Fft, FftView,
+    par_convert_polynomials_list_to_fourier, Fft, FftView, FourierPolynomialList,
 };
-
 use dyn_stack::{PodStack, StackReq};
 use rayon::prelude::*;
 use tfhe_fft::c64;
@@ -26,31 +25,43 @@ pub fn convert_standard_lwe_multi_bit_bootstrap_key_to_fourier<Scalar, InputCont
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = c64>,
 {
+    convert_polynomials_list_to_fourier(
+        &input_bsk.as_polynomial_list(),
+        &mut output_bsk.as_mut_polynomial_list(),
+    )
+}
+
+/// Convert a list of polynomials with standard coefficients to the Fourier domain.
+///
+/// This allocates the required computation buffers internally. Use
+/// [`convert_standard_polynomial_list_to_fourier_mem_optimized`] to manage the buffers yourself.
+pub fn convert_polynomials_list_to_fourier<Scalar, InputCont, OutputCont>(
+    input: &PolynomialList<InputCont>,
+    output: &mut FourierPolynomialList<OutputCont>,
+) where
+    Scalar: UnsignedTorus,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = c64>,
+{
     let mut buffers = ComputationBuffers::new();
 
-    let fft = Fft::new(input_bsk.polynomial_size());
+    let fft = Fft::new(input.polynomial_size());
     let fft = fft.as_view();
 
     buffers.resize(
-        convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized_requirement(fft)
+        convert_standard_polynomial_list_to_fourier_mem_optimized_requirement(fft)
             .unaligned_bytes_required(),
     );
 
     let stack = buffers.stack();
 
-    convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized(
-        input_bsk, output_bsk, fft, stack,
-    );
+    convert_standard_polynomial_list_to_fourier_mem_optimized(input, output, fft, stack);
 }
 
-/// Memory optimized version of [`convert_standard_lwe_multi_bit_bootstrap_key_to_fourier`].
-pub fn convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized<
-    Scalar,
-    InputCont,
-    OutputCont,
->(
-    input_bsk: &LweMultiBitBootstrapKey<InputCont>,
-    output_bsk: &mut FourierLweMultiBitBootstrapKey<OutputCont>,
+/// Memory optimized version of [`convert_polynomials_list_to_fourier`].
+pub fn convert_standard_polynomial_list_to_fourier_mem_optimized<Scalar, InputCont, OutputCont>(
+    input: &PolynomialList<InputCont>,
+    output: &mut FourierPolynomialList<OutputCont>,
     fft: FftView<'_>,
     stack: &mut PodStack,
 ) where
@@ -58,26 +69,18 @@ pub fn convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized<
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = c64>,
 {
-    let mut output_bsk_as_polynomial_list = output_bsk.as_mut_polynomial_list();
-    let input_bsk_as_polynomial_list = input_bsk.as_polynomial_list();
+    assert_eq!(output.polynomial_size, input.polynomial_size());
+    assert_eq!(output.polynomial_count(), input.polynomial_count());
 
-    assert_eq!(
-        output_bsk_as_polynomial_list.polynomial_count(),
-        input_bsk_as_polynomial_list.polynomial_count()
-    );
-
-    for (fourier_poly, coef_poly) in output_bsk_as_polynomial_list
-        .iter_mut()
-        .zip(input_bsk_as_polynomial_list.iter())
-    {
+    for (fourier_poly, coef_poly) in output.iter_mut().zip(input.iter()) {
         // SAFETY: forward_as_torus doesn't write any uninitialized values into its output
         fft.forward_as_torus(fourier_poly, coef_poly, stack);
     }
 }
 
 /// Return the required memory for
-/// [`convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized`].
-pub fn convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized_requirement(
+/// [`convert_standard_polynomial_list_to_fourier_mem_optimized`].
+pub fn convert_standard_polynomial_list_to_fourier_mem_optimized_requirement(
     fft: FftView<'_>,
 ) -> StackReq {
     fft.forward_scratch()
