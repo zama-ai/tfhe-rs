@@ -70,8 +70,8 @@ pub use integers::{
 pub use keys::CudaServerKey;
 pub use keys::{
     generate_keys, ClientKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey,
-    CompressedReRandomizationKeySwitchingKey, CompressedServerKey, KeySwitchingKey, PublicKey,
-    ReRandomizationKeySwitchingKey, ServerKey,
+    CompressedReRandomizationKey, CompressedReRandomizationKeySwitchingKey, CompressedServerKey,
+    KeySwitchingKey, PublicKey, ReRandomizationKey, ReRandomizationKeySwitchingKey, ServerKey,
 };
 use strum::FromRepr;
 
