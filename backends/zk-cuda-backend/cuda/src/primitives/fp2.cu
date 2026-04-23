@@ -74,6 +74,18 @@ __host__ __device__ void fp2_sub(Fp2 &c, const Fp2 &a, const Fp2 &b) {
   fp_sub(c.c1, a.c1, b.c1);
 }
 
+// Lazy add/sub for Fp2: component-wise fp_add_lazy / fp_sub_lazy.
+// Outputs each component in [0, 2p); safe as input to fp2_mont_mul.
+__host__ __device__ void fp2_add_lazy(Fp2 &c, const Fp2 &a, const Fp2 &b) {
+  fp_add_lazy(c.c0, a.c0, b.c0);
+  fp_add_lazy(c.c1, a.c1, b.c1);
+}
+
+__host__ __device__ void fp2_sub_lazy(Fp2 &c, const Fp2 &a, const Fp2 &b) {
+  fp_sub_lazy(c.c0, a.c0, b.c0);
+  fp_sub_lazy(c.c1, a.c1, b.c1);
+}
+
 // Small-constant multiplication via addition chains.
 // These replace full Fp2 Montgomery multiplications by 2, 3, 4, 8 with
 // modular additions on each component.
@@ -158,8 +170,10 @@ __host__ __device__ void fp2_mont_mul(Fp2 &c, const Fp2 &a, const Fp2 &b) {
 
   fp_mont_mul(t0, a.c0, b.c0);
   fp_mont_mul(t1, a.c1, b.c1);
-  fp_add(t2, a.c0, a.c1);
-  fp_add(t3, b.c0, b.c1);
+  // Lazy add: skip the conditional subtraction since t2, t3 feed fp_mont_mul
+  // which accepts inputs in [0, 2p). Saves 2 conditional subtractions.
+  fp_add_lazy(t2, a.c0, a.c1);
+  fp_add_lazy(t3, b.c0, b.c1);
   fp_mont_mul(t2, t2, t3);
   fp_sub(c.c0, t0, t1);
   fp_sub(c.c1, t2, t0);
@@ -176,8 +190,10 @@ __host__ __device__ void fp2_mont_mul(Fp2 &c, const Fp2 &a, const Fp2 &b) {
 __host__ __device__ void fp2_mont_square(Fp2 &c, const Fp2 &a) {
   Fp sum, diff, c0_tmp, prod;
 
-  fp_add(sum, a.c0, a.c1);
-  fp_sub(diff, a.c0, a.c1);
+  // Lazy add/sub: sum and diff feed fp_mont_mul (accepts [0, 2p)).
+  // Saves 2 conditional subtractions vs canonical fp_add + fp_sub.
+  fp_add_lazy(sum, a.c0, a.c1);
+  fp_sub_lazy(diff, a.c0, a.c1);
   fp_mont_mul(c0_tmp, sum, diff);
 
   fp_mont_mul(prod, a.c0, a.c1);
@@ -242,7 +258,7 @@ __host__ __device__ void fp_inv_fermat(Fp &result, const Fp &a) {
       if (found_first_bit || ((p_minus_2.limb[limb] >> bit) & 1)) {
         found_first_bit = true;
         Fp temp;
-        fp_mont_mul(temp, result_mont, result_mont);
+        fp_mont_sqr(temp, result_mont);
         fp_copy(result_mont, temp);
 
         if ((p_minus_2.limb[limb] >> bit) & 1) {
@@ -267,8 +283,8 @@ __host__ __device__ void fp2_inv(Fp2 &c, const Fp2 &a) {
 
   // Compute norm = a0^2 + a1^2 in Montgomery form
   Fp t0, t1, norm_m;
-  fp_mont_mul(t0, a0_m, a0_m);
-  fp_mont_mul(t1, a1_m, a1_m);
+  fp_mont_sqr(t0, a0_m);
+  fp_mont_sqr(t1, a1_m);
   fp_add(norm_m, t0, t1);
 
   // Convert norm to normal form for inversion, then back to Montgomery
@@ -295,8 +311,8 @@ __host__ __device__ void fp2_inv(Fp2 &c, const Fp2 &a) {
 __host__ __device__ void fp2_mont_inv(Fp2 &c, const Fp2 &a) {
   Fp t0, t1, norm, norm_inv;
 
-  fp_mont_mul(t0, a.c0, a.c0);
-  fp_mont_mul(t1, a.c1, a.c1);
+  fp_mont_sqr(t0, a.c0);
+  fp_mont_sqr(t1, a.c1);
   fp_add(norm, t0, t1);
   fp_mont_inv(norm_inv, norm);
   fp_mont_mul(c.c0, a.c0, norm_inv);
