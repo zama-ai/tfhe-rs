@@ -203,8 +203,25 @@ mod hpu_test {
     };
 }
 
+
     macro_rules! hpu_testcase {
+    // With proto override
+    ($iop: literal, $inproto: literal => [$($user_type: ty),+] |$ct:ident, $imm: ident| $behav: expr) => {
+        hpu_testcase!(@body $iop, {$inproto.parse::<hpu_asm::IOpProto>().unwrap()} => [$($user_type),+] |$ct, $imm| $behav);
+    };
+    // Without proto override (original)
     ($iop: literal => [$($user_type: ty),+] |$ct:ident, $imm: ident| $behav: expr) => {
+        hpu_testcase!(@body $iop, {
+               if let Some(format) = hpu_asm::AsmIOpcode::from_str($iop).expect("Invalid AsmIOpcode").format() {
+                   format.proto.clone()
+               } else {
+                   eprintln!("Hpu testcase only work on specified operations. Check test definition");
+                   return false;
+               }
+            } => [$($user_type),+] |$ct, $imm| $behav);
+    };
+    // Internal: shared body
+    (@body $iop: literal, $proto_block: tt => [$($user_type: ty),+] |$ct:ident, $imm: ident| $behav: expr) => {
         ::paste::paste! {
             $(
             #[cfg(feature = "hpu")]
@@ -225,13 +242,22 @@ mod hpu_test {
                 _ => (false, None)
                     };
 
-                let iop = hpu_asm::AsmIOpcode::from_str($iop).expect("Invalid AsmIOpcode ");
-                let proto = if let Some(format) = iop.format() {
-                    format.proto.clone()
+                let iop_str: &str = $iop;
+
+                let iop = if iop_str.starts_with("IOP") {
+                    // Slice off "IOP" and parse the remaining number
+                    let val = iop_str["IOP".len()..]
+                        .parse::<u8>()
+                        .expect("Invalid numeric value after IOP prefix");
+
+                    hpu_asm::AsmIOpcode::from_opcode(hpu_asm::IOpcode(val))
                 } else {
-                    eprintln!("Hpu testcase only work on specified operations. Check test definition");
-                    return false;
+                    // Fall back to your original logic
+                    hpu_asm::AsmIOpcode::from_str(iop_str)
+                        .expect("Invalid AsmIOpcode")
                 };
+
+                let proto = $proto_block;
 
                 let width = $user_type::BITS as usize;
                 let num_block = width / device.params().pbs_params.message_width;
@@ -292,6 +318,162 @@ mod hpu_test {
         }
     };
 }
+
+#[cfg(feature = "hpu")]
+#[allow(unused)]
+pub fn hpu_iop40_64(iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: &tfhe::integer::ClientKey, chain_iop: bool) -> bool {
+    use tfhe::integer::hpu::ciphertext::HpuRadixCiphertext;
+
+    // Check if user ask for test over trivial ciphertext
+    let (test_trivial, sks) = match(std::env::var("HPU_TEST_TRIVIAL")){
+    Ok(var) => {
+        let flag_val = usize::from_str(&var).unwrap_or_else(|_| {
+        panic!("HPU_TEST_TRIVIAL env variable {var} couldn't be casted in usize")
+        });
+        let sks_compressed =
+        tfhe::integer::ServerKey::new_radix_server_key(&cks);
+        (flag_val != 0, Some(sks_compressed))
+        },
+    _ => (false, None)
+        };
+
+    let width = u64::BITS as usize;
+    let num_block = width / device.params().pbs_params.message_width;
+    // NB: To support both mono-hpu IOp and multi-hpu IOp,
+    // input are generated only on the first node.
+    // If you want to select a specific node for test, use `HPU_SELECTED_NODE` env variable
+    //  with the node id you want to target.
+    // This will fallback in mono-hpu setup
+    let targeted_node = hpu_asm::PhysId(device.config().fpga.node_id[0]);
+    let proto = "[2]<H,H>::<N,N><0>".parse::<hpu_asm::IOpProto>().unwrap();
+    let test_inputs = (0..iter).map(|_| {
+        // Generate inputs ciphertext
+        let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
+            .src
+            .iter()
+            .enumerate()
+            .map(|(pos, mode)| {
+                let (bw, block) = match mode {
+                    hpu_asm::iop::VarMode::Native => (width, num_block),
+                    hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
+                    hpu_asm::iop::VarMode::Bool => (1, 1),
+                };
+
+                let clear = rng.gen_range(0..u128::MAX >> (u128::BITS - (bw as u32)));
+                let fhe = if test_trivial {
+                    sks.as_ref().unwrap().create_trivial_radix(clear, block)
+                } else {
+                    cks.encrypt_radix(clear, block)
+                };
+                let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(&fhe, device, Some(targeted_node));
+                (clear, hpu_fhe)
+            })
+            .unzip();
+
+        let imms = (0..proto.imm)
+            .map(|pos| rng.gen_range(0..u128::MAX) as u128)
+            .collect::<Vec<_>>();
+        (srcs_clear, srcs_enc, imms)
+    }).collect::<Vec<_>>();
+
+    let aggregated_res = test_inputs
+        .iter()
+        .map(|(srcs_clear, srcs_enc, imms)| {
+            let res_hpu = match chain_iop {
+                false => {
+                    HpuRadixCiphertext::exec(&proto, hpu_asm::IOpcode(40), srcs_enc, imms, None)
+                }
+                true => {
+                    let local_proto = "[2]<N>::<N><0>".parse::<hpu_asm::IOpProto>().unwrap();
+                    let lsrcs_enc = srcs_enc.split_at(1);
+                    let hpu_enc_res_1 = HpuRadixCiphertext::exec(&local_proto, hpu_asm::IOpcode(33), &lsrcs_enc.0, imms, Some(hpu_asm::PhysId(1)));
+                    let hpu_enc_res_2 = HpuRadixCiphertext::exec(&local_proto, hpu_asm::IOpcode(33), &lsrcs_enc.1, imms, Some(hpu_asm::PhysId(2)));
+                    let combined_inputs = [hpu_enc_res_1[0].clone(),hpu_enc_res_2[0].clone()];
+                    let hpu_enc_res_3 = HpuRadixCiphertext::exec(&proto, hpu_asm::IOpcode(40), &combined_inputs, imms, Some(hpu_asm::PhysId(2)));
+                    let local_proto2 = "[2]<H>::<H><0>".parse::<hpu_asm::IOpProto>().unwrap();
+                    let hpu_enc_res_4 = HpuRadixCiphertext::exec(&local_proto2, hpu_asm::IOpcode(33), &[hpu_enc_res_3[0].clone()], imms, Some(hpu_asm::PhysId(2)));
+                    let hpu_enc_res_5 = HpuRadixCiphertext::exec(&local_proto2, hpu_asm::IOpcode(33), &[hpu_enc_res_3[1].clone()], imms, Some(hpu_asm::PhysId(1)));
+                    vec![hpu_enc_res_4[0].clone(), hpu_enc_res_5[0].clone()]
+                }
+            };
+            let res_fhe = res_hpu
+                .iter()
+                .map(|x| x.to_radix_ciphertext()).collect::<Vec<_>>();
+            let res_clear = res_fhe
+                .iter()
+                .map(|x| cks.decrypt_radix(x))
+                .collect::<Vec<u64>>();
+            let res : u64 = res_clear[0] + (res_clear[1] << width / 2);
+            let exp_res : u64 = ((srcs_clear[0] * srcs_clear[1]) % (1 << width)).try_into().unwrap();
+
+            println!("IOP40({}) <{:>8x?}> => {:<4x?}-{:<4x?} {:<8x?} [exp {:<8x?}] {{Delta: {:x?} }}",
+                if chain_iop { "chained" } else { "alone" },
+                srcs_clear,
+                res_clear[1],
+                res_clear[0],
+                res,
+                exp_res,
+                exp_res ^ res);
+            (res == exp_res)
+        }).fold(true, |acc, val| acc & val);
+    aggregated_res
+}
+
+#[test]
+ pub fn hpu_test_multi_hpu_iop40loop() {
+     // Register tracing subscriber that use env-filter
+     // Discard error ( mainly due to already registered subscriber)
+     let _ = tracing_subscriber::fmt()
+         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+         .compact()
+         .with_file(false)
+         .with_line_number(false)
+         .without_time()
+         .try_init();
+     // Retrieved HpuDevice or init ---------------------------------------------
+     let (hpu_mutex, cks, key_seed)= HPU_DEVICE_RNG_CKS.get_or_init(init_hpu_and_associated_material);
+     let mut hpu_device = hpu_mutex.lock().expect("Error with HpuDevice Mutex");
+     assert!(hpu_device.config().firmware.integer_w.contains(&(64 as usize)), "Current Hpu configuration doesn't support {}b integer [has {:?}]", 64, hpu_device.config().firmware.integer_w);
+
+     // Instantiate a Rng for cleartest input generation
+     // Create a fresh one for each testbundle to be reproducible even if execution order
+     // of testbundle are not stable
+     let test_seed = get_or_init_seed("HPU_TEST_SEED");
+     // Display used seed value in a reusable manner (i.e. valid bash syntax)
+     println!("HPU_KEY_SEED={key_seed} #[i.e. 0x{key_seed:x}]");
+     println!("HPU_TEST_SEED={test_seed} #[i.e. 0x{test_seed:x}]");
+
+     let mut rng: StdRng = SeedableRng::seed_from_u64((test_seed & u64::MAX as u128) as u64);
+
+     // Reseed shortint engine for reproducible noise generation.
+     let mut noise_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(test_seed));
+     let shortint_engine =
+         tfhe::shortint::engine::ShortintEngine::new_from_seeder(&mut noise_seeder);
+     tfhe::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
+         std::mem::replace(engine, shortint_engine)
+     });
+
+     // Run test-case ---------------------------------------------------------
+     let mut acc_status = {
+        let status = hpu_iop40_64(128, &mut hpu_device, &mut rng, &cks, false);
+        if !status {
+            println!("Error: in testcase hpu_test_multi_hpu_iop40loop");
+        }
+        status
+     };
+     acc_status &= {
+        let status = hpu_iop40_64(128, &mut hpu_device, &mut rng, &cks, true);
+        if !status {
+            println!("Error: in testcase hpu_test_multi_hpu_iop40loop (chained)");
+        }
+        status
+     };
+
+
+     drop(hpu_device);
+     assert!(acc_status, "At least one testcase failed in the testbundle");
+}
+
 
     // Define testcase implementation for all supported IOp
     // Alu IOp with Ct x Imm
@@ -436,6 +618,41 @@ mod hpu_test {
     hpu_testcase!("TRAIL1" => [u8, u16, u32, u64, u128]
     |ct, imm| [ct[0].trailing_ones()]);
 
+    // Multi-HPU IOp
+    hpu_testcase!("IOP32", "[2]<N,N>::<N,N><0>" => [u8]
+    |ct, imm| vec![(ct[0] & 0xF) + (ct[1] & 0xF).wrapping_shl(4), (ct[0] & 0xF0).wrapping_shr(4) + (ct[1] & 0xF0)]);
+    hpu_testcase!("IOP33", "[2]<N>::<N><0>" => [u8, u32, u64]
+    |ct, imm| vec![ct[0]]);
+    hpu_testcase!("IOP34", "[2]<N>::<N,N><0>" => [u8]
+    |ct, imm| vec![ct[0].wrapping_add(ct[1])]);
+    hpu_testcase!("IOP35", "[2]<N>::<N><0>" => [u8]
+    |ct, imm| vec![ct[0]]);
+    hpu_testcase!("IOP36", "[2]<N>::<N,N><0>" => [u8]
+    |ct, imm| vec![ct[0].wrapping_mul(ct[1])]);
+    hpu_testcase!("IOP40", "[2]<H,H>::<N,N><0>" => [u32]
+    |ct, imm| vec![ct[0].wrapping_mul(ct[1]) & 0xFFFF, ct[0].wrapping_mul(ct[1]).wrapping_shr(16)]);
+    hpu_testcase!("IOP40", "[2]<H,H>::<N,N><0>" => [u64]
+    |ct, imm| vec![ct[0].wrapping_mul(ct[1]) & 0xFFFFFFFF, ct[0].wrapping_mul(ct[1]).wrapping_shr(32)]);
+
+
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("multi-hpu"::8 => [
+        "iop32",
+        "iop33",
+        "iop34",
+        "iop35",
+        "iop36"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("multi-hpu"::32 => [
+        "iop33",
+        "iop40"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("multi-hpu"::64 => [
+        "iop33",
+        "iop40"
+    ]);
     // Define a set of test bundle for various size
     // 8bit ciphertext -----------------------------------------
     #[cfg(feature = "hpu")]
