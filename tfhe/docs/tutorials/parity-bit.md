@@ -166,7 +166,7 @@ fn check_parity_bit_validity(
 ) -> bool
 ```
 
-To make it generic, the first steps is:
+To make it generic, the first step is:
 
 ```Rust
 fn compute_parity_bit<BoolType>(

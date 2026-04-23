@@ -2,7 +2,7 @@
 
 This document details the ternary operations supported by **TFHE-rs**.
 
-The ternary conditional operator execute conditional instructions in the form `if cond { choice_if_true } else { choice_if_false }`.
+The ternary conditional operator executes conditional instructions in the form `if cond { choice_if_true } else { choice_if_false }`.
 
 | name             | symbol   | type    |
 | ---------------- | -------- | ------- |

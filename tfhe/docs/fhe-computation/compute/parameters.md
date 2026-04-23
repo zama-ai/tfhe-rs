@@ -25,14 +25,14 @@ fn main() {
 ```
 
 {% hint style="info" %}
-These default parameters may be updated with in future releases of **TFHE-rs**, potentially causing incompatibilities between versions. For production systems, it is therefore recommended to specify a fixed parameter set.
+These default parameters may be updated in future releases of **TFHE-rs**, potentially causing incompatibilities between versions. For production systems, it is therefore recommended to specify a fixed parameter set.
 {% endhint %}
 
 ## Parameters versioning and naming scheme
 
 Parameter sets are versioned for backward compatibility. This means that each set of parameters can be tied to a specific version of **TFHE-rs**, so that they remain unchanged and compatible after an upgrade.
 
-All parameter sets are stored as variables inside the `tfhe::shortint::parameters` module, with submodules named after the versions of **TFHE-rs** in which these parameters where added. For example, parameters added in **TFHE-rs** v1.0 can be found inside `tfhe::shortint::parameters::v1_0`.
+All parameter sets are stored as variables inside the `tfhe::shortint::parameters` module, with submodules named after the versions of **TFHE-rs** in which these parameters were added. For example, parameters added in **TFHE-rs** v1.0 can be found inside `tfhe::shortint::parameters::v1_0`.
 
 The naming convention of these parameters indicates their capabilities. Taking `tfhe::parameters::v1_0::V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128` as an example:
 
