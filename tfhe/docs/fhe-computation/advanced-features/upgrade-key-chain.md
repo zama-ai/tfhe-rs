@@ -5,7 +5,7 @@ easily upgrade a ciphertext that is under older parameters to newer parameters.
 
 It is different and complementary to the data versioning feature, as the
 data versioning feature allows loading ciphertexts generated
-with a previous TFHE-rs version if the ciphertext structurally changed.
+with a previous TFHE-rs version if the ciphertext structure changed.
 
 
 The `UpgradeKeyChain` first needs to know about possible parameters, for that,
