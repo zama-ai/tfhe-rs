@@ -7,10 +7,17 @@ edition = "2021"
 rayon = "1.11.0"
 tfhe = { path = "../../tfhe", features = ["shortint"] }
 
+[dev-dependencies]
+criterion = "0.5.1"
+
+[features]
+verbose-timings = []
+
 [profile.release]
 lto = "fat"
 opt-level = 3
 codegen-units = 1
 
-[features]
-verbose-timings = []
+[[bench]]
+name = "princev2"
+harness = false

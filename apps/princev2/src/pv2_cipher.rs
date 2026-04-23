@@ -81,6 +81,7 @@ fn pv2_xor_to_b(
     // [Parallel:32] Sum in_u2q + ct_k --> could stay as iter? and assign in the following loop
     let ct_hl: [Ciphertext; 32] =
         std::array::from_fn(|n| ev_key.unchecked_add(&in_u2q[n], &ct_k[n]));
+
     // Apply xor (incl. bit_extract) luts on each nibble
     /* [Sequential]
     for w in 0..16 {
@@ -168,7 +169,6 @@ fn pv2_fw_round(
         ev_key.apply_lookup_table(&in_u4[w], &zlut_b) // ct_tmp[idx]
     }); // */
     //* [Parallel:64]
-    //
     let ct_tmp: [Ciphertext; 64] = (0..64)
         .into_par_iter()
         .map(|idx| {
@@ -183,8 +183,8 @@ fn pv2_fw_round(
         })
         .collect::<Vec<_>>()
         .try_into()
-        .unwrap(); // */
-
+        .unwrap();
+    // */
     /* Bridging Sbox --> MLayer ----------------------------------------------------------
      * So as to obtain 4-bit enc nibbles with: 048c, 159d, etc */
     // TODO(?): [Parallel:32/16]
@@ -304,8 +304,9 @@ fn pv2_mid_round(
         })
         .collect::<Vec<_>>()
         .try_into()
-        .unwrap(); // */
-                   // Apply Fhe Perm permutation
+        .unwrap();
+    // */
+    // Apply Fhe Perm permutation
     permute::apply_perm_assign(&mut ct_tmp_b, &pv2_lut::FHE_M_PERM);
 
     /* Bridging M-Layer --> Xor --------------------------------------------------------- */
@@ -388,8 +389,9 @@ fn pv2_bw_round(
         })
         .collect::<Vec<_>>()
         .try_into()
-        .unwrap(); // */
-                   // FHE Perm permutation
+        .unwrap();
+    // */
+    // FHE Perm permutation
     permute::apply_perm_assign(&mut ct_tmp_b, &pv2_lut::FHE_M_PERM);
 
     /* Bridging MLayer --> SBox ----------------------------------------------------------- */
