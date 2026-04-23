@@ -23,12 +23,13 @@ More details on the FHE implementation design can be found in Section 6 of:
 - `src/pv2_lut.rs` — precomputed S-box, inverse S-box, M-layer and round-constant lookup tables.
 - `src/pv2_cipher.rs` — the homomorphic round functions and the public `pv2_encrypt` / `pv2_decrypt` entry points.
 - `tests/pv2_kat.rs` — known-answer tests against the paper vectors.
+- `benches/princev2.rs` — benchmarks for a full call of `pv2_encrypt` (`pv2_decrypt` has exactly the same performance characteristics).
 
 ## Usage
 
-```rust
-use tfhe::shortint::prelude::*;
+```rust,no_run
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+use tfhe::shortint::prelude::*;
 use tfhe_princev2::{pv2_encrypt, u64_to_vec_u2, vec_u2_to_u64};
 
 let (s_key, ev_key) = tfhe::shortint::gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
@@ -57,7 +58,7 @@ assert_eq!(vec_u2_to_u64(out_nibbles), 0x603cd95fa72a8704);
 RAYON_NUM_THREADS=64 cargo test --release --test pv2_kat -- --test-threads=1
 ```
 
-Each KAT should take approximately 5 seconds (resp. 800ms) on 8 cores (resp. 64 cores) on an Amazon AWS hpc7a.96xlarge machine. There are currently 10 KATs (5 for encryption and same for decryption). Optimal timings depend on the hardware but will be structurally better using a number of threads which is a power of 2 less than 64; the best possible latency is obtained through 64 individual threads.
+Each KAT should take approximately 5 seconds (resp. 800ms) on 8 cores (resp. 64 cores) on an Amazon AWS hpc7a.96xlarge machine. There are currently 10 KATs (5 for encryption and same for decryption). Optimal timings depend on the hardware but will be structurally better using a number of threads which is a power of 2 up to 64; the best possible latency is obtained through 64 individual threads.
 
 
 ## Optional verbose timings
@@ -69,7 +70,10 @@ RAYON_NUM_THREADS=64 cargo test --release --test pv2_kat --features verbose-timi
 This times each internal round function call and emits one `eprintln!` per such call.
 
 
-## Performance
+## Running benchmarks
 
-Timings can be found in [BJ26, Table 6.1]. Benchmarks are out of scope for this initial PR and will follow in a separate submission.
+```bash
+RAYON_NUM_THREADS=64 cargo bench --bench princev2
+```
 
+Timings obtained on up to 64 cores of an `Amazon AWS hpc7a.96xlarge` machine can also be found in [BJ26, Table 6.1].
