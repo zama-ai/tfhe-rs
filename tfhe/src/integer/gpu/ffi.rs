@@ -10830,3 +10830,110 @@ pub(crate) unsafe fn cuda_backend_kreyvium_generate_keystream<T: UnsignedInteger
 
     update_noise_degree(keystream_output, &cuda_ffi_keystream);
 }
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_unchecked_bitonic_sort<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    values: &mut [&mut CudaRadixCiphertext],
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    is_signed: bool,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+    direction: i32,
+) {
+    let num_values = values.len();
+    assert!(
+        num_values.is_power_of_two(),
+        "Bitonic sort requires a power-of-two number of values, got {num_values}"
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
+    );
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut all_degrees: Vec<Vec<u64>> = values
+        .iter()
+        .map(|v| v.info.blocks.iter().map(|b| b.degree.0).collect())
+        .collect();
+    let mut all_noise_levels: Vec<Vec<u64>> = values
+        .iter()
+        .map(|v| v.info.blocks.iter().map(|b| b.noise_level.0).collect())
+        .collect();
+
+    let mut ffi_structs: Vec<CudaRadixCiphertextFFI> = (0..num_values)
+        .map(|i| prepare_cuda_radix_ffi(values[i], &mut all_degrees[i], &mut all_noise_levels[i]))
+        .collect();
+
+    let mut ffi_ptrs: Vec<*mut CudaRadixCiphertextFFI> =
+        ffi_structs.iter_mut().map(std::ptr::from_mut).collect();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_integer_bitonic_sort_64_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        num_blocks,
+        u32::try_from(num_values).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        pbs_type as u32,
+        is_signed,
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_integer_bitonic_sort_64_async(
+        streams.ffi(),
+        ffi_ptrs.as_mut_ptr(),
+        u32::try_from(num_values).unwrap(),
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+        direction,
+    );
+
+    cleanup_cuda_integer_bitonic_sort_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    for (v, ffi) in values.iter_mut().zip(ffi_structs.iter()) {
+        update_noise_degree(v, ffi);
+    }
+}

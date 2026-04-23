@@ -53,6 +53,7 @@ mod scalar_rotate;
 mod scalar_shift;
 mod scalar_sub;
 mod shift;
+mod shuffle;
 mod sub;
 mod vector_comparisons;
 mod vector_find;

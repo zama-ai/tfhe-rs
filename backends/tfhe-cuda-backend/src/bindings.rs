@@ -2334,6 +2334,46 @@ unsafe extern "C" {
     pub fn cleanup_cuda_cast_to_signed_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_integer_bitonic_sort_64_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_radix_blocks: u32,
+        num_values: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        is_signed: bool,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_integer_bitonic_sort_64_async(
+        streams: CudaStreamsFFI,
+        values: *mut *mut CudaRadixCiphertextFFI,
+        num_values: u32,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        direction: i32,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_integer_bitonic_sort_64(
+        streams: CudaStreamsFFI,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
     pub fn scratch_cuda_integer_compress_radix_ciphertext_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
