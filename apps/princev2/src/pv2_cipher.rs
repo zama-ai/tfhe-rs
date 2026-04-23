@@ -176,15 +176,17 @@ fn pv2_fw_round(
             let w: usize = idx >> 2;
             let b: usize = idx & 0x3;
             let zlut_b = ev_key.generate_lookup_table(|x: u64| {
-                (((zlut[w][x as usize] >> (3 - b)) & 0x1) << ((3 - w) % 4)) as u64
+                // [Nb] w=0..15
+                (((zlut[w][x as usize] >> (3 - b)) & 0x1) << (3 - (w % 4))) as u64
             });
             ev_key.apply_lookup_table(&in_u4[w], &zlut_b)
         })
         .collect::<Vec<_>>()
         .try_into()
         .unwrap(); // */
-                   /* Bridging Sbox --> MLayer ----------------------------------------------------------
-                    * So as to obtain 4-bit enc nibbles with: 048c, 159d, etc */
+
+    /* Bridging Sbox --> MLayer ----------------------------------------------------------
+     * So as to obtain 4-bit enc nibbles with: 048c, 159d, etc */
     // TODO(?): [Parallel:32/16]
     for w in 0..16 {
         // this uses u2q for some u4 ahead of time (as temporary holder)
