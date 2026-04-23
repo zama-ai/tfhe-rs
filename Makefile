@@ -314,6 +314,8 @@ semgrep_and_lint_gpu_code: semgrep_lint_setup_venv
 		| grep -v '/build/' \
 		| xargs venv/bin/semgrep --error --config "$(TFHECUDA_SRC)/.semgrep/release-ordering.yaml" --scan-unknown-extensions
 	venv/bin/python3 "scripts/check_scratch_cleanup.py"
+	@# Split the search string using shell string concatenation so the Makefile line doesn't match itself
+	! git ls-files | xargs grep -n 'TODO: ADD COMM''ENT'
 
 .PHONY: semver_check_cuda_backend # Run semver checks on tfhe-cuda-backend
 semver_check_cuda_backend:
@@ -1966,6 +1968,40 @@ bench_hlapi_erc7984_gpu_classical: install_rs_check_toolchain
 	--bench hlapi-erc7984 \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
+.PHONY: bench_hlapi_erc7984_multi_group_gpu # Runs ERC7984 bench in two processes (half of gpus for each) and aggregates results
+bench_hlapi_erc7984_multi_group_gpu: install_rs_check_toolchain
+	# This next line must be kept here: the code can not remove this file without a risk of concurrency issues
+	# we don't know which process starts first and which one deletes the files - file deletion may also be not atomic)
+	rm -f /dev/shm/sem.tfhe_bench_*
+	NUM_GROUPS=$${__TFHE_RS_BENCH_MULTI_PROC_GROUPS:-2}; \
+	[ "$$NUM_GROUPS" -ge 2 ] || { echo "Error: __TFHE_RS_BENCH_MULTI_PROC_GROUPS must be at least 2, got $$NUM_GROUPS"; exit 1; }; \
+	trap "echo 'User interrupted the benchmark, stopping all workers!'; rm -f /dev/shm/sem.tfhe_bench_*; kill 0" INT TERM; \
+	for i in $$(seq 0 $$((NUM_GROUPS - 1))); do \
+		GPU_LIST=$$(python3 ci/split_gpus.py $$i $$NUM_GROUPS) || exit 1; \
+		echo "Starting benchmark group $$i with CUDA_VISIBLE_DEVICES=$$GPU_LIST"; \
+		CUDA_VISIBLE_DEVICES=$$GPU_LIST CARGO_TARGET_DIR=target_p$$i RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_GPU_PROCESS_COUNT=$$NUM_GROUPS \
+		cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+		--bench hlapi-erc7984 \
+		--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::transfer::overflow' & \
+	done; \
+	wait
+
+.PHONY: bench_hlapi_erc7984_multi_group_fake_multi_gpu # Runs ERC7984 bench in two processes in parallel on a single GPU (use to debug bench_hlapi_erc7984_multi_group_gpu)
+bench_hlapi_erc7984_multi_group_fake_multi_gpu: install_rs_check_toolchain
+	# This next line must be kept here: the code can not remove this file without a risk of concurrency issues
+	# we don't know which process starts first and which one deletes the files - file deletion may also be not atomic)
+	rm -f /dev/shm/sem.tfhe_bench_*
+	trap "echo 'User interrupted the benchmark, stopping all workers!'; rm -f /dev/shm/sem.tfhe_bench_*; kill 0" INT TERM; \
+	CARGO_TARGET_DIR=target_p0 RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=throughput __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_GPU_PROCESS_COUNT=2 \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-erc7984 \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::transfer::overflow' & \
+	CARGO_TARGET_DIR=target_p1 RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=throughput __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_GPU_PROCESS_COUNT=2 \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-erc7984 \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::transfer::overflow' & \
+	wait
+
 .PHONY: bench_hlapi_dex # Run benchmarks for DEX operations
 bench_hlapi_dex: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
@@ -2094,11 +2130,16 @@ bench_summary_gpu: install_rs_check_toolchain
 	--bench hlapi-noise-squash \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::decomp_noise_squash_comp::'
 
-	# ERC7984
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
+	# This make target only runs the latency benchmark. This is because
+	# summary benchmarks must use the multi-process-multi-group throughput target
+	# to measure throughput. That target must be followed by specific post-processing steps.
+	# Thus that target is run in a separate step in benchmark_summary.yml.
+ifneq ($(filter latency both,$(BENCH_TYPE)),)
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=latency __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc7984 \
 	--features=integer,gpu,internal-keycache -p tfhe-benchmark --profile release_lto_off -- '::transfer::overflow'
+endif
 
 	# DEX
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE)  __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
