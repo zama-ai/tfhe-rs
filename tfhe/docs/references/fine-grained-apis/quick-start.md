@@ -4,7 +4,7 @@ This library makes it possible to execute **homomorphic operations over encrypte
 
 The server, however, has to know the circuit to be evaluated. At the end of the computation, the server returns the encryption of the result to the user. Then the user can decrypt it with the `secret key`.
 
-## General method to write an homomorphic circuit program
+## General method to write a homomorphic circuit program
 
 The overall process to write an homomorphic program is the same for all types. The basic steps for using the TFHE-rs library are the following:
 

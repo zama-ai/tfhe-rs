@@ -16,7 +16,7 @@
 
 TFHE is a Fully Homomorphic Encryption (FHE) scheme based on Learning With Errors (LWE), which is a secure cryptographic primitive against even quantum computers. The **TFHE-rs** library implements Zama’s variant of TFHE.
 
-#### Homomorphic Encryption Basics
+### Homomorphic Encryption Basics
 
 The basic elements of cryptography:
 
@@ -30,7 +30,7 @@ FHE allows to compute on ciphertexts without revealing the content of the messag
 * **Homomorphic addition:** $$E[x] + E[y] = E[x + y]$$
 * **Homomorphic multiplication:** $$E[x] * E[y] = E[x * y]$$
 
-## Zama's variant of TFHE
+### Zama's variant of TFHE
 
 Zama's variant of TFHE is a fully homomorphic scheme that takes fixed-precision numbers as messages. It implements all homomorphic operations needed, such as addition and function evaluation via Programmable Bootstrapping.
 
