@@ -1,0 +1,23 @@
+[package]
+name = "tfhe-princev2"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rayon = "1.11.0"
+tfhe = { path = "../../tfhe", features = ["shortint"] }
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+[features]
+verbose-timings = []
+
+[profile.release]
+lto = "fat"
+opt-level = 3
+codegen-units = 1
+
+[[bench]]
+name = "princev2"
+harness = false
