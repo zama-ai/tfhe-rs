@@ -5,7 +5,7 @@ This document explains the mechanism and steps to generate an oblivious encrypte
 The goal is to give to the server the possibility to generate a random value, which will be obtained in an encrypted format and will remain unknown to the server.
 
 The main method for this is `FheUint::generate_oblivious_pseudo_random_custom_range` which returns an integer in the given range.
-Currently the range can only be in the form `[0, excluded_upper_bound[` with any `excluded_upper_bound` in `[1, 2^64[`
+Currently the range can only be in the form `[0, excluded_upper_bound)` with any `excluded_upper_bound` in `[1, 2^64)`
 It follows a distribution close to the uniform.
 
 This function guarantees the norm-1 distance (defined as ∆(P,Q) := 1/2 Sum[ω∈Ω] |P(ω) − Q(ω)|)
@@ -20,11 +20,11 @@ If the range is a power of 2, the distribution is uniform (for any `max_distance
 
 
 For powers of 2 specifically there are two methods on `FheUint` and `FheInt` (based on [this article](https://eprint.iacr.org/2024/665)): 
-- `generate_oblivious_pseudo_random` which return an integer taken uniformly in the full integer range (`[0; 2^N[` for a `FheUintN` and `[-2^(N-1); 2^(N-1)[` for a `FheIntN`).
+- `generate_oblivious_pseudo_random` which return an integer taken uniformly in the full integer range (`[0; 2^N[` for a `FheUintN` and `[-2^(N-1); 2^(N-1))` for a `FheIntN`).
 - `generate_oblivious_pseudo_random_bounded` which return an integer taken uniformly in `[0; 2^random_bits_count[`. For a `FheUintN`, we must have  `random_bits_count <= N`. For a `FheIntN`, we must have  `random_bits_count <= N - 1`.
 
 
-These method functions take a seed `Seed` as input, which could be any `u128` value.
+These methods take a seed `Seed` as input, which could be any `u128` value.
 They rely on the use of the usual server key.
 The output is reproducible, i.e., the function is deterministic from the inputs: assuming the same hardware, seed and server key, this function outputs the same random encrypted value.
 

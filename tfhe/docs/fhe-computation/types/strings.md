@@ -2,7 +2,7 @@
 
 This document explains the FheAsciiString type for handling encrypted strings in TFHE-rs.
 
-TFHE-rs has supports for ASCII strings with the type FheAsciiString.
+TFHE-rs has support for ASCII strings with the type FheAsciiString.
 You can enable this feature using the flag: --features=strings
 
 {% hint style="warning" %}

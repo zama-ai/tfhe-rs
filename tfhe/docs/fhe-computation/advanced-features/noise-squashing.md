@@ -44,7 +44,7 @@ pub fn main() {
 
     // FheInt16 case
     let clear: i16 = -42;
-    let enc = FheInt10::encrypt(clear, &cks);
+    let enc = FheInt16::encrypt(clear, &cks);
     let bitand = &enc & &enc;
     let squashed = bitand.squash_noise().unwrap();
 
