@@ -21,7 +21,7 @@ This document details the string operations supported by **TFHE-rs**.
 | [find](https://doc.rust-lang.org/stable/std/primitive.str.html#method.find)                                     |find                  | FheAsciiString | FheAsciiString or ClearString                  |
 | [rfind](https://doc.rust-lang.org/stable/std/primitive.str.html#method.rfind)                                   |rfind                 | FheAsciiString | FheAsciiString or ClearString                  |
 | [strip_prefix](https://doc.rust-lang.org/stable/std/primitive.str.html#method.strip_prefix)                     |strip_prefix          | FheAsciiString | FheAsciiString or ClearString                  |
-| [strip_suffix](https://doc.rust-lang.org/stable/std/primitive.str.html#method.strip_suffix)                     |strip_suffix          | FheAsciiString | FheAsci---iString or ClearString               |
+| [strip_suffix](https://doc.rust-lang.org/stable/std/primitive.str.html#method.strip_suffix)                     |strip_suffix          | FheAsciiString | FheAsciiString or ClearString                  |
 | [concat](https://doc.rust-lang.org/stable/std/primitive.str.html#method.concat)                                 |concat                | FheAsciiString | FheAsciiString                                 |
 | [repeat](https://doc.rust-lang.org/stable/std/primitive.str.html#method.repeat)                                 |repeat                | FheAsciiString | u16 or u32 or i32 or usize or (FheUint16, u16) |
 | [trim_end](https://doc.rust-lang.org/stable/std/primitive.str.html#method.trim_end)                             |trim_end              | FheAsciiString |                                                |
