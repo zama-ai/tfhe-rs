@@ -329,13 +329,16 @@ fn encrypt_constant_ggsw_level_matrix_row<Scalar, NoiseDistribution, KeyCont, Ou
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
+    row_as_glwe.get_mut_mask().as_mut().fill(Scalar::ZERO);
+
+    let mut body = row_as_glwe.get_mut_body();
+
     if row_index < last_row_index {
         // Not the last row
         let sk_poly_list = glwe_secret_key.as_polynomial_list();
         let sk_poly = sk_poly_list.get(row_index);
 
         // Copy the key polynomial to the output body, to avoid allocating a temporary buffer
-        let mut body = row_as_glwe.get_mut_body();
         body.as_mut().copy_from_slice(sk_poly.as_ref());
 
         let ciphertext_modulus = body.ciphertext_modulus();
@@ -352,7 +355,6 @@ fn encrypt_constant_ggsw_level_matrix_row<Scalar, NoiseDistribution, KeyCont, Ou
         }
     } else {
         // The last row needs a slightly different treatment
-        let mut body = row_as_glwe.get_mut_body();
         let ciphertext_modulus = body.ciphertext_modulus();
 
         body.as_mut().fill(Scalar::ZERO);
