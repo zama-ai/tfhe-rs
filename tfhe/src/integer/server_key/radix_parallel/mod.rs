@@ -24,6 +24,7 @@ pub(crate) mod sub;
 mod sum;
 
 mod count_zeros_ones;
+mod dot_prod;
 pub(crate) mod ilog2;
 pub(crate) mod kv_store;
 mod reverse_bits;

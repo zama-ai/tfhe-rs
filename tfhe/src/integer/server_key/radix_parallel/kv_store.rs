@@ -184,18 +184,8 @@ impl ServerKey {
 
         let (result, check_block) = rayon::join(
             || {
-                let kv_vec: Vec<(&Key, &Ct)> = map.data.iter().collect();
-                let one_hot = kv_vec
-                    .into_par_iter()
-                    .zip(selectors.par_iter())
-                    .map(|((_, v), s)| {
-                        let mut result = v.clone();
-                        self.zero_out_if_condition_is_false(&mut result, &s.0);
-                        result
-                    })
-                    .collect::<Vec<_>>();
-
-                self.aggregate_one_hot_vector(one_hot)
+                let values = map.data.iter().map(|(_, v)| v.clone()).collect::<Vec<_>>();
+                self.unchecked_boolean_one_hot_dot_prod(&selectors, &values)
             },
             || {
                 let selectors = selectors.iter().map(|s| s.0.clone()).collect::<Vec<_>>();

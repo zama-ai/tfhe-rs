@@ -1,6 +1,6 @@
-use crate::core_crypto::prelude::{CastInto, Numeric, OverflowingAdd};
+use crate::core_crypto::prelude::{CastInto, Numeric, OverflowingAdd, UnsignedInteger};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
-use crate::integer::{BooleanBlock, IntegerRadixCiphertext, ServerKey};
+use crate::integer::{BooleanBlock, IntegerRadixCiphertext, RadixCiphertext, ServerKey};
 use std::ops::{AddAssign, Mul};
 
 use crate::prelude::CastFrom;
@@ -8,20 +8,14 @@ use crate::shortint::ciphertext::NoiseLevel;
 use rayon::prelude::*;
 
 impl ServerKey {
-    /// Computes the dot product between encrypted booleans and clear values
-    ///
-    /// * `n_blocks` number of blocks in the resulting ciphertext
-    ///
-    /// # Panic
-    ///
-    /// * Panics if `boolean_blocks` and `clears` do not have the same lengths
-    /// * Panics if `boolean_blocks` or `clears` is empty
-    pub fn unchecked_boolean_scalar_dot_prod_parallelized<Clear, T>(
+    // Does [b * c for (b,c) in zip(boolean_blocks, clears)]
+    fn boolean_vec_scalar_mul<Clear, T>(
         &self,
         boolean_blocks: &[BooleanBlock],
         clears: &[Clear],
         n_blocks: u32,
-    ) -> T
+        inner_shift: u32,
+    ) -> Vec<T>
     where
         Clear: Numeric
             + DecomposableInto<u64>
@@ -32,16 +26,6 @@ impl ServerKey {
             + OverflowingAdd<Clear, Output = Clear>,
         T: IntegerRadixCiphertext,
     {
-        assert_eq!(
-            boolean_blocks.len(),
-            clears.len(),
-            "both operands must have the same number of elements"
-        );
-
-        assert!(!boolean_blocks.is_empty(), "operands must not be empty");
-
-        assert!(Clear::BITS as u32 >= n_blocks * self.message_modulus().0.ilog2());
-
         // How many boolean blocks we pack together
         let mut packing_size = 1;
         let mut packed_noise_level = 1;
@@ -72,12 +56,12 @@ impl ServerKey {
 
         let many_lut_chunk =
             ((self.message_modulus().0 * self.carry_modulus().0) / (1 << packing_size)) as usize;
-        let to_be_summed = packed
-            .iter()
-            .zip(clears.chunks(packing_size))
+        let result = packed
+            .par_iter()
+            .zip(clears.par_chunks(packing_size))
             .map(|(block, clear_chunk)| {
-                // Try to see if most significant blocks might be zero
-                // and avoid some PBS
+                // For this chunk try to see, if the summed value actually needs
+                // `n_blocks` or if it could be less
                 let mut summed_clear = Clear::ZERO;
                 let mut overflowed;
                 let mut real_n_blocks = 0;
@@ -113,7 +97,7 @@ impl ServerKey {
                             }
 
                             let shift = block_index * self.message_modulus().0.ilog2();
-                            ((summed_clear >> shift) & block_mask).cast_into()
+                            (((summed_clear >> shift) & block_mask) << inner_shift).cast_into()
                         }
                     })
                     .collect::<Vec<_>>();
@@ -136,6 +120,47 @@ impl ServerKey {
                 T::from(blocks)
             })
             .collect::<Vec<_>>();
+
+        result
+    }
+
+    /// Computes the dot product between encrypted booleans and clear values
+    ///
+    /// * `n_blocks` number of blocks in the resulting ciphertext
+    ///
+    /// # Panic
+    ///
+    /// * Panics if `boolean_blocks` and `clears` do not have the same lengths
+    /// * Panics if `boolean_blocks` or `clears` is empty
+    pub fn unchecked_boolean_scalar_dot_prod_parallelized<Clear, T>(
+        &self,
+        boolean_blocks: &[BooleanBlock],
+        clears: &[Clear],
+        n_blocks: u32,
+    ) -> T
+    where
+        Clear: Numeric
+            + DecomposableInto<u64>
+            + CastInto<usize>
+            + CastFrom<u128>
+            + Mul<Clear, Output = Clear>
+            + AddAssign<Clear>
+            + OverflowingAdd<Clear, Output = Clear>,
+        T: IntegerRadixCiphertext,
+    {
+        assert_eq!(
+            boolean_blocks.len(),
+            clears.len(),
+            "both operands must have the same number of elements"
+        );
+
+        assert!(!boolean_blocks.is_empty(), "operands must not be empty");
+
+        assert!(Clear::BITS as u32 >= n_blocks * self.message_modulus().0.ilog2());
+
+        let inner_shift = 0;
+        let to_be_summed =
+            self.boolean_vec_scalar_mul(boolean_blocks, clears, n_blocks, inner_shift);
 
         self.unchecked_sum_ciphertexts_vec_parallelized(to_be_summed)
             .expect("empty input")
@@ -221,5 +246,41 @@ impl ServerKey {
         };
 
         self.unchecked_boolean_scalar_dot_prod_parallelized(boolean_blocks, clears, n_blocks)
+    }
+
+    /// Computes the dot product between encrypted booleans and clear values
+    ///
+    /// * `boolean_blocks` must be 'one-hot' i.e. at most 1 BooleanBlock can encrypt a `true`
+    /// * `n_blocks` number of blocks in the resulting ciphertext
+    ///
+    /// # Panic
+    ///
+    /// * Panics if `boolean_blocks` and `clears` do not have the same lengths
+    /// * Panics if `boolean_blocks` or `clears` is empty
+    /// * Panics if the number of bits if the output ciphertext has less bits than `Clear::BITS`
+    pub fn unchecked_boolean_scalar_one_hot_dot_prod_parallelized<Clear>(
+        &self,
+        boolean_blocks: &[BooleanBlock],
+        clears: &[Clear],
+        n_blocks: u32,
+    ) -> RadixCiphertext
+    where
+        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+    {
+        assert_eq!(
+            boolean_blocks.len(),
+            clears.len(),
+            "both operands must have the same number of elements"
+        );
+
+        assert!(!boolean_blocks.is_empty(), "operands must not be empty");
+
+        assert!(Clear::BITS as u32 >= n_blocks * self.message_modulus().0.ilog2());
+
+        let inner_shift = self.message_modulus.0.ilog2();
+        let to_be_reduced =
+            self.boolean_vec_scalar_mul(boolean_blocks, clears, n_blocks, inner_shift);
+
+        self.aggregate_one_hot_vector_with_noise_trick(to_be_reduced)
     }
 }
