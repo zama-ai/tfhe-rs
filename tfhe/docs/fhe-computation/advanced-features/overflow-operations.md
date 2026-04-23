@@ -8,11 +8,11 @@ These operations might be slower than their non-overflow-detecting equivalent, s
 
 Here's the list of operations supported along with their symbol:
 
-| name                                                    | symbol         | type   |
-| ------------------------------------------------------- | -------------- | ------ |
-| [Add](https://doc.rust-lang.org/std/ops/trait.Add.html) | `overflow_add` | Binary |
-| [Sub](https://doc.rust-lang.org/std/ops/trait.Sub.html) | `overflow_sub` | Binary |
-| [Mul](https://doc.rust-lang.org/std/ops/trait.Mul.html) | `overflow_mul` | Binary |
+| name                                                    | symbol            | type   |
+| ------------------------------------------------------- | ----------------- | ------ |
+| [Add](https://doc.rust-lang.org/std/ops/trait.Add.html) | `overflowing_add` | Binary |
+| [Sub](https://doc.rust-lang.org/std/ops/trait.Sub.html) | `overflowing_sub` | Binary |
+| [Mul](https://doc.rust-lang.org/std/ops/trait.Mul.html) | `overflowing_mul` | Binary |
 
 The usage of these operations is similar to the standard ones. The key difference is in the decryption process, as shown in following example:
 

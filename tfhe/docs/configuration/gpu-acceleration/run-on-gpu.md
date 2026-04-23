@@ -18,7 +18,7 @@ To reproduce TFHE-rs GPU benchmarks, see [this dedicated page](../../getting-sta
 
 ## GPU TFHE-rs features
 
-By default, the GPU backend uses specific cryptographic parameters. When calling the [`tfhe::ConfigBuilder::default()`](https://doc.rust-lang.org/nightly/core/default/trait.Default.html#tymethod.default) function, the cryptographic for PBS will be:
+By default, the GPU backend uses specific cryptographic parameters. When calling the [`tfhe::ConfigBuilder::default()`](https://doc.rust-lang.org/nightly/core/default/trait.Default.html#tymethod.default) function, the cryptographic parameters for PBS will be:
 - PBS parameters: [`PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html)
 
 These PBS parameters are accompanied by the following compression parameters: 
@@ -62,7 +62,7 @@ The key differences between the CPU API and the GPU API are:
 
 To compile and execute GPU TFHE-rs programs, make sure your system has the following software installed.
 
-* Cuda version >= 10
+* CUDA version >= 10
 * Compute Capability >= 3.0
 * [gcc](https://gcc.gnu.org/) >= 8.0 - check this [page](https://gist.github.com/ax3l/9489132) for more details about nvcc/gcc compatible versions
 * [cmake](https://cmake.org/) >= 3.24

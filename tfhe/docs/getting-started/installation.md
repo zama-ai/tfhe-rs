@@ -32,7 +32,7 @@ By default, **TFHE-rs** makes the assumption that hardware AES features are enab
 - x86_64: sse2, aesni
 - aarch64: aes, neon
 
-To add support for older CPU, import **TFHE-rs** with the `software-prng` feature in your `Cargo.toml`:
+To add support for older CPUs, import **TFHE-rs** with the `software-prng` feature in your `Cargo.toml`:
 
 ```toml
 tfhe = { version = "~1.6.0", features = ["boolean", "shortint", "integer", "software-prng"] }

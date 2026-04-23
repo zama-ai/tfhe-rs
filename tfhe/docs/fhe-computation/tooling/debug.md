@@ -54,7 +54,7 @@ a: Ok(1234), b: Ok(4567), c: Ok(89101112)
 a * b = Ok(5635678)
 ```
 
-If any input to `mul_all` is not a trivial ciphertexts, the computations will be done 100% in FHE, and the program will output:
+If any input to `mul_all` is not a trivial ciphertext, the computations will be done 100% in FHE, and the program will output:
 
 ```console
 a: Err(NotTrivialCiphertextError), b: Err(NotTrivialCiphertextError), c: Err(NotTrivialCiphertextError)

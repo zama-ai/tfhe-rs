@@ -15,8 +15,8 @@ Supported operations:
 | [Not Equal](https://doc.rust-lang.org/std/cmp/trait.PartialEq.html)         | `ne`   | Binary |
 | [Greater Than](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html)     | `gt`   | Binary |
 | [Greater or Equal](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html) | `ge`   | Binary |
-| [Lower](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html)            | `lt`   | Binary |
-| [Lower or Equal](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html)   | `le`   | Binary |
+| [Less Than](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html)            | `lt`   | Binary |
+| [Less Than or Equal](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html)   | `le`   | Binary |
 
 The following example shows how to perform comparison operations:
 

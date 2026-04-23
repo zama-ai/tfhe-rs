@@ -104,11 +104,11 @@ fn main() {
     let a = FheUint8::encrypt(clear_a, &client_key);
     let b = FheUint8::encrypt(clear_b, &client_key);
 
-    //Server-side
+    // Server-side
     set_server_key(server_key);
     let result = a + b;
 
-    //Client-side
+    // Client-side
     let decrypted_result: u8 = result.decrypt(&client_key);
 
     let clear_result = clear_a + clear_b;

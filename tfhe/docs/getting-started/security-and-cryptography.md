@@ -103,7 +103,7 @@ params_lwe = LWE.Parameters(n=879, q=2**64, Xs=ND.Binary, Xe=ND.TUniform(46))
 LWE.estimate(params_lwe, deny_list=("arora-gb", "bkw"))
 ```
 
-The output corresponds to a selection of attack costs (`usvp`, `bdd`, etc), each with running time `rop`. The security level is the `log2` of the smallest `rop` value (in this case `dual_hybrid` with `2^134.8`). Therefore, the security level of this parameter set is ~134 bits. The same technique can be applied to the GLWE parameters by replacing the LWE dimension `879` by `k*N = 512*4`, i.e. `n=2048` and `Xe=ND.TUniform(46)` by `Xe = ND.TUniform(17)`, that is:
+The output corresponds to a selection of attack costs (`usvp`, `bdd`, etc), each with running time `rop`. The security level is the `log2` of the smallest `rop` value (in this case `dual_hybrid` with `2^134.8`). Therefore, the security level of this parameter set is ~134 bits. The same technique can be applied to the GLWE parameters by replacing the LWE dimension `879` by `k*N = 4*512`, i.e. `n=2048` and `Xe=ND.TUniform(46)` by `Xe = ND.TUniform(17)`, that is:
 
 ```
 from estimator import *
@@ -124,6 +124,6 @@ The parameter sets for the x86 CPU backend with a $$p_{error} \le 2^{-128}$$ are
 
 
 
-## Classical public key encryption.
+## Classical public key encryption
 
 In classical public key encryption, the public key contains a given number of ciphertexts all encrypting the value 0. By setting the number of encryptions to 0 in the public key at $$m = \lceil (n+1) \log(q) \rceil + \lambda$$, where $$n$$ is the LWE dimension, $$q$$ is the ciphertext modulus, and $$\lambda$$ is the number of security bits. This construction is secure due to the leftover hash lemma, which relates to the impossibility of breaking the underlying multiple subset sum problem. This guarantees both a high-density subset sum and an exponentially large number of possible associated random vectors per LWE sample $$(a,b)$$.

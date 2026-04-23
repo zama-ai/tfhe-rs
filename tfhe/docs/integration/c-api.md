@@ -2,7 +2,7 @@
 
 This document describes the C bindings to the **TFHE-rs** high-level primitives for creating Fully Homomorphic Encryption (FHE) programs.
 
-## Setting up TFHE-rs C API for C programming.
+## Setting up TFHE-rs C API for C programming
 
 You can build **TFHE-rs** C API using the following command:
 
@@ -19,7 +19,7 @@ Locate files in the right path:
   * The `tfhe-c-api-dynamic-buffer.h` header
   * The static (.a) and dynamic (.so) libraries
 
-Ensure your build system configures the C or C++ program links against **TFHE-rs** C API binaries and the dynamic buffer library.
+Ensure your build system links the C or C++ program against **TFHE-rs** C API binaries and the dynamic buffer library.
 
 The following is a minimal `CMakeLists.txt` configuration example:
 

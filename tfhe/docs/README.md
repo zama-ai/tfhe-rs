@@ -29,7 +29,7 @@ Learn the basics of TFHE-rs, set it up, and make it run with ease.
 
 Start building with TFHE-rs by exploring its core features, discovering essential guides, and learning more with user-friendly tutorials.
 
-<table data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><strong>FHE Computations</strong></td><td>Run FHE computation on encrypted data.</td><td><ul><li><a href="fhe-computation/types/">Types </a></li><li><a href="fhe-computation/operations/">Operations</a></li></ul></td><td><a href=".gitbook/assets/bronze-gradient.png">bronze-gradient.png</a></td></tr><tr><td><strong>Configuration</strong></td><td>Advanced configuration for better performance.</td><td><ul><li><a href="configuration/rust-configuration.md">Advanced Rust </a></li><li><a href="configuration/gpu-acceleration/run-on-gpu.md">GPU acceleration</a></li><li><a href="configuration/hpu-acceleration/run-on-hpu.md">HPU acceleration</a></li></ul></td><td><a href=".gitbook/assets/yellow-gradient.png">yellow-gradient.png</a></td></tr><tr><td><strong>Integration</strong></td><td>Use TFHE-rs in different contexts or platforms..</td><td><ul><li><a href="integration/c-api.md">C API</a></li><li><a href="integration/js-on-wasm-api.md">JS on WASM API</a></li></ul></td><td><a href=".gitbook/assets/orange-gradient.png">orange-gradient.png</a></td></tr></tbody></table>
+<table data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><strong>FHE Computations</strong></td><td>Run FHE computation on encrypted data.</td><td><ul><li><a href="fhe-computation/types/">Types </a></li><li><a href="fhe-computation/operations/">Operations</a></li></ul></td><td><a href=".gitbook/assets/bronze-gradient.png">bronze-gradient.png</a></td></tr><tr><td><strong>Configuration</strong></td><td>Advanced configuration for better performance.</td><td><ul><li><a href="configuration/rust-configuration.md">Advanced Rust </a></li><li><a href="configuration/gpu-acceleration/run-on-gpu.md">GPU acceleration</a></li><li><a href="configuration/hpu-acceleration/run-on-hpu.md">HPU acceleration</a></li></ul></td><td><a href=".gitbook/assets/yellow-gradient.png">yellow-gradient.png</a></td></tr><tr><td><strong>Integration</strong></td><td>Use TFHE-rs in different contexts or platforms.</td><td><ul><li><a href="integration/c-api.md">C API</a></li><li><a href="integration/js-on-wasm-api.md">JS on WASM API</a></li></ul></td><td><a href=".gitbook/assets/orange-gradient.png">orange-gradient.png</a></td></tr></tbody></table>
 
 ## Explore more
 
@@ -42,7 +42,7 @@ Explore step-by-step guides that walk you through real-world uses of TFHE-rs.&#x
 * [Homomorphic parity bit](tutorials/parity-bit.md): Learn how to implement a parity bit calculation over encrypted data
 * [Homomorphic case changing on ASCII string](tutorials/ascii-fhe-string.md): See how to process string data securely by changing cases while keeping the data encrypted.
 * [SHA256 with Boolean API](tutorials/sha256-bool.md): Delve into a more complex example: implementing the SHA256 hash function entirely on encrypted boolean values.
-* [All tutorials](tutorials/see-all-tutorials.md): A complete list of all available tutorials in one place.tutorials: A complete list of all available tutorials in one place.
+* [All tutorials](tutorials/see-all-tutorials.md): A complete list of all available tutorials in one place.
 
 ### References & Explanations
 
