@@ -41,7 +41,7 @@ fn main() {
 }
 ```
 
-### Compression ciphertexts after some homomorphic computation
+### Compressing ciphertexts after some homomorphic computation
 
 You can compress ciphertexts at any time, even after performing multiple homomorphic operations.
 
