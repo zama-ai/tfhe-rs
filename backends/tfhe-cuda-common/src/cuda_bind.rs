@@ -1,8 +1,5 @@
 use std::ffi::c_void;
 
-// Declarations forwarded from tfhe-cuda-common. cargo-semver-checks cannot trace
-// `pub use` re-exports of extern "C" functions, so the signatures must be repeated
-// here to keep the public API stable across patch versions.
 #[link(name = "tfhe_cuda_common", kind = "static")]
 extern "C" {
 

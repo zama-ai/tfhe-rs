@@ -75,9 +75,7 @@ rules:
         - "*.cuh"
         - "*.cpp"
         - "*.h"
-      exclude:
-        - backends/tfhe-cuda-backend/cuda/check_cuda.cu # contains cuda checking functions
-        - backends/tfhe-cuda-backend/cuda/include/device.h # contains the cuda_check_error macro (and others)
+      exclude: []
     patterns:
       - pattern: $FUNC(...)
       - metavariable-regex:

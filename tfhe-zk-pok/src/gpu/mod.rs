@@ -14,7 +14,7 @@ use crate::curve_api::bls12_446::{G1Affine, G2Affine, Zp, G1, G2};
 use crate::curve_api::CurveGroupOps;
 use ark_ec::CurveGroup;
 use ark_ff::{BigInt, MontFp, PrimeField};
-use tfhe_cuda_backend::cuda_bind::{
+use tfhe_cuda_common::cuda_bind::{
     cuda_create_stream, cuda_destroy_stream, cuda_get_number_of_gpus,
 };
 use zk_cuda_backend::{G1Affine as CudaG1Affine, G2Affine as CudaG2Affine, Scalar as CudaScalar};

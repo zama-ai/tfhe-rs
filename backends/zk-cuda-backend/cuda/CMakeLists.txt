@@ -25,9 +25,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_STANDARD 17)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
-# Auto-detect CUDA compute capability using the same mechanism as tfhe-cuda-backend
+# Auto-detect CUDA compute capability (check_cuda.cu lives in tfhe-cuda-common)
 set(OUTPUTFILE ${CMAKE_CURRENT_SOURCE_DIR}/cuda_script)
-set(CUDAFILE ${CMAKE_CURRENT_SOURCE_DIR}/check_cuda.cu)
+set(CUDAFILE ${CMAKE_CURRENT_SOURCE_DIR}/../../tfhe-cuda-common/cuda/check_cuda.cu)
 execute_process(COMMAND nvcc -lcuda ${CUDAFILE} -o ${OUTPUTFILE})
 execute_process(
   COMMAND ${OUTPUTFILE}
@@ -71,7 +71,7 @@ set(CMAKE_CUDA_FLAGS_DEBUG "-g -O0 -G")
 # Additional CUDA flags (aligned with tfhe-cuda-backend)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall -Xcompiler -Wextra --use_fast_math --expt-relaxed-constexpr")
 
-# Core source files (without device utilities) Device utilities come from tfhe-cuda-backend.
+# Core source files
 set(FP_CORE_SOURCES src/primitives/fp.cu src/primitives/fp2.cu src/curve.cu src/msm/pippenger/msm_pippenger.cu
                     src/msm/msm.cu)
 
@@ -81,12 +81,10 @@ set(FP_MSM_HEADERS src/msm/common.cuh)
 # C wrapper source for FFI bindings (CUDA for CUDA headers)
 set(C_WRAPPER_SOURCES ../src/c_wrapper.cu)
 
-# Headers (device.h comes from tfhe-cuda-backend)
 set(FP_HEADERS include/fp.h include/fp_kernels.h include/fp2.h include/fp2_kernels.h include/curve.h)
 
 # =============================================================================
-# zk_cuda_backend: For Rust/Cargo builds (WITHOUT device.cu) Device utilities are provided by tfhe-cuda-backend when
-# linking with tfhe.
+# zk_cuda_backend: Static library for Rust/Cargo builds
 # =============================================================================
 add_library(zk_cuda_backend STATIC ${FP_CORE_SOURCES} ${FP_HEADERS} ${C_WRAPPER_SOURCES})
 
@@ -106,8 +104,11 @@ endif()
 
 target_link_libraries(zk_cuda_backend PUBLIC cudart)
 
-# Include both local headers and tfhe-cuda-backend headers (for device.h)
 target_include_directories(zk_cuda_backend PUBLIC include ../src/include)
+if(NOT TFHE_CUDA_COMMON_INCLUDE_DIR)
+  set(TFHE_CUDA_COMMON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../tfhe-cuda-common/cuda/include)
+endif()
+target_include_directories(zk_cuda_backend PUBLIC ${TFHE_CUDA_COMMON_INCLUDE_DIR})
 
 # =============================================================================
 # Tests and Benchmarks (optional, controlled by ZK_CUDA_BACKEND_BUILD_TESTS/BENCHMARKS)

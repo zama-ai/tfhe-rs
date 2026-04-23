@@ -1,6 +1,6 @@
 [package]
 name = "zk-cuda-backend"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version.workspace = true
 authors = ["Zama team"]
@@ -24,7 +24,7 @@ bindgen.workspace = true
 [dependencies]
 ark-ec.workspace = true
 ark-ff.workspace = true
-tfhe-cuda-backend = { version = "0.14.0", path = "../tfhe-cuda-backend" }
+tfhe-cuda-common = { version = "0.1.0", path = "../tfhe-cuda-common" }
 
 [features]
 default = []

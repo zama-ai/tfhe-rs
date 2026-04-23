@@ -44,9 +44,7 @@
 //! let g1_affine_again = g1_proj.to_affine();
 //! ```
 
-// Force linking of tfhe-cuda-backend which provides device utilities (cuda_malloc, cuda_set_device,
-// etc.)
-extern crate tfhe_cuda_backend;
+extern crate tfhe_cuda_common;
 
 // Auto-generated bindgen bindings (matching tfhe-cuda-backend pattern)
 #[allow(warnings)]
