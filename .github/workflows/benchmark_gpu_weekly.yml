@@ -18,8 +18,9 @@ jobs:
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
-      profile: single-h100
+      profile: scaleway-single-h100
       hardware_name: n3-H100x1
+      cloud_provider: terraform
       command: summary
       bench_type: both
       params_type: classical + multi_bit
@@ -39,6 +40,7 @@ jobs:
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
       profile: multi-h100-sxm5
+      cloud_provider: hyperstack
       hardware_name: n3-H100-SXM5x8
       command: summary
       bench_type: both
