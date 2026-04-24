@@ -93,7 +93,8 @@ impl ServerKey {
                         move |block| {
                             let mut summed_clear = Clear::ZERO;
                             for (i, c) in clear_chunk.iter().rev().enumerate() {
-                                summed_clear += *c * Clear::cast_from(u128::from(block >> i) & 1);
+                                let block_selector = u128::from(block >> i) & 1;
+                                summed_clear += *c * Clear::cast_from(block_selector);
                             }
 
                             let shift = block_index * self.message_modulus().0.ilog2();
@@ -155,8 +156,6 @@ impl ServerKey {
         );
 
         assert!(!boolean_blocks.is_empty(), "operands must not be empty");
-
-        assert!(Clear::BITS as u32 <= n_blocks * self.message_modulus().0.ilog2());
 
         let inner_shift = 0;
         let to_be_summed =
@@ -274,8 +273,6 @@ impl ServerKey {
         );
 
         assert!(!boolean_blocks.is_empty(), "operands must not be empty");
-
-        assert!(Clear::BITS as u32 <= n_blocks * self.message_modulus().0.ilog2());
 
         let inner_shift = self.message_modulus().0.ilog2();
         let to_be_reduced =

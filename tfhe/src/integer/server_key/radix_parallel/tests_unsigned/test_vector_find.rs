@@ -631,7 +631,6 @@ where
 
         let inputs = [cks.encrypt(rng.gen_range(0..block_msg_modulus))];
         for ct in inputs {
-            println!("lol");
             let result = executor.execute((&ct, &lut, u64::MAX));
 
             panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
@@ -643,7 +642,6 @@ where
 
             assert_eq!(cks.decrypt::<u64>(&result), u64::MAX);
         }
-        println!("end");
     }
 
     // We want to split test in half,
