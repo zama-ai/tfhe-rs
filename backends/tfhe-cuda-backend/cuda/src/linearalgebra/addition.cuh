@@ -68,9 +68,9 @@ __host__ void host_addition_plaintext(cudaStream_t stream, uint32_t gpu_index,
 
 template <typename T>
 __host__ void host_addition_plaintext_scalar(
-    cudaStream_t stream, uint32_t gpu_index, T *output, T const *lwe_input,
-    const T plaintext_input, const uint32_t lwe_dimension,
-    const uint32_t lwe_ciphertext_count) {
+    cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI const *lwe_input, const T plaintext_input,
+    const uint32_t lwe_dimension, const uint32_t lwe_ciphertext_count) {
 
   cuda_set_device(gpu_index);
   int num_blocks = 0, num_threads = 0;
@@ -79,12 +79,13 @@ __host__ void host_addition_plaintext_scalar(
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  cuda_memcpy_async_gpu_to_gpu(output, lwe_input,
+  cuda_memcpy_async_gpu_to_gpu((T *)output->ptr, (T const *)lwe_input->ptr,
                                safe_mul_sizeof<T>((size_t)(lwe_dimension + 1),
                                                   (size_t)lwe_ciphertext_count),
                                stream, gpu_index);
   plaintext_addition_scalar<T><<<grid, thds, 0, stream>>>(
-      output, lwe_input, plaintext_input, lwe_dimension, num_entries);
+      (T *)output->ptr, (T const *)lwe_input->ptr, plaintext_input,
+      lwe_dimension, num_entries);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -215,7 +216,9 @@ __global__ void subtraction(T *output, T const *input_1, T const *input_2,
 // Coefficient-wise subtraction
 template <typename T>
 __host__ void host_subtraction(cudaStream_t stream, uint32_t gpu_index,
-                               T *output, T const *input_1, T const *input_2,
+                               CudaRadixCiphertextFFI *output,
+                               CudaRadixCiphertextFFI const *input_1,
+                               CudaRadixCiphertextFFI const *input_2,
                                uint32_t input_lwe_dimension,
                                uint32_t input_lwe_ciphertext_count) {
 
@@ -230,8 +233,9 @@ __host__ void host_subtraction(cudaStream_t stream, uint32_t gpu_index,
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  subtraction<T>
-      <<<grid, thds, 0, stream>>>(output, input_1, input_2, num_entries);
+  subtraction<T><<<grid, thds, 0, stream>>>(
+      (T *)output->ptr, (T const *)input_1->ptr, (T const *)input_2->ptr,
+      num_entries);
   check_cuda_error(cudaGetLastError());
 }
 

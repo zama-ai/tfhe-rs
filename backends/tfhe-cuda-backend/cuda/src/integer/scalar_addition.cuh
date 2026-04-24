@@ -112,7 +112,7 @@ device_scalar_subtraction_inplace(Torus *lwe_array, Torus *scalar_input,
 
 template <typename Torus>
 __host__ void host_scalar_subtraction_inplace(
-    CudaStreams streams, Torus *lwe_array, Torus *scalar_input,
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, Torus *scalar_input,
     uint32_t lwe_dimension, uint32_t input_lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus) {
   cuda_set_device(streams.gpu_index(0));
@@ -130,7 +130,8 @@ __host__ void host_scalar_subtraction_inplace(
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
   device_scalar_subtraction_inplace<Torus>
-      <<<grid, thds, 0, streams.stream(0)>>>(lwe_array, scalar_input,
+      <<<grid, thds, 0, streams.stream(0)>>>((Torus *)lwe_array->ptr,
+                                             scalar_input,
                                              input_lwe_ciphertext_count,
                                              lwe_dimension, delta);
   check_cuda_error(cudaGetLastError());

@@ -48,7 +48,7 @@ __global__ void device_negation(Torus *output, Torus const *input,
 }
 
 template <typename Torus>
-__host__ void host_negation(CudaStreams streams,
+__host__ void host_integer_negation(CudaStreams streams,
                             CudaRadixCiphertextFFI *lwe_array_out,
                             CudaRadixCiphertextFFI const *lwe_array_in,
                             uint64_t message_modulus, uint64_t carry_modulus,

@@ -214,7 +214,7 @@ host_integer_compress(CudaStreams streams,
 
   if constexpr (std::is_same_v<Torus, uint64_t>) {
     lwe_pksk_input = mem_ptr->tmp_lwe;
-    host_cleartext_multiplication<Torus>(
+    host_cleartext_multiplication_unsafe_no_degrees<Torus>(
         streams.stream(0), streams.gpu_index(0), lwe_pksk_input, lwe_array_in,
         (uint64_t)compression_params.message_modulus);
   }

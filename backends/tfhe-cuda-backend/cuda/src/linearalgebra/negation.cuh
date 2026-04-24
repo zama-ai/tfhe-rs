@@ -22,8 +22,10 @@ __global__ void negation(T *output, T const *input, uint32_t num_entries) {
 }
 
 template <typename T>
-__host__ void host_negation(cudaStream_t stream, uint32_t gpu_index, T *output,
-                            T const *input, const uint32_t input_lwe_dimension,
+__host__ void host_negation(cudaStream_t stream, uint32_t gpu_index,
+                            CudaRadixCiphertextFFI *output,
+                            CudaRadixCiphertextFFI const *input,
+                            const uint32_t input_lwe_dimension,
                             const uint32_t input_lwe_ciphertext_count) {
 
   cuda_set_device(gpu_index);
@@ -37,7 +39,7 @@ __host__ void host_negation(cudaStream_t stream, uint32_t gpu_index, T *output,
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
-  negation<T><<<grid, thds, 0, stream>>>(output, input, num_entries);
+  negation<T><<<grid, thds, 0, stream>>>((T *)output->ptr, (T const *)input->ptr, num_entries);
   check_cuda_error(cudaGetLastError());
 }
 

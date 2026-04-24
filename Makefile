@@ -1145,6 +1145,12 @@ test_high_level_api_gpu: install_cargo_nextest # Run all the GPU tests for high_
 		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
 		-E "test(/high_level_api::.*gpu.*/)"
 
+.PHONY: test_high_level_api_fake_multi_gpu
+test_high_level_api_fake_multi_gpu: install_cargo_nextest
+	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
+		--test-threads=4 --features=integer,internal-keycache,gpu-debug-fake-multi-gpu,zk-pok -p tfhe \
+		-E "test(/high_level_api::.*gpu.*/)"
+
 test_list_gpu: install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest list --cargo-profile $(CARGO_PROFILE) \
 		--features=integer,internal-keycache,gpu,zk-pok -p tfhe \

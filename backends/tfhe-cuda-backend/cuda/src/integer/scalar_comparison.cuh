@@ -63,8 +63,8 @@ __host__ void scalar_compare_radix_blocks(
   // Subtract
   // Here we need the true lwe sub, not the one that comes from shortint.
   host_scalar_subtraction_inplace<Torus>(
-      streams, (Torus *)subtracted_blocks->ptr, scalar_blocks,
-      big_lwe_dimension, num_radix_blocks, message_modulus, carry_modulus);
+      streams, subtracted_blocks, scalar_blocks, big_lwe_dimension,
+      num_radix_blocks, message_modulus, carry_modulus);
 
   // Apply LUT to compare to 0
   auto sign_lut = mem_ptr->eq_buffer->is_non_zero_lut;

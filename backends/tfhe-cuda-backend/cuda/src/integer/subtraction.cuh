@@ -36,7 +36,7 @@ void host_sub_and_propagate_single_carry(
     int_sub_and_propagate<Torus> *mem, void *const *bsks, KSTorus *const *ksks,
     uint32_t requested_flag, uint32_t uses_carry) {
 
-  host_negation<Torus>(streams, mem->neg_rhs_array, rhs_array,
+  host_integer_negation<Torus>(streams, mem->neg_rhs_array, rhs_array,
                        mem->params.message_modulus, mem->params.carry_modulus,
                        mem->neg_rhs_array->num_radix_blocks);
 
@@ -46,7 +46,7 @@ void host_sub_and_propagate_single_carry(
 }
 
 template <typename Torus>
-__host__ void host_subtraction(CudaStreams streams,
+__host__ void host_integer_subtraction(CudaStreams streams,
                                CudaRadixCiphertextFFI *lwe_array_out,
                                CudaRadixCiphertextFFI const *lwe_array_in_1,
                                CudaRadixCiphertextFFI const *lwe_array_in_2,
@@ -65,7 +65,7 @@ __host__ void host_subtraction(CudaStreams streams,
     PANIC("Cuda error: lwe_array_in and lwe_array_out lwe_dimension must be "
           "the same")
 
-  host_negation<Torus>(streams, lwe_array_out, lwe_array_in_2, message_modulus,
+  host_integer_negation<Torus>(streams, lwe_array_out, lwe_array_in_2, message_modulus,
                        carry_modulus, num_radix_blocks);
   host_addition<Torus>(streams.stream(0), streams.gpu_index(0), lwe_array_out,
                        lwe_array_out, lwe_array_in_1, num_radix_blocks,

@@ -176,14 +176,14 @@ host_bitnot(CudaStreams streams, CudaRadixCiphertextFFI *radix_ciphertext,
       (ct_message_modulus - 1);
 
   host_negation<Torus>(
-      streams.stream(0), streams.gpu_index(0), (Torus *)radix_ciphertext->ptr,
-      (Torus *)radix_ciphertext->ptr, radix_ciphertext->lwe_dimension,
+      streams.stream(0), streams.gpu_index(0), radix_ciphertext,
+      radix_ciphertext, radix_ciphertext->lwe_dimension,
       radix_ciphertext->num_radix_blocks);
 
   host_addition_plaintext_scalar<Torus>(
-      streams.stream(0), streams.gpu_index(0), (Torus *)radix_ciphertext->ptr,
-      (Torus *)radix_ciphertext->ptr, encoded_scalar,
-      radix_ciphertext->lwe_dimension, radix_ciphertext->num_radix_blocks);
+      streams.stream(0), streams.gpu_index(0), radix_ciphertext,
+      radix_ciphertext, encoded_scalar, radix_ciphertext->lwe_dimension,
+      radix_ciphertext->num_radix_blocks);
 
   for (size_t i = 0; i < radix_ciphertext->num_radix_blocks; ++i) {
     radix_ciphertext->degrees[i] = ct_message_modulus - 1;

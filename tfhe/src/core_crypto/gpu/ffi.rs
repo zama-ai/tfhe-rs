@@ -1114,31 +1114,6 @@ pub unsafe fn add_lwe_ciphertext_vector_plaintext_vector_async<T: UnsignedIntege
     );
 }
 
-/// Addition of a vector of LWE ciphertexts with a plaintext scalar
-///
-/// # Safety
-///
-/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
-/// required
-pub unsafe fn add_lwe_ciphertext_vector_plaintext_scalar_async<T: UnsignedInteger>(
-    streams: &CudaStreams,
-    lwe_array_out: &mut CudaVec<T>,
-    lwe_array_in: &CudaVec<T>,
-    plaintext_in: u64,
-    lwe_dimension: LweDimension,
-    num_samples: u32,
-) {
-    assert_eq!(TypeId::of::<T>(), TypeId::of::<u64>());
-    cuda_add_lwe_ciphertext_vector_plaintext_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        lwe_array_out.as_mut_c_ptr(0),
-        lwe_array_in.as_c_ptr(0),
-        plaintext_in,
-        u32::try_from(lwe_dimension.0).unwrap(),
-        num_samples,
-    );
-}
 
 /// Assigned addition of a vector of LWE ciphertexts with a vector of plaintexts
 ///
@@ -1165,52 +1140,6 @@ pub unsafe fn add_lwe_ciphertext_vector_plaintext_vector_assign_async<T: Unsigne
     );
 }
 
-/// Negation of a vector of LWE ciphertexts
-///
-/// # Safety
-///
-/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
-/// required
-pub unsafe fn negate_lwe_ciphertext_vector_async<T: UnsignedInteger>(
-    streams: &CudaStreams,
-    lwe_array_out: &mut CudaVec<T>,
-    lwe_array_in: &CudaVec<T>,
-    lwe_dimension: LweDimension,
-    num_samples: u32,
-) {
-    assert_eq!(TypeId::of::<T>(), TypeId::of::<u64>());
-    cuda_negate_lwe_ciphertext_vector_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        lwe_array_out.as_mut_c_ptr(0),
-        lwe_array_in.as_c_ptr(0),
-        u32::try_from(lwe_dimension.0).unwrap(),
-        num_samples,
-    );
-}
-
-/// Assigned negation of a vector of LWE ciphertexts
-///
-/// # Safety
-///
-/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
-/// required
-pub unsafe fn negate_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
-    streams: &CudaStreams,
-    lwe_array_out: &mut CudaVec<T>,
-    lwe_dimension: LweDimension,
-    num_samples: u32,
-) {
-    assert_eq!(TypeId::of::<T>(), TypeId::of::<u64>());
-    cuda_negate_lwe_ciphertext_vector_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        lwe_array_out.as_mut_c_ptr(0),
-        lwe_array_out.as_c_ptr(0),
-        u32::try_from(lwe_dimension.0).unwrap(),
-        num_samples,
-    );
-}
 
 /// Multiplication of a vector of LWEs with a vector of cleartexts (assigned)
 ///
