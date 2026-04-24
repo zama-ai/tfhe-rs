@@ -277,7 +277,7 @@ impl ServerKey {
 
         assert!(Clear::BITS as u32 >= n_blocks * self.message_modulus().0.ilog2());
 
-        let inner_shift = self.message_modulus.0.ilog2();
+        let inner_shift = self.message_modulus().0.ilog2();
         let to_be_reduced =
             self.boolean_vec_scalar_mul(boolean_blocks, clears, n_blocks, inner_shift);
 
