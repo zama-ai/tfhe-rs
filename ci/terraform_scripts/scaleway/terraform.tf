@@ -40,21 +40,24 @@ resource "scaleway_instance_ip" "github_runner" {
   project_id = var.project_id
 }
 
-resource "scaleway_instance_security_group" "github_runner" {
-  project_id              = var.project_id
-  inbound_default_policy  = "drop"
-  outbound_default_policy = "accept"
+data "scaleway_instance_security_group" "github_runner" {
+  project_id = var.project_id
+  name       = "github-actions-runner"
 }
 
 data "scaleway_instance_image" "gpu_benchmark_image" {
-  name = "tfhe-rs-ubuntu-noble-cuda"
+    name = "tfhe-rs-ubuntu-24-cuda"
 }
 
-resource "scaleway_instance_server" "multi_h100_sxm5" {
+resource "scaleway_instance_server" "scaleway_gpu_instance" {
   project_id = var.project_id
   image      = data.scaleway_instance_image.gpu_benchmark_image.id
   type       = var.instance_type
   name       = var.instance_label
+
+  root_volume {
+    size_in_gb = 200
+  }
 
   ip_id = scaleway_instance_ip.github_runner.id
 
@@ -62,10 +65,10 @@ resource "scaleway_instance_server" "multi_h100_sxm5" {
     "cloud-init" = var.user_data
   }
 
-  security_group_id = scaleway_instance_security_group.github_runner.id
+  security_group_id = data.scaleway_instance_security_group.github_runner.id
 }
 
 output "instance_id" {
-  value       = scaleway_instance_server.multi_h100_sxm5.id
+  value       = scaleway_instance_server.scaleway_gpu_instance.id
   description = "Unique ID of the Scaleway instance"
 }

@@ -65,6 +65,8 @@ jobs:
               - tfhe/src/c_api/**
               - '.github/workflows/gpu_unsigned_integer_classic_tests.yml'
               - scripts/integer-tests.sh
+              - '.github/actions/gpu_setup/action.yml'
+              - ci/slab.toml
 
   setup-instance:
     name: gpu_unsigned_integer_classic_tests/setup-instance
@@ -75,6 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
+      cloud-provider: ${{ steps.start-remote-instance.outputs.cloud-provider || steps.start-github-instance.outputs.cloud-provider }}
     steps:
       - name: Start remote instance
         id: start-remote-instance
@@ -93,7 +96,10 @@ jobs:
         id: start-github-instance
         if: env.SECRETS_AVAILABLE == 'false'
         run: |
-          echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
+          {
+            echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}";
+            echo "cloud-provider=github";
+          } >> "$GITHUB_OUTPUT"
 
   cuda-tests-linux:
     name: gpu_unsigned_integer_classic_tests/cuda-tests-linux
@@ -119,12 +125,12 @@ jobs:
           persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
 
-      - name: Setup Hyperstack dependencies
+      - name: Setup cloud GPU machine dependencies
         uses: ./.github/actions/gpu_setup
         with:
           cuda-version: ${{ matrix.cuda }}
           gcc-version: ${{ matrix.gcc }}
-          github-instance: ${{ env.SECRETS_AVAILABLE == 'false' }}
+          cloud-provider: ${{ needs.setup-instance.outputs.cloud-provider }}
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
