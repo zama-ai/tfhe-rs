@@ -2697,6 +2697,80 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_trivium_init_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+        num_inputs: u32,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_trivium_init_async(
+        streams: CudaStreamsFFI,
+        a_reg: *mut CudaRadixCiphertextFFI,
+        b_reg: *mut CudaRadixCiphertextFFI,
+        c_reg: *mut CudaRadixCiphertextFFI,
+        key: *const CudaRadixCiphertextFFI,
+        iv: *const CudaRadixCiphertextFFI,
+        num_inputs: u32,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_trivium_init(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_trivium_step_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+        num_inputs: u32,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_trivium_step_async(
+        streams: CudaStreamsFFI,
+        keystream_output: *mut CudaRadixCiphertextFFI,
+        a_reg: *mut CudaRadixCiphertextFFI,
+        b_reg: *mut CudaRadixCiphertextFFI,
+        c_reg: *mut CudaRadixCiphertextFFI,
+        num_inputs: u32,
+        num_steps: u32,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_trivium_step(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
     pub fn scratch_cuda_kreyvium_generate_keystream_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
@@ -2733,6 +2807,88 @@ unsafe extern "C" {
     pub fn cleanup_cuda_kreyvium_generate_keystream_64(
         streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_kreyvium_init_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+        num_inputs: u32,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_kreyvium_init(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_kreyvium_step_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+        num_inputs: u32,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_kreyvium_step(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
+    pub fn cuda_kreyvium_init_async(
+        streams: CudaStreamsFFI,
+        a_reg: *mut CudaRadixCiphertextFFI,
+        b_reg: *mut CudaRadixCiphertextFFI,
+        c_reg: *mut CudaRadixCiphertextFFI,
+        k_reg: *mut CudaRadixCiphertextFFI,
+        iv_reg: *mut CudaRadixCiphertextFFI,
+        k_offset: *mut u32,
+        iv_offset: *mut u32,
+        key: *const CudaRadixCiphertextFFI,
+        iv_in: *const CudaRadixCiphertextFFI,
+        num_inputs: u32,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_kreyvium_step_async(
+        streams: CudaStreamsFFI,
+        keystream_output: *mut CudaRadixCiphertextFFI,
+        a_reg: *mut CudaRadixCiphertextFFI,
+        b_reg: *mut CudaRadixCiphertextFFI,
+        c_reg: *mut CudaRadixCiphertextFFI,
+        k_reg: *mut CudaRadixCiphertextFFI,
+        iv_reg: *mut CudaRadixCiphertextFFI,
+        k_offset: *mut u32,
+        iv_offset: *mut u32,
+        num_inputs: u32,
+        num_steps: u32,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
     );
 }
 pub const KS_TYPE_BIG_TO_SMALL: KS_TYPE = 0;
