@@ -220,6 +220,7 @@ impl ServerKey {
         Clear: UnsignedInteger,
     {
         let num_bits_to_represent_output_value = num_bits_to_represent_unsigned_value(clear);
+        println!("num_bits_to_represent_output_value: {num_bits_to_represent_output_value}");
         let num_bits_in_message = self.message_modulus().0.ilog2();
         num_bits_to_represent_output_value.div_ceil(num_bits_in_message as usize)
     }

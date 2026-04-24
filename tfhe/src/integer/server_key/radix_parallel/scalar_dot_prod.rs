@@ -156,7 +156,7 @@ impl ServerKey {
 
         assert!(!boolean_blocks.is_empty(), "operands must not be empty");
 
-        assert!(Clear::BITS as u32 >= n_blocks * self.message_modulus().0.ilog2());
+        assert!(Clear::BITS as u32 <= n_blocks * self.message_modulus().0.ilog2());
 
         let inner_shift = 0;
         let to_be_summed =
@@ -275,7 +275,7 @@ impl ServerKey {
 
         assert!(!boolean_blocks.is_empty(), "operands must not be empty");
 
-        assert!(Clear::BITS as u32 >= n_blocks * self.message_modulus().0.ilog2());
+        assert!(Clear::BITS as u32 <= n_blocks * self.message_modulus().0.ilog2());
 
         let inner_shift = self.message_modulus().0.ilog2();
         let to_be_reduced =

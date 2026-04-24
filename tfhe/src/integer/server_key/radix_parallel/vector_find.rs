@@ -97,6 +97,7 @@ impl ServerKey {
 
         let num_blocks_to_represent_values =
             self.num_blocks_to_represent_unsigned_value(max_output_value);
+        println!("num_blocks_to_represent_values: {num_blocks_to_represent_values}");
 
         if max_output_value == Clear::ZERO {
             // If the max output value is zero, it means 0 is the only output possible
@@ -212,7 +213,9 @@ impl ServerKey {
         // or_value
         let num_blocks_to_represent_or_value =
             self.num_blocks_to_represent_unsigned_value(or_value);
+        println!("num_blocks_to_represent_or_value: {num_blocks_to_represent_or_value}");
         let num_blocks = result.blocks.len().max(num_blocks_to_represent_or_value);
+        println!("num_blocks: {num_blocks}");
         let or_value = self.create_trivial_radix(or_value, num_blocks);
         let result = self.cast_to_unsigned(result, num_blocks);
 
