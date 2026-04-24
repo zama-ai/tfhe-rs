@@ -9,16 +9,19 @@ on:
         required: true
         type: choice
         options:
-          - "l40 (n3-L40x1)"
-          - "4-l40 (n3-L40x4)"
-          - "single-h100 (n3-H100x1)"
-          - "2-h100 (n3-H100x2)"
-          - "4-h100 (n3-H100x4)"
-          - "multi-h100 (n3-H100x8)"
-          - "multi-h100-nvlink (n3-H100x8-NVLink)"
-          - "multi-h100-sxm5 (n3-H100-SXM5x8)"
-          - "multi-h100-sxm5_fallback (n3-H100-SXM5x8)"
-
+          - "hyperstack::l40 (n3-L40x1)"
+          - "hyperstack::4-l40 (n3-L40x4)"
+          - "hyperstack::multi-a100-nvlink (n3-A100x8-NVLink)"
+          - "hyperstack::single-h100 (n3-H100x1)"
+          - "hyperstack::2-h100 (n3-H100x2)"
+          - "hyperstack::4-h100 (n3-H100x4)"
+          - "hyperstack::multi-h100 (n3-H100x8)"
+          - "hyperstack::multi-h100-nvlink (n3-H100x8-NVLink)"
+          - "hyperstack::multi-h100-sxm5 (n3-H100-SXM5x8)"
+          - "scaleway::multi-h100-sxm5 (H100-SXM-8-80G)"
+          - "scaleway::4-h100-sxm5 (H100-SXM-4-80G)"
+          - "scaleway::2-h100-sxm5 (H100-SXM-2-80G)"
+          - "scaleway::single-h100 (H100-1-80G)"
   schedule:
     # Weekly tests @ 1AM
     - cron: "0 1 * * 6"
@@ -35,7 +38,7 @@ env:
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
-  PROFILE_SCHEDULED_RUN: "multi-h100-sxm5 (n3-H100-SXM5x8)"
+  PROFILE_SCHEDULED_RUN: "hyperstack::multi-h100-sxm5 (n3-H100-SXM5x8)"
   PROFILE_MANUAL_RUN: ${{ inputs.profile }}
   IS_MANUAL_RUN: ${{ github.event_name == 'workflow_dispatch' }}
   BENCHMARK_TYPE: "ALL"
@@ -56,10 +59,18 @@ jobs:
     permissions:
       contents: 'read'
     outputs:
+      backend: ${{ steps.parse_profile.outputs.backend }}
       profile: ${{ steps.parse_profile.outputs.profile }}
-      hardware_name: ${{ steps.parse_hardware_name.outputs.name }}
+      hardware_name: ${{ steps.parse_profile.outputs.hardware }}
+      cloud_provider: ${{ steps.parse_profile.outputs.cloud_provider }}
     steps:
-      - name: Parse profile
+      - name: Checkout tfhe-rs repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: 'false'
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      - name: Parse profile and hardware name
         id: parse_profile
         run: |
           if [[ ${IS_MANUAL_RUN} == true ]]; then
@@ -67,21 +78,7 @@ jobs:
           else
             PROFILE_RAW="${PROFILE_SCHEDULED_RUN}"
           fi
-          # shellcheck disable=SC2001
-          PROFILE_VAL=$(echo "${PROFILE_RAW}" | sed 's|\(.*\)[[:space:]](.*)|\1|')
-          echo "profile=$PROFILE_VAL" >> "${GITHUB_OUTPUT}"
-
-      - name: Parse hardware name
-        id: parse_hardware_name
-        run: |
-          if [[ ${IS_MANUAL_RUN} == true ]]; then
-            PROFILE_RAW="${PROFILE_MANUAL_RUN}"
-          else
-            PROFILE_RAW="${PROFILE_SCHEDULED_RUN}"
-          fi
-          # shellcheck disable=SC2001
-          PROFILE_VAL=$(echo "${PROFILE_RAW}" | sed 's|.*[[:space:]](\(.*\))|\1|')
-          echo "name=$PROFILE_VAL" >> "${GITHUB_OUTPUT}"
+          python3 ci/parse_gpu_benchmark_profile.py "$PROFILE_RAW" "$GITHUB_OUTPUT"
 
   setup-instance:
     name: benchmark_gpu_coprocessor/setup-instance
@@ -100,7 +97,7 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: hyperstack
+          backend: ${{ needs.parse-inputs.outputs.backend }}
           profile: ${{ needs.parse-inputs.outputs.profile }}
 
   benchmark-gpu:
@@ -169,12 +166,12 @@ jobs:
           } >> "${GITHUB_ENV}"
         working-directory: tfhe-rs/
 
-      - name: Setup Hyperstack dependencies
+      - name: Setup cloud GPU machine dependencies
         uses: ./tfhe-rs/.github/actions/gpu_setup
         with:
           cuda-version: ${{ matrix.cuda }}
           gcc-version: ${{ matrix.gcc }}
-          github-instance: ${{ env.SECRETS_AVAILABLE == 'false' }}
+          cloud-provider: ${{ needs.parse-inputs.outputs.cloud_provider }}
 
       - name: Check fhEVM and TFHE-rs repos
         run: |

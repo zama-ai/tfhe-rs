@@ -56,6 +56,8 @@ jobs:
               - tfhe/src/integer/gpu/**
               - tfhe/src/shortint/parameters/**
               - '.github/workflows/gpu_integer_long_run_tests.yml'
+              - '.github/actions/gpu_setup/action.yml'
+              - ci/slab.toml
 
   setup-instance:
     name: gpu_integer_long_run_tests/setup-instance
@@ -66,6 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
+      cloud-provider: ${{ steps.start-instance.outputs.cloud-provider }}
     steps:
       - name: Start instance
         id: start-instance
@@ -75,8 +78,8 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: hyperstack
-          profile: 4-l40
+          backend: terraform
+          profile: scaleway-small-gpu
 
   cuda-tests:
     name: gpu_integer_long_run_tests/cuda-tests
@@ -101,11 +104,12 @@ jobs:
           persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
 
-      - name: Setup Hyperstack dependencies
+      - name: Setup cloud GPU machine dependencies
         uses: ./.github/actions/gpu_setup
         with:
           cuda-version: ${{ matrix.cuda }}
           gcc-version: ${{ matrix.gcc }}
+          cloud-provider: ${{ needs.setup-instance.outputs.cloud-provider }}
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases

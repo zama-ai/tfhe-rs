@@ -29,6 +29,12 @@ image_id = "ami-0250f541bc1358116"
 instance_type = "m6i.4xlarge"
 user = "ubuntu"
 
+[backend.aws.single-h100]
+region = "us-east-1"
+image_id = "ami-06e3a9d9b57d38676"
+instance_type = "p5.4xlarge"
+user = "ubuntu"
+
 [backend.hyperstack.gpu-test]
 environment_name = "canada"
 image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
@@ -114,6 +120,36 @@ flavor_name = "n3-L40x8"
 user = "ubuntu"
 
 [backend.terraform.scaleway-multi-h100-sxm5]
-script_path = "ci/terraform_scripts/scaleway/multi-h100-sxm5/terraform.tf"
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
 instance_type = "H100-SXM-8-80G"
+user = "ubuntu"
+
+[backend.terraform.scaleway-4-h100-sxm5]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "H100-SXM-4-80G"
+user = "ubuntu"
+
+[backend.terraform.scaleway-2-h100-sxm5]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "H100-SXM-2-80G"
+user = "ubuntu"
+
+[backend.terraform.scaleway-single-h100]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "H100-1-80G"
+user = "ubuntu"
+
+[backend.terraform.scaleway-4-l40]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "L40S-4-48G"
+user = "ubuntu"
+
+[backend.terraform.scaleway-2-l4]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "L4-2-24G"
+user = "ubuntu"
+
+[backend.terraform.scaleway-small-gpu]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "L40S-1-48G"
 user = "ubuntu"
