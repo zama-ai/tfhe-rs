@@ -143,6 +143,7 @@ jobs:
   install-dependencies:
     name: benchmark_gpu_common/install-dependencies
     needs: [ setup-instance ]
+    if: inputs.backend != 'terraform'
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
       matrix:

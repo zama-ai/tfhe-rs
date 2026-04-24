@@ -6,6 +6,13 @@ run-name: ${{ inputs.command }}::${{ inputs.bench_type}} (${{ inputs.profile }},
 on:
   workflow_dispatch:
     inputs:
+      backend:
+        description: "Backends to use"
+        default: hyperstack
+        type: choice
+        options:
+          - hyperstack
+          - scaleway (terraform)
       profile:
         description: "Instance type"
         required: true
@@ -86,27 +93,42 @@ jobs:
     name: benchmark_gpu/parse-inputs
     runs-on: ubuntu-latest
     outputs:
-      profile: ${{ steps.parse_profile.outputs.profile }}
-      hardware_name: ${{ steps.parse_hardware_name.outputs.name }}
+      backend: ${{ steps.parse_profile_and_hardware_name.outputs.backend }}
+      profile: ${{ steps.parse_profile_and_hardware_name.outputs.profile }}
+      hardware_name: ${{ steps.parse_profile_and_hardware_name.outputs.hardware }}
       additional_file_to_parse: ${{ steps.set_file_to_parse.outputs.additional_file_to_parse }}
-    env:
-      INPUTS_PROFILE: ${{ inputs.profile }}
     steps:
-      - name: Parse profile
-        id: parse_profile
+      - name: Parse profile and hardware name
+        id: parse_profile_and_hardware_name
+        shell: python
+        env:
+          INPUTS_BACKEND: ${{ inputs.backend }}
+          INPUTS_PROFILE: ${{ inputs.profile }}
         run: |
-          # Use Sed to extract a value from a string, this cannot be done with the ${variable//search/replace} pattern.
-          # shellcheck disable=SC2001
-          PROFILE=$(echo "${INPUTS_PROFILE}" | sed 's|\(.*\)[[:space:]](.*)|\1|')
-          echo "profile=${PROFILE}" >> "${GITHUB_OUTPUT}"
+          import os
 
-      - name: Parse hardware name
-        id: parse_hardware_name
-        run: |
-          # Use Sed to extract a value from a string, this cannot be done with the ${variable//search/replace} pattern.
-          # shellcheck disable=SC2001
-          NAME=$(echo "${INPUTS_PROFILE}" | sed 's|.*[[:space:]](\(.*\))|\1|')
-          echo "name=${NAME}" >> "${GITHUB_OUTPUT}"
+          inputs_backend = os.environ["INPUTS_BACKEND"]
+          inputs_profile = os.environ["INPUTS_PROFILE"]
+          output_file = os.environ["GITHUB_OUTPUT"]
+
+          split_profile = inputs_profile.split()
+          parsed_profile = split_profile[0]
+          parsed_hardware = split_profile[1].strip("(").strip(")")
+          
+          backend_name = inputs_backend
+          
+          if "terraform" in inputs_backend:
+            backend_name = "terraform"
+            provider_name = inputs_backend.split()[0]
+            parsed_profile = provider_name + "-" + parsed_profile
+
+          with open(output_file, "a") as f:
+            for var_name, value in [
+              ("backend", backend_name),
+              ("profile", parsed_profile),
+              ("hardware", parsed_hardware),
+            ]:
+              f.write(f"""{var_name}={value}\n""")
 
       - name: Get additional file to parse
         id: set_file_to_parse
@@ -143,6 +165,7 @@ jobs:
     needs: parse-inputs
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
+      backend: ${{ needs.parse-inputs.outputs.backend }}
       profile: ${{ needs.parse-inputs.outputs.profile }}
       hardware_name: ${{ needs.parse-inputs.outputs.hardware_name }}
       command: ${{ inputs.command }}
