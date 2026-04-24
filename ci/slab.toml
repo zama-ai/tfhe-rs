@@ -150,6 +150,41 @@ flavor_name = "n3-L40x8"
 user = "ubuntu"
 
 [backend.terraform.scaleway-multi-h100-sxm5]
-script_path = "ci/terraform_scripts/scaleway/multi-h100-sxm5/terraform.tf"
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
 instance_type = "H100-SXM-8-80G"
+user = "ubuntu"
+
+[backend.terraform.scaleway-4-h100-sxm5]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "H100-SXM-4-80G"
+user = "ubuntu"
+
+[backend.terraform.scaleway-2-h100-sxm5]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "H100-SXM-2-80G"
+user = "ubuntu"
+
+[backend.terraform.scaleway-single-h100]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "H100-1-80G"
+user = "ubuntu"
+
+[backend.terraform.scaleway-single-h100_fallback]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "H100-2-80G"
+user = "ubuntu"
+
+[backend.terraform.scaleway-4-l40]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "L40S-4-48G"
+user = "ubuntu"
+
+[backend.terraform.scaleway-2-l4]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "L4-2-24G"
+user = "ubuntu"
+
+[backend.terraform.scaleway-small-gpu]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "L40S-1-48G"
 user = "ubuntu"
