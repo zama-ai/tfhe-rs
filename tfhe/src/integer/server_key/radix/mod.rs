@@ -247,14 +247,15 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct1);
     /// assert_eq!(7, res);
     /// ```
-    pub fn extend_radix_with_trivial_zero_blocks_msb_assign(
-        &self,
-        ct: &mut RadixCiphertext,
-        num_blocks: usize,
-    ) {
+    pub fn extend_radix_with_trivial_zero_blocks_msb_assign<T>(&self, ct: &mut T, num_blocks: usize)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        // Swap out blocks via a no-alloc empty sentinel (blocks_mut is a slice, can't resize)
+        let mut blocks = std::mem::replace(ct, T::from_blocks(vec![])).into_blocks();
         let block_trivial_zero = self.key.create_trivial(0);
-        ct.blocks
-            .resize(ct.blocks.len() + num_blocks, block_trivial_zero);
+        blocks.resize(blocks.len() + num_blocks, block_trivial_zero);
+        *ct = T::from_blocks(blocks);
     }
 
     /// Append trivial zero MSB blocks to an existing [`RadixCiphertext`] and returns the result as
