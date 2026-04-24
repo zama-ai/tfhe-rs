@@ -108,14 +108,14 @@ fn plans() -> &'static PlanMap {
 }
 
 pub fn setup_custom_fft_plan(plan: Plan) {
-    let base_n = FourierPolynomialSize(plan.fft_size());
-    let n = base_n.to_standard_polynomial_size();
+    let fft_size = FourierPolynomialSize(plan.fft_size());
+    let std_poly_size = fft_size.to_standard_polynomial_size();
 
-    let plan = Arc::new((Twisties::new(base_n.0), plan));
+    let plan = Arc::new((Twisties::new(fft_size.0), plan));
 
     let global_plans = plans();
 
-    global_plans.set(n, plan);
+    global_plans.set(std_poly_size, plan);
 }
 
 /// Return the input slice, cast to the same type.
