@@ -39,6 +39,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
+      cloud-provider: ${{ steps.start-remote-instance.outputs.cloud-provider }}
     steps:
       - name: Start remote instance
         id: start-remote-instance
@@ -49,8 +50,8 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: aws
-          profile: single-h100
+          backend: terraform
+          profile: scaleway-2-h100-sxm5
 
       # This instance will be spawned especially for pull-request from forked repository
       - name: Start GitHub instance
@@ -75,8 +76,8 @@ jobs:
       matrix:
         include:
           - os: ubuntu-22.04
-            cuda: "12.2"
-            gcc: 11
+            cuda: "12.8 12.2"
+            gcc: 12
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -84,12 +85,12 @@ jobs:
           persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
 
-      - name: Setup Hyperstack dependencies
+      - name: Setup cloud GPU machine dependencies
         uses: ./.github/actions/gpu_setup
         with:
           cuda-version: ${{ matrix.cuda }}
           gcc-version: ${{ matrix.gcc }}
-          github-instance: ${{ env.SECRETS_AVAILABLE == 'false' }}
+          cloud-provider: ${{ needs.setup-instance.outputs.cloud-provider }}
 
       - name: Find tools
         run: |
@@ -102,7 +103,11 @@ jobs:
           sudo apt purge -y unattended-upgrades
 
           sudo apt update && sudo apt install -y valgrind
-          find /usr -executable -name "compute-sanitizer"
+          # Find compute-sanitizer
+          find /usr -executable -name "compute-sanitizer" 2>&1 | grep -v "Permission denied"
+          echo "compute-sanitizer was found, checking if it's in the path..."
+          # Check that compute sanitizer is in the path
+          which compute-sanitizer
           which valgrind
 
       - name: Install latest stable
