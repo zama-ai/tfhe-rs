@@ -82,7 +82,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-22.04
-            cuda: "12.2"
+            cuda: "12.8 12.2"
             gcc: 9
     env:
       CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
@@ -163,7 +163,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-22.04
-            cuda: "12.2"
+            cuda: "12.8 12.2"
             gcc: 9
     env:
       CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
