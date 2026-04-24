@@ -660,6 +660,8 @@ pub fn hpu_iop40_64(iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: 
     |ct, imm| vec![ct[0]]);
     hpu_testcase!("IOP36", "[2]<N>::<N,N><0>" => [u8]
     |ct, imm| vec![ct[0].wrapping_mul(ct[1])]);
+    hpu_testcase!("IOP37", "[4]<N,N>::<N,N><0>" => [u8]
+    |ct, imm| vec![(ct[0] & 0xF) + (ct[1] & 0xF).wrapping_shl(4), (ct[0] & 0xF0).wrapping_shr(4) + (ct[1] & 0xF0)]);
     hpu_testcase!("IOP40", "[2]<H,H>::<N,N><0>" => [u32]
     |ct, imm| vec![ct[0].wrapping_mul(ct[1]) & 0xFFFF, ct[0].wrapping_mul(ct[1]).wrapping_shr(16)]);
     hpu_testcase!("IOP40", "[2]<H,H>::<N,N><0>" => [u64]
@@ -1134,7 +1136,8 @@ pub fn hpu_iop40_64(iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: 
         "iop33",
         "iop34",
         "iop35",
-        "iop36"
+        "iop36",
+        "iop37"
     ]);
     #[cfg(feature = "hpu")]
     hpu_testbundle!("multi-hpu"::32 => [
