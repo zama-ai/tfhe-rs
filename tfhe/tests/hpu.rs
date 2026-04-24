@@ -25,6 +25,30 @@ mod hpu_test {
     use tfhe::Seed;
     pub use tfhe_hpu_backend::prelude::*;
 
+    trait HalfSize {
+        type Half;
+    }
+
+    impl HalfSize for u128 {
+        type Half = u64;
+    }
+
+    impl HalfSize for u64 {
+        type Half = u32;
+    }
+
+    impl HalfSize for u32 {
+        type Half = u16;
+    }
+
+    impl HalfSize for u16 {
+        type Half = u8;
+    }
+
+    impl HalfSize for u8 {
+        type Half = u8;
+    }
+
     /// Variable to store initialized HpuDevice and associated client key for fast iteration
     static HPU_DEVICE_RNG_CKS: std::sync::OnceLock<(
         std::sync::Mutex<HpuDevice>,
@@ -203,7 +227,6 @@ mod hpu_test {
     };
 }
 
-
     macro_rules! hpu_testcase {
     // With proto override
     ($iop: literal, $inproto: literal => [$($user_type: ty),+] |$ct:ident, $imm: ident| $behav: expr) => {
@@ -300,10 +323,18 @@ mod hpu_test {
                     let res_fhe = res_hpu
                         .iter()
                         .map(|x| x.to_radix_ciphertext()).collect::<Vec<_>>();
-                    let res = res_fhe
-                        .iter()
-                        .map(|x| cks.decrypt_radix(x))
-                        .collect::<Vec<$user_type>>();
+                    type HalfType = <$user_type as HalfSize>::Half;
+                    let mut res : Vec<$user_type> = if iop.opcode() == hpu_asm::IOpcode(40) {
+                        res_fhe
+                            .iter()
+                            .map(|x| cks.decrypt_radix::<HalfType>(x) as $user_type)
+                            .collect::<Vec<$user_type>>()
+                    } else {
+                        res_fhe
+                            .iter()
+                            .map(|x| cks.decrypt_radix(x))
+                            .collect::<Vec<$user_type>>()
+                    };
 
                     let exp_res = {
                         let $ct = &srcs_clear;
@@ -386,13 +417,13 @@ pub fn hpu_iop40_64(iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: 
                 true => {
                     let local_proto = "[2]<N>::<N><0>".parse::<hpu_asm::IOpProto>().unwrap();
                     let lsrcs_enc = srcs_enc.split_at(1);
-                    let hpu_enc_res_1 = HpuRadixCiphertext::exec(&local_proto, hpu_asm::IOpcode(33), &lsrcs_enc.0, imms, Some(hpu_asm::PhysId(1)));
-                    let hpu_enc_res_2 = HpuRadixCiphertext::exec(&local_proto, hpu_asm::IOpcode(33), &lsrcs_enc.1, imms, Some(hpu_asm::PhysId(2)));
+                    let hpu_enc_res_1 = HpuRadixCiphertext::exec(&local_proto, hpu_asm::IOpcode(33), &lsrcs_enc.0, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[0])));
+                    let hpu_enc_res_2 = HpuRadixCiphertext::exec(&local_proto, hpu_asm::IOpcode(33), &lsrcs_enc.1, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
                     let combined_inputs = [hpu_enc_res_1[0].clone(),hpu_enc_res_2[0].clone()];
-                    let hpu_enc_res_3 = HpuRadixCiphertext::exec(&proto, hpu_asm::IOpcode(40), &combined_inputs, imms, Some(hpu_asm::PhysId(2)));
+                    let hpu_enc_res_3 = HpuRadixCiphertext::exec(&proto, hpu_asm::IOpcode(40), &combined_inputs, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
                     let local_proto2 = "[2]<H>::<H><0>".parse::<hpu_asm::IOpProto>().unwrap();
-                    let hpu_enc_res_4 = HpuRadixCiphertext::exec(&local_proto2, hpu_asm::IOpcode(33), &[hpu_enc_res_3[0].clone()], imms, Some(hpu_asm::PhysId(2)));
-                    let hpu_enc_res_5 = HpuRadixCiphertext::exec(&local_proto2, hpu_asm::IOpcode(33), &[hpu_enc_res_3[1].clone()], imms, Some(hpu_asm::PhysId(1)));
+                    let hpu_enc_res_4 = HpuRadixCiphertext::exec(&local_proto2, hpu_asm::IOpcode(33), &[hpu_enc_res_3[0].clone()], imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
+                    let hpu_enc_res_5 = HpuRadixCiphertext::exec(&local_proto2, hpu_asm::IOpcode(33), &[hpu_enc_res_3[1].clone()], imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[0])));
                     vec![hpu_enc_res_4[0].clone(), hpu_enc_res_5[0].clone()]
                 }
             };
@@ -402,8 +433,8 @@ pub fn hpu_iop40_64(iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: 
             let res_clear = res_fhe
                 .iter()
                 .map(|x| cks.decrypt_radix(x))
-                .collect::<Vec<u64>>();
-            let res : u64 = res_clear[0] + (res_clear[1] << width / 2);
+                .collect::<Vec<u32>>();
+            let res : u64 = (res_clear[0] as u64 + ((res_clear[1] as u64) << width / 2));
             let exp_res : u64 = ((srcs_clear[0] * srcs_clear[1]) % (1 << width)).try_into().unwrap();
 
             println!("IOP40({}) <{:>8x?}> => {:<4x?}-{:<4x?} {:<8x?} [exp {:<8x?}] {{Delta: {:x?} }}",
@@ -635,24 +666,6 @@ pub fn hpu_iop40_64(iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: 
     |ct, imm| vec![ct[0].wrapping_mul(ct[1]) & 0xFFFFFFFF, ct[0].wrapping_mul(ct[1]).wrapping_shr(32)]);
 
 
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("multi-hpu"::8 => [
-        "iop32",
-        "iop33",
-        "iop34",
-        "iop35",
-        "iop36"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("multi-hpu"::32 => [
-        "iop33",
-        "iop40"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("multi-hpu"::64 => [
-        "iop33",
-        "iop40"
-    ]);
     // Define a set of test bundle for various size
     // 8bit ciphertext -----------------------------------------
     #[cfg(feature = "hpu")]
@@ -1112,6 +1125,26 @@ pub fn hpu_iop40_64(iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: 
         "lead1",
         "trail0",
         "trail1"
+    ]);
+
+    // multi-hpu test bundles -----------------------------------------
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("multi-hpu"::8 => [
+        "iop32",
+        "iop33",
+        "iop34",
+        "iop35",
+        "iop36"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("multi-hpu"::32 => [
+        "iop33",
+        "iop40"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("multi-hpu"::64 => [
+        "iop33",
+        "iop40"
     ]);
 
     /// Simple test dedicated to check entities conversion from/to Cpu

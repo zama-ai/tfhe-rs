@@ -16,7 +16,6 @@ use tfhe::core_crypto::commons::generators::DeterministicSeeder;
 use tfhe::core_crypto::prelude::DefaultRandomGenerator;
 use tfhe::shortint::parameters::KeySwitch32PBSParameters;
 use tfhe::*;
-use tfhe_hpu_backend::asm::IOpcode;
 use tfhe_hpu_backend::prelude::*;
 
 use rand::rngs::StdRng;
@@ -61,12 +60,6 @@ pub struct Args {
     /// WARN: Do not used with native `multi-hpu` IOp
     #[arg(long)]
     pub tput: bool,
-
-    #[arg(long)]
-    pub check_res: bool,
-
-    #[arg(long)]
-    pub chain_iop: bool,
 
     /// Force ct input values
     #[arg(long, value_parser = maybe_hex::<u128>)]
@@ -248,7 +241,6 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 )
             };
 
-            let mut err_cnt = 0;
             let hpu_nodes = if args.tput {
                 &hpu_device.config().fpga.node_id
             } else {
@@ -308,152 +300,8 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 .filter_map(|i| {
                     let bench_res = bench_inputs[i]
                         .iter()
-                        .map(|(srcs_clear, srcs_enc, imms)| {
-                            let hpu_enc_res_0 = match args.chain_iop {
-                                false => HpuRadixCiphertext::exec(
-                                    &proto,
-                                    iop.opcode(),
-                                    srcs_enc,
-                                    imms,
-                                    None,
-                                ),
-                                true => {
-                                    let local_proto =
-                                        "[2]<N>::<N><0>".parse::<hpu_asm::IOpProto>().unwrap();
-                                    let lsrcs_enc = srcs_enc.split_at(1);
-                                    let hpu_enc_res_1 = HpuRadixCiphertext::exec(
-                                        &local_proto,
-                                        IOpcode(33),
-                                        &lsrcs_enc.0,
-                                        imms,
-                                        Some(hpu_asm::PhysId(1)),
-                                    );
-                                    let hpu_enc_res_2 = HpuRadixCiphertext::exec(
-                                        &local_proto,
-                                        IOpcode(33),
-                                        &lsrcs_enc.1,
-                                        imms,
-                                        Some(hpu_asm::PhysId(2)),
-                                    );
-                                    let combined_inputs =
-                                        [hpu_enc_res_1[0].clone(), hpu_enc_res_2[0].clone()];
-                                    let hpu_enc_res_3 = HpuRadixCiphertext::exec(
-                                        &proto,
-                                        iop.opcode(),
-                                        &combined_inputs,
-                                        imms,
-                                        Some(hpu_asm::PhysId(2)),
-                                    );
-                                    let local_proto2 =
-                                        "[2]<H>::<H><0>".parse::<hpu_asm::IOpProto>().unwrap();
-                                    let hpu_enc_res_4 = HpuRadixCiphertext::exec(
-                                        &local_proto2,
-                                        IOpcode(33),
-                                        &[hpu_enc_res_3[0].clone()],
-                                        imms,
-                                        Some(hpu_asm::PhysId(2)),
-                                    );
-                                    let hpu_enc_res_5 = HpuRadixCiphertext::exec(
-                                        &local_proto2,
-                                        IOpcode(33),
-                                        &[hpu_enc_res_3[1].clone()],
-                                        imms,
-                                        Some(hpu_asm::PhysId(1)),
-                                    );
-                                    vec![hpu_enc_res_4[0].clone(), hpu_enc_res_5[0].clone()]
-                                }
-                            };
-                            if args.check_res {
-                                let clear_res = hpu_enc_res_0
-                                    .iter()
-                                    .map(|x| {
-                                        let y = x.to_radix_ciphertext();
-                                        cks.decrypt_radix::<u128>(&y)
-                                    })
-                                    .collect::<Vec<_>>();
-                                println!("step {i}: src {:?}", srcs_clear);
-                                println!("step {i}: res {:?}", clear_res);
-                                if iop.opcode() == IOpcode(33) || iop.opcode() == IOpcode(35) {
-                                    if clear_res[0] != srcs_clear[0] {
-                                        println!(
-                                            "ERROR {i}: {:?} /= {:?}",
-                                            clear_res[0], srcs_clear[0]
-                                        );
-                                        err_cnt += 1;
-                                    }
-                                }
-                                if iop.opcode() == IOpcode(32) {
-                                    if clear_res[0]
-                                        != ((srcs_clear[0] & 0xF) + ((srcs_clear[1] & 0xF) << 4))
-                                    {
-                                        println!(
-                                            "ERROR {i}: {:x} /= {:x}",
-                                            clear_res[0],
-                                            ((srcs_clear[0] & 0xF) + ((srcs_clear[1] & 0xF) << 4))
-                                        );
-                                        err_cnt += 1;
-                                    }
-                                    if clear_res[1]
-                                        != (((srcs_clear[0] & 0xF0) >> 4) + (srcs_clear[1] & 0xF0))
-                                    {
-                                        println!(
-                                            "ERROR {i}: {:x} /= {:x}",
-                                            clear_res[1],
-                                            (((srcs_clear[0] & 0xF0) >> 4)
-                                                + (srcs_clear[1] & 0xF0))
-                                        );
-                                        err_cnt += 1;
-                                    }
-                                }
-                                if iop.opcode() == IOpcode(36) {
-                                    println!(
-                                        "{i}: {:x} ?= ({:x} * {:x})%256 = {:?}",
-                                        clear_res[0],
-                                        srcs_clear[0],
-                                        srcs_clear[1],
-                                        (srcs_clear[0] * srcs_clear[1]) % 256
-                                    );
-                                    if clear_res[0] != (srcs_clear[0] * srcs_clear[1]) % 256 {
-                                        println!(
-                                            "ERROR {i}: {:x} /= ({:x} * {:x})%256",
-                                            clear_res[0], srcs_clear[0], srcs_clear[1]
-                                        );
-                                        err_cnt += 1;
-                                    }
-                                }
-                                if iop.opcode() == IOpcode(40) {
-                                    let res = clear_res[0] + (clear_res[1] << width / 2);
-                                    let expected = (srcs_clear[0] * srcs_clear[1]) % (1 << width);
-                                    println!(
-                                        "{i}: {:x} ?= ({:x} * {:x})%2**{width:?} = {:?}",
-                                        res, srcs_clear[0], srcs_clear[1], expected
-                                    );
-                                    if res != expected {
-                                        println!(
-                                            "ERROR {i}: {:x} /= ({:x} * {:x})%2**{width:?}",
-                                            res, srcs_clear[0], srcs_clear[1]
-                                        );
-                                        err_cnt += 1;
-                                    }
-                                }
-                                if iop.opcode() == IOpcode(34) {
-                                    println!(
-                                        "{i}: {:x} ?= ({:x} + {:x})%256 = {:?}",
-                                        clear_res[0],
-                                        srcs_clear[0],
-                                        srcs_clear[1],
-                                        (srcs_clear[0] + srcs_clear[1]) % 256
-                                    );
-                                    if clear_res[0] != (srcs_clear[0] + srcs_clear[1]) % 256 {
-                                        println!(
-                                            "ERROR {i}: {:x} /= ({:x} + {:x})%256",
-                                            clear_res[0], srcs_clear[0], srcs_clear[1]
-                                        );
-                                        err_cnt += 1;
-                                    }
-                                }
-                            }
-                            hpu_enc_res_0
+                        .map(|(_, srcs_enc, imms)| {
+                            HpuRadixCiphertext::exec(&proto, iop.opcode(), srcs_enc, imms, None)
                         })
                         .collect::<Vec<_>>();
                     if i == (args.iter - 1) {
@@ -498,7 +346,6 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 println!(
                     "Node {node} ------------------------------------------------------------"
                 );
-                println!("Score {:?}/{:?}", err_cnt, args.iter);
                 println!(
                     "Behavior         : {res:?}  <- {iop} <{:?}> <{:?}> {{{}}}",
                     srcs_clear, imms, args.iter
