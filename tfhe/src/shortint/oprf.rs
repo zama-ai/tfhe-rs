@@ -1130,7 +1130,7 @@ pub mod test_utils {
     /// to 0 to keep the carry free.
     /// output_modulus: the output cleartext space, continuing the above example, it must contain
     /// the padding bit, so for 4 bits of cleartext this is actually 2^(1 + 4)==32
-    pub fn cleatext_prf(
+    pub fn cleartext_prf(
         input_cleartext: u64,
         random_bits_count: u64,
         output_modulus: u64,
@@ -1163,7 +1163,7 @@ pub mod test_utils {
 
 #[cfg(test)]
 pub(crate) mod test {
-    use super::test_utils::cleatext_prf;
+    use super::test_utils::cleartext_prf;
     use super::*;
     use crate::core_crypto::commons::math::random::Seed;
     use crate::core_crypto::prelude::{decrypt_lwe_ciphertext, CastInto, LweSecretKeyView};
@@ -1244,7 +1244,7 @@ pub(crate) mod test {
 
         // includes padding bit
         let output_modulus = 2 * params.message_modulus().0 * params.carry_modulus().0;
-        let expected_output = cleatext_prf(
+        let expected_output = cleartext_prf(
             plain_prf_input,
             random_bits_count,
             output_modulus,

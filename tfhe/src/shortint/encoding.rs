@@ -56,7 +56,7 @@ impl<Scalar: UnsignedInteger + CastFrom<u64>> ShortintEncoding<Scalar> {
 }
 
 impl<Scalar: UnsignedInteger + CastFrom<u64>> ShortintEncoding<Scalar> {
-    /// Return the cleatext space including the space for the [`Self::padding_bit`] if it is set to
+    /// Return the cleartext space including the space for the [`Self::padding_bit`] if it is set to
     /// [`PaddingBit::Yes`].
     pub(crate) fn full_cleartext_space(&self) -> Scalar {
         let cleartext_modulus = self.cleartext_space_without_padding();
@@ -69,7 +69,7 @@ impl<Scalar: UnsignedInteger + CastFrom<u64>> ShortintEncoding<Scalar> {
             }
     }
 
-    /// Return the cleatext space defined by the [`Self::message_modulus`] and
+    /// Return the cleartext space defined by the [`Self::message_modulus`] and
     /// [`Self::carry_modulus`], not taking the value of the [`Self::padding_bit`] into account.
     pub(crate) fn cleartext_space_without_padding(&self) -> Scalar {
         (self.message_modulus.0 * self.carry_modulus.0).cast_into()
