@@ -43,3 +43,11 @@ impl crate::core_crypto::commons::parameters::LweDimension {
         LweSecretKeyUnsharedCoefCount(self.0 - shared_coef_count.0)
     }
 }
+
+/// The number of ciphertexts in an lwe ciphertext list.
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+pub struct CmLweCiphertextCount(pub usize);
+
+/// The number of scalar in an LWE mask, or the length of an LWE secret key.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
+pub struct CmDimension(pub usize);
