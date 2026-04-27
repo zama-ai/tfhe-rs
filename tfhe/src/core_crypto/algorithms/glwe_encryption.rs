@@ -169,6 +169,7 @@ pub fn fill_glwe_mask_and_body_for_encryption_assign_non_native_mod<
 /// Variant of [`encrypt_glwe_ciphertext`] which assumes that the plaintexts to encrypt are already
 /// loaded in the body of the output [`GLWE ciphertext`](`GlweCiphertext`), this is sometimes useful
 /// to avoid allocating a [`PlaintextList`] in situ.
+/// The masks do not need to contain 0. They will be overwritten.
 ///
 /// See this [`formal definition`](`GlweCiphertext#glwe-encryption`) for the definition
 /// of the GLWE encryption algorithm.
