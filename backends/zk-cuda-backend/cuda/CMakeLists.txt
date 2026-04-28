@@ -27,7 +27,10 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 # Auto-detect CUDA compute capability (check_cuda.cu lives in tfhe-cuda-common)
 set(OUTPUTFILE ${CMAKE_CURRENT_SOURCE_DIR}/cuda_script)
-set(CUDAFILE ${CMAKE_CURRENT_SOURCE_DIR}/../../tfhe-cuda-common/cuda/check_cuda.cu)
+if(NOT TFHE_CUDA_COMMON_CHECK_CUDA_DIR)
+  set(TFHE_CUDA_COMMON_CHECK_CUDA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../tfhe-cuda-common/cuda)
+endif()
+set(CUDAFILE ${TFHE_CUDA_COMMON_CHECK_CUDA_DIR}/check_cuda.cu)
 execute_process(COMMAND nvcc -lcuda ${CUDAFILE} -o ${OUTPUTFILE})
 execute_process(
   COMMAND ${OUTPUTFILE}
