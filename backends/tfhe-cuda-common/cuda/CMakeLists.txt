@@ -40,9 +40,14 @@ endif()
 
 if(${CUDA_SUCCESS})
   set(CMAKE_CUDA_ARCHITECTURES native)
+  string(REPLACE "-arch=sm_" "" CUDA_ARCH "${ARCH}")
+  set(CUDA_ARCH "${CUDA_ARCH}0")
 else()
   set(CMAKE_CUDA_ARCHITECTURES 70)
+  set(CUDA_ARCH "700")
 endif()
+
+add_compile_definitions(CUDA_ARCH=${CUDA_ARCH})
 
 set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 
