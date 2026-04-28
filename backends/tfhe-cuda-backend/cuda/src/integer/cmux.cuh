@@ -5,6 +5,10 @@
 #include "integer/cmux.h"
 #include "radix_ciphertext.cuh"
 
+// Conditionally zeros a radix ciphertext: if lwe_condition encrypts true,
+// lwe_array_out encrypts zero; otherwise lwe_array_out = lwe_array_input.
+// The condition is a single LWE block broadcast to every block of the input
+// via bivariate packing, then evaluated through the predicate LUT.
 template <typename Torus, typename KSTorus>
 __host__ void zero_out_if(CudaStreams streams,
                           CudaRadixCiphertextFFI *lwe_array_out,
@@ -39,6 +43,80 @@ __host__ void zero_out_if(CudaStreams streams,
   integer_radix_apply_univariate_lookup_table<Torus>(
       streams, lwe_array_out, tmp_lwe_array_input, bsks, ksks, predicate,
       num_radix_blocks);
+}
+
+/// @brief Applies zero_out_if to N ciphertexts in a single PBS call.
+///
+/// Each entry is zeroed when its corresponding encrypted boolean condition is
+/// true. The inputs and outputs are packed contiguously (num_entries *
+/// num_blocks_per_ct blocks).
+///
+/// @param lwe_array_out      Output radix ciphertext (num_entries *
+/// num_blocks_per_ct blocks)
+/// @param lwe_array_input    Input radix ciphertext (num_entries *
+/// num_blocks_per_ct blocks)
+/// @param lwe_conditions     Single-block encrypted boolean conditions, one per
+/// entry
+/// @param mem_ptr            Scratch buffer holding packed intermediates
+/// @param predicate          LUT that zeroes a block when the condition is true
+/// @param num_entries        Number of ciphertexts to process
+/// @param num_blocks_per_ct  Number of radix blocks per ciphertext
+template <typename Torus, typename KSTorus>
+__host__ void host_zero_out_if_batch(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_input,
+    CudaRadixCiphertextFFI const *lwe_conditions,
+    int_zero_out_if_batch_buffer<Torus> *mem_ptr,
+    int_radix_lut<Torus> *predicate, void *const *bsks, KSTorus *const *ksks,
+    uint32_t num_entries, uint32_t num_blocks_per_ct) {
+
+  uint32_t total_num_blocks =
+      static_cast<uint32_t>(safe_mul((size_t)num_entries, num_blocks_per_ct));
+
+  PANIC_IF_FALSE(
+      lwe_array_out->num_radix_blocks >= total_num_blocks &&
+          lwe_array_input->num_radix_blocks >= total_num_blocks,
+      "Cuda error: input or output radix ciphertexts does not have enough "
+      "blocks");
+
+  PANIC_IF_FALSE(
+      lwe_conditions->num_radix_blocks >= num_entries,
+      "Cuda error: conditions radix ciphertext does not have enough blocks");
+
+  PANIC_IF_FALSE(
+      lwe_array_out->lwe_dimension == lwe_array_input->lwe_dimension &&
+          lwe_array_input->lwe_dimension == lwe_conditions->lwe_dimension,
+      "Cuda error: input and output radix ciphertexts must have the same "
+      "lwe dimension");
+
+  cuda_set_device(streams.gpu_index(0));
+  auto params = mem_ptr->params;
+
+  auto tmp_lwe_array_input = mem_ptr->tmp;
+  host_pack_bivariate_blocks_with_per_ct_single_block<Torus>(
+      streams, tmp_lwe_array_input, lwe_array_input, lwe_conditions,
+      params.message_modulus, num_entries, num_blocks_per_ct);
+
+  integer_radix_apply_univariate_lookup_table<Torus>(
+      streams, lwe_array_out, tmp_lwe_array_input, bsks, ksks, predicate,
+      total_num_blocks);
+}
+
+/// @brief Allocates the scratch buffer for batched zero_out_if.
+///
+/// @param mem_ptr            Receives the allocated buffer pointer
+/// @param num_entries        Number of ciphertexts in the batch
+/// @param num_blocks_per_ct  Number of radix blocks per ciphertext
+template <typename Torus>
+__host__ uint64_t scratch_cuda_zero_out_if_batch(
+    CudaStreams streams, int_zero_out_if_batch_buffer<Torus> **mem_ptr,
+    uint32_t num_entries, uint32_t num_blocks_per_ct, int_radix_params params,
+    bool allocate_gpu_memory) {
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_zero_out_if_batch_buffer<Torus>(
+      streams, params, num_entries, num_blocks_per_ct, allocate_gpu_memory,
+      size_tracker);
+  return size_tracker;
 }
 
 template <typename Torus, typename KSTorus>
@@ -108,48 +186,25 @@ __host__ uint64_t scratch_cuda_cmux(CudaStreams streams,
   return size_tracker;
 }
 
-// Batched CMUX: for each of num_entries ciphertexts, selects lwe_array_true
-// where the condition is 1, lwe_array_false where the condition is 0.
-// Each condition in lwe_conditions is a single LWE block per entry.
-//
-// Default mode (replicate_true == false):
-//
-//  lwe_conditions   lwe_array_true     lwe_array_false
-//  (1 block each)   (B blocks/entry)   (B blocks/entry)
-//  ┌──┬──┬───┬──┐   ┌──┬──┬───┬──┐    ┌──┬──┬───┬──┐
-//  │c0│c1│...│cN│   │t0│t1│...│tN│    │f0│f1│...│fN│
-//  └──┴──┴───┴──┘   └──┴──┴───┴──┘    └──┴──┴───┴──┘
-//
-//  o0 = (c0==1) ? t0 : f0
-//  o1 = (c1==1) ? t1 : f1
-//       ...
-//  oN = (cN==1) ? tN : fN
-//
-//                    lwe_array_out
-//                    (B blocks/entry)
-//                    ┌──┬──┬───┬──┐
-//                    │o0│o1│...│oN│
-//                    └──┴──┴───┴──┘
-//
-// Replicate mode (replicate_true == true):
-// lwe_array_true is a single ciphertext of B blocks, reused for every entry.
-//
-//  lwe_conditions   lwe_array_true     lwe_array_false
-//  (1 block each)   (B blocks, shared)  (B blocks/entry)
-//  ┌──┬──┬───┬──┐   ┌──────┐            ┌──┬──┬───┬──┐
-//  │c0│c1│...│cN│   │  t   │            │f0│f1│...│fN│
-//  └──┴──┴───┴──┘   └──────┘            └──┴──┴───┴──┘
-//
-//  o0 = (c0==1) ? t : f0
-//  o1 = (c1==1) ? t : f1
-//       ...
-//  oN = (cN==1) ? t : fN
-//
-//                    lwe_array_out
-//                    (B blocks/entry)
-//                    ┌──┬──┬───┬──┐
-//                    │o0│o1│...│oN│
-//                    └──┴──┴───┴──┘
+/// @brief Batched CMUX: selects lwe_array_true or lwe_array_false per entry
+/// based on single-block encrypted boolean conditions.
+///
+/// In default mode each entry has its own true-branch ciphertext. In
+/// replicate mode (replicate_true == true), a single true-branch CT is
+/// broadcast to every entry.
+///
+/// @param lwe_array_out      Output radix ciphertext (num_entries *
+/// num_blocks_per_ct blocks)
+/// @param lwe_array_true     True-branch radix ciphertext(s)
+/// @param lwe_array_false    False-branch radix ciphertext(s)
+/// @param lwe_conditions     Single-block encrypted boolean conditions, one per
+/// entry
+/// @param mem_ptr            Scratch buffer holding packed intermediates and
+/// LUTs
+/// @param num_entries        Number of CMUX entries
+/// @param num_blocks_per_ct  Number of radix blocks per ciphertext
+/// @param replicate_true     When true, broadcast a single true-branch CT to
+/// all entries
 template <typename Torus, typename KSTorus>
 __host__ void
 host_cmux_batch(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
@@ -169,20 +224,12 @@ host_cmux_batch(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
 
   // Step 1: pack bivariate CMUX inputs
   // For each entry, put (true_value, condition) into the true branch and
-  // (false_value, condition) into the false branch.
-  CudaRadixCiphertextFFI packed_true, packed_false;
-  as_radix_ciphertext_slice<Torus>(&packed_true, mem_ptr->tmp_packed, 0,
-                                   total_num_blocks);
-  as_radix_ciphertext_slice<Torus>(&packed_false, mem_ptr->tmp_packed,
-                                   total_num_blocks, 2 * total_num_blocks);
-
-  host_pack_bivariate_blocks_with_per_ct_single_block<Torus>(
-      streams, &packed_true, lwe_array_true, lwe_conditions,
-      params.message_modulus, num_entries, num_blocks_per_ct, replicate_true);
-
-  host_pack_bivariate_blocks_with_per_ct_single_block<Torus>(
-      streams, &packed_false, lwe_array_false, lwe_conditions,
-      params.message_modulus, num_entries, num_blocks_per_ct);
+  // (false_value, condition) into the false branch. Both branches are packed
+  // into tmp_packed (true first, false second) in a single fused launch.
+  host_pack_bivariate_blocks_cmux_two_regions<Torus>(
+      streams, mem_ptr->tmp_packed, lwe_array_true, lwe_array_false,
+      lwe_conditions, params.message_modulus, num_entries, num_blocks_per_ct,
+      replicate_true);
 
   // Step 2: evaluate CMUX predicate on both branches
   // The LUT zeroes out the branch that does not match: true branch is zeroed
@@ -211,6 +258,13 @@ host_cmux_batch(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
       mem_ptr->message_extract_lut, total_num_blocks);
 }
 
+/// @brief Allocates the scratch buffer for batched CMUX.
+///
+/// @param mem_ptr            Receives the allocated buffer pointer
+/// @param predicate_lut_f    Predicate function used to build the CMUX
+/// selection LUT
+/// @param num_entries        Number of CMUX entries in the batch
+/// @param num_blocks_per_ct  Number of radix blocks per ciphertext
 template <typename Torus>
 __host__ uint64_t scratch_cuda_cmux_batch(
     CudaStreams streams, int_cmux_batch_buffer<Torus> **mem_ptr,
