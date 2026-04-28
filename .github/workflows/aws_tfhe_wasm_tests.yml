@@ -133,19 +133,17 @@ jobs:
           make test_wasm_par_mq_chrome_ci
           make test_wasm_par_mq_firefox_ci
 
-      - name: Run parallel wasm tests
+      - name: Run parallel wasm tests + verify zk compatibility
+        # Single target: generate fresh zk fixtures, run the chrome + firefox
+        # suites (chrome captures the proof into proof.bin), then verify the
+        # proof on x86 — no separate browser run needed.
         run: |
-          make test_web_js_api_parallel_chrome_ci
-          make test_web_js_api_parallel_firefox_ci
+          make test_web_js_api_parallel_ci
 
       - name: Run cross origin wasm tests
         run: |
           make test_web_js_api_cross_origin_chrome_ci
           make test_web_js_api_cross_origin_firefox_ci
-
-      - name: Run x86_64/wasm zk compatibility tests
-        run: |
-          make test_zk_wasm_x86_compat_ci
 
       - name: Set pull-request URL
         if: ${{ failure() && github.event_name == 'pull_request' }}
