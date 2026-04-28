@@ -67,10 +67,19 @@ fn main() {
         println!("cargo:rustc-link-search=native=/usr/lib/x86_64-linux-gnu/");
         println!("cargo:rustc-link-lib=stdc++");
 
-        // Expose the include path so dependent crates can access headers via
-        // DEP_TFHE_CUDA_COMMON_INCLUDE
+        // When a build script emits `cargo:KEY=VALUE` and the crate declares
+        // `links = "foo"` in Cargo.toml, Cargo exposes it to dependent crates
+        // as the env var DEP_FOO_KEY.
+        //
+        // "include" is not a built-in Cargo directive, just a convention. In this case:
+        //   - links = "tfhe_cuda_common" + cargo:include=<path>
+        //   - dependents see DEP_TFHE_CUDA_COMMON_INCLUDE=<path>
         let include_dir = std::path::PathBuf::from(&manifest_dir).join("cuda/include");
         println!("cargo:include={}", include_dir.display());
+
+        // Same mechanism: dependents see DEP_TFHE_CUDA_COMMON_CHECK_CUDA_DIR.
+        let cuda_dir = std::path::PathBuf::from(&manifest_dir).join("cuda");
+        println!("cargo:check_cuda_dir={}", cuda_dir.display());
     } else {
         panic!(
             "Error: platform not supported, tfhe-cuda-common not built (only Linux is supported)"

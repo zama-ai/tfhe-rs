@@ -25,8 +25,13 @@ fn main() {
 
         let mut cmake_config = cmake::Config::new("cuda");
 
+        // Propagated by Cargo from tfhe-cuda-common/build.rs
+        // (`cargo:include=<path>` -> DEP_TFHE_CUDA_COMMON_INCLUDE).
         if let Ok(common_include) = std::env::var("DEP_TFHE_CUDA_COMMON_INCLUDE") {
             cmake_config.define("TFHE_CUDA_COMMON_INCLUDE_DIR", &common_include);
+        }
+        if let Ok(check_cuda_dir) = std::env::var("DEP_TFHE_CUDA_COMMON_CHECK_CUDA_DIR") {
+            cmake_config.define("TFHE_CUDA_COMMON_CHECK_CUDA_DIR", &check_cuda_dir);
         }
 
         let dest = cmake_config.build();
