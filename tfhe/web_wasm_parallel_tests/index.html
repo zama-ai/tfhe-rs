@@ -1,138 +1,356 @@
 <!doctype html>
-<title>TFHE-RS Web Wasm Demo</title>
-<body>
-  <style>
-    .loader {
-      border: 16px solid #f3f3f3; /* Light grey */
-      border-top: 16px solid #3498db; /* Blue */
-      border-radius: 50%;
-      width: 120px;
-      height: 120px;
-      animation: spin 2s linear infinite;
-    }
-
-    @keyframes spin {
-      0% {
-        transform: rotate(0deg);
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>TFHE-RS Web Wasm Demo</title>
+    <style>
+      :root {
+        --bg: #0e0e10;
+        --fg: #f5f5f4;
+        --muted: #9ca3af;
+        --border: #2a2a2e;
+        --surface: #1a1a1d;
+        --accent: #ffd208;
+        --accent-hover: #ffdc3a;
+        --accent-fg: #0e0e10;
+        --success: #4ade80;
+        --error: #f87171;
+        --pill-bg: #2a2a2e;
+        --code-bg: #050507;
+        --code-fg: #e6edf3;
       }
-      100% {
-        transform: rotate(360deg);
+
+      * {
+        box-sizing: border-box;
       }
-    }
-  </style>
 
-  <div>
-    <!-- Use input `max` attribute to specify a custom timeout in seconds for a test/bench
-         Default timeout is available in ci/webdriver.py under variable name `case_timeout_seconds`
-    -->
+      body {
+        margin: 0;
+        padding: 24px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+      }
 
-    <input type="button" id="publicKeyTest" value="Public Key Test" disabled />
-    <input
-      type="button"
-      id="compressedPublicKeyTest"
-      value="Compressed Public Key Test"
-      disabled
-    />
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
 
-    <input
-      type="button"
-      id="compressedCompactPublicKeyTest256BitSmall"
-      value="Compressed Compact Public Key Test 256 Bits Small"
-      disabled
-    />
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
 
-    <input
-      type="button"
-      id="compressedCompactPublicKeyTest256BitBig"
-      value="Compressed Compact Public Key Test 256 Bits Big"
-      disabled
-    />
+      h1 {
+        font-size: 18px;
+        margin: 0;
+      }
 
-    <input
-      type="button"
-      id="compactPublicKeyZeroKnowledgeTest"
-      value="Compact Public Key Test 64 Bits Big With Zero Knowledge Proof"
-      max="3600"
-      disabled
-    />
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--muted);
+      }
 
-    <input
-      type="button"
-      id="asyncMainThreadCompactPublicKeyZeroKnowledgeTest"
-      value="Compact Public Key Test 64 Bits Big With Zero Knowledge Proof (Async Main Thread)"
-      max="3600"
-      disabled
-    />
+      .status .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--pill-bg);
+        transition: background 0.2s ease;
+      }
 
-    <input
-      type="button"
-      id="compactPublicKeyWithCastingTest256Bit"
-      value="Compact Public Key With Casting Test 256 Bit"
-      disabled
-    />
+      .status.success .dot {
+        background: var(--success);
+      }
 
-    <input
-      type="button"
-      id="compressedCompactPublicKeyWithCastingTest256Bit"
-      value="Compressed Compact Public Key With Casting Test 256 Bit"
-      disabled
-    />
+      .status.error .dot {
+        background: var(--error);
+      }
 
-    <input type="checkbox" id="testSuccess" disabled />
-    <label for="testSuccess"> TestSuccess </label><br />
+      .status .label {
+        text-transform: lowercase;
+      }
 
-    <input
-      type="button"
-      id="compactPublicKeyBench32BitSmall"
-      value="Compact Public Key Bench 32 Bits Small"
-      disabled
-    />
-    <input
-      type="button"
-      id="compactPublicKeyBench32BitBig"
-      value="Compact Public Key Bench 32 Bits Big"
-      disabled
-    />
+      section {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+      }
 
-    <input
-      type="button"
-      id="compactPublicKeyBench256BitSmall"
-      value="Compact Public Key Bench 256 Bits Small"
-      disabled
-    />
-    <input
-      type="button"
-      id="compactPublicKeyBench256BitBig"
-      value="Compact Public Key Bench 256 Bits Big"
-      disabled
-    />
-    <input
-      type="button"
-      id="compressedServerKeyBenchMessage1Carry1"
-      value="Compressed Server Key Bench 1_1"
-      max="600"
-      disabled
-    />
-    <input
-      type="button"
-      id="compressedServerKeyBenchMessage2Carry2"
-      value="Compressed Server Key Bench 2_2"
-      max="600"
-      disabled
-    />
-    <input
-      type="button"
-      id="compactPublicKeyZeroKnowledgeBench"
-      value="Compact ZK Bench"
-      max="3600"
-      disabled
-    />
+      section h2 {
+        margin: 0 0 12px;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+        font-weight: 600;
+      }
 
-    <input type="text" id="benchmarkResults" disabled />
-    <label for="benchmarkResults"> BenchmarkResults </label><br />
+      .buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
 
-    <div id="loader" class="loader" hidden></div>
-  </div>
+      input[type="button"] {
+        padding: 8px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        background: var(--accent);
+        color: var(--accent-fg);
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition:
+          background 0.15s ease,
+          opacity 0.15s ease;
+      }
 
-  <script type="module" src="index.js"></script>
-</body>
+      input[type="button"]:hover:not(:disabled) {
+        background: var(--accent-hover);
+      }
+
+      input[type="button"]:disabled {
+        background: var(--pill-bg);
+        color: var(--muted);
+        cursor: not-allowed;
+      }
+
+      .results-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+
+      .results-header h2 {
+        margin: 0;
+      }
+
+      #copyResults {
+        font-size: 12px;
+        padding: 4px 10px;
+        background: var(--pill-bg);
+        color: var(--fg);
+        font-weight: 500;
+      }
+
+      #copyResults:hover:not(:disabled) {
+        background: #3a3a3e;
+      }
+
+      pre#benchmarkResultsView {
+        margin: 0;
+        padding: 12px;
+        background: var(--code-bg);
+        color: var(--code-fg);
+        border-radius: 6px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 360px;
+        overflow: auto;
+        min-height: 80px;
+      }
+
+      pre#benchmarkResultsView:empty::before {
+        content: "No results yet — run a bench above.";
+        color: var(--muted);
+        font-style: italic;
+      }
+
+      .loader-wrap {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .loader {
+        border: 4px solid var(--pill-bg);
+        border-top: 4px solid var(--accent);
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Hidden, kept in DOM for CI webdriver assertions. */
+      .ci-only {
+        position: absolute;
+        left: -9999px;
+        top: -9999px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Use input `max` attribute to specify a custom timeout in seconds for a
+         test/bench. Default timeout is available in ci/webdriver.py under
+         variable name `case_timeout_seconds`. -->
+    <div class="container">
+      <header>
+        <h1>TFHE-RS Web Wasm Demo</h1>
+        <div id="status" class="status">
+          <span class="dot"></span>
+          <span class="label">idle</span>
+          <div id="loader" class="loader" hidden></div>
+        </div>
+      </header>
+
+      <section>
+        <h2>Tests</h2>
+        <div class="buttons">
+          <input
+            type="button"
+            id="publicKeyTest"
+            value="Public Key Test"
+            disabled
+          />
+          <input
+            type="button"
+            id="compressedPublicKeyTest"
+            value="Compressed Public Key Test"
+            disabled
+          />
+          <input
+            type="button"
+            id="compressedCompactPublicKeyTest256BitSmall"
+            value="Compressed Compact Public Key 256-bit Small"
+            disabled
+          />
+          <input
+            type="button"
+            id="compressedCompactPublicKeyTest256BitBig"
+            value="Compressed Compact Public Key 256-bit Big"
+            disabled
+          />
+          <input
+            type="button"
+            id="compactPublicKeyZeroKnowledgeTest"
+            value="Compact Public Key ZK Proof (64-bit Big)"
+            max="3600"
+            disabled
+          />
+          <input
+            type="button"
+            id="asyncMainThreadCompactPublicKeyZeroKnowledgeTest"
+            value="Compact Public Key ZK Proof (Async Main Thread)"
+            max="3600"
+            disabled
+          />
+          <input
+            type="button"
+            id="compactPublicKeyWithCastingTest256Bit"
+            value="Compact Public Key With Casting (256-bit)"
+            disabled
+          />
+          <input
+            type="button"
+            id="compressedCompactPublicKeyWithCastingTest256Bit"
+            value="Compressed Compact Public Key With Casting (256-bit)"
+            disabled
+          />
+          <input
+            type="button"
+            id="fixtureEncryptProveTest"
+            value="Encrypt + Prove From Fixture"
+            max="3600"
+            disabled
+          />
+        </div>
+      </section>
+
+      <section>
+        <h2>Benchmarks</h2>
+        <div class="buttons">
+          <input
+            type="button"
+            id="compactPublicKeyBench32BitSmall"
+            value="Compact Public Key 32-bit Small"
+            disabled
+          />
+          <input
+            type="button"
+            id="compactPublicKeyBench32BitBig"
+            value="Compact Public Key 32-bit Big"
+            disabled
+          />
+          <input
+            type="button"
+            id="compactPublicKeyBench256BitSmall"
+            value="Compact Public Key 256-bit Small"
+            disabled
+          />
+          <input
+            type="button"
+            id="compactPublicKeyBench256BitBig"
+            value="Compact Public Key 256-bit Big"
+            disabled
+          />
+          <input
+            type="button"
+            id="compressedServerKeyBenchMessage1Carry1"
+            value="Compressed Server Key 1_1"
+            max="600"
+            disabled
+          />
+          <input
+            type="button"
+            id="compressedServerKeyBenchMessage2Carry2"
+            value="Compressed Server Key 2_2"
+            max="600"
+            disabled
+          />
+          <input
+            type="button"
+            id="compactPublicKeyZeroKnowledgeBench"
+            value="Compact ZK Bench"
+            max="3600"
+            disabled
+          />
+          <input
+            type="button"
+            id="fixtureEncryptProveBench"
+            value="Encrypt + Prove From Fixture (5 loops)"
+            max="3600"
+            disabled
+          />
+        </div>
+      </section>
+
+      <section>
+        <div class="results-header">
+          <h2>Results</h2>
+          <input type="button" id="copyResults" value="Copy" disabled />
+        </div>
+        <pre id="benchmarkResultsView"></pre>
+        <!-- Keep an <input> with the legacy id for CI webdriver assertions.
+             The visible UI uses the <pre> above. -->
+        <input type="text" id="benchmarkResults" class="ci-only" disabled />
+      </section>
+    </div>
+
+    <!-- Kept for CI webdriver assertions. Visible state is reflected via #status. -->
+    <input type="checkbox" id="testSuccess" class="ci-only" disabled />
+
+    <script type="module" src="index.js"></script>
+  </body>
+</html>
