@@ -6,6 +6,7 @@ Script to handle tests and benchmarks for client-side tfhe-rs WASM code.
 """
 
 import argparse
+import base64
 import dataclasses
 import datetime
 import enum
@@ -106,6 +107,17 @@ parser.add_argument(
     "--server-workdir",
     dest="server_workdir",
     help="Path to working directory to launch web server",
+)
+parser.add_argument(
+    "--capture-key",
+    dest="capture_key",
+    help="JSON key, in a test result, holding a base64 payload to write to disk "
+    "(e.g. `proof_b64`). Requires --capture-out.",
+)
+parser.add_argument(
+    "--capture-out",
+    dest="capture_out",
+    help="Path where the base64-decoded --capture-key payload is written.",
 )
 
 
@@ -350,13 +362,15 @@ def parse_html_index(filepath):
     return cases
 
 
-def run_case(driver, case):
+def run_case(driver, case, capture_key=None, capture_out=None):
     """
     Run test or benchmark case using a web driver.
     If case is too long to run, it will raise an :exec:`TimeoutException`.
 
     :param driver: :class:`Driver`
     :param case: :class:`UseCase`
+    :param capture_key: optional JSON key whose base64 value is written to disk
+    :param capture_out: optional path to write the decoded `capture_key` payload
 
     :return: :class:`dict` of benchmark results if `case` is benchmarks otherwise `None`
     """
@@ -385,7 +399,22 @@ def run_case(driver, case):
 
     driver.refresh()
 
-    return json.loads(benchmark_results) if benchmark_results else None
+    result = json.loads(benchmark_results) if benchmark_results else None
+
+    # Capture a base64 payload (e.g. a proven ciphertext) to disk and strip it
+    # from the result so it doesn't pollute the benchmark dump.
+    if (
+        isinstance(result, dict)
+        and capture_key
+        and capture_out
+        and capture_key in result
+    ):
+        out_path = pathlib.Path(capture_out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_bytes(base64.b64decode(result.pop(capture_key)))
+        print(f"[driver] Captured '{capture_key}' to {out_path}")
+
+    return result
 
 
 def dump_benchmark_results(results, browser_kind):
@@ -398,6 +427,11 @@ def dump_benchmark_results(results, browser_kind):
     :param results: benchmark results as :class:`dict`
     :param browser_kind: browser as :class:`BrowserKind`
     """
+    # Keep only numeric measurements, so non-numeric payloads a test may return
+    # (e.g. fixtureEncryptProveTest's base64 `proof_b64`) never leak into the dump.
+    results = {
+        key: val for key, val in results.items() if isinstance(val, (int, float))
+    }
     if results:
         results = {
             key.replace("mean", "_".join((browser_kind.name, "mean"))): val
@@ -514,37 +548,43 @@ def main():
         args.browser_path, args.driver_path, browser_kind, threaded_logs=True
     )
 
-    driver.get_page(f"http://{args.address}:{args.port}", timeout_seconds=10)
-
     failures = []
     benchmark_results = {}
 
-    for case in cases:
-        try:
-            bench_res = run_case(driver, case)
-            print(f"SUCCESS: {case.id}\n")
-            if bench_res:
-                benchmark_results.update(bench_res)
-        except KeyboardInterrupt:
-            exit_code = 2
-            break
-        except Exception as error:
-            print(f"FAIL: {case.id} (reason: {error})\n")
-            if args.fail_fast:
-                print("Fail fast is enabled, exiting")
-                exit_code = 1
+    # Wrap everything past the server start in try/finally so a failure during
+    # driver setup / page load (e.g. missing webdriver) never leaves the web
+    # server orphaned holding the port.
+    try:
+        driver.get_page(f"http://{args.address}:{args.port}", timeout_seconds=10)
+
+        for case in cases:
+            try:
+                bench_res = run_case(
+                    driver, case, args.capture_key, args.capture_out
+                )
+                print(f"SUCCESS: {case.id}\n")
+                if bench_res:
+                    benchmark_results.update(bench_res)
+            except KeyboardInterrupt:
+                exit_code = 2
                 break
-            else:
-                failures.append(case.id)
+            except Exception as error:
+                print(f"FAIL: {case.id} (reason: {error})\n")
+                if args.fail_fast:
+                    print("Fail fast is enabled, exiting")
+                    exit_code = 1
+                    break
+                else:
+                    failures.append(case.id)
 
-    dump_benchmark_results(benchmark_results, browser_kind)
+        dump_benchmark_results(benchmark_results, browser_kind)
+    finally:
+        # Close the browser
+        driver.quit()
 
-    # Close the browser
-    driver.quit()
-
-    if server_process:
-        print("Shutting down web server")
-        terminate_web_server(server_process.pid)
+        if server_process:
+            print("Shutting down web server")
+            terminate_web_server(server_process.pid)
 
     if failures:
         exit_code = 1

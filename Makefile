@@ -29,10 +29,8 @@ BACKWARD_COMPAT_DATA_GEN_VERSION:=$(TFHE_VERSION)
 CORRUPTED_INPUTS_TEST=tests/corrupted_inputs_deserialization
 TEST_VECTORS_DIR=apps/test-vectors
 CURRENT_TFHE_VERSION:=$(shell grep '^version[[:space:]]*=' tfhe/Cargo.toml | cut -d '=' -f 2 | xargs)
-WASM_PACK_VERSION="0.13.1"
+WASM_PACK_VERSION="0.14.0"
 WASM_BINDGEN_VERSION:=$(shell cargo tree --target wasm32-unknown-unknown -e all --prefix none | grep "wasm-bindgen v" | head -n 1 | cut -d 'v' -f2)
-WEB_RUNNER_DIR=web-test-runner
-WEB_SERVER_DIR=tfhe/web_wasm_parallel_tests
 TAPLO_VERSION=0.10.0
 TYPOS_VERSION=1.46.0
 ZIZMOR_VERSION=1.22.0
@@ -211,57 +209,6 @@ install_linelint_ci:
 	sha256sum -c linelint_checksum && \
 	rm linelint_checksum && \
 	chmod +x linelint
-
-.PHONY: setup_venv # Setup Python virtualenv for wasm tests
-setup_venv:
-	python3 -m venv venv
-	@source venv/bin/activate && \
-	pip3 install -r ci/webdriver_requirements.txt
-
-# This is an internal target, not meant to be called on its own.
-install_web_resource:
-	wget -P $(dest) $(url)
-	@cd $(dest) && \
-	echo "$(checksum) $(filename)" > checksum && \
-	sha256sum -c checksum && \
-	rm checksum && \
-	$(decompress_cmd) $(filename)
-
-install_chrome_browser: url = "https://storage.googleapis.com/chrome-for-testing-public/130.0.6723.69/linux64/chrome-linux64.zip"
-install_chrome_browser: checksum = "f789d53911a50cfa4a2bc1f09cde57567247f52515436d92b1aa9de93c2787d0"
-install_chrome_browser: dest = "$(WEB_RUNNER_DIR)/chrome"
-install_chrome_browser: filename = "chrome-linux64.zip"
-install_chrome_browser: decompress_cmd = unzip
-
-.PHONY: install_chrome_browser # Install Chrome browser for Linux
-install_chrome_browser: install_web_resource
-
-install_chrome_web_driver: url = "https://storage.googleapis.com/chrome-for-testing-public/130.0.6723.69/linux64/chromedriver-linux64.zip"
-install_chrome_web_driver: checksum = "90fe8dedf33eefe4b72704f626fa9f5834427c042235cfeb4251f18c9f0336ea"
-install_chrome_web_driver: dest = "$(WEB_RUNNER_DIR)/chrome"
-install_chrome_web_driver: filename = "chromedriver-linux64.zip"
-install_chrome_web_driver: decompress_cmd = unzip
-
-.PHONY: install_chrome_web_driver # Install Chrome web driver for Linux
-install_chrome_web_driver: install_web_resource
-
-install_firefox_browser: url = "https://download-installer.cdn.mozilla.net/pub/firefox/releases/147.0/linux-x86_64/en-US/firefox-147.0.tar.xz"
-install_firefox_browser: checksum = "f055b9c0d7346a10d22edc7f10e08679af2ea495367381ab2be9cab3ec6add97"
-install_firefox_browser: dest = "$(WEB_RUNNER_DIR)/firefox"
-install_firefox_browser: filename = "firefox-147.0.tar.xz"
-install_firefox_browser: decompress_cmd = tar -xvf
-
-.PHONY: install_firefox_browser # Install firefox browser for Linux
-install_firefox_browser: install_web_resource
-
-install_firefox_web_driver: url = "https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz"
-install_firefox_web_driver: checksum = "0bde38707eb0a686a20c6bd50f4adcc7d60d4f73c60eb83ee9e0db8f65823e04"
-install_firefox_web_driver: dest = "$(WEB_RUNNER_DIR)/firefox"
-install_firefox_web_driver: filename = "geckodriver-v0.36.0-linux64.tar.gz"
-install_firefox_web_driver: decompress_cmd = tar -xvf
-
-.PHONY: install_firefox_web_driver # Install firefox web driver for Linux
-install_firefox_web_driver: install_web_resource
 
 .PHONY: check_linelint_installed # Check if linelint newline linter is installed
 check_linelint_installed:
@@ -745,39 +692,8 @@ build_c_api_experimental_deterministic_fft: install_rs_check_toolchain
 		--features=boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,experimental-force_fft_algo_dif4 \
 		-p tfhe
 
-.PHONY: build_web_js_api # Build the js API targeting the web browser, in sequential or cross origin parallelism modes.
-build_web_js_api: install_wasm_pack
-	cd tfhe && \
-	RUSTFLAGS="$(WASM_RUSTFLAGS)" wasm-pack build --release --target=web \
-		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok,extended-types,cross-origin-wasm-api && \
-	find pkg/snippets -type f -iname worker_helpers.js -exec sed -i 's|import("../../..")|import("../../../tfhe.js")|g' {} \;
-	cp utils/wasm-par-mq/js/coordinator.js tfhe/pkg/
-	jq '.files += ["snippets"]' tfhe/pkg/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/pkg/package.json
-
-.PHONY: build_web_js_api_parallel # Build the js API targeting the web browser with parallelism support
-# parallel wasm requires specific build options, see https://github.com/rust-lang/rust/pull/147225
-build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack install_wasm_bindgen_cli
-	cd tfhe && \
-	rustup component add rust-src --toolchain $(RS_CHECK_TOOLCHAIN) && \
-	RUSTFLAGS="$(WASM_RUSTFLAGS) -C target-feature=+atomics,+bulk-memory \
-		-Clink-arg=--shared-memory \
-		-Clink-arg=--max-memory=1073741824 \
-		-Clink-arg=--import-memory \
-		-Clink-arg=--export=__wasm_init_tls \
-		-Clink-arg=--export=__tls_size \
-		-Clink-arg=--export=__tls_align \
-		-Clink-arg=--export=__tls_base" \
-		rustup run $(RS_CHECK_TOOLCHAIN) wasm-pack build --release --target=web \
-		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,parallel-wasm-api,zk-pok,extended-types \
-		-Z build-std=panic_abort,std && \
-	find pkg/snippets -type f -iname workerHelpers.js -exec sed -i "s|const pkg = await import('..\/..\/..');|const pkg = await import('..\/..\/..\/tfhe.js');|" {} \;
-	jq '.files += ["snippets"]' tfhe/pkg/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/pkg/package.json
-
-.PHONY: build_node_js_api # Build the js API targeting nodejs
-build_node_js_api: install_wasm_pack
-	cd tfhe && \
-	RUSTFLAGS="$(WASM_RUSTFLAGS)" wasm-pack build --release --target=nodejs \
-		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok,extended-types
+# wasm pkg build rules (full + client, web + node, parallel + cross-origin).
+include make/wasm.mk
 
 .PHONY: build_tfhe_csprng # Build tfhe_csprng
 build_tfhe_csprng:
@@ -1357,19 +1273,6 @@ test_integer_zk_experimental_gpu:
 .PHONY: test_zk_cuda # Run all GPU MSM integration tests (CPU vs GPU comparison + integration test)
 test_zk_cuda: test_zk_cuda_backend test_zk_pok_experimental_gpu test_integer_zk_gpu test_integer_zk_experimental_gpu
 
-.PHONY: test_zk_wasm_x86_compat_ci
-test_zk_wasm_x86_compat_ci: check_nvm_installed
-	source ~/.nvm/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
-	$(MAKE) test_zk_wasm_x86_compat
-
-.PHONY: test_zk_wasm_x86_compat # Check compatibility between wasm and x86_64 proofs
-test_zk_wasm_x86_compat: build_node_js_api
-	cd tfhe/tests/zk_wasm_x86_test && npm install
-	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		-p tfhe --test zk_wasm_x86_test --features=integer,zk-pok
-
 .PHONY: test_versionable # Run tests for tfhe-versionable subcrate
 test_versionable:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
@@ -1504,155 +1407,6 @@ check_compile_tests_benches_gpu:
 		cd "$(TFHECUDA_BUILD)" && \
 		cmake .. -DCMAKE_BUILD_TYPE=Debug -DTFHE_CUDA_BACKEND_BUILD_TESTS=ON -DTFHE_CUDA_BACKEND_BUILD_BENCHMARKS=ON && \
 		"$(MAKE)" -j "$(CPU_COUNT)"
-
-.PHONY: test_nodejs_wasm_api # Run tests for the nodejs on wasm API
-test_nodejs_wasm_api: build_node_js_api
-	cd tfhe/js_on_wasm_tests && npm install && npm run test
-
-.PHONY: test_nodejs_wasm_api_ci # Run tests for the nodejs on wasm API
-test_nodejs_wasm_api_ci: build_node_js_api
-	source ~/.nvm/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
-	$(MAKE) test_nodejs_wasm_api
-
-# This is an internal target, not meant to be called on its own.
-run_web_js_api_parallel: build_web_js_api_parallel setup_venv
-	cd $(WEB_SERVER_DIR) && npm install && npm run build
-	source venv/bin/activate && \
-	python ci/webdriver.py \
-	--browser-path $(browser_path) \
-	--driver-path $(driver_path) \
-	--browser-kind $(browser_kind) \
-	--server-cmd $(server_cmd) \
-	--server-workdir "$(WEB_SERVER_DIR)" \
-	--id-pattern $(filter) \
-	--id-exclude-pattern asyncMainThread
-
-# This is an internal target, not meant to be called on its own.
-run_web_js_api_cross_origin: build_web_js_api setup_venv
-	cd $(WEB_SERVER_DIR) && npm install && npm run build
-	source venv/bin/activate && \
-	python ci/webdriver.py \
-	--browser-path $(browser_path) \
-	--driver-path $(driver_path) \
-	--browser-kind  $(browser_kind) \
-	--server-cmd $(server_cmd) \
-	--server-workdir "$(WEB_SERVER_DIR)" \
-	--id-pattern $(filter)
-
-test_web_js_api_parallel_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
-test_web_js_api_parallel_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
-test_web_js_api_parallel_chrome: browser_kind = chrome
-test_web_js_api_parallel_chrome: server_cmd = "npm run server:multithreaded"
-test_web_js_api_parallel_chrome: filter = Test
-
-.PHONY: test_web_js_api_parallel_chrome # Run tests for the web wasm api on Chrome
-test_web_js_api_parallel_chrome: run_web_js_api_parallel
-
-.PHONY: test_web_js_api_parallel_chrome_ci # Run tests for the web wasm api on Chrome
-test_web_js_api_parallel_chrome_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
-	$(MAKE) test_web_js_api_parallel_chrome
-
-test_web_js_api_parallel_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
-test_web_js_api_parallel_firefox: driver_path = "$(WEB_RUNNER_DIR)/firefox/geckodriver"
-test_web_js_api_parallel_firefox: browser_kind = firefox
-test_web_js_api_parallel_firefox: server_cmd = "npm run server:multithreaded"
-test_web_js_api_parallel_firefox: filter = Test
-
-.PHONY: test_web_js_api_parallel_firefox # Run tests for the web wasm api on Firefox
-test_web_js_api_parallel_firefox: run_web_js_api_parallel
-
-.PHONY: test_web_js_api_parallel_firefox_ci # Run tests for the web wasm api on Firefox
-test_web_js_api_parallel_firefox_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
-	$(MAKE) test_web_js_api_parallel_firefox
-
-test_web_js_api_cross_origin_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
-test_web_js_api_cross_origin_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
-test_web_js_api_cross_origin_chrome: browser_kind = chrome
-test_web_js_api_cross_origin_chrome: server_cmd = "npm run server:cross-origin"
-test_web_js_api_cross_origin_chrome: filter = ZeroKnowledgeTest # Only run zk proof tests in cross-origin mode
-
-.PHONY: test_web_js_api_cross_origin_chrome # Run tests for the web wasm api in cross-origin mode on Chrome
-test_web_js_api_cross_origin_chrome: run_web_js_api_cross_origin
-
-.PHONY: test_web_js_api_cross_origin_chrome_ci # Run tests for the web wasm api in cross-origin mode on Chrome
-test_web_js_api_cross_origin_chrome_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
-	$(MAKE) test_web_js_api_cross_origin_chrome
-
-test_web_js_api_cross_origin_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
-test_web_js_api_cross_origin_firefox: driver_path = "$(WEB_RUNNER_DIR)/firefox/geckodriver"
-test_web_js_api_cross_origin_firefox: browser_kind = firefox
-test_web_js_api_cross_origin_firefox: server_cmd = "npm run server:cross-origin"
-test_web_js_api_cross_origin_firefox: filter = ZeroKnowledgeTest  # Only run zk proof tests in cross-origin mode
-
-.PHONY: test_web_js_api_cross_origin_firefox # Run tests for the web wasm api in cross-origin mode on Firefox
-test_web_js_api_cross_origin_firefox: run_web_js_api_cross_origin
-
-.PHONY: test_web_js_api_cross_origin_firefox_ci # Run tests for the web wasm api in cross-origin mode on Firefox
-test_web_js_api_cross_origin_firefox_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
-	$(MAKE) test_web_js_api_cross_origin_firefox
-
-WASM_PAR_MQ_TEST_DIR=utils/wasm-par-mq/web_tests
-
-.PHONY: build_wasm_par_mq_tests # Build the wasm-par-mq test WASM package
-build_wasm_par_mq_tests: install_wasm_pack
-	cd $(WASM_PAR_MQ_TEST_DIR) && \
-	RUSTFLAGS="$(WASM_RUSTFLAGS)" wasm-pack build --target=web --out-dir pkg && \
-	find pkg/snippets -type f -iname worker_helpers.js -exec sed -i 's|import("../../..")|import("../../../wasm_par_mq_web_tests.js")|g' {} \;
-
-# This is an internal target, not meant to be called on its own.
-run_wasm_par_mq_tests: build_wasm_par_mq_tests setup_venv
-	cd $(WASM_PAR_MQ_TEST_DIR) && npm install && npm run build
-	source venv/bin/activate && \
-	python ci/webdriver.py \
-	--browser-path $(browser_path) \
-	--driver-path $(driver_path) \
-	--browser-kind $(browser_kind) \
-	--server-cmd "npm run server" \
-	--server-workdir "$(WASM_PAR_MQ_TEST_DIR)" \
-	--index-path "$(WASM_PAR_MQ_TEST_DIR)/index.html" \
-	--id-pattern Test
-
-test_wasm_par_mq_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
-test_wasm_par_mq_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
-test_wasm_par_mq_chrome: browser_kind = chrome
-
-.PHONY: test_wasm_par_mq_chrome # Run wasm-par-mq tests on Chrome
-test_wasm_par_mq_chrome: run_wasm_par_mq_tests
-
-.PHONY: test_wasm_par_mq_chrome_ci # Run wasm-par-mq tests on Chrome in CI
-test_wasm_par_mq_chrome_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
-	$(MAKE) test_wasm_par_mq_chrome
-
-test_wasm_par_mq_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
-test_wasm_par_mq_firefox: driver_path = "$(WEB_RUNNER_DIR)/firefox/geckodriver"
-test_wasm_par_mq_firefox: browser_kind = firefox
-
-.PHONY: test_wasm_par_mq_firefox # Run wasm-par-mq tests on Firefox
-test_wasm_par_mq_firefox: run_wasm_par_mq_tests
-
-.PHONY: test_wasm_par_mq_firefox_ci # Run wasm-par-mq tests on Firefox in CI
-test_wasm_par_mq_firefox_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
-	$(MAKE) test_wasm_par_mq_firefox
 
 .PHONY: no_tfhe_typo # Check we did not invert the h and f in tfhe
 no_tfhe_typo:
@@ -1954,70 +1708,6 @@ bench_pbs128_gpu: install_rs_check_toolchain
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench core_crypto-pbs128 \
 	--features=boolean,shortint,gpu,internal-keycache -p tfhe-benchmark --profile release_lto_off
-
-bench_web_js_api_parallel_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
-bench_web_js_api_parallel_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
-bench_web_js_api_parallel_chrome: browser_kind = chrome
-bench_web_js_api_parallel_chrome: server_cmd = "npm run server:multithreaded"
-bench_web_js_api_parallel_chrome: filter = Bench
-
-.PHONY: bench_web_js_api_parallel_chrome # Run benchmarks for the web wasm api
-bench_web_js_api_parallel_chrome: run_web_js_api_parallel
-
-.PHONY: bench_web_js_api_parallel_chrome_ci # Run benchmarks for the web wasm api
-bench_web_js_api_parallel_chrome_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
-	$(MAKE) bench_web_js_api_parallel_chrome
-
-bench_web_js_api_parallel_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
-bench_web_js_api_parallel_firefox: driver_path = "$(WEB_RUNNER_DIR)/firefox/geckodriver"
-bench_web_js_api_parallel_firefox: browser_kind = firefox
-bench_web_js_api_parallel_firefox: server_cmd = "npm run server:multithreaded"
-bench_web_js_api_parallel_firefox: filter = Bench
-
-.PHONY: bench_web_js_api_parallel_firefox # Run benchmarks for the web wasm api
-bench_web_js_api_parallel_firefox: run_web_js_api_parallel
-
-.PHONY: bench_web_js_api_parallel_firefox_ci # Run benchmarks for the web wasm api
-bench_web_js_api_parallel_firefox_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
-	$(MAKE) bench_web_js_api_parallel_firefox
-
-bench_web_js_api_cross_origin_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
-bench_web_js_api_cross_origin_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
-bench_web_js_api_cross_origin_chrome: browser_kind = chrome
-bench_web_js_api_cross_origin_chrome: server_cmd = "npm run server:cross-origin"
-bench_web_js_api_cross_origin_chrome: filter = ZeroKnowledgeBench # Only bench zk with cross-origin workers
-
-.PHONY: bench_web_js_api_cross_origin_chrome # Run benchmarks for the web wasm api without cross-origin isolation
-bench_web_js_api_cross_origin_chrome: run_web_js_api_cross_origin
-
-.PHONY: bench_web_js_api_cross_origin_chrome_ci # Run benchmarks for the web wasm api without cross-origin isolation
-bench_web_js_api_cross_origin_chrome_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
-	$(MAKE) bench_web_js_api_cross_origin_chrome
-
-bench_web_js_api_cross_origin_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
-bench_web_js_api_cross_origin_firefox: driver_path = "$(WEB_RUNNER_DIR)/firefox/geckodriver"
-bench_web_js_api_cross_origin_firefox: browser_kind = firefox
-bench_web_js_api_cross_origin_firefox: server_cmd = "npm run server:cross-origin"
-bench_web_js_api_cross_origin_firefox: filter = ZeroKnowledgeBench # Only bench zk with cross-origin workers
-
-.PHONY: bench_web_js_api_cross_origin_firefox # Run benchmarks for the web wasm api without cross-origin isolation
-bench_web_js_api_cross_origin_firefox: run_web_js_api_cross_origin
-
-.PHONY: bench_web_js_api_cross_origin_firefox_ci # Run benchmarks for the web wasm api without cross-origin isolation
-bench_web_js_api_cross_origin_firefox_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
-	$(MAKE) bench_web_js_api_cross_origin_firefox
 
 .PHONY: bench_hlapi_unsigned # Run benchmarks for integer operations
 bench_hlapi_unsigned: install_rs_check_toolchain
