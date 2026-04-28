@@ -25,7 +25,7 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 # Auto-detect CUDA compute capability
 set(OUTPUTFILE ${CMAKE_CURRENT_SOURCE_DIR}/cuda_script)
 set(CUDAFILE ${CMAKE_CURRENT_SOURCE_DIR}/check_cuda.cu)
-execute_process(COMMAND nvcc -lcuda ${CUDAFILE} -o ${OUTPUTFILE})
+execute_process(COMMAND ${CMAKE_CUDA_COMPILER} -lcuda ${CUDAFILE} -o ${OUTPUTFILE})
 execute_process(
   COMMAND ${OUTPUTFILE}
   RESULT_VARIABLE CUDA_RETURN_CODE
