@@ -1,6 +1,5 @@
 use std::ffi::c_void;
 
-#[link(name = "tfhe_cuda_common", kind = "static")]
 extern "C" {
 
     pub fn cuda_create_stream(gpu_index: u32) -> *mut c_void;
