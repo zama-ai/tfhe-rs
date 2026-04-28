@@ -54,29 +54,29 @@ RUST_CALL_SITES = [
 # Bindings parsed from bindings.rs
 # Scratch functions: Two more than cleanup functions because of
 #  'scratch_cuda_programmable_bootstrap_32_async' and
-EXPECTED_SCRATCH_COUNT = 74
+EXPECTED_SCRATCH_COUNT = 78
 
 # Cuda operation functions
-EXPECTED_CUDA_COUNT = 115
+EXPECTED_CUDA_COUNT = 119
 
 # Cleanup functions
-EXPECTED_CLEANUP_COUNT = 74
+EXPECTED_CLEANUP_COUNT = 78
 
 # Check 3: Rust call-site scanning
 # Number of functions in ffi.rs files
-EXPECTED_CHECK3_RUST_FNS = 140
+EXPECTED_CHECK3_RUST_FNS = 144
 # Number of functions in ffi.rs files that
-EXPECTED_CHECK3_ASYNC_CUDA_CALLS = 96
+EXPECTED_CHECK3_ASYNC_CUDA_CALLS = 100
 
 # Number of instances of Rust calls to the scratch/cuda/cleanup in a
 # triplet sequence.
-EXPECTED_CHECK3_SCRATCH_CUDA_CLEANUP_TRIPLET_CALLS = 115
+EXPECTED_CHECK3_SCRATCH_CUDA_CLEANUP_TRIPLET_CALLS = 119
 
 # Check 5: Rust async-caller scanning
-EXPECTED_CHECK5_ASYNC_CALLERS = 124
+EXPECTED_CHECK5_ASYNC_CALLERS = 128
 
 # Check 6: Rust cleanup-caller scanning
-EXPECTED_CHECK6_CLEANUP_CALLERS = 112
+EXPECTED_CHECK6_CLEANUP_CALLERS = 116
 
 
 def check_paths_exist():

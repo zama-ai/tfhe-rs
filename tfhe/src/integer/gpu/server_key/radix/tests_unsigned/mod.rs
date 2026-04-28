@@ -7,6 +7,7 @@ pub(crate) mod test_comparison;
 pub(crate) mod test_div_mod;
 pub(crate) mod test_ilog2;
 pub(crate) mod test_kreyvium;
+mod test_kv_store;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
 pub(crate) mod test_oprf;
@@ -67,7 +68,10 @@ macro_rules! create_gpu_parameterized_stringified_test{
     };
 }
 
+use crate::integer::gpu::server_key::radix::kv_store::CudaKVStore;
 use crate::integer::gpu::server_key::radix::tests_signed::GpuMultiDeviceFunctionExecutor;
+use crate::integer::server_key::radix_parallel::tests_unsigned::test_kv_store::KeyType;
+use crate::integer::server_key::KVStore;
 pub(crate) use create_gpu_parameterized_stringified_test;
 pub(crate) use create_gpu_parameterized_test;
 use tfhe_csprng::seeders::Seed;
@@ -1705,5 +1709,98 @@ where
         );
 
         d_res.to_radix_ciphertext(&context.streams)
+    }
+}
+
+impl<'a, F>
+    FunctionExecutor<
+        (&'a KVStore<KeyType, RadixCiphertext>, &'a RadixCiphertext),
+        (RadixCiphertext, BooleanBlock),
+    > for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaKVStore<KeyType, CudaUnsignedRadixCiphertext>,
+        &CudaUnsignedRadixCiphertext,
+        &CudaStreams,
+    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock),
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(
+        &mut self,
+        input: (&'a KVStore<KeyType, RadixCiphertext>, &'a RadixCiphertext),
+    ) -> (RadixCiphertext, BooleanBlock) {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_kv_store = CudaKVStore::from_kv_store(input.0, &context.streams);
+        let d_ctxt = CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.1, &context.streams);
+
+        let gpu_result = (self.func)(&context.sks, &d_kv_store, &d_ctxt, &context.streams);
+
+        let result = gpu_result.0.to_radix_ciphertext(&context.streams);
+        let boolean = gpu_result.1.to_boolean_block(&context.streams);
+
+        (result, boolean)
+    }
+}
+
+impl<'a, F>
+    FunctionExecutor<
+        (
+            &'a mut KVStore<KeyType, RadixCiphertext>,
+            &'a RadixCiphertext,
+            &'a RadixCiphertext,
+        ),
+        BooleanBlock,
+    > for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &mut CudaKVStore<KeyType, CudaUnsignedRadixCiphertext>,
+        &CudaUnsignedRadixCiphertext,
+        &CudaUnsignedRadixCiphertext,
+        &CudaStreams,
+    ) -> CudaBooleanBlock,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(
+        &mut self,
+        input: (
+            &'a mut KVStore<KeyType, RadixCiphertext>,
+            &'a RadixCiphertext,
+            &'a RadixCiphertext,
+        ),
+    ) -> BooleanBlock {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let mut d_kv_store = CudaKVStore::from_kv_store(input.0, &context.streams);
+        let d_ctxt_1 =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.1, &context.streams);
+        let d_ctxt_2 =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.2, &context.streams);
+
+        let gpu_result = (self.func)(
+            &context.sks,
+            &mut d_kv_store,
+            &d_ctxt_1,
+            &d_ctxt_2,
+            &context.streams,
+        );
+
+        *input.0 = d_kv_store.to_kv_store(&context.streams);
+
+        gpu_result.to_boolean_block(&context.streams)
     }
 }

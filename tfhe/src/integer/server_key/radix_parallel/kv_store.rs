@@ -417,7 +417,7 @@ impl<Key, Value> CompressedKVStore<Key, Value>
 where
     Value: Expandable + IntegerRadixCiphertext,
 {
-    fn new(keys: Vec<Key>, compressed_values: CompressedCiphertextList) -> Self {
+    pub(crate) fn new(keys: Vec<Key>, compressed_values: CompressedCiphertextList) -> Self {
         Self {
             keys,
             values: compressed_values,
@@ -468,6 +468,45 @@ where
                 ));
             }
 
+            let _ = store.insert(*key, value);
+        }
+
+        Ok(store)
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Key, Value> CompressedKVStore<Key, Value>
+where
+    Value: IntegerRadixCiphertext,
+{
+    pub(crate) fn decompress_to_cuda<GpuCt>(
+        &self,
+        decompression_key: &crate::integer::gpu::list_compression::server_keys::CudaDecompressionKey,
+        streams: &crate::core_crypto::gpu::CudaStreams,
+    ) -> crate::Result<crate::integer::gpu::server_key::radix::kv_store::CudaKVStore<Key, GpuCt>>
+    where
+        Key: Copy + Display + Ord,
+        GpuCt: crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext
+            + crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaExpandable,
+    {
+        if Value::IS_SIGNED != self.is_signed {
+            let requested = if Value::IS_SIGNED { "Signed" } else { "" };
+            let stored = if self.is_signed { "Signed" } else { "" };
+            return Err(crate::error!(
+                "Requested value type does not have signed. \
+                 Requested '{requested}RadixCiphertext' but stored '{stored}RadixCiphertext'"
+            ));
+        }
+
+        let cuda_compressed = self.values.to_cuda_compressed_ciphertext_list(streams);
+        let mut store =
+            crate::integer::gpu::server_key::radix::kv_store::CudaKVStore::<Key, GpuCt>::new();
+
+        for (i, key) in self.keys.iter().enumerate() {
+            let value: GpuCt = cuda_compressed
+                .get(i, decompression_key, streams)?
+                .ok_or_else(|| crate::error!("Missing value for key '{key}'"))?;
             let _ = store.insert(*key, value);
         }
 

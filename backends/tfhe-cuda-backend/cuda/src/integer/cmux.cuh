@@ -5,6 +5,10 @@
 #include "integer/cmux.h"
 #include "radix_ciphertext.cuh"
 
+// Conditionally zeros a radix ciphertext: if lwe_condition encrypts true,
+// lwe_array_out encrypts zero; otherwise lwe_array_out = lwe_array_input.
+// The condition is a single LWE block broadcast to every block of the input
+// via bivariate packing, then evaluated through the predicate LUT.
 template <typename Torus, typename KSTorus>
 __host__ void zero_out_if(CudaStreams streams,
                           CudaRadixCiphertextFFI *lwe_array_out,
@@ -39,6 +43,64 @@ __host__ void zero_out_if(CudaStreams streams,
   integer_radix_apply_univariate_lookup_table<Torus>(
       streams, lwe_array_out, tmp_lwe_array_input, bsks, ksks, predicate,
       num_radix_blocks);
+}
+
+// Applies zero_out_if to N ciphertexts in a single PBS call.
+// lwe_array_in/out hold N values packed contiguously (num_entries *
+// num_blocks_per_ct blocks). lwe_conditions holds N single-block encrypted
+// booleans (one per entry).
+template <typename Torus, typename KSTorus>
+__host__ void
+zero_out_if_batch(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+                  CudaRadixCiphertextFFI const *lwe_array_input,
+                  CudaRadixCiphertextFFI const *lwe_conditions,
+                  int_zero_out_if_batch_buffer<Torus> *mem_ptr,
+                  int_radix_lut<Torus> *predicate, void *const *bsks,
+                  KSTorus *const *ksks, uint32_t num_entries,
+                  uint32_t num_blocks_per_ct) {
+
+  uint32_t total_num_blocks =
+      static_cast<uint32_t>(safe_mul((size_t)num_entries, num_blocks_per_ct));
+
+  PANIC_IF_FALSE(
+      lwe_array_out->num_radix_blocks >= total_num_blocks &&
+          lwe_array_input->num_radix_blocks >= total_num_blocks,
+      "Cuda error: input or output radix ciphertexts does not have enough "
+      "blocks");
+
+  PANIC_IF_FALSE(
+      lwe_conditions->num_radix_blocks >= num_entries,
+      "Cuda error: conditions radix ciphertext does not have enough blocks");
+
+  PANIC_IF_FALSE(
+      lwe_array_out->lwe_dimension == lwe_array_input->lwe_dimension &&
+          lwe_array_input->lwe_dimension == lwe_conditions->lwe_dimension,
+      "Cuda error: input and output radix ciphertexts must have the same "
+      "lwe dimension");
+
+  cuda_set_device(streams.gpu_index(0));
+  auto params = mem_ptr->params;
+
+  auto tmp_lwe_array_input = mem_ptr->tmp;
+  host_pack_bivariate_blocks_with_per_ct_single_block<Torus>(
+      streams, tmp_lwe_array_input, lwe_array_input, lwe_conditions,
+      params.message_modulus, num_entries, num_blocks_per_ct);
+
+  integer_radix_apply_univariate_lookup_table<Torus>(
+      streams, lwe_array_out, tmp_lwe_array_input, bsks, ksks, predicate,
+      total_num_blocks);
+}
+
+template <typename Torus>
+__host__ uint64_t scratch_cuda_zero_out_if_batch(
+    CudaStreams streams, int_zero_out_if_batch_buffer<Torus> **mem_ptr,
+    uint32_t num_entries, uint32_t num_blocks_per_ct, int_radix_params params,
+    bool allocate_gpu_memory) {
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_zero_out_if_batch_buffer<Torus>(
+      streams, params, num_entries, num_blocks_per_ct, allocate_gpu_memory,
+      size_tracker);
+  return size_tracker;
 }
 
 template <typename Torus, typename KSTorus>

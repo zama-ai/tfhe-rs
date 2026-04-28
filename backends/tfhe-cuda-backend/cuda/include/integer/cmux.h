@@ -30,6 +30,38 @@ template <typename Torus> struct int_zero_out_if_buffer {
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
+
+template <typename Torus> struct int_zero_out_if_batch_buffer {
+
+  int_radix_params params;
+
+  CudaRadixCiphertextFFI *tmp;
+
+  bool gpu_memory_allocated;
+
+  int_zero_out_if_batch_buffer(CudaStreams streams, int_radix_params params,
+                               uint32_t num_entries, uint32_t num_blocks_per_ct,
+                               bool allocate_gpu_memory,
+                               uint64_t &size_tracker) {
+    gpu_memory_allocated = allocate_gpu_memory;
+    this->params = params;
+    uint32_t total_num_blocks =
+        static_cast<uint32_t>(safe_mul((size_t)num_entries, num_blocks_per_ct));
+
+    tmp = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), tmp, total_num_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+  }
+  void release(CudaStreams streams) {
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0), tmp,
+                                   gpu_memory_allocated);
+    delete tmp;
+    tmp = nullptr;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+};
+
 template <typename Torus> struct int_cmux_buffer {
   int_radix_lut<Torus> *predicate_lut;
   int_radix_lut<Torus> *message_extract_lut;
