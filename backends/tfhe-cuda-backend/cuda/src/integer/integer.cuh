@@ -520,6 +520,92 @@ __global__ void device_pack_bivariate_blocks_with_per_ct_single_block(
   }
 }
 
+// Fused two-region variant of
+// device_pack_bivariate_blocks_with_per_ct_single_block for the batched CMUX:
+// a single launch packs lwe_array_true (region 0, replicated per entry when
+// replicate_true is set) and lwe_array_false (region 1, never replicated)
+// against the same conditions, halving launch overhead.
+template <typename Torus>
+__global__ void device_pack_bivariate_blocks_cmux_two_regions(
+    Torus *lwe_array_out, Torus const *lwe_array_true,
+    Torus const *lwe_array_false, Torus const *lwe_conditions,
+    uint32_t lwe_dimension, uint32_t shift, uint32_t total_num_blocks,
+    uint32_t num_blocks_per_ct, bool replicate_true) {
+  int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  uint32_t lwe_size = lwe_dimension + 1;
+
+  if (tid < 2 * total_num_blocks * lwe_size) {
+    int global_block_id = tid / lwe_size;
+    int coeff_id = tid % lwe_size;
+
+    bool is_true_region = global_block_id < total_num_blocks;
+    int region_block_id =
+        is_true_region ? global_block_id : global_block_id - total_num_blocks;
+    int ct_idx = region_block_id / num_blocks_per_ct;
+
+    Torus const *lwe_array_in =
+        is_true_region ? lwe_array_true : lwe_array_false;
+    int in_block_id = (is_true_region && replicate_true)
+                          ? (region_block_id % num_blocks_per_ct)
+                          : region_block_id;
+
+    lwe_array_out[global_block_id * lwe_size + coeff_id] =
+        lwe_array_in[in_block_id * lwe_size + coeff_id] * shift +
+        lwe_conditions[ct_idx * lwe_size + coeff_id];
+  }
+}
+
+// Packs both CMUX branches into tmp_packed in one launch. Output layout matches
+// two back-to-back host_pack_bivariate_blocks_with_per_ct_single_block calls
+// (true branch first, false second), so it is a drop-in fusion.
+template <typename Torus>
+__host__ void host_pack_bivariate_blocks_cmux_two_regions(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_true,
+    CudaRadixCiphertextFFI const *lwe_array_false,
+    CudaRadixCiphertextFFI const *lwe_conditions, uint32_t shift,
+    uint32_t num_entries, uint32_t num_blocks_per_ct, bool replicate_true) {
+
+  uint32_t total_num_blocks =
+      static_cast<uint32_t>(safe_mul(static_cast<size_t>(num_entries),
+                                     static_cast<size_t>(num_blocks_per_ct)));
+
+  PANIC_IF_FALSE(
+      lwe_array_out->num_radix_blocks >= 2 * total_num_blocks,
+      "Cuda error: output radix ciphertext does not have enough blocks");
+
+  uint32_t required_true_blocks =
+      replicate_true ? num_blocks_per_ct : total_num_blocks;
+  PANIC_IF_FALSE(
+      lwe_array_true->num_radix_blocks >= required_true_blocks,
+      "Cuda error: true-branch radix ciphertext does not have enough blocks");
+  PANIC_IF_FALSE(
+      lwe_array_false->num_radix_blocks >= total_num_blocks,
+      "Cuda error: false-branch radix ciphertext does not have enough blocks");
+  PANIC_IF_FALSE(
+      lwe_conditions->num_radix_blocks >= num_entries,
+      "Cuda error: conditions radix ciphertext does not have enough blocks");
+  PANIC_IF_FALSE(
+      lwe_array_out->lwe_dimension == lwe_array_true->lwe_dimension &&
+          lwe_array_true->lwe_dimension == lwe_array_false->lwe_dimension &&
+          lwe_array_false->lwe_dimension == lwe_conditions->lwe_dimension,
+      "Cuda error: input and output radix ciphertexts must have the same "
+      "lwe dimension");
+
+  auto lwe_dimension = lwe_array_out->lwe_dimension;
+  cuda_set_device(streams.gpu_index(0));
+  int num_blocks = 0, num_threads = 0;
+  int num_entries_kernel = 2 * total_num_blocks * (lwe_dimension + 1);
+  getNumBlocksAndThreads(num_entries_kernel, 512, num_blocks, num_threads);
+  device_pack_bivariate_blocks_cmux_two_regions<Torus>
+      <<<num_blocks, num_threads, 0, streams.stream(0)>>>(
+          (Torus *)lwe_array_out->ptr, (Torus *)lwe_array_true->ptr,
+          (Torus *)lwe_array_false->ptr, (Torus *)lwe_conditions->ptr,
+          lwe_dimension, shift, total_num_blocks, num_blocks_per_ct,
+          replicate_true);
+  check_cuda_error(cudaGetLastError());
+}
+
 template <typename Torus>
 __host__ void host_pack_bivariate_blocks_with_per_ct_single_block(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
@@ -536,10 +622,8 @@ __host__ void host_pack_bivariate_blocks_with_per_ct_single_block(
       lwe_array_out->num_radix_blocks >= total_num_blocks,
       "Cuda error: output radix ciphertext does not have enough blocks");
 
-  // When replicate_input is true, the kernel reuses the first num_blocks_per_ct
-  // input blocks for every entry instead of reading contiguously.
-  // Helpful in case lwe_array_in is actually a single ciphertext that needs to
-  // be packed with many conditions
+  // replicate_input: kernel reuses the first num_blocks_per_ct blocks for every
+  // entry, for packing one ciphertext against many conditions.
   uint32_t required_in_blocks =
       replicate_input ? num_blocks_per_ct : total_num_blocks;
   PANIC_IF_FALSE(
@@ -2494,6 +2578,236 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
                       params.carry_modulus);
   }
   POP_RANGE()
+}
+
+// Pairwise add of one binary-tree-fold level: in place, data[idx] +=
+// data[idx + right_offset] over the flattened [entry][block][lwe_coeff] layout.
+// The caller precomputes right_offset = right_start * entry_size and
+// total_elements = half * entry_size, so no per-element div/mod is needed and
+// adjacent lanes touch adjacent Torus words (fully coalesced, memory bound).
+template <typename Torus, class params>
+__global__ void device_binary_tree_fold(Torus *__restrict__ data,
+                                        uint32_t right_offset,
+                                        uint32_t total_elements) {
+  uint32_t idx = threadIdx.x + blockIdx.x * blockDim.x;
+  uint32_t stride = blockDim.x * gridDim.x;
+  for (; idx < total_elements; idx += stride) {
+    data[idx] += data[idx + right_offset];
+  }
+}
+
+// Reduces num_entries one-hot radix ciphertexts (noise 1) into one by pairwise
+// addition with an identity PBS resetting noise once per round.
+//
+// A max-degree-1 block can absorb additions up to noise M = max_degree (5 for
+// 2_2). Plain folding doubles noise per level, so it runs only L=floor(log2(M))
+// levels per PBS (factor 2^L<M). The reserve-tail-and-absorb schedule below
+// reaches the full factor M per round (R survivors in, all noise 1):
+//
+//   M = max_noise, L = floor(log2(M)), extra = M - 2^L
+//   G = floor(R / M), T = G * extra (reserved tail), F = R - T (front)
+//
+//   [0 .......................... F)[F ............ R)
+//    front: L pairwise fold levels    reserved tail (noise 1, untouched)
+//    F -> ... -> S survivors          T = G * extra entries
+//    (survivors at noise <= 2^L)
+//         |
+//   absorb: for k in [0, extra), add tail entries [F + k*G, F + (k+1)*G) onto
+//   survivors [0, G), one fold launch per k. Each lifts the G targets by 1, to
+//   2^L + extra = M.
+//         |
+//   batched identity PBS over S survivors -> all noise 1, repeat with R' = S
+//
+// S equals the post-fold front count (absorb targets are a subset of
+// survivors); kv_sum_pbs_round_survivors is the shared source of truth with
+// scratch alloc. For N=1024, M=5: 1024 -> 205 -> 41 -> 9 -> 2 -> 1.
+//
+// When R < M, G = 0 so the reservation is skipped (folding stops at one entry);
+// when extra == 0 (M a power of two) absorb is a no-op. The group_size guard
+// avoids launching zero-grid kernels in both cases. The identity PBS runs
+// in-place: the keyswitch consumes the input into LUT scratch before the PBS
+// writes output, so in == out is safe (as in vector_find.cuh), and it resets
+// degrees/noise from lut->degrees.
+template <typename Torus, class params>
+__host__ void host_binary_tree_fold_sum(
+    CudaStreams streams, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI *input, uint32_t num_entries, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, void *const *bsks,
+    Torus *const *ksks, int_radix_lut<Torus> *identity_lut) {
+
+  auto stream = streams.stream(0);
+  auto gpu_index = streams.gpu_index(0);
+
+  if (num_entries == 0) {
+    set_zero_radix_ciphertext_slice_async<Torus>(stream, gpu_index, output, 0,
+                                                 num_blocks);
+    return;
+  }
+
+  cuda_set_device(gpu_index);
+
+  auto lwe_size = input->lwe_dimension + 1;
+  size_t entry_size_sz =
+      safe_mul(static_cast<size_t>(num_blocks), static_cast<size_t>(lwe_size));
+  // entry_size feeds the signed-int element count of getNumBlocksAndThreads
+  // (via total_elements), so it must fit in int.
+  bool entry_size_fits = entry_size_sz <= std::numeric_limits<int>::max();
+  PANIC_IF_FALSE(entry_size_fits,
+                 "Cuda error (binary_tree_fold_sum): entry size exceeds "
+                 "uint32_t range");
+  uint32_t entry_size = static_cast<uint32_t>(entry_size_sz);
+  auto *data = static_cast<Torus *>(input->ptr);
+
+  uint32_t max_noise =
+      (message_modulus * carry_modulus - 1) / (message_modulus - 1);
+  uint32_t fold_levels = log2_int(max_noise);
+  uint32_t extra = max_noise - (1u << fold_levels);
+
+  // Adds count entries starting at right_entry_start onto entries starting at
+  // 0.
+  auto fold = [&](uint32_t count, uint32_t right_entry_start) {
+    size_t total_elements_sz =
+        safe_mul(static_cast<size_t>(count), static_cast<size_t>(entry_size));
+    size_t right_offset_sz = safe_mul(static_cast<size_t>(right_entry_start),
+                                      static_cast<size_t>(entry_size));
+    // total_elements is the signed-int count for getNumBlocksAndThreads (must
+    // fit in int); right_offset only indexes uint32_t kernel addressing.
+    bool total_elements_fits =
+        total_elements_sz <= std::numeric_limits<int>::max();
+    bool right_offset_fits =
+        right_offset_sz <= std::numeric_limits<uint32_t>::max();
+    PANIC_IF_FALSE(total_elements_fits,
+                   "Cuda error (binary_tree_fold_sum): fold element count "
+                   "exceeds int range");
+    PANIC_IF_FALSE(right_offset_fits,
+                   "Cuda error (binary_tree_fold_sum): fold right offset "
+                   "exceeds uint32_t range");
+    uint32_t total_elements = static_cast<uint32_t>(total_elements_sz);
+    uint32_t right_offset = static_cast<uint32_t>(right_offset_sz);
+
+    // One thread per Torus word; getNumBlocksAndThreads caps the launch and the
+    // grid-stride loop covers any remainder.
+    int num_cuda_blocks = 0, num_threads = 0;
+    getNumBlocksAndThreads(total_elements, 512, num_cuda_blocks, num_threads);
+
+    device_binary_tree_fold<Torus, params>
+        <<<num_cuda_blocks, num_threads, 0, stream>>>(data, right_offset,
+                                                      total_elements);
+    check_cuda_error(cudaGetLastError());
+  };
+
+  // Adds the right entry's per-block degree and noise onto the left entry and
+  // validates the resulting noise, mirroring the device-side fold.
+  auto update_metadata = [&](uint32_t left_entry, uint32_t right_entry) {
+    for (uint32_t b = 0; b < num_blocks; b++) {
+      uint32_t left_block = left_entry * num_blocks + b;
+      uint32_t right_block = right_entry * num_blocks + b;
+      input->degrees[left_block] += input->degrees[right_block];
+      input->noise_levels[left_block] += input->noise_levels[right_block];
+      CHECK_NOISE_LEVEL(input->noise_levels[left_block], message_modulus,
+                        carry_modulus);
+    }
+  };
+
+  uint32_t remaining = num_entries;
+
+  while (remaining > 1) {
+    uint32_t group_size = remaining / max_noise;
+    uint32_t reserved_tail = group_size * extra;
+    uint32_t front = remaining - reserved_tail;
+
+    uint32_t survivors = front;
+    for (uint32_t level = 0; level < fold_levels && survivors > 1; level++) {
+      uint32_t half = survivors / 2;
+      // Ceil semantics: the last entry of an odd front is left untouched at
+      // lower noise, which is strictly within budget.
+      uint32_t right_start = survivors - half;
+      for (uint32_t p = 0; p < half; p++)
+        update_metadata(p, right_start + p);
+      fold(half, right_start);
+      survivors = right_start;
+    }
+
+    // Absorb the reserved tail onto the first group_size survivors: launch k
+    // adds tail entries [front+k*group_size, front+(k+1)*group_size) onto
+    // survivors [0, group_size). The group_size guard skips the no-tail
+    // (group_size==0) and power-of-two (extra==0) cases without a zero-grid
+    // launch.
+    if (group_size > 0) {
+      for (uint32_t k = 0; k < extra; k++) {
+        uint32_t tail_start = front + k * group_size;
+        for (uint32_t p = 0; p < group_size; p++)
+          update_metadata(p, tail_start + p);
+        fold(group_size, tail_start);
+      }
+    }
+
+    remaining = survivors;
+
+    if (remaining > 1) {
+      uint32_t total_surviving_blocks = remaining * num_blocks;
+      CudaRadixCiphertextFFI survivors_slice;
+      as_radix_ciphertext_slice<Torus>(&survivors_slice, input, 0,
+                                       total_surviving_blocks);
+
+      integer_radix_apply_univariate_lookup_table<Torus>(
+          streams, &survivors_slice, &survivors_slice, bsks, ksks, identity_lut,
+          total_surviving_blocks);
+    }
+  }
+
+  CudaRadixCiphertextFFI final_slice;
+  as_radix_ciphertext_slice<Torus>(&final_slice, input, 0, num_blocks);
+  integer_radix_apply_univariate_lookup_table<Torus>(
+      streams, output, &final_slice, bsks, ksks, identity_lut, num_blocks);
+}
+
+template <typename Torus>
+__host__ void host_binary_tree_fold_sum_dispatch(
+    CudaStreams streams, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI *input, uint32_t num_entries, uint32_t num_blocks,
+    uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
+    void *const *bsks, Torus *const *ksks, int_radix_lut<Torus> *identity_lut) {
+  switch (polynomial_size) {
+  case 256:
+    host_binary_tree_fold_sum<Torus, Degree<256>>(
+        streams, output, input, num_entries, num_blocks, message_modulus,
+        carry_modulus, bsks, ksks, identity_lut);
+    break;
+  case 512:
+    host_binary_tree_fold_sum<Torus, Degree<512>>(
+        streams, output, input, num_entries, num_blocks, message_modulus,
+        carry_modulus, bsks, ksks, identity_lut);
+    break;
+  case 1024:
+    host_binary_tree_fold_sum<Torus, Degree<1024>>(
+        streams, output, input, num_entries, num_blocks, message_modulus,
+        carry_modulus, bsks, ksks, identity_lut);
+    break;
+  case 2048:
+    host_binary_tree_fold_sum<Torus, Degree<2048>>(
+        streams, output, input, num_entries, num_blocks, message_modulus,
+        carry_modulus, bsks, ksks, identity_lut);
+    break;
+  case 4096:
+    host_binary_tree_fold_sum<Torus, Degree<4096>>(
+        streams, output, input, num_entries, num_blocks, message_modulus,
+        carry_modulus, bsks, ksks, identity_lut);
+    break;
+  case 8192:
+    host_binary_tree_fold_sum<Torus, Degree<8192>>(
+        streams, output, input, num_entries, num_blocks, message_modulus,
+        carry_modulus, bsks, ksks, identity_lut);
+    break;
+  case 16384:
+    host_binary_tree_fold_sum<Torus, Degree<16384>>(
+        streams, output, input, num_entries, num_blocks, message_modulus,
+        carry_modulus, bsks, ksks, identity_lut);
+    break;
+  default:
+    PANIC("Cuda error (binary_tree_fold_sum): unsupported polynomial size. "
+          "Supported N's are powers of two in the interval [256..16384].")
+  }
 }
 
 #endif // TFHE_RS_INTERNAL_INTEGER_CUH
