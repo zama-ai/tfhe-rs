@@ -1,6 +1,7 @@
 // These files must be added to the headers vec in the build.rs to check for file changes
 #include "cuda/include/ciphertext.h"
 #include "cuda/include/integer/compression/compression.h"
+#include "cuda/include/integer/kv_store/kv_store.h"
 #include "cuda/include/integer/integer.h"
 #include "cuda/include/integer/rerand.h"
 #include "cuda/include/aes/aes.h"

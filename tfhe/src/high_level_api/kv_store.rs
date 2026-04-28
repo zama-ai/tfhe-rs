@@ -7,6 +7,8 @@ use crate::high_level_api::integers::FheIntegerType;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::block_decomposition::{Decomposable, DecomposableInto};
 use crate::integer::ciphertext::{Compressible, Expandable};
+use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
+use crate::integer::gpu::server_key::radix::kv_store::CudaKVStore as IntegerGpuKVStore;
 use crate::integer::server_key::{
     CompressedKVStore as CompressedIntegerKVStore, KVStore as IntegerKVStore,
 };
@@ -14,12 +16,13 @@ use crate::prelude::CastInto;
 use crate::{FheBool, IntegerId, ReRandomizationMetadata, Tag};
 use std::fmt::Display;
 
-#[derive(Clone)]
 enum InnerKVStore<Key, T>
 where
     T: FheIntegerType,
 {
-    Cpu(IntegerKVStore<Key, <T::Id as IntegerId>::InnerCpu>),
+    Cpu(IntegerCpuKVStore<Key, <T::Id as IntegerId>::InnerCpu>),
+    #[cfg(feature = "gpu")]
+    Cuda(IntegerGpuKVStore<Key, <T::Id as IntegerId>::InnerGpu>),
 }
 
 /// The KVStore is a specialized encrypted HashMap
@@ -39,7 +42,6 @@ where
 /// using the currently set server key.
 /// Even operations that do not require FHE operations will require
 /// a server key to be set in order to set the tag
-#[derive(Clone)]
 pub struct KVStore<Key, T>
 where
     T: FheIntegerType,
@@ -54,7 +56,13 @@ where
     /// Creates a new empty `KVStore`.
     pub fn new() -> Self {
         Self {
-            inner: InnerKVStore::Cpu(IntegerKVStore::new()),
+            inner: global_state::with_internal_keys(|server_key| match server_key {
+                InternalServerKey::Cuda(_) => InnerKVStore::Cuda(IntegerGpuKVStore::new()),
+                _ => {
+                    // Includes CPU and HPU
+                    InnerKVStore::Cpu(IntegerCpuKVStore::new())
+                }
+            }),
         }
     }
 
@@ -90,8 +98,23 @@ where
                 ))
             }
             #[cfg(feature = "gpu")]
-            (InternalServerKey::Cuda(_cuda_key), _) => {
-                panic!("GPU does not support KVStore yet")
+            (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cpu(inner_store)) => {
+                let inner = inner_store.insert(key, value.into_cpu())?;
+                Some(T::from_cpu(
+                    inner,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                ))
+            }
+            #[cfg(feature = "gpu")]
+            (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cuda(inner_store)) => {
+                let streams = &cuda_key.streams;
+                let inner = inner_store.insert(key, value.into_gpu(streams))?;
+                Some(T::from_gpu(
+                    inner,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                ))
             }
             #[cfg(feature = "hpu")]
             (InternalServerKey::Hpu(_device), _) => {
@@ -133,8 +156,35 @@ where
                 )
             }
             #[cfg(feature = "gpu")]
-            (InternalServerKey::Cuda(_cuda_key), _) => {
-                panic!("GPU does not support KVStore yet")
+            (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cpu(inner_store)) => {
+                // CUDA Serverkey is fully compatible with CPU's KVStore, so we just perform regular
+                // update
+                inner_store.get_mut(key).map_or_else(
+                    || None,
+                    |old_value_ref| {
+                        let old_value = std::mem::replace(old_value_ref, value.into_cpu());
+                        Some(T::from_cpu(
+                            old_value,
+                            cuda_key.tag.clone(),
+                            ReRandomizationMetadata::default(),
+                        ))
+                    },
+                )
+            }
+            #[cfg(feature = "gpu")]
+            (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cuda(inner_store)) => {
+                let streams = &cuda_key.streams;
+                inner_store.get_mut(key).map_or_else(
+                    || None,
+                    |old_value_ref| {
+                        let old_value = std::mem::replace(old_value_ref, value.into_gpu(streams));
+                        Some(T::from_gpu(
+                            old_value,
+                            cuda_key.tag.clone(),
+                            ReRandomizationMetadata::default(),
+                        ))
+                    },
+                )
             }
             #[cfg(feature = "hpu")]
             (InternalServerKey::Hpu(_device), _) => {
@@ -215,8 +265,22 @@ where
                 ))
             }
             #[cfg(feature = "gpu")]
-            (InternalServerKey::Cuda(_cuda_key), _) => {
-                panic!("GPU does not support KVStore yet")
+            (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cpu(inner_store)) => {
+                let inner = inner_store.get(key)?;
+                Some(T::from_cpu(
+                    inner.clone(),
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                ))
+            }
+            #[cfg(feature = "gpu")]
+            (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cuda(inner_store)) => {
+                let inner = inner_store.get(key)?;
+                Some(T::from_gpu(
+                    inner.duplicate(&cuda_key.streams),
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                ))
             }
             #[cfg(feature = "hpu")]
             (InternalServerKey::Hpu(_device), _) => {
@@ -238,7 +302,9 @@ where
 
 impl<Key, T> KVStore<Key, T>
 where
-    Key: Decomposable + CastInto<usize> + Ord,
+    // DecomposableInto<u64> (not just Decomposable) because the GPU backend
+    // passes clear keys as u64 blocks through the FFI to CUDA kernels
+    Key: DecomposableInto<u64> + CastInto<usize> + Ord,
     T: FheIntegerType,
 {
     /// Gets the value corresponding to the encrypted key.
@@ -276,8 +342,29 @@ where
                 )
             }
             #[cfg(feature = "gpu")]
-            (InternalServerKey::Cuda(_cuda_key), _) => {
-                panic!("GPU does not support KVStore yet")
+            (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cpu(inner_store)) => {
+                panic!("CudaServerKey does not support CPU's KVStore")
+            }
+            #[cfg(feature = "gpu")]
+            (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cuda(inner_store)) => {
+                let streams = &cuda_key.streams;
+                let (inner_ct, inner_bool) = cuda_key.pbs_key().kv_store_get(
+                    inner_store,
+                    &*encrypted_key.on_gpu(streams),
+                    streams,
+                );
+                (
+                    T::from_gpu(
+                        inner_ct,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        inner_bool,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                )
             }
             #[cfg(feature = "hpu")]
             (InternalServerKey::Hpu(_device), _) => {
@@ -507,7 +594,8 @@ where
             }
             #[cfg(feature = "gpu")]
             (InternalServerKey::Cuda(_cuda_key), _) => {
-                panic!("GPU does not support KVStore yet")
+                panic!("KVStore compression is not supported with a GPU server key. \
+                    Transfer to CPU with CudaKVStore::to_kv_store(), then compress with a CPU server key.")
             }
             #[cfg(feature = "hpu")]
             (InternalServerKey::Hpu(_device), _) => {
@@ -609,7 +697,8 @@ where
             }
             #[cfg(feature = "gpu")]
             Some(InternalServerKey::Cuda(_cuda_key)) => {
-                panic!("Decompressing KVStore to GPU is not implemented yet")
+                panic!("KVStore decompression is not supported with a GPU server key. \
+                    Decompress with a CPU server key, then transfer to GPU with CudaKVStore::from_kv_store().")
             }
             #[cfg(feature = "hpu")]
             Some(InternalServerKey::Hpu(_device)) => {
@@ -970,6 +1059,51 @@ mod test {
             let ck = setup_default_cpu();
 
             kv_store_serialization_test_case(&ck);
+        }
+    }
+
+    #[cfg(feature = "gpu")]
+    mod cuda {
+        use crate::shortint::parameters::COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        use crate::{set_server_key, ConfigBuilder};
+
+        use super::*;
+
+        pub(crate) fn setup_default_gpu() -> ClientKey {
+            let config = ConfigBuilder::default()
+                .enable_compression(
+                    COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                )
+                .build();
+
+            let client_key = ClientKey::generate(config);
+            let csks = crate::CompressedServerKey::new(&client_key);
+            let server_key = csks.decompress_to_gpu();
+
+            set_server_key(server_key);
+
+            client_key
+        }
+
+        #[test]
+        fn test_kv_store_get() {
+            let ck = setup_default_gpu();
+
+            kv_store_get_test_case(&ck);
+        }
+
+        #[test]
+        fn test_kv_store_update() {
+            let ck = setup_default_gpu();
+
+            kv_store_update_test_case(&ck);
+        }
+
+        #[test]
+        fn test_kv_store_map() {
+            let ck = setup_default_gpu();
+
+            kv_store_map_test_case(&ck);
         }
     }
 }

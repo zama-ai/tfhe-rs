@@ -8,6 +8,36 @@
 #include "integer/scalar_comparison.cuh"
 #include "integer/vector_find.h"
 
+// Given one encrypted radix ciphertext (num_blocks blocks, each a digit in
+// [0, message_modulus)) and N cleartext candidates (e.g. KV-store keys),
+// produces N encrypted booleans: selector_i = Enc(input == candidate_i).
+//
+// Candidates live in h_decomposed_cleartexts, a flat array where candidate i
+// occupies [i*num_blocks .. (i+1)*num_blocks). N =
+// mem_ptr->num_possible_values.
+//
+// A per-candidate approach costs N * num_blocks PBS. Since there are only
+// message_modulus possible digit values (typically 2 or 4), we instead
+// precompute all per-block comparisons in one batched PBS, then let each
+// candidate pick the results it needs via memcpy:
+//
+// Step 1 — One batched PBS builds a message_modulus x num_blocks grid:
+//
+//                       block 0    block 1    block 2
+//                     ┌──────────┬──────────┬──────────┐
+//     LUT for v=0     │ b0==0?   │ b1==0?   │ b2==0?   │
+//     LUT for v=1     │ b0==1?   │ b1==1?   │ b2==1?   │
+//     LUT for v=2     │ b0==2?   │ b1==2?   │ b2==2?   │
+//     LUT for v=3     │ b0==3?   │ b1==3?   │ b2==3?   │
+//                     └──────────┴──────────┴──────────┘
+//     Flat: tmp_many_luts_output[v * num_blocks + j]
+//
+// Step 2 — For candidate i with digits [d0, d1, d2], pick grid[dj][j] for each
+//   block j (memcpy), then AND-reduce into selector_i. Candidates are processed
+//   in parallel across CUDA streams.
+//
+// Cost: message_modulus * num_blocks PBS (constant) + N cheap AND-trees,
+// vs N * num_blocks PBS for the naive approach.
 template <typename Torus>
 __host__ void host_compute_equality_selectors(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_list,
@@ -166,6 +196,41 @@ uint64_t scratch_cuda_create_possible_results(
   return size_tracker;
 }
 
+// Given N encrypted radix ciphertexts forming a one-hot vector (at most one
+// non-zero entry), sum them into a single output ciphertext. Because the
+// vector is one-hot, the sum recovers the value of the single non-zero entry.
+//
+// Plain LWE addition accumulates noise in the carry bits. After chunk_size
+// additions the carry space is exhausted, so an identity PBS is applied after
+// each chunk to refresh the ciphertext (extract message, reset carry to zero).
+//
+// The algorithm has three phases:
+//
+// Phase 1 — Parallel chunked accumulation (one CUDA stream per partition):
+//
+//   stream 0: inputs[0..k)         stream 1: inputs[k..2k)        ...
+//   ┌──────────────────────┐       ┌──────────────────────┐
+//   │ acc  = 0             │       │ acc  = 0             │
+//   │ acc += input[0]      │       │ acc += input[k]      │
+//   │ acc += input[1]      │       │ acc += input[k+1]    │
+//   │ ...chunk_size adds...│       │ ...chunk_size adds...│
+//   │ acc = PBS(acc)  ← refresh    │ acc = PBS(acc)       │
+//   │ (repeat for next chunk)      │ (repeat)             │
+//   └──────────────────────┘       └──────────────────────┘
+//
+// Phase 2 — Cross-stream merge: sum partial accumulators into stream 0's
+//   result. num_streams must stay below the noise ceiling.
+//
+// Phase 3 — Message/carry extraction and interleaving:
+//   The accumulated blocks use both message and carry space. Two parallel
+//   PBS calls extract message bits and carry bits separately, then
+//   interleave them into the output:
+//
+//     output[2i]   = message_extract(acc[i])
+//     output[2i+1] = carry_extract(acc[i])
+//
+//   This unpacks each "packed" block into two standard blocks, so the
+//   output has up to 2 * num_blocks radix blocks.
 template <typename Torus>
 __host__ void host_aggregate_one_hot_vector(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,

@@ -58,6 +58,7 @@ mod vector_find;
 mod aes;
 mod aes256;
 mod kreyvium;
+mod kv_store;
 #[cfg(test)]
 mod tests_long_run;
 #[cfg(test)]
