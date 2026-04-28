@@ -152,13 +152,10 @@ __wasm_api = [
     "getrandom/js",
     "dep:wasm-bindgen-futures",
 ]
-boolean-client-js-wasm-api = ["boolean", "__wasm_api"]
-shortint-client-js-wasm-api = ["shortint", "__wasm_api"]
-integer-client-js-wasm-api = ["integer", "shortint-client-js-wasm-api"]
-high-level-client-js-wasm-api = [
-    "boolean-client-js-wasm-api",
-    "integer-client-js-wasm-api",
-]
+boolean-js-wasm-api = ["boolean", "__wasm_api"]
+shortint-js-wasm-api = ["shortint", "__wasm_api"]
+integer-client-js-wasm-api = ["integer", "__wasm_api"]
+integer-js-wasm-api = ["integer-client-js-wasm-api", "shortint-js-wasm-api"]
 parallel-wasm-api = ["dep:wasm-bindgen-rayon"]
 cross-origin-wasm-api = ["dep:wasm-par-mq", "tfhe-zk-pok?/cross-origin-wasm"]
 
@@ -262,3 +259,12 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     # This is a bug/unwanted behavior from wasm_bindgen macro, for now warn instead of erroring
     'cfg(wasm_bindgen_unstable_test_coverage)',
 ] }
+
+# wasm-opt args for wasm-pack release builds.
+# -Oz: optimize aggressively for size (wasm-pack default is -O).
+# For example in full package Oz have 3% better perf than O on `bench_web_js_api_cross_origin_chrome`
+# --enable-simd: required because pulp (via tfhe-fft / tfhe-ntt) emits SIMD.
+# --enable-threads: required for the parallel build's +atomics target feature.
+# --enable-bulk-memory: required because modern rustc emits memory.copy/fill.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-simd", "--enable-threads", "--enable-bulk-memory"]
