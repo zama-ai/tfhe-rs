@@ -1,15 +1,14 @@
-//! Test compatibility between x86_64 and wasm proofs
-//!
-//! - Generate a crs and public key from rust
-//! - Load them in js, encrypt and prove some ciphertexts
-//! - Load the proven ciphertexts in rust and verify the proof
+//! Test compatibility between x86_64 and wasm proofs, in two stages:
+//! - `gen_zk_wasm_fixtures` writes the crs + public key (`crs.bin`, `public_key.bin`) consumed by
+//!   the wasm `fixtureEncryptProveTest`.
+//! - `verify_zk_wasm_proof` reloads them + the browser-produced `proof.bin` and verifies the proof
+//!   on x86_64.
 
 #![cfg(feature = "zk-pok")]
 #![cfg(feature = "integer")]
 
 use std::fs::File;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::PathBuf;
 use tfhe::safe_serialization::{safe_deserialize, safe_serialize};
 use tfhe::shortint::parameters::*;
 use tfhe::zk::CompactPkeCrs;
@@ -17,6 +16,15 @@ use tfhe::{ClientKey, CompactPublicKey, ConfigBuilder, ProvenCompactCiphertextLi
 
 const SIZE_LIMIT: u64 = 1024 * 1024 * 1024;
 const METADATA: [u8; 6] = *b"wasm64";
+
+/// Directory holding the fixtures (`public_key.bin`, `crs.bin`) and the
+/// browser-produced `proof.bin`.
+fn fixtures_dir() -> PathBuf {
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.push("tests");
+    path.push("zk_wasm_x86_test");
+    path
+}
 
 fn gen_key_and_crs() -> (CompactPublicKey, CompactPkeCrs) {
     println!("Generating keys");
@@ -37,24 +45,6 @@ fn gen_key_and_crs() -> (CompactPublicKey, CompactPkeCrs) {
     (pub_key, crs)
 }
 
-fn gen_proven_ct_in_wasm(path: &Path) {
-    println!("Generating proven ciphertext in wasm");
-    let mut child = Command::new("node")
-        .arg("index.js")
-        .current_dir(path)
-        .spawn()
-        .expect("Failed to run node script");
-
-    let exit_status = child.wait().unwrap();
-    if let Some(exit_code) = exit_status.code() {
-        if exit_code == 0 {
-            return;
-        }
-    }
-
-    panic!("node script returned a non-0 code.");
-}
-
 fn verify_proof(
     public_key: &CompactPublicKey,
     crs: &CompactPkeCrs,
@@ -71,25 +61,47 @@ fn verify_proof(
     }
 }
 
+/// Stage 1: generate the public key + crs fixtures consumed by the wasm test.
 #[test]
-fn test_proof_compat_with_wasm() {
-    let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let mut test_path = PathBuf::from(manifest_dir);
-    test_path.push("tests");
-    test_path.push("zk_wasm_x86_test");
+#[ignore = "run explicitly via `make gen_zk_wasm_fixtures`; depends on the wasm step"]
+fn gen_zk_wasm_fixtures() {
+    let dir = fixtures_dir();
+    // The directory only holds gitignored artifacts, so it may be absent in a
+    // fresh checkout.
+    std::fs::create_dir_all(&dir).unwrap();
 
     let (pub_key, crs) = gen_key_and_crs();
 
-    let mut f_pubkey = File::create(test_path.join("public_key.bin")).unwrap();
+    let mut f_pubkey = File::create(dir.join("public_key.bin")).unwrap();
     safe_serialize(&pub_key, &mut f_pubkey, SIZE_LIMIT).unwrap();
 
-    let mut f_crs = File::create(test_path.join("crs.bin")).unwrap();
+    let mut f_crs = File::create(dir.join("crs.bin")).unwrap();
     safe_serialize(&crs, &mut f_crs, SIZE_LIMIT).unwrap();
 
-    gen_proven_ct_in_wasm(&test_path);
+    println!("Fixtures written to {}", dir.display());
+}
 
-    let mut f_ct = File::open(test_path.join("proof.bin")).unwrap();
-    let proven_ct: ProvenCompactCiphertextList = safe_deserialize(&mut f_ct, SIZE_LIMIT).unwrap();
+/// Stage 2: reload the fixtures + the browser-produced proof and verify it.
+#[test]
+#[ignore = "run explicitly via `make verify_zk_wasm_proof` after the wasm step produced proof.bin"]
+fn verify_zk_wasm_proof() {
+    let dir = fixtures_dir();
+
+    let mut f_pubkey = File::open(dir.join("public_key.bin")).expect(
+        "public_key.bin missing — run `cargo test --test zk_wasm_x86_test -- --exact \
+         gen_zk_wasm_fixtures` first",
+    );
+    let pub_key: CompactPublicKey = safe_deserialize(&mut f_pubkey, SIZE_LIMIT).unwrap();
+
+    let mut f_crs = File::open(dir.join("crs.bin")).expect("crs.bin missing");
+    let crs: CompactPkeCrs = safe_deserialize(&mut f_crs, SIZE_LIMIT).unwrap();
+
+    let mut f_ct = File::open(dir.join("proof.bin")).expect(
+        "proof.bin missing — it is produced by the wasm `fixtureEncryptProveTest` run via \
+         `ci/webdriver.py --capture-key proof_b64 --capture-out .../proof.bin`",
+    );
+    let proven_ct: ProvenCompactCiphertextList = safe_deserialize(&mut f_ct, SIZE_LIMIT)
+        .expect("proof.bin is malformed — re-run the wasm capture step that produces it");
 
     verify_proof(&pub_key, &crs, &proven_ct);
 }

@@ -262,3 +262,6 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     # This is a bug/unwanted behavior from wasm_bindgen macro, for now warn instead of erroring
     'cfg(wasm_bindgen_unstable_test_coverage)',
 ] }
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-simd", "--enable-threads", "--enable-bulk-memory"]
