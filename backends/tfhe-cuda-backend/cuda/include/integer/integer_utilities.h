@@ -25,6 +25,42 @@
 /// when all blocks should use the same LUT.
 constexpr std::nullptr_t LUT_0_FOR_ALL_BLOCKS = nullptr;
 
+/// @brief Computes the survivor count after one reserve-tail-and-absorb PBS
+/// round of the kv_store one-hot sum (host_binary_tree_fold_sum).
+///
+/// Shared by scratch allocation and the host loop so the two cannot drift.
+///
+/// max_noise M = (message_modulus*carry_modulus-1)/(message_modulus-1) is the
+/// max factor of degree-1 inputs summable before a PBS. Each fold level doubles
+/// noise, so plain folding allows only L = floor(log2(M)) levels (factor
+/// 2^L<M). Reserving a tail of floor(R/M)*(M-2^L) entries at noise 1 and
+/// absorbing them one-per-survivor after the L levels lifts each survivor from
+/// 2^L to M, reaching the full factor-M reduction. The survivor count equals
+/// the front survivors after L levels (absorb does not change their count).
+/// When R<M the reservation is skipped and folding stops at one entry.
+///
+/// @param num_entries      Number of one-hot entries entering this round
+inline uint32_t kv_sum_pbs_round_survivors(uint32_t num_entries,
+                                           uint32_t message_modulus,
+                                           uint32_t carry_modulus) {
+  if (num_entries <= 1)
+    return num_entries;
+
+  uint32_t max_noise =
+      (message_modulus * carry_modulus - 1) / (message_modulus - 1);
+  uint32_t fold_levels = log2_int(max_noise);
+
+  uint32_t group_size = num_entries / max_noise;
+  uint32_t reserved_tail = group_size * (max_noise - (1u << fold_levels));
+  uint32_t remaining = num_entries - reserved_tail;
+
+  for (uint32_t level = 0; level < fold_levels && remaining > 1; level++) {
+    uint32_t half = remaining / 2;
+    remaining = remaining - half;
+  }
+  return remaining;
+}
+
 /// Generate LUT indexes with a generator, validate them, and copy to any GPU
 /// buffer.
 ///

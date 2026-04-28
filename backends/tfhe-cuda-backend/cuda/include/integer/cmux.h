@@ -30,8 +30,51 @@ template <typename Torus> struct int_zero_out_if_buffer {
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
+
+/// @brief GPU scratch buffer for batched zero_out_if.
+///
+/// Holds the packed intermediate ciphertext used to combine each input block
+/// with its per-entry boolean condition before a single batched PBS call.
+template <typename Torus> struct int_zero_out_if_batch_buffer {
+
+  int_radix_params params;
+
+  /// Packed bivariate input for the predicate PBS
+  CudaRadixCiphertextFFI *tmp;
+
+  bool gpu_memory_allocated;
+
+  /// @brief Allocates the packed intermediate ciphertext for batched
+  /// zero_out_if.
+  ///
+  /// @param num_entries        Number of ciphertexts in the batch
+  /// @param num_blocks_per_ct  Number of radix blocks per ciphertext
+  int_zero_out_if_batch_buffer(CudaStreams streams, int_radix_params params,
+                               uint32_t num_entries, uint32_t num_blocks_per_ct,
+                               bool allocate_gpu_memory,
+                               uint64_t &size_tracker) {
+    gpu_memory_allocated = allocate_gpu_memory;
+    this->params = params;
+    uint32_t total_num_blocks =
+        static_cast<uint32_t>(safe_mul((size_t)num_entries, num_blocks_per_ct));
+
+    tmp = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), tmp, total_num_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+  }
+  void release(CudaStreams streams) {
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0), tmp,
+                                   gpu_memory_allocated);
+    delete tmp;
+    tmp = nullptr;
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+};
+
 template <typename Torus> struct int_cmux_buffer {
   int_radix_lut<Torus> *predicate_lut;
+  /// Univariate LUT for message extraction after addition
   int_radix_lut<Torus> *message_extract_lut;
 
   CudaRadixCiphertextFFI *buffer_in;
@@ -129,17 +172,31 @@ template <typename Torus> struct int_cmux_buffer {
   }
 };
 
+/// @brief GPU scratch buffer for batched CMUX.
+///
+/// Preallocates LUTs and intermediate ciphertext buffers needed to evaluate
+/// N independent CMUX selections in a single batched PBS pass.
 template <typename Torus> struct int_cmux_batch_buffer {
+  /// Bivariate LUT that zeroes the non-selected branch
   int_radix_lut<Torus> *predicate_lut;
+  /// Univariate LUT for message extraction after addition
   int_radix_lut<Torus> *message_extract_lut;
 
+  /// Packed bivariate input (true + false regions)
   CudaRadixCiphertextFFI *tmp_packed;
+  /// PBS output for both branches before addition
   CudaRadixCiphertextFFI *buffer_out;
 
   int_radix_params params;
   bool allocate_gpu_memory;
   bool gpu_memory_allocated;
 
+  /// @brief Allocates LUTs and intermediate buffers for batched CMUX.
+  ///
+  /// @param predicate_lut_f    Predicate function used to build the CMUX
+  /// selection LUT
+  /// @param num_entries        Number of CMUX entries in the batch
+  /// @param num_blocks_per_ct  Number of radix blocks per ciphertext
   int_cmux_batch_buffer(CudaStreams streams,
                         std::function<Torus(Torus)> predicate_lut_f,
                         int_radix_params params, uint32_t num_entries,

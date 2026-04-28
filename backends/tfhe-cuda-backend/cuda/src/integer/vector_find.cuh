@@ -275,19 +275,19 @@ __host__ void host_compute_eq_selectors_ct_vs_clears(
     int_eq_selectors_ct_vs_clears_buffer<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks) {
 
+  // num_blocks == 0 would yield an all-zero selector matrix instead of the
+  // trivial all-match, so require at least one block.
+  PANIC_IF_FALSE(num_blocks >= 1, "num_blocks must be at least 1 in "
+                                  "host_compute_eq_selectors_ct_vs_clears");
+
   uint32_t num_possible_values = mem_ptr->num_possible_values;
   uint32_t message_modulus = mem_ptr->params.message_modulus;
   uint32_t carry_modulus = mem_ptr->params.carry_modulus;
   uint32_t max_degree = mem_ptr->max_degree;
 
-  // For every block in the input radix ciphertext lwe_array_in, precompute
-  // indicators of equality to all possible values of the block
-  // (0..2**(message_modulus+carry_modulus)-1).
-  // Using only num_blocks multi-variate PBS an indicator matrix is produced
-  // where columns are one-hot vectors indicating the active value in the input
-  // block.
-  // The indicator matrix can be used to assess equality for ALL the clear
-  // values to be matched
+  // With num_blocks many-LUT PBS, build an indicator matrix: per block, a
+  // one-hot column over all possible block values. This serves equality checks
+  // against every clear value at once.
   integer_radix_apply_many_univariate_lookup_table<Torus>(
       streams, &mem_ptr->tmp_many_luts_output, lwe_array_in, bsks,
       (Torus *const *)ksks, mem_ptr->comparison_luts, message_modulus,
@@ -315,10 +315,8 @@ __host__ void host_compute_eq_selectors_ct_vs_clears(
                            safe_mul_sizeof<Torus>(total_blocks),
                            streams.stream(0), streams.gpu_index(0));
 
-  // Extract the indicator booleans for each clear value to be matched and group
-  // them in a flat contiguous 2d array of LWE in order, so that each column
-  // contains the booleans corresponding to a single clear value. The 2d array
-  // is of size num_blocks (rows) x num_clear_values (cols)
+  // Gather the indicator booleans into a flat num_blocks x num_clear_values
+  // array, one clear value per column.
   uint32_t lwe_size = mem_ptr->tmp_batched_comparisons.lwe_dimension + 1;
   align_with_indexes<Torus><<<total_blocks, 256, 0, streams.stream(0)>>>(
       (Torus *)mem_ptr->tmp_batched_comparisons.ptr,
@@ -339,7 +337,6 @@ __host__ void host_compute_eq_selectors_ct_vs_clears(
       mem_ptr->luts_eq, mem_ptr->num_luts_needed, num_possible_values,
       num_blocks, max_degree, message_modulus, carry_modulus, bsks, ksks);
 
-  // Place the output booleans into the output LWE list
   copy_radix_ciphertext_slice_async<Torus>(
       streams.stream(0), streams.gpu_index(0), lwe_array_out_packed, 0,
       num_possible_values, &mem_ptr->packed_accumulator, 0,
@@ -386,10 +383,8 @@ __host__ void host_compute_eq_selectors_cts_vs_ct(
   for (uint32_t base = 0; base < num_inputs; base += chunk_size) {
     uint32_t current_chunk_size = std::min(chunk_size, num_inputs - base);
 
-    // Cache the chunk of the input radix-ciphertext list in a temporary buffer.
-    // Also duplicate the searched-for value radix-ct blocks in a manner in
-    // which the bivariate PBS can pack pairs of (inputs[i][k], value[k])
-    // for-each i in [0..num_inputs], for-each k in [0..num_blocks]
+    // Pack each (inputs[i][k], value[k]) pair so the bivariate PBS can compare
+    // every input block against the corresponding target block.
     host_pack_chunk_eq_pairs<Torus>(
         streams.stream(0), streams.gpu_index(0), &mem_ptr->packed_current_block,
         &mem_ptr->packed_value_block, mem_ptr->d_input_ptrs, inputs, value,
@@ -404,10 +399,8 @@ __host__ void host_compute_eq_selectors_cts_vs_ct(
         &mem_ptr->packed_value_block, bsks, ksks, mem_ptr->equality_lut, total,
         message_modulus);
 
-    // The indicator boolean values produced by the LUT are interpreted as a 2d
-    // array of num_blocks (rows) x num_inputs (cols). And-reduce the array to
-    // determine which inputs match the searched-for value. This produces a 1d
-    // vector of booleans
+    // AND-reduce the num_blocks x num_inputs indicator matrix into one boolean
+    // per input (whether it matches the target).
     host_and_reduce_selector_matrix<Torus>(
         streams, &mem_ptr->packed_accumulator, &mem_ptr->packed_current_block,
         mem_ptr->luts_eq, mem_ptr->num_luts_needed, current_chunk_size,
@@ -503,9 +496,66 @@ __host__ void host_create_possible_results(
       mem_ptr->d_src_idx, h_src_idx, num_possible_values, num_blocks);
 }
 
+/// @brief Allocates the scratch buffer for creating possible-result
+/// ciphertexts used in encrypted vector lookups.
+///
+/// @param mem_ptr              Receives the allocated buffer pointer
+/// @param num_blocks           Number of radix blocks per ciphertext
+/// @param num_possible_values  Number of distinct plaintext values to prepare
+template <typename Torus>
+uint64_t scratch_cuda_create_possible_results(
+    CudaStreams streams, int_possible_results_buffer<Torus> **mem_ptr,
+    int_radix_params params, uint32_t num_blocks, uint32_t num_possible_values,
+    bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_possible_results_buffer<Torus>(
+      streams, params, num_blocks, num_possible_values, allocate_gpu_memory,
+      size_tracker);
+
+  return size_tracker;
+}
+
 /**
  * @brief Fuses the sparse array of selected candidates into a single encrypted
  * result via a binary reduction tree.
+ *
+ * @details
+ * Given N encrypted radix ciphertexts forming a one-hot vector (at most one
+ * non-zero entry), sum them into a single output ciphertext. Because the
+ * vector is one-hot, the sum recovers the value of the single non-zero entry.
+ *
+ * Plain LWE addition accumulates noise in the carry bits. After chunk_size
+ * additions the carry space is exhausted, so an identity PBS is applied after
+ * each chunk to refresh the ciphertext (extract message, reset carry to zero).
+ *
+ * The algorithm has three phases:
+ *
+ * Phase 1 - Parallel chunked accumulation (one CUDA stream per partition):
+ *
+ *   stream 0: inputs[0..k)         stream 1: inputs[k..2k)        ...
+ *   +----------------------+       +----------------------+
+ *   | acc  = 0             |       | acc  = 0             |
+ *   | acc += input[0]      |       | acc += input[k]      |
+ *   | acc += input[1]      |       | acc += input[k+1]    |
+ *   | ...chunk_size adds...|       | ...chunk_size adds...|
+ *   | acc = PBS(acc) <- refresh    | acc = PBS(acc)        |
+ *   | (repeat for next chunk)      | (repeat)              |
+ *   +----------------------+       +----------------------+
+ *
+ * Phase 2 - Cross-stream merge: sum partial accumulators into stream 0's
+ *   result. num_streams must stay below the noise ceiling.
+ *
+ * Phase 3 - Message/carry extraction and interleaving:
+ *   The accumulated blocks use both message and carry space. Two parallel
+ *   PBS calls extract message bits and carry bits separately, then
+ *   interleave them into the output:
+ *
+ *     output[2i]   = message_extract(acc[i])
+ *     output[2i+1] = carry_extract(acc[i])
+ *
+ *   This unpacks each "packed" block into two standard blocks, so the
+ *   output has up to 2 * num_blocks radix blocks.
  *
  * @param lwe_array_out Output ciphertext receiving the aggregated result.
  * @param lwe_array_in_list Sparse list of candidate ciphertexts to sum.
@@ -578,8 +628,7 @@ __host__ void host_aggregate_one_hot_vector(
   CudaRadixCiphertextFFI final_agg;
   as_radix_ciphertext_slice<Torus>(&final_agg, src_buf, 0, num_blocks);
 
-  // Unpack final_agg
-  // Split them with two PBS
+  // Unpack final_agg into message/carry digits with two PBS.
   // Toy example (message_modulus = 4): final_agg = [12, 9]
   //   = [0 + 3*4, 1 + 2*4]  ->  unpacks to logical [0, 3, 1, 2].
   //

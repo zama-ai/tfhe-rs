@@ -173,7 +173,7 @@ where
 //
 // Also, one important point is that par_iter_bridge may not keep iteration order
 // `The resulting iterator is not guaranteed to keep the order of the original iterator` (from rayon
-// docs) which is a problem for us as we need determinisn
+// docs) which is a problem for us as we need determinism
 impl ServerKey {
     /// Implementation of the get function that additionally returns the Vec of selectors
     /// so it can be reused to avoid re-computing it.
@@ -413,11 +413,20 @@ pub struct CompressedKVStore<Key, Value> {
     _v: PhantomData<Value>,
 }
 
+// The only consumer is the GPU decompression path (in `integer::gpu`); it lives in another module
+// and so cannot read the private fields directly. Hence unused, and dead in non-gpu builds.
+impl<Key, Value> CompressedKVStore<Key, Value> {
+    #[allow(dead_code)]
+    pub(crate) fn parts(&self) -> (&[Key], &CompressedCiphertextList, bool) {
+        (&self.keys, &self.values, self.is_signed)
+    }
+}
+
 impl<Key, Value> CompressedKVStore<Key, Value>
 where
     Value: Expandable + IntegerRadixCiphertext,
 {
-    fn new(keys: Vec<Key>, compressed_values: CompressedCiphertextList) -> Self {
+    pub(crate) fn new(keys: Vec<Key>, compressed_values: CompressedCiphertextList) -> Self {
         Self {
             keys,
             values: compressed_values,
@@ -433,7 +442,8 @@ where
     /// * A value (which is a radix ciphertext) does not have the same number of blocks as the
     ///   others.
     ///
-    /// Both these errors indicate corrupted or malformed data
+    /// A signedness mismatch indicates the requested value type is wrong for the stored data; the
+    /// other errors indicate corrupted or malformed data.
     pub fn decompress(
         &self,
         decompression_key: &DecompressionKey,
@@ -442,11 +452,15 @@ where
         Key: Copy + Display + Ord,
     {
         if Value::IS_SIGNED != self.is_signed {
-            let requested = if Value::IS_SIGNED { "Signed" } else { "" };
-            let stored = if self.is_signed { "Signed" } else { "" };
+            let requested = if Value::IS_SIGNED {
+                "signed"
+            } else {
+                "unsigned"
+            };
+            let stored = if self.is_signed { "signed" } else { "unsigned" };
             return Err(crate::error!(
-                "Requested value type does not have signed.\
-             Requested '{requested}RadixCiphertext' but stored '{stored}RadixCiphertext'"
+                "Requested value signedness does not match stored data: \
+                 requested {requested} values but stored values are {stored}"
             ));
         }
 

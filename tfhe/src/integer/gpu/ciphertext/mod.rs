@@ -18,7 +18,7 @@ use crate::GpuIndex;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 pub use compressed_noise_squashed_ciphertext_list::*;
 
-pub trait CudaIntegerRadixCiphertext: Sized {
+pub trait CudaIntegerRadixCiphertext: Sized + Send {
     const IS_SIGNED: bool;
     fn as_ref(&self) -> &CudaRadixCiphertext;
     fn as_mut(&mut self) -> &mut CudaRadixCiphertext;
