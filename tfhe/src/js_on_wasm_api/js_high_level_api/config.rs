@@ -1,26 +1,22 @@
-use crate::high_level_api as hlapi;
+use crate::high_level_api::ConfigBuilder;
+use crate::js_on_wasm_api::client::TfheConfig;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub struct TfheConfig(pub(crate) hlapi::Config);
-
-#[wasm_bindgen]
-pub struct TfheConfigBuilder(pub(crate) hlapi::ConfigBuilder);
+pub struct TfheConfigBuilder(pub(crate) ConfigBuilder);
 
 #[wasm_bindgen]
 impl TfheConfigBuilder {
     #[wasm_bindgen]
     pub fn default() -> Self {
-        Self(hlapi::ConfigBuilder::default())
+        Self(ConfigBuilder::default())
     }
 
     #[wasm_bindgen]
     pub fn with_custom_parameters(
         block_parameters: &crate::js_on_wasm_api::shortint::ShortintParameters,
     ) -> Self {
-        Self(hlapi::ConfigBuilder::with_custom_parameters(
-            block_parameters.0,
-        ))
+        Self(ConfigBuilder::with_custom_parameters(block_parameters.0))
     }
 
     #[wasm_bindgen]
