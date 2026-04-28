@@ -4,13 +4,42 @@ This document outlines how to use the **TFHE-rs** WebAssembly (WASM) client API 
 
 **TFHE-rs** supports WASM client API, which includes functionality for key generation, encryption, and decryption. However, it does not support FHE computations.
 
-**TFHE-rs** supports 3 WASM `targets`:
+The packages differ in two ways: the runtime they target, and how much of the API they include.
 
-* Node.js: For use in Node.js applications or packages
-* Web: For use in web browsers without multi-threading support. Support parallelism via web workers.
-* Web-parallel: For use in web browsers with full multi-threading support
+For the runtime:
 
-The core of the API remains the same, requiring only minor changes in the initialization functions.
+* Node.js, for Node.js applications or packages.
+* The browser, where parallelism is optional and comes in two flavors: standard `SharedArrayBuffer` threads, which need cross-origin isolation (COOP/COEP headers), or a Service Worker coordinator that works without it.
+
+For the API:
+
+* The full package exposes the whole client API (Boolean, shortint and integer) and compact public-key encryption.
+* The client package is a smaller build with only compact encryption and zero-knowledge proofs, for when all you do on the client side is build and prove compact ciphertext lists.
+
+## Client (compact) API
+
+The client package (the `build_*_client` targets) keeps only what a client needs to generate keys and build compact ciphertext lists:
+
+**Keys and configuration**
+
+* `init_panic_hook()`: forward Rust panics to the JS console.
+* `TfheConfig`: cryptographic configuration, via `TfheConfig.default()`.
+* `TfheClientKey`: the secret key (`generate`, `generate_with_seed`, `safe_serialize` / `safe_deserialize`).
+* `TfheCompactPublicKey`: the public encryption key (`new`, `safe_serialize` / `safe_deserialize` / `safe_deserialize_conformant`).
+
+**Compact encryption**
+
+* `CompactCiphertextListBuilder`: push clear values (`push_u2` to `push_u2048`, `push_i2` to `push_i2048`, `push_boolean`), then call `build`, `build_packed` or `build_packed_seeded`.
+* `CompactCiphertextList`: the built list, obtained from `CompactCiphertextList.builder(publicKey)`.
+* `FheTypes`: enum identifying the type of each element.
+
+**Zero-knowledge proofs** (require the `zk-pok` feature)
+
+* `CompactPkeCrs`: the common reference string (`from_config`, `safe_serialize` / `safe_deserialize`).
+* `ProvenCompactCiphertextList`: a list built together with a proof through `CompactCiphertextListBuilder.build_with_proof_packed(...)`; supports `len`, `is_empty`, `get_kind_of`, `safe_serialize` / `safe_deserialize`.
+* `ZkComputeLoad`: `Proof` or `Verify`.
+
+There is no server key, and no way to expand or decrypt ciphertexts; the Boolean and shortint modules are gone too. Reach for the full package when you need any of that.
 
 ## Node.js
 
@@ -46,7 +75,7 @@ function fhe_uint32_example() {
   let publicKey = TfheCompactPublicKey.new(clientKey);
 
   let values = [0, 1, 2394, U32_MAX];
-  let builder = CompactCiphertextList.builder(publicKey); 
+  let builder = CompactCiphertextList.builder(publicKey);
   for (let i = 0; i < values.length; i++) {
     builder.push_u32(values[i]);
   }
@@ -71,7 +100,7 @@ fhe_uint32_example();
 
 ## Web
 
-When using the Web WASM target,  you should call an additional `init` function. With parallelism enabled, you need to call another additional `initThreadPool` function.
+When using the Web WASM target, you should call an additional `init` function. With parallelism enabled, you need to call another additional `initThreadPool` function.
 
 Example:
 
@@ -99,7 +128,7 @@ async function example() {
 
 Standard multi-threading in WASM requires [cross-origin isolation](https://developer.mozilla.org/en-US/docs/Web/API/Window/crossOriginIsolated) (COOP/COEP headers) to enable `SharedArrayBuffer`. Some deployment environments cannot set these headers (e.g., when embedding in third-party pages or certain hosting platforms).
 
-**TFHE-rs** provides an alternative parallelism mode that works **without cross-origin isolation** by using a Service Worker coordinator and a message-passing–based worker pool. This mode is used to accelerate **zero-knowledge proof** computation in the browser.
+**TFHE-rs** provides an alternative parallelism mode that works **without cross-origin isolation** by using a Service Worker coordinator and a message-passing-based worker pool. This mode is used to accelerate **zero-knowledge proof** computation in the browser.
 
 ### Setup
 
@@ -127,14 +156,14 @@ async function setup() {
 ```
 
 Since the main thread JS cannot block, you need to build the list using the dedicated async method:
-```
+
+```js
 let list = await builder.build_with_proof_packed_async(
       crs,
       metadata,
       ZkComputeLoad.Proof,
 );
 ```
-
 
 ### Initialization with a dedicated Web Worker (Comlink pattern)
 
@@ -198,16 +227,32 @@ if (supportsThreads) {
 
 ## Compiling the WASM API
 
-Use the provided Makefile in the **TFHE-rs** repository to compile for the desired target:
+Use the provided Makefile in the **TFHE-rs** repository to compile for the desired target. Each command produces a package in `tfhe/pkg`.
 
-* `make build_node_js_api` for the Node.js API
-* `make build_web_js_api` for the browser API (also used for cross-origin parallelism)
-* `make build_web_js_api_parallel` for the browser API with parallelism (requires cross-origin isolation)
+**Full API** (Boolean, shortint and integer):
 
-The compiled WASM packages are located in `tfhe/pkg`.
+* `make build_node_js_api`: Node.js API
+* `make build_web_js_api`: browser API, sequential or cross-origin parallelism
+* `make build_web_js_api_parallel`: browser API with `SharedArrayBuffer` parallelism (requires cross-origin isolation)
+
+**Client (compact) API** (compact encryption + zero-knowledge proofs only, lighter package):
+
+* `make build_node_js_api_client`: Node.js client API
+* `make build_web_js_api_client`: browser client API, sequential or cross-origin parallelism
+* `make build_web_js_api_parallel_client`: browser client API with `SharedArrayBuffer` parallelism
+
+The compiled WASM packages are located in `tfhe/pkg` (the output directory of the web client builds can be overridden with the `WEB_CLIENT_OUT_DIR` variable).
 
 {% hint style="info" %}
-The browser API and the Node.js API are available as npm packages. Using `npm i tfhe` for the browser API and `npm i node-tfhe` for the Node.js API.
+The packages are also published on npm:
+
+| Package | Build command | Description |
+| --- | --- | --- |
+| `tfhe` | `build_web_js_api_parallel` | Browser, full API, `SharedArrayBuffer` parallelism |
+| `tfhe-compat` | `build_web_js_api` | Browser, full API, cross-origin parallelism |
+| `node-tfhe` | `build_node_js_api` | Node.js, full API |
+| `tfhe-client` | `build_web_js_api_parallel_client` | Browser, client API, `SharedArrayBuffer` parallelism |
+| `tfhe-client-compat` | `build_web_js_api_client` | Browser, client API, cross-origin parallelism |
 {% endhint %}
 
 ### Extra steps for web bundlers
@@ -232,7 +277,7 @@ Alternatively, you can use [Vite](https://vitejs.dev/) which has necessary plugi
 
 ## Using the JS on WASM API
 
-**TFHE-rs** uses WASM to provide a JavaScript (JS) binding to the client-side primitives, like key generation and encryption within the Boolean and shortint modules.
+**TFHE-rs** uses WASM to provide a JavaScript (JS) binding to the client-side primitives, like key generation and encryption within the Boolean, shortint and integer modules.
 
 Currently, there are several limitations. Due to a lack of threading support in WASM, key generation can be too slow to be practical for bigger parameter sets.
 
@@ -240,7 +285,7 @@ Some parameter sets lead to the FHE keys exceeding the 2GB memory limit of WASM,
 
 ## First steps using TFHE-rs JS on WASM API
 
-### Setting up TFHE-rs JS on WASM API for Node.js programs.
+### Setting up TFHE-rs JS on WASM API for Node.js programs
 
 To build the JS on WASM bindings for **TFHE-rs**, install [`wasm-pack`](https://drager.github.io/wasm-pack/) and the necessary [`rust toolchain`](https://rustup.rs/). Clone the **TFHE-rs** repository and build using the following commands (this will build using the default branch, you can check out a specific tag depending on your requirements):
 
@@ -251,7 +296,7 @@ Cloning into 'tfhe-rs'...
 Resolving deltas: 100% (3866/3866), done.
 $ cd tfhe-rs
 $ cd tfhe
-$ wasm-pack build --release --target=nodejs --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api
+$ wasm-pack build --release --target=nodejs --features=boolean-js-wasm-api,integer-js-wasm-api,zk-pok,extended-types
 [INFO]: Compiling to Wasm...
 ...
 [INFO]: :-) Your wasm pkg is ready to publish at ...
@@ -259,7 +304,7 @@ $ wasm-pack build --release --target=nodejs --features=boolean-client-js-wasm-ap
 
 The command above targets Node.js. To generate a binding for a web browser, use `--target=web`. However, this tutorial does not cover that particular use case.
 
-Both Boolean and shortint features are enabled here, but it's possible to use them individually.
+The Boolean, shortint and integer features are enabled here, but it's possible to use them individually. To build the lighter client-only package instead, drop the default features and enable `integer-client-js-wasm-api` (optionally with `zk-pok`), as done by the `build_*_client` Makefile targets.
 
 After the build, a new directory **pkg** is available in the `tfhe` directory.
 
