@@ -29,7 +29,7 @@ BACKWARD_COMPAT_DATA_GEN_VERSION:=$(TFHE_VERSION)
 CORRUPTED_INPUTS_TEST=tests/corrupted_inputs_deserialization
 TEST_VECTORS_DIR=apps/test-vectors
 CURRENT_TFHE_VERSION:=$(shell grep '^version[[:space:]]*=' tfhe/Cargo.toml | cut -d '=' -f 2 | xargs)
-WASM_PACK_VERSION="0.13.1"
+WASM_PACK_VERSION="0.15.0"
 WASM_BINDGEN_VERSION:=$(shell cargo tree --target wasm32-unknown-unknown -e all --prefix none | grep "wasm-bindgen v" | head -n 1 | cut -d 'v' -f2)
 WEB_RUNNER_DIR=web-test-runner
 WEB_SERVER_DIR=tfhe/web_wasm_parallel_tests
@@ -545,6 +545,12 @@ clippy_js_wasm_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,high-level-client-js-wasm-api,zk-pok,extended-types,cross-origin-wasm-api \
 		-p tfhe -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		--no-default-features --features=boolean-client-js-wasm-api \
+		-p tfhe -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		--no-default-features --features=shortint-client-js-wasm-api \
+		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_tasks # Run clippy lints on helper tasks crate.
 clippy_tasks: install_rs_check_toolchain
@@ -777,39 +783,7 @@ build_c_api_experimental_deterministic_fft: install_rs_check_toolchain
 		--features=boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,experimental-force_fft_algo_dif4 \
 		-p tfhe
 
-.PHONY: build_web_js_api # Build the js API targeting the web browser, in sequential or cross origin parallelism modes.
-build_web_js_api: install_wasm_pack
-	cd tfhe && \
-	RUSTFLAGS="$(WASM_RUSTFLAGS)" wasm-pack build --release --target=web \
-		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok,extended-types,cross-origin-wasm-api && \
-	find pkg/snippets -type f -iname worker_helpers.js -exec sed -i 's|import("../../..")|import("../../../tfhe.js")|g' {} \;
-	cp utils/wasm-par-mq/js/coordinator.js tfhe/pkg/
-	jq '.files += ["snippets"]' tfhe/pkg/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/pkg/package.json
-
-.PHONY: build_web_js_api_parallel # Build the js API targeting the web browser with parallelism support
-# parallel wasm requires specific build options, see https://github.com/rust-lang/rust/pull/147225
-build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack install_wasm_bindgen_cli
-	cd tfhe && \
-	rustup component add rust-src --toolchain $(RS_CHECK_TOOLCHAIN) && \
-	RUSTFLAGS="$(WASM_RUSTFLAGS) -C target-feature=+atomics,+bulk-memory \
-		-Clink-arg=--shared-memory \
-		-Clink-arg=--max-memory=1073741824 \
-		-Clink-arg=--import-memory \
-		-Clink-arg=--export=__wasm_init_tls \
-		-Clink-arg=--export=__tls_size \
-		-Clink-arg=--export=__tls_align \
-		-Clink-arg=--export=__tls_base" \
-		rustup run $(RS_CHECK_TOOLCHAIN) wasm-pack build --release --target=web \
-		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,parallel-wasm-api,zk-pok,extended-types \
-		-Z build-std=panic_abort,std && \
-	find pkg/snippets -type f -iname workerHelpers.js -exec sed -i "s|const pkg = await import('..\/..\/..');|const pkg = await import('..\/..\/..\/tfhe.js');|" {} \;
-	jq '.files += ["snippets"]' tfhe/pkg/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/pkg/package.json
-
-.PHONY: build_node_js_api # Build the js API targeting nodejs
-build_node_js_api: install_wasm_pack
-	cd tfhe && \
-	RUSTFLAGS="$(WASM_RUSTFLAGS)" wasm-pack build --release --target=nodejs \
-		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok,extended-types
+include make/wasm.mk
 
 .PHONY: build_tfhe_csprng # Build tfhe_csprng
 build_tfhe_csprng:
@@ -1398,7 +1372,8 @@ test_zk_wasm_x86_compat_ci: check_nvm_installed
 	$(MAKE) test_zk_wasm_x86_compat
 
 .PHONY: test_zk_wasm_x86_compat # Check compatibility between wasm and x86_64 proofs
-test_zk_wasm_x86_compat: build_node_js_api
+# Uses the client pkg (lighter to compile) — compat is package-agnostic.
+test_zk_wasm_x86_compat: build_node_js_api_client
 	cd tfhe/tests/zk_wasm_x86_test && npm install
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		-p tfhe --test zk_wasm_x86_test --features=integer,zk-pok
