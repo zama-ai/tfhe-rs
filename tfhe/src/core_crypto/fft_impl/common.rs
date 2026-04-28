@@ -4,23 +4,8 @@ use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::commons::traits::Container;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::{CiphertextModulusLog, ContainerMut};
+use crate::core_crypto::prelude::ContainerMut;
 use dyn_stack::{PodStack, StackReq};
-
-pub fn modulus_switch<Scalar: UnsignedInteger>(
-    input: Scalar,
-    log_modulus: CiphertextModulusLog,
-) -> Scalar {
-    assert!(log_modulus.0 <= Scalar::BITS);
-    if log_modulus.0 == Scalar::BITS {
-        return input;
-    }
-
-    // Flooring output_to_floor is equivalent to rounding the input
-    let output_to_floor = input.wrapping_add(Scalar::ONE << (Scalar::BITS - log_modulus.0 - 1));
-
-    output_to_floor >> (Scalar::BITS - log_modulus.0)
-}
 
 pub trait FourierBootstrapKey<Scalar: UnsignedInteger> {
     type Fft;

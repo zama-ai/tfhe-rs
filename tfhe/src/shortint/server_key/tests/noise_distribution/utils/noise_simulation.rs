@@ -5,6 +5,7 @@ use crate::core_crypto::algorithms::glwe_encryption::encrypt_glwe_ciphertext;
 use crate::core_crypto::algorithms::lwe_multi_bit_programmable_bootstrapping::{
     MultiBitModulusSwitchedLweCiphertext, StandardMultiBitModulusSwitchedCt,
 };
+use crate::core_crypto::algorithms::modulus_switch::modulus_switch;
 use crate::core_crypto::algorithms::test::noise_distribution::lwe_encryption_noise::lwe_compact_public_key_encryption_expected_variance;
 use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
 use crate::core_crypto::commons::math::random::Gaussian;
@@ -30,7 +31,6 @@ use crate::core_crypto::entities::{
     GlweCiphertext, GlweCiphertextOwned, LweCiphertext, LweCiphertextOwned, LweCiphertextView,
     LweSecretKeyView, PlaintextList,
 };
-use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;

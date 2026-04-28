@@ -1,10 +1,10 @@
 use super::lwe_ciphertext_add_assign;
+use crate::core_crypto::algorithms::modulus_switch::modulus_switch;
 use crate::core_crypto::commons::dispersion::{ModularVariance, Variance};
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::{NoiseEstimationMeasureBound, RSigmaFactor};
 use crate::core_crypto::commons::traits::{Container, ContainerMut, UnsignedInteger};
 use crate::core_crypto::entities::{LweCiphertext, LweCiphertextList};
-use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::{
     CiphertextModulus, CiphertextModulusLog, ContiguousEntityContainer, DispersionParameter,
 };

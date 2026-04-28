@@ -190,7 +190,7 @@ impl<Scalar: UnsignedInteger> ParameterSetConformant
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::core_crypto::fft_impl::common::modulus_switch;
+    use crate::core_crypto::algorithms::modulus_switch::modulus_switch;
     use rand::{Fill, Rng};
 
     #[test]

@@ -1,5 +1,19 @@
-use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::*;
+
+pub fn modulus_switch<Scalar: UnsignedInteger>(
+    input: Scalar,
+    log_modulus: CiphertextModulusLog,
+) -> Scalar {
+    assert!(log_modulus.0 <= Scalar::BITS);
+    if log_modulus.0 == Scalar::BITS {
+        return input;
+    }
+
+    // Flooring output_to_floor is equivalent to rounding the input
+    let output_to_floor = input.wrapping_add(Scalar::ONE << (Scalar::BITS - log_modulus.0 - 1));
+
+    output_to_floor >> (Scalar::BITS - log_modulus.0)
+}
 
 /// Represent any kind of LWE ciphertext after a modulus switch operation.
 ///

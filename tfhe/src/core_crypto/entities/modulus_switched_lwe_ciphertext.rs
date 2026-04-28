@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use super::LweCiphertext;
-use crate::core_crypto::fft_impl::common::modulus_switch;
+use crate::core_crypto::algorithms::modulus_switch::modulus_switch;
 use crate::core_crypto::prelude::packed_integers::PackedIntegers;
 use crate::core_crypto::prelude::*;
 
