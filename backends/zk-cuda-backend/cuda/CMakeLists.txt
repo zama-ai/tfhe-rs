@@ -31,7 +31,7 @@ if(NOT TFHE_CUDA_COMMON_CHECK_CUDA_DIR)
   set(TFHE_CUDA_COMMON_CHECK_CUDA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../tfhe-cuda-common/cuda)
 endif()
 set(CUDAFILE ${TFHE_CUDA_COMMON_CHECK_CUDA_DIR}/check_cuda.cu)
-execute_process(COMMAND nvcc -lcuda ${CUDAFILE} -o ${OUTPUTFILE})
+execute_process(COMMAND ${CMAKE_CUDA_COMPILER} -lcuda ${CUDAFILE} -o ${OUTPUTFILE})
 execute_process(
   COMMAND ${OUTPUTFILE}
   RESULT_VARIABLE CUDA_RETURN_CODE

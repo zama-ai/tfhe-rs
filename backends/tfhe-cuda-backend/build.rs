@@ -84,6 +84,7 @@ fn main() {
             "wrapper.h",
             "cuda/include/ciphertext.h",
             "cuda/include/integer/compression/compression.h",
+            "cuda/include/integer/kv_store/kv_store.h",
             "cuda/include/integer/integer.h",
             "cuda/include/integer/rerand.h",
             "cuda/include/aes/aes.h",

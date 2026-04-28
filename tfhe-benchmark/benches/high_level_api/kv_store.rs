@@ -1,6 +1,12 @@
 #[cfg(not(any(feature = "gpu", feature = "hpu")))]
 use benchmark::find_optimal_batch::find_optimal_batch;
 use benchmark::high_level_api::type_display::*;
+#[cfg(feature = "gpu")]
+use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+#[cfg(feature = "gpu")]
+use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+#[cfg(feature = "gpu")]
+use benchmark::utilities::{configure_gpu, get_param_type, ParamType};
 use benchmark::utilities::{write_to_json, BitSizesSet, EnvConfig, OperatorType};
 use benchmark_spec::tfhe::hlapi::kv_store::KvStoreOp;
 use benchmark_spec::{
@@ -13,10 +19,7 @@ use tfhe::core_crypto::prelude::Numeric;
 use tfhe::integer::block_decomposition::DecomposableInto;
 use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
-use tfhe::{
-    ClientKey, CompressedServerKey, FheIntegerType, FheUint128, FheUint32, FheUint64, FheUintId,
-    KVStore,
-};
+use tfhe::{ClientKey, FheIntegerType, FheUint128, FheUint32, FheUint64, FheUintId, KVStore};
 
 fn bench_kv_store<Key, FheKey, Value>(c: &mut Criterion, cks: &ClientKey, num_elements: usize)
 where
@@ -239,41 +242,49 @@ where
 fn main() {
     let env_config = EnvConfig::new();
 
-    let (cks, benched_device) = {
+    #[cfg(feature = "gpu")]
+    let cks = {
+        let params: tfhe::shortint::AtomicPatternParameters = match get_param_type() {
+            ParamType::Classical => BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+            _ => BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+        };
+        let config = tfhe::ConfigBuilder::with_custom_parameters(params).build();
+        let cks = ClientKey::generate(config);
+        configure_gpu(&cks);
+        cks
+    };
+
+    #[cfg(not(feature = "gpu"))]
+    let cks = {
         use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS;
-        use tfhe::{set_server_key, ConfigBuilder};
+        use tfhe::{set_server_key, CompressedServerKey, ConfigBuilder};
         let config =
             ConfigBuilder::with_custom_parameters(BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS).build();
         let cks = ClientKey::generate(config);
         let compressed_sks = CompressedServerKey::new(&cks);
-
         let sks = compressed_sks.decompress();
         rayon::broadcast(|_| set_server_key(sks.clone()));
         set_server_key(sks);
-        (cks, tfhe::Device::Cpu)
+        cks
     };
 
     let mut c = Criterion::default().configure_from_args();
 
     match env_config.bit_sizes_set {
         BitSizesSet::Fast => {
-            if benched_device == tfhe::Device::Cpu {
-                bench_kv_store::<u64, FheUint64, FheUint64>(&mut c, &cks, 1 << 10);
-            }
+            bench_kv_store::<u64, FheUint64, FheUint64>(&mut c, &cks, 1 << 10);
         }
         _ => {
-            if benched_device == tfhe::Device::Cpu {
-                for pow in 1..=10 {
-                    bench_kv_store::<u64, FheUint64, FheUint32>(&mut c, &cks, 1 << pow);
-                }
+            for pow in 1..=10 {
+                bench_kv_store::<u64, FheUint64, FheUint32>(&mut c, &cks, 1 << pow);
+            }
 
-                for pow in 1..=10 {
-                    bench_kv_store::<u64, FheUint64, FheUint64>(&mut c, &cks, 1 << pow);
-                }
+            for pow in 1..=10 {
+                bench_kv_store::<u64, FheUint64, FheUint64>(&mut c, &cks, 1 << pow);
+            }
 
-                for pow in 1..=10 {
-                    bench_kv_store::<u128, FheUint128, FheUint64>(&mut c, &cks, 1 << pow);
-                }
+            for pow in 1..=10 {
+                bench_kv_store::<u128, FheUint128, FheUint64>(&mut c, &cks, 1 << pow);
             }
         }
     }
