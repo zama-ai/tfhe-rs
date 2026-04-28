@@ -123,6 +123,16 @@ if(NOT TFHE_CUDA_COMMON_INCLUDE_DIR)
   set(TFHE_CUDA_COMMON_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../tfhe-cuda-common/cuda/include")
 endif()
 
+add_library(tfhe_cuda_common STATIC ${TFHE_CUDA_COMMON_CHECK_CUDA_DIR}/src/device.cu
+                                    ${TFHE_CUDA_COMMON_CHECK_CUDA_DIR}/src/helper_profile.cu)
+set_target_properties(
+  tfhe_cuda_common
+  PROPERTIES CUDA_SEPARABLE_COMPILATION ON
+             POSITION_INDEPENDENT_CODE ON
+             CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+target_include_directories(tfhe_cuda_common PUBLIC ${TFHE_CUDA_COMMON_INCLUDE_DIR})
+target_link_libraries(tfhe_cuda_common PUBLIC cudart)
+
 add_subdirectory(src)
 enable_testing()
 add_subdirectory(tests_and_benchmarks)
