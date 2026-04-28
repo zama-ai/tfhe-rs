@@ -333,6 +333,11 @@ semver_check_cuda_backend:
 	cargo install cargo-semver-checks --locked
 	DOCS_RS=1 cargo semver-checks --package tfhe-cuda-backend
 
+.PHONY: semver_check_zk_cuda_backend # Run semver checks on zk-cuda-backend
+semver_check_zk_cuda_backend:
+	cargo install cargo-semver-checks --locked
+	DOCS_RS=1 cargo semver-checks --package zk-cuda-backend
+
 .PHONY: fmt_gpu # Format rust and cuda code
 fmt_gpu: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
