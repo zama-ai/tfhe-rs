@@ -57,6 +57,9 @@ fn main() {
         if let Ok(common_include) = std::env::var("DEP_TFHE_CUDA_COMMON_INCLUDE") {
             cmake_config.define("TFHE_CUDA_COMMON_INCLUDE_DIR", &common_include);
         }
+        if let Ok(check_cuda_dir) = std::env::var("DEP_TFHE_CUDA_COMMON_CHECK_CUDA_DIR") {
+            cmake_config.define("TFHE_CUDA_COMMON_CHECK_CUDA_DIR", &check_cuda_dir);
+        }
 
         // Build the CMake project
         let dest = cmake_config.build();

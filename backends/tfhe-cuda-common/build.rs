@@ -76,6 +76,10 @@ fn main() {
         //   - dependents see DEP_TFHE_CUDA_COMMON_INCLUDE=<path>
         let include_dir = std::path::PathBuf::from(&manifest_dir).join("cuda/include");
         println!("cargo:include={}", include_dir.display());
+
+        // Same mechanism: dependents see DEP_TFHE_CUDA_COMMON_CHECK_CUDA_DIR.
+        let cuda_dir = std::path::PathBuf::from(&manifest_dir).join("cuda");
+        println!("cargo:check_cuda_dir={}", cuda_dir.display());
     } else {
         panic!(
             "Error: platform not supported, tfhe-cuda-common not built (only Linux is supported)"
