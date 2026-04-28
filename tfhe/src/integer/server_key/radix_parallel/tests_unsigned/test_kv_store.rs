@@ -1,3 +1,5 @@
+use crate::core_crypto::prelude::{CastFrom, UnsignedNumeric};
+use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{CpuFunctionExecutor, NB_CTXT};
@@ -7,6 +9,7 @@ use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientK
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::{TestParameters, *};
 use std::collections::BTreeMap;
+use std::fmt::Display;
 use std::sync::Arc;
 
 create_parameterized_test!(
@@ -108,11 +111,18 @@ create_parameterized_test!(
 fn integer_default_kv_store_get_update(params: impl Into<TestParameters>) {
     let get_executor = CpuFunctionExecutor::new(&ServerKey::kv_store_get);
     let update_executor = CpuFunctionExecutor::new(&ServerKey::kv_store_update);
-    default_kv_store_get_update_test(params, get_executor, update_executor);
+    default_kv_store_get_update_test::<u8, _, _, _>(
+        params,
+        get_executor,
+        update_executor,
+        None,
+        GET_UPDATE_STORE_SIZES,
+        usize::MAX,
+    );
 }
 fn integer_default_kv_store_contains_key(params: impl Into<TestParameters>) {
     let contains_executor = CpuFunctionExecutor::new(&ServerKey::kv_store_contains_key);
-    default_kv_store_contains_test(params, contains_executor);
+    default_kv_store_contains_test::<u8, _, _>(params, contains_executor, None, &[20], usize::MAX);
 }
 
 fn integer_default_kv_store_contains_value(params: impl Into<TestParameters>) {
@@ -139,23 +149,50 @@ fn integer_default_kv_store_map(params: impl Into<TestParameters>) {
 
 pub type KeyType = u8;
 
-fn get_num_block_for_key(msg_mod: MessageModulus) -> usize {
-    KeyType::BITS.div_ceil(msg_mod.0.ilog2()) as usize
+fn get_num_block_for_key<Key: UnsignedNumeric>(msg_mod: MessageModulus) -> usize {
+    Key::BITS.div_ceil(msg_mod.0.ilog2() as usize)
 }
 
-fn default_kv_store_get_update_test<P, T1, T2>(
+// Store sizes covering distinct paths in the GPU fold-sum schedule (a GPU implementation
+// detail; the CPU runs the same sizes for parity):
+//
+//   3  — below the noise budget: a fold-only schedule with no PBS round.
+//  20  — remainder is an exact multiple of the per-round budget: folds, absorbs the
+//        tail, and finishes after a second fold-only round.
+//  26  — remainder is not a multiple of the budget at any full round: takes the
+//        most general schedule, with several PBS rounds.
+pub const GET_UPDATE_STORE_SIZES: &[usize] = &[3, 20, 26];
+
+/// Number of distinct keys representable: bounded both by the encrypted key width and by the
+/// clear key type's range.
+fn key_space_modulus<Key: UnsignedNumeric>(msg_mod: MessageModulus, nb_key_blocks: usize) -> u128 {
+    assert!(Key::BITS < 128);
+    (msg_mod.0 as u128)
+        .pow(nb_key_blocks as u32)
+        .min(1u128 << Key::BITS)
+}
+
+fn random_key<Key: CastFrom<u64>>(key_modulus: u128) -> Key {
+    Key::cast_from((rand::random::<u128>() % key_modulus) as u64)
+}
+
+pub fn default_kv_store_get_update_test<Key, P, T1, T2>(
     params: P,
     mut kv_store_get: T1,
     mut kv_store_update: T2,
+    nb_key_blocks: Option<usize>,
+    store_sizes: &[usize],
+    max_probes: usize,
 ) where
+    Key: DecomposableInto<u64> + UnsignedNumeric + CastFrom<u64> + Ord + Copy + Display,
     P: Into<TestParameters>,
     T1: for<'a> FunctionExecutor<
-        (&'a KVStore<KeyType, RadixCiphertext>, &'a RadixCiphertext),
+        (&'a KVStore<Key, RadixCiphertext>, &'a RadixCiphertext),
         (RadixCiphertext, BooleanBlock),
     >,
     T2: for<'a> FunctionExecutor<
         (
-            &'a mut KVStore<KeyType, RadixCiphertext>,
+            &'a mut KVStore<Key, RadixCiphertext>,
             &'a RadixCiphertext,
             &'a RadixCiphertext,
         ),
@@ -169,7 +206,9 @@ fn default_kv_store_get_update_test<P, T1, T2>(
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let nb_blocks_key = get_num_block_for_key(params.message_modulus());
+    let nb_blocks_key =
+        nb_key_blocks.unwrap_or_else(|| get_num_block_for_key::<Key>(params.message_modulus()));
+    let key_modulus = key_space_modulus::<Key>(params.message_modulus(), nb_blocks_key);
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
@@ -179,8 +218,8 @@ fn default_kv_store_get_update_test<P, T1, T2>(
 
     // Test on an empty store
     {
-        let mut empty_map: KVStore<KeyType, RadixCiphertext> = KVStore::new();
-        let key = rand::random::<u8>();
+        let mut empty_map: KVStore<Key, RadixCiphertext> = KVStore::new();
+        let key = random_key::<Key>(key_modulus);
         let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
 
         let (result, is_some) = kv_store_get.execute((&empty_map, &encrypted_key));
@@ -194,50 +233,53 @@ fn default_kv_store_get_update_test<P, T1, T2>(
         assert!(!cks.decrypt_bool(&is_some));
     }
 
-    let num_keys = 20usize;
-    let (mut map, mut clear_store) = create_filled_stores(num_keys, modulus, &cks);
+    for &num_keys in store_sizes {
+        let (mut map, mut clear_store) =
+            create_filled_stores::<Key>(num_keys, key_modulus, modulus, &cks);
+        let num_probes = num_keys.div_ceil(2).min(max_probes);
 
-    // Test modifying a key that does not exist
-    for _ in 0..num_keys.div_ceil(2) {
-        let key = generate_unused_key(&clear_store);
-        let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
+        // Test a key that does not exist.
+        for _ in 0..num_probes {
+            let key = generate_unused_key(&clear_store, key_modulus);
+            let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
 
-        let (result, is_some) = kv_store_get.execute((&mut map, &encrypted_key));
-        assert!(!cks.decrypt_bool(&is_some));
-        assert_eq!(cks.decrypt::<u64>(&result), 0);
+            let (result, is_some) = kv_store_get.execute((&map, &encrypted_key));
+            assert!(!cks.decrypt_bool(&is_some));
+            assert_eq!(cks.decrypt::<u64>(&result), 0);
 
-        let new_value = rand::random::<u64>() % modulus;
-        let encrypted_new_value: RadixCiphertext = cks.encrypt(new_value);
-        let is_some = kv_store_update.execute((&mut map, &encrypted_key, &encrypted_new_value));
-        assert!(!cks.decrypt_bool(&is_some));
+            let new_value = rand::random::<u64>() % modulus;
+            let encrypted_new_value: RadixCiphertext = cks.encrypt(new_value);
+            let is_some = kv_store_update.execute((&mut map, &encrypted_key, &encrypted_new_value));
+            assert!(!cks.decrypt_bool(&is_some));
 
-        panic_if_not_the_same(&map, &clear_store, &cks);
-    }
+            panic_if_not_the_same(&map, &clear_store, &cks);
+        }
 
-    // Test modifying a key that exists
-    for _ in 0..num_keys.div_ceil(2) {
-        let key_index = rand::random::<usize>() % num_keys;
-        let key_target = *clear_store.iter().nth(key_index).unwrap().0;
-        let encrypted_key = cks.as_ref().encrypt_radix(key_target, nb_blocks_key);
+        // Test a key that exists.
+        for _ in 0..num_probes {
+            let key_index = rand::random::<usize>() % num_keys;
+            let key_target = *clear_store.iter().nth(key_index).unwrap().0;
+            let encrypted_key = cks.as_ref().encrypt_radix(key_target, nb_blocks_key);
 
-        let expected_value = clear_store.get(&key_target).unwrap();
+            let expected_value = clear_store.get(&key_target).unwrap();
 
-        let (result, is_some) = kv_store_get.execute((&mut map, &encrypted_key));
-        assert!(cks.decrypt_bool(&is_some));
-        assert_eq!(cks.decrypt::<u64>(&result), *expected_value);
+            let (result, is_some) = kv_store_get.execute((&map, &encrypted_key));
+            assert!(cks.decrypt_bool(&is_some));
+            assert_eq!(cks.decrypt::<u64>(&result), *expected_value);
 
-        let new_value = rand::random::<u64>() % modulus;
-        let encrypted_new_value: RadixCiphertext = cks.encrypt(new_value);
-        let is_some = kv_store_update.execute((&mut map, &encrypted_key, &encrypted_new_value));
-        assert!(cks.decrypt_bool(&is_some));
+            let new_value = rand::random::<u64>() % modulus;
+            let encrypted_new_value: RadixCiphertext = cks.encrypt(new_value);
+            let is_some = kv_store_update.execute((&mut map, &encrypted_key, &encrypted_new_value));
+            assert!(cks.decrypt_bool(&is_some));
 
-        clear_store.insert(key_target, new_value);
+            clear_store.insert(key_target, new_value);
 
-        panic_if_not_properly_updated(&map, &clear_store, key_target, &cks);
+            panic_if_not_properly_updated(&map, &clear_store, key_target, &cks);
+        }
     }
 }
 
-fn default_kv_store_map_test<P, T>(params: P, mut kv_store_map: T)
+pub fn default_kv_store_map_test<P, T>(params: P, mut kv_store_map: T)
 where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
@@ -256,7 +298,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let nb_blocks_key = get_num_block_for_key(params.message_modulus());
+    let nb_blocks_key = get_num_block_for_key::<KeyType>(params.message_modulus());
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
@@ -274,7 +316,7 @@ where
     }
 
     let num_keys = 20usize;
-    let (mut map, mut clear_store) = create_filled_stores(num_keys, modulus, &cks);
+    let (mut map, mut clear_store) = create_filled_stores(num_keys, 1 << u8::BITS, modulus, &cks);
 
     let clear_function = |x: u64| -> u64 { x / 3 };
     let function = Box::new(|input: RadixCiphertext| -> RadixCiphertext {
@@ -286,7 +328,7 @@ where
 
     // Test modifying a key that does not exist
     for _ in 0..num_keys.div_ceil(2) {
-        let key = generate_unused_key(&clear_store);
+        let key = generate_unused_key(&clear_store, 1 << u8::BITS);
         let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
 
         let (_, _, is_some) = kv_store_map.execute((&mut map, &encrypted_key, &function));
@@ -326,20 +368,33 @@ where
 ///
 /// # Arguments
 /// * `num_keys` - Number of key-value pairs to generate
+/// * `key_modulus` - Size of the key space keys are drawn from
 /// * `modulus` - Maximum value for the random values
 /// * `cks` - Client key for encryption
 ///
 /// # Returns
 /// A tuple containing the encrypted store and its clear counterpart
-fn create_filled_stores(
+fn create_filled_stores<Key>(
     num_keys: usize,
+    key_modulus: u128,
     modulus: u64,
     cks: &RadixClientKey,
-) -> (KVStore<KeyType, RadixCiphertext>, BTreeMap<KeyType, u64>) {
+) -> (KVStore<Key, RadixCiphertext>, BTreeMap<Key, u64>)
+where
+    Key: CastFrom<u64> + Ord + Copy,
+{
+    // The absent-key probes need at least one unused key in the key space.
+    assert!(
+        (num_keys as u128) < key_modulus,
+        "store size {num_keys} must be smaller than the key space {key_modulus}"
+    );
     let mut store = KVStore::new();
-    let mut clear_store = BTreeMap::<u8, u64>::new();
+    let mut clear_store = BTreeMap::<Key, u64>::new();
     while clear_store.len() != num_keys {
-        let (key, value) = (rand::random::<u8>(), rand::random::<u64>() % modulus);
+        let (key, value) = (
+            random_key::<Key>(key_modulus),
+            rand::random::<u64>() % modulus,
+        );
         clear_store.insert(key, value);
 
         let encrypted_value = cks.encrypt(value);
@@ -352,11 +407,13 @@ fn create_filled_stores(
 
 /// Panics if any of the key-value pairs of the encrypted store
 /// is not the same as the clear store.
-fn panic_if_not_the_same(
-    map: &KVStore<KeyType, RadixCiphertext>,
-    clear_store: &BTreeMap<KeyType, u64>,
+fn panic_if_not_the_same<Key>(
+    map: &KVStore<Key, RadixCiphertext>,
+    clear_store: &BTreeMap<Key, u64>,
     cks: &RadixClientKey,
-) {
+) where
+    Key: Ord + Copy + Display,
+{
     assert_eq!(
         map.len(),
         clear_store.len(),
@@ -374,11 +431,17 @@ fn panic_if_not_the_same(
     }
 }
 
-fn default_kv_store_contains_test<P, T1>(params: P, mut kv_store_contains_key: T1)
-where
+pub fn default_kv_store_contains_test<Key, P, T1>(
+    params: P,
+    mut kv_store_contains_key: T1,
+    nb_key_blocks: Option<usize>,
+    store_sizes: &[usize],
+    max_probes: usize,
+) where
+    Key: DecomposableInto<u64> + UnsignedNumeric + CastFrom<u64> + Ord + Copy + Display,
     P: Into<TestParameters>,
     T1: for<'a> FunctionExecutor<
-        (&'a KVStore<KeyType, RadixCiphertext>, &'a RadixCiphertext),
+        (&'a KVStore<Key, RadixCiphertext>, &'a RadixCiphertext),
         BooleanBlock,
     >,
 {
@@ -389,7 +452,9 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let nb_blocks_key = get_num_block_for_key(params.message_modulus());
+    let nb_blocks_key =
+        nb_key_blocks.unwrap_or_else(|| get_num_block_for_key::<Key>(params.message_modulus()));
+    let key_modulus = key_space_modulus::<Key>(params.message_modulus(), nb_blocks_key);
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
@@ -398,37 +463,39 @@ where
 
     // Test on an empty store
     {
-        let empty_map: KVStore<KeyType, RadixCiphertext> = KVStore::new();
-        let key = rand::random::<u8>();
+        let empty_map: KVStore<Key, RadixCiphertext> = KVStore::new();
+        let key = random_key::<Key>(key_modulus);
         let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
         let is_contained = kv_store_contains_key.execute((&empty_map, &encrypted_key));
         assert!(!cks.decrypt_bool(&is_contained));
     }
 
-    let num_keys = 20usize;
-    let (map, clear_store) = create_filled_stores(num_keys, modulus, &cks);
+    for &num_keys in store_sizes {
+        let (map, clear_store) = create_filled_stores::<Key>(num_keys, key_modulus, modulus, &cks);
+        let num_probes = num_keys.div_ceil(2).min(max_probes);
 
-    // Test a key that does not exist
-    for _ in 0..num_keys.div_ceil(2) {
-        let key = generate_unused_key(&clear_store);
-        let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
+        // Test a key that does not exist
+        for _ in 0..num_probes {
+            let key = generate_unused_key(&clear_store, key_modulus);
+            let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
 
-        let is_contained = kv_store_contains_key.execute((&map, &encrypted_key));
-        assert!(!cks.decrypt_bool(&is_contained));
-    }
+            let is_contained = kv_store_contains_key.execute((&map, &encrypted_key));
+            assert!(!cks.decrypt_bool(&is_contained));
+        }
 
-    // Test a key that exists
-    for _ in 0..num_keys.div_ceil(2) {
-        let key_index = rand::random::<usize>() % num_keys;
-        let key_target = *clear_store.iter().nth(key_index).unwrap().0;
-        let encrypted_key = cks.as_ref().encrypt_radix(key_target, nb_blocks_key);
+        // Test a key that exists
+        for _ in 0..num_probes {
+            let key_index = rand::random::<usize>() % num_keys;
+            let key_target = *clear_store.iter().nth(key_index).unwrap().0;
+            let encrypted_key = cks.as_ref().encrypt_radix(key_target, nb_blocks_key);
 
-        let is_contained = kv_store_contains_key.execute((&map, &encrypted_key));
-        assert!(cks.decrypt_bool(&is_contained));
+            let is_contained = kv_store_contains_key.execute((&map, &encrypted_key));
+            assert!(cks.decrypt_bool(&is_contained));
+        }
     }
 }
 
-fn default_kv_store_contains_value_test<P, T1>(params: P, mut kv_store_contains_value: T1)
+pub fn default_kv_store_contains_value_test<P, T1>(params: P, mut kv_store_contains_value: T1)
 where
     P: Into<TestParameters>,
     T1: for<'a> FunctionExecutor<
@@ -457,7 +524,7 @@ where
     }
 
     let num_keys = 20usize;
-    let (map, clear_store) = create_filled_stores(num_keys, modulus, &cks);
+    let (map, clear_store) = create_filled_stores(num_keys, 1 << u8::BITS, modulus, &cks);
 
     // Test a value that exists in the store
     for _ in 0..num_keys.div_ceil(2) {
@@ -484,7 +551,7 @@ where
     }
 }
 
-fn default_kv_store_contains_clear_value_test<P, T1>(
+pub fn default_kv_store_contains_clear_value_test<P, T1>(
     params: P,
     mut kv_store_contains_clear_value: T1,
 ) where
@@ -512,7 +579,7 @@ fn default_kv_store_contains_clear_value_test<P, T1>(
     }
 
     let num_keys = 20usize;
-    let (map, clear_store) = create_filled_stores(num_keys, modulus, &cks);
+    let (map, clear_store) = create_filled_stores(num_keys, 1 << u8::BITS, modulus, &cks);
 
     // Test a value that exists in the store
     for _ in 0..num_keys.div_ceil(2) {
@@ -537,9 +604,12 @@ fn default_kv_store_contains_clear_value_test<P, T1>(
     }
 }
 
-fn generate_unused_key(clear_store: &BTreeMap<KeyType, u64>) -> u8 {
+fn generate_unused_key<Key>(clear_store: &BTreeMap<Key, u64>, key_modulus: u128) -> Key
+where
+    Key: CastFrom<u64> + Ord,
+{
     loop {
-        let key = rand::random::<u8>();
+        let key = random_key::<Key>(key_modulus);
         if !clear_store.contains_key(&key) {
             return key;
         }
@@ -552,12 +622,14 @@ fn generate_unused_key(clear_store: &BTreeMap<KeyType, u64>) -> u8 {
 /// To be used after updating a key.
 /// `update_key`, tells which key was last updated
 /// so that the panic message is clearer
-fn panic_if_not_properly_updated(
-    map: &KVStore<KeyType, RadixCiphertext>,
-    clear_store: &BTreeMap<KeyType, u64>,
-    updated_key: KeyType,
+fn panic_if_not_properly_updated<Key>(
+    map: &KVStore<Key, RadixCiphertext>,
+    clear_store: &BTreeMap<Key, u64>,
+    updated_key: Key,
     cks: &RadixClientKey,
-) {
+) where
+    Key: Ord + Copy + Display,
+{
     assert_eq!(
         map.len(),
         clear_store.len(),
