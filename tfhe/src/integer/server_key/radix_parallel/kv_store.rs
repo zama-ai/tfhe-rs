@@ -173,7 +173,7 @@ where
 //
 // Also, one important point is that par_iter_bridge may not keep iteration order
 // `The resulting iterator is not guaranteed to keep the order of the original iterator` (from rayon
-// docs) which is a problem for us as we need determinisn
+// docs) which is a problem for us as we need determinism
 impl ServerKey {
     /// Implementation of the get function that additionally returns the Vec of selectors
     /// so it can be reused to avoid re-computing it.
@@ -417,7 +417,7 @@ impl<Key, Value> CompressedKVStore<Key, Value>
 where
     Value: Expandable + IntegerRadixCiphertext,
 {
-    fn new(keys: Vec<Key>, compressed_values: CompressedCiphertextList) -> Self {
+    pub(crate) fn new(keys: Vec<Key>, compressed_values: CompressedCiphertextList) -> Self {
         Self {
             keys,
             values: compressed_values,
@@ -433,7 +433,8 @@ where
     /// * A value (which is a radix ciphertext) does not have the same number of blocks as the
     ///   others.
     ///
-    /// Both these errors indicate corrupted or malformed data
+    /// A signedness mismatch indicates the requested value type is wrong for the stored data; the
+    /// other errors indicate corrupted or malformed data.
     pub fn decompress(
         &self,
         decompression_key: &DecompressionKey,
@@ -442,11 +443,15 @@ where
         Key: Copy + Display + Ord,
     {
         if Value::IS_SIGNED != self.is_signed {
-            let requested = if Value::IS_SIGNED { "Signed" } else { "" };
-            let stored = if self.is_signed { "Signed" } else { "" };
+            let requested = if Value::IS_SIGNED {
+                "Signed"
+            } else {
+                "Unsigned"
+            };
+            let stored = if self.is_signed { "Signed" } else { "Unsigned" };
             return Err(crate::error!(
-                "Requested value type does not have signed.\
-             Requested '{requested}RadixCiphertext' but stored '{stored}RadixCiphertext'"
+                "Requested value signedness does not match stored data: \
+                 requested {requested}RadixCiphertext but stored is {stored}RadixCiphertext"
             ));
         }
 
@@ -468,6 +473,49 @@ where
                 ));
             }
 
+            let _ = store.insert(*key, value);
+        }
+
+        Ok(store)
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Key, Value> CompressedKVStore<Key, Value>
+where
+    Value: IntegerRadixCiphertext,
+{
+    pub(crate) fn decompress_to_cuda<GpuCt>(
+        &self,
+        decompression_key: &crate::integer::gpu::list_compression::server_keys::CudaDecompressionKey,
+        streams: &crate::core_crypto::gpu::CudaStreams,
+    ) -> crate::Result<crate::integer::gpu::server_key::radix::kv_store::CudaKVStore<Key, GpuCt>>
+    where
+        Key: Copy + Display + Ord,
+        GpuCt: crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext
+            + crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaExpandable,
+    {
+        if Value::IS_SIGNED != self.is_signed {
+            let requested = if Value::IS_SIGNED {
+                "Signed"
+            } else {
+                "Unsigned"
+            };
+            let stored = if self.is_signed { "Signed" } else { "Unsigned" };
+            return Err(crate::error!(
+                "Requested value signedness does not match stored data: \
+                 requested {requested}RadixCiphertext but stored is {stored}RadixCiphertext"
+            ));
+        }
+
+        let cuda_compressed = self.values.to_cuda_compressed_ciphertext_list(streams);
+        let mut store =
+            crate::integer::gpu::server_key::radix::kv_store::CudaKVStore::<Key, GpuCt>::new();
+
+        for (i, key) in self.keys.iter().enumerate() {
+            let value: GpuCt = cuda_compressed
+                .get(i, decompression_key, streams)?
+                .ok_or_else(|| crate::error!("Missing value for key '{key}'"))?;
             let _ = store.insert(*key, value);
         }
 
