@@ -20,7 +20,10 @@ if(CMAKE_CUDA_COMPILER_VERSION VERSION_LESS ${MINIMUM_SUPPORTED_CUDA_VERSION})
 endif()
 # Get CUDA compute capability (check_cuda.cu lives in tfhe-cuda-common)
 set(OUTPUTFILE ${CMAKE_CURRENT_SOURCE_DIR}/cuda_script) # No suffix required
-set(CUDAFILE ${CMAKE_CURRENT_SOURCE_DIR}/../../tfhe-cuda-common/cuda/check_cuda.cu)
+if(NOT TFHE_CUDA_COMMON_CHECK_CUDA_DIR)
+  set(TFHE_CUDA_COMMON_CHECK_CUDA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../tfhe-cuda-common/cuda)
+endif()
+set(CUDAFILE ${TFHE_CUDA_COMMON_CHECK_CUDA_DIR}/check_cuda.cu)
 execute_process(COMMAND nvcc -lcuda ${CUDAFILE} -o ${OUTPUTFILE})
 execute_process(
   COMMAND ${OUTPUTFILE}
@@ -116,13 +119,8 @@ set(CMAKE_CUDA_FLAGS
 
 set(INCLUDE_DIR include)
 
-set(TFHE_CUDA_COMMON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../tfhe-cuda-common/cuda")
 if(NOT TFHE_CUDA_COMMON_INCLUDE_DIR)
-  set(TFHE_CUDA_COMMON_INCLUDE_DIR "${TFHE_CUDA_COMMON_DIR}/include")
-endif()
-
-if(NOT TARGET tfhe_cuda_common)
-  add_subdirectory("${TFHE_CUDA_COMMON_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/tfhe_cuda_common")
+  set(TFHE_CUDA_COMMON_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../tfhe-cuda-common/cuda/include")
 endif()
 
 add_subdirectory(src)
@@ -130,7 +128,6 @@ enable_testing()
 add_subdirectory(tests_and_benchmarks)
 target_include_directories(tfhe_cuda_backend PRIVATE ${INCLUDE_DIR})
 target_include_directories(tfhe_cuda_backend PRIVATE ${TFHE_CUDA_COMMON_INCLUDE_DIR})
-target_link_libraries(tfhe_cuda_backend PUBLIC tfhe_cuda_common)
 
 # This is required for rust cargo build
 install(TARGETS tfhe_cuda_backend DESTINATION .)

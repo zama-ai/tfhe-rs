@@ -320,6 +320,11 @@ semver_check_cuda_backend:
 	cargo install cargo-semver-checks --locked
 	DOCS_RS=1 cargo semver-checks --package tfhe-cuda-backend
 
+.PHONY: semver_check_cuda_common # Run semver checks on tfhe-cuda-common
+semver_check_cuda_common:
+	cargo install cargo-semver-checks --locked
+	DOCS_RS=1 cargo semver-checks --package tfhe-cuda-common
+
 .PHONY: fmt_gpu # Format rust and cuda code
 fmt_gpu: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
