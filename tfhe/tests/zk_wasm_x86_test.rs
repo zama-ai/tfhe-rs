@@ -32,6 +32,7 @@ fn gen_key_and_crs() -> (CompactPublicKey, CompactPkeCrs) {
     let pub_key = CompactPublicKey::new(&client_key);
 
     println!("Generating crs");
+    // TODO: 2048
     let crs = CompactPkeCrs::from_config(config, 16).unwrap();
 
     (pub_key, crs)
