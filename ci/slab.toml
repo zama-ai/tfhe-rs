@@ -115,5 +115,5 @@ user = "ubuntu"
 
 [backend.terraform.scaleway-multi-h100-sxm5]
 script_path = "ci/terraform_scripts/scaleway/multi-h100-sxm5/terraform.tf"
-flavor_name = "H100-SXM-8-80G"
+instance_type = "H100-SXM-8-80G"
 user = "ubuntu"
