@@ -105,12 +105,12 @@ where
                     let (ct1_hi, stack) =
                         stack.collect_aligned(CACHELINE_ALIGN, ct0_hi.as_ref().iter().copied());
                     let mut ct1_lo = GlweCiphertextMutView::from_container(
-                        &mut *ct1_lo,
+                        ct1_lo,
                         ct0_lo.polynomial_size(),
                         ct0_lo.ciphertext_modulus(),
                     );
                     let mut ct1_hi = GlweCiphertextMutView::from_container(
-                        &mut *ct1_hi,
+                        ct1_hi,
                         ct0_lo.polynomial_size(),
                         ct0_lo.ciphertext_modulus(),
                     );
@@ -179,7 +179,7 @@ where
             );
 
             let mut local_accumulator_lo = GlweCiphertextMutView::from_container(
-                &mut *local_accumulator_lo,
+                local_accumulator_lo,
                 accumulator.polynomial_size(),
                 // Here we split a u128 to two u64 containers and the ciphertext modulus does not
                 // match anymore in terms of the underlying Scalar type, so we'll provide a dummy
@@ -187,7 +187,7 @@ where
                 CiphertextModulus::new_native(),
             );
             let mut local_accumulator_hi = GlweCiphertextMutView::from_container(
-                &mut *local_accumulator_hi,
+                local_accumulator_hi,
                 accumulator.polynomial_size(),
                 // Here we split a u128 to two u64 containers and the ciphertext modulus does not
                 // match anymore in terms of the underlying Scalar type, so we'll provide a dummy
@@ -208,7 +208,7 @@ where
                     .map(|(&lo, &hi)| lo as u128 | ((hi as u128) << 64)),
             );
             let mut local_accumulator = GlweCiphertextMutView::from_container(
-                &mut *local_accumulator,
+                local_accumulator,
                 accumulator.polynomial_size(),
                 accumulator.ciphertext_modulus(),
             );

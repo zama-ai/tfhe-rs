@@ -207,7 +207,7 @@ fn test_split_pbs() {
             let (local_accumulator_data, stack) =
                 stack.collect_aligned(CACHELINE_ALIGN, accumulator.as_ref().iter().copied());
             let mut local_accumulator = GlweCiphertextMutView::from_container(
-                &mut *local_accumulator_data,
+                local_accumulator_data,
                 accumulator.polynomial_size(),
                 accumulator.ciphertext_modulus(),
             );
