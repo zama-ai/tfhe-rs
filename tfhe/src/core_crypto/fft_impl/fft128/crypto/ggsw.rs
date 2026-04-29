@@ -469,7 +469,7 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
                 let (glwe_level, glwe_decomp_term, substack2) =
                     collect_next_term(&mut decomposition, substack1, align);
                 let glwe_decomp_term = GlweCiphertextView::from_container(
-                    &*glwe_decomp_term,
+                    glwe_decomp_term,
                     ggsw.polynomial_size(),
                     ciphertext_modulus,
                 );

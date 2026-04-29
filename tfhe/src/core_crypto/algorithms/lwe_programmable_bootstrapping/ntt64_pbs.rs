@@ -600,7 +600,7 @@ pub(crate) fn add_external_product_ntt64_assign<InputGlweCont>(
             let (glwe_level, glwe_decomp_term, substack2) =
                 decomposition.collect_next_term(substack1, align);
             let glwe_decomp_term = GlweCiphertextView::from_container(
-                &*glwe_decomp_term,
+                glwe_decomp_term,
                 ggsw.polynomial_size(),
                 out.ciphertext_modulus(),
             );

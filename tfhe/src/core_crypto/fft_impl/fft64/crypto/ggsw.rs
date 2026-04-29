@@ -510,7 +510,6 @@ pub fn add_external_product_assign<Scalar>(
     // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
     // the cost of filling it up with zeros. `is_output_uninit` is set to `false` once
     // it has been fully initialized for the first time.
-    let output_fft_buffer = &mut *output_fft_buffer;
     let mut is_output_uninit = true;
 
     {
@@ -532,7 +531,7 @@ pub fn add_external_product_assign<Scalar>(
             let (glwe_level, glwe_decomp_term, substack2) =
                 collect_next_term(&mut decomposition, substack1, align);
             let glwe_decomp_term = GlweCiphertextView::from_container(
-                &*glwe_decomp_term,
+                glwe_decomp_term,
                 ggsw.polynomial_size(),
                 out.ciphertext_modulus(),
             );

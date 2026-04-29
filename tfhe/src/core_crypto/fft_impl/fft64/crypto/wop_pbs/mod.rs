@@ -123,17 +123,17 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
 
     let (lwe_in_buffer_data, stack) = stack.collect_aligned(align, lwe_in.as_ref().iter().copied());
     let mut lwe_in_buffer =
-        LweCiphertext::from_container(&mut *lwe_in_buffer_data, lwe_in.ciphertext_modulus());
+        LweCiphertext::from_container(lwe_in_buffer_data, lwe_in.ciphertext_modulus());
 
     let (lwe_out_ks_buffer_data, stack) =
         stack.make_aligned_with(ksk.output_lwe_size().0, align, |_| Scalar::ZERO);
     let mut lwe_out_ks_buffer =
-        LweCiphertext::from_container(&mut *lwe_out_ks_buffer_data, ksk.ciphertext_modulus());
+        LweCiphertext::from_container(lwe_out_ks_buffer_data, ksk.ciphertext_modulus());
 
     let (pbs_accumulator_data, stack) =
         stack.make_aligned_with(glwe_size.0 * polynomial_size.0, align, |_| Scalar::ZERO);
     let mut pbs_accumulator = GlweCiphertextMutView::from_container(
-        &mut *pbs_accumulator_data,
+        pbs_accumulator_data,
         polynomial_size,
         ciphertext_modulus,
     );
@@ -143,10 +143,8 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
         .to_lwe_size();
     let (lwe_out_pbs_buffer_data, stack) =
         stack.make_aligned_with(lwe_size.0, align, |_| Scalar::ZERO);
-    let mut lwe_out_pbs_buffer = LweCiphertext::from_container(
-        &mut *lwe_out_pbs_buffer_data,
-        lwe_list_out.ciphertext_modulus(),
-    );
+    let mut lwe_out_pbs_buffer =
+        LweCiphertext::from_container(lwe_out_pbs_buffer_data, lwe_list_out.ciphertext_modulus());
 
     // We iterate on the list in reverse as we want to store the extracted MSB at index 0
     for (bit_idx, mut output_ct) in lwe_list_out.iter_mut().rev().enumerate() {
@@ -310,7 +308,7 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
         |_| Scalar::ZERO,
     );
     let mut lwe_out_bs_buffer =
-        LweCiphertext::from_container(&mut *lwe_out_bs_buffer_data, lwe_in.ciphertext_modulus());
+        LweCiphertext::from_container(lwe_out_bs_buffer_data, lwe_in.ciphertext_modulus());
 
     for (output_index, mut ggsw_level_matrix) in ggsw_out.iter_mut().enumerate() {
         let decomposition_level = DecompositionLevel(level_cbs.0 - output_index);
@@ -380,10 +378,8 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
 
     let (lwe_left_shift_buffer_data, stack) =
         stack.make_aligned_with(lwe_in_size.0, CACHELINE_ALIGN, |_| Scalar::ZERO);
-    let mut lwe_left_shift_buffer = LweCiphertext::from_container(
-        &mut *lwe_left_shift_buffer_data,
-        lwe_in.ciphertext_modulus(),
-    );
+    let mut lwe_left_shift_buffer =
+        LweCiphertext::from_container(lwe_left_shift_buffer_data, lwe_in.ciphertext_modulus());
     // Shift message LSB on padding bit, at this point we expect to have messages with only 1 bit
     // of information
     lwe_ciphertext_cleartext_mul(
@@ -403,7 +399,7 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
         |_| Scalar::ZERO,
     );
     let mut pbs_accumulator = GlweCiphertextMutView::from_container(
-        &mut *pbs_accumulator_data,
+        pbs_accumulator_data,
         polynomial_size,
         ciphertext_moudulus,
     );
@@ -848,7 +844,7 @@ pub fn blind_rotate_assign<Scalar: UnsignedTorus + CastInto<usize>>(
         let (ct1_data, stack) =
             stack.collect_aligned(CACHELINE_ALIGN, ct_0.as_ref().iter().copied());
         let mut ct_1 = GlweCiphertext::from_container(
-            &mut *ct1_data,
+            ct1_data,
             ct_0.polynomial_size(),
             ct_0.ciphertext_modulus(),
         );

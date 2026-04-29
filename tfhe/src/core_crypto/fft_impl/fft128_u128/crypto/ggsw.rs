@@ -132,12 +132,12 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
                 );
 
                 let glwe_decomp_term_lo = GlweCiphertextView::from_container(
-                    &*glwe_decomp_term_lo,
+                    glwe_decomp_term_lo,
                     ggsw.polynomial_size(),
                     ciphertext_modulus,
                 );
                 let glwe_decomp_term_hi = GlweCiphertextView::from_container(
-                    &*glwe_decomp_term_hi,
+                    glwe_decomp_term_hi,
                     ggsw.polynomial_size(),
                     ciphertext_modulus,
                 );
