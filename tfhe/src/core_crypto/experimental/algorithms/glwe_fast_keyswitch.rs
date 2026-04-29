@@ -217,7 +217,7 @@ pub fn glwe_fast_keyswitch<Scalar, OutputGlweCont, InputGlweCont, GgswCont>(
                 let (glwe_level, glwe_decomp_term, substack2) =
                     collect_next_term(&mut decomposition, substack1, align);
                 let glwe_decomp_term = GlweCiphertextView::from_container(
-                    &*glwe_decomp_term,
+                    glwe_decomp_term,
                     ggsw.polynomial_size(),
                     out.ciphertext_modulus(),
                 );
