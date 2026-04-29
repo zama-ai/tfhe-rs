@@ -36,6 +36,7 @@ WEB_SERVER_DIR=tfhe/web_wasm_parallel_tests
 TAPLO_VERSION=0.10.0
 TYPOS_VERSION=1.44.0
 ZIZMOR_VERSION=1.22.0
+CARGO_SEMVER_CHECKS_VERSION=0.47.0
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -317,12 +318,12 @@ semgrep_and_lint_gpu_code: semgrep_lint_setup_venv
 
 .PHONY: semver_check_cuda_backend # Run semver checks on tfhe-cuda-backend
 semver_check_cuda_backend:
-	cargo install cargo-semver-checks --locked
+	cargo install cargo-semver-checks@$(CARGO_SEMVER_CHECKS_VERSION) --locked
 	DOCS_RS=1 cargo semver-checks --package tfhe-cuda-backend
 
 .PHONY: semver_check_zk_cuda_backend # Run semver checks on zk-cuda-backend
 semver_check_zk_cuda_backend:
-	cargo install cargo-semver-checks --locked
+	cargo install cargo-semver-checks@$(CARGO_SEMVER_CHECKS_VERSION) --locked
 	DOCS_RS=1 cargo semver-checks --package zk-cuda-backend
 
 .PHONY: fmt_gpu # Format rust and cuda code
