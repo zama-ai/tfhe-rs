@@ -6,27 +6,21 @@ run-name: ${{ inputs.command }}::${{ inputs.bench_type}} (${{ inputs.profile }},
 on:
   workflow_dispatch:
     inputs:
-      backend:
-        description: "Backends to use"
-        default: hyperstack
-        type: choice
-        options:
-          - hyperstack
-          - scaleway (terraform)
       profile:
         description: "Instance type"
         required: true
         type: choice
         options:
-          - "l40 (n3-L40x1)"
-          - "4-l40 (n3-L40x4)"
-          - "multi-a100-nvlink (n3-A100x8-NVLink)"
-          - "single-h100 (n3-H100x1)"
-          - "2-h100 (n3-H100x2)"
-          - "4-h100 (n3-H100x4)"
-          - "multi-h100 (n3-H100x8)"
-          - "multi-h100-nvlink (n3-H100x8-NVLink)"
-          - "multi-h100-sxm5 (n3-H100-SXM5x8)"
+          - "hyperstack::l40 (n3-L40x1)"
+          - "hyperstack::4-l40 (n3-L40x4)"
+          - "hyperstack::multi-a100-nvlink (n3-A100x8-NVLink)"
+          - "hyperstack::single-h100 (n3-H100x1)"
+          - "hyperstack::2-h100 (n3-H100x2)"
+          - "hyperstack::4-h100 (n3-H100x4)"
+          - "hyperstack::multi-h100 (n3-H100x8)"
+          - "hyperstack::multi-h100-nvlink (n3-H100x8-NVLink)"
+          - "hyperstack::multi-h100-sxm5 (n3-H100-SXM5x8)"
+          - "scaleway::multi-h100-sxm5 (H100-SXM-8-80G)"
       command:
         description: "Benchmark command to run"
         type: choice
@@ -98,37 +92,17 @@ jobs:
       hardware_name: ${{ steps.parse_profile_and_hardware_name.outputs.hardware }}
       additional_file_to_parse: ${{ steps.set_file_to_parse.outputs.additional_file_to_parse }}
     steps:
+      - name: Checkout tfhe-rs repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
       - name: Parse profile and hardware name
         id: parse_profile_and_hardware_name
-        shell: python
         env:
-          INPUTS_BACKEND: ${{ inputs.backend }}
           INPUTS_PROFILE: ${{ inputs.profile }}
-        run: |
-          import os
-
-          inputs_backend = os.environ["INPUTS_BACKEND"]
-          inputs_profile = os.environ["INPUTS_PROFILE"]
-          output_file = os.environ["GITHUB_OUTPUT"]
-
-          split_profile = inputs_profile.split()
-          parsed_profile = split_profile[0]
-          parsed_hardware = split_profile[1].strip("(").strip(")")
-
-          backend_name = inputs_backend
-
-          if "terraform" in inputs_backend:
-            backend_name = "terraform"
-            provider_name = inputs_backend.split()[0]
-            parsed_profile = provider_name + "-" + parsed_profile
-
-          with open(output_file, "a") as f:
-            for var_name, value in [
-              ("backend", backend_name),
-              ("profile", parsed_profile),
-              ("hardware", parsed_hardware),
-            ]:
-              f.write(f"""{var_name}={value}\n""")
+        run: python3 ci/parse_gpu_benchmark_profile.py "$INPUTS_PROFILE" "$GITHUB_OUTPUT"
 
       - name: Get additional file to parse
         id: set_file_to_parse
