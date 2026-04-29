@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 fn get_linux_distribution_name() -> Option<String> {
     let content = std::fs::read_to_string("/etc/os-release").ok()?;
     for line in content.lines() {
@@ -6,6 +8,52 @@ fn get_linux_distribution_name() -> Option<String> {
         }
     }
     None
+}
+
+fn generate_bindings() {
+    let header_path = "wrapper.h";
+    let headers = vec![header_path, "cuda/include/device.h"];
+    let out_path = PathBuf::from("src").join("cuda_bind.rs");
+
+    let bindings_modified = if out_path.exists() {
+        std::fs::metadata(&out_path).unwrap().modified().unwrap()
+    } else {
+        std::time::SystemTime::UNIX_EPOCH
+    };
+
+    let mut headers_modified = bindings_modified;
+    for header in &headers {
+        println!("cargo:rerun-if-changed={header}");
+        let header_modified = std::fs::metadata(header).unwrap().modified().unwrap();
+        if header_modified > headers_modified {
+            headers_modified = header_modified;
+        }
+    }
+
+    if headers_modified > bindings_modified {
+        // Map cudaStream_t / cudaEvent_t to *mut c_void so callers don't need
+        // casts when storing them alongside other void pointers.
+        let bindings = bindgen::Builder::default()
+            .header(header_path)
+            .allowlist_function("^cuda_.*")
+            .blocklist_type("CUstream_st")
+            .blocklist_type("cudaStream_t")
+            .blocklist_type("CUevent_st")
+            .blocklist_type("cudaEvent_t")
+            .raw_line("pub type cudaStream_t = *mut ::std::os::raw::c_void;")
+            .raw_line("pub type cudaEvent_t = *mut ::std::os::raw::c_void;")
+            .clang_arg("-x")
+            .clang_arg("c++")
+            .clang_arg("-std=c++17")
+            .clang_arg("-I/usr/local/cuda/include")
+            .ctypes_prefix("::std::os::raw")
+            .generate()
+            .expect("Unable to generate bindings");
+
+        bindings
+            .write_to_file(&out_path)
+            .expect("Couldn't write bindings!");
+    }
 }
 
 fn main() {
@@ -66,6 +114,8 @@ fn main() {
         println!("cargo:rustc-link-lib=cudart");
         println!("cargo:rustc-link-search=native=/usr/lib/x86_64-linux-gnu/");
         println!("cargo:rustc-link-lib=stdc++");
+
+        generate_bindings();
 
         // When a build script emits `cargo:KEY=VALUE` and the crate declares
         // `links = "foo"` in Cargo.toml, Cargo exposes it to dependent crates
