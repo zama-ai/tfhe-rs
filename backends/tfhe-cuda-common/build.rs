@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 fn get_linux_distribution_name() -> Option<String> {
     let content = std::fs::read_to_string("/etc/os-release").ok()?;
     for line in content.lines() {
@@ -74,15 +76,61 @@ fn main() {
         // "include" is not a built-in Cargo directive, just a convention. In this case:
         //   - links = "tfhe_cuda_common" + cargo:include=<path>
         //   - dependents see DEP_TFHE_CUDA_COMMON_INCLUDE=<path>
-        let include_dir = std::path::PathBuf::from(&manifest_dir).join("cuda/include");
+        let include_dir = PathBuf::from(&manifest_dir).join("cuda/include");
         println!("cargo:include={}", include_dir.display());
 
         // Same mechanism: dependents see DEP_TFHE_CUDA_COMMON_CHECK_CUDA_DIR.
-        let cuda_dir = std::path::PathBuf::from(&manifest_dir).join("cuda");
+        let cuda_dir = PathBuf::from(&manifest_dir).join("cuda");
         println!("cargo:check_cuda_dir={}", cuda_dir.display());
+
+        generate_cuda_bind_bindings(&manifest_dir, &include_dir);
     } else {
         panic!(
             "Error: platform not supported, tfhe-cuda-common not built (only Linux is supported)"
         );
+    }
+}
+
+fn generate_cuda_bind_bindings(manifest_dir: &str, include_dir: &PathBuf) {
+    let header_path = include_dir.join("device.h");
+    let headers = [header_path.to_str().unwrap()];
+    let out_path = PathBuf::from(manifest_dir).join("src").join("cuda_bind.rs");
+
+    let bindings_modified = if out_path.exists() {
+        std::fs::metadata(&out_path).unwrap().modified().unwrap()
+    } else {
+        std::time::SystemTime::UNIX_EPOCH
+    };
+
+    let mut headers_modified = bindings_modified;
+    for header in &headers {
+        println!("cargo:rerun-if-changed={header}");
+        let header_modified = std::fs::metadata(header).unwrap().modified().unwrap();
+        if header_modified > headers_modified {
+            headers_modified = header_modified;
+        }
+    }
+
+    if headers_modified > bindings_modified {
+        let bindings = bindgen::Builder::default()
+            .header(header_path.to_str().unwrap())
+            .allowlist_function("cuda_.*")
+            .blocklist_type("CUstream_st")
+            .blocklist_type("CUevent_st")
+            .clang_arg("-x")
+            .clang_arg("c++")
+            .clang_arg("-std=c++17")
+            .clang_arg(format!("-I{}", include_dir.display()))
+            .clang_arg("-I/usr/include")
+            .clang_arg("-I/usr/local/include")
+            .clang_arg("-I/usr/local/cuda/include")
+            .ctypes_prefix("ffi")
+            .raw_line("use crate::ffi;")
+            .generate()
+            .expect("Unable to generate cuda_bind bindings");
+
+        bindings
+            .write_to_file(&out_path)
+            .expect("Couldn't write cuda_bind bindings!");
     }
 }
