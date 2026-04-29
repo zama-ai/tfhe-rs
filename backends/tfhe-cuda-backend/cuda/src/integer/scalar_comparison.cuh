@@ -182,7 +182,8 @@ __host__ void integer_radix_unsigned_scalar_difference_check(
                                      lhs->num_radix_blocks);
 
     pack_blocks<Torus>(lsb_streams.stream(0), streams.gpu_index(0), lhs,
-                       lwe_array_in, num_lsb_radix_blocks, message_modulus);
+                       lwe_array_in, num_lsb_radix_blocks, message_modulus,
+                       message_modulus, carry_modulus);
     scalar_pack_blocks<Torus>(lsb_streams.stream(0), streams.gpu_index(0), &rhs,
                               scalar_blocks, num_scalar_blocks,
                               message_modulus);
@@ -283,7 +284,8 @@ __host__ void integer_radix_unsigned_scalar_difference_check(
                                        lhs->num_radix_blocks);
 
       pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), lhs,
-                         lwe_array_in, num_lsb_radix_blocks, message_modulus);
+                         lwe_array_in, num_lsb_radix_blocks, message_modulus,
+                         message_modulus, carry_modulus);
       scalar_pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), &rhs,
                                 scalar_blocks, num_scalar_blocks,
                                 message_modulus);
@@ -441,7 +443,8 @@ __host__ void integer_radix_signed_scalar_difference_check(
                                      lhs->num_radix_blocks);
 
     pack_blocks<Torus>(lsb_streams.stream(0), streams.gpu_index(0), lhs,
-                       lwe_array_in, num_lsb_radix_blocks, message_modulus);
+                       lwe_array_in, num_lsb_radix_blocks, message_modulus,
+                       message_modulus, carry_modulus);
     scalar_pack_blocks<Torus>(lsb_streams.stream(0), streams.gpu_index(0), &rhs,
                               scalar_blocks, num_scalar_blocks,
                               message_modulus);
@@ -576,7 +579,7 @@ __host__ void integer_radix_signed_scalar_difference_check(
 
       pack_blocks<Torus>(lsb_streams.stream(0), streams.gpu_index(0), lhs,
                          lwe_array_in, num_lsb_radix_blocks - 1,
-                         message_modulus);
+                         message_modulus, message_modulus, carry_modulus);
       scalar_pack_blocks<Torus>(lsb_streams.stream(0), streams.gpu_index(0),
                                 &rhs, scalar_blocks, num_lsb_radix_blocks - 1,
                                 message_modulus);
@@ -750,7 +753,8 @@ __host__ void host_scalar_equality_check(
     if (num_lsb_radix_blocks > 1) {
       pack_blocks<Torus>(lsb_streams.stream(0), lsb_streams.gpu_index(0),
                          packed_blocks, lwe_array_in, num_lsb_radix_blocks,
-                         message_modulus);
+                         message_modulus, message_modulus,
+                         params.carry_modulus);
       scalar_pack_blocks(lsb_streams.stream(0), streams.gpu_index(0),
                          &packed_scalar, scalar_blocks, num_scalar_blocks,
                          message_modulus);

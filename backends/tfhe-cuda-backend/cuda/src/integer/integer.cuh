@@ -1668,7 +1668,8 @@ template <typename Torus>
 __host__ void pack_blocks(cudaStream_t stream, uint32_t gpu_index,
                           CudaRadixCiphertextFFI *lwe_array_out,
                           CudaRadixCiphertextFFI const *lwe_array_in,
-                          uint32_t num_radix_blocks, uint32_t factor) {
+                          uint32_t num_radix_blocks, uint32_t factor,
+                          uint32_t message_modulus, uint32_t carry_modulus) {
   if (lwe_array_in->lwe_dimension != lwe_array_out->lwe_dimension)
     PANIC("Cuda error: the input and output should have the same lwe dimension")
   if (lwe_array_in->num_radix_blocks < num_radix_blocks)
@@ -1688,6 +1689,24 @@ __host__ void pack_blocks(cudaStream_t stream, uint32_t gpu_index,
       (Torus *)lwe_array_out->ptr, (Torus *)lwe_array_in->ptr, lwe_dimension,
       num_radix_blocks, factor);
   check_cuda_error(cudaGetLastError());
+
+  for (uint bid = 0; bid < num_radix_blocks / 2; bid++) {
+    lwe_array_out->degrees[bid] =
+        lwe_array_in->degrees[2 * bid] + factor * lwe_array_in->degrees[2 * bid + 1];
+    lwe_array_out->noise_levels[bid] =
+        lwe_array_in->noise_levels[2 * bid] +
+        factor * lwe_array_in->noise_levels[2 * bid + 1];
+    CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[bid], message_modulus,
+                      carry_modulus);
+  }
+  if (num_radix_blocks % 2 == 1) {
+    lwe_array_out->degrees[num_radix_blocks / 2] =
+        lwe_array_in->degrees[num_radix_blocks - 1];
+    lwe_array_out->noise_levels[num_radix_blocks / 2] =
+        lwe_array_in->noise_levels[num_radix_blocks - 1];
+    CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[num_radix_blocks / 2],
+                      message_modulus, carry_modulus);
+  }
 }
 
 template <typename Torus>
@@ -1786,7 +1805,8 @@ reduce_signs(CudaStreams streams, CudaRadixCiphertextFFI *signs_array_out,
 
     while (num_sign_blocks > 2) {
       pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), signs_b,
-                         signs_a, num_sign_blocks, message_modulus);
+                         signs_a, num_sign_blocks, message_modulus,
+                         message_modulus, carry_modulus);
       integer_radix_apply_univariate_lookup_table<Torus>(
           streams, signs_a, signs_b, bsks, ksks, lut, num_sign_blocks / 2);
 
@@ -1814,7 +1834,8 @@ reduce_signs(CudaStreams streams, CudaRadixCiphertextFFI *signs_array_out,
                                     {diff_buffer->preallocated_h_lut2});
 
     pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), signs_b,
-                       signs_a, num_sign_blocks, message_modulus);
+                       signs_a, num_sign_blocks, message_modulus,
+                       message_modulus, carry_modulus);
     integer_radix_apply_univariate_lookup_table<Torus>(
         streams, signs_array_out, signs_b, bsks, ksks, lut, 1);
 
@@ -2372,7 +2393,8 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
   // We know carry is empty so we can pack two blocks in one
   pack_blocks<InputTorus>(
       streams.stream(0), streams.gpu_index(0), lwe_array_pbs_in, lwe_array_in,
-      lwe_array_in->num_radix_blocks, params.message_modulus);
+      lwe_array_in->num_radix_blocks, params.message_modulus,
+      params.message_modulus, params.carry_modulus);
 
   // Since the radix ciphertexts are packed, we have to use the num_radix_blocks
   // from the output ct

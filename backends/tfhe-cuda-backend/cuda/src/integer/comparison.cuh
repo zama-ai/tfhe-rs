@@ -468,7 +468,8 @@ tree_sign_reduction(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
   auto inner_tree_leaf = tree_buffer->tree_inner_leaf_lut;
   while (partial_block_count > 2) {
     pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), y, x,
-                       partial_block_count, message_modulus);
+                       partial_block_count, message_modulus, message_modulus,
+                       carry_modulus);
 
     integer_radix_apply_univariate_lookup_table<Torus>(
         streams, x, y, bsks, ksks, inner_tree_leaf, partial_block_count >> 1);
@@ -491,7 +492,8 @@ tree_sign_reduction(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
   auto num_bits_in_message = log2_int(params.message_modulus);
   if (partial_block_count == 2) {
     pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), y, x,
-                       partial_block_count, message_modulus);
+                       partial_block_count, message_modulus, message_modulus,
+                       carry_modulus);
 
     f = [block_selector_f, sign_handler_f, num_bits_in_message,
          message_modulus](Torus x) -> Torus {
@@ -552,11 +554,11 @@ __host__ void host_difference_check(
       packed_num_radix_blocks -= 2;
     }
     pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), &lhs,
-                       lwe_array_left, packed_num_radix_blocks,
-                       message_modulus);
+                       lwe_array_left, packed_num_radix_blocks, message_modulus,
+                       message_modulus, carry_modulus);
     pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), &rhs,
-                       lwe_array_right, packed_num_radix_blocks,
-                       message_modulus);
+                       lwe_array_right, packed_num_radix_blocks, message_modulus,
+                       message_modulus, carry_modulus);
     // From this point we have half number of blocks
     packed_num_radix_blocks /= 2;
 

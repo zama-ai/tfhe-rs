@@ -64,7 +64,7 @@ EXPECTED_CLEANUP_COUNT = 72
 
 # Check 3: Rust call-site scanning
 # Number of functions in ffi.rs files
-EXPECTED_CHECK3_RUST_FNS = 138
+EXPECTED_CHECK3_RUST_FNS = 135
 # Number of functions in ffi.rs files that
 EXPECTED_CHECK3_ASYNC_CUDA_CALLS = 94
 
