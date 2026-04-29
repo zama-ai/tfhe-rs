@@ -1,5 +1,7 @@
 #[cfg(feature = "gpu")]
-use benchmark::utilities::{configure_gpu, get_param_type, ParamType};
+use benchmark::utilities::{
+    bench_sync_barrier, configure_gpu, get_bench_gpu_instances, get_param_type, ParamType,
+};
 use benchmark::utilities::{write_to_json_unchecked, OperatorType};
 use benchmark_spec::{get_bench_type, BenchmarkType};
 use criterion::measurement::WallTime;
@@ -559,6 +561,11 @@ fn cuda_bench_transfer_throughput<FheType, F>(
 
         let num_streams_per_gpu = 6; // Hard coded stream value for FheUint64
         let chunk_size = (num_elems / num_gpus) as usize;
+
+        #[cfg(target_os = "linux")]
+        if let Some(n) = get_bench_gpu_instances() {
+            bench_sync_barrier(n);
+        }
 
         b.iter(|| {
             from_amounts

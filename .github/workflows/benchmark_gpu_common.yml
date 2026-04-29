@@ -237,8 +237,10 @@ jobs:
           BENCH_PARAMS_TYPE: ${{ matrix.params_type }}
           BENCH_COMMAND: ${{ matrix.command }}
           PRECISIONS_SET: ${{ inputs.precisions_set }}
+          __TFHE_RS_BENCH_MULTI_PROC_GROUPS: 2
 
       - name: Parse results
+        if: ${{ inputs.command != 'hlapi_erc7984_multi_group' }}
         run: |
           python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
@@ -255,6 +257,39 @@ jobs:
           INPUTS_HARDWARE_NAME: ${{ inputs.hardware_name }}
           REF_NAME: ${{ github.ref_name }}
           BENCH_TYPE: ${{ matrix.bench_type }}
+
+      - name: Parse and merge erc7984_multi_group results
+        if: ${{ inputs.command == 'hlapi_erc7984_multi_group' }}
+        run: |
+          python3 ./ci/benchmark_parser.py tfhe-benchmark/target_p0/criterion "${RESULTS_FILENAME_P0}" \
+          --database tfhe_rs \
+          --hardware "${INPUTS_HARDWARE_NAME}" \
+          --backend gpu \
+          --project-version "${COMMIT_HASH}" \
+          --branch "${REF_NAME}" \
+          --commit-date "${COMMIT_DATE}" \
+          --bench-date "${BENCH_DATE}" \
+          --walk-subdirs \
+          --name-suffix avx512 \
+          --bench-type "${BENCH_TYPE}"
+          python3 ./ci/benchmark_parser.py tfhe-benchmark/target_p1/criterion "${RESULTS_FILENAME_P1}" \
+          --database tfhe_rs \
+          --hardware "${INPUTS_HARDWARE_NAME}" \
+          --backend gpu \
+          --project-version "${COMMIT_HASH}" \
+          --branch "${REF_NAME}" \
+          --commit-date "${COMMIT_DATE}" \
+          --bench-date "${BENCH_DATE}" \
+          --walk-subdirs \
+          --name-suffix avx512 \
+          --bench-type "${BENCH_TYPE}"
+          python3 ./ci/merge_multi_group_results.py --bench-type "${BENCH_TYPE}" --output "${RESULTS_FILENAME}" "${RESULTS_FILENAME_P0}" "${RESULTS_FILENAME_P1}"
+        env:
+          INPUTS_HARDWARE_NAME: ${{ inputs.hardware_name }}
+          REF_NAME: ${{ github.ref_name }}
+          BENCH_TYPE: ${{ matrix.bench_type }}
+          RESULTS_FILENAME_P0: parsed_benchmark_results_p0_${{ github.sha }}.json
+          RESULTS_FILENAME_P1: parsed_benchmark_results_p1_${{ github.sha }}.json
 
       - name: Parse additional benchmarks results files
         if: ${{ inputs.additional_file_to_parse }}
