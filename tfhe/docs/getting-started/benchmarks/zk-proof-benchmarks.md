@@ -29,7 +29,7 @@ Proving and verification are done with tfhe-rs native executable on a powerful s
 ## GPU server-side computation
 
 {% hint style="info" %}
-Benchmarks were launched on an `AWS p5.48xlarge` instance equipped with `NVIDIA H100` GPUs.
+Benchmarks were launched on a machine equipped with `8x NVIDIA H100 SXM5` GPUs.
 {% endhint %}
 
 Proving and verification are done with tfhe-rs built with `--features=gpu-experimental-zk`. For details on GPU ZK acceleration, see [GPU ZK-PoKs](../../configuration/gpu-acceleration/zk-pok.md).
