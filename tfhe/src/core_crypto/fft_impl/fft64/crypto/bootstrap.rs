@@ -320,7 +320,7 @@ impl FourierLweBootstrapKeyView<'_> {
             .for_each(|mut poly| {
                 let (tmp_poly, _) = stack.make_aligned_raw(poly.as_ref().len(), CACHELINE_ALIGN);
 
-                let mut tmp_poly = Polynomial::from_container(&mut *tmp_poly);
+                let mut tmp_poly = Polynomial::from_container(tmp_poly);
                 tmp_poly.as_mut().copy_from_slice(poly.as_ref());
                 polynomial_wrapping_monic_monomial_div(&mut poly, &tmp_poly, monomial_degree);
             });
@@ -329,7 +329,7 @@ impl FourierLweBootstrapKeyView<'_> {
         let mut ct0 = lut;
         let (ct1, stack) = stack.make_aligned_raw(ct0.as_ref().len(), CACHELINE_ALIGN);
         let mut ct1 =
-            GlweCiphertextMutView::from_container(&mut *ct1, lut_poly_size, ciphertext_modulus);
+            GlweCiphertextMutView::from_container(ct1, lut_poly_size, ciphertext_modulus);
 
         for (lwe_mask_element, bootstrap_key_ggsw) in izip_eq!(msed_lwe_mask, self.into_ggsw_iter())
         {
@@ -404,7 +404,7 @@ impl FourierLweBootstrapKeyView<'_> {
                     let (tmp_poly, _) =
                         stack.make_aligned_raw(poly.as_ref().len(), CACHELINE_ALIGN);
 
-                    let mut tmp_poly = Polynomial::from_container(&mut *tmp_poly);
+                    let mut tmp_poly = Polynomial::from_container(tmp_poly);
                     tmp_poly.as_mut().copy_from_slice(poly.as_ref());
                     polynomial_wrapping_monic_monomial_div(&mut poly, &tmp_poly, monomial_degree);
                 });
@@ -414,7 +414,7 @@ impl FourierLweBootstrapKeyView<'_> {
         let mut ct0_list = lut_list;
         let (ct1_list, stack) = stack.make_aligned_raw(ct0_list.as_ref().len(), CACHELINE_ALIGN);
         let mut ct1_list = GlweCiphertextListMutView::from_container(
-            &mut *ct1_list,
+            ct1_list,
             ct0_list.glwe_size(),
             lut_poly_size,
             ciphertext_modulus,
@@ -500,7 +500,7 @@ impl FourierLweBootstrapKeyView<'_> {
         let (local_accumulator_data, stack) =
             stack.collect_aligned(CACHELINE_ALIGN, accumulator.as_ref().iter().copied());
         let mut local_accumulator = GlweCiphertextMutView::from_container(
-            &mut *local_accumulator_data,
+            local_accumulator_data,
             accumulator.polynomial_size(),
             accumulator.ciphertext_modulus(),
         );
@@ -541,7 +541,7 @@ impl FourierLweBootstrapKeyView<'_> {
         let (local_accumulator_data, stack) =
             stack.collect_aligned(CACHELINE_ALIGN, accumulator.as_ref().iter().copied());
         let mut local_accumulator = GlweCiphertextListMutView::from_container(
-            &mut *local_accumulator_data,
+            local_accumulator_data,
             accumulator.glwe_size(),
             accumulator.polynomial_size(),
             accumulator.ciphertext_modulus(),

@@ -141,7 +141,7 @@ pub fn programmable_bootstrap_karatsuba_lwe_ciphertext_mem_optimized<
     let (local_accumulator_data, stack) =
         stack.collect_aligned(CACHELINE_ALIGN, accumulator.as_ref().iter().copied());
     let mut local_accumulator = GlweCiphertextMutView::from_container(
-        &mut *local_accumulator_data,
+        local_accumulator_data,
         accumulator.polynomial_size(),
         accumulator.ciphertext_modulus(),
     );
@@ -249,7 +249,7 @@ pub fn blind_rotate_karatsuba_assign_mem_optimized<OutputScalar, OutputCont, Key
         .for_each(|mut poly| {
             let (tmp_poly, _) = stack.make_aligned_raw(poly.as_ref().len(), CACHELINE_ALIGN);
 
-            let mut tmp_poly = Polynomial::from_container(&mut *tmp_poly);
+            let mut tmp_poly = Polynomial::from_container(tmp_poly);
             tmp_poly.as_mut().copy_from_slice(poly.as_ref());
             polynomial_wrapping_monic_monomial_div(&mut poly, &tmp_poly, monomial_degree);
         });
@@ -257,8 +257,7 @@ pub fn blind_rotate_karatsuba_assign_mem_optimized<OutputScalar, OutputCont, Key
     // We initialize the ct_0 used for the successive cmuxes
     let ct0 = lut;
     let (ct1, stack) = stack.make_aligned_raw(ct0.as_ref().len(), CACHELINE_ALIGN);
-    let mut ct1 =
-        GlweCiphertextMutView::from_container(&mut *ct1, lut_poly_size, ciphertext_modulus);
+    let mut ct1 = GlweCiphertextMutView::from_container(ct1, lut_poly_size, ciphertext_modulus);
 
     for (lwe_mask_element, bootstrap_key_ggsw) in izip_eq!(msed_lwe_mask, bsk.iter()) {
         if lwe_mask_element != 0 {
@@ -340,7 +339,6 @@ pub fn karatsuba_add_external_product_assign<Scalar>(
     // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
     // the cost of filling it up with zeros. `is_output_uninit` is set to `false` once
     // it has been fully initialized for the first time.
-    let output_buffer = &mut *output_buffer;
     let mut is_output_uninit = true;
 
     let (mut decomposition, substack1) = TensorSignedDecompositionLendingIter::new(
@@ -358,7 +356,7 @@ pub fn karatsuba_add_external_product_assign<Scalar>(
         let (_glwe_level, glwe_decomp_term, _substack2) =
             collect_next_term(&mut decomposition, substack1, align);
         let glwe_decomp_term = GlweCiphertextView::from_container(
-            &*glwe_decomp_term,
+            glwe_decomp_term,
             ggsw.polynomial_size(),
             out.ciphertext_modulus(),
         );
