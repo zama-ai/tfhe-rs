@@ -7,6 +7,8 @@ use crate::integer::gpu::{CudaOprfServerKey, CudaServerKey};
 use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
 use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, SignedRadixCiphertext, U256};
 use crate::{CompressedServerKey, CudaGpuChoice, CustomMultiGpuIndexes, GpuIndex, MatchValues};
+use std::cell::RefCell;
+use std::sync::Arc;
 use tfhe_csprng::generators::DefaultRandomGenerator;
 use tfhe_csprng::seeders::{Seed, Seeder};
 
@@ -57,9 +59,56 @@ fn make_random_gpu_set(datagen: &mut DeterministicSeeder<DefaultRandomGenerator>
     gpu_indexes.into()
 }
 
+thread_local! {
+    // When set, executors share this single decompressed GPU context instead
+    // of decompressing the server key on every `setup` call. Used in
+    // single-GPU mode to avoid OOM on cards with limited memory (e.g. RTX 4090)
+    // when ~50 executors would each allocate their own decompressed key.
+    static SHARED_GPU_CONTEXT: RefCell<Option<Arc<GpuContext>>> =
+        const { RefCell::new(None) };
+}
+
+/// Builds a single shared `GpuContext` and installs it for the duration of the
+/// executor `setup` phase.
+///
+/// Only takes effect on real single-GPU configurations: in multi-GPU and
+/// `gpu-debug-fake-multi-gpu` modes, executors keep their per-call
+/// decompression so that each one can target its own random GPU subset.
+pub(crate) fn install_shared_gpu_context_for_setup(
+    sks: &CompressedServerKey,
+    seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+) {
+    #[cfg(not(feature = "gpu-debug-fake-multi-gpu"))]
+    if get_number_of_gpus() == 1 {
+        let gpu_choice = make_random_gpu_set(seeder);
+        let streams = gpu_choice.build_streams();
+        let cuda_key = CudaServerKey::decompress_from_cpu(&sks.integer_key.key, &streams);
+        let oprf_key = sks
+            .integer_key
+            .oprf_key
+            .as_ref()
+            .map(|k| CudaOprfServerKey::from_expanded_cpu(&k.expand(), &streams));
+        let context = Arc::new(GpuContext {
+            streams,
+            sks: cuda_key,
+            oprf_key,
+        });
+        SHARED_GPU_CONTEXT.with(|c| *c.borrow_mut() = Some(context));
+    }
+
+    #[cfg(feature = "gpu-debug-fake-multi-gpu")]
+    {
+        let _ = (sks, seeder);
+    }
+}
+
+pub(crate) fn clear_shared_gpu_context_for_setup() {
+    SHARED_GPU_CONTEXT.with(|c| *c.borrow_mut() = None);
+}
+
 // Executor for GPU based operations in the random op sequence tests
 pub(crate) struct OpSequenceGpuMultiDeviceFunctionExecutor<F> {
-    pub(crate) context: Option<GpuContext>,
+    pub(crate) context: Option<Arc<GpuContext>>,
     pub(crate) func: F,
 }
 
@@ -79,6 +128,11 @@ impl<F> OpSequenceGpuMultiDeviceFunctionExecutor<F> {
         sks: &CompressedServerKey,
         seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
     ) {
+        if let Some(shared) = SHARED_GPU_CONTEXT.with(|c| c.borrow().clone()) {
+            self.context = Some(shared);
+            return;
+        }
+
         let gpu_choice = make_random_gpu_set(seeder);
         let streams = gpu_choice.build_streams();
 
@@ -94,7 +148,7 @@ impl<F> OpSequenceGpuMultiDeviceFunctionExecutor<F> {
             sks: cuda_key,
             oprf_key,
         };
-        self.context = Some(context);
+        self.context = Some(Arc::new(context));
     }
 }
 
