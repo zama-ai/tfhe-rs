@@ -1447,7 +1447,7 @@ lint_docs: lint_doc
 
 .PHONY: format_doc_latex # Format the documentation latex equations to avoid broken rendering.
 format_doc_latex:
-	RUSTFLAGS="" cargo xtask format_latex_doc
+	RUSTFLAGS="" cargo xtask format-latex-doc
 	@"$(MAKE)" --no-print-directory fmt
 	@printf "\n===============================\n\n"
 	@printf "Please manually inspect changes made by format_latex_doc, rustfmt can break equations \
@@ -1456,7 +1456,11 @@ format_doc_latex:
 
 .PHONY: check_md_docs_are_tested # Checks that the rust codeblocks in our .md files are tested
 check_md_docs_are_tested:
-	RUSTFLAGS="" cargo xtask check_tfhe_docs_are_tested
+	RUSTFLAGS="" cargo xtask check-tfhe-docs-are-tested
+
+.PHONY: check_local_workspace_version # Checks that local workspace dependency versions are consistent
+check_local_workspace_version:
+	RUSTFLAGS="" cargo xtask check-local-workspace-version
 
 .PHONY: check_intra_md_links # Checks broken internal links in Markdown docs
 check_intra_md_links: install_mlc
@@ -2344,6 +2348,7 @@ pcc_batch_1:
 	$(call run_recipe_with_details,check_typos)
 	$(call run_recipe_with_details,lint_doc)
 	$(call run_recipe_with_details,check_md_docs_are_tested)
+	$(call run_recipe_with_details,check_local_workspace_version)
 	$(call run_recipe_with_details,check_intra_md_links)
 	$(call run_recipe_with_details,check_doc_paths_use_dash)
 	$(call run_recipe_with_details,test_tfhe_lints)
@@ -2424,6 +2429,7 @@ fpcc:
 	$(call run_recipe_with_details,check_typos)
 	$(call run_recipe_with_details,lint_doc)
 	$(call run_recipe_with_details,check_md_docs_are_tested)
+	$(call run_recipe_with_details,check_local_workspace_version)
 	$(call run_recipe_with_details,check_intra_md_links)
 	$(call run_recipe_with_details,check_doc_paths_use_dash)
 	$(call run_recipe_with_details,check_main_readme_links)
