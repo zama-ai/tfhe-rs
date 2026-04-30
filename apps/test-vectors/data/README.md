@@ -19,7 +19,7 @@ The following values are generated:
 ### Keys
 | name                   | description                                                                             | TFHE-rs type                |
 |------------------------|-----------------------------------------------------------------------------------------|-----------------------------|
-| `large_lwe_secret_key` | Encryption secret key, before the KS and after the PBS                                  | `LweSecretKey<Vec<u64>>`    |
+| `large_lwe_secret_key` | Encryption secret key, used before the KS and after the PBS                                  | `LweSecretKey<Vec<u64>>`    |
 | `small_lwe_secret_key` | Secret key encrypting ciphertexts between the KS and the PBS                            | `LweSecretKey<Vec<u64>>`    |
 | `ksk`                  | The keyswitching key to convert a ct from the large key to the small one                | `LweKeyswitchKey<Vec<u64>>` |
 | `bsk`                  | the bootstrapping key to perform a programmable bootstrap on the keyswitched ciphertext | `LweBootstrapKey<Vec<u64>>` |
@@ -30,8 +30,8 @@ The following values are generated:
 |----------------------|-----------------------------------------------------------------------------------------------------|----------------------------|----------------------|
 | `lwe_a`              | LWE Ciphertext encrypting A                                                                         | `LweCiphertext<Vec<u64>>`  | `A`                  |
 | `lwe_b`              | LWE Ciphertext encrypting B                                                                         | `LweCiphertext<Vec<u64>>`  | `B`                  |
-| `lwe_sum`            | LWE Ciphertext encrypting A plus lwe encryption of B                                                | `LweCiphertext<Vec<u64>>`  | `A+B`                |
-| `lwe_prod`           | LWE Ciphertext encrypting A times cleartext B                                                       | `LweCiphertext<Vec<u64>>`  | `A*B`                |
+| `lwe_sum`            | LWE Ciphertext encrypting the addition of the LWE encryption of $A$ and the LWE encryption of $B$                                                | `LweCiphertext<Vec<u64>>`  | `A+B`                |
+| `lwe_prod`           | LWE Ciphertext encrypting the scalar product of the LWE encryption of A and the cleartext B                                                       | `LweCiphertext<Vec<u64>>`  | `A*B`                |
 | `lwe_ms`             | LWE Ciphertext encrypting A after a Modulus Switch from q to 2*N ([note](#non-native-encoding))     | `LweCiphertext<Vec<u64>>`  | `A`                  |
 | `lwe_ks`             | LWE Ciphertext encrypting A after a keyswitch from `large_lwe_secret_key` to `small_lwe_secret_key` | `LweCiphertext<Vec<u64>>`  | `A`                  |
 | `glwe_after_id_br`   | GLWE Ciphertext encrypting A after the application of the identity blind rotation on `lwe_ms`       | `GlweCiphertext<Vec<u64>>` | rotation of id LUT   |
@@ -40,15 +40,32 @@ The following values are generated:
 | `lwe_after_spec_pbs` | LWE Ciphertext encrypting spec(A) after the sample extract operation on `glwe_after_spec_br`        | `LweCiphertext<Vec<u64>>`  | `spec(A)`            |
 
 Ciphertexts with the `_karatsuba` suffix are generated using the Karatsuba polynomial multiplication algorithm in the blind rotation, while default ciphertexts are generated using an FFT multiplication.
-This makes it easier to reproduce bit exact results.
+Since Karatsuba operates purely on integers, it produces deterministic results regardless of the platform or compiler, making it easier to reproduce bit exact results.
 
 ### Encodings
-#### Non native encoding
-Warning: TFHE-rs uses a specific encoding for non native (ie: u32, u64) power of two ciphertext modulus. This encoding puts the encoded value in the high bits of the native integer.
-For example, the value 37 with a modulus of 64 will be encoded as `0b1001010000000000000000000000000000000000000000000000000000000000`. This matters for the post modswitch lwe ciphertext.
+#### Native encoding 
+Standard ciphertexts use 32 bit or 64 bit siphertext modulus as this is the size of the cpu register.
+For example taking a ciphertext modulus $q = 2^{64}$, a cleartext modulus $t = 2^{4}$, and a corresponding scaling factor $\Delta = 2^{59}$ (as a padding bit is used in the encoding), the cleartext integer value $m = 11$ is encoded as `0b0101100000000000000000000000000000000000000000000000000000000000`.
 
-#### Ciphertext modulus
-The ciphertext modulus encoding use a specific value for the native modulus: 0. For example, if values are stored on u64 integers, 0 means a ciphertext modulus of 2^64.
+_Note:_ in the CBOR files, the structure contains a list of integers called `"data"`, representing the coefficients of the ciphertext(s) or the secret key bits.  This may be followed by additional parameter information, such as the `"ciphertext_modulus"`: the ciphertext modulus equals on of the native moduli (u32 or u64), the modulus is set to 0 in the CBOR file. For example, if values are stored on u64 integers, 0 would indicate a ciphertext modulus of $2^{64}$.
+<pre>```
+{
+    "data": [
+        11232563232213207535,
+        ...
+        9571800994433015103
+    ],
+    "ciphertext_modulus": {
+        "modulus": 0,
+        "scalar_bits": 64
+    }
+}
+```</pre>
+
+#### Non native encoding
+Warning: TFHE-rs uses a specific encoding for non native power of two ciphertext modulus. After the modulus switching operation one ends up with values modulo 2N, i.e. with a non native power of two ciphertext modulus (different from 32 or 64). These values will however still be stored in 32-bit/64-bit integers as that is the native size of CPU registers. To achieve this TFHE-rs uses a specific encoding that puts the encoded value in the high bits of the native integer. This has to be taken into account when working with ciphertexts that are the output of a modulus switching operation.
+For example the value 37 with a modulus of 64 will be encoded in the 6 highest bits of the 64-bit value, hence this value is encoded as `0b10010100000000000000000000000000000000000000000000000000000000000`.
+In the CBOR file the modulus parameter will indicate the ciphertext modulus value.
 
 ## Operations
 
