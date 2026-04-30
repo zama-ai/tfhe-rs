@@ -975,6 +975,7 @@ mod tests {
     };
 
     #[test]
+    #[cfg(not(feature = "gpu-debug-fake-multi-gpu"))]
     fn test_compressed_ct_list_cpu_gpu() {
         for (params, comp_params) in [
             (

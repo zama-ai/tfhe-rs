@@ -34,21 +34,30 @@ device_accumulate_all_blocks(Torus *output, Torus const *input_block,
 }
 
 template <typename Torus>
-__host__ void accumulate_all_blocks(cudaStream_t stream, uint32_t gpu_index,
-                                    CudaRadixCiphertextFFI *output,
-                                    CudaRadixCiphertextFFI const *input,
-                                    uint32_t lwe_dimension,
-                                    uint32_t num_radix_blocks) {
+__host__ void
+accumulate_all_blocks(cudaStream_t stream, uint32_t gpu_index,
+                      CudaRadixCiphertextFFI *output,
+                      CudaRadixCiphertextFFI const *input,
+                      uint32_t lwe_dimension, uint32_t num_radix_blocks,
+                      uint32_t message_modulus, uint32_t carry_modulus) {
 
   cuda_set_device(gpu_index);
   int num_blocks = 0, num_threads = 0;
   int num_entries = (lwe_dimension + 1);
   getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
-  // Add all blocks and store in sum
   device_accumulate_all_blocks<Torus><<<num_blocks, num_threads, 0, stream>>>(
       (Torus *)output->ptr, (Torus const *)input->ptr, lwe_dimension,
       num_radix_blocks);
   check_cuda_error(cudaGetLastError());
+  uint64_t total_degree = 0;
+  uint64_t total_noise = NoiseLevel::ZERO;
+  for (uint i = 0; i < num_radix_blocks; i++) {
+    total_degree += input->degrees[i];
+    total_noise += input->noise_levels[i];
+  }
+  output->degrees[0] = total_degree;
+  output->noise_levels[0] = total_noise;
+  CHECK_NOISE_LEVEL(output->noise_levels[0], message_modulus, carry_modulus);
 }
 
 /* This takes an array of lwe ciphertexts, where each is an encryption of
@@ -105,10 +114,11 @@ __host__ void are_all_comparisons_block_true(
     // Since all blocks encrypt either 0 or 1, we can sum max_value of them
     // as in the worst case we will be adding `max_value` ones
     auto is_max_value_lut = are_all_block_true_buffer->is_max_value;
-    GPU_ASSERT(are_all_block_true_buffer->tmp_block_accumulated->lwe_dimension ==
-                   big_lwe_dimension,
-               "lwe_dimension mismatch between tmp_block_accumulated and "
-               "big_lwe_dimension");
+    GPU_ASSERT(
+        are_all_block_true_buffer->tmp_block_accumulated->lwe_dimension ==
+            big_lwe_dimension,
+        "lwe_dimension mismatch between tmp_block_accumulated and "
+        "big_lwe_dimension");
     GPU_ASSERT(tmp_out->lwe_dimension == big_lwe_dimension,
                "lwe_dimension mismatch between tmp_out and big_lwe_dimension");
     uint32_t chunk_lengths[num_chunks];
@@ -124,9 +134,9 @@ __host__ void are_all_comparisons_block_true(
           acc_offset, acc_offset + 1);
       as_radix_ciphertext_slice<Torus>(&inp_slice, tmp_out, inp_offset,
                                        inp_offset + chunk_length);
-      accumulate_all_blocks<Torus>(streams.stream(0), streams.gpu_index(0),
-                                   &acc_slice, &inp_slice, big_lwe_dimension,
-                                   chunk_length);
+      accumulate_all_blocks<Torus>(
+          streams.stream(0), streams.gpu_index(0), &acc_slice, &inp_slice,
+          big_lwe_dimension, chunk_length, message_modulus, carry_modulus);
 
       acc_offset += 1;
       remaining_blocks -= (chunk_length - 1);
@@ -231,7 +241,8 @@ __host__ void is_at_least_one_comparisons_block_true(
 
     // Since all blocks encrypt either 0 or 1, we can sum max_value of them
     // as in the worst case we will be adding `max_value` ones
-    GPU_ASSERT(buffer->tmp_block_accumulated->lwe_dimension == big_lwe_dimension,
+    GPU_ASSERT(buffer->tmp_block_accumulated->lwe_dimension ==
+                   big_lwe_dimension,
                "lwe_dimension mismatch between tmp_block_accumulated and "
                "big_lwe_dimension");
     GPU_ASSERT(mem_ptr->tmp_lwe_array_out->lwe_dimension == big_lwe_dimension,
@@ -245,13 +256,14 @@ __host__ void is_at_least_one_comparisons_block_true(
           std::min(max_value, begin_remaining_blocks - i * max_value);
       chunk_lengths[i] = chunk_length;
       CudaRadixCiphertextFFI acc_slice, inp_slice;
-      as_radix_ciphertext_slice<Torus>(&acc_slice, buffer->tmp_block_accumulated,
+      as_radix_ciphertext_slice<Torus>(&acc_slice,
+                                       buffer->tmp_block_accumulated,
                                        acc_offset, acc_offset + 1);
       as_radix_ciphertext_slice<Torus>(&inp_slice, mem_ptr->tmp_lwe_array_out,
                                        inp_offset, inp_offset + chunk_length);
-      accumulate_all_blocks<Torus>(streams.stream(0), streams.gpu_index(0),
-                                   &acc_slice, &inp_slice, big_lwe_dimension,
-                                   chunk_length);
+      accumulate_all_blocks<Torus>(
+          streams.stream(0), streams.gpu_index(0), &acc_slice, &inp_slice,
+          big_lwe_dimension, chunk_length, message_modulus, carry_modulus);
 
       acc_offset += 1;
       remaining_blocks -= (chunk_length - 1);
@@ -335,7 +347,7 @@ __host__ void host_compare_blocks_with_zero(
                                        inp_offset + chunk_size);
       accumulate_all_blocks<Torus>(streams.stream(0), streams.gpu_index(0),
                                    &sum_slice, &inp_slice, big_lwe_dimension,
-                                   chunk_size);
+                                   chunk_size, message_modulus, carry_modulus);
 
       num_sum_blocks++;
       remainder_blocks -= (chunk_size - 1);
@@ -411,9 +423,12 @@ compare_radix_blocks(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
   // space, so (-1) % (4 * 4) = 15 = 1|1111 We then add one and get 0 = 0|0000
 
   // Subtract
-  host_subtraction<Torus>(
-      streams.stream(0), streams.gpu_index(0), lwe_array_out, lwe_array_left,
-      lwe_array_right, big_lwe_dimension, num_radix_blocks);
+  GPU_ASSERT(
+      big_lwe_dimension == lwe_array_out->lwe_dimension,
+      "Cuda error: big_lwe_dimension must match ciphertexts' lwe_dimension");
+  host_subtraction<Torus>(streams.stream(0), streams.gpu_index(0),
+                          lwe_array_out, lwe_array_left, lwe_array_right,
+                          num_radix_blocks, message_modulus, carry_modulus);
 
   // Apply LUT to compare to 0
   auto is_non_zero_lut = mem_ptr->eq_buffer->is_non_zero_lut;
@@ -557,8 +572,8 @@ __host__ void host_difference_check(
                        lwe_array_left, packed_num_radix_blocks, message_modulus,
                        message_modulus, carry_modulus);
     pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), &rhs,
-                       lwe_array_right, packed_num_radix_blocks, message_modulus,
-                       message_modulus, carry_modulus);
+                       lwe_array_right, packed_num_radix_blocks,
+                       message_modulus, message_modulus, carry_modulus);
     // From this point we have half number of blocks
     packed_num_radix_blocks /= 2;
 

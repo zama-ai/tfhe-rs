@@ -906,6 +906,16 @@ test_signed_integer_gpu_ci: install_cargo_nextest
 		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
 		--signed-only --tfhe-package "tfhe"
 
+.PHONY: test_signed_integer_fake_multi_gpu # Run the tests for signed integer ci on gpu backend
+test_signed_integer_fake_multi_gpu: install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
+	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
+		./scripts/integer-tests.sh \
+		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" --gpufeature "gpu-debug-fake-multi-gpu" \
+		--signed-only --tfhe-package "tfhe"
+
+
 .PHONY: test_integer_multi_bit_gpu_ci # Run the tests for integer ci on gpu backend running only multibit tests
 test_integer_multi_bit_gpu_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
