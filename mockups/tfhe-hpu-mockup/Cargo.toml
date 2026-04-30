@@ -6,6 +6,7 @@ authors = ["Zama Hardware team"]
 license = "BSD-3-Clause-Clear"
 description = "Simulation model of HPU hardware."
 readme = "README.md"
+publish = false
 
 [features]
 default = []
