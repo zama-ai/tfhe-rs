@@ -10,10 +10,10 @@ fn recurse_find_rs_files(
     for curr_entry in root_dir.read_dir().unwrap() {
         let curr_path = curr_entry.unwrap().path().canonicalize().unwrap();
         if curr_path.is_file() {
-            if let Some(extension) = curr_path.extension() {
-                if extension == "rs" {
-                    rs_files.push(curr_path);
-                }
+            if let Some(extension) = curr_path.extension()
+                && extension == "rs"
+            {
+                rs_files.push(curr_path);
             }
         } else if curr_path.is_dir() {
             if at_root {

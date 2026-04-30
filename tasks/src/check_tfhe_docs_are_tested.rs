@@ -1,4 +1,4 @@
-use no_comment::{languages, IntoWithoutComments};
+use no_comment::{IntoWithoutComments, languages};
 use std::collections::HashSet;
 use std::io::{Error, ErrorKind};
 use std::path::Path;
