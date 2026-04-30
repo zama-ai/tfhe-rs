@@ -1,5 +1,8 @@
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-use crate::integer::gpu::server_key::radix::tests_long_run::OpSequenceGpuMultiDeviceFunctionExecutor;
+use crate::integer::gpu::server_key::radix::tests_long_run::{
+    clear_shared_gpu_context_for_setup, install_shared_gpu_context_for_setup,
+    OpSequenceGpuMultiDeviceFunctionExecutor,
+};
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
 use crate::integer::gpu::{CudaOprfServerKey, CudaServerKey};
 use crate::integer::keycache::KEY_CACHE;
@@ -120,6 +123,8 @@ where
 
     println!("random_op_sequence_test::seed = {}", datagen.get_seed().0);
 
+    install_shared_gpu_context_for_setup(&comp_sks, &mut datagen.deterministic_seeder);
+
     for x in binary_ops.iter_mut() {
         x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
     }
@@ -168,6 +173,8 @@ where
     for x in oprf_custom_range_ops.iter_mut() {
         x.0.setup(&cks, &comp_sks, &mut datagen.deterministic_seeder);
     }
+
+    clear_shared_gpu_context_for_setup();
 
     (cks, sks, datagen)
 }
