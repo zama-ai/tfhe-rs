@@ -79,7 +79,7 @@ jobs:
       - name: Generate GPU benchmarks command from label
         if: (github.event_name == 'pull_request' && contains(github.event.label.name, 'bench-perfs-gpu'))
         run: |
-          echo "DEFAULT_BENCH_OPTIONS=--backend gpu" >> "${GITHUB_ENV}"
+          echo "DEFAULT_BENCH_OPTIONS=--backend cuda" >> "${GITHUB_ENV}"
 
       # TODO add support for HPU backend
 
@@ -235,7 +235,7 @@ jobs:
 
       - name: Parse results
         run: |
-          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
+          cargo run --release -p tfhe-benchmark-parser -- target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --hardware "${HARDWARE_NAME}" \
           --backend "${TFHE_BACKEND}" \

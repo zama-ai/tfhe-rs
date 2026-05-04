@@ -29,15 +29,7 @@ fn client_server_key_sizes(results_file: &Path) {
         let test_name = format!("boolean_key_sizes_{params_name}_ksk");
 
         benchmark_test_result.write_result(&test_name, ksk_size);
-        write_to_json_unchecked::<u32, _>(
-            &test_name,
-            *params,
-            *params_name,
-            "KSK",
-            &operator,
-            0,
-            vec![],
-        );
+        write_to_json_unchecked(&test_name, *params_name, "KSK", &operator, 0, vec![]);
 
         println!(
             "Element in KSK: {}, size in bytes: {}",
@@ -49,15 +41,7 @@ fn client_server_key_sizes(results_file: &Path) {
         let test_name = format!("boolean_key_sizes_{params_name}_bsk");
 
         benchmark_test_result.write_result(&test_name, bsk_size);
-        write_to_json_unchecked::<u32, _>(
-            &test_name,
-            *params,
-            *params_name,
-            "BSK",
-            &operator,
-            0,
-            vec![],
-        );
+        write_to_json_unchecked(&test_name, *params_name, "BSK", &operator, 0, vec![]);
 
         println!(
             "Element in BSK: {}, size in bytes: {}",

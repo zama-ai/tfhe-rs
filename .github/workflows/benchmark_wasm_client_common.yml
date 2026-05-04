@@ -167,9 +167,10 @@ jobs:
       - name: Parse results
         run: |
           make parse_wasm_benchmarks
-          python3 ./ci/benchmark_parser.py tfhe-benchmark/wasm_pk_gen.csv "${RESULTS_FILENAME}" \
+          cargo run --release -p tfhe-benchmark-parser -- tfhe-benchmark/wasm_pk_gen.csv "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --hardware "m6i.4xlarge" \
+          --backend cpu \
           --project-version "${COMMIT_HASH}" \
           --branch "${REF_NAME}" \
           --commit-date "${COMMIT_DATE}" \
