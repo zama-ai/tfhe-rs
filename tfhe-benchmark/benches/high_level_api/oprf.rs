@@ -46,9 +46,8 @@ fn oprf_any_range_bench(c: &mut Criterion, cks: &ClientKey) {
             })
         });
 
-        write_to_json::<u64, _, _>(
+        write_to_json(
             &benchmark_spec,
-            param,
             hlapi_op.to_string(),
             &OperatorType::Atomic,
             64,

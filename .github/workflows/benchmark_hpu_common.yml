@@ -170,7 +170,7 @@ jobs:
 
       - name: Parse results
         run: |
-          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
+          cargo run --release -p tfhe-benchmark-parser -- -i target/criterion -o "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --hardware "hpu_x1" \
           --backend hpu \
