@@ -72,8 +72,10 @@ where
 
     let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
 
+    assert!(input_lwe_dimension.0.is_multiple_of(grouping_factor.0));
+
     EncryptionRandomGeneratorForkConfig::new(
-        input_lwe_dimension.0,
+        input_lwe_dimension.0 / grouping_factor.0,
         ggsw_group_mask_sample_count,
         mask_distribution,
         ggsw_group_noise_sample_count,

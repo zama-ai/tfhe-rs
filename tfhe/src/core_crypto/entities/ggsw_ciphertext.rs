@@ -741,6 +741,25 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswLevelMatrix<C>
     }
 }
 
+impl<Scalar: UnsignedInteger> GgswLevelMatrix<Vec<Scalar>> {
+    /// Create a new [`GgswLevelMatrix`], allocating a new container and filling it with zeros.
+    ///
+    /// See [`GgswLevelMatrix::from_container`] for usage.
+    pub fn new(
+        fill_with: Scalar,
+        glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> Self {
+        Self::from_container(
+            vec![fill_with; ggsw_level_matrix_size(glwe_size, polynomial_size)],
+            glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
+        )
+    }
+}
+
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> GgswLevelMatrix<C> {
     /// Mutable variant of [`GgswLevelMatrix::as_glwe_list`]
     pub fn as_mut_glwe_list(&mut self) -> GlweCiphertextListMutView<'_, C::Element> {
