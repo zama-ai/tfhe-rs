@@ -650,6 +650,13 @@ mod zk {
             })
         }
 
+        /// Verify the zk proofs associated with the list.
+        ///
+        /// The list and crs are assumed to be correctly built. When handling untrusted user inputs,
+        /// they should be deserialized using
+        /// [`safe_deserialize_conformant`](crate::safe_serialization::safe_deserialize_conformant)
+        /// or checked using
+        /// [`is_conformant`](crate::conformance::ParameterSetConformant::is_conformant)
         pub fn verify(
             &self,
             crs: &CompactPkeCrs,
@@ -659,6 +666,13 @@ mod zk {
             self.inner.on_cpu().verify(crs, &pk.key.key, metadata)
         }
 
+        /// Verify the zk proofs associated with the list and expand it.
+        ///
+        /// The list and crs are assumed to be correctly built. When handling untrusted user inputs,
+        /// they should be deserialized using
+        /// [`safe_deserialize_conformant`](crate::safe_serialization::safe_deserialize_conformant)
+        /// or checked using
+        /// [`is_conformant`](crate::conformance::ParameterSetConformant::is_conformant)
         pub fn verify_and_expand(
             &self,
             crs: &CompactPkeCrs,
@@ -676,6 +690,13 @@ mod zk {
             self.maybe_verify_maybe_re_randomize_and_expand(None, None)
         }
 
+        /// Verify the zk proofs associated with the list, re-randomize it and expand it.
+        ///
+        /// The list and crs are assumed to be correctly built. When handling untrusted user inputs,
+        /// they should be deserialized using
+        /// [`safe_deserialize_conformant`](crate::safe_serialization::safe_deserialize_conformant)
+        /// or checked using
+        /// [`is_conformant`](crate::conformance::ParameterSetConformant::is_conformant)
         pub fn verify_re_randomize_and_expand(
             &self,
             crs: &CompactPkeCrs,
