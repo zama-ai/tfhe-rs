@@ -51,9 +51,8 @@ pub fn pack_cast_64(c: &mut Criterion) {
         });
     });
 
-    write_to_json::<u64, _, _>(
+    write_to_json(
         &benchmark_spec,
-        ks_param,
         "pack_cast_64",
         &OperatorType::Atomic,
         0,
@@ -96,9 +95,8 @@ pub fn pack_cast(c: &mut Criterion) {
         });
     });
 
-    write_to_json::<u64, _, _>(
+    write_to_json(
         &benchmark_spec,
-        ks_param,
         "pack_cast",
         &OperatorType::Atomic,
         0,
@@ -138,12 +136,5 @@ pub fn cast(c: &mut Criterion) {
         });
     });
 
-    write_to_json::<u64, _, _>(
-        &benchmark_spec,
-        ks_param,
-        "cast",
-        &OperatorType::Atomic,
-        0,
-        vec![],
-    );
+    write_to_json(&benchmark_spec, "cast", &OperatorType::Atomic, 0, vec![]);
 }

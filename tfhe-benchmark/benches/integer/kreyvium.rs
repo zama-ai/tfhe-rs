@@ -69,9 +69,8 @@ pub mod cuda {
                 })
             });
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &init_bench_id,
-                atomic_param,
                 param_name.clone(),
                 "kreyvium_init",
                 &OperatorType::Atomic,
@@ -91,11 +90,10 @@ pub mod cuda {
                     })
                 });
 
-                write_to_json_unchecked::<u64, _>(
+                write_to_json_unchecked(
                     &next_bench_id,
-                    atomic_param,
                     param_name.clone(),
-                    &format!("kreyvium_next_{}_bits", num_steps),
+                    format!("kreyvium_next_{}_bits", num_steps),
                     &OperatorType::Atomic,
                     128,
                     vec![atomic_param.message_modulus().0.ilog2(); 128],
@@ -113,11 +111,10 @@ pub mod cuda {
                     })
                 });
 
-                write_to_json_unchecked::<u64, _>(
+                write_to_json_unchecked(
                     &gen_bench_id,
-                    atomic_param,
                     param_name.clone(),
-                    &format!("kreyvium_generation_{}_bits", num_steps),
+                    format!("kreyvium_generation_{}_bits", num_steps),
                     &OperatorType::Atomic,
                     128,
                     vec![atomic_param.message_modulus().0.ilog2(); 128],

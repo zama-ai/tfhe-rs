@@ -610,6 +610,11 @@ clippy_param_dedup: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p param_dedup -- --no-deps -D warnings
 
+.PHONY: clippy_benchmark_parser # Run clippy lints on tfhe-benchmark-parser
+clippy_benchmark_parser: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p tfhe-benchmark-parser -- --no-deps -D warnings
+
 .PHONY: clippy_wasm_par_mq # Run clippy lints on wasm-par-mq and its examples
 clippy_wasm_par_mq: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets --all-features \
@@ -662,7 +667,7 @@ clippy_test_vectors: install_rs_check_toolchain
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
 clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_zk_pok_wasm clippy_trivium \
 clippy_versionable clippy_safe_serialize clippy_tfhe_lints clippy_ws_tests clippy_bench clippy_param_dedup \
-clippy_test_vectors clippy_backward_compat_data clippy_wasm_par_mq
+clippy_benchmark_parser clippy_test_vectors clippy_backward_compat_data clippy_wasm_par_mq
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy_rustdoc clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks \
@@ -2428,6 +2433,7 @@ pcc_batch_6:
 	$(call run_recipe_with_details,clippy_versionable)
 	$(call run_recipe_with_details,clippy_safe_serialize)
 	$(call run_recipe_with_details,clippy_param_dedup)
+	$(call run_recipe_with_details,clippy_benchmark_parser)
 	$(call run_recipe_with_details,docs)
 
 .PHONY: pcc_batch_7 # duration: 7'50'' (currently PCC execution bottleneck)
