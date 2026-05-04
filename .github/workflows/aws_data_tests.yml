@@ -34,7 +34,9 @@ jobs:
     name: aws_data_tests/data-tests (bpr)
     if: (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||
       github.event_name != 'push'
-    runs-on: "runs-on=${{ github.run_id }}/runner=cpu-small"
+    #runs-on: "runs-on=${{ github.run_id }}/runner=cpu-small"
+    # This is a temporary workaround to run the CI and pass the branch protection checks.
+    runs-on: "runs-on=${{ github.run_id }}/image=ubuntu24-full-x64/family=m6i/cpu=8"
     concurrency:
       group: ${{ github.workflow_ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
