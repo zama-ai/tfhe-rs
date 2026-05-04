@@ -179,7 +179,8 @@ jobs:
       - name: Run newline linter checks
         if: inputs.run-build
         run: |
-          make check_newline
+          make install_linelint_ci
+          make check_newline_ci
 
       - name: Build tfhe-csprng
         if: inputs.run-build
