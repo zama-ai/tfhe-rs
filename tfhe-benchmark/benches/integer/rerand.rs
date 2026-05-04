@@ -201,9 +201,8 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize, rerand_mode: Ben
         }
     }
 
-    write_to_json_unchecked::<u64, _>(
+    write_to_json_unchecked(
         &bench_id,
-        (comp_param, param.into()),
         comp_param.name(),
         "re_randomize",
         &OperatorType::Atomic,
@@ -486,9 +485,8 @@ mod cuda {
             }
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            (comp_param, param.into()),
             comp_param.name(),
             "re_randomize",
             &OperatorType::Atomic,

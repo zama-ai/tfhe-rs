@@ -142,9 +142,8 @@ pub fn unsigned_oprf(c: &mut Criterion) {
             (bench_id_oprf, "oprf"),
             (bench_id_oprf_bounded, "oprf_bounded"),
         ] {
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &bench_id,
-                param,
                 param.name(),
                 display_name,
                 &OperatorType::Atomic,
@@ -308,9 +307,8 @@ pub mod cuda {
                 (bench_id_oprf, "oprf"),
                 (bench_id_oprf_bounded, "oprf_bounded"),
             ] {
-                write_to_json_unchecked::<u64, _>(
+                write_to_json_unchecked(
                     &bench_id,
-                    param,
                     param.name(),
                     display_name,
                     &OperatorType::Atomic,
