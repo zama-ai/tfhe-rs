@@ -39,9 +39,8 @@ pub fn match_value(c: &mut Criterion) {
             })
         });
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            atomic_param,
             param.name(),
             "match_value",
             &OperatorType::Atomic,
@@ -92,9 +91,8 @@ pub mod cuda {
                 })
             });
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &bench_id,
-                atomic_param,
                 param.name(),
                 "match_value",
                 &OperatorType::Atomic,
