@@ -161,7 +161,7 @@ fn sanity_check_encrypt_br_dp_ks_pbs(meta_params: MetaParameters, filename_suffi
         // the second PBS and not the MS from our dedicated sanity function, which are
         // boundaries that are easily reached with shortint.
         // We don't want to use that dedicated function in statistical tests as it computes
-        // 2 PBSes instead of one, the output of the seoncd PBS being of no interest for
+        // 2 PBSes instead of one, the output of the second PBS being of no interest for
         // noise measurement here.
         let mut shortint_res = Ciphertext::new(
             input_pbs_result.into_lwe_64(),
