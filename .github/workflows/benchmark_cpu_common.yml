@@ -25,7 +25,7 @@ on:
         type: string # Use comma separated values to generate an array
       additional_results_type:
         type: string
-        default: object-size
+        default: object-sizes
     secrets:
       REPO_CHECKOUT_TOKEN:
         required: true
@@ -183,9 +183,10 @@ jobs:
 
       - name: Parse results
         run: |
-          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
+          cargo run --release -p tfhe-benchmark-parser -- target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --hardware "hpc7a.96xlarge" \
+          --backend cpu \
           --project-version "${COMMIT_HASH}" \
           --branch "${REF_NAME}" \
           --commit-date "${COMMIT_DATE}" \
@@ -214,8 +215,9 @@ jobs:
           filenames_list="${filenames}"
           IFS=','
           for filename in $filenames_list; do
-            python3 ./ci/benchmark_parser.py "tfhe-benchmark/${filename}" "${RESULTS_FILENAME}" \
+            cargo run --release -p tfhe-benchmark-parser -- "tfhe-benchmark/${filename}" "${RESULTS_FILENAME}" \
             --"${results_type}" \
+            --backend cpu \
             --append-results
           done
         env:

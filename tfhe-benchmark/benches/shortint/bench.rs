@@ -47,9 +47,8 @@ fn bench_server_key_unary_function<F>(
             })
         });
 
-        write_to_json::<u64, _, _>(
+        write_to_json(
             &benchmark_spec,
-            *param,
             display_name,
             &OperatorType::Atomic,
             param.message_modulus().0.ilog2(),
@@ -97,9 +96,8 @@ fn bench_server_key_binary_function<F>(
             })
         });
 
-        write_to_json::<u64, _, _>(
+        write_to_json(
             &benchmark_spec,
-            *param,
             display_name,
             &OperatorType::Atomic,
             param.message_modulus().0.ilog2(),
@@ -146,9 +144,8 @@ fn bench_server_key_binary_scalar_function<F>(
             })
         });
 
-        write_to_json::<u64, _, _>(
+        write_to_json(
             &benchmark_spec,
-            *param,
             display_name,
             &OperatorType::Atomic,
             param.message_modulus().0.ilog2(),
@@ -199,9 +196,8 @@ fn bench_server_key_binary_scalar_division_function<F>(
             })
         });
 
-        write_to_json::<u64, _, _>(
+        write_to_json(
             &benchmark_spec,
-            *param,
             display_name,
             &OperatorType::Atomic,
             param.message_modulus().0.ilog2(),
@@ -241,9 +237,8 @@ fn carry_extract_bench(c: &mut Criterion) {
             })
         });
 
-        write_to_json::<u64, _, _>(
+        write_to_json(
             &benchmark_spec,
-            *param,
             "carry_extract",
             &OperatorType::Atomic,
             param.message_modulus().0.ilog2(),
@@ -286,9 +281,8 @@ fn programmable_bootstrapping_bench(c: &mut Criterion) {
             })
         });
 
-        write_to_json::<u64, _, _>(
+        write_to_json(
             &benchmark_spec,
-            *param,
             "pbs",
             &OperatorType::Atomic,
             param.message_modulus().0.ilog2(),
@@ -341,9 +335,8 @@ fn server_key_from_compressed_key(c: &mut Criterion) {
             )
         });
 
-        write_to_json::<u64, _, _>(
+        write_to_json(
             &benchmark_spec,
-            *param,
             "uncompress_key",
             &OperatorType::Atomic,
             param.message_modulus().0.ilog2(),

@@ -234,7 +234,7 @@ jobs:
 
       - name: Parse results
         run: |
-          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
+          cargo run --release -p tfhe-benchmark-parser -- target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --hardware "${INPUTS_HARDWARE_NAME}" \
           --backend gpu \
@@ -256,8 +256,9 @@ jobs:
           filenames_list="${filenames}"
           IFS=','
           for filename in $filenames_list; do
-            python3 ./ci/benchmark_parser.py "tfhe-benchmark/${filename}" "${RESULTS_FILENAME}" \
-            --object-size \
+            cargo run --release -p tfhe-benchmark-parser -- "tfhe-benchmark/${filename}" "${RESULTS_FILENAME}" \
+            --object-sizes \
+            --backend gpu \
             --append-results
           done
         env:

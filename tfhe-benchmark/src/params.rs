@@ -1,11 +1,11 @@
 #[cfg(feature = "boolean")]
 pub mod boolean_params {
-    use crate::utilities::CryptoParametersRecord;
+    use crate::crypto_record::BenchPbsParams;
     use tfhe::boolean::parameters::{
         DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS, PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
     };
 
-    pub fn benchmark_32bits_parameters() -> Vec<(String, CryptoParametersRecord<u32>)> {
+    pub fn benchmark_32bits_parameters() -> Vec<(String, BenchPbsParams<u32>)> {
         [
             ("BOOLEAN_DEFAULT_PARAMS", DEFAULT_PARAMETERS),
             (
@@ -15,7 +15,7 @@ pub mod boolean_params {
             ("BOOLEAN_DEFAULT_PARAMS_KS_PBS", DEFAULT_PARAMETERS_KS_PBS),
         ]
         .iter()
-        .map(|(name, params)| (name.to_string(), params.to_owned().into()))
+        .map(|(name, params)| (name.to_string(), (*params).into()))
         .collect()
     }
 }
@@ -146,62 +146,46 @@ pub mod shortint_params {
         ),
     ];
 
+    use tfhe::shortint::parameters::current_params::meta::cpu::*;
+    use tfhe::shortint::parameters::current_params::meta::gpu::*;
+    use tfhe::shortint::parameters::MetaParameters;
+
     #[cfg(feature = "internal-keycache")]
     pub mod shortint_params_keycache {
         use super::*;
-        use crate::utilities::{get_param_type, CryptoParametersRecord, ParamType};
+        use crate::crypto_record::{BenchPackingKsParams, BenchPbsParams};
+        use crate::utilities::{get_param_type, ParamType};
         use tfhe::keycache::NamedParam;
 
-        pub fn benchmark_parameters() -> Vec<(String, CryptoParametersRecord<u64>)> {
+        pub fn benchmark_parameters() -> Vec<(String, BenchPbsParams<u64>)> {
             match get_parameters_set() {
                 ParametersSet::Default => {
                     let iterator = match get_param_type() {
                         ParamType::ClassicalDocumentation => {
                             SHORTINT_BENCH_PARAMS_TUNIFORM_DOCUMENTATION
                                 .iter()
-                                .chain([].iter()) // Use an empty iterator to return the same type
-                                                  // as the fallback case
+                                .chain([].iter())
                         }
-
                         _ => SHORTINT_BENCH_PARAMS_TUNIFORM
                             .iter()
                             .chain(SHORTINT_BENCH_PARAMS_GAUSSIAN.iter()),
                     };
                     iterator
-                        .map(|params| {
-                            (
-                                params.name(),
-                                <ClassicPBSParameters as Into<AtomicPatternParameters>>::into(
-                                    *params,
-                                )
-                                .to_owned()
-                                .into(),
-                            )
-                        })
+                        .map(|params| (params.name(), (*params).into()))
                         .collect()
                 }
-                ParametersSet::All => {
-                    filter_parameters(
-                        &BENCH_ALL_CLASSIC_PBS_PARAMETERS,
-                        DesiredNoiseDistribution::Both,
-                        DesiredBackend::Cpu, /* No parameters set are specific to GPU in this
-                                              * vector */
-                    )
-                    .into_iter()
-                    .map(|(params, name)| {
-                        (
-                            name.to_string(),
-                            <ClassicPBSParameters as Into<AtomicPatternParameters>>::into(*params)
-                                .to_owned()
-                                .into(),
-                        )
-                    })
-                    .collect()
-                }
+                ParametersSet::All => filter_parameters(
+                    &BENCH_ALL_CLASSIC_PBS_PARAMETERS,
+                    DesiredNoiseDistribution::Both,
+                    DesiredBackend::Cpu,
+                )
+                .into_iter()
+                .map(|(params, name)| (name.to_string(), (*params).into()))
+                .collect(),
             }
         }
 
-        pub fn benchmark_compression_parameters() -> Vec<(String, CryptoParametersRecord<u64>)> {
+        pub fn benchmark_compression_parameters() -> Vec<(String, BenchPackingKsParams<u64>)> {
             vec![(
                 BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.name(),
                 (
@@ -213,38 +197,20 @@ pub mod shortint_params {
         }
 
         pub fn multi_bit_benchmark_parameters(
-        ) -> Vec<(String, CryptoParametersRecord<u64>, LweBskGroupingFactor)> {
+        ) -> Vec<(String, BenchPbsParams<u64>, LweBskGroupingFactor)> {
             match get_parameters_set() {
                 ParametersSet::Default => match get_param_type() {
                     ParamType::MultiBitDocumentation => {
                         SHORTINT_MULTI_BIT_BENCH_PARAMS_DOCUMENTATION
                             .iter()
                             .map(|(name, params)| {
-                                (
-                                    name.to_string(),
-                                    <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(
-                                        *params,
-                                    )
-                                    .to_owned()
-                                    .into(),
-                                    params.grouping_factor,
-                                )
+                                (name.to_string(), (*params).into(), params.grouping_factor)
                             })
                             .collect()
                     }
                     _ => SHORTINT_MULTI_BIT_BENCH_PARAMS
                         .iter()
-                        .map(|params| {
-                            (
-                                params.name(),
-                                <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(
-                                    *params,
-                                )
-                                .to_owned()
-                                .into(),
-                                params.grouping_factor,
-                            )
-                        })
+                        .map(|params| (params.name(), (*params).into(), params.grouping_factor))
                         .collect(),
                 },
                 ParametersSet::All => {
@@ -260,86 +226,24 @@ pub mod shortint_params {
                     )
                     .into_iter()
                     .map(|(params, name)| {
-                        (
-                            name.to_string(),
-                            <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(*params)
-                                .to_owned()
-                                .into(),
-                            params.grouping_factor,
-                        )
+                        (name.to_string(), (*params).into(), params.grouping_factor)
                     })
                     .collect()
                 }
             }
         }
 
+        /// Alias kept for parity with the previous API. Callers that need the grouping factor on
+        /// every entry can use this; in practice it returns the same data as
+        /// [`multi_bit_benchmark_parameters`].
         pub fn multi_bit_benchmark_parameters_with_grouping(
-        ) -> Vec<(String, CryptoParametersRecord<u64>, LweBskGroupingFactor)> {
-            match get_parameters_set() {
-                ParametersSet::Default => match get_param_type() {
-                    ParamType::MultiBitDocumentation => {
-                        SHORTINT_MULTI_BIT_BENCH_PARAMS_DOCUMENTATION
-                            .iter()
-                            .map(|(name, params)| {
-                                (
-                                    name.to_string(),
-                                    <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(
-                                        *params,
-                                    )
-                                    .to_owned()
-                                    .into(),
-                                    params.grouping_factor,
-                                )
-                            })
-                            .collect()
-                    }
-                    _ => SHORTINT_MULTI_BIT_BENCH_PARAMS
-                        .iter()
-                        .map(|params| {
-                            (
-                                params.name(),
-                                <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(
-                                    *params,
-                                )
-                                .to_owned()
-                                .into(),
-                                params.grouping_factor,
-                            )
-                        })
-                        .collect(),
-                },
-                ParametersSet::All => {
-                    let desired_backend = if cfg!(feature = "gpu") {
-                        DesiredBackend::Gpu
-                    } else {
-                        DesiredBackend::Cpu
-                    };
-                    filter_parameters(
-                        &BENCH_ALL_MULTI_BIT_PBS_PARAMETERS,
-                        DesiredNoiseDistribution::Both,
-                        desired_backend,
-                    )
-                    .into_iter()
-                    .map(|(params, name)| {
-                        (
-                            name.to_string(),
-                            <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(*params)
-                                .to_owned()
-                                .into(),
-                            params.grouping_factor,
-                        )
-                    })
-                    .collect()
-                }
-            }
+        ) -> Vec<(String, BenchPbsParams<u64>, LweBskGroupingFactor)> {
+            multi_bit_benchmark_parameters()
         }
     }
 
     #[cfg(feature = "internal-keycache")]
     pub use shortint_params_keycache::*;
-    use tfhe::shortint::parameters::current_params::meta::cpu::*;
-    use tfhe::shortint::parameters::current_params::meta::gpu::*;
-    use tfhe::shortint::parameters::MetaParameters;
 
     pub fn raw_benchmark_parameters() -> Vec<AtomicPatternParameters> {
         let is_multi_bit = match env::var("__TFHE_RS_PARAM_TYPE") {

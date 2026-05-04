@@ -5,10 +5,11 @@ mod traits;
 
 pub use backend::{Backend, bench_backend_from_cfg};
 pub use bench_crate::BenchCrate;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
+use std::str::FromStr;
 use std::{env, fmt};
 pub use tfhe::hlapi::HlapiBench;
 pub use tfhe::{CoreCryptoBench, HlIntegerOp, ShortintBench, TfheLayer};
@@ -129,11 +130,13 @@ pub enum BenchmarkType {
 }
 
 /// The metric being recorded by a benchmark, used in [`BenchmarkSpec`].
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum BenchmarkMetric {
     Latency,
     Throughput,
     PbsCount,
+    KeySize,
 }
 
 impl From<BenchmarkType> for BenchmarkMetric {
@@ -141,6 +144,19 @@ impl From<BenchmarkType> for BenchmarkMetric {
         match ct {
             BenchmarkType::Latency => BenchmarkMetric::Latency,
             BenchmarkType::Throughput => BenchmarkMetric::Throughput,
+        }
+    }
+}
+
+impl FromStr for BenchmarkMetric {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "latency" => Ok(Self::Latency),
+            "throughput" => Ok(Self::Throughput),
+            "pbscount" => Ok(Self::PbsCount),
+            "keysize" => Ok(Self::KeySize),
+            _ => Err(format!("unknown benchmark metric: {s}")),
         }
     }
 }
@@ -303,6 +319,7 @@ impl<T: TypeName + ?Sized> fmt::Display for BenchmarkSpec<'_, T> {
         match self.bench_type {
             BenchmarkMetric::Throughput => write!(f, "::throughput")?,
             BenchmarkMetric::PbsCount => write!(f, "::pbs_count")?,
+            BenchmarkMetric::KeySize => write!(f, "::key_size")?,
             BenchmarkMetric::Latency => {}
         }
         write!(f, "::{}", self.param_name)?;
