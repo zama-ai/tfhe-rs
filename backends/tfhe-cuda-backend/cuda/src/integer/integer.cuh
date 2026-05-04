@@ -653,6 +653,74 @@ __host__ void host_pack_bivariate_blocks_with_single_block(
   check_cuda_error(cudaGetLastError());
 }
 
+template <typename Torus>
+__global__ void device_pack_bivariate_blocks_with_per_ct_single_block(
+    Torus *lwe_array_out, Torus const *lwe_array_in,
+    Torus const *lwe_conditions, uint32_t lwe_dimension, uint32_t shift,
+    uint32_t total_num_blocks, uint32_t num_blocks_per_ct,
+    bool replicate_input) {
+  int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  uint32_t lwe_size = lwe_dimension + 1;
+
+  if (tid < total_num_blocks * lwe_size) {
+    int global_block_id = tid / lwe_size;
+    int coeff_id = tid % lwe_size;
+    int ct_idx = global_block_id / num_blocks_per_ct;
+    int in_block_id = replicate_input ? (global_block_id % num_blocks_per_ct)
+                                      : global_block_id;
+
+    lwe_array_out[global_block_id * lwe_size + coeff_id] =
+        lwe_array_in[in_block_id * lwe_size + coeff_id] * shift +
+        lwe_conditions[ct_idx * lwe_size + coeff_id];
+  }
+}
+
+template <typename Torus>
+__host__ void host_pack_bivariate_blocks_with_per_ct_single_block(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in,
+    CudaRadixCiphertextFFI const *lwe_conditions, uint32_t shift,
+    uint32_t num_entries, uint32_t num_blocks_per_ct,
+    bool replicate_input = false) {
+
+  uint32_t total_num_blocks =
+      static_cast<uint32_t>(safe_mul(static_cast<size_t>(num_entries),
+                                     static_cast<size_t>(num_blocks_per_ct)));
+
+  PANIC_IF_FALSE(
+      lwe_array_out->num_radix_blocks >= total_num_blocks,
+      "Cuda error: output radix ciphertext does not have enough blocks");
+
+  // When replicate_input is true, the kernel reuses the first num_blocks_per_ct
+  // input blocks for every entry instead of reading contiguously.
+  // Helpful in case lwe_array_in is actually a single ciphertext that needs to
+  // be packed with many conditions
+  uint32_t required_in_blocks =
+      replicate_input ? num_blocks_per_ct : total_num_blocks;
+  PANIC_IF_FALSE(
+      lwe_array_in->num_radix_blocks >= required_in_blocks,
+      "Cuda error: input radix ciphertext does not have enough blocks");
+  PANIC_IF_FALSE(
+      lwe_conditions->num_radix_blocks >= num_entries,
+      "Cuda error: conditions radix ciphertext does not have enough blocks");
+  PANIC_IF_FALSE(
+      lwe_array_out->lwe_dimension == lwe_array_in->lwe_dimension &&
+          lwe_array_in->lwe_dimension == lwe_conditions->lwe_dimension,
+      "Cuda error: input and output radix ciphertexts must have the same "
+      "lwe dimension");
+
+  auto lwe_dimension = lwe_array_out->lwe_dimension;
+  cuda_set_device(streams.gpu_index(0));
+  int num_blocks = 0, num_threads = 0;
+  int num_entries_kernel = total_num_blocks * (lwe_dimension + 1);
+  getNumBlocksAndThreads(num_entries_kernel, 512, num_blocks, num_threads);
+  device_pack_bivariate_blocks_with_per_ct_single_block<Torus>
+      <<<num_blocks, num_threads, 0, streams.stream(0)>>>(
+          (Torus *)lwe_array_out->ptr, (Torus *)lwe_array_in->ptr,
+          (Torus *)lwe_conditions->ptr, lwe_dimension, shift, total_num_blocks,
+          num_blocks_per_ct, replicate_input);
+  check_cuda_error(cudaGetLastError());
+}
 /// num_radix_blocks corresponds to the number of blocks on which to apply the
 /// LUT In scalar bitops we use a number of blocks that may be lower or equal to
 /// the input and output numbers of blocks
