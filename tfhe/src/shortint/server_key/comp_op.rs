@@ -612,7 +612,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
             ct_right.noise_degree(),
             None,
         )?;
-        Ok(self.unchecked_less(ct_left, ct_right))
+        Ok(self.unchecked_less_or_equal(ct_left, ct_right))
     }
 
     /// Compute homomorphically a `<=` between two ciphertexts encrypting integer values.

@@ -1,3 +1,8 @@
+#![allow(
+    clippy::eq_op,
+    reason = "explicitly test that clear and fhe op give the same result in the equality case"
+)]
+
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
@@ -138,6 +143,12 @@ create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_less_or_equal)
 create_parameterized_test_bivariate_pbs_compliant!(shortint_default_less_or_equal);
 create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_equal);
 create_parameterized_test_bivariate_pbs_compliant!(shortint_default_equal);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_checked_greater);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_checked_greater_or_equal);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_checked_less);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_checked_less_or_equal);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_checked_equal);
+create_parameterized_test_bivariate_pbs_compliant!(shortint_checked_not_equal);
 create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_scalar_equal);
 create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_scalar_less);
 create_parameterized_test_bivariate_pbs_compliant!(shortint_smart_scalar_less_or_equal);
@@ -1041,6 +1052,216 @@ where
         let dec_res = cks.decrypt(&ct_res);
 
         assert_eq!(((clear_0 % modulus) == (clear_1 % modulus)) as u64, dec_res);
+    }
+}
+
+fn shortint_checked_greater<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+
+    let mut rng = rand::thread_rng();
+    let modulus = cks.parameters().message_modulus().0;
+
+    for _ in 0..NB_TESTS {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        let ct_res = sks.checked_greater(&ctxt_0, &ctxt_1).unwrap();
+        let dec_res = cks.decrypt(&ct_res);
+
+        assert_eq!((clear_0 > clear_1) as u64, dec_res);
+    }
+
+    for _ in 0..NB_TESTS {
+        let clear = rng.gen::<u64>() % modulus;
+        let ctxt_0 = cks.encrypt(clear);
+        let ctxt_1 = cks.encrypt(clear);
+
+        let ct_res = sks.checked_greater(&ctxt_0, &ctxt_1).unwrap();
+        let dec_res = cks.decrypt(&ct_res);
+
+        assert_eq!((clear > clear) as u64, dec_res);
+    }
+}
+
+fn shortint_checked_greater_or_equal<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+
+    let mut rng = rand::thread_rng();
+    let modulus = cks.parameters().message_modulus().0;
+
+    for _ in 0..NB_TESTS {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        let ct_res = sks.checked_greater_or_equal(&ctxt_0, &ctxt_1).unwrap();
+        let dec_res = cks.decrypt(&ct_res);
+
+        assert_eq!((clear_0 >= clear_1) as u64, dec_res);
+    }
+
+    for _ in 0..NB_TESTS {
+        let clear = rng.gen::<u64>() % modulus;
+        let ctxt_0 = cks.encrypt(clear);
+        let ctxt_1 = cks.encrypt(clear);
+
+        let ct_res = sks.checked_greater_or_equal(&ctxt_0, &ctxt_1).unwrap();
+        let dec_res = cks.decrypt(&ct_res);
+
+        assert_eq!((clear >= clear) as u64, dec_res);
+    }
+}
+
+fn shortint_checked_less<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+
+    let mut rng = rand::thread_rng();
+    let modulus = cks.parameters().message_modulus().0;
+
+    for _ in 0..NB_TESTS {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        let ct_res = sks.checked_less(&ctxt_0, &ctxt_1).unwrap();
+        let dec_res = cks.decrypt(&ct_res);
+
+        assert_eq!((clear_0 < clear_1) as u64, dec_res);
+    }
+
+    for _ in 0..NB_TESTS {
+        let clear = rng.gen::<u64>() % modulus;
+        let ctxt_0 = cks.encrypt(clear);
+        let ctxt_1 = cks.encrypt(clear);
+
+        let ct_res = sks.checked_less(&ctxt_0, &ctxt_1).unwrap();
+        let dec_res = cks.decrypt(&ct_res);
+
+        assert_eq!((clear < clear) as u64, dec_res);
+    }
+}
+
+fn shortint_checked_less_or_equal<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+
+    let mut rng = rand::thread_rng();
+    let modulus = cks.parameters().message_modulus().0;
+
+    for _ in 0..NB_TESTS {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        let ct_res = sks.checked_less_or_equal(&ctxt_0, &ctxt_1).unwrap();
+        let dec_res = cks.decrypt(&ct_res);
+
+        assert_eq!((clear_0 <= clear_1) as u64, dec_res);
+    }
+
+    for _ in 0..NB_TESTS {
+        let clear = rng.gen::<u64>() % modulus;
+        let ctxt_0 = cks.encrypt(clear);
+        let ctxt_1 = cks.encrypt(clear);
+
+        let ct_res = sks.checked_less_or_equal(&ctxt_0, &ctxt_1).unwrap();
+        let dec_res = cks.decrypt(&ct_res);
+
+        assert_eq!((clear <= clear) as u64, dec_res);
+    }
+}
+
+fn shortint_checked_equal<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+
+    let mut rng = rand::thread_rng();
+    let modulus = cks.parameters().message_modulus().0;
+
+    for _ in 0..NB_TESTS {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        let ct_res = sks.checked_equal(&ctxt_0, &ctxt_1).unwrap();
+        let dec_res = cks.decrypt(&ct_res);
+
+        assert_eq!((clear_0 == clear_1) as u64, dec_res);
+    }
+
+    for _ in 0..NB_TESTS {
+        let clear = rng.gen::<u64>() % modulus;
+        let ctxt_0 = cks.encrypt(clear);
+        let ctxt_1 = cks.encrypt(clear);
+
+        let ct_res = sks.checked_equal(&ctxt_0, &ctxt_1).unwrap();
+        let dec_res = cks.decrypt(&ct_res);
+
+        assert_eq!((clear == clear) as u64, dec_res);
+    }
+}
+
+fn shortint_checked_not_equal<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+
+    let mut rng = rand::thread_rng();
+    let modulus = cks.parameters().message_modulus().0;
+
+    for _ in 0..NB_TESTS {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        let ct_res = sks.checked_not_equal(&ctxt_0, &ctxt_1).unwrap();
+        let dec_res = cks.decrypt(&ct_res);
+
+        assert_eq!((clear_0 != clear_1) as u64, dec_res);
+    }
+
+    for _ in 0..NB_TESTS {
+        let clear = rng.gen::<u64>() % modulus;
+        let ctxt_0 = cks.encrypt(clear);
+        let ctxt_1 = cks.encrypt(clear);
+
+        let ct_res = sks.checked_not_equal(&ctxt_0, &ctxt_1).unwrap();
+        let dec_res = cks.decrypt(&ct_res);
+
+        assert_eq!((clear != clear) as u64, dec_res);
     }
 }
 
