@@ -34,11 +34,12 @@ cpu-time = "1.0"
 num_cpus = "1.17"
 gag = "1.0.0"
 benchmark_spec = { version = "0.1.0", path = "../utils/benchmark_spec" }
+tfhe-benchmark-parser = { path = "../utils/tfhe-benchmark-parser" }
 
 [features]
 default = ["avx512"]
-boolean = ["tfhe/boolean"]
-shortint = ["tfhe/shortint"]
+boolean = ["tfhe/boolean", "tfhe-benchmark-parser/boolean"]
+shortint = ["tfhe/shortint", "tfhe-benchmark-parser/shortint"]
 integer = ["shortint", "tfhe/integer"]
 gpu = ["tfhe/gpu", "benchmark_spec/gpu"]
 # gpu enables tfhe-cuda-backend which provides CUDA stream management used by tfhe-zk-pok
