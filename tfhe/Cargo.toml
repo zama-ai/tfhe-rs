@@ -43,6 +43,7 @@ hex = "0.4.3"
 # End regex-engine deps
 # Used in noise-measurements
 csv = "1.3.0"
+tfhe-benchmark-parser = { path = "../utils/tfhe-benchmark-parser" }
 
 # Begin hpu-demo deps
 # Enable to have hpu execution trace
