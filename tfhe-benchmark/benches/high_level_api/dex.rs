@@ -9,9 +9,8 @@ use benchmark::params_aliases::{
 use benchmark::utilities::{configure_gpu, get_param_type, ParamType};
 use benchmark::utilities::{write_to_json, OperatorType};
 use benchmark_spec::tfhe::hlapi::dex::{Dex, DexFlavor};
-use benchmark_spec::{
-    get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, HlapiBench, OperandType,
-};
+use benchmark_spec::tfhe::hlapi::HlapiBench;
+use benchmark_spec::{get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, OperandType};
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
 use rand::thread_rng;
@@ -268,14 +267,7 @@ mod pbs_stats {
 
         benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _, _>(
-            &test_name,
-            params,
-            "pbs-count",
-            &OperatorType::Atomic,
-            0,
-            vec![],
-        );
+        write_to_json(&test_name, "pbs-count", &OperatorType::Atomic, 0, vec![]);
     }
     pub fn print_swap_request_finalize_pbs_counts<FheType, F>(
         client_key: &ClientKey,
@@ -318,14 +310,7 @@ mod pbs_stats {
 
         benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _, _>(
-            &test_name,
-            params,
-            "pbs-count",
-            &OperatorType::Atomic,
-            0,
-            vec![],
-        );
+        write_to_json(&test_name, "pbs-count", &OperatorType::Atomic, 0, vec![]);
     }
     pub fn print_swap_claim_prepare_pbs_counts<FheType, F>(
         client_key: &ClientKey,
@@ -378,14 +363,7 @@ mod pbs_stats {
 
         benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _, _>(
-            &test_name,
-            params,
-            "pbs-count",
-            &OperatorType::Atomic,
-            0,
-            vec![],
-        );
+        write_to_json(&test_name, "pbs-count", &OperatorType::Atomic, 0, vec![]);
     }
     pub fn print_swap_claim_update_dex_balance_pbs_counts<FheType, F>(
         client_key: &ClientKey,
@@ -434,14 +412,7 @@ mod pbs_stats {
 
         benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _, _>(
-            &test_name,
-            params,
-            "pbs-count",
-            &OperatorType::Atomic,
-            0,
-            vec![],
-        );
+        write_to_json(&test_name, "pbs-count", &OperatorType::Atomic, 0, vec![]);
     }
 }
 
@@ -512,9 +483,8 @@ fn bench_swap_request_latency<FheType, F1, F2>(
         })
     });
 
-    write_to_json::<u64, _, _>(
+    write_to_json(
         &bench_spec,
-        params,
         "dex-swap-request",
         &OperatorType::Atomic,
         64,
@@ -635,9 +605,8 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
             })
         });
 
-        write_to_json::<u64, _, _>(
+        write_to_json(
             &bench_spec,
-            params,
             "dex-swap-request",
             &OperatorType::Atomic,
             64,
@@ -852,9 +821,8 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
                                 })
         });
 
-        write_to_json::<u64, _, _>(
+        write_to_json(
             &bench_spec,
-            params,
             "dex-swap-request",
             &OperatorType::Atomic,
             64,
@@ -936,9 +904,8 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
         });
     });
 
-    write_to_json::<u64, _, _>(
+    write_to_json(
         &bench_spec,
-        params,
         "dex-swap-claim",
         &OperatorType::Atomic,
         64,
@@ -1077,9 +1044,8 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
             });
         });
 
-        write_to_json::<u64, _, _>(
+        write_to_json(
             &bench_spec,
-            params,
             "dex-swap-claim",
             &OperatorType::Atomic,
             64,
@@ -1289,9 +1255,8 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
             });
         });
 
-        write_to_json::<u64, _, _>(
+        write_to_json(
             &bench_spec,
-            params,
             "dex-swap-claim",
             &OperatorType::Atomic,
             64,

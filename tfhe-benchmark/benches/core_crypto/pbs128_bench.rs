@@ -2,7 +2,7 @@ use benchmark::params_aliases::{
     BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
-use benchmark::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
+use benchmark::utilities::{write_to_json, OperatorType};
 use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, CoreCryptoBench};
 use criterion::{black_box, Criterion};
 use dyn_stack::PodStack;
@@ -141,22 +141,9 @@ fn pbs_128(c: &mut Criterion) {
 
     // TODO Add throughput benchmark case
 
-    let params_record = CryptoParametersRecord {
-        lwe_dimension: Some(lwe_dimension),
-        glwe_dimension: Some(glwe_dimension),
-        polynomial_size: Some(polynomial_size),
-        lwe_noise_distribution: Some(lwe_noise_distribution),
-        glwe_noise_distribution: Some(base_params.glwe_noise_distribution),
-        pbs_base_log: Some(pbs_base_log),
-        pbs_level: Some(pbs_level),
-        ciphertext_modulus: Some(input_ciphertext_modulus),
-        ..Default::default()
-    };
-
     let bit_size = (message_modulus as u32).ilog2();
     write_to_json(
         &benchmark_spec,
-        params_record,
         "pbs",
         &OperatorType::Atomic,
         bit_size,
@@ -168,7 +155,7 @@ fn pbs_128(c: &mut Criterion) {
 mod cuda {
     use benchmark::utilities::{
         cuda_local_keys_core, cuda_local_streams_core, throughput_num_threads, write_to_json,
-        CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes, CudaLocalKeys, OperatorType,
+        CpuKeys, CpuKeysBuilder, CudaIndexes, CudaLocalKeys, OperatorType,
     };
     use benchmark_spec::{get_bench_type, BenchmarkSpec, BenchmarkType, CoreCryptoBench};
     use criterion::{black_box, Criterion, Throughput};
@@ -421,22 +408,9 @@ mod cuda {
             }
         };
 
-        let params_record = CryptoParametersRecord {
-            lwe_dimension: Some(input_params.lwe_dimension),
-            glwe_dimension: Some(squash_params.glwe_dimension),
-            polynomial_size: Some(squash_params.polynomial_size),
-            lwe_noise_distribution: Some(lwe_noise_distribution_u64),
-            glwe_noise_distribution: Some(input_params.glwe_noise_distribution),
-            pbs_base_log: Some(squash_params.decomp_base_log),
-            pbs_level: Some(squash_params.decomp_level_count),
-            ciphertext_modulus: Some(input_params.ciphertext_modulus),
-            ..Default::default()
-        };
-
         let bit_size = (message_modulus as u32).ilog2();
         write_to_json(
             &benchmark_spec,
-            params_record,
             "pbs",
             &OperatorType::Atomic,
             bit_size,
@@ -686,22 +660,9 @@ mod cuda {
             }
         };
 
-        let params_record = CryptoParametersRecord {
-            lwe_dimension: Some(input_params.lwe_dimension),
-            glwe_dimension: Some(squash_params.glwe_dimension),
-            polynomial_size: Some(squash_params.polynomial_size),
-            lwe_noise_distribution: Some(lwe_noise_distribution_u64),
-            glwe_noise_distribution: Some(input_params.glwe_noise_distribution),
-            pbs_base_log: Some(squash_params.decomp_base_log),
-            pbs_level: Some(squash_params.decomp_level_count),
-            ciphertext_modulus: Some(input_params.ciphertext_modulus),
-            ..Default::default()
-        };
-
         let bit_size = (message_modulus as u32).ilog2();
         write_to_json(
             &benchmark_spec,
-            params_record,
             "pbs",
             &OperatorType::Atomic,
             bit_size,

@@ -71,13 +71,10 @@ pub fn ct_sizes(results_file: &Path) {
         let compressed_sks = CompressedServerKey::new(&client_key);
         set_server_key(compressed_sks.decompress());
 
-        let params_record = param_fhe;
-
         let mut write_and_record_result = |res: usize, test_name: &str, display_name: &str| {
             benchmark_test_result.write_result(test_name, res);
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 test_name,
-                params_record,
                 param_fhe.name(),
                 display_name,
                 &operator,
@@ -187,15 +184,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
         println!("PK size: {cpk_size} bytes");
         benchmark_test_result.write_result(&test_name, cpk_size);
-        write_to_json_unchecked::<u64, _>(
-            &test_name,
-            params,
-            params.name(),
-            "CPK",
-            &operator,
-            0,
-            vec![],
-        );
+        write_to_json_unchecked(&test_name, params.name(), "CPK", &operator, 0, vec![]);
 
         let test_name = format!("hlapi_sizes_{}_cctl_{NB_CTXT}_len_32_bits", params.name());
 
@@ -209,15 +198,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
         println!("Compact CT list for {NB_CTXT} CTs: {cctl_size} bytes");
 
         benchmark_test_result.write_result(&test_name, cctl_size);
-        write_to_json_unchecked::<u64, _>(
-            &test_name,
-            params,
-            params.name(),
-            "CCTL",
-            &operator,
-            0,
-            vec![],
-        );
+        write_to_json_unchecked(&test_name, params.name(), "CCTL", &operator, 0, vec![]);
     }
 
     // 256 bits
@@ -255,15 +236,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
         println!("Compact CT list for {NB_CTXT} CTs: {cctl_size} bytes");
 
         benchmark_test_result.write_result(&test_name, cctl_size);
-        write_to_json_unchecked::<u64, _>(
-            &test_name,
-            params,
-            params.name(),
-            "CCTL",
-            &operator,
-            0,
-            vec![],
-        );
+        write_to_json_unchecked(&test_name, params.name(), "CCTL", &operator, 0, vec![]);
     }
 }
 

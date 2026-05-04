@@ -168,9 +168,8 @@ mod cuda {
             }
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id_pack,
-            (noise_squashing_compression_parameters, param.into()),
             noise_squashing_compression_parameters.name(),
             "pack",
             &OperatorType::Atomic,
@@ -323,9 +322,8 @@ mod cuda {
             }
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id_unpack,
-            (noise_squashing_compression_parameters, param.into()),
             noise_squashing_compression_parameters.name(),
             "unpack",
             &OperatorType::Atomic,
