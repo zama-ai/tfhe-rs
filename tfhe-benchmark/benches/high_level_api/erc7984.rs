@@ -2,9 +2,8 @@
 use benchmark::utilities::{configure_gpu, get_param_type, ParamType};
 use benchmark::utilities::{write_to_json, OperatorType};
 use benchmark_spec::tfhe::hlapi::erc7984::{Erc7984, TransferFlavor};
-use benchmark_spec::{
-    get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, HlapiBench, OperandType,
-};
+use benchmark_spec::tfhe::hlapi::HlapiBench;
+use benchmark_spec::{get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, OperandType};
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
 use rand::thread_rng;
@@ -332,14 +331,7 @@ mod pbs_stats {
 
         benchmark_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _, _>(
-            &test_name,
-            params,
-            "pbs-count",
-            &OperatorType::Atomic,
-            0,
-            vec![],
-        );
+        write_to_json(&test_name, "pbs-count", &OperatorType::Atomic, 0, vec![]);
     }
 }
 
@@ -387,9 +379,8 @@ fn bench_transfer_latency<FheType, F>(
         })
     });
 
-    write_to_json::<u64, _, _>(
+    write_to_json(
         &bench_spec,
-        params,
         "erc7984-transfer",
         &OperatorType::Atomic,
         64,
@@ -454,9 +445,8 @@ fn bench_transfer_latency_simd<FheType, F>(
         })
     });
 
-    write_to_json::<u64, _, _>(
+    write_to_json(
         &bench_spec,
-        params,
         "erc7984-simd-transfer",
         &OperatorType::Atomic,
         64,
@@ -514,9 +504,8 @@ fn bench_transfer_throughput<FheType, F>(
             })
         });
 
-        write_to_json::<u64, _, _>(
+        write_to_json(
             &bench_spec,
-            params,
             "erc7984-transfer",
             &OperatorType::Atomic,
             64,
@@ -609,9 +598,8 @@ fn cuda_bench_transfer_throughput<FheType, F>(
         });
     });
 
-    write_to_json::<u64, _, _>(
+    write_to_json(
         &bench_spec,
-        params,
         "erc7984-transfer",
         &OperatorType::Atomic,
         64,
@@ -677,9 +665,8 @@ fn hpu_bench_transfer_throughput<FheType, F>(
             });
         });
 
-        write_to_json::<u64, _, _>(
+        write_to_json(
             &bench_spec,
-            params,
             "erc7984-transfer",
             &OperatorType::Atomic,
             64,
@@ -767,9 +754,8 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
             });
         });
 
-        write_to_json::<u64, _, _>(
+        write_to_json(
             &bench_spec,
-            params,
             "erc7984-simd-transfer",
             &OperatorType::Atomic,
             64,

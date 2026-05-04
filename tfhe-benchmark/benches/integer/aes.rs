@@ -62,9 +62,8 @@ pub mod cuda {
                 })
             });
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &bench_id,
-                atomic_param,
                 param.name(),
                 "aes_encryption",
                 &OperatorType::Atomic,
@@ -81,9 +80,8 @@ pub mod cuda {
                 })
             });
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &bench_id,
-                atomic_param,
                 param.name(),
                 "aes_key_expansion",
                 &OperatorType::Atomic,
@@ -136,9 +134,8 @@ pub mod cuda {
                     })
                 });
 
-                write_to_json_unchecked::<u64, _>(
+                write_to_json_unchecked(
                     &bench_id,
-                    atomic_param,
                     param.name(),
                     "aes_encryption",
                     &OperatorType::Atomic,

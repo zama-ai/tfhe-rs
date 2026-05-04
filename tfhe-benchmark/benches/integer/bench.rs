@@ -95,9 +95,8 @@ fn bench_server_key_binary_function_dirty_inputs<F>(
             )
         });
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -208,9 +207,8 @@ fn bench_server_key_binary_function_clean_inputs<F>(
             }
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -275,9 +273,8 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
             )
         });
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -378,9 +375,8 @@ fn bench_server_key_unary_function_clean_inputs<F>(
             }
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -450,9 +446,8 @@ fn bench_server_key_binary_scalar_function_dirty_inputs<F, G>(
             )
         });
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -570,9 +565,8 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
             }
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -711,9 +705,8 @@ fn if_then_else_parallelized(c: &mut Criterion) {
             }
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -821,9 +814,8 @@ fn flip_parallelized(c: &mut Criterion) {
             }
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -945,9 +937,8 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
                 }
             }
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &bench_id,
-                param,
                 param.name(),
                 display_name,
                 &OperatorType::Atomic,
@@ -1656,9 +1647,8 @@ mod cuda {
                 }
             }
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &bench_id,
-                param,
                 param.name(),
                 display_name,
                 &OperatorType::Atomic,
@@ -1800,9 +1790,8 @@ mod cuda {
                 }
             }
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &bench_id,
-                param,
                 param.name(),
                 display_name,
                 &OperatorType::Atomic,
@@ -1939,9 +1928,8 @@ mod cuda {
                 }
             }
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &bench_id,
-                param,
                 param.name(),
                 display_name,
                 &OperatorType::Atomic,
@@ -2091,9 +2079,8 @@ mod cuda {
                 }
             }
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &bench_id,
-                param,
                 param.name(),
                 "if_then_else",
                 &OperatorType::Atomic,
@@ -2960,9 +2947,8 @@ mod cuda {
                     )
                 });
 
-                write_to_json_unchecked::<u64, _>(
+                write_to_json_unchecked(
                     &bench_id,
-                    param,
                     param.name(),
                     display_name,
                     &OperatorType::Atomic,
@@ -3171,9 +3157,8 @@ mod hpu {
                 }
             }
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &bench_id,
-                param,
                 param.name(),
                 display_name,
                 &OperatorType::Atomic,
@@ -3772,9 +3757,8 @@ fn bench_server_key_cast_function<F>(
                 )
             });
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &bench_id,
-                param,
                 param.name(),
                 display_name,
                 &OperatorType::Atomic,
