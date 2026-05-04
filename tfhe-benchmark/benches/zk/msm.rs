@@ -19,7 +19,7 @@
 //! cargo bench --package tfhe-benchmark --bench zk-msm --features gpu-experimental-zk
 //! ```
 
-use benchmark::utilities::{write_to_json_unchecked, CryptoParametersRecord, OperatorType};
+use benchmark::utilities::{write_to_json_unchecked, OperatorType};
 use benchmark_spec::{get_bench_type, BenchmarkType};
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion, Throughput};
 use rand::rngs::StdRng;
@@ -192,11 +192,8 @@ fn bench_cpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
             }
         }
 
-        // MSM benchmarks are curve operations, use minimal parameters
-        let params: CryptoParametersRecord<u64> = CryptoParametersRecord::default();
         write_to_json_unchecked(
             &bench_id,
-            params,
             T::DISPLAY_NAME,
             &bench_shortname,
             &OperatorType::Atomic,
@@ -268,10 +265,8 @@ fn bench_gpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
             }
         }
 
-        let params: CryptoParametersRecord<u64> = CryptoParametersRecord::default();
         write_to_json_unchecked(
             &bench_id,
-            params,
             format!("{}_CUDA", T::DISPLAY_NAME),
             &bench_shortname,
             &OperatorType::Atomic,

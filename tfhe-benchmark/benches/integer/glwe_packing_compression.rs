@@ -177,9 +177,8 @@ fn cpu_glwe_packing(c: &mut Criterion) {
             }
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id_pack,
-            (comp_param, param.into()),
             comp_param.name(),
             "pack",
             &OperatorType::Atomic,
@@ -187,9 +186,8 @@ fn cpu_glwe_packing(c: &mut Criterion) {
             vec![param.message_modulus.0.ilog2(); num_blocks],
         );
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id_unpack,
-            (comp_param, param.into()),
             comp_param.name(),
             "unpack",
             &OperatorType::Atomic,
@@ -333,9 +331,8 @@ mod cuda {
             }
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id_pack,
-            (comp_param, param),
             comp_param.name(),
             "pack",
             &OperatorType::Atomic,
@@ -496,9 +493,8 @@ mod cuda {
             }
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id_unpack,
-            (comp_param, param),
             comp_param.name(),
             "unpack",
             &OperatorType::Atomic,
