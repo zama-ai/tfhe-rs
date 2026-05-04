@@ -7,7 +7,147 @@ use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, Distribu
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use itertools::Itertools;
 use rayon::prelude::*;
+
+/// Encrypt the GGSW ciphertexts for a single multi-bit bootstrap key group.
+///
+/// A group corresponds to `grouping_factor` consecutive LWE key bits and contains
+/// `grouping_factor.ggsw_per_multi_bit_element()` GGSW ciphertexts, one per possible
+/// bit combination.
+///
+/// You probably don't want to use this function directly. Use
+/// [`generate_lwe_multi_bit_bootstrap_key`] instead.
+pub fn encrypt_lwe_multi_bit_ggsw_group<Scalar, NoiseDistribution, OutputKeyCont, OutputCont, Gen>(
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
+    ggsw_group: &mut GgswCiphertextList<OutputCont>,
+    input_key_elements: &[Scalar],
+    noise_distribution: NoiseDistribution,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: Encryptable<Uniform, NoiseDistribution> + CastFrom<usize>,
+    NoiseDistribution: Distribution,
+    OutputKeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert_eq!(
+        ggsw_group.ggsw_ciphertext_count().0,
+        1 << input_key_elements.len(),
+        "ggsw_group must contain 2^grouping_factor GGSWs: expected {}, got {}",
+        1 << input_key_elements.len(),
+        ggsw_group.ggsw_ciphertext_count().0,
+    );
+    assert_eq!(
+        ggsw_group.glwe_size(),
+        output_glwe_secret_key.glwe_dimension().to_glwe_size(),
+        "Mismatched GlweSize between output GLWE secret key and GGSW group. \
+        Output GLWE secret key GlweSize: {:?}, GGSW group GlweSize {:?}.",
+        output_glwe_secret_key.glwe_dimension().to_glwe_size(),
+        ggsw_group.glwe_size(),
+    );
+    assert_eq!(
+        ggsw_group.polynomial_size(),
+        output_glwe_secret_key.polynomial_size(),
+        "Mismatched PolynomialSize between output GLWE secret key and GGSW group. \
+        Output GLWE secret key PolynomialSize: {:?}, GGSW group PolynomialSize {:?}.",
+        output_glwe_secret_key.polynomial_size(),
+        ggsw_group.polynomial_size(),
+    );
+
+    let group_forking_config = ggsw_group.encryption_fork_config(Uniform, noise_distribution);
+
+    let gen_iter = generator
+        .try_fork_from_config(group_forking_config)
+        .unwrap();
+
+    for ((bit_inversion_idx, mut ggsw), mut inner_loop_generator) in
+        ggsw_group.iter_mut().enumerate().zip(gen_iter)
+    {
+        // Use the index of the ggsw as a way to know which bit to invert
+        let key_bits_plaintext = combine_key_bits(bit_inversion_idx, input_key_elements);
+
+        encrypt_constant_ggsw_ciphertext(
+            output_glwe_secret_key,
+            &mut ggsw,
+            Cleartext(key_bits_plaintext),
+            noise_distribution,
+            &mut inner_loop_generator,
+        );
+    }
+}
+
+/// Parallel variant of [`encrypt_lwe_multi_bit_ggsw_group`].
+pub fn par_encrypt_lwe_multi_bit_ggsw_group<
+    InputScalar,
+    OutputScalar,
+    NoiseDistribution,
+    OutputKeyCont,
+    OutputCont,
+    Gen,
+>(
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
+    ggsw_group: &mut GgswCiphertextList<OutputCont>,
+    input_key_elements: &[InputScalar],
+    noise_distribution: NoiseDistribution,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    InputScalar: UnsignedInteger + CastFrom<usize> + CastInto<OutputScalar> + Sync,
+    OutputScalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
+    NoiseDistribution: Distribution + Sync,
+    OutputKeyCont: Container<Element = OutputScalar> + Sync,
+    OutputCont: ContainerMut<Element = OutputScalar>,
+    Gen: ParallelByteRandomGenerator,
+{
+    assert_eq!(
+        ggsw_group.ggsw_ciphertext_count().0,
+        1 << input_key_elements.len(),
+        "ggsw_group must contain 2^grouping_factor GGSWs: expected {}, got {}",
+        1 << input_key_elements.len(),
+        ggsw_group.ggsw_ciphertext_count().0,
+    );
+    assert_eq!(
+        ggsw_group.glwe_size(),
+        output_glwe_secret_key.glwe_dimension().to_glwe_size(),
+        "Mismatched GlweSize between output GLWE secret key and GGSW group. \
+        Output GLWE secret key GlweSize: {:?}, GGSW group GlweSize {:?}.",
+        output_glwe_secret_key.glwe_dimension().to_glwe_size(),
+        ggsw_group.glwe_size(),
+    );
+    assert_eq!(
+        ggsw_group.polynomial_size(),
+        output_glwe_secret_key.polynomial_size(),
+        "Mismatched PolynomialSize between output GLWE secret key and GGSW group. \
+        Output GLWE secret key PolynomialSize: {:?}, GGSW group PolynomialSize {:?}.",
+        output_glwe_secret_key.polynomial_size(),
+        ggsw_group.polynomial_size(),
+    );
+
+    let group_forking_config = ggsw_group.encryption_fork_config(Uniform, noise_distribution);
+
+    let gen_iter = generator
+        .par_try_fork_from_config(group_forking_config)
+        .unwrap();
+
+    ggsw_group
+        .par_iter_mut()
+        .enumerate()
+        .zip(gen_iter)
+        .for_each(
+            |((bit_inversion_idx, mut ggsw), mut inner_loop_generator)| {
+                // Use the index of the ggsw as a way to know which bit to invert
+                let key_bits_plaintext = combine_key_bits(bit_inversion_idx, input_key_elements);
+
+                par_encrypt_constant_ggsw_ciphertext(
+                    output_glwe_secret_key,
+                    &mut ggsw,
+                    Cleartext(key_bits_plaintext.cast_into()),
+                    noise_distribution,
+                    &mut inner_loop_generator,
+                );
+            },
+        );
+}
 
 /// ```rust
 /// use tfhe::core_crypto::prelude::*;
@@ -137,32 +277,20 @@ pub fn generate_lwe_multi_bit_bootstrap_key<
 
     for ((mut ggsw_group, input_key_elements), mut loop_generator) in output
         .chunks_exact_mut(ggsw_per_multi_bit_element.0)
-        .zip(
+        .zip_eq(
             input_lwe_secret_key
                 .as_ref()
                 .chunks_exact(output_grouping_factor.0),
         )
-        .zip(gen_iter)
+        .zip_eq(gen_iter)
     {
-        let group_forking_config = ggsw_group.encryption_fork_config(Uniform, noise_distribution);
-
-        let gen_iter = loop_generator
-            .try_fork_from_config(group_forking_config)
-            .unwrap();
-        for ((bit_inversion_idx, mut ggsw), mut inner_loop_generator) in
-            ggsw_group.iter_mut().enumerate().zip(gen_iter)
-        {
-            // Use the index of the ggsw as a way to know which bit to invert
-            let key_bits_plaintext = combine_key_bits(bit_inversion_idx, input_key_elements);
-
-            encrypt_constant_ggsw_ciphertext(
-                output_glwe_secret_key,
-                &mut ggsw,
-                Cleartext(key_bits_plaintext),
-                noise_distribution,
-                &mut inner_loop_generator,
-            );
-        }
+        encrypt_lwe_multi_bit_ggsw_group(
+            output_glwe_secret_key,
+            &mut ggsw_group,
+            input_key_elements,
+            noise_distribution,
+            &mut loop_generator,
+        );
     }
 }
 
@@ -354,40 +482,21 @@ pub fn par_generate_lwe_multi_bit_bootstrap_key<
 
     output
         .par_chunks_exact_mut(ggsw_per_multi_bit_element.0)
-        .zip(
+        .zip_eq(
             input_lwe_secret_key
                 .as_ref()
                 .par_chunks_exact(output_grouping_factor.0),
         )
-        .zip(gen_iter)
+        .zip_eq(gen_iter)
         .for_each(
             |((mut ggsw_group, input_key_elements), mut loop_generator)| {
-                let group_forking_config =
-                    ggsw_group.encryption_fork_config(Uniform, noise_distribution);
-
-                let gen_iter = loop_generator
-                    .par_try_fork_from_config(group_forking_config)
-                    .unwrap();
-
-                ggsw_group
-                    .par_iter_mut()
-                    .enumerate()
-                    .zip(gen_iter)
-                    .for_each(
-                        |((bit_inversion_idx, mut ggsw), mut inner_loop_generator)| {
-                            // Use the index of the ggsw as a way to know which bit to invert
-                            let key_bits_plaintext =
-                                combine_key_bits(bit_inversion_idx, input_key_elements);
-
-                            par_encrypt_constant_ggsw_ciphertext(
-                                output_glwe_secret_key,
-                                &mut ggsw,
-                                Cleartext(key_bits_plaintext.cast_into()),
-                                noise_distribution,
-                                &mut inner_loop_generator,
-                            );
-                        },
-                    );
+                par_encrypt_lwe_multi_bit_ggsw_group(
+                    output_glwe_secret_key,
+                    &mut ggsw_group,
+                    input_key_elements,
+                    noise_distribution,
+                    &mut loop_generator,
+                );
             },
         );
 }
