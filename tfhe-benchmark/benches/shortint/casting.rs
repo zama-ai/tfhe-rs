@@ -45,9 +45,8 @@ pub fn pack_cast_64(c: &mut Criterion) {
         });
     });
 
-    write_to_json_unchecked::<u64, _>(
+    write_to_json_unchecked(
         &bench_id,
-        ks_param,
         ks_param_name,
         "pack_cast_64",
         &OperatorType::Atomic,
@@ -86,9 +85,8 @@ pub fn pack_cast(c: &mut Criterion) {
         });
     });
 
-    write_to_json_unchecked::<u64, _>(
+    write_to_json_unchecked(
         &bench_id,
-        ks_param,
         ks_param_name,
         "pack_cast",
         &OperatorType::Atomic,
@@ -124,9 +122,8 @@ pub fn cast(c: &mut Criterion) {
         });
     });
 
-    write_to_json_unchecked::<u64, _>(
+    write_to_json_unchecked(
         &bench_id,
-        ks_param,
         ks_param_name,
         "cast",
         &OperatorType::Atomic,

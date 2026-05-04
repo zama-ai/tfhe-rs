@@ -69,9 +69,8 @@ pub mod cuda {
                 })
             });
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &init_bench_id,
-                atomic_param,
                 param_name.clone(),
                 "trivium_init",
                 &OperatorType::Atomic,
@@ -91,9 +90,8 @@ pub mod cuda {
                     })
                 });
 
-                write_to_json_unchecked::<u64, _>(
+                write_to_json_unchecked(
                     &next_bench_id,
-                    atomic_param,
                     param_name.clone(),
                     &format!("trivium_next_{}_bits", num_steps),
                     &OperatorType::Atomic,
@@ -113,9 +111,8 @@ pub mod cuda {
                     })
                 });
 
-                write_to_json_unchecked::<u64, _>(
+                write_to_json_unchecked(
                     &gen_bench_id,
-                    atomic_param,
                     param_name.clone(),
                     &format!("trivium_generation_{}_bits", num_steps),
                     &OperatorType::Atomic,

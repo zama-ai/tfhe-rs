@@ -76,7 +76,7 @@ jobs:
 
       - name: Parse results
         run: |
-          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
+          cargo run --release -p tfhe-benchmark-parser -- target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --hardware "rtx4090" \
           --backend gpu \
@@ -160,7 +160,7 @@ jobs:
 
       - name: Parse results
         run: |
-          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
+          cargo run --release -p tfhe-benchmark-parser -- target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --hardware "rtx4090" \
           --backend gpu \

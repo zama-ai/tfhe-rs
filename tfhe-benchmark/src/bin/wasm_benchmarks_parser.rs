@@ -55,9 +55,8 @@ pub fn parse_wasm_benchmarks(results_file: &Path, raw_results_file: &Path) {
             benchmark_test_result.write_result(&prefixed_full_name, value_in_ns);
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &prefixed_full_name,
-            params,
             params.name(),
             bench_name,
             &operator,
