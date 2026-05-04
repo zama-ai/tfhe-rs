@@ -224,9 +224,8 @@ where
         (bench_spec_update, "update"),
         (bench_spec_map, "map"),
     ] {
-        write_to_json::<u64, _, _>(
+        write_to_json(
             &bench_spec,
-            param,
             display_name,
             &OperatorType::Atomic,
             Key::BITS as u32,
