@@ -149,28 +149,13 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, Outp
             cleartext,
         );
 
-        // We iterate over the rows of the level matrix, the last row needs special treatment
-        let gen_iter = generator
-            .try_fork_from_config(level_matrix.encryption_fork_config(Uniform, noise_distribution))
-            .expect("Failed to split generator into glwe");
-
-        let last_row_index = level_matrix.glwe_size().0 - 1;
-
-        for ((row_index, mut row_as_glwe), mut generator) in level_matrix
-            .as_mut_glwe_list()
-            .iter_mut()
-            .enumerate()
-            .zip(gen_iter)
-        {
-            encrypt_constant_ggsw_level_matrix_row(
-                glwe_secret_key,
-                (row_index, last_row_index),
-                factor,
-                &mut row_as_glwe,
-                noise_distribution,
-                &mut generator,
-            );
-        }
+        encrypt_constant_ggsw_level_matrix(
+            glwe_secret_key,
+            &mut level_matrix,
+            factor,
+            noise_distribution,
+            &mut generator,
+        );
     }
 }
 
@@ -281,32 +266,90 @@ pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, 
                 cleartext,
             );
 
-            // We iterate over the rows of the level matrix, the last row needs special treatment
-            let gen_iter = generator
-                .par_try_fork_from_config(
-                    level_matrix.encryption_fork_config(Uniform, noise_distribution),
-                )
-                .expect("Failed to split generator into glwe");
-
-            let last_row_index = level_matrix.glwe_size().0 - 1;
-
-            level_matrix
-                .as_mut_glwe_list()
-                .par_iter_mut()
-                .enumerate()
-                .zip(gen_iter)
-                .for_each(|((row_index, mut row_as_glwe), mut generator)| {
-                    encrypt_constant_ggsw_level_matrix_row(
-                        glwe_secret_key,
-                        (row_index, last_row_index),
-                        factor,
-                        &mut row_as_glwe,
-                        noise_distribution,
-                        &mut generator,
-                    );
-                });
+            par_encrypt_constant_ggsw_level_matrix(
+                glwe_secret_key,
+                &mut level_matrix,
+                factor,
+                noise_distribution,
+                &mut generator,
+            );
         },
     );
+}
+
+pub fn encrypt_constant_ggsw_level_matrix<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    level_matrix: &mut GgswLevelMatrix<OutputCont>,
+    factor: Scalar,
+    noise_distribution: NoiseDistribution,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
+    KeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    // We iterate over the rows of the level matrix, the last row needs special treatment
+    let gen_iter = generator
+        .try_fork_from_config(level_matrix.encryption_fork_config(Uniform, noise_distribution))
+        .expect("Failed to split generator into glwe");
+
+    let last_row_index = level_matrix.glwe_size().0 - 1;
+
+    for ((row_index, mut row_as_glwe), mut generator) in level_matrix
+        .as_mut_glwe_list()
+        .iter_mut()
+        .enumerate()
+        .zip(gen_iter)
+    {
+        encrypt_constant_ggsw_level_matrix_row(
+            glwe_secret_key,
+            (row_index, last_row_index),
+            factor,
+            &mut row_as_glwe,
+            noise_distribution,
+            &mut generator,
+        );
+    }
+}
+
+/// Parallel variant of [`encrypt_constant_ggsw_level_matrix`].
+fn par_encrypt_constant_ggsw_level_matrix<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    level_matrix: &mut GgswLevelMatrix<OutputCont>,
+    factor: Scalar,
+    noise_distribution: NoiseDistribution,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
+    NoiseDistribution: Distribution + Sync,
+    KeyCont: Container<Element = Scalar> + Sync,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ParallelByteRandomGenerator,
+{
+    // We iterate over the rows of the level matrix, the last row needs special treatment
+    let gen_iter = generator
+        .par_try_fork_from_config(level_matrix.encryption_fork_config(Uniform, noise_distribution))
+        .expect("Failed to split generator into glwe");
+
+    let last_row_index = level_matrix.glwe_size().0 - 1;
+
+    level_matrix
+        .as_mut_glwe_list()
+        .par_iter_mut()
+        .enumerate()
+        .zip(gen_iter)
+        .for_each(|((row_index, mut row_as_glwe), mut generator)| {
+            encrypt_constant_ggsw_level_matrix_row(
+                glwe_secret_key,
+                (row_index, last_row_index),
+                factor,
+                &mut row_as_glwe,
+                noise_distribution,
+                &mut generator,
+            );
+        });
 }
 
 /// Convenience function to encrypt a row of a [`GgswLevelMatrix`] irrespective of the current row

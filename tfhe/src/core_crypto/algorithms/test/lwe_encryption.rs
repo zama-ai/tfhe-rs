@@ -2,6 +2,7 @@ use super::*;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 #[cfg(feature = "zk-pok")]
 use crate::core_crypto::commons::math::random::RandomGenerator;
+use crate::core_crypto::commons::math::random::Uniform;
 use crate::core_crypto::commons::test_tools;
 #[cfg(feature = "zk-pok")]
 use rand::Rng;
@@ -1334,4 +1335,64 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
 
         assert_eq!(ser_lwe_ct_list, par_lwe_ct_list);
     }
+}
+
+/// Verify that a generator forked for one [`LweCiphertextList`] entry via
+/// [`lwe_ciphertext_list_encryption_fork_config`] is fully exhausted after the encryption call.
+///
+/// Uses `LweCiphertextCount(2)` so the fork produces two children (one per ciphertext); we take
+/// the first and pass it to [`encrypt_lwe_ciphertext`], which directly consumes one LWE
+/// ciphertext's randomness.
+///
+/// Uses a TUniform noise distribution which has `single_sample_success_probability == 1.0`,
+/// making byte consumption deterministic and exhaustion guaranteed.
+#[test]
+fn lwe_ciphertext_list_encryption_fork_config_exhaustion() {
+    let lwe_noise_distribution = DynamicDistribution::new_t_uniform(30);
+    let ciphertext_modulus = CiphertextModulus::<u64>::new_native();
+    let lwe_dimension = LweDimension(10);
+    let lwe_ciphertext_count = LweCiphertextCount(2);
+
+    let mut rsc = TestResources::new();
+
+    let lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+        lwe_dimension,
+        &mut rsc.secret_random_generator,
+    );
+
+    let mut lwe = LweCiphertext::new(0u64, lwe_dimension.to_lwe_size(), ciphertext_modulus);
+
+    let fork_config = lwe_ciphertext_list_encryption_fork_config(
+        lwe_ciphertext_count,
+        lwe_dimension,
+        Uniform,
+        lwe_noise_distribution,
+        ciphertext_modulus,
+    );
+
+    let mut child = rsc
+        .encryption_random_generator
+        .try_fork_from_config(fork_config)
+        .expect("Failed to fork generator")
+        .next()
+        .expect("Expected at least one child generator");
+
+    encrypt_lwe_ciphertext(
+        &lwe_secret_key,
+        &mut lwe,
+        Plaintext(0u64),
+        lwe_noise_distribution,
+        &mut child,
+    );
+
+    assert_eq!(
+        child.remaining_bytes(),
+        Some(0),
+        "Mask generator should be exhausted after LWE ciphertext list encryption"
+    );
+    assert_eq!(
+        child.noise_generator_mut().remaining_bytes(),
+        Some(0),
+        "Noise generator should be exhausted after LWE ciphertext list encryption"
+    );
 }

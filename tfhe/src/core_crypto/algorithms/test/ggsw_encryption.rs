@@ -1,6 +1,7 @@
 use super::*;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
-use crate::core_crypto::commons::math::random::CompressionSeed;
+use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
+use crate::core_crypto::commons::math::random::{CompressionSeed, Uniform};
 use crate::core_crypto::commons::test_tools;
 
 #[cfg(not(tarpaulin))]
@@ -450,3 +451,210 @@ fn ggsw_seeded_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Sen
 }
 
 create_parameterized_test!(ggsw_seeded_par_encrypt_decrypt_custom_mod);
+
+/// Verify that a generator forked for one [`GgswCiphertext`] via
+/// [`ggsw_ciphertext_list_encryption_fork_config`] is fully exhausted after the encryption call.
+///
+/// Uses `GgswCiphertextCount(2)` so the fork produces two children (one per GGSW ciphertext); we
+/// take the first and pass it to [`encrypt_constant_ggsw_ciphertext`], which directly consumes one
+/// GGSW ciphertext's randomness.
+///
+/// Uses a TUniform noise distribution which has `single_sample_success_probability == 1.0`,
+/// making byte consumption deterministic and exhaustion guaranteed.
+#[test]
+fn ggsw_ciphertext_list_encryption_fork_config_exhaustion() {
+    let glwe_noise_distribution = DynamicDistribution::new_t_uniform(30);
+    let ciphertext_modulus = CiphertextModulus::<u64>::new_native();
+    let glwe_size = GlweSize(2);
+    let polynomial_size = PolynomialSize(512);
+    let decomp_base_log = DecompositionBaseLog(8);
+    let decomp_level_count = DecompositionLevelCount(2);
+    let ggsw_ciphertext_count = GgswCiphertextCount(2);
+
+    let mut rsc = TestResources::new();
+
+    let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+        glwe_size.to_glwe_dimension(),
+        polynomial_size,
+        &mut rsc.secret_random_generator,
+    );
+
+    let mut ggsw = GgswCiphertext::new(
+        0u64,
+        glwe_size,
+        polynomial_size,
+        decomp_base_log,
+        decomp_level_count,
+        ciphertext_modulus,
+    );
+
+    let fork_config = ggsw_ciphertext_list_encryption_fork_config(
+        ggsw_ciphertext_count,
+        glwe_size,
+        polynomial_size,
+        decomp_level_count,
+        Uniform,
+        glwe_noise_distribution,
+        ciphertext_modulus,
+    );
+
+    let mut child = rsc
+        .encryption_random_generator
+        .try_fork_from_config(fork_config)
+        .expect("Failed to fork generator")
+        .next()
+        .expect("Expected at least one child generator");
+
+    encrypt_constant_ggsw_ciphertext(
+        &glwe_secret_key,
+        &mut ggsw,
+        Cleartext(0u64),
+        glwe_noise_distribution,
+        &mut child,
+    );
+
+    assert_eq!(
+        child.remaining_bytes(),
+        Some(0),
+        "Mask generator should be exhausted after GGSW ciphertext encryption"
+    );
+    assert_eq!(
+        child.noise_generator_mut().remaining_bytes(),
+        Some(0),
+        "Noise generator should be exhausted after GGSW ciphertext encryption"
+    );
+}
+
+/// Verify that a generator forked for one GGSW level matrix via
+/// [`ggsw_ciphertext_encryption_fork_config`] is fully exhausted after the encryption call.
+///
+/// Uses `DecompositionLevelCount(2)` so the fork produces two children (one per level matrix); we
+/// take the first and pass it to [`encrypt_constant_ggsw_level_matrix`], which directly consumes
+/// one level matrix's randomness.
+///
+/// Uses a TUniform noise distribution which has `single_sample_success_probability == 1.0`,
+/// making byte consumption deterministic and exhaustion guaranteed.
+#[test]
+fn ggsw_ciphertext_encryption_fork_config_exhaustion() {
+    let glwe_noise_distribution = DynamicDistribution::new_t_uniform(30);
+    let ciphertext_modulus = CiphertextModulus::<u64>::new_native();
+    let glwe_size = GlweSize(2);
+    let polynomial_size = PolynomialSize(512);
+    let decomp_base_log = DecompositionBaseLog(8);
+    let decomp_level_count = DecompositionLevelCount(2);
+
+    let mut rsc = TestResources::new();
+
+    let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+        glwe_size.to_glwe_dimension(),
+        polynomial_size,
+        &mut rsc.secret_random_generator,
+    );
+
+    let mut level_matrix =
+        GgswLevelMatrix::new(0u64, glwe_size, polynomial_size, ciphertext_modulus);
+
+    let fork_config = ggsw_ciphertext_encryption_fork_config(
+        glwe_size,
+        polynomial_size,
+        decomp_level_count,
+        Uniform,
+        glwe_noise_distribution,
+        ciphertext_modulus,
+    );
+
+    let mut child = rsc
+        .encryption_random_generator
+        .try_fork_from_config(fork_config)
+        .expect("Failed to fork generator")
+        .next()
+        .expect("Expected at least one child generator");
+
+    let factor = ggsw_encryption_multiplicative_factor(
+        ciphertext_modulus,
+        DecompositionLevel(decomp_level_count.0),
+        decomp_base_log,
+        Cleartext(0u64),
+    );
+
+    encrypt_constant_ggsw_level_matrix(
+        &glwe_secret_key,
+        &mut level_matrix,
+        factor,
+        glwe_noise_distribution,
+        &mut child,
+    );
+
+    assert_eq!(
+        child.remaining_bytes(),
+        Some(0),
+        "Mask generator should be exhausted after GGSW level matrix encryption"
+    );
+    assert_eq!(
+        child.noise_generator_mut().remaining_bytes(),
+        Some(0),
+        "Noise generator should be exhausted after GGSW level matrix encryption"
+    );
+}
+
+/// Verify that a generator forked for one GLWE ciphertext (one row of a GGSW level matrix) via
+/// [`ggsw_level_matrix_encryption_fork_config`] is fully exhausted after the encryption call.
+///
+/// Uses `GlweSize(2)` so the fork produces two children (one per row); we take the first and
+/// pass it to [`encrypt_glwe_ciphertext`], which directly consumes one GLWE row's randomness.
+///
+/// Uses a TUniform noise distribution which has `single_sample_success_probability == 1.0`,
+/// making byte consumption deterministic and exhaustion guaranteed.
+#[test]
+fn ggsw_level_matrix_encryption_fork_config_exhaustion() {
+    let glwe_noise_distribution = DynamicDistribution::new_t_uniform(30);
+    let ciphertext_modulus = CiphertextModulus::<u64>::new_native();
+    let glwe_size = GlweSize(2);
+    let polynomial_size = PolynomialSize(512);
+
+    let mut rsc = TestResources::new();
+
+    let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+        glwe_size.to_glwe_dimension(),
+        polynomial_size,
+        &mut rsc.secret_random_generator,
+    );
+
+    let plaintexts = PlaintextList::new(0u64, PlaintextCount(polynomial_size.0));
+
+    let mut glwe = GlweCiphertext::new(0u64, glwe_size, polynomial_size, ciphertext_modulus);
+
+    let fork_config = ggsw_level_matrix_encryption_fork_config(
+        glwe_size,
+        polynomial_size,
+        Uniform,
+        glwe_noise_distribution,
+        ciphertext_modulus,
+    );
+
+    let mut child = rsc
+        .encryption_random_generator
+        .try_fork_from_config(fork_config)
+        .expect("Failed to fork generator")
+        .next()
+        .expect("Expected at least one child generator");
+
+    encrypt_glwe_ciphertext(
+        &glwe_secret_key,
+        &mut glwe,
+        &plaintexts,
+        glwe_noise_distribution,
+        &mut child,
+    );
+
+    assert_eq!(
+        child.remaining_bytes(),
+        Some(0),
+        "Mask generator should be exhausted after GLWE ciphertext encryption"
+    );
+    assert_eq!(
+        child.noise_generator_mut().remaining_bytes(),
+        Some(0),
+        "Noise generator should be exhausted after GLWE ciphertext encryption"
+    );
+}
