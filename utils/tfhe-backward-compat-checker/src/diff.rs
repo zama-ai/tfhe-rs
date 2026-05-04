@@ -378,10 +378,10 @@ impl Registry {
 
         let mut rename_map: HashMap<&str, &str> = HashMap::new();
         for ov in &old_enum.variants {
-            if let Some(nv) = new_enum.variants.iter().find(|nv| nv.index == ov.index) {
-                if ov.inner_type_def_path != nv.inner_type_def_path {
-                    rename_map.insert(&ov.inner_type_def_path, &nv.inner_type_def_path);
-                }
+            if let Some(nv) = new_enum.variants.iter().find(|nv| nv.index == ov.index)
+                && ov.inner_type_def_path != nv.inner_type_def_path
+            {
+                rename_map.insert(&ov.inner_type_def_path, &nv.inner_type_def_path);
             }
         }
 
