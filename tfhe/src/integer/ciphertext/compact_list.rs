@@ -47,17 +47,19 @@ fn unpack_and_sanitize(
     mut packed_blocks: Vec<Ciphertext>,
     sks: &ServerKey,
     infos: &[DataKind],
-) -> Vec<Ciphertext> {
+) -> Result<Vec<Ciphertext>, crate::Error> {
     let block_count: usize = infos
         .iter()
         .map(|x| x.num_blocks(sks.message_modulus()))
         .sum();
     let packed_block_count = block_count.div_ceil(2);
-    assert_eq!(
-        packed_block_count,
-        packed_blocks.len(),
-        "Internal error, invalid packed blocks count during unpacking of a compact ciphertext list."
-    );
+    if packed_block_count == 0 || packed_block_count != packed_blocks.len() {
+        return Err(crate::error!(
+            "Invalid packed blocks count during unpacking of a compact ciphertext list: \
+             expected {packed_block_count}, got {}",
+            packed_blocks.len()
+        ));
+    }
     let functions = IntegerUnpackingToShortintCastingModeHelper::new(
         sks.message_modulus(),
         sks.carry_modulus(),
@@ -80,7 +82,7 @@ fn unpack_and_sanitize(
         .zip(functions.par_iter())
         .for_each(|(block, lut)| sks.key.apply_lookup_table_assign(block, lut));
 
-    unpacked
+    Ok(unpacked)
 }
 
 /// This function sanitizes blocks depending on the data kind:
@@ -875,7 +877,7 @@ fn expansion_post_process(
             let expanded_blocks = expanded_list
                 .cast_and_sanitize_if_needed(ShortintCompactCiphertextListCastingMode::NoCasting)?;
             if is_packed {
-                Ok(unpack_and_sanitize(expanded_blocks, sks, info))
+                unpack_and_sanitize(expanded_blocks, sks, info)
             } else {
                 Ok(sanitize_blocks(expanded_blocks, sks, info))
             }
