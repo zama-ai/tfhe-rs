@@ -77,7 +77,7 @@ jobs:
 
       - name: Parse key and ciphertext sizes results
         run: |
-          python3 ./ci/benchmark_parser.py tfhe-benchmark/hlapi_ct_key_sizes.csv "${RESULTS_FILENAME}" \
+          cargo run --release -p tfhe-benchmark-parser -- tfhe-benchmark/hlapi_ct_key_sizes.csv "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --hardware "m6i.32xlarge" \
           --project-version "${COMMIT_HASH}" \
@@ -94,7 +94,7 @@ jobs:
 
       - name: Parse key sizes results
         run: |
-          python3 ./ci/benchmark_parser.py tfhe-benchmark/shortint_key_sizes.csv "${RESULTS_FILENAME}" \
+          cargo run --release -p tfhe-benchmark-parser -- tfhe-benchmark/shortint_key_sizes.csv "${RESULTS_FILENAME}" \
           --object-sizes \
           --append-results
 

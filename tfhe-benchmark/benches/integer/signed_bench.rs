@@ -117,9 +117,8 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
             }
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -218,9 +217,8 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
             }
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -304,9 +302,8 @@ fn bench_server_key_unary_function_clean_inputs<F>(
             }
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -401,9 +398,8 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
             }
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -943,9 +939,8 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
             }
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -1121,9 +1116,8 @@ fn signed_flip_parallelized(c: &mut Criterion) {
             }
         }
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -1476,9 +1470,8 @@ fn bench_server_key_signed_cast_function<F>(
                 )
             });
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &bench_id,
-                param,
                 param.name(),
                 display_name,
                 &OperatorType::Atomic,
@@ -1665,9 +1658,8 @@ mod cuda {
                 }
             }
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &bench_id,
-                param,
                 param.name(),
                 display_name,
                 &OperatorType::Atomic,
@@ -1803,9 +1795,8 @@ mod cuda {
                 }
             }
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &bench_id,
-                param,
                 param.name(),
                 display_name,
                 &OperatorType::Atomic,
@@ -1965,9 +1956,8 @@ mod cuda {
                 }
             }
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &bench_id,
-                param,
                 param.name(),
                 display_name,
                 &OperatorType::Atomic,
@@ -2142,9 +2132,8 @@ mod cuda {
                 }
             }
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &bench_id,
-                param,
                 param.name(),
                 display_name,
                 &OperatorType::Atomic,
@@ -2312,9 +2301,8 @@ mod cuda {
                 }
             }
 
-            write_to_json_unchecked::<u64, _>(
+            write_to_json_unchecked(
                 &bench_id,
-                param,
                 param.name(),
                 "if_then_else",
                 &OperatorType::Atomic,
@@ -3085,9 +3073,8 @@ mod cuda {
                     )
                 });
 
-                write_to_json_unchecked::<u64, _>(
+                write_to_json_unchecked(
                     &bench_id,
-                    param,
                     param.name(),
                     display_name,
                     &OperatorType::Atomic,

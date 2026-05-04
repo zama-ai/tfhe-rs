@@ -266,14 +266,7 @@ mod pbs_stats {
 
         benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _>(
-            &test_name,
-            params,
-            "pbs-count",
-            &OperatorType::Atomic,
-            0,
-            vec![],
-        );
+        write_to_json(&test_name, "pbs-count", &OperatorType::Atomic, 0, vec![]);
     }
     pub fn print_swap_request_finalize_pbs_counts<FheType, F>(
         client_key: &ClientKey,
@@ -316,14 +309,7 @@ mod pbs_stats {
 
         benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _>(
-            &test_name,
-            params,
-            "pbs-count",
-            &OperatorType::Atomic,
-            0,
-            vec![],
-        );
+        write_to_json(&test_name, "pbs-count", &OperatorType::Atomic, 0, vec![]);
     }
     pub fn print_swap_claim_prepare_pbs_counts<FheType, F>(
         client_key: &ClientKey,
@@ -376,14 +362,7 @@ mod pbs_stats {
 
         benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _>(
-            &test_name,
-            params,
-            "pbs-count",
-            &OperatorType::Atomic,
-            0,
-            vec![],
-        );
+        write_to_json(&test_name, "pbs-count", &OperatorType::Atomic, 0, vec![]);
     }
     pub fn print_swap_claim_update_dex_balance_pbs_counts<FheType, F>(
         client_key: &ClientKey,
@@ -432,14 +411,7 @@ mod pbs_stats {
 
         benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
-        write_to_json::<u64, _>(
-            &test_name,
-            params,
-            "pbs-count",
-            &OperatorType::Atomic,
-            0,
-            vec![],
-        );
+        write_to_json(&test_name, "pbs-count", &OperatorType::Atomic, 0, vec![]);
     }
 }
 
@@ -510,9 +482,8 @@ fn bench_swap_request_latency<FheType, F1, F2>(
         })
     });
 
-    write_to_json::<u64, _>(
+    write_to_json(
         &bench_spec,
-        params,
         "dex-swap-request",
         &OperatorType::Atomic,
         64,
@@ -633,9 +604,8 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
             })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json(
             &bench_spec,
-            params,
             "dex-swap-request",
             &OperatorType::Atomic,
             64,
@@ -850,9 +820,8 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
                                 })
         });
 
-        write_to_json::<u64, _>(
+        write_to_json(
             &bench_spec,
-            params,
             "dex-swap-request",
             &OperatorType::Atomic,
             64,
@@ -934,9 +903,8 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
         });
     });
 
-    write_to_json::<u64, _>(
+    write_to_json(
         &bench_spec,
-        params,
         "dex-swap-claim",
         &OperatorType::Atomic,
         64,
@@ -1075,9 +1043,8 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
             });
         });
 
-        write_to_json::<u64, _>(
+        write_to_json(
             &bench_spec,
-            params,
             "dex-swap-claim",
             &OperatorType::Atomic,
             64,
@@ -1287,9 +1254,8 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
             });
         });
 
-        write_to_json::<u64, _>(
+        write_to_json(
             &bench_spec,
-            params,
             "dex-swap-claim",
             &OperatorType::Atomic,
             64,

@@ -40,9 +40,8 @@ fn bench_server_key_unary_function<F>(
             })
         });
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            *param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -85,9 +84,8 @@ fn bench_server_key_binary_function<F>(
             })
         });
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            *param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -129,9 +127,8 @@ fn bench_server_key_binary_scalar_function<F>(
             })
         });
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            *param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -177,9 +174,8 @@ fn bench_server_key_binary_scalar_division_function<F>(
             })
         });
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            *param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
@@ -213,9 +209,8 @@ fn carry_extract_bench(c: &mut Criterion) {
             })
         });
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            *param,
             param.name(),
             "carry_extract",
             &OperatorType::Atomic,
@@ -252,9 +247,8 @@ fn programmable_bootstrapping_bench(c: &mut Criterion) {
             })
         });
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            *param,
             param.name(),
             "pbs",
             &OperatorType::Atomic,
@@ -301,9 +295,8 @@ fn server_key_from_compressed_key(c: &mut Criterion) {
             )
         });
 
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            *param,
             param.name(),
             "uncompress_key",
             &OperatorType::Atomic,

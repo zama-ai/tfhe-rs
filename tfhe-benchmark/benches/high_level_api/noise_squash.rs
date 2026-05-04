@@ -200,9 +200,8 @@ fn bench_sns_only_fhe_type<FheType>(
     }
     let params = client_key.computation_parameters();
 
-    write_to_json_unchecked::<u64, _>(
+    write_to_json_unchecked(
         &bench_id,
-        params,
         params.name(),
         "noise_squash",
         &OperatorType::Atomic,
@@ -409,9 +408,8 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
     }
     let params = client_key.computation_parameters();
 
-    write_to_json_unchecked::<u64, _>(
+    write_to_json_unchecked(
         &bench_id,
-        params,
         params.name(),
         "decomp_noise_squash_comp",
         &OperatorType::Atomic,
