@@ -203,6 +203,14 @@ zizmor_version:
 install_cargo_cross:
 	cargo install --locked cross
 
+.PHONY: install_linelint_ci # Install Linelint newline linter at repository root for CI pipeline
+install_linelint_ci:
+	wget -O linelint https://github.com/fernandrone/linelint/releases/download/0.0.6/linelint-linux-amd64
+	@echo "16b70fb7b471d6f95cbdc0b4e5dc2b0ac9e84ba9ecdc488f7bdf13df823aca4b linelint" > linelint_checksum && \
+	sha256sum -c linelint_checksum && \
+	rm linelint_checksum && \
+	chmod +x linelint
+
 .PHONY: setup_venv # Setup Python virtualenv for wasm tests
 setup_venv:
 	python3 -m venv venv
@@ -258,6 +266,11 @@ install_firefox_web_driver: install_web_resource
 check_linelint_installed:
 	@printf "\n" | linelint - > /dev/null 2>&1 || \
 	( echo "Unable to locate linelint. Try installing it: https://github.com/fernandrone/linelint/releases" && exit 1 )
+
+.PHONY: check_linelint_installed_ci # Check if linelint newline linter is installed for CI pipeline
+check_linelint_installed_ci:
+	@printf "\n" | ./linelint - > /dev/null 2>&1 || \
+	( echo "Unable to locate linelint. Run 'make install_linelint_ci'" && exit 1 )
 
 .PHONY: check_actionlint_installed # Check if actionlint workflow linter is installed
 check_actionlint_installed:
@@ -397,6 +410,10 @@ fix_newline: check_linelint_installed
 .PHONY: check_newline # Check for newline at end of file to be UNIX compliant
 check_newline: check_linelint_installed
 	linelint .
+
+.PHONY: check_newline_ci # Check for newline at end of file to be UNIX compliant
+check_newline_ci: check_linelint_installed_ci
+	./linelint .
 
 .PHONY: lint_workflow # Run static linter on GitHub workflows
 lint_workflow: check_actionlint_installed
