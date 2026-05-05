@@ -1010,7 +1010,8 @@ impl<C: Container<Element = c64> + Sync> OprfBootstrappingKey<C> {
         let bits_in_one_block = 1 + message_bits + carry_bits;
         assert!(
             random_bits_per_block <= bits_in_one_block,
-            "The number of random bits asked for (={random_bits_per_block}) is bigger than full_bits_count (={bits_in_one_block})"
+            "The number of random bits asked for (={random_bits_per_block}) \
+            is bigger than full_bits_count (={bits_in_one_block})"
         );
 
         let polynomial_size = self.polynomial_size();

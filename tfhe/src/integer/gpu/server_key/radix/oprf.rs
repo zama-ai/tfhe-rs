@@ -180,9 +180,10 @@ where
         let range_log_size = message_bits_count * num_blocks;
 
         assert!(
-                random_bits_count <= range_log_size,
-                "The range asked for a random value (=[0, 2^{random_bits_count}[) does not fit in the available range [0, 2^{range_log_size}[",
-            );
+            random_bits_count <= range_log_size,
+            "The range asked for a random value (=[0, 2^{random_bits_count}[) \
+            does not fit in the available range [0, 2^{range_log_size}[",
+        );
 
         self.generate_oblivious_pseudo_random_bounded_integer(
             seed,
@@ -290,14 +291,15 @@ where
         streams: &CudaStreams,
     ) -> CudaSignedRadixCiphertext {
         let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
-        let range_log_size = message_bits_count * num_blocks;
+        let range_bits_count = message_bits_count * num_blocks;
 
-        #[allow(clippy::int_plus_one)]
         {
+            let signed_range_bits_count = range_bits_count.saturating_sub(1);
             assert!(
-                random_bits_count + 1 <= range_log_size,
-                "The range asked for a random value (=[0, 2^{}[) does not fit in the available range [-2^{}, 2^{}[",
-                random_bits_count, range_log_size - 1, range_log_size - 1,
+                random_bits_count <= signed_range_bits_count,
+                "The range asked for a random value (=[0, 2^{random_bits_count}[) \
+                which does not fit in the available range \
+                [-2^{signed_range_bits_count}, 2^{signed_range_bits_count}[",
             );
         }
 
@@ -323,16 +325,13 @@ where
     where
         T: CudaIntegerRadixCiphertext,
     {
-        assert!(
-            1 << random_bits_count <= target_sks.message_modulus.0,
-            "The range asked for a random value (=[0, 2^{random_bits_count}[) does not fit in the available range [0, {}[",
-            target_sks.message_modulus.0
-        );
         let carry_bits_count = target_sks.carry_modulus.0.ilog2() as u64;
         let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
         assert!(
             random_bits_count <= carry_bits_count + message_bits_count,
-            "The number of random bits asked for (={random_bits_count}) is bigger than carry_bits_count (={carry_bits_count}) + message_bits_count(={message_bits_count})",
+            "The number of random bits asked for (={random_bits_count}) \
+            is bigger than carry_bits_count (={carry_bits_count}) \
+            + message_bits_count(={message_bits_count})",
         );
 
         self.generate_oblivious_pseudo_random_bounded_integer(
@@ -520,13 +519,15 @@ where
 
         assert!(
             !excluded_upper_bound.is_power_of_two(),
-            "Use the cheaper par_generate_oblivious_pseudo_random_unsigned_integer_bounded function instead"
+            "Use the cheaper par_generate_oblivious_pseudo_random_unsigned_integer_bounded \
+            function instead"
         );
 
         let num_bits_output = num_blocks_output * message_bits_count;
         assert!(
             (excluded_upper_bound as f64) < 2_f64.powi(num_bits_output as i32),
-            "num_blocks_output(={num_blocks_output}) is too small to hold an integer up to excluded_upper_bound(={excluded_upper_bound})"
+            "num_blocks_output(={num_blocks_output}) is too small to hold an integer \
+            up to excluded_upper_bound(={excluded_upper_bound})"
         );
 
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &target_sks.key_switching_key
