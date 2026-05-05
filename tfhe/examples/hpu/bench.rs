@@ -247,58 +247,55 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 // Otherwise, create inputs on first node only
                 &hpu_device.config().fpga.node_id[0..=0]
             };
-            let bench_inputs = (0..args.iter)
-                .map(|_| {
-                    hpu_nodes
+
+            let bench_inputs = hpu_nodes
+                .iter()
+                .map(|node| {
+                    let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
+                        .src
                         .iter()
-                        .map(|node| {
-                            let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
-                                .src
-                                .iter()
-                                .enumerate()
-                                .map(|(pos, mode)| {
-                                    let (bw, block) = match mode {
-                                        hpu_asm::iop::VarMode::Native => (*width, num_block),
-                                        hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
-                                        hpu_asm::iop::VarMode::Bool => (1, 1),
-                                    };
+                        .enumerate()
+                        .map(|(pos, mode)| {
+                            let (bw, block) = match mode {
+                                hpu_asm::iop::VarMode::Native => (*width, num_block),
+                                hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
+                                hpu_asm::iop::VarMode::Bool => (1, 1),
+                            };
 
-                                    let clear = *args.src.get(pos).unwrap_or(
-                                        &rng.gen_range(0..=u128::MAX >> (u128::BITS - (bw as u32))),
-                                    );
-                                    let fhe = if args.trivial {
-                                        sks.create_trivial_radix(clear, block)
-                                    } else {
-                                        cks.encrypt_radix(clear, block)
-                                    };
-                                    let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(
-                                        &fhe,
-                                        &hpu_device,
-                                        Some(hpu_asm::PhysId(*node)),
-                                    );
-                                    (clear, hpu_fhe)
-                                })
-                                .unzip();
-
-                            let imms =
-                                (0..proto.imm)
-                                    .map(|pos| {
-                                        *args.imm.get(pos).unwrap_or(&rng.gen_range(
-                                            0..u128::MAX >> (u128::BITS - (*width as u32)),
-                                        ))
-                                    })
-                                    .collect::<Vec<_>>();
-                            (srcs_clear, srcs_enc, imms)
+                            let clear = *args.src.get(pos).unwrap_or(
+                                &rng.gen_range(0..=u128::MAX >> (u128::BITS - (bw as u32))),
+                            );
+                            let fhe = if args.trivial {
+                                sks.create_trivial_radix(clear, block)
+                            } else {
+                                cks.encrypt_radix(clear, block)
+                            };
+                            let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(
+                                &fhe,
+                                &hpu_device,
+                                Some(hpu_asm::PhysId(*node)),
+                            );
+                            (clear, hpu_fhe)
                         })
-                        .collect::<Vec<_>>()
+                        .unzip();
+
+                    let imms = (0..proto.imm)
+                        .map(|pos| {
+                            *args.imm.get(pos).unwrap_or(
+                                &rng.gen_range(0..u128::MAX >> (u128::BITS - (*width as u32))),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    (srcs_clear, srcs_enc, imms)
                 })
                 .collect::<Vec<_>>();
 
+            println!("FheUint{width}:: Start test loop for IOp {iop} ...");
             let roi_start = Instant::now();
 
             let bench_res_hpu = (0..args.iter)
                 .filter_map(|i| {
-                    let bench_res = bench_inputs[i]
+                    let bench_res = bench_inputs
                         .iter()
                         .map(|(_, srcs_enc, imms)| {
                             HpuRadixCiphertext::exec(&proto, iop.opcode(), srcs_enc, imms, None)
@@ -340,7 +337,7 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 .collect::<Vec<_>>();
             println!("Integer_{width}b:: Execution report: {iop}");
             for (node, (res, inputs)) in
-                std::iter::zip(bench_res.iter(), bench_inputs[args.iter - 1].iter()).enumerate()
+                std::iter::zip(bench_res.iter(), bench_inputs.iter()).enumerate()
             {
                 let (srcs_clear, _, imms) = inputs;
                 println!(
