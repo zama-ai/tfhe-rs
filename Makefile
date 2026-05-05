@@ -2105,7 +2105,7 @@ bench_hlapi_noise_squash_gpu: install_rs_check_toolchain
 
 .PHONY: bench_hlapi_kvstore # Run benchmarks for Key-Value Store operations
 bench_hlapi_kvstore: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-kvstore \
 	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
