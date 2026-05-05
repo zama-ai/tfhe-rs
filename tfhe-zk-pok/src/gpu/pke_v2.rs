@@ -1078,6 +1078,10 @@ fn verify_impl(
         ref compute_load_proof_fields,
         hash_config,
     } = proof;
+    if !public.0.has_valid_params() {
+        return Err(());
+    }
+
     let hash_config = hash_config.into();
 
     let &PublicParams {
