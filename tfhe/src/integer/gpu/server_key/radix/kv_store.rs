@@ -17,7 +17,6 @@ use crate::integer::server_key::KVStore;
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::AtomicPatternKind;
-use itertools::Itertools;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::prelude::ParallelIterator;
 use std::collections::BTreeMap;
@@ -33,8 +32,7 @@ use tfhe_cuda_backend::cuda_bind::cuda_memcpy_async_gpu_to_gpu;
 /// using an encrypted key.
 ///
 ///
-/// To serialize a KVStore, convert to CPU with [CudaKVStore::to_kv_store] then compress
-#[derive(Clone)]
+/// To serialize a KVStore, convert to CPU with `CudaKVStore::to_kv_store` then compress
 pub struct CudaKVStore<Key, Ct> {
     data: BTreeMap<Key, Ct>,
     block_count: Option<NonZeroUsize>,
@@ -72,7 +70,7 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
 
     /// Returns the value stored for the key if any
     ///
-    /// Key is in clear, see [ServerKey::kv_store_get] if you wish to
+    /// Key is in clear, see [CudaServerKey::kv_store_get] if you wish to
     /// query using an encrypted key
     pub fn get(&self, key: &Key) -> Option<&Ct>
     where
@@ -83,7 +81,7 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
 
     /// Returns the value stored for the key if any
     ///
-    /// Key is in clear, see [ServerKey::kv_store_get] if you wish to
+    /// Key is in clear, see [CudaServerKey::kv_store_get] if you wish to
     /// query using an encrypted key
     pub fn get_mut(&mut self, key: &Key) -> Option<&mut Ct>
     where
@@ -152,6 +150,22 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
         self.data.is_empty()
     }
 
+    pub fn duplicate(&self, streams: &CudaStreams) -> Self
+    where
+        Key: Clone + Ord,
+        Ct: CudaIntegerRadixCiphertext,
+    {
+        let data = self
+            .data
+            .iter()
+            .map(|(k, v)| (k.clone(), v.duplicate(streams)))
+            .collect();
+        Self {
+            data,
+            block_count: self.block_count,
+        }
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = (&Key, &Ct)>
     where
         Key: Ord,
@@ -193,15 +207,15 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
     // on device memory
     fn to_vec(&self, streams: &CudaStreams) -> CudaRadixCiphertext
     where
-        Key: Clone + Ord,
+        Key: Ord,
         Ct: CudaIntegerRadixCiphertext + Send,
     {
-        let d_blocks = self
-            .iter()
-            .map(|(_, v)| v.as_ref().d_blocks.duplicate(streams))
-            .collect_vec();
-        let concatenated_d_blocks =
-            CudaLweCiphertextList::from_vec_cuda_lwe_ciphertexts_list(d_blocks.iter(), streams);
+        let d_blocks_refs: Vec<&CudaLweCiphertextList<u64>> =
+            self.iter().map(|(_, v)| &v.as_ref().d_blocks).collect();
+        let concatenated_d_blocks = CudaLweCiphertextList::from_vec_cuda_lwe_ciphertexts_list(
+            d_blocks_refs.iter().copied(),
+            streams,
+        );
         let concatenated_info = CudaRadixCiphertextInfo {
             blocks: self
                 .iter()
@@ -209,12 +223,11 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
                 .copied()
                 .collect(),
         };
-        let concatenated_values = CudaRadixCiphertext {
+
+        CudaRadixCiphertext {
             d_blocks: concatenated_d_blocks,
             info: concatenated_info,
-        };
-
-        concatenated_values
+        }
     }
 
     /// Scatters blocks from a concatenated `CudaRadixCiphertext` back into each value
@@ -260,7 +273,6 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
                 );
             }
 
-            // Update the info blocks from the concatenated output
             let info_start = idx * blocks_per_value;
             let info_end = info_start + blocks_per_value;
             value
@@ -273,10 +285,7 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
     }
 }
 
-impl<Key, Ct> Default for CudaKVStore<Key, Ct>
-where
-    Self: Sized,
-{
+impl<Key, Ct> Default for CudaKVStore<Key, Ct> {
     fn default() -> Self {
         Self::new()
     }

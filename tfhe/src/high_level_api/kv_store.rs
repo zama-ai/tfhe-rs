@@ -3,11 +3,15 @@ use tfhe_versionable::Versionize;
 
 use crate::backward_compatibility::kv_store::CompressedKVStoreVersions;
 use crate::high_level_api::global_state;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_cuda_internal_keys;
 use crate::high_level_api::integers::FheIntegerType;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::block_decomposition::{Decomposable, DecomposableInto};
 use crate::integer::ciphertext::{Compressible, Expandable};
+#[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
+#[cfg(feature = "gpu")]
 use crate::integer::gpu::server_key::radix::kv_store::CudaKVStore as IntegerGpuKVStore;
 use crate::integer::server_key::{
     CompressedKVStore as CompressedIntegerKVStore, KVStore as IntegerCpuKVStore,
@@ -23,6 +27,24 @@ where
     Cpu(IntegerCpuKVStore<Key, <T::Id as IntegerId>::InnerCpu>),
     #[cfg(feature = "gpu")]
     Cuda(IntegerGpuKVStore<Key, <T::Id as IntegerId>::InnerGpu>),
+}
+
+impl<Key, T> Clone for InnerKVStore<Key, T>
+where
+    Key: Clone + Ord,
+    T: FheIntegerType,
+    <T::Id as IntegerId>::InnerCpu: Clone,
+{
+    fn clone(&self) -> Self {
+        match self {
+            Self::Cpu(inner) => Self::Cpu(inner.clone()),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(inner) => with_cuda_internal_keys(|key| {
+                let streams = &key.streams;
+                Self::Cuda(inner.duplicate(streams))
+            }),
+        }
+    }
 }
 
 /// The KVStore is a specialized encrypted HashMap
@@ -49,6 +71,19 @@ where
     inner: InnerKVStore<Key, T>,
 }
 
+impl<Key, T> Clone for KVStore<Key, T>
+where
+    Key: Clone + Ord,
+    T: FheIntegerType,
+    <T::Id as IntegerId>::InnerCpu: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
 impl<Key, T> KVStore<Key, T>
 where
     T: FheIntegerType,
@@ -57,6 +92,7 @@ where
     pub fn new() -> Self {
         Self {
             inner: global_state::with_internal_keys(|server_key| match server_key {
+                #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(_) => InnerKVStore::Cuda(IntegerGpuKVStore::new()),
                 _ => {
                     // Includes CPU and HPU
@@ -70,6 +106,7 @@ where
     pub fn len(&self) -> usize {
         match &self.inner {
             InnerKVStore::Cpu(kvstore) => kvstore.len(),
+            #[cfg(feature = "gpu")]
             InnerKVStore::Cuda(kvstore) => kvstore.len(),
         }
     }
@@ -78,6 +115,7 @@ where
     pub fn is_empty(&self) -> bool {
         match &self.inner {
             InnerKVStore::Cpu(kvstore) => kvstore.is_empty(),
+            #[cfg(feature = "gpu")]
             InnerKVStore::Cuda(kvstore) => kvstore.is_empty(),
         }
     }

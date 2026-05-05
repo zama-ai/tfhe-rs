@@ -1665,7 +1665,6 @@ where
     }
 }
 
-//
 impl<'a, F>
     FunctionExecutor<
         (&'a KVStore<KeyType, RadixCiphertext>, &'a RadixCiphertext),
