@@ -35,13 +35,6 @@ impl_destroy_on_type!(CompressedServerKey);
 #[cfg(feature = "gpu")]
 impl_destroy_on_type!(CudaServerKey);
 
-impl_serialize_deserialize_on_type!(ClientKey);
-impl_serialize_deserialize_on_type!(PublicKey);
-impl_serialize_deserialize_on_type!(CompactPublicKey);
-impl_serialize_deserialize_on_type!(CompressedCompactPublicKey);
-impl_serialize_deserialize_on_type!(ServerKey);
-impl_serialize_deserialize_on_type!(CompressedServerKey);
-
 impl_safe_serialize_on_type!(ClientKey);
 impl_safe_serialize_on_type!(PublicKey);
 impl_safe_serialize_on_type!(CompactPublicKey);

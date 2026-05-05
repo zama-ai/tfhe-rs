@@ -93,20 +93,6 @@ impl TfheClientKey {
     }
 
     #[wasm_bindgen]
-    pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
-        catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
-    }
-
-    #[wasm_bindgen]
-    pub fn deserialize(buffer: &[u8]) -> Result<TfheClientKey, JsError> {
-        catch_panic_result(|| {
-            bincode::deserialize(buffer)
-                .map(Self)
-                .map_err(into_js_error)
-        })
-    }
-
-    #[wasm_bindgen]
     pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
         let mut buffer = vec![];
         catch_panic_result(|| {
@@ -142,20 +128,6 @@ impl TfheCompressedServerKey {
     #[wasm_bindgen]
     pub fn new(client_key: &TfheClientKey) -> Result<TfheCompressedServerKey, JsError> {
         catch_panic(|| Self(hlapi::CompressedServerKey::new(&client_key.0)))
-    }
-
-    #[wasm_bindgen]
-    pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
-        catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
-    }
-
-    #[wasm_bindgen]
-    pub fn deserialize(buffer: &[u8]) -> Result<TfheCompressedServerKey, JsError> {
-        catch_panic_result(|| {
-            bincode::deserialize(buffer)
-                .map(Self)
-                .map_err(into_js_error)
-        })
     }
 
     #[wasm_bindgen]
@@ -224,20 +196,6 @@ impl TfhePublicKey {
     }
 
     #[wasm_bindgen]
-    pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
-        catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
-    }
-
-    #[wasm_bindgen]
-    pub fn deserialize(buffer: &[u8]) -> Result<TfhePublicKey, JsError> {
-        catch_panic_result(|| {
-            bincode::deserialize(buffer)
-                .map(Self)
-                .map_err(into_js_error)
-        })
-    }
-
-    #[wasm_bindgen]
     pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
         let mut buffer = vec![];
         catch_panic_result(|| {
@@ -280,20 +238,6 @@ impl TfheCompressedPublicKey {
     }
 
     #[wasm_bindgen]
-    pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
-        catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
-    }
-
-    #[wasm_bindgen]
-    pub fn deserialize(buffer: &[u8]) -> Result<TfheCompressedPublicKey, JsError> {
-        catch_panic_result(|| {
-            bincode::deserialize(buffer)
-                .map(Self)
-                .map_err(into_js_error)
-        })
-    }
-
-    #[wasm_bindgen]
     pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
         let mut buffer = vec![];
         catch_panic_result(|| {
@@ -328,20 +272,6 @@ impl TfheCompactPublicKey {
     #[wasm_bindgen]
     pub fn new(client_key: &TfheClientKey) -> Result<TfheCompactPublicKey, JsError> {
         catch_panic(|| Self(hlapi::CompactPublicKey::new(&client_key.0)))
-    }
-
-    #[wasm_bindgen]
-    pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
-        catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
-    }
-
-    #[wasm_bindgen]
-    pub fn deserialize(buffer: &[u8]) -> Result<TfheCompactPublicKey, JsError> {
-        catch_panic_result(|| {
-            bincode::deserialize(buffer)
-                .map(Self)
-                .map_err(into_js_error)
-        })
     }
 
     #[wasm_bindgen]
@@ -393,20 +323,6 @@ impl TfheCompressedCompactPublicKey {
     #[wasm_bindgen]
     pub fn new(client_key: &TfheClientKey) -> Result<TfheCompressedCompactPublicKey, JsError> {
         catch_panic(|| Self(hlapi::CompressedCompactPublicKey::new(&client_key.0)))
-    }
-
-    #[wasm_bindgen]
-    pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
-        catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
-    }
-
-    #[wasm_bindgen]
-    pub fn deserialize(buffer: &[u8]) -> Result<TfheCompressedCompactPublicKey, JsError> {
-        catch_panic_result(|| {
-            bincode::deserialize(buffer)
-                .map(Self)
-                .map_err(into_js_error)
-        })
     }
 
     #[wasm_bindgen]

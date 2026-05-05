@@ -6,7 +6,6 @@ pub struct FheBool(pub(in crate::c_api) crate::high_level_api::FheBool);
 
 impl_destroy_on_type!(FheBool);
 impl_clone_on_type!(FheBool);
-impl_serialize_deserialize_on_type!(FheBool);
 impl_safe_serialize_on_type!(FheBool);
 impl_safe_deserialize_conformant_on_type!(FheBool, FheBoolConformanceParams);
 
@@ -44,7 +43,6 @@ pub struct CompressedFheBool(crate::high_level_api::CompressedFheBool);
 
 impl_destroy_on_type!(CompressedFheBool);
 impl_clone_on_type!(CompressedFheBool);
-impl_serialize_deserialize_on_type!(CompressedFheBool);
 impl_safe_serialize_on_type!(CompressedFheBool);
 impl_safe_deserialize_conformant_on_type!(CompressedFheBool, CompressedFheBoolConformanceParams);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheBool{crate::high_level_api::CompressedFheBool}, bool);
