@@ -5,7 +5,7 @@ use crate::c_api::high_level_api::integers::{
     FheUint160, FheUint2, FheUint256, FheUint32, FheUint4, FheUint6, FheUint64, FheUint8,
 };
 use crate::c_api::high_level_api::utils::{
-    impl_destroy_on_type, impl_serialize_deserialize_on_type,
+    impl_destroy_on_type, impl_safe_deserialize_on_type, impl_safe_serialize_on_type,
 };
 use crate::c_api::utils::{catch_panic, get_mut_checked, get_ref_checked};
 use crate::prelude::CiphertextList;
@@ -16,7 +16,8 @@ impl_destroy_on_type!(CompressedCiphertextListBuilder);
 
 pub struct CompressedCiphertextList(crate::high_level_api::CompressedCiphertextList);
 impl_destroy_on_type!(CompressedCiphertextList);
-impl_serialize_deserialize_on_type!(CompressedCiphertextList);
+impl_safe_serialize_on_type!(CompressedCiphertextList);
+impl_safe_deserialize_on_type!(CompressedCiphertextList);
 
 #[no_mangle]
 pub unsafe extern "C" fn compressed_ciphertext_list_builder_new(

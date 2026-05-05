@@ -10,11 +10,13 @@ use crate::c_api::high_level_api::keys::CompactPublicKey;
 use crate::c_api::high_level_api::u128::U128;
 use crate::c_api::high_level_api::u256::U256;
 use crate::c_api::high_level_api::utils::{
-    impl_destroy_on_type, impl_serialize_deserialize_on_type, CApiIntegerType,
+    impl_destroy_on_type, impl_safe_deserialize_on_type, impl_safe_serialize_on_type,
+    CApiIntegerType,
 };
 #[cfg(feature = "zk-pok")]
 use crate::c_api::high_level_api::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::c_api::utils::{catch_panic, get_mut_checked, get_ref_checked};
+use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::prelude::CiphertextList;
 use std::ffi::c_int;
 
@@ -23,14 +25,75 @@ impl_destroy_on_type!(CompactCiphertextListBuilder);
 
 pub struct CompactCiphertextList(crate::high_level_api::CompactCiphertextList);
 impl_destroy_on_type!(CompactCiphertextList);
-impl_serialize_deserialize_on_type!(CompactCiphertextList);
+impl_safe_serialize_on_type!(CompactCiphertextList);
+impl_safe_deserialize_on_type!(CompactCiphertextList);
+
+#[no_mangle]
+pub unsafe extern "C" fn compact_ciphertext_list_safe_deserialize_conformant(
+    buffer_view: crate::c_api::buffer::DynamicBufferView,
+    serialized_size_limit: u64,
+    public_key: *const CompactPublicKey,
+    expected_num_elements: usize,
+    result: *mut *mut CompactCiphertextList,
+) -> c_int {
+    let rc = compact_ciphertext_list_safe_deserialize(buffer_view, serialized_size_limit, result);
+    if rc != 0 {
+        return rc;
+    }
+    catch_panic(|| {
+        let pk = get_ref_checked(public_key).unwrap();
+        let list = get_ref_checked(*result).unwrap();
+        let params =
+            crate::high_level_api::CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+                pk.0.parameters(),
+                ListSizeConstraint::exact_size(expected_num_elements),
+            );
+        if !list.0.is_conformant(&params) {
+            drop(Box::from_raw(*result));
+            *result = std::ptr::null_mut();
+            panic!("CompactCiphertextList is not conformant with the provided parameters");
+        }
+    })
+}
 
 #[cfg(feature = "zk-pok")]
 pub struct ProvenCompactCiphertextList(crate::high_level_api::ProvenCompactCiphertextList);
 #[cfg(feature = "zk-pok")]
 impl_destroy_on_type!(ProvenCompactCiphertextList);
 #[cfg(feature = "zk-pok")]
-impl_serialize_deserialize_on_type!(ProvenCompactCiphertextList);
+impl_safe_serialize_on_type!(ProvenCompactCiphertextList);
+#[cfg(feature = "zk-pok")]
+impl_safe_deserialize_on_type!(ProvenCompactCiphertextList);
+
+#[cfg(feature = "zk-pok")]
+#[no_mangle]
+pub unsafe extern "C" fn proven_compact_ciphertext_list_safe_deserialize_conformant(
+    buffer_view: crate::c_api::buffer::DynamicBufferView,
+    serialized_size_limit: u64,
+    public_key: *const CompactPublicKey,
+    crs: *const CompactPkeCrs,
+    result: *mut *mut ProvenCompactCiphertextList,
+) -> c_int {
+    let rc =
+        proven_compact_ciphertext_list_safe_deserialize(buffer_view, serialized_size_limit, result);
+    if rc != 0 {
+        return rc;
+    }
+    catch_panic(|| {
+        let pk = get_ref_checked(public_key).unwrap();
+        let crs = get_ref_checked(crs).unwrap();
+        let list = get_ref_checked(*result).unwrap();
+        let params = crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams::from_crs_and_parameters(
+            pk.0.parameters(),
+            &crs.0,
+        );
+        if !list.0.is_conformant(&params) {
+            drop(Box::from_raw(*result));
+            *result = std::ptr::null_mut();
+            panic!("ProvenCompactCiphertextList is not conformant with the provided parameters");
+        }
+    })
+}
 
 #[no_mangle]
 pub unsafe extern "C" fn compact_ciphertext_list_builder_new(

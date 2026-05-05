@@ -225,52 +225,6 @@ macro_rules! impl_clone_on_type {
 
 pub(crate) use impl_clone_on_type;
 
-macro_rules! impl_serialize_deserialize_on_type {
-    ($wrapper_type:ty) => {
-        ::paste::paste! {
-            #[no_mangle]
-            pub unsafe extern "C" fn [<$wrapper_type:snake _serialize>](
-                sself: *const $wrapper_type,
-                result: *mut $crate::c_api::buffer::DynamicBuffer,
-            ) -> ::std::os::raw::c_int {
-                $crate::c_api::utils::catch_panic(|| {
-                    $crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
-
-                    let wrapper = $crate::c_api::utils::get_ref_checked(sself).unwrap();
-
-                    let buffer: $crate::c_api::buffer::DynamicBuffer = bincode::serialize(&wrapper.0)
-                        .unwrap()
-                        .into();
-
-                    *result = buffer;
-                })
-            }
-
-            #[no_mangle]
-            pub unsafe extern "C" fn [<$wrapper_type:snake _deserialize>](
-                buffer_view: $crate::c_api::buffer::DynamicBufferView,
-                result: *mut *mut $wrapper_type,
-                ) -> ::std::os::raw::c_int {
-                $crate::c_api::utils::catch_panic(|| {
-                    $crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
-
-                    // First fill the result with a null ptr so that if we fail and the return code is not
-                    // checked, then any access to the result pointer will segfault (mimics malloc on failure)
-                    *result = std::ptr::null_mut();
-
-                    let object = bincode::deserialize(buffer_view.as_slice()).unwrap();
-
-                    let heap_allocated_object = Box::new($wrapper_type(object));
-
-                    *result = Box::into_raw(heap_allocated_object);
-                })
-            }
-        }
-    };
-}
-
-pub(crate) use impl_serialize_deserialize_on_type;
-
 macro_rules! impl_safe_serialize_on_type {
     ($wrapper_type:ty) => {
         ::paste::paste! {

@@ -201,20 +201,6 @@ macro_rules! create_wrapper_type_non_native_type (
             }
 
             #[wasm_bindgen]
-            pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
-                catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
-            }
-
-            #[wasm_bindgen]
-            pub fn deserialize(buffer: &[u8]) -> Result<$type_name, JsError> {
-                catch_panic_result(|| {
-                    bincode::deserialize(buffer)
-                        .map($type_name)
-                        .map_err(into_js_error)
-                })
-            }
-
-            #[wasm_bindgen]
             pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
                 let mut buffer = vec![];
                 catch_panic_result(|| crate::safe_serialization::SerializationConfig::new(serialized_size_limit)
@@ -261,20 +247,6 @@ macro_rules! create_wrapper_type_non_native_type (
             ) -> Result<$type_name, JsError> {
                 catch_panic(||{
                     $type_name(self.0.decompress())
-                })
-            }
-
-            #[wasm_bindgen]
-            pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
-                catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
-            }
-
-            #[wasm_bindgen]
-            pub fn deserialize(buffer: &[u8]) -> Result<$compressed_type_name, JsError> {
-                catch_panic_result(|| {
-                    bincode::deserialize(buffer)
-                        .map($compressed_type_name)
-                        .map_err(into_js_error)
                 })
             }
 
@@ -719,20 +691,6 @@ macro_rules! create_wrapper_type_that_has_native_type (
             }
 
             #[wasm_bindgen]
-            pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
-                catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
-            }
-
-            #[wasm_bindgen]
-            pub fn deserialize(buffer: &[u8]) -> Result<$type_name, JsError> {
-                catch_panic_result(|| {
-                    bincode::deserialize(buffer)
-                        .map($type_name)
-                        .map_err(into_js_error)
-                })
-            }
-
-            #[wasm_bindgen]
             pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
                 let mut buffer = vec![];
                 catch_panic_result(|| crate::safe_serialization::SerializationConfig::new(serialized_size_limit)
@@ -776,20 +734,6 @@ macro_rules! create_wrapper_type_that_has_native_type (
             ) -> Result<$type_name, JsError> {
                 catch_panic(||{
                     $type_name(self.0.decompress())
-                })
-            }
-
-            #[wasm_bindgen]
-            pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
-                catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
-            }
-
-            #[wasm_bindgen]
-            pub fn deserialize(buffer: &[u8]) -> Result<$compressed_type_name, JsError> {
-                catch_panic_result(|| {
-                    bincode::deserialize(buffer)
-                        .map($compressed_type_name)
-                        .map_err(into_js_error)
                 })
             }
 
@@ -1076,20 +1020,6 @@ impl CompactCiphertextList {
     }
 
     #[wasm_bindgen]
-    pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
-        catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
-    }
-
-    #[wasm_bindgen]
-    pub fn deserialize(buffer: &[u8]) -> Result<CompactCiphertextList, JsError> {
-        catch_panic_result(|| {
-            bincode::deserialize(buffer)
-                .map(CompactCiphertextList)
-                .map_err(into_js_error)
-        })
-    }
-
-    #[wasm_bindgen]
     pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
         let mut buffer = vec![];
         catch_panic_result(|| {
@@ -1173,20 +1103,6 @@ impl ProvenCompactCiphertextList {
                 .expand_without_verification()
                 .map_err(into_js_error)?;
             Ok(CompactCiphertextListExpander(inner))
-        })
-    }
-
-    #[wasm_bindgen]
-    pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
-        catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
-    }
-
-    #[wasm_bindgen]
-    pub fn deserialize(buffer: &[u8]) -> Result<ProvenCompactCiphertextList, JsError> {
-        catch_panic_result(|| {
-            bincode::deserialize(buffer)
-                .map(ProvenCompactCiphertextList)
-                .map_err(into_js_error)
         })
     }
 

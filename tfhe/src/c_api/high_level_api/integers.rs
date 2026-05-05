@@ -331,8 +331,6 @@ macro_rules! create_integer_wrapper_type {
 
         impl_try_decrypt_trivial_on_type!($name, $clear_scalar_type);
 
-        impl_serialize_deserialize_on_type!($name);
-
         impl_clone_on_type!($name);
 
         impl_safe_serialize_on_type!($name);
@@ -354,8 +352,6 @@ macro_rules! create_integer_wrapper_type {
             impl_clone_on_type!([<Compressed $name>]);
 
             impl_try_encrypt_with_client_key_on_type!([<Compressed $name>]{crate::high_level_api::[<Compressed $name>]}, $clear_scalar_type);
-
-            impl_serialize_deserialize_on_type!([<Compressed $name>]);
 
             impl_safe_serialize_on_type!([<Compressed $name>]);
 
