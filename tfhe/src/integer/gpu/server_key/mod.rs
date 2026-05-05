@@ -27,7 +27,7 @@ use crate::shortint::prelude::PolynomialSize;
 use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
 pub use radix::{CudaOprfServerKey, CudaOprfServerKeyView, GenericCudaOprfServerKey};
 
-mod radix;
+pub(crate) mod radix;
 
 pub enum CudaBootstrappingKey<Scalar: UnsignedInteger> {
     Classic(CudaLweBootstrapKey),
