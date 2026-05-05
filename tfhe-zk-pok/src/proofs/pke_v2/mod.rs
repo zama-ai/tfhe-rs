@@ -59,8 +59,7 @@ impl<G: Curve> ParameterSetConformant for PublicParams<G> {
     type ParameterSet = CompactPkeCrsConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.k <= self.d
-            && self.d == parameter_set.lwe_dim
+        self.d == parameter_set.lwe_dim
             && self.k == parameter_set.max_num_message
             && self.B_inf == parameter_set.noise_bound
             && self.q == parameter_set.ciphertext_modulus
@@ -356,12 +355,101 @@ impl<G: Curve> PublicParams<G> {
 
     /// Check if the crs can be used to generate or verify a proof
     ///
-    /// This means checking that the points are:
+    /// This means checking that the parameters are correct and that the points are:
     /// - valid points of the curve
     /// - in the correct subgroup
     /// - the size of the list is correct and the element at index n is 0
     pub fn is_usable(&self) -> bool {
-        self.g_lists.is_valid(self.n)
+        self.has_valid_params() && self.g_lists.is_valid(self.n)
+    }
+
+    /// Check that the CRS scalar parameters lie inside the bounds
+    /// required by the verification to avoid panics.
+    pub fn has_valid_params(&self) -> bool {
+        let &Self {
+            d,
+            k,
+            B_inf,
+            t,
+            msbs_zero_padding_bit_count,
+            bound_type,
+            ..
+        } = self;
+
+        // assert!(k <= d) inside `compute_crs_params`.
+        if k > d {
+            return false;
+        }
+        // div-by-zero on `decoded_q / t` and `effective_t.ilog2()`.
+        if t == 0 {
+            return false;
+        }
+        // `t >> msbs_zero_padding_bit_count` is undefined for shifts >= width.
+        if msbs_zero_padding_bit_count >= u64::BITS as u64 {
+            return false;
+        }
+        // `effective_t.ilog2()` panics on zero.
+        if (t >> msbs_zero_padding_bit_count) == 0 {
+            return false;
+        }
+
+        let dim = match d.checked_add(k) {
+            Some(v) if v > 0 => v,
+            _ => return false,
+        };
+
+        // `inf_norm_bound_to_euclidean_squared`: B_inf^2 * dim
+        let b_squared_max = match (B_inf as u128)
+            .checked_mul(B_inf as u128)
+            .and_then(|sq| sq.checked_mul(dim as u128))
+        {
+            Some(v) => v,
+            None => return false,
+        };
+
+        // `compute_crs_params`: bound_factor * (B_squared + sqr(d+2) * dim / 4).
+        let dp2 = match d.checked_add(2) {
+            Some(v) => v as u128,
+            None => return false,
+        };
+        let half = match dp2
+            .checked_mul(dp2)
+            .and_then(|sq| sq.checked_mul(dim as u128))
+        {
+            Some(v) => v / 4,
+            None => return false,
+        };
+        let inner = match b_squared_max.checked_add(half) {
+            Some(v) => v,
+            None => return false,
+        };
+        // 2*(d+k)+4 over usize-sized values cannot overflow u128.
+        let bound_factor: u128 = match bound_type {
+            Bound::GHL => 950625,
+            Bound::CS => 2 * (d as u128 + k as u128) + 4,
+        };
+        let bound_max = match bound_factor.checked_mul(inner) {
+            Some(v) => v,
+            None => return false,
+        };
+        let b_bound_squared = match bound_type {
+            Bound::GHL => bound_max.div_ceil(10000),
+            Bound::CS => bound_max,
+        };
+        // `ceil_ilog2` calls `u128::ilog2`, which panics on zero.
+        if b_bound_squared == 0 {
+            return false;
+        }
+        // assert!(m_bound <= 64) inside `compute_crs_params`.
+        let m_bound_max = match 1usize.checked_add(ceil_ilog2(b_bound_squared).div_ceil(2) as usize)
+        {
+            Some(v) => v,
+            None => return false,
+        };
+        if m_bound_max > 64 {
+            return false;
+        }
+        true
     }
 }
 
@@ -2093,6 +2181,10 @@ pub fn verify_impl<G: Curve>(
     metadata: &[u8],
     pairing_mode: VerificationPairingMode,
 ) -> Result<(), ()> {
+    if !public.0.has_valid_params() {
+        return Err(());
+    }
+
     let &Proof {
         C_hat_e,
         C_e,
@@ -3461,6 +3553,93 @@ pub(crate) mod tests {
         assert_eq!(D, 3328);
         assert_eq!(B_bound_squared, 192844141830554880);
         assert_eq!(m_bound, 30);
+    }
+
+    /// Check that badly formatted CRS cannot trigger a panic in the verifier
+    #[test]
+    fn test_bad_crs() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS;
+
+        let seed = thread_rng().gen();
+        let rng = &mut StdRng::seed_from_u64(seed);
+
+        let testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS);
+        let ct = testcase.encrypt(PKEV2_TEST_PARAMS);
+
+        let crs = crs_gen::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng);
+
+        let (public_commit, private_commit) = commit(
+            testcase.a.clone(),
+            testcase.b.clone(),
+            ct.c1.clone(),
+            ct.c2.clone(),
+            testcase.r.clone(),
+            testcase.e1.clone(),
+            testcase.m.clone(),
+            testcase.e2.clone(),
+            &crs,
+        );
+
+        let proof = prove(
+            (&crs, &public_commit),
+            &private_commit,
+            &testcase.metadata,
+            ComputeLoad::Verify,
+            &seed.to_le_bytes(),
+        );
+
+        // Sanity: the unmodified CRS verifies.
+        assert!(
+            verify_all_pairing_modes(&proof, (&crs, &public_commit), &testcase.metadata).is_ok()
+        );
+
+        // k_max > d -> assert!(k <= d) in compute_crs_params
+        let mut bad_crs = crs.clone();
+        bad_crs.k = bad_crs.d + 1;
+        assert!(
+            verify_all_pairing_modes(&proof, (&bad_crs, &public_commit), &testcase.metadata)
+                .is_err()
+        );
+
+        // t = 0 -> div-by-zero on `decoded_q / t_input`
+        let mut bad_crs = crs.clone();
+        bad_crs.t = 0;
+        assert!(
+            verify_all_pairing_modes(&proof, (&bad_crs, &public_commit), &testcase.metadata)
+                .is_err()
+        );
+
+        // msbs >= 64 -> shift overflow
+        let mut bad_crs = crs.clone();
+        bad_crs.msbs_zero_padding_bit_count = 64;
+        assert!(
+            verify_all_pairing_modes(&proof, (&bad_crs, &public_commit), &testcase.metadata)
+                .is_err()
+        );
+
+        // t = 1, msbs = 1 -> effective_t = 0 -> ilog2(0) inside compute_crs_params
+        let mut bad_crs = crs.clone();
+        bad_crs.t = 1;
+        bad_crs.msbs_zero_padding_bit_count = 1;
+        assert!(
+            verify_all_pairing_modes(&proof, (&bad_crs, &public_commit), &testcase.metadata)
+                .is_err()
+        );
+
+        // B_inf = u64::MAX -> B_inf^2 * (d+k) overflows u128
+        let mut bad_crs = crs.clone();
+        bad_crs.B_inf = u64::MAX;
+        assert!(
+            verify_all_pairing_modes(&proof, (&bad_crs, &public_commit), &testcase.metadata)
+                .is_err()
+        );
     }
 
     /// Test that the proof is rejected if we don't have the padding bit set to 0
