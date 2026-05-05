@@ -350,64 +350,75 @@ mod hpu_test {
     };
 }
 
-#[cfg(feature = "hpu")]
-#[allow(unused)]
-pub fn hpu_iop40_64(iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: &tfhe::integer::ClientKey, chain_iop: bool) -> bool {
-    use tfhe::integer::hpu::ciphertext::HpuRadixCiphertext;
+    #[cfg(feature = "hpu")]
+    #[allow(unused)]
+    pub fn hpu_iop40_64(
+        iter: usize,
+        device: &mut HpuDevice,
+        rng: &mut StdRng,
+        cks: &tfhe::integer::ClientKey,
+        chain_iop: bool,
+    ) -> bool {
+        use tfhe::integer::hpu::ciphertext::HpuRadixCiphertext;
 
-    // Check if user ask for test over trivial ciphertext
-    let (test_trivial, sks) = match(std::env::var("HPU_TEST_TRIVIAL")){
-    Ok(var) => {
-        let flag_val = usize::from_str(&var).unwrap_or_else(|_| {
-        panic!("HPU_TEST_TRIVIAL env variable {var} couldn't be casted in usize")
-        });
-        let sks_compressed =
-        tfhe::integer::ServerKey::new_radix_server_key(&cks);
-        (flag_val != 0, Some(sks_compressed))
-        },
-    _ => (false, None)
+        // Check if user ask for test over trivial ciphertext
+        let (test_trivial, sks) = match (std::env::var("HPU_TEST_TRIVIAL")) {
+            Ok(var) => {
+                let flag_val = usize::from_str(&var).unwrap_or_else(|_| {
+                    panic!("HPU_TEST_TRIVIAL env variable {var} couldn't be casted in usize")
+                });
+                let sks_compressed = tfhe::integer::ServerKey::new_radix_server_key(&cks);
+                (flag_val != 0, Some(sks_compressed))
+            }
+            _ => (false, None),
         };
 
-    let width = u64::BITS as usize;
-    let num_block = width / device.params().pbs_params.message_width;
-    // NB: To support both mono-hpu IOp and multi-hpu IOp,
-    // input are generated only on the first node.
-    // If you want to select a specific node for test, use `HPU_SELECTED_NODE` env variable
-    //  with the node id you want to target.
-    // This will fallback in mono-hpu setup
-    let targeted_node = hpu_asm::PhysId(device.config().fpga.node_id[0]);
-    let proto = "[2]<H,H>::<N,N><0>".parse::<hpu_asm::IOpProto>().unwrap();
-    let test_inputs = (0..iter).map(|_| {
-        // Generate inputs ciphertext
-        let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
-            .src
-            .iter()
-            .enumerate()
-            .map(|(pos, mode)| {
-                let (bw, block) = match mode {
-                    hpu_asm::iop::VarMode::Native => (width, num_block),
-                    hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
-                    hpu_asm::iop::VarMode::Bool => (1, 1),
-                };
+        let width = u64::BITS as usize;
+        let num_block = width / device.params().pbs_params.message_width;
+        // NB: To support both mono-hpu IOp and multi-hpu IOp,
+        // input are generated only on the first node.
+        // If you want to select a specific node for test, use `HPU_SELECTED_NODE` env variable
+        //  with the node id you want to target.
+        // This will fallback in mono-hpu setup
+        let targeted_node = hpu_asm::PhysId(device.config().fpga.node_id[0]);
+        let proto = "[2]<H,H>::<N,N><0>".parse::<hpu_asm::IOpProto>().unwrap();
+        let test_inputs = (0..iter)
+            .map(|_| {
+                // Generate inputs ciphertext
+                let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
+                    .src
+                    .iter()
+                    .enumerate()
+                    .map(|(pos, mode)| {
+                        let (bw, block) = match mode {
+                            hpu_asm::iop::VarMode::Native => (width, num_block),
+                            hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
+                            hpu_asm::iop::VarMode::Bool => (1, 1),
+                        };
 
-                let clear = rng.gen_range(0..u128::MAX >> (u128::BITS - (bw as u32)));
-                let fhe = if test_trivial {
-                    sks.as_ref().unwrap().create_trivial_radix(clear, block)
-                } else {
-                    cks.encrypt_radix(clear, block)
-                };
-                let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(&fhe, device, Some(targeted_node));
-                (clear, hpu_fhe)
+                        let clear = rng.gen_range(0..u128::MAX >> (u128::BITS - (bw as u32)));
+                        let fhe = if test_trivial {
+                            sks.as_ref().unwrap().create_trivial_radix(clear, block)
+                        } else {
+                            cks.encrypt_radix(clear, block)
+                        };
+                        let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(
+                            &fhe,
+                            device,
+                            Some(targeted_node),
+                        );
+                        (clear, hpu_fhe)
+                    })
+                    .unzip();
+
+                let imms = (0..proto.imm)
+                    .map(|pos| rng.gen_range(0..u128::MAX) as u128)
+                    .collect::<Vec<_>>();
+                (srcs_clear, srcs_enc, imms)
             })
-            .unzip();
-
-        let imms = (0..proto.imm)
-            .map(|pos| rng.gen_range(0..u128::MAX) as u128)
             .collect::<Vec<_>>();
-        (srcs_clear, srcs_enc, imms)
-    }).collect::<Vec<_>>();
 
-    let aggregated_res = test_inputs
+        let aggregated_res = test_inputs
         .iter()
         .map(|(srcs_clear, srcs_enc, imms)| {
             let res_hpu = match chain_iop {
@@ -447,64 +458,72 @@ pub fn hpu_iop40_64(iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: 
                 exp_res ^ res);
             (res == exp_res)
         }).fold(true, |acc, val| acc & val);
-    aggregated_res
-}
+        aggregated_res
+    }
 
-#[test]
- pub fn hpu_test_multi_hpu_iop40loop() {
-     // Register tracing subscriber that use env-filter
-     // Discard error ( mainly due to already registered subscriber)
-     let _ = tracing_subscriber::fmt()
-         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-         .compact()
-         .with_file(false)
-         .with_line_number(false)
-         .without_time()
-         .try_init();
-     // Retrieved HpuDevice or init ---------------------------------------------
-     let (hpu_mutex, cks, key_seed)= HPU_DEVICE_RNG_CKS.get_or_init(init_hpu_and_associated_material);
-     let mut hpu_device = hpu_mutex.lock().expect("Error with HpuDevice Mutex");
-     assert!(hpu_device.config().firmware.integer_w.contains(&(64 as usize)), "Current Hpu configuration doesn't support {}b integer [has {:?}]", 64, hpu_device.config().firmware.integer_w);
+    #[test]
+    pub fn hpu_test_multi_hpu_iop40loop() {
+        // Register tracing subscriber that use env-filter
+        // Discard error ( mainly due to already registered subscriber)
+        let _ = tracing_subscriber::fmt()
+            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+            .compact()
+            .with_file(false)
+            .with_line_number(false)
+            .without_time()
+            .try_init();
+        // Retrieved HpuDevice or init ---------------------------------------------
+        let (hpu_mutex, cks, key_seed) =
+            HPU_DEVICE_RNG_CKS.get_or_init(init_hpu_and_associated_material);
+        let mut hpu_device = hpu_mutex.lock().expect("Error with HpuDevice Mutex");
+        assert!(
+            hpu_device
+                .config()
+                .firmware
+                .integer_w
+                .contains(&(64 as usize)),
+            "Current Hpu configuration doesn't support {}b integer [has {:?}]",
+            64,
+            hpu_device.config().firmware.integer_w
+        );
 
-     // Instantiate a Rng for cleartest input generation
-     // Create a fresh one for each testbundle to be reproducible even if execution order
-     // of testbundle are not stable
-     let test_seed = get_or_init_seed("HPU_TEST_SEED");
-     // Display used seed value in a reusable manner (i.e. valid bash syntax)
-     println!("HPU_KEY_SEED={key_seed} #[i.e. 0x{key_seed:x}]");
-     println!("HPU_TEST_SEED={test_seed} #[i.e. 0x{test_seed:x}]");
+        // Instantiate a Rng for cleartest input generation
+        // Create a fresh one for each testbundle to be reproducible even if execution order
+        // of testbundle are not stable
+        let test_seed = get_or_init_seed("HPU_TEST_SEED");
+        // Display used seed value in a reusable manner (i.e. valid bash syntax)
+        println!("HPU_KEY_SEED={key_seed} #[i.e. 0x{key_seed:x}]");
+        println!("HPU_TEST_SEED={test_seed} #[i.e. 0x{test_seed:x}]");
 
-     let mut rng: StdRng = SeedableRng::seed_from_u64((test_seed & u64::MAX as u128) as u64);
+        let mut rng: StdRng = SeedableRng::seed_from_u64((test_seed & u64::MAX as u128) as u64);
 
-     // Reseed shortint engine for reproducible noise generation.
-     let mut noise_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(test_seed));
-     let shortint_engine =
-         tfhe::shortint::engine::ShortintEngine::new_from_seeder(&mut noise_seeder);
-     tfhe::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
-         std::mem::replace(engine, shortint_engine)
-     });
+        // Reseed shortint engine for reproducible noise generation.
+        let mut noise_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(test_seed));
+        let shortint_engine =
+            tfhe::shortint::engine::ShortintEngine::new_from_seeder(&mut noise_seeder);
+        tfhe::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
+            std::mem::replace(engine, shortint_engine)
+        });
 
-     // Run test-case ---------------------------------------------------------
-     let mut acc_status = {
-        let status = hpu_iop40_64(128, &mut hpu_device, &mut rng, &cks, false);
-        if !status {
-            println!("Error: in testcase hpu_test_multi_hpu_iop40loop");
-        }
-        status
-     };
-     acc_status &= {
-        let status = hpu_iop40_64(128, &mut hpu_device, &mut rng, &cks, true);
-        if !status {
-            println!("Error: in testcase hpu_test_multi_hpu_iop40loop (chained)");
-        }
-        status
-     };
+        // Run test-case ---------------------------------------------------------
+        let mut acc_status = {
+            let status = hpu_iop40_64(128, &mut hpu_device, &mut rng, &cks, false);
+            if !status {
+                println!("Error: in testcase hpu_test_multi_hpu_iop40loop");
+            }
+            status
+        };
+        acc_status &= {
+            let status = hpu_iop40_64(128, &mut hpu_device, &mut rng, &cks, true);
+            if !status {
+                println!("Error: in testcase hpu_test_multi_hpu_iop40loop (chained)");
+            }
+            status
+        };
 
-
-     drop(hpu_device);
-     assert!(acc_status, "At least one testcase failed in the testbundle");
-}
-
+        drop(hpu_device);
+        assert!(acc_status, "At least one testcase failed in the testbundle");
+    }
 
     // Define testcase implementation for all supported IOp
     // Alu IOp with Ct x Imm
@@ -666,7 +685,6 @@ pub fn hpu_iop40_64(iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: 
     |ct, imm| vec![ct[0].wrapping_mul(ct[1]) & 0xFFFF, ct[0].wrapping_mul(ct[1]).wrapping_shr(16)]);
     hpu_testcase!("IOP40", "[2]<H,H>::<N,N><0>" => [u64]
     |ct, imm| vec![ct[0].wrapping_mul(ct[1]) & 0xFFFFFFFF, ct[0].wrapping_mul(ct[1]).wrapping_shr(32)]);
-
 
     // Define a set of test bundle for various size
     // 8bit ciphertext -----------------------------------------

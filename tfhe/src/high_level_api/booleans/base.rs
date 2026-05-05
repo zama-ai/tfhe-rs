@@ -547,7 +547,7 @@ where
                     opcode,
                     &[hpu_then.clone(), hpu_else.clone(), hpu_cond.clone()],
                     &[],
-                    None
+                    None,
                 )
                 .pop()
                 .unwrap();
@@ -608,7 +608,7 @@ where
                     opcode,
                     &[hpu_then.clone(), hpu_cond.clone()],
                     &[],
-                    None
+                    None,
                 )
                 .pop()
                 .unwrap();

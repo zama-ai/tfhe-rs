@@ -456,7 +456,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
-                    None
+                    None,
                 )
                 .pop()
                 .unwrap();
@@ -531,7 +531,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
-                    None
+                    None,
                 )
                 .pop()
                 .unwrap();
@@ -632,7 +632,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
-                    None
+                    None,
                 )
                 .pop()
                 .unwrap();
@@ -707,7 +707,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
-                    None
+                    None,
                 )
                 .pop()
                 .unwrap();
@@ -782,7 +782,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
-                    None
+                    None,
                 )
                 .pop()
                 .unwrap();
@@ -857,7 +857,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
-                    None
+                    None,
                 )
                 .pop()
                 .unwrap();
@@ -980,7 +980,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
-                    None
+                    None,
                 );
                 let remainder = hpu_result.pop().expect("IOP_DIV must return 2 value");
                 let quotient = hpu_result.pop().expect("IOP_DIV must return 2 value");
@@ -2175,7 +2175,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
-                    None
+                    None,
                 );
                 let _remainder = hpu_result.pop().expect("IOP_DIV must return 2 value");
                 let quotient = hpu_result.pop().expect("IOP_DIV must return 2 value");
@@ -2656,7 +2656,7 @@ where
                     opcode,
                     std::slice::from_ref(&hpu_self),
                     &[0_u128],
-                    None
+                    None,
                 )
                 .pop()
                 .expect("SSUB must return a single value");
