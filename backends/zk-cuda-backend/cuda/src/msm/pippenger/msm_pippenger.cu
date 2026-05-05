@@ -166,6 +166,8 @@ __global__ void kernel_accumulate_all_windows(
     uint32_t num_points, uint32_t num_windows, uint32_t num_blocks_per_window,
     uint32_t window_size, uint32_t bucket_count) {
   using ProjectivePoint = Projective<ProjectiveType>;
+  using XYZZType = typename XYZZFor<ProjectiveType>::Type;
+  using XYZZPoint = XYZZ<XYZZType>;
 
   const uint32_t window_idx = blockIdx.x / num_blocks_per_window;
   const uint32_t block_within_window = blockIdx.x % num_blocks_per_window;
@@ -239,49 +241,33 @@ __global__ void kernel_accumulate_all_windows(
   }
   __syncthreads();
 
-  // Parallel tree reduction within each bucket using MIXED ADDITION
-  // Each thread is assigned to reduce points in one bucket
-  // REGISTER-BASED: Accumulate in registers, write directly to global memory
+  // Parallel bucket accumulation using XYZZ extended Jacobian coordinates.
+  // Each thread is assigned to reduce all points in one or more buckets.
+  // REGISTER-BASED: Accumulate in registers, convert to projective at the end.
   for (uint32_t bucket = threadIdx.x + 1; bucket < bucket_count;
        bucket += blockDim.x) {
     uint32_t start = bucket_offsets[bucket];
     uint32_t count = bucket_counts_arr[bucket];
 
     if (count == 0) {
-      // Empty bucket - write infinity point
       ProjectivePoint::point_at_infinity(my_buckets[bucket]);
       continue;
     }
 
-    // Tree reduction for this bucket using mixed addition
-    // Accumulate in registers (compiler will optimize this)
-    ProjectiveType sum;
-    // Initialize sum from first affine point
-    const AffineType &first_point = sorted_points[start];
-    if (first_point.infinity) {
-      ProjectivePoint::point_at_infinity(sum);
-    } else {
-      ProjectivePoint::affine_to_projective(sum, first_point);
+    // Accumulate all points in this bucket using XYZZ.
+    // xyzz_mixed_add handles the acc-at-infinity and p-at-infinity cases
+    XYZZType sum;
+    XYZZPoint::point_at_infinity(sum);
+
+    for (uint32_t i = 0; i < count; i++) {
+      XYZZPoint::mixed_add(sum, sorted_points[start + i]);
     }
 
-    // Use mixed addition for remaining points (saves 3 muls per add!)
-    for (uint32_t i = 1; i < count; i++) {
-      const AffineType &pt = sorted_points[start + i];
-      if (!pt.infinity) {
-        if (ProjectivePoint::is_infinity(sum)) {
-          ProjectivePoint::affine_to_projective(sum, pt);
-        } else {
-          ProjectiveType temp;
-          // MIXED ADDITION: projective + affine (saves 3 field muls)
-          ProjectivePoint::mixed_add(temp, sum, pt);
-          ProjectivePoint::point_copy(sum, temp);
-        }
-      }
-    }
-
-    // Write directly from registers to global memory (no shared memory
-    // intermediate)
-    ProjectivePoint::point_copy(my_buckets[bucket], sum);
+    // Convert the XYZZ accumulator to XYZ
+    // and write directly to global memory.
+    ProjectiveType proj;
+    XYZZPoint::to_projective(proj, sum);
+    ProjectivePoint::point_copy(my_buckets[bucket], proj);
   }
 }
 
