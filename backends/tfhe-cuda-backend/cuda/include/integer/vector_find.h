@@ -19,12 +19,16 @@ template <typename Torus> struct int_equality_selectors_buffer {
   int_radix_lut<Torus> *comparison_luts;
   CudaRadixCiphertextFFI *tmp_many_luts_output;
 
-  CudaStreams active_streams;
-  InternalCudaStreams internal_cuda_streams;
-  uint32_t num_streams;
-
-  CudaRadixCiphertextFFI **tmp_block_comparisons;
-  int_comparison_buffer<Torus> **reduction_buffers;
+  // Batched tree reduction: instead of per-entry AND-trees on separate streams,
+  // gather all entries' comparison blocks and reduce level-by-level with large
+  // batched PBS calls.
+  CudaRadixCiphertextFFI *batched_comparisons;
+  CudaRadixCiphertextFFI *tree_accumulator;
+  CudaRadixCiphertextFFI *tree_pbs_output;
+  int_radix_lut<Torus> *is_max_value_lut;
+  Torus *preallocated_h_lut;
+  uint32_t max_value;
+  uint32_t max_chunks;
 
   int_equality_selectors_buffer(CudaStreams streams, int_radix_params params,
                                 uint32_t num_possible_values,
@@ -34,18 +38,8 @@ template <typename Torus> struct int_equality_selectors_buffer {
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->num_possible_values = num_possible_values;
 
-    uint32_t num_streams_to_use =
-        std::min((uint32_t)MAX_STREAMS_FOR_VECTOR_FIND, num_possible_values);
-    if (num_streams_to_use == 0)
-      num_streams_to_use = 1;
-
-    this->num_streams = num_streams_to_use;
-
-    this->active_streams =
+    auto active_streams =
         streams.active_gpu_subset(num_blocks, params.pbs_type);
-
-    this->internal_cuda_streams.create_internal_cuda_streams_on_same_gpus(
-        active_streams, num_streams_to_use);
 
     uint32_t ciphertext_modulus = params.message_modulus * params.carry_modulus;
     uint32_t box_size = params.polynomial_size / ciphertext_modulus;
@@ -71,20 +65,48 @@ template <typename Torus> struct int_equality_selectors_buffer {
         params.message_modulus * num_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    this->tmp_block_comparisons =
-        new CudaRadixCiphertextFFI *[this->num_streams];
-    this->reduction_buffers =
-        new int_comparison_buffer<Torus> *[this->num_streams];
-    for (uint32_t j = 0; j < this->num_streams; j++) {
-      this->tmp_block_comparisons[j] = new CudaRadixCiphertextFFI;
-      create_zero_radix_ciphertext_async<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          this->tmp_block_comparisons[j], num_blocks, params.big_lwe_dimension,
-          size_tracker, allocate_gpu_memory);
+    uint32_t total_modulus = params.message_modulus * params.carry_modulus;
+    this->max_value = (total_modulus - 1) / (params.message_modulus - 1);
+    this->max_chunks =
+        (num_blocks > 1) ? CEIL_DIV(num_blocks, this->max_value) : 1;
 
-      this->reduction_buffers[j] = new int_comparison_buffer<Torus>(
-          streams, EQ, params, num_blocks, false, allocate_gpu_memory,
-          size_tracker);
+    this->batched_comparisons = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->batched_comparisons,
+        num_possible_values * std::max(num_blocks, 1u),
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    if (num_blocks > 1) {
+      uint32_t acc_blocks = num_possible_values * this->max_chunks;
+
+      this->tree_accumulator = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), this->tree_accumulator,
+          acc_blocks, params.big_lwe_dimension, size_tracker,
+          allocate_gpu_memory);
+
+      this->tree_pbs_output = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), this->tree_pbs_output,
+          acc_blocks, params.big_lwe_dimension, size_tracker,
+          allocate_gpu_memory);
+
+      this->is_max_value_lut = new int_radix_lut<Torus>(
+          streams, params, 2, acc_blocks, allocate_gpu_memory, size_tracker);
+
+      uint32_t mv = this->max_value;
+      auto is_max_fn = [mv](Torus x) -> Torus { return x == mv; };
+      auto lut_active = streams.active_gpu_subset(acc_blocks, params.pbs_type);
+      this->is_max_value_lut->generate_and_broadcast_lut(
+          lut_active, {0}, {is_max_fn}, LUT_0_FOR_ALL_BLOCKS);
+
+      this->preallocated_h_lut = (Torus *)malloc(safe_mul_sizeof<Torus>(
+          params.glwe_dimension + 1, params.polynomial_size));
+    } else {
+      this->tree_accumulator = nullptr;
+      this->tree_pbs_output = nullptr;
+      this->is_max_value_lut = nullptr;
+      this->preallocated_h_lut = nullptr;
     }
   }
 
@@ -97,21 +119,28 @@ template <typename Torus> struct int_equality_selectors_buffer {
                                    this->allocate_gpu_memory);
     delete this->tmp_many_luts_output;
 
-    for (uint32_t i = 0; i < this->num_streams; i++) {
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->batched_comparisons,
+                                   this->allocate_gpu_memory);
+    delete this->batched_comparisons;
+
+    if (this->tree_accumulator) {
       release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                     this->tmp_block_comparisons[i],
+                                     this->tree_accumulator,
                                      this->allocate_gpu_memory);
-      delete this->tmp_block_comparisons[i];
+      delete this->tree_accumulator;
     }
-    delete[] this->tmp_block_comparisons;
-
-    for (uint32_t i = 0; i < this->num_streams; i++) {
-      this->reduction_buffers[i]->release(streams);
-      delete this->reduction_buffers[i];
+    if (this->tree_pbs_output) {
+      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                     this->tree_pbs_output,
+                                     this->allocate_gpu_memory);
+      delete this->tree_pbs_output;
     }
-    delete[] this->reduction_buffers;
-
-    internal_cuda_streams.release(streams);
+    if (this->is_max_value_lut) {
+      this->is_max_value_lut->release(streams);
+      delete this->is_max_value_lut;
+    }
+    free(this->preallocated_h_lut);
 
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
