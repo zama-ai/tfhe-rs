@@ -1,7 +1,15 @@
 #ifndef CNCRT_KS_H_
 #define CNCRT_KS_H_
 
+#include "ks_enums.h"
 #include <stdint.h>
+
+typedef struct {
+  uint32_t input_lwe_dimension;
+  uint32_t output_lwe_dimension;
+  uint32_t base_log;
+  uint32_t level_count;
+} CudaLweKeyswitchKeyParamsFFI;
 
 extern "C" {
 

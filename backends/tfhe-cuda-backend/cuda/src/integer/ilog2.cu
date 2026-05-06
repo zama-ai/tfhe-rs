@@ -2,12 +2,12 @@
 
 uint64_t scratch_cuda_integer_count_of_consecutive_bits_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t counter_num_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, Direction direction,
-    BitValue bit_value, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
-  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t counter_num_blocks, uint32_t message_modulus,
+    uint32_t carry_modulus, Direction direction, BitValue bit_value,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+  int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_integer_count_of_consecutive_bits<uint64_t>(
@@ -49,12 +49,12 @@ void cleanup_cuda_integer_count_of_consecutive_bits_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_integer_ilog2_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t message_modulus, uint32_t carry_modulus,
-    uint32_t input_num_blocks, uint32_t counter_num_blocks,
-    uint32_t num_bits_in_ciphertext, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
-  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus,
+    uint32_t carry_modulus, uint32_t input_num_blocks,
+    uint32_t counter_num_blocks, uint32_t num_bits_in_ciphertext,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+  int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_integer_ilog2<uint64_t>(

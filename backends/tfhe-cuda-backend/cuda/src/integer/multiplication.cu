@@ -123,10 +123,10 @@ uint64_t scratch_cuda_integer_mult_inplace_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, bool const is_boolean_left,
     bool const is_boolean_right, uint32_t message_modulus,
     uint32_t carry_modulus, CudaLweBootstrapKeyParamsFFI bsk_params,
-    uint32_t ks_base_log, uint32_t ks_level, uint32_t num_radix_blocks,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_radix_blocks,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
   const uint32_t polynomial_size = bsk_params.polynomial_size;
-  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+  int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   switch (polynomial_size) {
@@ -161,12 +161,12 @@ void cleanup_cuda_integer_mult_inplace_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_partial_sum_ciphertexts_vec_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks_in_radix,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks_in_radix,
     uint32_t max_num_radix_in_vec, uint32_t message_modulus,
     uint32_t carry_modulus, bool reduce_degrees_for_single_carry_propagation,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
-  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+  int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
   return scratch_cuda_integer_partial_sum_ciphertexts_vec<uint64_t>(
       CudaStreams(streams),

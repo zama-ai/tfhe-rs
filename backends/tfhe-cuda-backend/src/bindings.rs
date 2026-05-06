@@ -109,6 +109,220 @@ pub type PBS_TYPE = ffi::c_uint;
 pub const PBS_MS_REDUCTION_T_NO_REDUCTION: PBS_MS_REDUCTION_T = 0;
 pub const PBS_MS_REDUCTION_T_CENTERED: PBS_MS_REDUCTION_T = 1;
 pub type PBS_MS_REDUCTION_T = ffi::c_uint;
+pub const KS_TYPE_BIG_TO_SMALL: KS_TYPE = 0;
+pub const KS_TYPE_SMALL_TO_BIG: KS_TYPE = 1;
+pub type KS_TYPE = ffi::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaLweKeyswitchKeyParamsFFI {
+    pub input_lwe_dimension: u32,
+    pub output_lwe_dimension: u32,
+    pub base_log: u32,
+    pub level_count: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaLweKeyswitchKeyParamsFFI"]
+        [::std::mem::size_of::<CudaLweKeyswitchKeyParamsFFI>() - 16usize];
+    ["Alignment of CudaLweKeyswitchKeyParamsFFI"]
+        [::std::mem::align_of::<CudaLweKeyswitchKeyParamsFFI>() - 4usize];
+    ["Offset of field: CudaLweKeyswitchKeyParamsFFI::input_lwe_dimension"]
+        [::std::mem::offset_of!(CudaLweKeyswitchKeyParamsFFI, input_lwe_dimension) - 0usize];
+    ["Offset of field: CudaLweKeyswitchKeyParamsFFI::output_lwe_dimension"]
+        [::std::mem::offset_of!(CudaLweKeyswitchKeyParamsFFI, output_lwe_dimension) - 4usize];
+    ["Offset of field: CudaLweKeyswitchKeyParamsFFI::base_log"]
+        [::std::mem::offset_of!(CudaLweKeyswitchKeyParamsFFI, base_log) - 8usize];
+    ["Offset of field: CudaLweKeyswitchKeyParamsFFI::level_count"]
+        [::std::mem::offset_of!(CudaLweKeyswitchKeyParamsFFI, level_count) - 12usize];
+};
+unsafe extern "C" {
+    pub fn cuda_keyswitch_lwe_ciphertext_vector_64_64_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_output_indexes: *const ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        lwe_input_indexes: *const ffi::c_void,
+        ksk: *const ffi::c_void,
+        lwe_dimension_in: u32,
+        lwe_dimension_out: u32,
+        base_log: u32,
+        level_count: u32,
+        num_samples: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_keyswitch_lwe_ciphertext_vector_64_32_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_output_indexes: *const ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        lwe_input_indexes: *const ffi::c_void,
+        ksk: *const ffi::c_void,
+        lwe_dimension_in: u32,
+        lwe_dimension_out: u32,
+        base_log: u32,
+        level_count: u32,
+        num_samples: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_packing_keyswitch_lwe_list_to_glwe_64_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        fp_ks_buffer: *mut *mut i8,
+        lwe_dimension: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        num_lwes: u32,
+        allocate_gpu_memory: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_keyswitch_gemm_64_64_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_output_indexes: *const ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        lwe_input_indexes: *const ffi::c_void,
+        ksk: *const ffi::c_void,
+        lwe_dimension_in: u32,
+        lwe_dimension_out: u32,
+        base_log: u32,
+        level_count: u32,
+        num_samples: u32,
+        ks_tmp_buffer: *const ffi::c_void,
+        uses_trivial_indexes: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_keyswitch_gemm_64_32_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_output_indexes: *const ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        lwe_input_indexes: *const ffi::c_void,
+        ksk: *const ffi::c_void,
+        lwe_dimension_in: u32,
+        lwe_dimension_out: u32,
+        base_log: u32,
+        level_count: u32,
+        num_samples: u32,
+        ks_tmp_buffer: *const ffi::c_void,
+        uses_trivial_indexes: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_keyswitch_gemm_64_64_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        ks_tmp_memory: *mut *mut ffi::c_void,
+        lwe_dimension_in: u32,
+        lwe_dimension_out: u32,
+        num_lwes: u32,
+        allocate_gpu_memory: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_keyswitch_gemm_64_32_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        ks_tmp_memory: *mut *mut ffi::c_void,
+        lwe_dimension_in: u32,
+        lwe_dimension_out: u32,
+        num_lwes: u32,
+        allocate_gpu_memory: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_keyswitch_gemm_64_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        ks_tmp_memory: *mut *mut ffi::c_void,
+        allocate_gpu_memory: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_keyswitch_gemm_64_32(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        ks_tmp_memory: *mut *mut ffi::c_void,
+        allocate_gpu_memory: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_packing_keyswitch_lwe_list_to_glwe_64_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        glwe_array_out: *mut ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        fp_ksk_array: *const ffi::c_void,
+        fp_ks_buffer: *mut i8,
+        input_lwe_dimension: u32,
+        output_glwe_dimension: u32,
+        output_polynomial_size: u32,
+        base_log: u32,
+        level_count: u32,
+        num_lwes: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_packing_keyswitch_lwe_list_to_glwe_128_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        fp_ks_buffer: *mut *mut i8,
+        lwe_dimension: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        num_lwes: u32,
+        allocate_gpu_memory: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_packing_keyswitch_lwe_list_to_glwe_128_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        glwe_array_out: *mut ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        fp_ksk_array: *const ffi::c_void,
+        fp_ks_buffer: *mut i8,
+        input_lwe_dimension: u32,
+        output_glwe_dimension: u32,
+        output_polynomial_size: u32,
+        base_log: u32,
+        level_count: u32,
+        num_lwes: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_packing_keyswitch_lwe_list_to_glwe_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        fp_ks_buffer: *mut *mut i8,
+        gpu_memory_allocated: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_packing_keyswitch_lwe_list_to_glwe_128(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        fp_ks_buffer: *mut *mut i8,
+        gpu_memory_allocated: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_closest_representable_64_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        input: *const ffi::c_void,
+        output: *mut ffi::c_void,
+        base_log: u32,
+        level_count: u32,
+    );
+}
 pub const SHIFT_OR_ROTATE_TYPE_LEFT_SHIFT: SHIFT_OR_ROTATE_TYPE = 0;
 pub const SHIFT_OR_ROTATE_TYPE_RIGHT_SHIFT: SHIFT_OR_ROTATE_TYPE = 1;
 pub const SHIFT_OR_ROTATE_TYPE_LEFT_ROTATE: SHIFT_OR_ROTATE_TYPE = 2;
@@ -353,8 +567,7 @@ unsafe extern "C" {
         mem_ptr: *mut *mut i8,
         input_lut: *const ffi::c_void,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         input_lwe_ciphertext_count: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -369,8 +582,7 @@ unsafe extern "C" {
         mem_ptr: *mut *mut i8,
         input_lut: *const ffi::c_void,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_radix_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -419,8 +631,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
@@ -466,8 +677,7 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_base_log: u32,
-        ks_level: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         allocate_gpu_memory: bool,
         noise_reduction_type: PBS_MS_REDUCTION_T,
@@ -505,8 +715,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -530,8 +739,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -567,8 +775,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -599,8 +806,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         lwe_ciphertext_count: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -615,8 +821,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         lwe_ciphertext_count: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -674,8 +879,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         lwe_ciphertext_count: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -696,8 +900,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         message_modulus: u32,
         carry_modulus: u32,
         lwe_ciphertext_count: u32,
@@ -732,8 +935,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         lwe_ciphertext_count: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -747,8 +949,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         lwe_ciphertext_count: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -796,8 +997,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         lwe_ciphertext_count: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -825,8 +1025,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -856,8 +1055,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -871,8 +1069,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -925,8 +1122,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -960,8 +1156,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks_in_radix: u32,
         max_num_radix_in_vec: u32,
         message_modulus: u32,
@@ -992,8 +1187,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -1025,8 +1219,7 @@ unsafe extern "C" {
         is_signed: bool,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -1062,8 +1255,7 @@ unsafe extern "C" {
         mem_ptr: *mut *mut i8,
         is_signed: bool,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -1089,8 +1281,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_radix_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -1120,8 +1311,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_radix_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -1174,8 +1364,7 @@ unsafe extern "C" {
         bsk_params: CudaLweBootstrapKeyParamsFFI,
         input_glwe_dimension: u32,
         input_polynomial_size: u32,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_radix_blocks: u32,
         num_original_blocks: u32,
         message_modulus: u32,
@@ -1202,8 +1391,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -1237,8 +1425,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -1268,8 +1455,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -1300,8 +1486,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -1339,8 +1524,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -1376,8 +1560,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         counter_num_blocks: u32,
         message_modulus: u32,
@@ -1409,8 +1592,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks_to_process: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -1441,8 +1623,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks_intermediate: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -1480,8 +1661,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         message_modulus: u32,
         carry_modulus: u32,
         input_num_blocks: u32,
@@ -1512,8 +1692,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_matches: u32,
         num_input_blocks: u32,
         num_output_packed_blocks: u32,
@@ -1548,8 +1727,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_input_blocks: u32,
         target_num_blocks: u32,
         input_is_signed: bool,
@@ -1580,8 +1758,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_matches: u32,
         num_input_blocks: u32,
         num_match_packed_blocks: u32,
@@ -1617,8 +1794,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_inputs: u32,
         num_blocks: u32,
         message_modulus: u32,
@@ -1648,8 +1824,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_inputs: u32,
         num_blocks: u32,
         message_modulus: u32,
@@ -1682,8 +1857,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_clears: u32,
         num_blocks: u32,
         message_modulus: u32,
@@ -1716,8 +1890,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_clears: u32,
         num_blocks: u32,
         num_blocks_index: u32,
@@ -1753,8 +1926,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_unique: u32,
         num_blocks: u32,
         num_blocks_index: u32,
@@ -1800,8 +1972,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_inputs: u32,
         num_blocks: u32,
         num_blocks_index: u32,
@@ -1837,8 +2008,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_inputs: u32,
         num_blocks: u32,
         num_blocks_index: u32,
@@ -1874,8 +2044,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_inputs: u32,
         num_blocks: u32,
         num_blocks_index: u32,
@@ -1908,8 +2077,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_inputs: u32,
         num_blocks: u32,
         num_blocks_index: u32,
@@ -1947,8 +2115,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_inputs: u32,
         num_blocks: u32,
         message_modulus: u32,
@@ -1981,8 +2148,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_lhs: u32,
         num_rhs: u32,
         num_blocks: u32,
@@ -2016,8 +2182,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_input_blocks: u32,
         target_num_blocks: u32,
         message_modulus: u32,
@@ -2216,8 +2381,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
@@ -2231,8 +2395,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
@@ -2271,8 +2434,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
@@ -2313,8 +2475,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
@@ -2342,8 +2503,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
@@ -2373,8 +2533,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
@@ -2404,8 +2563,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
@@ -2421,8 +2579,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
@@ -2469,9 +2626,6 @@ unsafe extern "C" {
         ksks: *const *mut ffi::c_void,
     );
 }
-pub const KS_TYPE_BIG_TO_SMALL: KS_TYPE = 0;
-pub const KS_TYPE_SMALL_TO_BIG: KS_TYPE = 1;
-pub type KS_TYPE = ffi::c_uint;
 pub const EXPAND_KIND_NO_CASTING: EXPAND_KIND = 0;
 pub const EXPAND_KIND_CASTING: EXPAND_KIND = 1;
 pub const EXPAND_KIND_SANITY_CHECK: EXPAND_KIND = 2;
@@ -2482,14 +2636,8 @@ unsafe extern "C" {
         mem_ptr: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
-        big_lwe_dimension: u32,
-        small_lwe_dimension: u32,
-        computing_ks_level: u32,
-        computing_ks_base_log: u32,
-        casting_input_dimension: u32,
-        casting_output_dimension: u32,
-        casting_ks_level: u32,
-        casting_ks_base_log: u32,
+        computing_ksk_params: CudaLweKeyswitchKeyParamsFFI,
+        casting_ksk_params: CudaLweKeyswitchKeyParamsFFI,
         pbs_level: u32,
         pbs_base_log: u32,
         grouping_factor: u32,
@@ -2521,194 +2669,6 @@ unsafe extern "C" {
     pub fn cleanup_cuda_expand_without_verification_64(
         streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_keyswitch_lwe_ciphertext_vector_64_64_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_output_indexes: *const ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        lwe_input_indexes: *const ffi::c_void,
-        ksk: *const ffi::c_void,
-        lwe_dimension_in: u32,
-        lwe_dimension_out: u32,
-        base_log: u32,
-        level_count: u32,
-        num_samples: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_keyswitch_lwe_ciphertext_vector_64_32_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_output_indexes: *const ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        lwe_input_indexes: *const ffi::c_void,
-        ksk: *const ffi::c_void,
-        lwe_dimension_in: u32,
-        lwe_dimension_out: u32,
-        base_log: u32,
-        level_count: u32,
-        num_samples: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn scratch_cuda_packing_keyswitch_lwe_list_to_glwe_64_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        fp_ks_buffer: *mut *mut i8,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        num_lwes: u32,
-        allocate_gpu_memory: bool,
-    ) -> u64;
-}
-unsafe extern "C" {
-    pub fn cuda_keyswitch_gemm_64_64_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_output_indexes: *const ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        lwe_input_indexes: *const ffi::c_void,
-        ksk: *const ffi::c_void,
-        lwe_dimension_in: u32,
-        lwe_dimension_out: u32,
-        base_log: u32,
-        level_count: u32,
-        num_samples: u32,
-        ks_tmp_buffer: *const ffi::c_void,
-        uses_trivial_indexes: bool,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_keyswitch_gemm_64_32_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_output_indexes: *const ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        lwe_input_indexes: *const ffi::c_void,
-        ksk: *const ffi::c_void,
-        lwe_dimension_in: u32,
-        lwe_dimension_out: u32,
-        base_log: u32,
-        level_count: u32,
-        num_samples: u32,
-        ks_tmp_buffer: *const ffi::c_void,
-        uses_trivial_indexes: bool,
-    );
-}
-unsafe extern "C" {
-    pub fn scratch_cuda_keyswitch_gemm_64_64_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        ks_tmp_memory: *mut *mut ffi::c_void,
-        lwe_dimension_in: u32,
-        lwe_dimension_out: u32,
-        num_lwes: u32,
-        allocate_gpu_memory: bool,
-    ) -> u64;
-}
-unsafe extern "C" {
-    pub fn scratch_cuda_keyswitch_gemm_64_32_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        ks_tmp_memory: *mut *mut ffi::c_void,
-        lwe_dimension_in: u32,
-        lwe_dimension_out: u32,
-        num_lwes: u32,
-        allocate_gpu_memory: bool,
-    ) -> u64;
-}
-unsafe extern "C" {
-    pub fn cleanup_cuda_keyswitch_gemm_64_64(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        ks_tmp_memory: *mut *mut ffi::c_void,
-        allocate_gpu_memory: bool,
-    );
-}
-unsafe extern "C" {
-    pub fn cleanup_cuda_keyswitch_gemm_64_32(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        ks_tmp_memory: *mut *mut ffi::c_void,
-        allocate_gpu_memory: bool,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_packing_keyswitch_lwe_list_to_glwe_64_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        glwe_array_out: *mut ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        fp_ksk_array: *const ffi::c_void,
-        fp_ks_buffer: *mut i8,
-        input_lwe_dimension: u32,
-        output_glwe_dimension: u32,
-        output_polynomial_size: u32,
-        base_log: u32,
-        level_count: u32,
-        num_lwes: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn scratch_cuda_packing_keyswitch_lwe_list_to_glwe_128_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        fp_ks_buffer: *mut *mut i8,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        num_lwes: u32,
-        allocate_gpu_memory: bool,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_packing_keyswitch_lwe_list_to_glwe_128_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        glwe_array_out: *mut ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        fp_ksk_array: *const ffi::c_void,
-        fp_ks_buffer: *mut i8,
-        input_lwe_dimension: u32,
-        output_glwe_dimension: u32,
-        output_polynomial_size: u32,
-        base_log: u32,
-        level_count: u32,
-        num_lwes: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cleanup_cuda_packing_keyswitch_lwe_list_to_glwe_64(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        fp_ks_buffer: *mut *mut i8,
-        gpu_memory_allocated: bool,
-    );
-}
-unsafe extern "C" {
-    pub fn cleanup_cuda_packing_keyswitch_lwe_list_to_glwe_128(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        fp_ks_buffer: *mut *mut i8,
-        gpu_memory_allocated: bool,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_closest_representable_64_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        input: *const ffi::c_void,
-        output: *mut ffi::c_void,
-        base_log: u32,
-        level_count: u32,
     );
 }
 unsafe extern "C" {

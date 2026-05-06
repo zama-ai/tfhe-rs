@@ -84,8 +84,7 @@ impl CudaServerKey {
                         &d_bsk.d_vec,
                         &computing_ks_key.d_vec,
                         d_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -113,8 +112,7 @@ impl CudaServerKey {
                         &d_multibit_bsk.d_vec,
                         &computing_ks_key.d_vec,
                         d_multibit_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         None,
                     );
                 }
@@ -161,8 +159,7 @@ impl CudaServerKey {
                     ct.as_ref(),
                     matches,
                     d_bsk,
-                    computing_ks_key.decomposition_level_count(),
-                    computing_ks_key.decomposition_base_log(),
+                    computing_ks_key.params_ffi(),
                     self.message_modulus,
                     self.carry_modulus,
                     d_bsk.ms_noise_reduction_configuration.as_ref(),
@@ -186,8 +183,7 @@ impl CudaServerKey {
                     ct.as_ref(),
                     matches,
                     d_multibit_bsk,
-                    computing_ks_key.decomposition_level_count(),
-                    computing_ks_key.decomposition_base_log(),
+                    computing_ks_key.params_ffi(),
                     self.message_modulus,
                     self.carry_modulus,
                     None,
@@ -340,8 +336,7 @@ impl CudaServerKey {
                         &d_bsk.d_vec,
                         &computing_ks_key.d_vec,
                         d_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -369,8 +364,7 @@ impl CudaServerKey {
                         &d_multibit_bsk.d_vec,
                         &computing_ks_key.d_vec,
                         d_multibit_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         None,
                     );
                 }
@@ -419,8 +413,7 @@ impl CudaServerKey {
                     matches,
                     or_value,
                     d_bsk,
-                    computing_ks_key.decomposition_level_count(),
-                    computing_ks_key.decomposition_base_log(),
+                    computing_ks_key.params_ffi(),
                     self.message_modulus,
                     self.carry_modulus,
                     d_bsk.ms_noise_reduction_configuration.as_ref(),
@@ -445,8 +438,7 @@ impl CudaServerKey {
                     matches,
                     or_value,
                     d_multibit_bsk,
-                    computing_ks_key.decomposition_level_count(),
-                    computing_ks_key.decomposition_base_log(),
+                    computing_ks_key.params_ffi(),
                     self.message_modulus,
                     self.carry_modulus,
                     None,
@@ -574,8 +566,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -602,8 +593,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_multibit_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         None,
                     );
                 }
@@ -735,8 +725,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -763,8 +752,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_multibit_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         None,
                     );
                 }
@@ -887,8 +875,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -915,8 +902,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_multibit_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         None,
                     );
                 }
@@ -1053,8 +1039,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -1082,8 +1067,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_multibit_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         None,
                     );
                 }
@@ -1230,8 +1214,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -1259,8 +1242,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_multibit_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         None,
                     );
                 }
@@ -1394,8 +1376,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -1423,8 +1404,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_multibit_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         None,
                     );
                 }
@@ -1587,8 +1567,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -1616,8 +1595,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_multibit_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         None,
                     );
                 }
@@ -1769,8 +1747,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -1798,8 +1775,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_multibit_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         None,
                     );
                 }
@@ -1949,8 +1925,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
@@ -1978,8 +1953,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_multibit_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         None,
                     );
                 }
