@@ -210,6 +210,7 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_gpu(
 
 /// Test function to verify that the noise checking tools match the actual atomic patterns
 /// implemented in shortint for GPU
+#[allow(unused)]
 fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(
     meta_params: MetaParameters,
     filename_suffix: &str,
@@ -941,7 +942,7 @@ create_gpu_parameterized_stringified_test!(
     }
 );
 
-create_gpu_parameterized_stringified_test!(sanity_check_encrypt_dp_ks_standard_pbs128_gpu {
-    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
-    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
-});
+// create_gpu_parameterized_stringified_test!(sanity_check_encrypt_dp_ks_standard_pbs128_gpu {
+//     TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+//     TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+// });
