@@ -9,15 +9,20 @@ uint64_t scratch_cuda_kv_store_get_64_async(
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
 
+  PUSH_RANGE("scratch kv_store_get")
+
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           big_lwe_dimension, small_lwe_dimension, ks_level,
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, noise_reduction_type);
 
-  return scratch_cuda_kv_store_get<uint64_t>(
+  auto size = scratch_cuda_kv_store_get<uint64_t>(
       CudaStreams(streams), (int_kv_store_get_buffer<uint64_t> **)mem_ptr,
       params, num_entries, num_key_blocks, num_value_blocks,
       allocate_gpu_memory);
+
+  POP_RANGE()
+  return size;
 }
 
 // h_decomposed_clear_keys: clear keys pre-decomposed into radix blocks on the
@@ -31,6 +36,9 @@ void cuda_kv_store_get_64_async(
     CudaRadixCiphertextFFI const *lwe_array_in_values,
     const uint64_t *h_decomposed_clear_keys, int8_t *mem, void *const *bsks,
     void *const *ksks) {
+
+  PUSH_RANGE("kv_store_get")
+
   PANIC_IF_FALSE(lwe_array_out_result != lwe_array_in_encrypted_key,
                  "Output result and encrypted key pointers must be different "
                  "for out-of-place operations");
@@ -46,10 +54,14 @@ void cuda_kv_store_get_64_async(
       lwe_array_out_selectors, lwe_array_in_encrypted_key, lwe_array_in_values,
       h_decomposed_clear_keys, (int_kv_store_get_buffer<uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
+
+  POP_RANGE()
 }
 
 void cleanup_cuda_kv_store_get_64(CudaStreamsFFI streams,
                                   int8_t **mem_ptr_void) {
+  PUSH_RANGE("cleanup kv_store_get")
+
   int_kv_store_get_buffer<uint64_t> *mem_ptr =
       (int_kv_store_get_buffer<uint64_t> *)(*mem_ptr_void);
 
@@ -57,6 +69,8 @@ void cleanup_cuda_kv_store_get_64(CudaStreamsFFI streams,
 
   delete mem_ptr;
   *mem_ptr_void = nullptr;
+
+  POP_RANGE()
 }
 
 uint64_t scratch_cuda_kv_store_update_64_async(

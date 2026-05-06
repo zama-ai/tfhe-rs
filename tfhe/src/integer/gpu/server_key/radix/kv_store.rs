@@ -38,6 +38,7 @@ pub struct CudaKVStore<Key, Ct> {
     block_count: Option<NonZeroUsize>,
 }
 
+#[allow(dead_code)]
 impl<Key, Ct> CudaKVStore<Key, Ct> {
     pub(crate) fn from_kv_store<CpuCt>(
         kv_store: &KVStore<Key, CpuCt>,
@@ -181,6 +182,7 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
         self.data.iter()
     }
 
+    #[allow(dead_code)]
     fn par_iter_keys(&self) -> impl ParallelIterator<Item = &Key>
     where
         Key: Send + Sync + Ord,
@@ -193,6 +195,7 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
         self.block_count
     }
 
+    #[allow(dead_code)]
     pub(crate) fn to_kv_store<CpuCt>(
         &self,
         streams: &CudaStreams,

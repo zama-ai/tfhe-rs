@@ -1,5 +1,6 @@
 #pragma once
 
+#include "helper_profile.cuh"
 #include "integer/cmux.cuh"
 #include "integer/comparison.cuh"
 #include "integer/integer.cuh"
@@ -36,6 +37,7 @@ host_kv_store_get(CudaStreams streams,
   // Step 1: equality selectors (key-block-count dependent)
   // Checks equality between all cleartext keys and the encrypted_key.
   // Returns an array with encrypted booleans with the result.
+  PUSH_RANGE("get: equality selectors")
   for (uint32_t i = 0; i < num_entries; i++) {
     as_radix_ciphertext_slice<Torus>(&selectors_list[i],
                                      lwe_array_out_selectors, i, i + 1);
@@ -44,8 +46,10 @@ host_kv_store_get(CudaStreams streams,
   host_compute_equality_selectors<Torus>(
       streams, selectors_list, lwe_array_in_encrypted_key, num_key_blocks,
       h_decomposed_clear_keys, mem_eq_selectors_buffer, bsks, ksks);
+  POP_RANGE()
 
   // Generate trivial encryptions of the clear keys (key-block-count dependent)
+  PUSH_RANGE("get: trivial encrypt clear keys")
   uint64_t *d_decomposed_clear_key = d_decomposed_clear_keys;
   const uint64_t *h_decomposed_clear_key = h_decomposed_clear_keys;
   for (uint32_t i = 0; i < num_entries; i++) {
@@ -62,27 +66,34 @@ host_kv_store_get(CudaStreams streams,
     d_decomposed_clear_key += num_key_blocks;
     h_decomposed_clear_key += num_key_blocks;
   }
+  POP_RANGE()
 
   // Step 2: One-hot vector (value-block-count dependent)
   // Generates an array where the only non-zero encrypted message is the one we
   // are looking for, in case it is contained in the store.
+  PUSH_RANGE("get: one-hot vector")
   auto lwe_one_hot_vector = tmp_cmux_array;
   zero_out_if_batch(streams, lwe_one_hot_vector, lwe_array_in_values,
                     lwe_array_out_selectors, mem_zero_out_batch_buffer,
                     one_hot_vector_predicate, bsks, ksks, num_entries,
                     num_value_blocks);
+  POP_RANGE()
 
   // Step 3: Sum all elements in the vector (value-block-count dependent)
+  PUSH_RANGE("get: binary tree sum")
   host_binary_tree_sum<Torus>(
       streams.stream(0), streams.gpu_index(0), lwe_array_out_result,
       lwe_one_hot_vector, num_entries, num_value_blocks,
       mem_ptr->params.polynomial_size, message_modulus, carry_modulus);
+  POP_RANGE()
 
   //  OR all selectors
+  PUSH_RANGE("get: OR selectors")
   auto at_least_one_true_buffer = mem_ptr->at_least_one_true_buffer;
   host_integer_is_at_least_one_comparisons_block_true<Torus>(
       streams, lwe_array_out_boolean, lwe_array_out_selectors,
       at_least_one_true_buffer, bsks, ksks, num_entries);
+  POP_RANGE()
 }
 
 template <typename Torus>
@@ -133,22 +144,28 @@ host_kv_store_update(CudaStreams streams,
 
   // Step 1: equality selectors (key-block-count dependent)
   // Checks equality between all cleartext keys and the encrypted_key.
+  PUSH_RANGE("update: equality selectors")
   host_compute_equality_selectors<Torus>(
       streams, selectors_list, lwe_array_in_encrypted_key, num_key_blocks,
       h_decomposed_clear_keys, mem_eq_selectors_buffer, bsks, ksks);
+  POP_RANGE()
 
   // Step 2: batched CMUX (value-block-count dependent)
   // For each entry, select new_value where selector==1, old_value otherwise.
   // The true branch (new_value) is replicated across all entries.
+  PUSH_RANGE("update: batched cmux")
   host_cmux_batch<Torus, KSTorus>(
       streams, lwe_array_out_values, lwe_in_new_value, lwe_array_in_values,
       mem_ptr->selectors_contiguous, mem_ptr->cmux_batch_buffer, bsks, ksks,
       num_entries, num_value_blocks, true);
+  POP_RANGE()
 
   // Step 3: OR all selectors to produce the key-found boolean
+  PUSH_RANGE("update: OR selectors")
   host_integer_is_at_least_one_comparisons_block_true<Torus>(
       streams, lwe_check_out_block, mem_ptr->selectors_contiguous,
       mem_ptr->at_least_one_true_buffer, bsks, ksks, num_entries);
+  POP_RANGE()
 }
 
 template <typename Torus>
@@ -194,15 +211,19 @@ host_kv_store_map(CudaStreams streams,
   // Batched CMUX: for each entry, select new_value where selector==1,
   // old_value otherwise. The true branch (new_value) is replicated across all
   // entries.
+  PUSH_RANGE("map: batched cmux")
   host_cmux_batch<Torus, KSTorus>(
       streams, lwe_array_out_values, lwe_in_new_value, lwe_array_in_values,
       lwe_array_in_selectors, mem_ptr->cmux_batch_buffer, bsks, ksks,
       num_entries, num_value_blocks, true);
+  POP_RANGE()
 
   // OR all selectors to produce the key-found boolean
+  PUSH_RANGE("map: OR selectors")
   host_integer_is_at_least_one_comparisons_block_true<Torus>(
       streams, lwe_check_out_block, lwe_array_in_selectors,
       mem_ptr->at_least_one_true_buffer, bsks, ksks, num_entries);
+  POP_RANGE()
 }
 
 template <typename Torus>
@@ -234,14 +255,18 @@ __host__ void host_kv_store_contains_key(
 
   // Step 1: equality selectors (key-block-count dependent)
   // Checks equality between all cleartext keys and the encrypted_key.
+  PUSH_RANGE("contains_key: equality selectors")
   host_compute_equality_selectors<Torus>(
       streams, selectors_list, lwe_array_in_encrypted_key, num_key_blocks,
       h_decomposed_clear_keys, mem_ptr->mem_eq_selectors_buffer, bsks, ksks);
+  POP_RANGE()
 
   // Step 2: OR all selectors to produce the key-found boolean
+  PUSH_RANGE("contains_key: OR selectors")
   host_integer_is_at_least_one_comparisons_block_true<Torus>(
       streams, lwe_array_out_boolean, mem_ptr->selectors_contiguous,
       mem_ptr->at_least_one_true_buffer, bsks, ksks, num_entries);
+  POP_RANGE()
 }
 
 template <typename Torus>
