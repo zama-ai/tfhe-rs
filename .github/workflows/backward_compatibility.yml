@@ -12,7 +12,6 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
   SLACKIFY_MARKDOWN: true
-  CHECKOUT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 on:
   workflow_dispatch:
@@ -21,14 +20,14 @@ on:
     branches:
       - main
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   backward-compatibility:
     name: backward_compatibility/backward-compatibility (bpr)
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: write # Need to write a PR comment
     concurrency:
       group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
@@ -38,7 +37,6 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: 'true'
-          token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Fetch base commit
         env:
