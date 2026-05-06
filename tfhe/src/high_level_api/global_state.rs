@@ -80,10 +80,18 @@ pub fn with_server_key_as_context<T, F>(keys: ServerKey, f: F) -> T
 where
     F: FnOnce() -> T,
 {
-    set_server_key(keys);
-    let result = f();
-    unset_server_key();
-    result
+    // If there is an existing key, save it to be restored later
+    let previous_key = replace_server_key(Some(keys));
+
+    struct ServerKeyGuard(Option<InternalServerKey>);
+    impl Drop for ServerKeyGuard {
+        fn drop(&mut self) {
+            let _ = replace_server_key(self.0.take());
+        }
+    }
+
+    let _guard = ServerKeyGuard(previous_key);
+    f()
 }
 
 /// Convenience function that allows to write functions that needs to access the internal keys
