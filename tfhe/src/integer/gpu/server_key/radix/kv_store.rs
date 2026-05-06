@@ -1,7 +1,7 @@
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{LweBskGroupingFactor, LweCiphertextCount};
-use crate::integer::block_decomposition::{Decomposable, DecomposableInto};
+use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{AsShortintCiphertextSlice, IntegerRadixCiphertext};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
@@ -10,8 +10,8 @@ use crate::integer::gpu::ciphertext::{
 };
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaDynamicKeyswitchingKey};
 use crate::integer::gpu::{
-    cuda_backend_kv_store_get, cuda_backend_kv_store_map, cuda_backend_kv_store_update,
-    CudaServerKey, PBSType,
+    cuda_backend_kv_store_contains_key, cuda_backend_kv_store_get, cuda_backend_kv_store_map,
+    cuda_backend_kv_store_update, CudaServerKey, PBSType,
 };
 use crate::integer::server_key::KVStore;
 use crate::prelude::CastInto;
@@ -148,6 +148,13 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
     /// Returns whether the store is empty
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
+    }
+
+    pub fn contains_key(&self, key: &Key) -> bool
+    where
+        Key: Ord,
+    {
+        self.data.contains_key(key)
     }
 
     pub fn duplicate(&self, streams: &CudaStreams) -> Self
@@ -291,8 +298,6 @@ impl<Key, Ct> Default for CudaKVStore<Key, Ct> {
     }
 }
 
-// TO DISCUSS: Do we want a CudaCompressedKVStore?;
-
 impl CudaServerKey {
     //    Input: encrypted_key (Ct), kv_store data (concatenated values and clear keys)
     //    Output: (retrieved value Ct, found boolean CudaBooleanBlock, selector ciphertexts
@@ -435,8 +440,119 @@ impl CudaServerKey {
         (result_ct, result_bool, selectors_ct.d_blocks)
     }
 
-    // We split kv_store_get and kv_store_get_impl for methods that reuse selectors.
-    // For instance, kv_store_map.
+    pub fn kv_store_contains_key<Key, Ct>(
+        &self,
+        map: &CudaKVStore<Key, Ct>,
+        encrypted_key: &Ct,
+        streams: &CudaStreams,
+    ) -> CudaBooleanBlock
+    where
+        Ct: CudaIntegerRadixCiphertext + Send,
+        Key: DecomposableInto<u64> + CastInto<usize> + Ord + Copy + Sync,
+    {
+        if map.is_empty() {
+            return CudaBooleanBlock::from_cuda_radix_ciphertext(
+                self.create_trivial_zero_radix::<CudaUnsignedRadixCiphertext>(1, streams)
+                    .into_inner(),
+            );
+        }
+
+        let clear_keys: Vec<Key> = map.iter().map(|(k, _)| *k).collect();
+
+        let mut result_bool = CudaBooleanBlock(
+            self.create_trivial_zero_radix::<CudaUnsignedRadixCiphertext>(1, streams),
+        );
+
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+
+        // SAFETY: all GPU buffers are valid allocations on the same device,
+        // the FFI function has exclusive access to result_bool and read-only
+        // access to the other buffers.
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    cuda_backend_kv_store_contains_key(
+                        streams,
+                        &mut result_bool,
+                        encrypted_key.as_ref(),
+                        &clear_keys,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        &d_bsk.d_vec,
+                        &computing_ks_key.d_vec,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    cuda_backend_kv_store_contains_key(
+                        streams,
+                        &mut result_bool,
+                        encrypted_key.as_ref(),
+                        &clear_keys,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        &d_multibit_bsk.d_vec,
+                        &computing_ks_key.d_vec,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                    );
+                }
+            }
+        }
+
+        result_bool
+    }
+
+    pub fn kv_store_contains_value<Key, Ct>(
+        &self,
+        map: &CudaKVStore<Key, Ct>,
+        encrypted_value: &Ct,
+        streams: &CudaStreams,
+    ) -> CudaBooleanBlock
+    where
+        Ct: CudaIntegerRadixCiphertext + Send,
+        Key: Ord + Sync,
+    {
+        let values: Vec<_> = map.iter().map(|(_, v)| v.duplicate(streams)).collect();
+        self.contains(&values, encrypted_value, streams)
+    }
+
+    pub fn kv_store_contains_clear_value<Key, Ct, Clear>(
+        &self,
+        map: &CudaKVStore<Key, Ct>,
+        clear_value: Clear,
+        streams: &CudaStreams,
+    ) -> CudaBooleanBlock
+    where
+        Ct: CudaIntegerRadixCiphertext + Send,
+        Key: Ord + Sync,
+        Clear: DecomposableInto<u64>,
+    {
+        let values: Vec<_> = map.iter().map(|(_, v)| v.duplicate(streams)).collect();
+        self.contains_clear(&values, clear_value, streams)
+    }
+
     pub fn kv_store_get<Key, Ct>(
         &self,
         map: &CudaKVStore<Key, Ct>,
@@ -474,8 +590,15 @@ impl CudaServerKey {
         let concatenated_old_values = map.to_vec(streams);
         let clear_keys: Vec<Key> = map.iter().map(|(k, _)| *k).collect();
 
-        // TODO: What happens if map.len() == 0?
-        let num_blocks_per_value = map.blocks_per_radix().unwrap().get();
+        let num_blocks_per_value = match map.blocks_per_radix() {
+            Some(n) => n.get(),
+            None => {
+                return CudaBooleanBlock::from_cuda_radix_ciphertext(
+                    self.create_trivial_zero_radix::<CudaUnsignedRadixCiphertext>(1, streams)
+                        .into_inner(),
+                );
+            }
+        };
 
         let mut d_check_block: CudaUnsignedRadixCiphertext =
             self.create_trivial_zero_radix(1, streams);
@@ -581,7 +704,16 @@ impl CudaServerKey {
         let new_value = func(old_value);
 
         let num_entries = map.len();
-        let num_blocks_per_value = map.blocks_per_radix().unwrap().get();
+        let num_blocks_per_value = match map.blocks_per_radix() {
+            Some(n) => n.get(),
+            None => {
+                let trivial_bool = CudaBooleanBlock::from_cuda_radix_ciphertext(
+                    self.create_trivial_zero_radix::<CudaUnsignedRadixCiphertext>(1, streams)
+                        .into_inner(),
+                );
+                return (old_value_copy, new_value, trivial_bool);
+            }
+        };
 
         let concatenated_old_values = map.to_vec(streams);
 
@@ -933,6 +1065,145 @@ mod tests {
 
         assert!(!found, "Empty store should not find any key");
         assert_eq!(decrypted, 0, "Empty store should return 0");
+    }
+
+    #[test]
+    fn test_kv_store_contains_key() {
+        let params =
+            TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
+        let (cks, _) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
+
+        let streams = CudaStreams::new_multi_gpu();
+        let sks = CudaServerKey::new(&cks, &streams);
+        streams.synchronize();
+
+        let num_value_blocks = 4;
+        let num_key_blocks = 4;
+
+        let clear_entries: Vec<(u8, u64)> = vec![(1, 10), (2, 42), (3, 100), (5, 200)];
+
+        let mut gpu_kv_store: CudaKVStore<u8, CudaUnsignedRadixCiphertext> = CudaKVStore::new();
+        for &(key, value) in &clear_entries {
+            let ct = cks.encrypt_radix(value, num_value_blocks);
+            let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
+            gpu_kv_store.insert(key, d_ct);
+        }
+
+        // Keys that are in the store must return true
+        for &(key, _) in &clear_entries {
+            let encrypted_key = cks.encrypt_radix(key as u64, num_key_blocks);
+            let d_encrypted_key =
+                CudaUnsignedRadixCiphertext::from_radix_ciphertext(&encrypted_key, &streams);
+
+            let result_bool = sks.kv_store_contains_key(&gpu_kv_store, &d_encrypted_key, &streams);
+            let found = cks.decrypt_bool(&result_bool.to_boolean_block(&streams));
+            assert!(found, "Key {key} should be found in the store");
+        }
+
+        // A key that is not in the store must return false
+        let missing_key = 4u8;
+        let encrypted_key = cks.encrypt_radix(missing_key as u64, num_key_blocks);
+        let d_encrypted_key =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(&encrypted_key, &streams);
+
+        let result_bool = sks.kv_store_contains_key(&gpu_kv_store, &d_encrypted_key, &streams);
+        let found = cks.decrypt_bool(&result_bool.to_boolean_block(&streams));
+        assert!(!found, "Key {missing_key} should not be found in the store");
+
+        // An empty store must always return false
+        let empty_store: CudaKVStore<u8, CudaUnsignedRadixCiphertext> = CudaKVStore::new();
+        let encrypted_key = cks.encrypt_radix(1u64, num_key_blocks);
+        let d_encrypted_key =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(&encrypted_key, &streams);
+
+        let result_bool = sks.kv_store_contains_key(&empty_store, &d_encrypted_key, &streams);
+        let found = cks.decrypt_bool(&result_bool.to_boolean_block(&streams));
+        assert!(!found, "Empty store should not find any key");
+    }
+
+    #[test]
+    fn test_kv_store_contains_value() {
+        let params =
+            TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
+        let (cks, _) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
+
+        let streams = CudaStreams::new_multi_gpu();
+        let sks = CudaServerKey::new(&cks, &streams);
+        streams.synchronize();
+
+        let num_value_blocks = 4;
+
+        let clear_entries: Vec<(u8, u64)> = vec![(1, 10), (2, 42), (3, 100), (5, 200)];
+
+        let mut gpu_kv_store: CudaKVStore<u8, CudaUnsignedRadixCiphertext> = CudaKVStore::new();
+        for &(key, value) in &clear_entries {
+            let ct = cks.encrypt_radix(value, num_value_blocks);
+            let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
+            gpu_kv_store.insert(key, d_ct);
+        }
+
+        // Values that are in the store must return true
+        for &(_, value) in &clear_entries {
+            let encrypted_value = cks.encrypt_radix(value, num_value_blocks);
+            let d_encrypted_value =
+                CudaUnsignedRadixCiphertext::from_radix_ciphertext(&encrypted_value, &streams);
+
+            let result_bool =
+                sks.kv_store_contains_value(&gpu_kv_store, &d_encrypted_value, &streams);
+            let found = cks.decrypt_bool(&result_bool.to_boolean_block(&streams));
+            assert!(found, "Value {value} should be found in the store");
+        }
+
+        // A value that is not in the store must return false
+        let missing_value = 99u64;
+        let encrypted_value = cks.encrypt_radix(missing_value, num_value_blocks);
+        let d_encrypted_value =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(&encrypted_value, &streams);
+
+        let result_bool = sks.kv_store_contains_value(&gpu_kv_store, &d_encrypted_value, &streams);
+        let found = cks.decrypt_bool(&result_bool.to_boolean_block(&streams));
+        assert!(
+            !found,
+            "Value {missing_value} should not be found in the store"
+        );
+    }
+
+    #[test]
+    fn test_kv_store_contains_clear_value() {
+        let params =
+            TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
+        let (cks, _) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
+
+        let streams = CudaStreams::new_multi_gpu();
+        let sks = CudaServerKey::new(&cks, &streams);
+        streams.synchronize();
+
+        let num_value_blocks = 4;
+
+        let clear_entries: Vec<(u8, u64)> = vec![(1, 10), (2, 42), (3, 100), (5, 200)];
+
+        let mut gpu_kv_store: CudaKVStore<u8, CudaUnsignedRadixCiphertext> = CudaKVStore::new();
+        for &(key, value) in &clear_entries {
+            let ct = cks.encrypt_radix(value, num_value_blocks);
+            let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
+            gpu_kv_store.insert(key, d_ct);
+        }
+
+        // Clear values that are in the store must return true
+        for &(_, value) in &clear_entries {
+            let result_bool = sks.kv_store_contains_clear_value(&gpu_kv_store, value, &streams);
+            let found = cks.decrypt_bool(&result_bool.to_boolean_block(&streams));
+            assert!(found, "Clear value {value} should be found in the store");
+        }
+
+        // A clear value that is not in the store must return false
+        let missing_value = 99u64;
+        let result_bool = sks.kv_store_contains_clear_value(&gpu_kv_store, missing_value, &streams);
+        let found = cks.decrypt_bool(&result_bool.to_boolean_block(&streams));
+        assert!(
+            !found,
+            "Clear value {missing_value} should not be found in the store"
+        );
     }
 
     #[test]

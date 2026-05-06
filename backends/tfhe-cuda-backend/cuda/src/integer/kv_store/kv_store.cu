@@ -195,3 +195,64 @@ void cleanup_cuda_kv_store_map_64(CudaStreamsFFI streams,
 
   POP_RANGE()
 }
+
+uint64_t scratch_cuda_kv_store_contains_key_64_async(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t big_lwe_dimension,
+    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_entries, uint32_t num_key_blocks, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
+
+  PUSH_RANGE("scratch kv_store_contains_key")
+
+  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
+                          big_lwe_dimension, small_lwe_dimension, ks_level,
+                          ks_base_log, pbs_level, pbs_base_log, grouping_factor,
+                          message_modulus, carry_modulus, noise_reduction_type);
+
+  auto size = scratch_cuda_kv_store_contains_key<uint64_t>(
+      CudaStreams(streams),
+      (int_kv_store_contains_key_buffer<uint64_t> **)mem_ptr, params,
+      num_entries, num_key_blocks, allocate_gpu_memory);
+
+  POP_RANGE()
+  return size;
+}
+
+void cuda_kv_store_contains_key_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_boolean,
+    CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
+    const uint64_t *h_decomposed_clear_keys, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks) {
+
+  PUSH_RANGE("kv_store_contains_key")
+
+  PANIC_IF_FALSE(lwe_array_out_boolean != lwe_array_in_encrypted_key,
+                 "Output boolean and encrypted key pointers must be different "
+                 "for out-of-place operations");
+
+  host_kv_store_contains_key<uint64_t>(
+      CudaStreams(streams), lwe_array_out_boolean, lwe_array_in_encrypted_key,
+      h_decomposed_clear_keys,
+      (int_kv_store_contains_key_buffer<uint64_t> *)mem_ptr, bsks,
+      (uint64_t *const *)ksks);
+
+  POP_RANGE()
+}
+
+void cleanup_cuda_kv_store_contains_key_64(CudaStreamsFFI streams,
+                                           int8_t **mem_ptr_void) {
+  PUSH_RANGE("cleanup kv_store_contains_key")
+
+  int_kv_store_contains_key_buffer<uint64_t> *mem_ptr =
+      (int_kv_store_contains_key_buffer<uint64_t> *)(*mem_ptr_void);
+
+  mem_ptr->release(CudaStreams(streams));
+
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
+
+  POP_RANGE()
+}

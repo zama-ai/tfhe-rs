@@ -269,4 +269,74 @@ template <typename Torus> struct int_kv_store_map_buffer {
   }
 };
 
+template <typename Torus> struct int_kv_store_contains_key_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+  bool gpu_memory_allocated;
+  uint32_t num_entries;
+  uint32_t num_key_blocks;
+
+  Torus message_modulus;
+  Torus carry_modulus;
+
+  int_equality_selectors_buffer<Torus> *mem_eq_selectors_buffer;
+
+  // Contiguous buffer for selectors (num_entries blocks), sliced per entry
+  CudaRadixCiphertextFFI *selectors_contiguous;
+  CudaRadixCiphertextFFI *selectors_list;
+
+  // OR-reduction scratch for key-found boolean
+  int_comparison_buffer<Torus> *at_least_one_true_buffer;
+
+  int_kv_store_contains_key_buffer(CudaStreams streams, int_radix_params params,
+                                   uint32_t num_entries,
+                                   uint32_t num_key_blocks,
+                                   bool allocate_gpu_memory,
+                                   uint64_t &size_tracker)
+      : params(params), allocate_gpu_memory(allocate_gpu_memory),
+        gpu_memory_allocated(allocate_gpu_memory), num_entries(num_entries),
+        num_key_blocks(num_key_blocks) {
+
+    this->message_modulus = params.message_modulus;
+    this->carry_modulus = params.carry_modulus;
+
+    this->mem_eq_selectors_buffer = new int_equality_selectors_buffer<Torus>(
+        streams, params, num_entries, num_key_blocks, allocate_gpu_memory,
+        size_tracker);
+
+    this->selectors_contiguous = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->selectors_contiguous,
+        num_entries, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
+    this->selectors_list = new CudaRadixCiphertextFFI[num_entries];
+    for (uint32_t i = 0; i < num_entries; i++) {
+      as_radix_ciphertext_slice<Torus>(&selectors_list[i], selectors_contiguous,
+                                       i, i + 1);
+    }
+
+    this->at_least_one_true_buffer = new int_comparison_buffer<Torus>(
+        streams, EQ, params, num_entries, false, allocate_gpu_memory,
+        size_tracker);
+  }
+
+  void release(CudaStreams streams) {
+    this->at_least_one_true_buffer->release(streams);
+    delete this->at_least_one_true_buffer;
+
+    delete[] this->selectors_list;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->selectors_contiguous,
+                                   this->gpu_memory_allocated);
+    delete this->selectors_contiguous;
+
+    this->mem_eq_selectors_buffer->release(streams);
+    delete this->mem_eq_selectors_buffer;
+
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+};
+
 #endif // CUDA_INTEGER_KV_STORE_UTILITIES_H

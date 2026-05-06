@@ -8191,6 +8191,145 @@ pub(crate) unsafe fn cuda_backend_kv_store_map<T: UnsignedInteger, B: Numeric>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_kv_store_contains_key<
+    T: UnsignedInteger,
+    B: Numeric,
+    Clear: DecomposableInto<u64> + CastInto<usize>,
+>(
+    streams: &CudaStreams,
+    lwe_array_out_boolean: &mut CudaBooleanBlock,
+    lwe_array_in_encrypted_key: &CudaRadixCiphertext,
+    clear_keys: &[Clear],
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lwe_array_in_encrypted_key.d_blocks.0.d_vec.gpu_index(0)
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lwe_array_out_boolean
+            .0
+            .ciphertext
+            .d_blocks
+            .0
+            .d_vec
+            .gpu_index(0)
+    );
+
+    let num_input_blocks =
+        u32::try_from(lwe_array_in_encrypted_key.d_blocks.lwe_ciphertext_count().0).unwrap();
+    let num_bits_in_message = message_modulus.0.ilog2();
+    let num_entries = u32::try_from(clear_keys.len()).unwrap();
+
+    let h_decomposed_clear_keys: Vec<u64> = clear_keys
+        .iter()
+        .flat_map(|key| {
+            BlockDecomposer::new(*key, num_bits_in_message)
+                .take(num_input_blocks as usize)
+                .map(|block_value: Clear| block_value.cast_into())
+                .collect::<Vec<u64>>()
+        })
+        .collect();
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut ffi_out_boolean_degrees: Vec<u64> =
+        vec![lwe_array_out_boolean.0.ciphertext.info.blocks[0]
+            .degree
+            .get()];
+    let mut ffi_out_boolean_noise_levels: Vec<u64> = vec![
+        lwe_array_out_boolean.0.ciphertext.info.blocks[0]
+            .noise_level
+            .0,
+    ];
+    let mut ffi_out_boolean_struct = prepare_cuda_radix_ffi(
+        &lwe_array_out_boolean.0.ciphertext,
+        &mut ffi_out_boolean_degrees,
+        &mut ffi_out_boolean_noise_levels,
+    );
+
+    let mut ffi_in_key_degrees: Vec<u64> = lwe_array_in_encrypted_key
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.get())
+        .collect();
+    let mut ffi_in_key_noise_levels: Vec<u64> = lwe_array_in_encrypted_key
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let ffi_in_key_struct = prepare_cuda_radix_ffi(
+        lwe_array_in_encrypted_key,
+        &mut ffi_in_key_degrees,
+        &mut ffi_in_key_noise_levels,
+    );
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_kv_store_contains_key_64_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        u32::try_from(glwe_dimension.0).unwrap(),
+        u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(big_lwe_dimension.0).unwrap(),
+        u32::try_from(small_lwe_dimension.0).unwrap(),
+        u32::try_from(ks_level.0).unwrap(),
+        u32::try_from(ks_base_log.0).unwrap(),
+        u32::try_from(pbs_level.0).unwrap(),
+        u32::try_from(pbs_base_log.0).unwrap(),
+        u32::try_from(grouping_factor.0).unwrap(),
+        num_entries,
+        num_input_blocks,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        pbs_type as u32,
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_kv_store_contains_key_64_async(
+        streams.ffi(),
+        &raw mut ffi_out_boolean_struct,
+        &raw const ffi_in_key_struct,
+        h_decomposed_clear_keys.as_ptr(),
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_kv_store_contains_key_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(
+        &mut lwe_array_out_boolean.0.ciphertext,
+        &ffi_out_boolean_struct,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
 pub(crate) fn cuda_backend_get_unchecked_match_value_size_on_gpu<Clear>(
     streams: &CudaStreams,
     ct: &CudaRadixCiphertext,

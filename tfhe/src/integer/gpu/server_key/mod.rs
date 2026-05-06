@@ -25,6 +25,7 @@ use crate::shortint::oprf::ExpandedOprfBootstrappingKey;
 use crate::shortint::parameters::ModulusSwitchType;
 use crate::shortint::prelude::PolynomialSize;
 use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
+pub use radix::kv_store::CudaKVStore;
 pub use radix::{CudaOprfServerKey, CudaOprfServerKeyView, GenericCudaOprfServerKey};
 
 pub(crate) mod radix;

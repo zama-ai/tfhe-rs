@@ -7,7 +7,7 @@ use crate::high_level_api::global_state;
 use crate::high_level_api::global_state::with_cuda_internal_keys;
 use crate::high_level_api::integers::FheIntegerType;
 use crate::high_level_api::keys::InternalServerKey;
-use crate::integer::block_decomposition::{Decomposable, DecomposableInto};
+use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{Compressible, Expandable};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
@@ -291,6 +291,8 @@ where
     {
         match &self.inner {
             InnerKVStore::Cpu(kvstore) => kvstore.contains_key(key),
+            #[cfg(feature = "gpu")]
+            InnerKVStore::Cuda(kvstore) => kvstore.contains_key(key),
         }
     }
 
@@ -396,7 +398,7 @@ where
                 )
             }
             #[cfg(feature = "gpu")]
-            (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cpu(inner_store)) => {
+            (InternalServerKey::Cuda(_cuda_key), InnerKVStore::Cpu(_inner_store)) => {
                 panic!("CudaServerKey does not support CPU's KVStore")
             }
             #[cfg(feature = "gpu")]
@@ -454,8 +456,22 @@ where
                 )
             }
             #[cfg(feature = "gpu")]
-            (InternalServerKey::Cuda(_cuda_key), _) => {
-                panic!("GPU does not support KVStore yet")
+            (InternalServerKey::Cuda(_cuda_key), InnerKVStore::Cpu(_)) => {
+                panic!("CudaServerKey does not support CPU's KVStore")
+            }
+            #[cfg(feature = "gpu")]
+            (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cuda(inner_store)) => {
+                let streams = &cuda_key.streams;
+                let inner = cuda_key.pbs_key().kv_store_contains_key(
+                    inner_store,
+                    &*encrypted_key.on_gpu(streams),
+                    streams,
+                );
+                FheBool::new(
+                    inner,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             (InternalServerKey::Hpu(_device), _) => {
@@ -482,8 +498,22 @@ where
                 )
             }
             #[cfg(feature = "gpu")]
-            (InternalServerKey::Cuda(_cuda_key), _) => {
-                panic!("GPU does not support KVStore yet")
+            (InternalServerKey::Cuda(_cuda_key), InnerKVStore::Cpu(_)) => {
+                panic!("CudaServerKey does not support CPU's KVStore")
+            }
+            #[cfg(feature = "gpu")]
+            (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cuda(inner_store)) => {
+                let streams = &cuda_key.streams;
+                let inner = cuda_key.pbs_key().kv_store_contains_value(
+                    inner_store,
+                    &*encrypted_value.on_gpu(streams),
+                    streams,
+                );
+                FheBool::new(
+                    inner,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             (InternalServerKey::Hpu(_device), _) => {
@@ -513,8 +543,22 @@ where
                 )
             }
             #[cfg(feature = "gpu")]
-            (InternalServerKey::Cuda(_cuda_key), _) => {
-                panic!("GPU does not support KVStore yet")
+            (InternalServerKey::Cuda(_cuda_key), InnerKVStore::Cpu(_)) => {
+                panic!("CudaServerKey does not support CPU's KVStore")
+            }
+            #[cfg(feature = "gpu")]
+            (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cuda(inner_store)) => {
+                let streams = &cuda_key.streams;
+                let inner = cuda_key.pbs_key().kv_store_contains_clear_value(
+                    inner_store,
+                    clear_value,
+                    streams,
+                );
+                FheBool::new(
+                    inner,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             (InternalServerKey::Hpu(_device), _) => {
@@ -694,30 +738,12 @@ where
                 })
             }
             #[cfg(feature = "gpu")]
-            (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cpu(inner_store)) => {
-                let comp_key = cuda_key
-                    .key
-                    .compression_key
-                    .as_ref()
-                    .ok_or(crate::high_level_api::errors::UninitializedCompressionKey)?;
-                let compressed_inner = inner_store.compress(comp_key);
-                Ok(CompressedKVStore {
-                    inner: compressed_inner,
-                })
+            (InternalServerKey::Cuda(_), InnerKVStore::Cpu(_)) => {
+                panic!("KVStore compression is not supported on GPU")
             }
             #[cfg(feature = "gpu")]
-            (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cuda(inner_store)) => {
-                let comp_key = cuda_key
-                    .key
-                    .compression_key
-                    .as_ref()
-                    .ok_or(crate::high_level_api::errors::UninitializedCompressionKey)?;
-                let streams = &cuda_key.streams;
-                let cpu_store = inner_store.to_kv_store(streams);
-                let compressed_inner = cpu_store.compress(comp_key);
-                Ok(CompressedKVStore {
-                    inner: compressed_inner,
-                })
+            (InternalServerKey::Cuda(_), InnerKVStore::Cuda(_)) => {
+                panic!("KVStore compression is not supported on GPU")
             }
             #[cfg(feature = "hpu")]
             (InternalServerKey::Hpu(_device), _) => {
@@ -818,29 +844,8 @@ where
                 })
             }
             #[cfg(feature = "gpu")]
-            Some(InternalServerKey::Cuda(cuda_key)) => {
-                let decomp_key = cuda_key
-                    .key
-                    .decompression_key
-                    .as_ref()
-                    .ok_or(crate::high_level_api::errors::UninitializedDecompressionKey)?;
-                let inner_kv_store = self.inner.decompress(decomp_key)?;
-
-                let Some(actual_block_count) = inner_kv_store.blocks_per_radix() else {
-                    return Ok(KVStore::new());
-                };
-
-                let expected_block_count = Value::Id::num_blocks(cuda_key.message_modulus());
-
-                if actual_block_count.get() != expected_block_count {
-                    return Err(crate::error!("Inconsistent block count in KVStore: expected {expected_block_count} but got {actual_block_count}"));
-                }
-
-                let streams = &cuda_key.streams;
-                let gpu_store = IntegerGpuKVStore::from_kv_store(&inner_kv_store, streams);
-                Ok(KVStore {
-                    inner: InnerKVStore::Cuda(gpu_store),
-                })
+            Some(InternalServerKey::Cuda(_)) => {
+                panic!("KVStore decompression is not supported on GPU")
             }
             #[cfg(feature = "hpu")]
             Some(InternalServerKey::Hpu(_device)) => {
@@ -1246,6 +1251,27 @@ mod test {
             let ck = setup_default_gpu();
 
             kv_store_map_test_case(&ck);
+        }
+
+        #[test]
+        fn test_kv_store_contains_key() {
+            let ck = setup_default_gpu();
+
+            kv_store_contains_key_test_case(&ck);
+        }
+
+        #[test]
+        fn test_kv_store_contains_value() {
+            let ck = setup_default_gpu();
+
+            kv_store_contains_value_test_case(&ck);
+        }
+
+        #[test]
+        fn test_kv_store_contains_clear_value() {
+            let ck = setup_default_gpu();
+
+            kv_store_contains_clear_value_test_case(&ck);
         }
 
         #[test]

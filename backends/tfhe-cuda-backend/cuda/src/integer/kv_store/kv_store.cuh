@@ -217,3 +217,41 @@ scratch_cuda_kv_store_map(CudaStreams streams,
       size_tracker);
   return size_tracker;
 }
+
+template <typename Torus, typename KSTorus>
+__host__ void host_kv_store_contains_key(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_boolean,
+    CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
+    const uint64_t *h_decomposed_clear_keys,
+    int_kv_store_contains_key_buffer<Torus> *mem_ptr, void *const *bsks,
+    KSTorus *const *ksks) {
+
+  auto num_entries = mem_ptr->num_entries;
+  auto num_key_blocks = mem_ptr->num_key_blocks;
+  auto selectors_list = mem_ptr->selectors_list;
+
+  cuda_set_device(streams.gpu_index(0));
+
+  // Step 1: equality selectors (key-block-count dependent)
+  // Checks equality between all cleartext keys and the encrypted_key.
+  host_compute_equality_selectors<Torus>(
+      streams, selectors_list, lwe_array_in_encrypted_key, num_key_blocks,
+      h_decomposed_clear_keys, mem_ptr->mem_eq_selectors_buffer, bsks, ksks);
+
+  // Step 2: OR all selectors to produce the key-found boolean
+  host_integer_is_at_least_one_comparisons_block_true<Torus>(
+      streams, lwe_array_out_boolean, mem_ptr->selectors_contiguous,
+      mem_ptr->at_least_one_true_buffer, bsks, ksks, num_entries);
+}
+
+template <typename Torus>
+uint64_t scratch_cuda_kv_store_contains_key(
+    CudaStreams streams, int_kv_store_contains_key_buffer<Torus> **mem_ptr,
+    int_radix_params params, uint32_t num_entries, uint32_t num_key_blocks,
+    bool allocate_gpu_memory) {
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_kv_store_contains_key_buffer<Torus>(
+      streams, params, num_entries, num_key_blocks, allocate_gpu_memory,
+      size_tracker);
+  return size_tracker;
+}
