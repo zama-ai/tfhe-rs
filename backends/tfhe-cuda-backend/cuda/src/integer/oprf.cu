@@ -2,12 +2,12 @@
 
 uint64_t scratch_cuda_integer_grouped_oprf_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks_to_process,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks_to_process,
     uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
     uint32_t message_bits_per_block, uint32_t total_random_bits,
     PBS_MS_REDUCTION_T noise_reduction_type) {
-  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+  int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_cuda_integer_grouped_oprf<uint64_t>(
@@ -41,12 +41,12 @@ void cleanup_cuda_integer_grouped_oprf_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_integer_grouped_oprf_custom_range_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks_intermediate,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks_intermediate,
     uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
     uint32_t message_bits_per_block, uint32_t num_input_random_bits,
     uint32_t num_scalar_bits, PBS_MS_REDUCTION_T noise_reduction_type) {
-  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+  int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_cuda_integer_grouped_oprf_custom_range<uint64_t>(

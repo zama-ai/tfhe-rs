@@ -2,12 +2,12 @@
 
 uint64_t scratch_cuda_integer_div_rem_64_async(
     CudaStreamsFFI streams, bool is_signed, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t message_modulus,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type) {
   PUSH_RANGE("scratch div")
-  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+  int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_cuda_integer_div_rem<uint64_t>(

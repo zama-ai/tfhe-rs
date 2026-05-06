@@ -9,6 +9,7 @@ use crate::core_crypto::prelude::{
     lwe_keyswitch_key_input_key_element_encrypted_size, LweKeyswitchKeyOwned, LweSize,
     UnsignedInteger,
 };
+use tfhe_cuda_backend::bindings::CudaLweKeyswitchKeyParamsFFI;
 
 #[derive(Clone)]
 #[allow(dead_code)]
@@ -72,5 +73,15 @@ impl<T: UnsignedInteger> CudaLweKeyswitchKey<T> {
 
     pub(crate) fn ciphertext_modulus(&self) -> CiphertextModulus<T> {
         self.ciphertext_modulus
+    }
+
+    pub(crate) fn params_ffi(&self) -> CudaLweKeyswitchKeyParamsFFI {
+        CudaLweKeyswitchKeyParamsFFI {
+            input_lwe_dimension: u32::try_from(self.input_lwe_size.to_lwe_dimension().0).unwrap(),
+            output_lwe_dimension: u32::try_from(self.output_lwe_size.to_lwe_dimension().0)
+                .unwrap(),
+            base_log: u32::try_from(self.decomp_base_log.0).unwrap(),
+            level_count: u32::try_from(self.decomp_level_count.0).unwrap(),
+        }
     }
 }

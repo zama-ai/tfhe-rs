@@ -1,7 +1,7 @@
 #ifndef ZK_H
 #define ZK_H
 
-#include "../keyswitch/ks_enums.h"
+#include "../keyswitch/keyswitch.h"
 #include "../pbs/pbs_enums.h"
 #include "zk_enums.h"
 #include <stdint.h>
@@ -9,11 +9,10 @@
 extern "C" {
 uint64_t scratch_cuda_expand_without_verification_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t big_lwe_dimension,
-    uint32_t small_lwe_dimension, uint32_t computing_ks_level,
-    uint32_t computing_ks_base_log, uint32_t casting_input_dimension,
-    uint32_t casting_output_dimension, uint32_t casting_ks_level,
-    uint32_t casting_ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
+    uint32_t polynomial_size,
+    CudaLweKeyswitchKeyParamsFFI computing_ksk_params,
+    CudaLweKeyswitchKeyParamsFFI casting_ksk_params,
+    uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, const uint32_t *num_lwes_per_compact_list,
     const bool *is_boolean_array, const uint32_t is_boolean_array_len,
     uint32_t num_compact_lists, uint32_t message_modulus,

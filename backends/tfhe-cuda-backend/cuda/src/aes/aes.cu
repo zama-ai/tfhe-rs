@@ -3,12 +3,12 @@
 
 uint64_t scratch_cuda_integer_aes_ctr_encrypt_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t message_modulus, uint32_t carry_modulus,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus, uint32_t carry_modulus,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type,
     uint32_t num_aes_inputs, uint32_t sbox_parallelism) {
 
-  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+  int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_cuda_integer_aes_encrypt<uint64_t>(
@@ -18,12 +18,12 @@ uint64_t scratch_cuda_integer_aes_ctr_encrypt_64_async(
 
 uint64_t scratch_cuda_integer_aes_ctr_256_encrypt_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t message_modulus, uint32_t carry_modulus,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus, uint32_t carry_modulus,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type,
     uint32_t num_aes_inputs, uint32_t sbox_parallelism) {
 
-  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+  int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_cuda_integer_aes_encrypt<uint64_t>(
@@ -69,11 +69,11 @@ void cleanup_cuda_integer_aes_ctr_256_encrypt_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_integer_key_expansion_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t message_modulus, uint32_t carry_modulus,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus, uint32_t carry_modulus,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
 
-  int_radix_params params(bsk_params, ks_level, ks_base_log, message_modulus,
+  int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_cuda_integer_key_expansion<uint64_t>(

@@ -442,19 +442,8 @@ impl CudaFlattenedVecCompactCiphertextList {
                         sks.carry_modulus,
                         d_bsk.glwe_dimension(),
                         d_bsk.polynomial_size(),
-                        d_bsk.input_lwe_dimension(),
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
-                        casting_key
-                            .lwe_keyswitch_key
-                            .input_key_lwe_size()
-                            .to_lwe_dimension(),
-                        casting_key
-                            .lwe_keyswitch_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        casting_key.lwe_keyswitch_key.decomposition_level_count(),
-                        casting_key.lwe_keyswitch_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
+                        casting_key.lwe_keyswitch_key.params_ffi(),
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
@@ -479,19 +468,8 @@ impl CudaFlattenedVecCompactCiphertextList {
                         sks.carry_modulus,
                         d_multibit_bsk.glwe_dimension(),
                         d_multibit_bsk.polynomial_size(),
-                        d_multibit_bsk.input_lwe_dimension(),
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
-                        casting_key
-                            .lwe_keyswitch_key
-                            .input_key_lwe_size()
-                            .to_lwe_dimension(),
-                        casting_key
-                            .lwe_keyswitch_key
-                            .output_key_lwe_size()
-                            .to_lwe_dimension(),
-                        casting_key.lwe_keyswitch_key.decomposition_level_count(),
-                        casting_key.lwe_keyswitch_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
+                        casting_key.lwe_keyswitch_key.params_ffi(),
                         d_multibit_bsk.decomp_level_count,
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,
