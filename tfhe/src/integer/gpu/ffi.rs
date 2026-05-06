@@ -6,7 +6,6 @@ use crate::core_crypto::gpu::lwe_bootstrap_key::{
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCiphertextList;
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
-use tfhe_cuda_backend::bindings::CudaLweKeyswitchKeyParamsFFI;
 use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{CudaStreams, PBSMSNoiseReductionType};
@@ -35,7 +34,7 @@ use rayon::prelude::*;
 use std::any::TypeId;
 use std::cmp::min;
 use std::hash::Hash;
-use tfhe_cuda_backend::bindings::*;
+use tfhe_cuda_backend::bindings::{CudaLweKeyswitchKeyParamsFFI, *};
 
 #[repr(u32)]
 #[derive(Clone, Copy)]

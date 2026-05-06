@@ -38,9 +38,9 @@ void cleanup_cuda_boolean_bitop_inplace_64(CudaStreamsFFI streams,
 uint64_t scratch_cuda_boolean_bitnot_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
-    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus, uint32_t carry_modulus,
-    uint32_t lwe_ciphertext_count, bool is_unchecked, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus,
+    uint32_t carry_modulus, uint32_t lwe_ciphertext_count, bool is_unchecked,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
 

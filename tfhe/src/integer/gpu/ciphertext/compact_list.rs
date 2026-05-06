@@ -429,8 +429,16 @@ impl CudaFlattenedVecCompactCiphertextList {
 
             let casting_key_type: KsType = casting_key.destination_key.into();
 
+            let computing_ksk_params = computing_ks_key.params_ffi();
+            let casting_ksk_params = casting_key.lwe_keyswitch_key.params_ffi();
+
             match &sks.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
+                    assert_eq!(
+                        d_bsk.input_lwe_dimension().0 as u32,
+                        computing_ksk_params.output_lwe_dimension,
+                        "BSK input LWE dimension must equal computing KSK output LWE dimension",
+                    );
                     cuda_backend_expand(
                         streams,
                         &mut d_output,
@@ -442,8 +450,8 @@ impl CudaFlattenedVecCompactCiphertextList {
                         sks.carry_modulus,
                         d_bsk.glwe_dimension(),
                         d_bsk.polynomial_size(),
-                        computing_ks_key.params_ffi(),
-                        casting_key.lwe_keyswitch_key.params_ffi(),
+                        computing_ksk_params,
+                        casting_ksk_params,
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
@@ -457,6 +465,11 @@ impl CudaFlattenedVecCompactCiphertextList {
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    assert_eq!(
+                        d_multibit_bsk.input_lwe_dimension().0 as u32,
+                        computing_ksk_params.output_lwe_dimension,
+                        "MultiBit BSK input LWE dimension must equal computing KSK output LWE dimension",
+                    );
                     cuda_backend_expand(
                         streams,
                         &mut d_output,
@@ -468,8 +481,8 @@ impl CudaFlattenedVecCompactCiphertextList {
                         sks.carry_modulus,
                         d_multibit_bsk.glwe_dimension(),
                         d_multibit_bsk.polynomial_size(),
-                        computing_ks_key.params_ffi(),
-                        casting_key.lwe_keyswitch_key.params_ffi(),
+                        computing_ksk_params,
+                        casting_ksk_params,
                         d_multibit_bsk.decomp_level_count,
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,

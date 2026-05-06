@@ -3,9 +3,10 @@
 uint64_t scratch_cuda_integer_unsigned_scalar_div_radix_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
-    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, const CudaScalarDivisorFFI *scalar_divisor_ffi,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
 
@@ -41,9 +42,10 @@ void cleanup_cuda_integer_unsigned_scalar_div_radix_64(CudaStreamsFFI streams,
 uint64_t scratch_cuda_integer_signed_scalar_div_radix_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
-    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, const CudaScalarDivisorFFI *scalar_divisor_ffi,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
 
@@ -79,8 +81,9 @@ void cleanup_cuda_integer_signed_scalar_div_radix_64(CudaStreamsFFI streams,
 uint64_t scratch_cuda_integer_unsigned_scalar_div_rem_radix_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
-    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint32_t const active_bits_divisor, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
@@ -127,8 +130,9 @@ void cleanup_cuda_integer_unsigned_scalar_div_rem_radix_64(
 uint64_t scratch_cuda_integer_signed_scalar_div_rem_radix_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
-    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint32_t const active_bits_divisor, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,

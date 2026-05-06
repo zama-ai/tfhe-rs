@@ -36,9 +36,10 @@ void trim_radix_blocks_msb_64(CudaRadixCiphertextFFI *output,
 uint64_t scratch_cuda_cast_to_unsigned_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
-    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_input_blocks, uint32_t target_num_blocks,
-    bool input_is_signed, bool requires_full_propagate,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_input_blocks,
+    uint32_t target_num_blocks, bool input_is_signed,
+    bool requires_full_propagate, uint32_t message_modulus,
+    uint32_t carry_modulus, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
@@ -77,9 +78,10 @@ void cleanup_cuda_cast_to_unsigned_64(CudaStreamsFFI streams,
 uint64_t scratch_cuda_cast_to_signed_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
-    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_input_blocks, uint32_t target_num_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool input_is_signed,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_input_blocks,
+    uint32_t target_num_blocks, uint32_t message_modulus,
+    uint32_t carry_modulus, bool input_is_signed, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
 

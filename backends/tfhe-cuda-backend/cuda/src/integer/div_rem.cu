@@ -3,8 +3,8 @@
 uint64_t scratch_cuda_integer_div_rem_64_async(
     CudaStreamsFFI streams, bool is_signed, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
-    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type) {
   PUSH_RANGE("scratch div")
   int_radix_params params(bsk_params, ksk_params, message_modulus,

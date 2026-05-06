@@ -3,9 +3,9 @@
 uint64_t scratch_cuda_unchecked_all_eq_slices_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
-    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_inputs,
+    uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
 
