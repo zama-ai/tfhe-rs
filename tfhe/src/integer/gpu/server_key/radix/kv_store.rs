@@ -325,21 +325,20 @@ impl CudaServerKey {
         Key: DecomposableInto<u64> + CastInto<usize> + Ord + Copy + Sync,
         Ct: CudaIntegerRadixCiphertext + Send,
     {
-        let num_blocks_per_value = match kv_store.blocks_per_radix() {
-            Some(n) => n.get(),
-            None => {
-                // In case the store is empty, returns a trivial radix ciphertext
-                let num_blocks = encrypted_key.as_ref().d_blocks.lwe_ciphertext_count().0;
-                let trivial_ct: Ct = self.create_trivial_zero_radix(num_blocks, streams);
+        let num_blocks_per_value = if let Some(n) = kv_store.blocks_per_radix() {
+            n.get()
+        } else {
+            // In case the store is empty, returns a trivial radix ciphertext
+            let num_blocks = encrypted_key.as_ref().d_blocks.lwe_ciphertext_count().0;
+            let trivial_ct: Ct = self.create_trivial_zero_radix(num_blocks, streams);
 
-                let trivial_bool_ct: Ct = self.create_trivial_zero_radix(1, streams);
-                let trivial_bool = CudaBooleanBlock::from_cuda_radix_ciphertext(
-                    trivial_bool_ct.duplicate(streams).into_inner(),
-                );
+            let trivial_bool_ct: Ct = self.create_trivial_zero_radix(1, streams);
+            let trivial_bool = CudaBooleanBlock::from_cuda_radix_ciphertext(
+                trivial_bool_ct.duplicate(streams).into_inner(),
+            );
 
-                let trivial_selectors = trivial_ct.as_ref().d_blocks.duplicate(streams);
-                return (trivial_ct, trivial_bool, trivial_selectors);
-            }
+            let trivial_selectors = trivial_ct.as_ref().d_blocks.duplicate(streams);
+            return (trivial_ct, trivial_bool, trivial_selectors);
         };
 
         let num_entries = kv_store.len();
@@ -590,9 +589,6 @@ impl CudaServerKey {
         Ct: CudaIntegerRadixCiphertext + Send,
         Key: DecomposableInto<u64> + CastInto<usize> + Ord + Copy + Sync,
     {
-        let concatenated_old_values = map.to_vec(streams);
-        let clear_keys: Vec<Key> = map.iter().map(|(k, _)| *k).collect();
-
         let num_blocks_per_value = match map.blocks_per_radix() {
             Some(n) => n.get(),
             None => {
@@ -602,6 +598,9 @@ impl CudaServerKey {
                 );
             }
         };
+
+        let concatenated_old_values = map.to_vec(streams);
+        let clear_keys: Vec<Key> = map.iter().map(|(k, _)| *k).collect();
 
         let mut d_check_block: CudaUnsignedRadixCiphertext =
             self.create_trivial_zero_radix(1, streams);
@@ -707,15 +706,14 @@ impl CudaServerKey {
         let new_value = func(old_value);
 
         let num_entries = map.len();
-        let num_blocks_per_value = match map.blocks_per_radix() {
-            Some(n) => n.get(),
-            None => {
-                let trivial_bool = CudaBooleanBlock::from_cuda_radix_ciphertext(
-                    self.create_trivial_zero_radix::<CudaUnsignedRadixCiphertext>(1, streams)
-                        .into_inner(),
-                );
-                return (old_value_copy, new_value, trivial_bool);
-            }
+        let num_blocks_per_value = if let Some(n) = map.blocks_per_radix() {
+            n.get()
+        } else {
+            let trivial_bool = CudaBooleanBlock::from_cuda_radix_ciphertext(
+                self.create_trivial_zero_radix::<CudaUnsignedRadixCiphertext>(1, streams)
+                    .into_inner(),
+            );
+            return (old_value_copy, new_value, trivial_bool);
         };
 
         let concatenated_old_values = map.to_vec(streams);
@@ -829,7 +827,6 @@ mod tests {
     use std::collections::BTreeMap;
 
     use crate::core_crypto::gpu::CudaStreams;
-    use crate::core_crypto::prelude::ToCompressedModulusSwitchedLweCiphertext;
     use crate::integer::server_key::CompressedKVStore;
 
     fn assert_store_unsigned_matches(
@@ -1241,7 +1238,7 @@ mod tests {
         let s: u64 = 10;
         let f = |ct: CudaUnsignedRadixCiphertext| sks.scalar_mul(&ct, s, &streams);
 
-        let encrypted_key = cks.encrypt_radix(key as u64, num_key_blocks);
+        let encrypted_key = cks.encrypt_radix(key, num_key_blocks);
         let d_encrypted_key =
             CudaUnsignedRadixCiphertext::from_radix_ciphertext(&encrypted_key, &streams);
 

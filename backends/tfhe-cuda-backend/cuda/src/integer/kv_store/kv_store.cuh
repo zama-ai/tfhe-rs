@@ -1,8 +1,5 @@
 #pragma once
 
-#include <chrono>
-#include <cstdio>
-
 #include "helper_profile.cuh"
 #include "integer/cmux.cuh"
 #include "integer/comparison.cuh"
@@ -37,15 +34,10 @@ host_kv_store_get(CudaStreams streams,
   auto one_hot_vector_predicate = mem_ptr->one_hot_vector_predicate;
   auto tmp_cmux_array = mem_ptr->tmp_cmux_array;
 
-  using Clock = std::chrono::high_resolution_clock;
-  streams.synchronize();
-  auto t_total_start = Clock::now();
-
   // Step 1: equality selectors (key-block-count dependent)
   // Checks equality between all cleartext keys and the encrypted_key.
   // Returns an array with encrypted booleans with the result.
   PUSH_RANGE("get: equality selectors")
-  auto t0 = Clock::now();
   for (uint32_t i = 0; i < num_entries; i++) {
     as_radix_ciphertext_slice<Torus>(&selectors_list[i],
                                      lwe_array_out_selectors, i, i + 1);
@@ -54,13 +46,10 @@ host_kv_store_get(CudaStreams streams,
   host_compute_equality_selectors<Torus>(
       streams, selectors_list, lwe_array_in_encrypted_key, num_key_blocks,
       h_decomposed_clear_keys, mem_eq_selectors_buffer, bsks, ksks);
-  streams.synchronize();
-  auto t1 = Clock::now();
   POP_RANGE()
 
   // Generate trivial encryptions of the clear keys (key-block-count dependent)
   PUSH_RANGE("get: trivial encrypt clear keys")
-  auto t2 = Clock::now();
   uint64_t *d_decomposed_clear_key = d_decomposed_clear_keys;
   const uint64_t *h_decomposed_clear_key = h_decomposed_clear_keys;
   for (uint32_t i = 0; i < num_entries; i++) {
@@ -77,65 +66,34 @@ host_kv_store_get(CudaStreams streams,
     d_decomposed_clear_key += num_key_blocks;
     h_decomposed_clear_key += num_key_blocks;
   }
-  streams.synchronize();
-  auto t3 = Clock::now();
   POP_RANGE()
 
   // Step 2: One-hot vector (value-block-count dependent)
   // Generates an array where the only non-zero encrypted message is the one we
   // are looking for, in case it is contained in the store.
   PUSH_RANGE("get: one-hot vector")
-  auto t4 = Clock::now();
   auto lwe_one_hot_vector = tmp_cmux_array;
   zero_out_if_batch(streams, lwe_one_hot_vector, lwe_array_in_values,
                     lwe_array_out_selectors, mem_zero_out_batch_buffer,
                     one_hot_vector_predicate, bsks, ksks, num_entries,
                     num_value_blocks);
-  streams.synchronize();
-  auto t5 = Clock::now();
   POP_RANGE()
 
   // Step 3: Sum all elements in the vector (value-block-count dependent)
   PUSH_RANGE("get: binary tree sum")
-  auto t6 = Clock::now();
   host_binary_tree_sum<Torus>(
       streams.stream(0), streams.gpu_index(0), lwe_array_out_result,
       lwe_one_hot_vector, num_entries, num_value_blocks,
       mem_ptr->params.polynomial_size, message_modulus, carry_modulus);
-  streams.synchronize();
-  auto t7 = Clock::now();
   POP_RANGE()
 
   //  OR all selectors
   PUSH_RANGE("get: OR selectors")
-  auto t8 = Clock::now();
   auto at_least_one_true_buffer = mem_ptr->at_least_one_true_buffer;
   host_integer_is_at_least_one_comparisons_block_true<Torus>(
       streams, lwe_array_out_boolean, lwe_array_out_selectors,
       at_least_one_true_buffer, bsks, ksks, num_entries);
-  streams.synchronize();
-  auto t9 = Clock::now();
   POP_RANGE()
-
-  auto t_total_end = Clock::now();
-  auto ms = [](auto a, auto b) {
-    return std::chrono::duration<double, std::milli>(b - a).count();
-  };
-  std::printf("[kv_store_get] num_entries=%u  num_key_blocks=%u  "
-              "num_value_blocks=%u\n",
-              num_entries, num_key_blocks, num_value_blocks);
-  std::printf("[kv_store_get] equality selectors:       %10.3f ms\n",
-              ms(t0, t1));
-  std::printf("[kv_store_get] trivial encrypt keys:     %10.3f ms\n",
-              ms(t2, t3));
-  std::printf("[kv_store_get] one-hot vector:           %10.3f ms\n",
-              ms(t4, t5));
-  std::printf("[kv_store_get] binary tree sum:          %10.3f ms\n",
-              ms(t6, t7));
-  std::printf("[kv_store_get] OR selectors:             %10.3f ms\n",
-              ms(t8, t9));
-  std::printf("[kv_store_get] TOTAL:                    %10.3f ms\n",
-              ms(t_total_start, t_total_end));
 }
 
 template <typename Torus>
