@@ -1,6 +1,7 @@
 #ifndef CUDA_INTEGER_H
 #define CUDA_INTEGER_H
 
+#include "../keyswitch/keyswitch.h"
 #include "../pbs/pbs_enums.h"
 #include <stdint.h>
 
@@ -121,16 +122,18 @@ typedef struct {
 
 uint64_t scratch_cuda_apply_univariate_lut_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, void const *input_lut,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t input_lwe_ciphertext_count,
-    uint32_t message_modulus, uint32_t carry_modulus, uint64_t lut_degree,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params,
+    uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
+    uint32_t carry_modulus, uint64_t lut_degree, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 uint64_t scratch_cuda_apply_many_univariate_lut_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, void const *input_lut,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_radix_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, uint32_t num_many_lut, uint64_t lut_degree,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_radix_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, uint32_t num_many_lut,
+    uint64_t lut_degree, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 void cuda_apply_univariate_lut_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
     CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
@@ -150,9 +153,10 @@ void cuda_apply_many_univariate_lut_64_async(
 
 uint64_t scratch_cuda_full_propagation_64_inplace_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus,
+    uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_full_propagation_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *input_blocks,
@@ -171,7 +175,7 @@ uint64_t scratch_cuda_integer_mult_inplace_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, bool const is_boolean_left,
     bool const is_boolean_right, uint32_t message_modulus,
     uint32_t carry_modulus, CudaLweBootstrapKeyParamsFFI bsk_params,
-    uint32_t ks_base_log, uint32_t ks_level, uint32_t num_blocks,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cleanup_cuda_integer_mult_inplace_64(CudaStreamsFFI streams,
@@ -190,10 +194,11 @@ void cuda_scalar_addition_ciphertext_64_inplace(
 
 uint64_t scratch_cuda_logical_scalar_shift_64_inplace_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, SHIFT_OR_ROTATE_TYPE shift_type,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_logical_scalar_shift_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
@@ -201,10 +206,11 @@ void cuda_logical_scalar_shift_64_inplace_async(
 
 uint64_t scratch_cuda_arithmetic_scalar_shift_64_inplace_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, SHIFT_OR_ROTATE_TYPE shift_type,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_arithmetic_scalar_shift_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
@@ -218,10 +224,11 @@ void cleanup_cuda_arithmetic_scalar_shift_64_inplace(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_shift_and_rotate_64_inplace_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, SHIFT_OR_ROTATE_TYPE shift_type, bool is_signed,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    SHIFT_OR_ROTATE_TYPE shift_type, bool is_signed, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_shift_and_rotate_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array,
@@ -233,16 +240,16 @@ void cleanup_cuda_shift_and_rotate_64_inplace(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_integer_comparison_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t lwe_ciphertext_count,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, COMPARISON_TYPE op_type,
     bool is_signed, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
 
 uint64_t scratch_cuda_integer_scalar_comparison_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t lwe_ciphertext_count,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, COMPARISON_TYPE op_type,
     bool is_signed, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
@@ -273,8 +280,8 @@ void cuda_boolean_bitop_inplace_64_async(
 
 uint64_t scratch_cuda_boolean_bitop_inplace_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t lwe_ciphertext_count,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, BITOP_TYPE op_type,
     bool is_unchecked, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
@@ -284,10 +291,10 @@ void cleanup_cuda_boolean_bitop_inplace_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_boolean_bitnot_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t message_modulus, uint32_t carry_modulus,
-    uint32_t lwe_ciphertext_count, bool is_unchecked, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus,
+    uint32_t carry_modulus, uint32_t lwe_ciphertext_count, bool is_unchecked,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_boolean_bitnot_64_async(CudaStreamsFFI streams,
                                   CudaRadixCiphertextFFI *lwe_array,
@@ -305,15 +312,15 @@ void cuda_bitnot_ciphertext_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_integer_bitop_inplace_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t lwe_ciphertext_count,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, BITOP_TYPE op_type,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 uint64_t scratch_cuda_integer_scalar_bitop_inplace_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t lwe_ciphertext_count,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, BITOP_TYPE op_type,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
@@ -336,7 +343,7 @@ void cleanup_cuda_integer_scalar_bitop_inplace_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_cmux_64_async(CudaStreamsFFI streams, int8_t **mem_ptr,
                                     CudaLweBootstrapKeyParamsFFI bsk_params,
-                                    uint32_t ks_level, uint32_t ks_base_log,
+                                    CudaLweKeyswitchKeyParamsFFI ksk_params,
                                     uint32_t lwe_ciphertext_count,
                                     uint32_t message_modulus,
                                     uint32_t carry_modulus,
@@ -354,10 +361,11 @@ void cleanup_cuda_cmux_64(CudaStreamsFFI streams, int8_t **mem_ptr_void);
 
 uint64_t scratch_cuda_scalar_rotate_64_inplace_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, SHIFT_OR_ROTATE_TYPE shift_type,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_scalar_rotate_64_inplace_async(CudaStreamsFFI streams,
                                          CudaRadixCiphertextFFI *lwe_array,
@@ -369,17 +377,17 @@ void cleanup_cuda_scalar_rotate_64_inplace(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_propagate_single_carry_64_inplace_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, uint32_t requested_flag, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, uint32_t requested_flag,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 uint64_t scratch_cuda_add_and_propagate_single_carry_64_inplace_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, uint32_t requested_flag, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, uint32_t requested_flag,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_propagate_single_carry_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array,
@@ -401,10 +409,10 @@ void cleanup_cuda_add_and_propagate_single_carry_64_inplace(
 
 uint64_t scratch_cuda_integer_overflowing_sub_64_inplace_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, uint32_t compute_overflow, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, uint32_t compute_overflow,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_overflowing_sub_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lhs_array,
@@ -419,8 +427,8 @@ void cleanup_cuda_integer_overflowing_sub_64_inplace(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_partial_sum_ciphertexts_vec_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks_in_radix,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks_in_radix,
     uint32_t max_num_radix_in_vec, uint32_t message_modulus,
     uint32_t carry_modulus, bool reduce_degrees_for_single_carry_propagation,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
@@ -435,10 +443,10 @@ void cleanup_cuda_partial_sum_ciphertexts_vec_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_integer_scalar_mul_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, uint32_t num_scalar_bits, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, uint32_t num_scalar_bits,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_scalar_mul_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array,
@@ -451,9 +459,9 @@ void cleanup_cuda_integer_scalar_mul_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_integer_div_rem_64_async(
     CudaStreamsFFI streams, bool is_signed, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_div_rem_64_async(CudaStreamsFFI streams,
@@ -472,9 +480,9 @@ void cuda_integer_reverse_blocks_64_inplace_async(
 
 uint64_t scratch_cuda_integer_abs_inplace_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, bool is_signed,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_abs_inplace_64_async(CudaStreamsFFI streams,
@@ -487,9 +495,9 @@ void cleanup_cuda_integer_abs_inplace_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_integer_are_all_comparisons_block_true_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_radix_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_radix_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_are_all_comparisons_block_true_64_async(
@@ -502,9 +510,9 @@ void cleanup_cuda_integer_are_all_comparisons_block_true_64(
 
 uint64_t scratch_cuda_integer_is_at_least_one_comparisons_block_true_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_radix_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_radix_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_is_at_least_one_comparisons_block_true_64_async(
@@ -530,7 +538,7 @@ void trim_radix_blocks_msb_64(CudaRadixCiphertextFFI *output,
 uint64_t scratch_cuda_apply_noise_squashing_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t input_glwe_dimension,
-    uint32_t input_polynomial_size, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t input_polynomial_size, CudaLweKeyswitchKeyParamsFFI ksk_params,
     uint32_t num_radix_blocks, uint32_t num_original_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
@@ -545,10 +553,10 @@ void cleanup_cuda_apply_noise_squashing(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_sub_and_propagate_single_carry_64_inplace_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, uint32_t requested_flag, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, uint32_t requested_flag,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_sub_and_propagate_single_carry_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lhs_array,
@@ -561,10 +569,11 @@ void cleanup_cuda_sub_and_propagate_single_carry_64_inplace(
 
 uint64_t scratch_cuda_integer_unsigned_scalar_div_radix_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, const CudaScalarDivisorFFI *scalar_divisor_ffi,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_unsigned_scalar_div_radix_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *numerator_ct,
@@ -576,10 +585,11 @@ void cleanup_cuda_integer_unsigned_scalar_div_radix_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_integer_signed_scalar_div_radix_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, const CudaScalarDivisorFFI *scalar_divisor_ffi,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_signed_scalar_div_radix_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *numerator_ct,
@@ -591,9 +601,10 @@ void cleanup_cuda_integer_signed_scalar_div_radix_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_integer_unsigned_scalar_div_rem_radix_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint32_t const active_bits_divisor, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
 
@@ -611,9 +622,10 @@ void cleanup_cuda_integer_unsigned_scalar_div_rem_radix_64(
 
 uint64_t scratch_cuda_integer_signed_scalar_div_rem_radix_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint32_t const active_bits_divisor, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
 
@@ -630,11 +642,11 @@ void cleanup_cuda_integer_signed_scalar_div_rem_radix_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_integer_count_of_consecutive_bits_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks, uint32_t counter_num_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, Direction direction,
-    BitValue bit_value, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t counter_num_blocks, uint32_t message_modulus,
+    uint32_t carry_modulus, Direction direction, BitValue bit_value,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_count_of_consecutive_bits_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_ct,
@@ -646,8 +658,8 @@ void cleanup_cuda_integer_count_of_consecutive_bits_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_integer_grouped_oprf_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks_to_process,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks_to_process,
     uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
     uint32_t message_bits_per_block, uint32_t total_random_bits,
     PBS_MS_REDUCTION_T noise_reduction_type);
@@ -663,8 +675,8 @@ void cleanup_cuda_integer_grouped_oprf_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_integer_grouped_oprf_custom_range_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_blocks_intermediate,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks_intermediate,
     uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
     uint32_t message_bits_per_block, uint32_t num_input_random_bits,
     uint32_t num_scalar_bits, PBS_MS_REDUCTION_T noise_reduction_type);
@@ -681,11 +693,11 @@ void cleanup_cuda_integer_grouped_oprf_custom_range_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_integer_ilog2_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t message_modulus, uint32_t carry_modulus,
-    uint32_t input_num_blocks, uint32_t counter_num_blocks,
-    uint32_t num_bits_in_ciphertext, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus,
+    uint32_t carry_modulus, uint32_t input_num_blocks,
+    uint32_t counter_num_blocks, uint32_t num_bits_in_ciphertext,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_ilog2_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_ct,
@@ -700,10 +712,11 @@ void cleanup_cuda_integer_ilog2_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_unchecked_match_value_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_matches, uint32_t num_input_blocks,
-    uint32_t num_output_packed_blocks, uint32_t max_output_is_zero,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_matches,
+    uint32_t num_input_blocks, uint32_t num_output_packed_blocks,
+    uint32_t max_output_is_zero, uint32_t message_modulus,
+    uint32_t carry_modulus, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_unchecked_match_value_64_async(
@@ -718,10 +731,11 @@ void cleanup_cuda_unchecked_match_value_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_cast_to_unsigned_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_input_blocks, uint32_t target_num_blocks,
-    bool input_is_signed, bool requires_full_propagate,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_input_blocks,
+    uint32_t target_num_blocks, bool input_is_signed,
+    bool requires_full_propagate, uint32_t message_modulus,
+    uint32_t carry_modulus, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_cast_to_unsigned_64_async(CudaStreamsFFI streams,
@@ -736,11 +750,11 @@ void cleanup_cuda_cast_to_unsigned_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_unchecked_match_value_or_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_matches, uint32_t num_input_blocks,
-    uint32_t num_match_packed_blocks, uint32_t num_final_blocks,
-    uint32_t max_output_is_zero, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_matches,
+    uint32_t num_input_blocks, uint32_t num_match_packed_blocks,
+    uint32_t num_final_blocks, uint32_t max_output_is_zero,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_unchecked_match_value_or_64_async(
@@ -755,10 +769,10 @@ void cleanup_cuda_unchecked_match_value_or_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_unchecked_contains_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_inputs,
+    uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_unchecked_contains_64_async(CudaStreamsFFI streams,
                                       CudaRadixCiphertextFFI *output,
@@ -773,10 +787,10 @@ void cleanup_cuda_unchecked_contains_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_unchecked_contains_clear_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_inputs,
+    uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_unchecked_contains_clear_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output,
@@ -789,10 +803,10 @@ void cleanup_cuda_unchecked_contains_clear_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_unchecked_is_in_clears_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_clears, uint32_t num_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_clears,
+    uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_unchecked_is_in_clears_64_async(CudaStreamsFFI streams,
                                           CudaRadixCiphertextFFI *output,
@@ -807,10 +821,11 @@ void cleanup_cuda_unchecked_is_in_clears_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_unchecked_index_in_clears_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_clears, uint32_t num_blocks,
-    uint32_t num_blocks_index, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_clears,
+    uint32_t num_blocks, uint32_t num_blocks_index, uint32_t message_modulus,
+    uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_unchecked_index_in_clears_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct,
@@ -824,10 +839,11 @@ void cleanup_cuda_unchecked_index_in_clears_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_unchecked_first_index_in_clears_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_unique, uint32_t num_blocks,
-    uint32_t num_blocks_index, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_unique,
+    uint32_t num_blocks, uint32_t num_blocks_index, uint32_t message_modulus,
+    uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_unchecked_first_index_in_clears_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct,
@@ -845,10 +861,11 @@ void cleanup_cuda_unchecked_first_index_in_clears_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_unchecked_first_index_of_clear_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t num_blocks_index, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_inputs,
+    uint32_t num_blocks, uint32_t num_blocks_index, uint32_t message_modulus,
+    uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_unchecked_first_index_of_clear_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct,
@@ -862,10 +879,11 @@ void cleanup_cuda_unchecked_first_index_of_clear_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_unchecked_first_index_of_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t num_blocks_index, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_inputs,
+    uint32_t num_blocks, uint32_t num_blocks_index, uint32_t message_modulus,
+    uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_unchecked_first_index_of_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct,
@@ -879,10 +897,11 @@ void cleanup_cuda_unchecked_first_index_of_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_unchecked_index_of_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t num_blocks_index, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_inputs,
+    uint32_t num_blocks, uint32_t num_blocks_index, uint32_t message_modulus,
+    uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_unchecked_index_of_64_async(CudaStreamsFFI streams,
                                       CudaRadixCiphertextFFI *index_ct,
@@ -898,10 +917,11 @@ void cleanup_cuda_unchecked_index_of_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_unchecked_index_of_clear_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t num_blocks_index, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_inputs,
+    uint32_t num_blocks, uint32_t num_blocks_index, uint32_t message_modulus,
+    uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_unchecked_index_of_clear_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct,
@@ -916,10 +936,10 @@ void cleanup_cuda_unchecked_index_of_clear_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_unchecked_all_eq_slices_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_inputs,
+    uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_unchecked_all_eq_slices_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *match_ct,
@@ -932,8 +952,8 @@ void cleanup_cuda_unchecked_all_eq_slices_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_unchecked_contains_sub_slice_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_lhs, uint32_t num_rhs,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_lhs, uint32_t num_rhs,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
@@ -948,10 +968,11 @@ void cleanup_cuda_unchecked_contains_sub_slice_64(CudaStreamsFFI streams,
 
 uint64_t scratch_cuda_cast_to_signed_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
-    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t ks_level,
-    uint32_t ks_base_log, uint32_t num_input_blocks, uint32_t target_num_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool input_is_signed,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_input_blocks,
+    uint32_t target_num_blocks, uint32_t message_modulus,
+    uint32_t carry_modulus, bool input_is_signed, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_cast_to_signed_64_async(CudaStreamsFFI streams,
                                   CudaRadixCiphertextFFI *output,

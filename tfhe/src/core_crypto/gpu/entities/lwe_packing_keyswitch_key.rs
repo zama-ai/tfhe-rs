@@ -5,6 +5,7 @@ use crate::core_crypto::prelude::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension,
     LwePackingKeyswitchKeyOwned, PolynomialSize, UnsignedInteger,
 };
+use tfhe_cuda_backend::bindings::CudaLweKeyswitchKeyParamsFFI;
 
 #[derive(Debug)]
 pub struct CudaLwePackingKeyswitchKey<T: UnsignedInteger> {
@@ -71,5 +72,14 @@ impl<T: UnsignedInteger> CudaLwePackingKeyswitchKey<T> {
                     self.output_polynomial_size,
                 ),
         )
+    }
+
+    pub(crate) fn params_ffi(&self) -> CudaLweKeyswitchKeyParamsFFI {
+        CudaLweKeyswitchKeyParamsFFI {
+            input_lwe_dimension: u32::try_from(self.input_key_lwe_dimension().0).unwrap(),
+            output_lwe_dimension: 0,
+            base_log: u32::try_from(self.decomp_base_log.0).unwrap(),
+            level_count: u32::try_from(self.decomp_level_count.0).unwrap(),
+        }
     }
 }
