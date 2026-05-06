@@ -361,8 +361,7 @@ const TEST_PARAM_MESSAGE_2_CARRY_2_SEPBS_MS_123_EF_2_128: SortedExtendedPBSTestP
             pbs_level: DecompositionLevelCount(1),
             ks_base_log: DecompositionBaseLog(3),
             ks_level: DecompositionLevelCount(5),
-            message_modulus: CleartextModulus::new(4),
-            carry_modulus: CleartextModulus::new(4),
+            precision_without_padding: MessageModulusLog(4),
             max_norm2: MaxNorm2(5f64),
             log2_p_fail: -128.018,
             ciphertext_modulus: CiphertextModulus::new_native(),
@@ -385,8 +384,7 @@ fn lwe_encrypt_sorted_extended_pbs_decrypt(params: SortedExtendedPBSTestParamete
                 pbs_level: pbs_level_count,
                 ks_base_log: _,
                 ks_level: _,
-                message_modulus,
-                carry_modulus,
+                precision_without_padding,
                 max_norm2: _,
                 log2_p_fail: _,
                 ciphertext_modulus,
@@ -395,7 +393,7 @@ fn lwe_encrypt_sorted_extended_pbs_decrypt(params: SortedExtendedPBSTestParamete
         shortcut_coeff_count,
     } = params;
 
-    let plaintext_modulus = message_modulus.0 * carry_modulus.0;
+    let plaintext_modulus = 1 << precision_without_padding.0;
     let extended_polynomial_size = PolynomialSize(base_polynomial_size.0 * extension_factor.get());
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
 

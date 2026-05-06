@@ -458,7 +458,7 @@ fn extended_programmable_bootstrap_lwe_ciphertext_mem_optimized_parallelized_imp
     }
 
     let split_accumulator = GlweCiphertext::from_container(
-        lut_0.as_ref().to_vec(),
+        lut_0.as_ref(),
         lut_0.polynomial_size(),
         lut_0.ciphertext_modulus(),
     );
@@ -632,73 +632,80 @@ pub fn sorted_extended_programmable_bootstrap_lwe_ciphertext_mem_optimized_paral
         .map(|idx| (vec![], Barrier::new(extension_factor.get() / (1 << idx))))
         .collect();
 
+    // The sorted PBS with Companion Mod Switch (CMS) can be sped up if odd mod switch results are
+    // altered (selecting a different rounding) and are a multiple of power of 2 > 1
+    // To keep track of the altered roundings we index in shortcut_destinations
+    // the vector is indexed as follows:
+    // vec![destination is odd, destination is multiple of 2, destination is multiple of 4, ...]
     let mut shortcut_destinations = vec![vec![]; congruence_classes_count];
 
-    'outer: for (mask_idx, &mask_element) in lwe_mask.as_ref().iter().enumerate() {
+    let modulus_switch_log = lut_poly_size.to_blind_rotation_input_modulus_log().0;
+    for (&mask_element, ggsw_to_use) in lwe_mask.as_ref().iter().zip(bsk.as_view().into_ggsw_iter())
+    {
         let mod_switched: usize = modulus_switch(mask_element.cast_into(), br_input_modulus_log);
 
-        if mod_switched % 2 == 1 {
-            let modulus_switch_log = (lut_poly_size.0 * 2).ilog2() as usize;
+        // mod_switched_trailing_zeros indicates by which power of two mod_switched is dividable by
+        // if mod_switched_trailing_zeros == 0, mod_switched is odd
+        // if mod_switched_trailing_zeros == 1, then mod_switched == 0bXXX....XX10 meaning it's a
+        // multiple of 2/dividable by 2
+        // so mod_switched is a multiple of 2^mod_switched_trailing_zeros
+        let mod_switched_trailing_zeros = mod_switched.trailing_zeros() as usize;
+
+        // equivalent to mod_switched % 2 == 1, i.e. odd number
+        if mod_switched_trailing_zeros == 0 {
             let rounding_bit = (mask_element >> (Scalar::BITS - modulus_switch_log)) & Scalar::ONE;
+
+            // The logic is:
+            // if the rounding (mod switch) yields the floor we want what the ceil result would
+            // have been
+            //
+            // if the rounding (mod switch) yields the ceil we want what the floor result would
+            // have been
+            //
+            // The mod switch yields the floor if the rouding bit == 0, compared to the floor, the
+            // ceil is floor + 1, we apply the modulo again to make sure it stays in the right range
+            //
+            // otherwise the mod switch yields the ceil, compared to the ceil, the floor is ceil -
+            // 1, we apply the modulo again to make sure it stays in the right range
             let altered_mod_switch = if rounding_bit == Scalar::ZERO {
                 mod_switched.wrapping_add(1) % (1 << modulus_switch_log)
             } else {
                 mod_switched.wrapping_sub(1) % (1 << modulus_switch_log)
             };
-            // for mod_idx in 1..congruence_classes.len() - 1
-            for (mod_idx, shortcut_dest) in shortcut_destinations
-                .iter_mut()
-                .enumerate()
-                .take(congruence_classes.len() - 1)
-                .skip(1)
-            {
-                let mod_power = mod_idx + 1;
-                let modulus: usize = (Scalar::ONE << mod_power).cast_into();
-                let expected_remainder = modulus >> 1;
 
-                if altered_mod_switch % modulus == expected_remainder {
-                    shortcut_dest.push((mask_idx, (mod_switched, altered_mod_switch)));
-                    continue 'outer;
-                }
-            }
-            shortcut_destinations[congruence_classes_count - 1]
-                .push((mask_idx, (mod_switched, altered_mod_switch)));
+            let class_idx = {
+                let trailing_zeros = altered_mod_switch.trailing_zeros() as usize;
+                trailing_zeros.min(congruence_classes_count - 1)
+            };
+
+            shortcut_destinations[class_idx]
+                .push((ggsw_to_use, (mod_switched, altered_mod_switch)));
             continue;
         }
 
-        // println!();
-        // println!("{mod_switched:064b}");
+        // Trailing zeros allows to know the biggest power of 2 that divides the mod_switched value
+        // which is exactly what the congruence classes are measuring
+        let class_idx = mod_switched_trailing_zeros.min(congruence_classes_count - 1);
 
-        for mod_idx in 1..congruence_classes.len() - 1 {
-            let mod_power = mod_idx + 1;
-            let modulus: usize = (Scalar::ONE << mod_power).cast_into();
-            // println!("modulus={modulus}");
-            let expected_remainder = modulus >> 1;
-            // println!("expected_remainder={expected_remainder}");
-
-            if mod_switched % modulus == expected_remainder {
-                // println!("In class {expected_remainder}");
-                congruence_classes[mod_idx].0.push((mask_idx, mod_switched));
-                continue 'outer;
-            }
-        }
-        // println!("In other class");
-        congruence_classes[congruence_classes_count - 1]
+        congruence_classes[class_idx]
             .0
-            .push((mask_idx, mod_switched));
+            .push((ggsw_to_use, mod_switched));
     }
 
     let mut shortcut_remaining = shortcut_coeff_count.0;
 
+    // Reverse the iterator to shortcut to the biggest power of two divisors first
     for (shortcut_class_idx, shortcut_class) in shortcut_destinations.iter().enumerate().rev() {
-        for (mask_idx, (mod_switched, altered_mod_switch)) in shortcut_class.iter().copied() {
+        for (ggsw_to_use, (mod_switched, altered_mod_switch)) in shortcut_class.iter().copied() {
             if shortcut_remaining > 0 {
                 shortcut_remaining -= 1;
                 congruence_classes[shortcut_class_idx]
                     .0
-                    .push((mask_idx, altered_mod_switch));
+                    .push((ggsw_to_use, altered_mod_switch));
             } else {
-                congruence_classes[0].0.push((mask_idx, mod_switched));
+                // If there are no more shortcuts, push the original odd mod switch in the odd class
+                // which is class 0
+                congruence_classes[0].0.push((ggsw_to_use, mod_switched));
             }
         }
     }
@@ -720,11 +727,9 @@ pub fn sorted_extended_programmable_bootstrap_lwe_ciphertext_mem_optimized_paral
                 ct0.ciphertext_modulus(),
             );
 
-            let ggsw_vec = bsk.as_view().into_ggsw_iter().collect::<Vec<_>>();
-
             let mut overall_loop_idx = 0;
 
-            for (congruence_class_idx, (mask_indices, barrier)) in
+            for (congruence_class_idx, (ggsw_to_use, barrier)) in
                 congruence_classes.iter().enumerate()
             {
                 let should_process = ct_dst_idx.is_multiple_of(1 << congruence_class_idx);
@@ -733,9 +738,8 @@ pub fn sorted_extended_programmable_bootstrap_lwe_ciphertext_mem_optimized_paral
                     return;
                 }
 
-                for (mask_idx, monomial_degree) in mask_indices.iter().copied() {
-                    let ggsw = ggsw_vec[mask_idx];
-                    let monomial_degree = MonomialDegree(monomial_degree);
+                for (ggsw, monomial_degree) in ggsw_to_use {
+                    let monomial_degree = MonomialDegree(*monomial_degree);
 
                     // Update the LUT the current thread looks at simulating the rotation in the
                     // extended LUT
@@ -806,7 +810,7 @@ pub fn sorted_extended_programmable_bootstrap_lwe_ciphertext_mem_optimized_paral
                     // ACCj ← BSKi x (Rot(ACCj) - ACCj) + ACCj
                     add_external_product_assign(
                         rotated_buffer.as_mut_view(),
-                        ggsw,
+                        *ggsw,
                         diff_buffer.as_view(),
                         fft,
                         stack,
@@ -854,7 +858,7 @@ pub fn sorted_extended_programmable_bootstrap_lwe_ciphertext_mem_optimized_paral
     }
 
     let split_accumulator = GlweCiphertext::from_container(
-        lut_0.as_ref().to_vec(),
+        lut_0.as_ref(),
         lut_0.polynomial_size(),
         lut_0.ciphertext_modulus(),
     );
