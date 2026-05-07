@@ -8,6 +8,28 @@
 #include "integer/kv_store/kv_store_utilities.h"
 #include "integer/vector_find.cuh"
 
+// Retrieves the encrypted value related with a clear key from an encrypted
+// key-value store. The store maps clear keys to encrypted values.
+//
+// This method does not leak which key was accessed or which value was returned.
+//
+// The clear key is compared against all stored keys. If a match
+// is found, the corresponding encrypted value is extracted; otherwise the
+// result is an encryption of zero. This follows the CPU pattern.
+//
+// Parameters:
+//   lwe_array_out_result       — output: encrypted value for the matching key
+//   lwe_array_out_boolean      — output: single-block encrypted boolean,
+//                                 1 if the key was found, 0 otherwise
+//   lwe_array_out_selectors    — output: num_entries single-block encrypted
+//                                 booleans, one per stored key (1 if that key
+//                                 matched the query, 0 otherwise)
+//   lwe_array_in_encrypted_key — input: the encrypted query key
+//   lwe_array_in_values        — input: num_entries encrypted values stored
+//                                 contiguously (num_entries * num_value_blocks)
+//   h_decomposed_clear_keys    — input: host-side block-decomposed clear keys
+//                                 for all entries (num_entries * num_key_blocks
+//                                 scalars).
 template <typename Torus>
 __host__ void
 host_kv_store_get(CudaStreams streams,
@@ -110,6 +132,24 @@ uint64_t scratch_cuda_kv_store_get(
   return size_tracker;
 }
 
+// Updates the encrypted value for a clear key in an encrypted key-value store.
+// For each entry, if the stored clear key matches the query, the old encrypted
+// value is replaced with lwe_in_new_value; otherwise the old value is kept.
+//
+// This method does not leak which key was accessed or whether a match was
+// found.
+//
+// Parameters:
+//   lwe_check_out_block        — output: single-block encrypted boolean,
+//                                 1 if the key was found, 0 otherwise
+//   lwe_array_out_values       — output: updated encrypted values for all
+//                                 entries (num_entries * num_value_blocks)
+//   lwe_array_in_encrypted_key — input: the encrypted query key
+//   lwe_array_in_values        — input: current encrypted values for all
+//   entries lwe_in_new_value           — input: encrypted replacement value
+//   h_decomposed_clear_keys    — input: host-side block-decomposed clear keys
+//                                 for all entries (num_entries *
+//                                 num_key_blocks)
 template <typename Torus, typename KSTorus>
 __host__ void
 host_kv_store_update(CudaStreams streams,
@@ -180,6 +220,21 @@ uint64_t scratch_cuda_kv_store_update(
   return size_tracker;
 }
 
+// Applies a conditional update to all entries using pre-computed selectors.
+// For each entry, if the corresponding selector is 1, the old encrypted value
+// is replaced with lwe_in_new_value; otherwise the old value is kept.
+//
+// This is the inner CMUX step shared by update and insert. The caller provides
+// the selectors (e.g. from equality comparison or from an empty-slot search).
+//
+// Parameters:
+//   lwe_check_out_block      — output: single-block encrypted boolean,
+//                               1 if at least one selector was true
+//   lwe_array_out_values     — output: updated encrypted values for all entries
+//   lwe_array_in_values      — input: current encrypted values for all entries
+//   lwe_in_new_value         — input: encrypted replacement value
+//   lwe_array_in_selectors   — input: num_entries single-block encrypted
+//                               booleans (1 = replace, 0 = keep)
 template <typename Torus, typename KSTorus>
 __host__ void
 host_kv_store_map(CudaStreams streams,
@@ -239,6 +294,17 @@ scratch_cuda_kv_store_map(CudaStreams streams,
   return size_tracker;
 }
 
+// Checks whether a clear key exists in the encrypted key-value store.
+//
+// This method does not leak which key was queried.
+//
+// Parameters:
+//   lwe_array_out_boolean      — output: single-block encrypted boolean,
+//                                 1 if the key was found, 0 otherwise
+//   lwe_array_in_encrypted_key — input: the encrypted query key
+//   h_decomposed_clear_keys    — input: host-side block-decomposed clear keys
+//                                 for all entries (num_entries *
+//                                 num_key_blocks)
 template <typename Torus, typename KSTorus>
 __host__ void host_kv_store_contains_key(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_boolean,
