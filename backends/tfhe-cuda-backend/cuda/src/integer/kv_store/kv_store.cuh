@@ -80,10 +80,11 @@ host_kv_store_get(CudaStreams streams,
 
   // Step 3: Sum all elements in the vector (value-block-count dependent)
   PUSH_RANGE("get: binary tree sum")
-  host_binary_tree_sum<Torus>(
-      streams.stream(0), streams.gpu_index(0), lwe_array_out_result,
-      lwe_one_hot_vector, num_entries, num_value_blocks,
-      mem_ptr->params.polynomial_size, message_modulus, carry_modulus);
+  host_binary_tree_sum<Torus>(streams, lwe_array_out_result, lwe_one_hot_vector,
+                              num_entries, num_value_blocks,
+                              mem_ptr->params.polynomial_size, message_modulus,
+                              carry_modulus, bsks, ksks, mem_ptr->identity_lut,
+                              mem_ptr->tmp_lwe_array_clean);
   POP_RANGE()
 
   //  OR all selectors

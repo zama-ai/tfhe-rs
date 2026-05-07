@@ -27,6 +27,10 @@ template <typename Torus> struct int_kv_store_get_buffer {
   // Scratch for one-hot vector (consumed in-place by step 3 binary tree sum)
   CudaRadixCiphertextFFI *tmp_cmux_array;
 
+  // Clean the noise between tree layers in the binary tree sum
+  int_radix_lut<Torus> *identity_lut;
+  CudaRadixCiphertextFFI *tmp_lwe_array_clean;
+
   // Step 4: OR all selectors into a single boolean (this is the key-found flag)
   int_comparison_buffer<Torus> *at_least_one_true_buffer;
 
@@ -81,6 +85,33 @@ template <typename Torus> struct int_kv_store_get_buffer {
         total_value_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
+    // Identity LUT to keep the noise in binary_tree_sum within the safe bounds
+    uint32_t max_noise = (params.message_modulus * params.carry_modulus - 1) /
+                         (params.message_modulus - 1);
+    uint32_t max_tree_levels = log2_int(max_noise);
+
+    uint32_t max_entries_after_pbs_round =
+        CEIL_DIV(num_entries, 1u << max_tree_levels);
+    uint32_t pbs_batch_blocks = static_cast<uint32_t>(
+        safe_mul(static_cast<size_t>(max_entries_after_pbs_round),
+                 static_cast<size_t>(num_value_blocks)));
+
+    std::function<Torus(Torus)> identity_fn = [](Torus x) -> Torus {
+      return x;
+    };
+    this->identity_lut =
+        new int_radix_lut<Torus>(streams, params, 1, pbs_batch_blocks,
+                                 allocate_gpu_memory, size_tracker);
+    this->identity_lut->generate_and_broadcast_lut(
+        streams.active_gpu_subset(pbs_batch_blocks, params.pbs_type), {0},
+        {identity_fn}, LUT_0_FOR_ALL_BLOCKS);
+
+    this->tmp_lwe_array_clean = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), this->tmp_lwe_array_clean,
+        pbs_batch_blocks, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
     // Step 4: OR all selectors to produce a key-found boolean
     this->at_least_one_true_buffer = new int_comparison_buffer<Torus>(
         streams, EQ, params, num_entries, false, allocate_gpu_memory,
@@ -90,6 +121,14 @@ template <typename Torus> struct int_kv_store_get_buffer {
   void release(CudaStreams streams) {
     this->at_least_one_true_buffer->release(streams);
     delete this->at_least_one_true_buffer;
+
+    this->identity_lut->release(streams);
+    delete this->identity_lut;
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   this->tmp_lwe_array_clean,
+                                   this->allocate_gpu_memory);
+    delete this->tmp_lwe_array_clean;
 
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    this->tmp_cmux_array,
