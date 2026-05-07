@@ -20,11 +20,6 @@ template <typename Torus> struct int_kv_store_get_buffer {
   int_equality_selectors_buffer<Torus> *mem_eq_selectors_buffer;
   CudaRadixCiphertextFFI *selectors_list;
 
-  // Trivially encrypted clear keys for zero_out_if_batch in step 2
-  CudaRadixCiphertextFFI *tmp_lwe_trivially_encrypted_clear_keys;
-  // Device-side decomposed plaintext key blocks (num_entries * num_key_blocks)
-  uint64_t *d_decomposed_clear_keys;
-
   // Step 2: one-hot vector generated via conditional zero-out
   int_zero_out_if_batch_buffer<Torus> *mem_zero_out_batch_buffer;
   // Bivariate LUT: preserves block when selector != 0, zeros it otherwise
@@ -46,8 +41,6 @@ template <typename Torus> struct int_kv_store_get_buffer {
     this->message_modulus = params.message_modulus;
     this->carry_modulus = params.carry_modulus;
 
-    uint32_t total_key_blocks = static_cast<uint32_t>(safe_mul(
-        static_cast<size_t>(num_entries), static_cast<size_t>(num_key_blocks)));
     uint32_t total_value_blocks =
         static_cast<uint32_t>(safe_mul(static_cast<size_t>(num_entries),
                                        static_cast<size_t>(num_value_blocks)));
@@ -58,18 +51,6 @@ template <typename Torus> struct int_kv_store_get_buffer {
         size_tracker);
 
     this->selectors_list = new CudaRadixCiphertextFFI[num_entries];
-
-    // Trivial encryptions of clear keys, consumed by zero_out_if_batch
-    this->tmp_lwe_trivially_encrypted_clear_keys = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        this->tmp_lwe_trivially_encrypted_clear_keys, total_key_blocks,
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-
-    this->d_decomposed_clear_keys =
-        static_cast<Torus *>(cuda_malloc_with_size_tracking_async(
-            safe_mul_sizeof<Torus>(total_key_blocks), streams.stream(0),
-            streams.gpu_index(0), size_tracker, allocate_gpu_memory));
 
     // Step 2: one-hot vector via conditional zero-out (operates on value
     // blocks)
@@ -120,14 +101,6 @@ template <typename Torus> struct int_kv_store_get_buffer {
 
     this->mem_zero_out_batch_buffer->release(streams);
     delete this->mem_zero_out_batch_buffer;
-
-    cuda_drop_async(this->d_decomposed_clear_keys, streams.stream(0),
-                    streams.gpu_index(0));
-
-    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                   this->tmp_lwe_trivially_encrypted_clear_keys,
-                                   this->allocate_gpu_memory);
-    delete this->tmp_lwe_trivially_encrypted_clear_keys;
 
     delete[] this->selectors_list;
 

@@ -49,9 +49,6 @@ host_kv_store_get(CudaStreams streams,
   auto carry_modulus = mem_ptr->carry_modulus;
   auto mem_eq_selectors_buffer = mem_ptr->mem_eq_selectors_buffer;
   auto selectors_list = mem_ptr->selectors_list;
-  auto tmp_lwe_trivially_encrypted_clear_keys =
-      mem_ptr->tmp_lwe_trivially_encrypted_clear_keys;
-  auto d_decomposed_clear_keys = mem_ptr->d_decomposed_clear_keys;
   auto mem_zero_out_batch_buffer = mem_ptr->mem_zero_out_batch_buffer;
   auto one_hot_vector_predicate = mem_ptr->one_hot_vector_predicate;
   auto tmp_cmux_array = mem_ptr->tmp_cmux_array;
@@ -68,26 +65,6 @@ host_kv_store_get(CudaStreams streams,
   host_compute_equality_selectors<Torus>(
       streams, selectors_list, lwe_array_in_encrypted_key, num_key_blocks,
       h_decomposed_clear_keys, mem_eq_selectors_buffer, bsks, ksks);
-  POP_RANGE()
-
-  // Generate trivial encryptions of the clear keys (key-block-count dependent)
-  PUSH_RANGE("get: trivial encrypt clear keys")
-  uint64_t *d_decomposed_clear_key = d_decomposed_clear_keys;
-  const uint64_t *h_decomposed_clear_key = h_decomposed_clear_keys;
-  for (uint32_t i = 0; i < num_entries; i++) {
-    CudaRadixCiphertextFFI current_entry;
-    as_radix_ciphertext_slice<Torus>(
-        &current_entry, tmp_lwe_trivially_encrypted_clear_keys,
-        i * num_key_blocks, (i + 1) * num_key_blocks);
-
-    set_trivial_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), &current_entry,
-        d_decomposed_clear_key, h_decomposed_clear_key, num_key_blocks,
-        message_modulus, carry_modulus);
-
-    d_decomposed_clear_key += num_key_blocks;
-    h_decomposed_clear_key += num_key_blocks;
-  }
   POP_RANGE()
 
   // Step 2: One-hot vector (value-block-count dependent)
