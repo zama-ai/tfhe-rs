@@ -9463,6 +9463,12 @@ pub fn extract_glwe<T: UnsignedInteger>(
         glwe_list.data.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
+    assert!(
+        (glwe_index as usize) < glwe_list.glwe_ciphertext_count().0,
+        "glwe_index {glwe_index} is out of bounds for a packed GLWE list with {} ciphertexts",
+        glwe_list.glwe_ciphertext_count().0,
+    );
+
     let packed_glwe_list_ffi = prepare_cuda_packed_glwe_ct_ffi(glwe_list);
 
     unsafe {
