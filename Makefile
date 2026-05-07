@@ -661,11 +661,14 @@ clippy_hpu_mockup: install_rs_check_toolchain
 		--all-targets \
 		-p tfhe-hpu-mockup -- --no-deps -D warnings
 
-.PHONY: check_rust_bindings_did_not_change # Check rust bindings are up to date for tfhe-cuda-backend
+.PHONY: check_rust_bindings_did_not_change # Check rust bindings are up to date for tfhe-cuda-backend and tfhe-cuda-common
 check_rust_bindings_did_not_change:
 	cargo build -p tfhe-cuda-backend && "$(MAKE)" fmt_gpu && \
 	git diff --quiet HEAD -- backends/tfhe-cuda-backend/src/bindings.rs || \
 	( echo "Generated bindings have changed! Please run 'git add backends/tfhe-cuda-backend/src/bindings.rs' \
+	and commit the changes." && exit 1 )
+	git diff --quiet HEAD -- backends/tfhe-cuda-common/src/cuda_bind.rs || \
+	( echo "Generated bindings have changed! Please run 'git add backends/tfhe-cuda-common/src/cuda_bind.rs' \
 	and commit the changes." && exit 1 )
 
 .PHONY: audit_dependencies # Run cargo audit to check vulnerable dependencies
