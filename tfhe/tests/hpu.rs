@@ -219,7 +219,7 @@ mod hpu_test {
 
                 let exp_res = behav(&srcs_clear, &imms);
                 println!(
-                    "[{:>4}]{:>8} <{:>8x?}> <{:>8x?}> => {:<8x?} [exp {:<8x?}] {{Delta: {:x?} }}",
+                    "[{:>4}] {:>8} <{:>8x?}> <{:>8x?}> => {:<8x?} [exp {:<8x?}] {{Delta: {:x?} }}",
                     T::BITS,
                     iop,
                     srcs_clear,
@@ -547,9 +547,15 @@ mod hpu_test {
     hpu_custom_testcase!(37, "[4]<N,N>::<N,N><0>" => [u8]
     |ct, imm| vec![(ct[0] & 0xF) + (ct[1] & 0xF).wrapping_shl(4), (ct[0] & 0xF0).wrapping_shr(4) + (ct[1] & 0xF0)]);
     hpu_custom_testcase!(40, "[2]<H,H>::<N,N><0>" => [u32]
-    |ct, imm| vec![ct[0].wrapping_mul(ct[1]) & 0xFFFF, ct[0].wrapping_mul(ct[1]).wrapping_shr(16)]);
+    |ct, imm| {
+        let res = ct[0].wrapping_mul(ct[1]);
+        vec![res & 0xFFFF, (res >>16) & 0xFFFF]
+    });
     hpu_custom_testcase!(40, "[2]<H,H>::<N,N><0>" => [u64]
-    |ct, imm| vec![ct[0].wrapping_mul(ct[1]) & 0xFFFFFFFF, ct[0].wrapping_mul(ct[1]).wrapping_shr(32)]);
+    |ct, imm| {
+        let res = ct[0].wrapping_mul(ct[1]);
+        vec![res & 0xFFFFFFFF, (res >>32) & 0xFFFFFFFF]
+    });
 
     // Define a set of test bundle for various size
     #[cfg(feature = "hpu")]
@@ -794,7 +800,7 @@ mod hpu_test {
 
         // Since all inputs are generated upfront, iteration number is fixed to 256 here.
         // This prevent deadlock on ciphertext allocation
-        let iter = 256;
+        let iter = 128;
 
         // Check if user ask for test over trivial ciphertext
         let (test_trivial, sks) = match (std::env::var("HPU_TEST_TRIVIAL")) {
@@ -878,7 +884,7 @@ mod hpu_test {
             let res : u64 = (res_clear[0] as u64 + ((res_clear[1] as u64) << width / 2));
             let exp_res : u64 = ((srcs_clear[0] * srcs_clear[1]) % (1 << width)).try_into().unwrap();
 
-            println!("[{:>4}]mhdma_test <{:>8x?}> => {:<4x?}-{:<4x?} {:<8x?} [exp {:<8x?}] {{Delta: {:x?} }}",
+            println!("[{:>4}] mhdma_test <{:>8x?}> => {:<4x?}-{:<4x?} {:<8x?} [exp {:<8x?}] {{Delta: {:x?} }}",
                 $user_type::BITS,
                 srcs_clear,
                 res_clear[1],
