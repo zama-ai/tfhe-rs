@@ -189,9 +189,9 @@ template <typename Torus> struct int_kv_store_update_buffer {
     }
 
     // Parallel CMUXes (operates on value blocks)
-    auto predicate_lut_f = [](Torus x) -> Torus { return x == 1; };
+    auto condition_is_one = [](Torus x) -> Torus { return x == 1; };
     this->cmux_batch_buffer = new int_cmux_batch_buffer<Torus>(
-        streams, predicate_lut_f, params, num_entries, num_value_blocks,
+        streams, condition_is_one, params, num_entries, num_value_blocks,
         allocate_gpu_memory, size_tracker);
 
     // OR all selectors to produce a key-found boolean
