@@ -475,6 +475,11 @@ impl From<(Vec<u8>, &NodesMap)> for IOpMapping {
         let (val, nodes_map) = value;
         let mut raw = Self::from(val);
         let used_nodes = nodes_map.get_nodes(raw.0.len() as u8);
+        assert!(
+            used_nodes <= (raw.0.len() as u8),
+            "Error: Required hpu_node {used_nodes} is higher that available one {}",
+            raw.0.len()
+        );
         raw.0.resize(used_nodes as usize, PhysId(0xff));
         raw
     }
