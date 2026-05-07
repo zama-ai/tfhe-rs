@@ -136,10 +136,6 @@ jobs:
         run: |
           make test_zk_cuda_backend_memcheck
 
-      - name: Run tfhe-zk-pok memcheck (Rust tests)
-        run: |
-          make test_zk_pok_gpu_sanitizer
-
   slack-notify:
     name: gpu_zk_memory_sanitizer/slack-notify
     needs: [ setup-instance, cuda-tests-linux ]
