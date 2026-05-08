@@ -739,11 +739,20 @@ where
             }
             #[cfg(feature = "gpu")]
             (InternalServerKey::Cuda(_), InnerKVStore::Cpu(_)) => {
-                panic!("KVStore compression is not supported on GPU")
+                panic!("CudaServerKey does not support CPU's KVStore compression")
             }
             #[cfg(feature = "gpu")]
-            (InternalServerKey::Cuda(_), InnerKVStore::Cuda(_)) => {
-                panic!("KVStore compression is not supported on GPU")
+            (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cuda(inner_store)) => {
+                let comp_key = cuda_key
+                    .key
+                    .compression_key
+                    .as_ref()
+                    .ok_or(crate::high_level_api::errors::UninitializedCompressionKey)?;
+                let streams = &cuda_key.streams;
+                let compressed_inner = inner_store.compress(comp_key, streams);
+                Ok(CompressedKVStore {
+                    inner: compressed_inner,
+                })
             }
             #[cfg(feature = "hpu")]
             (InternalServerKey::Hpu(_device), _) => {
@@ -844,8 +853,28 @@ where
                 })
             }
             #[cfg(feature = "gpu")]
-            Some(InternalServerKey::Cuda(_)) => {
-                panic!("KVStore decompression is not supported on GPU")
+            Some(InternalServerKey::Cuda(cuda_key)) => {
+                let decomp_key = cuda_key
+                    .key
+                    .decompression_key
+                    .as_ref()
+                    .ok_or(crate::high_level_api::errors::UninitializedDecompressionKey)?;
+                let streams = &cuda_key.streams;
+                let inner_kv_store = self.inner.decompress_to_cuda(decomp_key, streams)?;
+
+                let Some(actual_block_count) = inner_kv_store.blocks_per_radix() else {
+                    return Ok(KVStore::new());
+                };
+
+                let expected_block_count = Value::Id::num_blocks(cuda_key.message_modulus());
+
+                if actual_block_count.get() != expected_block_count {
+                    return Err(crate::error!("Inconsistent block count in KVStore: expected {expected_block_count} but got {actual_block_count}"));
+                }
+
+                Ok(KVStore {
+                    inner: InnerKVStore::Cuda(inner_kv_store),
+                })
             }
             #[cfg(feature = "hpu")]
             Some(InternalServerKey::Hpu(_device)) => {
@@ -1210,7 +1239,7 @@ mod test {
     }
 
     #[cfg(feature = "gpu")]
-    mod cuda {
+    mod gpu {
         use crate::shortint::parameters::COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         use crate::{set_server_key, ConfigBuilder};
 

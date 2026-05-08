@@ -2,18 +2,22 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{LweBskGroupingFactor, LweCiphertextCount};
 use crate::integer::block_decomposition::DecomposableInto;
-use crate::integer::ciphertext::{AsShortintCiphertextSlice, IntegerRadixCiphertext};
+use crate::integer::ciphertext::{
+    AsShortintCiphertextSlice, DataKind, Expandable, IntegerRadixCiphertext,
+};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+use crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
+use crate::integer::gpu::list_compression::server_keys::CudaCompressionKey;
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaDynamicKeyswitchingKey};
 use crate::integer::gpu::{
     cuda_backend_kv_store_contains_key, cuda_backend_kv_store_get, cuda_backend_kv_store_map,
     cuda_backend_kv_store_update, CudaServerKey, PBSType,
 };
-use crate::integer::server_key::KVStore;
+use crate::integer::server_key::{CompressedKVStore, KVStore};
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::AtomicPatternKind;
@@ -211,6 +215,43 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
             kv_store.insert(key.clone(), CpuCt::from(cpu_blocks));
         }
         kv_store
+    }
+
+    pub fn compress<CpuCt>(
+        &self,
+        compression_key: &CudaCompressionKey,
+        streams: &CudaStreams,
+    ) -> CompressedKVStore<Key, CpuCt>
+    where
+        Key: Copy,
+        Ct: CudaIntegerRadixCiphertext,
+        CpuCt: Expandable + IntegerRadixCiphertext,
+    {
+        assert_eq!(
+            Ct::IS_SIGNED,
+            CpuCt::IS_SIGNED,
+            "GPU and CPU ciphertext signedness must match"
+        );
+
+        let mut builder = CudaCompressedCiphertextListBuilder::new();
+        let mut keys = Vec::with_capacity(self.data.len());
+        for (key, value) in &self.data {
+            let ct = value.as_ref().duplicate(streams);
+            let num_blocks = ct.d_blocks.lwe_ciphertext_count().0;
+            if let Some(n) = NonZeroUsize::new(num_blocks) {
+                keys.push(*key);
+                builder.ciphertexts.push(ct);
+                let kind = if Ct::IS_SIGNED {
+                    DataKind::Signed(n)
+                } else {
+                    DataKind::Unsigned(n)
+                };
+                builder.info.push(kind);
+            }
+        }
+        let cuda_compressed = builder.build(compression_key, streams);
+        let compressed_list = cuda_compressed.to_compressed_ciphertext_list(streams);
+        CompressedKVStore::new(keys, compressed_list)
     }
 
     // Extract each value and put a duplicate on a contiguous array
@@ -818,7 +859,9 @@ mod tests {
 
     use super::*;
     use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
-    use crate::integer::{gen_keys, ClientKey, IntegerKeyKind, SignedRadixCiphertext};
+    use crate::integer::{
+        gen_keys, ClientKey, IntegerKeyKind, RadixCiphertext, SignedRadixCiphertext,
+    };
     use crate::shortint::parameters::test_params::{
         TEST_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -893,7 +936,7 @@ mod tests {
         assert_store_unsigned_matches(&clear_store, &gpu_kv_store, &cks);
 
         // Validates the flow GPU -> CPU -> Compress -> Decompress -> CPU -> GPU
-        let kv_store: KVStore<u32, SignedRadixCiphertext> = gpu_kv_store.to_kv_store(&streams);
+        let kv_store: KVStore<u32, RadixCiphertext> = gpu_kv_store.to_kv_store(&streams);
         let compressed = kv_store.compress(&compression_key);
         let kv_store = compressed.decompress(&decompression_key).unwrap();
         let gpu_kv_store = CudaKVStore::from_kv_store(&kv_store, &streams);
@@ -903,7 +946,7 @@ mod tests {
         // Validates the flow GPU -> CPU -> Serialize -> Deserialize -> CPU -> GPU
         let mut data = vec![];
         crate::safe_serialization::safe_serialize(&compressed, &mut data, 1 << 20).unwrap();
-        let compressed: CompressedKVStore<u32, SignedRadixCiphertext> =
+        let compressed: CompressedKVStore<u32, RadixCiphertext> =
             crate::safe_serialization::safe_deserialize(data.as_slice(), 1 << 20).unwrap();
         let kv_store = compressed.decompress(&decompression_key).unwrap();
         let gpu_kv_store = CudaKVStore::from_kv_store(&kv_store, &streams);
