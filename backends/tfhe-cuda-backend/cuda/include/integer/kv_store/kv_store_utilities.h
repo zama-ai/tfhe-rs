@@ -28,6 +28,7 @@ template <typename Torus> struct int_kv_store_get_buffer {
   CudaRadixCiphertextFFI *tmp_cmux_array;
 
   // Clean the noise between tree layers in the binary tree sum
+  uint32_t max_levels_before_pbs;
   int_radix_lut<Torus> *identity_lut;
   CudaRadixCiphertextFFI *tmp_lwe_array_clean;
 
@@ -85,10 +86,11 @@ template <typename Torus> struct int_kv_store_get_buffer {
         total_value_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    // Identity LUT to keep the noise in binary_tree_sum within the safe bounds
-    uint32_t max_noise = (params.message_modulus * params.carry_modulus - 1) /
-                         (params.message_modulus - 1);
-    uint32_t max_tree_levels = log2_int(max_noise);
+    // In the KVStore binary tree, all inputs are independent ciphertexts at
+    // nominal noise (one-hot vector with at most one nonzero entry).
+    // We hard code it to 3 for now, as it is a very conservative choice.
+    this->max_levels_before_pbs = 3;
+    uint32_t max_tree_levels = this->max_levels_before_pbs;
 
     uint32_t max_entries_after_pbs_round =
         CEIL_DIV(num_entries, 1u << max_tree_levels);

@@ -2522,13 +2522,14 @@ __global__ void device_binary_tree_fold(Torus *__restrict__ data,
 
 // Reduces num_entries ciphertexts into one by pairwise addition in a binary
 // tree. Each level doubles noise, so periodic identity-PBS rounds reset it to
-// NOMINAL.
+// NOMINAL. A final PBS at the end guarantees the output always has nominal
+// noise.
 template <typename Torus, class params>
 __host__ void
 binary_tree_sum(CudaStreams streams, CudaRadixCiphertextFFI *output,
                 CudaRadixCiphertextFFI *input, uint32_t num_entries,
-                uint32_t num_blocks, uint32_t message_modulus,
-                uint32_t carry_modulus, void *const *bsks, Torus *const *ksks,
+                uint32_t num_blocks, uint32_t max_levels_before_pbs,
+                void *const *bsks, Torus *const *ksks,
                 int_radix_lut<Torus> *identity_lut,
                 CudaRadixCiphertextFFI *tmp_lwe_array_clean) {
 
@@ -2548,12 +2549,9 @@ binary_tree_sum(CudaStreams streams, CudaRadixCiphertextFFI *output,
       safe_mul(static_cast<size_t>(num_blocks), static_cast<size_t>(lwe_size)));
   auto *data = static_cast<Torus *>(input->ptr);
 
-  // In a binary tree, noise increases every level.
-  // Compute the largest number of levels so it stays within the
-  // noise budget used by CHECK_NOISE_LEVEL.
-  uint32_t max_noise =
-      (message_modulus * carry_modulus - 1) / (message_modulus - 1);
-  uint32_t max_levels_before_pbs = log2_int(max_noise);
+  PANIC_IF_FALSE(max_levels_before_pbs > 0,
+                 "Cuda error (binary_tree_sum): max_levels_before_pbs must be "
+                 "at least 1");
 
   uint32_t levels_since_pbs = 0;
   uint32_t remaining = num_entries;
@@ -2580,8 +2578,6 @@ binary_tree_sum(CudaStreams streams, CudaRadixCiphertextFFI *output,
         uint32_t right_block = (right_start + p) * num_blocks + b;
         input->degrees[left_block] += input->degrees[right_block];
         input->noise_levels[left_block] += input->noise_levels[right_block];
-        CHECK_NOISE_LEVEL(input->noise_levels[left_block], message_modulus,
-                          carry_modulus);
       }
     }
 
@@ -2614,47 +2610,48 @@ binary_tree_sum(CudaStreams streams, CudaRadixCiphertextFFI *output,
 }
 
 template <typename Torus>
-__host__ void host_binary_tree_sum(
-    CudaStreams streams, CudaRadixCiphertextFFI *output,
-    CudaRadixCiphertextFFI *input, uint32_t num_entries, uint32_t num_blocks,
-    uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
-    void *const *bsks, Torus *const *ksks, int_radix_lut<Torus> *identity_lut,
-    CudaRadixCiphertextFFI *tmp_lwe_array_clean) {
+__host__ void
+host_binary_tree_sum(CudaStreams streams, CudaRadixCiphertextFFI *output,
+                     CudaRadixCiphertextFFI *input, uint32_t num_entries,
+                     uint32_t num_blocks, uint32_t polynomial_size,
+                     uint32_t max_levels_before_pbs, void *const *bsks,
+                     Torus *const *ksks, int_radix_lut<Torus> *identity_lut,
+                     CudaRadixCiphertextFFI *tmp_lwe_array_clean) {
   switch (polynomial_size) {
   case 256:
     binary_tree_sum<Torus, Degree<256>>(
-        streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+        streams, output, input, num_entries, num_blocks, max_levels_before_pbs,
+        bsks, ksks, identity_lut, tmp_lwe_array_clean);
     break;
   case 512:
     binary_tree_sum<Torus, Degree<512>>(
-        streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+        streams, output, input, num_entries, num_blocks, max_levels_before_pbs,
+        bsks, ksks, identity_lut, tmp_lwe_array_clean);
     break;
   case 1024:
     binary_tree_sum<Torus, Degree<1024>>(
-        streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+        streams, output, input, num_entries, num_blocks, max_levels_before_pbs,
+        bsks, ksks, identity_lut, tmp_lwe_array_clean);
     break;
   case 2048:
     binary_tree_sum<Torus, Degree<2048>>(
-        streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+        streams, output, input, num_entries, num_blocks, max_levels_before_pbs,
+        bsks, ksks, identity_lut, tmp_lwe_array_clean);
     break;
   case 4096:
     binary_tree_sum<Torus, Degree<4096>>(
-        streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+        streams, output, input, num_entries, num_blocks, max_levels_before_pbs,
+        bsks, ksks, identity_lut, tmp_lwe_array_clean);
     break;
   case 8192:
     binary_tree_sum<Torus, Degree<8192>>(
-        streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+        streams, output, input, num_entries, num_blocks, max_levels_before_pbs,
+        bsks, ksks, identity_lut, tmp_lwe_array_clean);
     break;
   case 16384:
     binary_tree_sum<Torus, Degree<16384>>(
-        streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+        streams, output, input, num_entries, num_blocks, max_levels_before_pbs,
+        bsks, ksks, identity_lut, tmp_lwe_array_clean);
     break;
   default:
     PANIC("Cuda error (binary_tree_sum): unsupported polynomial size. "

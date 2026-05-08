@@ -45,8 +45,6 @@ host_kv_store_get(CudaStreams streams,
   auto num_key_blocks = mem_ptr->num_key_blocks;
   auto num_value_blocks = mem_ptr->num_value_blocks;
   auto num_entries = mem_ptr->num_entries;
-  auto message_modulus = mem_ptr->message_modulus;
-  auto carry_modulus = mem_ptr->carry_modulus;
   auto mem_eq_selectors_buffer = mem_ptr->mem_eq_selectors_buffer;
   auto selectors_list = mem_ptr->selectors_list;
   auto mem_zero_out_batch_buffer = mem_ptr->mem_zero_out_batch_buffer;
@@ -80,11 +78,11 @@ host_kv_store_get(CudaStreams streams,
 
   // Step 3: Sum all elements in the vector (value-block-count dependent)
   PUSH_RANGE("get: binary tree sum")
-  host_binary_tree_sum<Torus>(streams, lwe_array_out_result, lwe_one_hot_vector,
-                              num_entries, num_value_blocks,
-                              mem_ptr->params.polynomial_size, message_modulus,
-                              carry_modulus, bsks, ksks, mem_ptr->identity_lut,
-                              mem_ptr->tmp_lwe_array_clean);
+  host_binary_tree_sum<Torus>(
+      streams, lwe_array_out_result, lwe_one_hot_vector, num_entries,
+      num_value_blocks, mem_ptr->params.polynomial_size,
+      mem_ptr->max_levels_before_pbs, bsks, ksks, mem_ptr->identity_lut,
+      mem_ptr->tmp_lwe_array_clean);
   POP_RANGE()
 
   //  OR all selectors
