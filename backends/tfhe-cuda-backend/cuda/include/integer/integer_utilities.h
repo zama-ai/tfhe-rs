@@ -439,8 +439,6 @@ struct int_radix_lut_custom_input_output {
   std::vector<InputTorus *> lwe_after_ks_vec;
   std::vector<OutputTorus *> lwe_after_pbs_vec;
   std::vector<InputTorus *> lwe_trivial_indexes_vec;
-  std::vector<ks_mem<InputTorus> *>
-      ks_tmp_buf_vec; // buffers on each GPU to store keyswitch temporary data
 
   std::vector<InputTorus *> lwe_aligned_vec;
 
@@ -569,36 +567,6 @@ struct int_radix_lut_custom_input_output {
                                lwe_trivial_indexes, num_radix_blocks,
                                allocate_gpu_memory);
   }
-  void setup_gemm_batch_ks_temp_buffers(uint64_t &size_tracker) {
-    int classical_threshold =
-        sizeof(OutputTorus) == 16
-            ? THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128
-            : get_threshold_multi_gpu_classical();
-    int threshold = (params.pbs_type == PBS_TYPE::MULTI_BIT)
-                        ? THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS
-                        : classical_threshold;
-
-    auto inputs_on_gpu = std::min(
-        (int)num_input_blocks,
-        std::max(threshold, get_num_inputs_on_gpu(num_input_blocks, 0,
-                                                  active_streams.count())));
-
-    if (inputs_on_gpu >= get_threshold_ks_gemm()) {
-      for (auto i = 0; i < active_streams.count(); ++i) {
-        ks_mem<InputTorus> *ks_buffer;
-        uint64_t sub_size_tracker = scratch_cuda_keyswitch<InputTorus>(
-            active_streams.stream(i), active_streams.gpu_index(i), &ks_buffer,
-            input_big_lwe_dimension, params.small_lwe_dimension, num_blocks,
-            gpu_memory_allocated);
-
-        if (i == 0) {
-          size_tracker += sub_size_tracker;
-        }
-        ks_tmp_buf_vec.push_back(ks_buffer);
-      }
-    }
-  }
-
   void setup_lwe_trivial_indices(uint32_t num_radix_blocks,
                                  bool allocate_gpu_memory,
                                  uint64_t &size_tracker) {
@@ -1227,13 +1195,6 @@ public:
       }
       lwe_aligned_vec.clear();
     }
-
-    for (auto i = 0; i < ks_tmp_buf_vec.size(); i++) {
-      cleanup_cuda_keyswitch(active_streams.stream(i),
-                             active_streams.gpu_index(i), ks_tmp_buf_vec[i],
-                             gpu_memory_allocated);
-    }
-    ks_tmp_buf_vec.clear();
 
     free(h_lut_indexes);
     h_lut_indexes = nullptr;

@@ -29,32 +29,14 @@ void cuda_keyswitch_gemm_64_64_async(
     void const *lwe_output_indexes, void const *lwe_array_in,
     void const *lwe_input_indexes, void const *ksk, uint32_t lwe_dimension_in,
     uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, const void *ks_tmp_buffer, bool uses_trivial_indexes);
+    uint32_t num_samples, bool uses_trivial_indexes);
 
 void cuda_keyswitch_gemm_64_32_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_output_indexes, void const *lwe_array_in,
     void const *lwe_input_indexes, void const *ksk, uint32_t lwe_dimension_in,
     uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, const void *ks_tmp_buffer, bool uses_trivial_indexes);
-
-uint64_t scratch_cuda_keyswitch_gemm_64_64_async(
-    void *stream, uint32_t gpu_index, void **ks_tmp_memory,
-    uint32_t lwe_dimension_in, uint32_t lwe_dimension_out, uint32_t num_lwes,
-    bool allocate_gpu_memory);
-
-uint64_t scratch_cuda_keyswitch_gemm_64_32_async(
-    void *stream, uint32_t gpu_index, void **ks_tmp_memory,
-    uint32_t lwe_dimension_in, uint32_t lwe_dimension_out, uint32_t num_lwes,
-    bool allocate_gpu_memory);
-
-void cleanup_cuda_keyswitch_gemm_64_64(void *stream, uint32_t gpu_index,
-                                       void **ks_tmp_memory,
-                                       bool allocate_gpu_memory);
-
-void cleanup_cuda_keyswitch_gemm_64_32(void *stream, uint32_t gpu_index,
-                                       void **ks_tmp_memory,
-                                       bool allocate_gpu_memory);
+    uint32_t num_samples, bool uses_trivial_indexes);
 
 void cuda_packing_keyswitch_lwe_list_to_glwe_64_async(
     void *stream, uint32_t gpu_index, void *glwe_array_out,
