@@ -393,8 +393,7 @@ impl CudaCompressionKey {
                 compressed_glwe_size.to_glwe_dimension(),
                 compressed_polynomial_size,
                 lwe_dimension,
-                lwe_pksk.decomposition_base_log(),
-                lwe_pksk.decomposition_level_count(),
+                lwe_pksk.params_ffi(),
                 self.lwe_per_glwe.0 as u32,
                 num_lwes as u32,
             );
@@ -423,8 +422,7 @@ impl CudaCompressionKey {
             compressed_glwe_size.to_glwe_dimension(),
             compressed_polynomial_size,
             lwe_dimension,
-            lwe_pksk.decomposition_base_log(),
-            lwe_pksk.decomposition_level_count(),
+            lwe_pksk.params_ffi(),
             self.lwe_per_glwe.0 as u32,
             num_lwes,
         )
@@ -848,8 +846,7 @@ impl CudaNoiseSquashingCompressionKey {
                 compressed_glwe_size.to_glwe_dimension(),
                 compressed_polynomial_size,
                 lwe_dimension,
-                lwe_pksk.decomposition_base_log(),
-                lwe_pksk.decomposition_level_count(),
+                lwe_pksk.params_ffi(),
                 self.lwe_per_glwe.0 as u32,
                 num_lwes as u32,
             );

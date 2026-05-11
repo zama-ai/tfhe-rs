@@ -130,8 +130,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_bsk,
-                        computing_ks_key.decomposition_base_log(),
-                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.params_ffi(),
                         decomposed_scalar.len() as u32,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
@@ -152,8 +151,7 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         d_multibit_bsk,
-                        computing_ks_key.decomposition_base_log(),
-                        computing_ks_key.decomposition_level_count(),
+                        computing_ks_key.params_ffi(),
                         decomposed_scalar.len() as u32,
                         None,
                     );
@@ -256,8 +254,7 @@ impl CudaServerKey {
                     cuda_backend_get_full_propagate_assign_size_on_gpu(
                         streams,
                         d_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         self.message_modulus,
                         self.carry_modulus,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
@@ -267,8 +264,7 @@ impl CudaServerKey {
                     cuda_backend_get_full_propagate_assign_size_on_gpu(
                         streams,
                         d_multibit_bsk,
-                        computing_ks_key.decomposition_level_count(),
-                        computing_ks_key.decomposition_base_log(),
+                        computing_ks_key.params_ffi(),
                         self.message_modulus,
                         self.carry_modulus,
                         None,
@@ -296,8 +292,7 @@ impl CudaServerKey {
                     self.message_modulus,
                     self.carry_modulus,
                     d_bsk,
-                    computing_ks_key.decomposition_base_log(),
-                    computing_ks_key.decomposition_level_count(),
+                    computing_ks_key.params_ffi(),
                     lwe_ciphertext_count.0 as u32,
                     d_bsk.ms_noise_reduction_configuration.as_ref(),
                 )
@@ -314,8 +309,7 @@ impl CudaServerKey {
                     self.message_modulus,
                     self.carry_modulus,
                     d_multibit_bsk,
-                    computing_ks_key.decomposition_base_log(),
-                    computing_ks_key.decomposition_level_count(),
+                    computing_ks_key.params_ffi(),
                     lwe_ciphertext_count.0 as u32,
                     None,
                 )
