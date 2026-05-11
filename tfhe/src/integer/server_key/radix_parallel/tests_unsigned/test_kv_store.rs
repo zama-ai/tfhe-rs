@@ -143,7 +143,7 @@ fn get_num_block_for_key(msg_mod: MessageModulus) -> usize {
     KeyType::BITS.div_ceil(msg_mod.0.ilog2()) as usize
 }
 
-fn default_kv_store_get_update_test<P, T1, T2>(
+pub fn default_kv_store_get_update_test<P, T1, T2>(
     params: P,
     mut kv_store_get: T1,
     mut kv_store_update: T2,
@@ -237,7 +237,7 @@ fn default_kv_store_get_update_test<P, T1, T2>(
     }
 }
 
-fn default_kv_store_map_test<P, T>(params: P, mut kv_store_map: T)
+pub fn default_kv_store_map_test<P, T>(params: P, mut kv_store_map: T)
 where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<

@@ -9,6 +9,7 @@
 #include "helper_multi_gpu.h"
 #include "integer/integer.h"
 #include "integer/integer_utilities.h"
+#include "polynomial/parameters.cuh"
 #include "utils/helper.cuh"
 #include <stdio.h>
 

@@ -2181,6 +2181,163 @@ unsafe extern "C" {
         glwe_index: u32,
     );
 }
+unsafe extern "C" {
+    pub fn scratch_cuda_kv_store_get_64_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_entries: u32,
+        num_key_blocks: u32,
+        num_value_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_kv_store_get_64_async(
+        streams: CudaStreamsFFI,
+        lwe_array_out_result: *mut CudaRadixCiphertextFFI,
+        lwe_array_out_boolean: *mut CudaRadixCiphertextFFI,
+        lwe_array_out_selectors: *mut CudaRadixCiphertextFFI,
+        lwe_array_in_encrypted_key: *const CudaRadixCiphertextFFI,
+        lwe_array_in_values: *const CudaRadixCiphertextFFI,
+        h_decomposed_clear_keys: *const u64,
+        mem: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_kv_store_get_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_kv_store_update_64_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_entries: u32,
+        num_key_blocks: u32,
+        num_value_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_kv_store_update_64_async(
+        streams: CudaStreamsFFI,
+        lwe_check_out_block: *mut CudaRadixCiphertextFFI,
+        lwe_array_out_values: *mut CudaRadixCiphertextFFI,
+        lwe_array_in_encrypted_key: *const CudaRadixCiphertextFFI,
+        lwe_array_in_values: *const CudaRadixCiphertextFFI,
+        lwe_in_new_value: *const CudaRadixCiphertextFFI,
+        h_decomposed_clear_keys: *const u64,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_kv_store_update_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_kv_store_map_64_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_entries: u32,
+        num_value_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_kv_store_map_64_async(
+        streams: CudaStreamsFFI,
+        lwe_check_out_block: *mut CudaRadixCiphertextFFI,
+        lwe_array_out_values: *mut CudaRadixCiphertextFFI,
+        lwe_array_in_values: *const CudaRadixCiphertextFFI,
+        lwe_in_new_value: *const CudaRadixCiphertextFFI,
+        lwe_array_in_selectors: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_kv_store_map_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_kv_store_contains_key_64_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_entries: u32,
+        num_key_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_kv_store_contains_key_64_async(
+        streams: CudaStreamsFFI,
+        lwe_array_out_boolean: *mut CudaRadixCiphertextFFI,
+        lwe_array_in_encrypted_key: *const CudaRadixCiphertextFFI,
+        h_decomposed_clear_keys: *const u64,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_kv_store_contains_key_64(
+        streams: CudaStreamsFFI,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
 pub const RERAND_MODE_RERAND_WITH_KS: RERAND_MODE = 0;
 pub const RERAND_MODE_RERAND_WITHOUT_KS: RERAND_MODE = 1;
 pub type RERAND_MODE = ffi::c_uint;
