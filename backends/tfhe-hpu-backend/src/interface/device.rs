@@ -4,7 +4,15 @@ use super::config::HpuConfig;
 use super::*;
 use crate::entities::*;
 
-use std::sync::{atomic, mpsc, Arc};
+use std::sync::{Arc, LazyLock, atomic::{self, AtomicPtr}, mpsc};
+
+pub static HPU_DEVICE: LazyLock<HpuDevice> = LazyLock::new(|| {
+    HpuDevice::from_config(
+        ShellString::new("${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string())
+            .expand()
+            .as_str()
+    )
+});
 
 pub struct HpuDevice {
     config: HpuConfig,

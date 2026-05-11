@@ -13,7 +13,7 @@ use serde::{Deserializer, Serializer};
 use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 #[cfg(feature = "hpu")]
-use crate::high_level_api::keys::HpuTaggedDevice;
+use crate::high_level_api::keys::HpuServerKey;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 #[cfg(feature = "gpu")]
@@ -186,14 +186,14 @@ impl InnerBoolean {
     }
 
     #[cfg(feature = "hpu")]
-    pub(crate) fn on_hpu(&self, device: &HpuTaggedDevice) -> MaybeCloned<'_, HpuRadixCiphertext> {
+    pub(crate) fn on_hpu(&self) -> MaybeCloned<'_, HpuRadixCiphertext> {
+        use tfhe_hpu_backend::interface::HPU_DEVICE;
         let cpu_radix = if let Self::Hpu(hpu_radix) = self {
             return MaybeCloned::Borrowed(hpu_radix);
         } else {
             self.on_cpu()
         };
-
-        let hpu_ct = HpuRadixCiphertext::from_boolean_ciphertext(&cpu_radix, &device.device);
+        let hpu_ct = HpuRadixCiphertext::from_boolean_ciphertext(&cpu_radix, &HPU_DEVICE);
         MaybeCloned::Cloned(hpu_ct)
     }
 
@@ -297,7 +297,8 @@ impl InnerBoolean {
             #[cfg(feature = "hpu")]
             Device::Hpu => {
                 let hpu_ct = global_state::with_thread_local_hpu_device(|device| {
-                    HpuRadixCiphertext::from_boolean_ciphertext(&cpu_ct, &device.device)
+                    use tfhe_hpu_backend::interface::HPU_DEVICE;
+                    HpuRadixCiphertext::from_boolean_ciphertext(&cpu_ct, &HPU_DEVICE)
                 });
                 *self = Self::Hpu(hpu_ct);
             }

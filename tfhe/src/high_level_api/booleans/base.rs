@@ -529,10 +529,11 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_then = ct_then.ciphertext.on_hpu(device);
-                let hpu_else = ct_else.ciphertext.on_hpu(device);
-                let hpu_cond = self.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_then = ct_then.ciphertext.on_hpu();
+                let hpu_else = ct_else.ciphertext.on_hpu();
+                let hpu_cond = self.ciphertext.on_hpu();
 
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_IF_THEN_ELSE;
@@ -552,7 +553,7 @@ where
                 .unwrap();
                 FheUint::new(
                     hpu_result,
-                    device.tag.clone(),
+                    hks.tag.clone(),
                     ReRandomizationMetadata::default(),
                 )
             }
@@ -590,9 +591,10 @@ where
                 panic!("Cuda does not support if_then_zero")
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_then = ct_then.ciphertext.on_hpu(device);
-                let hpu_cond = self.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_then = ct_then.ciphertext.on_hpu();
+                let hpu_cond = self.ciphertext.on_hpu();
 
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_IF_THEN_ZERO;
@@ -612,7 +614,7 @@ where
                 .unwrap();
                 FheUint::new(
                     hpu_result,
-                    device.tag.clone(),
+                    hks.tag.clone(),
                     ReRandomizationMetadata::default(),
                 )
             }

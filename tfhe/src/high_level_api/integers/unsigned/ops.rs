@@ -109,15 +109,16 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
                 let mut iter = iter;
-                let mut result = iter.next().unwrap().ciphertext.into_hpu(device);
+                let mut result = iter.next().unwrap().ciphertext.into_hpu();
                 for o in iter {
-                    result += o.ciphertext.into_hpu(device);
+                    result += o.ciphertext.into_hpu();
                 }
                 Self::new(
                     result,
-                    device.tag.clone(),
+                    hks.tag.clone(),
                     ReRandomizationMetadata::default(),
                 )
             }
@@ -209,25 +210,25 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
                 let mut iter = iter;
-                let first = iter.next().unwrap().ciphertext.on_hpu(device);
-
+                let first = iter.next().unwrap().ciphertext.on_hpu();
                 let Some(second) = iter.next() else {
                     return Self::new(
                         first.clone(),
-                        device.tag.clone(),
+                        hks.tag.clone(),
                         ReRandomizationMetadata::default(),
                     );
                 };
 
-                let mut result = &*first + &*second.ciphertext.on_hpu(device);
+                let mut result = &*first + &*second.ciphertext.on_hpu();
                 for o in iter {
-                    result += &*o.ciphertext.on_hpu(device);
+                    result += &*o.ciphertext.on_hpu();
                 }
                 Self::new(
                     result,
-                    device.tag.clone(),
+                    hks.tag.clone(),
                     ReRandomizationMetadata::default(),
                 )
             }
@@ -440,9 +441,10 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.on_hpu(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.on_hpu();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_CMP_EQ;
                     (
@@ -461,7 +463,7 @@ where
                 .unwrap();
                 FheBool::new(
                     hpu_result,
-                    device.tag.clone(),
+                    hks.tag.clone(),
                     ReRandomizationMetadata::default(),
                 )
             }
@@ -514,9 +516,10 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.on_hpu(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.on_hpu();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_CMP_NEQ;
                     (
@@ -535,7 +538,7 @@ where
                 .unwrap();
                 FheBool::new(
                     hpu_result,
-                    device.tag.clone(),
+                    hks.tag.clone(),
                     ReRandomizationMetadata::default(),
                 )
             }
@@ -614,9 +617,10 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.on_hpu(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.on_hpu();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_CMP_LT;
                     (
@@ -635,7 +639,7 @@ where
                 .unwrap();
                 FheBool::new(
                     hpu_result,
-                    device.tag.clone(),
+                    hks.tag.clone(),
                     ReRandomizationMetadata::default(),
                 )
             }
@@ -688,9 +692,9 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.on_hpu(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                let hpu_lhs = self.ciphertext.on_hpu();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_CMP_LTE;
                     (
@@ -709,7 +713,7 @@ where
                 .unwrap();
                 FheBool::new(
                     hpu_result,
-                    device.tag.clone(),
+                    hks.tag.clone(),
                     ReRandomizationMetadata::default(),
                 )
             }
@@ -762,9 +766,10 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.on_hpu(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.on_hpu();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_CMP_GT;
                     (
@@ -783,7 +788,7 @@ where
                 .unwrap();
                 FheBool::new(
                     hpu_result,
-                    device.tag.clone(),
+                    hks.tag.clone(),
                     ReRandomizationMetadata::default(),
                 )
             }
@@ -836,9 +841,10 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.on_hpu(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.on_hpu();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_CMP_GTE;
                     (
@@ -857,7 +863,7 @@ where
                 .unwrap();
                 FheBool::new(
                     hpu_result,
-                    device.tag.clone(),
+                    hks.tag.clone(),
                     ReRandomizationMetadata::default(),
                 )
             }
@@ -957,9 +963,10 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.on_hpu(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.on_hpu();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
 
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_DIV;
@@ -980,12 +987,12 @@ where
                 (
                     FheUint::new(
                         quotient,
-                        device.tag.clone(),
+                        hks.tag.clone(),
                         ReRandomizationMetadata::default(),
                     ),
                     FheUint::new(
                         remainder,
-                        device.tag.clone(),
+                        hks.tag.clone(),
                         ReRandomizationMetadata::default(),
                     ),
                 )
@@ -1071,10 +1078,11 @@ generic_integer_impl_operation!(
                         FheUint::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                 }
                 #[cfg(feature = "hpu")]
-                InternalServerKey::Hpu(device) => {
-                    let hpu_lhs = lhs.ciphertext.on_hpu(device);
-                    let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                    FheUint::new(&*hpu_lhs + &*hpu_rhs, device.tag.clone(), ReRandomizationMetadata::default())
+                InternalServerKey::Hpu(hks) => {
+                    hks.lazy_set();
+                    let hpu_lhs = lhs.ciphertext.on_hpu();
+                    let hpu_rhs = rhs.ciphertext.on_hpu();
+                    FheUint::new(&*hpu_lhs + &*hpu_rhs, hks.tag.clone(), ReRandomizationMetadata::default())
                 }
             })
         }
@@ -1119,10 +1127,11 @@ generic_integer_impl_operation!(
                         FheUint::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                 }
                 #[cfg(feature = "hpu")]
-                InternalServerKey::Hpu(device) => {
-                    let hpu_lhs = lhs.ciphertext.on_hpu(device);
-                    let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                    FheUint::new(&*hpu_lhs - &*hpu_rhs, device.tag.clone(), ReRandomizationMetadata::default())
+                InternalServerKey::Hpu(hks) => {
+                    hks.lazy_set();
+                    let hpu_lhs = lhs.ciphertext.on_hpu();
+                    let hpu_rhs = rhs.ciphertext.on_hpu();
+                    FheUint::new(&*hpu_lhs - &*hpu_rhs, hks.tag.clone(), ReRandomizationMetadata::default())
                 }
             })
         }
@@ -1167,10 +1176,11 @@ generic_integer_impl_operation!(
                         FheUint::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                 }
                 #[cfg(feature = "hpu")]
-                InternalServerKey::Hpu(device) => {
-                    let hpu_lhs = lhs.ciphertext.on_hpu(device);
-                    let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                    FheUint::new(&*hpu_lhs * &*hpu_rhs, device.tag.clone(), ReRandomizationMetadata::default())
+                InternalServerKey::Hpu(hks) => {
+                    hks.lazy_set();
+                    let hpu_lhs = lhs.ciphertext.on_hpu();
+                    let hpu_rhs = rhs.ciphertext.on_hpu();
+                    FheUint::new(&*hpu_lhs * &*hpu_rhs, hks.tag.clone(), ReRandomizationMetadata::default())
                 }
             })
         }
@@ -1213,10 +1223,11 @@ generic_integer_impl_operation!(
                         FheUint::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                 }
                 #[cfg(feature = "hpu")]
-                InternalServerKey::Hpu(device) => {
-                    let hpu_lhs = lhs.ciphertext.on_hpu(device);
-                    let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                    FheUint::new(&*hpu_lhs & &*hpu_rhs, device.tag.clone(), ReRandomizationMetadata::default())
+                InternalServerKey::Hpu(hks) => {
+                    hks.lazy_set();
+                    let hpu_lhs = lhs.ciphertext.on_hpu();
+                    let hpu_rhs = rhs.ciphertext.on_hpu();
+                    FheUint::new(&*hpu_lhs & &*hpu_rhs, hks.tag.clone(), ReRandomizationMetadata::default())
                 }
             })
         }
@@ -1259,10 +1270,11 @@ generic_integer_impl_operation!(
                         FheUint::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                 }
                 #[cfg(feature = "hpu")]
-                InternalServerKey::Hpu(device) => {
-                    let hpu_lhs = lhs.ciphertext.on_hpu(device);
-                    let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                    FheUint::new(&*hpu_lhs | &*hpu_rhs, device.tag.clone(), ReRandomizationMetadata::default())
+                InternalServerKey::Hpu(hks) => {
+                    hks.lazy_set();
+                    let hpu_lhs = lhs.ciphertext.on_hpu();
+                    let hpu_rhs = rhs.ciphertext.on_hpu();
+                    FheUint::new(&*hpu_lhs | &*hpu_rhs, hks.tag.clone(), ReRandomizationMetadata::default())
                 }
             })
         }
@@ -1305,10 +1317,11 @@ generic_integer_impl_operation!(
                         FheUint::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                 }
                 #[cfg(feature = "hpu")]
-                InternalServerKey::Hpu(device) => {
-                    let hpu_lhs = lhs.ciphertext.on_hpu(device);
-                    let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                    FheUint::new(&*hpu_lhs ^ &*hpu_rhs, device.tag.clone(), ReRandomizationMetadata::default())
+                InternalServerKey::Hpu(hks) => {
+                    hks.lazy_set();
+                    let hpu_lhs = lhs.ciphertext.on_hpu();
+                    let hpu_rhs = rhs.ciphertext.on_hpu();
+                    FheUint::new(&*hpu_lhs ^ &*hpu_rhs, hks.tag.clone(), ReRandomizationMetadata::default())
                 }
             })
         }
@@ -1362,9 +1375,10 @@ generic_integer_impl_operation!(
                     FheUint::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                 },
                 #[cfg(feature = "hpu")]
-                InternalServerKey::Hpu(device) => {
-                let hpu_lhs = lhs.ciphertext.on_hpu(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = lhs.ciphertext.on_hpu();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
 
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_DIV;
@@ -1382,7 +1396,7 @@ generic_integer_impl_operation!(
                 );
                 let _remainder = hpu_result.pop().expect("IOP_DIV must return 2 value");
                 let quotient = hpu_result.pop().expect("IOP_DIV must return 2 value");
-                    FheUint::new(quotient, device.tag.clone(), ReRandomizationMetadata::default())
+                    FheUint::new(quotient, hks.tag.clone(), ReRandomizationMetadata::default())
             }
             })
         }
@@ -1438,9 +1452,10 @@ generic_integer_impl_operation!(
                     FheUint::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                 },
                 #[cfg(feature = "hpu")]
-                InternalServerKey::Hpu(device) => {
-                let hpu_lhs = lhs.ciphertext.on_hpu(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = lhs.ciphertext.on_hpu();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
 
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_MOD;
@@ -1457,7 +1472,7 @@ generic_integer_impl_operation!(
                     &[],
                 );
                 let remainder = hpu_result.pop().expect("IOP_MOD must return 1 value");
-                    FheUint::new(remainder, device.tag.clone(), ReRandomizationMetadata::default())
+                    FheUint::new(remainder, hks.tag.clone(), ReRandomizationMetadata::default())
             }
             })
         }
@@ -1572,9 +1587,10 @@ generic_integer_impl_shift_rotate!(
                             FheUint::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                     }
                     #[cfg(feature = "hpu")]
-                    InternalServerKey::Hpu(device) => {
-                        let hpu_lhs = lhs.ciphertext.on_hpu(device);
-                        let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                    InternalServerKey::Hpu(hks) => {
+                        hks.lazy_set();
+                        let hpu_lhs = lhs.ciphertext.on_hpu();
+                        let hpu_rhs = rhs.ciphertext.on_hpu();
 
                         let (opcode, proto) = {
                             let asm_iop = &hpu_asm::iop::IOP_SHIFT_L;
@@ -1590,7 +1606,7 @@ generic_integer_impl_shift_rotate!(
                             &[hpu_lhs.clone(), hpu_rhs.clone()],
                             &[],
                         ).pop().expect("IOP_SHIFT_L must return 1 value");
-                            FheUint::new(hpu_result, device.tag.clone(), ReRandomizationMetadata::default())
+                            FheUint::new(hpu_result, hks.tag.clone(), ReRandomizationMetadata::default())
                     }
                 }
             })
@@ -1636,9 +1652,10 @@ generic_integer_impl_shift_rotate!(
                             FheUint::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                     }
                     #[cfg(feature = "hpu")]
-                    InternalServerKey::Hpu(device) => {
-                        let hpu_lhs = lhs.ciphertext.on_hpu(device);
-                        let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                    InternalServerKey::Hpu(hks) => {
+                        hks.lazy_set();
+                        let hpu_lhs = lhs.ciphertext.on_hpu();
+                        let hpu_rhs = rhs.ciphertext.on_hpu();
 
                         let (opcode, proto) = {
                             let asm_iop = &hpu_asm::iop::IOP_SHIFT_R;
@@ -1654,7 +1671,7 @@ generic_integer_impl_shift_rotate!(
                             &[hpu_lhs.clone(), hpu_rhs.clone()],
                             &[],
                         ).pop().expect("IOP_SHIFT_R must return 1 value");
-                            FheUint::new(hpu_result, device.tag.clone(), ReRandomizationMetadata::default())
+                            FheUint::new(hpu_result, hks.tag.clone(), ReRandomizationMetadata::default())
                     }
                 }
             })
@@ -1700,9 +1717,10 @@ generic_integer_impl_shift_rotate!(
                             FheUint::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                     }
                     #[cfg(feature = "hpu")]
-                    InternalServerKey::Hpu(device) => {
-                        let hpu_lhs = lhs.ciphertext.on_hpu(device);
-                        let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                    InternalServerKey::Hpu(hks) => {
+                        hks.lazy_set();
+                        let hpu_lhs = lhs.ciphertext.on_hpu();
+                        let hpu_rhs = rhs.ciphertext.on_hpu();
 
                         let (opcode, proto) = {
                             let asm_iop = &hpu_asm::iop::IOP_ROT_L;
@@ -1718,7 +1736,7 @@ generic_integer_impl_shift_rotate!(
                             &[hpu_lhs.clone(), hpu_rhs.clone()],
                             &[],
                         ).pop().expect("IOP_ROT_L must return 1 value");
-                            FheUint::new(hpu_result, device.tag.clone(), ReRandomizationMetadata::default())
+                            FheUint::new(hpu_result, hks.tag.clone(), ReRandomizationMetadata::default())
                     }
                 }
             })
@@ -1764,9 +1782,10 @@ generic_integer_impl_shift_rotate!(
                             FheUint::new(inner_result, cuda_key.tag.clone(), ReRandomizationMetadata::default())
                     }
                     #[cfg(feature = "hpu")]
-                    InternalServerKey::Hpu(device) => {
-                        let hpu_lhs = lhs.ciphertext.on_hpu(device);
-                        let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                    InternalServerKey::Hpu(hks) => {
+                        hks.lazy_set();
+                        let hpu_lhs = lhs.ciphertext.on_hpu();
+                        let hpu_rhs = rhs.ciphertext.on_hpu();
 
                         let (opcode, proto) = {
                             let asm_iop = &hpu_asm::iop::IOP_ROT_R;
@@ -1782,7 +1801,7 @@ generic_integer_impl_shift_rotate!(
                             &[hpu_lhs.clone(), hpu_rhs.clone()],
                             &[],
                         ).pop().expect("IOP_ROT_R must return 1 value");
-                            FheUint::new(hpu_result, device.tag.clone(), ReRandomizationMetadata::default())
+                            FheUint::new(hpu_result, hks.tag.clone(), ReRandomizationMetadata::default())
                     }
                 }
             })
@@ -1836,9 +1855,10 @@ where
                 );
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
                 *hpu_lhs += &*hpu_rhs;
             }
         })
@@ -1888,9 +1908,10 @@ where
                 );
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
                 *hpu_lhs -= &*hpu_rhs;
             }
         })
@@ -1940,9 +1961,10 @@ where
                 );
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
                 *hpu_lhs *= &*hpu_rhs;
             }
         })
@@ -1990,9 +2012,10 @@ where
                 );
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
                 *hpu_lhs &= &*hpu_rhs;
             }
         })
@@ -2040,9 +2063,10 @@ where
                 );
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
                 *hpu_lhs |= &*hpu_rhs;
             }
         })
@@ -2090,9 +2114,10 @@ where
                 );
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
                 *hpu_lhs ^= &*hpu_rhs;
             }
         })
@@ -2145,9 +2170,10 @@ where
                 );
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
 
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_DIV;
@@ -2218,9 +2244,10 @@ where
                 );
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
 
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_MOD;
@@ -2294,9 +2321,10 @@ where
                 };
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
 
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_SHIFT_L;
@@ -2369,9 +2397,10 @@ where
                 };
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
 
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_SHIFT_R;
@@ -2445,9 +2474,11 @@ where
                 };
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+
+                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
 
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_ROT_L;
@@ -2519,9 +2550,10 @@ where
                 );
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
-                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_rhs = rhs.ciphertext.on_hpu();
 
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_ROT_R;
@@ -2627,8 +2659,9 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_self = self.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_self = self.ciphertext.on_hpu();
 
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_SSUB;
@@ -2647,7 +2680,7 @@ where
                 .expect("SSUB must return a single value");
                 FheUint::new(
                     hpu_result,
-                    device.tag.clone(),
+                    hks.tag.clone(),
                     ReRandomizationMetadata::default(),
                 )
             }

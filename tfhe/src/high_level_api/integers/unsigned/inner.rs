@@ -8,7 +8,7 @@ use crate::high_level_api::global_state::with_cuda_internal_keys;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams_for_gpu_indexes;
 #[cfg(feature = "hpu")]
-use crate::high_level_api::keys::HpuTaggedDevice;
+use crate::high_level_api::keys::HpuServerKey;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 #[cfg(feature = "hpu")]
@@ -204,14 +204,14 @@ impl RadixCiphertext {
     }
 
     #[cfg(feature = "hpu")]
-    pub(crate) fn on_hpu(&self, device: &HpuTaggedDevice) -> MaybeCloned<'_, HpuRadixCiphertext> {
+    pub(crate) fn on_hpu(&self) -> MaybeCloned<'_, HpuRadixCiphertext> {
+        use tfhe_hpu_backend::interface::HPU_DEVICE;
         let cpu_radix = if let Self::Hpu(hpu_radix) = self {
             return MaybeCloned::Borrowed(hpu_radix);
         } else {
             self.on_cpu()
         };
-
-        let hpu_ct = HpuRadixCiphertext::from_radix_ciphertext(&cpu_radix, &device.device);
+        let hpu_ct = HpuRadixCiphertext::from_radix_ciphertext(&cpu_radix, &*HPU_DEVICE);
         MaybeCloned::Cloned(hpu_ct)
     }
 
@@ -246,12 +246,13 @@ impl RadixCiphertext {
     }
 
     #[cfg(feature = "hpu")]
-    pub(crate) fn as_hpu_mut(&mut self, device: &HpuTaggedDevice) -> &mut HpuRadixCiphertext {
+    pub(crate) fn as_hpu_mut(&mut self) -> &mut HpuRadixCiphertext {
         if let Self::Hpu(radix_ct) = self {
             radix_ct
         } else {
+            use tfhe_hpu_backend::interface::HPU_DEVICE;
             let cpu_ct = self.on_cpu();
-            let hpu_ct = HpuRadixCiphertext::from_radix_ciphertext(&cpu_ct, &device.device);
+            let hpu_ct = HpuRadixCiphertext::from_radix_ciphertext(&cpu_ct, &HPU_DEVICE);
             *self = Self::Hpu(hpu_ct);
             let Self::Hpu(hpu_ct) = self else {
                 unreachable!()
@@ -285,12 +286,13 @@ impl RadixCiphertext {
     }
 
     #[cfg(feature = "hpu")]
-    pub(crate) fn into_hpu(self, device: &HpuTaggedDevice) -> HpuRadixCiphertext {
+    pub(crate) fn into_hpu(self) -> HpuRadixCiphertext {
         if let Self::Hpu(radix_ct) = self {
             radix_ct
         } else {
+            use tfhe_hpu_backend::interface::HPU_DEVICE;
             let cpu_ct = self.on_cpu();
-            HpuRadixCiphertext::from_radix_ciphertext(&cpu_ct, &device.device)
+            HpuRadixCiphertext::from_radix_ciphertext(&cpu_ct, &HPU_DEVICE)
         }
     }
 
@@ -336,7 +338,8 @@ impl RadixCiphertext {
             #[cfg(feature = "hpu")]
             Device::Hpu => {
                 let hpu_ct = global_state::with_thread_local_hpu_device(|device| {
-                    HpuRadixCiphertext::from_radix_ciphertext(&cpu_ct, &device.device)
+                    use tfhe_hpu_backend::interface::HPU_DEVICE;
+                    HpuRadixCiphertext::from_radix_ciphertext(&cpu_ct, &HPU_DEVICE)
                 });
                 *self = Self::Hpu(hpu_ct);
             }

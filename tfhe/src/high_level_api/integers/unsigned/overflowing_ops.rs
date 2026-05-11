@@ -86,9 +86,10 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.on_hpu(device);
-                let hpu_rhs = other.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.on_hpu();
+                let hpu_rhs = other.ciphertext.on_hpu();
 
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_OVF_ADD;
@@ -109,12 +110,12 @@ where
                 (
                     FheUint::new(
                         result,
-                        device.tag.clone(),
+                        hks.tag.clone(),
                         ReRandomizationMetadata::default(),
                     ),
                     FheBool::new(
                         overflow,
-                        device.tag.clone(),
+                        hks.tag.clone(),
                         ReRandomizationMetadata::default(),
                     ),
                 )
@@ -233,8 +234,9 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.on_hpu();
                 let imm_rhs = {
                     let as_u64: u64 = other.cast_into();
                     u128::from(as_u64)
@@ -258,12 +260,12 @@ where
                 (
                     FheUint::new(
                         result,
-                        device.tag.clone(),
+                        hks.tag.clone(),
                         ReRandomizationMetadata::default(),
                     ),
                     FheBool::new(
                         overflow,
-                        device.tag.clone(),
+                        hks.tag.clone(),
                         ReRandomizationMetadata::default(),
                     ),
                 )
@@ -422,9 +424,10 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.on_hpu(device);
-                let hpu_rhs = other.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.on_hpu();
+                let hpu_rhs = other.ciphertext.on_hpu();
 
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_OVF_SUB;
@@ -445,12 +448,12 @@ where
                 (
                     FheUint::new(
                         result,
-                        device.tag.clone(),
+                        hks.tag.clone(),
                         ReRandomizationMetadata::default(),
                     ),
                     FheBool::new(
                         overflow,
-                        device.tag.clone(),
+                        hks.tag.clone(),
                         ReRandomizationMetadata::default(),
                     ),
                 )
@@ -552,8 +555,9 @@ where
                 panic!("Cuda devices do not support overflowing_add yet");
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.on_hpu();
                 let imm_rhs = {
                     let as_u64: u64 = other.cast_into();
                     u128::from(as_u64)
@@ -577,12 +581,12 @@ where
                 (
                     FheUint::new(
                         result,
-                        device.tag.clone(),
+                        hks.tag.clone(),
                         ReRandomizationMetadata::default(),
                     ),
                     FheBool::new(
                         overflow,
-                        device.tag.clone(),
+                        hks.tag.clone(),
                         ReRandomizationMetadata::default(),
                     ),
                 )
@@ -683,9 +687,10 @@ where
                 todo!("Cuda devices do not support overflowing_mul");
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.on_hpu(device);
-                let hpu_rhs = other.ciphertext.on_hpu(device);
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_lhs = self.ciphertext.on_hpu();
+                let hpu_rhs = other.ciphertext.on_hpu();
 
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_OVF_MUL;
@@ -706,12 +711,12 @@ where
                 (
                     FheUint::new(
                         result,
-                        device.tag.clone(),
+                        hks.tag.clone(),
                         ReRandomizationMetadata::default(),
                     ),
                     FheBool::new(
                         overflow,
-                        device.tag.clone(),
+                        hks.tag.clone(),
                         ReRandomizationMetadata::default(),
                     ),
                 )

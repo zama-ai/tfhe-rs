@@ -31,7 +31,7 @@ use crate::shortint::MessageModulus;
 use crate::GpuIndex;
 use crate::{Device, Tag};
 #[cfg(feature = "hpu")]
-pub(in crate::high_level_api) use hpu::HpuTaggedDevice;
+pub(in crate::high_level_api) use hpu::HpuServerKey;
 use std::sync::Arc;
 #[cfg(feature = "hpu")]
 use tfhe_hpu_backend::prelude::HpuDevice;
@@ -619,7 +619,7 @@ pub enum InternalServerKey {
     #[cfg(feature = "gpu")]
     Cuda(CudaServerKey),
     #[cfg(feature = "hpu")]
-    Hpu(HpuTaggedDevice),
+    Hpu(hpu::HpuServerKey),
 }
 
 pub enum InternalServerKeyRef<'a> {
@@ -627,7 +627,7 @@ pub enum InternalServerKeyRef<'a> {
     #[cfg(feature = "gpu")]
     Cuda(&'a CudaServerKey),
     #[cfg(feature = "hpu")]
-    Hpu(&'a HpuTaggedDevice),
+    Hpu(&'a HpuServerKey),
 }
 
 impl<'a> From<&'a InternalServerKey> for InternalServerKeyRef<'a> {
@@ -692,24 +692,35 @@ impl From<CudaServerKey> for InternalServerKey {
 }
 
 #[cfg(feature = "hpu")]
-mod hpu {
-    use super::*;
+pub mod hpu {
+    use std::sync::atomic::AtomicPtr;
 
-    pub struct HpuTaggedDevice {
-        // The device holds the keys (there can only be one set of keys)
-        // So we attach the tag to it instead of the key
-        pub(in crate::high_level_api) device: Box<HpuDevice>,
-        pub(in crate::high_level_api) tag: Tag,
+use tfhe_hpu_backend::interface::HPU_DEVICE;
+
+use super::*;
+
+    static CURRENTLY_LOADED_KEY: AtomicPtr<()> = AtomicPtr::new(std::ptr::null_mut());
+
+    #[derive(Clone)]
+    pub struct HpuServerKey {
+        csks: Arc<CompressedServerKey>,
+        pub tag: Tag
     }
 
-    impl From<(HpuDevice, CompressedServerKey)> for InternalServerKey {
-        fn from((device, csks): (HpuDevice, CompressedServerKey)) -> Self {
-            let CompressedServerKey { integer_key, tag } = csks;
-            crate::integer::hpu::init_device(&device, integer_key.key).expect("Invalid key");
-            Self::Hpu(HpuTaggedDevice {
-                device: Box::new(device),
-                tag,
-            })
+    impl HpuServerKey {
+        pub fn from_csks(csks: &CompressedServerKey) -> Self {
+            HpuServerKey {
+                csks: Arc::new(csks.clone()),
+                tag: Tag::default()
+            }
+        }
+
+        pub fn lazy_set(&self) {
+            let csks_ptr = Arc::as_ptr(&self.csks) as *mut ();
+            if CURRENTLY_LOADED_KEY.load(std::sync::atomic::Ordering::Relaxed) == csks_ptr {
+                let integer_key = &self.csks.integer_key;
+                crate::integer::hpu::init_device(&HPU_DEVICE, integer_key.key.clone()).expect("Invalid key");
+            }
         }
     }
 }

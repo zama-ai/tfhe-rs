@@ -50,19 +50,19 @@ impl std::fmt::Display for GenericIntegerBlockError {
         match self {
             Self::NumberOfBlocks(correct, incorrect) => write!(
                 f,
-                "Wrong number of blocks for creating 
+                "Wrong number of blocks for creating
                     a GenericInteger: should have been {correct}, but
                     was {incorrect} instead"
             ),
             Self::CarryModulus(correct, incorrect) => write!(
                 f,
-                "Wrong carry modulus for creating 
+                "Wrong carry modulus for creating
                     a GenericInteger: should have been {correct:?}, but
                     was {incorrect:?} instead"
             ),
             Self::MessageModulus(correct, incorrect) => write!(
                 f,
-                "Wrong message modulus for creating 
+                "Wrong message modulus for creating
                     a GenericInteger: should have been {correct:?}, but
                     was {incorrect:?} instead"
             ),
@@ -233,10 +233,10 @@ where
         global_state::with_thread_local_hpu_device(|device| {
             let mut srcs = Vec::new();
             for n in src.native.iter() {
-                srcs.push(n.ciphertext.on_hpu(device).clone());
+                srcs.push(n.ciphertext.on_hpu().clone());
             }
             for b in src.boolean.iter() {
-                srcs.push(b.ciphertext.on_hpu(device).clone());
+                srcs.push(b.ciphertext.on_hpu().clone());
             }
 
             let (opcode, proto) = {
@@ -638,9 +638,9 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_self = self.ciphertext.on_hpu(device);
-
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_self = self.ciphertext.on_hpu();
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_LEAD0;
                     (
@@ -654,7 +654,7 @@ where
                         .expect("IOP_LEAD0 must return 1 value");
                 super::FheUint32::new(
                     hpu_result,
-                    device.tag.clone(),
+                    hks.tag.clone(),
                     ReRandomizationMetadata::default(),
                 )
             }
@@ -713,9 +713,9 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_self = self.ciphertext.on_hpu(device);
-
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_self = self.ciphertext.on_hpu();
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_LEAD1;
                     (
@@ -729,7 +729,7 @@ where
                         .expect("IOP_LEAD1 must return 1 value");
                 super::FheUint32::new(
                     hpu_result,
-                    device.tag.clone(),
+                    hks.tag.clone(),
                     ReRandomizationMetadata::default(),
                 )
             }
@@ -789,7 +789,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
-                let hpu_self = self.ciphertext.on_hpu(device);
+                let hpu_self = self.ciphertext.on_hpu();
 
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_TRAIL0;
@@ -863,9 +863,9 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_self = self.ciphertext.on_hpu(device);
-
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_self = self.ciphertext.on_hpu();
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_TRAIL1;
                     (
@@ -879,7 +879,7 @@ where
                         .expect("IOP_TRAIL1 must return 1 value");
                 super::FheUint32::new(
                     hpu_result,
-                    device.tag.clone(),
+                    hks.tag.clone(),
                     ReRandomizationMetadata::default(),
                 )
             }
@@ -925,9 +925,9 @@ where
                 panic!("Cuda devices do not support count_ones yet");
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_self = self.ciphertext.on_hpu(device);
-
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_self = self.ciphertext.on_hpu();
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_COUNT0;
                     (
@@ -941,7 +941,7 @@ where
                         .expect("IOP_COUNT0 must return 1 value");
                 super::FheUint32::new(
                     hpu_result,
-                    device.tag.clone(),
+                    hks.tag.clone(),
                     ReRandomizationMetadata::default(),
                 )
             }
@@ -987,9 +987,9 @@ where
                 panic!("Cuda devices do not support count_zeros yet");
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_self = self.ciphertext.on_hpu(device);
-
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_self = self.ciphertext.on_hpu();
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_COUNT1;
                     (
@@ -1003,7 +1003,7 @@ where
                         .expect("IOP_COUNT1 must return 1 value");
                 super::FheUint32::new(
                     hpu_result,
-                    device.tag.clone(),
+                    hks.tag.clone(),
                     ReRandomizationMetadata::default(),
                 )
             }
@@ -1064,9 +1064,9 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(device) => {
-                let hpu_self = self.ciphertext.on_hpu(device);
-
+            InternalServerKey::Hpu(hks) => {
+                hks.lazy_set();
+                let hpu_self = self.ciphertext.on_hpu();
                 let (opcode, proto) = {
                     let asm_iop = &hpu_asm::iop::IOP_ILOG2;
                     (
@@ -1080,7 +1080,7 @@ where
                         .expect("IOP_ILOG2 must return 1 value");
                 super::FheUint32::new(
                     hpu_result,
-                    device.tag.clone(),
+                    hks.tag.clone(),
                     ReRandomizationMetadata::default(),
                 )
             }

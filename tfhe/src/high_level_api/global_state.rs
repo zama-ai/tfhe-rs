@@ -325,13 +325,13 @@ pub(in crate::high_level_api) use hpu::with_thread_local_hpu_device;
 mod hpu {
     use super::*;
 
-    use crate::high_level_api::keys::HpuTaggedDevice;
+    use crate::high_level_api::keys::HpuServerKey;
 
     use super::INTERNAL_KEYS;
 
     pub(in crate::high_level_api) fn with_thread_local_hpu_device<F, R>(func: F) -> R
     where
-        F: FnOnce(&HpuTaggedDevice) -> R,
+        F: FnOnce(&HpuServerKey) -> R,
     {
         INTERNAL_KEYS.with_borrow(|keys| {
             let Some(InternalServerKey::Hpu(device)) = keys else {

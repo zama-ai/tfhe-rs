@@ -22,7 +22,7 @@ pub use public::{CompactPublicKey, CompressedCompactPublicKey, CompressedPublicK
 #[cfg(feature = "gpu")]
 pub use server::CudaServerKey;
 #[cfg(feature = "hpu")]
-pub(in crate::high_level_api) use server::HpuTaggedDevice;
+pub(in crate::high_level_api) use server::HpuServerKey;
 pub use server::{CompressedServerKey, ReRandomizationSupport, ServerKey};
 pub(crate) use server::{InternalServerKey, InternalServerKeyRef};
 

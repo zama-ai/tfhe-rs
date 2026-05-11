@@ -762,8 +762,9 @@ macro_rules! generic_integer_impl_scalar_div_rem {
                                     )
                                 }
                                 #[cfg(feature = "hpu")]
-                                InternalServerKey::Hpu(device) => {
-                                    let hpu_lhs = self.ciphertext.on_hpu(device);
+                                InternalServerKey::Hpu(hks) => {
+                                    hks.lazy_set();
+                                    let hpu_lhs = self.ciphertext.on_hpu();
 
                                     let (opcode, proto) = {
                                         let asm_iop = &hpu_asm::iop::IOP_DIVS;
@@ -781,8 +782,8 @@ macro_rules! generic_integer_impl_scalar_div_rem {
                                     let remainder = hpu_result.pop().expect("IOP_DIVS must return 2 value");
                                     let quotient = hpu_result.pop().expect("IOP_DIVS must return 2 value");
                                     (
-                                        FheUint::new(quotient, device.tag.clone(), ReRandomizationMetadata::default()),
-                                        FheUint::new(remainder, device.tag.clone(), ReRandomizationMetadata::default()),
+                                        FheUint::new(quotient, hks.tag.clone(), ReRandomizationMetadata::default()),
+                                        FheUint::new(remainder, hks.tag.clone(), ReRandomizationMetadata::default()),
                                     )
                                 }
                             }
@@ -1466,8 +1467,9 @@ macro_rules! define_scalar_ops {
                             RadixCiphertext::Cuda(inner_result)
                         }
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(device) => {
-                            let lhs = lhs.ciphertext.on_hpu(device);
+                        InternalServerKey::Hpu(hks) => {
+                            hks.lazy_set();
+                            let lhs = lhs.ciphertext.on_hpu();
                             let rhs = u128::try_from(rhs).unwrap();
 
                             RadixCiphertext::Hpu(&*lhs + rhs)
@@ -1526,8 +1528,9 @@ macro_rules! define_scalar_ops {
                             RadixCiphertext::Cuda(inner_result)
                         }
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(device) => {
-                            let lhs = lhs.ciphertext.on_hpu(device);
+                        InternalServerKey::Hpu(hks) => {
+                            hks.lazy_set();
+                            let lhs = lhs.ciphertext.on_hpu();
                             let rhs = u128::try_from(rhs).unwrap();
 
                             RadixCiphertext::Hpu(&*lhs - rhs)
@@ -1586,8 +1589,9 @@ macro_rules! define_scalar_ops {
                             RadixCiphertext::Cuda(inner_result)
                         }
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(device) => {
-                             let lhs = lhs.ciphertext.on_hpu(device);
+                        InternalServerKey::Hpu(hks) => {
+                            hks.lazy_set();
+                             let lhs = lhs.ciphertext.on_hpu();
                             let rhs = u128::try_from(rhs).unwrap();
 
                             RadixCiphertext::Hpu(&*lhs * rhs)
@@ -1820,8 +1824,9 @@ macro_rules! define_scalar_ops {
                             RadixCiphertext::Cuda(inner_result)
                         }
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(device) => {
-                                    let hpu_lhs = lhs.ciphertext.on_hpu(device);
+                        InternalServerKey::Hpu(hks) => {
+                                    hks.lazy_set();
+                                    let hpu_lhs = lhs.ciphertext.on_hpu();
 
                                     let (opcode, proto) = {
                                         let asm_iop = &hpu_asm::iop::IOP_DIVS;
@@ -1896,8 +1901,9 @@ macro_rules! define_scalar_ops {
                             RadixCiphertext::Cuda(inner_result)
                         }
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(device) => {
-                            let hpu_lhs = lhs.ciphertext.on_hpu(device);
+                        InternalServerKey::Hpu(hks) => {
+                            hks.lazy_set();
+                            let hpu_lhs = lhs.ciphertext.on_hpu();
 
                             let (opcode, proto) = {
                                 let asm_iop = &hpu_asm::iop::IOP_MODS;
@@ -2214,8 +2220,9 @@ macro_rules! define_scalar_ops {
                                     .scalar_add_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                         }
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(device) => {
-                            let lhs = lhs.ciphertext.as_hpu_mut(device);
+                        InternalServerKey::Hpu(hks) => {
+                            hks.lazy_set();
+                            let lhs = lhs.ciphertext.as_hpu_mut();
                             let rhs = u128::try_from(rhs).unwrap();
 
                            *lhs += rhs;
@@ -2251,8 +2258,9 @@ macro_rules! define_scalar_ops {
                                     .scalar_sub_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                         }
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(device) => {
-                            let lhs = lhs.ciphertext.as_hpu_mut(device);
+                        InternalServerKey::Hpu(hks) => {
+                            hks.lazy_set();
+                            let lhs = lhs.ciphertext.as_hpu_mut();
                             let rhs = u128::try_from(rhs).unwrap();
 
                             *lhs -= rhs;
@@ -2284,8 +2292,9 @@ macro_rules! define_scalar_ops {
                                     .scalar_mul_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                         }
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(device) => {
-                            let lhs = lhs.ciphertext.as_hpu_mut(device);
+                        InternalServerKey::Hpu(hks) => {
+                            hks.lazy_set();
+                            let lhs = lhs.ciphertext.as_hpu_mut();
                             let rhs = u128::try_from(rhs).unwrap();
 
                             *lhs *= rhs;
@@ -2407,8 +2416,9 @@ macro_rules! define_scalar_ops {
                             *cuda_lhs = cuda_result;
                         },
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(device) => {
-                            let hpu_lhs = lhs.ciphertext.as_hpu_mut(device);
+                        InternalServerKey::Hpu(hks) => {
+                            hks.lazy_set();
+                            let hpu_lhs = lhs.ciphertext.as_hpu_mut();
 
                             let (opcode, proto) = {
                                 let asm_iop = &hpu_asm::iop::IOP_DIVS;
@@ -2454,8 +2464,9 @@ macro_rules! define_scalar_ops {
                             *cuda_lhs = cuda_result;
                         },
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(device) => {
-                            let hpu_lhs = lhs.ciphertext.as_hpu_mut(device);
+                        InternalServerKey::Hpu(hks) => {
+                            hks.lazy_set();
+                            let hpu_lhs = lhs.ciphertext.as_hpu_mut();
 
                             let (opcode, proto) = {
                                 let asm_iop = &hpu_asm::iop::IOP_MODS;
