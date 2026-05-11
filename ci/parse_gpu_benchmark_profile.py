@@ -69,6 +69,7 @@ def parse_profile(profile_string, output_file, slab_toml):
             ("backend", slab_backend),
             ("profile", profile),
             ("hardware", hardware_name),
+            ("cloud_provider", backend_prefix)
         ]:
             f.write(f"{var_name}={value}\n")
 

@@ -10,6 +10,9 @@ on:
       profile:
         type: string
         required: true
+      cloud_provider:
+        type: string
+        required: true
       hardware_name:
         type: string
         required: true
@@ -143,14 +146,13 @@ jobs:
   install-dependencies:
     name: benchmark_gpu_common/install-dependencies
     needs: [ setup-instance ]
-    if: inputs.backend != 'terraform'
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
       matrix:
         # explicit include-based build matrix, of known valid options
         include:
           - cuda: "12.8"
-            gcc: 11
+            gcc: 12
     steps:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -164,6 +166,7 @@ jobs:
         with:
           cuda-version: ${{ matrix.cuda }}
           gcc-version: ${{ matrix.gcc }}
+          cloud-provider: ${{ inputs.cloud_provider }}
 
   cuda-benchmarks:
     name: benchmark_gpu_common/cuda-benchmarks
@@ -181,7 +184,7 @@ jobs:
         # explicit include-based build matrix, of known valid options
         include:
           - cuda: "12.8"
-            gcc: 11
+            gcc: 12
     env:
       CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
     steps:
@@ -207,6 +210,7 @@ jobs:
       # Local env variables are cleaned at the end of each job.
       - name: Export CUDA variables
         shell: bash
+        if: inputs.cloud_provider == 'hyperstack'
         run: |
           echo "CUDA_PATH=$CUDA_PATH" >> "${GITHUB_ENV}"
           echo "PATH=$PATH:$CUDA_PATH/bin" >> "${GITHUB_PATH}"

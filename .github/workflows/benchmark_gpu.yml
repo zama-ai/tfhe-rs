@@ -90,6 +90,7 @@ jobs:
       backend: ${{ steps.parse_profile_and_hardware_name.outputs.backend }}
       profile: ${{ steps.parse_profile_and_hardware_name.outputs.profile }}
       hardware_name: ${{ steps.parse_profile_and_hardware_name.outputs.hardware }}
+      cloud_provider: ${{ steps.parse_profile_and_hardware_name.outputs.cloud_provider }}
       additional_file_to_parse: ${{ steps.set_file_to_parse.outputs.additional_file_to_parse }}
     steps:
       - name: Checkout tfhe-rs repo
@@ -142,6 +143,7 @@ jobs:
       backend: ${{ needs.parse-inputs.outputs.backend }}
       profile: ${{ needs.parse-inputs.outputs.profile }}
       hardware_name: ${{ needs.parse-inputs.outputs.hardware_name }}
+      cloud_provider: ${{ needs.parse-inputs.outputs.cloud_provider }}
       command: ${{ inputs.command }}
       op_flavor: ${{ inputs.op_flavor }}
       bench_type: ${{ inputs.bench_type }}
