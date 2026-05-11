@@ -232,7 +232,7 @@ impl HpuHw {
 
         for (i, board) in board_props.iter().enumerate() {
             tracing::info!(
-                " Board[{}/{}][board:?] Updating Pcie physical functions status",
+                " Board[{}/{}][{board:?}] Updating Pcie physical functions status",
                 i + 1,
                 board_props.len()
             );
@@ -248,7 +248,7 @@ impl HpuHw {
                     .expect("Unable to trigger a remove of pci pf0");
             } else {
                 tracing::debug!(
-                    "Board[{}/{}][board:?] Pcie PF0 not present.",
+                    "Board[{}/{}][{board:?}] Pcie PF0 not present.",
                     i + 1,
                     board_props.len()
                 );
@@ -347,21 +347,21 @@ impl HpuHw {
             for (i, board) in board_props.iter().enumerate() {
                 s.spawn(move || {
                     tracing::info!(
-                        "Board[{}/{}][board:?] Load stage2 through Qdma [{} bytes]",
+                        "Board[{}/{}][{board:?}] Load stage2 through Qdma [{} bytes]",
                         i + 1,
                         board_props.len(),
                         stg2_data.len()
                     );
                     Self::dma_program_board(&board.pcie_id, stg2_data).unwrap_or_else(|e| {
                         panic!(
-                            "Board[{}/{}][board:?] Stage2: {e}",
+                            "Board[{}/{}][{board:?}] Stage2: {e}",
                             i + 1,
                             board_props.len()
                         )
                     });
 
                     tracing::debug!(
-                        "Board[{}/{}][board:?] Removing Pcie PF0",
+                        "Board[{}/{}][{board:?}] Removing Pcie PF0",
                         i + 1,
                         board_props.len()
                     );
