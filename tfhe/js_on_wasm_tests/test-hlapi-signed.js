@@ -406,12 +406,18 @@ test("hlapi_compact_public_key_encrypt_decrypt_int32_small_single", (t) => {
 
 function generateRandomBigInt(bitLength) {
   const bytesNeeded = Math.ceil(bitLength / 8);
-  const randomBytesBuffer = randomBytes(bytesNeeded);
+  const bitsToBeZeroed = bitLength % 8;
+  let randomBytesBuffer = randomBytes(bytesNeeded);
+  if (bitsToBeZeroed != 0) {
+    // 255 = all ones, shift to only keep the necessary '1' bits to truncate the byte
+    // that is the most significant
+    const mask = 255 >> bitsToBeZeroed;
+    randomBytesBuffer[0] = randomBytesBuffer[0] & mask;
+  }
+
 
   // Convert random bytes to BigInt
-  const randomBigInt = BigInt(`0x${randomBytesBuffer.toString("hex")}`);
-
-  return randomBigInt;
+  return BigInt(`0x${randomBytesBuffer.toString("hex")}`);
 }
 
 test("hlapi_compact_ciphertext_list", (t) => {

@@ -1,6 +1,7 @@
 mod config;
 mod integers;
 mod keys;
+mod transciphering;
 #[cfg(feature = "zk-pok")]
 mod zk;
 

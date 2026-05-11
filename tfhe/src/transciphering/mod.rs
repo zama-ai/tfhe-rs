@@ -13,9 +13,8 @@
 //! use rand::Rng;
 //! use tfhe::shortint::prelude::*;
 //! use tfhe::shortint::parameters::current_params::V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-//! use tfhe::transciphering::{StreamCipher, Transcipherer};
-//! use tfhe::transciphering::ciphers::kreyvium::{
-//!     KreyviumFheState, KreyviumPlainKey, KreyviumPlainState,
+//! use tfhe::transciphering::{
+//!     KreyviumFheState, KreyviumPlainKey, KreyviumPlainState, StreamCipher, Transcipherer,
 //! };
 //!
 //! let (client_key, server_key) =
@@ -50,17 +49,26 @@
 pub mod backward_compatibility;
 pub mod ciphers;
 
+pub use ciphers::aes::{
+    AesFheKey, AesFheRoundKeys, AesFheState, AesIv, AesPlainKey, AesPlainState,
+};
+pub use ciphers::kreyvium::{
+    KreyviumFheKey, KreyviumFheState, KreyviumIV, KreyviumPlainKey, KreyviumPlainState,
+};
+
 use rayon::prelude::*;
+use tfhe_fft::c64;
 use tfhe_versionable::Versionize;
 
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::utils::ZipChecked;
+use crate::core_crypto::prelude::Container;
+use crate::shortint::oprf::GenericOprfServerKey;
 use crate::shortint::{Ciphertext, ServerKey};
 use crate::transciphering::backward_compatibility::{
     StreamCipherKindVersions, StreamCiphertextVersions,
 };
-use crate::transciphering::ciphers::aes::AesFheState;
-use crate::transciphering::ciphers::kreyvium::KreyviumFheState;
+use crate::OprfSeed;
 
 /// Identifier for a concrete stream-cipher family.
 ///
@@ -259,6 +267,10 @@ pub trait StreamCipher {
 
     /// Current keystream bit position.
     fn current_counter(&self) -> u64;
+}
+
+pub enum StreamCipherKey {
+    Kreyvium(KreyviumPlainKey),
 }
 
 /// Server-side: a stateful FHE-side session that mirrors a StreamCipher.
@@ -545,4 +557,26 @@ fn apply_keystream_naive(
             out
         })
         .collect()
+}
+
+impl<C> GenericOprfServerKey<C>
+where
+    C: Container<Element = c64> + Sync,
+{
+    fn generate_random_boolean_sequence(
+        &self,
+        seed: impl OprfSeed,
+        num_blocks: u64,
+        target_sks: &ServerKey,
+    ) -> Vec<Ciphertext> {
+        self.inner
+            .generate_pseudo_random_bits_chunks(
+                seed,
+                &[num_blocks],
+                1, // Each ciphertext is a boolean
+                target_sks,
+            )
+            .pop()
+            .unwrap()
+    }
 }

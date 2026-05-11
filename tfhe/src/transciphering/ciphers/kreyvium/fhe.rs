@@ -1,9 +1,13 @@
 //! TFHE implementation of the Kreyvium Algorithm
 
+use crate::core_crypto::commons::traits::Container;
 use crate::shortint::ciphertext::NoiseLevel;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::oprf::GenericOprfServerKey;
+use crate::shortint::{Ciphertext, ClientKey, ServerKey};
 use crate::transciphering::ciphers::shift_register::ShiftRegister;
-use crate::transciphering::{FheKeyStream, StreamCipherKind, Transcipherer};
+use crate::transciphering::{FheKeyStream, KreyviumPlainKey, StreamCipherKind, Transcipherer};
+use crate::OprfSeed;
+use tfhe_fft::c64;
 
 use super::{
     collect_boxed_array, KreyviumBackwardRoundOutput, KreyviumIV, KreyviumRound,
@@ -32,8 +36,38 @@ impl KreyviumFheKey {
         Self { cts }
     }
 
+    pub fn random<C>(
+        seed: impl OprfSeed,
+        oprf_key: &GenericOprfServerKey<C>,
+        sks: &ServerKey,
+    ) -> Self
+    where
+        C: Container<Element = c64> + Sync,
+    {
+        let encrypted_bits = oprf_key.generate_random_boolean_sequence(seed, 128, sks);
+        // Unwrap should not happen because the vec has 128 elements
+        let boxed: Box<[Ciphertext; 128]> = encrypted_bits.into_boxed_slice().try_into().unwrap();
+
+        Self::new(boxed)
+    }
+
     pub fn init_state(self, iv: KreyviumIV, sk: &ServerKey) -> KreyviumFheState {
         KreyviumFheState::new(self, iv, sk)
+    }
+
+    /// Decrypt the key bits
+    pub fn decrypt(&self, client_key: &ClientKey) -> KreyviumPlainKey {
+        let mut decrypted_bits = [false; 128];
+        for (ct, out) in self.cts.iter().zip(decrypted_bits.iter_mut()) {
+            *out = client_key.decrypt(ct) != 0;
+        }
+        KreyviumPlainKey::from(decrypted_bits)
+    }
+
+    /// Borrow the underlying 128 single-bit shortint ciphertexts, MSB-first
+    /// within each byte of the packed key (see [`super::KreyviumPlainKey`]).
+    pub fn ciphertexts(&self) -> &[Ciphertext; 128] {
+        &self.cts
     }
 }
 

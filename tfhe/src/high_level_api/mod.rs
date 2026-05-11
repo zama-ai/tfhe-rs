@@ -149,6 +149,10 @@ pub use re_randomization::{
 pub use strings::ascii::{EncryptableString, FheAsciiString, FheStringIsEmpty, FheStringLen};
 pub use tag::Tag;
 pub use traits::FheId;
+pub use transciphering::{
+    AesFheKey, HlStreamCipher, HlStreamDecryptable, HlStreamEncryptable, HlTranscipherer,
+    IntegerStreamCiphertext, KreyviumFheKey, TranscipherSession,
+};
 pub mod xof_key_set;
 
 pub use kv_store::{CompressedKVStore, KVStore};
@@ -164,6 +168,7 @@ mod re_randomization;
 #[cfg(feature = "strings")]
 mod strings;
 mod traits;
+mod transciphering;
 mod utils;
 
 #[cfg(feature = "gpu")]

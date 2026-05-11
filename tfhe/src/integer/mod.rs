@@ -75,6 +75,7 @@ pub mod gpu;
 
 #[cfg(feature = "hpu")]
 pub mod hpu;
+pub mod transciphering;
 
 #[cfg(feature = "zk-pok")]
 pub use ciphertext::ProvenCompactCiphertextList;

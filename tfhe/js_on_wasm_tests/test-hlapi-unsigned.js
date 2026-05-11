@@ -17,6 +17,11 @@ const {
   FheUint256,
   ShortintParameters,
   ShortintParametersName,
+  KreyviumIV,
+  KreyviumPlainKey,
+  KreyviumPlainState,
+  KreyviumFheKey,
+  FheTypes,
 } = require("../pkg/tfhe.js");
 const { randomBytes } = require("node:crypto");
 
@@ -40,7 +45,15 @@ const SAFE_LARGE_SERIALIZATION_SIZE_LIMIT = BigInt(1000000000);
 init_panic_hook();
 function generateRandomBigInt(bitLength) {
   const bytesNeeded = Math.ceil(bitLength / 8);
-  const randomBytesBuffer = randomBytes(bytesNeeded);
+  const bitsToBeZeroed = bitLength % 8;
+  let randomBytesBuffer = randomBytes(bytesNeeded);
+  if (bitsToBeZeroed != 0) {
+    // 255 = all ones, shift to only keep the necessary '1' bits to truncate the byte
+    // that is the most significant
+    const mask = 255 >> bitsToBeZeroed;
+    randomBytesBuffer[0] = randomBytesBuffer[0] & mask;
+  }
+
 
   // Convert random bytes to BigInt
   return BigInt(`0x${randomBytesBuffer.toString("hex")}`);
@@ -400,4 +413,40 @@ test("hlapi_public_key_encrypt_decrypt_uint256_small", (t) => {
   );
   let deserialized_decrypted = deserialized.decrypt(clientKey);
   assert.deepStrictEqual(deserialized_decrypted, U256_MAX);
+});
+
+test("hlapi_transciphering", (t) => {
+  let config = TfheConfigBuilder.default().build();
+  let clientKey = TfheClientKey.generate(config);
+
+  const kvIv = new KreyviumIV([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 16]);
+  const kvKey = new KreyviumPlainKey([1, 2, 3, 4, 5, 6, 7, 8, 9,10, 11, 12 ,13, 14, 15, 16]);
+  let kvState = new KreyviumPlainState(kvKey, kvIv);
+
+  let clear_a = generateRandomBigInt(32);
+  let clear_b = generateRandomBigInt(64);
+  let clear_c = generateRandomBigInt(12);
+  let clear_d = -1n;
+
+  let enc_a = kvState.encrypt(clear_a, FheTypes.Uint32);
+  let enc_b = kvState.encrypt(clear_b, FheTypes.Uint64);
+  let enc_c = kvState.encrypt(clear_c, FheTypes.Uint12);
+  let enc_d = kvState.encrypt(clear_d, FheTypes.Int64);
+
+  // Re create the state to be able to decrypt
+  kvState = new KreyviumPlainState(kvKey, kvIv);
+  let dec_a = kvState.decrypt(enc_a);
+  let dec_b = kvState.decrypt(enc_b);
+  let dec_c = kvState.decrypt(enc_c);
+  let dec_d = kvState.decrypt(enc_d);
+
+  assert.deepStrictEqual(dec_a, clear_a);
+  assert.deepStrictEqual(dec_b, clear_b);
+  assert.deepStrictEqual(dec_c, clear_c);
+  assert.deepStrictEqual(dec_d, clear_d);
+
+    // To make sure it works
+    // TODO: once serializationis available test it
+    let _kvFheKey = KreyviumFheKey.encrypt(kvKey, clientKey)
+
 });

@@ -16,6 +16,7 @@ fn unpack_key_bits(bytes: &[u8; 16]) -> [bool; 128] {
     out
 }
 
+#[derive(Clone, Copy)]
 pub struct KreyviumPlainKey {
     bits: [u8; 16],
 }
@@ -57,6 +58,7 @@ impl From<[bool; 128]> for KreyviumPlainKey {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct KreyviumIV {
     bits: [u8; 16],
 }
