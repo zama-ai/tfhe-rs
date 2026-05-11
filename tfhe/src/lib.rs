@@ -100,6 +100,9 @@ pub mod integer;
 /// cbindgen:ignore
 pub mod shortint;
 
+#[cfg(feature = "shortint")]
+pub mod transciphering;
+
 #[cfg(feature = "pbs-stats")]
 pub use shortint::server_key::pbs_stats::*;
 
