@@ -9,7 +9,6 @@ use crate::core_crypto::prelude::{
 use std::any::{Any, TypeId};
 use std::ffi::c_void;
 use tfhe_cuda_backend::bindings::*;
-use tfhe_cuda_backend::ffi;
 
 /// Programmable bootstrap on a vector of LWE ciphertexts
 ///
@@ -517,18 +516,7 @@ pub unsafe fn keyswitch_gemm<T: UnsignedInteger, KST: UnsignedInteger>(
 ) {
     assert_eq!(TypeId::of::<T>(), TypeId::of::<u64>());
 
-    let mut ks_tmp_buffer: *mut ffi::c_void = std::ptr::null_mut();
-
     if TypeId::of::<KST>() == TypeId::of::<u32>() {
-        scratch_cuda_keyswitch_gemm_64_32_async(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            std::ptr::addr_of_mut!(ks_tmp_buffer),
-            u32::try_from(input_lwe_dimension.0).unwrap(),
-            u32::try_from(output_lwe_dimension.0).unwrap(),
-            num_samples,
-            true,
-        );
         cuda_keyswitch_gemm_64_32_async(
             streams.ptr[0],
             streams.gpu_indexes[0].get(),
@@ -542,25 +530,9 @@ pub unsafe fn keyswitch_gemm<T: UnsignedInteger, KST: UnsignedInteger>(
             u32::try_from(base_log.0).unwrap(),
             u32::try_from(l_gadget.0).unwrap(),
             num_samples,
-            ks_tmp_buffer,
             uses_trivial_indices,
         );
-        cleanup_cuda_keyswitch_gemm_64_32(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            std::ptr::addr_of_mut!(ks_tmp_buffer),
-            true,
-        );
     } else if TypeId::of::<KST>() == TypeId::of::<u64>() {
-        scratch_cuda_keyswitch_gemm_64_64_async(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            std::ptr::addr_of_mut!(ks_tmp_buffer),
-            u32::try_from(input_lwe_dimension.0).unwrap(),
-            u32::try_from(output_lwe_dimension.0).unwrap(),
-            num_samples,
-            true,
-        );
         cuda_keyswitch_gemm_64_64_async(
             streams.ptr[0],
             streams.gpu_indexes[0].get(),
@@ -574,18 +546,12 @@ pub unsafe fn keyswitch_gemm<T: UnsignedInteger, KST: UnsignedInteger>(
             u32::try_from(base_log.0).unwrap(),
             u32::try_from(l_gadget.0).unwrap(),
             num_samples,
-            ks_tmp_buffer,
             uses_trivial_indices,
-        );
-        cleanup_cuda_keyswitch_gemm_64_64(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            std::ptr::addr_of_mut!(ks_tmp_buffer),
-            true,
         );
     } else {
         panic!("Unknown LWE GEMM KS dtype of size {}B", size_of::<KST>());
     }
+    streams.synchronize();
 }
 
 /// Keyswitch on a vector of LWE ciphertexts. Better for small batches of LWEs

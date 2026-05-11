@@ -34,6 +34,9 @@ uint32_t cuda_get_device() {
 }
 std::mutex pool_mutex;
 bool mem_pools_enabled = false;
+static bool all_gpus_support_cc80 = false;
+
+bool cuda_all_gpus_support_sm80() { return all_gpus_support_cc80; }
 
 // We use memory pools to reduce some overhead of memory allocations due
 // to our scratch/release pattern. This function is the simplest way of using
@@ -60,6 +63,18 @@ void cuda_setup_mempool(uint32_t caller_gpu_index) {
     // We do it only once for all GPUs
     mem_pools_enabled = true;
     uint32_t num_gpus = cuda_get_number_of_gpus();
+    // Cache once whether every GPU has compute capability >= 8.0,to avoid
+    // calling cudaGetDeviceProperties within the building blocks.
+    bool all_sm80 = num_gpus > 0;
+    for (uint32_t gpu_index = 0; gpu_index < num_gpus; gpu_index++) {
+      cudaDeviceProp device_prop;
+      check_cuda_error(cudaGetDeviceProperties(&device_prop, gpu_index));
+      if (device_prop.major < 8) {
+        all_sm80 = false;
+        break;
+      }
+    }
+    all_gpus_support_cc80 = all_sm80;
     for (uint32_t gpu_index = 0; gpu_index < num_gpus; gpu_index++) {
       cuda_set_device(gpu_index);
 

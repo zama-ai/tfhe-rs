@@ -595,7 +595,7 @@ impl LweKeyswitch<CudaDynLwe, CudaDynLwe> for CudaServerKey {
                     &output_indexes,
                     false,
                     &side_resources.streams,
-                    false,
+                    true,
                 );
             }
             (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U64(output_cuda_lwe)) => {
@@ -616,7 +616,7 @@ impl LweKeyswitch<CudaDynLwe, CudaDynLwe> for CudaServerKey {
                     &output_indexes,
                     false,
                     &side_resources.streams,
-                    false,
+                    true,
                 );
             }
             (CudaDynLwe::U32(_), CudaDynLwe::U32(_)) => {
@@ -1417,7 +1417,7 @@ impl LweKeyswitch<CudaDynLwe, CudaDynLwe> for CudaKeySwitchingKey<'_> {
                     &d_output_indexes,
                     false,
                     &side_resources.streams,
-                    false,
+                    true,
                 );
             }
             (CudaDynLwe::U32(_), CudaDynLwe::U32(_)) => {

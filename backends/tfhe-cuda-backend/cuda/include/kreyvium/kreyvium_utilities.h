@@ -71,7 +71,6 @@ template <typename Torus> struct int_kreyvium_lut_buffers {
 
     this->and_lut->generate_and_broadcast_bivariate_lut(
         active_streams_and, {0}, {and_lambda}, LUT_0_FOR_ALL_BLOCKS);
-    this->and_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
 
     // UNIVARIATE FLUSH LUTS
     //
@@ -85,7 +84,6 @@ template <typename Torus> struct int_kreyvium_lut_buffers {
 
     this->flush_lut->generate_and_broadcast_lut(
         active_streams_flush, {0}, {flush_lambda}, LUT_0_FOR_ALL_BLOCKS);
-    this->flush_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
   }
 
   void release(CudaStreams streams) {

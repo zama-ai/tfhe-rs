@@ -157,7 +157,7 @@ __host__ void host_expand_without_verification(
           lwe_trivial_indexes_vec[0], expanded_lwes, lwe_trivial_indexes_vec[0],
           casting_keys, casting_input_dimension, casting_output_dimension,
           casting_ks_base_log, casting_ks_level, num_lwes,
-          lut->using_trivial_lwe_indexes, lut->ks_tmp_buf_vec);
+          lut->using_trivial_lwe_indexes);
 
       // In this case, the next keyswitch will use the compute ksk
       ksks = compute_ksks;
