@@ -33,11 +33,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub struct UcoreConfig {
     pub node_id: u8,
     pub timestamp: u32,
-    pub cluster_first_nid: u8,
-    pub cluster_last_nid: u8,
+    pub node_mask: u8,
     pub user_size: u16,
     pub b2b_size: u16,
-    _padding: [u8; 1],
+    _padding: [u8; 2],
     // NB: modification in this file must match the one in amc.c
     _reserved_word: [u32; 61],
 }
@@ -46,13 +45,7 @@ unsafe impl Zeroable for UcoreConfig {}
 unsafe impl Pod for UcoreConfig {}
 
 impl UcoreConfig {
-    pub fn new(
-        node_id: u8,
-        cluster_first_nid: u8,
-        cluster_last_nid: u8,
-        user_size: u16,
-        b2b_size: u16,
-    ) -> Self {
+    pub fn new(node_id: u8, node_mask: u8, user_size: u16, b2b_size: u16) -> Self {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards!")
@@ -61,11 +54,10 @@ impl UcoreConfig {
         Self {
             node_id,
             timestamp,
-            cluster_first_nid,
-            cluster_last_nid,
+            node_mask,
             user_size,
             b2b_size,
-            _padding: [0; 1],
+            _padding: [0; 2],
             _reserved_word: [u32::MAX; 61],
         }
     }
@@ -78,8 +70,7 @@ pub struct HpuNode {
 
     // Node id
     hid: u8,
-    cluster_first_nid: u8,
-    cluster_last_nid: u8,
+    node_mask: u8,
     // Extracted parameters
     pub(crate) params: Arc<HpuParameters>,
 
@@ -131,13 +122,8 @@ pub struct HpuNodeWrapped {
 }
 
 impl HpuNodeWrapped {
-    pub fn new_wrapped(
-        id: u8,
-        cluster_first_nid: u8,
-        cluster_last_nid: u8,
-        config: &config::HpuConfig,
-    ) -> Self {
-        let node = HpuNode::new(id, cluster_first_nid, cluster_last_nid, config);
+    pub fn new_wrapped(id: u8, config: &config::HpuConfig) -> Self {
+        let node = HpuNode::new(id, config);
         let ct_mem = node.ct_mem.clone();
         let params = node.params.clone();
 
@@ -160,12 +146,15 @@ unsafe impl Sync for HpuNodeWrapped {}
 
 /// Handle HpuBackend construction and initialisation
 impl HpuNode {
-    pub fn new(
-        hid: u8,
-        cluster_first_nid: u8,
-        cluster_last_nid: u8,
-        config: &config::HpuConfig,
-    ) -> Self {
+    pub fn new(hid: u8, config: &config::HpuConfig) -> Self {
+        let node_mask = {
+            let mut mask = 0;
+            for node in config.fpga.node_id.iter() {
+                mask |= 1 << node;
+            }
+            mask
+        };
+
         let mut hpu_hw = ffi::HpuHw::open_hpu_hw(
             hid,
             &config.fpga.ffi,
@@ -331,8 +320,7 @@ impl HpuNode {
             hpu_hw,
             regmap,
             hid,
-            cluster_first_nid,
-            cluster_last_nid,
+            node_mask,
             params,
             bsk_key,
             ksk_key,
@@ -854,8 +842,7 @@ impl HpuNode {
         // FW cut is view as u32 array, cost UcoreConfig accordingly
         let fw_cfg = UcoreConfig::new(
             self.hid,
-            self.cluster_first_nid,
-            self.cluster_last_nid,
+            self.node_mask,
             config.board.user_size as u16,
             config.board.b2b_size as u16,
         );
@@ -915,6 +902,13 @@ impl HpuNode {
         // WARN: tr_table_ofst is relative expressed from DOP_LUT_ADDR i.e. after the runtime config
         let mut tr_table_ofst = FW_TABLE_ENTRY * IOP_NUMBER * asm::dop::MAX_HPU_IN_CLUSTER;
 
+        // Fallback entry
+        // All uninit IOp will point to 0 length firmware for error detection
+        self.fw_mem
+            .write_cut_at(0, FW_RUNTIME_MAX_WORD + tr_table_ofst, &[0]);
+        tracing::debug!("Uninit IOp point to 0x{:x} entry", FW_RUNTIME_MAX_WORD);
+        tr_table_ofst += 1;
+
         for integer_w in config.firmware.integer_w.iter() {
             // Update fw parameters with concrete integer_width
             assert_eq!(
@@ -966,8 +960,12 @@ impl HpuNode {
                                 debug!("Read custom asm file: {asm_file}");
                                 id_fw.push(((opcode.0 as usize, vid), prog.tr_table()));
                             }
-                            Err(_) => {
-                                trace!("Custom asm file: {asm_file} unavailable")
+                            Err(e) => {
+                                if let Some(_io_err) = e.downcast_ref::<std::io::Error>() {
+                                    trace!("Custom asm file: {asm_file} unavailable")
+                                } else {
+                                    panic!("Custom iop parsing encountered an error: {e:?}");
+                                }
                             }
                         }
                     }
@@ -1006,14 +1004,11 @@ impl HpuNode {
             let blk_ofst = (blk_w - 1) * IOP_NUMBER * MAX_HPU_IN_CLUSTER;
 
             // Default tr_lut with fallback entry
-            // Uninit entries point to fist tr-table entry
+            // Uninit entries point to error entry
             // NB: ucore expect addr with physical memory offset (i.e. Byte offset
             // NB': ucore understand lut entry as ofst from PHYS_MEM => don't add cut_ofst in
             // the entry
-            let mut tr_lut = vec![
-                (tr_table_ofst * std::mem::size_of::<u32>()) as u32;
-                IOP_NUMBER * MAX_HPU_IN_CLUSTER
-            ];
+            let mut tr_lut = vec![0; IOP_NUMBER * MAX_HPU_IN_CLUSTER];
 
             for (id, fw_bytes) in id_fw.into_iter() {
                 // Store lookup addr
@@ -1035,7 +1030,7 @@ impl HpuNode {
             }
             // Write lookup table all at once
             self.fw_mem
-                .write_cut_at(0, FW_RUNTIME_MAX_WORD + blk_ofst, tr_lut.as_slice());
+                .write_cut_at(0, (FW_RUNTIME_MAX_WORD + 1) + blk_ofst, tr_lut.as_slice());
             tracing::debug!(
                 "Fw[{blk_w}]:: lut entry @{blk_ofst:x} [{:x}]",
                 blk_ofst * std::mem::size_of::<u32>()
@@ -1057,15 +1052,17 @@ impl HpuNode {
             ..
         } = self;
 
-        // Check if issued command
+        // Check if targeted width is properly configured
         // NB: fw_blk_width is 0 encoded => 0 ~ 1 block ciphertext
         assert!(
-        self.init_fw_width.contains(&((cmd.op.fw_blk_width()+1)*self.params.pbs_params.message_width)
-        ),
-        "Requested integer width {:?} isn't configured in [Hpu: {:?}] and could lead to Undefined Behavior. Please check Hpu configuration file.",
-        (cmd.op.fw_blk_width()+1) * self.params.pbs_params.message_width,
-        self.init_fw_width
-    );
+            self.init_fw_width.contains(&((cmd.op.fw_blk_width()+1)*self.params.pbs_params.message_width)
+            ),
+            "Requested integer width {:?} isn't configured in [Hpu: {:?}] and could lead to Undefined Behavior. Please check Hpu configuration file.",
+            (cmd.op.fw_blk_width()+1) * self.params.pbs_params.message_width,
+            self.init_fw_width
+        );
+        // Check if targeted IOp firmware is properly loaded
+
         // Issue work to Hpu through workq
         // Convert Iop in a stream of bytes
         let op_words = cmd.op.to_words();
