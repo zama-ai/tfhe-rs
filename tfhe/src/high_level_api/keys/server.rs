@@ -31,7 +31,7 @@ use crate::shortint::MessageModulus;
 use crate::GpuIndex;
 use crate::{Device, Tag};
 #[cfg(feature = "hpu")]
-pub(in crate::high_level_api) use hpu::HpuServerKey;
+pub use hpu::HpuServerKey;
 use std::sync::Arc;
 #[cfg(feature = "hpu")]
 use tfhe_hpu_backend::prelude::HpuDevice;
@@ -705,6 +705,12 @@ use super::*;
     pub struct HpuServerKey {
         csks: Arc<CompressedServerKey>,
         pub tag: Tag
+    }
+
+    impl From<HpuServerKey> for InternalServerKey {
+        fn from(value: HpuServerKey) -> Self {
+            Self::Hpu(value)
+        }
     }
 
     impl HpuServerKey {

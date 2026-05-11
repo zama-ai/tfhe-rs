@@ -68,6 +68,8 @@ pub use integers::{
 };
 #[cfg(feature = "gpu")]
 pub use keys::CudaServerKey;
+#[cfg(feature = "hpu")]
+pub use keys::HpuServerKey;
 pub use keys::{
     generate_keys, ClientKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey,
     CompressedReRandomizationKey, CompressedReRandomizationKeySwitchingKey, CompressedServerKey,
