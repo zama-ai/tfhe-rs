@@ -129,7 +129,7 @@ __host__ void host_integer_signed_scalar_div_radix(
     if (scalar_divisor_ffi->is_divisor_negative) {
       CudaRadixCiphertextFFI *tmp = mem_ptr->tmp_ffi;
 
-      host_negation<Torus>(
+      host_integer_negation<Torus>(
           streams, tmp, numerator_ct, mem_ptr->params.message_modulus,
           mem_ptr->params.carry_modulus, numerator_ct->num_radix_blocks);
 
@@ -224,7 +224,7 @@ __host__ void host_integer_signed_scalar_div_radix(
   }
 
   if (scalar_divisor_ffi->is_divisor_negative) {
-    host_negation<Torus>(
+    host_integer_negation<Torus>(
         streams, numerator_ct, tmp, mem_ptr->params.message_modulus,
         mem_ptr->params.carry_modulus, numerator_ct->num_radix_blocks);
   } else {

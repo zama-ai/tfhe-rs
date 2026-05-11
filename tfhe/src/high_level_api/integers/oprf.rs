@@ -905,6 +905,7 @@ mod test {
         use rayon::ThreadPoolBuilder;
 
         #[test]
+        #[cfg(not(feature = "gpu-debug-fake-multi-gpu"))]
         fn test_oprf_gpu() {
             for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
                 let _ck = setup_fn();
@@ -919,6 +920,7 @@ mod test {
         }
 
         #[test]
+        #[cfg(not(feature = "gpu-debug-fake-multi-gpu"))]
         fn test_oprf_size_on_gpu() {
             for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
                 let _ck = setup_fn();
@@ -930,6 +932,7 @@ mod test {
         }
 
         #[test]
+        #[cfg(not(feature = "gpu-debug-fake-multi-gpu"))]
         fn test_uniformity_generate_oblivious_pseudo_random_custom_range_gpu() {
             let params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
             let config = ConfigBuilder::with_custom_parameters(params)

@@ -2646,88 +2646,6 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn cuda_negate_lwe_ciphertext_vector_32(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        input_lwe_dimension: u32,
-        input_lwe_ciphertext_count: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_negate_lwe_ciphertext_vector_64(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        input_lwe_dimension: u32,
-        input_lwe_ciphertext_count: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_add_lwe_ciphertext_vector_32(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        output: *mut CudaRadixCiphertextFFI,
-        input_1: *const CudaRadixCiphertextFFI,
-        input_2: *const CudaRadixCiphertextFFI,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_add_lwe_ciphertext_vector_64(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        output: *mut CudaRadixCiphertextFFI,
-        input_1: *const CudaRadixCiphertextFFI,
-        input_2: *const CudaRadixCiphertextFFI,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_add_lwe_ciphertext_vector_plaintext_vector_32(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        plaintext_array_in: *const ffi::c_void,
-        input_lwe_dimension: u32,
-        input_lwe_ciphertext_count: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_add_lwe_ciphertext_vector_plaintext_vector_64(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        plaintext_array_in: *const ffi::c_void,
-        input_lwe_dimension: u32,
-        input_lwe_ciphertext_count: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_mult_lwe_ciphertext_vector_cleartext_vector_32(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        cleartext_array_in: *const ffi::c_void,
-        input_lwe_dimension: u32,
-        input_lwe_ciphertext_count: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_mult_lwe_ciphertext_vector_cleartext_vector_64(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        cleartext_array_in: *const ffi::c_void,
-        input_lwe_dimension: u32,
-        input_lwe_ciphertext_count: u32,
-    );
-}
-unsafe extern "C" {
     pub fn scratch_cuda_wrapping_polynomial_mul_one_to_many_64_async(
         stream: *mut ffi::c_void,
         gpu_index: u32,
@@ -2765,25 +2683,6 @@ unsafe extern "C" {
         polynomial_size: u32,
         glwe_dimension: u32,
         n_rhs: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_add_lwe_ciphertext_vector_plaintext_64(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        plaintext_in: u64,
-        input_lwe_dimension: u32,
-        input_lwe_ciphertext_count: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_add_lwe_ciphertext_vector_inplace_32(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_inout: *mut CudaRadixCiphertextFFI,
-        input_2: *const CudaRadixCiphertextFFI,
     );
 }
 unsafe extern "C" {

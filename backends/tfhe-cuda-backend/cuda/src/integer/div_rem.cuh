@@ -190,18 +190,23 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
             comparison_buffer, &bsks[gpu_index], &ksks[gpu_index],
             comparison_blocks->num_radix_blocks);
 
-        host_negation<Torus>(
-            streams.stream(gpu_index), streams.gpu_index(gpu_index),
-            (Torus *)out_boolean_block->ptr, (Torus *)out_boolean_block->ptr,
-            radix_params.big_lwe_dimension, 1);
+        GPU_ASSERT(radix_params.big_lwe_dimension ==
+                       out_boolean_block->lwe_dimension,
+                   "Cuda error: big_lwe_dimension must match ciphertexts' "
+                   "lwe_dimension");
+        host_negation<Torus>(streams.stream(gpu_index),
+                             streams.gpu_index(gpu_index), out_boolean_block,
+                             out_boolean_block, 1, radix_params.message_modulus,
+                             radix_params.carry_modulus);
 
         // we calculate encoding because this block works only for
         // message_modulus = 4 and carry_modulus = 4.
         const Torus encoded_scalar = 1ULL << (sizeof(Torus) * 8 - 5);
         host_addition_plaintext_scalar<Torus>(
             streams.stream(gpu_index), streams.gpu_index(gpu_index),
-            (Torus *)out_boolean_block->ptr, (Torus *)out_boolean_block->ptr,
-            encoded_scalar, radix_params.big_lwe_dimension, 1);
+            out_boolean_block, out_boolean_block, encoded_scalar, 1ULL,
+            radix_params.big_lwe_dimension, 1, radix_params.message_modulus,
+            radix_params.carry_modulus);
       }
     };
 
@@ -289,35 +294,47 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
     // c3 = !o3
     copy_radix_ciphertext_slice_async<Torus>(
         streams.stream(0), streams.gpu_index(0), c3, 0, 1, o3, 0, 1);
-    host_negation<Torus>(streams.stream(0), streams.gpu_index(0),
-                         (Torus *)c3->ptr, (Torus *)c3->ptr,
-                         radix_params.big_lwe_dimension, 1);
+    GPU_ASSERT(
+        radix_params.big_lwe_dimension == c3->lwe_dimension,
+        "Cuda error: big_lwe_dimension must match ciphertexts' lwe_dimension");
+    host_negation<Torus>(streams.stream(0), streams.gpu_index(0), c3, c3, 1,
+                         radix_params.message_modulus,
+                         radix_params.carry_modulus);
     const Torus encoded_scalar = 1ULL << (sizeof(Torus) * 8 - 5);
     host_addition_plaintext_scalar<Torus>(
-        streams.stream(0), streams.gpu_index(0), (Torus *)c3->ptr,
-        (Torus *)c3->ptr, encoded_scalar, radix_params.big_lwe_dimension, 1);
+        streams.stream(0), streams.gpu_index(0), c3, c3, encoded_scalar, 1ULL,
+        radix_params.big_lwe_dimension, 1, radix_params.message_modulus,
+        radix_params.carry_modulus);
 
     // c2 = !o2 + o3
     copy_radix_ciphertext_slice_async<Torus>(
         streams.stream(1), streams.gpu_index(1), c2, 0, 1, o2, 0, 1);
-    host_negation<Torus>(streams.stream(1), streams.gpu_index(1),
-                         (Torus *)c2->ptr, (Torus *)c2->ptr,
-                         radix_params.big_lwe_dimension, 1);
+    GPU_ASSERT(
+        radix_params.big_lwe_dimension == c2->lwe_dimension,
+        "Cuda error: big_lwe_dimension must match ciphertexts' lwe_dimension");
+    host_negation<Torus>(streams.stream(1), streams.gpu_index(1), c2, c2, 1,
+                         radix_params.message_modulus,
+                         radix_params.carry_modulus);
     host_addition_plaintext_scalar<Torus>(
-        streams.stream(1), streams.gpu_index(1), (Torus *)c2->ptr,
-        (Torus *)c2->ptr, encoded_scalar, radix_params.big_lwe_dimension, 1);
+        streams.stream(1), streams.gpu_index(1), c2, c2, encoded_scalar, 1ULL,
+        radix_params.big_lwe_dimension, 1, radix_params.message_modulus,
+        radix_params.carry_modulus);
     host_addition<Torus>(streams.stream(1), streams.gpu_index(1), c2, c2,
                          o3_gpu_1, 1, 4, 4);
 
     // c1 = !o1 + o2
     copy_radix_ciphertext_slice_async<Torus>(
         streams.stream(2), streams.gpu_index(2), c1, 0, 1, o1, 0, 1);
-    host_negation<Torus>(streams.stream(2), streams.gpu_index(2),
-                         (Torus *)c1->ptr, (Torus *)c1->ptr,
-                         radix_params.big_lwe_dimension, 1);
+    GPU_ASSERT(
+        radix_params.big_lwe_dimension == c1->lwe_dimension,
+        "Cuda error: big_lwe_dimension must match ciphertexts' lwe_dimension");
+    host_negation<Torus>(streams.stream(2), streams.gpu_index(2), c1, c1, 1,
+                         radix_params.message_modulus,
+                         radix_params.carry_modulus);
     host_addition_plaintext_scalar<Torus>(
-        streams.stream(2), streams.gpu_index(2), (Torus *)c1->ptr,
-        (Torus *)c1->ptr, encoded_scalar, radix_params.big_lwe_dimension, 1);
+        streams.stream(2), streams.gpu_index(2), c1, c1, encoded_scalar, 1ULL,
+        radix_params.big_lwe_dimension, 1, radix_params.message_modulus,
+        radix_params.carry_modulus);
     host_addition<Torus>(streams.stream(2), streams.gpu_index(2), c1, c1,
                          o2_gpu_2, 1, 4, 4);
 
@@ -330,10 +347,9 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
                                   CudaRadixCiphertextFFI *cx,
                                   CudaRadixCiphertextFFI *rx,
                                   int_radix_lut<Torus> *lut, Torus factor) {
-      auto rx_list = to_lwe_ciphertext_list(rx);
-      host_cleartext_multiplication<Torus>(streams.stream(gpu_index),
-                                           streams.gpu_index(gpu_index),
-                                           (Torus *)rx->ptr, &rx_list, factor);
+      host_cleartext_multiplication<Torus>(
+          streams.stream(gpu_index), streams.gpu_index(gpu_index), rx, rx,
+          factor, radix_params.message_modulus, radix_params.carry_modulus);
       host_add_the_same_block_to_all_blocks<Torus>(streams.stream(gpu_index),
                                                    streams.gpu_index(gpu_index),
                                                    rx, rx, cx, 4, 4);
@@ -954,7 +970,7 @@ __host__ void host_integer_div_rem(
     int_mem_ptr->sub_streams_1.synchronize();
     int_mem_ptr->sub_streams_2.synchronize();
 
-    host_negation<Torus>(
+    host_integer_negation<Torus>(
         int_mem_ptr->sub_streams_1, int_mem_ptr->negated_quotient, quotient,
         radix_params.message_modulus, radix_params.carry_modulus, num_blocks);
 
@@ -965,7 +981,7 @@ __host__ void host_integer_div_rem(
                                        nullptr, int_mem_ptr->scp_mem_1, bsks,
                                        ksks, requested_flag, uses_carry);
 
-    host_negation<Torus>(
+    host_integer_negation<Torus>(
         int_mem_ptr->sub_streams_2, int_mem_ptr->negated_remainder, remainder,
         radix_params.message_modulus, radix_params.carry_modulus, num_blocks);
 

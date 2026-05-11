@@ -133,6 +133,10 @@ jobs:
         run: |
           nvidia-cuda-mps-control -d
 
+      - name: Run High Level API Tests
+        run: |
+          make test_high_level_api_fake_multi_gpu
+
       - name: Run core crypto and internal CUDA backend tests
         run: |
           make test_core_crypto_gpu
@@ -147,9 +151,6 @@ jobs:
         run: |
           make test_c_api_gpu
 
-      - name: Run High Level API Tests
-        run: |
-          make test_high_level_api_gpu_fast
 
   slack-notify:
     name: gpu_fast_tests/slack-notify

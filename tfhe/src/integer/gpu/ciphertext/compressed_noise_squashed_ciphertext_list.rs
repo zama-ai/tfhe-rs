@@ -451,6 +451,7 @@ mod test {
     use rand::Rng;
 
     #[test]
+    #[cfg(not(feature = "gpu-debug-fake-multi-gpu"))]
     fn test_cuda_compressed_noise_squashed_ciphertext_list() {
         let param = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let noise_squashing_parameters =

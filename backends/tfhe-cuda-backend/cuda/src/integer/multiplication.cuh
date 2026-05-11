@@ -418,7 +418,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
 
       integer_radix_apply_univariate_lookup_table<Torus>(
           streams, current_blocks, current_blocks, bsks, ksks,
-          luts_message_carry, total_ciphertexts);
+          luts_message_carry, total_ciphertexts, true);
     }
     cuda_set_device(streams.gpu_index(0));
     std::swap(d_columns, d_new_columns);
@@ -471,7 +471,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
 
       integer_radix_apply_univariate_lookup_table<Torus>(
           active_streams, current_blocks, radix_lwe_out, bsks, ksks,
-          luts_message_carry, num_blocks_in_apply_lut);
+          luts_message_carry, num_blocks_in_apply_lut, true);
     }
     calculate_final_degrees(radix_lwe_out->degrees, terms->degrees,
                             num_radix_blocks, num_radix_in_vec, chunk_size,
