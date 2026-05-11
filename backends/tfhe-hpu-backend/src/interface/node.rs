@@ -397,24 +397,28 @@ impl HpuNode {
             })
             .collect::<Vec<_>>();
 
-        let mac_list = ffi::HpuHw::get_mac_list();
-        debug!("MAC list -> {:?}", mac_list);
+        let board_props = ffi::HpuHw::get_board_properties();
+        debug!("Board properties -> {:?}", board_props);
 
         for idx in 0..MAX_HPU_IN_CLUSTER {
             let hpu_id = mhdma_hpu_ids[idx];
-            let mut mac: u32 = 0;
-            if idx < mac_list.len() {
-                mac = u32::from_str_radix(mac_list[idx].1.trim_start_matches("0x"), 16).unwrap();
-            }
-            if idx as u8 == *hid {
-                mac |= 0x80000000;
-            }
+            let mac_addr = {
+                let mut mac = if idx < board_props.len() {
+                    board_props[idx].mac_addr
+                } else {
+                    0
+                };
+                if idx as u8 == *hid {
+                    mac |= 0x80000000;
+                }
+                mac
+            };
             debug!(
                 "MAC of HPU {idx} -> @{:X} {:X}",
                 *hpu_id.offset() as u64,
-                mac
+                mac_addr
             );
-            hpu_hw.write_reg(*hpu_id.offset() as u64, mac);
+            hpu_hw.write_reg(*hpu_id.offset() as u64, mac_addr);
         }
         hpu_hw.write_reg(*mhdma_timeout_notify.offset() as u64, 0xFFFFFFFF);
         hpu_hw.write_reg(*mhdma_timeout_rr.offset() as u64, 0xFFFFFFFF);

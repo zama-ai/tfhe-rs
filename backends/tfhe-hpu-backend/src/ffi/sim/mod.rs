@@ -3,7 +3,7 @@
 //! Ra2m simulation rely on 1 ipc link for communication
 
 use super::{MemAlloc, MemChunk};
-use crate::ffi::{self, MemZoneProperties};
+use crate::ffi::{self, BoardProperties, MemZoneProperties};
 use crate::prelude::QueueConfig;
 use ra2m_ffi::ipc::prelude::*;
 use std::sync::{Arc, Mutex};
@@ -311,4 +311,10 @@ impl MemZone {
         };
         self.read_bytes(ofst, sliced_data);
     }
+}
+
+/// Utility function to extract board device_id and serial_number from env
+pub(super) fn get_board_properties() -> Result<Vec<BoardProperties>, String> {
+    // Not currrently needed for simulation
+    Ok(vec![])
 }

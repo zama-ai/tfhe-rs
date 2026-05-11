@@ -42,6 +42,19 @@ pub struct MemZoneProperties {
     pub size_b: usize,
 }
 
+/// Define Mac address representation
+
+/// Define Board properties
+#[derive(Debug, Clone)]
+pub struct BoardProperties {
+    pub pcie_id: String,
+    pub serial_number: String,
+    /// Currently only used 3 lower Bytes.
+    /// > OUI number is fixed to Xilinx one in hardware and only V80 is currently supported
+    /// > pub mac_addr: u32,
+    pub mac_addr: u32,
+}
+
 pub struct HpuHw(
     #[cfg(feature = "hw-v80")] v80::HpuHw,
     #[cfg(not(feature = "hw-v80"))] sim::HpuHw,
@@ -55,19 +68,19 @@ impl HpuHw {
         {
             match mode {
                 FFIMode::V80 { hpu_path, ami_path } => {
-                    let board_dev_sn =
-                        v80::get_board_dev_sn().expect("Error with V80_BOARD definition");
-                    let dev_sn = node_id
+                    let board_props =
+                        v80::get_board_properties().expect("Error with V80_BOARD definition");
+                    let boards = node_id
                         .iter()
                         .map(|id| {
-                            let (pcie_id, sn) = board_dev_sn
+                            board_props
                                 .get(*id as usize)
-                                .expect("Request invalid board id");
-                            (pcie_id.clone(), sn.clone())
+                                .expect("Request invalid board id")
+                                .clone()
                         })
                         .collect::<Vec<_>>();
                     v80::HpuHw::lazy_load(
-                        dev_sn,
+                        boards,
                         &hpu_path.expand(),
                         &ami_path.expand(),
                         force_reload,
@@ -84,14 +97,14 @@ impl HpuHw {
         }
     }
 
-    pub fn get_mac_list() -> Vec<(String, String)> {
+    pub fn get_board_properties() -> Vec<BoardProperties> {
         #[cfg(feature = "hw-v80")]
         {
-            v80::get_boards_mac().expect("Error with V80_BOARDS_MAC definition")
+            v80::get_board_properties().expect("Error with V80 boards properties definition")
         }
         #[cfg(not(feature = "hw-v80"))]
         {
-            Vec::new()
+            sim::get_board_properties().expect("Error with SIM boards properties definition")
         }
     }
 
@@ -170,13 +183,13 @@ impl HpuHw {
         {
             match mode {
                 FFIMode::V80 { hpu_path, .. } => {
-                    let board_dev_sn =
-                        v80::get_board_dev_sn().expect("Error with V80_BOARD definition");
+                    let board_props =
+                        v80::get_board_properties().expect("Error with V80_BOARD definition");
                     let pcie_id = {
-                        let (id, _sn) = board_dev_sn
+                        let board = board_props
                             .get(id as usize)
                             .expect("Request invalid board id");
-                        id.clone()
+                        board.pcie_id.clone()
                     };
                     Self(
                         v80::HpuHw::open_hpu_hw(&pcie_id, &hpu_path.expand(), retry_rate)

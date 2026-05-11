@@ -49,7 +49,7 @@ impl HpuHw {
     /// NB: This procedure requires unloading of Qdma/Ami driver and thus can't be directly
     /// implemented in the AMI
     pub fn lazy_load(
-        dev_sn: Vec<(String, String)>,
+        board_props: Vec<ffi::BoardProperties>,
         hpu_path: &str,
         ami_path: &str,
         force_reload: bool,
@@ -61,18 +61,18 @@ impl HpuHw {
             .expect("Invalid UUID format in pdi");
 
         // Extract the list of boards that need to be reprogrammed
-        let trgt_dev_sn = if force_reload {
-            dev_sn.clone()
+        let trgt_boards = if force_reload {
+            board_props.clone()
         } else {
-            Self::check_invalid_state(&dev_sn, &hpu_pdi, &pdi_uuid)
+            Self::check_invalid_state(&board_props, &hpu_pdi, &pdi_uuid)
         };
 
-        if !trgt_dev_sn.is_empty() {
+        if !trgt_boards.is_empty() {
             // Reload all stage_1 through JTAG
-            Self::load_stage_1(&trgt_dev_sn, &hpu_pdi, &pdi_uuid);
+            Self::load_stage_1(&trgt_boards, &hpu_pdi, &pdi_uuid);
 
             // Write stage_2 through DMA
-            Self::load_stage_2(&trgt_dev_sn, &hpu_pdi);
+            Self::load_stage_2(&trgt_boards, &hpu_pdi);
 
             // Reload Ami driver
             tracing::info!("Load ami kernel module [{ami_path}]");
@@ -85,39 +85,39 @@ impl HpuHw {
 
         // Check Qdma queue and recreate them if needed
         // NB: Check is done on all boards not only on the reprog one
-        for (pcie_id, _sn) in dev_sn.iter() {
-            Self::cfg_dma_queues(pcie_id);
+        for b in board_props.iter() {
+            Self::cfg_dma_queues(&b.pcie_id);
         }
     }
 
     fn check_invalid_state(
-        dev_sn: &[(String, String)],
+        board_props: &[ffi::BoardProperties],
         hpu_pdi: &pdi::HpuV80Pdi,
         hpu_uuid: &pdi::V80Uuid,
-    ) -> Vec<(String, String)> {
-        let trgt = dev_sn
+    ) -> Vec<ffi::BoardProperties> {
+        let trgt = board_props
             .iter()
-            .filter_map(|(dev, sn)| {
+            .filter_map(|board| {
                 // Check state and version
-                match AmiDriver::new(dev, &hpu_pdi.metadata.amc.his_version, None) {
+                match AmiDriver::new(&board.pcie_id, &hpu_pdi.metadata.amc.his_version, None) {
                     Ok(ami) => {
                         if hpu_pdi.metadata.bitstream.uuid.to_lowercase()
                             == ami.uuid().to_lowercase()
                         {
-                            tracing::info!("Board[{dev}::{sn}] -> [{hpu_uuid}]");
+                            tracing::info!("{board:?} -> [{hpu_uuid}]");
                             None
                         } else {
                             tracing::warn!(
-                                "Board[{dev}::{sn}] -> UUID mismatch loaded {:?} expected {:?}",
+                                "{board:?} -> UUID mismatch loaded {:?} expected {:?}",
                                 ami.uuid().to_lowercase(),
                                 hpu_pdi.metadata.bitstream.uuid.to_lowercase()
                             );
-                            Some((dev.clone(), sn.clone()))
+                            Some(board.clone())
                         }
                     }
                     Err(err) => {
-                        tracing::warn!("Board[{dev}::{sn}] -> Ami loading error: {err:?}",);
-                        Some((dev.clone(), sn.clone()))
+                        tracing::warn!("[{board:?}] -> Ami loading error: {err:?}",);
+                        Some(board.clone())
                     }
                 }
             })
@@ -168,11 +168,11 @@ impl HpuHw {
     }
 
     fn load_stage_1(
-        dev_sn: &[(String, String)],
+        board_props: &[ffi::BoardProperties],
         hpu_pdi: &pdi::HpuV80Pdi,
         hpu_uuid: &pdi::V80Uuid,
     ) {
-        tracing::info!("Boards [{dev_sn:?}] will be loaded with pdi -> [{hpu_uuid}]");
+        tracing::info!("[{board_props:?}] will be loaded with pdi -> [{hpu_uuid}]");
 
         // Prerequisite. Enforce that ami/qdma driver are unloaded
         // Use two distinct commands to ease matching with sudoer rules
@@ -215,7 +215,10 @@ impl HpuHw {
         // 1. Load PDI stage one through JTAG --------------------------------------
         // Open Vivado hw_manager once and program all boards in a single session
         let pdi_path = format!("{}/{}", tmp_dir_str, &pdi_stg1_tmp);
-        let serial_numbers: Vec<&str> = dev_sn.iter().map(|(_, sn)| sn.as_str()).collect();
+        let serial_numbers: Vec<&str> = board_props
+            .iter()
+            .map(|board| board.serial_number.as_str())
+            .collect();
         tracing::info!(
             "Load stage1 through JTAG for {} board(s) in single Vivado session",
             serial_numbers.len()
@@ -227,30 +230,36 @@ impl HpuHw {
         // Update right on V80 pcie subsystem
         update_pcie_perms();
 
-        for (i, (dev, sn)) in dev_sn.iter().enumerate() {
+        for (i, board) in board_props.iter().enumerate() {
             tracing::info!(
-                " Board[{}/{}][{dev}::{sn}] Updating Pcie physical functions status",
+                " Board[{}/{}][board:?] Updating Pcie physical functions status",
                 i + 1,
-                dev_sn.len()
+                board_props.len()
             );
             let rm_pf0 = OpenOptions::new()
                 .write(true)
-                .open(format!("/sys/bus/pci/devices/0000:{dev:0>2}:00.0/remove"))
+                .open(format!(
+                    "/sys/bus/pci/devices/0000:{:0>2}:00.0/remove",
+                    board.pcie_id
+                ))
                 .ok();
             if let Some(mut pf0) = rm_pf0 {
                 pf0.write_all(b"1\n")
                     .expect("Unable to trigger a remove of pci pf0");
             } else {
                 tracing::debug!(
-                    "Board[{}/{}][{dev}::{sn}] Pcie PF0 not present.",
+                    "Board[{}/{}][board:?] Pcie PF0 not present.",
                     i + 1,
-                    dev_sn.len()
+                    board_props.len()
                 );
             }
 
             OpenOptions::new()
                 .write(true)
-                .open(format!("/sys/bus/pci/devices/0000:{dev:0>2}:00.1/remove"))
+                .open(format!(
+                    "/sys/bus/pci/devices/0000:{:0>2}:00.1/remove",
+                    board.pcie_id
+                ))
                 .expect("Unable to open pci remove cmd file")
                 .write_all(b"1\n")
                 .expect("Unable to trigger a remove of pci pf1");
@@ -319,7 +328,7 @@ impl HpuHw {
         Ok(())
     }
 
-    fn load_stage_2(dev_sn: &[(String, String)], hpu_pdi: &HpuV80Pdi) {
+    fn load_stage_2(board_props: &[ffi::BoardProperties], hpu_pdi: &HpuV80Pdi) {
         // NB: Dma requires same alignment aperture.
         let stg2_aligned = {
             let len = hpu_pdi.pdi_stg2_bin.len();
@@ -334,26 +343,33 @@ impl HpuHw {
 
         // Program all boards in parallel — each has independent PCIe/QDMA paths
         std::thread::scope(|s| {
-            for (i, (dev, sn)) in dev_sn.iter().enumerate() {
+            for (i, board) in board_props.iter().enumerate() {
                 s.spawn(move || {
                     tracing::info!(
-                        "Board[{}/{}][{dev}::{sn}] Load stage2 through Qdma [{} bytes]",
+                        "Board[{}/{}][board:?] Load stage2 through Qdma [{} bytes]",
                         i + 1,
-                        dev_sn.len(),
+                        board_props.len(),
                         stg2_data.len()
                     );
-                    Self::dma_program_board(dev, stg2_data).unwrap_or_else(|e| {
-                        panic!("Board[{}/{}][{dev}::{sn}] Stage2: {e}", i + 1, dev_sn.len())
+                    Self::dma_program_board(&board.pcie_id, stg2_data).unwrap_or_else(|e| {
+                        panic!(
+                            "Board[{}/{}][board:?] Stage2: {e}",
+                            i + 1,
+                            board_props.len()
+                        )
                     });
 
                     tracing::debug!(
-                        "Board[{}/{}][{dev}::{sn}] Removing Pcie PF0",
+                        "Board[{}/{}][board:?] Removing Pcie PF0",
                         i + 1,
-                        dev_sn.len()
+                        board_props.len()
                     );
                     OpenOptions::new()
                         .write(true)
-                        .open(format!("/sys/bus/pci/devices/0000:{dev}:00.0/remove"))
+                        .open(format!(
+                            "/sys/bus/pci/devices/0000:{}:00.0/remove",
+                            board.pcie_id
+                        ))
                         .expect("Unable to open pci remove cmd file")
                         .write_all(b"1\n")
                         .expect("Unable to trigger a remove of pci pf0");
@@ -550,39 +566,35 @@ impl MemZone {
 }
 
 /// Utility function to extract board device_id and serial_number from env
-pub(super) fn get_board_dev_sn() -> Result<Vec<(String, String)>, String> {
+pub(super) fn get_board_properties() -> Result<Vec<ffi::BoardProperties>, String> {
     // Read rawmap from environ
     let v80_board_rawmap = std::env::var("V80_BOARDS_RAWMAP")
         .map_err(|_| "V80_BOARDS_RAWMAP environment variable not found.")?;
 
-    // Extract list of tuple (pcie_id, serial_number)
-    let mut board_dev_sn = Vec::new();
+    // Extract list of tuple (pcie_id, serial_number, mac_addr)
+    let mut board_props = Vec::new();
     for board in v80_board_rawmap.split('|') {
-        let dev_sn = board.split(':').collect::<Vec<_>>();
-        if dev_sn.len() != 2 {
+        let dev_sn_mac = board.split(':').collect::<Vec<_>>();
+        if dev_sn_mac.len() != 3 {
             return Err(format!("Invalid format in V80_BOARDS_RAWMAP: {board}"));
         } else {
-            board_dev_sn.push((dev_sn[0].to_string(), dev_sn[1].to_string()));
+            // Read int from mac_addr string
+            let mac_addr = if let Some(hex) = dev_sn_mac[2].strip_prefix("0x") {
+                u32::from_str_radix(hex, 16)
+            } else if let Some(oct) = dev_sn_mac[2].strip_prefix("0o") {
+                u32::from_str_radix(oct, 8)
+            } else if let Some(bin) = dev_sn_mac[2].strip_prefix("0b") {
+                u32::from_str_radix(bin, 2)
+            } else {
+                dev_sn_mac[2].parse::<u32>()
+            }
+            .expect("Invalid mac addr format");
+            board_props.push(ffi::BoardProperties {
+                pcie_id: dev_sn_mac[0].to_string(),
+                serial_number: dev_sn_mac[1].to_string(),
+                mac_addr,
+            });
         }
     }
-    Ok(board_dev_sn)
-}
-
-/// Utility function to extract board device_id and mac addresses from env
-pub(super) fn get_boards_mac() -> Result<Vec<(String, String)>, String> {
-    // Read rawmap from environ
-    let v80_board_rawmap = std::env::var("V80_BOARDS_MAC")
-        .map_err(|_| "V80_BOARDS_MAC environment variable not found.")?;
-
-    // Extract list of tuple (pcie_id, serial_number)
-    let mut boards_mac = Vec::new();
-    for board in v80_board_rawmap.split('|') {
-        let dev_mac = board.split(':').collect::<Vec<_>>();
-        if dev_mac.len() != 2 {
-            return Err(format!("Invalid format in V80_BOARDS_MAC: {board}"));
-        } else {
-            boards_mac.push((dev_mac[0].to_string(), dev_mac[1].to_string()));
-        }
-    }
-    Ok(boards_mac)
+    Ok(board_props)
 }
