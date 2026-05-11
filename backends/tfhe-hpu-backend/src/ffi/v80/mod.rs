@@ -342,6 +342,7 @@ impl HpuHw {
         let stg2_data: &[u8] = stg2_aligned;
 
         // Program all boards in parallel — each has independent PCIe/QDMA paths
+        // NB: use thread here instead of rayon, since dma_program_board is an IO heavy task
         std::thread::scope(|s| {
             for (i, board) in board_props.iter().enumerate() {
                 s.spawn(move || {
