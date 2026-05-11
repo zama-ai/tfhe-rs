@@ -47,7 +47,6 @@ template <typename Torus> struct int_trivium_lut_buffers {
         streams.active_gpu_subset(total_lut_ops, params.pbs_type);
     this->and_lut->generate_and_broadcast_bivariate_lut(
         active_streams_and, {0}, {and_lambda}, LUT_0_FOR_ALL_BLOCKS);
-    this->and_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
 
     uint32_t total_flush_ops =
         num_trivium_inputs * TRIVIUM_BATCH_SIZE * TRIVIUM_NUM_FLUSH_PATHS;
@@ -63,7 +62,6 @@ template <typename Torus> struct int_trivium_lut_buffers {
         streams.active_gpu_subset(total_flush_ops, params.pbs_type);
     this->flush_lut->generate_and_broadcast_lut(
         active_streams_flush, {0}, {flush_lambda}, LUT_0_FOR_ALL_BLOCKS);
-    this->flush_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
   }
 
   void release(CudaStreams streams) {

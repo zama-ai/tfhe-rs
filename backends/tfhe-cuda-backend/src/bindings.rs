@@ -193,7 +193,6 @@ unsafe extern "C" {
         base_log: u32,
         level_count: u32,
         num_samples: u32,
-        ks_tmp_buffer: *const ffi::c_void,
         uses_trivial_indexes: bool,
     );
 }
@@ -211,46 +210,7 @@ unsafe extern "C" {
         base_log: u32,
         level_count: u32,
         num_samples: u32,
-        ks_tmp_buffer: *const ffi::c_void,
         uses_trivial_indexes: bool,
-    );
-}
-unsafe extern "C" {
-    pub fn scratch_cuda_keyswitch_gemm_64_64_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        ks_tmp_memory: *mut *mut ffi::c_void,
-        lwe_dimension_in: u32,
-        lwe_dimension_out: u32,
-        num_lwes: u32,
-        allocate_gpu_memory: bool,
-    ) -> u64;
-}
-unsafe extern "C" {
-    pub fn scratch_cuda_keyswitch_gemm_64_32_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        ks_tmp_memory: *mut *mut ffi::c_void,
-        lwe_dimension_in: u32,
-        lwe_dimension_out: u32,
-        num_lwes: u32,
-        allocate_gpu_memory: bool,
-    ) -> u64;
-}
-unsafe extern "C" {
-    pub fn cleanup_cuda_keyswitch_gemm_64_64(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        ks_tmp_memory: *mut *mut ffi::c_void,
-        allocate_gpu_memory: bool,
-    );
-}
-unsafe extern "C" {
-    pub fn cleanup_cuda_keyswitch_gemm_64_32(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        ks_tmp_memory: *mut *mut ffi::c_void,
-        allocate_gpu_memory: bool,
     );
 }
 unsafe extern "C" {

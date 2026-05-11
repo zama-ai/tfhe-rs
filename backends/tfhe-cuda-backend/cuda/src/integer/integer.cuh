@@ -566,7 +566,7 @@ __host__ void integer_radix_apply_univariate_lookup_table(
         streams.get_ith(0), lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0],
         (Torus *)lwe_array_in->ptr, lut->lwe_indexes_in, ksks,
         big_lwe_dimension, small_lwe_dimension, ks_base_log, ks_level,
-        num_radix_blocks, lut->using_trivial_lwe_indexes, lut->ks_tmp_buf_vec);
+        num_radix_blocks, lut->using_trivial_lwe_indexes);
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
@@ -594,8 +594,7 @@ __host__ void integer_radix_apply_univariate_lookup_table(
     execute_keyswitch_async<Torus>(
         active_streams, lwe_after_ks_vec, lwe_trivial_indexes_vec,
         lwe_array_in_vec, lwe_trivial_indexes_vec, ksks, big_lwe_dimension,
-        small_lwe_dimension, ks_base_log, ks_level, num_radix_blocks, true,
-        lut->ks_tmp_buf_vec);
+        small_lwe_dimension, ks_base_log, ks_level, num_radix_blocks, true);
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
@@ -671,7 +670,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
         streams.get_ith(0), lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0],
         (Torus *)lwe_array_in->ptr, lut->lwe_indexes_in, ksks,
         big_lwe_dimension, small_lwe_dimension, ks_base_log, ks_level,
-        num_radix_blocks, lut->using_trivial_lwe_indexes, lut->ks_tmp_buf_vec);
+        num_radix_blocks, lut->using_trivial_lwe_indexes);
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
@@ -699,8 +698,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
     execute_keyswitch_async<Torus>(
         active_streams, lwe_after_ks_vec, lwe_trivial_indexes_vec,
         lwe_array_in_vec, lwe_trivial_indexes_vec, ksks, big_lwe_dimension,
-        small_lwe_dimension, ks_base_log, ks_level, num_radix_blocks, true,
-        lut->ks_tmp_buf_vec);
+        small_lwe_dimension, ks_base_log, ks_level, num_radix_blocks, true);
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
@@ -791,7 +789,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
         streams.get_ith(0), lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0],
         (Torus *)lwe_array_pbs_in->ptr, lut->lwe_indexes_in, ksks,
         big_lwe_dimension, small_lwe_dimension, ks_base_log, ks_level,
-        num_radix_blocks, lut->using_trivial_lwe_indexes, lut->ks_tmp_buf_vec);
+        num_radix_blocks, lut->using_trivial_lwe_indexes);
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
@@ -816,8 +814,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
     execute_keyswitch_async<Torus>(
         active_streams, lwe_after_ks_vec, lwe_trivial_indexes_vec,
         lwe_array_in_vec, lwe_trivial_indexes_vec, ksks, big_lwe_dimension,
-        small_lwe_dimension, ks_base_log, ks_level, num_radix_blocks, true,
-        lut->ks_tmp_buf_vec);
+        small_lwe_dimension, ks_base_log, ks_level, num_radix_blocks, true);
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
@@ -1555,7 +1552,7 @@ void host_full_propagate_inplace(CudaStreams streams,
         mem_ptr->lut->lwe_trivial_indexes, (Torus *)cur_input_block.ptr,
         mem_ptr->lut->lwe_trivial_indexes, ksks, params.big_lwe_dimension,
         params.small_lwe_dimension, params.ks_base_log, params.ks_level, 1,
-        mem_ptr->lut->using_trivial_lwe_indexes, mem_ptr->lut->ks_tmp_buf_vec);
+        mem_ptr->lut->using_trivial_lwe_indexes);
 
     copy_radix_ciphertext_slice_async<Torus>(
         streams.stream(0), streams.gpu_index(0), mem_ptr->tmp_small_lwe_vector,
@@ -2368,7 +2365,7 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
         (InputTorus *)lwe_array_pbs_in->ptr, lut->lwe_indexes_in, ksks,
         lut->input_big_lwe_dimension, small_lwe_dimension, ks_base_log,
         ks_level, lwe_array_out->num_radix_blocks,
-        lut->using_trivial_lwe_indexes, lut->ks_tmp_buf_vec);
+        lut->using_trivial_lwe_indexes);
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
@@ -2399,7 +2396,7 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
         active_streams, lwe_after_ks_vec, lwe_trivial_indexes_vec,
         lwe_array_in_vec, lwe_trivial_indexes_vec, ksks,
         lut->input_big_lwe_dimension, small_lwe_dimension, ks_base_log,
-        ks_level, lwe_array_out->num_radix_blocks, true, lut->ks_tmp_buf_vec);
+        ks_level, lwe_array_out->num_radix_blocks, true);
 
     /// int_noise_squashing_lut doesn't support a different output or lut
     /// indexing than the trivial

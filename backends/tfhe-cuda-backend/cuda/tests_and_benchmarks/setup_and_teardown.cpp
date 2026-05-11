@@ -278,7 +278,7 @@ void keyswitch_setup(
     cudaStream_t stream, uint32_t gpu_index, Seed *seed, uint64_t **lwe_sk_in_array,
     uint64_t **lwe_sk_out_array, uint64_t **d_ksk_array, uint64_t **plaintexts,
     uint64_t **d_lwe_ct_in_array, uint64_t **d_lwe_input_indexes,
-    uint64_t **d_lwe_ct_out_array, uint64_t **d_lwe_output_indexes, void** ks_tmp_buffer,
+    uint64_t **d_lwe_ct_out_array, uint64_t **d_lwe_output_indexes,
     int input_lwe_dimension, int output_lwe_dimension,
     DynamicDistribution lwe_noise_distribution, int ksk_base_log, int ksk_level,
     int message_modulus, int carry_modulus, int *payload_modulus,
@@ -315,10 +315,6 @@ void keyswitch_setup(
       (uint64_t *)malloc(safe_mul_sizeof<uint64_t>(
           safe_mul(input_lwe_dimension + 1, number_of_inputs,
                             repetitions, samples)));
-
-    scratch_cuda_keyswitch_gemm_64_64_async(
-      (void*)stream, gpu_index, ks_tmp_buffer,
-      input_lwe_dimension, output_lwe_dimension, number_of_inputs * repetitions * samples, true);
 
   // Create the input/output ciphertexts
   for (int r = 0; r < repetitions; r++) {
@@ -370,7 +366,7 @@ void keyswitch_teardown(cudaStream_t stream, uint32_t gpu_index, uint64_t *lwe_s
                         uint64_t *plaintexts, uint64_t *d_lwe_ct_in_array,
                         uint64_t *d_lwe_input_indexes,
                         uint64_t *d_lwe_ct_out_array,
-                        uint64_t *d_lwe_output_indexes, void** ks_tmp_buffer) {
+                        uint64_t *d_lwe_output_indexes) {
   cuda_synchronize_stream(stream, gpu_index);
 
   free(lwe_sk_in_array);
@@ -382,10 +378,6 @@ void keyswitch_teardown(cudaStream_t stream, uint32_t gpu_index, uint64_t *lwe_s
   cuda_drop_async(d_lwe_ct_out_array, stream, gpu_index);
   cuda_drop_async(d_lwe_input_indexes, stream, gpu_index);
   cuda_drop_async(d_lwe_output_indexes, stream, gpu_index);
-
-    cleanup_cuda_keyswitch_gemm_64_64((void*)stream, gpu_index,
-                                      ks_tmp_buffer,
-                                      true);
 
   cuda_synchronize_stream(stream, gpu_index);
   cuda_destroy_stream(stream, gpu_index);

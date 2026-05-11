@@ -63,11 +63,10 @@ void host_rerand_inplace(
     auto lwe_trivial_indexes = mem_ptr->lwe_trivial_indexes;
 
     // Keyswitch
-    execute_keyswitch_async<Torus>(streams.get_ith(0), lwes_to_be_added,
-                                   lwe_trivial_indexes, expanded_zero_lwes,
-                                   lwe_trivial_indexes, ksk, input_dimension,
-                                   output_dimension, ks_base_log, ks_level,
-                                   num_lwes, true, mem_ptr->ks_tmp_buf_vec);
+    execute_keyswitch_async<Torus>(
+        streams.get_ith(0), lwes_to_be_added, lwe_trivial_indexes,
+        expanded_zero_lwes, lwe_trivial_indexes, ksk, input_dimension,
+        output_dimension, ks_base_log, ks_level, num_lwes, true);
   }
 
   // Add ks output to ct
