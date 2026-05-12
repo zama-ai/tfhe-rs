@@ -228,6 +228,11 @@ impl HpuHw {
     pub fn iop_ack_rd(&mut self) -> u32 {
         self.0.ami.iop_ackq_rd()
     }
+
+    #[cfg(feature = "hw-v80")]
+    pub fn map_bar_reg(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.0.ami.map_bar_reg()
+    }
 }
 
 pub struct MemZone(
