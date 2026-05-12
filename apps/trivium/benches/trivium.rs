@@ -27,6 +27,13 @@ criterion_group!(
     kreyvium_shortint::kreyvium_shortint_warmup,
     kreyvium_shortint::kreyvium_shortint_trans
 );
+mod kreyvium_shortint_transciphering;
+criterion_group!(
+    kreyvium_shortint_transciphering,
+    kreyvium_shortint_transciphering::kreyvium_transciphering_gen,
+    kreyvium_shortint_transciphering::kreyvium_transciphering_warmup,
+    kreyvium_shortint_transciphering::kreyvium_transciphering_trans
+);
 
 mod trivium_byte;
 criterion_group!(
@@ -49,5 +56,6 @@ criterion_main!(
     trivium_byte,
     kreyvium_bool,
     kreyvium_shortint,
+    kreyvium_shortint_transciphering,
     kreyvium_byte,
 );
