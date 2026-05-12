@@ -1,7 +1,12 @@
 use super::{FheBool, InnerBoolean};
 use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKey;
-use crate::high_level_api::re_randomization::ReRandomizationMetadata;
+use crate::high_level_api::re_randomization::{
+    ReRandomizationMetadata, ReRandomizationMode, ReRandomize,
+};
+use crate::integer::ciphertext::{
+    RadixRandomBitsRLE, ReRandomizationHashAlgo, ReRandomizationSeed,
+};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 #[cfg(feature = "gpu")]
@@ -61,6 +66,32 @@ impl FheBool {
             }
         });
         Self::new(ciphertext, tag, ReRandomizationMetadata::default())
+    }
+
+    pub fn generate_oblivious_pseudo_random_and_re_randomize<
+        'a,
+        RRD: Into<ReRandomizationMode<'a>>,
+    >(
+        prf_seed: impl OprfSeed,
+        re_randomization_mode: RRD,
+        re_randomization_hash_algo: ReRandomizationHashAlgo,
+    ) -> crate::Result<Self> {
+        let prf_seed = prf_seed.into_bytes();
+        let prf_seed = prf_seed.as_ref();
+
+        let mut random_ct = Self::generate_oblivious_pseudo_random(prf_seed);
+
+        let output_bit_sizes = RadixRandomBitsRLE::new_boolean();
+
+        let rerand_seed = ReRandomizationSeed::new_prf_rerand_seed(
+            re_randomization_hash_algo,
+            prf_seed,
+            core::slice::from_ref(&output_bit_sizes),
+        );
+
+        random_ct.re_randomize(re_randomization_mode, rerand_seed)?;
+
+        Ok(random_ct)
     }
 }
 

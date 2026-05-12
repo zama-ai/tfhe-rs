@@ -65,6 +65,18 @@ impl<Id: FheUintId> FheUint<Id> {
             }
         })
     }
+
+    // pub fn generate_oblivious_pseudo_random_and_re_randomize<
+    //     'a,
+    //     RRD: Into<ReRandomizationMode<'a>>,
+    // >(
+    //     prf_seed: impl OprfSeed,
+    //     re_randomization_mode: RRD,
+    //     re_randomization_hash_algo: ReRandomizationHashAlgo,
+    // ) -> crate::Result<Self> {
+    //     todo!()
+    // }
+
     #[cfg(feature = "gpu")]
     /// Returns the amount of memory required to execute generate_oblivious_pseudo_random
     ///
@@ -98,6 +110,7 @@ impl<Id: FheUintId> FheUint<Id> {
             }
         })
     }
+
     /// Generates an encrypted unsigned integer
     /// taken uniformly in `[0, 2^random_bits_count[` using the given seed.
     /// The encrypted value is oblivious to the server.
