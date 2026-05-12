@@ -15,6 +15,7 @@ on:
       - 'ci/lattice_estimator.sage'
       - 'tfhe/examples/utilities/params_to_file.rs'
       - 'tfhe/src/shortint/parameters/*'
+      - 'tfhe/src/high_level_api/nist_submission/parameters.rs'
   push:
     branches:
       - "main"
