@@ -348,6 +348,28 @@ impl CompressedNoiseSquashingKey {
         }
     }
 
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        CompressedAtomicPatternNoiseSquashingKey,
+        MessageModulus,
+        CarryModulus,
+        CoreCiphertextModulus<u128>,
+    ) {
+        let Self {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
+        } = self;
+        (
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
+        )
+    }
+
     pub fn atomic_pattern(&self) -> &CompressedAtomicPatternNoiseSquashingKey {
         &self.atomic_pattern
     }
