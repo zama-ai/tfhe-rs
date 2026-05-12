@@ -63,6 +63,19 @@ impl UcoreConfig {
     }
 }
 
+// Custom display implementation with Debug like format to discard _padding fields
+impl std::fmt::Display for UcoreConfig {
+      fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+          f.debug_struct("UcoreConfig")
+              .field("node_id", &self.node_id)
+              .field("timestamp", &self.timestamp)
+              .field("node_mask", &format_args!("{:#010b}", self.node_mask))
+              .field("user_size", &self.user_size)
+              .field("b2b_size", &self.b2b_size)
+              .finish()
+      }
+}
+
 pub struct HpuNode {
     // Low-level hardware handling
     hpu_hw: ffi::HpuHw,
@@ -219,19 +232,19 @@ impl HpuNode {
 
         info!("{params:?}");
         debug!(
-            "Isc registers {:?}",
+            "[N{hid}] Isc registers {:?}",
             rtl::runtime::InfoIsc::from_rtl(&mut hpu_hw, &regmap)
         );
         debug!(
-            "PeMem registers {:?}",
+            "[N{hid}] PeMem registers {:?}",
             rtl::runtime::InfoPeMem::from_rtl(&mut hpu_hw, &regmap)
         );
         debug!(
-            "PeAlu registers {:?}",
+            "[N{hid}] PeAlu registers {:?}",
             rtl::runtime::InfoPeAlu::from_rtl(&mut hpu_hw, &regmap)
         );
         debug!(
-            "PePbs registers {:?}",
+            "[N{hid}] PePbs registers {:?}",
             rtl::runtime::InfoPePbs::from_rtl(&mut hpu_hw, &regmap)
         );
 
@@ -250,7 +263,7 @@ impl HpuNode {
                 .collect::<Vec<_>>();
             memory::HugeMemoryProperties { mem_cut, cut_coefs }
         };
-        debug!("Bsk_mem properties -> {:?}", bsk_props);
+        debug!("[N{hid}] Bsk_mem properties -> {:?}", bsk_props);
         let bsk_key = memory::HugeMemory::alloc(&mut hpu_hw, bsk_props);
 
         // Allocate memory for Ksk
@@ -269,7 +282,7 @@ impl HpuNode {
 
             memory::HugeMemoryProperties { mem_cut, cut_coefs }
         };
-        debug!("Ksk_mem properties -> {:?}", ksk_props);
+        debug!("[N{hid}] Ksk_mem properties -> {:?}", ksk_props);
         let ksk_key = memory::HugeMemory::alloc(&mut hpu_hw, ksk_props);
 
         // Allocate memory for GlweLut
@@ -277,7 +290,7 @@ impl HpuNode {
             mem_cut: vec![config.board.lut_pc],
             cut_coefs: config.board.lut_mem * params.pbs_params.polynomial_size,
         };
-        debug!("Lut_mem properties -> {:?}", lut_props);
+        debug!("[N{hid}] Lut_mem properties -> {:?}", lut_props);
         let lut_mem = memory::HugeMemory::alloc(&mut hpu_hw, lut_props);
 
         // Allocate memory for Fw translation table
@@ -285,7 +298,7 @@ impl HpuNode {
             mem_cut: vec![config.board.fw_pc],
             cut_coefs: config.board.fw_size, // NB: here `size` is used as raw size (!= slot nb)
         };
-        debug!("Fw_mem properties -> {:?}", fw_props);
+        debug!("[N{hid}] Fw_mem properties -> {:?}", fw_props);
         let fw_mem = memory::HugeMemory::alloc(&mut hpu_hw, fw_props);
 
         // Allocate memory pool for Ct
@@ -305,7 +318,7 @@ impl HpuNode {
             slot_nb: config.board.user_size,
             retry_rate_us: config.fpga.polling_us,
         };
-        debug!("Ct_mem properties -> {:?}", ct_props);
+        debug!("[N{hid}] Ct_mem properties -> {:?}", ct_props);
         let (ct_mem, ct_base_addr) =
             memory::CiphertextMemory::alloc(&mut hpu_hw, &regmap, &ct_props);
 
@@ -386,7 +399,7 @@ impl HpuNode {
             .collect::<Vec<_>>();
 
         let board_props = ffi::HpuHw::get_board_properties();
-        debug!("Board properties -> {:?}", board_props);
+        debug!("[N{hid}] Board properties -> {:?}", board_props);
 
         for idx in 0..MAX_HPU_IN_CLUSTER {
             let hpu_id = mhdma_hpu_ids[idx];
@@ -402,7 +415,7 @@ impl HpuNode {
                 mac
             };
             debug!(
-                "MAC of HPU {idx} -> @{:X} {:X}",
+                "[N{hid}] MAC of HPU {idx} -> @{:X} {:X}",
                 *hpu_id.offset() as u64,
                 mac_addr
             );
@@ -415,7 +428,7 @@ impl HpuNode {
             let mhdma_addr_pc_lsb = mhdma_addr_pc[idx].0;
             let mhdma_addr_pc_msb = mhdma_addr_pc[idx].1;
             debug!(
-                "addr of ct_pc[{idx}] given to MHDMA -> @{:X}",
+                "[N{hid}] addr of ct_pc[{idx}] given to MHDMA -> @{:X}",
                 ct_base_addr[idx]
             );
             hpu_hw.write_reg(
@@ -849,6 +862,7 @@ impl HpuNode {
         let fw_cfg_raw_u8 = bytemuck::bytes_of(&fw_cfg);
         let fw_cfg_raw_u32 = bytemuck::cast_slice::<u8, u32>(fw_cfg_raw_u8);
         self.fw_mem.write_cut_at(0, 0, fw_cfg_raw_u32);
+        tracing::debug!("[N{}] {fw_cfg}", self.hid);
 
         // Create Asm architecture properties and Fw instantiation
         let pe_cfg = PeConfigStore::from((&*self.params, config));
@@ -1051,6 +1065,7 @@ impl HpuNode {
         let Self {
             ref mut hpu_hw,
             cmdq,
+            hid,
             ..
         } = self;
 
@@ -1068,8 +1083,8 @@ impl HpuNode {
         // Issue work to Hpu through workq
         // Convert Iop in a stream of bytes
         let op_words = cmd.op.to_words();
-        tracing::debug!("Hpu{} Op Asm {}", self.hid, cmd.op);
-        tracing::trace!("Hpu{} Op Words {:x?}", self.hid, op_words);
+        tracing::debug!("[N{hid}] Op Asm {}", cmd.op);
+        tracing::trace!("[N{hid}] Op Words {:x?}", op_words);
 
         // Write them in workq entry
         // NB: No queue full check was done ...
@@ -1087,6 +1102,7 @@ impl HpuNode {
             ref mut hpu_hw,
             regmap,
             cmdq,
+            hid,
             ..
         } = self;
 
@@ -1109,9 +1125,9 @@ impl HpuNode {
 
         let ack_nb = hpu_hw.iop_ack_rd();
         for _ack in 0..ack_nb {
-            let ack_cmd = cmdq.pop_front().unwrap();
+            let ack_cmd = cmdq.pop_front().unwrap_or_else(|| panic!("[N{hid}] Received ack for unmatched IOp"));
             // TODO check that ack_code match with expected op msb
-            tracing::debug!("Hpu{} Received ack for IOp {}", self.hid, ack_cmd.op);
+            tracing::debug!("[N{hid}] Received ack for IOp {}", ack_cmd.op);
 
             // update iop pending counter
             // Also update dst state if pending counter reach 0
