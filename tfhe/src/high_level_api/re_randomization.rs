@@ -137,31 +137,6 @@ pub trait ReRandContextAdd {
     fn add_to_re_randomization_context(&self, context: &mut ReRandomizationContext);
 }
 
-// For now the trait is not exposed to the outside world, but is used in tests to verify that we can
-// use it for trait objects/dyn dispatch that we want to make available
-#[allow(dead_code)]
-pub trait NistSubmissionReRandomize: ReRandContextAdd {
-    /// Re-randomize the ciphertext using the provided public key and seed.
-    ///
-    /// The random elements of the ciphertexts will be changed but it will still encrypt the same
-    /// value.
-    fn nist_submission_re_randomize(
-        &mut self,
-        compact_public_key: &CompactPublicKey,
-        seed: ReRandomizationSeed,
-    ) -> crate::Result<()>;
-}
-
-impl<T: ReRandomize> NistSubmissionReRandomize for T {
-    fn nist_submission_re_randomize(
-        &mut self,
-        compact_public_key: &CompactPublicKey,
-        seed: ReRandomizationSeed,
-    ) -> crate::Result<()> {
-        self.re_randomize(compact_public_key, seed)
-    }
-}
-
 /// The context in which the ciphertexts to re-randomized will be used.
 ///
 /// It can be updated with user provided ciphertexts and will then be finalized into a

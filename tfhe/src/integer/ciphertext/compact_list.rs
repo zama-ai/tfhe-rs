@@ -1086,6 +1086,16 @@ pub struct ProvenCompactCiphertextList {
 
 #[cfg(feature = "zk-pok")]
 impl ProvenCompactCiphertextList {
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        crate::shortint::ciphertext::ProvenCompactCiphertextList,
+        Vec<DataKind>,
+    ) {
+        let Self { ct_list, info } = self;
+        (ct_list, info)
+    }
+
     pub fn builder(pk: &CompactPublicKey) -> CompactCiphertextListBuilder {
         CompactCiphertextListBuilder::new(pk)
     }
