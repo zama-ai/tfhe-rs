@@ -36,7 +36,7 @@ use crate::core_crypto::entities::{Cleartext, Plaintext, PlaintextList};
 use crate::shortint::encoding::ShortintEncoding;
 use crate::shortint::parameters::noise_squashing::NoiseSquashingCompressionParameters;
 use crate::shortint::parameters::{
-    AtomicPatternParameters, CarryModulus, MessageModulus, PBSParameters,
+    AtomicPatternParameters, CarryModulus, MessageModulus, NoiseSquashingParameters, PBSParameters,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
     DynLwe, DynLweSecretKeyView, DynModSwitchedLwe, DynStandardMultiBitModulusSwitchedCt,
@@ -374,19 +374,42 @@ pub fn post_squashing_and_packing_noise_check(
     noise_samples_after_packing: &[f64],
     noise_squashing_compression_params: NoiseSquashingCompressionParameters,
 ) -> bool {
-    // Variance and std dev are on the torus
-    let variance_after_packing = variance(noise_samples_after_packing);
-    let std_dev_after_packing = variance_after_packing.get_standard_dev();
-    println!("variance_after_packing={variance_after_packing:?}");
-    println!("std_dev_after_packing ={std_dev_after_packing:?}");
-    // We need the value over the discretized torus
     let modulus_as_f64_after_packing = noise_squashing_compression_params
         .ciphertext_modulus
         .raw_modulus_float();
-    println!("modulus_as_f64_after_packing={modulus_as_f64_after_packing}");
-    let std_dev_under_modulus_after_packing =
-        std_dev_after_packing.0 * modulus_as_f64_after_packing;
-    println!("std_dev_under_modulus_after_packing={std_dev_under_modulus_after_packing:?}");
+    noise_check_after_switch_squash(
+        noise_samples_after_packing,
+        modulus_as_f64_after_packing,
+        "after noise squashing and packing",
+    )
+}
+
+#[track_caller]
+pub fn post_squashing_noise_check(
+    noise_samples_after_noise_squashing: &[f64],
+    noise_squashing_params: NoiseSquashingParameters,
+) -> bool {
+    let modulus_as_f64_after_noise_squashing = noise_squashing_params
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    noise_check_after_switch_squash(
+        noise_samples_after_noise_squashing,
+        modulus_as_f64_after_noise_squashing,
+        "after noise squashing",
+    )
+}
+
+fn noise_check_after_switch_squash(samples: &[f64], raw_modulus: f64, context: &str) -> bool {
+    // Variance and std dev are on the torus
+    let variance_of_samples = variance(samples);
+    let std_dev_of_samples = variance_of_samples.get_standard_dev();
+    println!("variance {context} = {variance_of_samples:?}");
+    println!("std_dev  {context} = {std_dev_of_samples:?}");
+
+    // We need the value over the discretized torus
+    println!("modulus {context} = {raw_modulus}");
+    let std_dev_under_modulus = std_dev_of_samples.0 * raw_modulus;
+    println!("std_dev_under_modulus = {std_dev_under_modulus:?}");
 
     // Equation (22) page 95 from https://eprint.iacr.org/2025/699.pdf
     // c_err,1 page 96 from the same doc is 13.15 (should provide a pfail ~2^-128 for a gaussian)
@@ -396,7 +419,7 @@ pub fn post_squashing_and_packing_noise_check(
     // Using paper notations, equation (22) requires all the noise before noise flooding to be taken
     // into account (not just noise squashing), so including the post squashing compression in
     // our case
-    let b_switch_squash = c_err_1 * std_dev_under_modulus_after_packing;
+    let b_switch_squash = c_err_1 * std_dev_under_modulus;
     let b_switch_squash_log2 = b_switch_squash.log2();
 
     println!("b_switch_squash={b_switch_squash}");
@@ -408,9 +431,9 @@ pub fn post_squashing_and_packing_noise_check(
     let is_ok = b_switch_squash <= bound;
 
     if is_ok {
-        println!("PASS: noise after noise squashing and packing respects bound.");
+        println!("PASS: noise {context} respects bound.");
     } else {
-        println!("FAIL: noise after noise squashing and packing is too large.");
+        println!("FAIL: noise {context} is too large.");
     }
 
     is_ok
