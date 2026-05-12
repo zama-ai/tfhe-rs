@@ -271,6 +271,8 @@ impl_scalar_versionize!(char);
 impl_scalar_versionize!(NonZero<u32>);
 impl_scalar_versionize!(NonZero<usize>);
 
+impl_scalar_versionize!(std::time::SystemTime);
+
 impl<T: Versionize> Versionize for Wrapping<T> {
     type Versioned<'vers>
         = Wrapping<T::Versioned<'vers>>

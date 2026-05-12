@@ -37,6 +37,7 @@ pub struct MyStruct {
     tuple: (f32, f64),
     set: HashSet<i128>,
     map: HashMap<char, bool>,
+    timestamp: std::time::SystemTime,
 }
 
 mod backward_compat {
@@ -99,6 +100,7 @@ fn test_types() {
         tuple: (std::f32::consts::PI, std::f64::consts::E),
         set: HashSet::from_iter([1, 2, 3]),
         map: HashMap::from_iter([('t', true), ('e', false), ('s', true)]),
+        timestamp: std::time::SystemTime::now(),
     };
 
     let mut ser = Vec::new();
