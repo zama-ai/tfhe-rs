@@ -591,9 +591,12 @@ mod test {
     };
     use crate::prelude::FheDecrypt;
     use crate::shortint::oprf::test::test_uniformity;
-    use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    use crate::shortint::parameters::test_params::{
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
+    };
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
-    use crate::{generate_keys, set_server_key, ConfigBuilder, FheUint8, Seed};
+    use crate::{generate_keys, set_server_key, ConfigBuilder, FheInt8, FheUint8, Seed};
     use num_bigint::BigUint;
     use rand::{thread_rng, Rng};
     use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -890,6 +893,32 @@ mod test {
         assert!(result_bounded < (1 << 3));
     }
 
+    #[test]
+    fn test_oprf_bounded_zero() {
+        let config = ConfigBuilder::with_custom_parameters(
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .use_dedicated_oprf_key(true)
+        .build();
+
+        let (client_key, server_key) = generate_keys(config);
+        set_server_key(server_key);
+
+        // Do not use static seed in production
+        let ct_unsigned_bounded = FheUint8::generate_oblivious_pseudo_random_bounded(Seed(0), 0);
+        assert!(ct_unsigned_bounded.is_trivial());
+        let result_unsigned_bounded: u8 = ct_unsigned_bounded.decrypt(&client_key);
+        // PRF with 0 bits is equivalent to modulo 1 meaning only 0 is generated
+        assert_eq!(result_unsigned_bounded, 0);
+
+        // Do not use static seed in production
+        let ct_signed_bounded = FheInt8::generate_oblivious_pseudo_random_bounded(Seed(0), 0);
+        assert!(ct_signed_bounded.is_trivial());
+        let result_signed_bounded: i8 = ct_signed_bounded.decrypt(&client_key);
+        // PRF with 0 bits is equivalent to modulo 1 meaning only 0 is generated
+        assert_eq!(result_signed_bounded, 0);
+    }
+
     #[cfg(feature = "gpu")]
     mod gpu {
         use super::*;
@@ -903,6 +932,29 @@ mod test {
         use rayon::iter::IndexedParallelIterator;
         use rayon::prelude::{IntoParallelRefIterator, ParallelSlice};
         use rayon::ThreadPoolBuilder;
+
+        #[test]
+        fn test_oprf_bounded_zero() {
+            for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+                let client_key = setup_fn();
+
+                // Do not use static seed in production
+                let ct_unsigned_bounded =
+                    FheUint8::generate_oblivious_pseudo_random_bounded(Seed(0), 0);
+                assert!(ct_unsigned_bounded.is_trivial());
+                let result_unsigned_bounded: u8 = ct_unsigned_bounded.decrypt(&client_key);
+                // PRF with 0 bits is equivalent to modulo 1 meaning only 0 is generated
+                assert_eq!(result_unsigned_bounded, 0);
+
+                // Do not use static seed in production
+                let ct_signed_bounded =
+                    FheInt8::generate_oblivious_pseudo_random_bounded(Seed(0), 0);
+                assert!(ct_signed_bounded.is_trivial());
+                let result_signed_bounded: i8 = ct_signed_bounded.decrypt(&client_key);
+                // PRF with 0 bits is equivalent to modulo 1 meaning only 0 is generated
+                assert_eq!(result_signed_bounded, 0);
+            }
+        }
 
         #[test]
         fn test_oprf_gpu() {

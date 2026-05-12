@@ -13,6 +13,8 @@ use crate::core_crypto::entities::{LweCiphertext, LweCompactCiphertextList, Plai
 use crate::core_crypto::prelude::lwe_compact_ciphertext_list_add_assign;
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::key_switching_key::KeySwitchingKeyMaterialView;
+use crate::shortint::oprf::{OprfSeed, RandomBitsRleLeBytes};
+use crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR;
 use crate::shortint::{Ciphertext, CompactPublicKey, PBSOrder};
 
 use rayon::prelude::*;
@@ -105,6 +107,22 @@ impl From<blake3::Hasher> for ReRandomizationSeedHasher {
 ///
 /// This type cannot be cloned or copied, as a seed should only be used once.
 pub struct ReRandomizationSeed(pub(crate) XofSeed);
+
+impl ReRandomizationSeed {
+    pub(crate) fn new_prf_rerand_seed(
+        hash_algo: ReRandomizationHashAlgo,
+        prf_seed: impl OprfSeed,
+        random_bits_rle_bytes: &RandomBitsRleLeBytes,
+    ) -> Self {
+        let mut seed_gen = ReRandomizationSeedGen::new_prf_rerand_seed_gen(
+            hash_algo,
+            prf_seed,
+            random_bits_rle_bytes,
+        );
+
+        seed_gen.next_seed()
+    }
+}
 
 /// The context that will be hashed and used to generate unique [`ReRandomizationSeed`].
 ///
@@ -226,6 +244,27 @@ pub struct ReRandomizationSeedGen {
 }
 
 impl ReRandomizationSeedGen {
+    pub(crate) fn new_prf_rerand_seed_gen(
+        hash_algo: ReRandomizationHashAlgo,
+        prf_seed: impl OprfSeed,
+        random_bits_rle_bytes: &RandomBitsRleLeBytes,
+    ) -> Self {
+        const PRF_RERAND_DOMAIN_SEPARATOR: [u8; XofSeed::DOMAIN_SEP_LEN] = *b"PRF_RRND";
+
+        let mut context = ReRandomizationContext::new_with_hasher(
+            TFHE_PKE_DOMAIN_SEPARATOR,
+            ReRandomizationSeedHasher::new(hash_algo, PRF_RERAND_DOMAIN_SEPARATOR),
+        );
+
+        let prf_seed = prf_seed.into_bytes();
+        let prf_seed = prf_seed.as_ref();
+
+        context.add_bytes(prf_seed);
+        context.add_bytes(random_bits_rle_bytes.get());
+
+        context.finalize()
+    }
+
     pub fn next_seed(&mut self) -> ReRandomizationSeed {
         let current_seed_index = self.next_seed_index;
         self.next_seed_index += 1;
