@@ -1,0 +1,26 @@
+// Same as tfhe::prelude without FheEncrypt
+pub use crate::high_level_api::traits::{
+    BitSlice, CiphertextList, DivRem, FheDecrypt, FheEq, FheKeyswitch, FheMax, FheMin, FheOrd,
+    FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt, FheWait, Flip, IfThenElse, IfThenZero,
+    OverflowingAdd, OverflowingMul, OverflowingNeg, OverflowingSub, ReRandomize, RotateLeft,
+    RotateLeftAssign, RotateRight, RotateRightAssign, ScalarIfThenElse, SquashNoise, Tagged,
+};
+#[cfg(feature = "hpu")]
+pub use crate::high_level_api::traits::{FheHpu, HpuHandle};
+
+pub use crate::conformance::ParameterSetConformant;
+pub use crate::core_crypto::prelude::{CastFrom, CastInto};
+
+pub use crate::high_level_api::array::traits::FheSliceDotProduct;
+
+#[cfg(feature = "gpu")]
+pub use crate::high_level_api::gpu_utils::*;
+#[cfg(feature = "strings")]
+pub use crate::high_level_api::strings::traits::*;
+#[cfg(feature = "gpu")]
+pub use crate::high_level_api::traits::{
+    AddSizeOnGpu, BitAndSizeOnGpu, BitNotSizeOnGpu, BitOrSizeOnGpu, BitXorSizeOnGpu,
+    DivRemSizeOnGpu, DivSizeOnGpu, FheEqSizeOnGpu, FheMaxSizeOnGpu, FheMinSizeOnGpu,
+    FheOrdSizeOnGpu, IfThenElseSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu,
+    RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SizeOnGpu, SubSizeOnGpu,
+};
