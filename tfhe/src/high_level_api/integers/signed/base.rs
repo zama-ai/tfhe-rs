@@ -912,6 +912,27 @@ where
         self.ciphertext.on_cpu().decrypt_trivial()
     }
 
+    /// Returns true if the ciphertext is a trivial encryption
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let non_trivial = FheInt16::encrypt(1u16, &client_key);
+    /// assert!(!non_trivial.is_trivial());
+    ///
+    /// let trivial = FheInt16::encrypt_trivial(2u16);
+    /// assert!(trivial.is_trivial());
+    /// ```
+    pub fn is_trivial(&self) -> bool {
+        self.ciphertext.on_cpu().is_trivial()
+    }
+
     /// Reverse the bit of the signed integer
     ///
     /// # Example
