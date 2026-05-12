@@ -904,10 +904,12 @@ impl HpuNode {
 
         // Fallback entry
         // All uninit IOp will point to 0 length firmware for error detection
+        let error_value = [0_u32;1];
+        let error_entry = tr_table_ofst;
         self.fw_mem
-            .write_cut_at(0, FW_RUNTIME_MAX_WORD + tr_table_ofst, &[0]);
+            .write_cut_at(0, FW_RUNTIME_MAX_WORD + tr_table_ofst, &error_value);
         tracing::debug!("Uninit IOp point to 0x{:x} entry", FW_RUNTIME_MAX_WORD);
-        tr_table_ofst += 1;
+        tr_table_ofst += error_value.len();
 
         for integer_w in config.firmware.integer_w.iter() {
             // Update fw parameters with concrete integer_width
@@ -1008,7 +1010,7 @@ impl HpuNode {
             // NB: ucore expect addr with physical memory offset (i.e. Byte offset
             // NB': ucore understand lut entry as ofst from PHYS_MEM => don't add cut_ofst in
             // the entry
-            let mut tr_lut = vec![0; IOP_NUMBER * MAX_HPU_IN_CLUSTER];
+            let mut tr_lut = vec![(error_entry*std::mem::size_of::<u32>()) as u32; IOP_NUMBER * MAX_HPU_IN_CLUSTER];
 
             for (id, fw_bytes) in id_fw.into_iter() {
                 // Store lookup addr
@@ -1020,22 +1022,22 @@ impl HpuNode {
                 self.fw_mem
                     .write_cut_at(0, FW_RUNTIME_MAX_WORD + tr_table_ofst, fw_words);
                 tracing::debug!(
-                    "Opcode::{:x}.v{}[{} dops] @{tr_table_ofst:x} [{byte_ofst:x}]",
+                    "[{integer_w}]::Opcode::{:x}.v{}[{} dops] @{tr_table_ofst:x} [{byte_ofst:x}]",
                     id.0,
                     id.1,
                     fw_words.len()
                 );
-                tracing::trace!("TrTable::{fw_words:x?}");
+                tracing::trace!("[{integer_w}]::TrTable::{fw_words:x?}");
                 tr_table_ofst += fw_words.len();
             }
             // Write lookup table all at once
             self.fw_mem
-                .write_cut_at(0, (FW_RUNTIME_MAX_WORD + 1) + blk_ofst, tr_lut.as_slice());
+                .write_cut_at(0, FW_RUNTIME_MAX_WORD + blk_ofst, tr_lut.as_slice());
             tracing::debug!(
-                "Fw[{blk_w}]:: lut entry @{blk_ofst:x} [{:x}]",
+                "[{integer_w}]::Fw[{blk_w}]:: lut entry @{blk_ofst:x} [{:x}]",
                 blk_ofst * std::mem::size_of::<u32>()
             );
-            tracing::trace!(" LutTable=> {tr_lut:x?}");
+            tracing::trace!("[{integer_w}]::LutTable=> {tr_lut:x?}");
 
             // Update init_fw_width list enable to runtime check
             self.init_fw_width.push(*integer_w);
