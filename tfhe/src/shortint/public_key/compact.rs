@@ -36,6 +36,8 @@ pub struct CompactPrivateKey<KeyCont: Container<Element = u64>> {
     parameters: CompactPublicKeyEncryptionParameters,
 }
 
+pub const TFHE_PKE_DOMAIN_SEPARATOR: [u8; XofSeed::DOMAIN_SEP_LEN] = *b"TFHE_Enc";
+
 impl<C: Container<Element = u64>> CompactPrivateKey<C> {
     pub fn from_raw_parts(
         key: LweSecretKey<C>,
@@ -493,7 +495,7 @@ fn noise_generator_from_seed(
             seed.len()
         )));
     }
-    let xof_seed = XofSeed::new(seed.to_vec(), *b"TFHE_Enc");
+    let xof_seed = XofSeed::new(seed.to_vec(), TFHE_PKE_DOMAIN_SEPARATOR);
     Ok(NoiseRandomGenerator::new_from_seed(xof_seed))
 }
 
