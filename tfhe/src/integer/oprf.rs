@@ -397,8 +397,10 @@ where
         target_sks: &ServerKey,
     ) -> T {
         assert!(target_sks.message_modulus().0.is_power_of_two());
+        assert!(random_bits_count > 0);
         let message_bits_count = target_sks.message_modulus().0.ilog2() as u64;
         let range_bits_count = message_bits_count * num_blocks;
+        assert!(range_bits_count > 0);
 
         if T::IS_SIGNED {
             let signed_range_bits_count = range_bits_count.saturating_sub(1);

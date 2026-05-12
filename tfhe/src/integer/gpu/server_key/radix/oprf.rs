@@ -176,8 +176,11 @@ where
         target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
+        assert!(target_sks.message_modulus.0.is_power_of_two());
+        assert!(random_bits_count > 0);
         let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
         let range_bits_count = message_bits_count * num_blocks;
+        assert!(range_bits_count > 0);
 
         assert!(
             random_bits_count <= range_bits_count,
@@ -290,8 +293,11 @@ where
         target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> CudaSignedRadixCiphertext {
+        assert!(target_sks.message_modulus.0.is_power_of_two());
+        assert!(random_bits_count > 0);
         let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
         let range_bits_count = message_bits_count * num_blocks;
+        assert!(range_bits_count > 0);
 
         {
             let signed_range_bits_count = range_bits_count.saturating_sub(1);
@@ -386,9 +392,10 @@ where
         result
     }
 
-    // Core private implementation that calls the OPRF backend.
-    // This function contains the main logic for both bounded and unbounded generation.
-    //
+    /// Core private implementation that calls the OPRF backend.
+    /// This function contains the main logic for both bounded and unbounded generation.
+    ///
+    /// Caller must ensure total_random_bits is non 0 otherwise this function will panic.
     fn generate_multiblocks_oblivious_pseudo_random(
         &self,
         result: &mut CudaRadixCiphertext,
@@ -411,13 +418,14 @@ where
         let in_lwe_size = input_lwe_dimension.to_lwe_size();
         let message_bits_count = target_sks.message_modulus.0.ilog2();
 
-        let seeded = create_random_from_seed_modulus_switched(
+        let (seeded, _rle_info) = create_random_from_seed_modulus_switched(
             seed,
             in_lwe_size,
             polynomial_size,
             &[total_random_bits],
             message_bits_count as u64,
         );
+
         let h_seeded_lwe_list: Vec<u64> = seeded
             .into_iter()
             .flat_map(|(seeded, _bits)| {
@@ -471,6 +479,14 @@ where
         }
     }
 
+    /// # Panics
+    ///
+    /// Panics if:
+    /// - `num_input_random_bits` is non 0
+    /// - `target_sks.message_modulus` is not a power of 2
+    /// - `excluded_upper_bound` is a power of 2 use
+    ///   [`Self::par_generate_oblivious_pseudo_random_unsigned_integer_bounded`] instead
+    /// - `excluded_upper_bound.ilog2() + 1` is greater than the output bit count
     pub fn par_generate_oblivious_pseudo_random_unsigned_custom_range(
         &self,
         seed: impl OprfSeed,
@@ -528,7 +544,7 @@ where
             .iter_as::<u64>()
             .collect::<Vec<_>>();
 
-        let seeded = create_random_from_seed_modulus_switched(
+        let (seeded, _rle_info) = create_random_from_seed_modulus_switched(
             seed,
             in_lwe_size,
             polynomial_size,
