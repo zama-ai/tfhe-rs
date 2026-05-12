@@ -191,7 +191,8 @@ def filter_integer_tests(input_args):
     # they will be run e.g. nightly or on demand
     if input_args.all_but_noise and input_args.backend == "cpu":
         # For CPU with all_but_noise, exclude also all noise distribution tests
-        filter_expression.append(f"not test(/^shortint::server_key::.*::tests_noise_distribution::.*/)")
+        filter_expression.append(f"not test(/^shortint::server_key::.*::noise_distribution::.*/)")
+        filter_expression.append(f"not test(/^integer::server_key::.*::noise_distribution::.*/)")
     else:
         # By default, only exclude specific GPU noise check tests
         filter_expression.append(f"not test(/^integer::gpu::server_key::radix::tests_noise_distribution::.*::test_gpu_noise_check.*/)")

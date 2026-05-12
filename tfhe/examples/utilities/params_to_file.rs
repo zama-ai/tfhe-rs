@@ -7,6 +7,11 @@ use tfhe::boolean::parameters::{BooleanParameters, VEC_BOOLEAN_PARAM};
 use tfhe::core_crypto::commons::parameters::{GlweDimension, LweDimension, PolynomialSize};
 use tfhe::core_crypto::prelude::{CiphertextModulus, DynamicDistribution, UnsignedInteger};
 use tfhe::keycache::NamedParam;
+use tfhe::nist_submission::{
+    NIST_PARAMS_NOISE_SQUASHING_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    NIST_PARAM_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    NIST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+};
 use tfhe::shortint::parameters::current_params::{
     VEC_ALL_CLASSIC_PBS_PARAMETERS, VEC_ALL_COMPACT_PUBLIC_KEY_ENCRYPTION_PARAMETERS,
     VEC_ALL_COMPRESSION_PARAMETERS, VEC_ALL_HPU_PARAMETERS, VEC_ALL_KS32_PARAMETERS,
@@ -594,5 +599,35 @@ fn main() {
         "shortint_hpu_parameters_lattice_estimator.sage",
         &hpu_params,
         ParametersFormat::LweGlwe,
+    );
+
+    let nist_classic_pbs = [(
+        AtomicPatternParameters::from(NIST_PARAM_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+        Some("NIST_PARAM_2_CARRY_2_KS_PBS_TUNIFORM_2M128"),
+    )];
+    write_all_params_in_file(
+        "shortint_nist_submission_classic_parameters_lattice_estimator.sage",
+        &nist_classic_pbs,
+        ParametersFormat::LweGlwe,
+    );
+
+    let nist_cpke_params = [(
+        NIST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        Some("NIST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128"),
+    )];
+    write_all_params_in_file(
+        "shortint_nist_submission_cpke_parameters_lattice_estimator.sage",
+        &nist_cpke_params,
+        ParametersFormat::Lwe,
+    );
+
+    let nist_noise_squashing_params = [(
+        NIST_PARAMS_NOISE_SQUASHING_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        Some("NIST_PARAMS_NOISE_SQUASHING_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128"),
+    )];
+    write_all_params_in_file(
+        "shortint_nist_submission_noise_squashing_parameters_lattice_estimator.sage",
+        &nist_noise_squashing_params,
+        ParametersFormat::Glwe,
     );
 }
