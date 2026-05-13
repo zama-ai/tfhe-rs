@@ -121,96 +121,17 @@ where
             "Inputs must have the same number of blocks"
         );
 
-        // To make use if many_lut, we require 1 bit, 1 more bit is required to pack
-        // the condition. Thus 2 bits of carry are required.
-        //
-        // Otherwise we call if_then_else twice, which is less efficient.
-        if self.carry_modulus().0 < (1 << 2) {
-            return rayon::join(
-                || self.if_then_else_parallelized(condition, b, a),
-                || self.if_then_else_parallelized(condition, a, b),
-            );
-        }
-
         let (a, b) = rayon::join(
             || self.clean_for_default_op(a),
             || self.clean_for_default_op(b),
         );
+        let (mut a, mut b) = self.unchecked_flip_parallelized(condition, &*a, &*b);
+        a.blocks_mut()
+            .par_iter_mut()
+            .chain(b.blocks_mut().par_iter_mut())
+            .for_each(|block| self.key.message_extract_assign(block));
 
-        let zero_out_if_true_fn = |packed| {
-            let condition = (packed / self.message_modulus().0) & 1;
-            let value = packed % self.message_modulus().0;
-            (1 - condition) * value
-        };
-
-        let zero_out_if_false_fn = |packed| {
-            let condition = (packed / self.message_modulus().0) & 1;
-            let value = packed % self.message_modulus().0;
-            condition * value
-        };
-
-        let lut = self
-            .key
-            .generate_many_lookup_table(&[&zero_out_if_true_fn, &zero_out_if_false_fn]);
-
-        let scaled_condition = self
-            .key
-            .unchecked_scalar_mul(&condition.0, self.message_modulus().0 as u8);
-
-        let map_condition_lut_on_blocks =
-            |blocks: &[Ciphertext]| -> (Vec<Ciphertext>, Vec<Ciphertext>) {
-                let mut left = Vec::with_capacity(blocks.len());
-                let mut right = Vec::with_capacity(blocks.len());
-                blocks
-                    .par_iter()
-                    .map(|block| {
-                        let block = self.key.unchecked_add(block, &scaled_condition);
-                        let mut resulting_blocks = self.key.apply_many_lookup_table(&block, &lut);
-
-                        let second_result = resulting_blocks.pop().unwrap();
-                        let first_result = resulting_blocks.pop().unwrap();
-
-                        (first_result, second_result)
-                    })
-                    .unzip_into_vecs(&mut left, &mut right);
-                (left, right)
-            };
-
-        let (
-            (mut a_blocks_if_cond, mut a_blocks_if_not_cond),
-            (b_blocks_if_cond, b_blocks_if_not_cond),
-        ) = rayon::join(
-            || map_condition_lut_on_blocks(a.blocks()),
-            || map_condition_lut_on_blocks(b.blocks()),
-        );
-
-        let clean_lut = self
-            .key
-            .generate_lookup_table(|x| x % self.message_modulus().0);
-
-        let inplace_add_then_clean_blocks =
-            |lhs_blocks: &mut [Ciphertext], rhs_blocks: &[Ciphertext]| {
-                lhs_blocks
-                    .par_iter_mut()
-                    .zip(rhs_blocks.par_iter())
-                    .for_each(|(lhs, rhs)| {
-                        self.key.unchecked_add_assign(lhs, rhs);
-                        self.key.apply_lookup_table_assign(lhs, &clean_lut);
-                    });
-            };
-        rayon::join(
-            || {
-                inplace_add_then_clean_blocks(&mut a_blocks_if_cond, &b_blocks_if_not_cond);
-            },
-            || {
-                inplace_add_then_clean_blocks(&mut a_blocks_if_not_cond, &b_blocks_if_cond);
-            },
-        );
-
-        (
-            T::from_blocks(a_blocks_if_cond),
-            T::from_blocks(a_blocks_if_not_cond),
-        )
+        (a, b)
     }
 }
 
@@ -985,6 +906,122 @@ impl ServerKey {
                     &lut,
                 );
             });
+    }
+
+    /// Performs `if condition { (b, a) } else { (a, b) }` in fhe
+    ///
+    /// * Blocks of both `a` and `b` must have no carries and noise_level <= 2
+    /// * Outputs will have no carries but noise_level == 2
+    pub(crate) fn unchecked_flip_parallelized<T>(
+        &self,
+        condition: &BooleanBlock,
+        a: &T,
+        b: &T,
+    ) -> (T, T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        assert_eq!(
+            a.blocks().len(),
+            b.blocks().len(),
+            "Inputs must have the same number of blocks"
+        );
+
+        // To make use if many_lut, we require 1 bit, 1 more bit is required to pack
+        // the condition. Thus 2 bits of carry are required.
+        //
+        // Otherwise we call if_then_else twice, which is less efficient.
+        if self.carry_modulus().0 < (1 << 2) {
+            let unchecked_if_then_else_parallelized_no_cleanup =
+                |condition: &BooleanBlock, true_ct, false_ct| {
+                    let condition_block = &condition.0;
+                    let do_clean_message = false;
+                    self.unchecked_programmable_if_then_else_parallelized(
+                        condition_block,
+                        true_ct,
+                        false_ct,
+                        |x| x == 1,
+                        do_clean_message,
+                    )
+                };
+            return rayon::join(
+                || unchecked_if_then_else_parallelized_no_cleanup(condition, b, a),
+                || unchecked_if_then_else_parallelized_no_cleanup(condition, a, b),
+            );
+        }
+
+        // We move the block message by one bit: it is the most flexible option (at least for 2_2)
+        // as it allows the block to have noise_level <= 2 or the condition block to have
+        // noise_level <= 2.
+        //
+        // A drawback is that everyblock needs to be cloned to be shifted, as opposed to
+        // only the condition block, but it's an ok drawback
+        assert!(a.blocks().iter().chain(b.blocks().iter()).all(|block| {
+            self.key
+                .max_noise_level
+                .validate(block.noise_level() * 2 + condition.0.noise_level())
+                .is_ok()
+        }));
+
+        let zero_out_if_true_fn = |packed| {
+            let condition = packed & 1;
+            let value = packed / 2;
+            (1 - condition) * value
+        };
+
+        let zero_out_if_false_fn = |packed| {
+            let condition = packed & 1;
+            let value = packed / 2;
+            condition * value
+        };
+
+        let lut = self
+            .key
+            .generate_many_lookup_table(&[&zero_out_if_true_fn, &zero_out_if_false_fn]);
+
+        let map_condition_lut_on_blocks =
+            |blocks: &[Ciphertext]| -> (Vec<Ciphertext>, Vec<Ciphertext>) {
+                let mut left = Vec::with_capacity(blocks.len());
+                let mut right = Vec::with_capacity(blocks.len());
+                blocks
+                    .par_iter()
+                    .map(|block| {
+                        let mut block = self.key.unchecked_scalar_mul(block, 2);
+                        self.key.unchecked_add_assign(&mut block, &condition.0);
+                        let mut resulting_blocks = self.key.apply_many_lookup_table(&block, &lut);
+
+                        let second_result = resulting_blocks.pop().unwrap();
+                        let first_result = resulting_blocks.pop().unwrap();
+
+                        (first_result, second_result)
+                    })
+                    .unzip_into_vecs(&mut left, &mut right);
+                (left, right)
+            };
+
+        let (
+            (mut a_blocks_if_cond, mut a_blocks_if_not_cond),
+            (b_blocks_if_cond, b_blocks_if_not_cond),
+        ) = rayon::join(
+            || map_condition_lut_on_blocks(a.blocks()),
+            || map_condition_lut_on_blocks(b.blocks()),
+        );
+
+        for (a, b) in a_blocks_if_cond.iter_mut().zip(b_blocks_if_not_cond.iter()) {
+            self.key.unchecked_add_assign(a, b);
+            // By construction, one of the two input encrypts only zeros
+            a.degree.0 = self.message_modulus().0 - 1;
+        }
+        for (a, b) in a_blocks_if_not_cond.iter_mut().zip(b_blocks_if_cond.iter()) {
+            self.key.unchecked_add_assign(a, b);
+            // By construction, one of the two input encrypts only zeros
+            a.degree.0 = self.message_modulus().0 - 1;
+        }
+
+        (
+            T::from_blocks(a_blocks_if_cond),
+            T::from_blocks(a_blocks_if_not_cond),
+        )
     }
 
     fn scalar_flip_parallelized<T, Scalar>(
