@@ -132,3 +132,9 @@ user = "ubuntu"
 script_path = "ci/terraform_scripts/scaleway/multi-h100-sxm5/terraform.tf"
 instance_type = "H100-1-80G"
 user = "ubuntu"
+
+[backend.terraform.scaleway-4-l40]
+script_path = "ci/terraform_scripts/scaleway/multi-h100-sxm5/terraform.tf"
+instance_type = "L40S-4-48G"
+user = "ubuntu"
+

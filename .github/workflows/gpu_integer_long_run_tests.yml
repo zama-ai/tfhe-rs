@@ -77,8 +77,8 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: hyperstack
-          profile: 4-l40
+          backend: terraform
+          profile: scaleway-4-l40
 
   cuda-tests:
     name: gpu_integer_long_run_tests/cuda-tests
