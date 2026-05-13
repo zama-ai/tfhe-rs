@@ -20,7 +20,9 @@ pub use crate::shortint::CheckError;
 use crate::shortint::{CarryModulus, MessageModulus};
 pub use radix::scalar_mul::ScalarMultiplier;
 pub use radix::scalar_sub::TwosComplementNegation;
-pub use radix_parallel::{MatchValues, MiniUnsignedInteger, Reciprocable};
+pub use radix_parallel::{
+    BitonicShuffleKeySize, CollisionProbability, MatchValues, MiniUnsignedInteger, Reciprocable,
+};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 

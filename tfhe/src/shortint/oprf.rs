@@ -906,6 +906,9 @@ pub(crate) fn create_random_from_seed_modulus_switched(
             bit_count % random_bits_per_block,
         );
 
+        let num_blocks = num_full_blocks + u64::from(last_block_bits != 0);
+        hasher.update(num_blocks.to_le_bytes());
+
         if num_full_blocks != 0 {
             hasher.update(num_full_blocks.to_le_bytes());
             hasher.update(random_bits_per_block.to_le_bytes());
