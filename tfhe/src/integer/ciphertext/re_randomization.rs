@@ -259,13 +259,38 @@ pub(crate) struct RadixRandomBitsRLE {
 }
 
 impl RadixRandomBitsRLE {
-    pub fn new_boolean() -> Self {
+    pub(crate) fn new_boolean() -> Self {
         Self {
             data: vec![RandomBitsRLE {
                 block_count: 1,
                 bits_per_block: 1,
             }],
         }
+    }
+
+    pub(crate) fn new_radix(bit_count: u64, bits_per_block: u64) -> Self {
+        let (full_blocks, bits_remainder) =
+            (bit_count / bits_per_block, bit_count % bits_per_block);
+
+        let data = if bits_remainder == 0 {
+            vec![RandomBitsRLE {
+                block_count: full_blocks,
+                bits_per_block,
+            }]
+        } else {
+            vec![
+                RandomBitsRLE {
+                    block_count: full_blocks,
+                    bits_per_block,
+                },
+                RandomBitsRLE {
+                    block_count: 1,
+                    bits_per_block: bits_remainder,
+                },
+            ]
+        };
+
+        Self { data }
     }
 
     pub(crate) fn block_count(&self) -> u64 {

@@ -1,7 +1,12 @@
 use super::{FheIntId, FheUint, FheUintId};
 use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKey;
-use crate::high_level_api::re_randomization::ReRandomizationMetadata;
+use crate::high_level_api::re_randomization::{
+    ReRandomizationMetadata, ReRandomizationMode, ReRandomize,
+};
+use crate::integer::ciphertext::{
+    RadixRandomBitsRLE, ReRandomizationHashAlgo, ReRandomizationSeed,
+};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::shortint::{MessageModulus, OprfSeed};
@@ -66,16 +71,57 @@ impl<Id: FheUintId> FheUint<Id> {
         })
     }
 
-    // pub fn generate_oblivious_pseudo_random_and_re_randomize<
-    //     'a,
-    //     RRD: Into<ReRandomizationMode<'a>>,
-    // >(
-    //     prf_seed: impl OprfSeed,
-    //     re_randomization_mode: RRD,
-    //     re_randomization_hash_algo: ReRandomizationHashAlgo,
-    // ) -> crate::Result<Self> {
-    //     todo!()
-    // }
+    pub fn generate_oblivious_pseudo_random_and_re_randomize<
+        'a,
+        RRD: Into<ReRandomizationMode<'a>>,
+    >(
+        prf_seed: impl OprfSeed,
+        re_randomization_mode: RRD,
+        re_randomization_hash_algo: ReRandomizationHashAlgo,
+    ) -> crate::Result<Self> {
+        let prf_seed = prf_seed.into_bytes();
+        let prf_seed = prf_seed.as_ref();
+
+        let mut random_ct = Self::generate_oblivious_pseudo_random(prf_seed);
+
+        let random_bits = Id::num_bits();
+
+        // If there are no blocks, return early to simplify checks in the code that comes after
+        if random_bits == 0 {
+            return Ok(random_ct);
+        }
+
+        let output_bit_sizes = match &random_ct.ciphertext {
+            super::unsigned::RadixCiphertext::Cpu(base_radix_ciphertext) => {
+                let message_modulus = base_radix_ciphertext.blocks[0].message_modulus;
+                let message_bits: u64 = message_modulus.0.ilog2().into();
+                RadixRandomBitsRLE::new_radix(random_bits as u64, message_bits)
+            }
+            #[cfg(feature = "gpu")]
+            super::unsigned::RadixCiphertext::Cuda(cuda_unsigned_radix_ciphertext) => {
+                let message_modulus = cuda_unsigned_radix_ciphertext
+                    .ciphertext
+                    .info
+                    .message_modulus;
+                let message_bits: u64 = message_modulus.0.ilog2().into();
+                RadixRandomBitsRLE::new_radix(random_bits as u64, message_bits)
+            }
+            #[cfg(feature = "hpu")]
+            super::unsigned::RadixCiphertext::Hpu(hpu_radix_ciphertext) => {
+                panic!("HPU does not support CPKReRandomize.");
+            }
+        };
+
+        let rerand_seed = ReRandomizationSeed::new_prf_rerand_seed(
+            re_randomization_hash_algo,
+            prf_seed,
+            core::slice::from_ref(&output_bit_sizes),
+        );
+
+        random_ct.re_randomize(re_randomization_mode, rerand_seed)?;
+
+        Ok(random_ct)
+    }
 
     #[cfg(feature = "gpu")]
     /// Returns the amount of memory required to execute generate_oblivious_pseudo_random
