@@ -20,7 +20,7 @@ sha2 = "0.10"
 [dev-dependencies]
 dylint_testing = "5.0.0"
 serde = { version = "1.0", features = ["derive"] }
-tfhe-versionable = { version = "0.7.0", path = "../../tfhe-versionable" }
+tfhe-versionable = { version = "0.8.0", path = "../../tfhe-versionable" }
 
 [package.metadata.rust-analyzer]
 rustc_private = true
