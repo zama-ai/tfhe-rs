@@ -443,16 +443,16 @@ where
         let in_lwe_size = input_lwe_dimension.to_lwe_size();
         let message_bits_count = target_sks.message_modulus.0.ilog2();
 
-        let (seeded, _last_block_bits) = create_random_from_seed_modulus_switched(
+        let seeded = create_random_from_seed_modulus_switched(
             seed,
             in_lwe_size,
             polynomial_size,
-            total_random_bits,
+            &[total_random_bits],
             message_bits_count as u64,
         );
         let h_seeded_lwe_list: Vec<u64> = seeded
             .into_iter()
-            .flat_map(|seeded| {
+            .flat_map(|(seeded, _bits)| {
                 raw_seeded_msed_to_lwe(&seeded, target_sks.ciphertext_modulus).into_container()
             })
             .collect();
@@ -558,17 +558,17 @@ where
             .iter_as::<u64>()
             .collect::<Vec<_>>();
 
-        let (seeded, _last_block_bits) = create_random_from_seed_modulus_switched(
+        let seeded = create_random_from_seed_modulus_switched(
             seed,
             in_lwe_size,
             polynomial_size,
-            num_input_random_bits,
+            &[num_input_random_bits],
             message_bits_count,
         );
 
         let h_seeded_lwe_list: Vec<u64> = seeded
             .into_iter()
-            .flat_map(|seeded| {
+            .flat_map(|(seeded, _bits)| {
                 raw_seeded_msed_to_lwe(&seeded, target_sks.ciphertext_modulus).into_container()
             })
             .collect();
