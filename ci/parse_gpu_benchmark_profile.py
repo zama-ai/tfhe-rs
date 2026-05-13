@@ -12,7 +12,15 @@ BACKEND_MAP = {
 
 
 def parse_profile(profile_string, output_file, slab_toml):
-    backend_prefix, rest = profile_string.split("::", 1)
+    parts = profile_string.split("::", 1)
+    if len(parts) != 2:
+        print(
+            f"Error: invalid profile format '{profile_string}'.\n"
+            f"Expected format: 'backend::profile-name (hardware-name)'",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    backend_prefix, rest = parts
 
     split_rest = rest.split()
     if len(split_rest) != 2:
