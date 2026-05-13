@@ -1,7 +1,6 @@
 //! Module containing primitives pertaining to the generation of
 //! [`standard CommonMask LWE bootstrap keys`](`CmLweBootstrapKey`).
 
-use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::random::{Distribution, Uniform};
 use crate::core_crypto::commons::traits::*;
@@ -95,77 +94,4 @@ pub struct CmBootstrapKeys<Scalar: UnsignedInteger> {
     pub big_lwe_sk: Vec<LweSecretKey<Vec<Scalar>>>,
     pub bsk: CmLweBootstrapKeyOwned<Scalar>,
     pub fbsk: FourierCmLweBootstrapKeyOwned,
-}
-
-pub fn generate_cm_pbs_keys(
-    params: &CmApParams,
-    encryption_random_generator: &mut EncryptionRandomGenerator<DefaultRandomGenerator>,
-    secret_random_generator: &mut SecretRandomGenerator<DefaultRandomGenerator>,
-) -> CmBootstrapKeys<u64> {
-    let ciphertext_modulus = params.ciphertext_modulus;
-
-    let cm_dimension = params.cm_dimension;
-
-    let glwe_noise_distribution = params.glwe_noise_distribution;
-
-    // Create the LweSecretKey
-    let input_lwe_secret_keys = (0..cm_dimension.0)
-        .map(|_| {
-            allocate_and_generate_new_binary_lwe_secret_key(
-                params.lwe_dimension,
-                secret_random_generator,
-            )
-        })
-        .collect_vec();
-    let output_glwe_secret_keys = (0..cm_dimension.0)
-        .map(|_| {
-            allocate_and_generate_new_binary_glwe_secret_key(
-                params.glwe_dimension,
-                params.polynomial_size,
-                secret_random_generator,
-            )
-        })
-        .collect_vec();
-
-    let output_lwe_secret_keys = output_glwe_secret_keys
-        .iter()
-        .map(|a| a.clone().into_lwe_secret_key())
-        .collect_vec();
-
-    let mut bsk = CmLweBootstrapKey::new(
-        0,
-        params.glwe_dimension,
-        cm_dimension,
-        params.polynomial_size,
-        params.base_log_bs,
-        params.level_bs,
-        params.lwe_dimension,
-        ciphertext_modulus,
-    );
-
-    par_generate_cm_lwe_bootstrap_key(
-        &input_lwe_secret_keys,
-        &output_glwe_secret_keys,
-        &mut bsk,
-        glwe_noise_distribution,
-        encryption_random_generator,
-    );
-
-    let mut fbsk = FourierCmLweBootstrapKey::new(
-        params.lwe_dimension,
-        params.glwe_dimension,
-        cm_dimension,
-        params.polynomial_size,
-        params.base_log_bs,
-        params.level_bs,
-    );
-
-    par_convert_standard_cm_lwe_bootstrap_key_to_fourier(&bsk, &mut fbsk);
-
-    CmBootstrapKeys {
-        small_lwe_sk: input_lwe_secret_keys,
-        big_lwe_sk: output_lwe_secret_keys,
-        bsk,
-        fbsk,
-    }
 }
