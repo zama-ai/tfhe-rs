@@ -46,9 +46,12 @@ resource "scaleway_instance_security_group" "github_runner" {
   outbound_default_policy = "accept"
 }
 
-resource "scaleway_instance_server" "multi_h100_sxm5" {
+data "scaleway_instance_image" "gpu_benchmark_image" {
+  name = "tfhe-rs-ubuntu-24-cuda"
+}
+  resource "scaleway_instance_server" "multi_h100_sxm5" {
   project_id = var.project_id
-  image      = "ubuntu_noble_gpu_os_12"
+  image      = data.scaleway_instance_image.gpu_benchmark_image.id
   type       = var.instance_type
   name       = var.instance_label
 
