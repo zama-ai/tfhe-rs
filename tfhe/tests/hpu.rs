@@ -151,6 +151,14 @@ mod hpu_test {
         T: UnsignedInteger,
         F: Fn(&[u128], &[u128]) -> Vec<T>,
     {
+        // Check if current configured cluster has enough node
+        let nodes = device.config().fpga.node_id.len();
+        let proto_max_nodes = proto.used_nodes.max_node() as usize;
+        if proto_max_nodes > nodes {
+            println!("HpuDevice hasn't enough node to execute {iop:?} [get: {nodes}, req: {proto_max_nodes}].",);
+            return false;
+        }
+
         // Check if user ask for test over trivial ciphertext
         let (test_trivial, sks) = match std::env::var("HPU_TEST_TRIVIAL") {
             Ok(var) => {
@@ -801,6 +809,14 @@ mod hpu_test {
         // Since all inputs are generated upfront, iteration number is fixed to 256 here.
         // This prevent deadlock on ciphertext allocation
         let iter = 128;
+        // Check if current configured cluster has enough node
+        let proto = "[2]<H,H>::<N,N><0>".parse::<hpu_asm::IOpProto>().unwrap();
+        let nodes = device.config().fpga.node_id.len();
+        let proto_max_nodes = proto.used_nodes.max_node() as usize;
+        if proto_max_nodes > nodes {
+            println!("HpuDevice hasn't enough node to execute mhdma_test [get: {nodes}, req: {proto_max_nodes}].",);
+            return false;
+        }
 
         // Check if user ask for test over trivial ciphertext
         let (test_trivial, sks) = match (std::env::var("HPU_TEST_TRIVIAL")) {
@@ -822,7 +838,6 @@ mod hpu_test {
         //  with the node id you want to target.
         // This will fallback in mono-hpu setup
         let targeted_node = hpu_asm::PhysId(device.config().fpga.node_id[0]);
-        let proto = "[2]<H,H>::<N,N><0>".parse::<hpu_asm::IOpProto>().unwrap();
         let test_inputs = (0..iter)
             .map(|_| {
                 // Generate inputs ciphertext
