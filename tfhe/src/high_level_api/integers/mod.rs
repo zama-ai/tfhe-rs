@@ -68,7 +68,7 @@ pub trait IntegerId: FheId + 'static {
     fn num_bits() -> usize;
 
     fn num_blocks(message_modulus: MessageModulus) -> usize {
-        Self::num_bits() / message_modulus.0.ilog2() as usize
+        Self::num_bits().div_ceil(message_modulus.0.ilog2() as usize)
     }
 }
 
