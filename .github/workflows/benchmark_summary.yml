@@ -60,6 +60,7 @@ jobs:
       backend: ${{ steps.parse_profile.outputs.backend }}
       profile: ${{ steps.parse_profile.outputs.profile }}
       hardware_name: ${{ steps.parse_profile.outputs.hardware }}
+      cloud_provider: ${{ steps.parse_profile.outputs.cloud_provider }}
     steps:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -100,6 +101,7 @@ jobs:
       backend: ${{ needs.parse-gpu-inputs.outputs.backend }}
       profile: ${{ needs.parse-gpu-inputs.outputs.profile }}
       hardware_name: ${{ needs.parse-gpu-inputs.outputs.hardware_name }}
+      cloud_provider: ${{ needs.parse-gpu-inputs.outputs.cloud_provider }}
       command: summary
       bench_type: ${{ inputs.bench_type }}
       params_type: classical + multi_bit

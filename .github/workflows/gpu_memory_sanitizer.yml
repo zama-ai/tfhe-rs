@@ -72,6 +72,7 @@ jobs:
       (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true')
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
+      cloud-provider: ${{ steps.start-github-instance.outputs.cloud-provider || 'hyperstack' }}
     steps:
       - name: Start remote instance
         id: start-remote-instance
@@ -90,7 +91,10 @@ jobs:
         id: start-github-instance
         if: env.SECRETS_AVAILABLE == 'false'
         run: |
-          echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
+          {
+            echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}";
+            echo "cloud-provider=github";
+          } >> "$GITHUB_OUTPUT"
 
   cuda-tests-linux:
     name: gpu_memory_sanitizer/cuda-tests-linux
@@ -122,7 +126,7 @@ jobs:
         with:
           cuda-version: ${{ matrix.cuda }}
           gcc-version: ${{ matrix.gcc }}
-          github-instance: ${{ env.SECRETS_AVAILABLE == 'false' }}
+          cloud-provider: ${{ needs.setup-instance.outputs.cloud-provider }}
 
       - name: Find tools
         run: |

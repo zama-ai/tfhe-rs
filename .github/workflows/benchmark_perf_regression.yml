@@ -175,6 +175,7 @@ jobs:
         with:
           cuda-version: ${{ matrix.cuda }}
           gcc-version: ${{ matrix.gcc }}
+          cloud-provider: ${{ needs.prepare-benchmarks.outputs.slab-backend }}
 
   regression-benchmarks:
     name: benchmark_perf_regression/regression-benchmarks

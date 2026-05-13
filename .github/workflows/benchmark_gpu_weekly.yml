@@ -19,6 +19,7 @@ jobs:
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
       profile: multi-h100-sxm5
+      cloud_provider: hyperstack
       hardware_name: n3-H100-SXM5x8
       command: summary
       bench_type: both

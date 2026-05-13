@@ -94,6 +94,7 @@ jobs:
     if: inputs.run-gpu-integer-benchmarks
     with:
       profile: multi-h100-sxm5
+      cloud_provider: hyperstack
       hardware_name: n3-H100-SXM5x8
       command: integer_multi_bit,hlapi_erc7984
       op_flavor: fast_default
@@ -155,6 +156,7 @@ jobs:
     if: inputs.run-gpu-core-crypto-benchmarks
     with:
       profile: multi-h100-sxm5
+      cloud_provider: hyperstack
       hardware_name: n3-H100-SXM5x8
       command: pbs, ks_pbs
       bench_type: latency
@@ -175,6 +177,7 @@ jobs:
     if: inputs.run-gpu-zk-benchmarks
     with:
       profile: multi-h100-sxm5
+      cloud_provider: hyperstack
       hardware_name: n3-H100-SXM5x8
       command: integer_zk
       op_flavor: default

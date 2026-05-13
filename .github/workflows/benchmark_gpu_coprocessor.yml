@@ -62,6 +62,7 @@ jobs:
       backend: ${{ steps.parse_profile.outputs.backend }}
       profile: ${{ steps.parse_profile.outputs.profile }}
       hardware_name: ${{ steps.parse_profile.outputs.hardware }}
+      cloud_provider: ${{ steps.parse_profile.outputs.cloud_provider }}
     steps:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -170,7 +171,7 @@ jobs:
         with:
           cuda-version: ${{ matrix.cuda }}
           gcc-version: ${{ matrix.gcc }}
-          github-instance: ${{ env.SECRETS_AVAILABLE == 'false' }}
+          cloud-provider: ${{ needs.parse-inputs.outputs.cloud_provider }}
 
       - name: Check fhEVM and TFHE-rs repos
         run: |

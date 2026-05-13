@@ -77,6 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
+      cloud-provider: ${{ steps.start-github-instance.outputs.cloud-provider || 'hyperstack' }}
     steps:
       - name: Start remote instance
         id: start-remote-instance
@@ -95,7 +96,10 @@ jobs:
         id: start-github-instance
         if: env.SECRETS_AVAILABLE == 'false'
         run: |
-          echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
+          {
+            echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}";
+            echo "cloud-provider=github";
+          } >> "$GITHUB_OUTPUT"
 
   cuda-tests-linux:
     name: gpu_unsigned_integer_classic_tests/cuda-tests-linux
@@ -126,7 +130,7 @@ jobs:
         with:
           cuda-version: ${{ matrix.cuda }}
           gcc-version: ${{ matrix.gcc }}
-          github-instance: ${{ env.SECRETS_AVAILABLE == 'false' }}
+          cloud-provider: ${{ needs.setup-instance.outputs.cloud-provider }}
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
