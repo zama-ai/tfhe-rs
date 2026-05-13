@@ -61,6 +61,8 @@ jobs:
               - tfhe/src/shortint/parameters/**
               - tfhe/src/high_level_api/**
               - '.github/workflows/gpu_memory_sanitizer_h100.yml'
+              - '.github/actions/gpu_setup/action.yml'
+              - ci/slab.toml
 
   setup-instance:
     name: gpu_memory_sanitizer/setup-instance
@@ -80,8 +82,8 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: hyperstack
-          profile: scaleway::single-h100
+          backend: terraform
+          profile: scaleway-1-h100
 
       # This instance will be spawned especially for pull-request from forked repository
       - name: Start GitHub instance

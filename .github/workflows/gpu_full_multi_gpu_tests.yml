@@ -66,6 +66,8 @@ jobs:
               - 'tfhe/docs/**/**.md'
               - '.github/workflows/**_multi_gpu_tests.yml'
               - scripts/integer-tests.sh
+              - '.github/actions/gpu_setup/action.yml'
+              - ci/slab.toml
 
   setup-instance:
     name: gpu_full_multi_gpu_tests/setup-instance

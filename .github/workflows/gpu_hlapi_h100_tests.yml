@@ -66,6 +66,8 @@ jobs:
               - tfhe/src/c_api/**
               - 'tfhe/docs/**/**.md'
               - '.github/workflows/gpu_hlapi_h100_tests.yml'
+              - '.github/actions/gpu_setup/action.yml'
+              - ci/slab.toml
             core_crypto:
               - tfhe/src/core_crypto/gpu/**
 

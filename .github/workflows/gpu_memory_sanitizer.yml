@@ -61,6 +61,8 @@ jobs:
               - tfhe/src/shortint/parameters/**
               - tfhe/src/high_level_api/**
               - '.github/workflows/gpu_memory_sanitizer.yml'
+              - '.github/actions/gpu_setup/action.yml'
+              - ci/slab.toml
 
   setup-instance:
     name: gpu_memory_sanitizer/setup-instance

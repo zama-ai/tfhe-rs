@@ -66,6 +66,8 @@ jobs:
               - tfhe/src/c_api/**
               - '.github/workflows/gpu_signed_integer_h100_tests.yml'
               - scripts/integer-tests.sh
+              - '.github/actions/gpu_setup/action.yml'
+              - ci/slab.toml
             core_crypto:
               - tfhe/src/core_crypto/gpu/**
 

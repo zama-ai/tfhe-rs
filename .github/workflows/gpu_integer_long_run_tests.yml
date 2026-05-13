@@ -56,6 +56,8 @@ jobs:
               - tfhe/src/integer/gpu/**
               - tfhe/src/shortint/parameters/**
               - '.github/workflows/gpu_integer_long_run_tests.yml'
+              - '.github/actions/gpu_setup/action.yml'
+              - ci/slab.toml
 
   setup-instance:
     name: gpu_integer_long_run_tests/setup-instance
