@@ -335,7 +335,7 @@ impl ToAsm for PeMemInsn {
 
 impl FromAsm for field::PeSyncInsn {
     fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, ParsingError> {
-        if args.len() != 1 {
+        if args.len() < 1 {
             return Err(ParsingError::ArgNumber(1, args.len()));
         }
 
@@ -344,7 +344,7 @@ impl FromAsm for field::PeSyncInsn {
             _ => {
                 return Err(ParsingError::ArgType(
                     "Arg::IOpId".to_string(),
-                    args[1].clone(),
+                    args[0].clone(),
                 ))
             }
         };

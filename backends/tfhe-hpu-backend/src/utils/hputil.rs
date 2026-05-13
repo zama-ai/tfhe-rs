@@ -1,7 +1,6 @@
 //!
 //! Utility application used to probe Hpu status
 //! Enable manual step by step debug
-use hw_regmap::regmap::parser::WriteAccess;
 use hw_regmap::FlatRegmap;
 use strum::{EnumIter, EnumString, IntoEnumIterator};
 use tfhe_hpu_backend::ffi;
@@ -399,7 +398,7 @@ fn read_mem(hw: &mut ffi::HpuHw, addr: u64, size_b: usize) -> Vec<u8> {
 
 /// Display memory content in a pretty and understandable way
 /// Data is passed as mutable vector to ease zero padding
-fn pretty_display(mut data: Vec<u8>, addr: u64, byte_per_line: usize) {
+fn pretty_display(data: Vec<u8>, addr: u64, byte_per_line: usize) {
     println!("@{: >8}::{: >16}_{: >16}", "address", "MSB", "LSB");
     for (idx, chunks) in data.chunks(byte_per_line).enumerate() {
         print!("@{:>8x} :: ", addr + (byte_per_line * idx) as u64);

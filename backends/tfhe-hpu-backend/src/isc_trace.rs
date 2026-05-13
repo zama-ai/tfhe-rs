@@ -169,7 +169,6 @@ impl IscTraceStream {
 }
 
 mod test {
-    use super::IscTraceStream;
     #[test]
     fn isc_trace_parser() {
         let ref_data = vec![
@@ -473,6 +472,7 @@ mod test {
             251, 131, 41, 0, 0, 0, 156, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 4, 188, 89, 251, 131, 41, 0, 0, 0, 52, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ];
+        use super::IscTraceStream;
         let isc_stream = IscTraceStream::from_bytes(&ref_data).expect("Ref stream parse error");
         println!("isc_stream => {isc_stream:?}");
     }
