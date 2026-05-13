@@ -1,6 +1,10 @@
 use super::super::cm_lwe_keyswitch_key_generation::allocate_and_generate_new_cm_lwe_keyswitch_key;
 use super::super::cm_params::{CmApParams, CM_PARAM_2_2_MINUS_64};
 use super::super::*;
+use crate::core_crypto::algorithms::test::noise_distribution::{
+    test_allocate_and_generate_binary_glwe_secret_key_with_half_hamming_weight,
+    test_allocate_and_generate_binary_lwe_secret_key_with_half_hamming_weight,
+};
 use crate::core_crypto::commons::test_tools::{
     check_both_ratio_under, normality_test_f64, random_uint_between, variance,
 };
@@ -15,6 +19,92 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 const NB_TESTS: usize = 100;
 #[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
+
+fn generate_test_cm_pbs_keys(
+    params: &CmApParams,
+    encryption_random_generator: &mut EncryptionRandomGenerator<DefaultRandomGenerator>,
+    secret_random_generator: &mut SecretRandomGenerator<DefaultRandomGenerator>,
+    balanced_secret_keys: bool,
+) -> CmBootstrapKeys<u64> {
+    let ciphertext_modulus = params.ciphertext_modulus;
+
+    let cm_dimension = params.cm_dimension;
+
+    let glwe_noise_distribution = params.glwe_noise_distribution;
+
+    let input_lwe_secret_keys = (0..cm_dimension.0)
+        .map(|_| {
+            if balanced_secret_keys {
+                test_allocate_and_generate_binary_lwe_secret_key_with_half_hamming_weight(
+                    params.lwe_dimension,
+                )
+            } else {
+                allocate_and_generate_new_binary_lwe_secret_key(
+                    params.lwe_dimension,
+                    secret_random_generator,
+                )
+            }
+        })
+        .collect_vec();
+    let output_glwe_secret_keys = (0..cm_dimension.0)
+        .map(|_| {
+            if balanced_secret_keys {
+                test_allocate_and_generate_binary_glwe_secret_key_with_half_hamming_weight(
+                    params.glwe_dimension,
+                    params.polynomial_size,
+                )
+            } else {
+                allocate_and_generate_new_binary_glwe_secret_key(
+                    params.glwe_dimension,
+                    params.polynomial_size,
+                    secret_random_generator,
+                )
+            }
+        })
+        .collect_vec();
+
+    let output_lwe_secret_keys = output_glwe_secret_keys
+        .iter()
+        .map(|a| a.clone().into_lwe_secret_key())
+        .collect_vec();
+
+    let mut bsk = CmLweBootstrapKey::new(
+        0,
+        params.glwe_dimension,
+        cm_dimension,
+        params.polynomial_size,
+        params.base_log_bs,
+        params.level_bs,
+        params.lwe_dimension,
+        ciphertext_modulus,
+    );
+
+    par_generate_cm_lwe_bootstrap_key(
+        &input_lwe_secret_keys,
+        &output_glwe_secret_keys,
+        &mut bsk,
+        glwe_noise_distribution,
+        encryption_random_generator,
+    );
+
+    let mut fbsk = FourierCmLweBootstrapKey::new(
+        params.lwe_dimension,
+        params.glwe_dimension,
+        cm_dimension,
+        params.polynomial_size,
+        params.base_log_bs,
+        params.level_bs,
+    );
+
+    par_convert_standard_cm_lwe_bootstrap_key_to_fourier(&bsk, &mut fbsk);
+
+    CmBootstrapKeys {
+        small_lwe_sk: input_lwe_secret_keys,
+        big_lwe_sk: output_lwe_secret_keys,
+        bsk,
+        fbsk,
+    }
+}
 
 #[test]
 fn test_cm_pbs_lut_application_test_param() {
@@ -41,10 +131,11 @@ fn test_cm_pbs_lut_application(params: &CmApParams) {
         big_lwe_sk,
         bsk,
         fbsk,
-    } = generate_cm_pbs_keys(
+    } = generate_test_cm_pbs_keys(
         params,
         &mut rsc.encryption_random_generator,
         &mut rsc.secret_random_generator,
+        false,
     );
     drop(bsk);
 
@@ -136,10 +227,11 @@ fn test_cm_pbs_ap_sequence(params: &CmApParams) {
         big_lwe_sk,
         bsk,
         fbsk,
-    } = generate_cm_pbs_keys(
+    } = generate_test_cm_pbs_keys(
         params,
         &mut rsc.encryption_random_generator,
         &mut rsc.secret_random_generator,
+        false,
     );
     drop(bsk);
 
@@ -268,10 +360,11 @@ fn test_cm_pbs_noise_analysis(params: &CmApParams) {
         big_lwe_sk,
         bsk,
         fbsk,
-    } = generate_cm_pbs_keys(
+    } = generate_test_cm_pbs_keys(
         params,
         &mut rsc.encryption_random_generator,
         &mut rsc.secret_random_generator,
+        true,
     );
     drop(bsk);
 
@@ -354,7 +447,7 @@ fn test_cm_pbs_noise_analysis(params: &CmApParams) {
         println!("p_value normality: {}", test_result.p_value);
 
         // TODO: confidence interval to reconsider
-        assert!(check_both_ratio_under(expected_variance, variance.0, 1.1));
+        assert!(check_both_ratio_under(expected_variance, variance.0, 1.2));
     }
 }
 

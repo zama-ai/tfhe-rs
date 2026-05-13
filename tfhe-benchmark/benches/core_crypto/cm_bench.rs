@@ -1,9 +1,82 @@
 use cm_fft64::programmable_bootstrap_cm_lwe_ciphertext;
 use criterion::{black_box, criterion_main, Criterion};
+use itertools::Itertools;
 use tfhe::core_crypto::experimental::prelude::cm_lwe_keyswitch_key_generation::allocate_and_generate_new_cm_lwe_keyswitch_key;
 use tfhe::core_crypto::experimental::prelude::cm_modulus_switch_noise_reduction::improve_lwe_ciphertext_modulus_switch_noise_for_binary_key_cm;
 use tfhe::core_crypto::experimental::prelude::*;
 use tfhe::core_crypto::prelude::*;
+
+fn generate_test_cm_pbs_keys(
+    params: &CmApParams,
+    encryption_random_generator: &mut EncryptionRandomGenerator<DefaultRandomGenerator>,
+    secret_random_generator: &mut SecretRandomGenerator<DefaultRandomGenerator>,
+) -> CmBootstrapKeys<u64> {
+    let ciphertext_modulus = params.ciphertext_modulus;
+
+    let cm_dimension = params.cm_dimension;
+
+    let glwe_noise_distribution = params.glwe_noise_distribution;
+
+    let input_lwe_secret_keys = (0..cm_dimension.0)
+        .map(|_| {
+            allocate_and_generate_new_binary_lwe_secret_key(
+                params.lwe_dimension,
+                secret_random_generator,
+            )
+        })
+        .collect_vec();
+    let output_glwe_secret_keys = (0..cm_dimension.0)
+        .map(|_| {
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension,
+                params.polynomial_size,
+                secret_random_generator,
+            )
+        })
+        .collect_vec();
+
+    let output_lwe_secret_keys = output_glwe_secret_keys
+        .iter()
+        .map(|a| a.clone().into_lwe_secret_key())
+        .collect_vec();
+
+    let mut bsk = CmLweBootstrapKey::new(
+        0,
+        params.glwe_dimension,
+        cm_dimension,
+        params.polynomial_size,
+        params.base_log_bs,
+        params.level_bs,
+        params.lwe_dimension,
+        ciphertext_modulus,
+    );
+
+    par_generate_cm_lwe_bootstrap_key(
+        &input_lwe_secret_keys,
+        &output_glwe_secret_keys,
+        &mut bsk,
+        glwe_noise_distribution,
+        encryption_random_generator,
+    );
+
+    let mut fbsk = FourierCmLweBootstrapKey::new(
+        params.lwe_dimension,
+        params.glwe_dimension,
+        cm_dimension,
+        params.polynomial_size,
+        params.base_log_bs,
+        params.level_bs,
+    );
+
+    par_convert_standard_cm_lwe_bootstrap_key_to_fourier(&bsk, &mut fbsk);
+
+    CmBootstrapKeys {
+        small_lwe_sk: input_lwe_secret_keys,
+        big_lwe_sk: output_lwe_secret_keys,
+        bsk,
+        fbsk,
+    }
+}
 
 fn cm_bench(c: &mut Criterion) {
     let bench_cm_params_2_minus_64: Vec<CmApParams> = vec![
@@ -108,7 +181,7 @@ fn cm_bench_for_pfail(c: &mut Criterion, bench_cm_params: &[CmApParams], p_fail:
             big_lwe_sk,
             bsk,
             fbsk,
-        } = generate_cm_pbs_keys(cm_param, &mut encryption_generator, &mut secret_generator);
+        } = generate_test_cm_pbs_keys(cm_param, &mut encryption_generator, &mut secret_generator);
         drop(bsk);
 
         let cm_lwe_keyswitch_key = allocate_and_generate_new_cm_lwe_keyswitch_key(
