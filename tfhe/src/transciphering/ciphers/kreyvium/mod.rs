@@ -1,3 +1,4 @@
+mod fast_fhe;
 mod fhe;
 mod plain;
 #[cfg(test)]
@@ -5,6 +6,7 @@ mod test;
 
 use super::shift_register::ShiftRegister;
 
+pub use fast_fhe::{encrypt_fast_bit, FastBit, KreyviumFastEncryptedKey, KreyviumFastFheStream};
 pub use fhe::{KreyviumEncryptedKey, KreyviumFheStream};
 pub use plain::KreyviumPlainStream;
 use rayon::prelude::*;
