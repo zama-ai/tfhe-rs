@@ -290,6 +290,42 @@ impl ServerKey {
         true
     }
 
+    /// Returns whether a dedicated key-switching key material for the
+    /// [`CompactPublicKey`] is present.
+    pub fn has_cpk_key_switching_key_material(&self) -> bool {
+        self.key.cpk_key_switching_key_material.is_some()
+    }
+
+    /// Returns whether a [`CompressionKey`] is present.
+    pub fn has_compression_key(&self) -> bool {
+        self.key.compression_key.is_some()
+    }
+
+    /// Returns whether a [`DecompressionKey`] is present.
+    pub fn has_decompression_key(&self) -> bool {
+        self.key.decompression_key.is_some()
+    }
+
+    /// Returns whether a [`NoiseSquashingKey`] is present.
+    pub fn has_noise_squashing_key(&self) -> bool {
+        self.key.noise_squashing_key.is_some()
+    }
+
+    /// Returns whether a [`NoiseSquashingCompressionKey`] is present.
+    pub fn has_noise_squashing_compression_key(&self) -> bool {
+        self.key.noise_squashing_compression_key.is_some()
+    }
+
+    /// Returns whether a [`ReRandomizationKey`] is present.
+    pub fn has_re_randomization_key(&self) -> bool {
+        self.key.cpk_re_randomization_key.is_some()
+    }
+
+    /// Returns whether a dedicated [`OprfServerKey`] is present.
+    pub fn has_oprf_key(&self) -> bool {
+        self.key.oprf_key.is_some()
+    }
+
     pub(in crate::high_level_api) fn message_modulus(&self) -> MessageModulus {
         self.key.message_modulus()
     }
@@ -448,6 +484,42 @@ impl CompressedServerKey {
             ),
             tag,
         }
+    }
+
+    /// Returns whether a dedicated key-switching key material for the
+    /// [`CompactPublicKey`] is present.
+    pub fn has_cpk_key_switching_key_material(&self) -> bool {
+        self.integer_key.cpk_key_switching_key_material.is_some()
+    }
+
+    /// Returns whether a [`CompressedCompressionKey`] is present.
+    pub fn has_compression_key(&self) -> bool {
+        self.integer_key.compression_key.is_some()
+    }
+
+    /// Returns whether a [`CompressedDecompressionKey`] is present.
+    pub fn has_decompression_key(&self) -> bool {
+        self.integer_key.decompression_key.is_some()
+    }
+
+    /// Returns whether a [`CompressedNoiseSquashingKey`] is present.
+    pub fn has_noise_squashing_key(&self) -> bool {
+        self.integer_key.noise_squashing_key.is_some()
+    }
+
+    /// Returns whether a [`CompressedNoiseSquashingCompressionKey`] is present.
+    pub fn has_noise_squashing_compression_key(&self) -> bool {
+        self.integer_key.noise_squashing_compression_key.is_some()
+    }
+
+    /// Returns whether a [`CompressedReRandomizationKey`] is present.
+    pub fn has_re_randomization_key(&self) -> bool {
+        self.integer_key.cpk_re_randomization_key.is_some()
+    }
+
+    /// Returns whether a dedicated [`CompressedOprfServerKey`] is present.
+    pub fn has_oprf_key(&self) -> bool {
+        self.integer_key.oprf_key.is_some()
     }
 
     pub fn decompress(&self) -> ServerKey {
