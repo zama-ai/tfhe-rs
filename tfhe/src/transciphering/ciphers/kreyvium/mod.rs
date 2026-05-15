@@ -104,26 +104,13 @@ where
         res
     }
 
-    fn next_48(&mut self, aux: &A) -> Vec<T> {
-        let values = (0..48).into_par_iter().map(|x| {
-            let round_input = self.round_input(x);
-            let KreyviumRoundOutput { output, a, b, c } = round_input.round(aux);
-            (output, [a, b, c])
-        });
-
-        let (res, updates): (Vec<_>, Vec<_>) = values.unzip();
-        self.update(updates.into_iter());
-
-        res
-    }
-
     fn next_n(&mut self, aux: &A, n_bits: usize) -> Vec<T> {
         let mut result = Vec::with_capacity(n_bits);
 
-        for _ in 0..n_bits / 48 {
-            result.extend(self.next_48(aux));
+        for _ in 0..n_bits / 64 {
+            result.extend(self.next_64(aux));
         }
-        for _ in 0..n_bits % 48 {
+        for _ in 0..n_bits % 64 {
             result.push(self.next(aux));
         }
 
@@ -133,8 +120,8 @@ where
     /// The specification of Kreyvium includes running 1152 (= 18*64) unused steps to mix up the
     /// registers, before starting the proper stream
     fn warmup(&mut self, aux: &A) {
-        for _ in 0..24 {
-            self.next_48(aux);
+        for _ in 0..18 {
+            self.next_64(aux);
         }
 
         // Spec specifies that counter is 0 after the warmup, but running rounds will advance it

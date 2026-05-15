@@ -9,7 +9,7 @@ use tfhe::transciphering::ciphers::kreyvium::{KreyviumEncryptedKey, KreyviumFheS
 use tfhe::transciphering::Transcipherer;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint64};
 
-fn make_keys() -> (
+pub(crate) fn make_keys() -> (
     tfhe::ServerKey,
     tfhe::shortint::ClientKey,
     tfhe::shortint::ServerKey,
@@ -23,7 +23,7 @@ fn make_keys() -> (
     (hl_sk, short_ck, short_sk)
 }
 
-fn make_inputs() -> ([u64; 128], [u64; 128]) {
+pub(crate) fn make_inputs() -> ([u64; 128], [u64; 128]) {
     let key_string = "0053A6F94C9FF24598EB000000000000".to_string();
     let mut key = [0u64; 128];
     for i in (0..key_string.len()).step_by(2) {
