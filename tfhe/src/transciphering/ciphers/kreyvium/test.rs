@@ -6,7 +6,8 @@ use crate::shortint::parameters::test_params::{
 };
 use crate::shortint::prelude::*;
 use crate::transciphering::ciphers::kreyvium::{
-    KreyviumEncryptedKey, KreyviumFheStream, KreyviumPlainStream,
+    encrypt_fast_bit, KreyviumEncryptedKey, KreyviumFastEncryptedKey, KreyviumFastFheStream,
+    KreyviumFheStream, KreyviumPlainStream,
 };
 use crate::transciphering::{trans_cipher_2_2, StreamCipher, Transcipherer};
 
@@ -141,6 +142,51 @@ fn kreyvium_fhe_keystream_known_answer(params: ClassicPBSParameters) {
 #[test]
 fn kreyvium_test_fhe() {
     kreyvium_fhe_keystream_known_answer(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+}
+
+fn kreyvium_fast_fhe_keystream_known_answer(params: ClassicPBSParameters) {
+    let (client_key, server_key) = gen_keys(params);
+
+    let key_bytes = hex_to_bytes_16("0053A6F94C9FF24598EB000000000000");
+    let iv_bytes = hex_to_bytes_16("0D74DB42A91077DE45AC000000000000");
+
+    let mut key_bits = [0u64; 128];
+    for (b, &byte) in key_bytes.iter().enumerate() {
+        for j in 0..8 {
+            key_bits[8 * b + j] = ((byte >> j) & 1) as u64;
+        }
+    }
+
+    let mut iv_bits = [0u64; 128];
+    for (b, &byte) in iv_bytes.iter().enumerate() {
+        for j in 0..8 {
+            iv_bits[8 * b + j] = ((byte >> j) & 1) as u64;
+        }
+    }
+
+    let output = "D1F0303482061111";
+
+    let cipher_key: KreyviumFastEncryptedKey =
+        key_bits.map(|x| encrypt_fast_bit(&client_key, x)).into();
+
+    let mut kreyvium = KreyviumFastFheStream::new(cipher_key, iv_bits, &server_key);
+
+    let cts = kreyvium.next_keystream_bits(&server_key, 64);
+
+    let mut bytes = vec![0u8; 8];
+    for (i, ct) in cts.iter().enumerate() {
+        if client_key.decrypt(ct) % 2 == 1 {
+            bytes[i / 8] |= 1 << (i % 8);
+        }
+    }
+
+    let hexadecimal = get_hexadecimal_string_from_bytes(&bytes);
+    assert_eq!(output, hexadecimal);
+}
+
+#[test]
+fn kreyvium_test_fast_fhe() {
+    kreyvium_fast_fhe_keystream_known_answer(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 }
 
 /// Tests the `round_naive` fallback path under params where the
