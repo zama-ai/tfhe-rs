@@ -457,6 +457,45 @@ impl CompressedXofKeySet {
 
         (seed, compressed_public_key, compressed_server_key)
     }
+
+    /// Returns whether the inner [`CompressedServerKey`] carries a dedicated
+    /// key-switching key material for the [`CompactPublicKey`].
+    pub fn has_cpk_key_switching_key_material(&self) -> bool {
+        self.compressed_server_key
+            .has_cpk_key_switching_key_material()
+    }
+
+    /// Returns whether the inner [`CompressedServerKey`] carries a compression key.
+    pub fn has_compression_key(&self) -> bool {
+        self.compressed_server_key.has_compression_key()
+    }
+
+    /// Returns whether the inner [`CompressedServerKey`] carries a decompression key.
+    pub fn has_decompression_key(&self) -> bool {
+        self.compressed_server_key.has_decompression_key()
+    }
+
+    /// Returns whether the inner [`CompressedServerKey`] carries a noise squashing key.
+    pub fn has_noise_squashing_key(&self) -> bool {
+        self.compressed_server_key.has_noise_squashing_key()
+    }
+
+    /// Returns whether the inner [`CompressedServerKey`] carries a noise squashing
+    /// compression key.
+    pub fn has_noise_squashing_compression_key(&self) -> bool {
+        self.compressed_server_key
+            .has_noise_squashing_compression_key()
+    }
+
+    /// Returns whether the inner [`CompressedServerKey`] carries a re-randomization key.
+    pub fn has_re_randomization_key(&self) -> bool {
+        self.compressed_server_key.has_re_randomization_key()
+    }
+
+    /// Returns whether the inner [`CompressedServerKey`] carries a dedicated OPRF key.
+    pub fn has_oprf_key(&self) -> bool {
+        self.compressed_server_key.has_oprf_key()
+    }
 }
 
 impl ParameterSetConformant for CompressedXofKeySet {
@@ -528,6 +567,43 @@ impl XofKeySet {
             .tag_mut()
             .set_data(self.server_key.tag.data());
         (self.public_key, self.server_key)
+    }
+
+    /// Returns whether the inner [`ServerKey`] carries a dedicated key-switching
+    /// key material for the [`CompactPublicKey`].
+    pub fn has_cpk_key_switching_key_material(&self) -> bool {
+        self.server_key.has_cpk_key_switching_key_material()
+    }
+
+    /// Returns whether the inner [`ServerKey`] carries a compression key.
+    pub fn has_compression_key(&self) -> bool {
+        self.server_key.has_compression_key()
+    }
+
+    /// Returns whether the inner [`ServerKey`] carries a decompression key.
+    pub fn has_decompression_key(&self) -> bool {
+        self.server_key.has_decompression_key()
+    }
+
+    /// Returns whether the inner [`ServerKey`] carries a noise squashing key.
+    pub fn has_noise_squashing_key(&self) -> bool {
+        self.server_key.has_noise_squashing_key()
+    }
+
+    /// Returns whether the inner [`ServerKey`] carries a noise squashing
+    /// compression key.
+    pub fn has_noise_squashing_compression_key(&self) -> bool {
+        self.server_key.has_noise_squashing_compression_key()
+    }
+
+    /// Returns whether the inner [`ServerKey`] carries a re-randomization key.
+    pub fn has_re_randomization_key(&self) -> bool {
+        self.server_key.has_re_randomization_key()
+    }
+
+    /// Returns whether the inner [`ServerKey`] carries a dedicated OPRF key.
+    pub fn has_oprf_key(&self) -> bool {
+        self.server_key.has_oprf_key()
     }
 }
 
