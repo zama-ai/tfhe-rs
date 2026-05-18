@@ -4,6 +4,7 @@ mod aes;
 mod aes256;
 mod kreyvium;
 mod oprf;
+mod shuffle;
 mod trivium;
 mod vector_find;
 
@@ -2790,6 +2791,8 @@ mod cuda {
         cuda_unchecked_rotate_left,
         cuda_unchecked_rotate_right,
         cuda_unchecked_ilog2,
+        shuffle::cuda::cuda_unchecked_bitonic_shuffle_with_keys,
+        shuffle::cuda::cuda_bitonic_shuffle,
     );
 
     criterion_group!(
