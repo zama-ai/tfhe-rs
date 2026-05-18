@@ -15,25 +15,24 @@
 #include <vector>
 
 const int BLOCK_SIZE_DECOMP = 8;
-const int BLOCK_SIZE_GEMM_KS = 36;
-const int THREADS_GEMM_KS = 6;
+// Experimental tile policy tuned for H100 SXM in 2_2 params.
+const int M_GEMM_KS_H100 = 32;
+const int N_GEMM_KS_H100 = 32;
+const int K_GEMM_KS_H100 = 8;
+const int THREADS_GEMM_KS_H100 = 4;
+// Depending on the number of samples is more convenient to split K more
+const int SPLIT_K_GEMM_KS_H100_TINY = 8;
+const int SPLIT_K_GEMM_KS_H100 = 4;
 
-inline uint64_t get_threshold_ks_gemm() { return 128; }
-
-template <typename Torus> struct ks_mem {
-  Torus *d_buffer;
-  uint64_t num_lwes;
-  uint32_t lwe_dimension;
-};
-
-template <typename Torus>
-uint64_t scratch_cuda_keyswitch_size(uint32_t lwe_dimension_in,
-                                     uint32_t lwe_dimension_out,
-                                     uint32_t num_lwes) {
-  GPU_ASSERT(lwe_dimension_in >= lwe_dimension_out,
-             "Trying to allocate KS temp buffer for invalid LWE dimensions");
-  return safe_mul_sizeof<Torus>((size_t)num_lwes, (size_t)lwe_dimension_in,
-                                (size_t)2);
+template <typename KSTorus>
+inline bool gpu_supports_split_k_gemm_keyswitch(uint32_t gpu_index) {
+  cudaDeviceProp device_prop;
+  check_cuda_error(cudaGetDeviceProperties(&device_prop, gpu_index));
+  // Atomics are well defined only for uint32 and uint64
+  constexpr bool supports_split_k_atomic_type =
+      std::is_same_v<KSTorus, uint32_t> || std::is_same_v<KSTorus, uint64_t>;
+  // We make sure the compute capability handles efficiently the atomics.
+  return supports_split_k_atomic_type && device_prop.major >= 8;
 }
 
 template <typename Torus>
@@ -477,6 +476,78 @@ __host__ void host_keyswitch_lwe_ciphertext_vector(
   check_cuda_error(cudaGetLastError());
 }
 
+template <typename Torus, typename KSTorus, int LevelCount, int SplitK,
+          bool NonTrivialIndices>
+__host__ void launch_gemm_keyswitch_split_k(
+    cudaStream_t stream, dim3 grid_gemm, dim3 threads_gemm,
+    uint32_t num_samples, uint32_t gemm_n, uint32_t lwe_dimension_in,
+    Torus const *lwe_array_in, Torus const *lwe_input_indices,
+    KSTorus const *ksk, uint32_t stride_ksk_buffer, KSTorus *lwe_array_out,
+    Torus const *lwe_output_indices, uint32_t base_log) {
+  dim3 grid_split(grid_gemm.x, grid_gemm.y, SplitK);
+  tgemm_all_levels_split_k<Torus, KSTorus, M_GEMM_KS_H100, N_GEMM_KS_H100,
+                           K_GEMM_KS_H100, THREADS_GEMM_KS_H100, LevelCount,
+                           SplitK, NonTrivialIndices>
+      <<<grid_split, threads_gemm, 0, stream>>>(
+          num_samples, gemm_n, lwe_dimension_in, lwe_array_in,
+          NonTrivialIndices ? lwe_input_indices : nullptr, ksk,
+          stride_ksk_buffer, lwe_array_out, gemm_n,
+          NonTrivialIndices ? lwe_output_indices : nullptr, base_log);
+}
+
+template <typename Torus, typename KSTorus, int SplitK, bool NonTrivialIndices>
+__host__ void dispatch_gemm_keyswitch_split_k(
+    cudaStream_t stream, dim3 grid_gemm, dim3 threads_gemm,
+    uint32_t level_count, uint32_t num_samples, uint32_t gemm_n,
+    uint32_t lwe_dimension_in, Torus const *lwe_array_in,
+    Torus const *lwe_input_indices, KSTorus const *ksk,
+    uint32_t stride_ksk_buffer, KSTorus *lwe_array_out,
+    Torus const *lwe_output_indices, uint32_t base_log) {
+#define KS_GEMM_LAUNCH(LC)                                                     \
+  launch_gemm_keyswitch_split_k<Torus, KSTorus, LC, SplitK,                    \
+                                NonTrivialIndices>(                            \
+      stream, grid_gemm, threads_gemm, num_samples, gemm_n, lwe_dimension_in,  \
+      lwe_array_in, lwe_input_indices, ksk, stride_ksk_buffer, lwe_array_out,  \
+      lwe_output_indices, base_log)
+  switch (level_count) {
+  case 1:
+    KS_GEMM_LAUNCH(1);
+    break;
+  case 2:
+    KS_GEMM_LAUNCH(2);
+    break;
+  case 3:
+    KS_GEMM_LAUNCH(3);
+    break;
+  case 4:
+    KS_GEMM_LAUNCH(4);
+    break;
+  case 5:
+    KS_GEMM_LAUNCH(5);
+    break;
+  case 6:
+    KS_GEMM_LAUNCH(6);
+    break;
+  case 7:
+    KS_GEMM_LAUNCH(7);
+    break;
+  case 8:
+    KS_GEMM_LAUNCH(8);
+    break;
+  case 9:
+    KS_GEMM_LAUNCH(9);
+    break;
+  default:
+    PANIC_IF_FALSE(false,
+                   "GEMM keyswitch: level_count=%u > 9 is not supported by the "
+                   "split-K fused kernel. Extend the switch dispatch in "
+                   "dispatch_gemm_keyswitch_split_k to cover this level count.",
+                   level_count);
+    break;
+  }
+#undef KS_GEMM_LAUNCH
+}
+
 // The GEMM keyswitch is computed as: -(-b + sum(a_i A_KSK))
 template <typename Torus, typename KSTorus>
 __host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
@@ -484,17 +555,9 @@ __host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
     Torus const *lwe_output_indices, Torus const *lwe_array_in,
     Torus const *lwe_input_indices, KSTorus const *ksk,
     uint32_t lwe_dimension_in, uint32_t lwe_dimension_out, uint32_t base_log,
-    uint32_t level_count, uint32_t num_samples, Torus *fp_tmp_buffer,
-    bool uses_trivial_indices) {
+    uint32_t level_count, uint32_t num_samples, bool uses_trivial_indices) {
   cuda_set_device(gpu_index);
   check_cuda_error(cudaGetLastError());
-
-  // fp_tmp_buffer contains 2x the space to store the input LWE masks without
-  // the body the first half can be interpreted with a smaller dtype when
-  // performing 64->32 KS the second half, storing decomposition state, must be
-  // interpreted as Torus* (usually 64b)
-  KSTorus *d_mem_0 =
-      (KSTorus *)fp_tmp_buffer; // keeps decomposed value (in KSTorus type)
 
   // Set the scratch buffer to 0 as it is used to accumulate
   // decomposition temporary results
@@ -528,77 +591,64 @@ __host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
           lwe_dimension_in, num_samples, lwe_dimension_out);
   check_cuda_error(cudaGetLastError());
 
-  // decompose LWEs
-  // don't decompose LWE body - the LWE has lwe_size + 1 elements. The last
-  // element, the body is ignored by rounding down the number of blocks assuming
-  // here that the LWE dimension is a multiple of the block size
-  dim3 grid_decomp(CEIL_DIV(num_samples, BLOCK_SIZE_DECOMP),
-                   CEIL_DIV(lwe_dimension_in, BLOCK_SIZE_DECOMP));
-  dim3 threads_decomp(BLOCK_SIZE_DECOMP, BLOCK_SIZE_DECOMP);
-
-  uint32_t shared_mem_size = get_shared_mem_size_tgemm<Torus>();
-  // Shared memory requirement is 4096, 8192, and 16384 bytes respectively for
-  // 32, 64, and 128-bit Torus elements
-  // Sanity check: the shared memory size is a constant defined by the algorithm
-  GPU_ASSERT(shared_mem_size <= 1024 * sizeof(Torus),
-             "GEMM kernel error: shared memory required might be too large");
-
+  // stride across KSK rows: each row covers level_count consecutive
+  // (lwe_dim_out+1)-blocks
   auto stride_KSK_buffer = (lwe_dimension_out + 1) * level_count;
+  const uint32_t gemm_n = lwe_dimension_out + 1;
+  const bool supports_split_k_atomic =
+      gpu_supports_split_k_gemm_keyswitch<KSTorus>(gpu_index);
 
-  // gemm to ks the individual LWEs to GLWEs
-  dim3 grid_gemm(CEIL_DIV(lwe_dimension_out + 1, BLOCK_SIZE_GEMM_KS),
-                 CEIL_DIV(num_samples, BLOCK_SIZE_GEMM_KS));
-  dim3 threads_gemm(BLOCK_SIZE_GEMM_KS * THREADS_GEMM_KS);
+  // Fused decompose + all-level tgemm: reads raw LWE input directly, computes
+  // all level decompositions in registers, and accumulates all levels into the
+  // output in a single kernel launch. This replaces the previous loop of:
+  //   decompose_vectorize_init + (level_count-1) x (decompose_step + tgemm) +
+  //   tgemm
+  // Dispatch is templated on LevelCount for compile-time register array sizing
+  // and full loop unrolling.
 
-  // decompose first level (skips the body in the input buffer)
-  decompose_vectorize_init_with_indices<Torus, KSTorus>
-      <<<grid_decomp, threads_decomp, 0, stream>>>(
-          lwe_array_in, lwe_input_indices, fp_tmp_buffer, lwe_dimension_in,
-          num_samples, base_log, level_count);
-  check_cuda_error(cudaGetLastError());
+  if (supports_split_k_atomic) {
 
-  if (uses_trivial_indices) {
-    tgemm<KSTorus, BLOCK_SIZE_GEMM_KS, THREADS_GEMM_KS>
-        <<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
-            num_samples, (lwe_dimension_out + 1), lwe_dimension_in, d_mem_0,
-            ksk, stride_KSK_buffer, lwe_array_out, lwe_dimension_out + 1);
-    check_cuda_error(cudaGetLastError());
-
-  } else {
-    tgemm_with_indices<KSTorus, Torus, BLOCK_SIZE_GEMM_KS, THREADS_GEMM_KS>
-        <<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
-            num_samples, (lwe_dimension_out + 1), lwe_dimension_in, d_mem_0,
-            ksk, stride_KSK_buffer, lwe_array_out, lwe_dimension_out + 1,
-            lwe_output_indices);
-    check_cuda_error(cudaGetLastError());
-  }
-
-  auto ksk_block_size = (lwe_dimension_out + 1);
-
-  for (int li = 1; li < level_count; ++li) {
-    decompose_vectorize_step_inplace<Torus, KSTorus>
-        <<<grid_decomp, threads_decomp, 0, stream>>>(
-            fp_tmp_buffer, lwe_dimension_in, num_samples, base_log,
-            level_count);
-    check_cuda_error(cudaGetLastError());
-
+    dim3 grid_gemm(CEIL_DIV(gemm_n, N_GEMM_KS_H100),
+                   CEIL_DIV(num_samples, M_GEMM_KS_H100));
+    dim3 threads_gemm(M_GEMM_KS_H100 * K_GEMM_KS_H100);
+    // Split K to increase CTA count while keeping the same row/column tile.
+    // Use more K-splits for tiny batches to improve SM coverage.
     if (uses_trivial_indices) {
-      tgemm<KSTorus, BLOCK_SIZE_GEMM_KS, THREADS_GEMM_KS>
-          <<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
-              num_samples, (lwe_dimension_out + 1), lwe_dimension_in, d_mem_0,
-              ksk + li * ksk_block_size, stride_KSK_buffer, lwe_array_out,
-              lwe_dimension_out + 1);
-      check_cuda_error(cudaGetLastError());
-
+      if (num_samples <= 16) {
+        dispatch_gemm_keyswitch_split_k<Torus, KSTorus,
+                                        SPLIT_K_GEMM_KS_H100_TINY, false>(
+            stream, grid_gemm, threads_gemm, level_count, num_samples, gemm_n,
+            lwe_dimension_in, lwe_array_in, lwe_input_indices, ksk,
+            stride_KSK_buffer, lwe_array_out, lwe_output_indices, base_log);
+      } else {
+        dispatch_gemm_keyswitch_split_k<Torus, KSTorus, SPLIT_K_GEMM_KS_H100,
+                                        false>(
+            stream, grid_gemm, threads_gemm, level_count, num_samples, gemm_n,
+            lwe_dimension_in, lwe_array_in, lwe_input_indices, ksk,
+            stride_KSK_buffer, lwe_array_out, lwe_output_indices, base_log);
+      }
     } else {
-      tgemm_with_indices<KSTorus, Torus, BLOCK_SIZE_GEMM_KS, THREADS_GEMM_KS>
-          <<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
-              num_samples, (lwe_dimension_out + 1), lwe_dimension_in, d_mem_0,
-              ksk + li * ksk_block_size, stride_KSK_buffer, lwe_array_out,
-              lwe_dimension_out + 1, lwe_output_indices);
-      check_cuda_error(cudaGetLastError());
+      if (num_samples <= 16) {
+        dispatch_gemm_keyswitch_split_k<Torus, KSTorus,
+                                        SPLIT_K_GEMM_KS_H100_TINY, true>(
+            stream, grid_gemm, threads_gemm, level_count, num_samples, gemm_n,
+            lwe_dimension_in, lwe_array_in, lwe_input_indices, ksk,
+            stride_KSK_buffer, lwe_array_out, lwe_output_indices, base_log);
+      } else {
+        dispatch_gemm_keyswitch_split_k<Torus, KSTorus, SPLIT_K_GEMM_KS_H100,
+                                        true>(
+            stream, grid_gemm, threads_gemm, level_count, num_samples, gemm_n,
+            lwe_dimension_in, lwe_array_in, lwe_input_indices, ksk,
+            stride_KSK_buffer, lwe_array_out, lwe_output_indices, base_log);
+      }
     }
+  } else {
+    PANIC_IF_FALSE(false,
+                   "GEMM keyswitch split-K requires uint32_t or uint64_t "
+                   "KSTorus and compute capability 8.0 or higher. Use classic "
+                   "keyswitch otherwise.");
   }
+  check_cuda_error(cudaGetLastError());
 
   // gemm to ks the individual LWEs to GLWEs
   dim3 grid_negate(CEIL_DIV(lwe_dimension_out + 1, BLOCK_SIZE_DECOMP),
@@ -615,14 +665,15 @@ __host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
 }
 
 template <typename Torus, typename KSTorus>
-void execute_keyswitch_async(
-    CudaStreams streams, const LweArrayVariant<Torus> &lwe_array_out,
-    const LweArrayVariant<Torus> &lwe_output_indexes,
-    const LweArrayVariant<Torus> &lwe_array_in,
-    const LweArrayVariant<Torus> &lwe_input_indexes, KSTorus *const *ksks,
-    uint32_t lwe_dimension_in, uint32_t lwe_dimension_out, uint32_t base_log,
-    uint32_t level_count, uint32_t num_samples, bool uses_trivial_indices,
-    const std::vector<ks_mem<Torus> *> &fp_tmp_buffer) {
+void execute_keyswitch_async(CudaStreams streams,
+                             const LweArrayVariant<Torus> &lwe_array_out,
+                             const LweArrayVariant<Torus> &lwe_output_indexes,
+                             const LweArrayVariant<Torus> &lwe_array_in,
+                             const LweArrayVariant<Torus> &lwe_input_indexes,
+                             KSTorus *const *ksks, uint32_t lwe_dimension_in,
+                             uint32_t lwe_dimension_out, uint32_t base_log,
+                             uint32_t level_count, uint32_t num_samples,
+                             bool uses_trivial_indices) {
 
   /// If the number of radix blocks is lower than the number of GPUs, not all
   /// GPUs will be active and there will be 1 input per GPU
@@ -637,34 +688,20 @@ void execute_keyswitch_async(
     Torus *current_lwe_input_indexes =
         get_variant_element(lwe_input_indexes, i);
 
-    if (!fp_tmp_buffer.empty() &&
-        num_samples_on_gpu >= get_threshold_ks_gemm()) {
-      GPU_ASSERT(fp_tmp_buffer.size() >= streams.count(),
-                 "GEMM KS Buffers %ld were not initialized for this amount of "
-                 "streams, %d",
-                 fp_tmp_buffer.size(), streams.count());
+    const bool supports_gemm_ks =
+        gpu_supports_split_k_gemm_keyswitch<KSTorus>(streams.gpu_index(i));
 
-      GPU_ASSERT(fp_tmp_buffer[i]->num_lwes >= num_samples_on_gpu,
-                 "KS temp buffer not big enough");
-
-      GPU_ASSERT(fp_tmp_buffer[i]->lwe_dimension ==
-                     std::max(lwe_dimension_in, lwe_dimension_out),
-                 "KS temp buffer was created for a different input LWE size: "
-                 "%d vs (in:%d, out:%d)",
-                 fp_tmp_buffer[i]->lwe_dimension, lwe_dimension_in,
-                 lwe_dimension_out);
-
-      // Compute Keyswitch
-      host_gemm_keyswitch_lwe_ciphertext_vector<Torus>(
+    if (supports_gemm_ks) {
+      // Compute Keyswitch via fused GEMM path
+      host_gemm_keyswitch_lwe_ciphertext_vector<Torus, KSTorus>(
           streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
           current_lwe_output_indexes, current_lwe_array_in,
           current_lwe_input_indexes, ksks[i], lwe_dimension_in,
           lwe_dimension_out, base_log, level_count, num_samples_on_gpu,
-          fp_tmp_buffer[i]->d_buffer, uses_trivial_indices);
-
+          uses_trivial_indices);
     } else {
       // Compute Keyswitch
-      host_keyswitch_lwe_ciphertext_vector<Torus>(
+      host_keyswitch_lwe_ciphertext_vector<Torus, KSTorus>(
           streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
           current_lwe_output_indexes, current_lwe_array_in,
           current_lwe_input_indexes, ksks[i], lwe_dimension_in,
@@ -758,35 +795,6 @@ __global__ void accumulate_glwes(Torus *glwe_out, Torus *glwe_array_in,
       glwe_out[tid] += glwe_in[tid];
     }
   }
-}
-
-template <typename Torus>
-uint64_t scratch_cuda_keyswitch(cudaStream_t stream, uint32_t gpu_index,
-                                ks_mem<Torus> **ks_tmp_memory,
-                                uint32_t lwe_dimension_in,
-                                uint32_t lwe_dimension_out, uint32_t num_lwes,
-                                bool allocate_gpu_memory) {
-  uint64_t sub_size_tracker = 0;
-  uint64_t buffer_size = scratch_cuda_keyswitch_size<Torus>(
-      lwe_dimension_in, lwe_dimension_out, num_lwes);
-
-  *ks_tmp_memory = new ks_mem<Torus>;
-  (*ks_tmp_memory)->d_buffer = (uint64_t *)cuda_malloc_with_size_tracking_async(
-      buffer_size, stream, gpu_index, sub_size_tracker, allocate_gpu_memory);
-  (*ks_tmp_memory)->lwe_dimension =
-      std::max(lwe_dimension_in, lwe_dimension_out);
-  (*ks_tmp_memory)->num_lwes = num_lwes;
-  return sub_size_tracker;
-}
-
-template <typename Torus>
-void cleanup_cuda_keyswitch(cudaStream_t stream, uint32_t gpu_index,
-                            ks_mem<Torus> *ks_tmp_memory,
-                            bool allocate_gpu_memory) {
-  cuda_drop_with_size_tracking_async(ks_tmp_memory->d_buffer, stream, gpu_index,
-                                     allocate_gpu_memory);
-  delete ks_tmp_memory;
-  cuda_synchronize_stream(stream, gpu_index);
 }
 
 #endif

@@ -25,8 +25,7 @@ void cuda_keyswitch_gemm_64_64_async(
     void const *lwe_output_indexes, void const *lwe_array_in,
     void const *lwe_input_indexes, void const *ksk, uint32_t lwe_dimension_in,
     uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, const void *ks_tmp_buffer,
-    bool uses_trivial_indices) {
+    uint32_t num_samples, bool uses_trivial_indices) {
 
   host_gemm_keyswitch_lwe_ciphertext_vector<uint64_t, uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
@@ -35,9 +34,7 @@ void cuda_keyswitch_gemm_64_64_async(
       static_cast<const uint64_t *>(lwe_array_in),
       static_cast<const uint64_t *>(lwe_input_indexes),
       static_cast<const uint64_t *>(ksk), lwe_dimension_in, lwe_dimension_out,
-      base_log, level_count, num_samples,
-      static_cast<const ks_mem<uint64_t> *>(ks_tmp_buffer)->d_buffer,
-      uses_trivial_indices);
+      base_log, level_count, num_samples, uses_trivial_indices);
 }
 
 /* Perform keyswitch on a batch of 64 bits input LWE ciphertexts
@@ -49,8 +46,7 @@ void cuda_keyswitch_gemm_64_32_async(
     void const *lwe_output_indexes, void const *lwe_array_in,
     void const *lwe_input_indexes, void const *ksk, uint32_t lwe_dimension_in,
     uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, const void *ks_tmp_buffer,
-    bool uses_trivial_indices) {
+    uint32_t num_samples, bool uses_trivial_indices) {
 
   host_gemm_keyswitch_lwe_ciphertext_vector<uint64_t, uint32_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
@@ -59,9 +55,7 @@ void cuda_keyswitch_gemm_64_32_async(
       static_cast<const uint64_t *>(lwe_array_in),
       static_cast<const uint64_t *>(lwe_input_indexes),
       static_cast<const uint32_t *>(ksk), lwe_dimension_in, lwe_dimension_out,
-      base_log, level_count, num_samples,
-      static_cast<const ks_mem<uint64_t> *>(ks_tmp_buffer)->d_buffer,
-      uses_trivial_indices);
+      base_log, level_count, num_samples, uses_trivial_indices);
 }
 
 void cuda_keyswitch_lwe_ciphertext_vector_64_64_async(
@@ -103,46 +97,6 @@ uint64_t scratch_cuda_packing_keyswitch_lwe_list_to_glwe_64_async(
   return scratch_packing_keyswitch_lwe_list_to_glwe<uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index, fp_ks_buffer, lwe_dimension,
       glwe_dimension, polynomial_size, num_lwes, allocate_gpu_memory);
-}
-
-uint64_t scratch_cuda_keyswitch_gemm_64_64_async(
-    void *stream, uint32_t gpu_index, void **ks_tmp_buffer,
-    uint32_t lwe_dimension_in, uint32_t lwe_dimension_out, uint32_t num_lwes,
-    bool allocate_gpu_memory) {
-  return scratch_cuda_keyswitch<uint64_t>(
-      static_cast<cudaStream_t>(stream), gpu_index,
-      (ks_mem<uint64_t> **)ks_tmp_buffer, lwe_dimension_in, lwe_dimension_out,
-      num_lwes, allocate_gpu_memory);
-}
-
-uint64_t scratch_cuda_keyswitch_gemm_64_32_async(
-    void *stream, uint32_t gpu_index, void **ks_tmp_buffer,
-    uint32_t lwe_dimension_in, uint32_t lwe_dimension_out, uint32_t num_lwes,
-    bool allocate_gpu_memory) {
-  return scratch_cuda_keyswitch<uint64_t>(
-      static_cast<cudaStream_t>(stream), gpu_index,
-      (ks_mem<uint64_t> **)ks_tmp_buffer, lwe_dimension_in, lwe_dimension_out,
-      num_lwes, allocate_gpu_memory);
-}
-
-void cleanup_cuda_keyswitch_gemm_64_64(void *stream, uint32_t gpu_index,
-                                       void **ks_tmp_buffer,
-                                       bool allocate_gpu_memory) {
-  cleanup_cuda_keyswitch<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index,
-                                   (ks_mem<uint64_t> *)*ks_tmp_buffer,
-                                   allocate_gpu_memory);
-  *ks_tmp_buffer = nullptr;
-  cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
-}
-
-void cleanup_cuda_keyswitch_gemm_64_32(void *stream, uint32_t gpu_index,
-                                       void **ks_tmp_buffer,
-                                       bool allocate_gpu_memory) {
-  cleanup_cuda_keyswitch<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index,
-                                   (ks_mem<uint64_t> *)*ks_tmp_buffer,
-                                   allocate_gpu_memory);
-  *ks_tmp_buffer = nullptr;
-  cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
 }
 
 /* Perform functional packing keyswitch on a batch of 64 bits input LWE

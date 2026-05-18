@@ -36,8 +36,6 @@ template <typename Torus> struct int_aes_lut_buffers {
     this->and_lut->generate_and_broadcast_bivariate_lut(
         active_streams_and_lut, {0}, {and_lambda}, LUT_0_FOR_ALL_BLOCKS);
 
-    this->and_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
-
     this->flush_lut = new int_radix_lut<Torus>(
         streams, params, 1, AES_STATE_BITS * num_aes_inputs,
         allocate_gpu_memory, size_tracker);
@@ -49,7 +47,6 @@ template <typename Torus> struct int_aes_lut_buffers {
         AES_STATE_BITS * num_aes_inputs, params.pbs_type);
     this->flush_lut->generate_and_broadcast_lut(
         active_streams_flush_lut, {0}, {flush_lambda}, LUT_0_FOR_ALL_BLOCKS);
-    this->flush_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
 
     this->carry_lut = new int_radix_lut<Torus>(
         streams, params, 1, num_aes_inputs, allocate_gpu_memory, size_tracker);
@@ -61,7 +58,6 @@ template <typename Torus> struct int_aes_lut_buffers {
         streams.active_gpu_subset(num_aes_inputs, params.pbs_type);
     this->carry_lut->generate_and_broadcast_lut(
         active_streams_carry_lut, {0}, {carry_lambda}, LUT_0_FOR_ALL_BLOCKS);
-    this->carry_lut->setup_gemm_batch_ks_temp_buffers(size_tracker);
   }
 
   void release(CudaStreams streams) {
