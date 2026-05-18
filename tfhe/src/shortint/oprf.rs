@@ -608,39 +608,8 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     pub fn into_raw_parts(self) -> OprfBootstrappingKey<C> {
         self.inner
     }
-    /// Uniformly generates a random encrypted ciphertexts
-    ///
-    ///
-    /// Generates `bit_count` random bits split over multiple blocks
-    ///
-    /// Each ciphertexts encrypt a value in `[0, 2^random_bits_per_block[`
-    /// except for the last one which may have less random bits:
-    /// `bit_count=3, random_bits_per_block=2` -> first_block: 2 bits, last blocks: 1 bit
-    ///
-    ///
-    /// # Panics
-    ///
-    /// * Panics if `random_bits_per_blocks` is greater than the total number of bits in a block
-    /// * Panics if `self` is not compatible with `target_sks`
-    pub fn generate_oblivious_pseudo_random_bits(
-        &self,
-        seed: impl OprfSeed,
-        random_bits_count: u64,
-        target_sks: &ServerKey,
-    ) -> Vec<Ciphertext> {
-        self.inner
-            .generate_pseudo_random_bits(
-                seed,
-                &[random_bits_count],
-                target_sks.message_modulus.0.ilog2() as u64,
-                target_sks,
-            )
-            .pop()
-            .unwrap()
-    }
 
-    /// Uniformly generates a batch of independent encrypted random bit-chunks
-    /// from a single seed in one call.
+    /// Uniformly generates a batch of encrypted random bit-chunks from a single seed in one call.
     ///
     /// For each entry `bc` in `random_bits_counts`, returns a `Vec<Ciphertext>`
     /// of `ceil(bc / random_bits_per_block)` blocks, where `random_bits_per_block`
@@ -657,27 +626,12 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
         random_bits_counts: &[u64],
         target_sks: &ServerKey,
     ) -> Vec<Vec<Ciphertext>> {
-        self.inner.generate_pseudo_random_bits(
+        self.inner.generate_pseudo_random_bits_chunks(
             seed,
             random_bits_counts,
             target_sks.message_modulus.0.ilog2() as u64,
             target_sks,
         )
-    }
-
-    /// Uniformly generates a random encrypted value in `[0, 2^random_bits_count[`
-    ///
-    /// `2^random_bits_count` must be smaller than the message modulus
-    ///
-    /// The encrypted value is oblivious to the server
-    pub fn generate_oblivious_pseudo_random(
-        &self,
-        seed: impl OprfSeed,
-        random_bits_count: u64,
-        target_sks: &ServerKey,
-    ) -> Ciphertext {
-        self.inner
-            .generate_oblivious_pseudo_random(seed, random_bits_count, target_sks)
     }
 }
 
@@ -1007,37 +961,6 @@ fn generate_oprf_lut(
 // ============================================================================
 
 impl<C: Container<Element = c64> + Sync> OprfBootstrappingKey<C> {
-    /// Uniformly generates a random encrypted value in `[0, 2^random_bits_count[`
-    /// `2^random_bits_count` must be smaller than the message modulus
-    /// The encrypted value is oblivious to the server
-    pub(crate) fn generate_oblivious_pseudo_random(
-        &self,
-        seed: impl OprfSeed,
-        random_bits_count: u64,
-        target_sks: &ServerKey,
-    ) -> Ciphertext {
-        assert!(
-            random_bits_count < 64,
-            "random_bits_count >= 64 is not supported",
-        );
-        assert!(
-            1 << random_bits_count <= target_sks.message_modulus.0,
-            "The range asked for a random value (=[0, 2^{}[) does not fit in the available range [0, {}[",
-            random_bits_count, target_sks.message_modulus.0
-        );
-
-        let mut chunks = self.generate_pseudo_random_bits(
-            seed,
-            &[random_bits_count],
-            random_bits_count, // This means we will have one block
-            target_sks,
-        );
-        assert_eq!(chunks.len(), 1);
-        let mut blocks = chunks.pop().unwrap();
-        assert_eq!(blocks.len(), 1);
-        blocks.pop().unwrap()
-    }
-
     /// Generates random bits split over multiple blocks, grouped per input chunk.
     ///
     /// For each entry `bc` in `bit_chunks`, produces a `Vec<Ciphertext>` of
@@ -1045,7 +968,7 @@ impl<C: Container<Element = c64> + Sync> OprfBootstrappingKey<C> {
     /// in `[0, 2^random_bits_per_block[` except for the last block of each chunk
     /// which may have fewer random bits:
     /// `bc=3, random_bits_per_block=2` -> first_block: 2 bits, last block: 1 bit.
-    pub(crate) fn generate_pseudo_random_bits(
+    pub(crate) fn generate_pseudo_random_bits_chunks(
         &self,
         seed: impl OprfSeed,
         bit_chunks: &[u64],
@@ -1296,7 +1219,14 @@ pub(crate) mod test {
 
         let random_bits_count = params.message_modulus().0.ilog2().into();
 
-        let img = oprf_sk.generate_oblivious_pseudo_random(seed, random_bits_count, sk);
+        let img = oprf_sk
+            .generate_oblivious_pseudo_random_bits_chunks(seed, &[random_bits_count], sk)
+            .into_iter()
+            .next()
+            .unwrap()
+            .into_iter()
+            .next()
+            .unwrap();
 
         let plain_prf_input = match &oprf_ck.0 {
             AtomicPatternOprfPrivateKey::Standard(sk) => gen_prf_input(&sk.as_view(), seed, params),
@@ -1402,13 +1332,13 @@ pub(crate) mod test {
             let random_bits_count = 2;
 
             test_uniformity(1 << random_bits_count, &|seed| {
-                let img = oprf_sk.generate_oblivious_pseudo_random(
+                let img = oprf_sk.generate_oblivious_pseudo_random_bits_chunks(
                     Seed(seed as u128),
-                    random_bits_count,
+                    &[random_bits_count],
                     &sk,
                 );
 
-                ck.decrypt_message_and_carry(&img)
+                ck.decrypt_message_and_carry(&img[0][0])
             });
         }
     }
@@ -1497,7 +1427,9 @@ pub(crate) mod test {
             let oprf_sk = OprfServerKey::new(&oprf_ck, &ck).unwrap();
 
             let random_bits_per_block = sk.message_modulus.0.ilog2() as u64;
-            let blocks = oprf_sk.generate_oblivious_pseudo_random_bits(Seed(0), 0, &sk);
+            let blocks = oprf_sk.generate_oblivious_pseudo_random_bits_chunks(Seed(0), &[0], &sk);
+            assert_eq!(blocks.len(), 1);
+            let blocks = blocks.into_iter().next().unwrap();
             assert!(blocks.is_empty());
 
             for random_bits_count in [
@@ -1514,12 +1446,14 @@ pub(crate) mod test {
 
                 for _ in 0..50 {
                     let seed_val: u128 = rand::Rng::gen(&mut rng);
-                    let blocks = oprf_sk.generate_oblivious_pseudo_random_bits(
+                    let blocks = oprf_sk.generate_oblivious_pseudo_random_bits_chunks(
                         Seed(seed_val),
-                        random_bits_count,
+                        &[random_bits_count],
                         &sk,
                     );
 
+                    assert_eq!(blocks.len(), 1);
+                    let blocks = blocks.into_iter().next().unwrap();
                     assert_eq!(blocks.len(), expected_num_blocks);
 
                     for (i, block) in blocks.iter().enumerate() {
