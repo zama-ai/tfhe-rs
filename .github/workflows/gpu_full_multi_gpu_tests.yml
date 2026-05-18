@@ -86,7 +86,7 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: hyperstack
+          backend: aws
           profile: 4-l40
 
       # This instance will be spawned especially for pull-request from forked repository
@@ -111,7 +111,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-22.04
-            cuda: "12.8"
+            cuda: "12.2"
             gcc: 11 
     steps:
       - name: Checkout tfhe-rs

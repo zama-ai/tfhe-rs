@@ -29,6 +29,24 @@ image_id = "ami-0250f541bc1358116"
 instance_type = "m6i.4xlarge"
 user = "ubuntu"
 
+[backend.aws.single-h100]
+region = "us-east-1"
+image_id = "ami-0250f541bc1358116"
+instance_type = "p5.4xlarge"
+user = "ubuntu"
+
+[backend.aws.4-l40]
+region = "us-east-1"
+image_id = "ami-0250f541bc1358116"
+instance_type = "g6.24xlarge"
+user = "ubuntu"
+
+[backend.aws.small-gpu]
+region = "us-east-1"
+image_id = "ami-0250f541bc1358116"
+instance_type = "g6.2xlarge"
+user = "ubuntu"
+
 [backend.hyperstack.gpu-test]
 environment_name = "canada"
 image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"

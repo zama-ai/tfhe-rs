@@ -94,7 +94,7 @@ runs:
           echo "PATH=$PATH:$CUDA_PATH/bin"; 
         } >> "${GITHUB_ENV}"
         {
-          echo "PATH=$PATH:$CUDA_PATH/bin"; 
+          echo "$CUDA_PATH/bin";
         } >> "${GITHUB_PATH}"
       env:
         CUDA_VERSION: ${{ inputs.cuda-version }}
@@ -114,8 +114,9 @@ runs:
     - name: Check setup
       shell: bash
       run: |
-        which nvcc
+        command -v nvcc
 
     - name: Check device is detected
       shell: bash
-      run: nvidia-smi
+      run: |
+        nvidia-smi || (sudo apt install --reinstall -y nvidia-driver-580 && nvidia-smi)
