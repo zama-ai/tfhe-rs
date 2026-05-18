@@ -870,7 +870,7 @@ mod test {
     /// Test OPRF with BootstrapKeyswitch (PBS_KS) parameter order.
     ///
     /// This exercises the keyswitch-after-bootstrap code path in
-    /// `OprfBootstrappingKey::generate_pseudo_random_bits`.
+    /// [`crate::shortint::oprf::OprfBootstrappingKey::generate_pseudo_random_bits_chunks`].
     #[test]
     fn test_oprf_with_pbs_ks_params() {
         let config = ConfigBuilder::with_custom_parameters(

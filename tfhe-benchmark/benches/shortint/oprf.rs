@@ -21,7 +21,7 @@ fn oprf(c: &mut Criterion) {
 
     bench_group.bench_function(format!("2-bits-oprf::{}", param.name()), |b| {
         b.iter(|| {
-            _ = black_box(oprf_sk.generate_oblivious_pseudo_random(Seed(0), 2, sks));
+            _ = black_box(oprf_sk.generate_oblivious_pseudo_random_bits_chunks(Seed(0), &[2], sks));
         })
     });
 }
