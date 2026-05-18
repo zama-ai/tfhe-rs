@@ -10,4 +10,5 @@ All CPU benchmarks were launched on an `AWS hpc7a.96xlarge` instance equipped wi
 
 * [Integer operations](cpu-integer-operations.md)
 * [ERC7984](cpu-erc7984.md)
+* [KVStore](cpu-kvstore.md)
 * [Programmable Bootstrapping](cpu-programmable-bootstrapping.md)
