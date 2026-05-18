@@ -1,7 +1,6 @@
+use super::TfheConfig;
+use crate::js_on_wasm_api::{catch_panic_result, into_js_error};
 use wasm_bindgen::prelude::*;
-
-use crate::js_on_wasm_api::js_high_level_api::config::TfheConfig;
-use crate::js_on_wasm_api::js_high_level_api::{catch_panic_result, into_js_error};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[wasm_bindgen]
@@ -22,8 +21,6 @@ impl From<ZkComputeLoad> for crate::zk::ZkComputeLoad {
 #[wasm_bindgen]
 pub struct CompactPkeCrs(pub(crate) crate::core_crypto::entities::CompactPkeCrs);
 
-// "wasm bindgen is fragile and prefers the actual type vs. Self"
-#[allow(clippy::use_self)]
 #[wasm_bindgen]
 impl CompactPkeCrs {
     #[wasm_bindgen]
@@ -39,10 +36,7 @@ impl CompactPkeCrs {
     }
 
     #[wasm_bindgen]
-    pub fn safe_deserialize(
-        buffer: &[u8],
-        serialized_size_limit: u64,
-    ) -> Result<CompactPkeCrs, JsError> {
+    pub fn safe_deserialize(buffer: &[u8], serialized_size_limit: u64) -> Result<Self, JsError> {
         catch_panic_result(|| {
             crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
@@ -53,7 +47,7 @@ impl CompactPkeCrs {
     }
 
     #[wasm_bindgen]
-    pub fn from_config(config: &TfheConfig, max_num_bits: usize) -> Result<CompactPkeCrs, JsError> {
+    pub fn from_config(config: &TfheConfig, max_num_bits: usize) -> Result<Self, JsError> {
         catch_panic_result(|| {
             crate::core_crypto::entities::CompactPkeCrs::from_config(config.0, max_num_bits)
                 .map(CompactPkeCrs)
@@ -65,7 +59,7 @@ impl CompactPkeCrs {
     pub fn safe_deserialize_from_public_params(
         buffer: &[u8],
         serialized_size_limit: u64,
-    ) -> Result<CompactPkeCrs, JsError> {
+    ) -> Result<Self, JsError> {
         catch_panic_result(|| {
             crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
                 .disable_conformance()
