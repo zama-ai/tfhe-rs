@@ -906,10 +906,9 @@ uint64_t scratch_cuda_unchecked_index_of_clear_64_async(
 void cuda_unchecked_index_of_clear_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct,
     CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
-    const void *d_scalar_blocks, bool is_scalar_obviously_bigger,
-    uint32_t num_inputs, uint32_t num_blocks, uint32_t num_scalar_blocks,
-    uint32_t num_blocks_index, int8_t *mem, void *const *bsks,
-    void *const *ksks);
+    const uint64_t *h_clear_val, bool is_scalar_obviously_bigger,
+    uint32_t num_inputs, uint32_t num_blocks, uint32_t num_blocks_index,
+    int8_t *mem, void *const *bsks, void *const *ksks);
 
 void cleanup_cuda_unchecked_index_of_clear_64(CudaStreamsFFI streams,
                                               int8_t **mem_ptr_void);
