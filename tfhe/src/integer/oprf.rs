@@ -375,11 +375,16 @@ where
         assert!(target_sks.message_modulus().0.is_power_of_two());
         let message_bits_count = target_sks.message_modulus().0.ilog2() as u64;
 
-        let blocks = self.key.generate_oblivious_pseudo_random_bits(
-            seed,
-            num_blocks * message_bits_count,
-            &target_sks.key,
-        );
+        let blocks = self
+            .key
+            .generate_oblivious_pseudo_random_bits_chunks(
+                seed,
+                &[num_blocks * message_bits_count],
+                &target_sks.key,
+            )
+            .into_iter()
+            .next()
+            .expect("Expected a single chunk for the radix being generated, got 0");
 
         T::from(blocks)
     }
@@ -412,11 +417,16 @@ where
             );
         }
 
-        let mut blocks = self.key.generate_oblivious_pseudo_random_bits(
-            seed,
-            random_bits_count,
-            &target_sks.key,
-        );
+        let mut blocks = self
+            .key
+            .generate_oblivious_pseudo_random_bits_chunks(
+                seed,
+                &[random_bits_count],
+                &target_sks.key,
+            )
+            .into_iter()
+            .next()
+            .expect("Expected a single chunk for the radix being generated, got 0");
         if blocks.len() < num_blocks as usize {
             blocks.resize(num_blocks as usize, target_sks.key.create_trivial(0));
         }
