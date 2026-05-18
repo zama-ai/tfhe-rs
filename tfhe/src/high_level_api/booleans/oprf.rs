@@ -57,9 +57,16 @@ impl FheBool {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
                 let streams = &cuda_key.streams;
+                // 1 block with 1 bit of data is a boolean
                 let d_ct: CudaUnsignedRadixCiphertext = cuda_key
                     .oprf_key()
-                    .generate_oblivious_pseudo_random(seed, 1, cuda_key.pbs_key(), streams);
+                    .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                        seed,
+                        1,
+                        1,
+                        cuda_key.pbs_key(),
+                        streams,
+                    );
                 (
                     InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
                         d_ct.ciphertext,
