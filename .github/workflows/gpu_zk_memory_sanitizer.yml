@@ -71,6 +71,7 @@ jobs:
       (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true')
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
+      cloud-provider: ${{ steps.start-remote-instance.outputs.cloud-provider }}
     steps:
       - name: Start remote instance
         id: start-remote-instance
@@ -116,16 +117,16 @@ jobs:
           persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
 
-      - name: Setup Hyperstack dependencies
+      - name: Setup cloud GPU machine dependencies
         uses: ./.github/actions/gpu_setup
         with:
           cuda-version: ${{ matrix.cuda }}
           gcc-version: ${{ matrix.gcc }}
-          github-instance: ${{ env.SECRETS_AVAILABLE == 'false' }}
+          cloud-provider: ${{ needs.setup-instance.outputs.cloud-provider }}
 
       - name: Find tools
         run: |
-          find /usr -executable -name "compute-sanitizer"
+          find /usr -executable -name "compute-sanitizer" || which compute-sanitizer
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # zizmor: ignore[stale-action-refs] this action doesn't create releases
