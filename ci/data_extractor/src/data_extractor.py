@@ -137,7 +137,7 @@ parser.add_argument(
 parser.add_argument(
     "--bench-subset",
     dest="bench_subset",
-    choices=["all", "erc7984", "zk"],
+    choices=["all", "erc7984", "zk", "kv_store"],
     default="all",
     help="Subset of benchmarks to filter against, dedicated formatting will be applied",
 )
@@ -292,6 +292,8 @@ def get_formatter(layer: Layer, bench_subset: BenchSubset):
                 return formatters.wasm.ZKFormatter
             else:
                 return formatters.integer.ZKFormatter
+        case BenchSubset.KVStore:
+            return formatters.hlapi.KVStoreFormatter
 
     match layer:
         case Layer.Integer:
@@ -442,7 +444,7 @@ def get_operands_types(layer: Layer, bench_subset: BenchSubset = None):
         return ciphertext_only
     elif bench_subset:
         match bench_subset:
-            case BenchSubset.Zk | BenchSubset.Erc7984:
+            case BenchSubset.Zk | BenchSubset.Erc7984 | BenchSubset.KVStore:
                 return ciphertext_only
             case BenchSubset.All:
                 return ciphertext_and_plaintext

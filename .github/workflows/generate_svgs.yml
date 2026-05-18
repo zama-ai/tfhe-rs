@@ -307,6 +307,28 @@ jobs:
       DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
 
   # -----------------------------------------------------------
+  # KVStore benchmarks tables
+  # -----------------------------------------------------------
+
+  cpu-kvstore-latency-table:
+    name: generate_documentation_svgs/cpu-kvstore-latency-table
+    uses: ./.github/workflows/generate_svg_common.yml
+    if: inputs.generate-cpu-svgs
+    with:
+      backend: cpu
+      hardware_name: hpc7a.96xlarge
+      layer: hlapi
+      bench_subset: kv_store
+      pbs_kind: classical
+      bench_type: latency
+      time_span_days: ${{ inputs.time_span_days }}
+      output_filename: cpu-hlapi-kvstore-benchmark-latency
+    secrets:
+      DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
+      DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
+      DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
+
+  # -----------------------------------------------------------
   # PBS benchmarks tables
   # -----------------------------------------------------------
 

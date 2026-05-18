@@ -304,6 +304,7 @@ class BenchSubset(enum.StrEnum):
     All = "all"
     Erc7984 = "erc7984"
     Zk = "zk"
+    KVStore = "kv_store"
 
     @staticmethod
     def from_str(bench_subset):
@@ -314,6 +315,8 @@ class BenchSubset(enum.StrEnum):
                 return BenchSubset.Erc7984
             case "zk":
                 return BenchSubset.Zk
+            case "kv_store":
+                return BenchSubset.KVStore
             case _:
                 raise ValueError(f"BenchSubset '{bench_subset}' not supported")
 
