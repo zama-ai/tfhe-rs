@@ -88,6 +88,25 @@ jobs:
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
+  run-benchmarks-cpu-kvstore:
+    name: benchmark_documentation/run-benchmarks-cpu-kvstore
+    uses: ./.github/workflows/benchmark_cpu_common.yml
+    if: inputs.run-cpu-benchmarks
+    with:
+      command: hlapi_kvstore
+      op_flavor: default
+      bench_type: latency
+      precisions_set: all
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
   run-benchmarks-gpu-integer:
     name: benchmark_documentation/run-benchmarks-gpu-integer
     uses: ./.github/workflows/benchmark_gpu_common.yml
@@ -197,6 +216,7 @@ jobs:
     needs: [
       run-benchmarks-cpu-integer, run-benchmarks-gpu-integer, run-benchmarks-hpu-integer,
       run-benchmarks-cpu-zk-server, run-benchmarks-cpu-zk-client,
+      run-benchmarks-cpu-kvstore,
       run-benchmarks-cpu-core-crypto, run-benchmarks-gpu-core-crypto,
       run-benchmarks-gpu-zk-server
     ]
