@@ -17,6 +17,7 @@ members = [
     "tfhe-zk-pok",
     "utils/benchmark_spec",
     "utils/param_dedup",
+    "utils/tfhe-benchmark-parser",
     "utils/tfhe-backward-compat-checker",
     "utils/tfhe-backward-compat-data",
     "utils/tfhe-backward-compat-data/crates/add_new_version",

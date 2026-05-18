@@ -224,9 +224,8 @@ where
         (bench_id_update, "update"),
         (bench_id_map, "map"),
     ] {
-        write_to_json_unchecked::<u64, _>(
+        write_to_json_unchecked(
             &bench_id,
-            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,

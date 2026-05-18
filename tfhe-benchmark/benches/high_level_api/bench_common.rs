@@ -114,9 +114,8 @@ pub fn bench_fhe_type_op<FheType, Op>(
         }
     }
 
-    write_to_json::<u64, _>(
+    write_to_json(
         &benchmark_spec,
-        param,
         hlapi_op.to_string(),
         &OperatorType::Atomic,
         bit_size,

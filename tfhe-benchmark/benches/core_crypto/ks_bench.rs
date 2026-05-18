@@ -3,9 +3,8 @@ use benchmark::params::benchmark_32bits_parameters;
 use benchmark::params::{
     benchmark_compression_parameters, benchmark_parameters, multi_bit_benchmark_parameters,
 };
-use benchmark::utilities::{
-    get_param_type, write_to_json_unchecked, CryptoParametersRecord, OperatorType, ParamType,
-};
+use benchmark::utilities::{get_param_type, write_to_json_unchecked, OperatorType, ParamType};
+use benchmark::{BenchPackingKsParams, BenchPbsParams};
 use benchmark_spec::{get_bench_type, BenchmarkType};
 use criterion::{black_box, Criterion, Throughput};
 use itertools::Itertools;
@@ -16,7 +15,7 @@ use tfhe::core_crypto::prelude::*;
 // TODO Refactor KS, PBS and KS-PBS benchmarks into a single generic function.
 fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
     criterion: &mut Criterion,
-    parameters: &[(String, CryptoParametersRecord<Scalar>)],
+    parameters: &[(String, BenchPbsParams<Scalar>)],
 ) {
     let bench_name = "core_crypto::keyswitch";
     let mut bench_group = criterion.benchmark_group(bench_name);
@@ -29,11 +28,11 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
     let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     for (name, params) in parameters.iter() {
-        let lwe_dimension = params.lwe_dimension.unwrap();
-        let glwe_dimension = params.glwe_dimension.unwrap();
-        let polynomial_size = params.polynomial_size.unwrap();
-        let ks_decomp_base_log = params.ks_base_log.unwrap();
-        let ks_decomp_level_count = params.ks_level.unwrap();
+        let lwe_dimension = params.lwe_dimension;
+        let glwe_dimension = params.glwe_dimension;
+        let polynomial_size = params.polynomial_size;
+        let ks_decomp_base_log = params.ks_base_log;
+        let ks_decomp_level_count = params.ks_level;
 
         let lwe_sk =
             allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
@@ -49,8 +48,8 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
             &lwe_sk,
             ks_decomp_base_log,
             ks_decomp_level_count,
-            params.lwe_noise_distribution.unwrap(),
-            params.ciphertext_modulus.unwrap(),
+            params.lwe_noise_distribution,
+            params.ciphertext_modulus,
             &mut encryption_generator,
         );
 
@@ -61,15 +60,15 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                 let ct = allocate_and_encrypt_new_lwe_ciphertext(
                     &big_lwe_sk,
                     Plaintext(Scalar::ONE),
-                    params.lwe_noise_distribution.unwrap(),
-                    params.ciphertext_modulus.unwrap(),
+                    params.lwe_noise_distribution,
+                    params.ciphertext_modulus,
                     &mut encryption_generator,
                 );
 
                 let mut output_ct = LweCiphertext::new(
                     Scalar::ZERO,
                     lwe_sk.lwe_dimension().to_lwe_size(),
-                    params.ciphertext_modulus.unwrap(),
+                    params.ciphertext_modulus,
                 );
 
                 bench_id = format!("{bench_name}::{name}");
@@ -90,8 +89,8 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                             allocate_and_encrypt_new_lwe_ciphertext(
                                 &big_lwe_sk,
                                 Plaintext(Scalar::ONE),
-                                params.lwe_noise_distribution.unwrap(),
-                                params.ciphertext_modulus.unwrap(),
+                                params.lwe_noise_distribution,
+                                params.ciphertext_modulus,
                                 &mut encryption_generator,
                             )
                         })
@@ -102,7 +101,7 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                             LweCiphertext::new(
                                 Scalar::ZERO,
                                 lwe_sk.lwe_dimension().to_lwe_size(),
-                                params.ciphertext_modulus.unwrap(),
+                                params.ciphertext_modulus,
                             )
                         })
                         .collect::<Vec<_>>();
@@ -148,7 +147,6 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
         let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
         write_to_json_unchecked(
             &bench_id,
-            *params,
             name,
             "ks",
             &OperatorType::Atomic,
@@ -161,7 +159,7 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
 fn packing_keyswitch<Scalar, F>(
     criterion: &mut Criterion,
     bench_name: &str,
-    parameters: &[(String, CryptoParametersRecord<Scalar>)],
+    parameters: &[(String, BenchPackingKsParams<Scalar>)],
     ks_op: F,
 ) where
     Scalar: UnsignedTorus + CastInto<usize> + Serialize,
@@ -183,13 +181,13 @@ fn packing_keyswitch<Scalar, F>(
     let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     for (name, params) in parameters.iter() {
-        let lwe_dimension = params.lwe_dimension.unwrap();
-        let packing_glwe_dimension = params.packing_ks_glwe_dimension.unwrap();
-        let packing_polynomial_size = params.packing_ks_polynomial_size.unwrap();
-        let packing_ks_decomp_base_log = params.packing_ks_base_log.unwrap();
-        let packing_ks_decomp_level_count = params.packing_ks_level.unwrap();
-        let ciphertext_modulus = params.ciphertext_modulus.unwrap();
-        let count = params.lwe_per_glwe.unwrap();
+        let lwe_dimension = params.lwe_dimension;
+        let packing_glwe_dimension = params.packing_ks_glwe_dimension;
+        let packing_polynomial_size = params.packing_ks_polynomial_size;
+        let packing_ks_decomp_base_log = params.packing_ks_base_log;
+        let packing_ks_decomp_level_count = params.packing_ks_level;
+        let ciphertext_modulus = params.ciphertext_modulus;
+        let count = params.lwe_per_glwe;
 
         let lwe_sk =
             allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
@@ -205,7 +203,7 @@ fn packing_keyswitch<Scalar, F>(
             &glwe_sk,
             packing_ks_decomp_base_log,
             packing_ks_decomp_level_count,
-            params.packing_ks_key_noise_distribution.unwrap(),
+            params.packing_ks_key_noise_distribution,
             ciphertext_modulus,
             &mut encryption_generator,
         );
@@ -230,7 +228,7 @@ fn packing_keyswitch<Scalar, F>(
                     &lwe_sk,
                     &mut input_lwe_list,
                     &plaintext_list,
-                    params.lwe_noise_distribution.unwrap(),
+                    params.lwe_noise_distribution,
                     &mut encryption_generator,
                 );
 
@@ -272,7 +270,7 @@ fn packing_keyswitch<Scalar, F>(
                                 &lwe_sk,
                                 &mut input_lwe_list,
                                 &plaintext_list,
-                                params.lwe_noise_distribution.unwrap(),
+                                params.lwe_noise_distribution,
                                 &mut encryption_generator,
                             );
 
@@ -329,10 +327,11 @@ fn packing_keyswitch<Scalar, F>(
             }
         };
 
-        let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
+        // `BenchPackingKsParams` has no message_modulus; the old code used `unwrap_or(2)` ->
+        // bit_size = 1.
+        let bit_size = 1u32;
         write_to_json_unchecked(
             &bench_id,
-            *params,
             name,
             "packing_ks",
             &OperatorType::Atomic,
@@ -347,9 +346,9 @@ mod cuda {
     use benchmark::params::{benchmark_parameters, multi_bit_benchmark_parameters};
     use benchmark::utilities::{
         cuda_local_keys_core, cuda_local_streams_core, throughput_num_threads,
-        write_to_json_unchecked, CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes,
-        CudaLocalKeys, OperatorType,
+        write_to_json_unchecked, CpuKeys, CpuKeysBuilder, CudaIndexes, CudaLocalKeys, OperatorType,
     };
+    use benchmark::BenchPbsParams;
     use benchmark_spec::{get_bench_type, BenchmarkType};
     use criterion::{black_box, Criterion, Throughput};
     use itertools::Itertools;
@@ -371,7 +370,7 @@ mod cuda {
         KeyswitchScalar: UnsignedTorus + CastFrom<Scalar>,
     >(
         criterion: &mut Criterion,
-        parameters: &[(String, CryptoParametersRecord<Scalar>)],
+        parameters: &[(String, BenchPbsParams<Scalar>)],
     ) {
         let bench_name = "core_crypto::cuda::keyswitch";
         let mut bench_group = criterion.benchmark_group(bench_name);
@@ -385,13 +384,13 @@ mod cuda {
             SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
         for (name, params) in parameters.iter() {
-            let lwe_dimension = params.lwe_dimension.unwrap();
-            let glwe_dimension = params.glwe_dimension.unwrap();
-            let polynomial_size = params.polynomial_size.unwrap();
-            let ks_decomp_base_log = params.ks_base_log.unwrap();
-            let ks_decomp_level_count = params.ks_level.unwrap();
+            let lwe_dimension = params.lwe_dimension;
+            let glwe_dimension = params.glwe_dimension;
+            let polynomial_size = params.polynomial_size;
+            let ks_decomp_base_log = params.ks_base_log;
+            let ks_decomp_level_count = params.ks_level;
 
-            let lwe_noise_distribution_ksk = match params.lwe_noise_distribution.unwrap() {
+            let lwe_noise_distribution_ksk = match params.lwe_noise_distribution {
                 DynamicDistribution::Gaussian(gaussian_lwe_noise_distribution) => {
                     DynamicDistribution::<KeyswitchScalar>::new_gaussian(
                         gaussian_lwe_noise_distribution.standard_dev(),
@@ -456,7 +455,7 @@ mod cuda {
                     let ct = allocate_and_encrypt_new_lwe_ciphertext(
                         &big_lwe_sk_64,
                         Plaintext(Scalar::ONE),
-                        params.lwe_noise_distribution.unwrap(),
+                        params.lwe_noise_distribution,
                         CiphertextModulus::new_native(),
                         &mut encryption_generator,
                     );
@@ -499,7 +498,6 @@ mod cuda {
                     let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
                     write_to_json_unchecked(
                         &bench_id,
-                        *params,
                         name,
                         "ks",
                         &OperatorType::Atomic,
@@ -544,19 +542,19 @@ mod cuda {
                                                 Scalar::ZERO,
                                                 big_lwe_sk.lwe_dimension().to_lwe_size(),
                                                 LweCiphertextCount(elements_per_stream),
-                                                params.ciphertext_modulus.unwrap(),
+                                                params.ciphertext_modulus,
                                             );
                                             encrypt_lwe_ciphertext_list(
                                                 &big_lwe_sk_64,
                                                 &mut input_ct_list,
                                                 &plaintext_list,
-                                                params.lwe_noise_distribution.unwrap(),
+                                                params.lwe_noise_distribution,
                                                 &mut encryption_generator,
                                             );
                                             let input_ks_list = LweCiphertextList::from_container(
                                                 input_ct_list.into_container(),
                                                 big_lwe_sk.lwe_dimension().to_lwe_size(),
-                                                params.ciphertext_modulus.unwrap(),
+                                                params.ciphertext_modulus,
                                             );
                                             CudaLweCiphertextList::from_lwe_ciphertext_list(
                                                 &input_ks_list,
@@ -633,7 +631,6 @@ mod cuda {
                             let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
                             write_to_json_unchecked(
                                 &bench_id,
-                                *params,
                                 name,
                                 "ks",
                                 &OperatorType::Atomic,
@@ -651,7 +648,7 @@ mod cuda {
         Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64> + Serialize + CastInto<u32>,
     >(
         criterion: &mut Criterion,
-        parameters: &[(String, CryptoParametersRecord<Scalar>)],
+        parameters: &[(String, BenchPbsParams<Scalar>)],
     ) {
         let bench_name = "core_crypto::cuda::packing_keyswitch";
         let mut bench_group = criterion.benchmark_group(bench_name);
@@ -665,13 +662,13 @@ mod cuda {
             SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
         for (name, params) in parameters.iter() {
-            let lwe_dimension = params.lwe_dimension.unwrap();
-            let glwe_dimension = params.glwe_dimension.unwrap();
-            let polynomial_size = params.polynomial_size.unwrap();
-            let ks_decomp_base_log = params.ks_base_log.unwrap();
-            let ks_decomp_level_count = params.ks_level.unwrap();
-            let glwe_noise_distribution = params.glwe_noise_distribution.unwrap();
-            let ciphertext_modulus = params.ciphertext_modulus.unwrap();
+            let lwe_dimension = params.lwe_dimension;
+            let glwe_dimension = params.glwe_dimension;
+            let polynomial_size = params.polynomial_size;
+            let ks_decomp_base_log = params.ks_base_log;
+            let ks_decomp_level_count = params.ks_level;
+            let glwe_noise_distribution = params.glwe_noise_distribution;
+            let ciphertext_modulus = params.ciphertext_modulus;
 
             let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
                 lwe_dimension,
@@ -733,7 +730,7 @@ mod cuda {
                         &lwe_sk,
                         &mut input_ct_list,
                         &plaintext_list,
-                        params.lwe_noise_distribution.unwrap(),
+                        params.lwe_noise_distribution,
                         &mut encryption_generator,
                     );
 
@@ -817,7 +814,7 @@ mod cuda {
                                         &lwe_sk,
                                         &mut input_ct_list,
                                         &plaintext_list,
-                                        params.lwe_noise_distribution.unwrap(),
+                                        params.lwe_noise_distribution,
                                         &mut encryption_generator,
                                     );
 
@@ -876,7 +873,6 @@ mod cuda {
             let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
             write_to_json_unchecked(
                 &bench_id,
-                *params,
                 name,
                 "packing_ks",
                 &OperatorType::Atomic,
