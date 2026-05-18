@@ -11,6 +11,7 @@
   * [CPU Benchmarks](getting-started/benchmarks/cpu/README.md)
     * [Integer](getting-started/benchmarks/cpu/cpu-integer-operations.md)
     * [ERC7984](getting-started/benchmarks/cpu/cpu-erc7984.md)
+    * [KVStore](getting-started/benchmarks/cpu/cpu-kvstore.md)
     * [Programmable bootstrapping](getting-started/benchmarks/cpu/cpu-programmable-bootstrapping.md)
   * [GPU Benchmarks](getting-started/benchmarks/gpu/README.md)
     * [Integer](getting-started/benchmarks/gpu/gpu-integer-operations.md)
