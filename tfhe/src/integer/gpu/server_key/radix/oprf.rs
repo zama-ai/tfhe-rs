@@ -312,40 +312,6 @@ where
         )
     }
 
-    // Generic interface to generate a single-block oblivious pseudo-random integer.
-    // It performs checks specific to single-block capacity.
-    //
-    pub fn generate_oblivious_pseudo_random<T>(
-        &self,
-        seed: impl OprfSeed,
-        random_bits_count: u64,
-        target_sks: &CudaServerKey,
-        streams: &CudaStreams,
-    ) -> T
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        assert!(
-            1 << random_bits_count <= target_sks.message_modulus.0,
-            "The range asked for a random value (=[0, 2^{random_bits_count}[) does not fit in the available range [0, {}[",
-            target_sks.message_modulus.0
-        );
-        let carry_bits_count = target_sks.carry_modulus.0.ilog2() as u64;
-        let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
-        assert!(
-            random_bits_count <= carry_bits_count + message_bits_count,
-            "The number of random bits asked for (={random_bits_count}) is bigger than carry_bits_count (={carry_bits_count}) + message_bits_count(={message_bits_count})",
-        );
-
-        self.generate_oblivious_pseudo_random_bounded_integer(
-            seed,
-            random_bits_count,
-            1,
-            target_sks,
-            streams,
-        )
-    }
-
     // Generic internal implementation for unbounded pseudo-random generation.
     // It calls the core implementation with parameters for the unbounded case.
     //
