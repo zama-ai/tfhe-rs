@@ -628,9 +628,38 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
         random_bits_count: u64,
         target_sks: &ServerKey,
     ) -> Vec<Ciphertext> {
+        self.inner
+            .generate_pseudo_random_bits(
+                seed,
+                &[random_bits_count],
+                target_sks.message_modulus.0.ilog2() as u64,
+                target_sks,
+            )
+            .pop()
+            .unwrap()
+    }
+
+    /// Uniformly generates a batch of independent encrypted random bit-chunks
+    /// from a single seed in one call.
+    ///
+    /// For each entry `bc` in `random_bits_counts`, returns a `Vec<Ciphertext>`
+    /// of `ceil(bc / random_bits_per_block)` blocks, where `random_bits_per_block`
+    /// is the message-modulus log2. Within each chunk, every ciphertext encrypts a
+    /// value in `[0, 2^random_bits_per_block[` except for the last one, which may
+    /// hold fewer random bits if `bc` does not divide evenly.
+    ///
+    /// # Panics
+    ///
+    /// * Panics if `self` is not compatible with `target_sks`
+    pub fn generate_oblivious_pseudo_random_bits_chunks(
+        &self,
+        seed: impl OprfSeed,
+        random_bits_counts: &[u64],
+        target_sks: &ServerKey,
+    ) -> Vec<Vec<Ciphertext>> {
         self.inner.generate_pseudo_random_bits(
             seed,
-            random_bits_count,
+            random_bits_counts,
             target_sks.message_modulus.0.ilog2() as u64,
             target_sks,
         )
@@ -738,6 +767,25 @@ pub(crate) struct PrfSeededModulusSwitched {
     log_modulus: CiphertextModulusLog,
 }
 
+impl PrfSeededModulusSwitched {
+    fn zero(lwe_size: LweSize, log_modulus: CiphertextModulusLog) -> Self {
+        Self {
+            mask: vec![0usize; lwe_size.to_lwe_dimension().0],
+            body: 0,
+            log_modulus,
+        }
+    }
+
+    fn fill_mask_with_random(&mut self, rng: &mut RandomGenerator<DefaultRandomGenerator>) {
+        for mask_element in &mut self.mask {
+            *mask_element = rng.random_from_distribution_custom_mod::<u32, _>(
+                Uniform,
+                CiphertextModulus::new(1u128 << self.log_modulus.0),
+            ) as usize;
+        }
+    }
+}
+
 impl ModulusSwitchedLweCiphertext<usize> for PrfSeededModulusSwitched {
     fn log_modulus(&self) -> CiphertextModulusLog {
         self.log_modulus
@@ -819,71 +867,84 @@ impl MultiBitModulusSwitchedLweCiphertext for PrfMultiBitSeededModulusSwitched {
 // XOF-based seeded modulus switch (current implementation, uses OprfSeed)
 // ============================================================================
 
-/// Takes as input the `bit_count` to be generated (e.g. 21),
-/// the `random_bits_per_blocks` (e.g. 2) and output as many
-/// [PrfSeededModulusSwitched] as needed (ceil(bit_count/random_bits_per_blocks))
+/// Takes as input the `bit_chunks` to be generated (e.g [15, 15])
+/// the `random_bits_per_blocks` (e.g. 2).
 ///
-/// Also returns how many random bits the last block shall have.
-/// e.g 1 in the case of 21 bits over blocks of 2 bits
+/// Outputs a flat array of all [PrfSeededModulusSwitched] needed
+///
+/// Also returns the position of blocks that should be generated to contain
+/// less than `random_bits_per_block`, along with how many bits they should contain
 pub(crate) fn create_random_from_seed_modulus_switched(
     seed: impl OprfSeed,
     lwe_size: LweSize,
     polynomial_size: PolynomialSize,
-    bit_count: u64,
+    bit_chunks: &[u64],
     random_bits_per_block: u64,
-) -> (Vec<PrfSeededModulusSwitched>, u64) {
-    if bit_count == 0 || random_bits_per_block == 0 {
-        return (Vec::new(), 0);
+) -> Vec<(PrfSeededModulusSwitched, u64)> {
+    if random_bits_per_block == 0 {
+        return Vec::new();
     }
 
-    let num_blocks = bit_count.div_ceil(random_bits_per_block);
-
-    let mut last_block_bits = bit_count % random_bits_per_block;
-    if last_block_bits == 0 {
-        last_block_bits = random_bits_per_block;
-    }
-
+    // Init the hasher
     let bytes = seed.into_bytes();
     let mut hasher = sha3::Sha3_256::default();
     hasher.update(b"TFHE_PRF");
     hasher.update(bytes.as_ref());
-    if last_block_bits == random_bits_per_block {
-        // All blocks contain the same number of random bits
-        hasher.update(num_blocks.to_le_bytes());
-        hasher.update(random_bits_per_block.to_le_bytes());
-    } else {
-        let head_count = num_blocks - 1;
-        if head_count != 0 {
-            hasher.update(head_count.to_le_bytes());
-            hasher.update(random_bits_per_block.to_le_bytes());
+
+    let total_blocks: u64 = bit_chunks
+        .iter()
+        .map(|&bits| bits.div_ceil(random_bits_per_block))
+        .sum();
+    let mut seededs = Vec::with_capacity(total_blocks as usize);
+    for &bit_count in bit_chunks {
+        if bit_count == 0 {
+            continue;
         }
-        hasher.update(1u64.to_le_bytes());
-        hasher.update(last_block_bits.to_le_bytes());
+
+        let (num_full_blocks, last_block_bits) = (
+            bit_count / random_bits_per_block,
+            bit_count % random_bits_per_block,
+        );
+
+        let num_blocks = num_full_blocks + u64::from(last_block_bits != 0);
+        hasher.update(num_blocks.to_le_bytes());
+
+        if num_full_blocks != 0 {
+            hasher.update(num_full_blocks.to_le_bytes());
+            hasher.update(random_bits_per_block.to_le_bytes());
+
+            for _ in 0..num_full_blocks {
+                seededs.push((
+                    PrfSeededModulusSwitched::zero(
+                        lwe_size,
+                        polynomial_size.to_blind_rotation_input_modulus_log(),
+                    ),
+                    random_bits_per_block,
+                ));
+            }
+        }
+        if last_block_bits != 0 {
+            hasher.update(1u64.to_le_bytes());
+            hasher.update(last_block_bits.to_le_bytes());
+
+            seededs.push((
+                PrfSeededModulusSwitched::zero(
+                    lwe_size,
+                    polynomial_size.to_blind_rotation_input_modulus_log(),
+                ),
+                last_block_bits,
+            ));
+        }
     }
 
     let seed = hasher.finalize();
-
     let mut xof =
         RandomGenerator::<DefaultRandomGenerator>::new(XofSeed::new(seed.to_vec(), *b"PRF_INIT"));
+    for (seeded, _) in &mut seededs {
+        seeded.fill_mask_with_random(&mut xof);
+    }
 
-    let seeded = (0..num_blocks)
-        .map(|_| {
-            let mut mask = vec![0usize; lwe_size.to_lwe_dimension().0];
-            for mask_element in &mut mask {
-                *mask_element = xof.random_from_distribution_custom_mod::<u32, _>(
-                    Uniform,
-                    CiphertextModulus::new(2 * polynomial_size.0 as u128),
-                ) as usize;
-            }
-            PrfSeededModulusSwitched {
-                mask,
-                body: 0,
-                log_modulus: polynomial_size.to_blind_rotation_input_modulus_log(),
-            }
-        })
-        .collect::<Vec<_>>();
-
-    (seeded, last_block_bits)
+    seededs
 }
 
 // ============================================================================
@@ -965,28 +1026,32 @@ impl<C: Container<Element = c64> + Sync> OprfBootstrappingKey<C> {
             random_bits_count, target_sks.message_modulus.0
         );
 
-        let mut blocks = self.generate_pseudo_random_bits(
+        let mut chunks = self.generate_pseudo_random_bits(
             seed,
-            random_bits_count,
+            &[random_bits_count],
             random_bits_count, // This means we will have one block
             target_sks,
         );
+        assert_eq!(chunks.len(), 1);
+        let mut blocks = chunks.pop().unwrap();
         assert_eq!(blocks.len(), 1);
         blocks.pop().unwrap()
     }
 
-    /// Generates `bit_count` random bits split over multiple blocks.
+    /// Generates random bits split over multiple blocks, grouped per input chunk.
     ///
-    /// Each ciphertext encrypts a value in `[0, 2^random_bits_per_block[`
-    /// except for the last one which may have fewer random bits:
-    /// `bit_count=3, random_bits_per_block=2` -> first_block: 2 bits, last block: 1 bit
+    /// For each entry `bc` in `bit_chunks`, produces a `Vec<Ciphertext>` of
+    /// `ceil(bc / random_bits_per_block)` blocks. Each ciphertext encrypts a value
+    /// in `[0, 2^random_bits_per_block[` except for the last block of each chunk
+    /// which may have fewer random bits:
+    /// `bc=3, random_bits_per_block=2` -> first_block: 2 bits, last block: 1 bit.
     pub(crate) fn generate_pseudo_random_bits(
         &self,
         seed: impl OprfSeed,
-        bit_count: u64,
+        bit_chunks: &[u64],
         random_bits_per_block: u64,
         target_sks: &ServerKey,
-    ) -> Vec<Ciphertext> {
+    ) -> Vec<Vec<Ciphertext>> {
         let ks_key = match &target_sks.atomic_pattern {
             AtomicPatternServerKey::Standard(std) => {
                 self.assert_compatible_with_target_bsk(&std.bootstrapping_key);
@@ -1016,46 +1081,33 @@ impl<C: Container<Element = c64> + Sync> OprfBootstrappingKey<C> {
         let polynomial_size = self.polynomial_size();
         let in_lwe_size = self.input_lwe_dimension().to_lwe_size();
 
-        let (seeded_cts, last_block_bits) = create_random_from_seed_modulus_switched(
+        let seeded_cts = create_random_from_seed_modulus_switched(
             seed,
             in_lwe_size,
             polynomial_size,
-            bit_count,
+            bit_chunks,
             random_bits_per_block,
         );
 
         let ciphertext_modulus = target_sks.ciphertext_modulus;
+        let max_bits = seeded_cts.iter().map(|(_, b)| *b).max().unwrap_or(0);
+        let luts = (1..=max_bits)
+            .map(|bit| {
+                generate_oprf_lut(
+                    bit,
+                    bits_in_one_block,
+                    polynomial_size,
+                    self.glwe_size(),
+                    ciphertext_modulus,
+                )
+            })
+            .collect::<Vec<_>>();
 
-        let regular_lut = generate_oprf_lut(
-            random_bits_per_block,
-            bits_in_one_block,
-            polynomial_size,
-            self.glwe_size(),
-            ciphertext_modulus,
-        );
-        let last_block_lut = if last_block_bits == random_bits_per_block {
-            None
-        } else {
-            Some(generate_oprf_lut(
-                last_block_bits,
-                bits_in_one_block,
-                polynomial_size,
-                self.glwe_size(),
-                ciphertext_modulus,
-            ))
-        };
-
-        let num_blocks = seeded_cts.len();
-        seeded_cts
+        let flat: Vec<Ciphertext> = seeded_cts
             .into_par_iter()
-            .enumerate()
-            .map(|(i, seeded)| {
+            .map(|(seeded, num_bits)| {
                 let (LookupTableOwned { mut acc, degree }, post_pbs_constant) =
-                    if i == num_blocks - 1 && last_block_lut.is_some() {
-                        last_block_lut.clone().unwrap()
-                    } else {
-                        regular_lut.clone()
-                    };
+                    luts[num_bits as usize - 1].clone();
 
                 match self {
                     Self::Classic { bsk, .. } => {
@@ -1114,6 +1166,15 @@ impl<C: Container<Element = c64> + Sync> OprfBootstrappingKey<C> {
                     target_sks.carry_modulus,
                     target_sks.atomic_pattern.kind(),
                 )
+            })
+            .collect();
+
+        let mut iter = flat.into_iter();
+        bit_chunks
+            .iter()
+            .map(|&bc| {
+                let n = bc.div_ceil(random_bits_per_block) as usize;
+                iter.by_ref().take(n).collect()
             })
             .collect()
     }
@@ -1291,12 +1352,12 @@ pub(crate) mod test {
             seed,
             lwe_size,
             params.polynomial_size(),
-            params.message_modulus().0.ilog2() as u64,
+            &[params.message_modulus().0.ilog2() as u64],
             params.message_modulus().0.ilog2() as u64,
         )
-        .0
         .pop()
-        .unwrap();
+        .unwrap()
+        .0;
 
         assert!(seeded.mask.iter().all(|v| *v < input_p as usize));
 
