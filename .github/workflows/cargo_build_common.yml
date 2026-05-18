@@ -78,7 +78,9 @@ jobs:
         shell: python
         env:
           INPUTS_EXTRA_RUNNERS_TO_USE: ${{ inputs.extra-runners-to-use }}
-          REMOTE_RUNNER: "runs-on=${{ github.run_id }}/runner=cpu-small"
+#          REMOTE_RUNNER: "runs-on=${{ github.run_id }}/runner=cpu-small"
+          # This is a temporary workaround to run the CI and pass the branch protection checks.
+          REMOTE_RUNNER: "runs-on=${{ github.run_id }}/image=ubuntu24-full-x64/family=m6i/cpu=8"
         run: |
           import os
           
@@ -179,7 +181,8 @@ jobs:
       - name: Run newline linter checks
         if: inputs.run-build
         run: |
-          make check_newline
+          make install_linelint_ci
+          make check_newline_ci
 
       - name: Build tfhe-csprng
         if: inputs.run-build
