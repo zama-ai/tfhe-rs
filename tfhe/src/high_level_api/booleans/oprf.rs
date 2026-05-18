@@ -33,10 +33,22 @@ impl FheBool {
             InternalServerKey::Cpu(key) => {
                 let sk = &key.pbs_key().key;
 
-                let ct = key
+                let ct_wrapped = key
                     .oprf_key()
                     .key
-                    .generate_oblivious_pseudo_random(seed, 1, sk);
+                    .generate_oblivious_pseudo_random_bits_chunks(seed, &[1], sk);
+
+                // We have to do the double unwrap, we want to keep as little primitives as possible
+                // for PRF since they also need a rerandomized_variant, so we don't have a single
+                // block primitive for that
+                let ct = ct_wrapped
+                    .into_iter()
+                    .next()
+                    .expect("A single chunk was expected, got 0")
+                    .into_iter()
+                    .next()
+                    .expect("A single ciphertext was expected, got 0");
+
                 (
                     InnerBoolean::Cpu(BooleanBlock::new_unchecked(ct)),
                     key.tag.clone(),
