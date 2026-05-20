@@ -148,6 +148,7 @@ pub use strings::ascii::{EncryptableString, FheAsciiString, FheStringIsEmpty, Fh
 pub use tag::Tag;
 pub use traits::FheId;
 pub mod xof_key_set;
+pub use transciphering::Transciphertext;
 
 pub use kv_store::{CompressedKVStore, KVStore};
 
@@ -162,6 +163,7 @@ mod re_randomization;
 #[cfg(feature = "strings")]
 mod strings;
 mod traits;
+mod transciphering;
 mod utils;
 
 #[cfg(feature = "gpu")]

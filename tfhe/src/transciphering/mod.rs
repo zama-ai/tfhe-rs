@@ -251,6 +251,10 @@ pub trait StreamCipher {
     fn current_counter(&self) -> u64;
 }
 
+pub enum StreamCipherKey {
+    Kreyvium(KreyviumPlainKey),
+}
+
 /// Server-side: a stateful FHE-side session that mirrors a StreamCipher.
 /// Same shape as `StreamCipher`, FHE-evaluated.
 pub trait Transcipherer {
