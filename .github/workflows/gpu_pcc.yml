@@ -86,6 +86,7 @@ jobs:
           cuda-version: ${{ matrix.cuda }}
           gcc-version: ${{ matrix.gcc }}
           cloud-provider: ${{ needs.setup-instance.outputs.cloud-provider }}
+          cpu-only: "true"
 
       - name: Install python3-venv
         run: sudo apt-get install -y python3-venv

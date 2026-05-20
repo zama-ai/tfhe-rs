@@ -11,6 +11,10 @@ inputs:
   cloud-provider:
     description: Cloud provider for the instance
     required: true
+  cpu-only:
+    description: Requires a GPU
+    default: "false"
+    required: false
 
 runs:
   using: "composite"
@@ -129,6 +133,7 @@ runs:
 
     # On some machines the driver may not be in sync with the running image, reinstalling fixes it
     - name: Check device is detected and re-install driver if needed
+      if: ${{ inputs.cpu-only == 'false' }}
       shell: bash
       run: |
         nvidia-smi || (sudo apt install --reinstall -y nvidia-driver-580 && nvidia-smi)
