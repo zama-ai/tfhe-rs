@@ -5,9 +5,8 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::gpu::server_key::{
     CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
 };
-use crate::integer::gpu::transciphering::CudaIntegerTranscipherer;
+use crate::integer::gpu::transciphering::{CudaFheKeyStream, CudaIntegerTranscipherer};
 use crate::integer::gpu::{cuda_backend_kreyvium_init, cuda_backend_kreyvium_step};
-use crate::transciphering::TranscipheringCipherKind;
 
 const KREYVIUM_KEY_BITS: usize = 128;
 const KREYVIUM_IV_BITS: usize = 128;
@@ -209,42 +208,19 @@ impl CudaKreyviumStream {
 }
 
 impl CudaIntegerTranscipherer for CudaKreyviumStream {
-    fn kind(&self) -> TranscipheringCipherKind {
-        TranscipheringCipherKind::Kreyvium
-    }
-
-    fn next_keystream_radix(
+    fn next_keystream_bits(
         &mut self,
         sks: &CudaServerKey,
         n_bits: usize,
         streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext {
+    ) -> CudaFheKeyStream {
         assert!(
             n_bits.is_multiple_of(BATCH_SIZE),
             "GPU Kreyvium requires n_bits to be a multiple of {BATCH_SIZE} (got {n_bits})"
         );
         let keystream = sks.kreyvium_next(&mut self.state, n_bits, streams).unwrap();
         self.counter += n_bits as u64;
-        keystream
-    }
-
-    fn trans_cipher_radix(
-        &mut self,
-        _sks: &CudaServerKey,
-        _input_stream: &[u8],
-        _streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext {
-        unimplemented!("trans_cipher_radix is not yet implemented for GPU Kreyvium")
-    }
-
-    fn next_keystream_signed_radix(
-        &mut self,
-        sks: &CudaServerKey,
-        n_bits: usize,
-        streams: &CudaStreams,
-    ) -> CudaSignedRadixCiphertext {
-        let keystream = self.next_keystream_radix(sks, n_bits, streams);
-        <CudaSignedRadixCiphertext as CudaIntegerRadixCiphertext>::from(keystream.into_inner())
+        CudaFheKeyStream::from_raw_parts(keystream)
     }
 
     fn trans_cipher_signed_radix(
