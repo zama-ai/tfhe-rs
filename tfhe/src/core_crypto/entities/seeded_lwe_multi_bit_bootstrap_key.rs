@@ -363,7 +363,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
         let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
 
         MaskRandomGeneratorForkConfig::new(
-            self.input_lwe_dimension().0,
+            self.input_lwe_dimension().0 / self.grouping_factor().0,
             ggsw_group_mask_sample_count,
             mask_distribution,
             modulus,
