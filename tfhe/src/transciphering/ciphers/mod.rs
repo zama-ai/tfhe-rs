@@ -1,5 +1,6 @@
 mod shift_register;
 
+pub mod aes;
 pub mod kreyvium;
 
 /// Pack `bits` into `bytes` LSB-first within each byte. `bytes` must be
