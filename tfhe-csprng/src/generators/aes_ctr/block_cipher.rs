@@ -12,6 +12,17 @@ use crate::generators::aes_ctr::{AES_CALLS_PER_BATCH, BYTES_PER_AES_CALL, BYTES_
 #[derive(Clone, Copy, Debug)]
 pub struct AesKey(pub(crate) u128);
 
+impl AesKey {
+    /// Builds an [`AesKey`] from a `u128`.
+    ///
+    /// The `u128` is interpreted in native endian ordering, so that its in-memory bytes are
+    /// equivalent to a `[u8; 16]` (see the type-level documentation). Callers that load a key from
+    /// raw bytes must therefore arrange them to match the native byte order beforehand.
+    pub const fn new(key: u128) -> Self {
+        Self(key)
+    }
+}
+
 /// A trait for AES block ciphers.
 ///
 /// Note:
