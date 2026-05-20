@@ -166,6 +166,12 @@ harness = false
 required-features = ["integer", "internal-keycache"]
 
 [[bench]]
+name = "shortint-aes-transciphering"
+path = "benches/shortint/aes_transciphering.rs"
+harness = false
+required-features = ["shortint", "internal-keycache"]
+
+[[bench]]
 name = "integer-trivium"
 path = "benches/integer/trivium.rs"
 harness = false
