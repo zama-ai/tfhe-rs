@@ -273,7 +273,7 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
 
         let count = 10; // FIXME Is it a representative value (big enough?)
 
-        let benchmark_spec = BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, bench_type);
+        let benchmark_spec = BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, *bench_type);
         let bench_id = benchmark_spec.to_string();
 
         match bench_type {
