@@ -368,7 +368,7 @@ fn test_cm_pbs_noise_analysis(params: &CmApParams) {
     );
     drop(bsk);
 
-    let noises: Vec<Vec<f64>> = (0..2000)
+    let noises: Vec<Vec<f64>> = (0..10_000)
         .into_par_iter()
         .map(move |i| {
             let msg = i % msg_modulus;
@@ -440,7 +440,7 @@ fn test_cm_pbs_noise_analysis(params: &CmApParams) {
 
         println!("variance: {:?}", variance.0);
 
-        let test_result = normality_test_f64(noises, 0.001);
+        let test_result = normality_test_f64(&noises[..5000], 0.001);
 
         assert!(test_result.null_hypothesis_is_valid);
 
