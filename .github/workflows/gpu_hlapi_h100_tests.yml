@@ -88,7 +88,7 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: hyperstack
+          backend: aws
           profile: single-h100
 
       # This instance will be spawned especially for pull-request from forked repository
