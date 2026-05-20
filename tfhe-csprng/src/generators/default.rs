@@ -9,11 +9,13 @@ pub type DefaultRandomGenerator = super::NeonAesRandomGenerator;
 pub type DefaultRandomGenerator = super::SoftwareRandomGenerator;
 
 #[cfg(all(target_arch = "x86_64", not(feature = "software-prng")))]
-pub type DefaultBlockCipher = super::implem::AesniBlockCipher;
+pub type AesDefaultBlockCipher = super::implem::AesniBlockCipher;
 #[cfg(all(target_arch = "aarch64", not(feature = "software-prng")))]
-pub type DefaultBlockCipher = super::implem::ArmAesBlockCipher;
+pub type AesDefaultBlockCipher = super::implem::ArmAesBlockCipher;
 #[cfg(any(
     feature = "software-prng",
     not(any(target_arch = "x86_64", target_arch = "aarch64"))
 ))]
-pub type DefaultBlockCipher = super::SoftwareBlockCipher;
+pub type AesDefaultBlockCipher = super::SoftwareBlockCipher;
+
+pub type DefaultBlockCipher = AesDefaultBlockCipher;
