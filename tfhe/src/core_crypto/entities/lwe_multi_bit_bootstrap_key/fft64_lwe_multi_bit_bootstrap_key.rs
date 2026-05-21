@@ -41,9 +41,10 @@ impl<C: Container<Element = c64>> FourierLweMultiBitBootstrapKey<C> {
             "Multi Bit BSK requires input LWE dimension to be a multiple of {}",
             grouping_factor.0
         );
-        let equivalent_multi_bit_dimension = input_lwe_dimension.0 / grouping_factor.0;
+        let equivalent_multi_bit_dimension =
+            equivalent_multi_bit_lwe_dimension(input_lwe_dimension, grouping_factor).unwrap();
         let ggsw_count =
-            equivalent_multi_bit_dimension * grouping_factor.ggsw_per_multi_bit_element().0;
+            equivalent_multi_bit_dimension.0 * grouping_factor.ggsw_per_multi_bit_element().0;
         let expected_container_size = ggsw_count
             * fourier_ggsw_ciphertext_size(
                 glwe_size,
@@ -92,7 +93,8 @@ impl<C: Container<Element = c64>> FourierLweMultiBitBootstrapKey<C> {
     }
 
     pub fn multi_bit_input_lwe_dimension(&self) -> LweDimension {
-        LweDimension(self.input_lwe_dimension().0 / self.grouping_factor.0)
+        equivalent_multi_bit_lwe_dimension(self.input_lwe_dimension(), self.grouping_factor)
+            .unwrap()
     }
 
     pub fn polynomial_size(&self) -> PolynomialSize {
@@ -187,9 +189,11 @@ impl FourierLweMultiBitBootstrapKeyOwned {
             input_lwe_dimension.0,
             grouping_factor.0
         );
-        let equivalent_multi_bit_dimension = input_lwe_dimension.0 / grouping_factor.0;
+        let equivalent_multi_bit_dimension =
+            equivalent_multi_bit_lwe_dimension(input_lwe_dimension, grouping_factor).unwrap();
+
         let ggsw_count =
-            equivalent_multi_bit_dimension * grouping_factor.ggsw_per_multi_bit_element().0;
+            equivalent_multi_bit_dimension.0 * grouping_factor.ggsw_per_multi_bit_element().0;
         let container_size = ggsw_count
             * fourier_ggsw_ciphertext_size(
                 glwe_size,

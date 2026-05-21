@@ -31,7 +31,7 @@ pub fn equivalent_multi_bit_lwe_dimension(
         input_lwe_dimension is required to be a multiple of grouping_factor");
     }
 
-    Ok(LweDimension(input_lwe_dimension.0 / grouping_factor.0))
+    Ok(equivalent_multi_bit_lwe_dimension(input_lwe_dimension, grouping_factor).unwrap())
 }
 
 pub fn lwe_multi_bit_bootstrap_key_size(

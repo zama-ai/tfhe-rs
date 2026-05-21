@@ -108,7 +108,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
     /// assert_eq!(bsk.input_lwe_dimension(), input_lwe_dimension);
     /// assert_eq!(
     ///     bsk.multi_bit_input_lwe_dimension(),
-    ///     LweDimension(input_lwe_dimension.0 / grouping_factor.0)
+    ///     equivalent_multi_bit_lwe_dimension(input_lwe_dimension, grouping_factor).unwrap()
     /// );
     /// assert_eq!(
     ///     bsk.output_lwe_dimension(),
@@ -143,7 +143,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
     /// assert_eq!(bsk.input_lwe_dimension(), input_lwe_dimension);
     /// assert_eq!(
     ///     bsk.multi_bit_input_lwe_dimension(),
-    ///     LweDimension(input_lwe_dimension.0 / grouping_factor.0)
+    ///     equivalent_multi_bit_lwe_dimension(input_lwe_dimension, grouping_factor).unwrap()
     /// );
     /// assert_eq!(
     ///     bsk.output_lwe_dimension(),
@@ -163,7 +163,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
     /// assert_eq!(bsk.input_lwe_dimension(), input_lwe_dimension);
     /// assert_eq!(
     ///     bsk.multi_bit_input_lwe_dimension(),
-    ///     LweDimension(input_lwe_dimension.0 / grouping_factor.0)
+    ///     equivalent_multi_bit_lwe_dimension(input_lwe_dimension, grouping_factor).unwrap()
     /// );
     /// assert_eq!(
     ///     bsk.output_lwe_dimension(),
@@ -231,7 +231,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
     ///
     /// See [`SeededLweMultiBitBootstrapKey::from_container`] for usage.
     pub fn multi_bit_input_lwe_dimension(&self) -> LweDimension {
-        LweDimension(self.input_lwe_dimension().0 / self.grouping_factor.0)
+        equivalent_multi_bit_lwe_dimension(self.input_lwe_dimension(), self.grouping_factor)
+            .unwrap()
     }
     /// Return the [`LweDimension`] of the equivalent output [`LweSecretKey`].
     ///
@@ -363,7 +364,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
         let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
 
         MaskRandomGeneratorForkConfig::new(
-            self.input_lwe_dimension().0 / self.grouping_factor().0,
+            equivalent_multi_bit_lwe_dimension(self.input_lwe_dimension(), self.grouping_factor())
+                .unwrap()
+                .0,
             ggsw_group_mask_sample_count,
             mask_distribution,
             modulus,
@@ -428,7 +431,8 @@ impl<Scalar: UnsignedInteger> SeededLweMultiBitBootstrapKeyOwned<Scalar> {
             input_lwe_dimension.0,
             grouping_factor.0
         );
-        let equivalent_multi_bit_dimension = input_lwe_dimension.0 / grouping_factor.0;
+        let equivalent_multi_bit_dimension =
+            equivalent_multi_bit_lwe_dimension(input_lwe_dimension, grouping_factor).unwrap();
 
         Self {
             ggsw_list: SeededGgswCiphertextList::new(
@@ -438,7 +442,8 @@ impl<Scalar: UnsignedInteger> SeededLweMultiBitBootstrapKeyOwned<Scalar> {
                 decomp_base_log,
                 decomp_level_count,
                 GgswCiphertextCount(
-                    equivalent_multi_bit_dimension * grouping_factor.ggsw_per_multi_bit_element().0,
+                    equivalent_multi_bit_dimension.0
+                        * grouping_factor.ggsw_per_multi_bit_element().0,
                 ),
                 compression_seed,
                 ciphertext_modulus,
