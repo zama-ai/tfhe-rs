@@ -35,6 +35,24 @@ image_id = "ami-0250f541bc1358116"
 instance_type = "p5.4xlarge"
 user = "ubuntu"
 
+[backend.aws.single-h100_1stfallback]
+region = "us-east-2"
+image_id = "ami-0c924a8e0a210a709"
+instance_type = "p5.4xlarge"
+user = "ubuntu"
+
+[backend.aws.single-h100_2ndfallback]
+region = "us-west-1"
+image_id = "ami-0fe3273232bc2fb8a"
+instance_type = "p5.4xlarge"
+user = "ubuntu"
+
+[backend.aws.single-h100_3rdfallback]
+region = "us-west-2"
+image_id = "ami-057682b0cfedeaf20"
+instance_type = "p5.4xlarge"
+user = "ubuntu"
+
 [backend.aws.4-l40]
 region = "us-east-1"
 image_id = "ami-0250f541bc1358116"
