@@ -7,6 +7,7 @@ use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::commons::traits::{Container, Split};
 use crate::core_crypto::commons::utils::izip_eq;
+use crate::core_crypto::entities::equivalent_multi_bit_lwe_dimension;
 use crate::core_crypto::fft_impl::fft128::crypto::ggsw::Fourier128GgswCiphertext;
 use crate::core_crypto::prelude::MultiBitBootstrapKeyConformanceParams;
 
@@ -126,7 +127,8 @@ impl<C: Container<Element = f64>> Fourier128LweMultiBitBootstrapKey<C> {
     }
 
     pub fn multi_bit_input_lwe_dimension(&self) -> LweDimension {
-        LweDimension(self.input_lwe_dimension().0 / self.grouping_factor.0)
+        equivalent_multi_bit_lwe_dimension(self.input_lwe_dimension(), self.grouping_factor)
+            .unwrap()
     }
 
     pub fn data(self) -> (C, C, C, C) {
