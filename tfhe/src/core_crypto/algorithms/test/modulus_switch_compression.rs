@@ -120,7 +120,11 @@ fn assert_ms_multi_bit_compression<
         c.switched_modulus_input_lwe_body()
     );
 
-    for i in 0..ct.lwe_size().to_lwe_dimension().0 / grouping_factor.0 {
+    for i in
+        0..equivalent_multi_bit_lwe_dimension(ct.lwe_size().to_lwe_dimension(), grouping_factor)
+            .unwrap()
+            .0
+    {
         for (j, k) in a
             .switched_modulus_input_mask_per_group(i)
             .zip_eq(c.switched_modulus_input_mask_per_group(i))
