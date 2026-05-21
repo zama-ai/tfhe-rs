@@ -20,7 +20,7 @@ mod oprf;
 #[macro_use]
 mod bench_common;
 
-// Generate benches for all FheUint types
+// Generate benches for all FheInt types
 generate_typed_benches!(FheInt2, i128);
 generate_typed_benches!(FheInt4, i128);
 generate_typed_benches!(FheInt8, i128);
