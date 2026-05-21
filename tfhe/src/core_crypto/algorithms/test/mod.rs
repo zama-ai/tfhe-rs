@@ -6,6 +6,7 @@ use crate::core_crypto::prelude::*;
 pub(crate) use params::*;
 use std::fmt::Debug;
 
+mod bootstrap_key_conformance;
 mod ggsw_encryption;
 mod glwe_encryption;
 mod glwe_linear_algebra;
