@@ -23,4 +23,5 @@ bindgen.workspace = true
 experimental-multi-arch = []
 profile = ["tfhe-cuda-common/profile"]
 debug = ["tfhe-cuda-common/debug"]
-debug-fake-multi-gpu = []
+debug-noise-check = []
+debug-fake-multi-gpu = ["debug-noise-check"]

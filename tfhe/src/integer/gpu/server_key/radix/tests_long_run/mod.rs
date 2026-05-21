@@ -1,5 +1,7 @@
 use crate::core_crypto::commons::generators::DeterministicSeeder;
-use crate::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
+#[cfg(not(feature = "gpu-debug-fake-multi-gpu"))]
+use crate::core_crypto::gpu::get_number_of_gpus;
+use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::radix::tests_unsigned::GpuContext;

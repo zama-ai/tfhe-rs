@@ -123,7 +123,7 @@ if [[ "${NO_BIG_PARAMS_GPU}" == TRUE ]]; then
 fi
 
 if [[ "${backend}" == "gpu" ]]; then
-    gpu_feature="gpu"
+    gpu_feature="${GPU_FEATURE:-gpu}"
 fi
 
 CURR_DIR="$(dirname "$0")"
