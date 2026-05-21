@@ -92,6 +92,28 @@ mod cpu {
             true,
         );
     }
+
+    // Triggers rerand with KS (V1.5 legacy params have dedicated re_randomization_parameters)
+    #[test]
+    fn test_xof_key_set_legacy_rerand_multibit_group_4_small_pke() {
+        run_xof_key_set_test(
+            TEST_LEGACY_RERAND_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128.into(),
+            "gpu multibit group 4",
+            Device::Cpu,
+            true,
+        );
+    }
+
+    // Triggers rerand with KS (V1.5 legacy params have dedicated re_randomization_parameters)
+    #[test]
+    fn test_xof_key_set_legacy_rerand_multibit_group_4_big_pke() {
+        run_xof_key_set_test(
+            TEST_LEGACY_RERAND_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128.into(),
+            "gpu multibit group 4",
+            Device::Cpu,
+            true,
+        );
+    }
 }
 
 #[cfg(feature = "gpu")]
@@ -223,7 +245,7 @@ fn test_xof_key_set(
     let cpk = match device {
         Device::Cpu => {
             let key_set = compressed_key_set.decompress().unwrap();
-            let size_limit = 1 << 32; // 4GB
+            let size_limit = 1 << 33; // 8GB
             let mut data = vec![];
             crate::safe_serialization::safe_serialize(&key_set, &mut data, size_limit).unwrap();
             let mut key_set: XofKeySet =
