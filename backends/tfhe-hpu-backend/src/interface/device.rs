@@ -7,11 +7,13 @@ use crate::entities::*;
 use std::sync::{Arc, LazyLock, atomic, mpsc};
 
 pub static HPU_DEVICE: LazyLock<HpuDevice> = LazyLock::new(|| {
-    HpuDevice::from_config(
+    let device = HpuDevice::from_config(
         ShellString::new("${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string())
             .expand()
             .as_str()
-    )
+    );
+    device.fw_init();
+    device
 });
 
 pub struct HpuDevice {
