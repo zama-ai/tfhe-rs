@@ -227,14 +227,7 @@ To cite TFHE-rs in academic papers, please use the following entry:
 ```
 
 ### Contributing
-
-There are two ways to contribute to TFHE-rs:
-
-- [Open issues](https://github.com/zama-ai/tfhe-rs/issues/new/choose) to report bugs and typos, or to suggest new ideas
-- Request to become an official contributor by emailing [hello@zama.org](mailto:hello@zama.org).
-
-Becoming an approved contributor involves signing our Contributor License Agreement (CLA). Only approved contributors can send pull requests, so please make sure to get in touch before you do!
-<br></br>
+This repository uses an **issue-first contribution workflow**. Read [this](CONTRIBUTING.md) for more details.
 
 ### License
 This software is distributed under the **BSD-3-Clause-Clear** license. Read [this](LICENSE) for more details.
