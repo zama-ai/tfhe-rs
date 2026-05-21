@@ -6,7 +6,7 @@ use std::process::Command;
 
 const DIR_TO_IGNORE: [&str; 1] = ["apps/test-vectors"];
 
-const FILES_TO_IGNORE: [&str; 11] = [
+const FILES_TO_IGNORE: [&str; 12] = [
     // This contains fragments of code that are unrelated to TFHE-rs
     "tfhe/docs/tutorials/sha256-bool.md",
     // TODO: This contains code that could be executed as a trivium docstring
@@ -20,6 +20,7 @@ const FILES_TO_IGNORE: [&str; 11] = [
     "tfhe-ntt/README.md",
     "utils/tfhe-lints/README.md",
     "CONTRIBUTING.md",
+    "CONTRIBUTION_GUIDELINES.md",
     "backends/tfhe-hpu-backend/README.md",
     "backends/zk-cuda-backend/README.md",
     "utils/tfhe-backward-compat-data/README.md",
