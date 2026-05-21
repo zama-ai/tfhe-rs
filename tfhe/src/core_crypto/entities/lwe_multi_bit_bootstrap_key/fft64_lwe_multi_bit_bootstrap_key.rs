@@ -1,4 +1,4 @@
-use super::{lwe_multi_bit_bootstrap_key_size, MultiBitBootstrapKeyConformanceParams};
+use super::MultiBitBootstrapKeyConformanceParams;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::lwe_multi_bit_bootstrap_key::FourierLweMultiBitBootstrapKeyVersions;
 use crate::core_crypto::commons::parameters::*;
@@ -249,7 +249,7 @@ impl<C: Container<Element = c64>> ParameterSetConformant for FourierLweMultiBitB
         }
 
         data.container_len()
-            == lwe_multi_bit_bootstrap_key_size(
+            == fourier_lwe_multi_bit_bootstrap_key_size(
                 *input_lwe_dimension,
                 *glwe_size,
                 *polynomial_size,
