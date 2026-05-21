@@ -241,15 +241,17 @@ where
         let message_bits_count = target_sks.message_modulus().0.ilog2() as u64;
 
         assert!(
-                !excluded_upper_bound.is_power_of_two(),
-                "Use the cheaper par_generate_oblivious_pseudo_random_unsigned_integer_bounded function instead"
-            );
+            !excluded_upper_bound.is_power_of_two(),
+            "Use the cheaper par_generate_oblivious_pseudo_random_unsigned_integer_bounded \
+            function instead"
+        );
 
         let num_bits_output = num_blocks_output * message_bits_count;
         assert!(
-                (excluded_upper_bound as f64) < 2_f64.powi(num_bits_output as i32),
-                "num_blocks_output(={num_blocks_output}) is too small to hold an integer up to excluded_upper_bound(=excluded_upper_bound)"
-            );
+            (excluded_upper_bound as f64) < 2_f64.powi(num_bits_output as i32),
+            "num_blocks_output(={num_blocks_output}) is too small to hold an integer \
+            up to excluded_upper_bound(={excluded_upper_bound})"
+        );
 
         let post_mul_num_bits =
             num_input_random_bits + (excluded_upper_bound as f64).log2().ceil() as u64;
@@ -391,22 +393,22 @@ where
     ) -> T {
         assert!(target_sks.message_modulus().0.is_power_of_two());
         let message_bits_count = target_sks.message_modulus().0.ilog2() as u64;
-        let range_log_size = message_bits_count * num_blocks;
+        let range_bits_count = message_bits_count * num_blocks;
 
         if T::IS_SIGNED {
-            #[allow(clippy::int_plus_one)]
-            {
-                assert!(
-                        random_bits_count + 1 <= range_log_size,
-                        "The range asked for a random value (=[0, 2^{}[) does not fit in the available range [-2^{}, 2^{}[",
-                        random_bits_count, range_log_size - 1, range_log_size - 1,
-                    );
-            }
+            let signed_range_bits_count = range_bits_count.saturating_sub(1);
+            assert!(
+                random_bits_count <= signed_range_bits_count,
+                "The range asked for a random value in (=[0, 2^{random_bits_count}[) \
+                which does not fit in the available range \
+                [-2^{signed_range_bits_count}, 2^{signed_range_bits_count}[",
+            );
         } else {
             assert!(
-                    random_bits_count <= range_log_size,
-                    "The range asked for a random value (=[0, 2^{random_bits_count}[) does not fit in the available range [0, 2^{range_log_size}[",
-                );
+                random_bits_count <= range_bits_count,
+                "The range asked for a random value in (=[0, 2^{random_bits_count}[) \
+                which does not fit in the available range [0, 2^{range_bits_count}[",
+            );
         }
 
         let mut blocks = self.key.generate_oblivious_pseudo_random_bits(
