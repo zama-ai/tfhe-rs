@@ -467,7 +467,9 @@ pub fn multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCo
     let input_lwe_dimension = multi_bit_bsk.input_lwe_dimension();
 
     assert_eq!(input_lwe_dimension.0 % grouping_factor.0, 0);
-    let max_work_index = input_lwe_dimension.0 / grouping_factor.0;
+    let max_work_index = equivalent_multi_bit_lwe_dimension(input_lwe_dimension, grouping_factor)
+        .unwrap()
+        .0;
 
     accumulator
         .as_mut_polynomial_list()
@@ -699,7 +701,9 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
     let input_lwe_dimension = multi_bit_bsk.input_lwe_dimension();
 
     assert_eq!(input_lwe_dimension.0 % grouping_factor.0, 0);
-    let max_work_index = input_lwe_dimension.0 / grouping_factor.0;
+    let max_work_index = equivalent_multi_bit_lwe_dimension(input_lwe_dimension, grouping_factor)
+        .unwrap()
+        .0;
 
     accumulator
         .as_mut_polynomial_list()
@@ -1268,7 +1272,9 @@ pub fn std_multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, K
     let input_lwe_dimension = multi_bit_bsk.input_lwe_dimension();
 
     assert_eq!(input_lwe_dimension.0 % grouping_factor.0, 0);
-    let max_work_index = input_lwe_dimension.0 / grouping_factor.0;
+    let max_work_index = equivalent_multi_bit_lwe_dimension(input_lwe_dimension, grouping_factor)
+        .unwrap()
+        .0;
 
     accumulator
         .as_mut_polynomial_list()
@@ -1535,7 +1541,9 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCo
     let input_lwe_dimension = multi_bit_bsk.input_lwe_dimension();
 
     assert_eq!(input_lwe_dimension.0 % grouping_factor.0, 0);
-    let max_work_index = input_lwe_dimension.0 / grouping_factor.0;
+    let max_work_index = equivalent_multi_bit_lwe_dimension(input_lwe_dimension, grouping_factor)
+        .unwrap()
+        .0;
 
     accumulator
         .as_mut_polynomial_list()
@@ -1942,7 +1950,9 @@ pub fn std_multi_bit_f128_deterministic_blind_rotate_assign<Scalar, OutputCont, 
     let input_lwe_dimension = multi_bit_bsk.input_lwe_dimension();
 
     assert_eq!(input_lwe_dimension.0 % grouping_factor.0, 0);
-    let max_work_index = input_lwe_dimension.0 / grouping_factor.0;
+    let max_work_index = equivalent_multi_bit_lwe_dimension(input_lwe_dimension, grouping_factor)
+        .unwrap()
+        .0;
 
     accumulator
         .as_mut_polynomial_list()
@@ -2370,7 +2380,9 @@ pub fn multi_bit_f128_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyC
     let input_lwe_dimension = multi_bit_bsk.input_lwe_dimension();
 
     assert_eq!(input_lwe_dimension.0 % grouping_factor.0, 0);
-    let max_work_index = input_lwe_dimension.0 / grouping_factor.0;
+    let max_work_index = equivalent_multi_bit_lwe_dimension(input_lwe_dimension, grouping_factor)
+        .unwrap()
+        .0;
 
     accumulator
         .as_mut_polynomial_list()

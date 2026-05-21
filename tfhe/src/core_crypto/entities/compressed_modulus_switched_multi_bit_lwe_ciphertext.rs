@@ -207,7 +207,10 @@ impl<PackingScalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>>
 
         if let Some(diffs) = packed_diffs.as_ref() {
             // Get the expected number of diffs from the compression code
-            let multi_bit_elements = packed_mask.initial_len() / grouping_factor.0;
+            let multi_bit_elements =
+                equivalent_multi_bit_lwe_dimension(lwe_dimension, grouping_factor)
+                    .unwrap()
+                    .0;
             let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element().0;
 
             // In the diff list creation, we skip every power of two, so we have to remove them from

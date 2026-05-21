@@ -485,18 +485,13 @@ pub struct GgswCiphertextListConformanceParams<Scalar: UnsignedInteger> {
 impl<Scalar: UnsignedInteger> TryFrom<&MultiBitBootstrapKeyConformanceParams<Scalar>>
     for GgswCiphertextListConformanceParams<Scalar>
 {
-    type Error = ();
+    type Error = &'static str;
 
-    fn try_from(value: &MultiBitBootstrapKeyConformanceParams<Scalar>) -> Result<Self, ()> {
-        if !value
-            .input_lwe_dimension
-            .0
-            .is_multiple_of(value.grouping_factor.0)
-        {
-            return Err(());
-        }
-
-        let group_count = value.input_lwe_dimension.0 / value.grouping_factor.0;
+    fn try_from(
+        value: &MultiBitBootstrapKeyConformanceParams<Scalar>,
+    ) -> Result<Self, &'static str> {
+        let group_count =
+            equivalent_multi_bit_lwe_dimension(value.input_lwe_dimension, value.grouping_factor)?.0;
 
         Ok(Self {
             len: group_count * value.grouping_factor.ggsw_per_multi_bit_element().0,
