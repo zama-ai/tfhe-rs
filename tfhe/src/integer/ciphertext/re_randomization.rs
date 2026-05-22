@@ -4,7 +4,9 @@ use crate::core_crypto::commons::math::random::XofSeed;
 use crate::integer::ciphertext::AsShortintCiphertextSlice;
 use crate::integer::key_switching_key::KeySwitchingKeyMaterialView;
 use crate::integer::CompactPublicKey;
-pub use crate::shortint::ciphertext::{ReRandomizationSeed, ReRandomizationSeedHasher};
+pub use crate::shortint::ciphertext::{
+    ReRandomizationHashAlgo, ReRandomizationSeed, ReRandomizationSeedHasher,
+};
 use crate::shortint::Ciphertext;
 use crate::Result;
 
@@ -20,6 +22,17 @@ pub enum ReRandomizationKey<'key> {
     DerivedCPKWithoutKeySwitch {
         cpk: &'key CompactPublicKey,
     },
+}
+
+impl ReRandomizationKey<'_> {
+    pub fn get_cpk_and_optional_ksk(
+        &self,
+    ) -> (&CompactPublicKey, Option<&KeySwitchingKeyMaterialView<'_>>) {
+        match self {
+            ReRandomizationKey::LegacyDedicatedCPK { cpk, ksk } => (cpk, Some(ksk)),
+            ReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk } => (cpk, None),
+        }
+    }
 }
 
 /// The context that will be hashed and used to generate unique [`ReRandomizationSeed`].
@@ -179,10 +192,8 @@ pub(crate) fn re_randomize_ciphertext_blocks(
     re_randomization_key: ReRandomizationKey<'_>,
     seed: ReRandomizationSeed,
 ) -> crate::Result<()> {
-    let (compact_public_key, key_switching_key_material) = match re_randomization_key {
-        ReRandomizationKey::LegacyDedicatedCPK { cpk, ksk } => (cpk, Some(ksk)),
-        ReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk } => (cpk, None),
-    };
+    let (compact_public_key, key_switching_key_material) =
+        re_randomization_key.get_cpk_and_optional_ksk();
 
     compact_public_key.key.re_randomize_ciphertexts(
         blocks,
