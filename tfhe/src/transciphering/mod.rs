@@ -50,6 +50,7 @@
 pub mod backward_compatibility;
 pub mod ciphers;
 
+use ciphers::kreyvium::KreyviumPlainKey;
 use rayon::prelude::*;
 use tfhe_versionable::Versionize;
 

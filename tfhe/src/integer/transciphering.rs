@@ -1,26 +1,36 @@
 use crate::integer::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
-use crate::transciphering::Transcipherer;
+use crate::transciphering::{StreamCiphertext, TranscipherError, Transcipherer};
 
 pub trait IntegerTranscipherer {
-    fn trans_cipher_radix(&mut self, sks: &ServerKey, input_stream: &[u8]) -> RadixCiphertext;
-
-    fn trans_cipher_signed_radix(
+    fn transcipher_radix(
         &mut self,
         sks: &ServerKey,
-        input_stream: &[u8],
-    ) -> SignedRadixCiphertext;
+        input_stream: &StreamCiphertext,
+    ) -> Result<RadixCiphertext, TranscipherError>;
+
+    fn transcipher_signed_radix(
+        &mut self,
+        sks: &ServerKey,
+        input_stream: &StreamCiphertext,
+    ) -> Result<SignedRadixCiphertext, TranscipherError>;
 }
 
 impl<T: Transcipherer> IntegerTranscipherer for T {
-    fn trans_cipher_radix(&mut self, sks: &ServerKey, input_stream: &[u8]) -> RadixCiphertext {
-        RadixCiphertext::from(self.trans_cipher(&sks.key, input_stream))
-    }
-
-    fn trans_cipher_signed_radix(
+    fn transcipher_radix(
         &mut self,
         sks: &ServerKey,
-        input_stream: &[u8],
-    ) -> SignedRadixCiphertext {
-        SignedRadixCiphertext::from(self.trans_cipher(&sks.key, input_stream))
+        input_stream: &StreamCiphertext,
+    ) -> Result<RadixCiphertext, TranscipherError> {
+        self.transcipher(&sks.key, input_stream)
+            .map(RadixCiphertext::from)
+    }
+
+    fn transcipher_signed_radix(
+        &mut self,
+        sks: &ServerKey,
+        input_stream: &StreamCiphertext,
+    ) -> Result<SignedRadixCiphertext, TranscipherError> {
+        self.transcipher(&sks.key, input_stream)
+            .map(SignedRadixCiphertext::from)
     }
 }
