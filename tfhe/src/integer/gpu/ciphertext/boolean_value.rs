@@ -12,7 +12,7 @@ use super::CudaIntegerRadixCiphertext;
 
 /// Wrapper type used to signal that the inner value encrypts 0 or 1
 ///
-/// Since values ares encrypted, it is not possible to know whether a
+/// Since values are encrypted, it is not possible to know whether a
 /// ciphertext encrypts a boolean value (0 or 1). However, some algorithms
 /// require that the ciphertext does indeed encrypt a boolean value.
 ///
