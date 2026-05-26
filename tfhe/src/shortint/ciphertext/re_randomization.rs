@@ -574,17 +574,18 @@ mod test {
         let ksk_material = ksk_material.as_ref().map(|k| k.as_view());
 
         let pke_lwe_dim = pubk.parameters().encryption_lwe_dimension.0;
-
-        let msg1 = 1;
-        let msg2 = 2;
+        let message_modulus = cks.parameters().message_modulus();
 
         {
             let mut cts = Vec::with_capacity(pke_lwe_dim * 2);
+            let clears: Vec<u64> = (0..cts.capacity())
+                .map(|_| rand::random::<u64>() % message_modulus.0)
+                .collect();
 
-            for _ in 0..pke_lwe_dim {
-                let ct1 = cks.encrypt(msg1);
+            for chunk in clears.chunks_exact(2) {
+                let ct1 = cks.encrypt(chunk[0]);
                 cts.push(ct1);
-                let ct2 = cks.encrypt(msg2);
+                let ct2 = cks.encrypt(chunk[1]);
                 cts.push(ct2);
             }
 
@@ -600,16 +601,19 @@ mod test {
             pubk.re_randomize_ciphertexts(&mut cts, ksk_material.as_ref(), seeder.next_seed())
                 .unwrap();
 
-            cts.par_chunks(2).for_each(|pair| {
-                let sum = sks.add(&pair[0], &pair[1]);
-                let dec = cks.decrypt(&sum);
+            cts.par_chunks_exact(2)
+                .zip(clears.par_chunks_exact(2))
+                .for_each(|(pair, clear_pair)| {
+                    let sum = sks.add(&pair[0], &pair[1]);
+                    let dec = cks.decrypt(&sum);
 
-                assert_eq!(dec, msg1 + msg2);
-            });
+                    assert_eq!(dec, (clear_pair[0] + clear_pair[1]) % message_modulus.0);
+                });
         }
 
         {
-            let mut trivial = sks.create_trivial(3);
+            let random_clear = rand::random::<u64>() % cks.parameters().message_modulus().0;
+            let mut trivial = sks.create_trivial(random_clear);
 
             let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
             let mut re_rand_context = ReRandomizationContext::new(*b"TFHE_Rrd", *b"TFHE_Enc");
@@ -629,10 +633,12 @@ mod test {
 
             let not_trivial = trivial;
 
+            // non trivial ct should have a non zero mask
+            assert!(not_trivial.ct.get_mask().as_ref().iter().any(|&x| x != 0));
             assert!(not_trivial.noise_level() == NoiseLevel::NOMINAL);
 
             let dec = cks.decrypt(&not_trivial);
-            assert_eq!(dec, 3);
+            assert_eq!(dec, random_clear);
         }
     }
 
