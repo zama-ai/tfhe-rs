@@ -590,9 +590,9 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
                 let (sents_0, sents_1): (Vec<_>, Vec<_>) = rayon::join(
                     || {
                         from_balances_0
-                            .iter()
-                            .zip(current_balances_0.iter())
-                            .zip(amount_0.iter())
+                            .par_iter()
+                            .zip(current_balances_0.par_iter())
+                            .zip(amount_0.par_iter())
                             .map(|((from_0, curr_0), amt_0)| {
                                 swap_request_update_dex_balance_func(from_0, curr_0, amt_0)
                             })
@@ -600,9 +600,9 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
                     },
                     || {
                         from_balances_1
-                            .iter()
-                            .zip(current_balances_1.iter())
-                            .zip(amount_1.iter())
+                            .par_iter()
+                            .zip(current_balances_1.par_iter())
+                            .zip(amount_1.par_iter())
                             .map(|((from_1, curr_1), amt_1)| {
                                 swap_request_update_dex_balance_func(from_1, curr_1, amt_1)
                             })
