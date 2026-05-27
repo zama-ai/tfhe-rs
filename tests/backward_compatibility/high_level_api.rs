@@ -1062,9 +1062,7 @@ fn test_hl_compressed_xof_key_set_test(
         )
     })?;
 
-    let xof_key_set = compressed_xof_key_set
-        .decompress()
-        .map_err(|e| test.failure(format!("Failed to decompress the xof key set: {e}"), format))?;
+    let xof_key_set = compressed_xof_key_set.decompress();
 
     let (pk, server_key) = xof_key_set.into_raw_parts();
 
