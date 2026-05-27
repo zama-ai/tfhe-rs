@@ -389,7 +389,7 @@ impl CompressedXofKeySet {
     }
 
     /// Decompress the KeySet
-    pub fn decompress(&self) -> crate::Result<XofKeySet> {
+    pub fn decompress(&self) -> XofKeySet {
         let tag = self.compressed_server_key.tag.clone();
         let (mut public_key, expanded_server_key) = self.expand();
         // Server key tag is the source of truth; sync public key
@@ -400,10 +400,10 @@ impl CompressedXofKeySet {
             tag,
         };
 
-        Ok(XofKeySet {
+        XofKeySet {
             public_key,
             server_key,
-        })
+        }
     }
 
     fn expand(&self) -> (CompactPublicKey, IntegerExpandedServerKey) {
