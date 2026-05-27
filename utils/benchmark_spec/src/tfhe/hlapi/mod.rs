@@ -1,3 +1,4 @@
+pub mod bitonic_shuffle;
 pub mod dex;
 pub mod erc7984;
 pub mod kv_store;
@@ -5,6 +6,7 @@ pub mod noise_squash;
 pub mod oprf;
 pub mod vector_find;
 
+use bitonic_shuffle::BitonicShuffleSpec;
 use dex::Dex;
 use erc7984::Erc7984;
 use kv_store::KvStoreOp;
@@ -34,6 +36,7 @@ pub enum HlapiBench {
     NoiseSquashing(NoiseSquashingKind),
     Oprf(OprfKind),
     VectorFind(VectorFindOp),
+    BitonicShuffle(BitonicShuffleSpec),
 }
 
 impl SpecNode for HlapiBench {
@@ -46,6 +49,7 @@ impl SpecNode for HlapiBench {
             HlapiBench::NoiseSquashing(op) => op,
             HlapiBench::Oprf(op) => op,
             HlapiBench::VectorFind(op) => op,
+            HlapiBench::BitonicShuffle(spec) => spec,
         })
     }
 }

@@ -1,251 +1,220 @@
+#[cfg(not(any(feature = "gpu", feature = "hpu")))]
+use benchmark::find_optimal_batch::find_optimal_batch;
+use benchmark::high_level_api::type_display::{TypeDisplay, TypeDisplayer};
 #[cfg(feature = "gpu")]
 use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 #[cfg(feature = "gpu")]
 use benchmark::utilities::{get_param_type, ParamType};
-use benchmark::utilities::{write_to_json_unchecked, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType};
-use criterion::{criterion_group, Criterion, Throughput};
-use rand::prelude::*;
+use benchmark::utilities::{write_to_json, OperatorType};
+use benchmark_spec::tfhe::hlapi::bitonic_shuffle::BitonicShuffleSpec;
+use benchmark_spec::{get_bench_type, BenchmarkSpec, BenchmarkType, HlapiBench, OperandType};
+use criterion::measurement::WallTime;
+use criterion::{criterion_group, BenchmarkGroup, Criterion, Throughput};
+use rand::Rng;
 use rayon::prelude::*;
 use std::hint::black_box;
+use std::num::NonZeroU32;
 use tfhe::integer::server_key::BitonicShuffleKeySize;
 use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
 use tfhe::{
     bitonic_shuffle, set_server_key, ClientKey, ConfigBuilder, FheIntegerType, FheUint160,
-    FheUint64, Seed, ServerKey,
+    FheUint64, IntegerId, Seed, ServerKey,
 };
 
-const DATA_BITS: u32 = 64;
-const SHUFFLE_KEY_NUM_BITS: u32 = 32;
-const COLLISION_PROBABILITY: f64 = 1e-8;
-const KEY_BITS_SWEEP: [u32; 5] = [8, 16, 32, 64, 128];
-
-fn power_of_two_scenarios() -> Vec<usize> {
-    vec![16, 32]
-}
-
-fn non_pow2_scenarios() -> Vec<usize> {
-    vec![15, 17, 31, 33]
-}
-
-fn encrypt_data(cks: &ClientKey, num_elements: usize, rng: &mut ThreadRng) -> Vec<FheUint64> {
-    (0..num_elements)
-        .map(|_| {
-            let v: u64 = rng.gen();
-            FheUint64::encrypt(v, cks)
-        })
-        .collect()
-}
-
-fn bench_bitonic_shuffle_inner<F>(
-    c: &mut Criterion,
-    cks: &ClientKey,
-    bench_name: &str,
-    scenarios: &[usize],
-    bench_id_suffix: F,
-    key_size: BitonicShuffleKeySize,
-) where
-    F: Fn(usize) -> String,
-{
-    let mut group = c.benchmark_group(bench_name);
-    group
-        .sample_size(10)
-        .measurement_time(std::time::Duration::from_secs(60));
-
-    let mut rng = rand::thread_rng();
-
-    for &num_elements in scenarios {
-        let bench_id = bench_id_suffix(num_elements);
-
-        group.bench_function(&bench_id, |b| {
-            b.iter_batched(
-                || (encrypt_data(cks, num_elements, &mut rng), Seed(rng.gen())),
-                |(data, seed)| {
-                    let res =
-                        bitonic_shuffle(data, key_size, seed).expect("bitonic_shuffle failed");
-                    black_box(res);
-                },
-                criterion::BatchSize::SmallInput,
-            )
-        });
+fn convert_key_size_to_spec(val: BitonicShuffleKeySize, num_elements: u32) -> BitonicShuffleSpec {
+    let num_elements = NonZeroU32::new(num_elements).unwrap();
+    match val {
+        BitonicShuffleKeySize::CollisionProbability(_collision_probability) => todo!(),
+        BitonicShuffleKeySize::AttackerAdvantage(attacker_advantage) => {
+            BitonicShuffleSpec::AttackerAdvantage {
+                advantage: attacker_advantage.advantage(),
+                num_revealed: attacker_advantage.num_revealed().unwrap_or(num_elements),
+            }
+        }
+        BitonicShuffleKeySize::NumBits(_) => todo!(),
     }
-
-    group.finish();
 }
 
-fn bench_default(c: &mut Criterion, cks: &ClientKey, bench_name: &str) {
-    bench_bitonic_shuffle_inner(
-        c,
-        cks,
-        bench_name,
-        &power_of_two_scenarios(),
-        |n| format!("{DATA_BITS}_bits::{n}_elements"),
-        BitonicShuffleKeySize::num_bits(SHUFFLE_KEY_NUM_BITS),
-    );
-}
+fn bench_shuffle_for_type<FheType>(
+    bench_group: &mut BenchmarkGroup<'_, WallTime>,
+    cks: &ClientKey,
+    scenarios: impl Iterator<Item = (u32, BitonicShuffleKeySize)>,
+) where
+    FheType: FheIntegerType + FheEncrypt<u64, ClientKey> + Clone + Send + Sync + TypeDisplay,
+{
+    let params = cks.computation_parameters();
+    let params_name = params.name();
+    let bench_type = get_bench_type();
+    let mut rng = rand::thread_rng();
+    let bit_size = FheType::Id::num_bits() as u32;
 
-fn bench_non_pow2(c: &mut Criterion, cks: &ClientKey, bench_name: &str) {
-    bench_bitonic_shuffle_inner(
-        c,
-        cks,
-        bench_name,
-        &non_pow2_scenarios(),
-        |n| format!("{DATA_BITS}_bits::{n}_elements"),
-        BitonicShuffleKeySize::num_bits(SHUFFLE_KEY_NUM_BITS),
-    );
-}
+    for (num_elements, key_size) in scenarios {
+        let encrypted: Vec<FheType> = (0..num_elements)
+            .map(|_| FheType::encrypt(rng.gen(), cks))
+            .collect();
 
-fn bench_key_size_sweep(c: &mut Criterion, cks: &ClientKey, bench_name: &str) {
-    for key_bits in KEY_BITS_SWEEP {
-        bench_bitonic_shuffle_inner(
-            c,
-            cks,
-            bench_name,
-            &[16usize],
-            move |n| format!("{DATA_BITS}_bits::{n}_elements::key_{key_bits}_bits"),
-            BitonicShuffleKeySize::num_bits(key_bits),
+        let spec = BenchmarkSpec::new_hlapi(
+            HlapiBench::BitonicShuffle(convert_key_size_to_spec(key_size, num_elements)),
+            &params_name,
+            OperandType::CipherText,
+            Some(&TypeDisplayer::<FheType>::default()),
+            bench_type,
+            Some(num_elements as usize),
+        );
+        let bench_id = spec.to_string();
+
+        let seed = Seed(0);
+
+        match bench_type {
+            BenchmarkType::Latency => {
+                bench_group.bench_function(&bench_id, |b| {
+                    b.iter(|| {
+                        let result = bitonic_shuffle(encrypted.clone(), key_size, seed)
+                            .expect("shuffle failed");
+                        black_box(result);
+                    })
+                });
+            }
+            BenchmarkType::Throughput => {
+                let (elements, inputs) = {
+                    #[cfg(any(feature = "gpu", feature = "hpu"))]
+                    {
+                        use benchmark::utilities::hlapi_throughput_num_ops;
+                        let factor = hlapi_throughput_num_ops(
+                            || {
+                                let _ = bitonic_shuffle(encrypted.clone(), key_size, seed);
+                            },
+                            cks,
+                        )
+                        .max(1);
+
+                        let inputs: Vec<Vec<FheType>> =
+                            (0..factor).map(|_| encrypted.clone()).collect();
+                        (inputs.len() as u64, inputs)
+                    }
+                    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                    {
+                        let setup = |batch_size: usize| {
+                            (0..batch_size)
+                                .map(|_| encrypted.clone())
+                                .collect::<Vec<_>>()
+                        };
+                        let run = |inputs: &mut Vec<Vec<FheType>>, batch_size: usize| {
+                            inputs.par_iter().take(batch_size).for_each(|input| {
+                                let _ = bitonic_shuffle(input.clone(), key_size, seed)
+                                    .expect("shuffle failed");
+                            });
+                        };
+                        let elements = find_optimal_batch(run, setup);
+                        let inputs = setup(elements);
+                        (elements as u64, inputs)
+                    }
+                };
+
+                bench_group.throughput(Throughput::Elements(elements));
+                bench_group.bench_function(&bench_id, |b| {
+                    b.iter(|| {
+                        inputs.par_iter().for_each(|input| {
+                            let result = bitonic_shuffle(input.clone(), key_size, seed)
+                                .expect("shuffle failed");
+                            black_box(result);
+                        });
+                    });
+                });
+            }
+        }
+
+        write_to_json(
+            &spec,
+            "bitonic-shuffle",
+            &OperatorType::Atomic,
+            bit_size,
+            vec![],
         );
     }
 }
 
-fn bench_collision_probability(c: &mut Criterion, cks: &ClientKey, bench_name: &str) {
-    bench_bitonic_shuffle_inner(
-        c,
-        cks,
-        bench_name,
-        &power_of_two_scenarios(),
-        |n| format!("{DATA_BITS}_bits::{n}_elements::p_{COLLISION_PROBABILITY:e}"),
-        BitonicShuffleKeySize::collision_probability(COLLISION_PROBABILITY),
-    );
-}
-
-// ============================================================================
-// Shuffle configs surfaced in the CI summary, all at 16 elements:
-//   - 64b values  / 16b keys
-//   - 64b values  / 32b keys
-//   - 160b values / 16b keys
-// ============================================================================
-
-fn bench_shuffle_config<T>(
-    group: &mut criterion::BenchmarkGroup<'_, criterion::measurement::WallTime>,
-    cks: &ClientKey,
-    bench_name: &str,
-    value_bits: u32,
-    key_bits: u32,
-    num_elements: usize,
-) where
-    T: FheIntegerType + FheEncrypt<u128, ClientKey> + Clone + Send + Sync,
+fn bench_collision_probability<FheType>(c: &mut Criterion, cks: &ClientKey)
+where
+    FheType: FheIntegerType + FheEncrypt<u64, ClientKey> + Clone + Send + Sync + TypeDisplay,
 {
-    let mut rng = rand::thread_rng();
-    let key_size = BitonicShuffleKeySize::num_bits(key_bits);
-    let params = cks.computation_parameters();
-    let params_name = params.name();
-    let stem =
-        format!("{bench_name}::{value_bits}_bits::{num_elements}_elements::key_{key_bits}_bits");
-
-    let encrypt_dataset = |rng: &mut ThreadRng| -> Vec<T> {
-        (0..num_elements)
-            .map(|_| T::encrypt(rng.gen::<u128>(), cks))
-            .collect()
-    };
-
-    let bench_id = match get_bench_type() {
-        BenchmarkType::Latency => {
-            let bench_id = format!("{stem}::{params_name}");
-            group.bench_function(&bench_id, |b| {
-                b.iter_batched(
-                    || (encrypt_dataset(&mut rng), Seed(rng.gen())),
-                    |(data, seed)| {
-                        let res =
-                            bitonic_shuffle(data, key_size, seed).expect("bitonic_shuffle failed");
-                        black_box(res);
-                    },
-                    criterion::BatchSize::SmallInput,
-                )
-            });
-            bench_id
-        }
-        BenchmarkType::Throughput => {
-            let num_ops = {
-                #[cfg(any(feature = "gpu", feature = "hpu"))]
-                {
-                    use benchmark::utilities::throughput_num_threads;
-                    let msg_bits = (cks.computation_parameters().message_modulus().0 as f64).log2();
-                    let num_block =
-                        (num_elements as f64 * value_bits as f64 / msg_bits).ceil() as usize;
-                    throughput_num_threads(num_block, 1).max(1) as usize
-                }
-                #[cfg(not(any(feature = "gpu", feature = "hpu")))]
-                {
-                    use benchmark::find_optimal_batch::find_optimal_batch;
-                    let setup = |batch_size: usize| -> Vec<(Vec<T>, Seed)> {
-                        (0..batch_size)
-                            .map(|_| (encrypt_dataset(&mut rng), Seed(rng.gen())))
-                            .collect()
-                    };
-                    let run = |inputs: &mut Vec<(Vec<T>, Seed)>, batch_size: usize| {
-                        inputs.par_iter().take(batch_size).for_each(|(data, seed)| {
-                            let res = bitonic_shuffle(data.clone(), key_size, *seed)
-                                .expect("bitonic_shuffle failed");
-                            black_box(res);
-                        });
-                    };
-                    find_optimal_batch(run, setup)
-                }
-            };
-
-            let bench_id = format!("{stem}::throughput::{params_name}");
-            group.throughput(Throughput::Elements(num_ops as u64));
-            group.bench_function(&bench_id, |b| {
-                b.iter_batched(
-                    || {
-                        (0..num_ops)
-                            .map(|_| (encrypt_dataset(&mut rng), Seed(rng.gen())))
-                            .collect::<Vec<_>>()
-                    },
-                    |inputs| {
-                        inputs.into_par_iter().for_each(|(data, seed)| {
-                            let res = bitonic_shuffle(data, key_size, seed)
-                                .expect("bitonic_shuffle failed");
-                            black_box(res);
-                        });
-                    },
-                    criterion::BatchSize::SmallInput,
-                )
-            });
-            bench_id
-        }
-    };
-
-    write_to_json_unchecked(
-        &bench_id,
-        params_name,
-        "bitonic_shuffle",
-        &OperatorType::Atomic,
-        value_bits,
-        vec![],
+    const COLLISION_PROBABILITY: f64 = 1e-8;
+    let p = BitonicShuffleKeySize::collision_probability(COLLISION_PROBABILITY);
+    let mut grp = c.benchmark_group("collision_probability");
+    bench_shuffle_for_type::<FheType>(
+        &mut grp,
+        cks,
+        [8, 15, 16, 32, 52, 64]
+            .into_iter()
+            .zip(std::iter::repeat(p)),
     );
 }
 
-fn bench_shuffle_configs(c: &mut Criterion, cks: &ClientKey, bench_name: &str) {
-    let mut group = c.benchmark_group(bench_name);
-    group
-        .sample_size(10)
-        .measurement_time(std::time::Duration::from_secs(60));
+fn bench_worst_case_advantage<FheType>(c: &mut Criterion, cks: &ClientKey)
+where
+    FheType: FheIntegerType + FheEncrypt<u64, ClientKey> + Clone + Send + Sync + TypeDisplay,
+{
+    let p = BitonicShuffleKeySize::attacker_advantage(0.1, None);
+    let mut grp = c.benchmark_group("worst_case_advantage");
+    bench_shuffle_for_type::<FheType>(
+        &mut grp,
+        cks,
+        [8, 15, 16, 32, 52, 64]
+            .into_iter()
+            .zip(std::iter::repeat(p)),
+    );
 
-    bench_shuffle_config::<FheUint64>(&mut group, cks, bench_name, 64, 16, 16);
-    bench_shuffle_config::<FheUint64>(&mut group, cks, bench_name, 64, 32, 16);
-    bench_shuffle_config::<FheUint160>(&mut group, cks, bench_name, 160, 16, 16);
+    let p = BitonicShuffleKeySize::attacker_advantage(1.0 / 1_000_000.0, None);
+    bench_shuffle_for_type::<FheType>(
+        &mut grp,
+        cks,
+        [8, 15, 16, 32, 52, 64]
+            .into_iter()
+            .zip(std::iter::repeat(p)),
+    );
 
-    group.finish();
+    grp.finish();
+}
+
+fn bench_advantage<FheType>(c: &mut Criterion, cks: &ClientKey)
+where
+    FheType: FheIntegerType + FheEncrypt<u64, ClientKey> + Clone + Send + Sync + TypeDisplay,
+{
+    let mut grp = c.benchmark_group("worst_case_advantage");
+    bench_shuffle_for_type::<FheType>(
+        &mut grp,
+        cks,
+        [8, 15, 16, 32, 52, 64].into_iter().map(|n| {
+            let p = BitonicShuffleKeySize::attacker_advantage(0.1, Some(n / 4));
+            (n, p)
+        }),
+    );
+
+    bench_shuffle_for_type::<FheType>(
+        &mut grp,
+        cks,
+        [8, 15, 16, 32, 52, 64].into_iter().map(|n| {
+            let p = BitonicShuffleKeySize::attacker_advantage(1.0 / 1_000_000.0, Some(n / 4));
+            (n, p)
+        }),
+    );
+
+    grp.finish();
 }
 
 // ============================================================================
 // Unchecked bitonic_shuffle_with_keys: measured at the integer level because
 // the HL API only exposes the full `bitonic_shuffle` (key generation + shuffle).
 // ============================================================================
+
+const DATA_BITS: u32 = 64;
+const SHUFFLE_KEY_NUM_BITS: u32 = 32;
+
+fn power_of_two_scenarios() -> Vec<usize> {
+    vec![16, 32]
+}
 
 fn bench_unchecked_with_keys_cpu_inner(
     c: &mut Criterion,
@@ -359,11 +328,10 @@ pub fn bitonic_shuffle_cpu(c: &mut Criterion) {
     rayon::broadcast(|_| set_server_key(sks.clone()));
     set_server_key(sks);
 
-    bench_default(c, &cks, "hlapi::bitonic_shuffle_cpu");
-    bench_non_pow2(c, &cks, "hlapi::bitonic_shuffle_cpu::non_pow2");
-    bench_key_size_sweep(c, &cks, "hlapi::bitonic_shuffle_cpu::key_size_sweep");
-    bench_collision_probability(c, &cks, "hlapi::bitonic_shuffle_cpu::collision_probability");
-    bench_shuffle_configs(c, &cks, "hlapi::bitonic_shuffle_cpu::summary");
+    bench_collision_probability::<FheUint64>(c, &cks);
+    bench_worst_case_advantage::<FheUint64>(c, &cks);
+    bench_advantage::<FheUint64>(c, &cks);
+    bench_advantage::<FheUint160>(c, &cks);
 
     let cpu_cks = tfhe::integer::ClientKey::new(param);
     bench_unchecked_with_keys_cpu_inner(
@@ -388,11 +356,8 @@ pub fn bitonic_shuffle_gpu(c: &mut Criterion) {
     let sks = tfhe::CompressedServerKey::new(&cks).decompress_to_gpu();
     set_server_key(sks);
 
-    bench_default(c, &cks, "hlapi::bitonic_shuffle_gpu");
-    bench_non_pow2(c, &cks, "hlapi::bitonic_shuffle_gpu::non_pow2");
     bench_key_size_sweep(c, &cks, "hlapi::bitonic_shuffle_gpu::key_size_sweep");
     bench_collision_probability(c, &cks, "hlapi::bitonic_shuffle_gpu::collision_probability");
-    bench_shuffle_configs(c, &cks, "hlapi::bitonic_shuffle_gpu::summary");
 
     let cpu_cks = tfhe::integer::ClientKey::new(param);
     bench_unchecked_with_keys_gpu_inner(

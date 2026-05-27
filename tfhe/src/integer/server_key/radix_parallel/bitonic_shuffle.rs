@@ -144,6 +144,14 @@ impl AttackerAdvantage {
             n_bits as u32
         }
     }
+
+    pub fn advantage(&self) -> f64 {
+        self.advantage
+    }
+
+    pub fn num_revealed(&self) -> Option<NonZeroU32> {
+        self.num_revealed
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
