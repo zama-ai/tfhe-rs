@@ -30,6 +30,7 @@ pub enum HlapiBench {
     Dex(Dex),
     KvStore(KvStoreOp),
     NoiseSquashing(NoiseSquashingKind),
+    BitonicShuffle,
 }
 
 impl HlapiBench {
@@ -40,6 +41,7 @@ impl HlapiBench {
             HlapiBench::Dex(op) => op.fmt_spec(f),
             HlapiBench::KvStore(op) => write!(f, "::{op}"),
             HlapiBench::NoiseSquashing(op) => write!(f, "::{op}"),
+            HlapiBench::BitonicShuffle => Ok(()),
         }
     }
 }
