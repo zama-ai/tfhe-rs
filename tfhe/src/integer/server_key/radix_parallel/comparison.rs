@@ -112,6 +112,7 @@ impl ServerKey {
     /// * inputs must have the same number of blocks
     /// * block carries of both inputs must be empty
     /// * carry modulus == message modulus
+    /// * blocks of the inputs a and b must have a noise_level such that a[i] - b[i] is possible
     fn compare<T>(&self, a: &T, b: &T, compare: ComparisonKind) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
