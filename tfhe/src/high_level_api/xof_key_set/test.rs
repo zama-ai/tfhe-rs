@@ -244,7 +244,7 @@ fn test_xof_key_set(
 
     let cpk = match device {
         Device::Cpu => {
-            let key_set = compressed_key_set.decompress().unwrap();
+            let key_set = compressed_key_set.decompress();
             let size_limit = 1 << 33; // 8GB
             let mut data = vec![];
             crate::safe_serialization::safe_serialize(&key_set, &mut data, size_limit).unwrap();
