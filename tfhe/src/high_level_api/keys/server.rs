@@ -723,9 +723,10 @@ use super::*;
 
         pub fn lazy_set(&self) {
             let csks_ptr = Arc::as_ptr(&self.csks) as *mut ();
-            if CURRENTLY_LOADED_KEY.load(std::sync::atomic::Ordering::Relaxed) == csks_ptr {
+            if CURRENTLY_LOADED_KEY.load(std::sync::atomic::Ordering::Relaxed) != csks_ptr {
                 let integer_key = &self.csks.integer_key;
                 crate::integer::hpu::init_device(&HPU_DEVICE, integer_key.key.clone()).expect("Invalid key");
+                CURRENTLY_LOADED_KEY.store(csks_ptr, std::sync::atomic::Ordering::Relaxed);
             }
         }
     }
