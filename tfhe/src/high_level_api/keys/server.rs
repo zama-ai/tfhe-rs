@@ -98,7 +98,7 @@ impl ServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
-        } = (*self.key).clone();
+        } = Arc::unwrap_or_clone(self.key);
 
         (
             key,
