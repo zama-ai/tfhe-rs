@@ -713,6 +713,7 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
+    let mut group = group.benchmark_group(type_name);
     for num_elems in [2, 8] {
         let real_num_elems = num_elems * (hpu_simd_n as u64);
         group.throughput(Throughput::Elements(real_num_elems));

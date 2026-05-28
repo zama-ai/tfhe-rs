@@ -3236,13 +3236,29 @@ mod hpu {
         iop_name: mod,
         display_name: modulo
     );
+    define_hpu_bench_default_fn!(
+        iop_name: ovf_add,
+        display_name: overflowing_add
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: ovf_sub,
+        display_name: overflowing_sub
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: ovf_mul,
+        display_name: overflowing_mul
+    );
+
     criterion_group!(
         default_hpu_ops,
         default_hpu_add,
         default_hpu_sub,
         default_hpu_mul,
         default_hpu_div,
-        default_hpu_mod
+        default_hpu_mod,
+        default_hpu_ovf_add,
+        default_hpu_ovf_sub,
+        default_hpu_ovf_mul
     );
 
     // Alu Scalar -----------------------------------------------------------------
