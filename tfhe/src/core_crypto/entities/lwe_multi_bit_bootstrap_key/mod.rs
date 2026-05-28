@@ -22,6 +22,7 @@ use crate::core_crypto::entities::ggsw_ciphertext_list::{
     fourier_ggsw_ciphertext_list_size, ggsw_ciphertext_list_size,
 };
 
+#[inline(always)]
 pub fn equivalent_multi_bit_lwe_dimension(
     input_lwe_dimension: LweDimension,
     grouping_factor: LweBskGroupingFactor,
