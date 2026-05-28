@@ -171,7 +171,7 @@ user = "ubuntu"
 
 [backend.terraform.scaleway-single-h100_fallback]
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
-instance_type = "H100-2-80G"
+instance_type = "H100-SXM-2-80G"
 user = "ubuntu"
 
 [backend.terraform.scaleway-4-l40]
@@ -187,4 +187,9 @@ user = "ubuntu"
 [backend.terraform.scaleway-small-gpu]
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
 instance_type = "L40S-1-48G"
+user = "ubuntu"
+
+[backend.terraform.scaleway-small-gpu_fallback]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "L4-2-24G"
 user = "ubuntu"
