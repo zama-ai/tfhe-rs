@@ -1,8 +1,8 @@
-#[cfg(feature = "gpu")]
-use benchmark::utilities::{write_to_json, OperatorType};
 use benchmark::utilities::{
     bench_sync_barrier, configure_gpu, get_bench_gpu_instances, get_param_type, ParamType,
 };
+#[cfg(feature = "gpu")]
+use benchmark::utilities::{write_to_json, OperatorType};
 use benchmark_spec::tfhe::hlapi::erc7984::{Erc7984, TransferFlavor};
 use benchmark_spec::{
     get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, HlapiBench, OperandType,
