@@ -43,7 +43,7 @@ export V80_BOARDS_NB=8
 _export_board_map_in_raw_string_fmt() {
   local v80_boards_rawmap=()
   for((b=0; b<V80_BOARDS_NB; b++)); do
-     v80_boards_rawmap+=("${V80_BOARDS_MAP[$b,pcie_id]}:${V80_BOARDS_MAP[$b,serial_number]}")
+     v80_boards_rawmap+=("${V80_BOARDS_MAP[$b,pcie_id]}:${V80_BOARDS_MAP[$b,serial_number]}:${V80_BOARDS_MAP[$b,mac_address]}")
   done
   export V80_BOARDS_RAWMAP=$(IFS='|'; echo "${v80_boards_rawmap[*]}")
 }
@@ -53,6 +53,6 @@ _export_board_map_in_raw_string_fmt
 # Utility function to export display board map in friendly fashion
 display_v80_board_map() {
   for((b=0; b<V80_BOARDS_NB; b++)); do
-     echo "@${b}: pcie_id:${V80_BOARDS_MAP[$b,pcie_id]}, serial_number:${V80_BOARDS_MAP[$b,serial_number]}";
+     echo "@${b}: pcie_id:${V80_BOARDS_MAP[$b,pcie_id]}, serial_number:${V80_BOARDS_MAP[$b,serial_number]}, mac_address:${V80_BOARDS_MAP[$b,mac_address]}";
   done
 }
