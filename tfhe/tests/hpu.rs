@@ -149,7 +149,7 @@ mod hpu_test {
     ) -> bool
     where
         T: UnsignedInteger,
-        F: Fn(&[u128], &[u128]) -> Vec<T>,
+        F: Fn(&[T], &[T]) -> Vec<T>,
     {
         // Check if current configured cluster has enough node
         let nodes = device.config().fpga.node_id.len();
@@ -205,17 +205,19 @@ mod hpu_test {
                             device,
                             Some(targeted_node),
                         );
-                        (clear, hpu_fhe)
+                        (T::cast_from(clear), hpu_fhe)
                     })
                     .unzip();
 
-                let imms = (0..proto.imm)
-                    .map(|_pos| rng.gen_range(0..max_val))
+                let imms_u128 = (0..proto.imm)
+                    .map(|_pos| rng.gen_range(0_u128..max_val))
+                    .collect::<Vec<_>>();
+                let imms_typed = imms_u128.iter().map(|v| T::cast_from(*v))
                     .collect::<Vec<_>>();
 
                 // execute on Hpu
                 let res_hpu =
-                    HpuRadixCiphertext::exec(&proto, iop.opcode(), &srcs_enc, &imms, None);
+                    HpuRadixCiphertext::exec(&proto, iop.opcode(), &srcs_enc, &imms_u128, None);
                 let res_fhe = res_hpu
                     .iter()
                     .map(|x| x.to_radix_ciphertext())
@@ -225,13 +227,13 @@ mod hpu_test {
                     .map(|x| T::cast_from(cks.decrypt_radix::<u128>(x)))
                     .collect::<Vec<T>>();
 
-                let exp_res = behav(&srcs_clear, &imms);
+                let exp_res = behav(&srcs_clear, &imms_typed);
                 println!(
                     "[{:>4}] {:>8} <{:>8x?}> <{:>8x?}> => {:<8x?} [exp {:<8x?}] {{Delta: {:x?} }}",
                     T::BITS,
                     iop,
                     srcs_clear,
-                    imms,
+                    imms_typed,
                     res,
                     exp_res,
                     std::iter::zip(res.iter(), exp_res.iter())
@@ -342,7 +344,7 @@ mod hpu_test {
                         eprintln!("Hpu testcase only work on specified operations. Check test definition");
                         return false;
                     };
-                    let behav = |ct:&[u128], imm: &[u128]| {
+                    let behav = |ct:&[$user_type], imm: &[$user_type]| {
                             let $ct = ct;
                             let $imm = imm;
                             ($behav.iter().map(|x| *x as $user_type).collect::<Vec<_>>())
@@ -376,7 +378,7 @@ mod hpu_test {
                 pub fn [<hpu_custom $cust_id:lower _ $user_type>](iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: &tfhe::integer::ClientKey) -> bool {
                     let iop = hpu_asm::AsmIOpcode::from_opcode(hpu_asm::IOpcode($cust_id));
                     let proto = $inproto.parse::<hpu_asm::IOpProto>().unwrap();
-                    let behav = |ct:&[u128], imm: &[u128]| {
+                    let behav = |ct:&[$user_type], imm: &[$user_type]| {
                             let $ct = ct;
                             let $imm = imm;
                             ($behav.iter().map(|x| *x as $user_type).collect::<Vec<_>>())
