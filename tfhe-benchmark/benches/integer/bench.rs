@@ -3354,11 +3354,16 @@ mod hpu {
         iop_name: bw_xor,
         display_name: bitxor
     );
+    define_hpu_bench_default_fn!(
+        iop_name: bw_not,
+        display_name: bitnot
+    );
     criterion_group!(
         default_hpu_bitwise,
         default_hpu_bw_and,
         default_hpu_bw_or,
         default_hpu_bw_xor,
+        default_hpu_bw_not,
     );
     // Comparison ----------------------------------------------------------------
     define_hpu_bench_default_fn!(
