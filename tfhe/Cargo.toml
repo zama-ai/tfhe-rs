@@ -235,12 +235,6 @@ required-features = ["integer"]
 name = "pbs_count"
 required-features = ["integer", "pbs-stats"]
 
-# Start of Hpu related section
-[[example]]
-name = "hpu_hlapi"
-path = "examples/hpu/hlapi.rs"
-required-features = ["hpu"]
-
 [[example]]
 name = "hpu_matmul"
 path = "examples/hpu/matmul.rs"

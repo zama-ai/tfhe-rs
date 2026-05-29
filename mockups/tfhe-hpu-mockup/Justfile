@@ -5,7 +5,7 @@ _targets:
 
 # Default values ---------------------------------------------------------------
 DEFAULT_RUST_LOG := "info"
-DEFAULT_MOCKUP_PARAMS := "gaussian_64b_fast.toml"
+DEFAULT_MOCKUP_PARAMS := "tuniform_64b_pfail128_psi64.toml"
 DEFAULT_TEST_ITER := "5"
 CARGO_HOME := "$(pwd)/../.."
 BUILD_PROFILE := "release"
@@ -18,8 +18,7 @@ build_all:
     cd {{CARGO_HOME}}
     cargo build --profile {{BUILD_PROFILE}} --features="hpu" \
      --bin hpu_mockup \
-     --example hpu_bench\
-     --example hpu_hlapi
+     --example hpu_bench
 
 ### Mockup related target ------------------------------------------------------
 mockup MOCKUP_PARAMS=DEFAULT_MOCKUP_PARAMS RUST_LOG=DEFAULT_RUST_LOG: build_all

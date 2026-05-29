@@ -156,7 +156,7 @@ impl InnerCompressedSquashedNoiseCiphertextList {
         // Then we can transfer the desired device
         match target_device {
             Device::Cpu => {
-                let _ = cpu_ct;
+                *self = Self::Cpu(cpu_ct.to_owned());
             }
             #[cfg(feature = "gpu")]
             Device::CudaGpu => {

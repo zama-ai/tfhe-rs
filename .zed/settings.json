@@ -1,0 +1,21 @@
+{
+  "lsp": {
+    "rust-analyzer": {
+      "initialization_options": {
+        "cargo": {
+          "features": [
+            "shortint",
+            "zk-pok",
+            "strings",
+            "hpu"
+          ],
+          "extraEnv": {
+            "HPU_BACKEND_DIR": "Users/apere/Repositories/tfhe-rs/backends/tfhe-hpu-backend",
+            "HPU_MOCKUP_DIR": "Users/apere/Repositories/tfhe-rs/mockups/tfhe-hpu-mockup",
+            "HPU_CONFIG":"sim"
+          }
+        }
+      }
+    }
+  }
+}

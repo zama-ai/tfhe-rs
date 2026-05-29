@@ -1,0 +1,26 @@
+// Static tasks configuration.
+//
+// Example:
+[
+  {
+    "label": "Rebuild HPU",
+    "command": "source setup_hpu.sh --config sim && cargo build --profile devo --features=\"hpu\" --example hpu_bench",
+    "shell": {
+      "program": "zsh"
+    }
+  },
+  {
+    "label": "Mockup",
+    "command": "source setup_hpu.sh --config sim && cd mockups/tfhe-hpu-mockup/ && just mockup",
+    "shell": {
+      "program": "zsh"
+    }
+  },
+  {
+    "label": "Hpu-test",
+    "command": "source setup_hpu.sh --config sim && HPU_TEST_ITER=1 cargo test --profile devo --features=\"hpu\" --test hpu -- alex",
+    "shell": {
+      "program": "zsh"
+    }
+  },
+]
