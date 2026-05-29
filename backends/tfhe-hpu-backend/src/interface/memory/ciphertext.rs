@@ -218,7 +218,7 @@ impl CiphertextMemory {
                 if is_contiguous {
                     let mut slots = Vec::with_capacity(bundle_size);
                     for (p, slot) in win_slots.into_iter().enumerate() {
-                        if (p < i) || p > (i + bundle_size) {
+                        if (p < i) || p >= (i + bundle_size) {
                             // Return slot to pool
                             self.pool
                                 .push(slot)
