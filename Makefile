@@ -2047,7 +2047,7 @@ bench_hlapi_hpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" \
 	__TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench hlapi \
+	--bench hlapi_unsigned \
 	--features=integer,internal-keycache,hpu,hpu-v80,pbs-stats -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_erc7984 # Run benchmarks for ERC7984 operations

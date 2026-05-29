@@ -50,6 +50,7 @@ pub const OVF_MUL: u8 = 0xEC;
 pub const BW_AND: u8 = 0xD0;
 pub const BW_OR: u8 = 0xD1;
 pub const BW_XOR: u8 = 0xD2;
+pub const BW_NOT: u8 = 0xD3;
 
 // Rotation and shift
 pub const SHIFT_R: u8 = 0xDC;

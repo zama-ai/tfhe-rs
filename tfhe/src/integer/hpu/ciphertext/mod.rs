@@ -237,6 +237,30 @@ map_ct_ct!(IOP_BW_AND -> "BitAnd");
 map_ct_ct!(IOP_BW_OR  -> "BitOr");
 map_ct_ct!(IOP_BW_XOR -> "BitXor");
 
+impl std::ops::Not for HpuRadixCiphertext {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        let opcode = IOP_BW_NOT.opcode();
+        let proto = &IOP_BW_NOT.format().expect("Bind to std::ops a unspecified IOP").proto;
+
+        let res = HpuCmd::exec(proto, opcode, &[self.0], &[]);
+        Self::Output::new(res[0].clone())
+    }
+}
+
+impl<'a> std::ops::Not for &'a HpuRadixCiphertext {
+    type Output = HpuRadixCiphertext;
+
+    fn not(self) -> Self::Output {
+        let opcode = IOP_BW_NOT.opcode();
+        let proto = &IOP_BW_NOT.format().expect("Bind to std::ops a unspecified IOP").proto;
+
+        let res = HpuCmd::exec(proto, opcode, &[self.0.clone()], &[]);
+        Self::Output::new(res[0].clone())
+    }
+}
+
 map_ct_scalar!(IOP_ADDS -> "Add");
 map_scalar_ct!(IOP_ADDS -> "Add");
 map_ct_scalar!(IOP_SUBS -> "Sub");

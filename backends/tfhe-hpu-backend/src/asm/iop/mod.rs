@@ -222,6 +222,7 @@ iop!(
     [IOP_CT_F_2CT -> "BW_AND", opcode::BW_AND],
     [IOP_CT_F_2CT -> "BW_OR", opcode::BW_OR],
     [IOP_CT_F_2CT -> "BW_XOR", opcode::BW_XOR],
+    [IOP_CT_F_CT  -> "BW_NOT", opcode::BW_NOT],
     [IOP_CMP -> "CMP_GT", opcode::CMP_GT],
     [IOP_CMP -> "CMP_GTE", opcode::CMP_GTE],
     [IOP_CMP -> "CMP_LT", opcode::CMP_LT],

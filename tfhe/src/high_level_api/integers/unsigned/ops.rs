@@ -2730,8 +2730,13 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support bitnot (operator `!`)")
+            InternalServerKey::Hpu(device) => {
+                let hpu_self = self.ciphertext.on_hpu(device);
+                FheUint::new(
+                    !&*hpu_self,
+                    device.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
         })
     }
