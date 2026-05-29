@@ -482,6 +482,7 @@ macro_rules! generate_typed_benches {
             hlapi_op: HlIntegerOp::IfThenElse,
             operation: if_then_else
         );
+        #[cfg(not(feature = "hpu"))]
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
@@ -506,12 +507,14 @@ macro_rules! generate_typed_benches {
             hlapi_op: HlIntegerOp::Ilog2,
             operation: ilog2
         );
+        #[cfg(not(feature = "hpu"))]
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
             hlapi_op: HlIntegerOp::IsEven,
             operation: is_even
         );
+        #[cfg(not(feature = "hpu"))]
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
@@ -542,12 +545,14 @@ macro_rules! generate_typed_benches {
             hlapi_op: HlIntegerOp::Not,
             operation: not
         );
+        #[cfg(not(feature = "hpu"))]
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
             hlapi_op: HlIntegerOp::OverflowingNeg,
             operation: overflowing_neg
         );
+        #[cfg(not(feature = "hpu"))]
         bench_type_unary_op!(
             type_name: $fhe_type,
             integer_type: $integer_type,
@@ -768,6 +773,7 @@ macro_rules! run_benches {
                 [<bench_ $fhe_type:snake _bitand>]($c, $cks);
                 [<bench_ $fhe_type:snake _bitor>]($c, $cks);
                 [<bench_ $fhe_type:snake _bitxor>]($c, $cks);
+                #[cfg(not(feature = "hpu"))]
                 [<bench_ $fhe_type:snake _checked_ilog2>]($c, $cks);
                 [<bench_ $fhe_type:snake _count_ones>]($c, $cks);
                 [<bench_ $fhe_type:snake _count_zeros>]($c, $cks);
@@ -779,7 +785,9 @@ macro_rules! run_benches {
                 [<bench_ $fhe_type:snake _gt>]($c, $cks);
                 [<bench_ $fhe_type:snake _if_then_else>]($c, $cks);
                 [<bench_ $fhe_type:snake _ilog2>]($c, $cks);
+                #[cfg(not(feature = "hpu"))]
                 [<bench_ $fhe_type:snake _is_even>]($c, $cks);
+                #[cfg(not(feature = "hpu"))]
                 [<bench_ $fhe_type:snake _is_odd>]($c, $cks);
                 [<bench_ $fhe_type:snake _le>]($c, $cks);
                 [<bench_ $fhe_type:snake _leading_ones>]($c, $cks);
@@ -793,9 +801,11 @@ macro_rules! run_benches {
                 [<bench_ $fhe_type:snake _not>]($c, $cks);
                 [<bench_ $fhe_type:snake _overflowing_add>]($c, $cks);
                 [<bench_ $fhe_type:snake _overflowing_mul>]($c, $cks);
+                #[cfg(not(feature = "hpu"))]
                 [<bench_ $fhe_type:snake _overflowing_neg>]($c, $cks);
                 [<bench_ $fhe_type:snake _overflowing_sub>]($c, $cks);
                 [<bench_ $fhe_type:snake _rem>]($c, $cks);
+                #[cfg(not(feature = "hpu"))]
                 [<bench_ $fhe_type:snake _reverse_bits>]($c, $cks);
                 [<bench_ $fhe_type:snake _rotate_left>]($c, $cks);
                 [<bench_ $fhe_type:snake _rotate_right>]($c, $cks);
@@ -821,6 +831,7 @@ macro_rules! run_benches_dedup {
             ::paste::paste! {
                 [<bench_ $fhe_type:snake _add>]($c, $cks);
                 [<bench_ $fhe_type:snake _bitand>]($c, $cks);
+                #[cfg(not(feature = "hpu"))]
                 [<bench_ $fhe_type:snake _checked_ilog2>]($c, $cks);
                 [<bench_ $fhe_type:snake _count_ones>]($c, $cks);
                 [<bench_ $fhe_type:snake _div_rem>]($c, $cks);
@@ -829,6 +840,7 @@ macro_rules! run_benches_dedup {
                 [<bench_ $fhe_type:snake _gt>]($c, $cks);
                 [<bench_ $fhe_type:snake _if_then_else>]($c, $cks);
                 [<bench_ $fhe_type:snake _ilog2>]($c, $cks);
+                #[cfg(not(feature = "hpu"))]
                 [<bench_ $fhe_type:snake _is_even>]($c, $cks);
                 [<bench_ $fhe_type:snake _leading_zeros>]($c, $cks);
                 [<bench_ $fhe_type:snake _max>]($c, $cks);
@@ -837,7 +849,9 @@ macro_rules! run_benches_dedup {
                 [<bench_ $fhe_type:snake _not>]($c, $cks);
                 [<bench_ $fhe_type:snake _overflowing_add>]($c, $cks);
                 [<bench_ $fhe_type:snake _overflowing_mul>]($c, $cks);
+                #[cfg(not(feature = "hpu"))]
                 [<bench_ $fhe_type:snake _overflowing_neg>]($c, $cks);
+                #[cfg(not(feature = "hpu"))]
                 [<bench_ $fhe_type:snake _reverse_bits>]($c, $cks);
                 [<bench_ $fhe_type:snake _rotate_left>]($c, $cks);
                 [<bench_ $fhe_type:snake _shl>]($c, $cks);

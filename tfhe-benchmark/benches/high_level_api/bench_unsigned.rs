@@ -29,12 +29,19 @@ generate_typed_benches!(FheUint32, u128);
 generate_typed_benches!(FheUint64, u128);
 generate_typed_benches!(FheUint128, u128);
 
+#[cfg(not(feature = "hpu"))]
 generate_typed_scalar_benches!(FheUint2, u128, u8, u8);
+#[cfg(not(feature = "hpu"))]
 generate_typed_scalar_benches!(FheUint4, u128, u8, u8);
+#[cfg(not(feature = "hpu"))]
 generate_typed_scalar_benches!(FheUint8, u128, u8, u8);
+#[cfg(not(feature = "hpu"))]
 generate_typed_scalar_benches!(FheUint16, u128, u16, u16);
+#[cfg(not(feature = "hpu"))]
 generate_typed_scalar_benches!(FheUint32, u128, u32, u32);
+#[cfg(not(feature = "hpu"))]
 generate_typed_scalar_benches!(FheUint64, u128, u64, u64);
+#[cfg(not(feature = "hpu"))]
 generate_typed_scalar_benches!(FheUint128, u128, u128, u128);
 
 fn main() {
@@ -81,10 +88,12 @@ fn main() {
             match env::var("__TFHE_RS_BENCH_OP_FLAVOR").as_deref() {
                 Ok("fast_default") => {
                     run_benches_dedup!(&mut c, &cks, FheUint64);
+                    #[cfg(not(feature = "hpu"))]
                     run_scalar_benches_dedup!(&mut c, &cks, FheUint64);
                 }
                 _ => {
                     run_benches!(&mut c, &cks, FheUint64);
+                    #[cfg(not(feature = "hpu"))]
                     run_scalar_benches!(&mut c, &cks, FheUint64);
                 }
             };
@@ -97,6 +106,7 @@ fn main() {
                         &mut c, &cks, FheUint2, FheUint4, FheUint8, FheUint16, FheUint32,
                         FheUint64, FheUint128,
                     );
+                    #[cfg(not(feature = "hpu"))]
                     run_scalar_benches_dedup!(
                         &mut c, &cks, FheUint2, FheUint4, FheUint8, FheUint16, FheUint32,
                         FheUint64, FheUint128,
@@ -107,6 +117,7 @@ fn main() {
                         &mut c, &cks, FheUint2, FheUint4, FheUint8, FheUint16, FheUint32,
                         FheUint64, FheUint128,
                     );
+                    #[cfg(not(feature = "hpu"))]
                     run_scalar_benches!(
                         &mut c, &cks, FheUint2, FheUint4, FheUint8, FheUint16, FheUint32,
                         FheUint64, FheUint128,
