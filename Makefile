@@ -5,6 +5,7 @@ SHELL:=$(shell /usr/bin/env which bash)
 OS:=$(shell uname)
 RS_CHECK_TOOLCHAIN:=$(shell cat nightly-toolchain.txt | tr -d '\n')
 CARGO_RS_CHECK_TOOLCHAIN:=+$(RS_CHECK_TOOLCHAIN)
+CARGO_LOCKED?=--locked
 CARGO_BUILD_JOBS=default
 CPU_COUNT=$(shell ./scripts/cpu_count.sh)
 CARGO_PROFILE?=release
@@ -388,28 +389,28 @@ check_typos: install_typos_checker
 
 .PHONY: clippy_gpu # Run clippy lints on tfhe with "gpu" enabled
 clippy_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--features=boolean,shortint,integer,internal-keycache,gpu,gpu-experimental-zk,pbs-stats,extended-types,zk-pok \
 		--all-targets \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: check_gpu # Run check on tfhe with "gpu" enabled
 check_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" check \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) check \
 		--features=boolean,shortint,integer,internal-keycache,gpu,gpu-experimental-zk,pbs-stats \
 		--all-targets \
 		-p tfhe
 
 .PHONY: clippy_hpu # Run clippy lints on tfhe with "hpu" enabled
 clippy_hpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--features=boolean,shortint,integer,internal-keycache,hpu,pbs-stats,extended-types \
 		--all-targets \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_gpu_hpu # Run clippy lints on tfhe with "gpu" and "hpu" enabled
 clippy_gpu_hpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--features=boolean,shortint,integer,internal-keycache,gpu,gpu-experimental-zk,hpu,pbs-stats,extended-types,zk-pok \
 		--all-targets \
 		-p tfhe -- --no-deps -D warnings
@@ -436,55 +437,55 @@ check_workflow_security: install_zizmor
 
 .PHONY: clippy_core # Run clippy lints on core_crypto with and without experimental features
 clippy_core: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		-p tfhe -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--features=experimental \
 		-p tfhe -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--no-default-features \
 		-p tfhe -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--no-default-features \
 		--features=experimental \
 		-p tfhe -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--features=zk-pok \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_boolean # Run clippy lints enabling the boolean features
 clippy_boolean: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--features=boolean \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_shortint # Run clippy lints enabling the shortint features
 clippy_shortint: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--features=shortint \
 		-p tfhe -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--features=shortint,experimental \
 		-p tfhe -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--features=zk-pok,shortint \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_integer # Run clippy lints enabling the integer features
 clippy_integer: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--features=integer \
 		-p tfhe -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--features=integer,experimental \
 		-p tfhe -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--features=integer,experimental,extended-types \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy # Run clippy lints enabling the boolean, shortint, integer
 clippy: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		--features=boolean,shortint,integer \
 		-p tfhe -- --no-deps -D warnings
 
@@ -512,103 +513,103 @@ clippy_rustdoc_gpu: install_rs_check_toolchain
 
 .PHONY: clippy_c_api # Run clippy lints enabling the boolean, shortint and the C API
 clippy_c_api: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--features=boolean-c-api,shortint-c-api,high-level-c-api,extended-types \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_js_wasm_api # Run clippy lints enabling the boolean, shortint, integer and the js wasm API
 clippy_js_wasm_api: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,high-level-client-js-wasm-api,extended-types \
 		-p tfhe -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,high-level-client-js-wasm-api,zk-pok,extended-types \
 		-p tfhe -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,high-level-client-js-wasm-api,zk-pok,extended-types,parallel-wasm-api \
 		-p tfhe -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,high-level-client-js-wasm-api,zk-pok,extended-types,cross-origin-wasm-api \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_tasks # Run clippy lints on helper tasks crate.
 clippy_tasks: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		-p tasks -- --no-deps -D warnings
 
 .PHONY: clippy_trivium # Run clippy lints on Trivium app
 clippy_trivium: install_rs_check_toolchain
-	cd apps/trivium; RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	cd apps/trivium; RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		-p tfhe-trivium -- --no-deps -D warnings
 
 .PHONY: clippy_ws_tests # Run clippy on the workspace level tests
 clippy_ws_tests: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --tests \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --tests \
 		-p tests --features=shortint,integer,zk-pok,strings -- --no-deps -D warnings
 
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
 clippy_all_targets: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,pbs-stats,extended-types \
 		-p tfhe -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,pbs-stats,extended-types,experimental \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_tfhe_csprng # Run clippy lints on tfhe-csprng
 clippy_tfhe_csprng: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		--features=parallel,software-prng -p tfhe-csprng -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		--features=parallel -p tfhe-csprng -- --no-deps -D warnings
 
 .PHONY: clippy_zk_pok # Run clippy lints on tfhe-zk-pok
 clippy_zk_pok: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		-p tfhe-zk-pok -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		-p tfhe-zk-pok --features=experimental -- --no-deps -D warnings
 
 .PHONY: clippy_zk_pok_wasm # Run clippy lints on tfhe-zk-pok for wasm32 target
 clippy_zk_pok_wasm: install_rs_check_toolchain install_check_wasm32_target
-	RUSTFLAGS="$(WASM_RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(WASM_RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--target wasm32-unknown-unknown \
 		-p tfhe-zk-pok -- --no-deps -D warnings
-	RUSTFLAGS="$(WASM_RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(WASM_RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--target wasm32-unknown-unknown \
 		-p tfhe-zk-pok --features cross-origin-wasm -- --no-deps -D warnings
 
 .PHONY: clippy_versionable # Run clippy lints on tfhe-versionable
 clippy_versionable: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		-p tfhe-versionable-derive -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		-p tfhe-versionable -- --no-deps -D warnings
 
 .PHONY: clippy_safe_serialize # Run clippy lints on tfhe-safe-serialize
 clippy_safe_serialize: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		-p tfhe-safe-serialize -- --no-deps -D warnings
 
 .PHONY: clippy_param_dedup # Run clippy lints on param_dedup tool
 clippy_param_dedup: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		-p param_dedup -- --no-deps -D warnings
 
 .PHONY: clippy_wasm_par_mq # Run clippy lints on wasm-par-mq and its examples
 clippy_wasm_par_mq: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets --all-features \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets --all-features \
 		-p wasm-par-mq -p wasm-par-mq-web-tests -p wasm-par-mq-example-msm -- --no-deps -D warnings
 
 .PHONY: clippy_backward_compat_data # Run clippy lints on tfhe-backward-compat-data
 clippy_backward_compat_data: install_rs_check_toolchain # the toolchain is selected with toolchain.toml
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		-p tfhe-backward-compat-data -- --no-deps -D warnings
 	@# Some old crates are x86 specific, only run in that case
 	@if uname -a | grep -q x86; then \
 		for crate in `ls -1 $(BACKWARD_COMPAT_DATA_DIR)/crates/ | grep generate_`; do \
 			echo "checking $$crate"; \
-			RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options \
+			RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) -Z unstable-options \
 				-C $(BACKWARD_COMPAT_DATA_DIR)/crates/$$crate clippy --all --all-targets -- --no-deps -D warnings; \
 		done \
 	else \
@@ -628,7 +629,7 @@ check_backward_compat_locks_did_not_change: install_rs_check_toolchain
 
 .PHONY: clippy_test_vectors # Run clippy lints on the test vectors app
 clippy_test_vectors: install_rs_check_toolchain
-	cd apps/test-vectors; RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	cd apps/test-vectors; RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		-p tfhe-test-vectors -- --no-deps -D warnings
 
 # WARNING: This target is not directly run in CI. When adding a subtarget here,
@@ -645,19 +646,19 @@ clippy_core clippy_tfhe_csprng
 
 .PHONY: clippy_cuda_backend # Run clippy lints on the tfhe-cuda-backend
 clippy_cuda_backend: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		-p tfhe-cuda-backend -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		-p zk-cuda-backend -- --no-deps -D warnings
 
 .PHONY: clippy_hpu_backend # Run clippy lints on the tfhe-hpu-backend
 clippy_hpu_backend: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		-p tfhe-hpu-backend -- --no-deps -D warnings
 
 .PHONY: clippy_hpu_mockup # Run clippy lints on tfhe-hpu-mockup
 clippy_hpu_mockup: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy \
 		--all-targets \
 		-p tfhe-hpu-mockup -- --no-deps -D warnings
 
@@ -1672,27 +1673,27 @@ dieharder_csprng: install_dieharder build_tfhe_csprng
 
 .PHONY: clippy_bench # Run clippy lints on tfhe-benchmark
 clippy_bench: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		--features=boolean,shortint,integer,internal-keycache,pbs-stats,zk-pok \
 		-p tfhe-benchmark -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		--features=shortint,internal-keycache \
 		-p tfhe-benchmark -- --no-deps -D warnings
 	@# For experimental core-crypto PBS
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		--features=experimental \
 		-p tfhe-benchmark -- --no-deps -D warnings
 
 
 .PHONY: clippy_bench_gpu # Run clippy lints on tfhe-benchmark
 clippy_bench_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		--features=gpu,shortint,integer,internal-keycache,pbs-stats,zk-pok \
 		-p tfhe-benchmark -- --no-deps -D warnings
 
 .PHONY: clippy_bench_hpu # Run clippy lints on tfhe-benchmark
 clippy_bench_hpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		--features=hpu,shortint,integer,internal-keycache,pbs-stats\
 		-p tfhe-benchmark -- --no-deps -D warnings
 
@@ -2462,7 +2463,7 @@ lint_docs_fft: lint_doc_fft
 
 .PHONY: clippy_fft # Run clippy lints on tfhe-fft
 clippy_fft: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		--all-features -p tfhe-fft -- --no-deps -D warnings
 
 .PHONY: pcc_fft # pcc stands for pre commit checks
@@ -2563,7 +2564,7 @@ lint_docs_ntt: lint_doc_ntt
 
 .PHONY: clippy_ntt # Run clippy lints on tfhe-ntt
 clippy_ntt: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" $(CARGO_LOCKED) clippy --all-targets \
 		--all-features -p tfhe-ntt -- --no-deps -D warnings
 
 .PHONY: pcc_ntt # pcc stands for pre commit checks
