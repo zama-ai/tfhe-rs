@@ -54,7 +54,7 @@ clap-num = { version = "1.1.1" }
 cbindgen = { version = "0.28", optional = true }
 
 [dependencies]
-tfhe-csprng = { version = "0.9.0", path = "../tfhe-csprng", features = [
+tfhe-csprng = { version = "0.9.1", path = "../tfhe-csprng", features = [
     "parallel",
 ] }
 serde = { workspace = true, features = ["default", "derive"] }
@@ -78,9 +78,9 @@ blake3 = { version = "1.8", optional = true }
 itertools = { workspace = true }
 rand_core = { version = "0.6.4", features = ["std"] }
 strum = { version = "0.27", features = ["derive"], optional = true }
-tfhe-zk-pok = { version = "0.8.1", path = "../tfhe-zk-pok", optional = true }
+tfhe-zk-pok = { version = "0.8.2", path = "../tfhe-zk-pok", optional = true }
 tfhe-versionable = { version = "0.8.0", path = "../utils/tfhe-versionable" }
-tfhe-safe-serialize = { version = "0.1.0", path = "../utils/tfhe-safe-serialize" }
+tfhe-safe-serialize = { version = "0.1.1", path = "../utils/tfhe-safe-serialize" }
 
 # wasm deps
 wasm-bindgen = { workspace = true, features = [

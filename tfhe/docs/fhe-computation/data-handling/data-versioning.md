@@ -17,7 +17,7 @@ You can load serialized data with the `unversionize` function, even in newer ver
 [dependencies]
 # ...
 tfhe = { version = "~1.6.2", features = ["integer"] }
-tfhe-versionable = "0.6.0"
+tfhe-versionable = "0.8.0"
 bincode = "1.3.3"
 ```
 
