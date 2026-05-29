@@ -121,6 +121,8 @@ where
     /// let oprf_pk = OprfPrivateKey::new(cks.as_ref());
     /// let oprf_sk = OprfServerKey::new(&oprf_pk, cks.as_ref()).unwrap();
     ///
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// // `seed` can be either a `Seed` or any byte-like input (`&[u8]`, `&[u8; N]`, ...).
     /// let ct_res =
     ///     oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(Seed(0), size as u64, &sks);
@@ -160,6 +162,8 @@ where
     ///
     /// let random_bits_count = 3;
     ///
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let ct_res = oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
     ///     Seed(0),
     ///     random_bits_count,
@@ -214,6 +218,8 @@ where
     /// let excluded_upper_bound = NonZeroU64::new(3).unwrap();
     /// let num_blocks_output = 8;
     ///
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let ct_res = oprf_sk.par_generate_oblivious_pseudo_random_unsigned_custom_range(
     ///     Seed(0),
     ///     num_input_random_bits,
@@ -289,6 +295,7 @@ where
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::oprf::{OprfPrivateKey, OprfServerKey};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+    /// use tfhe::Seed;
     ///
     /// let size = 4;
     ///
@@ -298,11 +305,10 @@ where
     /// let oprf_pk = OprfPrivateKey::new(cks.as_ref());
     /// let oprf_sk = OprfServerKey::new(&oprf_pk, cks.as_ref()).unwrap();
     ///
-    /// let ct_res = oprf_sk.par_generate_oblivious_pseudo_random_signed_integer(
-    ///     tfhe::Seed(0),
-    ///     size as u64,
-    ///     &sks,
-    /// );
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
+    /// let ct_res =
+    ///     oprf_sk.par_generate_oblivious_pseudo_random_signed_integer(Seed(0), size as u64, &sks);
     ///
     /// // Decrypt:
     /// let dec_result: i64 = cks.decrypt_signed(&ct_res);
@@ -339,6 +345,8 @@ where
     /// let oprf_pk = OprfPrivateKey::new(cks.as_ref());
     /// let oprf_sk = OprfServerKey::new(&oprf_pk, cks.as_ref()).unwrap();
     ///
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let ct_res = oprf_sk.par_generate_oblivious_pseudo_random_signed_integer_bounded(
     ///     Seed(0),
     ///     random_bits_count,
