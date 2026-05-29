@@ -3,6 +3,7 @@ use crate::core_crypto::commons::math::random::XofSeed;
 use crate::high_level_api::keys::CompactPublicKey;
 pub use crate::high_level_api::keys::ReRandomizationSupport;
 use crate::high_level_api::tag::SmallVec;
+pub use crate::integer::ciphertext::ReRandomizationHashAlgo;
 use crate::integer::ciphertext::{ReRandomizationSeed, ReRandomizationSeedHasher};
 
 use tfhe_versionable::Versionize;
