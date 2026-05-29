@@ -23,6 +23,8 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// set_server_key(server_key);
     ///
+    /// // DANGER: Using a deterministic seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let ct_res = FheUint8::generate_oblivious_pseudo_random(Seed(0));
     ///
     /// let dec_result: u16 = ct_res.decrypt(&client_key);
@@ -114,6 +116,8 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// let random_bits_count = 3;
     ///
+    /// // DANGER: Using a deterministic seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let ct_res = FheUint8::generate_oblivious_pseudo_random_bounded(Seed(0), random_bits_count);
     ///
     /// let dec_result: u16 = ct_res.decrypt(&client_key);
@@ -199,6 +203,8 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// let range = RangeForRandom::new_from_excluded_upper_bound(excluded_upper_bound);
     ///
+    /// // DANGER: Using a deterministic seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let ct_res = FheUint8::generate_oblivious_pseudo_random_custom_range(Seed(0), &range, None);
     ///
     /// let dec_result: u16 = ct_res.decrypt(&client_key);
@@ -331,6 +337,8 @@ impl<Id: FheIntId> FheInt<Id> {
     ///
     /// set_server_key(server_key);
     ///
+    /// // DANGER: Using a deterministic seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let ct_res = FheInt8::generate_oblivious_pseudo_random(Seed(0));
     ///
     /// let dec_result: i16 = ct_res.decrypt(&client_key);
@@ -424,6 +432,8 @@ impl<Id: FheIntId> FheInt<Id> {
     ///
     /// let random_bits_count = 3;
     ///
+    /// // DANGER: Using a deterministic seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let ct_res = FheInt8::generate_oblivious_pseudo_random_bounded(Seed(0), random_bits_count);
     ///
     /// let dec_result: i16 = ct_res.decrypt(&client_key);
