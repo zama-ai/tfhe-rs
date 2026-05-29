@@ -109,6 +109,8 @@ where
     /// let compressed_oprf_sk = CompressedOprfServerKey::new(&oprf_pk, &cks).unwrap();
     /// let cuda_oprf_sk = CudaOprfServerKey::decompress_from_cpu(&compressed_oprf_sk, &streams);
     ///
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(Seed(0), size as u64, &sks, &streams);
     /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     /// // Decrypt:
@@ -156,6 +158,8 @@ where
     ///
     /// let random_bits_count = 3;
     ///
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
     ///     Seed(0),
     ///     random_bits_count,
@@ -222,6 +226,8 @@ where
     /// let compressed_oprf_sk = CompressedOprfServerKey::new(&oprf_pk, &cks).unwrap();
     /// let cuda_oprf_sk = CudaOprfServerKey::decompress_from_cpu(&compressed_oprf_sk, &streams);
     ///
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_signed_integer(Seed(0), size as u64, &sks, &streams);
     /// let ct_res = d_ct_res.to_signed_radix_ciphertext(&streams);
     ///
@@ -270,6 +276,8 @@ where
     ///
     /// let random_bits_count = 3;
     ///
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_signed_integer_bounded(
     ///     Seed(0),
     ///     random_bits_count,
