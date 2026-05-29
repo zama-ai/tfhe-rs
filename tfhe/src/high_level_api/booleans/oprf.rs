@@ -24,6 +24,8 @@ impl FheBool {
     ///
     /// set_server_key(server_key);
     ///
+    /// // DANGER: Using a deterministic seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let ct_res = FheBool::generate_oblivious_pseudo_random(Seed(0));
     ///
     /// let dec_result: bool = ct_res.decrypt(&client_key);
