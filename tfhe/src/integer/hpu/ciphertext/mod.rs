@@ -242,7 +242,10 @@ impl std::ops::Not for HpuRadixCiphertext {
 
     fn not(self) -> Self::Output {
         let opcode = IOP_BW_NOT.opcode();
-        let proto = &IOP_BW_NOT.format().expect("Bind to std::ops a unspecified IOP").proto;
+        let proto = &IOP_BW_NOT
+            .format()
+            .expect("Bind to std::ops a unspecified IOP")
+            .proto;
 
         let res = HpuCmd::exec(proto, opcode, &[self.0], &[]);
         Self::Output::new(res[0].clone())
@@ -254,7 +257,10 @@ impl<'a> std::ops::Not for &'a HpuRadixCiphertext {
 
     fn not(self) -> Self::Output {
         let opcode = IOP_BW_NOT.opcode();
-        let proto = &IOP_BW_NOT.format().expect("Bind to std::ops a unspecified IOP").proto;
+        let proto = &IOP_BW_NOT
+            .format()
+            .expect("Bind to std::ops a unspecified IOP")
+            .proto;
 
         let res = HpuCmd::exec(proto, opcode, &[self.0.clone()], &[]);
         Self::Output::new(res[0].clone())
