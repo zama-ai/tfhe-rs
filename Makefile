@@ -615,15 +615,23 @@ clippy_backward_compat_data: install_rs_check_toolchain # the toolchain is selec
 		echo "Cannot run clippy for backward compat crate on non x86 platform for now."; \
 	fi
 
-.PHONY: check_backward_compat_locks_did_not_change # Check backward compat Cargo.lock files are up to date
-check_backward_compat_locks_did_not_change: install_rs_check_toolchain
-	@for crate in `ls -1 $(BACKWARD_COMPAT_DATA_DIR)/crates/ | grep generate_`; do \
-		echo "checking Cargo.lock for $$crate"; \
-		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options \
-			-C $(BACKWARD_COMPAT_DATA_DIR)/crates/$$crate metadata --locked --format-version 1 > /dev/null || \
-		( echo "Cargo.lock for $$crate is out of date. Update it with:" && \
-		  echo "  cd $(BACKWARD_COMPAT_DATA_DIR)/crates/$$crate && cargo metadata --format-version 1 > /dev/null" && \
+CARGO_LOCK_DIRS := $(shell git ls-files '*Cargo.lock' | xargs -n1 dirname)
+
+.PHONY: check_cargo_lock # Check all Cargo.lock files are up to date with their Cargo.toml
+check_cargo_lock:
+	@for dir in $(CARGO_LOCK_DIRS); do \
+		echo "checking Cargo.lock for $$dir"; \
+		( cd $$dir && cargo metadata --locked --format-version 1 > /dev/null ) || \
+		( echo "Cargo.lock for $$dir is out of date. Update it with:" && \
+		  echo "  make update_cargo_lock" && \
 		  echo "then commit the updated Cargo.lock." && exit 1 ); \
+	done
+
+.PHONY: update_cargo_lock # Update all Cargo.lock files to match their Cargo.toml
+update_cargo_lock:
+	@for dir in $(CARGO_LOCK_DIRS); do \
+		echo "updating Cargo.lock for $$dir"; \
+		( cd $$dir && cargo metadata --format-version 1 > /dev/null ); \
 	done
 
 .PHONY: clippy_test_vectors # Run clippy lints on the test vectors app
@@ -2379,10 +2387,10 @@ pcc_batch_4:
 
 .PHONY: pcc_batch_5 # duration: 7'20''
 pcc_batch_5:
+	$(call run_recipe_with_details,check_cargo_lock)
 	$(call run_recipe_with_details,clippy_tfhe_lints)
 	$(call run_recipe_with_details,check_compile_tests)
 	$(call run_recipe_with_details,clippy_backward_compat_data)
-	$(call run_recipe_with_details,check_backward_compat_locks_did_not_change)
 
 .PHONY: pcc_batch_6 # duration: 6'32''
 pcc_batch_6:
