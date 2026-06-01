@@ -57,7 +57,7 @@ use crate::shortint::server_key::{
 };
 use crate::shortint::{EncryptionKeyChoice, PaddingBit, ShortintEncoding};
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DynLwe {
     U32(LweCiphertextOwned<u32>),
     U64(LweCiphertextOwned<u64>),
@@ -466,6 +466,7 @@ impl MultiBitModSwitch<DynModSwitchedLwe> for DynLwe {
 }
 
 /// Holds the already-computed modulus-switched values produced by the GPU multi-bit modulus
+#[derive(Clone, Debug)]
 pub struct PreComputedU64MultiBitModSwitchCt {
     pub body: u64,
     /// GPU pre-computed modulus-switched monomial degrees for all groups.
@@ -504,6 +505,7 @@ impl MultiBitModulusSwitchedLweCiphertext for PreComputedU64MultiBitModSwitchCt 
     }
 }
 
+#[derive(Clone, Debug)]
 pub enum DynStandardMultiBitModulusSwitchedCt {
     U32(StandardMultiBitModulusSwitchedCt<u32, Vec<u32>>),
     U64(StandardMultiBitModulusSwitchedCt<u64, Vec<u64>>),
@@ -561,6 +563,7 @@ impl DynStandardMultiBitModulusSwitchedCt {
     }
 }
 
+#[derive(Clone, Debug)]
 pub enum DynModSwitchedLwe {
     ModSwitchedLwe(DynLwe),
     MultiBitModSwitchedLwe(DynStandardMultiBitModulusSwitchedCt),
@@ -586,6 +589,7 @@ impl DynModSwitchedLwe {
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum DynLweSecretKeyView<'data> {
     U32 {
         key: LweSecretKeyView<'data, u32>,
