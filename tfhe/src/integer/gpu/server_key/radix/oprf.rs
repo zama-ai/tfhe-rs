@@ -497,7 +497,6 @@ where
         self.generate_multiblocks_oblivious_pseudo_random_and_re_randomize(
             result.as_mut(),
             prf_seed,
-            num_blocks,
             num_blocks * message_bits_count,
             target_sks,
             re_randomization_key,
@@ -566,7 +565,12 @@ where
         let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
         let num_active_blocks = random_bits_count.div_ceil(message_bits_count);
 
-        let mut result = target_sks.create_trivial_zero_radix(num_blocks as usize, streams);
+        // We need the PRF + ReRand to be applied only on the num_active_blocks and later extend
+        // with trivial 0s (so that the padding is not re-randed)
+        //
+        // The multiblocks primitive applies the rerand to all the blocks (there is no
+        // "active blocks" rerand primitive currently)
+        let mut result = target_sks.create_trivial_zero_radix(num_active_blocks as usize, streams);
 
         assert!(
             num_blocks >= num_active_blocks,
@@ -579,14 +583,24 @@ where
         self.generate_multiblocks_oblivious_pseudo_random_and_re_randomize(
             result.as_mut(),
             seed,
-            num_active_blocks,
             random_bits_count,
             target_sks,
             re_randomization_key,
             re_randomization_hash_algo,
             streams,
-        )
-        .map(|_| result)
+        )?;
+
+        if num_blocks == num_active_blocks {
+            Ok(result)
+        } else {
+            // We manually cast to unsigned to be able to extend the ciphertext after PRF +
+            // ReRand without sign issues
+            let inner_radix = result.into_inner();
+            let unsigned_radix =
+                <CudaUnsignedRadixCiphertext as CudaIntegerRadixCiphertext>::from(inner_radix);
+            let result = target_sks.cast_to_unsigned(unsigned_radix, num_blocks as usize, streams);
+            Ok(T::from(result.into_inner()))
+        }
     }
 
     /// Core private implementation that calls the OPRF backend.
@@ -684,7 +698,6 @@ where
         &self,
         result: &mut CudaRadixCiphertext,
         prf_seed: impl OprfSeed,
-        num_active_blocks: u64,
         total_random_bits: u64,
         target_sks: &CudaServerKey,
         re_randomization_key: &CudaReRandomizationKey<'_>,
@@ -693,10 +706,13 @@ where
     ) -> crate::Result<()> {
         let prf_seed = prf_seed.into_bytes();
         let prf_seed = prf_seed.as_ref();
+
+        let num_blocks = result.d_blocks.lwe_ciphertext_count().0 as u64;
+
         let prf_random_bits_rle_bytes = self.generate_multiblocks_oblivious_pseudo_random(
             result,
             prf_seed,
-            num_active_blocks,
+            num_blocks,
             total_random_bits,
             target_sks,
             streams,
