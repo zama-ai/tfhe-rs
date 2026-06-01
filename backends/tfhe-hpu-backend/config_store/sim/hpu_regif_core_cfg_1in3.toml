@@ -1,7 +1,7 @@
 module_name="hpu_regif_core_cfg_1in3"
 description="HPU top-level register interface. Used by the host to retrieve design information, and to configure it."
 word_size_b = 32
-offset = 0x00
+offset = 0x00000
 range = 0x10000
 ext_pkg = ["axi_if_common_param_pkg", "axi_if_shell_axil_pkg"]
 
@@ -255,15 +255,3 @@ description="BPIP configuration"
   read_access="Read"
   write_access="Write"
   default={Cst=0xffffffff}
-
-# =====================================================================================================================
-[section.keyswitch]
-offset= 0x3000
-description="Keyswitch Configuration"
-
-[section.keyswitch.register.config]
-  description="(1) Use use modulus switching mean compensation. (default), (0) Don't use modulus switching mean compensation."
-  owner="User"
-  read_access="Read"
-  write_access="Write"
-  field.mod_switch_mean_comp = { size_b=1, offset_b=0 , default={Cst=1}, description="Controls whether to use modulus switch mean compensation, aka. Mayeul's Trick."}
