@@ -616,6 +616,8 @@ clippy_backward_compat_data: install_rs_check_toolchain # the toolchain is selec
 	fi
 
 CARGO_LOCK_DIRS := $(shell git ls-files '*Cargo.lock' | xargs -n1 dirname)
+# All lock dirs except backward-compat generate_* crates (pinned to historical versions).
+FLOATING_LOCK_DIRS := $(shell git ls-files '*Cargo.lock' | grep -v 'crates/generate_' | xargs -n1 dirname)
 
 .PHONY: check_cargo_lock # Check all Cargo.lock files are up to date with their Cargo.toml
 check_cargo_lock:
@@ -682,6 +684,13 @@ check_rust_bindings_did_not_change:
 .PHONY: audit_dependencies # Run cargo audit to check vulnerable dependencies
 audit_dependencies: install_cargo_audit
 	cargo audit
+
+.PHONY: check_floating_deps # Build & lint tfhe-rs against the latest semver-compatible deps
+check_floating_deps:
+	@for dir in $(FLOATING_LOCK_DIRS); do \
+		rm -f $$dir/Cargo.lock; \
+	done
+	$(MAKE) clippy_all
 
 .PHONY: build_core # Build core_crypto without experimental features
 build_core:
