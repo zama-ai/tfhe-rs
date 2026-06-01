@@ -104,6 +104,7 @@ where
     pub fn into_raw_parts(self) -> ShortintGenericOprfServerKey<C> {
         self.key
     }
+
     /// Generates an encrypted `num_block` blocks unsigned integer
     /// taken uniformly in its full range using the given seed.
     /// The encrypted value is oblivious to the server.
