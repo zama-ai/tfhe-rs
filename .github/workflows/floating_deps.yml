@@ -1,0 +1,39 @@
+# Build and lint tfhe-rs against the latest semver-compatible dependencies.
+#
+# This job runs UNTRUSTED code: it updates dependencies to their latest semver
+# compatible version (ignoring the committed Cargo.lock), so a newly published
+# malicious dependency version could execute in build scripts / proc-macros.
+# It therefore runs on an ephemeral GitHub-hosted runner with no secrets and
+# read-only permissions.
+name: floating_deps
+
+on:
+  workflow_dispatch:
+  schedule:
+    # runs every day at 5am UTC
+    - cron: '0 5 * * *'
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check-floating-deps:
+    name: floating_deps/check-floating-deps
+    if: github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: 'false'
+
+      - name: Build and lint against up-to-date dependencies
+        run: |
+          make check_floating_deps
