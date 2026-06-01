@@ -1818,20 +1818,21 @@ where
     seeded_ct
 }
 
+// pub(crate) for availability in shortint tests
 /// This struct stores random vectors that were generated during
 /// the encryption of a lwe ciphertext or lwe compact ciphertext list.
 ///
 /// These are needed by the zero-knowledge proof
-struct CompactPublicKeyRandomVectors<Scalar> {
+pub(crate) struct CompactPublicKeyRandomVectors<Scalar> {
     // This is 'r'
     #[cfg_attr(not(feature = "zk-pok"), allow(unused))]
-    binary_random_vector: Vec<Scalar>,
+    pub(crate) binary_random_vector: Vec<Scalar>,
     // This is e1
     #[cfg_attr(not(feature = "zk-pok"), allow(unused))]
-    mask_noise: Vec<Scalar>,
+    pub(crate) mask_noise: Vec<Scalar>,
     // This is e2
     #[cfg_attr(not(feature = "zk-pok"), allow(unused))]
-    body_noise: Vec<Scalar>,
+    pub(crate) body_noise: Vec<Scalar>,
 }
 
 #[cfg(feature = "zk-pok")]
@@ -2275,7 +2276,8 @@ where
     ))
 }
 
-fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key_impl<
+// pub(crate) for availability in shortint tests
+pub(crate) fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key_impl<
     Scalar,
     KeyCont,
     InputCont,

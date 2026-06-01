@@ -39,7 +39,7 @@ use crate::shortint::ShortintParameterSet;
 use crate::integer::gpu::key_switching_key::CudaKeySwitchingKey;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::shortint::server_key::tests::noise_distribution::cpk_ks_ms::cpk_ks_any_ms;
+use crate::shortint::server_key::tests::noise_distribution::cpk_rerand_ks_ms::cpk_ks_any_ms;
 use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::lwe_programmable_bootstrap::AllocateLweBootstrapResult;
 use crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial;
 use crate::integer::key_switching_key::KeySwitchingKey;

@@ -74,6 +74,7 @@ pub trait MultiBitModulusSwitchedLweCiphertext: Sync {
     ) -> impl Iterator<Item = usize> + '_;
 }
 
+#[cfg_attr(test, derive(Clone, Debug))]
 pub struct StandardMultiBitModulusSwitchedCt<
     Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
     C: Container<Element = Scalar> + Sync,
