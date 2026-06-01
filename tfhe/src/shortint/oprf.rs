@@ -1859,7 +1859,12 @@ pub(crate) mod test {
                         } = prf_rerand_ct;
                         let prf_rerand_noise_level = prf_rerand_ct.noise_level();
 
-                        assert_ne!(prf_lwe, prf_rerand_lwe);
+                        assert_ne!(prf_lwe.as_ref(), prf_rerand_lwe.as_ref());
+                        assert_eq!(prf_lwe.lwe_size(), prf_rerand_lwe.lwe_size());
+                        assert_eq!(
+                            prf_lwe.ciphertext_modulus(),
+                            prf_rerand_lwe.ciphertext_modulus()
+                        );
                         assert_eq!(prf_degree, prf_rerand_degree);
                         // Check expected max degree
                         assert_eq!(prf_degree.0, expected_max_value - 1);
