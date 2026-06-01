@@ -2,13 +2,25 @@ use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::tests::{
     cumulate, dkw_alpha_from_epsilon, sup_diff,
 };
+use crate::integer::ciphertext::{
+    RadixCiphertext, ReRandomizationHashAlgo, ReRandomizationKey, SignedRadixCiphertext,
+};
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::oprf::{OprfPrivateKey, OprfServerKey};
 use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuOprfExecutor;
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::{
+    gen_keys, ClientKey, CompactPrivateKey, CompactPublicKey, IntegerKeyKind, RadixClientKey,
+    ServerKey,
+};
+use crate::shortint::parameters::test_params::{
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+};
 use crate::shortint::parameters::*;
+use crate::shortint::OprfSeed;
 use crate::Tag;
 use rand::Rng;
 use statrs::distribution::ContinuousCDF;
@@ -25,6 +37,12 @@ create_parameterized_test!(oprf_any_range_unsigned {
 });
 create_parameterized_test!(oprf_almost_uniformity_unsigned {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128
+});
+
+create_parameterized_test!(pseudo_random_integer_and_rerand {
+    TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128
 });
 
 fn oprf_uniformity_unsigned<P>(param: P)
@@ -293,4 +311,695 @@ pub(crate) fn probability_density_function_from_density(density: &[usize]) -> Ve
         .iter()
         .map(|count| *count as f64 / total_count as f64)
         .collect()
+}
+
+// PRF rerand below
+
+pub(crate) trait OprfReRandTestRunner {
+    /// Builds the compute, OPRF and re-randomization keys for `param` and returns the client key
+    /// used to decrypt the results.
+    ///
+    /// Re-randomization being tested independently too we only manage the Derived CPK case.
+    fn setup(&mut self, param: TestParameters) -> ClientKey;
+
+    /// Return the prf output once without and once with re-randomization.
+    fn unsigned_full(
+        &mut self,
+        prf_seed: impl OprfSeed,
+        num_blocks: u64,
+        rerand_hash_algo: ReRandomizationHashAlgo,
+    ) -> (RadixCiphertext, RadixCiphertext);
+
+    /// Return the prf output once without and once with re-randomization.
+    fn unsigned_bounded(
+        &mut self,
+        prf_seed: impl OprfSeed,
+        random_bit_count: u64,
+        num_blocks: u64,
+        rerand_hash_algo: ReRandomizationHashAlgo,
+    ) -> (RadixCiphertext, RadixCiphertext);
+
+    // TODO: make this function return the tuple directly once GPU supports the custom_range
+    // generation with rerand
+    /// Re-randomizing custom-range generation.
+    ///
+    /// Returns `None` on backends that do not expose a re-randomizing custom-range primitive yet
+    /// (currently the GPU backend), in which case the generic test skips this sub-test.
+    fn unsigned_custom_range(
+        &mut self,
+        prf_seed: impl OprfSeed,
+        num_input_random_bits: u64,
+        excluded_upper_bound: NonZeroU64,
+        num_blocks_output: u64,
+        rerand_hash_algo: ReRandomizationHashAlgo,
+    ) -> Option<(RadixCiphertext, RadixCiphertext)>;
+
+    /// Return the prf output once without and once with re-randomization.
+    fn signed_full(
+        &mut self,
+        prf_seed: impl OprfSeed,
+        num_blocks: u64,
+        rerand_hash_algo: ReRandomizationHashAlgo,
+    ) -> (SignedRadixCiphertext, SignedRadixCiphertext);
+
+    /// Return the prf output once without and once with re-randomization.
+    fn signed_bounded(
+        &mut self,
+        prf_seed: impl OprfSeed,
+        random_bit_count: u64,
+        num_blocks: u64,
+        rerand_hash_algo: ReRandomizationHashAlgo,
+    ) -> (SignedRadixCiphertext, SignedRadixCiphertext);
+}
+
+/// CPU implementation of [`OprfReRandTestRunner`].
+///
+/// Uses a derived compact public key (no key-switch) for re-randomization.
+pub(crate) struct CpuOprfReRandTestRunner {
+    state: Option<CpuOprfReRandState>,
+}
+
+struct CpuOprfReRandState {
+    sks: ServerKey,
+    oprf_sks: OprfServerKey,
+    rerand_cpk: CompactPublicKey,
+}
+
+impl CpuOprfReRandState {
+    fn rerand_key(&self) -> ReRandomizationKey<'_> {
+        ReRandomizationKey::DerivedCPKWithoutKeySwitch {
+            cpk: &self.rerand_cpk,
+        }
+    }
+}
+
+impl CpuOprfReRandTestRunner {
+    pub(crate) fn new() -> Self {
+        Self { state: None }
+    }
+
+    fn state(&self) -> &CpuOprfReRandState {
+        self.state.as_ref().expect("setup was not properly called")
+    }
+}
+
+impl OprfReRandTestRunner for CpuOprfReRandTestRunner {
+    fn setup(&mut self, param: TestParameters) -> ClientKey {
+        let (cks, sks) = gen_keys(param, IntegerKeyKind::Radix);
+
+        // Derived compact public key, re-using the compute secret key
+        // legacy rerand not covered by this test
+        let privk: CompactPrivateKey<&[u64]> = (&cks).try_into().unwrap();
+        let rerand_cpk = CompactPublicKey::new(&privk);
+
+        let oprf_cks = OprfPrivateKey::new(&cks);
+        let oprf_sks = OprfServerKey::new(&oprf_cks, &cks).unwrap();
+
+        self.state = Some(CpuOprfReRandState {
+            sks,
+            oprf_sks,
+            rerand_cpk,
+        });
+
+        cks
+    }
+
+    fn unsigned_full(
+        &mut self,
+        prf_seed: impl OprfSeed,
+        num_blocks: u64,
+        rerand_hash_algo: ReRandomizationHashAlgo,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let state = self.state();
+        let rerand_key = state.rerand_key();
+
+        let prf_seed = prf_seed.into_bytes();
+        let prf_seed = prf_seed.as_ref();
+
+        let prf_not_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_unsigned_integer(
+                prf_seed, num_blocks, &state.sks,
+            );
+        let prf_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_unsigned_integer_and_re_randomize(
+                prf_seed,
+                num_blocks,
+                &state.sks,
+                &rerand_key,
+                rerand_hash_algo,
+            )
+            .unwrap();
+
+        (prf_not_rerand, prf_rerand)
+    }
+
+    fn unsigned_bounded(
+        &mut self,
+        prf_seed: impl OprfSeed,
+        random_bit_count: u64,
+        num_blocks: u64,
+        rerand_hash_algo: ReRandomizationHashAlgo,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let state = self.state();
+        let rerand_key = state.rerand_key();
+
+        let prf_seed = prf_seed.into_bytes();
+        let prf_seed = prf_seed.as_ref();
+
+        let prf_not_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                prf_seed,
+                random_bit_count,
+                num_blocks,
+                &state.sks,
+            );
+        let prf_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_unsigned_integer_bounded_and_re_randomize(
+                prf_seed,
+                random_bit_count,
+                num_blocks,
+                &state.sks,
+                &rerand_key,
+                rerand_hash_algo,
+            )
+            .unwrap();
+
+        (prf_not_rerand, prf_rerand)
+    }
+
+    fn unsigned_custom_range(
+        &mut self,
+        prf_seed: impl OprfSeed,
+        num_input_random_bits: u64,
+        excluded_upper_bound: NonZeroU64,
+        num_blocks_output: u64,
+        rerand_hash_algo: ReRandomizationHashAlgo,
+    ) -> Option<(RadixCiphertext, RadixCiphertext)> {
+        let state = self.state();
+        let rerand_key = state.rerand_key();
+
+        let prf_seed = prf_seed.into_bytes();
+        let prf_seed = prf_seed.as_ref();
+
+        let prf_not_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_unsigned_custom_range(
+                prf_seed,
+                num_input_random_bits,
+                excluded_upper_bound,
+                num_blocks_output,
+                &state.sks,
+            );
+        let prf_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_unsigned_custom_range_and_re_randomize(
+                prf_seed,
+                num_input_random_bits,
+                excluded_upper_bound,
+                num_blocks_output,
+                &state.sks,
+                &rerand_key,
+                rerand_hash_algo,
+            )
+            .unwrap();
+
+        Some((prf_not_rerand, prf_rerand))
+    }
+
+    fn signed_full(
+        &mut self,
+        prf_seed: impl OprfSeed,
+        num_blocks: u64,
+        rerand_hash_algo: ReRandomizationHashAlgo,
+    ) -> (SignedRadixCiphertext, SignedRadixCiphertext) {
+        let state = self.state();
+        let rerand_key = state.rerand_key();
+
+        let prf_seed = prf_seed.into_bytes();
+        let prf_seed = prf_seed.as_ref();
+
+        let prf_not_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_signed_integer(prf_seed, num_blocks, &state.sks);
+        let prf_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_signed_integer_and_re_randomize(
+                prf_seed,
+                num_blocks,
+                &state.sks,
+                &rerand_key,
+                rerand_hash_algo,
+            )
+            .unwrap();
+
+        (prf_not_rerand, prf_rerand)
+    }
+
+    fn signed_bounded(
+        &mut self,
+        prf_seed: impl OprfSeed,
+        random_bit_count: u64,
+        num_blocks: u64,
+        rerand_hash_algo: ReRandomizationHashAlgo,
+    ) -> (SignedRadixCiphertext, SignedRadixCiphertext) {
+        let state = self.state();
+        let rerand_key = state.rerand_key();
+
+        let prf_seed = prf_seed.into_bytes();
+        let prf_seed = prf_seed.as_ref();
+
+        let prf_not_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_signed_integer_bounded(
+                prf_seed,
+                random_bit_count,
+                num_blocks,
+                &state.sks,
+            );
+        let prf_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_signed_integer_bounded_and_re_randomize(
+                prf_seed,
+                random_bit_count,
+                num_blocks,
+                &state.sks,
+                &rerand_key,
+                rerand_hash_algo,
+            )
+            .unwrap();
+
+        (prf_not_rerand, prf_rerand)
+    }
+}
+
+#[track_caller]
+fn check_unsigned_value_and_re_rand_are_ok(
+    lhs: &RadixCiphertext,
+    rhs: &RadixCiphertext,
+    cks: &ClientKey,
+    random_block_count: usize,
+) -> u128 {
+    let lhs_blocks = &lhs.blocks;
+    let rhs_blocks = &rhs.blocks;
+
+    assert_eq!(lhs_blocks.len(), rhs_blocks.len());
+    let message_bits: u64 = cks.parameters().message_modulus().0.ilog2().into();
+    let ct_bits = lhs_blocks.len() as u64 * message_bits;
+
+    // The total number of blocks can be larger than the random bit count for bounded cases
+    for (idx, (lhs_block, rhs_block)) in lhs_blocks.iter().zip(rhs_blocks.iter()).enumerate() {
+        if idx < random_block_count {
+            assert_ne!(
+                lhs_block.ct.as_ref(),
+                rhs_block.ct.as_ref(),
+                "Error verifying block #{idx} differ in lhs and rhs"
+            );
+        } else {
+            // Upper blocks which are not random are trivial 0s;
+            assert_eq!(lhs_block.ct.as_ref(), rhs_block.ct.as_ref());
+            assert!(lhs_block.ct.as_ref().iter().all(|&x| x == 0))
+        }
+    }
+
+    assert!(
+        ct_bits <= u128::BITS as u64,
+        "ciphertext too large to decrypt properly"
+    );
+
+    let dec_lhs: u128 = cks.decrypt_radix(lhs);
+    let dec_rhs: u128 = cks.decrypt_radix(rhs);
+
+    assert_eq!(dec_lhs, dec_rhs);
+
+    dec_lhs
+}
+
+fn subtest_unsigned_integer_full<TestRunner: OprfReRandTestRunner>(
+    prf_seed: impl OprfSeed,
+    cks: &ClientKey,
+    test_runner: &mut TestRunner,
+    rerand_hash_algo: ReRandomizationHashAlgo,
+) {
+    const OUTPUT_BIT_COUNT: u64 = 16;
+
+    let prf_seed = prf_seed.into_bytes();
+    let prf_seed = prf_seed.as_ref();
+
+    let message_bits: u64 = cks.parameters().message_modulus().0.ilog2().into();
+
+    let num_blocks = OUTPUT_BIT_COUNT.div_ceil(message_bits);
+
+    let (prf_not_rerand, prf_rerand) =
+        test_runner.unsigned_full(prf_seed, num_blocks, rerand_hash_algo);
+
+    assert_eq!(prf_not_rerand.blocks.len() as u64, num_blocks);
+    assert_eq!(prf_rerand.blocks.len() as u64, num_blocks);
+
+    let decrypted = check_unsigned_value_and_re_rand_are_ok(
+        &prf_not_rerand,
+        &prf_rerand,
+        cks,
+        num_blocks as usize,
+    );
+
+    let random_value_range = 0..1 << OUTPUT_BIT_COUNT;
+    assert!(
+        random_value_range.contains(&decrypted),
+        "range: {random_value_range:?}, decrypted: {decrypted}"
+    );
+}
+
+fn subtest_unsigned_integer_bounded<TestRunner: OprfReRandTestRunner>(
+    prf_seed: impl OprfSeed,
+    cks: &ClientKey,
+    test_runner: &mut TestRunner,
+    rerand_hash_algo: ReRandomizationHashAlgo,
+) {
+    let mut rng = rand::thread_rng();
+    const OUTPUT_BIT_COUNT: u64 = 16;
+
+    let message_bits: u64 = cks.parameters().message_modulus().0.ilog2().into();
+
+    let num_blocks = OUTPUT_BIT_COUNT.div_ceil(message_bits);
+    let random_bit_count_range = 1..=OUTPUT_BIT_COUNT;
+    let random_bit_count = rng.gen_range(random_bit_count_range);
+    let random_value_range = 0..=1 << random_bit_count;
+    let random_block_count = random_bit_count.div_ceil(message_bits);
+
+    let (prf_not_rerand, prf_rerand) =
+        test_runner.unsigned_bounded(prf_seed, random_bit_count, num_blocks, rerand_hash_algo);
+
+    assert_eq!(prf_not_rerand.blocks.len() as u64, num_blocks);
+    assert_eq!(prf_rerand.blocks.len() as u64, num_blocks);
+
+    let decrypted = check_unsigned_value_and_re_rand_are_ok(
+        &prf_not_rerand,
+        &prf_rerand,
+        cks,
+        random_block_count as usize,
+    );
+
+    assert!(
+        random_value_range.contains(&decrypted),
+        "range: {random_value_range:?}, decrypted: {decrypted}"
+    );
+}
+
+fn subtest_integer_bounded_padding_stays_trivial<TestRunner: OprfReRandTestRunner>(
+    prf_seed: impl OprfSeed,
+    cks: &ClientKey,
+    test_runner: &mut TestRunner,
+    rerand_hash_algo: ReRandomizationHashAlgo,
+) {
+    let mut rng = rand::thread_rng();
+    const OUTPUT_BIT_COUNT: u64 = 16;
+
+    let prf_seed = prf_seed.into_bytes();
+    let prf_seed = prf_seed.as_ref();
+
+    let message_bits: u64 = cks.parameters().message_modulus().0.ilog2().into();
+
+    let num_blocks = OUTPUT_BIT_COUNT.div_ceil(message_bits);
+    // at most num_blocks - 1 of random to leave at least one block of trivial padding
+    let random_bit_count_range = 1..=(num_blocks - 1) * message_bits;
+    let random_bit_count = rng.gen_range(random_bit_count_range);
+    let random_block_count = random_bit_count.div_ceil(message_bits);
+
+    {
+        let (prf_not_rerand, prf_rerand) =
+            test_runner.unsigned_bounded(prf_seed, random_bit_count, num_blocks, rerand_hash_algo);
+
+        assert!(
+            prf_not_rerand.blocks[random_block_count as usize..]
+                .iter()
+                .all(|ct| ct.is_trivial()),
+            "Expected all padding blocks to be trivial 0s"
+        );
+        assert!(
+            prf_rerand.blocks[random_block_count as usize..]
+                .iter()
+                .all(|ct| ct.is_trivial()),
+            "Expected all padding blocks to be trivial 0s"
+        );
+    }
+
+    {
+        let (prf_not_rerand, prf_rerand) =
+            test_runner.signed_bounded(prf_seed, random_bit_count, num_blocks, rerand_hash_algo);
+
+        assert!(
+            prf_not_rerand.blocks[random_block_count as usize..]
+                .iter()
+                .all(|ct| ct.is_trivial()),
+            "Expected all padding blocks to be trivial 0s"
+        );
+        assert!(
+            prf_rerand.blocks[random_block_count as usize..]
+                .iter()
+                .all(|ct| ct.is_trivial()),
+            "Expected all padding blocks to be trivial 0s"
+        );
+    }
+}
+
+fn subtest_unsigned_integer_custom_range<TestRunner: OprfReRandTestRunner>(
+    prf_seed: impl OprfSeed,
+    cks: &ClientKey,
+    test_runner: &mut TestRunner,
+    rerand_hash_algo: ReRandomizationHashAlgo,
+) {
+    let mut rng = rand::thread_rng();
+    // This may cause some values to not appear, but it's fine since we don't test uniformity
+    // Do not use in production
+    const INPUT_RANDOM_BIT_COUNT: u64 = 8;
+    const OUTPUT_BIT_COUNT: u64 = 16;
+
+    let message_bits: u64 = cks.parameters().message_modulus().0.ilog2().into();
+
+    let output_num_blocks = OUTPUT_BIT_COUNT.div_ceil(message_bits);
+    let excluded_upper_bound = {
+        let mut result = NonZeroU64::new(rng.gen_range(1..=1 << OUTPUT_BIT_COUNT)).unwrap();
+
+        // Custom range does not accept power of two range, since other primitives are more
+        // efficient
+        while result.is_power_of_two() {
+            result = NonZeroU64::new(rng.gen_range(1..=1 << OUTPUT_BIT_COUNT)).unwrap();
+        }
+
+        result
+    };
+    let random_value_range = 0u128..excluded_upper_bound.get().into();
+    // range_excluded_upper_bound is not a power of 2, get how many bits are necessary to
+    // represent it via the ceil log2
+    let excluded_upper_bound_log2: u64 = excluded_upper_bound.ilog2().into();
+    let excluded_upper_bound_ceil_log2 = excluded_upper_bound_log2 + 1;
+    let random_block_count = excluded_upper_bound_ceil_log2.div_ceil(message_bits);
+
+    let Some((prf_not_rerand, prf_rerand)) = test_runner.unsigned_custom_range(
+        prf_seed,
+        INPUT_RANDOM_BIT_COUNT,
+        excluded_upper_bound,
+        output_num_blocks,
+        rerand_hash_algo,
+    ) else {
+        // Underlying executor does not have the custom_range support
+        // TODO: remove when GPU has support
+        return;
+    };
+
+    assert_eq!(prf_not_rerand.blocks.len() as u64, output_num_blocks);
+    assert_eq!(prf_rerand.blocks.len() as u64, output_num_blocks);
+
+    let decrypted = check_unsigned_value_and_re_rand_are_ok(
+        &prf_not_rerand,
+        &prf_rerand,
+        cks,
+        random_block_count as usize,
+    );
+
+    assert!(
+        random_value_range.contains(&decrypted),
+        "range: {random_value_range:?}, decrypted: {decrypted}"
+    );
+}
+
+#[track_caller]
+fn check_signed_value_and_re_rand_are_ok(
+    lhs: &SignedRadixCiphertext,
+    rhs: &SignedRadixCiphertext,
+    cks: &ClientKey,
+    random_block_count: usize,
+) -> i128 {
+    let lhs_blocks = &lhs.blocks;
+    let rhs_blocks = &rhs.blocks;
+
+    assert_eq!(lhs_blocks.len(), rhs_blocks.len());
+    let message_bits: u64 = cks.parameters().message_modulus().0.ilog2().into();
+    let ct_bits = lhs_blocks.len() as u64 * message_bits;
+
+    // The total number of blocks can be larger than the random bit count for bounded cases
+    for (idx, (lhs_block, rhs_block)) in lhs_blocks.iter().zip(rhs_blocks.iter()).enumerate() {
+        if idx < random_block_count {
+            assert_ne!(
+                lhs_block.ct.as_ref(),
+                rhs_block.ct.as_ref(),
+                "Error verifying block #{idx} differ in lhs and rhs"
+            );
+        } else {
+            // Upper blocks which are not random are trivial 0s;
+            assert_eq!(lhs_block.ct.as_ref(), rhs_block.ct.as_ref());
+            assert!(lhs_block.ct.as_ref().iter().all(|&x| x == 0))
+        }
+    }
+
+    assert!(
+        ct_bits <= i128::BITS as u64,
+        "ciphertext too large to decrypt properly"
+    );
+
+    let dec_lhs: i128 = cks.decrypt_signed_radix(lhs);
+    let dec_rhs: i128 = cks.decrypt_signed_radix(rhs);
+
+    assert_eq!(dec_lhs, dec_rhs);
+
+    dec_lhs
+}
+
+fn subtest_signed_integer_full<TestRunner: OprfReRandTestRunner>(
+    prf_seed: impl OprfSeed,
+    cks: &ClientKey,
+    test_runner: &mut TestRunner,
+    rerand_hash_algo: ReRandomizationHashAlgo,
+) {
+    const OUTPUT_BIT_COUNT: u64 = 16;
+
+    let message_bits: u64 = cks.parameters().message_modulus().0.ilog2().into();
+
+    let num_blocks = OUTPUT_BIT_COUNT.div_ceil(message_bits);
+
+    let (prf_not_rerand, prf_rerand) =
+        test_runner.signed_full(prf_seed, num_blocks, rerand_hash_algo);
+
+    assert_eq!(prf_not_rerand.blocks.len() as u64, num_blocks);
+    assert_eq!(prf_rerand.blocks.len() as u64, num_blocks);
+
+    let decrypted = check_signed_value_and_re_rand_are_ok(
+        &prf_not_rerand,
+        &prf_rerand,
+        cks,
+        num_blocks as usize,
+    );
+
+    let random_value_range = -1i128 << (OUTPUT_BIT_COUNT - 1)..1 << (OUTPUT_BIT_COUNT - 1);
+    assert!(
+        random_value_range.contains(&decrypted),
+        "range: {random_value_range:?}, decrypted: {decrypted}"
+    );
+}
+
+fn subtest_signed_integer_bounded<TestRunner: OprfReRandTestRunner>(
+    prf_seed: impl OprfSeed,
+    cks: &ClientKey,
+    test_runner: &mut TestRunner,
+    rerand_hash_algo: ReRandomizationHashAlgo,
+) {
+    let mut rng = rand::thread_rng();
+    const OUTPUT_BIT_COUNT: u64 = 16;
+
+    let message_bits: u64 = cks.parameters().message_modulus().0.ilog2().into();
+
+    let num_blocks = OUTPUT_BIT_COUNT.div_ceil(message_bits);
+    // For signed values on n_bits we need to stay < 2^(n_bits - 1)
+    // since that value is a signed negative value
+    let random_bit_count_range = 1..=(OUTPUT_BIT_COUNT - 1);
+    let random_bit_count = rng.gen_range(random_bit_count_range);
+    let random_value_range = 0..=1 << random_bit_count;
+    let random_block_count = random_bit_count.div_ceil(message_bits);
+
+    let (prf_not_rerand, prf_rerand) =
+        test_runner.signed_bounded(prf_seed, random_bit_count, num_blocks, rerand_hash_algo);
+
+    assert_eq!(prf_not_rerand.blocks.len() as u64, num_blocks);
+    assert_eq!(prf_rerand.blocks.len() as u64, num_blocks);
+
+    let decrypted = check_signed_value_and_re_rand_are_ok(
+        &prf_not_rerand,
+        &prf_rerand,
+        cks,
+        random_block_count as usize,
+    );
+
+    assert!(
+        random_value_range.contains(&decrypted),
+        "range: {random_value_range:?}, decrypted: {decrypted}"
+    );
+}
+
+/// Generic PRF + re-randomization test
+///
+/// For each supported generation primitive it generates the PRF output with and without
+/// re-randomization from the same seed and checks that:
+/// - the random blocks differ (re-randomization changed ciphertexts)
+/// - the expected trivial padding blocks are there
+/// - both decrypt to the same value within the expected range
+pub(crate) fn pseudo_random_integer_and_rerand_test<P, E>(param: P, mut test_runner: E)
+where
+    P: Into<TestParameters>,
+    E: OprfReRandTestRunner,
+{
+    let mut rng = rand::thread_rng();
+
+    let cks = test_runner.setup(param.into());
+
+    // One seed for the test, do not use this in production, re-using a seed is bad
+    let prf_seed: [u8; 256 / 8] = core::array::from_fn(|_| rng.gen());
+    println!("prf_seed={prf_seed:?}");
+    let prf_seed = prf_seed.as_slice();
+
+    for rerand_hash_algo in [
+        ReRandomizationHashAlgo::Blake3,
+        ReRandomizationHashAlgo::Shake256,
+    ] {
+        println!("rerand_hash_algo: {rerand_hash_algo:?}");
+
+        subtest_integer_bounded_padding_stays_trivial(
+            prf_seed,
+            &cks,
+            &mut test_runner,
+            rerand_hash_algo,
+        );
+
+        // A fresh seed per call: re-using a seed across re-randomization calls is unsafe in
+        // production, but each call here is self-contained (plain vs rerand from the same seed).
+        subtest_unsigned_integer_full(prf_seed, &cks, &mut test_runner, rerand_hash_algo);
+        subtest_signed_integer_full(prf_seed, &cks, &mut test_runner, rerand_hash_algo);
+
+        // Run bounded tests a little more since they have a random component
+        for _ in 0..10 {
+            subtest_unsigned_integer_bounded(prf_seed, &cks, &mut test_runner, rerand_hash_algo);
+            subtest_signed_integer_bounded(prf_seed, &cks, &mut test_runner, rerand_hash_algo);
+        }
+
+        // This test has a random component but is much heavier (and is skipped on backends that
+        // do not support the re-randomizing custom-range primitive yet, e.g. GPU).
+        for _ in 0..3 {
+            subtest_unsigned_integer_custom_range(
+                prf_seed,
+                &cks,
+                &mut test_runner,
+                rerand_hash_algo,
+            );
+        }
+    }
+}
+
+fn pseudo_random_integer_and_rerand<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    pseudo_random_integer_and_rerand_test(param, CpuOprfReRandTestRunner::new());
 }
