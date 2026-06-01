@@ -538,6 +538,22 @@ mod tests {
     }
 
     #[test]
+    fn hlapi_bitonic_shuffle_with_num_elements() {
+        let spec = BenchmarkSpec::new_hlapi(
+            HlapiBench::BitonicShuffle,
+            "PARAM_MESSAGE_2_CARRY_2",
+            OperandType::CipherText,
+            Some("FheUint64"),
+            BenchmarkMetric::Latency,
+            Some(64),
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::hlapi::bitonic_shuffle::PARAM_MESSAGE_2_CARRY_2::FheUint64::64_elements"
+        );
+    }
+
+    #[test]
     fn hlapi_dex_with_pbs_count() {
         use crate::tfhe::hlapi::dex::{Dex, DexFlavor};
 

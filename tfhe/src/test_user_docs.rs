@@ -131,6 +131,10 @@ mod test_cpu_doc {
         "../docs/fhe-computation/operations/dot-product.md",
         operations_dot_product
     );
+    doctest!(
+        "../docs/fhe-computation/operations/shuffle.md",
+        operations_shuffle
+    );
 
     // TOOLING
     doctest!("../docs/fhe-computation/tooling/debug.md", tooling_debug);

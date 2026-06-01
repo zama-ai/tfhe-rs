@@ -2134,6 +2134,13 @@ bench_hlapi_kvstore: install_rs_check_toolchain
 	--bench hlapi-kvstore \
 	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
+.PHONY: bench_hlapi_bitonic_shuffle # Run benchmarks for BitonicShuffle
+bench_hlapi_bitonic_shuffle: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-bitonic-shuffle \
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
+
 .PHONY: bench_summary # Run summary benchmarks
 bench_summary: install_rs_check_toolchain
 	# Arithmetic operations: addition, multiplication, division, comparison

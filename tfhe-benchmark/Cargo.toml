@@ -102,7 +102,7 @@ required-features = ["integer", "internal-keycache"]
 name = "hlapi-bitonic-shuffle"
 path = "benches/high_level_api/bitonic_shuffle.rs"
 harness = false
-required-features = ["integer", "internal-keycache"]
+required-features = ["integer", "internal-keycache", "pbs-stats"]
 
 [[bench]]
 name = "hlapi-dex"
