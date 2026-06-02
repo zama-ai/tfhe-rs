@@ -106,7 +106,7 @@ jobs:
         id: parse_profile_and_hardware_name
         env:
           INPUTS_PROFILE: ${{ inputs.profile }}
-        run: python3 ci/parse_gpu_benchmark_profile.py "$INPUTS_PROFILE" "$GITHUB_OUTPUT"
+        run: python3 ci/parse_benchmark_profile.py "$INPUTS_PROFILE" "$GITHUB_OUTPUT"
 
       - name: Get additional file to parse
         id: set_file_to_parse

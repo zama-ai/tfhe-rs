@@ -6,6 +6,14 @@ run-name: ${{ inputs.command }}::${{ inputs.bench_type}} (${{ inputs.op_flavor }
 on:
   workflow_dispatch:
     inputs:
+      profile:
+        description: "Instance type"
+        required: true
+        type: choice
+        default: "aws::bench-hpc8 (hpc8a.96xlarge)"
+        options:
+          - "aws::bench (hpc7a.96xlarge)"
+          - "aws::bench-hpc8 (hpc8a.96xlarge)"
       command:
         description: "Benchmark command to run"
         type: choice
@@ -76,8 +84,23 @@ jobs:
     name: benchmark_cpu/parse-inputs
     runs-on: ubuntu-latest
     outputs:
+      backend: ${{ steps.parse_profile_and_hardware_name.outputs.backend }}
+      profile: ${{ steps.parse_profile_and_hardware_name.outputs.profile }}
+      hardware_name: ${{ steps.parse_profile_and_hardware_name.outputs.hardware }}
       additional_file_to_parse: ${{ steps.set_file_to_parse.outputs.additional_file_to_parse }}
     steps:
+      - name: Checkout tfhe-rs repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Parse profile and hardware name
+        id: parse_profile_and_hardware_name
+        env:
+          INPUTS_PROFILE: ${{ inputs.profile }}
+        run: python3 ci/parse_benchmark_profile.py "$INPUTS_PROFILE" "$GITHUB_OUTPUT"
+
       - name: Get additional file to parse
         id: set_file_to_parse
         shell: python
@@ -113,6 +136,9 @@ jobs:
     needs: parse-inputs
     uses: ./.github/workflows/benchmark_cpu_common.yml
     with:
+      backend: ${{ needs.parse-inputs.outputs.backend }}
+      profile: ${{ needs.parse-inputs.outputs.profile }}
+      hardware_name: ${{ needs.parse-inputs.outputs.hardware_name }}
       command: ${{ inputs.command }}
       op_flavor: ${{ inputs.op_flavor }}
       bench_type: ${{ inputs.bench_type }}
