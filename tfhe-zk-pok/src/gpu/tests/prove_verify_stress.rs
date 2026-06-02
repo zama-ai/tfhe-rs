@@ -33,12 +33,20 @@ fn get_zk_long_run_rounds() -> usize {
         });
     }
 
+    if is_minimal_sweep() {
+        NB_ZK_PKE_V2_EQ_ROUNDS_MINIMAL
+    } else {
+        NB_ZK_PKE_V2_EQ_ROUNDS
+    }
+}
+
+fn is_minimal_sweep() -> bool {
     match std::env::var("TFHE_RS_TEST_LONG_TESTS_MINIMAL") {
-        Ok(val) if val.to_uppercase() == "TRUE" => NB_ZK_PKE_V2_EQ_ROUNDS_MINIMAL,
+        Ok(val) if val.to_uppercase() == "TRUE" => true,
         Ok(val) => {
             panic!("TFHE_RS_TEST_LONG_TESTS_MINIMAL={val:?} is not valid, expected \"TRUE\"")
         }
-        Err(_) => NB_ZK_PKE_V2_EQ_ROUNDS,
+        Err(_) => false,
     }
 }
 
@@ -93,18 +101,38 @@ fn run_pke_v2_gpu_cpu_equivalence_round(seed: u64) {
         serialize_then_deserialize(&original_public_param, Compress::No).unwrap();
 
     // Sweep all combinations: 3 CRS variants × 32 invalid-witness flags
-    let cases = itertools::iproduct!(
+    let cases: Vec<_> = if is_minimal_sweep() {
         [
-            original_public_param,
-            public_param_that_was_compressed,
-            public_param_that_was_not_compressed
-        ],
-        [false, true], // r
-        [false, true], // e1
-        [false, true], // e2
-        [false, true], // m
-        [false, true]  // metadata
-    );
+            (false, false, false, false, false),
+            (true, false, false, false, false),
+        ]
+        .into_iter()
+        .map(|(r, e1, e2, m, metadata)| {
+            (
+                public_param_that_was_compressed.clone(),
+                r,
+                e1,
+                e2,
+                m,
+                metadata,
+            )
+        })
+        .collect()
+    } else {
+        itertools::iproduct!(
+            [
+                original_public_param,
+                public_param_that_was_compressed,
+                public_param_that_was_not_compressed
+            ],
+            [false, true], // r
+            [false, true], // e1
+            [false, true], // e2
+            [false, true], // m
+            [false, true]  // metadata
+        )
+        .collect()
+    };
 
     for (
         public_param,
@@ -262,11 +290,11 @@ fn test_pke_v2_gpu_cpu_equivalence() {
 }
 
 #[test]
-fn test_pke_v2_gpu_cpu_equivalence_long_run() {
+fn test_pke_v2_long_run() {
     let base_seed = get_zk_long_run_base_seed();
     let rounds = get_zk_long_run_rounds();
 
-    println!("test_pke_v2_gpu_cpu_equivalence_long_run: base_seed={base_seed:#x}, rounds={rounds}");
+    println!("test_pke_v2_long_run: base_seed={base_seed:#x}, rounds={rounds}");
 
     // Derive better quality per-round seeds from the base seed.
     let mut seed_rng = StdRng::seed_from_u64(base_seed);
