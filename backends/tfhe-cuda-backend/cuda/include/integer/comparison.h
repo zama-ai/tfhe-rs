@@ -10,12 +10,14 @@ template <typename Torus> struct int_are_all_block_true_buffer {
   CudaRadixCiphertextFFI *tmp_out;
   CudaRadixCiphertextFFI *tmp_block_accumulated;
 
-  // This map store LUTs that checks the equality between some input and values
-  // of interest in are_all_block_true(), as with max_value (the maximum message
-  // value).
   int_radix_lut<Torus> *is_max_value;
   Torus *preallocated_h_lut;
   bool gpu_memory_allocated;
+
+  uint32_t chunk_gpu_index;
+  cudaEvent_t sync_event;
+  std::vector<cudaStream_t> chunk_streams;
+  std::vector<cudaEvent_t> chunk_done_events;
 
   int_are_all_block_true_buffer(CudaStreams streams, COMPARISON_TYPE op,
                                 int_radix_params params,
@@ -55,6 +57,17 @@ template <typename Torus> struct int_are_all_block_true_buffer {
 
     is_max_value->generate_and_broadcast_lut(
         active_streams, {0}, {is_max_value_f}, LUT_0_FOR_ALL_BLOCKS);
+
+    chunk_gpu_index = streams.gpu_index(0);
+    cudaEventCreateWithFlags(&sync_event, cudaEventDisableTiming);
+    chunk_streams.reserve(max_chunks);
+    chunk_done_events.reserve(max_chunks);
+    for (int i = 0; i < max_chunks; i++) {
+      chunk_streams.push_back(cuda_create_stream(chunk_gpu_index));
+      cudaEvent_t ev;
+      cudaEventCreateWithFlags(&ev, cudaEventDisableTiming);
+      chunk_done_events.push_back(ev);
+    }
   }
 
   void release(CudaStreams streams) {
@@ -68,6 +81,11 @@ template <typename Torus> struct int_are_all_block_true_buffer {
     delete tmp_block_accumulated;
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     free(preallocated_h_lut);
+    cudaEventDestroy(sync_event);
+    for (auto s : chunk_streams)
+      cuda_destroy_stream(s, chunk_gpu_index);
+    for (auto ev : chunk_done_events)
+      cudaEventDestroy(ev);
   }
 };
 
@@ -229,6 +247,19 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
     tree_inner_leaf_lut->generate_and_broadcast_bivariate_lut(
         active_streams, {0}, {block_selector_f}, LUT_0_FOR_ALL_BLOCKS);
+
+    auto bsf = block_selector_f;
+    auto num_bits_in_message = log2_int(params.message_modulus);
+    auto message_modulus_local = params.message_modulus;
+    auto f_last_leaf = [bsf, operator_f, num_bits_in_message,
+                        message_modulus_local](Torus x) -> Torus {
+      Torus msb = (x >> num_bits_in_message) & (message_modulus_local - 1);
+      Torus lsb = x & (message_modulus_local - 1);
+      return operator_f(bsf(msb, lsb));
+    };
+    auto active_streams_1 = streams.active_gpu_subset(1, params.pbs_type);
+    tree_last_leaf_lut->generate_and_broadcast_lut(
+        active_streams_1, {0}, {f_last_leaf}, LUT_0_FOR_ALL_BLOCKS);
   }
 
   void release(CudaStreams streams) {
@@ -283,6 +314,9 @@ template <typename Torus> struct int_comparison_diff_buffer {
         return x == IS_INFERIOR;
       case LE:
         return (x == IS_INFERIOR) || (x == IS_EQUAL);
+      case MAX:
+      case MIN:
+        return x;
       default:
         PANIC("Cuda error (comparisons): unknown comparison type")
       }
@@ -367,6 +401,8 @@ template <typename Torus> struct int_comparison_buffer {
   int_radix_lut<Torus> *signed_msb_lut;
   CudaStreams lsb_streams;
   CudaStreams msb_streams;
+  cudaEvent_t lsb_done_event;
+  cudaEvent_t msb_done_event;
   bool gpu_memory_allocated;
   Torus *preallocated_h_lut;
 
@@ -386,6 +422,8 @@ template <typename Torus> struct int_comparison_buffer {
 
     lsb_streams.create_on_same_gpus(active_streams);
     msb_streams.create_on_same_gpus(active_streams);
+    cudaEventCreateWithFlags(&lsb_done_event, cudaEventDisableTiming);
+    cudaEventCreateWithFlags(&msb_done_event, cudaEventDisableTiming);
 
     // +1 to have space for signed comparison
     tmp_lwe_array_out = new CudaRadixCiphertextFFI;
@@ -554,6 +592,8 @@ template <typename Torus> struct int_comparison_buffer {
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     lsb_streams.release();
     msb_streams.release();
+    cudaEventDestroy(lsb_done_event);
+    cudaEventDestroy(msb_done_event);
     free(preallocated_h_lut);
   }
 };

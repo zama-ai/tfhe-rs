@@ -14,23 +14,30 @@
 #include "pbs/programmable_bootstrap_multibit.cuh"
 #include "utils/helper.cuh"
 
-// lwe_dimension + 1 threads
-// todo: This kernel MUST be refactored to a binary reduction
 template <typename Torus>
 __global__ void
 device_accumulate_all_blocks(Torus *output, Torus const *input_block,
                              uint32_t lwe_dimension, uint32_t num_blocks) {
-  int idx = threadIdx.x + blockIdx.x * blockDim.x;
-  if (idx < lwe_dimension + 1) {
-    auto block = &input_block[idx];
+  extern __shared__ Torus smem[];
 
-    Torus sum = block[0];
-    for (int i = 1; i < num_blocks; i++) {
-      sum += block[i * (lwe_dimension + 1)];
-    }
+  int coeff_idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int lwe_size = lwe_dimension + 1;
 
-    output[idx] = sum;
+  Torus val = (coeff_idx < lwe_size && threadIdx.y < num_blocks)
+                  ? input_block[threadIdx.y * lwe_size + coeff_idx]
+                  : 0;
+  smem[threadIdx.y * blockDim.x + threadIdx.x] = val;
+  __syncthreads();
+
+  for (uint32_t s = blockDim.y >> 1; s > 0; s >>= 1) {
+    if (threadIdx.y < s)
+      smem[threadIdx.y * blockDim.x + threadIdx.x] +=
+          smem[(threadIdx.y + s) * blockDim.x + threadIdx.x];
+    __syncthreads();
   }
+
+  if (threadIdx.y == 0 && coeff_idx < lwe_size)
+    output[coeff_idx] = smem[threadIdx.x];
 }
 
 template <typename Torus>
@@ -40,12 +47,20 @@ __host__ void accumulate_all_blocks(cudaStream_t stream, uint32_t gpu_index,
                                     uint32_t num_radix_blocks) {
 
   cuda_set_device(gpu_index);
-  int num_blocks = 0, num_threads = 0;
-  int num_entries = (lwe_dimension + 1);
-  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
-  // Add all blocks and store in sum
-  device_accumulate_all_blocks<Torus><<<num_blocks, num_threads, 0, stream>>>(
-      output, input, lwe_dimension, num_radix_blocks);
+
+  uint32_t block_dim_y = 1;
+  while (block_dim_y < num_radix_blocks)
+    block_dim_y <<= 1;
+
+  uint32_t block_dim_x = std::max(1u, std::min(512u / block_dim_y, 512u));
+  uint32_t grid_dim_x = CEIL_DIV(lwe_dimension + 1, block_dim_x);
+
+  dim3 block_dim(block_dim_x, block_dim_y);
+  size_t smem_size = block_dim_x * block_dim_y * sizeof(Torus);
+
+  device_accumulate_all_blocks<Torus>
+      <<<grid_dim_x, block_dim, smem_size, stream>>>(output, input, lwe_dimension,
+                                                     num_radix_blocks);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -108,18 +123,25 @@ __host__ void are_all_comparisons_block_true(
     auto is_max_value_lut = are_all_block_true_buffer->is_max_value;
     uint32_t chunk_lengths[num_chunks];
     auto begin_remaining_blocks = remaining_blocks;
+    cudaEventRecord(are_all_block_true_buffer->sync_event, streams.stream(0));
     for (int i = 0; i < num_chunks; i++) {
       uint32_t chunk_length =
           std::min(max_value, begin_remaining_blocks - i * max_value);
       chunk_lengths[i] = chunk_length;
-      accumulate_all_blocks<Torus>(streams.stream(0), streams.gpu_index(0),
-                                   accumulator_ptr, input_blocks,
-                                   big_lwe_dimension, chunk_length);
+
+      auto cs = are_all_block_true_buffer->chunk_streams[i];
+      cudaStreamWaitEvent(cs, are_all_block_true_buffer->sync_event);
+      accumulate_all_blocks<Torus>(cs, streams.gpu_index(0), accumulator_ptr,
+                                   input_blocks, big_lwe_dimension, chunk_length);
+      cudaEventRecord(are_all_block_true_buffer->chunk_done_events[i], cs);
 
       accumulator_ptr += (big_lwe_dimension + 1);
       remaining_blocks -= (chunk_length - 1);
       input_blocks += (big_lwe_dimension + 1) * chunk_length;
     }
+    for (int i = 0; i < num_chunks; i++)
+      cudaStreamWaitEvent(streams.stream(0),
+                          are_all_block_true_buffer->chunk_done_events[i]);
     auto accumulator = are_all_block_true_buffer->tmp_block_accumulated;
 
     // Selects a LUT
@@ -223,20 +245,25 @@ __host__ void is_at_least_one_comparisons_block_true(
     auto accumulator = (Torus *)buffer->tmp_block_accumulated->ptr;
     uint32_t chunk_lengths[num_chunks];
     auto begin_remaining_blocks = remaining_blocks;
+    cudaEventRecord(buffer->sync_event, streams.stream(0));
     for (int i = 0; i < num_chunks; i++) {
       uint32_t chunk_length =
           std::min(max_value, begin_remaining_blocks - i * max_value);
       chunk_lengths[i] = chunk_length;
-      accumulate_all_blocks<Torus>(streams.stream(0), streams.gpu_index(0),
-                                   accumulator, input_blocks, big_lwe_dimension,
-                                   chunk_length);
+
+      auto cs = buffer->chunk_streams[i];
+      cudaStreamWaitEvent(cs, buffer->sync_event);
+      accumulate_all_blocks<Torus>(cs, streams.gpu_index(0), accumulator,
+                                   input_blocks, big_lwe_dimension, chunk_length);
+      cudaEventRecord(buffer->chunk_done_events[i], cs);
 
       accumulator += (big_lwe_dimension + 1);
       remaining_blocks -= (chunk_length - 1);
       input_blocks += (big_lwe_dimension + 1) * chunk_length;
     }
+    for (int i = 0; i < num_chunks; i++)
+      cudaStreamWaitEvent(streams.stream(0), buffer->chunk_done_events[i]);
 
-    // Selects a LUT
     int_radix_lut<Torus> *lut = mem_ptr->eq_buffer->is_non_zero_lut;
 
     // Applies the LUT
@@ -455,34 +482,20 @@ tree_sign_reduction(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     }
   }
 
-  auto last_lut = tree_buffer->tree_last_leaf_lut;
-  auto block_selector_f = tree_buffer->block_selector_f;
-  std::function<Torus(Torus)> f;
-  auto num_bits_in_message = log2_int(params.message_modulus);
+  int_radix_lut<Torus> *last_lut;
   if (partial_block_count == 2) {
     pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), y, x,
                        partial_block_count, message_modulus);
-
-    f = [block_selector_f, sign_handler_f, num_bits_in_message,
-         message_modulus](Torus x) -> Torus {
-      Torus msb = (x >> num_bits_in_message) & (message_modulus - 1);
-      Torus lsb = x & (message_modulus - 1);
-
-      Torus final_sign = block_selector_f(msb, lsb);
-      return sign_handler_f(final_sign);
-    };
+    last_lut = tree_buffer->tree_last_leaf_lut;
   } else {
-    // partial_block_count == 1
     y = x;
-    f = sign_handler_f;
+    last_lut = tree_buffer->tree_last_leaf_scalar_lut;
+    auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
+    last_lut->generate_and_broadcast_lut(active_streams, {0}, {sign_handler_f},
+                                         LUT_0_FOR_ALL_BLOCKS, true,
+                                         {tree_buffer->preallocated_h_lut});
   }
 
-  auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
-  last_lut->generate_and_broadcast_lut(active_streams, {0}, {f},
-                                       LUT_0_FOR_ALL_BLOCKS, true,
-                                       {tree_buffer->preallocated_h_lut});
-
-  // Last leaf
   integer_radix_apply_univariate_lookup_table<Torus>(streams, lwe_array_out, y,
                                                      bsks, ksks, last_lut, 1);
 }
@@ -557,12 +570,8 @@ __host__ void host_difference_check(
   } else {
     // Packing is possible
     if (carry_modulus >= message_modulus) {
-      // Compare (num_radix_blocks - 2) / 2 packed blocks
-      compare_radix_blocks<Torus>(streams, comparisons, &lhs, &rhs, mem_ptr,
-                                  bsks, ksks, packed_num_radix_blocks);
-
-      // Compare the last block before the sign block separately
       auto identity_lut = mem_ptr->identity_lut;
+
       CudaRadixCiphertextFFI last_left_block_before_sign_block;
       as_radix_ciphertext_slice<Torus>(
           &last_left_block_before_sign_block, diff_buffer->tmp_packed,
@@ -571,9 +580,6 @@ __host__ void host_difference_check(
       as_radix_ciphertext_slice<Torus>(&shifted_lwe_array_left, lwe_array_left,
                                        num_radix_blocks - 2,
                                        num_radix_blocks - 1);
-      integer_radix_apply_univariate_lookup_table<Torus>(
-          streams, &last_left_block_before_sign_block, &shifted_lwe_array_left,
-          bsks, ksks, identity_lut, 1);
 
       CudaRadixCiphertextFFI last_right_block_before_sign_block;
       as_radix_ciphertext_slice<Torus>(
@@ -584,19 +590,28 @@ __host__ void host_difference_check(
       as_radix_ciphertext_slice<Torus>(&shifted_lwe_array_right,
                                        lwe_array_right, num_radix_blocks - 2,
                                        num_radix_blocks - 1);
+
+      // These two PBS read original inputs — independent of packed compare.
+      // Launch on side streams to overlap with compare_radix_blocks below.
       integer_radix_apply_univariate_lookup_table<Torus>(
-          streams, &last_right_block_before_sign_block,
+          mem_ptr->lsb_streams, &last_left_block_before_sign_block,
+          &shifted_lwe_array_left, bsks, ksks, identity_lut, 1);
+      cudaEventRecord(mem_ptr->lsb_done_event,
+                      mem_ptr->lsb_streams.stream(0));
+
+      integer_radix_apply_univariate_lookup_table<Torus>(
+          mem_ptr->msb_streams, &last_right_block_before_sign_block,
           &shifted_lwe_array_right, bsks, ksks, identity_lut, 1);
+      cudaEventRecord(mem_ptr->msb_done_event,
+                      mem_ptr->msb_streams.stream(0));
 
+      // Compare (num_radix_blocks - 2) / 2 packed blocks — runs in parallel
+      // with the two side-stream PBS above.
+      compare_radix_blocks<Torus>(streams, comparisons, &lhs, &rhs, mem_ptr,
+                                  bsks, ksks, packed_num_radix_blocks);
+
+      // Compare the sign block — also independent, keep on main stream.
       CudaRadixCiphertextFFI shifted_comparisons;
-      as_radix_ciphertext_slice<Torus>(&shifted_comparisons, comparisons,
-                                       packed_num_radix_blocks,
-                                       packed_num_radix_blocks + 1);
-      compare_radix_blocks<Torus>(
-          streams, &shifted_comparisons, &last_left_block_before_sign_block,
-          &last_right_block_before_sign_block, mem_ptr, bsks, ksks, 1);
-
-      // Compare the sign block separately
       as_radix_ciphertext_slice<Torus>(&shifted_comparisons, comparisons,
                                        packed_num_radix_blocks + 1,
                                        packed_num_radix_blocks + 2);
@@ -610,6 +625,18 @@ __host__ void host_difference_check(
           streams, &shifted_comparisons, &last_left_block, &last_right_block,
           bsks, ksks, mem_ptr->signed_lut, 1,
           mem_ptr->signed_lut->params.message_modulus);
+
+      // Fan-in: wait for both side-stream PBS before comparing their outputs.
+      cudaStreamWaitEvent(streams.stream(0), mem_ptr->lsb_done_event);
+      cudaStreamWaitEvent(streams.stream(0), mem_ptr->msb_done_event);
+
+      as_radix_ciphertext_slice<Torus>(&shifted_comparisons, comparisons,
+                                       packed_num_radix_blocks,
+                                       packed_num_radix_blocks + 1);
+      compare_radix_blocks<Torus>(
+          streams, &shifted_comparisons, &last_left_block_before_sign_block,
+          &last_right_block_before_sign_block, mem_ptr, bsks, ksks, 1);
+
       num_comparisons = packed_num_radix_blocks + 2;
 
     } else {
