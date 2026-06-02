@@ -913,8 +913,9 @@ test_zk_pok_gpu_valgrind: install_cargo_nextest
 	export SANITIZER_CARGO_PACKAGE=tfhe-zk-pok && \
 	export SANITIZER_CARGO_FEATURES_CPU=experimental,gpu-experimental && \
 	export SANITIZER_TEST_FILTER_CPU='gpu::' && \
-	export SANITIZER_TEST_EXCLUDES_CPU='conversion_roundtrip|scalar_validation' && \
+	export SANITIZER_TEST_EXCLUDES_CPU='conversion_roundtrip|scalar_validation|long_run' && \
 	export SANITIZER_TEST_EXE_GLOB='tfhe_zk_pok-*' && \
+	export TFHE_RS_TEST_LONG_TESTS_MINIMAL=TRUE && \
 		scripts/check_memory_errors.sh --cpu
 
 .PHONY: test_integer_hl_test_gpu_check_warnings
@@ -1333,14 +1334,14 @@ test_zk_pok_experimental_gpu:
 test_zk_pok_experimental_long_run_gpu:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		-p tfhe-zk-pok --features experimental,gpu-experimental -- \
-		test_pke_v2_gpu_cpu_equivalence_long_run --test-threads=1 --nocapture
+		test_pke_v2_gpu_cpu_equivalence_long_run --include-ignored --test-threads=1 --nocapture
 
 .PHONY: test_zk_pok_experimental_short_run_gpu
 test_zk_pok_experimental_short_run_gpu:
 	TFHE_RS_TEST_LONG_TESTS_MINIMAL=TRUE \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		-p tfhe-zk-pok --features experimental,gpu-experimental -- \
-		test_pke_v2_gpu_cpu_equivalence_long_run --test-threads=1 --nocapture
+		test_pke_v2_gpu_cpu_equivalence_long_run --include-ignored --test-threads=1 --nocapture
 
 .PHONY: test_integer_zk_gpu # Run tfhe-zk-pok tests
 test_integer_zk_gpu:
