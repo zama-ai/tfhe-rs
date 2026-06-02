@@ -2,11 +2,13 @@ pub mod dex;
 pub mod erc7984;
 pub mod kv_store;
 pub mod noise_squash;
+pub mod oprf;
 
 use dex::Dex;
 use erc7984::Erc7984;
 use kv_store::KvStoreOp;
 use noise_squash::NoiseSquashingKind;
+use oprf::OprfKind;
 use std::fmt;
 use strum::Display;
 
@@ -30,6 +32,7 @@ pub enum HlapiBench {
     Dex(Dex),
     KvStore(KvStoreOp),
     NoiseSquashing(NoiseSquashingKind),
+    Oprf(OprfKind),
 }
 
 impl HlapiBench {
@@ -40,6 +43,7 @@ impl HlapiBench {
             HlapiBench::Dex(op) => op.fmt_spec(f),
             HlapiBench::KvStore(op) => write!(f, "::{op}"),
             HlapiBench::NoiseSquashing(op) => write!(f, "::{op}"),
+            HlapiBench::Oprf(op) => write!(f, "::{op}"),
         }
     }
 }
