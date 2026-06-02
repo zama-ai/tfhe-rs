@@ -921,7 +921,7 @@ mod hpu_test {
     // NB: Currently remove mhdma_u32 from testbundle.
     // Indeed this new variant led to deadlock and need more investigation
     #[cfg(feature = "hpu")]
-    hpu_testbundle!("mhdma"::[64] => [
+    hpu_testbundle!("mhdma"::[32,64] => [
         "mhdma_test"
     ]);
 }
