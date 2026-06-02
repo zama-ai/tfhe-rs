@@ -1476,11 +1476,11 @@ check_main_readme_links: install_mlc
 
 .PHONY: check_doc_paths_use_dash # Check paths use "-" instead of "_" in docs for gitbook compatibility
 check_doc_paths_use_dash:
-	python3.11 ./scripts/check_doc_paths_use_dash.py
+	python3 ./scripts/check_doc_paths_use_dash.py
 
 .PHONY: check_parameter_export_ok # Checks exported "current" shortint parameter module is correct
 check_parameter_export_ok:
-	python3.11 ./scripts/check_current_param_export.py
+	python3 ./scripts/check_current_param_export.py
 
 .PHONY: check_compile_tests # Build tests in debug without running them
 check_compile_tests:
