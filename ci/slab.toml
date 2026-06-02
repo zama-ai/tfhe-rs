@@ -22,6 +22,12 @@ image_id = "ami-06e3a9d9b57d38676"
 instance_type = "hpc7a.96xlarge"
 user = "ubuntu"
 
+[backend.aws.bench-hpc8]
+region = "eu-north-1"
+image_id = "ami-071ecbab74093ac66"
+instance_type = "hpc8a.96xlarge"
+user = "ubuntu"
+
 # Profile used to build CUDA code without the need to get p-like instance.
 [backend.aws.gpu-build]
 region = "us-east-1"

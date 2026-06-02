@@ -4,6 +4,15 @@ name: benchmark_cpu_common
 on:
   workflow_call:
     inputs:
+      backend:
+        type: string
+        default: aws
+      profile:
+        type: string
+        default: bench-hpc8
+      hardware_name:
+        type: string
+        default: hpc8a.96xlarge
       command: # Any make recipes stripped of the "bench_" prefix in the Makefile
         type: string # Use comma separated values to generate an array
         required: true
@@ -132,8 +141,8 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: aws
-          profile: bench
+          backend: ${{ inputs.backend }}
+          profile: ${{ inputs.profile }}
 
   integer-benchmarks:
     name: benchmark_cpu_common/integer-benchmarks
@@ -185,7 +194,7 @@ jobs:
         run: |
           python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
-          --hardware "hpc7a.96xlarge" \
+          --hardware "${INPUTS_HARDWARE_NAME}" \
           --project-version "${COMMIT_HASH}" \
           --branch "${REF_NAME}" \
           --commit-date "${COMMIT_DATE}" \
@@ -194,6 +203,7 @@ jobs:
           --name-suffix avx512 \
           --bench-type "${BENCH_TYPE}"
         env:
+          INPUTS_HARDWARE_NAME: ${{ inputs.hardware_name }}
           REF_NAME: ${{ github.ref_name }}
           BENCH_TYPE: ${{ matrix.bench_type }}
 

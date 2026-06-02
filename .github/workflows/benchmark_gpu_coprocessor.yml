@@ -78,7 +78,7 @@ jobs:
           else
             PROFILE_RAW="${PROFILE_SCHEDULED_RUN}"
           fi
-          python3 ci/parse_gpu_benchmark_profile.py "$PROFILE_RAW" "$GITHUB_OUTPUT"
+          python3 ci/parse_benchmark_profile.py "$PROFILE_RAW" "$GITHUB_OUTPUT"
 
   setup-instance:
     name: benchmark_gpu_coprocessor/setup-instance
