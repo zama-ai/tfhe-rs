@@ -524,11 +524,17 @@ where
             function instead"
         );
 
+        // Since excluded_upper_bound is not a power of two, we know the ceil log2 of the value is
+        // the ilog2 + 1, this is how many bits are needed to represent the value
+        let excluded_upper_bound_log2: u64 = excluded_upper_bound.ilog2().into();
+        let excluded_upper_bound_ceil_log2 = excluded_upper_bound_log2 + 1;
         let num_bits_output = num_blocks_output * message_bits_count;
+
         assert!(
-            (excluded_upper_bound as f64) < 2_f64.powi(num_bits_output as i32),
+            excluded_upper_bound_ceil_log2 <= num_bits_output,
             "num_blocks_output(={num_blocks_output}) is too small to hold an integer \
-            up to excluded_upper_bound(={excluded_upper_bound})"
+            up to excluded_upper_bound(={excluded_upper_bound}). Output has {num_bits_output} bits,\
+            {excluded_upper_bound} needs {excluded_upper_bound_ceil_log2} bits to be represented."
         );
 
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &target_sks.key_switching_key
@@ -543,8 +549,7 @@ where
         let polynomial_size = bootstrapping_key.polynomial_size();
         let in_lwe_size = input_lwe_dimension.to_lwe_size();
 
-        let post_mul_num_bits =
-            num_input_random_bits + (excluded_upper_bound as f64).log2().ceil() as u64;
+        let post_mul_num_bits = num_input_random_bits + excluded_upper_bound_ceil_log2;
 
         let num_blocks_intermediate = post_mul_num_bits.div_ceil(message_bits_count);
 
