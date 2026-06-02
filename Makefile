@@ -1476,11 +1476,11 @@ check_main_readme_links: install_mlc
 
 .PHONY: check_doc_paths_use_dash # Check paths use "-" instead of "_" in docs for gitbook compatibility
 check_doc_paths_use_dash:
-	python3 ./scripts/check_doc_paths_use_dash.py
+	python3.11 ./scripts/check_doc_paths_use_dash.py
 
 .PHONY: check_parameter_export_ok # Checks exported "current" shortint parameter module is correct
 check_parameter_export_ok:
-	python3 ./scripts/check_current_param_export.py
+	python3.11 ./scripts/check_current_param_export.py
 
 .PHONY: check_compile_tests # Build tests in debug without running them
 check_compile_tests:
@@ -2040,8 +2040,8 @@ bench_hlapi_gpu: install_rs_check_toolchain
 	--bench hlapi \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
-.PHONY: bench_hlapi_hpu # Run benchmarks for HLAPI operations on HPU
-bench_hlapi_hpu: install_rs_check_toolchain
+.PHONY: bench_hlapi_unsigned_hpu # Run benchmarks for HLAPI operations on HPU
+bench_hlapi_unsigned_hpu: install_rs_check_toolchain
 	source ./setup_hpu.sh --config $(HPU_CONFIG); \
 	export V80_PCIE_DEV=${V80_PCIE_DEV}; \
 	RUSTFLAGS="$(RUSTFLAGS)" \
