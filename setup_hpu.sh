@@ -3,24 +3,14 @@
 # Find current script directory. This should be PROJECT_DIR
 CUR_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 HPU_BACKEND_DIR=$CUR_SCRIPT_DIR/backends/tfhe-hpu-backend
-HPU_MOCKUP_DIR=$CUR_SCRIPT_DIR/mockups/tfhe-hpu-mockup
 
-# Default default bitstream
 # Available options are:
-#  * sim: use with the mockup (i.e simulation)
-#  * v80: use with v80 (i.e should specify pcie-dev flag [zamav80: 01, srvzama: 21]
+#  * sim: use with the hpu_sim (i.e simulation)
+#  * v80: use with v80 boards
 HPU_CONFIG="sim"
 
 # Default log verbosity
 RUST_LOG="info"
-
-# Setting PCI device variable: depends on the machine
-if command -v lscpi &> /dev/null; then
-    mapfile -t DEVICE< <(lspci -d 10ee:50b5)
-else
-    DEVICE=()
-fi
-V80_PCIE_DEV="unselected"
 
 # V80 bitstream refresh rely on XilinxVivado tools
 XILINX_VIVADO=${XILINX_VIVADO:-"/opt/amd/Vivado/2024.2"}
@@ -77,10 +67,7 @@ echo "###                          Setup Hpu Backend                            
 echo "###############################################################################"
 echo "# * Config: ${HPU_CONFIG}"
 echo "# * Backend directory: ${HPU_BACKEND_DIR}"
-if [[ "$HPU_CONFIG" == sim* ]]; then
-echo "# * Mockup directory: ${HPU_MOCKUP_DIR}"
-elif [[ "$HPU_CONFIG" == v80* ]]; then
-echo "# * PCIe id: ${V80_PCIE_DEV} [V80 only]"
+if [[ "$HPU_CONFIG" == v80* ]]; then
 echo "# * XilinxVivado: ${XILINX_VIVADO} [V80 only]"
 echo "# * AmiPath: ${AMI_PATH} [V80 only]"
 fi
@@ -93,14 +80,8 @@ export HPU_BACKEND_DIR
 export HPU_CONFIG
 export RUST_LOG
 
-# Sim specific init ###########################################################
-if [[ "$HPU_CONFIG" == sim* ]]; then
-    export HPU_MOCKUP_DIR
-fi
-
 # V80 specific init ###########################################################
 if [[ "$HPU_CONFIG" == v80* ]]; then
-    export V80_PCIE_DEV
     export XILINX_VIVADO
     export AMI_PATH
 fi

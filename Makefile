@@ -226,6 +226,12 @@ install_aikido_safe_chain: fetch_aikido_safe_chain
 install_aikido_safe_chain_ci: fetch_aikido_safe_chain
 	sh safe_chain_install.sh --ci
 
+.PHONY: install_hpu_sim # Install Hpu simulation binary
+install_hpu_sim:
+	@hpu_sim --help > /dev/null 2>&1 || \
+	cargo install  hpu_sim --git https://github.com/zama-ai/hpu_sim --locked || \
+	( echo "Unable to install hpu_sim, unknown error." && exit 1 )
+
 .PHONY: setup_venv # Setup Python virtualenv for wasm tests
 setup_venv:
 	python3 -m venv venv
@@ -679,12 +685,6 @@ clippy_hpu_backend: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-hpu-backend -- --no-deps -D warnings
 
-.PHONY: clippy_hpu_mockup # Run clippy lints on tfhe-hpu-mockup
-clippy_hpu_mockup: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--all-targets \
-		-p tfhe-hpu-mockup -- --no-deps -D warnings
-
 .PHONY: check_rust_bindings_did_not_change # Check rust bindings are up to date for tfhe-cuda-backend and tfhe-cuda-common
 check_rust_bindings_did_not_change:
 	cargo build -p tfhe-cuda-backend && "$(MAKE)" fmt_gpu && \
@@ -1055,22 +1055,20 @@ test_signed_integer_multi_bit_gpu_ci: install_cargo_nextest
 test_integer_hpu_ci: install_cargo_nextest
 	cargo test --release -p tfhe --features hpu-v80 --test hpu
 
-.PHONY: test_integer_hpu_mockup_ci # Run the tests for integer ci on hpu backend and mockup
-test_integer_hpu_mockup_ci: install_cargo_nextest
+.PHONY: test_integer_hpu_sim_ci # Run the tests for integer ci on hpu backend and simulation model
+test_integer_hpu_sim_ci: install_cargo_nextest install_hpu_sim
 	source ./setup_hpu.sh --config sim ; \
-	cargo build --release --bin hpu_mockup; \
-	coproc target/release/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tuniform_64b_pfail64_psi64.toml > mockup.log; \
+	coproc hpu_sim --duration 500_s --compute-params TUniform64bPFail64Psi64 > hpu_sim.log; \
 	HPU_TEST_ITER=1 \
 	cargo test --profile devo -p tfhe --features hpu --test hpu -- u32 && \
 	kill %1
 
-.PHONY: test_integer_hpu_mockup_ci_fast # Run the quick tests for integer ci on hpu backend and mockup.
-test_integer_hpu_mockup_ci_fast: install_cargo_nextest
+.PHONY: test_integer_hpu_sim_ci_fast # Run the quick tests for integer ci on hpu backend and simulation model.
+test_integer_hpu_sim_ci_fast: install_cargo_nextest install_hpu_sim
 	source ./setup_hpu.sh --config sim ; \
-	cargo build --profile devo --bin hpu_mockup; \
-	coproc target/devo/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tuniform_64b_fast.toml > mockup.log; \
+	coproc hpu_sim --duration 500_s --compute-params TUniform64bFast > hpu_sim_fast.log; \
 	HPU_TEST_ITER=1 \
-	cargo test --profile devo -p tfhe --features hpu --test hpu -- u32 && \
+	cargo test --profile devo -p tfhe --features hpu --test hpu -- u8 && \
 	kill %1
 
 .PHONY: test_boolean # Run the tests of the boolean module
@@ -2445,8 +2443,7 @@ pcc_gpu:
 pcc_hpu:
 	$(call run_recipe_with_details,clippy_hpu)
 	$(call run_recipe_with_details,clippy_hpu_backend)
-	$(call run_recipe_with_details,clippy_hpu_mockup)
-	$(call run_recipe_with_details,test_integer_hpu_mockup_ci_fast)
+	$(call run_recipe_with_details,test_integer_hpu_sim_ci_fast)
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
 fpcc:

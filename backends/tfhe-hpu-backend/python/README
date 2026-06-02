@@ -1,4 +1,4 @@
-This contains a small library to read trace files retrieved from the hardware or the mockup.
+This contains a small library to read trace files retrieved from real hardware or simulation model.
 
 To run, please add the lib directory to your PYTHONPATH:
 

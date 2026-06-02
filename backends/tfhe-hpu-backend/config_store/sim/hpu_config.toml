@@ -10,7 +10,7 @@
   node_id=[0,1,2,3]
 
 [fpga.ffi.Sim]
-  ipc_name="/tmp/${USER}/hpu_mockup_ipc"
+  ipc_name="/tmp/${USER}/hpu_sim_ipc"
   iopq={head_ofst=0x0, tail_ofst=0x8, data_ofst=0x10, size_w=512, mem= {Ddr={offset=0x2000_0000}}}
   ackq={head_ofst=0x0, tail_ofst=0x8, data_ofst=0x10, size_w=512, mem= {Ddr={offset=0x2000_1000}}}
 
@@ -78,7 +78,6 @@
 [firmware]
   implementation = "Ilp"
   integer_w=[8,32,64]
-  # integer_w=[2,4,6,8,10,12,14,16,32,64,128]
   min_batch_size = 12
   kogge_cfg            = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/kogge_cfg.toml"
 [firmware.custom_iop.integer_w_2]
