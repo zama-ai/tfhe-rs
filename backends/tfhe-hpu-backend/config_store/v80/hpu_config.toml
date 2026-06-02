@@ -107,6 +107,7 @@
 
 [firmware.custom_iop.integer_w_16]
   'IOP[21]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_16/cust_21"
+  'IOP[33]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_16/cust_33"
 
 [firmware.custom_iop.integer_w_32]
   'IOP[33]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_32/cust_33"
