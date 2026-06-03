@@ -1060,7 +1060,15 @@ test_integer_hpu_sim_ci: install_cargo_nextest install_hpu_sim
 	source ./setup_hpu.sh --config sim ; \
 	coproc hpu_sim --duration 500_s --compute-params TUniform64bPFail64Psi64 > hpu_sim.log; \
 	HPU_TEST_ITER=1 \
-	cargo test --profile devo -p tfhe --features hpu --test hpu -- u32 && \
+	cargo test --profile devo -p tfhe --features hpu --test hpu -- u32 --skip multi_hpu --skip mhdma && \
+	kill %1
+
+.PHONY: test_multi_hpu_sim_ci # Run multi_hpu tests on hpu backend and simulation model
+test_multi_hpu_sim_ci: install_cargo_nextest install_hpu_sim
+	source ./setup_hpu.sh --config multi_sim ; \
+	coproc hpu_sim --duration 500_s --compute-params TUniform64bPFail64Psi64 > hpu_sim.log; \
+	HPU_TEST_ITER=1 \
+	cargo test --profile devo -p tfhe --features hpu --test hpu -- multi_hpu_u32 mhdma_u32 && \
 	kill %1
 
 .PHONY: test_integer_hpu_sim_ci_fast # Run the quick tests for integer ci on hpu backend and simulation model.
@@ -1068,7 +1076,15 @@ test_integer_hpu_sim_ci_fast: install_cargo_nextest install_hpu_sim
 	source ./setup_hpu.sh --config sim ; \
 	coproc hpu_sim --duration 500_s --compute-params TUniform64bFast > hpu_sim_fast.log; \
 	HPU_TEST_ITER=1 \
-	cargo test --profile devo -p tfhe --features hpu --test hpu -- u8 && \
+	cargo test --profile devo -p tfhe --features hpu --test hpu -- u8 --skip multi_hpu && \
+	kill %1
+
+.PHONY: test_hpu_sim_ci_fast # Run the quick multi_hpu tests on hpu backend and simulation model.
+test_multi_hpu_sim_ci_fast: install_cargo_nextest install_hpu_sim
+	source ./setup_hpu.sh --config multi_sim ; \
+	coproc hpu_sim --duration 500_s --compute-params TUniform64bFast > hpu_sim_fast.log; \
+	HPU_TEST_ITER=1 \
+	cargo test --profile devo -p tfhe --features hpu --test hpu -- multi_hpu_u8 && \
 	kill %1
 
 .PHONY: test_boolean # Run the tests of the boolean module
