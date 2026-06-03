@@ -49,3 +49,6 @@ ci/lattice_estimator.sage.py
 
 # In case someone clones the lattice-estimator locally to verify security
 /lattice-estimator
+
+# Node
+safe_chain_install.sh

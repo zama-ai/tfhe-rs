@@ -212,6 +212,21 @@ install_linelint_ci:
 	rm linelint_checksum && \
 	chmod +x linelint
 
+.PHONY: fetch_aikido_safe_chain # Fetch Aikido Safe-Chain installation script for Linux
+fetch_aikido_safe_chain:
+	curl -fsSL -o safe_chain_install.sh https://github.com/AikidoSec/safe-chain/releases/download/1.5.6/install-safe-chain.sh
+	@echo "cba28f8ae8bccc8f1e8bab18982cff8dbe2e812a9f04be756618a6c252482673 safe_chain_install.sh" > safe_chain_checksum && \
+	sha256sum -c safe_chain_checksum && \
+	rm safe_chain_checksum
+
+.PHONY: install_aikido_safe_chain # Install Aikido Safe-Chain to protect against NPM supply-chain attacks
+install_aikido_safe_chain: fetch_aikido_safe_chain
+	sh safe_chain_install.sh
+
+.PHONY: install_aikido_safe_chain_ci # Install Aikido Safe-Chain to protect against NPM supply-chain attacks in CI
+install_aikido_safe_chain_ci: fetch_aikido_safe_chain
+	sh safe_chain_install.sh --ci
+
 .PHONY: setup_venv # Setup Python virtualenv for wasm tests
 setup_venv:
 	python3 -m venv venv
