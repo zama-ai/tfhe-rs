@@ -86,6 +86,10 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Install Safe-chain
+        run: |
+          make install_aikido_safe_chain_ci
+
       - name: Get Node version
         run: |
           echo "NODE_VERSION=$(make node_version)" >> "${GITHUB_ENV}"

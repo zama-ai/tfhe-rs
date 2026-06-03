@@ -194,11 +194,17 @@ jobs:
         run: |
           make test_user_doc
 
+      - name: Install Safe-chain
+        if: needs.should-run.outputs.wasm_test == 'true'
+        run: |
+          make install_aikido_safe_chain_ci
+
       - name: Get Node version
         run: |
           echo "NODE_VERSION=$(make node_version)" >> "${GITHUB_ENV}"
 
       - name: Node cache restoration
+        if: needs.should-run.outputs.wasm_test == 'true'
         id: node-cache
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae #v5.0.5
         with:
@@ -208,13 +214,13 @@ jobs:
           key: node-${{ env.NODE_VERSION }}
 
       - name: Install Node
-        if: steps.node-cache.outputs.cache-hit != 'true'
+        if: needs.should-run.outputs.wasm_test == 'true' && steps.node-cache.outputs.cache-hit != 'true'
         run: |
           make install_node
 
       - name: Node cache save
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae #v5.0.5
-        if: steps.node-cache.outputs.cache-hit != 'true'
+        if: needs.should-run.outputs.wasm_test == 'true' && steps.node-cache.outputs.cache-hit != 'true'
         with:
           path: |
             ~/.nvm

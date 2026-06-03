@@ -126,6 +126,11 @@ jobs:
           chmod +x linelint-linux-amd64
           ln -s "$(pwd)/linelint-linux-amd64" /usr/local/bin/linelint
 
+      - name: Install Safe-chain
+        if: inputs.run-pcc-cpu-batch == 'pcc_batch_2'
+        run: |
+          make install_aikido_safe_chain_ci
+
       - name: Get Node version
         if: inputs.run-pcc-cpu-batch == 'pcc_batch_2'
         run: |

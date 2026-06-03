@@ -78,6 +78,10 @@ jobs:
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
+      - name: Install Safe-chain
+        run: |
+          make install_aikido_safe_chain_ci
+
       - name: Create NPM version tag
         if: ${{ inputs.npm_latest_tag }}
         run: |
