@@ -212,7 +212,9 @@ mod hpu_test {
                 let imms_u128 = (0..proto.imm)
                     .map(|_pos| rng.gen_range(0_u128..max_val))
                     .collect::<Vec<_>>();
-                let imms_typed = imms_u128.iter().map(|v| T::cast_from(*v))
+                let imms_typed = imms_u128
+                    .iter()
+                    .map(|v| T::cast_from(*v))
                     .collect::<Vec<_>>();
 
                 // execute on Hpu

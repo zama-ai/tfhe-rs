@@ -24,7 +24,7 @@ LD R12 TS[0].12
 LD R13 TS[0].13
 LD R14 TS[0].14
 LD R15 TS[0].15
-# Stock localy
+# Stock locally
 ST TH.0 R0
 SUB R0 R0 R0
 NOTIFY N1 F1 TH.0

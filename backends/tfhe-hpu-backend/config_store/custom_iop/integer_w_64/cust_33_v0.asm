@@ -40,7 +40,7 @@ LD R28 TS[0].28
 LD R29 TS[0].29
 LD R30 TS[0].30
 LD R31 TS[0].31
-# Stock localy
+# Stock locally
 ST TH.0 R0
 SUB R0 R0 R0
 SUB R0 R0 R0

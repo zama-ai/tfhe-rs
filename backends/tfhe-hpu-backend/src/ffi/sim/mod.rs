@@ -315,6 +315,6 @@ impl MemZone {
 
 /// Utility function to extract board device_id and serial_number from env
 pub(super) fn get_board_properties() -> Result<Vec<BoardProperties>, String> {
-    // Not currrently needed for simulation
+    // Not currently needed for simulation
     Ok(vec![])
 }

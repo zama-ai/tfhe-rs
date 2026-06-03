@@ -62,7 +62,7 @@ impl NodesMap {
         );
         self.0[(avail_hpu - 1) as usize]
     }
-    
+
     pub fn max_node(&self) -> u8 {
         *self.0.iter().max().unwrap_or(&1)
     }

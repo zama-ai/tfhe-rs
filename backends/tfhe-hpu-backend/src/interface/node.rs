@@ -65,15 +65,15 @@ impl UcoreConfig {
 
 // Custom display implementation with Debug like format to discard _padding fields
 impl std::fmt::Display for UcoreConfig {
-      fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-          f.debug_struct("UcoreConfig")
-              .field("node_id", &self.node_id)
-              .field("timestamp", &self.timestamp)
-              .field("node_mask", &format_args!("{:#010b}", self.node_mask))
-              .field("user_size", &self.user_size)
-              .field("b2b_size", &self.b2b_size)
-              .finish()
-      }
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UcoreConfig")
+            .field("node_id", &self.node_id)
+            .field("timestamp", &self.timestamp)
+            .field("node_mask", &format_args!("{:#010b}", self.node_mask))
+            .field("user_size", &self.user_size)
+            .field("b2b_size", &self.b2b_size)
+            .finish()
+    }
 }
 
 pub struct HpuNode {
@@ -918,7 +918,7 @@ impl HpuNode {
 
         // Fallback entry
         // All uninit IOp will point to 0 length firmware for error detection
-        let error_value = [0_u32;1];
+        let error_value = [0_u32; 1];
         let error_entry = tr_table_ofst;
         self.fw_mem
             .write_cut_at(0, FW_RUNTIME_MAX_WORD + tr_table_ofst, &error_value);
@@ -1024,7 +1024,10 @@ impl HpuNode {
             // NB: ucore expect addr with physical memory offset (i.e. Byte offset
             // NB': ucore understand lut entry as ofst from PHYS_MEM => don't add cut_ofst in
             // the entry
-            let mut tr_lut = vec![(error_entry*std::mem::size_of::<u32>()) as u32; IOP_NUMBER * MAX_HPU_IN_CLUSTER];
+            let mut tr_lut = vec![
+                (error_entry * std::mem::size_of::<u32>()) as u32;
+                IOP_NUMBER * MAX_HPU_IN_CLUSTER
+            ];
 
             for (id, fw_bytes) in id_fw.into_iter() {
                 // Store lookup addr
@@ -1125,7 +1128,9 @@ impl HpuNode {
 
         let ack_nb = hpu_hw.iop_ack_rd();
         for _ack in 0..ack_nb {
-            let ack_cmd = cmdq.pop_front().unwrap_or_else(|| panic!("[N{hid}] Received ack for unmatched IOp"));
+            let ack_cmd = cmdq
+                .pop_front()
+                .unwrap_or_else(|| panic!("[N{hid}] Received ack for unmatched IOp"));
             // TODO check that ack_code match with expected op msb
             tracing::debug!("[N{hid}] Received ack for IOp {}", ack_cmd.op);
 
