@@ -1921,6 +1921,22 @@ bench_ks_gpu: install_rs_check_toolchain
 	--bench core_crypto-ks \
 	--features=boolean,shortint,gpu,internal-keycache -p tfhe-benchmark --profile release_lto_off
 
+
+.PHONY: bench_autom # Run benchmarks for PBS
+bench_autom: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench automorphism_bench \
+	--features=shortint,experimental -p tfhe-benchmark -- apply_to_glwe_ciphertext
+
+.PHONY: bench_autom # Run benchmarks for PBS
+bench_autom_br: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench automorphism_bench \
+	--features=shortint,experimental -p tfhe-benchmark -- blind_rotate
+
+
 .PHONY: bench_pbs # Run benchmarks for PBS
 bench_pbs: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
