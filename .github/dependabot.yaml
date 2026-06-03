@@ -9,3 +9,24 @@ updates:
       day: "sunday"
     cooldown:
       default-days: 7
+
+  - package-ecosystem: "cargo"
+    directories:
+      - "/"
+      - "/apps/trivium"
+      - "/utils/tfhe-lints"
+    schedule:
+      # Routine version bumps monthly to limit churn. Security fixes are handled
+      # separately and immediately by Dependabot security updates.
+      interval: "monthly"
+    cooldown:
+      default-days: 7
+    allow:
+      - dependency-type: "direct"
+    groups:
+      cargo-minor-patch:
+        applies-to: version-updates
+        # Groups multiple minor or patch updates in a single pr
+        update-types:
+          - "minor"
+          - "patch"
