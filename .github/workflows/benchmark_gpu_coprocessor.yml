@@ -188,6 +188,10 @@ jobs:
         with:
           toolchain: nightly
 
+      - name: Install Safe-chain
+        run: |
+          make install_aikido_safe_chain_ci
+
       - name: Install cargo dependencies
         run: |
           sudo apt-get install -y protobuf-compiler pkg-config libssl-dev \

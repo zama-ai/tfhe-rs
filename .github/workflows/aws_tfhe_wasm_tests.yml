@@ -86,8 +86,9 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Get Node version
+      - name: Node setup
         run: |
+          make install_aikido_safe_chain_ci
           echo "NODE_VERSION=$(make node_version)" >> "${GITHUB_ENV}"
 
       - name: Node cache restoration
