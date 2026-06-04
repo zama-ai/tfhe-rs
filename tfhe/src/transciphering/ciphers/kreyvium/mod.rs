@@ -6,7 +6,10 @@ mod test;
 
 use super::shift_register::ShiftRegister;
 
-pub use fast_fhe::{encrypt_fast_bit, FastBit, KreyviumFastEncryptedKey, KreyviumFastFheStream};
+pub use fast_fhe::{
+    FastBit, KreyviumFastEncryptedKey, KreyviumFastFheStream,
+    PARAM_KREYVIUM_1_0_KS32_TUNIFORM_2M128,
+};
 pub use fhe::{KreyviumEncryptedKey, KreyviumFheStream};
 pub use plain::KreyviumPlainStream;
 use rayon::prelude::*;

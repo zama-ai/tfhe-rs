@@ -6,8 +6,8 @@ use crate::shortint::parameters::test_params::{
 };
 use crate::shortint::prelude::*;
 use crate::transciphering::ciphers::kreyvium::{
-    encrypt_fast_bit, KreyviumEncryptedKey, KreyviumFastEncryptedKey, KreyviumFastFheStream,
-    KreyviumFheStream, KreyviumPlainStream,
+    KreyviumEncryptedKey, KreyviumFastEncryptedKey, KreyviumFastFheStream, KreyviumFheStream,
+    KreyviumPlainStream, PARAM_KREYVIUM_1_0_KS32_TUNIFORM_2M128,
 };
 use crate::transciphering::{trans_cipher_2_2, StreamCipher, Transcipherer};
 
@@ -144,8 +144,8 @@ fn kreyvium_test_fhe() {
     kreyvium_fhe_keystream_known_answer(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 }
 
-fn kreyvium_fast_fhe_keystream_known_answer(params: ClassicPBSParameters) {
-    let (client_key, server_key) = gen_keys(params);
+fn kreyvium_fast_fhe_keystream_known_answer() {
+    let (client_key, server_key) = gen_keys(PARAM_KREYVIUM_1_0_KS32_TUNIFORM_2M128);
 
     let key_bytes = hex_to_bytes_16("0053A6F94C9FF24598EB000000000000");
     let iv_bytes = hex_to_bytes_16("0D74DB42A91077DE45AC000000000000");
@@ -167,7 +167,7 @@ fn kreyvium_fast_fhe_keystream_known_answer(params: ClassicPBSParameters) {
     let output = "D1F0303482061111";
 
     let cipher_key: KreyviumFastEncryptedKey =
-        key_bits.map(|x| encrypt_fast_bit(&client_key, x)).into();
+        key_bits.map(|x| client_key.encrypt(x)).into();
 
     let mut kreyvium = KreyviumFastFheStream::new(cipher_key, iv_bits, &server_key);
 
@@ -186,7 +186,7 @@ fn kreyvium_fast_fhe_keystream_known_answer(params: ClassicPBSParameters) {
 
 #[test]
 fn kreyvium_test_fast_fhe() {
-    kreyvium_fast_fhe_keystream_known_answer(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+    kreyvium_fast_fhe_keystream_known_answer();
 }
 
 /// Tests the `round_naive` fallback path under params where the
