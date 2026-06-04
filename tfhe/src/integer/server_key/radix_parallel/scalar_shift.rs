@@ -118,6 +118,28 @@ impl ServerKey {
         result
     }
 
+    /// Produces a "sign block" from `sign_source`: a block whose message is all-ones
+    /// (`message_modulus - 1`) if the sign bit (the MSB of the message) of `sign_source` is set,
+    /// and `0` otherwise. This costs one PBS.
+    ///
+    /// Note: this is only meaningful for blocks holding at least 2 bits of message; for
+    /// 1-bit-message blocks the block itself already is the sign, so callers should clone it
+    /// instead.
+    fn arithmetic_shift_sign_block(
+        &self,
+        sign_source: &crate::shortint::Ciphertext,
+    ) -> crate::shortint::Ciphertext {
+        let message_modulus = self.key.message_modulus.0;
+        let num_bits_in_block = message_modulus.ilog2() as u64;
+        let lut = self.key.generate_lookup_table(|x| {
+            let x = x % message_modulus;
+            let x_sign_bit = (x >> (num_bits_in_block - 1)) & 1;
+            // a message full of 1s if the sign bit is set, else 0
+            (message_modulus - 1) * x_sign_bit
+        });
+        self.key.apply_lookup_table(sign_source, &lut)
+    }
+
     pub fn unchecked_scalar_right_shift_arithmetic_assign_parallelized<T, Scalar>(
         &self,
         ct: &mut T,
@@ -140,8 +162,24 @@ impl ServerKey {
         let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
         let total_num_bits = num_bits_in_block * ct.blocks().len() as u64;
 
-        let shift = u64::cast_from(shift) % total_num_bits;
+        let shift = u64::cast_from(shift);
         if shift == 0 {
+            return;
+        }
+
+        if shift >= total_num_bits {
+            // Overshift: an arithmetic right shift saturates to the sign, so every block becomes
+            // the sign block (all-ones if the input is negative, else 0).
+            let num_blocks = ct.blocks().len();
+            let sign_block = if num_bits_in_block == 1 {
+                // a 1-bit-message block already is its own sign bit
+                ct.blocks()[num_blocks - 1].clone()
+            } else {
+                self.arithmetic_shift_sign_block(&ct.blocks()[num_blocks - 1])
+            };
+            for block in ct.blocks_mut() {
+                block.clone_from(&sign_block);
+            }
             return;
         }
 
@@ -191,20 +229,9 @@ impl ServerKey {
             });
             let last_block = &ct.blocks()[num_blocks - rotations - 1];
 
-            let pad_block_creator_lut = self.key.generate_lookup_table(|x| {
-                let x = x % message_modulus;
-                let x_sign_bit = (x >> (num_bits_in_block - 1)) & 1;
-                // padding is a message full of 1 if sign bit is one
-                // else padding is a zero message
-                (message_modulus - 1) * x_sign_bit
-            });
-
             rayon::join(
                 || self.key.apply_lookup_table(last_block, &last_block_lut),
-                || {
-                    self.key
-                        .apply_lookup_table(last_block, &pad_block_creator_lut)
-                },
+                || self.arithmetic_shift_sign_block(last_block),
             )
         };
 
@@ -257,8 +284,15 @@ impl ServerKey {
         let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
         let total_num_bits = num_bits_in_block * ct.blocks().len() as u64;
 
-        let shift = u64::cast_from(shift) % total_num_bits;
+        let shift = u64::cast_from(shift);
         if shift == 0 {
+            return;
+        }
+
+        if shift >= total_num_bits {
+            // Overshift: a logical right shift pushes every bit out,
+            // so the result is 0.
+            self.create_trivial_zero_assign_radix(ct);
             return;
         }
 
@@ -559,8 +593,15 @@ impl ServerKey {
         let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
         let total_num_bits = num_bits_in_block * ct.blocks().len() as u64;
 
-        let shift = u64::cast_from(shift) % total_num_bits;
+        let shift = u64::cast_from(shift);
         if shift == 0 {
+            return;
+        }
+
+        if shift >= total_num_bits {
+            // Overshift: a left shift pushes every bit out,
+            // so the result is 0.
+            self.create_trivial_zero_assign_radix(ct);
             return;
         }
 

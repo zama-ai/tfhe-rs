@@ -127,9 +127,14 @@ impl ServerKey {
         let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
         let total_num_bits = num_bits_in_block * ct.blocks.len() as u64;
 
-        let shift = shift % T::cast_from(total_num_bits);
         let shift = u64::cast_from(shift);
         if shift == 0 {
+            return;
+        }
+
+        if shift >= total_num_bits {
+            // This function takes unsigned radix only, so no sign to handle
+            self.create_trivial_zero_assign_radix(ct);
             return;
         }
 
@@ -284,7 +289,11 @@ impl ServerKey {
 
         let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
         let total_num_bits = num_bits_in_block * ct.blocks.len() as u64;
-        let shift = shift % total_num_bits;
+        if shift >= total_num_bits {
+            // Overshift on a left shift pushes every bit out: the result is 0.
+            self.create_trivial_zero_assign_radix(ct);
+            return;
+        }
 
         let rotations = ((shift / num_bits_in_block) as usize).min(ct.blocks.len());
         let shift_within_block = shift % num_bits_in_block;
