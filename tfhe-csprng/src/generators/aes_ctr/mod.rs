@@ -178,8 +178,8 @@
 //!     ╚═════╩═══════════╩═══════════╩═══════════╩═════╝
 //! ```
 //!
-//! We call this input to the v function, a _buffer pointer_. The [`BufferPointer`] structure
-//! defined in this module represents such a pointer in the code.
+//! We call this input to the v function, a _buffer pointer_. The `BufferPointer`
+//! structure defined in this module represents such a pointer in the code.
 //!
 //! When the table index is incremented, the buffer pointer is incremented alongside:
 //! ```ascii
