@@ -6,7 +6,7 @@ license = "BSD-3-Clause-Clear"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-ron = { version = "0.8", features = ["integer128"] }
+ron = { version = "0.12", features = ["integer128"] }
 ciborium = "0.2"
 bincode = { workspace = true }
 strum = { version = "0.26", features = ["derive"] }
