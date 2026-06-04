@@ -794,8 +794,12 @@ macro_rules! generic_integer_impl_scalar_div_rem {
     };
 }
 // Ciphertext/Scalar ops
+//
+// `op_doc` is a single string literal rather than `$(#[$op_doc:meta])*`:
+// to avoid problems of levels of repetition.
 macro_rules! generic_integer_impl_scalar_operation {
     (
+        op_doc: $op_doc:literal,
         rust_trait: $rust_trait_name:ident($rust_trait_method:ident),
         implem: {
             // A closure that must return a RadixCiphertext
@@ -814,6 +818,7 @@ macro_rules! generic_integer_impl_scalar_operation {
                 {
                     type Output = $concrete_type;
 
+                    #[doc = $op_doc]
                     fn $rust_trait_method(self, rhs: $scalar_type) -> Self::Output {
                         <&Self as $rust_trait_name<$scalar_type>>::$rust_trait_method(&self, rhs)
                     }
@@ -823,6 +828,7 @@ macro_rules! generic_integer_impl_scalar_operation {
                 {
                     type Output = $concrete_type;
 
+                    #[doc = $op_doc]
                     fn $rust_trait_method(self, rhs: $scalar_type) -> Self::Output {
                         let inner_result = $closure(self, rhs);
                         let tag = global_state::tag_of_internal_server_key().unwrap_display();
@@ -831,6 +837,18 @@ macro_rules! generic_integer_impl_scalar_operation {
                 }
             )* // Closing second repeating pattern
         )* // Closing first repeating pattern
+    };
+    (
+        rust_trait: $rust_trait_name:ident($rust_trait_method:ident),
+        implem: { $closure:expr },
+        fhe_and_scalar_type: $($tt:tt)*
+    ) => {
+        generic_integer_impl_scalar_operation!(
+            op_doc: "",
+            rust_trait: $rust_trait_name($rust_trait_method),
+            implem: { $closure },
+            fhe_and_scalar_type: $($tt)*
+        );
     };
 }
 
@@ -974,6 +992,7 @@ pub(in crate::high_level_api::integers) use generic_integer_impl_get_scalar_left
 // Scalar assign ops
 macro_rules! generic_integer_impl_scalar_operation_assign {
     (
+        op_doc: $op_doc:literal,
         rust_trait: $rust_trait_name:ident($rust_trait_method:ident),
         implem: {
             $closure:expr
@@ -989,6 +1008,7 @@ macro_rules! generic_integer_impl_scalar_operation_assign {
             $(
                 impl $rust_trait_name<$scalar_type> for $concrete_type
                 {
+                    #[doc = $op_doc]
                     $(#[$doc])*
                     fn $rust_trait_method(&mut self, rhs: $scalar_type) {
                         $closure(self, rhs);
@@ -996,6 +1016,18 @@ macro_rules! generic_integer_impl_scalar_operation_assign {
                 }
             )*
         )*
+    };
+    (
+        rust_trait: $rust_trait_name:ident($rust_trait_method:ident),
+        implem: { $closure:expr },
+        fhe_and_scalar_type: $($tt:tt)*
+    ) => {
+        generic_integer_impl_scalar_operation_assign!(
+            op_doc: "",
+            rust_trait: $rust_trait_name($rust_trait_method),
+            implem: { $closure },
+            fhe_and_scalar_type: $($tt)*
+        );
     }
 }
 
@@ -1010,6 +1042,7 @@ macro_rules! define_scalar_rotate_shifts {
     ) => {
 
         generic_integer_impl_scalar_operation!(
+            op_doc: "# Overshift\n\nIf the shift amount is greater than or equal to the number of bits of the type, the result is `0`.",
             rust_trait: Shl(shl),
             implem: {
                 |lhs: &FheUint<_>, rhs| {
@@ -1067,6 +1100,7 @@ macro_rules! define_scalar_rotate_shifts {
         );
 
         generic_integer_impl_scalar_operation!(
+            op_doc: "# Overshift\n\nIf the shift amount is greater than or equal to the number of bits of the type, the result is `0`.",
             rust_trait: Shr(shr),
             implem: {
                 |lhs: &FheUint<_>, rhs| {
@@ -1238,6 +1272,7 @@ macro_rules! define_scalar_rotate_shifts {
         );
 
         generic_integer_impl_scalar_operation_assign!(
+            op_doc: "# Overshift\n\nIf the shift amount is greater than or equal to the number of bits of the type, the result is `0`.",
             rust_trait: ShlAssign(shl_assign),
             implem: {
                 |lhs: &mut FheUint<_>, rhs| {
@@ -1269,6 +1304,7 @@ macro_rules! define_scalar_rotate_shifts {
         );
 
         generic_integer_impl_scalar_operation_assign!(
+            op_doc: "# Overshift\n\nIf the shift amount is greater than or equal to the number of bits of the type, the result is `0`.",
             rust_trait: ShrAssign(shr_assign),
             implem: {
                 |lhs: &mut FheUint<_>, rhs| {

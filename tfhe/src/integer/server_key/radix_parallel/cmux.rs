@@ -894,20 +894,28 @@ impl ServerKey {
             return;
         }
 
-        let lut =
-            self.key.generate_lookup_table_bivariate(
-                |block, condition| if predicate(condition) { 0 } else { block },
-            );
+        // Shifting by the condition's current modulus allows to be more flexible
+        // regarding noise levels when the condition is a a boolean
+        let condition_mod = condition_block.degree.get() + 1;
+        let lut = self.key.generate_lookup_table(|block| {
+            let condition = block % condition_mod;
+            let x = block / condition_mod;
+
+            if predicate(condition) {
+                0
+            } else {
+                x
+            }
+        });
 
         ct.blocks_mut()
             .par_iter_mut()
             .filter(|block| block.degree.get() != 0)
             .for_each(|block| {
-                self.key.unchecked_apply_lookup_table_bivariate_assign(
-                    block,
-                    condition_block,
-                    &lut,
-                );
+                self.key
+                    .unchecked_scalar_mul_assign(block, condition_mod as u8);
+                self.key.unchecked_add_assign(block, condition_block);
+                self.key.apply_lookup_table_assign(block, &lut);
             });
     }
 
