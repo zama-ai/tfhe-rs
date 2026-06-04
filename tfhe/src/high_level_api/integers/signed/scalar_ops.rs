@@ -680,6 +680,7 @@ macro_rules! define_scalar_rotate_shifts {
     ) => {
 
         generic_integer_impl_scalar_operation!(
+            op_doc: "# Overshift\n\nIf the shift amount is greater than or equal to the number of bits of the type, the result is `0`.",
             rust_trait: Shl(shl),
             implem: {
                 |lhs: &FheInt<_>, rhs| {
@@ -736,6 +737,7 @@ macro_rules! define_scalar_rotate_shifts {
         );
 
         generic_integer_impl_scalar_operation!(
+            op_doc: "# Overshift\n\nIf the shift amount is greater than or equal to the number of bits of the type, the result is `0` for non-negative inputs, and `-1` for negative inputs (sign-extension).",
             rust_trait: Shr(shr),
             implem: {
                 |lhs: &FheInt<_>, rhs| {
@@ -904,6 +906,7 @@ macro_rules! define_scalar_rotate_shifts {
         );
 
         generic_integer_impl_scalar_operation_assign!(
+            op_doc: "# Overshift\n\nIf the shift amount is greater than or equal to the number of bits of the type, the result is `0`.",
             rust_trait: ShlAssign(shl_assign),
             implem: {
                 |lhs: &mut FheInt<_>, rhs| {
@@ -933,6 +936,7 @@ macro_rules! define_scalar_rotate_shifts {
         );
 
         generic_integer_impl_scalar_operation_assign!(
+            op_doc: "# Overshift\n\nIf the shift amount is greater than or equal to the number of bits of the type, the result is `0` for non-negative inputs, and `-1` for negative inputs (sign-extension).",
             rust_trait: ShrAssign(shr_assign),
             implem: {
                 |lhs: &mut FheInt<_>, rhs| {

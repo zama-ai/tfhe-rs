@@ -2258,6 +2258,11 @@ where
 {
     /// Performs the `<<=` operation on [FheUint]
     ///
+    /// # Overshift
+    ///
+    /// If the shift amount is greater than or equal to the number of bits of the type,
+    /// the result is `0`.
+    ///
     /// # Example
     ///
     /// ```rust
@@ -2332,6 +2337,11 @@ where
     Id2: FheUintId,
 {
     /// Performs the `>>=` operation on [FheUint]
+    ///
+    /// # Overshift
+    ///
+    /// If the shift amount is greater than or equal to the number of bits of the type,
+    /// the result is `0`.
     ///
     /// # Example
     ///

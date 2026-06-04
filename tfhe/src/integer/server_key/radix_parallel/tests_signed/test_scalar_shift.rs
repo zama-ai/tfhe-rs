@@ -26,7 +26,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_left_shift_parallelized);
-    signed_unchecked_scalar_left_shift_test(param, executor);
+    signed_unchecked_scalar_left_shift_test(param, executor, true);
 }
 
 fn integer_signed_default_scalar_left_shift<P>(param: P)
@@ -34,7 +34,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_left_shift_parallelized);
-    signed_default_scalar_left_shift_test(param, executor);
+    signed_default_scalar_left_shift_test(param, executor, true);
 }
 
 fn integer_signed_unchecked_scalar_right_shift<P>(param: P)
@@ -42,7 +42,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_right_shift_parallelized);
-    signed_unchecked_scalar_right_shift_test(param, executor);
+    signed_unchecked_scalar_right_shift_test(param, executor, true);
 }
 
 fn integer_signed_default_scalar_right_shift<P>(param: P)
@@ -50,10 +50,13 @@ where
     P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_right_shift_parallelized);
-    signed_default_scalar_right_shift_test(param, executor);
+    signed_default_scalar_right_shift_test(param, executor, true);
 }
-pub(crate) fn signed_unchecked_scalar_left_shift_test<P, T>(param: P, mut executor: T)
-where
+pub(crate) fn signed_unchecked_scalar_left_shift_test<P, T>(
+    param: P,
+    mut executor: T,
+    test_overshift: bool,
+) where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
 {
@@ -88,18 +91,21 @@ where
         }
 
         // case when shift >= nb_bits
-        {
+        if test_overshift {
+            // An overshift pushes every bit out, so a left shift returns 0.
             let clear_shift = clear_shift.saturating_add(nb_bits);
             let ct_res = executor.execute((&ct, clear_shift as i64));
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            let expected = signed_left_shift_under_modulus(clear, clear_shift % nb_bits, modulus);
-            assert_eq!(expected, dec_res);
+            assert_eq!(0, dec_res);
         }
     }
 }
 
-pub(crate) fn signed_unchecked_scalar_right_shift_test<P, T>(param: P, mut executor: T)
-where
+pub(crate) fn signed_unchecked_scalar_right_shift_test<P, T>(
+    param: P,
+    mut executor: T,
+    test_overshift: bool,
+) where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
 {
@@ -134,18 +140,22 @@ where
         }
 
         // case when shift >= nb_bits
-        {
+        if test_overshift {
+            // An overshift saturates an arithmetic right shift to the sign: -1 if negative, else 0.
             let clear_shift = clear_shift.saturating_add(nb_bits);
             let ct_res = executor.execute((&ct, clear_shift as i64));
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            let expected = signed_right_shift_under_modulus(clear, clear_shift % nb_bits, modulus);
+            let expected = if clear < 0 { -1i64 } else { 0i64 };
             assert_eq!(expected, dec_res);
         }
     }
 }
 
-pub(crate) fn signed_default_scalar_left_shift_test<P, T>(param: P, mut executor: T)
-where
+pub(crate) fn signed_default_scalar_left_shift_test<P, T>(
+    param: P,
+    mut executor: T,
+    test_overshift: bool,
+) where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
 {
@@ -192,13 +202,12 @@ where
         }
 
         // case when shift >= nb_bits
-        {
+        if test_overshift {
+            // An overshift pushes every bit out, so a left shift returns 0.
             let clear_shift = rng.gen_range(nb_bits..=u32::MAX);
             let ct_res = executor.execute((&ct, clear_shift as i64));
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            // We mimic wrapping_shl manually as we use a bigger type
-            // than the nb_bits we actually simulate in this test
-            let clear_res = signed_left_shift_under_modulus(clear, clear_shift % nb_bits, modulus);
+            let clear_res = 0i64;
             assert_eq!(
                 clear_res, dec_res,
                 "Invalid left shift result, for '{clear} << {clear_shift}', \
@@ -211,8 +220,11 @@ where
     }
 }
 
-pub(crate) fn signed_default_scalar_right_shift_test<P, T>(param: P, mut executor: T)
-where
+pub(crate) fn signed_default_scalar_right_shift_test<P, T>(
+    param: P,
+    mut executor: T,
+    test_overshift: bool,
+) where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
 {
@@ -259,13 +271,12 @@ where
         }
 
         // case when shift >= nb_bits
-        {
+        if test_overshift {
+            // An overshift saturates an arithmetic right shift to the sign: -1 if negative, else 0.
             let clear_shift = rng.gen_range(nb_bits..=u32::MAX);
             let ct_res = executor.execute((&ct, clear_shift as i64));
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            // We mimic wrapping_shl manually as we use a bigger type
-            // than the nb_bits we actually simulate in this test
-            let clear_res = signed_right_shift_under_modulus(clear, clear_shift % nb_bits, modulus);
+            let clear_res = if clear < 0 { -1i64 } else { 0i64 };
             assert_eq!(
                 clear_res, dec_res,
                 "Invalid right shift result, for '{clear} >> {clear_shift}', \
