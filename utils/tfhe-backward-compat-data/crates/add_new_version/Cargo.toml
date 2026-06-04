@@ -6,7 +6,7 @@ license = "BSD-3-Clause-Clear"
 
 [dependencies]
 clap.workspace = true
-minijinja = { version = "1.0", features = ["loader"] }
+minijinja = { version = "2.20", features = ["loader"] }
 serde = { version = "1.0", features = ["derive"] }
 cargo_toml = "0.22"
 semver = { version = "1.0" }
