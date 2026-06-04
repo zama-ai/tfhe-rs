@@ -25,7 +25,7 @@ avx512 = ["pulp/x86-v4"]
 criterion = "0.5"
 rand = { workspace = true }
 serde = "1.0.163"
-serde_json = "1.0.96"
+serde_json = "1.0.150"
 
 [[bench]]
 name = "ntt"
