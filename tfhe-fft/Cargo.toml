@@ -32,7 +32,7 @@ rustfft = "6.0"
 rand = { workspace = true }
 bincode = { workspace = true }
 more-asserts = "0.3.1"
-serde_json = "1.0.96"
+serde_json = "1.0.150"
 dyn-stack = { workspace = true, features = ["alloc"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
@@ -41,7 +41,7 @@ wasm-bindgen = { workspace = true }
 getrandom = { workspace = true, features = ["js"] }
 
 [target.'cfg(all(not(target_os = "windows"), not(target_arch = "wasm32")))'.dev-dependencies]
-rug = "1.19.1"
+rug = "1.30.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = "0.5"
