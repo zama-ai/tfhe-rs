@@ -1894,6 +1894,11 @@ where
 {
     /// Performs the `<<=` operation on [FheInt]
     ///
+    /// # Overshift
+    ///
+    /// If the shift amount is greater than or equal to the number of bits of the type,
+    /// the result is `0`.
+    ///
     /// # Example
     ///
     /// ```rust
@@ -1950,6 +1955,12 @@ where
     Id2: FheUintId,
 {
     /// Performs the `>>=` operation on [FheInt]
+    ///
+    /// # Overshift
+    ///
+    /// If the shift amount is greater than or equal to the number of bits of the type,
+    /// the result is `0` for non-negative inputs, and `-1` for negative inputs
+    /// (sign-extension).
     ///
     /// # Example
     ///

@@ -325,8 +325,11 @@ where
     }
 }
 
-pub(crate) fn unchecked_scalar_left_shift_test<P, T>(param: P, mut executor: T)
-where
+pub(crate) fn unchecked_scalar_left_shift_test<P, T>(
+    param: P,
+    mut executor: T,
+    test_overshift: bool,
+) where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
@@ -364,15 +367,15 @@ where
         }
 
         // case when scalar >= nb_bits
-        {
+        if test_overshift {
+            // An overshift pushes every bit out, so a left shift returns 0.
             let scalar = scalar.saturating_add(nb_bits);
             let encrypted_result = executor.execute((&ct, scalar as u64));
             let decrypted_result: u64 = cks.decrypt(&encrypted_result);
-            let expected = (clear << u64::from(scalar % nb_bits)) % modulus;
             assert_eq!(
-                expected, decrypted_result,
+                0, decrypted_result,
                 "Invalid left shift result for {clear} << {scalar}: \
-                expected {expected}, got {decrypted_result}"
+                expected 0, got {decrypted_result}"
             );
         }
     }
@@ -393,8 +396,11 @@ where
     }
 }
 
-pub(crate) fn unchecked_scalar_right_shift_test<P, T>(param: P, mut executor: T)
-where
+pub(crate) fn unchecked_scalar_right_shift_test<P, T>(
+    param: P,
+    mut executor: T,
+    test_overshift: bool,
+) where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
@@ -433,16 +439,16 @@ where
         }
 
         // case when scalar >= nb_bits
-        {
+        if test_overshift {
+            // An overshift pushes every bit out, so an unsigned right shift returns 0.
             let scalar = scalar.saturating_add(nb_bits);
             let encrypted_result = executor.execute((&ct, scalar as u64));
             assert!(encrypted_result.block_carries_are_empty());
             let decrypted_result: u64 = cks.decrypt(&encrypted_result);
-            let expected = clear >> u64::from(scalar % nb_bits);
             assert_eq!(
-                expected, decrypted_result,
+                0, decrypted_result,
                 "Invalid right shift result for {clear} >> {scalar}: \
-                expected {expected}, got {decrypted_result}"
+                expected 0, got {decrypted_result}"
             );
         }
     }
@@ -2106,7 +2112,7 @@ where
     }
 }
 
-pub(crate) fn default_scalar_left_shift_test<P, T>(param: P, mut executor: T)
+pub(crate) fn default_scalar_left_shift_test<P, T>(param: P, mut executor: T, test_overshift: bool)
 where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
@@ -2144,14 +2150,15 @@ where
         }
 
         // case when scalar >= nb_bits
-        {
+        if test_overshift {
+            // An overshift pushes every bit out, so a left shift returns 0.
             let scalar = scalar.saturating_add(nb_bits);
             let ct_res = executor.execute((&ct, scalar as u64));
             let tmp = executor.execute((&ct, scalar as u64));
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
-            assert_eq!(clear.wrapping_shl(scalar % nb_bits) % modulus, dec_res);
+            assert_eq!(0, dec_res);
         }
     }
 
@@ -2166,7 +2173,7 @@ where
     }
 }
 
-pub(crate) fn default_scalar_right_shift_test<P, T>(param: P, mut executor: T)
+pub(crate) fn default_scalar_right_shift_test<P, T>(param: P, mut executor: T, test_overshift: bool)
 where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
@@ -2205,14 +2212,15 @@ where
         }
 
         // case when scalar >= nb_bits
-        {
+        if test_overshift {
+            // An overshift pushes every bit out, so an unsigned right shift returns 0.
             let scalar = scalar.saturating_add(nb_bits);
             let ct_res = executor.execute((&ct, scalar as u64));
             let tmp = executor.execute((&ct, scalar as u64));
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
-            assert_eq!(clear.wrapping_shr(scalar % nb_bits) % modulus, dec_res);
+            assert_eq!(0, dec_res);
         }
     }
 

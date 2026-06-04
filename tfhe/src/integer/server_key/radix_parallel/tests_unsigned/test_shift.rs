@@ -22,7 +22,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_left_shift_parallelized);
-    unchecked_left_shift_test(param, executor);
+    unchecked_left_shift_test(param, executor, true);
 }
 
 fn integer_unchecked_right_shift<P>(param: P)
@@ -30,7 +30,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_right_shift_parallelized);
-    unchecked_right_shift_test(param, executor);
+    unchecked_right_shift_test(param, executor, true);
 }
 
 fn integer_right_shift<P>(param: P)
@@ -38,7 +38,7 @@ where
     P: Into<TestParameters> + Copy,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::right_shift_parallelized);
-    default_right_shift_test(param, executor);
+    default_right_shift_test(param, executor, true);
 }
 
 fn integer_left_shift<P>(param: P)
@@ -46,10 +46,10 @@ where
     P: Into<TestParameters> + Copy,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::left_shift_parallelized);
-    default_left_shift_test(param, executor);
+    default_left_shift_test(param, executor, true);
 }
 
-pub(crate) fn unchecked_left_shift_test<P, T>(param: P, mut executor: T)
+pub(crate) fn unchecked_left_shift_test<P, T>(param: P, mut executor: T, test_overshift: bool)
 where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
@@ -86,29 +86,22 @@ where
         }
 
         // case when shift >= nb_bits
-        {
-            let clear_shift = clear_shift.saturating_add(nb_bits);
+        // TODO: remove the `test_overshift` parameter (and this branch's gating) once the
+        // GPU backend implements the new overshift-returns-zero behavior.
+        if test_overshift {
+            // The shift amount lies in [nb_bits, modulus), so it encrypts without
+            // wrapping and is a genuine overshift: the result must be 0.
+            let clear_shift = rng.gen_range(nb_bits..modulus as u32);
             let shift = cks.encrypt(clear_shift as u64);
 
             let encrypted_result = executor.execute((&ct, &shift));
             let decrypted_result: u64 = cks.decrypt(&encrypted_result);
-            // When nb_bits is not a power of two
-            // then the behaviour is not the same
-            let mut nb_bits = modulus.ilog2();
-            if !nb_bits.is_power_of_two() {
-                nb_bits = nb_bits.next_power_of_two();
-            }
-            // We mimic wrapping_shl manually as we use a bigger type
-            // than the nb_bits we actually simulate in this test
-            assert_eq!(
-                (clear << (clear_shift % nb_bits)) % modulus,
-                decrypted_result
-            );
+            assert_eq!(0, decrypted_result);
         }
     }
 }
 
-pub(crate) fn unchecked_right_shift_test<P, T>(param: P, mut executor: T)
+pub(crate) fn unchecked_right_shift_test<P, T>(param: P, mut executor: T, test_overshift: bool)
 where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
@@ -144,29 +137,21 @@ where
         }
 
         // case when shift >= nb_bits
-        {
-            let clear_shift = clear_shift.saturating_add(nb_bits);
+        // TODO: remove the `test_overshift` parameter (and this branch's gating) once the
+        // GPU backend implements the new overshift-returns-zero behavior.
+        if test_overshift {
+            // The shift amount lies in [nb_bits, modulus), so it encrypts without
+            // wrapping and is a genuine overshift: the result must be 0.
+            let clear_shift = rng.gen_range(nb_bits..modulus as u32);
             let shift = cks.encrypt(clear_shift as u64);
             let encrypted_result = executor.execute((&ct, &shift));
             let decrypted_result: u64 = cks.decrypt(&encrypted_result);
-
-            // When nb_bits is not a power of two
-            // then the behaviour is not the same
-            let mut nb_bits = modulus.ilog2();
-            if !nb_bits.is_power_of_two() {
-                nb_bits = nb_bits.next_power_of_two();
-            }
-            // We mimic wrapping_shr manually as we use a bigger type
-            // than the nb_bits we actually simulate in this test
-            assert_eq!(
-                (clear >> (clear_shift % nb_bits)) % modulus,
-                decrypted_result
-            );
+            assert_eq!(0, decrypted_result);
         }
     }
 }
 
-pub(crate) fn default_left_shift_test<P, T>(param: P, mut executor: T)
+pub(crate) fn default_left_shift_test<P, T>(param: P, mut executor: T, test_overshift: bool)
 where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
@@ -217,7 +202,9 @@ where
             }
 
             // case when shift >= nb_bits
-            {
+            // TODO: remove the `test_overshift` parameter (and this branch's gating) once the
+            // GPU backend implements the new overshift-returns-zero behavior.
+            if test_overshift {
                 let clear_shift = rng.gen_range(nb_bits..modulus as u32);
                 let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
 
@@ -230,24 +217,14 @@ where
                     "Expected all blocks to have at most NOMINAL noise level"
                 );
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
-                // When nb_bits is not a power of two
-                // then the behaviour is not the same
-                let mut nb_bits = modulus.ilog2();
-                if !nb_bits.is_power_of_two() {
-                    nb_bits = nb_bits.next_power_of_two();
-                }
-                // We mimic wrapping_shl manually as we use a bigger type
-                // than the nb_bits we actually simulate in this test
-                assert_eq!(
-                    (clear << (clear_shift % nb_bits)) % modulus,
-                    decrypted_result
-                );
+                // A shift >= nb_bits is an overshift and must return 0
+                assert_eq!(0, decrypted_result);
             }
         }
     }
 }
 
-pub(crate) fn default_right_shift_test<P, T>(param: P, mut executor: T)
+pub(crate) fn default_right_shift_test<P, T>(param: P, mut executor: T, test_overshift: bool)
 where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
@@ -292,7 +269,9 @@ where
             }
 
             // case when shift >= nb_bits
-            {
+            // TODO: remove the `test_overshift` parameter (and this branch's gating) once the
+            // GPU backend implements the new overshift-returns-zero behavior.
+            if test_overshift {
                 let clear_shift = rng.gen_range(nb_bits..modulus as u32);
                 let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
                 let encrypted_result = executor.execute((&ct, &shift));
@@ -304,19 +283,8 @@ where
                     "Expected all blocks to have at most NOMINAL noise level"
                 );
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
-
-                // When nb_bits is not a power of two
-                // then the behaviour is not the same
-                let mut nb_bits = modulus.ilog2();
-                if !nb_bits.is_power_of_two() {
-                    nb_bits = nb_bits.next_power_of_two();
-                }
-                // We mimic wrapping_shr manually as we use a bigger type
-                // than the nb_bits we actually simulate in this test
-                assert_eq!(
-                    (clear >> (clear_shift % nb_bits)) % modulus,
-                    decrypted_result
-                );
+                // A shift >= nb_bits is an overshift and must return 0
+                assert_eq!(0, decrypted_result, "Invalid result for {clear} << {clear_shift}, expected 0, got {decrypted_result}");
             }
         }
     }
