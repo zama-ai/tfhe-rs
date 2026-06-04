@@ -38,8 +38,7 @@ mod kreyvium_shortint_transciphering_fast;
 criterion_group!(
     kreyvium_shortint_transciphering_fast,
     kreyvium_shortint_transciphering_fast::kreyvium_fast_transciphering_gen,
-    kreyvium_shortint_transciphering_fast::kreyvium_fast_transciphering_warmup,
-    kreyvium_shortint_transciphering_fast::kreyvium_fast_transciphering_trans
+    kreyvium_shortint_transciphering_fast::kreyvium_fast_transciphering_warmup
 );
 
 mod trivium_byte;
