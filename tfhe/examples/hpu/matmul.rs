@@ -53,7 +53,8 @@ fn main() {
         pub p: usize,
     }
     let args = Args::parse();
-    let hpu_device = HpuDevice::from_config(&args.config.expand(), args.force_reload);
+    let hpu_device = HpuDevice::from_config(&args.config.expand(), args.force_reload)
+        .expect("Hpu device init failed");
 
     println!("\n 1. Key generation");
     println!("   Generate client and server keys...");

@@ -43,7 +43,6 @@ pub struct MemZoneProperties {
 }
 
 /// Define Mac address representation
-
 /// Define Board properties
 #[derive(Debug, Clone)]
 pub struct BoardProperties {

@@ -88,10 +88,7 @@ mod hpu_test {
         }
 
         // Extract force_reload from env
-        match std::env::var("HPU_FORCE_RELOAD") {
-            Ok(_) => true,
-            _ => false,
-        }
+        std::env::var("HPU_FORCE_RELOAD").is_ok()
     }
 
     fn init_hpu_and_associated_material(
@@ -165,7 +162,7 @@ mod hpu_test {
                 let flag_val = usize::from_str(&var).unwrap_or_else(|_| {
                     panic!("HPU_TEST_TRIVIAL env variable {var} couldn't be casted in usize")
                 });
-                let sks_compressed = tfhe::integer::ServerKey::new_radix_server_key(&cks);
+                let sks_compressed = tfhe::integer::ServerKey::new_radix_server_key(cks);
                 (flag_val != 0, Some(sks_compressed))
             }
             _ => (false, None),
@@ -186,8 +183,7 @@ mod hpu_test {
                 let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
                     .src
                     .iter()
-                    .enumerate()
-                    .map(|(_pos, mode)| {
+                    .map(|mode| {
                         let (bw, block) = match mode {
                             hpu_asm::iop::VarMode::Native => (width, num_block),
                             hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
@@ -523,9 +519,9 @@ mod hpu_test {
             let amount = ct[2];
             // TODO enhance this to prevent overflow
             if from >= amount {
-                vec![from - amount, to.wrapping_add(amount)]
+                [from - amount, to.wrapping_add(amount)]
                 } else {
-                    vec![from, to]
+                    [from, to]
                 }
     });
 
@@ -547,26 +543,26 @@ mod hpu_test {
 
     // Custom IOp
     hpu_custom_testcase!(32, "[2]<N,N>::<N,N><0>" => [u8]
-    |ct, imm| vec![(ct[0] & 0xF) + (ct[1] & 0xF).wrapping_shl(4), (ct[0] & 0xF0).wrapping_shr(4) + (ct[1] & 0xF0)]);
+    |ct, imm| [(ct[0] & 0xF) + (ct[1] & 0xF).wrapping_shl(4), (ct[0] & 0xF0).wrapping_shr(4) + (ct[1] & 0xF0)]);
     hpu_custom_testcase!(33, "[2]<N>::<N><0>" => [u8, u32, u64]
-    |ct, imm| vec![ct[0]]);
+    |ct, imm| [ct[0]]);
     hpu_custom_testcase!(34, "[2]<N>::<N,N><0>" => [u8]
-    |ct, imm| vec![ct[0].wrapping_add(ct[1])]);
+    |ct, imm| [ct[0].wrapping_add(ct[1])]);
     hpu_custom_testcase!(35, "[2]<N>::<N><0>" => [u8]
-    |ct, imm| vec![ct[0]]);
+    |ct, imm| [ct[0]]);
     hpu_custom_testcase!(36, "[2]<N>::<N,N><0>" => [u8]
-    |ct, imm| vec![ct[0].wrapping_mul(ct[1])]);
+    |ct, imm| [ct[0].wrapping_mul(ct[1])]);
     hpu_custom_testcase!(37, "[4]<N,N>::<N,N><0>" => [u8]
-    |ct, imm| vec![(ct[0] & 0xF) + (ct[1] & 0xF).wrapping_shl(4), (ct[0] & 0xF0).wrapping_shr(4) + (ct[1] & 0xF0)]);
+    |ct, imm| [(ct[0] & 0xF) + (ct[1] & 0xF).wrapping_shl(4), (ct[0] & 0xF0).wrapping_shr(4) + (ct[1] & 0xF0)]);
     hpu_custom_testcase!(40, "[2]<H,H>::<N,N><0>" => [u32]
     |ct, imm| {
         let res = ct[0].wrapping_mul(ct[1]);
-        vec![res & 0xFFFF, (res >>16) & 0xFFFF]
+        [res & 0xFFFF, (res >>16) & 0xFFFF]
     });
     hpu_custom_testcase!(40, "[2]<H,H>::<N,N><0>" => [u64]
     |ct, imm| {
         let res = ct[0].wrapping_mul(ct[1]);
-        vec![res & 0xFFFFFFFF, (res >>32) & 0xFFFFFFFF]
+        [res & 0xFFFFFFFF, (res >>32) & 0xFFFFFFFF]
     });
 
     // Define a set of test bundle for various size

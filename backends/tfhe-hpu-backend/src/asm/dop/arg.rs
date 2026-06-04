@@ -55,7 +55,7 @@ pub enum ParsingError {
 
 /// Use FromStr trait to decode from asm file
 impl std::str::FromStr for Arg {
-    type Err = ParsingError;
+    type Err = Box<ParsingError>;
 
     #[tracing::instrument(level = "trace", ret)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -74,9 +74,9 @@ impl std::str::FromStr for Arg {
         } else if let Ok(flag) = UserFlag::from_str(s) {
             Ok(Self::UcoreFlag(flag))
         } else {
-            Err(ParsingError::Unmatch(format!(
+            Err(Box::new(ParsingError::Unmatch(format!(
                 "Invalid argument format {s}"
-            )))
+            ))))
         }
     }
 }
@@ -85,7 +85,7 @@ pub trait FromAsm
 where
     Self: Sized,
 {
-    fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, ParsingError>;
+    fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, Box<ParsingError>>;
 }
 
 #[enum_dispatch]
@@ -126,36 +126,36 @@ where
 }
 
 impl FromAsm for field::PeArithInsn {
-    fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, ParsingError> {
+    fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, Box<ParsingError>> {
         if (args.len() != 3) && (args.len() != 4) {
-            return Err(ParsingError::ArgNumber(3, args.len()));
+            return Err(Box::new(ParsingError::ArgNumber(3, args.len())));
         }
 
         let dst_rid = match args[0] {
             Arg::Reg(id) => id,
             _ => {
-                return Err(ParsingError::ArgType(
+                return Err(Box::new(ParsingError::ArgType(
                     "Arg::Reg".to_string(),
                     args[0].clone(),
-                ))
+                )))
             }
         };
         let src0_rid = match args[1] {
             Arg::Reg(id) => id,
             _ => {
-                return Err(ParsingError::ArgType(
+                return Err(Box::new(ParsingError::ArgType(
                     "Arg::Reg".to_string(),
                     args[1].clone(),
-                ))
+                )))
             }
         };
         let src1_rid = match args[2] {
             Arg::Reg(id) => id,
             _ => {
-                return Err(ParsingError::ArgType(
+                return Err(Box::new(ParsingError::ArgType(
                     "Arg::Reg".to_string(),
                     args[2].clone(),
-                ))
+                )))
             }
         };
 
@@ -163,10 +163,10 @@ impl FromAsm for field::PeArithInsn {
             match arg {
                 Arg::Imm(ImmId::Cst(id)) => MulFactor(*id as u8),
                 _ => {
-                    return Err(ParsingError::ArgType(
+                    return Err(Box::new(ParsingError::ArgType(
                         "Arg::Imm::Cst".to_string(),
                         args[3].clone(),
-                    ))
+                    )))
                 }
             }
         } else {
@@ -197,36 +197,36 @@ impl ToAsm for PeArithInsn {
 }
 
 impl FromAsm for field::PeArithMsgInsn {
-    fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, ParsingError> {
+    fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, Box<ParsingError>> {
         if args.len() != 3 {
-            return Err(ParsingError::ArgNumber(3, args.len()));
+            return Err(Box::new(ParsingError::ArgNumber(3, args.len())));
         }
 
         let dst_rid = match args[0] {
             Arg::Reg(id) => id,
             _ => {
-                return Err(ParsingError::ArgType(
+                return Err(Box::new(ParsingError::ArgType(
                     "Arg::Reg".to_string(),
                     args[0].clone(),
-                ))
+                )))
             }
         };
         let src_rid = match args[1] {
             Arg::Reg(id) => id,
             _ => {
-                return Err(ParsingError::ArgType(
+                return Err(Box::new(ParsingError::ArgType(
                     "Arg::Reg".to_string(),
                     args[1].clone(),
-                ))
+                )))
             }
         };
         let msg_cst = match args[2] {
             Arg::Imm(id) => id,
             _ => {
-                return Err(ParsingError::ArgType(
+                return Err(Box::new(ParsingError::ArgType(
                     "Arg::Imm".to_string(),
                     args[2].clone(),
-                ))
+                )))
             }
         };
 
@@ -249,9 +249,9 @@ impl ToAsm for PeArithMsgInsn {
 }
 
 impl FromAsm for field::PeMemInsn {
-    fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, ParsingError> {
+    fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, Box<ParsingError>> {
         if args.len() != 2 {
-            return Err(ParsingError::ArgNumber(2, args.len()));
+            return Err(Box::new(ParsingError::ArgNumber(2, args.len())));
         }
 
         let parsed_opcode = Opcode::from(opcode);
@@ -259,19 +259,19 @@ impl FromAsm for field::PeMemInsn {
             let rid = match args[0] {
                 Arg::Reg(id) => id,
                 _ => {
-                    return Err(ParsingError::ArgType(
+                    return Err(Box::new(ParsingError::ArgType(
                         "Arg::Reg".to_string(),
                         args[0].clone(),
-                    ))
+                    )))
                 }
             };
             let slot = match args[1] {
                 Arg::Mem(id) => id,
                 _ => {
-                    return Err(ParsingError::ArgType(
+                    return Err(Box::new(ParsingError::ArgType(
                         "Arg::Mem".to_string(),
                         args[1].clone(),
-                    ))
+                    )))
                 }
             };
             Ok(Self {
@@ -283,20 +283,20 @@ impl FromAsm for field::PeMemInsn {
             let slot = match args[0] {
                 Arg::Mem(id) => id,
                 _ => {
-                    return Err(ParsingError::ArgType(
+                    return Err(Box::new(ParsingError::ArgType(
                         "Arg::Mem".to_string(),
                         args[0].clone(),
-                    ))
+                    )))
                 }
             };
 
             let rid = match args[1] {
                 Arg::Reg(id) => id,
                 _ => {
-                    return Err(ParsingError::ArgType(
+                    return Err(Box::new(ParsingError::ArgType(
                         "Arg::Reg".to_string(),
                         args[1].clone(),
-                    ))
+                    )))
                 }
             };
             Ok(Self {
@@ -305,9 +305,9 @@ impl FromAsm for field::PeMemInsn {
                 opcode: parsed_opcode,
             })
         } else {
-            Err(ParsingError::Unmatch(
+            Err(Box::new(ParsingError::Unmatch(
                 "PeMemInsn expect LD/ST opcode".to_string(),
-            ))
+            )))
         }
     }
 }
@@ -334,29 +334,29 @@ impl ToAsm for PeMemInsn {
 }
 
 impl FromAsm for field::PeSyncInsn {
-    fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, ParsingError> {
-        if args.len() < 1 {
-            return Err(ParsingError::ArgNumber(1, args.len()));
+    fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, Box<ParsingError>> {
+        if args.is_empty() {
+            return Err(Box::new(ParsingError::ArgNumber(1, args.len())));
         }
 
         let iid = match args[0] {
             Arg::IOpId(id) => id,
             _ => {
-                return Err(ParsingError::ArgType(
+                return Err(Box::new(ParsingError::ArgType(
                     "Arg::IOpId".to_string(),
                     args[0].clone(),
-                ))
+                )))
             }
         };
 
         let (is_inner_sync, flag) = if let Some(arg) = args.get(1) {
             match arg {
-                Arg::UcoreFlag(flag) => (true, flag.clone()),
+                Arg::UcoreFlag(flag) => (true, *flag),
                 _ => {
-                    return Err(ParsingError::ArgType(
+                    return Err(Box::new(ParsingError::ArgType(
                         "Arg::UcoreFlag".to_string(),
                         args[1].clone(),
-                    ))
+                    )))
                 }
             }
         } else {
@@ -382,36 +382,36 @@ impl ToAsm for PeSyncInsn {
 }
 
 impl FromAsm for field::PePbsInsn {
-    fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, ParsingError> {
+    fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, Box<ParsingError>> {
         if args.len() != 3 {
-            return Err(ParsingError::ArgNumber(3, args.len()));
+            return Err(Box::new(ParsingError::ArgNumber(3, args.len())));
         }
 
         let dst_rid = match args[0] {
             Arg::Reg(id) => id,
             _ => {
-                return Err(ParsingError::ArgType(
+                return Err(Box::new(ParsingError::ArgType(
                     "Arg::Reg".to_string(),
                     args[0].clone(),
-                ))
+                )))
             }
         };
         let src_rid = match args[1] {
             Arg::Reg(id) => id,
             _ => {
-                return Err(ParsingError::ArgType(
+                return Err(Box::new(ParsingError::ArgType(
                     "Arg::Reg".to_string(),
                     args[1].clone(),
-                ))
+                )))
             }
         };
         let pbs_lut = match &args[2] {
             Arg::Pbs(id) => id,
             _ => {
-                return Err(ParsingError::ArgType(
+                return Err(Box::new(ParsingError::ArgType(
                     "Arg::Pbs".to_string(),
                     args[2].clone(),
-                ))
+                )))
             }
         };
 
@@ -441,24 +441,25 @@ impl FromAsm for field::PeUcoreInsn {
     /// Indeed, there is two mode:
     /// * Notify that start with VirtId and have Data optional
     /// * Wait/Ld_b2b that start with Flag and have Data optional
-    fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, ParsingError> {
-        fn get_flag(arg: &arg::Arg) -> Result<UserFlag, ParsingError> {
+    fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, Box<ParsingError>> {
+        fn get_flag(arg: &arg::Arg) -> Result<UserFlag, Box<ParsingError>> {
             match arg {
-                Arg::UcoreFlag(flag) => Ok(flag.clone()),
-                _ => {
-                    return Err(ParsingError::ArgType(
-                        "Arg::UcoreFlag".to_string(),
-                        arg.clone(),
-                    ))
-                }
+                Arg::UcoreFlag(flag) => Ok(*flag),
+                _ => Err(Box::new(ParsingError::ArgType(
+                    "Arg::UcoreFlag".to_string(),
+                    arg.clone(),
+                ))),
             }
         }
 
-        fn get_slot(arg: Option<&arg::Arg>) -> Result<Option<MemId>, ParsingError> {
+        fn get_slot(arg: Option<&arg::Arg>) -> Result<Option<MemId>, Box<ParsingError>> {
             if let Some(a) = arg {
                 match a {
-                    Arg::Mem(cid) => Ok(Some(cid.clone())),
-                    _ => Err(ParsingError::ArgType("Arg::Mem".to_string(), a.clone())),
+                    Arg::Mem(cid) => Ok(Some(*cid)),
+                    _ => Err(Box::new(ParsingError::ArgType(
+                        "Arg::Mem".to_string(),
+                        a.clone(),
+                    ))),
                 }
             } else {
                 Ok(None)
@@ -466,17 +467,17 @@ impl FromAsm for field::PeUcoreInsn {
         }
 
         if args.len() < 2 {
-            return Err(ParsingError::ArgNumber(2, args.len()));
+            return Err(Box::new(ParsingError::ArgNumber(2, args.len())));
         }
 
         let (hid, flag, slot) = match args[0] {
             Arg::HpuId(hid) => {
                 // Only NOTIFY start with HpuId
                 if opcode != u8::from(Opcode::NOTIFY()) {
-                    return Err(ParsingError::ArgType(
+                    return Err(Box::new(ParsingError::ArgType(
                         "Arg::UcoreFlag".to_string(),
                         args[0].clone(),
-                    ));
+                    )));
                 }
                 let flag = get_flag(&args[1])?;
                 let slot = get_slot(args.get(2))?.unwrap_or_default();
@@ -485,10 +486,10 @@ impl FromAsm for field::PeUcoreInsn {
             Arg::UcoreFlag(flag) => {
                 // Notify must start with HpuId
                 if opcode == u8::from(Opcode::NOTIFY()) {
-                    return Err(ParsingError::ArgType(
+                    return Err(Box::new(ParsingError::ArgType(
                         "Arg::HpuId".to_string(),
                         args[0].clone(),
-                    ));
+                    )));
                 }
                 if let Some(slot) = get_slot(args.get(1))? {
                     (VirtId(1), flag, slot)
@@ -497,10 +498,10 @@ impl FromAsm for field::PeUcoreInsn {
                 }
             }
             _ => {
-                return Err(ParsingError::ArgType(
+                return Err(Box::new(ParsingError::ArgType(
                     "Arg::HpuId|Arg::UcoreFlag".to_string(),
                     args[0].clone(),
-                ))
+                )))
             }
         };
         Ok(Self {

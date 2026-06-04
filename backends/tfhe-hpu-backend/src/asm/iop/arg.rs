@@ -118,7 +118,7 @@ impl From<&IOp> for AsmIOpcode {
 }
 
 impl std::str::FromStr for AsmIOpcode {
-    type Err = ParsingError;
+    type Err = Box<ParsingError>;
 
     #[tracing::instrument(level = "trace", ret)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -135,12 +135,12 @@ impl std::str::FromStr for AsmIOpcode {
                     raw_val
                         .as_str()
                         .parse::<u8>()
-                        .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
+                        .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?
                 } else {
                     // One of them must match, otherwise error will be arose before
                     let raw_hex_val = caps.name("hex_val").unwrap();
                     u8::from_str_radix(&raw_hex_val.as_str()[2..], 16)
-                        .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
+                        .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?
                 };
                 if (opcode::USER_RANGE_LB..=opcode::USER_RANGE_UB).contains(&value) {
                     Ok(AsmIOpcode {
@@ -148,7 +148,7 @@ impl std::str::FromStr for AsmIOpcode {
                         format: None,
                     })
                 } else {
-                    Err(ParsingError::Opcode(value))
+                    Err(Box::new(ParsingError::Opcode(value)))
                 }
             } else if let Some(alias) = caps.name("alias") {
                 if let Some(alias) = IOP_LUT.asm.get(alias.as_str()) {
@@ -157,17 +157,17 @@ impl std::str::FromStr for AsmIOpcode {
                         format: Some(alias.clone()),
                     })
                 } else {
-                    Err(ParsingError::Opalias(alias.as_str().to_string()))
+                    Err(Box::new(ParsingError::Opalias(alias.as_str().to_string())))
                 }
             } else {
-                Err(ParsingError::Unmatch(format!(
+                Err(Box::new(ParsingError::Unmatch(format!(
                     "Invalid argument format {s}"
-                )))
+                ))))
             }
         } else {
-            Err(ParsingError::Unmatch(format!(
+            Err(Box::new(ParsingError::Unmatch(format!(
                 "Invalid argument format {s}"
-            )))
+            ))))
         }
     }
 }
@@ -214,7 +214,7 @@ impl From<&IOpHeader> for Properties {
 }
 
 impl std::str::FromStr for Properties {
-    type Err = ParsingError;
+    type Err = Box<ParsingError>;
 
     #[tracing::instrument(level = "trace", ret)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -232,11 +232,11 @@ impl std::str::FromStr for Properties {
             };
             let src_width = caps["src"]
                 .parse::<u16>()
-                .map_err(|err| ParsingError::InvalidArg(err.to_string()))?;
+                .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?;
             let src_align = OperandBlock::new((src_width / MSG_WIDTH as u16) as u8);
             let dst_width = caps["dst"]
                 .parse::<u16>()
-                .map_err(|err| ParsingError::InvalidArg(err.to_string()))?;
+                .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?;
             let dst_align = OperandBlock::new((dst_width / MSG_WIDTH as u16) as u8);
             Ok(Properties {
                 fw_mode,
@@ -244,9 +244,9 @@ impl std::str::FromStr for Properties {
                 src_align,
             })
         } else {
-            Err(ParsingError::Unmatch(format!(
+            Err(Box::new(ParsingError::Unmatch(format!(
                 "Invalid argument format {s}"
-            )))
+            ))))
         }
     }
 }
@@ -266,7 +266,7 @@ impl std::fmt::Display for IOpMapping {
 }
 
 impl std::str::FromStr for IOpMapping {
-    type Err = ParsingError;
+    type Err = Box<ParsingError>;
 
     #[tracing::instrument(level = "trace", ret)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -274,7 +274,7 @@ impl std::str::FromStr for IOpMapping {
             .split(',')
             .map(|id| id.trim().parse::<u8>())
             .collect::<Result<Vec<_>, std::num::ParseIntError>>()
-            .map_err(|x| ParsingError::InvalidArg(format!("{x:?}")))?;
+            .map_err(|x| Box::new(ParsingError::InvalidArg(format!("{x:?}"))))?;
 
         Ok(IOpMapping::from(specified_map))
     }
@@ -324,7 +324,7 @@ impl std::fmt::Display for OperandBundle {
 }
 
 impl std::str::FromStr for OperandBundle {
-    type Err = ParsingError;
+    type Err = Box<ParsingError>;
 
     #[tracing::instrument(level = "trace", ret)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -333,73 +333,72 @@ impl std::str::FromStr for OperandBundle {
                 regex::Regex::new(r"I(?<width>\d+)((?<vec>\[\s*(?<vec_len>\d+)\s*\]@(0x(?<vec_hex_cid>[0-9a-fA-F]+)|(?<vec_cid>\d+))\s*)|(?<single>@(0x(?<hex_cid>[0-9a-fA-F]+)|(?<cid>\d+))\s*))\{Hpu(?<pos>\d+)(@(?<iid>\d+))*\}")
                     .expect("Invalid regex");
         }
-        let mut operands = ADDR_ARG_RE
-            .captures_iter(s)
-            .map(|caps| {
-                let width = caps["width"]
-                    .parse::<u16>()
-                    .map_err(|err| ParsingError::InvalidArg(err.to_string()))?;
-                let block = (width / MSG_WIDTH as u16) as u8;
+        let mut operands =
+            ADDR_ARG_RE
+                .captures_iter(s)
+                .map(|caps| {
+                    let width = caps["width"]
+                        .parse::<u16>()
+                        .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?;
+                    let block = (width / MSG_WIDTH as u16) as u8;
 
-                let pos = PhysId(
-                    caps["pos"]
-                        .parse::<u8>()
-                        .map_err(|err| ParsingError::InvalidArg(err.to_string()))?,
-                );
-
-                let iid = if let Some(raw_iid) = caps.name("iid") {
-                    IOpId(
-                        raw_iid
-                            .as_str()
+                    let pos = PhysId(
+                        caps["pos"]
                             .parse::<u8>()
-                            .map_err(|err| ParsingError::InvalidArg(err.to_string()))?,
-                    )
-                } else {
-                    IOpId(0)
-                };
+                            .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?,
+                    );
 
-                if let Some(_vec) = caps.name("vec") {
-                    let base_cid = if let Some(raw_cid) = caps.name("vec_cid") {
-                        raw_cid
-                            .as_str()
-                            .parse::<u16>()
-                            .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
-                    } else {
-                        // One of them must match, otherwise error will be arose before
-                        let raw_hex_cid = caps.name("vec_hex_cid").unwrap();
-                        u16::from_str_radix(raw_hex_cid.as_str(), 16)
-                            .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
-                    };
-                    let len = caps["vec_len"]
-                        .parse::<u8>()
-                        .map_err(|err| ParsingError::InvalidArg(err.to_string()))?;
+                    let iid =
+                        if let Some(raw_iid) = caps.name("iid") {
+                            IOpId(raw_iid.as_str().parse::<u8>().map_err(|err| {
+                                Box::new(ParsingError::InvalidArg(err.to_string()))
+                            })?)
+                        } else {
+                            IOpId(0)
+                        };
 
-                    Ok(Operand::new(block, base_cid, len, pos, iid, None))
-                } else if let Some(_single) = caps.name("single") {
-                    let base_cid = if let Some(raw_cid) = caps.name("cid") {
-                        raw_cid
-                            .as_str()
-                            .parse::<u16>()
-                            .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
+                    if let Some(_vec) = caps.name("vec") {
+                        let base_cid = if let Some(raw_cid) = caps.name("vec_cid") {
+                            raw_cid.as_str().parse::<u16>().map_err(|err| {
+                                Box::new(ParsingError::InvalidArg(err.to_string()))
+                            })?
+                        } else {
+                            // One of them must match, otherwise error will be arose before
+                            let raw_hex_cid = caps.name("vec_hex_cid").unwrap();
+                            u16::from_str_radix(raw_hex_cid.as_str(), 16).map_err(|err| {
+                                Box::new(ParsingError::InvalidArg(err.to_string()))
+                            })?
+                        };
+                        let len = caps["vec_len"]
+                            .parse::<u8>()
+                            .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?;
+
+                        Ok(Operand::new(block, base_cid, len, pos, iid, None))
+                    } else if let Some(_single) = caps.name("single") {
+                        let base_cid = if let Some(raw_cid) = caps.name("cid") {
+                            raw_cid.as_str().parse::<u16>().map_err(|err| {
+                                Box::new(ParsingError::InvalidArg(err.to_string()))
+                            })?
+                        } else {
+                            // One of them must match, otherwise error will be arose before
+                            u16::from_str_radix(&caps["hex_cid"], 16).map_err(|err| {
+                                Box::new(ParsingError::InvalidArg(err.to_string()))
+                            })?
+                        };
+                        Ok(Operand::new(block, base_cid, 1, pos, iid, None))
                     } else {
-                        // One of them must match, otherwise error will be arose before
-                        u16::from_str_radix(&caps["hex_cid"], 16)
-                            .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
-                    };
-                    Ok(Operand::new(block, base_cid, 1, pos, iid, None))
-                } else {
-                    Err(ParsingError::Unmatch(format!(
-                        "Invalid argument format {s}"
-                    )))
-                }
-            })
-            .collect::<Result<Vec<_>, ParsingError>>()?;
+                        Err(Box::new(ParsingError::Unmatch(format!(
+                            "Invalid argument format {s}"
+                        ))))
+                    }
+                })
+                .collect::<Result<Vec<_>, Box<ParsingError>>>()?;
 
         // Empty OperandBundle is considered as parsing error
         if operands.is_empty() {
-            Err(ParsingError::Unmatch(format!(
+            Err(Box::new(ParsingError::Unmatch(format!(
                 "Invalid argument: Empty OperandBundle {s}"
-            )))
+            ))))
         } else {
             // Update is_last token
             operands.last_mut().unwrap().props.is_last = true;
@@ -426,7 +425,7 @@ impl std::fmt::Display for ImmBundle {
 }
 
 impl std::str::FromStr for ImmBundle {
-    type Err = ParsingError;
+    type Err = Box<ParsingError>;
 
     #[tracing::instrument(level = "trace", ret)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -442,23 +441,23 @@ impl std::str::FromStr for ImmBundle {
                     raw_imm
                         .as_str()
                         .parse::<u128>()
-                        .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
+                        .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?
                 } else {
                     // One of them must match, otherwise error will be arose before
                     let raw_hex_imm = caps.name("hex_imm").unwrap();
                     u128::from_str_radix(raw_hex_imm.as_str(), 16)
-                        .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
+                        .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?
                 };
 
                 Ok(Immediate::from_cst(imm))
             })
-            .collect::<Result<Vec<_>, ParsingError>>()?;
+            .collect::<Result<Vec<_>, Box<ParsingError>>>()?;
 
         // Empty ImmBundle is considered as parsing error
         if imms.is_empty() {
-            Err(ParsingError::Unmatch(format!(
+            Err(Box::new(ParsingError::Unmatch(format!(
                 "Invalid argument format {s}"
-            )))
+            ))))
         } else {
             // Update is_last token
             imms.last_mut().unwrap().is_last = true;
@@ -492,7 +491,7 @@ impl std::fmt::Display for Arg {
 
 /// Use FromStr trait to decode from asm file
 impl std::str::FromStr for Arg {
-    type Err = ParsingError;
+    type Err = Box<ParsingError>;
 
     #[tracing::instrument(level = "trace", ret)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -506,14 +505,16 @@ impl std::str::FromStr for Arg {
             (Err(_), Ok(opcode), ..) => Ok(Self::Opcode(opcode)),
             (Err(_), Err(_), Ok(props), ..) => Ok(Self::Properties(props)),
             (Err(_), Err(_), Err(_), Ok(imm)) => Ok(Self::Imm(imm)),
-            (Err(addr), Err(opcode), Err(props), Err(imm)) => Err(ParsingError::Unmatch(format!(
-                "{s}:
+            (Err(addr), Err(opcode), Err(props), Err(imm)) => {
+                Err(Box::new(ParsingError::Unmatch(format!(
+                    "{s}:
             Addr failed with{addr}
             Opcode failed with{opcode}
             Props failed with{props}
             Imm failed with{imm}
             "
-            ))),
+                ))))
+            }
         }
     }
 }
@@ -546,7 +547,7 @@ impl std::fmt::Display for IOp {
 
 /// Use FromStr trait to decode from asm file
 impl std::str::FromStr for IOp {
-    type Err = ParsingError;
+    type Err = Box<ParsingError>;
 
     #[tracing::instrument(level = "trace", ret)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -599,9 +600,9 @@ impl std::str::FromStr for IOp {
                 imm,
             })
         } else {
-            Err(ParsingError::Unmatch(format!(
+            Err(Box::new(ParsingError::Unmatch(format!(
                 "Invalid argument format {s}"
-            )))
+            ))))
         }
     }
 }
