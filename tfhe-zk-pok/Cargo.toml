@@ -16,7 +16,7 @@ rust-version.workspace = true
 ark-bls12-381 = "0.5.0"
 ark-ec = { workspace = true, features = ["parallel"] }
 ark-ff = { workspace = true, features = ["parallel"] }
-ark-poly = { version = "0.5.0", features = ["parallel"] }
+ark-poly = { version = "0.6.0", features = ["parallel"] }
 rand = { workspace = true }
 rayon = { workspace = true }
 sha3 = "0.10.8"
