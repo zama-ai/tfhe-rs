@@ -142,17 +142,10 @@ jobs:
           backend: ${{ inputs.backend }}
           profile: ${{ inputs.profile }}
 
-  # Install dependencies only once since cuda-benchmarks uses a matrix strategy, thus running multiple times.
   install-dependencies:
     name: benchmark_gpu_common/install-dependencies
     needs: [ setup-instance ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
-    strategy:
-      matrix:
-        # explicit include-based build matrix, of known valid options
-        include:
-          - cuda: "12.8 12.2"
-            gcc: 12
     steps:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -164,8 +157,8 @@ jobs:
       - name: Setup cloud GPU machine dependencies
         uses: ./.github/actions/gpu_setup
         with:
-          cuda-version: ${{ matrix.cuda }}
-          gcc-version: ${{ matrix.gcc }}
+          cuda-version: "12.8 12.2"
+          gcc-version: 12
           cloud-provider: ${{ inputs.cloud_provider }}
 
   cuda-benchmarks:
@@ -181,12 +174,6 @@ jobs:
         op_flavor: ${{ fromJSON(needs.prepare-matrix.outputs.op_flavor) }}
         bench_type: ${{ fromJSON(needs.prepare-matrix.outputs.bench_type) }}
         params_type: ${{ fromJSON(needs.prepare-matrix.outputs.params_type) }}
-        # explicit include-based build matrix, of known valid options
-        include:
-          - cuda: "12.8 12.2"
-            gcc: 12
-    env:
-      CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
     steps:
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -215,7 +202,15 @@ jobs:
           echo "CUDAHOSTCXX=/usr/bin/g++-${GCC_VERSION}";
           } >> "${GITHUB_ENV}"
         env:
-          GCC_VERSION: ${{ matrix.gcc }}
+          GCC_VERSION: 12
+
+      - name: Export CUDA variables
+        shell: bash
+        run: |
+          read -ra CUDA_VERSIONS_LIST <<< "${CUDA_VERSION}"
+          bash ci/export_cuda_vars.sh "${GITHUB_ENV}" "${GITHUB_PATH}" "${CUDA_VERSIONS_LIST[@]}" >&2
+        env:
+          CUDA_VERSION: "12.8 12.2"
 
       - name: Install rust
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
