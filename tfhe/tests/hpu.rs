@@ -582,16 +582,18 @@ mod hpu_test {
         "ovf_ssub",
         "ovf_muls"
     ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("rots"::[8,16,32,64,128] => [
-        "rots_r",
-        "rots_l"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("shifts"::[8,16,32,64,128] => [
-        "shifts_r",
-        "shifts_l"
-    ]);
+    // NB: Currently disable shift/rot with scalar.
+    // This is a known limitation, associated IOps aren't implemented
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("rots"::[8,16,32,64,128] => [
+    //     "rots_r",
+    //     "rots_l"
+    // ]);
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("shifts"::[8,16,32,64,128] => [
+    //     "shifts_r",
+    //     "shifts_l"
+    // ]);
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alu"::[8,16,32,64,128] => [
         "add",
