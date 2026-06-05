@@ -1281,14 +1281,17 @@ build_one_hl_api_test_fake_multi_gpu:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --no-run \
 		--features=integer,gpu-debug-fake-multi-gpu -vv -p tfhe -- "$${TEST}" --test-threads=1 --nocapture
 
-test_high_level_api_hpu: install_cargo_nextest
+test_high_level_api_hpu: install_cargo_nextest install_hpu_sim 
 ifeq ($(HPU_CONFIG), v80)
+	source ./setup_hpu.sh --config $(HPU_CONFIG); \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--build-jobs=$(CARGO_BUILD_JOBS) \
 		--test-threads=1 \
 		--features=integer,internal-keycache,hpu,hpu-v80 -p tfhe \
 		-E "test(/high_level_api::.*hpu.*/)"
 else
+	source ./setup_hpu.sh --config $(HPU_CONFIG); \
+	coproc hpu_sim --duration 500_s --compute-params TUniform64bFast > hpu_sim_fast.log; \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--build-jobs=$(CARGO_BUILD_JOBS) \
 		--test-threads=1 \
@@ -2087,7 +2090,6 @@ bench_hlapi_gpu: install_rs_check_toolchain
 .PHONY: bench_hlapi_unsigned_hpu # Run benchmarks for HLAPI operations on HPU
 bench_hlapi_unsigned_hpu: install_rs_check_toolchain
 	source ./setup_hpu.sh --config $(HPU_CONFIG); \
-	export V80_PCIE_DEV=${V80_PCIE_DEV}; \
 	RUSTFLAGS="$(RUSTFLAGS)" \
 	__TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
