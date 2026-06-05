@@ -3,10 +3,11 @@
 //! A bitonic sorting network for n=2^k elements has k*(k+1)/2 stages,
 //! each with n/2 comparators. It sorts any input sequence.
 use crate::core_crypto::prelude::Container;
+use crate::integer::ciphertext::{ReRandomizationHashAlgo, ReRandomizationKey};
 use crate::integer::oprf::GenericOprfServerKey;
 use crate::integer::prelude::ServerKeyDefaultCMux;
 use crate::integer::{IntegerRadixCiphertext, RadixCiphertext, ServerKey};
-use crate::shortint::MessageModulus;
+use crate::shortint::{Ciphertext, MessageModulus};
 use crate::OprfSeed;
 use rayon::prelude::*;
 use tfhe_fft::c64;
@@ -124,6 +125,55 @@ impl ServerKey {
         S: OprfSeed,
         C: Container<Element = c64> + Sync,
     {
+        self.bitonic_shuffle_impl(data, key_size, |chunks| {
+            Ok(oprf_key
+                .key
+                .generate_oblivious_pseudo_random_bits_chunks(seed, chunks, &self.key))
+        })
+    }
+
+    pub fn re_randomized_keys_bitonic_shuffle<T, S, C>(
+        &self,
+        oprf_key: &GenericOprfServerKey<C>,
+        data: Vec<T>,
+        key_size: BitonicShuffleKeySize,
+        seed: S,
+        re_randomization_key: &ReRandomizationKey,
+        re_randomization_hash_algo: ReRandomizationHashAlgo,
+    ) -> Result<Vec<T>, crate::Error>
+    where
+        T: IntegerRadixCiphertext,
+        S: OprfSeed,
+        C: Container<Element = c64> + Sync,
+    {
+        let (cpk, ksk) = re_randomization_key.get_cpk_and_optional_ksk();
+
+        self.bitonic_shuffle_impl(data, key_size, |chunks| {
+            oprf_key
+                .key
+                .generate_oblivious_pseudo_random_bits_chunks_and_re_randomize(
+                    seed,
+                    chunks,
+                    &self.key,
+                    &cpk.key,
+                    ksk.as_ref().map(|k| &k.material),
+                    re_randomization_hash_algo,
+                )
+        })
+    }
+
+    fn bitonic_shuffle_impl<T, F>(
+        &self,
+        data: Vec<T>,
+        key_size: BitonicShuffleKeySize,
+        prf_callback: F,
+    ) -> Result<Vec<T>, crate::Error>
+    where
+        T: IntegerRadixCiphertext,
+        F: FnOnce(
+            &[u64], // chunks
+        ) -> crate::Result<Vec<Vec<Ciphertext>>>,
+    {
         let key_num_blocks = key_size.num_blocks_of_keys(data.len(), self.message_modulus()) as u64;
 
         if key_num_blocks == 0 {
@@ -139,9 +189,7 @@ impl ServerKey {
         let key_num_bits = key_num_blocks * self.message_modulus().0.ilog2() as u64;
 
         let chunks = vec![key_num_bits; data.len()];
-        let block_chunks = oprf_key
-            .key
-            .generate_oblivious_pseudo_random_bits_chunks(seed, &chunks, &self.key);
+        let block_chunks = prf_callback(&chunks)?;
 
         let keys = block_chunks
             .into_iter()
