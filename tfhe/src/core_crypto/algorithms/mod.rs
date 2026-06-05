@@ -78,6 +78,7 @@ pub use lwe_packing_keyswitch_key_generation::*;
 pub use lwe_private_functional_packing_keyswitch::*;
 pub use lwe_private_functional_packing_keyswitch_key_generation::*;
 pub use lwe_programmable_bootstrapping::*;
+pub use lwe_programmable_bootstrapping::c64;
 pub use lwe_public_key_generation::*;
 pub use lwe_secret_key_generation::*;
 pub use lwe_wopbs::*;

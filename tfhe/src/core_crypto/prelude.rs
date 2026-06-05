@@ -5,6 +5,7 @@
 
 pub use super::algorithms::misc::divide_round;
 pub use super::algorithms::*;
+pub use super::algorithms::c64;
 pub use super::commons::ciphertext_modulus::CiphertextModulusKind;
 pub use super::commons::computation_buffers::ComputationBuffers;
 pub use super::commons::dispersion::*;

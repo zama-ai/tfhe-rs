@@ -6,6 +6,7 @@ pub mod ntt64_pbs;
 
 pub use fft128_pbs::*;
 pub use fft64_pbs::*;
+pub use fft64_pbs::c64;
 pub use karatsuba_pbs::*;
 pub use ntt64_bnf_pbs::*;
 pub use ntt64_pbs::*;
