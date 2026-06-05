@@ -98,4 +98,3 @@ offset= 0x2000
   field.req_prf_br_loop  = { size_b=16, offset_b=0  , default={Cst=0}, description="PEP BSK_IF requester BSK prefetch pointer"}
   field.req_parity       = { size_b=1,  offset_b=16 , default={Cst=0}, description="PEP BSK_IF requester BSK pointer parity"}
   field.req_assigned     = { size_b=1,  offset_b=31 , default={Cst=0}, description="PEP BSK_IF requester assignment"}
-

@@ -229,7 +229,7 @@ install_aikido_safe_chain_ci: fetch_aikido_safe_chain
 .PHONY: install_hpu_sim # Install Hpu simulation binary
 install_hpu_sim:
 	@hpu_sim --help > /dev/null 2>&1 || \
-	cargo install  hpu_sim --git https://github.com/zama-ai/hpu_sim --locked || \
+	cargo +nightly install hpu_sim --git https://github.com/zama-ai/hpu_sim --locked || \
 	( echo "Unable to install hpu_sim, unknown error." && exit 1 )
 
 .PHONY: setup_venv # Setup Python virtualenv for wasm tests

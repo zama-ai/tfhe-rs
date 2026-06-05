@@ -334,4 +334,3 @@ offset= 0x2000
   write_access="None"
   field.brsp_ack_seen      = { size_b=16, offset_b=0  , default={Cst=0}, description="PEM_ST brsp_ack_seen"}
   field.c0_cmd_cnt         = { size_b=8,  offset_b=16 , default={Cst=0}, description="PEM_ST c0_cmd_cnt"}
-
