@@ -196,7 +196,7 @@ impl ServerKey {
 
         let (result, check_block) = rayon::join(
             || {
-                let values = map.data.iter().map(|(_, v)| v.clone()).collect::<Vec<_>>();
+                let values = map.data.values().cloned().collect::<Vec<_>>();
                 self.unchecked_boolean_one_hot_dot_prod(&selectors, &values)
             },
             || {

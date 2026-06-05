@@ -472,7 +472,7 @@ impl ServerKey {
             );
         }
         let selectors = self.compute_equality_selectors(ct, clears.par_iter().copied());
-        self.compute_final_index_from_selectors(selectors)
+        self.compute_final_index_from_selectors(&selectors)
     }
 
     /// Returns the encrypted index of the encrypted `value` in the clear slice
@@ -660,7 +660,7 @@ impl ServerKey {
             .map(|ct| self.eq_parallelized(ct, value))
             .collect::<Vec<_>>();
 
-        self.compute_final_index_from_selectors(selectors)
+        self.compute_final_index_from_selectors(&selectors)
     }
 
     /// Returns the encrypted index of the of encrypted `value` in the ciphertext slice
@@ -755,7 +755,7 @@ impl ServerKey {
             .map(|ct| self.scalar_eq_parallelized(ct, clear))
             .collect::<Vec<_>>();
 
-        self.compute_final_index_from_selectors(selectors)
+        self.compute_final_index_from_selectors(&selectors)
     }
 
     /// Returns the encrypted index of the of clear `value` in the ciphertext slice
@@ -852,7 +852,7 @@ impl ServerKey {
             .map(BooleanBlock::new_unchecked)
             .collect::<Vec<_>>();
 
-        self.compute_final_index_from_selectors(selectors2)
+        self.compute_final_index_from_selectors(&selectors2)
     }
 
     /// Returns the encrypted index of the _first_ occurrence of clear `value` in the ciphertext
@@ -946,7 +946,7 @@ impl ServerKey {
             .map(BooleanBlock::new_unchecked)
             .collect::<Vec<_>>();
 
-        self.compute_final_index_from_selectors(selectors2)
+        self.compute_final_index_from_selectors(&selectors2)
     }
 
     /// Returns the encrypted index of the _first_ occurrence of encrypted `value` in the ciphertext
@@ -1017,7 +1017,7 @@ impl ServerKey {
 
     fn compute_final_index_from_selectors(
         &self,
-        selectors: Vec<BooleanBlock>,
+        selectors: &[BooleanBlock],
     ) -> (RadixCiphertext, BooleanBlock) {
         let selectors2 = selectors.iter().cloned().map(|x| x.0).collect::<Vec<_>>();
 
@@ -1027,7 +1027,7 @@ impl ServerKey {
                 let num_blocks_to_represent_values =
                     self.num_blocks_to_represent_unsigned_value(selectors.len() - 1);
                 self.unchecked_boolean_scalar_one_hot_dot_prod_parallelized(
-                    &selectors,
+                    selectors,
                     &indices,
                     num_blocks_to_represent_values as u32,
                 )

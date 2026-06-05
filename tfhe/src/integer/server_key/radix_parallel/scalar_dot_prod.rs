@@ -280,4 +280,47 @@ impl ServerKey {
 
         self.aggregate_one_hot_vector_with_noise_trick(to_be_reduced)
     }
+
+    /// Computes the dot product between encrypted booleans and clear values
+    ///
+    /// * `boolean_blocks` must be 'one-hot' i.e. at most 1 BooleanBlock can encrypt a `true`
+    /// * `n_blocks` number of blocks in the resulting ciphertext
+    ///
+    /// # Panic
+    ///
+    /// * Panics if `boolean_blocks` and `clears` do not have the same lengths
+    /// * Panics if `boolean_blocks` or `clears` is empty
+    /// * Panics if the number of bits if the output ciphertext has less bits than `Clear::BITS`
+    pub fn boolean_scalar_one_hot_dot_prod_parallelized<Clear>(
+        &self,
+        boolean_blocks: &[BooleanBlock],
+        clears: &[Clear],
+        n_blocks: u32,
+    ) -> RadixCiphertext
+    where
+        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+    {
+        let mut cloned;
+
+        let boolean_blocks = if boolean_blocks
+            .iter()
+            .any(|b| b.0.noise_level() > NoiseLevel::NOMINAL || b.0.degree.get() >= 2)
+        {
+            let id_lut = self.key.generate_lookup_table(|x| u64::from(x != 0));
+            cloned = boolean_blocks.to_vec();
+            cloned
+                .par_iter_mut()
+                .filter(|b| b.0.noise_level() > NoiseLevel::NOMINAL || b.0.degree.get() >= 2)
+                .for_each(|b| self.key.apply_lookup_table_assign(&mut b.0, &id_lut));
+            &cloned
+        } else {
+            boolean_blocks
+        };
+
+        self.unchecked_boolean_scalar_one_hot_dot_prod_parallelized(
+            boolean_blocks,
+            clears,
+            n_blocks,
+        )
+    }
 }
