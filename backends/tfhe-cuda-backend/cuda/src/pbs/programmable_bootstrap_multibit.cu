@@ -757,7 +757,7 @@ template <typename Torus, class params>
 uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
                             uint32_t polynomial_size, uint32_t glwe_dimension,
                             uint32_t level_count, uint64_t full_sm_keybundle) {
-
+  return 12;
   int max_blocks_per_sm;
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);

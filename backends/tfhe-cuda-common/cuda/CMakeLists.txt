@@ -62,9 +62,9 @@ set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CUDA_FLAGS_DEBUG "-g -O0 -G")
 
-if(${USE_NVTOOLS})
+#if(${USE_NVTOOLS})
   add_definitions(-DUSE_NVTOOLS)
-endif()
+#endif()
 
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall -Xcompiler -Wextra --use_fast_math --expt-relaxed-constexpr")
 

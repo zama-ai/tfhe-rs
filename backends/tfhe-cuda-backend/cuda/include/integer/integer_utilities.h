@@ -1182,6 +1182,7 @@ public:
 
     cuda_synchronize_stream(active_streams.stream(0),
                             active_streams.gpu_index(0));
+
     lut_vec.clear();
     lut_indexes_vec.clear();
     free(h_lwe_indexes_in);

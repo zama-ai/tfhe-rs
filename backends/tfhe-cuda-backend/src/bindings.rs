@@ -2207,6 +2207,57 @@ unsafe extern "C" {
     pub fn cleanup_cuda_cast_to_signed_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_goldschmidt_division_64(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        num_radix_blocks: u32,
+        lut_precision: u32,
+        allocate_gpu_memory: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_goldschmidt_division_64(
+        streams: CudaStreamsFFI,
+        quotient: *mut CudaRadixCiphertextFFI,
+        remainder: *mut CudaRadixCiphertextFFI,
+        numerator: *const CudaRadixCiphertextFFI,
+        denominator: *const CudaRadixCiphertextFFI,
+        iterations: u32,
+        lut_precision: u32,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_goldschmidt_division(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
+    pub fn cuda_mul_add_fixed_point_with_rescaling_64(
+        streams: CudaStreamsFFI,
+        result: *mut CudaRadixCiphertextFFI,
+        lhs: *const CudaRadixCiphertextFFI,
+        rhs: *const CudaRadixCiphertextFFI,
+        added: *const CudaRadixCiphertextFFI,
+        rescaling: i32,
+        precision: u32,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
     pub fn scratch_cuda_integer_compress_radix_ciphertext_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,

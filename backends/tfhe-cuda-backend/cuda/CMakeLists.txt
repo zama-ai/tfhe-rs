@@ -96,6 +96,7 @@ elseif(CMAKE_BUILD_TYPE_LOWERCASE STREQUAL "debugonlycpu")
 else()
   # Release mode
   message("Compiling in Release mode")
+  set(USE_NVTOOLS 1)
   set(OPTIMIZATION_FLAGS "${OPTIMIZATION_FLAGS} -O3")
 endif()
 

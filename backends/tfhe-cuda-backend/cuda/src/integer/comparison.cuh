@@ -34,6 +34,188 @@ device_accumulate_all_blocks(Torus *output, Torus const *input_block,
 }
 
 template <typename Torus>
+__global__ void device_batched_accumulate_all_blocks(
+    Torus *output, Torus const *input, uint32_t lwe_dimension,
+    uint32_t current_blocks_per_item, uint32_t max_value, uint32_t num_chunks,
+    uint32_t num_items) {
+
+  int idx = threadIdx.x + blockIdx.x * blockDim.x;
+  int lwe_size = lwe_dimension + 1;
+  int total_threads = lwe_size * num_chunks * num_items;
+
+  if (idx < total_threads) {
+    int lwe_idx = idx % lwe_size;
+    int chunk_idx = (idx / lwe_size) % num_chunks;
+    int item_idx = (idx / lwe_size) / num_chunks;
+
+    int input_start_block =
+        item_idx * current_blocks_per_item + chunk_idx * max_value;
+
+    int blocks_in_this_chunk =
+        (chunk_idx == num_chunks - 1)
+            ? (current_blocks_per_item - chunk_idx * max_value)
+            : max_value;
+
+    Torus const *current_input = input + input_start_block * lwe_size;
+    Torus sum = current_input[lwe_idx];
+
+    for (int i = 1; i < blocks_in_this_chunk; i++) {
+      sum += current_input[lwe_idx + i * lwe_size];
+    }
+
+    int output_block = item_idx * num_chunks + chunk_idx;
+    output[output_block * lwe_size + lwe_idx] = sum;
+  }
+}
+
+template <typename Torus>
+__host__ void batched_accumulate_all_blocks(
+    cudaStream_t stream, uint32_t gpu_index, Torus *output, Torus const *input,
+    uint32_t lwe_dimension, uint32_t current_blocks_per_item,
+    uint32_t max_value, uint32_t num_chunks, uint32_t num_items) {
+
+  cuda_set_device(gpu_index);
+  int num_blocks_grid = 0, num_threads = 0;
+  int num_entries = (lwe_dimension + 1) * num_chunks * num_items;
+  getNumBlocksAndThreads(num_entries, 512, num_blocks_grid, num_threads);
+
+  device_batched_accumulate_all_blocks<Torus>
+      <<<num_blocks_grid, num_threads, 0, stream>>>(
+          output, input, lwe_dimension, current_blocks_per_item, max_value,
+          num_chunks, num_items);
+  check_cuda_error(cudaGetLastError());
+}
+
+template <typename Torus>
+__host__ void host_batched_are_all_comparisons_eq_true(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_list,
+    CudaRadixCiphertextFFI const *batched_input, uint32_t num_groups,
+    uint32_t blocks_per_group, int_radix_params params,
+    CudaRadixCiphertextFFI *tmp_out, CudaRadixCiphertextFFI *tmp_accumulated,
+    int_radix_lut<Torus> *is_max_value_lut, Torus *preallocated_h_lut,
+    void *const *bsks, Torus *const *ksks) {
+
+  auto big_lwe_dimension = params.big_lwe_dimension;
+  auto message_modulus = params.message_modulus;
+  auto carry_modulus = params.carry_modulus;
+
+  if (blocks_per_group == 0) {
+    for (uint32_t i = 0; i < num_groups; i++) {
+      set_single_scalar_trivial_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), &lwe_array_out_list[i], 1,
+          message_modulus, carry_modulus);
+    }
+    return;
+  }
+
+  Torus total_modulus = message_modulus * carry_modulus;
+  uint32_t max_value = (total_modulus - 1) / (message_modulus - 1);
+  uint32_t total_input_blocks = num_groups * blocks_per_group;
+
+  PUSH_RANGE("batched_eq_initial_copy")
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), tmp_out, 0, total_input_blocks,
+      batched_input, 0, total_input_blocks);
+  POP_RANGE()
+
+  uint32_t remaining = blocks_per_group;
+
+  while (remaining > 0) {
+    PUSH_RANGE("batched_eq_loop_iteration")
+    uint32_t num_chunks = (remaining + max_value - 1) / max_value;
+    uint32_t total_chunks = num_groups * num_chunks;
+
+    Torus *input_blocks = (Torus *)tmp_out->ptr;
+    Torus *accumulator_ptr = (Torus *)tmp_accumulated->ptr;
+
+    PUSH_RANGE("batched_accumulate_all_blocks")
+    batched_accumulate_all_blocks<Torus>(
+        streams.stream(0), streams.gpu_index(0), accumulator_ptr, input_blocks,
+        big_lwe_dimension, remaining, max_value, num_chunks, num_groups);
+    POP_RANGE()
+
+    uint32_t last_chunk_len = remaining - (num_chunks - 1) * max_value;
+
+    if (last_chunk_len != max_value) {
+      PUSH_RANGE("batched_eq_generate_and_broadcast_lut")
+      auto is_equal_to_last_f = [last_chunk_len](Torus x) -> Torus {
+        return x == last_chunk_len;
+      };
+
+      auto active = streams.active_gpu_subset(total_chunks, params.pbs_type);
+      // Last chunk of each group uses LUT 1 (is_equal_to_last), all other
+      // (and any unused) indexes default to LUT 0.
+      auto lut_index_generator =
+          [num_groups, num_chunks](Torus *h_lut_indexes, uint32_t num_indexes) {
+            for (uint32_t i = 0; i < num_indexes; i++) {
+              h_lut_indexes[i] = 0;
+            }
+            for (uint32_t g = 0; g < num_groups; g++) {
+              for (uint32_t c = 0; c < num_chunks; c++) {
+                uint32_t idx = g * num_chunks + c;
+                if (idx < num_indexes) {
+                  h_lut_indexes[idx] = (c == num_chunks - 1) ? 1 : 0;
+                }
+              }
+            }
+          };
+      is_max_value_lut->generate_and_broadcast_lut(
+          active, {1}, {is_equal_to_last_f}, lut_index_generator, true,
+          {preallocated_h_lut});
+      POP_RANGE()
+    }
+
+    uint32_t new_remaining = num_chunks;
+
+    if (new_remaining == 1) {
+      PUSH_RANGE("batched_eq_final_apply_and_copy")
+      reset_radix_ciphertext_blocks(tmp_accumulated, num_groups);
+
+      CudaRadixCiphertextFFI accum_view;
+      as_radix_ciphertext_slice<Torus>(&accum_view, tmp_accumulated, 0,
+                                       num_groups);
+
+      reset_radix_ciphertext_blocks(tmp_out, num_groups);
+
+      integer_radix_apply_univariate_lookup_table<Torus>(
+          streams, tmp_out, &accum_view, bsks, ksks, is_max_value_lut,
+          num_groups);
+
+      for (uint32_t i = 0; i < num_groups; i++) {
+        copy_radix_ciphertext_slice_async<Torus>(
+            streams.stream(0), streams.gpu_index(0), &lwe_array_out_list[i], 0,
+            1, tmp_out, i, i + 1);
+      }
+
+      memset(is_max_value_lut->h_lut_indexes, 0,
+             is_max_value_lut->num_blocks * sizeof(Torus));
+      cuda_memcpy_async_to_gpu(is_max_value_lut->get_lut_indexes(0, 0),
+                               is_max_value_lut->h_lut_indexes,
+                               is_max_value_lut->num_blocks * sizeof(Torus),
+                               streams.stream(0), streams.gpu_index(0));
+      auto active_reset = streams.active_gpu_subset(
+          is_max_value_lut->num_blocks, params.pbs_type);
+      is_max_value_lut->broadcast_lut(active_reset, false);
+      POP_RANGE()
+
+      POP_RANGE()
+      return;
+    } else {
+      PUSH_RANGE("batched_eq_intermediate_lut")
+      reset_radix_ciphertext_blocks(tmp_accumulated, total_chunks);
+
+      integer_radix_apply_univariate_lookup_table<Torus>(
+          streams, tmp_out, tmp_accumulated, bsks, ksks, is_max_value_lut,
+          total_chunks);
+
+      remaining = num_chunks;
+      POP_RANGE()
+    }
+    POP_RANGE()
+  }
+}
+
+template <typename Torus>
 __host__ void accumulate_all_blocks(cudaStream_t stream, uint32_t gpu_index,
                                     Torus *output, Torus const *input,
                                     uint32_t lwe_dimension,

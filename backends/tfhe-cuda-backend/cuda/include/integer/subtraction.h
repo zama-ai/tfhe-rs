@@ -68,12 +68,12 @@ template <typename Torus> struct int_overflowing_sub_memory {
     // create lut objects
     luts_array = new int_radix_lut<Torus>(streams, params, 2, num_radix_blocks,
                                           allocate_gpu_memory, size_tracker);
-    luts_borrow_propagation_sum = new int_radix_lut<Torus>(
-        streams, params, 1, num_radix_blocks, luts_array, size_tracker,
-        allocate_gpu_memory, size_tracker);
-    message_acc = new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                           luts_array, size_tracker,
-                                           allocate_gpu_memory, size_tracker);
+    luts_borrow_propagation_sum =
+        new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
+                                 luts_array, allocate_gpu_memory, size_tracker);
+    message_acc =
+        new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
+                                 luts_array, allocate_gpu_memory, size_tracker);
 
     auto active_streams =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);

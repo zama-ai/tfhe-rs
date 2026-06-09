@@ -57,6 +57,7 @@ mod vector_find;
 
 mod aes;
 mod aes256;
+mod goldschmidt_division;
 mod kreyvium;
 #[cfg(test)]
 mod tests_long_run;

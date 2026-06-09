@@ -1,6 +1,7 @@
 #pragma once
 #include "cmux.h"
 #include "integer_utilities.h"
+#include "helper_profile.cuh"
 
 template <typename Torus> struct int_mul_memory {
   CudaRadixCiphertextFFI *vector_result_sb;
@@ -150,5 +151,205 @@ template <typename Torus> struct int_mul_memory {
     delete sum_ciphertexts_mem;
     delete sc_prop_mem;
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+};
+
+// Asymmetric multiplication memory: supports operands with a different number
+// of radix blocks on the left and right (num_radix_blocks_left !=
+// num_radix_blocks_right). The partial-product vector is rectangular
+// (L*R + (L-1)*R blocks) rather than the triangular n^2 used by the symmetric
+// int_mul_memory above, so it is intentionally NOT used for the public
+// (symmetric) multiplication. It is used internally by the Goldschmidt
+// division, which multiplies operands of differing sizes.
+template <typename Torus> struct int_asymmetric_mul_memory {
+  CudaRadixCiphertextFFI *vector_result_sb;
+  CudaRadixCiphertextFFI *block_mul_res;
+  CudaRadixCiphertextFFI *small_lwe_vector;
+
+  int_radix_lut<Torus> *luts_array; // lsb msb
+  int_radix_lut<Torus> *sum_luts_array;
+  int_radix_lut<Torus> *zero_out_predicate_lut;
+
+  int_sum_ciphertexts_vec_memory<Torus> *sum_ciphertexts_mem;
+  int_sc_prop_memory<Torus> *sc_prop_mem;
+  int_zero_out_if_buffer<Torus> *zero_out_mem;
+
+  int_radix_params params;
+  bool boolean_mul = false;
+  bool gpu_memory_allocated;
+
+  int_asymmetric_mul_memory(CudaStreams streams, int_radix_params params,
+                            bool const is_boolean_left,
+                            bool const is_boolean_right,
+                            uint32_t num_radix_blocks_left,
+                            uint32_t num_radix_blocks_right,
+                            bool allocate_gpu_memory, uint64_t &size_tracker) {
+    PUSH_RANGE("Mul Setup: Init Params");
+    gpu_memory_allocated = allocate_gpu_memory;
+    this->boolean_mul = is_boolean_left || is_boolean_right;
+    this->params = params;
+
+    // Output is usually truncated to the size of the left operand
+    uint32_t num_radix_blocks_out = num_radix_blocks_left;
+    POP_RANGE();
+
+    if (boolean_mul) {
+      PUSH_RANGE("Mul Setup: Boolean Path");
+      auto zero_out_predicate_lut_f = [](Torus block,
+                                         Torus condition) -> Torus {
+        if (condition == 0)
+          return 0;
+        else
+          return block;
+      };
+      zero_out_predicate_lut =
+          new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks_out,
+                                   allocate_gpu_memory, size_tracker);
+
+      auto active_streams =
+          streams.active_gpu_subset(num_radix_blocks_out, params.pbs_type);
+      zero_out_predicate_lut->generate_and_broadcast_bivariate_lut(
+          active_streams, {0}, {zero_out_predicate_lut_f},
+          LUT_0_FOR_ALL_BLOCKS);
+
+      zero_out_mem = new int_zero_out_if_buffer<Torus>(
+          streams, params, num_radix_blocks_out, allocate_gpu_memory,
+          size_tracker);
+      POP_RANGE();
+      return;
+    }
+
+    PUSH_RANGE("Mul Setup: Dimensions and Block Counts");
+    auto message_modulus = params.message_modulus;
+
+    // 'vector_result_lsb' contains all LHS blocks for each RHS block
+    int lsb_vector_block_count = num_radix_blocks_left * num_radix_blocks_right;
+
+    // 'vector_result_msb' contains all LHS blocks except last for each RHS
+    // block
+    int msb_vector_block_count = 0;
+    if (num_radix_blocks_left > 1) {
+      msb_vector_block_count =
+          (num_radix_blocks_left - 1) * num_radix_blocks_right;
+    }
+
+    // total number of blocks for bivariate LUT
+    int total_lsb_msb_block_count =
+        lsb_vector_block_count + msb_vector_block_count;
+
+    // total blocks for intermediate buffers
+    int total_block_count = num_radix_blocks_right * num_radix_blocks_out;
+    POP_RANGE();
+
+    PUSH_RANGE("Mul Setup: Intermediate Ciphertexts");
+    // allocate memory for intermediate buffers
+    vector_result_sb = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), vector_result_sb,
+        2 * total_block_count, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+    block_mul_res = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), block_mul_res,
+        2 * total_block_count, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+    small_lwe_vector = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), small_lwe_vector,
+        2 * total_block_count, params.small_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+    POP_RANGE();
+
+    PUSH_RANGE("Mul Setup: LUTs Array Alloc 1");
+    luts_array =
+        new int_radix_lut<Torus>(streams, params, 2, total_lsb_msb_block_count,
+                                 allocate_gpu_memory, size_tracker);
+    POP_RANGE();
+    PUSH_RANGE("Mul Setup: LUTs Array Alloc 2");
+    // Separate LUT object for the carry-propagation/sum step so it keeps its
+    // own lut indexes independent of luts_array, which callers (e.g. the
+    // Goldschmidt division) reconfigure directly.
+    sum_luts_array =
+        new int_radix_lut<Torus>(streams, params, 2, total_lsb_msb_block_count,
+                                 allocate_gpu_memory, size_tracker);
+    POP_RANGE();
+
+    PUSH_RANGE("Mul Setup: Bivariate LUT Generation");
+    auto lut_f_lsb = [message_modulus](Torus x, Torus y) -> Torus {
+      return (x * y) % message_modulus;
+    };
+    auto lut_f_msb = [message_modulus](Torus x, Torus y) -> Torus {
+      return (x * y) / message_modulus;
+    };
+
+    // lut_indexes_vec for luts_array should be reinitialized
+    // first lsb_vector_block_count value should reference to lsb_acc
+    // last msb_vector_block_count values should reference to msb_acc
+    // for message and carry default lut_indexes_vec is fine
+    auto active_streams =
+        streams.active_gpu_subset(total_lsb_msb_block_count, params.pbs_type);
+    auto lut_index_generator = [lsb_vector_block_count](Torus *h_lut_indexes,
+                                                        uint32_t num_indexes) {
+      for (uint32_t i = 0; i < num_indexes; i++) {
+        h_lut_indexes[i] = (i < lsb_vector_block_count) ? 0 : 1;
+      }
+    };
+    luts_array->generate_and_broadcast_bivariate_lut(
+        active_streams, {0, 1}, {lut_f_lsb, lut_f_msb}, lut_index_generator);
+    POP_RANGE();
+
+    PUSH_RANGE("Mul Setup: Sum Ciphertexts Mem");
+    sum_ciphertexts_mem = new int_sum_ciphertexts_vec_memory<Torus>(
+        streams, params, num_radix_blocks_out, 2 * num_radix_blocks_right,
+        vector_result_sb, small_lwe_vector, sum_luts_array, true,
+        allocate_gpu_memory, size_tracker);
+    POP_RANGE();
+
+    PUSH_RANGE("Mul Setup: SC Prop Mem");
+    uint32_t requested_flag = outputFlag::FLAG_NONE;
+    sc_prop_mem = new int_sc_prop_memory<Torus>(
+        streams, params, num_radix_blocks_out, requested_flag,
+        allocate_gpu_memory, size_tracker);
+    POP_RANGE();
+  }
+
+  void release(CudaStreams streams) {
+    if (boolean_mul) {
+      PUSH_RANGE("Mul Release: Boolean Path");
+      zero_out_predicate_lut->release(streams);
+      zero_out_mem->release(streams);
+      delete zero_out_mem;
+      delete zero_out_predicate_lut;
+      POP_RANGE();
+      return;
+    }
+
+    PUSH_RANGE("Mul Release: Ciphertexts");
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   vector_result_sb, gpu_memory_allocated);
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   block_mul_res, gpu_memory_allocated);
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   small_lwe_vector, gpu_memory_allocated);
+    delete vector_result_sb;
+    delete block_mul_res;
+    delete small_lwe_vector;
+    POP_RANGE();
+
+    PUSH_RANGE("Mul Release: Sub-buffers (LUTs, Sum, SC Prop)");
+    luts_array->release(streams);
+    sum_luts_array->release(streams);
+    sum_ciphertexts_mem->release(streams);
+    sc_prop_mem->release(streams);
+
+    delete luts_array;
+    delete sum_luts_array;
+    delete sum_ciphertexts_mem;
+    delete sc_prop_mem;
+    POP_RANGE();
+
+    PUSH_RANGE("Mul Release: Stream Sync");
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+    POP_RANGE();
   }
 };

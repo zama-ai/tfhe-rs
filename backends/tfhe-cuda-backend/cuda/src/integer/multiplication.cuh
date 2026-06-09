@@ -19,6 +19,122 @@
 #include <string>
 #include <vector>
 
+// Fills the rectangular partial-product vector for an asymmetric multiplication
+// (num_blocks_left != num_blocks_right). Used by the Goldschmidt division via
+// int_asymmetric_mul_memory; the symmetric multiplication uses all_shifted_lhs_rhs
+// below.
+template <typename Torus, class params>
+__global__ void
+fill_radix_from_lsb_msb_asymmetric(Torus *result_blocks, Torus *lsb_blocks,
+                                   Torus *msb_blocks, uint32_t big_lwe_size,
+                                   uint32_t num_blocks_left,
+                                   uint32_t num_blocks_right) {
+
+  size_t big_lwe_id = blockIdx.x;
+  size_t radix_id = big_lwe_id / num_blocks_left;
+  size_t block_id = big_lwe_id % num_blocks_left;
+
+  // For position block_id with shift radix_id, the LHS block index is (block_id
+  // - radix_id) Valid if: radix_id <= block_id AND (block_id - radix_id) <
+  // num_blocks_left
+  bool process_lsb =
+      (radix_id <= block_id) && (block_id - radix_id < num_blocks_left);
+  bool process_msb = (radix_id + 1 <= block_id) &&
+                     (block_id - radix_id - 1 < num_blocks_left) &&
+                     (num_blocks_left > 1);
+
+  size_t lsb_block_id_local = block_id - radix_id;
+  size_t msb_block_id_local = block_id - radix_id - 1;
+
+  auto cur_res_lsb_ct = &result_blocks[big_lwe_id * big_lwe_size];
+  auto cur_res_msb_ct =
+      &result_blocks[num_blocks_right * num_blocks_left * big_lwe_size +
+                     big_lwe_id * big_lwe_size];
+
+  // LSB: radix_id * num_blocks_left + local_block_id
+  size_t lsb_global_idx = radix_id * num_blocks_left + lsb_block_id_local;
+  // MSB: radix_id * (num_blocks_left - 1) + local_block_id
+  size_t msb_global_idx = radix_id * (num_blocks_left - 1) + msb_block_id_local;
+
+  Torus *cur_lsb_ct = (process_lsb)
+                          ? &lsb_blocks[lsb_global_idx * (params::degree + 1)]
+                          : nullptr;
+  Torus *cur_msb_ct = (process_msb)
+                          ? &msb_blocks[msb_global_idx * (params::degree + 1)]
+                          : nullptr;
+
+  size_t tid = threadIdx.x;
+
+  for (int i = 0; i < params::opt; i++) {
+    cur_res_lsb_ct[tid] = (process_lsb) ? cur_lsb_ct[tid] : 0;
+    cur_res_msb_ct[tid] = (process_msb) ? cur_msb_ct[tid] : 0;
+    tid += params::degree / params::opt;
+  }
+
+  if (threadIdx.x == 0) {
+    cur_res_lsb_ct[params::degree] =
+        (process_lsb) ? cur_lsb_ct[params::degree] : 0;
+    cur_res_msb_ct[params::degree] =
+        (process_msb) ? cur_msb_ct[params::degree] : 0;
+  }
+}
+
+template <typename Torus, class params>
+__global__ void
+all_shifted_lhs_rhs_asymmetric(Torus const *radix_lwe_left,
+                               Torus *lsb_ciphertext, Torus *msb_ciphertext,
+                               Torus const *radix_lwe_right, Torus *lsb_rhs,
+                               Torus *msb_rhs, int num_blocks_left) {
+
+  size_t block_id = blockIdx.x;
+
+  // Each radix has num_blocks_left LSB blocks
+  size_t radix_id = block_id / num_blocks_left;
+  size_t local_block_id = block_id % num_blocks_left;
+
+  // MSB excludes the last block of each radix
+  bool process_msb = (local_block_id < num_blocks_left - 1);
+
+  size_t msb_block_id = radix_id * (num_blocks_left - 1) + local_block_id;
+
+  auto cur_lsb_block = &lsb_ciphertext[block_id * (params::degree + 1)];
+  auto cur_msb_block =
+      (process_msb) ? &msb_ciphertext[msb_block_id * (params::degree + 1)]
+                    : nullptr;
+
+  auto cur_lsb_rhs_block = &lsb_rhs[block_id * (params::degree + 1)];
+  auto cur_msb_rhs_block =
+      (process_msb) ? &msb_rhs[msb_block_id * (params::degree + 1)] : nullptr;
+
+  auto cur_ct_right = &radix_lwe_right[radix_id * (params::degree + 1)];
+  auto cur_src = &radix_lwe_left[local_block_id * (params::degree + 1)];
+
+  size_t tid = threadIdx.x;
+
+  for (int i = 0; i < params::opt; i++) {
+    Torus value = cur_src[tid];
+    if (process_msb) {
+      cur_lsb_block[tid] = cur_msb_block[tid] = value;
+      cur_lsb_rhs_block[tid] = cur_msb_rhs_block[tid] = cur_ct_right[tid];
+    } else {
+      cur_lsb_block[tid] = value;
+      cur_lsb_rhs_block[tid] = cur_ct_right[tid];
+    }
+    tid += params::degree / params::opt;
+  }
+  if (threadIdx.x == 0) {
+    Torus value = cur_src[params::degree];
+    if (process_msb) {
+      cur_lsb_block[params::degree] = cur_msb_block[params::degree] = value;
+      cur_lsb_rhs_block[params::degree] = cur_msb_rhs_block[params::degree] =
+          cur_ct_right[params::degree];
+    } else {
+      cur_lsb_block[params::degree] = value;
+      cur_lsb_rhs_block[params::degree] = cur_ct_right[params::degree];
+    }
+  }
+}
+
 template <typename Torus, class params>
 __global__ void
 all_shifted_lhs_rhs(Torus const *radix_lwe_left, Torus *lsb_ciphertext,
@@ -639,6 +755,100 @@ __host__ uint64_t scratch_cuda_integer_mult_radix_ciphertext(
                                        allocate_gpu_memory, size_tracker);
   POP_RANGE()
   return size_tracker;
+}
+
+// Computes the (rectangular) asymmetric partial-product terms used by the
+// Goldschmidt division. Uses int_asymmetric_mul_memory buffers; not part of the
+// public symmetric multiplication.
+template <typename Torus, class params>
+__host__ void host_compute_terms_for_mul_low(
+    CudaStreams streams, CudaRadixCiphertextFFI *terms_out,
+    CudaRadixCiphertextFFI const *radix_lwe_left,
+    CudaRadixCiphertextFFI const *radix_lwe_right, void *const *bsks,
+    uint64_t *const *ksks, int_asymmetric_mul_memory<Torus> *mem_ptr) {
+
+  int num_blocks_left = radix_lwe_left->num_radix_blocks;
+  int num_blocks_right = radix_lwe_right->num_radix_blocks;
+  int big_lwe_size = radix_lwe_left->lwe_dimension + 1;
+
+  int lsb_vector_block_count = num_blocks_left * num_blocks_right;
+  int msb_vector_block_count =
+      (num_blocks_left <= 1) ? 0 : (num_blocks_left - 1) * num_blocks_right;
+  int total_block_count = lsb_vector_block_count + msb_vector_block_count;
+
+  auto vector_result_sb = mem_ptr->vector_result_sb;
+  auto block_mul_res = mem_ptr->block_mul_res;
+  auto luts_array = mem_ptr->luts_array;
+
+  auto vector_result_lsb = vector_result_sb;
+  CudaRadixCiphertextFFI vector_result_msb;
+  as_radix_ciphertext_slice<Torus>(&vector_result_msb, vector_result_lsb,
+                                   lsb_vector_block_count,
+                                   vector_result_lsb->num_radix_blocks);
+
+  auto vector_lsb_rhs = block_mul_res;
+  CudaRadixCiphertextFFI vector_msb_rhs;
+  as_radix_ciphertext_slice<Torus>(&vector_msb_rhs, block_mul_res,
+                                   lsb_vector_block_count,
+                                   block_mul_res->num_radix_blocks);
+
+  dim3 grid(lsb_vector_block_count, 1, 1);
+  dim3 thds(params::degree / params::opt, 1, 1);
+
+  cuda_set_device(streams.gpu_index(0));
+  all_shifted_lhs_rhs_asymmetric<Torus, params>
+      <<<grid, thds, 0, streams.stream(0)>>>(
+          (Torus *)radix_lwe_left->ptr, (Torus *)vector_result_lsb->ptr,
+          (Torus *)vector_result_msb.ptr, (Torus *)radix_lwe_right->ptr,
+          (Torus *)vector_lsb_rhs->ptr, (Torus *)vector_msb_rhs.ptr,
+          num_blocks_left);
+  check_cuda_error(cudaGetLastError());
+
+  cuda_set_value_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                              luts_array->get_lut_indexes(0, 0), 0,
+                              lsb_vector_block_count);
+  cuda_set_value_async<Torus>(
+      streams.stream(0), streams.gpu_index(0),
+      luts_array->get_lut_indexes(0, lsb_vector_block_count), 1,
+      msb_vector_block_count);
+
+  auto active_streams =
+      streams.active_gpu_subset(total_block_count, mem_ptr->params.pbs_type);
+  luts_array->broadcast_lut(active_streams, false);
+
+  integer_radix_apply_bivariate_lookup_table<Torus>(
+      streams, block_mul_res, block_mul_res, vector_result_sb, bsks, ksks,
+      luts_array, total_block_count, luts_array->params.message_modulus);
+
+  vector_result_lsb = block_mul_res;
+  as_radix_ciphertext_slice<Torus>(&vector_result_msb, block_mul_res,
+                                   lsb_vector_block_count,
+                                   block_mul_res->num_radix_blocks);
+
+  cuda_set_device(streams.gpu_index(0));
+  fill_radix_from_lsb_msb_asymmetric<Torus, params>
+      <<<num_blocks_right * num_blocks_left, params::degree / params::opt, 0,
+         streams.stream(0)>>>((Torus *)terms_out->ptr,
+                              (Torus *)vector_result_lsb->ptr,
+                              (Torus *)vector_result_msb.ptr, big_lwe_size,
+                              num_blocks_left, num_blocks_right);
+  check_cuda_error(cudaGetLastError());
+
+  auto message_modulus = mem_ptr->params.message_modulus;
+  for (int i = 0; i < num_blocks_right * num_blocks_left; i++) {
+    size_t r_id = i / num_blocks_left;
+    size_t b_id = i % num_blocks_left;
+    bool valid = (r_id <= b_id) && (b_id - r_id < num_blocks_left);
+    terms_out->degrees[i] = valid ? message_modulus - 1 : 0;
+  }
+  auto terms_degree_msb =
+      &terms_out->degrees[num_blocks_right * num_blocks_left];
+  for (int i = 0; i < num_blocks_right * num_blocks_left; i++) {
+    size_t r_id = i / num_blocks_left;
+    size_t b_id = i % num_blocks_left;
+    bool valid = (r_id + 1 <= b_id) && (b_id - r_id - 1 < num_blocks_left);
+    terms_degree_msb[i] = valid ? message_modulus - 2 : 0;
+  }
 }
 
 #endif
