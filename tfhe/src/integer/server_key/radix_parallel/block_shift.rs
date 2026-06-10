@@ -50,6 +50,10 @@ impl ServerKey {
     ///     e.g: d_range = 2.. => the first bit of the shift_bits_extractor is
     ///     actually the bit at index 2
     /// operation: The operation to perform
+    ///
+    /// The values returned is not fully clean:
+    /// - blocks have no carries
+    /// - blocks have noise_level = 2
     pub(super) fn block_barrel_shifter_impl<T>(
         &self,
         ct: &T,
@@ -235,11 +239,6 @@ impl ServerKey {
             }
         }
 
-        // Reset noise due to last add
-        current_blocks
-            .par_iter_mut()
-            .for_each(|block| self.key.message_extract_assign(block));
-
         T::from_blocks(current_blocks)
     }
 
@@ -277,12 +276,17 @@ impl ServerKey {
             message_bits_per_block as usize,
         );
         shift_bit_extractor.prepare_n_bits(max_num_bits_that_tell_shift as usize);
-        self.block_barrel_shifter_impl(
+        let mut dirty_result = self.block_barrel_shifter_impl(
             ct,
             &mut shift_bit_extractor,
             0..max_num_bits_that_tell_shift as usize,
             operation,
-        )
+        );
+        dirty_result
+            .blocks_mut()
+            .par_iter_mut()
+            .for_each(|block| self.key.message_extract_assign(block));
+        dirty_result
     }
 
     pub fn unchecked_block_rotate_right<T>(&self, ct: &T, amount: &RadixCiphertext) -> T
