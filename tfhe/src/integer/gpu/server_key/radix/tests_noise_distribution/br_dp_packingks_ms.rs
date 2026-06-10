@@ -183,6 +183,26 @@ fn encrypt_br_dp_packing_ks_ms_inner_helper_gpu(
     Vec<DecryptionAndNoiseResult>,
 ) {
     let mut engine = ShortintEngine::new();
+
+    let lwe_per_glwe = single_cuda_compression_key.lwe_per_glwe;
+
+    let cuda_block_info = crate::integer::gpu::ciphertext::info::CudaBlockInfo {
+        degree: crate::shortint::ciphertext::Degree::new(params.message_modulus().0 - 1),
+        message_modulus: params.message_modulus(),
+        carry_modulus: params.carry_modulus(),
+        atomic_pattern: params.atomic_pattern(),
+        noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
+    };
+
+    // Build the side-resources up front and use their first stream for every transfer
+    // and per-thread key decompression. The packing variant uses one CudaSideResources
+    // per LWE in the GLWE (each owns a fresh stream), so the caller's pool stream was
+    // otherwise unused for the actual compute. See br_dp_ks_ms.rs for the full rationale.
+    let mut cuda_side_resources: Vec<CudaSideResources> = (0..lwe_per_glwe.0)
+        .map(|_| CudaSideResources::new(single_cuda_sks, streams, cuda_block_info))
+        .collect();
+    let streams = &cuda_side_resources[0].streams;
+
     let thread_cks: crate::integer::ClientKey;
     let thread_cuda_sks: CudaServerKey;
     let thread_compression_private_key;
@@ -215,7 +235,6 @@ fn encrypt_br_dp_packing_ks_ms_inner_helper_gpu(
             )
         };
     let br_input_modulus_log = cuda_sks.br_input_modulus_log();
-    let lwe_per_glwe = cuda_compression_key.lwe_per_glwe;
 
     let input_zeros: Vec<_> = (0..lwe_per_glwe.0)
         .map(|_| {
@@ -238,17 +257,6 @@ fn encrypt_br_dp_packing_ks_ms_inner_helper_gpu(
     let id_lut = cuda_sks.generate_lookup_table(|x| x);
     let d_accumulator = CudaGlweCiphertextList::from_glwe_ciphertext(&id_lut.acc, streams);
 
-    let cuda_block_info = crate::integer::gpu::ciphertext::info::CudaBlockInfo {
-        degree: crate::shortint::ciphertext::Degree::new(params.message_modulus().0 - 1),
-        message_modulus: params.message_modulus(),
-        carry_modulus: params.carry_modulus(),
-        atomic_pattern: params.atomic_pattern(),
-        noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
-    };
-    let mut cuda_side_resources: Vec<CudaSideResources> = (0..input_zeros.len())
-        .map(|_| CudaSideResources::new(cuda_sks, streams, cuda_block_info))
-        .collect();
-
     let dp_scalar = params.carry_modulus().0;
     let storage_modulus_log = cuda_compression_key.storage_log_modulus;
 
@@ -270,15 +278,16 @@ fn encrypt_br_dp_packing_ks_ms_inner_helper_gpu(
         carry_modulus: CarryModulus(1),
         ..compute_encoding
     };
-    let after_packing = cuda_glwe_list_to_glwe_ciphertext(&d_after_packing, streams);
-    let after_ms = cuda_glwe_list_to_glwe_ciphertext(&d_after_ms, streams);
+    let after_packing =
+        cuda_glwe_list_to_glwe_ciphertext(&d_after_packing, &cuda_side_resources[0].streams);
+    let after_ms = cuda_glwe_list_to_glwe_ciphertext(&d_after_ms, &cuda_side_resources[0].streams);
     (
         d_before_packing
             .into_iter()
             .map(|(d_input, d_pbs_result, d_dp_result)| {
-                let input = d_input.as_ct_64_cpu(streams);
-                let pbs_result = d_pbs_result.as_ct_64_cpu(streams);
-                let dp_result = d_dp_result.as_ct_64_cpu(streams);
+                let input = d_input.as_ct_64_cpu(&cuda_side_resources[0].streams);
+                let pbs_result = d_pbs_result.as_ct_64_cpu(&cuda_side_resources[0].streams);
+                let dp_result = d_dp_result.as_ct_64_cpu(&cuda_side_resources[0].streams);
                 (
                     match &cks.key.atomic_pattern {
                         AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
@@ -530,36 +539,38 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_noise_gpu(
     let mut noise_samples_before_ms = vec![];
     let mut noise_samples_after_ms = vec![];
 
-    let chunk_size = 8;
-    let vec_local_streams = (0..chunk_size)
+    let num_cores = std::thread::available_parallelism().map_or(16, |n| n.get());
+    let concurrency = num_cores * 2;
+    let thread_pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(concurrency)
+        .build()
+        .unwrap();
+    let vec_local_streams = (0..concurrency)
         .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(gpu_index)))
         .collect::<Vec<_>>();
     for _ in 0..cleartext_modulus {
         let (current_noise_samples_before_ms, current_noise_samples_after_ms): (Vec<_>, Vec<_>) =
-            (0..SAMPLES_PER_MSG_PACKING_KS_NOISE)
-                .collect::<Vec<_>>()
-                .chunks(chunk_size)
-                .flat_map(|chunk| {
-                    chunk
-                        .into_par_iter()
-                        .map(|i| {
-                            let local_stream = &vec_local_streams[*i % chunk_size];
-                            let (_before_packing, after_packing, after_ms) =
-                                encrypt_br_dp_packing_ks_ms_noise_helper_gpu(
-                                    params,
-                                    comp_params,
-                                    &cks,
-                                    &cuda_sks,
-                                    &private_compression_key,
-                                    &cuda_compression_key,
-                                    0,
-                                    local_stream,
-                                );
-                            (after_packing, after_ms)
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .unzip();
+            thread_pool.install(|| {
+                (0..SAMPLES_PER_MSG_PACKING_KS_NOISE)
+                    .into_par_iter()
+                    .map(|_| {
+                        let local_stream =
+                            &vec_local_streams[rayon::current_thread_index().unwrap_or(0)];
+                        let (_before_packing, after_packing, after_ms) =
+                            encrypt_br_dp_packing_ks_ms_noise_helper_gpu(
+                                params,
+                                comp_params,
+                                &cks,
+                                &cuda_sks,
+                                &private_compression_key,
+                                &cuda_compression_key,
+                                0,
+                                local_stream,
+                            );
+                        (after_packing, after_ms)
+                    })
+                    .unzip()
+            });
 
         noise_samples_before_ms.extend(current_noise_samples_before_ms);
         noise_samples_after_ms.extend(current_noise_samples_after_ms);
@@ -747,37 +758,38 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_pfail_gpu(
         .total_runs_for_expected_fails()
         .div_ceil(lwe_per_glwe.0.try_into().unwrap());
 
-    let chunk_size = 8;
-    let vec_local_streams = (0..chunk_size)
+    let num_cores = std::thread::available_parallelism().map_or(16, |n| n.get());
+    let concurrency = num_cores * 2;
+    let thread_pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(concurrency)
+        .build()
+        .unwrap();
+    let vec_local_streams = (0..concurrency)
         .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(gpu_index)))
         .collect::<Vec<_>>();
 
-    let measured_fails: f64 = (0..total_runs_for_expected_fails)
-        .collect::<Vec<_>>()
-        .chunks(chunk_size)
-        .flat_map(|chunk| {
-            chunk
-                .into_par_iter()
-                .map(|i| {
-                    let local_streams = &vec_local_streams[*i as usize % chunk_size];
-                    let after_ms_decryption_result = encrypt_br_dp_packing_ks_ms_pfail_helper_gpu(
-                        params,
-                        comp_params,
-                        &cks,
-                        &cuda_sks,
-                        &private_compression_key,
-                        &cuda_compression_key,
-                        0,
-                        local_streams,
-                    );
-                    after_ms_decryption_result
-                        .into_iter()
-                        .map(|result| result.failure_as_f64())
-                        .sum::<f64>()
-                })
-                .collect::<Vec<_>>()
-        })
-        .sum();
+    let measured_fails: f64 = thread_pool.install(|| {
+        (0..total_runs_for_expected_fails)
+            .into_par_iter()
+            .map(|_| {
+                let local_streams = &vec_local_streams[rayon::current_thread_index().unwrap_or(0)];
+                let after_ms_decryption_result = encrypt_br_dp_packing_ks_ms_pfail_helper_gpu(
+                    params,
+                    comp_params,
+                    &cks,
+                    &cuda_sks,
+                    &private_compression_key,
+                    &cuda_compression_key,
+                    0,
+                    local_streams,
+                );
+                after_ms_decryption_result
+                    .into_iter()
+                    .map(|result| result.failure_as_f64())
+                    .sum::<f64>()
+            })
+            .sum()
+    });
 
     let test_result = PfailTestResult { measured_fails };
 
