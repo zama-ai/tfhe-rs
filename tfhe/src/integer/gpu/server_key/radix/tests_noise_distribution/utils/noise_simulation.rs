@@ -45,7 +45,6 @@ use tfhe_cuda_backend::bindings::{
     cuda_centered_modulus_switch_64_async, cuda_modulus_switch_multi_bit_64_async,
 };
 /// Side resources for CUDA operations in noise simulation
-#[derive(Clone)]
 pub struct CudaSideResources {
     pub streams: CudaStreams,
     pub block_info: CudaBlockInfo,
@@ -53,10 +52,34 @@ pub struct CudaSideResources {
     pub polynomial_size: Option<PolynomialSize>,
     /// Grouping factor required for allocation and execution of multi-bit modulus switch
     pub multi_bit_grouping_factor: Option<LweBskGroupingFactor>,
+    /// Whether `streams` is owned by this struct.
+    owns_streams: bool,
 }
 
 impl CudaSideResources {
+    /// Builds the side resources on a private clone of `streams`.
     pub fn new(sks: &CudaServerKey, streams: &CudaStreams, block_info: CudaBlockInfo) -> Self {
+        Self::from_server_key(sks, streams.clone(), true, block_info)
+    }
+
+    /// Like [`Self::new`], but stores a non-owning alias of `streams` instead of cloning it.
+    pub fn new_borrowing(
+        sks: &CudaServerKey,
+        streams: &CudaStreams,
+        block_info: CudaBlockInfo,
+    ) -> Self {
+        Self::from_server_key(sks, borrow_streams(streams), false, block_info)
+    }
+
+    /// Shared builder for [`Self::new`] / [`Self::new_borrowing`]: takes ownership of the
+    /// already-prepared `streams` (a fresh clone or a non-owning alias) and records whether this
+    /// struct owns it.
+    fn from_server_key(
+        sks: &CudaServerKey,
+        streams: CudaStreams,
+        owns_streams: bool,
+        block_info: CudaBlockInfo,
+    ) -> Self {
         let (polynomial_size, multi_bit_grouping_factor) = match &sks.bootstrapping_key {
             CudaBootstrappingKey::MultiBit(mb_bsk) => (
                 Some(mb_bsk.polynomial_size()),
@@ -65,10 +88,11 @@ impl CudaSideResources {
             CudaBootstrappingKey::Classic(_) => (None, None),
         };
         Self {
-            streams: streams.clone(),
+            streams,
             block_info,
             polynomial_size,
             multi_bit_grouping_factor,
+            owns_streams,
         }
     }
 
@@ -89,7 +113,37 @@ impl CudaSideResources {
             block_info,
             polynomial_size,
             multi_bit_grouping_factor,
+            owns_streams: true,
         }
+    }
+}
+
+impl Drop for CudaSideResources {
+    fn drop(&mut self) {
+        if self.owns_streams {
+            // `streams` is an owned clone; let its own `Drop` destroy the CUDA stream as usual.
+            return;
+        }
+        // `streams` is a non-owning alias of a caller-owned `CudaStreams`: it shares the same raw
+        // stream handles. Move it out and strip its handles so the moved-out value's `Drop` runs
+        // over an empty list and never calls `cuda_destroy_stream` on the caller's streams.
+        let mut alias = std::mem::replace(
+            &mut self.streams,
+            CudaStreams {
+                ptr: Vec::new(),
+                gpu_indexes: Vec::new(),
+            },
+        );
+        alias.ptr.clear();
+        // `alias` (now holding no stream handles) and the empty placeholder both drop harmlessly.
+    }
+}
+
+/// Builds a non-owning [`CudaStreams`] sharing the raw stream handles of `streams`.
+fn borrow_streams(streams: &CudaStreams) -> CudaStreams {
+    CudaStreams {
+        ptr: streams.ptr.clone(),
+        gpu_indexes: streams.gpu_indexes.clone(),
     }
 }
 

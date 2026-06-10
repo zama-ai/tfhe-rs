@@ -110,6 +110,20 @@ fn encrypt_decomp_br_rerand_dp_ks_any_ms_inner_helper_gpu<C: Container<Element =
 ) {
     let mut engine = ShortintEngine::new();
     let num_blocks = 1usize;
+
+    let cuda_block_info = crate::integer::gpu::ciphertext::info::CudaBlockInfo {
+        degree: crate::shortint::ciphertext::Degree::new(params.message_modulus().0 - 1),
+        message_modulus: params.message_modulus(),
+        carry_modulus: params.carry_modulus(),
+        atomic_pattern: params.atomic_pattern(),
+        noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
+    };
+
+    // Build the side-resources up front and run the WHOLE task on its single stream.
+    // See br_dp_ks_ms.rs for the full rationale.
+    let mut cuda_side_resources = CudaSideResources::new(single_cuda_sks, streams, cuda_block_info);
+    let streams = &cuda_side_resources.streams;
+
     let thread_cpk_private_key;
     let thread_cpk_view;
     let thread_cpk;
@@ -225,14 +239,6 @@ fn encrypt_decomp_br_rerand_dp_ks_any_ms_inner_helper_gpu<C: Container<Element =
     let d_accumulator_rescale_lut =
         CudaGlweCiphertextList::from_glwe_ciphertext(&decomp_rescale_lut.acc, streams);
 
-    let cuda_block_info = crate::integer::gpu::ciphertext::info::CudaBlockInfo {
-        degree: crate::shortint::ciphertext::Degree::new(params.message_modulus().0 - 1),
-        message_modulus: params.message_modulus(),
-        carry_modulus: params.carry_modulus(),
-        atomic_pattern: params.atomic_pattern(),
-        noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
-    };
-    let mut cuda_side_resources = CudaSideResources::new(cuda_sks, streams, cuda_block_info);
     let (
         (d_input, d_after_br),
         (d_input_zero_rerand, d_after_ksed_zero_rerand),
@@ -254,17 +260,18 @@ fn encrypt_decomp_br_rerand_dp_ks_any_ms_inner_helper_gpu<C: Container<Element =
         &mut cuda_side_resources,
     );
 
-    let input = d_input.as_ct_64_cpu(streams);
-    let after_br = d_after_br.as_ct_64_cpu(streams);
-    let input_zero_rerand = d_input_zero_rerand.as_ct_64_cpu(streams);
-    let after_ksed_zero_rerand = d_after_ksed_zero_rerand.map(|d| d.as_ct_64_cpu(streams));
-    let after_rerand = d_after_rerand.as_ct_64_cpu(streams);
-    let after_dp = d_after_dp.as_ct_64_cpu(streams);
-    let after_ks = d_after_ks.as_ct_64_cpu(streams);
+    let input = d_input.as_ct_64_cpu(&cuda_side_resources.streams);
+    let after_br = d_after_br.as_ct_64_cpu(&cuda_side_resources.streams);
+    let input_zero_rerand = d_input_zero_rerand.as_ct_64_cpu(&cuda_side_resources.streams);
+    let after_ksed_zero_rerand =
+        d_after_ksed_zero_rerand.map(|d| d.as_ct_64_cpu(&cuda_side_resources.streams));
+    let after_rerand = d_after_rerand.as_ct_64_cpu(&cuda_side_resources.streams);
+    let after_dp = d_after_dp.as_ct_64_cpu(&cuda_side_resources.streams);
+    let after_ks = d_after_ks.as_ct_64_cpu(&cuda_side_resources.streams);
     let after_ms_dyn =
         d_after_ms.as_dyn_mod_switched_lwe_cpu(&cuda_side_resources, br_input_modulus_log);
     let d_before_ms: &CudaDynLwe = d_after_drift.as_ref().unwrap_or(&d_after_ks);
-    let before_ms = d_before_ms.as_ct_64_cpu(streams);
+    let before_ms = d_before_ms.as_ct_64_cpu(&cuda_side_resources.streams);
 
     match &cks.key.atomic_pattern {
         AtomicPatternClientKey::Standard(standard_atomic_pattern_client_key) => {
@@ -692,22 +699,23 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise_gpu(
     let mut noise_samples_after_ms = vec![];
 
     let sample_count_per_msg = 1000;
-    let chunk_size = 8;
-    let vec_local_streams = (0..chunk_size)
+    let num_cores = std::thread::available_parallelism().map_or(16, |n| n.get());
+    let concurrency = num_cores * 2;
+    let thread_pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(concurrency)
+        .build()
+        .unwrap();
+    let vec_local_streams = (0..concurrency)
         .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(gpu_index)))
         .collect::<Vec<_>>();
     for _ in 0..cleartext_modulus {
-        let (current_noise_sample_before_ms, current_noise_samples_after_ms): (Vec<_>, Vec<_>) = (0
-            ..sample_count_per_msg)
-            .collect::<Vec<_>>()
-            .chunks(chunk_size)
-            .flat_map(|chunk| {
-                chunk
-                    .iter()
-                    .collect::<Vec<_>>()
+        let (current_noise_sample_before_ms, current_noise_samples_after_ms): (Vec<_>, Vec<_>) =
+            thread_pool.install(|| {
+                (0..sample_count_per_msg)
                     .into_par_iter()
-                    .map(|i| {
-                        let local_stream = &vec_local_streams[*i % chunk_size];
+                    .map(|_| {
+                        let local_stream =
+                            &vec_local_streams[rayon::current_thread_index().unwrap_or(0)];
                         let (
                             (_input, _after_br),
                             (_input_zero_rerand, _after_ksed_zero_rerand),
@@ -734,9 +742,8 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise_gpu(
                         );
                         (before_ms.value, after_ms.value)
                     })
-                    .collect::<Vec<_>>()
-            })
-            .unzip();
+                    .unzip()
+            });
 
         noise_samples_before_ms.extend(current_noise_sample_before_ms);
         noise_samples_after_ms.extend(current_noise_samples_after_ms);
@@ -870,43 +877,41 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail_gpu(
     let max_scalar_mul = sks.key.max_noise_level.get();
 
     let total_runs_for_expected_fails = pfail_test_meta.total_runs_for_expected_fails();
-    let chunk_size = 8;
-    let vec_local_streams = (0..chunk_size)
+    let num_cores = std::thread::available_parallelism().map_or(16, |n| n.get());
+    let concurrency = num_cores * 2;
+    let thread_pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(concurrency)
+        .build()
+        .unwrap();
+    let vec_local_streams = (0..concurrency)
         .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(gpu_index)))
         .collect::<Vec<_>>();
     let br_input_modulus_log = sks.key.br_input_modulus_log();
-    let measured_fails: f64 = (0..total_runs_for_expected_fails)
-        .collect::<Vec<_>>()
-        .chunks(chunk_size)
-        .flat_map(|chunk| {
-            chunk
-                .iter()
-                .collect::<Vec<_>>()
-                .into_par_iter()
-                .map(|i| {
-                    let local_stream = &vec_local_streams[*i as usize % chunk_size];
-                    let after_ms_decryption_result =
-                        encrypt_br_rerand_dp_ks_any_ms_pfail_helper_gpu(
-                            params,
-                            re_rand_parameters,
-                            compression_params,
-                            &cpk_private_key_view,
-                            &cpk,
-                            cuda_rerand_ksk.as_ref(),
-                            &comp_private_key,
-                            &cuda_decompression_key,
-                            &cks,
-                            &cuda_sks,
-                            0,
-                            max_scalar_mul,
-                            br_input_modulus_log,
-                            local_stream,
-                        );
-                    after_ms_decryption_result.failure_as_f64()
-                })
-                .collect::<Vec<_>>()
-        })
-        .sum();
+    let measured_fails: f64 = thread_pool.install(|| {
+        (0..total_runs_for_expected_fails)
+            .into_par_iter()
+            .map(|_| {
+                let local_stream = &vec_local_streams[rayon::current_thread_index().unwrap_or(0)];
+                let after_ms_decryption_result = encrypt_br_rerand_dp_ks_any_ms_pfail_helper_gpu(
+                    params,
+                    re_rand_parameters,
+                    compression_params,
+                    &cpk_private_key_view,
+                    &cpk,
+                    cuda_rerand_ksk.as_ref(),
+                    &comp_private_key,
+                    &cuda_decompression_key,
+                    &cks,
+                    &cuda_sks,
+                    0,
+                    max_scalar_mul,
+                    br_input_modulus_log,
+                    local_stream,
+                );
+                after_ms_decryption_result.failure_as_f64()
+            })
+            .sum()
+    });
 
     let test_result = PfailTestResult { measured_fails };
 
