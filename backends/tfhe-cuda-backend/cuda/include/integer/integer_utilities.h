@@ -1989,9 +1989,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
     // create lut objects for step 2
     uint64_t lut_indexes_size = safe_mul_sizeof<Torus>(num_radix_blocks);
     uint32_t num_carry_to_resolve = num_groups - 1;
-    uint32_t saturated_sub =
-        ((num_carry_to_resolve > 1) ? num_carry_to_resolve - 1 : 0);
-    uint32_t sequential_depth = saturated_sub / (grouping_size - 1);
+    uint32_t sequential_depth = num_carry_to_resolve / (grouping_size - 1);
     uint32_t hillis_steel_depth;
 
     if (num_carry_to_resolve == 0) {

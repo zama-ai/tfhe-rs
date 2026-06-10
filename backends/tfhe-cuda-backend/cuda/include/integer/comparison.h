@@ -349,6 +349,17 @@ template <typename Torus> struct int_comparison_buffer {
   int_comparison_eq_buffer<Torus> *eq_buffer;
   int_comparison_diff_buffer<Torus> *diff_buffer;
 
+  /// @brief Borrow-propagation fast path for unsigned GT/GE/LT/LE on 2_2
+  /// params. When enabled, the comparison reuses the overflow (borrow-out) path
+  /// of the overflowing-sub borrow propagation instead of the sign-tree
+  /// reduction.
+  bool use_borrow_fast_path;
+  /// @brief Borrow-propagation memory, allocated only on the fast path.
+  int_borrow_prop_memory<Torus> *diff_borrow_mem;
+  /// @brief Final single-block LUT applying the per-op inversion:
+  ///   f(block) = ((block >> 2) & 1) ^ invert
+  int_radix_lut<Torus> *lut_borrow_flag_cmp;
+
   CudaRadixCiphertextFFI *tmp_block_comparisons;
   CudaRadixCiphertextFFI *tmp_lwe_array_out;
   CudaRadixCiphertextFFI *tmp_trivial_sign_block;
@@ -369,15 +380,34 @@ template <typename Torus> struct int_comparison_buffer {
   CudaStreams msb_streams;
   bool gpu_memory_allocated;
   Torus *preallocated_h_lut;
-
+  // The comparison buffer allows a fast path for unsigned GT/GE/LT/LE when the
+  // parameters are 2_2, by using an optimized version of the overflowing sub in
+  // the same way that is done in the cpu.
   int_comparison_buffer(CudaStreams streams, COMPARISON_TYPE op,
                         int_radix_params params, uint32_t num_radix_blocks,
                         bool is_signed, bool allocate_gpu_memory,
-                        uint64_t &size_tracker) {
+                        uint64_t &size_tracker,
+                        bool allow_borrow_fast_path = false) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     this->op = op;
     this->is_signed = is_signed;
+    diff_borrow_mem = nullptr;
+    lut_borrow_flag_cmp = nullptr;
+    // When we are in the fast path we can avoid calculating the luts for the
+    // tree reduction.
+    use_borrow_fast_path =
+        allow_borrow_fast_path &&
+        (op == COMPARISON_TYPE::GT || op == COMPARISON_TYPE::GE ||
+         op == COMPARISON_TYPE::LT || op == COMPARISON_TYPE::LE) &&
+        !is_signed && params.message_modulus == 4 && params.carry_modulus == 4;
+    // Null the sign-tree members so release() can safely skip them.
+    diff_buffer = nullptr;
+    eq_buffer = nullptr;
+    identity_lut = nullptr;
+    is_zero_lut = nullptr;
+    tmp_lwe_array_out = nullptr;
+    tmp_packed_input = nullptr;
 
     auto active_streams =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
@@ -387,72 +417,78 @@ template <typename Torus> struct int_comparison_buffer {
     lsb_streams.create_on_same_gpus(active_streams);
     msb_streams.create_on_same_gpus(active_streams);
 
-    // +1 to have space for signed comparison
-    tmp_lwe_array_out = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), tmp_lwe_array_out,
-        num_radix_blocks + 1, params.big_lwe_dimension, size_tracker,
-        allocate_gpu_memory);
-
-    tmp_packed_input = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), tmp_packed_input,
-        2 * num_radix_blocks, params.big_lwe_dimension, size_tracker,
-        allocate_gpu_memory);
-
-    // Block comparisons
+    // Block comparisons buffer. Allocated for both paths: the sign-tree path
+    // stores the per-block comparison results here, the borrow-propagation fast
+    // path stores the subtraction blocks here.
     tmp_block_comparisons = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_block_comparisons,
         num_radix_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    // Cleaning LUT
-    identity_lut =
-        new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                 allocate_gpu_memory, size_tracker);
+    // We use the tree reduction old algorithm.
+    if (!use_borrow_fast_path) {
+      // +1 to have space for signed comparison
+      tmp_lwe_array_out = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), tmp_lwe_array_out,
+          num_radix_blocks + 1, params.big_lwe_dimension, size_tracker,
+          allocate_gpu_memory);
 
-    identity_lut->generate_and_broadcast_lut(
-        active_streams, {0}, {identity_lut_f}, LUT_0_FOR_ALL_BLOCKS);
+      tmp_packed_input = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), tmp_packed_input,
+          2 * num_radix_blocks, params.big_lwe_dimension, size_tracker,
+          allocate_gpu_memory);
 
-    uint32_t total_modulus = params.message_modulus * params.carry_modulus;
-    auto is_zero_f = [total_modulus](Torus x) -> Torus {
-      return (x % total_modulus) == 0;
-    };
+      // Cleaning LUT
+      identity_lut =
+          new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
+                                   allocate_gpu_memory, size_tracker);
 
-    is_zero_lut = new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                           allocate_gpu_memory, size_tracker);
+      identity_lut->generate_and_broadcast_lut(
+          active_streams, {0}, {identity_lut_f}, LUT_0_FOR_ALL_BLOCKS);
 
-    is_zero_lut->generate_and_broadcast_lut(active_streams, {0}, {is_zero_f},
-                                            LUT_0_FOR_ALL_BLOCKS);
+      uint32_t total_modulus = params.message_modulus * params.carry_modulus;
+      auto is_zero_f = [total_modulus](Torus x) -> Torus {
+        return (x % total_modulus) == 0;
+      };
 
-    switch (op) {
-    case COMPARISON_TYPE::MAX:
-    case COMPARISON_TYPE::MIN:
-      cmux_buffer = new int_cmux_buffer<Torus>(
-          streams,
-          [op](Torus x) -> Torus {
-            if (op == COMPARISON_TYPE::MAX)
-              return (x == IS_SUPERIOR);
-            else
-              return (x == IS_INFERIOR);
-          },
-          params, num_radix_blocks, allocate_gpu_memory, size_tracker);
-    case COMPARISON_TYPE::GT:
-    case COMPARISON_TYPE::GE:
-    case COMPARISON_TYPE::LT:
-    case COMPARISON_TYPE::LE:
-      diff_buffer = new int_comparison_diff_buffer<Torus>(
-          streams, op, params, num_radix_blocks, allocate_gpu_memory,
-          size_tracker);
-    case COMPARISON_TYPE::EQ:
-    case COMPARISON_TYPE::NE:
-      eq_buffer = new int_comparison_eq_buffer<Torus>(
-          streams, op, params, num_radix_blocks, allocate_gpu_memory,
-          size_tracker);
-      break;
-    default:
-      PANIC("Unsupported comparison operation.")
+      is_zero_lut =
+          new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
+                                   allocate_gpu_memory, size_tracker);
+
+      is_zero_lut->generate_and_broadcast_lut(active_streams, {0}, {is_zero_f},
+                                              LUT_0_FOR_ALL_BLOCKS);
+
+      switch (op) {
+      case COMPARISON_TYPE::MAX:
+      case COMPARISON_TYPE::MIN:
+        cmux_buffer = new int_cmux_buffer<Torus>(
+            streams,
+            [op](Torus x) -> Torus {
+              if (op == COMPARISON_TYPE::MAX)
+                return (x == IS_SUPERIOR);
+              else
+                return (x == IS_INFERIOR);
+            },
+            params, num_radix_blocks, allocate_gpu_memory, size_tracker);
+      case COMPARISON_TYPE::GT:
+      case COMPARISON_TYPE::GE:
+      case COMPARISON_TYPE::LT:
+      case COMPARISON_TYPE::LE:
+        diff_buffer = new int_comparison_diff_buffer<Torus>(
+            streams, op, params, num_radix_blocks, allocate_gpu_memory,
+            size_tracker);
+      case COMPARISON_TYPE::EQ:
+      case COMPARISON_TYPE::NE:
+        eq_buffer = new int_comparison_eq_buffer<Torus>(
+            streams, op, params, num_radix_blocks, allocate_gpu_memory,
+            size_tracker);
+        break;
+      default:
+        PANIC("Unsupported comparison operation.")
+      }
     }
 
     if (is_signed) {
@@ -503,43 +539,134 @@ template <typename Torus> struct int_comparison_buffer {
       signed_lut->generate_and_broadcast_bivariate_lut(
           active_streams, {0}, {signed_lut_f}, LUT_0_FOR_ALL_BLOCKS);
     }
+
+    // Allocate the borrow-propagation machinery reused by the fast path. We
+    // reuse the overflowing-sub borrow propagation and finish with a
+    // single-block LUT that extracts the borrow flag and applies the per-op
+    // boolean inversion (lut_borrow_flag_cmp below).
+    if (use_borrow_fast_path) {
+      // FLAG_NONE: host_difference_check_via_borrow does the overflow-block
+      // combination itself, so int_borrow_prop_memory's own borrow-flag LUT is
+      // never used and we avoid allocating it.
+      diff_borrow_mem = new int_borrow_prop_memory<Torus>(
+          streams, params, num_radix_blocks, (uint32_t)outputFlag::FLAG_NONE,
+          allocate_gpu_memory, size_tracker);
+
+      // GE/LE need to invert the `<` result, GT/LT do not.
+      bool invert = (op == COMPARISON_TYPE::GE || op == COMPARISON_TYPE::LE);
+      auto f_borrow_flag_cmp = [invert](Torus block) -> Torus {
+        return ((block >> 2) & 1) ^ (Torus)invert;
+      };
+
+      lut_borrow_flag_cmp = new int_radix_lut<Torus>(
+          streams, params, 1, 1, allocate_gpu_memory, size_tracker);
+      auto active_streams_one = streams.active_gpu_subset(1, params.pbs_type);
+      lut_borrow_flag_cmp->generate_and_broadcast_lut(
+          active_streams_one, {0}, {f_borrow_flag_cmp}, LUT_0_FOR_ALL_BLOCKS);
+
+      // We need to create the luts for the borrow fast path that are optimized
+      // for comparisons. This saves us half the number of pbs of the second
+      // step if we were using the generic overflow path. The cpu perform
+      // exactly this operation too.
+      if (allocate_gpu_memory) {
+        auto *mem_simu_group_carries =
+            diff_borrow_mem->prop_simu_group_carries_mem;
+        uint32_t group_size = diff_borrow_mem->group_size;
+        uint32_t n_groups = diff_borrow_mem->num_groups;
+        bool seq = mem_simu_group_carries
+                       ->use_sequential_algorithm_to_resolve_group_carries;
+
+        // Mirror second_step_lut_index_generator / h_scalar_array_cum_sum for a
+        // single cumulative-sum position (see
+        // int_prop_simu_group_carries_memory).
+        auto lut_index_for = [group_size, seq](uint32_t pos) -> Torus {
+          uint32_t group_index = pos / group_size;
+          uint32_t pos_in_group = pos % group_size;
+          if (group_index == 0)
+            return (Torus)pos_in_group;
+          else if (pos_in_group == group_size - 1)
+            return seq ? (Torus)((group_index - 1) % (group_size - 1) +
+                                 2 * group_size)
+                       : (Torus)(2 * group_size);
+          else
+            return (Torus)(pos_in_group + group_size);
+        };
+        auto corrector_for = [group_size, seq](uint32_t pos) -> Torus {
+          uint32_t group_index = pos / group_size;
+          uint32_t pos_in_group = pos % group_size;
+          if (group_index == 0 || pos_in_group != group_size - 1)
+            return (Torus)0;
+          return seq ? ((Torus)1 << ((group_index - 1) % (group_size - 1)))
+                     : (Torus)1;
+        };
+
+        std::vector<Torus> h_indexes(n_groups);
+        std::vector<Torus> h_scalar_corrector(n_groups);
+        for (uint32_t g = 0; g + 1 < n_groups; g++) {
+          uint32_t pos = (g + 1) * group_size - 1;
+          h_indexes[g] = lut_index_for(pos);
+          h_scalar_corrector[g] = corrector_for(pos);
+        }
+        uint32_t simulator_pos = num_radix_blocks - 2;
+        h_indexes[n_groups - 1] = lut_index_for(simulator_pos);
+        h_scalar_corrector[n_groups - 1] = corrector_for(simulator_pos);
+
+        auto *lut = mem_simu_group_carries->luts_array_second_step;
+        cuda_memcpy_with_size_tracking_async_to_gpu(
+            lut->get_lut_indexes(0, 0), h_indexes.data(),
+            safe_mul_sizeof<Torus>(n_groups), streams.stream(0),
+            streams.gpu_index(0), allocate_gpu_memory);
+        lut->broadcast_lut(active_streams, false);
+
+        cuda_memcpy_with_size_tracking_async_to_gpu(
+            mem_simu_group_carries->scalar_array_cum_sum,
+            h_scalar_corrector.data(), safe_mul_sizeof<Torus>(n_groups),
+            streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
+        for (uint32_t i = 0; i < n_groups; i++)
+          mem_simu_group_carries->h_scalar_array_cum_sum[i] =
+              h_scalar_corrector[i];
+      }
+    }
+
     preallocated_h_lut = (Torus *)malloc(safe_mul_sizeof<Torus>(
         params.glwe_dimension + 1, params.polynomial_size));
   }
 
   void release(CudaStreams streams) {
-    switch (op) {
-    case COMPARISON_TYPE::MAX:
-    case COMPARISON_TYPE::MIN:
-      cmux_buffer->release(streams);
-      delete (cmux_buffer);
-    case COMPARISON_TYPE::GT:
-    case COMPARISON_TYPE::GE:
-    case COMPARISON_TYPE::LT:
-    case COMPARISON_TYPE::LE:
-      diff_buffer->release(streams);
-      delete (diff_buffer);
-    case COMPARISON_TYPE::EQ:
-    case COMPARISON_TYPE::NE:
-      eq_buffer->release(streams);
-      delete (eq_buffer);
-      break;
-    default:
-      PANIC("Unsupported comparison operation.")
+    if (!use_borrow_fast_path) {
+      switch (op) {
+      case COMPARISON_TYPE::MAX:
+      case COMPARISON_TYPE::MIN:
+        cmux_buffer->release(streams);
+        delete (cmux_buffer);
+      case COMPARISON_TYPE::GT:
+      case COMPARISON_TYPE::GE:
+      case COMPARISON_TYPE::LT:
+      case COMPARISON_TYPE::LE:
+        diff_buffer->release(streams);
+        delete (diff_buffer);
+      case COMPARISON_TYPE::EQ:
+      case COMPARISON_TYPE::NE:
+        eq_buffer->release(streams);
+        delete (eq_buffer);
+        break;
+      default:
+        PANIC("Unsupported comparison operation.")
+      }
+      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                     tmp_lwe_array_out, gpu_memory_allocated);
+      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                     tmp_packed_input, gpu_memory_allocated);
+      identity_lut->release(streams);
+      delete identity_lut;
+      is_zero_lut->release(streams);
+      delete is_zero_lut;
+      delete tmp_lwe_array_out;
+      delete tmp_packed_input;
     }
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                   tmp_lwe_array_out, gpu_memory_allocated);
-    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    tmp_block_comparisons, gpu_memory_allocated);
-    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                   tmp_packed_input, gpu_memory_allocated);
-    identity_lut->release(streams);
-    delete identity_lut;
-    is_zero_lut->release(streams);
-    delete is_zero_lut;
-    delete tmp_lwe_array_out;
     delete tmp_block_comparisons;
-    delete tmp_packed_input;
 
     if (is_signed) {
       release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
@@ -550,6 +677,14 @@ template <typename Torus> struct int_comparison_buffer {
       signed_msb_lut->release(streams);
       delete signed_msb_lut;
       delete tmp_trivial_sign_block;
+    }
+    if (use_borrow_fast_path) {
+      diff_borrow_mem->release(streams);
+      delete diff_borrow_mem;
+      diff_borrow_mem = nullptr;
+      lut_borrow_flag_cmp->release(streams);
+      delete lut_borrow_flag_cmp;
+      lut_borrow_flag_cmp = nullptr;
     }
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     lsb_streams.release();
