@@ -45,12 +45,12 @@ host_kv_store_get(CudaStreams streams,
   auto num_key_blocks = mem_ptr->num_key_blocks;
   auto num_value_blocks = mem_ptr->num_value_blocks;
   auto num_entries = mem_ptr->num_entries;
-  auto mem_eq_selectors_buffer = mem_ptr->mem_eq_selectors_buffer;
   auto selectors_list = mem_ptr->selectors_list;
   auto mem_zero_out_batch_buffer = mem_ptr->mem_zero_out_batch_buffer;
   auto one_hot_vector_predicate = mem_ptr->one_hot_vector_predicate;
   auto tmp_cmux_array = mem_ptr->tmp_cmux_array;
-  auto binary_tree_sum_buffer = mem_ptr->binary_tree_sum_buffer;
+  auto message_modulus = mem_ptr->message_modulus;
+  auto carry_modulus = mem_ptr->carry_modulus;
 
   // Step 1: equality selectors (key-block-count dependent)
   // Checks equality between all cleartext keys and the encrypted_key.
@@ -63,8 +63,8 @@ host_kv_store_get(CudaStreams streams,
 
   host_compute_eq_selectors_ct_vs_clears<Torus>(
       streams, lwe_array_out_selectors, lwe_array_in_encrypted_key,
-      num_key_blocks, h_decomposed_clear_keys, mem_eq_selectors_buffer, bsks,
-      ksks);
+      num_key_blocks, h_decomposed_clear_keys, mem_ptr->mem_eq_selectors_buffer,
+      bsks, ksks);
   POP_RANGE()
 
   // Step 2: One-hot vector (value-block-count dependent)
@@ -80,9 +80,11 @@ host_kv_store_get(CudaStreams streams,
 
   // Step 3: Sum all elements in the vector (value-block-count dependent)
   PUSH_RANGE("get: binary tree sum")
-  host_binary_tree_sum<Torus>(streams, lwe_array_out_result, lwe_one_hot_vector,
-                              num_entries, num_value_blocks,
-                              binary_tree_sum_buffer, bsks, ksks);
+  host_binary_tree_fold_sum_dispatch<Torus>(
+      streams, lwe_array_out_result, lwe_one_hot_vector, num_entries,
+      num_value_blocks, mem_ptr->params.polynomial_size, message_modulus,
+      carry_modulus, bsks, ksks, mem_ptr->identity_lut,
+      mem_ptr->tmp_lwe_array_clean);
   POP_RANGE()
 
   //  OR all selectors

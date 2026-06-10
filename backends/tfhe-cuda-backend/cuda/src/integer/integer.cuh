@@ -2499,4 +2499,164 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
   POP_RANGE()
 }
 
+template <typename Torus, class params>
+__global__ void device_binary_tree_fold(Torus *__restrict__ data,
+                                        uint32_t entry_size, uint32_t num_pairs,
+                                        uint32_t right_start_entry,
+                                        uint32_t total_elements) {
+  uint32_t base_idx = (threadIdx.x + blockIdx.x * blockDim.x) * params::opt;
+
+#pragma unroll
+  for (int i = 0; i < params::opt; i++) {
+    uint32_t idx = base_idx + i;
+    if (idx >= total_elements)
+      return;
+
+    uint32_t pair = idx / entry_size;
+    uint32_t elem = idx % entry_size;
+
+    data[pair * entry_size + elem] +=
+        data[(right_start_entry + pair) * entry_size + elem];
+  }
+}
+
+// Reduces num_entries ciphertexts into one by pairwise addition in a binary
+// tree. Each level doubles noise, so periodic identity-PBS rounds reset it to
+// NOMINAL. Uses the optimized device_binary_tree_fold kernel.
+template <typename Torus, class params>
+__host__ void
+host_binary_tree_fold_sum(CudaStreams streams,
+                          CudaRadixCiphertextFFI *output,
+                          CudaRadixCiphertextFFI *input, uint32_t num_entries,
+                          uint32_t num_blocks, uint32_t message_modulus,
+                          uint32_t carry_modulus, void *const *bsks,
+                          Torus *const *ksks,
+                          int_radix_lut<Torus> *identity_lut,
+                          CudaRadixCiphertextFFI *tmp_lwe_array_clean) {
+
+  auto stream = streams.stream(0);
+  auto gpu_index = streams.gpu_index(0);
+
+  if (num_entries == 0) {
+    set_zero_radix_ciphertext_slice_async<Torus>(stream, gpu_index, output, 0,
+                                                 num_blocks);
+    return;
+  }
+
+  cuda_set_device(gpu_index);
+
+  auto lwe_size = input->lwe_dimension + 1;
+  uint32_t entry_size = static_cast<uint32_t>(
+      safe_mul(static_cast<size_t>(num_blocks), static_cast<size_t>(lwe_size)));
+  auto *data = static_cast<Torus *>(input->ptr);
+
+  uint32_t max_noise =
+      (message_modulus * carry_modulus - 1) / (message_modulus - 1);
+  uint32_t max_levels_before_pbs = log2_int(max_noise);
+
+  uint32_t levels_since_pbs = 0;
+  uint32_t remaining = num_entries;
+
+  while (remaining > 1) {
+    uint32_t half = remaining / 2;
+    uint32_t right_start = remaining - half;
+    uint32_t total_elements = static_cast<uint32_t>(
+        safe_mul(static_cast<size_t>(half), static_cast<size_t>(entry_size)));
+    uint32_t total_threads = CEIL_DIV(total_elements, params::opt);
+
+    int num_cuda_blocks = 0, num_threads = 0;
+    getNumBlocksAndThreads(total_threads, 512, num_cuda_blocks, num_threads);
+
+    device_binary_tree_fold<Torus, params>
+        <<<num_cuda_blocks, num_threads, 0, stream>>>(
+            data, entry_size, half, right_start, total_elements);
+    check_cuda_error(cudaGetLastError());
+
+    for (uint32_t p = 0; p < half; p++) {
+      for (uint32_t b = 0; b < num_blocks; b++) {
+        uint32_t left_block = p * num_blocks + b;
+        uint32_t right_block = (right_start + p) * num_blocks + b;
+        input->degrees[left_block] += input->degrees[right_block];
+        input->noise_levels[left_block] += input->noise_levels[right_block];
+        CHECK_NOISE_LEVEL(input->noise_levels[left_block], message_modulus,
+                          carry_modulus);
+      }
+    }
+
+    remaining = right_start;
+    levels_since_pbs++;
+
+    if (levels_since_pbs >= max_levels_before_pbs && remaining > 1) {
+      uint32_t total_surviving_blocks = remaining * num_blocks;
+
+      copy_radix_ciphertext_slice_async<Torus>(
+          stream, gpu_index, tmp_lwe_array_clean, 0, total_surviving_blocks,
+          input, 0, total_surviving_blocks);
+
+      integer_radix_apply_univariate_lookup_table<Torus>(
+          streams, input, tmp_lwe_array_clean, bsks, ksks, identity_lut,
+          total_surviving_blocks);
+
+      levels_since_pbs = 0;
+    }
+  }
+
+  copy_radix_ciphertext_slice_async<Torus>(stream, gpu_index,
+                                           tmp_lwe_array_clean, 0, num_blocks,
+                                           input, 0, num_blocks);
+
+  integer_radix_apply_univariate_lookup_table<Torus>(
+      streams, output, tmp_lwe_array_clean, bsks, ksks, identity_lut,
+      num_blocks);
+}
+
+template <typename Torus>
+__host__ void host_binary_tree_fold_sum_dispatch(
+    CudaStreams streams, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI *input, uint32_t num_entries, uint32_t num_blocks,
+    uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
+    void *const *bsks, Torus *const *ksks, int_radix_lut<Torus> *identity_lut,
+    CudaRadixCiphertextFFI *tmp_lwe_array_clean) {
+  switch (polynomial_size) {
+  case 256:
+    host_binary_tree_fold_sum<Torus, Degree<256>>(
+        streams, output, input, num_entries, num_blocks, message_modulus,
+        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+    break;
+  case 512:
+    host_binary_tree_fold_sum<Torus, Degree<512>>(
+        streams, output, input, num_entries, num_blocks, message_modulus,
+        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+    break;
+  case 1024:
+    host_binary_tree_fold_sum<Torus, Degree<1024>>(
+        streams, output, input, num_entries, num_blocks, message_modulus,
+        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+    break;
+  case 2048:
+    host_binary_tree_fold_sum<Torus, Degree<2048>>(
+        streams, output, input, num_entries, num_blocks, message_modulus,
+        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+    break;
+  case 4096:
+    host_binary_tree_fold_sum<Torus, Degree<4096>>(
+        streams, output, input, num_entries, num_blocks, message_modulus,
+        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+    break;
+  case 8192:
+    host_binary_tree_fold_sum<Torus, Degree<8192>>(
+        streams, output, input, num_entries, num_blocks, message_modulus,
+        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+    break;
+  case 16384:
+    host_binary_tree_fold_sum<Torus, Degree<16384>>(
+        streams, output, input, num_entries, num_blocks, message_modulus,
+        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+    break;
+  default:
+    PANIC("Cuda error (binary_tree_fold_sum): unsupported polynomial size. "
+          "Supported N's are powers of two in the interval [256..16384].")
+  }
+}
+
 #endif // TFHE_RS_INTERNAL_INTEGER_CUH
