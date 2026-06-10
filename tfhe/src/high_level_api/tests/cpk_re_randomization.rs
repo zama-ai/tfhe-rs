@@ -3,6 +3,7 @@ use crate::high_level_api::{
     CompactPublicKey, CompressedCiphertextListBuilder, FheBool, FheInt8, FheUint64,
     ReRandomizationContext,
 };
+use crate::nist_submission::NistSubmissionReRandomize;
 use crate::shortint::parameters::v1_5::meta::cpu::V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
 use crate::shortint::parameters::v1_6::meta::cpu::V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
 use crate::shortint::parameters::MetaParameters;
@@ -13,7 +14,6 @@ use crate::{
 
 #[test]
 fn test_dyn_rerand() {
-    // Need legacy for nist-like rerand
     let params = V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
     let (cks, sks, cpk) = setup_re_rand_test(params);
     set_server_key(sks.decompress());
@@ -21,27 +21,7 @@ fn test_dyn_rerand() {
 }
 
 fn execute_dyn_rerand_test(cks: &ClientKey, cpk: &CompactPublicKey) {
-    use crate::high_level_api::re_randomization::NistSubmissionReRandomize;
-    fn nist_submission_preproc_eval(
-        inputs: &mut [&mut dyn NistSubmissionReRandomize],
-        function_description: &[u8],
-        compact_public_key: &CompactPublicKey,
-    ) {
-        let mut re_rand_context =
-            ReRandomizationContext::new(*b"TFHE_Rrd", [function_description], *b"TFHE_Enc");
-
-        for input in inputs.iter_mut() {
-            re_rand_context.add_ciphertext(&**input);
-        }
-
-        let mut seed_gen = re_rand_context.finalize();
-
-        for input in inputs {
-            input
-                .nist_submission_re_randomize(compact_public_key, seed_gen.next_seed().unwrap())
-                .unwrap();
-        }
-    }
+    use crate::high_level_api::nist_submission::preproc_eval;
 
     let clear_a = rand::random::<u64>();
     let clear_b = rand::random::<u64>();
@@ -67,7 +47,7 @@ fn execute_dyn_rerand_test(cks: &ClientKey, cpk: &CompactPublicKey) {
 
     let mut dyn_cts: Vec<&mut dyn NistSubmissionReRandomize> = vec![&mut a, &mut b];
 
-    nist_submission_preproc_eval(&mut dyn_cts, b"FheUint64+FheUint64".as_slice(), cpk);
+    preproc_eval(&mut dyn_cts, b"FheUint64+FheUint64".as_slice(), &cpk).unwrap();
 
     assert!(a.re_randomization_metadata().data().is_empty());
     assert!(b.re_randomization_metadata().data().is_empty());

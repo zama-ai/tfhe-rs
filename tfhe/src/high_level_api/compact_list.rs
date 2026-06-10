@@ -456,7 +456,7 @@ impl ParameterSetConformant for CompactCiphertextList {
 }
 
 #[cfg(feature = "zk-pok")]
-mod zk {
+pub(crate) mod zk {
     use super::*;
     use crate::backward_compatibility::compact_list::ProvenCompactCiphertextListVersions;
     use crate::conformance::ParameterSetConformant;
@@ -920,7 +920,7 @@ pub enum InnerCompactCiphertextListExpander {
 
 pub struct CompactCiphertextListExpander {
     pub inner: InnerCompactCiphertextListExpander,
-    tag: Tag,
+    pub(crate) tag: Tag,
 }
 
 impl CiphertextList for CompactCiphertextListExpander {
