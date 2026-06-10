@@ -198,6 +198,26 @@ fn encrypt_br_dp_ks_any_ms_inner_helper_gpu(
     DecryptionAndNoiseResult,
     DecryptionAndNoiseResult,
 ) {
+    let block_info = CudaBlockInfo {
+        degree: crate::shortint::parameters::Degree::new(params.message_modulus().0 - 1),
+        message_modulus: params.message_modulus(),
+        carry_modulus: params.carry_modulus(),
+        atomic_pattern: params.atomic_pattern(),
+        noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
+    };
+
+    // Build the side-resources up front and run the WHOLE task on the caller's per-thread stream.
+    // `CudaSideResources::new_borrowing` only reads the bootstrapping key *shape* (polynomial
+    // size / grouping factor), which is identical for the shared and the per-thread key since they
+    // share `params`, so we can build it from `single_cuda_sks` and then route the per-thread key
+    // decompression and every transfer onto this stream too. We borrow rather than clone: a
+    // `CudaStreams` clone allocates a fresh stream (and destroys it on drop) which — at one
+    // `CudaSideResources` per sample — is pure per-task overhead and would leave the caller's
+    // per-thread pool stream unused for the actual compute.
+    let mut cuda_side_resources =
+        CudaSideResources::new_borrowing(single_cuda_sks, streams, block_info);
+    let streams = &cuda_side_resources.streams;
+
     let thread_cks: crate::integer::ClientKey;
     let thread_cuda_sks: CudaServerKey;
 
@@ -217,16 +237,6 @@ fn encrypt_br_dp_ks_any_ms_inner_helper_gpu(
 
     let d_ct_lwe = CudaLweCiphertextList::from_lwe_ciphertext(&ct.as_lwe_64(), streams);
     let d_ct = CudaDynLwe::U64(d_ct_lwe);
-
-    let block_info = CudaBlockInfo {
-        degree: crate::shortint::parameters::Degree::new(params.message_modulus().0 - 1),
-        message_modulus: params.message_modulus(),
-        carry_modulus: params.carry_modulus(),
-        atomic_pattern: params.atomic_pattern(),
-        noise_level: crate::shortint::parameters::NoiseLevel::NOMINAL,
-    };
-
-    let mut cuda_side_resources = CudaSideResources::new(cuda_sks, streams, block_info);
 
     let id_lut = cuda_sks.generate_lookup_table(|x| x);
     let d_accumulator = CudaGlweCiphertextList::from_glwe_ciphertext(&id_lut.acc, streams);
@@ -457,20 +467,25 @@ fn noise_check_encrypt_br_dp_ks_ms_noise(meta_params: MetaParameters, filename_s
 
     let sample_count_per_msg = 1000usize;
 
-    let chunk_size = 8;
-    let vec_local_streams = (0..chunk_size)
+    // Build the pool + streams ONCE, outside the per-message loop.
+    let num_cores = std::thread::available_parallelism().map_or(16, |n| n.get());
+    let concurrency = num_cores;
+    let thread_pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(concurrency)
+        .build()
+        .unwrap();
+    let vec_local_streams = (0..concurrency)
         .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(gpu_index)))
         .collect::<Vec<_>>();
+
     for _ in 0..cleartext_modulus {
-        let (current_noise_sample_before_ms, current_noise_samples_after_ms): (Vec<_>, Vec<_>) = (0
-            ..sample_count_per_msg)
-            .collect::<Vec<_>>()
-            .chunks(chunk_size)
-            .flat_map(|chunk| {
-                chunk
+        let (current_noise_sample_before_ms, current_noise_samples_after_ms): (Vec<_>, Vec<_>) =
+            thread_pool.install(|| {
+                (0..sample_count_per_msg)
                     .into_par_iter()
-                    .map(|i| {
-                        let local_stream = &vec_local_streams[*i % chunk_size];
+                    .map(|_| {
+                        let local_stream =
+                            &vec_local_streams[rayon::current_thread_index().unwrap_or(0)];
                         let (_input, _after_br, _after_dp, _after_ks, before_ms, after_ms) =
                             encrypt_br_dp_ks_any_ms_noise_helper_gpu(
                                 params,
@@ -483,9 +498,8 @@ fn noise_check_encrypt_br_dp_ks_ms_noise(meta_params: MetaParameters, filename_s
                             );
                         (before_ms.value, after_ms.value)
                     })
-                    .collect::<Vec<_>>()
-            })
-            .unzip();
+                    .unzip()
+            });
 
         noise_samples_before_ms.extend(current_noise_sample_before_ms);
         noise_samples_after_ms.extend(current_noise_samples_after_ms);
@@ -567,32 +581,36 @@ fn noise_check_encrypt_br_dp_ks_ms_pfail_gpu(meta_params: MetaParameters, filena
     let br_input_modulus_log = cuda_sks.br_input_modulus_log();
 
     let total_runs_for_expected_fails = pfail_test_meta.total_runs_for_expected_fails();
-    let chunk_size = 8;
-    let vec_local_streams = (0..chunk_size)
+
+    // Build the pool + streams ONCE, outside the per-message loop.
+    let num_cores = std::thread::available_parallelism().map_or(16, |n| n.get());
+    let concurrency = num_cores;
+    let thread_pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(concurrency)
+        .build()
+        .unwrap();
+    let vec_local_streams = (0..concurrency)
         .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(gpu_index)))
         .collect::<Vec<_>>();
-    let measured_fails: f64 = (0..total_runs_for_expected_fails)
-        .collect::<Vec<_>>()
-        .chunks(chunk_size)
-        .flat_map(|chunk| {
-            chunk
-                .into_par_iter()
-                .map(|i| {
-                    let local_streams = &vec_local_streams[*i as usize % chunk_size];
-                    let after_ms_decryption_result = encrypt_br_dp_ks_any_ms_pfail_helper_gpu(
-                        params,
-                        &cks.key,
-                        &cuda_sks,
-                        0,
-                        max_scalar_mul,
-                        br_input_modulus_log,
-                        local_streams,
-                    );
-                    after_ms_decryption_result.failure_as_f64()
-                })
-                .collect::<Vec<_>>()
-        })
-        .sum();
+
+    let measured_fails: f64 = thread_pool.install(|| {
+        (0..total_runs_for_expected_fails)
+            .into_par_iter()
+            .map(|_| {
+                let local_streams = &vec_local_streams[rayon::current_thread_index().unwrap_or(0)];
+                let after_ms_decryption_result = encrypt_br_dp_ks_any_ms_pfail_helper_gpu(
+                    params,
+                    &cks.key,
+                    &cuda_sks,
+                    0,
+                    max_scalar_mul,
+                    br_input_modulus_log,
+                    local_streams,
+                );
+                after_ms_decryption_result.failure_as_f64()
+            })
+            .sum()
+    });
     let test_result = PfailTestResult { measured_fails };
 
     pfail_check(&pfail_test_meta, test_result, &guard);
