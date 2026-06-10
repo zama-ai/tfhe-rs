@@ -1240,16 +1240,37 @@ mod test {
 
     #[cfg(feature = "gpu")]
     mod gpu {
-        use crate::shortint::parameters::COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        use crate::shortint::parameters::{
+            CompressionParameters,
+            COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        };
+        use crate::shortint::AtomicPatternParameters;
         use crate::{set_server_key, ConfigBuilder};
 
         use super::*;
 
-        pub(crate) fn setup_default_gpu() -> ClientKey {
-            let config = ConfigBuilder::default()
-                .enable_compression(
+        fn gpu_parameter_sets() -> [(AtomicPatternParameters, CompressionParameters); 2] {
+            [
+                (
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                ),
+                (
+                    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
                     COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                )
+                ),
+            ]
+        }
+
+        fn setup_gpu(
+            params: AtomicPatternParameters,
+            comp_params: CompressionParameters,
+        ) -> ClientKey {
+            let config = ConfigBuilder::with_custom_parameters(params)
+                .enable_compression(comp_params)
                 .build();
 
             let client_key = ClientKey::generate(config);
@@ -1263,51 +1284,65 @@ mod test {
 
         #[test]
         fn test_kv_store_get() {
-            let ck = setup_default_gpu();
+            for (params, comp_params) in gpu_parameter_sets() {
+                let ck = setup_gpu(params, comp_params);
 
-            kv_store_get_test_case(&ck);
+                kv_store_get_test_case(&ck);
+            }
         }
 
         #[test]
         fn test_kv_store_update() {
-            let ck = setup_default_gpu();
+            for (params, comp_params) in gpu_parameter_sets() {
+                let ck = setup_gpu(params, comp_params);
 
-            kv_store_update_test_case(&ck);
+                kv_store_update_test_case(&ck);
+            }
         }
 
         #[test]
         fn test_kv_store_map() {
-            let ck = setup_default_gpu();
+            for (params, comp_params) in gpu_parameter_sets() {
+                let ck = setup_gpu(params, comp_params);
 
-            kv_store_map_test_case(&ck);
+                kv_store_map_test_case(&ck);
+            }
         }
 
         #[test]
         fn test_kv_store_contains_key() {
-            let ck = setup_default_gpu();
+            for (params, comp_params) in gpu_parameter_sets() {
+                let ck = setup_gpu(params, comp_params);
 
-            kv_store_contains_key_test_case(&ck);
+                kv_store_contains_key_test_case(&ck);
+            }
         }
 
         #[test]
         fn test_kv_store_contains_value() {
-            let ck = setup_default_gpu();
+            for (params, comp_params) in gpu_parameter_sets() {
+                let ck = setup_gpu(params, comp_params);
 
-            kv_store_contains_value_test_case(&ck);
+                kv_store_contains_value_test_case(&ck);
+            }
         }
 
         #[test]
         fn test_kv_store_contains_clear_value() {
-            let ck = setup_default_gpu();
+            for (params, comp_params) in gpu_parameter_sets() {
+                let ck = setup_gpu(params, comp_params);
 
-            kv_store_contains_clear_value_test_case(&ck);
+                kv_store_contains_clear_value_test_case(&ck);
+            }
         }
 
         #[test]
         fn test_kv_store_serialization() {
-            let ck = setup_default_gpu();
+            for (params, comp_params) in gpu_parameter_sets() {
+                let ck = setup_gpu(params, comp_params);
 
-            kv_store_serialization_test_case(&ck);
+                kv_store_serialization_test_case(&ck);
+            }
         }
     }
 }
