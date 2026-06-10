@@ -17,7 +17,7 @@ uint64_t scratch_cuda_integer_comparison_64_async(
   case NE:
     size_tracker += scratch_cuda_comparison_check<uint64_t>(
         CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,
-        num_radix_blocks, params, op_type, false, allocate_gpu_memory);
+        num_radix_blocks, params, op_type, false, false, allocate_gpu_memory);
     break;
   case GT:
   case GE:
@@ -27,7 +27,8 @@ uint64_t scratch_cuda_integer_comparison_64_async(
   case MIN:
     size_tracker += scratch_cuda_comparison_check<uint64_t>(
         CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,
-        num_radix_blocks, params, op_type, is_signed, allocate_gpu_memory);
+        num_radix_blocks, params, op_type, is_signed, true,
+        allocate_gpu_memory);
     break;
   }
   POP_RANGE()
@@ -51,7 +52,7 @@ uint64_t scratch_cuda_integer_scalar_comparison_64_async(
   case NE:
     size_tracker += scratch_cuda_comparison_check<uint64_t>(
         CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,
-        num_radix_blocks, params, op_type, false, allocate_gpu_memory);
+        num_radix_blocks, params, op_type, false, false, allocate_gpu_memory);
     break;
   case GT:
   case GE:
@@ -61,7 +62,8 @@ uint64_t scratch_cuda_integer_scalar_comparison_64_async(
   case MIN:
     size_tracker += scratch_cuda_comparison_check<uint64_t>(
         CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,
-        num_radix_blocks, params, op_type, is_signed, allocate_gpu_memory);
+        num_radix_blocks, params, op_type, is_signed, false,
+        allocate_gpu_memory);
     break;
   }
   POP_RANGE()
@@ -103,10 +105,23 @@ void cuda_integer_comparison_64_async(CudaStreamsFFI streams,
     if (num_radix_blocks % 2 != 0)
       PANIC("Cuda error (comparisons): the number of radix blocks has to be "
             "even.")
-    host_difference_check<uint64_t>(CudaStreams(streams), lwe_array_out,
-                                    lwe_array_1, lwe_array_2, buffer,
-                                    buffer->diff_buffer->operator_f, bsks,
-                                    (uint64_t **)(ksks), num_radix_blocks);
+    if (buffer->use_borrow_fast_path) {
+      // The borrow-propagation path computes `left < right`. Express each op as
+      // a `<` with the operands possibly swapped (the boolean inversion for
+      // GE/LE is baked into the final LUT):
+      //   LT, GE -> (a, b)   ;   GT, LE -> (b, a)
+      bool swap_operands = (buffer->op == GT || buffer->op == LE);
+      auto const *lhs = swap_operands ? lwe_array_2 : lwe_array_1;
+      auto const *rhs = swap_operands ? lwe_array_1 : lwe_array_2;
+      host_difference_check_via_borrow<uint64_t>(
+          CudaStreams(streams), lwe_array_out, lhs, rhs, buffer, bsks,
+          (uint64_t **)(ksks), num_radix_blocks);
+    } else {
+      host_difference_check<uint64_t>(CudaStreams(streams), lwe_array_out,
+                                      lwe_array_1, lwe_array_2, buffer,
+                                      buffer->diff_buffer->operator_f, bsks,
+                                      (uint64_t **)(ksks), num_radix_blocks);
+    }
     break;
   case MAX:
   case MIN:
@@ -155,7 +170,7 @@ uint64_t scratch_cuda_integer_are_all_comparisons_block_true_64_async(
 
   return scratch_cuda_comparison_check<uint64_t>(
       CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,
-      num_radix_blocks, params, EQ, false, allocate_gpu_memory);
+      num_radix_blocks, params, EQ, false, false, allocate_gpu_memory);
 }
 
 void cuda_integer_are_all_comparisons_block_true_64_async(
@@ -195,7 +210,7 @@ uint64_t scratch_cuda_integer_is_at_least_one_comparisons_block_true_64_async(
 
   return scratch_cuda_comparison_check<uint64_t>(
       CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,
-      num_radix_blocks, params, EQ, false, allocate_gpu_memory);
+      num_radix_blocks, params, EQ, false, false, allocate_gpu_memory);
 }
 
 void cuda_integer_is_at_least_one_comparisons_block_true_64_async(
