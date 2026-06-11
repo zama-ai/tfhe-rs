@@ -2524,15 +2524,12 @@ __global__ void device_binary_tree_fold(Torus *__restrict__ data,
 // tree. Each level doubles noise, so periodic identity-PBS rounds reset it to
 // NOMINAL. Uses the optimized device_binary_tree_fold kernel.
 template <typename Torus, class params>
-__host__ void
-host_binary_tree_fold_sum(CudaStreams streams,
-                          CudaRadixCiphertextFFI *output,
-                          CudaRadixCiphertextFFI *input, uint32_t num_entries,
-                          uint32_t num_blocks, uint32_t message_modulus,
-                          uint32_t carry_modulus, void *const *bsks,
-                          Torus *const *ksks,
-                          int_radix_lut<Torus> *identity_lut,
-                          CudaRadixCiphertextFFI *tmp_lwe_array_clean) {
+__host__ void host_binary_tree_fold_sum(
+    CudaStreams streams, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI *input, uint32_t num_entries, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, void *const *bsks,
+    Torus *const *ksks, int_radix_lut<Torus> *identity_lut,
+    CudaRadixCiphertextFFI *tmp_lwe_array_clean) {
 
   auto stream = streams.stream(0);
   auto gpu_index = streams.gpu_index(0);

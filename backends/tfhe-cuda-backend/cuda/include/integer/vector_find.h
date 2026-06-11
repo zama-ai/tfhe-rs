@@ -159,7 +159,7 @@ template <typename Torus> struct int_eq_selectors_ct_vs_clears_buffer {
   Torus *d_map;
   Torus *h_map;
 
-  // Tree reduction resources (step 3: accumulate_all_blocks_batched + PBS)
+  // Tree reduction resources (step 3: host_accumulate_all_blocks_batched + PBS)
   CudaRadixCiphertextFFI *tree_accumulator;
   CudaRadixCiphertextFFI *tree_pbs_output;
   int_radix_lut<Torus> *is_max_value_lut;

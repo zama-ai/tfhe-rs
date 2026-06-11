@@ -39,7 +39,7 @@ __global__ void device_accumulate_all_blocks_batched(
 }
 
 template <typename Torus>
-__host__ void accumulate_all_blocks_batched(
+__host__ void host_accumulate_all_blocks_batched(
     cudaStream_t stream, uint32_t gpu_index, Torus *output, Torus const *input,
     uint32_t lwe_dimension, uint32_t blocks_per_entry, uint32_t max_value,
     uint32_t num_entries, uint32_t num_chunks_per_entry) {
@@ -59,7 +59,7 @@ __host__ void accumulate_all_blocks_batched(
 //
 // Uses a batched tree reduction: precompute all per-block comparisons in one
 // batched PBS, gather each candidate's results, then AND-reduce with
-// accumulate_all_blocks_batched + is_max_value PBS.
+// host_accumulate_all_blocks_batched + is_max_value PBS.
 template <typename Torus>
 __host__ void host_compute_equality_selectors(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_list,
@@ -136,7 +136,7 @@ __host__ void host_compute_equality_selectors(
     uint32_t last_chunk_length =
         blocks_per_entry - (num_chunks - 1) * max_value;
 
-    accumulate_all_blocks_batched<Torus>(
+    host_accumulate_all_blocks_batched<Torus>(
         streams.stream(0), streams.gpu_index(0), (Torus *)tree_accumulator->ptr,
         current_input_ptr, big_lwe_dimension, blocks_per_entry, max_value,
         num_possible_values, num_chunks);
@@ -528,8 +528,8 @@ __host__ void host_compute_eq_selectors_ct_vs_clears(
   if (num_blocks == 0) {
     for (uint32_t i = 0; i < num_possible_values; i++) {
       set_single_scalar_trivial_radix_ciphertext_async<Torus>(
-          streams.stream(0), streams.gpu_index(0),
-          lwe_array_out_packed, 1, message_modulus, carry_modulus);
+          streams.stream(0), streams.gpu_index(0), lwe_array_out_packed, 1,
+          message_modulus, carry_modulus);
     }
     return;
   }
@@ -568,7 +568,7 @@ __host__ void host_compute_eq_selectors_ct_vs_clears(
   }
 
   // Step 3: Batched tree reduction — AND-reduce the per-entry comparison
-  // blocks using accumulate_all_blocks_batched + is_max_value PBS.
+  // blocks using host_accumulate_all_blocks_batched + is_max_value PBS.
   // The data is in row-major layout: entry_i occupies blocks
   // [i*num_blocks .. (i+1)*num_blocks).
   uint32_t max_value = mem_ptr->max_value;
@@ -585,7 +585,7 @@ __host__ void host_compute_eq_selectors_ct_vs_clears(
     uint32_t last_chunk_length =
         blocks_per_entry - (num_chunks - 1) * max_value;
 
-    accumulate_all_blocks_batched<Torus>(
+    host_accumulate_all_blocks_batched<Torus>(
         streams.stream(0), streams.gpu_index(0), (Torus *)tree_accumulator->ptr,
         current_input_ptr, big_lwe_dimension, blocks_per_entry, max_value,
         num_possible_values, num_chunks);

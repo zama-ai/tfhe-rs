@@ -388,7 +388,6 @@ impl CudaServerKey {
         let concatenated_values = kv_store.to_vec(streams);
         let clear_keys: Vec<Key> = kv_store.iter().map(|(k, _)| *k).collect();
 
-        // Initialize the output
         let mut result_ct: Ct = self.create_trivial_zero_radix(num_blocks_per_value, streams);
         let mut result_bool = CudaBooleanBlock(
             self.create_trivial_zero_radix::<CudaUnsignedRadixCiphertext>(1, streams),
@@ -421,6 +420,19 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
+        // num_blocks_per_value is bounded by GPU memory; it cannot exceed u32::MAX
+        let num_blocks_per_value_u32 =
+            u32::try_from(num_blocks_per_value).expect("num_blocks_per_value exceeds u32::MAX");
+
+        // SAFETY: result_ct, result_bool and selectors_ct are freshly allocated on
+        // the device bound to `streams` and are passed mutably for exclusive write
+        // access; the keys, concatenated values and bootstrapping/keyswitching keys
+        // are read-only and live on that same device. clear_keys has one entry per
+        // store value, matching the num_entries used to size selectors_ct, and every
+        // value holds num_blocks_per_value blocks. The kernels are enqueued on
+        // `streams`; the returned ciphertexts carry those same streams, so any
+        // downstream host access only happens after a synchronization on the
+        // ordered stream.
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -432,7 +444,7 @@ impl CudaServerKey {
                         encrypted_key.as_ref(),
                         &concatenated_values,
                         &clear_keys,
-                        num_blocks_per_value as u32,
+                        num_blocks_per_value_u32,
                         self.message_modulus,
                         self.carry_modulus,
                         &d_bsk.d_vec,
@@ -459,7 +471,7 @@ impl CudaServerKey {
                         encrypted_key.as_ref(),
                         &concatenated_values,
                         &clear_keys,
-                        num_blocks_per_value as u32,
+                        num_blocks_per_value_u32,
                         self.message_modulus,
                         self.carry_modulus,
                         &d_multibit_bsk.d_vec,
@@ -654,9 +666,17 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
+        // num_blocks_per_value is bounded by GPU memory; it cannot exceed u32::MAX
         let num_blocks_per_value_u32 =
             u32::try_from(num_blocks_per_value).expect("num_blocks_per_value exceeds u32::MAX");
 
+        // SAFETY: d_check_block and d_updated_values are freshly allocated on the
+        // device bound to `streams` and passed mutably for exclusive write access;
+        // d_updated_values holds map.len() * num_blocks_per_value blocks, matching
+        // the concatenated old values. The key, new value, old values and
+        // bootstrapping/keyswitching keys are read-only and live on the same device.
+        // clear_keys has one entry per store value. All buffers outlive the call,
+        // which synchronizes the stream before returning.
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -780,6 +800,7 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
+        // num_blocks_per_value is bounded by GPU memory; it cannot exceed u32::MAX
         let num_blocks_per_value_u32 =
             u32::try_from(num_blocks_per_value).expect("num_blocks_per_value exceeds u32::MAX");
 
@@ -790,6 +811,13 @@ impl CudaServerKey {
         let mut d_updated_values: CudaUnsignedRadixCiphertext =
             self.create_trivial_zero_radix(total_blocks, streams);
 
+        // SAFETY: d_check_block and d_updated_values are freshly allocated on the
+        // device bound to `streams` and passed mutably for exclusive write access;
+        // d_updated_values holds map.len() * num_blocks_per_value blocks, matching
+        // the concatenated old values. The old values, new value and selectors are
+        // read-only, as are the bootstrapping/keyswitching keys, and all live on the
+        // same device. selectors_ct carries num_entries blocks, one per store value.
+        // All buffers outlive the call, which synchronizes the stream before returning.
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
