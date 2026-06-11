@@ -50,14 +50,13 @@ __host__ void zero_out_if(CudaStreams streams,
 // num_blocks_per_ct blocks). lwe_conditions holds N single-block encrypted
 // booleans (one per entry).
 template <typename Torus, typename KSTorus>
-__host__ void
-zero_out_if_batch(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-                  CudaRadixCiphertextFFI const *lwe_array_input,
-                  CudaRadixCiphertextFFI const *lwe_conditions,
-                  int_zero_out_if_batch_buffer<Torus> *mem_ptr,
-                  int_radix_lut<Torus> *predicate, void *const *bsks,
-                  KSTorus *const *ksks, uint32_t num_entries,
-                  uint32_t num_blocks_per_ct) {
+__host__ void host_zero_out_if_batch(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_input,
+    CudaRadixCiphertextFFI const *lwe_conditions,
+    int_zero_out_if_batch_buffer<Torus> *mem_ptr,
+    int_radix_lut<Torus> *predicate, void *const *bsks, KSTorus *const *ksks,
+    uint32_t num_entries, uint32_t num_blocks_per_ct) {
 
   uint32_t total_num_blocks =
       static_cast<uint32_t>(safe_mul((size_t)num_entries, num_blocks_per_ct));

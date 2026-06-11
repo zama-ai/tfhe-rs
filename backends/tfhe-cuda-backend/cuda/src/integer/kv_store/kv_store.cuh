@@ -68,10 +68,10 @@ host_kv_store_get(CudaStreams streams,
   // are looking for, in case it is contained in the store.
   PUSH_RANGE("get: one-hot vector")
   auto lwe_one_hot_vector = tmp_cmux_array;
-  zero_out_if_batch(streams, lwe_one_hot_vector, lwe_array_in_values,
-                    lwe_array_out_selectors, mem_zero_out_batch_buffer,
-                    one_hot_vector_predicate, bsks, ksks, num_entries,
-                    num_value_blocks);
+  host_zero_out_if_batch(streams, lwe_one_hot_vector, lwe_array_in_values,
+                         lwe_array_out_selectors, mem_zero_out_batch_buffer,
+                         one_hot_vector_predicate, bsks, ksks, num_entries,
+                         num_value_blocks);
   POP_RANGE()
 
   // Step 3: Sum all elements in the vector (value-block-count dependent)
@@ -79,8 +79,7 @@ host_kv_store_get(CudaStreams streams,
   host_binary_tree_fold_sum_dispatch<Torus>(
       streams, lwe_array_out_result, lwe_one_hot_vector, num_entries,
       num_value_blocks, mem_ptr->params.polynomial_size, message_modulus,
-      carry_modulus, bsks, ksks, mem_ptr->identity_lut,
-      mem_ptr->tmp_lwe_array_clean);
+      carry_modulus, bsks, ksks, mem_ptr->identity_lut);
   POP_RANGE()
 
   //  OR all selectors

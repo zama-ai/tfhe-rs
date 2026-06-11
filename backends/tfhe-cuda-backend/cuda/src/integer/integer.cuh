@@ -2618,16 +2618,59 @@ __global__ void device_binary_tree_fold(Torus *__restrict__ data,
   }
 }
 
-// Reduces num_entries ciphertexts into one by pairwise addition in a binary
-// tree. Each level doubles noise, so periodic identity-PBS rounds reset it to
-// NOMINAL. Uses the optimized device_binary_tree_fold kernel.
+// Reduces num_entries one-hot radix ciphertexts (every block PBS-fresh, noise
+// level 1) into one by pairwise addition, with an identity PBS resetting noise
+// once per round.
+//
+// Noise budget: a max-degree-1 block tolerates additions until its noise
+// reaches M = (message_modulus * carry_modulus - 1) / (message_modulus - 1)
+// (M = 5 for the 2_2 parameter set), the largest factor by which such blocks
+// can be summed before a PBS is mandatory. Plain pairwise folding doubles noise
+// per level, so it can only run L = floor(log2(M)) levels per PBS, achieving a
+// factor 2^L < M of entry reduction. The schedule below reaches the full
+// factor M per PBS round.
+//
+// Reserve-tail-and-absorb round (R survivors in, all noise 1):
+//
+//   M = max_noise, L = floor(log2(M)), extra = M - 2^L
+//   G = floor(R / M), T = G * extra (reserved tail), F = R - T (front)
+//
+//   [0 .......................... F)[F ............ R)
+//    front: L pairwise fold levels    reserved tail (noise 1, untouched)
+//    F -> ... -> S survivors          T = G * extra entries
+//    (survivors at noise <= 2^L)
+//         |
+//   absorb: for k in [0, extra), add tail entries [F + k*G, F + (k+1)*G) onto
+//   survivors [0, G), one fold-kernel launch per k. Each absorb adds noise 1,
+//   lifting the G absorb targets from 2^L to exactly 2^L + extra = M.
+//         |
+//   batched identity PBS over S survivors -> all noise 1, repeat with R' = S
+//
+// The absorb targets are a subset of the fold survivors, so the round survivor
+// count S is just the post-fold front count; kv_sum_pbs_round_survivors is the
+// single source of truth shared with the scratch allocation. For N = 1024 and
+// M = 5 the round sequence is 1024 -> 205 -> 41 -> 9 -> 2 -> 1.
+//
+// Edge cases:
+//   - R < M: G = 0, so T = 0 and the reservation is skipped; folding runs for
+//     up to L levels (stopping at one entry), leaving noise <= 2^L <= M.
+//   - extra == 0 (M a power of two): absorb is a no-op; the round reduces
+//     exactly to L fold levels. No zero-width kernel is launched.
+//   - A partially-folded result never re-enters the loop without a PBS reset:
+//     the per-round PBS runs whenever more than one survivor remains, and the
+//     unconditional final PBS into output handles the last entry.
+//
+// The identity PBS runs in-place: the keyswitch inside
+// integer_radix_apply_univariate_lookup_table consumes the input into LUT-owned
+// scratch before the PBS writes the output, so passing the same slice as in and
+// out is safe (matching the precedent in vector_find.cuh). It also resets the
+// surviving blocks' degrees and noise from lut->degrees.
 template <typename Torus, class params>
 __host__ void host_binary_tree_fold_sum(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI *input, uint32_t num_entries, uint32_t num_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, void *const *bsks,
-    Torus *const *ksks, int_radix_lut<Torus> *identity_lut,
-    CudaRadixCiphertextFFI *tmp_lwe_array_clean) {
+    Torus *const *ksks, int_radix_lut<Torus> *identity_lut) {
 
   auto stream = streams.stream(0);
   auto gpu_index = streams.gpu_index(0);
@@ -2641,24 +2684,46 @@ __host__ void host_binary_tree_fold_sum(
   cuda_set_device(gpu_index);
 
   auto lwe_size = input->lwe_dimension + 1;
-  uint32_t entry_size = static_cast<uint32_t>(
-      safe_mul(static_cast<size_t>(num_blocks), static_cast<size_t>(lwe_size)));
+  size_t entry_size_sz =
+      safe_mul(static_cast<size_t>(num_blocks), static_cast<size_t>(lwe_size));
+  // The fold kernel addresses elements with uint32_t flat indices, while
+  // getNumBlocksAndThreads takes a signed int element count. entry_size feeds
+  // the element count (via total_elements), so it must fit in int to stay
+  // non-negative; a pure offset only needs to fit in uint32_t.
+  bool entry_size_fits = entry_size_sz <= std::numeric_limits<int>::max();
+  PANIC_IF_FALSE(entry_size_fits,
+                 "Cuda error (binary_tree_fold_sum): entry size exceeds "
+                 "uint32_t range");
+  uint32_t entry_size = static_cast<uint32_t>(entry_size_sz);
   auto *data = static_cast<Torus *>(input->ptr);
 
   uint32_t max_noise =
       (message_modulus * carry_modulus - 1) / (message_modulus - 1);
-  uint32_t max_levels_before_pbs = log2_int(max_noise);
+  uint32_t fold_levels = log2_int(max_noise);
+  uint32_t extra = max_noise - (1u << fold_levels);
 
-  uint32_t levels_since_pbs = 0;
-  uint32_t remaining = num_entries;
-
-  while (remaining > 1) {
-    uint32_t half = remaining / 2;
-    uint32_t right_start = remaining - half;
-    uint32_t total_elements = static_cast<uint32_t>(
-        safe_mul(static_cast<size_t>(half), static_cast<size_t>(entry_size)));
-    uint32_t right_offset = static_cast<uint32_t>(safe_mul(
-        static_cast<size_t>(right_start), static_cast<size_t>(entry_size)));
+  // Launches device_binary_tree_fold to add the entries starting at
+  // right_entry_start onto the entries starting at 0, for count entries.
+  auto fold = [&](uint32_t count, uint32_t right_entry_start) {
+    size_t total_elements_sz =
+        safe_mul(static_cast<size_t>(count), static_cast<size_t>(entry_size));
+    size_t right_offset_sz = safe_mul(static_cast<size_t>(right_entry_start),
+                                      static_cast<size_t>(entry_size));
+    // total_elements is the signed-int element count passed to
+    // getNumBlocksAndThreads, so it must fit in int; right_offset only indexes
+    // the kernel's uint32_t addressing and only needs the uint32_t bound.
+    bool total_elements_fits =
+        total_elements_sz <= std::numeric_limits<int>::max();
+    bool right_offset_fits =
+        right_offset_sz <= std::numeric_limits<uint32_t>::max();
+    PANIC_IF_FALSE(total_elements_fits,
+                   "Cuda error (binary_tree_fold_sum): fold element count "
+                   "exceeds int range");
+    PANIC_IF_FALSE(right_offset_fits,
+                   "Cuda error (binary_tree_fold_sum): fold right offset "
+                   "exceeds uint32_t range");
+    uint32_t total_elements = static_cast<uint32_t>(total_elements_sz);
+    uint32_t right_offset = static_cast<uint32_t>(right_offset_sz);
 
     // One thread per Torus word, sized so the grid-stride loop typically does a
     // single iteration. getNumBlocksAndThreads caps the launch; the loop covers
@@ -2670,43 +2735,73 @@ __host__ void host_binary_tree_fold_sum(
         <<<num_cuda_blocks, num_threads, 0, stream>>>(data, right_offset,
                                                       total_elements);
     check_cuda_error(cudaGetLastError());
+  };
 
-    for (uint32_t p = 0; p < half; p++) {
-      for (uint32_t b = 0; b < num_blocks; b++) {
-        uint32_t left_block = p * num_blocks + b;
-        uint32_t right_block = (right_start + p) * num_blocks + b;
-        input->degrees[left_block] += input->degrees[right_block];
-        input->noise_levels[left_block] += input->noise_levels[right_block];
-        CHECK_NOISE_LEVEL(input->noise_levels[left_block], message_modulus,
-                          carry_modulus);
+  // Adds the right entry's per-block degree and noise onto the left entry and
+  // validates the resulting noise, mirroring the device-side fold.
+  auto update_metadata = [&](uint32_t left_entry, uint32_t right_entry) {
+    for (uint32_t b = 0; b < num_blocks; b++) {
+      uint32_t left_block = left_entry * num_blocks + b;
+      uint32_t right_block = right_entry * num_blocks + b;
+      input->degrees[left_block] += input->degrees[right_block];
+      input->noise_levels[left_block] += input->noise_levels[right_block];
+      CHECK_NOISE_LEVEL(input->noise_levels[left_block], message_modulus,
+                        carry_modulus);
+    }
+  };
+
+  uint32_t remaining = num_entries;
+
+  while (remaining > 1) {
+    uint32_t group_size = remaining / max_noise;
+    uint32_t reserved_tail = group_size * extra;
+    uint32_t front = remaining - reserved_tail;
+
+    uint32_t survivors = front;
+    for (uint32_t level = 0; level < fold_levels && survivors > 1; level++) {
+      uint32_t half = survivors / 2;
+      // Ceil semantics: the last entry of an odd front is left untouched at
+      // lower noise, which is strictly within budget.
+      uint32_t right_start = survivors - half;
+      for (uint32_t p = 0; p < half; p++)
+        update_metadata(p, right_start + p);
+      fold(half, right_start);
+      survivors = right_start;
+    }
+
+    // Absorb the reserved tail onto the first group_size survivors. Launch k
+    // adds tail entries [front + k*group_size, front + (k+1)*group_size) onto
+    // survivors [0, group_size). When group_size == 0 (remaining < max_noise)
+    // there is no tail, and when extra == 0 (max_noise a power of two) the loop
+    // body never runs; the group_size guard skips both cases so no zero-grid
+    // kernel is launched.
+    if (group_size > 0) {
+      for (uint32_t k = 0; k < extra; k++) {
+        uint32_t tail_start = front + k * group_size;
+        for (uint32_t p = 0; p < group_size; p++)
+          update_metadata(p, tail_start + p);
+        fold(group_size, tail_start);
       }
     }
 
-    remaining = right_start;
-    levels_since_pbs++;
+    remaining = survivors;
 
-    if (levels_since_pbs >= max_levels_before_pbs && remaining > 1) {
+    if (remaining > 1) {
       uint32_t total_surviving_blocks = remaining * num_blocks;
-
-      copy_radix_ciphertext_slice_async<Torus>(
-          stream, gpu_index, tmp_lwe_array_clean, 0, total_surviving_blocks,
-          input, 0, total_surviving_blocks);
+      CudaRadixCiphertextFFI survivors_slice;
+      as_radix_ciphertext_slice<Torus>(&survivors_slice, input, 0,
+                                       total_surviving_blocks);
 
       integer_radix_apply_univariate_lookup_table<Torus>(
-          streams, input, tmp_lwe_array_clean, bsks, ksks, identity_lut,
+          streams, &survivors_slice, &survivors_slice, bsks, ksks, identity_lut,
           total_surviving_blocks);
-
-      levels_since_pbs = 0;
     }
   }
 
-  copy_radix_ciphertext_slice_async<Torus>(stream, gpu_index,
-                                           tmp_lwe_array_clean, 0, num_blocks,
-                                           input, 0, num_blocks);
-
+  CudaRadixCiphertextFFI final_slice;
+  as_radix_ciphertext_slice<Torus>(&final_slice, input, 0, num_blocks);
   integer_radix_apply_univariate_lookup_table<Torus>(
-      streams, output, tmp_lwe_array_clean, bsks, ksks, identity_lut,
-      num_blocks);
+      streams, output, &final_slice, bsks, ksks, identity_lut, num_blocks);
 }
 
 template <typename Torus>
@@ -2714,43 +2809,42 @@ __host__ void host_binary_tree_fold_sum_dispatch(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI *input, uint32_t num_entries, uint32_t num_blocks,
     uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
-    void *const *bsks, Torus *const *ksks, int_radix_lut<Torus> *identity_lut,
-    CudaRadixCiphertextFFI *tmp_lwe_array_clean) {
+    void *const *bsks, Torus *const *ksks, int_radix_lut<Torus> *identity_lut) {
   switch (polynomial_size) {
   case 256:
     host_binary_tree_fold_sum<Torus, Degree<256>>(
         streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+        carry_modulus, bsks, ksks, identity_lut);
     break;
   case 512:
     host_binary_tree_fold_sum<Torus, Degree<512>>(
         streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+        carry_modulus, bsks, ksks, identity_lut);
     break;
   case 1024:
     host_binary_tree_fold_sum<Torus, Degree<1024>>(
         streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+        carry_modulus, bsks, ksks, identity_lut);
     break;
   case 2048:
     host_binary_tree_fold_sum<Torus, Degree<2048>>(
         streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+        carry_modulus, bsks, ksks, identity_lut);
     break;
   case 4096:
     host_binary_tree_fold_sum<Torus, Degree<4096>>(
         streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+        carry_modulus, bsks, ksks, identity_lut);
     break;
   case 8192:
     host_binary_tree_fold_sum<Torus, Degree<8192>>(
         streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+        carry_modulus, bsks, ksks, identity_lut);
     break;
   case 16384:
     host_binary_tree_fold_sum<Torus, Degree<16384>>(
         streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut, tmp_lwe_array_clean);
+        carry_modulus, bsks, ksks, identity_lut);
     break;
   default:
     PANIC("Cuda error (binary_tree_fold_sum): unsupported polynomial size. "
