@@ -7,188 +7,6 @@
 #include "integer/radix_ciphertext.cuh"
 #include "integer/vector_find.h"
 
-// Accumulates chunks of LWE blocks for multiple entries in a single kernel.
-// Each CUDA block (in the y-dimension) handles one (entry, chunk) pair,
-// summing chunk_length adjacent LWE blocks element-wise into one output block.
-template <typename Torus>
-__global__ void device_accumulate_all_blocks_batched(
-    Torus *output, Torus const *input, uint32_t lwe_dimension,
-    uint32_t blocks_per_entry, uint32_t max_value,
-    uint32_t num_chunks_per_entry) {
-  uint32_t lwe_idx = threadIdx.x + blockIdx.x * blockDim.x;
-  if (lwe_idx >= lwe_dimension + 1)
-    return;
-
-  uint32_t chunk_flat_idx = blockIdx.y;
-  uint32_t entry_idx = chunk_flat_idx / num_chunks_per_entry;
-  uint32_t chunk_idx = chunk_flat_idx % num_chunks_per_entry;
-
-  uint32_t chunk_start = chunk_idx * max_value;
-  uint32_t chunk_length = min(max_value, blocks_per_entry - chunk_start);
-
-  uint32_t stride = lwe_dimension + 1;
-  Torus const *base =
-      &input[(entry_idx * blocks_per_entry + chunk_start) * stride];
-
-  Torus sum = base[lwe_idx];
-  for (uint32_t i = 1; i < chunk_length; i++) {
-    sum += base[lwe_idx + i * stride];
-  }
-
-  output[chunk_flat_idx * stride + lwe_idx] = sum;
-}
-
-template <typename Torus>
-__host__ void host_accumulate_all_blocks_batched(
-    cudaStream_t stream, uint32_t gpu_index, Torus *output, Torus const *input,
-    uint32_t lwe_dimension, uint32_t blocks_per_entry, uint32_t max_value,
-    uint32_t num_entries, uint32_t num_chunks_per_entry) {
-  cuda_set_device(gpu_index);
-  int num_blocks_x = 0, num_threads = 0;
-  getNumBlocksAndThreads(lwe_dimension + 1, 512, num_blocks_x, num_threads);
-  dim3 grid(num_blocks_x, num_entries * num_chunks_per_entry);
-  device_accumulate_all_blocks_batched<Torus><<<grid, num_threads, 0, stream>>>(
-      output, input, lwe_dimension, blocks_per_entry, max_value,
-      num_chunks_per_entry);
-  check_cuda_error(cudaGetLastError());
-}
-
-// Given one encrypted radix ciphertext (num_blocks blocks, each a digit in
-// [0, message_modulus)) and N cleartext candidates (e.g. KV-store keys),
-// produces N encrypted booleans: selector_i = Enc(input == candidate_i).
-//
-// Uses a batched tree reduction: precompute all per-block comparisons in one
-// batched PBS, gather each candidate's results, then AND-reduce with
-// host_accumulate_all_blocks_batched + is_max_value PBS.
-template <typename Torus>
-__host__ void host_compute_equality_selectors(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_list,
-    CudaRadixCiphertextFFI const *lwe_array_in, uint32_t num_blocks,
-    const uint64_t *h_decomposed_cleartexts,
-    int_equality_selectors_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
-
-  uint32_t num_possible_values = mem_ptr->num_possible_values;
-  uint32_t message_modulus = mem_ptr->params.message_modulus;
-  uint32_t carry_modulus = mem_ptr->params.carry_modulus;
-  auto big_lwe_dimension = mem_ptr->params.big_lwe_dimension;
-
-  // Step 1: Grid PBS — constant cost regardless of N
-  integer_radix_apply_many_univariate_lookup_table<Torus>(
-      streams, mem_ptr->tmp_many_luts_output, lwe_array_in, bsks,
-      (Torus *const *)ksks, mem_ptr->comparison_luts, message_modulus,
-      mem_ptr->lut_stride);
-
-  if (num_blocks == 0) {
-    for (uint32_t i = 0; i < num_possible_values; i++) {
-      set_single_scalar_trivial_radix_ciphertext_async<Torus>(
-          streams.stream(0), streams.gpu_index(0), &lwe_array_out_list[i], 1,
-          message_modulus, carry_modulus);
-    }
-    return;
-  }
-
-  // Step 2: Gather comparison blocks for all candidates into a flat buffer.
-  auto batched = mem_ptr->batched_comparisons;
-  for (uint32_t i = 0; i < num_possible_values; i++) {
-    const uint64_t *current_clear_blocks =
-        &h_decomposed_cleartexts[i * num_blocks];
-
-    for (uint32_t j = 0; j < num_blocks; j++) {
-      uint64_t block_value = current_clear_blocks[j];
-
-      if (block_value >= message_modulus) {
-        PANIC("Cuda error: block value in compute_equality_selectors "
-              "exceeds message modulus");
-      }
-
-      uint32_t src_idx = (uint32_t)block_value * num_blocks + j;
-      uint32_t dst_idx = i * num_blocks + j;
-
-      copy_radix_ciphertext_slice_async<Torus>(
-          streams.stream(0), streams.gpu_index(0), batched, dst_idx,
-          dst_idx + 1, mem_ptr->tmp_many_luts_output, src_idx, src_idx + 1);
-    }
-  }
-
-  if (num_blocks == 1) {
-    for (uint32_t i = 0; i < num_possible_values; i++) {
-      copy_radix_ciphertext_slice_async<Torus>(
-          streams.stream(0), streams.gpu_index(0), &lwe_array_out_list[i], 0, 1,
-          batched, i, i + 1);
-    }
-    reset_radix_ciphertext_blocks(&lwe_array_out_list[0], 1);
-    return;
-  }
-
-  // Step 3: Batched tree reduction.
-  uint32_t max_value = mem_ptr->max_value;
-  auto is_max_value_lut = mem_ptr->is_max_value_lut;
-  auto tree_accumulator = mem_ptr->tree_accumulator;
-  auto tree_pbs_output = mem_ptr->tree_pbs_output;
-
-  Torus *current_input_ptr = (Torus *)batched->ptr;
-  uint32_t blocks_per_entry = num_blocks;
-
-  while (blocks_per_entry > 1) {
-    uint32_t num_chunks = CEIL_DIV(blocks_per_entry, max_value);
-    uint32_t total_chunks = num_possible_values * num_chunks;
-    uint32_t last_chunk_length =
-        blocks_per_entry - (num_chunks - 1) * max_value;
-
-    host_accumulate_all_blocks_batched<Torus>(
-        streams.stream(0), streams.gpu_index(0), (Torus *)tree_accumulator->ptr,
-        current_input_ptr, big_lwe_dimension, blocks_per_entry, max_value,
-        num_possible_values, num_chunks);
-
-    if (last_chunk_length != max_value) {
-      auto is_equal_to_last_f = [last_chunk_length](Torus x) -> Torus {
-        return x == last_chunk_length;
-      };
-
-      uint32_t lut_num_blocks = is_max_value_lut->num_blocks;
-      auto index_gen = [num_chunks, total_chunks,
-                        lut_num_blocks](Torus *h_lut_indexes, uint32_t) {
-        for (uint32_t idx = 0; idx < lut_num_blocks; idx++) {
-          if (idx < total_chunks && (idx % num_chunks) == num_chunks - 1) {
-            h_lut_indexes[idx] = 1;
-          } else {
-            h_lut_indexes[idx] = 0;
-          }
-        }
-      };
-
-      auto active =
-          streams.active_gpu_subset(total_chunks, mem_ptr->params.pbs_type);
-      is_max_value_lut->generate_and_broadcast_lut(
-          active, {1}, {is_equal_to_last_f}, index_gen, true,
-          {mem_ptr->preallocated_h_lut});
-    }
-
-    integer_radix_apply_univariate_lookup_table<Torus>(
-        streams, tree_pbs_output, tree_accumulator, bsks, ksks,
-        is_max_value_lut, total_chunks);
-
-    if (last_chunk_length != max_value) {
-      auto active = streams.active_gpu_subset(is_max_value_lut->num_blocks,
-                                              mem_ptr->params.pbs_type);
-      is_max_value_lut->set_lut_indexes_and_broadcast_constant(active, 0);
-    }
-
-    current_input_ptr = (Torus *)tree_pbs_output->ptr;
-    blocks_per_entry = num_chunks;
-  }
-
-  // Step 4: Scatter single-block results to per-entry outputs
-  CudaRadixCiphertextFFI *result_source =
-      (blocks_per_entry == num_blocks) ? batched : tree_pbs_output;
-  for (uint32_t i = 0; i < num_possible_values; i++) {
-    copy_radix_ciphertext_slice_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), &lwe_array_out_list[i], 0, 1,
-        result_source, i, i + 1);
-  }
-}
-
 // gridDim.x == current_chunk_size, gridDim.y == num_blocks.
 template <typename T>
 __global__ void
@@ -417,40 +235,6 @@ Args:
 - h_decomposed_cleartexts: CPU flat array of the decomposed clear values
 - bsks, ksks: keys
 */
-// Given one encrypted radix ciphertext (num_blocks blocks, each a digit in
-// [0, message_modulus)) and N cleartext candidates (e.g. KV-store keys),
-// produces N encrypted booleans: selector_i = Enc(input == candidate_i).
-//
-// Candidates live in h_decomposed_cleartexts, a flat array where candidate i
-// occupies [i*num_blocks .. (i+1)*num_blocks). N =
-// mem_ptr->num_possible_values.
-//
-// A per-candidate approach costs N * num_blocks PBS. Since there are only
-// message_modulus possible digit values (typically 2 or 4), we instead
-// precompute all per-block comparisons in one batched PBS, then let each
-// candidate pick the results it needs via memcpy:
-//
-// Step 1 — One batched PBS builds a message_modulus x num_blocks grid:
-//
-//                       block 0    block 1    block 2
-//                     ┌──────────┬──────────┬──────────┐
-//     LUT for v=0     │ b0==0?   │ b1==0?   │ b2==0?   │
-//     LUT for v=1     │ b0==1?   │ b1==1?   │ b2==1?   │
-//     LUT for v=2     │ b0==2?   │ b1==2?   │ b2==2?   │
-//     LUT for v=3     │ b0==3?   │ b1==3?   │ b2==3?   │
-//                     └──────────┴──────────┴──────────┘
-//     Flat: tmp_many_luts_output[v * num_blocks + j]
-//
-// Step 2 — For each candidate i with digits [d0, d1, ..], gather grid[dj][j]
-//   for all j into a flat N*num_blocks buffer.
-//
-// Step 3 — AND-reduce across all candidates simultaneously using a batched
-//   tree: at each level, accumulate chunks and apply one large batched PBS.
-//   This replaces per-candidate AND-trees with 2 batched PBS calls (for
-//   typical 2_2 params with 16-block keys).
-//
-// Cost: message_modulus * num_blocks PBS (grid, constant)
-//     + sum_levels(N * chunks_at_level) PBS (batched tree)
 template <typename Torus>
 __host__ void host_compute_eq_selectors_ct_vs_clears(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_packed,
@@ -459,119 +243,81 @@ __host__ void host_compute_eq_selectors_ct_vs_clears(
     int_eq_selectors_ct_vs_clears_buffer<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks) {
 
+  // A num_blocks of 0 would produce an all-zero selector matrix instead of the
+  // trivial all-match result, so the radix-block count is required to be at
+  // least 1. All callers derive num_blocks from a non-empty radix ciphertext.
+  PANIC_IF_FALSE(num_blocks >= 1, "num_blocks must be at least 1 in "
+                                  "host_compute_eq_selectors_ct_vs_clears");
+
   uint32_t num_possible_values = mem_ptr->num_possible_values;
   uint32_t message_modulus = mem_ptr->params.message_modulus;
   uint32_t carry_modulus = mem_ptr->params.carry_modulus;
-  uint32_t big_lwe_dimension = mem_ptr->params.big_lwe_dimension;
+  uint32_t max_degree = mem_ptr->max_degree;
 
-  // Step 1: Grid PBS — precompute all per-block equality indicators.
-  // One batched PBS builds a message_modulus x num_blocks grid where
-  // grid[v][j] = Enc(input_block_j == v).
+  // For every block in the input radix ciphertext lwe_array_in, precompute
+  // indicators of equality to all possible values of the block
+  // (0..2**(message_modulus+carry_modulus)-1).
+  // Using only num_blocks multi-variate PBS an indicator matrix is produced
+  // where columns are one-hot vectors indicating the active value in the input
+  // block.
+  // The indicator matrix can be used to assess equality for ALL the clear
+  // values to be matched
   integer_radix_apply_many_univariate_lookup_table<Torus>(
       streams, &mem_ptr->tmp_many_luts_output, lwe_array_in, bsks,
       (Torus *const *)ksks, mem_ptr->comparison_luts, message_modulus,
       mem_ptr->lut_stride);
 
-  if (num_blocks == 0) {
-    for (uint32_t i = 0; i < num_possible_values; i++) {
-      set_single_scalar_trivial_radix_ciphertext_async<Torus>(
-          streams.stream(0), streams.gpu_index(0), lwe_array_out_packed, 1,
-          message_modulus, carry_modulus);
-    }
-    return;
-  }
-
-  // Step 2: Gather — for each candidate i, extract its comparison blocks
-  // from the grid PBS output into a flat row-major buffer:
-  //   batched[i * num_blocks + j] = grid[decomposed[i][j]][j]
+  // Equality between the input radix-ciphertext and each decomposed clear value
+  // is determined by inspecting the indicator matrix cells corresponding to the
+  // decomposed clear value.
+  // Eg. for clear value = 20, the decomposed clear value with 2_2 params is
+  // [1, 1, 0]. Thus we extract the cells [indicator_matrix[0,1],
+  // indicator_matrix[1,1], indicator_matrix[2,0]]. If all these cells are 1
+  // then the input radix-ciphertext matched this clear value.
   Torus *h_map = mem_ptr->h_map;
   uint32_t total_blocks = num_possible_values * num_blocks;
-  for (uint32_t i = 0; i < num_possible_values; i++) {
-    for (uint32_t j = 0; j < num_blocks; j++) {
+  for (uint32_t j = 0; j < num_blocks; j++) {
+    for (uint32_t i = 0; i < num_possible_values; i++) {
       uint64_t block_value = h_decomposed_cleartexts[i * num_blocks + j];
       if (block_value >= message_modulus)
         PANIC("Cuda error: block value in compute_equality_selectors exceeds "
               "message modulus");
-      h_map[i * num_blocks + j] = (Torus)block_value * num_blocks + j;
+      h_map[j * num_possible_values + i] = (Torus)block_value * num_blocks + j;
     }
   }
   cuda_memcpy_async_to_gpu(mem_ptr->d_map, h_map,
                            safe_mul_sizeof<Torus>(total_blocks),
                            streams.stream(0), streams.gpu_index(0));
 
+  // Extract the indicator booleans for each clear value to be matched and group
+  // them in a flat contiguous 2d array of LWE in order, so that each column
+  // contains the booleans corresponding to a single clear value. The 2d array
+  // is of size num_blocks (rows) x num_clear_values (cols)
   uint32_t lwe_size = mem_ptr->tmp_batched_comparisons.lwe_dimension + 1;
   align_with_indexes<Torus><<<total_blocks, 256, 0, streams.stream(0)>>>(
       (Torus *)mem_ptr->tmp_batched_comparisons.ptr,
       (Torus *)mem_ptr->tmp_many_luts_output.ptr, mem_ptr->d_map, lwe_size);
   check_cuda_error(cudaGetLastError());
 
-  if (num_blocks == 1) {
-    // Each candidate needs exactly one comparison block; no tree reduction.
-    copy_radix_ciphertext_slice_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), lwe_array_out_packed, 0,
-        num_possible_values, &mem_ptr->tmp_batched_comparisons, 0,
-        num_possible_values);
-    return;
+  // Reset the noise levels since this buffer can be reused and noise is checked
+  // at the start of PBS
+  for (uint32_t b = 0; b < total_blocks; b++) {
+    mem_ptr->tmp_batched_comparisons.degrees[b] = 1;
+    mem_ptr->tmp_batched_comparisons.noise_levels[b] = NoiseLevel::NOMINAL;
   }
 
-  // Step 3: Batched tree reduction — AND-reduce the per-entry comparison
-  // blocks using host_accumulate_all_blocks_batched + is_max_value PBS.
-  // The data is in row-major layout: entry_i occupies blocks
-  // [i*num_blocks .. (i+1)*num_blocks).
-  uint32_t max_value = mem_ptr->max_value;
-  auto is_max_value_lut = mem_ptr->is_max_value_lut;
-  auto tree_accumulator = mem_ptr->tree_accumulator;
-  auto tree_pbs_output = mem_ptr->tree_pbs_output;
+  // And-reduce by rows the indicator 2d array. This produces a 1d vector of
+  // booleans, each indicating whether the input matches one of the clear values
+  host_and_reduce_selector_matrix<Torus>(
+      streams, &mem_ptr->packed_accumulator, &mem_ptr->tmp_batched_comparisons,
+      mem_ptr->luts_eq, mem_ptr->num_luts_needed, num_possible_values,
+      num_blocks, max_degree, message_modulus, carry_modulus, bsks, ksks);
 
-  Torus *current_input_ptr = (Torus *)mem_ptr->tmp_batched_comparisons.ptr;
-  uint32_t blocks_per_entry = num_blocks;
-  uint32_t level = 0;
-
-  while (blocks_per_entry > 1) {
-    uint32_t num_chunks = CEIL_DIV(blocks_per_entry, max_value);
-    uint32_t total_chunks = num_possible_values * num_chunks;
-
-    host_accumulate_all_blocks_batched<Torus>(
-        streams.stream(0), streams.gpu_index(0), (Torus *)tree_accumulator->ptr,
-        current_input_ptr, big_lwe_dimension, blocks_per_entry, max_value,
-        num_possible_values, num_chunks);
-
-    // Update metadata for tree_accumulator
-    for (uint32_t flat = 0; flat < total_chunks; flat++) {
-      uint32_t entry = flat / num_chunks;
-      uint32_t chunk = flat % num_chunks;
-      uint32_t chunk_start = chunk * max_value;
-      uint32_t chunk_len = std::min(max_value, blocks_per_entry - chunk_start);
-      tree_accumulator->degrees[flat] = chunk_len;
-      tree_accumulator->noise_levels[flat] = NoiseLevel::NOMINAL;
-    }
-
-    // Switch to this level's precomputed lut-index buffer (PM2). The is_max LUT
-    // (slot 0) and the per-level is_equal_to_last LUT (slot level+1) are baked
-    // in at scratch time, so we only do a small gpu-to-gpu index copy and
-    // broadcast instead of regenerating the LUT polynomial on the host and
-    // resetting indexes every level.
-    auto active =
-        streams.active_gpu_subset(total_chunks, mem_ptr->params.pbs_type);
-    is_max_value_lut->set_lut_indexes_and_broadcast_from_gpu(
-        active, mem_ptr->d_level_lut_indexes[level], total_chunks);
-
-    integer_radix_apply_univariate_lookup_table<Torus>(
-        streams, tree_pbs_output, tree_accumulator, bsks, ksks,
-        is_max_value_lut, total_chunks);
-
-    current_input_ptr = (Torus *)tree_pbs_output->ptr;
-    blocks_per_entry = num_chunks;
-    level++;
-  }
-
-  // Step 4: Copy single-block results to output
-  CudaRadixCiphertextFFI *result_source =
-      (blocks_per_entry == num_blocks) ? &mem_ptr->tmp_batched_comparisons
-                                       : tree_pbs_output;
+  // Place the output booleans into the output LWE list
   copy_radix_ciphertext_slice_async<Torus>(
       streams.stream(0), streams.gpu_index(0), lwe_array_out_packed, 0,
-      num_possible_values, result_source, 0, num_possible_values);
+      num_possible_values, &mem_ptr->packed_accumulator, 0,
+      num_possible_values);
 }
 
 /*

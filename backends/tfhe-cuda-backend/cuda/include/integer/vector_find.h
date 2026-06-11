@@ -7,180 +7,24 @@
 #include <functional>
 #include <vector>
 
-template <typename Torus> struct int_equality_selectors_buffer {
-  int_radix_params params;
-  bool allocate_gpu_memory;
-  uint32_t lut_stride;
-
-  uint32_t num_possible_values;
-  int_radix_lut<Torus> *comparison_luts;
-  CudaRadixCiphertextFFI *tmp_many_luts_output;
-
-  // Batched tree reduction: instead of per-entry AND-trees on separate streams,
-  // gather all entries' comparison blocks and reduce level-by-level with large
-  // batched PBS calls.
-  CudaRadixCiphertextFFI *batched_comparisons;
-  CudaRadixCiphertextFFI *tree_accumulator;
-  CudaRadixCiphertextFFI *tree_pbs_output;
-  int_radix_lut<Torus> *is_max_value_lut;
-  Torus *preallocated_h_lut;
-  uint32_t max_value;
-  uint32_t max_chunks;
-
-  int_equality_selectors_buffer(CudaStreams streams, int_radix_params params,
-                                uint32_t num_possible_values,
-                                uint32_t num_blocks, bool allocate_gpu_memory,
-                                uint64_t &size_tracker) {
-    this->params = params;
-    this->allocate_gpu_memory = allocate_gpu_memory;
-    this->num_possible_values = num_possible_values;
-
-    auto active_streams =
-        streams.active_gpu_subset(num_blocks, params.pbs_type);
-
-    uint32_t ciphertext_modulus = params.message_modulus * params.carry_modulus;
-    uint32_t box_size = params.polynomial_size / ciphertext_modulus;
-    lut_stride = (ciphertext_modulus / params.message_modulus) * box_size;
-
-    this->comparison_luts = new int_radix_lut<Torus>(
-        streams, params, 1, num_blocks, params.message_modulus,
-        allocate_gpu_memory, size_tracker);
-
-    std::vector<std::function<Torus(Torus)>> fns;
-    fns.reserve(params.message_modulus);
-    for (uint32_t i = 0; i < params.message_modulus; i++) {
-      fns.push_back([i](Torus x) -> Torus { return (x == i); });
-    }
-
-    this->comparison_luts->generate_and_broadcast_many_lut(
-        active_streams, {0}, {fns}, LUT_0_FOR_ALL_BLOCKS);
-    fns.clear();
-
-    this->tmp_many_luts_output = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), this->tmp_many_luts_output,
-        params.message_modulus * num_blocks, params.big_lwe_dimension,
-        size_tracker, allocate_gpu_memory);
-
-    uint32_t total_modulus = params.message_modulus * params.carry_modulus;
-    this->max_value = (total_modulus - 1) / (params.message_modulus - 1);
-    this->max_chunks =
-        (num_blocks > 1) ? CEIL_DIV(num_blocks, this->max_value) : 1;
-
-    this->batched_comparisons = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), this->batched_comparisons,
-        num_possible_values * std::max(num_blocks, 1u),
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-
-    if (num_blocks > 1) {
-      uint32_t acc_blocks = num_possible_values * this->max_chunks;
-
-      this->tree_accumulator = new CudaRadixCiphertextFFI;
-      create_zero_radix_ciphertext_async<Torus>(
-          streams.stream(0), streams.gpu_index(0), this->tree_accumulator,
-          acc_blocks, params.big_lwe_dimension, size_tracker,
-          allocate_gpu_memory);
-
-      this->tree_pbs_output = new CudaRadixCiphertextFFI;
-      create_zero_radix_ciphertext_async<Torus>(
-          streams.stream(0), streams.gpu_index(0), this->tree_pbs_output,
-          acc_blocks, params.big_lwe_dimension, size_tracker,
-          allocate_gpu_memory);
-
-      this->is_max_value_lut = new int_radix_lut<Torus>(
-          streams, params, 2, acc_blocks, allocate_gpu_memory, size_tracker);
-
-      uint32_t mv = this->max_value;
-      auto is_max_fn = [mv](Torus x) -> Torus { return x == mv; };
-      auto lut_active = streams.active_gpu_subset(acc_blocks, params.pbs_type);
-      this->is_max_value_lut->generate_and_broadcast_lut(
-          lut_active, {0}, {is_max_fn}, LUT_0_FOR_ALL_BLOCKS);
-
-      this->preallocated_h_lut = (Torus *)malloc(safe_mul_sizeof<Torus>(
-          params.glwe_dimension + 1, params.polynomial_size));
-    } else {
-      this->tree_accumulator = nullptr;
-      this->tree_pbs_output = nullptr;
-      this->is_max_value_lut = nullptr;
-      this->preallocated_h_lut = nullptr;
-    }
-  }
-
-  void release(CudaStreams streams) {
-    this->comparison_luts->release(streams);
-    delete this->comparison_luts;
-
-    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                   this->tmp_many_luts_output,
-                                   this->allocate_gpu_memory);
-    delete this->tmp_many_luts_output;
-
-    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                   this->batched_comparisons,
-                                   this->allocate_gpu_memory);
-    delete this->batched_comparisons;
-
-    if (this->tree_accumulator) {
-      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                     this->tree_accumulator,
-                                     this->allocate_gpu_memory);
-      delete this->tree_accumulator;
-    }
-    if (this->tree_pbs_output) {
-      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                     this->tree_pbs_output,
-                                     this->allocate_gpu_memory);
-      delete this->tree_pbs_output;
-    }
-    if (this->is_max_value_lut) {
-      this->is_max_value_lut->release(streams);
-      delete this->is_max_value_lut;
-    }
-    free(this->preallocated_h_lut);
-
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-  }
-};
-
 template <typename Torus> struct int_eq_selectors_ct_vs_clears_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
   uint32_t lut_stride;
 
   uint32_t num_possible_values;
+  uint32_t max_degree;
+  uint32_t num_luts_needed;
 
-  // Grid PBS resources (shared step 1)
   int_radix_lut<Torus> *comparison_luts;
   CudaRadixCiphertextFFI tmp_many_luts_output;
-
-  // Gather resources (step 2: align_with_indexes)
   CudaRadixCiphertextFFI tmp_batched_comparisons;
+  CudaRadixCiphertextFFI packed_accumulator;
+
   Torus *d_map;
   Torus *h_map;
 
-  // Tree reduction resources (step 3: host_accumulate_all_blocks_batched + PBS)
-  CudaRadixCiphertextFFI *tree_accumulator;
-  CudaRadixCiphertextFFI *tree_pbs_output;
-  int_radix_lut<Torus> *is_max_value_lut;
-  Torus *preallocated_h_lut;
-  uint32_t max_value;
-  uint32_t max_chunks;
-
-  // Per-level precomputed LUT-index buffers for the tree reduction (PM2).
-  //
-  // The AND-reduction at each tree level packs each entry's blocks into chunks
-  // of size max_value and applies an is_max LUT, except for the (possibly
-  // shorter) last chunk of every entry, which needs an is_equal_to_last LUT
-  // keyed on last_chunk_length. last_chunk_length is a deterministic function
-  // of num_blocks and max_value, so the whole level schedule is known at
-  // scratch time. We bake every distinct is_equal_to_last function into its own
-  // slot of is_max_value_lut (slot 0 stays is_max) and precompute one device
-  // lut-index buffer per level. At runtime the loop only switches indexes
-  // (a small gpu-to-gpu copy + broadcast) instead of regenerating the LUT
-  // polynomial on the host and broadcasting it, then resetting, every level.
-  uint32_t num_tree_levels;
-  Torus **d_level_lut_indexes;
+  std::vector<int_radix_lut<Torus> *> luts_eq;
 
   int_eq_selectors_ct_vs_clears_buffer(CudaStreams streams,
                                        int_radix_params params,
@@ -196,7 +40,6 @@ template <typename Torus> struct int_eq_selectors_ct_vs_clears_buffer {
     uint32_t box_size = params.polynomial_size / ciphertext_modulus;
     lut_stride = (ciphertext_modulus / params.message_modulus) * box_size;
 
-    // Grid PBS LUTs: one per possible block value
     this->comparison_luts = new int_radix_lut<Torus>(
         streams, params, 1, num_blocks, params.message_modulus,
         allocate_gpu_memory, size_tracker);
@@ -217,130 +60,37 @@ template <typename Torus> struct int_eq_selectors_ct_vs_clears_buffer {
         params.message_modulus * num_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    // Gather buffer: row-major layout [entry_0_blk_0, entry_0_blk_1, ...]
-    uint64_t total_blocks64 = (uint64_t)num_possible_values * num_blocks;
-    PANIC_IF_FALSE(total_blocks64 <= UINT32_MAX,
+    uint64_t total_blocks = (uint64_t)num_possible_values * num_blocks;
+    PANIC_IF_FALSE(total_blocks <= UINT32_MAX,
                    "num_possible_values * num_blocks must fit in uint32_t");
-    uint32_t total_blocks = (uint32_t)total_blocks64;
 
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), &this->tmp_batched_comparisons,
-        total_blocks, params.big_lwe_dimension, size_tracker,
+        (uint32_t)total_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
+
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), &this->packed_accumulator,
+        num_possible_values, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
+    this->max_degree = params.max_degree();
+    this->num_luts_needed = std::min(this->max_degree, num_blocks);
+    this->luts_eq.assign(this->num_luts_needed + 1, nullptr);
+    for (uint32_t k = 2; k <= this->num_luts_needed; k++) {
+      auto f_eq_k = [k](Torus x) -> Torus { return (x == k) ? 1 : 0; };
+      this->luts_eq[k] =
+          new int_radix_lut<Torus>(streams, params, 1, num_possible_values,
+                                   allocate_gpu_memory, size_tracker);
+      this->luts_eq[k]->generate_and_broadcast_lut(
+          streams.active_gpu_subset(num_possible_values, params.pbs_type), {0},
+          {f_eq_k}, LUT_0_FOR_ALL_BLOCKS);
+    }
 
     this->h_map = new Torus[total_blocks];
     this->d_map = (Torus *)cuda_malloc_with_size_tracking_async(
         safe_mul_sizeof<Torus>(total_blocks), streams.stream(0),
         streams.gpu_index(0), size_tracker, allocate_gpu_memory);
-
-    // Tree reduction resources
-    uint32_t total_modulus = params.message_modulus * params.carry_modulus;
-    this->max_value = (total_modulus - 1) / (params.message_modulus - 1);
-    this->max_chunks =
-        (num_blocks > 1) ? CEIL_DIV(num_blocks, this->max_value) : 1;
-
-    if (num_blocks > 1) {
-      uint32_t acc_blocks = num_possible_values * this->max_chunks;
-      uint32_t mv = this->max_value;
-
-      this->tree_accumulator = new CudaRadixCiphertextFFI;
-      create_zero_radix_ciphertext_async<Torus>(
-          streams.stream(0), streams.gpu_index(0), this->tree_accumulator,
-          acc_blocks, params.big_lwe_dimension, size_tracker,
-          allocate_gpu_memory);
-
-      this->tree_pbs_output = new CudaRadixCiphertextFFI;
-      create_zero_radix_ciphertext_async<Torus>(
-          streams.stream(0), streams.gpu_index(0), this->tree_pbs_output,
-          acc_blocks, params.big_lwe_dimension, size_tracker,
-          allocate_gpu_memory);
-
-      // Replay the reduction schedule to learn how many levels there are and,
-      // per level, num_chunks / last_chunk_length. This mirrors the runtime
-      // loop in host_compute_eq_selectors_ct_vs_clears exactly.
-      std::vector<uint32_t> level_num_chunks;
-      std::vector<uint32_t> level_last_chunk_length;
-      {
-        uint32_t blocks_per_entry = num_blocks;
-        while (blocks_per_entry > 1) {
-          uint32_t num_chunks = CEIL_DIV(blocks_per_entry, mv);
-          uint32_t last_chunk_length = blocks_per_entry - (num_chunks - 1) * mv;
-          level_num_chunks.push_back(num_chunks);
-          level_last_chunk_length.push_back(last_chunk_length);
-          blocks_per_entry = num_chunks;
-        }
-      }
-      this->num_tree_levels = static_cast<uint32_t>(level_num_chunks.size());
-
-      // Slot 0 is is_max; each level gets its own slot holding the
-      // x == last_chunk_length function for that level. A slot whose function
-      // is identical to is_max is harmless because its level's index buffer is
-      // all zeros, so we keep one slot per level for a uniform mapping.
-      uint32_t num_luts = 1 + this->num_tree_levels;
-      this->is_max_value_lut =
-          new int_radix_lut<Torus>(streams, params, num_luts, acc_blocks,
-                                   allocate_gpu_memory, size_tracker);
-
-      std::vector<uint32_t> lut_ids;
-      std::vector<std::function<Torus(Torus)>> lut_fns;
-      lut_ids.reserve(num_luts);
-      lut_fns.reserve(num_luts);
-      lut_ids.push_back(0);
-      lut_fns.push_back([mv](Torus x) -> Torus { return x == mv; });
-      for (uint32_t L = 0; L < this->num_tree_levels; L++) {
-        uint32_t lcl = level_last_chunk_length[L];
-        lut_ids.push_back(L + 1);
-        lut_fns.push_back([lcl](Torus x) -> Torus { return x == lcl; });
-      }
-
-      auto lut_active = streams.active_gpu_subset(acc_blocks, params.pbs_type);
-      // LUT_0_FOR_ALL_BLOCKS only sets default indexes; the real per-level
-      // index buffers are precomputed below and switched in at runtime.
-      this->is_max_value_lut->generate_and_broadcast_lut(
-          lut_active, lut_ids, lut_fns, LUT_0_FOR_ALL_BLOCKS);
-
-      // Precompute one device lut-index buffer per level. For a block at flat
-      // index idx in [0, total_chunks): the last chunk of each entry
-      // ((idx % num_chunks) == num_chunks - 1) uses this level's slot (L + 1)
-      // when last_chunk_length != max_value; every other block uses slot 0.
-      this->d_level_lut_indexes = new Torus *[this->num_tree_levels];
-      Torus *h_level_indexes = new Torus[acc_blocks];
-      for (uint32_t L = 0; L < this->num_tree_levels; L++) {
-        uint32_t num_chunks = level_num_chunks[L];
-        uint32_t total_chunks = num_possible_values * num_chunks;
-        bool special = (level_last_chunk_length[L] != mv);
-        for (uint32_t idx = 0; idx < acc_blocks; idx++) {
-          if (special && idx < total_chunks &&
-              (idx % num_chunks) == num_chunks - 1) {
-            h_level_indexes[idx] = static_cast<Torus>(L + 1);
-          } else {
-            h_level_indexes[idx] = 0;
-          }
-        }
-        this->d_level_lut_indexes[L] =
-            (Torus *)cuda_malloc_with_size_tracking_async(
-                safe_mul_sizeof<Torus>(acc_blocks), streams.stream(0),
-                streams.gpu_index(0), size_tracker, allocate_gpu_memory);
-        if (allocate_gpu_memory) {
-          cuda_memcpy_async_to_gpu(this->d_level_lut_indexes[L],
-                                   h_level_indexes,
-                                   safe_mul_sizeof<Torus>(acc_blocks),
-                                   streams.stream(0), streams.gpu_index(0));
-        }
-      }
-      cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-      delete[] h_level_indexes;
-
-      this->preallocated_h_lut = (Torus *)malloc(safe_mul_sizeof<Torus>(
-          params.glwe_dimension + 1, params.polynomial_size));
-    } else {
-      this->tree_accumulator = nullptr;
-      this->tree_pbs_output = nullptr;
-      this->is_max_value_lut = nullptr;
-      this->preallocated_h_lut = nullptr;
-      this->num_tree_levels = 0;
-      this->d_level_lut_indexes = nullptr;
-    }
   }
 
   void release(CudaStreams streams) {
@@ -355,30 +105,14 @@ template <typename Torus> struct int_eq_selectors_ct_vs_clears_buffer {
                                    &this->tmp_batched_comparisons,
                                    this->allocate_gpu_memory);
 
-    if (this->tree_accumulator) {
-      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                     this->tree_accumulator,
-                                     this->allocate_gpu_memory);
-      delete this->tree_accumulator;
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   &this->packed_accumulator,
+                                   this->allocate_gpu_memory);
+
+    for (uint32_t k = 2; k <= this->num_luts_needed; k++) {
+      this->luts_eq[k]->release(streams);
+      delete this->luts_eq[k];
     }
-    if (this->tree_pbs_output) {
-      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                     this->tree_pbs_output,
-                                     this->allocate_gpu_memory);
-      delete this->tree_pbs_output;
-    }
-    if (this->is_max_value_lut) {
-      this->is_max_value_lut->release(streams);
-      delete this->is_max_value_lut;
-    }
-    if (this->d_level_lut_indexes) {
-      for (uint32_t L = 0; L < this->num_tree_levels; L++) {
-        cuda_drop_async(this->d_level_lut_indexes[L], streams.stream(0),
-                        streams.gpu_index(0));
-      }
-      delete[] this->d_level_lut_indexes;
-    }
-    free(this->preallocated_h_lut);
 
     cuda_drop_async(this->d_map, streams.stream(0), streams.gpu_index(0));
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
