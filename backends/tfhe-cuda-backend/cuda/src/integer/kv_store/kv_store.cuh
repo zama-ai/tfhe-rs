@@ -45,22 +45,18 @@ host_kv_store_get(CudaStreams streams,
   auto num_key_blocks = mem_ptr->num_key_blocks;
   auto num_value_blocks = mem_ptr->num_value_blocks;
   auto num_entries = mem_ptr->num_entries;
-  auto selectors_list = mem_ptr->selectors_list;
   auto mem_zero_out_batch_buffer = mem_ptr->mem_zero_out_batch_buffer;
   auto one_hot_vector_predicate = mem_ptr->one_hot_vector_predicate;
   auto tmp_cmux_array = mem_ptr->tmp_cmux_array;
   auto message_modulus = mem_ptr->message_modulus;
   auto carry_modulus = mem_ptr->carry_modulus;
 
+  cuda_set_device(streams.gpu_index(0));
+
   // Step 1: equality selectors (key-block-count dependent)
   // Checks equality between all cleartext keys and the encrypted_key.
   // Returns an array with encrypted booleans with the result.
   PUSH_RANGE("get: equality selectors")
-  for (uint32_t i = 0; i < num_entries; i++) {
-    as_radix_ciphertext_slice<Torus>(&selectors_list[i],
-                                     lwe_array_out_selectors, i, i + 1);
-  }
-
   host_compute_eq_selectors_ct_vs_clears<Torus>(
       streams, lwe_array_out_selectors, lwe_array_in_encrypted_key,
       num_key_blocks, h_decomposed_clear_keys, mem_ptr->mem_eq_selectors_buffer,
@@ -239,6 +235,10 @@ host_kv_store_map(CudaStreams streams,
   PANIC_IF_FALSE(
       lwe_in_new_value->num_radix_blocks >= num_value_blocks,
       "Cuda error: new_value radix ciphertext does not have enough blocks");
+
+  PANIC_IF_FALSE(
+      lwe_array_in_selectors->num_radix_blocks >= num_entries,
+      "Cuda error: selectors radix ciphertext does not have enough blocks");
 
   cuda_set_device(streams.gpu_index(0));
 

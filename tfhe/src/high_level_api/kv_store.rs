@@ -52,7 +52,7 @@ where
 /// * Keys are clear numbers
 /// * Values are FheInt or FheUint
 ///
-/// This stores allows to insert, removed, get using clear keys.
+/// This store allows inserting, removing, and getting values using clear keys.
 /// It also allows to do some operations using encrypted keys.
 ///
 /// To serialize a KVStore it must first be compressed with [KVStore::compress]
@@ -89,6 +89,11 @@ where
     T: FheIntegerType,
 {
     /// Creates a new empty `KVStore`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no server key is set, since it inspects the currently set
+    /// server key to select the backend.
     pub fn new() -> Self {
         Self {
             inner: global_state::with_internal_keys(|server_key| match server_key {
@@ -351,6 +356,9 @@ impl<Key, T> Default for KVStore<Key, T>
 where
     T: FheIntegerType,
 {
+    /// # Panics
+    ///
+    /// Panics if no server key is set, since it delegates to [`KVStore::new`].
     fn default() -> Self {
         Self::new()
     }
@@ -823,7 +831,8 @@ where
     /// * A value does not have the same number of blocks as the others.
     /// * If the requested value type is not compatible with the data stored
     ///
-    /// Both these errors indicate corrupted or malformed data
+    /// An incompatible requested value type indicates the value type is wrong for the stored data;
+    /// the other errors indicate corrupted or malformed data.
     pub fn decompress(&self) -> crate::Result<KVStore<Key, Value>>
     where
         <Value::Id as IntegerId>::InnerCpu: Expandable,

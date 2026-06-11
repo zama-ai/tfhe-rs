@@ -578,12 +578,11 @@ __host__ void host_compute_eq_selectors_ct_vs_clears(
 
   Torus *current_input_ptr = (Torus *)mem_ptr->tmp_batched_comparisons.ptr;
   uint32_t blocks_per_entry = num_blocks;
+  uint32_t level = 0;
 
   while (blocks_per_entry > 1) {
     uint32_t num_chunks = CEIL_DIV(blocks_per_entry, max_value);
     uint32_t total_chunks = num_possible_values * num_chunks;
-    uint32_t last_chunk_length =
-        blocks_per_entry - (num_chunks - 1) * max_value;
 
     host_accumulate_all_blocks_batched<Torus>(
         streams.stream(0), streams.gpu_index(0), (Torus *)tree_accumulator->ptr,
@@ -600,42 +599,23 @@ __host__ void host_compute_eq_selectors_ct_vs_clears(
       tree_accumulator->noise_levels[flat] = NoiseLevel::NOMINAL;
     }
 
-    if (last_chunk_length != max_value) {
-      auto is_equal_to_last_f = [last_chunk_length](Torus x) -> Torus {
-        return x == last_chunk_length;
-      };
-
-      uint32_t lut_num_blocks = is_max_value_lut->num_blocks;
-      auto index_gen = [num_chunks, total_chunks,
-                        lut_num_blocks](Torus *h_lut_indexes, uint32_t) {
-        for (uint32_t idx = 0; idx < lut_num_blocks; idx++) {
-          if (idx < total_chunks && (idx % num_chunks) == num_chunks - 1) {
-            h_lut_indexes[idx] = 1;
-          } else {
-            h_lut_indexes[idx] = 0;
-          }
-        }
-      };
-
-      auto active =
-          streams.active_gpu_subset(total_chunks, mem_ptr->params.pbs_type);
-      is_max_value_lut->generate_and_broadcast_lut(
-          active, {1}, {is_equal_to_last_f}, index_gen, true,
-          {mem_ptr->preallocated_h_lut});
-    }
+    // Switch to this level's precomputed lut-index buffer (PM2). The is_max LUT
+    // (slot 0) and the per-level is_equal_to_last LUT (slot level+1) are baked
+    // in at scratch time, so we only do a small gpu-to-gpu index copy and
+    // broadcast instead of regenerating the LUT polynomial on the host and
+    // resetting indexes every level.
+    auto active =
+        streams.active_gpu_subset(total_chunks, mem_ptr->params.pbs_type);
+    is_max_value_lut->set_lut_indexes_and_broadcast_from_gpu(
+        active, mem_ptr->d_level_lut_indexes[level], total_chunks);
 
     integer_radix_apply_univariate_lookup_table<Torus>(
         streams, tree_pbs_output, tree_accumulator, bsks, ksks,
         is_max_value_lut, total_chunks);
 
-    if (last_chunk_length != max_value) {
-      auto active = streams.active_gpu_subset(is_max_value_lut->num_blocks,
-                                              mem_ptr->params.pbs_type);
-      is_max_value_lut->set_lut_indexes_and_broadcast_constant(active, 0);
-    }
-
     current_input_ptr = (Torus *)tree_pbs_output->ptr;
     blocks_per_entry = num_chunks;
+    level++;
   }
 
   // Step 4: Copy single-block results to output

@@ -231,20 +231,12 @@ host_cmux_batch(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
 
   // Step 1: pack bivariate CMUX inputs
   // For each entry, put (true_value, condition) into the true branch and
-  // (false_value, condition) into the false branch.
-  CudaRadixCiphertextFFI packed_true, packed_false;
-  as_radix_ciphertext_slice<Torus>(&packed_true, mem_ptr->tmp_packed, 0,
-                                   total_num_blocks);
-  as_radix_ciphertext_slice<Torus>(&packed_false, mem_ptr->tmp_packed,
-                                   total_num_blocks, 2 * total_num_blocks);
-
-  host_pack_bivariate_blocks_with_per_ct_single_block<Torus>(
-      streams, &packed_true, lwe_array_true, lwe_conditions,
-      params.message_modulus, num_entries, num_blocks_per_ct, replicate_true);
-
-  host_pack_bivariate_blocks_with_per_ct_single_block<Torus>(
-      streams, &packed_false, lwe_array_false, lwe_conditions,
-      params.message_modulus, num_entries, num_blocks_per_ct);
+  // (false_value, condition) into the false branch. Both branches are packed
+  // into tmp_packed (true first, false second) in a single fused launch.
+  host_pack_bivariate_blocks_cmux_two_regions<Torus>(
+      streams, mem_ptr->tmp_packed, lwe_array_true, lwe_array_false,
+      lwe_conditions, params.message_modulus, num_entries, num_blocks_per_ct,
+      replicate_true);
 
   // Step 2: evaluate CMUX predicate on both branches
   // The LUT zeroes out the branch that does not match: true branch is zeroed

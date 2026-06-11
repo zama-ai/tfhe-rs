@@ -18,7 +18,6 @@ template <typename Torus> struct int_kv_store_get_buffer {
 
   // Step 1: equality selectors (one encrypted boolean per entry)
   int_eq_selectors_ct_vs_clears_buffer<Torus> *mem_eq_selectors_buffer;
-  CudaRadixCiphertextFFI *selectors_list;
 
   // Step 2: one-hot vector generated via conditional zero-out
   int_zero_out_if_batch_buffer<Torus> *mem_zero_out_batch_buffer;
@@ -54,8 +53,6 @@ template <typename Torus> struct int_kv_store_get_buffer {
         new int_eq_selectors_ct_vs_clears_buffer<Torus>(
             streams, params, num_entries, num_key_blocks, allocate_gpu_memory,
             size_tracker);
-
-    this->selectors_list = new CudaRadixCiphertextFFI[num_entries];
 
     // Step 2: one-hot vector via conditional zero-out (operates on value
     // blocks)
@@ -140,8 +137,6 @@ template <typename Torus> struct int_kv_store_get_buffer {
                                    this->tmp_lwe_array_clean,
                                    this->allocate_gpu_memory);
     delete this->tmp_lwe_array_clean;
-
-    delete[] this->selectors_list;
 
     this->mem_eq_selectors_buffer->release(streams);
     delete this->mem_eq_selectors_buffer;

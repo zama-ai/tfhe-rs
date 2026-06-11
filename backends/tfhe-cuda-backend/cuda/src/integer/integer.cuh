@@ -520,6 +520,98 @@ __global__ void device_pack_bivariate_blocks_with_per_ct_single_block(
   }
 }
 
+// Fused two-region variant of
+// device_pack_bivariate_blocks_with_per_ct_single_block used by the batched
+// CMUX. A single launch fills both halves of the packed buffer:
+//   region 0 (global block < total_num_blocks): packs lwe_array_true, using
+//     replicate_input semantics (single shared ciphertext reused per entry)
+//     when replicate_true is set;
+//   region 1: packs lwe_array_false contiguously (never replicated).
+// Both regions are packed against the same per-entry conditions. This replaces
+// two separate packing launches with one, halving launch overhead on the
+// memory-bound packing step.
+template <typename Torus>
+__global__ void device_pack_bivariate_blocks_cmux_two_regions(
+    Torus *lwe_array_out, Torus const *lwe_array_true,
+    Torus const *lwe_array_false, Torus const *lwe_conditions,
+    uint32_t lwe_dimension, uint32_t shift, uint32_t total_num_blocks,
+    uint32_t num_blocks_per_ct, bool replicate_true) {
+  int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  uint32_t lwe_size = lwe_dimension + 1;
+
+  if (tid < 2 * total_num_blocks * lwe_size) {
+    int global_block_id = tid / lwe_size;
+    int coeff_id = tid % lwe_size;
+
+    bool is_true_region = global_block_id < total_num_blocks;
+    int region_block_id =
+        is_true_region ? global_block_id : global_block_id - total_num_blocks;
+    int ct_idx = region_block_id / num_blocks_per_ct;
+
+    Torus const *lwe_array_in =
+        is_true_region ? lwe_array_true : lwe_array_false;
+    int in_block_id = (is_true_region && replicate_true)
+                          ? (region_block_id % num_blocks_per_ct)
+                          : region_block_id;
+
+    lwe_array_out[global_block_id * lwe_size + coeff_id] =
+        lwe_array_in[in_block_id * lwe_size + coeff_id] * shift +
+        lwe_conditions[ct_idx * lwe_size + coeff_id];
+  }
+}
+
+// Packs the true and false CMUX branches into the contiguous tmp_packed buffer
+// with a single kernel launch. The output layout matches two back-to-back
+// calls to host_pack_bivariate_blocks_with_per_ct_single_block (true branch
+// first, false branch second), so callers can use it as a drop-in fusion.
+template <typename Torus>
+__host__ void host_pack_bivariate_blocks_cmux_two_regions(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_true,
+    CudaRadixCiphertextFFI const *lwe_array_false,
+    CudaRadixCiphertextFFI const *lwe_conditions, uint32_t shift,
+    uint32_t num_entries, uint32_t num_blocks_per_ct, bool replicate_true) {
+
+  uint32_t total_num_blocks =
+      static_cast<uint32_t>(safe_mul(static_cast<size_t>(num_entries),
+                                     static_cast<size_t>(num_blocks_per_ct)));
+
+  PANIC_IF_FALSE(
+      lwe_array_out->num_radix_blocks >= 2 * total_num_blocks,
+      "Cuda error: output radix ciphertext does not have enough blocks");
+
+  uint32_t required_true_blocks =
+      replicate_true ? num_blocks_per_ct : total_num_blocks;
+  PANIC_IF_FALSE(
+      lwe_array_true->num_radix_blocks >= required_true_blocks,
+      "Cuda error: true-branch radix ciphertext does not have enough blocks");
+  PANIC_IF_FALSE(
+      lwe_array_false->num_radix_blocks >= total_num_blocks,
+      "Cuda error: false-branch radix ciphertext does not have enough blocks");
+  PANIC_IF_FALSE(
+      lwe_conditions->num_radix_blocks >= num_entries,
+      "Cuda error: conditions radix ciphertext does not have enough blocks");
+  PANIC_IF_FALSE(
+      lwe_array_out->lwe_dimension == lwe_array_true->lwe_dimension &&
+          lwe_array_true->lwe_dimension == lwe_array_false->lwe_dimension &&
+          lwe_array_false->lwe_dimension == lwe_conditions->lwe_dimension,
+      "Cuda error: input and output radix ciphertexts must have the same "
+      "lwe dimension");
+
+  auto lwe_dimension = lwe_array_out->lwe_dimension;
+  cuda_set_device(streams.gpu_index(0));
+  int num_blocks = 0, num_threads = 0;
+  int num_entries_kernel = 2 * total_num_blocks * (lwe_dimension + 1);
+  getNumBlocksAndThreads(num_entries_kernel, 512, num_blocks, num_threads);
+  device_pack_bivariate_blocks_cmux_two_regions<Torus>
+      <<<num_blocks, num_threads, 0, streams.stream(0)>>>(
+          (Torus *)lwe_array_out->ptr, (Torus *)lwe_array_true->ptr,
+          (Torus *)lwe_array_false->ptr, (Torus *)lwe_conditions->ptr,
+          lwe_dimension, shift, total_num_blocks, num_blocks_per_ct,
+          replicate_true);
+  check_cuda_error(cudaGetLastError());
+}
+
 template <typename Torus>
 __host__ void host_pack_bivariate_blocks_with_per_ct_single_block(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
@@ -2499,24 +2591,30 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
   POP_RANGE()
 }
 
+// Pairwise add of one binary-tree-fold level. The left "half" entries (pairs
+// [0, half)) are accumulated in place with the matching right operand, whose
+// entry sits right_start entries away. The caller passes the precomputed
+// right_offset = right_start * entry_size and total_elements = half *
+// entry_size.
+//
+// Data layout is [entry][block][lwe_coeff] flattened, so for any flat index idx
+// in [0, total_elements) the left operand is data[idx] and the right operand is
+// data[idx + right_offset]. This holds because idx = pair * entry_size + elem
+// (pair in [0, half)) implies idx + right_offset =
+// (right_start + pair) * entry_size + elem, the exact right-operand element.
+//
+// The grid-stride loop makes adjacent lanes touch adjacent Torus words, so both
+// loads and the store are fully coalesced. This kernel is purely memory bound,
+// so coalescing is the dominant performance factor; no per-element div/mod is
+// needed.
 template <typename Torus, class params>
 __global__ void device_binary_tree_fold(Torus *__restrict__ data,
-                                        uint32_t entry_size, uint32_t num_pairs,
-                                        uint32_t right_start_entry,
+                                        uint32_t right_offset,
                                         uint32_t total_elements) {
-  uint32_t base_idx = (threadIdx.x + blockIdx.x * blockDim.x) * params::opt;
-
-#pragma unroll
-  for (int i = 0; i < params::opt; i++) {
-    uint32_t idx = base_idx + i;
-    if (idx >= total_elements)
-      return;
-
-    uint32_t pair = idx / entry_size;
-    uint32_t elem = idx % entry_size;
-
-    data[pair * entry_size + elem] +=
-        data[(right_start_entry + pair) * entry_size + elem];
+  uint32_t idx = threadIdx.x + blockIdx.x * blockDim.x;
+  uint32_t stride = blockDim.x * gridDim.x;
+  for (; idx < total_elements; idx += stride) {
+    data[idx] += data[idx + right_offset];
   }
 }
 
@@ -2559,14 +2657,18 @@ __host__ void host_binary_tree_fold_sum(
     uint32_t right_start = remaining - half;
     uint32_t total_elements = static_cast<uint32_t>(
         safe_mul(static_cast<size_t>(half), static_cast<size_t>(entry_size)));
-    uint32_t total_threads = CEIL_DIV(total_elements, params::opt);
+    uint32_t right_offset = static_cast<uint32_t>(safe_mul(
+        static_cast<size_t>(right_start), static_cast<size_t>(entry_size)));
 
+    // One thread per Torus word, sized so the grid-stride loop typically does a
+    // single iteration. getNumBlocksAndThreads caps the launch; the loop covers
+    // any remainder.
     int num_cuda_blocks = 0, num_threads = 0;
-    getNumBlocksAndThreads(total_threads, 512, num_cuda_blocks, num_threads);
+    getNumBlocksAndThreads(total_elements, 512, num_cuda_blocks, num_threads);
 
     device_binary_tree_fold<Torus, params>
-        <<<num_cuda_blocks, num_threads, 0, stream>>>(
-            data, entry_size, half, right_start, total_elements);
+        <<<num_cuda_blocks, num_threads, 0, stream>>>(data, right_offset,
+                                                      total_elements);
     check_cuda_error(cudaGetLastError());
 
     for (uint32_t p = 0; p < half; p++) {
