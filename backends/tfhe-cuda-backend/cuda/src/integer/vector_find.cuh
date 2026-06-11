@@ -280,59 +280,6 @@ __host__ void host_pack_chunk_eq_pairs(
 }
 
 template <typename Torus>
-__host__ void
-host_binary_tree_sum(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-                     CudaRadixCiphertextFFI const *lwe_array_in,
-                     uint32_t num_input_ciphertexts, uint32_t num_blocks,
-                     int_binary_tree_sum_buffer<Torus> *mem_ptr,
-                     void *const *bsks, Torus *const *ksks) {
-
-  int_radix_params params = mem_ptr->params;
-  uint32_t chunk_size = mem_ptr->chunk_size;
-  uint32_t message_modulus = params.message_modulus;
-  uint32_t carry_modulus = params.carry_modulus;
-
-  if (num_input_ciphertexts == 0)
-    PANIC("Cuda error: binary tree sum called with zero inputs")
-  if (num_input_ciphertexts > mem_ptr->num_input_ciphertexts)
-    PANIC("Cuda error: num_input_ciphertexts exceeds capacity used at scratch")
-
-  CudaRadixCiphertextFFI *src_buf = &mem_ptr->packed_partial_temp_vectors;
-  CudaRadixCiphertextFFI *dst_buf = &mem_ptr->tree_reduction_buf;
-
-  copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
-                                     src_buf, lwe_array_in);
-
-  uint32_t num_pending = num_input_ciphertexts;
-  while (num_pending > 1) {
-    uint32_t remaining = CEIL_DIV(num_pending, chunk_size);
-
-    host_lwe_flat_array_2d_sum_rows<Torus>(
-        streams.stream(0), streams.gpu_index(0), dst_buf, src_buf, chunk_size,
-        num_pending, remaining, num_blocks, message_modulus, carry_modulus);
-
-    CudaRadixCiphertextFFI level_slice;
-    as_radix_ciphertext_slice<Torus>(&level_slice, dst_buf, 0,
-                                     remaining * num_blocks);
-    integer_radix_apply_univariate_lookup_table<Torus>(
-        streams, &level_slice, &level_slice, bsks, ksks,
-        mem_ptr->batched_identity_lut, remaining * num_blocks);
-
-    std::swap(src_buf, dst_buf);
-    num_pending = remaining;
-  }
-
-  // After the ping-pong loop the aggregated result always resides in src_buf
-  // For the single-chunk case the loop never runs, thus we need to copy it into
-  // the caller output instead.
-  CudaRadixCiphertextFFI final_sum;
-  as_radix_ciphertext_slice<Torus>(&final_sum, src_buf, 0, num_blocks);
-  copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), lwe_array_out, 0, num_blocks,
-      &final_sum, 0, num_blocks);
-}
-
-template <typename Torus>
 __global__ void
 scatter_to_ptr_array_kernel(Torus *const *dst_ptr_array,
                             const Torus *src_batched, uint32_t num_blocks,

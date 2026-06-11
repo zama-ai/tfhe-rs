@@ -752,66 +752,6 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
   }
 };
 
-template <typename Torus> struct int_binary_tree_sum_buffer {
-  int_radix_params params;
-  bool allocate_gpu_memory;
-  uint32_t chunk_size;
-
-  int_radix_lut<Torus> *batched_identity_lut;
-
-  CudaRadixCiphertextFFI packed_partial_temp_vectors;
-  CudaRadixCiphertextFFI tree_reduction_buf;
-
-  uint32_t num_input_ciphertexts;
-
-  int_binary_tree_sum_buffer(CudaStreams streams, int_radix_params params,
-                             uint32_t num_blocks,
-                             uint32_t num_input_ciphertexts,
-                             bool allocate_gpu_memory, uint64_t &size_tracker)
-      : params(params), allocate_gpu_memory(allocate_gpu_memory),
-        chunk_size(params.max_degree()),
-        num_input_ciphertexts(num_input_ciphertexts) {
-
-    std::function<Torus(Torus)> id_fn = [](Torus x) -> Torus { return x; };
-
-    uint64_t batched_blocks_u64 = (uint64_t)num_input_ciphertexts * num_blocks;
-    PANIC_IF_FALSE(batched_blocks_u64 <= UINT32_MAX,
-                   "num_input_ciphertexts * num_blocks must fit in uint32_t");
-    uint32_t batched_blocks = (uint32_t)batched_blocks_u64;
-
-    this->batched_identity_lut = new int_radix_lut<Torus>(
-        streams, params, 1, batched_blocks, allocate_gpu_memory, size_tracker);
-    this->batched_identity_lut->generate_and_broadcast_lut(
-        streams.active_gpu_subset(batched_blocks, params.pbs_type), {0},
-        {id_fn}, LUT_0_FOR_ALL_BLOCKS);
-
-    create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0),
-        &this->packed_partial_temp_vectors, batched_blocks,
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-
-    create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), &this->tree_reduction_buf,
-        batched_blocks, params.big_lwe_dimension, size_tracker,
-        allocate_gpu_memory);
-  }
-
-  void release(CudaStreams streams) {
-    this->batched_identity_lut->release(streams);
-    delete this->batched_identity_lut;
-
-    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                   &this->packed_partial_temp_vectors,
-                                   this->allocate_gpu_memory);
-
-    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                   &this->tree_reduction_buf,
-                                   this->allocate_gpu_memory);
-
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-  }
-};
-
 template <typename Torus> struct int_unchecked_match_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;

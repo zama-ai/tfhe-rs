@@ -223,8 +223,7 @@ pub fn default_kv_store_get_update_test<P, T1, T2>(
 
             let new_value = rand::random::<u64>() % modulus;
             let encrypted_new_value: RadixCiphertext = cks.encrypt(new_value);
-            let is_some =
-                kv_store_update.execute((&mut map, &encrypted_key, &encrypted_new_value));
+            let is_some = kv_store_update.execute((&mut map, &encrypted_key, &encrypted_new_value));
             assert!(!cks.decrypt_bool(&is_some));
 
             panic_if_not_the_same(&map, &clear_store, &cks);
@@ -244,8 +243,7 @@ pub fn default_kv_store_get_update_test<P, T1, T2>(
 
             let new_value = rand::random::<u64>() % modulus;
             let encrypted_new_value: RadixCiphertext = cks.encrypt(new_value);
-            let is_some =
-                kv_store_update.execute((&mut map, &encrypted_key, &encrypted_new_value));
+            let is_some = kv_store_update.execute((&mut map, &encrypted_key, &encrypted_new_value));
             assert!(cks.decrypt_bool(&is_some));
 
             clear_store.insert(key_target, new_value);

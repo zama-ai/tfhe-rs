@@ -1,9 +1,9 @@
 #ifndef CUDA_INTEGER_KV_STORE_UTILITIES_H
 #define CUDA_INTEGER_KV_STORE_UTILITIES_H
 
-#include "../cmux.h"
 #include "../comparison.h"
 #include "../vector_find.h"
+#include "integer/cmux.cuh"
 #include "integer/radix_ciphertext.cuh"
 
 template <typename Torus> struct int_kv_store_get_buffer {
@@ -187,9 +187,9 @@ template <typename Torus> struct int_kv_store_update_buffer {
 
     // Parallel CMUXes (operates on value blocks)
     auto condition_is_one = [](Torus x) -> Torus { return x == 1; };
-    this->cmux_batch_buffer = new int_cmux_batch_buffer<Torus>(
-        streams, condition_is_one, params, num_entries, num_value_blocks,
-        allocate_gpu_memory, size_tracker);
+    size_tracker += scratch_cuda_cmux_batch<Torus>(
+        streams, &this->cmux_batch_buffer, condition_is_one, num_entries,
+        num_value_blocks, params, allocate_gpu_memory);
 
     // OR all selectors to produce a key-found boolean
     this->at_least_one_true_buffer = new int_comparison_buffer<Torus>(
@@ -245,9 +245,9 @@ template <typename Torus> struct int_kv_store_map_buffer {
 
     // Parallel CMUXes (operates on value blocks)
     auto predicate_lut_f = [](Torus x) -> Torus { return x == 1; };
-    this->cmux_batch_buffer = new int_cmux_batch_buffer<Torus>(
-        streams, predicate_lut_f, params, num_entries, num_value_blocks,
-        allocate_gpu_memory, size_tracker);
+    size_tracker += scratch_cuda_cmux_batch<Torus>(
+        streams, &this->cmux_batch_buffer, predicate_lut_f, num_entries,
+        num_value_blocks, params, allocate_gpu_memory);
 
     // OR all selectors to produce a key-found boolean
     this->at_least_one_true_buffer = new int_comparison_buffer<Torus>(
