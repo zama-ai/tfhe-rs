@@ -1,6 +1,6 @@
 use benchmark::params::get_classical_tuniform_groups;
 use benchmark::params_aliases::*;
-use benchmark::utilities::{write_to_json_unchecked, CryptoParametersRecord, OperatorType};
+use benchmark::utilities::{write_to_json_unchecked, OperatorType};
 use benchmark_spec::CsvResultWriter;
 use std::path::Path;
 use tfhe::keycache::NamedParam;
@@ -75,15 +75,7 @@ fn client_server_key_sizes(results_file: &Path) {
 
         benchmark_test_result.write_result(&test_name, ksk_size);
 
-        write_to_json_unchecked::<u64, _>(
-            &test_name,
-            params,
-            params.name(),
-            "KSK",
-            &operator,
-            0,
-            vec![],
-        );
+        write_to_json_unchecked(&test_name, params.name(), "KSK", &operator, 0, vec![]);
 
         println!(
             "Element in KSK: {}, size in bytes: {}",
@@ -96,15 +88,7 @@ fn client_server_key_sizes(results_file: &Path) {
 
         benchmark_test_result.write_result(&test_name, bsk_size);
 
-        write_to_json_unchecked::<u64, _>(
-            &test_name,
-            params,
-            params.name(),
-            "BSK",
-            &operator,
-            0,
-            vec![],
-        );
+        write_to_json_unchecked(&test_name, params.name(), "BSK", &operator, 0, vec![]);
 
         println!(
             "Element in BSK: {}, size in bytes: {}",
@@ -118,15 +102,7 @@ fn client_server_key_sizes(results_file: &Path) {
 
         benchmark_test_result.write_result(&test_name, bsk_compressed_size);
 
-        write_to_json_unchecked::<u64, _>(
-            &test_name,
-            params,
-            params.name(),
-            "BSK",
-            &operator,
-            0,
-            vec![],
-        );
+        write_to_json_unchecked(&test_name, params.name(), "BSK", &operator, 0, vec![]);
 
         println!(
             "Element in BSK compressed: {}, size in bytes: {}",
@@ -139,9 +115,8 @@ fn client_server_key_sizes(results_file: &Path) {
     }
 }
 
-fn measure_serialized_size<T: serde::Serialize, P: Into<CryptoParametersRecord<u64>> + Clone>(
+fn measure_serialized_size<T: serde::Serialize>(
     to_serialize: &T,
-    param: P,
     param_name: &str,
     test_name_suffix: &str,
     display_name: &str,
@@ -151,9 +126,8 @@ fn measure_serialized_size<T: serde::Serialize, P: Into<CryptoParametersRecord<u
     let size = serialized.len();
     let test_name = format!("shortint_key_sizes_{param_name}_{test_name_suffix}");
     file.write_result(&test_name, size);
-    write_to_json_unchecked::<u64, _>(
+    write_to_json_unchecked(
         &test_name,
-        param.clone(),
         param_name,
         display_name,
         &OperatorType::Atomic,
@@ -185,7 +159,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
             AtomicPatternServerKey::Standard(ap) => {
                 measure_serialized_size(
                     &ap.key_switching_key,
-                    compute_param,
                     &param_fhe_name,
                     "ksk",
                     "KSK",
@@ -193,7 +166,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                 );
                 measure_serialized_size(
                     &ap.bootstrapping_key,
-                    compute_param,
                     &param_fhe_name,
                     "bsk",
                     "BSK",
@@ -203,7 +175,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
             AtomicPatternServerKey::KeySwitch32(ap) => {
                 measure_serialized_size(
                     &ap.key_switching_key,
-                    compute_param,
                     &param_fhe_name,
                     "ksk",
                     "KSK",
@@ -211,7 +182,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                 );
                 measure_serialized_size(
                     &ap.bootstrapping_key,
-                    compute_param,
                     &param_fhe_name,
                     "bsk",
                     "BSK",
@@ -225,7 +195,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
             CompressedAtomicPatternServerKey::Standard(comp_ap) => {
                 measure_serialized_size(
                     comp_ap.key_switching_key(),
-                    compute_param,
                     &param_fhe_name,
                     "ksk_compressed",
                     "KSK",
@@ -233,7 +202,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                 );
                 measure_serialized_size(
                     &comp_ap.bootstrapping_key(),
-                    compute_param,
                     &param_fhe_name,
                     "bsk_compressed",
                     "BSK",
@@ -243,7 +211,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
             CompressedAtomicPatternServerKey::KeySwitch32(comp_ap) => {
                 measure_serialized_size(
                     comp_ap.key_switching_key(),
-                    compute_param,
                     &param_fhe_name,
                     "ksk_compressed",
                     "KSK",
@@ -251,7 +218,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                 );
                 measure_serialized_size(
                     &comp_ap.bootstrapping_key(),
-                    compute_param,
                     &param_fhe_name,
                     "bsk_compressed",
                     "BSK",
@@ -269,7 +235,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
 
             measure_serialized_size(
                 &pk,
-                pke_param,
                 &param_pke_name,
                 "cpk",
                 "CPK",
@@ -277,7 +242,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
             );
             measure_serialized_size(
                 &compressed_pk,
-                pke_param,
                 &param_pke_name,
                 "cpk_compressed",
                 "CPK",
@@ -295,7 +259,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
 
             measure_serialized_size(
                 &casting_key.into_raw_parts().0,
-                casting_param,
                 &param_casting_name,
                 "casting_key",
                 "CastKey",
@@ -303,7 +266,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
             );
             measure_serialized_size(
                 &compressed_casting_key.into_raw_parts().0,
-                casting_param,
                 &param_casting_name,
                 "casting_key_compressed",
                 "CastKey",
@@ -313,7 +275,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
 
         if let Some(compression_param) = meta_params.compression_parameters {
             let param_compression_name = compression_param.name();
-            let params_tuple = (compression_param, compute_param);
 
             let private_compression_key = cks.new_compression_private_key(compression_param);
             let (compression_key, decompression_key) =
@@ -321,7 +282,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
 
             measure_serialized_size(
                 &compression_key,
-                params_tuple,
                 &param_compression_name,
                 "compression_key",
                 "CompressionKey",
@@ -329,7 +289,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
             );
             measure_serialized_size(
                 &decompression_key,
-                params_tuple,
                 &param_compression_name,
                 "decompression_key",
                 "CompressionKey",
@@ -341,7 +300,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
 
             measure_serialized_size(
                 &compressed_compression_key,
-                params_tuple,
                 &param_compression_name,
                 "compressed_compression_key",
                 "CompressedCompressionKey",
@@ -349,7 +307,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
             );
             measure_serialized_size(
                 &compressed_decompression_key,
-                params_tuple,
                 &param_compression_name,
                 "compressed_decompression_key",
                 "CompressedCompressionKey",
@@ -359,13 +316,11 @@ fn tuniform_key_set_sizes(results_file: &Path) {
 
         if let Some(meta_noise_squashing_param) = meta_params.noise_squashing_parameters {
             let noise_squashing_param = meta_noise_squashing_param.parameters;
-            let params_tuple = (noise_squashing_param, compute_param);
             let noise_squash_private_key = NoiseSquashingPrivateKey::new(noise_squashing_param);
             let noise_squash_key = NoiseSquashingKey::new(&cks, &noise_squash_private_key);
 
             measure_serialized_size(
                 &noise_squash_key,
-                params_tuple,
                 &noise_squashing_param.name(),
                 "noise_squashing_key",
                 "NoiseSquashingKey",
@@ -374,7 +329,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
             if let Some(noise_squashing_comp_param) =
                 meta_noise_squashing_param.compression_parameters
             {
-                let params_tuple = (noise_squashing_comp_param, compute_param);
                 let noise_squash_comp_private_key =
                     NoiseSquashingCompressionPrivateKey::new(noise_squashing_comp_param);
                 let noise_squash_comp_key = NoiseSquashingCompressionKey::new(
@@ -384,7 +338,6 @@ fn tuniform_key_set_sizes(results_file: &Path) {
 
                 measure_serialized_size(
                     &noise_squash_comp_key,
-                    params_tuple,
                     &noise_squashing_comp_param.name(),
                     "noise_squashing_compression_key",
                     "NoiseSquashingCompressionKey",

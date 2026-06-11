@@ -3026,8 +3026,21 @@ dependencies = [
  "serde",
  "serde_json",
  "tfhe",
+ "tfhe-benchmark-parser",
  "tfhe-csprng",
  "tfhe-zk-pok",
+]
+
+[[package]]
+name = "tfhe-benchmark-parser"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "benchmark_spec",
+ "clap",
+ "csv",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
