@@ -80,6 +80,7 @@
 ## Configuration
 
 * [Advanced Rust setup](configuration/rust-configuration.md)
+* [System tuning](configuration/system-tuning.md)
 * [Parallelized PBS](configuration/parallelized-pbs.md)
 
 ## Integration
