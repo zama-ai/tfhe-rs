@@ -5,16 +5,20 @@ use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 #[cfg(feature = "gpu")]
+use crate::high_level_api::re_randomization::ReRandomizationMode;
+#[cfg(feature = "gpu")]
 use crate::high_level_api::traits::{
     AddSizeOnGpu, BitAndSizeOnGpu, BitNotSizeOnGpu, BitOrSizeOnGpu, BitXorSizeOnGpu,
     DivRemSizeOnGpu, DivSizeOnGpu, FheEqSizeOnGpu, FheMaxSizeOnGpu, FheMinSizeOnGpu,
-    FheOrdSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu, RotateLeftSizeOnGpu,
-    RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SizeOnGpu, SubSizeOnGpu,
+    FheOrdSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu, RerandSizeOnGpu,
+    RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SizeOnGpu, SubSizeOnGpu,
 };
 use crate::high_level_api::traits::{
     DivRem, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
     RotateRightAssign,
 };
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::ciphertext::re_randomization::CudaReRandomizationKey as IntegerCudaReRandomizationKey;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::{FheBool, FheInt, FheUint};
@@ -2759,6 +2763,39 @@ where
                     .get_neg_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
             } else {
                 0
+            }
+        })
+    }
+}
+#[cfg(feature = "gpu")]
+impl<Id> RerandSizeOnGpu for FheInt<Id>
+where
+    Id: FheIntId,
+{
+    fn get_rerand_size_on_gpu<'a>(
+        &self,
+        re_randomization_mode: impl Into<ReRandomizationMode<'a>>,
+    ) -> crate::Result<u64> {
+        let re_randomization_mode: ReRandomizationMode = re_randomization_mode.into();
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let rerand_key =
+                    cuda_key.integer_re_randomization_key_from_mode(re_randomization_mode)?;
+                let streams = &cuda_key.streams;
+                let ct = &*self.ciphertext.on_gpu(streams);
+                match rerand_key {
+                    IntegerCudaReRandomizationKey::LegacyDedicatedCPK { .. } => {
+                        Ok(cuda_key.key.key.get_rerand_size_on_gpu(ct, streams))
+                    }
+                    IntegerCudaReRandomizationKey::DerivedCPKWithoutKeySwitch { .. } => {
+                        Ok(cuda_key
+                            .key
+                            .key
+                            .get_rerand_without_ks_size_on_gpu(ct, streams))
+                    }
+                }
+            } else {
+                Ok(0)
             }
         })
     }

@@ -5,8 +5,8 @@ use crate::prelude::{
     check_valid_cuda_malloc_assert_oom, AddSizeOnGpu, BitAndSizeOnGpu, BitNotSizeOnGpu,
     BitOrSizeOnGpu, BitXorSizeOnGpu, CiphertextList, DivRemSizeOnGpu, DivSizeOnGpu, FheDecrypt,
     FheEncrypt, FheEqSizeOnGpu, FheMaxSizeOnGpu, FheMinSizeOnGpu, FheOrdSizeOnGpu, FheTryEncrypt,
-    IfThenElseSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu, RotateLeftSizeOnGpu,
-    RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SubSizeOnGpu,
+    IfThenElseSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu, RerandSizeOnGpu,
+    RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SubSizeOnGpu,
 };
 use crate::{
     CompactCiphertextList, CompactPublicKey, CompressedFheInt16, FheBool, FheInt32, FheInt8,
@@ -379,5 +379,50 @@ fn test_int16_fused_mul_div_gpu() {
     for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
         let client_key = setup_fn();
         super::test_case_int16_fused_mul_div(&client_key);
+    }
+}
+
+#[test]
+fn test_gpu_get_rerand_size_on_gpu() {
+    use crate::high_level_api::re_randomization::ReRandomizationMode;
+    for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+        let cks = setup_fn();
+        let clear_a = rand::random::<i32>();
+        let mut a = FheInt32::try_encrypt(clear_a, &cks).unwrap();
+        a.move_to_current_device();
+        let a = &a;
+
+        let result = a.get_rerand_size_on_gpu(ReRandomizationMode::UseAvailableMode);
+        assert!(result.is_err());
+    }
+
+    {
+        use crate::shortint::parameters::v1_6::meta::cpu::V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+        use crate::shortint::parameters::v1_6::meta::gpu::V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+
+        let meta_params = [
+            V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+            V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+        ];
+
+        for mut params in meta_params {
+            params.noise_squashing_parameters = None;
+            let cks = crate::ClientKey::generate(params);
+            let cpk = crate::CompactPublicKey::new(&cks);
+            let sks = cks.generate_compressed_server_key();
+            crate::set_server_key(sks.decompress_to_gpu());
+
+            let clear_a = rand::random::<i32>();
+            let mut a = FheInt32::try_encrypt(clear_a, &cks).unwrap();
+            a.move_to_current_device();
+            let a = &a;
+
+            // UseLegacyCPKIfNeeded works with legacy and derived CPK server keys
+            let rerand_size = a
+                .get_rerand_size_on_gpu(ReRandomizationMode::UseLegacyCPKIfNeeded { cpk: &cpk })
+                .unwrap();
+            check_valid_cuda_malloc_assert_oom(rerand_size, GpuIndex::new(0));
+            assert_gt!(rerand_size, 0);
+        }
     }
 }
