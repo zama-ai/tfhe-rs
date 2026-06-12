@@ -1074,4 +1074,19 @@ mod gpu {
             check_valid_cuda_malloc_assert_oom(scalar_ne_size_on_gpu, GpuIndex::new(0));
         }
     }
+
+    #[test]
+    fn test_get_rerand_size_on_gpu() {
+        use crate::high_level_api::re_randomization::ReRandomizationMode;
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let cks = setup_fn();
+            let clear_a = rand::random::<bool>();
+            let mut a = FheBool::encrypt(clear_a, &cks);
+            a.move_to_current_device();
+            let a = &a;
+
+            let result = a.get_rerand_size_on_gpu(ReRandomizationMode::UseAvailableMode);
+            assert!(result.is_err());
+        }
+    }
 }

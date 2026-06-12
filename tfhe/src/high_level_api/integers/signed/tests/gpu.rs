@@ -5,8 +5,8 @@ use crate::prelude::{
     check_valid_cuda_malloc_assert_oom, AddSizeOnGpu, BitAndSizeOnGpu, BitNotSizeOnGpu,
     BitOrSizeOnGpu, BitXorSizeOnGpu, CiphertextList, DivRemSizeOnGpu, DivSizeOnGpu, FheDecrypt,
     FheEncrypt, FheEqSizeOnGpu, FheMaxSizeOnGpu, FheMinSizeOnGpu, FheOrdSizeOnGpu, FheTryEncrypt,
-    IfThenElseSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu, RotateLeftSizeOnGpu,
-    RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SubSizeOnGpu,
+    IfThenElseSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu, RerandSizeOnGpu,
+    RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SubSizeOnGpu,
 };
 use crate::{
     CompactCiphertextList, CompactPublicKey, CompressedFheInt16, FheBool, FheInt32, FheInt8,
@@ -379,5 +379,20 @@ fn test_int16_fused_mul_div_gpu() {
     for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
         let client_key = setup_fn();
         super::test_case_int16_fused_mul_div(&client_key);
+    }
+}
+
+#[test]
+fn test_gpu_get_rerand_size_on_gpu() {
+    use crate::high_level_api::re_randomization::ReRandomizationMode;
+    for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+        let cks = setup_fn();
+        let clear_a = rand::random::<i32>();
+        let mut a = FheInt32::try_encrypt(clear_a, &cks).unwrap();
+        a.move_to_current_device();
+        let a = &a;
+
+        let result = a.get_rerand_size_on_gpu(ReRandomizationMode::UseAvailableMode);
+        assert!(result.is_err());
     }
 }
