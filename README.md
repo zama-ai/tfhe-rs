@@ -149,6 +149,10 @@ To run this code, use the following command:
 > Note that when running code that uses `TFHE-rs`, it is highly recommended
 to run in release mode with cargo's `--release` flag to have the best performance possible.
 
+> [!Tip]
+> On Linux, enabling transparent huge pages gives a noticeable additional speedup when using many threads.
+See [System tuning](https://docs.zama.org/tfhe-rs/configuration/system-tuning) for details.
+
 *Find an example with more explanations in [this part of the documentation](https://docs.zama.org/tfhe-rs/get-started/quick-start)*
 
 <p align="right">

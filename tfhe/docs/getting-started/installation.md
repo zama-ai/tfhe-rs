@@ -18,6 +18,10 @@ tfhe = { version = "~1.6.0", features = ["boolean", "shortint", "integer"] }
 **Performance**: for optimal performance, it is highly recommended to run code that uses **`TFHE-rs`** in release mode with cargo's `--release` flag.
 {% endhint %}
 
+{% hint style="success" %}
+**Performance**: on Linux, enabling transparent huge pages also gives a noticeable speedup. See [System tuning](../configuration/system-tuning.md).
+{% endhint %}
+
 ## Supported platforms
 
 **TFHE-rs** currently supports the following platforms:
