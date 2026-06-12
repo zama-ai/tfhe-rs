@@ -33,10 +33,22 @@ impl FheBool {
             InternalServerKey::Cpu(key) => {
                 let sk = &key.pbs_key().key;
 
-                let ct = key
+                let ct_wrapped = key
                     .oprf_key()
                     .key
-                    .generate_oblivious_pseudo_random(seed, 1, sk);
+                    .generate_oblivious_pseudo_random_bits_chunks(seed, &[1], sk);
+
+                // We have to do the double unwrap, we want to keep as little primitives as possible
+                // for PRF since they also need a rerandomized_variant, so we don't have a single
+                // block primitive for that
+                let ct = ct_wrapped
+                    .into_iter()
+                    .next()
+                    .expect("A single chunk was expected, got 0")
+                    .into_iter()
+                    .next()
+                    .expect("A single ciphertext was expected, got 0");
+
                 (
                     InnerBoolean::Cpu(BooleanBlock::new_unchecked(ct)),
                     key.tag.clone(),
@@ -45,9 +57,16 @@ impl FheBool {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
                 let streams = &cuda_key.streams;
+                // 1 block with 1 bit of data is a boolean
                 let d_ct: CudaUnsignedRadixCiphertext = cuda_key
                     .oprf_key()
-                    .generate_oblivious_pseudo_random(seed, 1, cuda_key.pbs_key(), streams);
+                    .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                        seed,
+                        1,
+                        1,
+                        cuda_key.pbs_key(),
+                        streams,
+                    );
                 (
                     InnerBoolean::Cuda(CudaBooleanBlock::from_cuda_radix_ciphertext(
                         d_ct.ciphertext,
