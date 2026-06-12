@@ -456,10 +456,17 @@ bench_sns_only_type!(FheUint128);
 bench_decomp_sns_comp_type!(FheUint64);
 
 fn main() {
+    use tfhe::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
     let env_config = EnvConfig::new();
 
     #[cfg(feature = "hpu")]
     panic!("Noise squashing is not supported on HPU");
+
+    let updated_sns_comp_params = NoiseSquashingCompressionParameters {
+        packing_ks_level: DecompositionLevelCount(2),
+        packing_ks_base_log: DecompositionBaseLog(41),
+        ..BENCH_COMP_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    };
 
     let params: Vec<(
         PBSParameters,
@@ -469,12 +476,20 @@ fn main() {
     )> = {
         #[cfg(all(not(feature = "hpu"), not(feature = "gpu")))]
         {
-            vec![(
-                BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
-                BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                BENCH_COMP_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            )]
+            vec![
+                (
+                    BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                    BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    BENCH_COMP_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                ),
+                (
+                    BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                    BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    updated_sns_comp_params,
+                    BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                ),
+            ]
         }
 
         #[cfg(feature = "gpu")]
@@ -496,24 +511,24 @@ fn main() {
 
     let mut c = Criterion::default().configure_from_args();
 
-    match env_config.bit_sizes_set {
-        BitSizesSet::Fast => {
-            bench_sns_only_fhe_uint64(&mut c, params.as_slice());
-        }
-        _ => {
-            bench_sns_only_fhe_uint2(&mut c, params.as_slice());
-            bench_sns_only_fhe_uint4(&mut c, params.as_slice());
-            bench_sns_only_fhe_uint6(&mut c, params.as_slice());
-            bench_sns_only_fhe_uint8(&mut c, params.as_slice());
-            bench_sns_only_fhe_uint10(&mut c, params.as_slice());
-            bench_sns_only_fhe_uint12(&mut c, params.as_slice());
-            bench_sns_only_fhe_uint14(&mut c, params.as_slice());
-            bench_sns_only_fhe_uint16(&mut c, params.as_slice());
-            bench_sns_only_fhe_uint32(&mut c, params.as_slice());
-            bench_sns_only_fhe_uint64(&mut c, params.as_slice());
-            bench_sns_only_fhe_uint128(&mut c, params.as_slice());
-        }
-    }
+    // match env_config.bit_sizes_set {
+    //     BitSizesSet::Fast => {
+    //         bench_sns_only_fhe_uint64(&mut c, params.as_slice());
+    //     }
+    //     _ => {
+    //         bench_sns_only_fhe_uint2(&mut c, params.as_slice());
+    //         bench_sns_only_fhe_uint4(&mut c, params.as_slice());
+    //         bench_sns_only_fhe_uint6(&mut c, params.as_slice());
+    //         bench_sns_only_fhe_uint8(&mut c, params.as_slice());
+    //         bench_sns_only_fhe_uint10(&mut c, params.as_slice());
+    //         bench_sns_only_fhe_uint12(&mut c, params.as_slice());
+    //         bench_sns_only_fhe_uint14(&mut c, params.as_slice());
+    //         bench_sns_only_fhe_uint16(&mut c, params.as_slice());
+    //         bench_sns_only_fhe_uint32(&mut c, params.as_slice());
+    //         bench_sns_only_fhe_uint64(&mut c, params.as_slice());
+    //         bench_sns_only_fhe_uint128(&mut c, params.as_slice());
+    //     }
+    // }
 
     bench_decomp_sns_comp_fhe_uint64(&mut c, params.as_slice());
 
