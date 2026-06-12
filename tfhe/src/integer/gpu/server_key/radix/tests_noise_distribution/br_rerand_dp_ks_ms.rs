@@ -1134,18 +1134,6 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs_gpu(
                     &cuda_ksk_material.lwe_keyswitch_key,
                     message_modulus,
                     carry_modulus,
-                    cuda_ksk_material
-                        .lwe_keyswitch_key
-                        .input_key_lwe_size()
-                        .to_lwe_dimension(),
-                    cuda_ksk_material
-                        .lwe_keyswitch_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    cuda_ksk_material
-                        .lwe_keyswitch_key
-                        .decomposition_level_count(),
-                    cuda_ksk_material.lwe_keyswitch_key.decomposition_base_log(),
                     ct_count,
                 )
             },
