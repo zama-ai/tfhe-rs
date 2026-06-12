@@ -2377,10 +2377,7 @@ unsafe extern "C" {
     pub fn scratch_cuda_rerand_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
-        big_lwe_dimension: u32,
-        small_lwe_dimension: u32,
-        ks_level: u32,
-        ks_base_log: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         lwe_ciphertext_count: u32,
         message_modulus: u32,
         carry_modulus: u32,
