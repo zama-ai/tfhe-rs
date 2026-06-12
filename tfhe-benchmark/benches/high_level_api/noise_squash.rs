@@ -530,6 +530,7 @@ fn main() {
     //     }
     // }
 
+    bench_sns_only_fhe_uint64(&mut c, params.as_slice());
     bench_decomp_sns_comp_fhe_uint64(&mut c, params.as_slice());
 
     c.final_summary();
