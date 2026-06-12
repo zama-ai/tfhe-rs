@@ -3,11 +3,14 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::ciphertext::ReRandomizationSeed;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
-    CudaRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
+    CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaSignedRadixCiphertext,
+    CudaUnsignedRadixCiphertext,
 };
 use crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial;
+use crate::integer::gpu::server_key::CudaDynamicKeyswitchingKey;
 use crate::integer::gpu::{
-    cuda_backend_rerand_assign, cuda_backend_rerand_without_keyswitch_assign,
+    cuda_backend_get_rerand_size_on_gpu, cuda_backend_get_rerand_without_keyswitch_size_on_gpu,
+    cuda_backend_rerand_assign, cuda_backend_rerand_without_keyswitch_assign, CudaServerKey,
 };
 use crate::integer::CompactPublicKey;
 use crate::shortint::ciphertext::NoiseLevel;
@@ -252,5 +255,36 @@ impl CudaRadixCiphertext {
         });
 
         Ok(())
+    }
+}
+
+impl CudaServerKey {
+    pub fn get_rerand_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count();
+
+        match &self.key_switching_key {
+            CudaDynamicKeyswitchingKey::Standard(computing_ks_key) => {
+                cuda_backend_get_rerand_size_on_gpu(
+                    streams,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    computing_ks_key.params_ffi(),
+                    num_blocks,
+                )
+            }
+            CudaDynamicKeyswitchingKey::KeySwitch32(_) => {
+                cuda_backend_get_rerand_without_keyswitch_size_on_gpu(
+                    streams,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    self.bootstrapping_key.output_lwe_dimension(),
+                    num_blocks,
+                )
+            }
+        }
     }
 }

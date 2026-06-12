@@ -13,8 +13,8 @@ use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::traits::{
     AddSizeOnGpu, BitAndSizeOnGpu, BitNotSizeOnGpu, BitOrSizeOnGpu, BitXorSizeOnGpu,
     DivRemSizeOnGpu, DivSizeOnGpu, FheEqSizeOnGpu, FheMaxSizeOnGpu, FheMinSizeOnGpu,
-    FheOrdSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu, RotateLeftSizeOnGpu,
-    RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SizeOnGpu, SubSizeOnGpu,
+    FheOrdSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu, RerandSizeOnGpu,
+    RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SizeOnGpu, SubSizeOnGpu,
 };
 use crate::high_level_api::traits::{
     DivRem, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
@@ -3181,6 +3181,25 @@ where
                     .key
                     .key
                     .get_neg_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
+            } else {
+                0
+            }
+        })
+    }
+}
+#[cfg(feature = "gpu")]
+impl<Id> RerandSizeOnGpu for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    fn get_rerand_size_on_gpu(&self) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_rerand_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
             } else {
                 0
             }

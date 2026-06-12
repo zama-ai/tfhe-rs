@@ -35,7 +35,7 @@ use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
 #[cfg(feature = "gpu")]
 use crate::prelude::{
     BitAndSizeOnGpu, BitNotSizeOnGpu, BitOrSizeOnGpu, BitXorSizeOnGpu, FheEqSizeOnGpu,
-    IfThenElseSizeOnGpu,
+    IfThenElseSizeOnGpu, RerandSizeOnGpu,
 };
 #[cfg(feature = "hpu")]
 use tfhe_hpu_backend::prelude::*;
@@ -2512,6 +2512,23 @@ where
                     &*ct_else.ciphertext.on_gpu(streams),
                     streams,
                 )
+            } else {
+                0
+            }
+        })
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl RerandSizeOnGpu for FheBool {
+    fn get_rerand_size_on_gpu(&self) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_rerand_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
             } else {
                 0
             }

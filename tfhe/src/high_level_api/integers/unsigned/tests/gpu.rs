@@ -5,9 +5,9 @@ use crate::prelude::{
     check_valid_cuda_malloc_assert_oom, AddSizeOnGpu, BitAndSizeOnGpu, BitNotSizeOnGpu,
     BitOrSizeOnGpu, BitXorSizeOnGpu, CiphertextList, DivRemSizeOnGpu, DivSizeOnGpu, FheDecrypt,
     FheEncrypt, FheEqSizeOnGpu, FheMaxSizeOnGpu, FheMinSizeOnGpu, FheOrdSizeOnGpu, FheTryEncrypt,
-    IfThenElseSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu, RotateLeft, RotateLeftAssign,
-    RotateLeftSizeOnGpu, RotateRight, RotateRightAssign, RotateRightSizeOnGpu, ShlSizeOnGpu,
-    ShrSizeOnGpu, SubSizeOnGpu,
+    IfThenElseSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu, RerandSizeOnGpu, RotateLeft,
+    RotateLeftAssign, RotateLeftSizeOnGpu, RotateRight, RotateRightAssign, RotateRightSizeOnGpu,
+    ShlSizeOnGpu, ShrSizeOnGpu, SubSizeOnGpu,
 };
 use crate::shortint::parameters::{
     TestParameters, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -1011,5 +1011,20 @@ fn test_uint16_fused_mul_div_gpu() {
     for setup_fn in GPU_SETUP_FN {
         let client_key = setup_fn();
         super::test_case_uint16_fused_mul_div(&client_key);
+    }
+}
+
+#[test]
+fn test_gpu_get_rerand_size_on_gpu() {
+    for setup_fn in GPU_SETUP_FN {
+        let cks = setup_fn();
+        let clear_a = rand::random::<u32>();
+        let mut a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
+        a.move_to_current_device();
+        let a = &a;
+
+        let rerand_size = a.get_rerand_size_on_gpu();
+        check_valid_cuda_malloc_assert_oom(rerand_size, GpuIndex::new(0));
+        assert!(rerand_size > 0);
     }
 }
