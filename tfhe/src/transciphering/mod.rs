@@ -59,6 +59,7 @@ use crate::shortint::{Ciphertext, ServerKey};
 use crate::transciphering::backward_compatibility::{
     StreamCipherKindVersions, StreamCiphertextVersions,
 };
+use crate::transciphering::ciphers::aes::AesFheStream;
 use crate::transciphering::ciphers::kreyvium::KreyviumFheState;
 
 /// Identifier for a concrete stream-cipher family.
@@ -73,6 +74,7 @@ use crate::transciphering::ciphers::kreyvium::KreyviumFheState;
 #[versionize(StreamCipherKindVersions)]
 pub enum StreamCipherKind {
     Kreyvium,
+    Aes,
     Dynamic,
 }
 
@@ -293,10 +295,11 @@ pub trait Transcipherer {
 }
 
 /// Owning, runtime-dispatched [`Transcipherer`]. Lets higher layers keep a
-/// single concrete type that can hold any in-tree cipher state, plus
-/// arbitrary out-of-tree implementors via [`Self::Dynamic`].
+/// single concrete type that can hold any in-tree cipher state ([`Self::Kreyvium`],
+/// [`Self::Aes`]), plus arbitrary out-of-tree implementors via [`Self::Dynamic`].
 pub enum TranscipherSession {
     Kreyvium(KreyviumFheState),
+    Aes(Box<AesFheStream>),
     Dynamic(Box<dyn Transcipherer + Send + Sync>),
 }
 
@@ -304,6 +307,7 @@ impl Transcipherer for TranscipherSession {
     fn kind(&self) -> StreamCipherKind {
         match self {
             Self::Kreyvium(t) => t.kind(),
+            Self::Aes(t) => t.kind(),
             Self::Dynamic(t) => t.kind(),
         }
     }
@@ -311,6 +315,7 @@ impl Transcipherer for TranscipherSession {
     fn next_keystream_bits(&mut self, sks: &ServerKey, n_bits: usize) -> FheKeyStream {
         match self {
             Self::Kreyvium(t) => t.next_keystream_bits(sks, n_bits),
+            Self::Aes(t) => t.next_keystream_bits(sks, n_bits),
             Self::Dynamic(t) => t.next_keystream_bits(sks, n_bits),
         }
     }
@@ -322,6 +327,7 @@ impl Transcipherer for TranscipherSession {
     ) -> Result<Vec<Ciphertext>, TranscipherError> {
         match self {
             Self::Kreyvium(t) => t.transcipher(sks, input),
+            Self::Aes(t) => t.transcipher(sks, input),
             Self::Dynamic(t) => t.transcipher(sks, input),
         }
     }
@@ -329,6 +335,7 @@ impl Transcipherer for TranscipherSession {
     fn seek(&mut self, sks: &ServerKey, target_counter: u64) {
         match self {
             Self::Kreyvium(t) => t.seek(sks, target_counter),
+            Self::Aes(t) => t.seek(sks, target_counter),
             Self::Dynamic(t) => t.seek(sks, target_counter),
         }
     }
@@ -336,6 +343,7 @@ impl Transcipherer for TranscipherSession {
     fn current_counter(&self) -> u64 {
         match self {
             Self::Kreyvium(t) => t.current_counter(),
+            Self::Aes(t) => t.current_counter(),
             Self::Dynamic(t) => t.current_counter(),
         }
     }
