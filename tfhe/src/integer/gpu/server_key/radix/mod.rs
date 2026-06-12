@@ -29,6 +29,7 @@ use crate::shortint::server_key::{
 };
 use crate::shortint::{PBSOrder, PaddingBit, ShortintEncoding};
 pub use oprf::{CudaOprfServerKey, CudaOprfServerKeyView, GenericCudaOprfServerKey};
+pub use shuffle::{BitonicShuffleKeySize, CollisionProbability};
 
 mod abs;
 mod add;
@@ -51,6 +52,7 @@ mod scalar_rotate;
 mod scalar_shift;
 mod scalar_sub;
 mod shift;
+mod shuffle;
 mod sub;
 mod vector_comparisons;
 mod vector_find;

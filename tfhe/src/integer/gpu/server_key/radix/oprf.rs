@@ -64,7 +64,7 @@ impl<K> GenericCudaOprfServerKey<K>
 where
     K: Borrow<CudaBootstrappingKey<u64>>,
 {
-    fn assert_compatible_with_target_bsk(&self, target_bsk: &CudaBootstrappingKey<u64>) {
+    pub(crate) fn assert_compatible_with_target_bsk(&self, target_bsk: &CudaBootstrappingKey<u64>) {
         assert_eq!(
             target_bsk.input_lwe_dimension(),
             self.bootstrapping_key.borrow().input_lwe_dimension()
@@ -499,6 +499,10 @@ where
                 }
             }
         }
+    }
+
+    pub(crate) fn bootstrapping_key(&self) -> &CudaBootstrappingKey<u64> {
+        self.bootstrapping_key.borrow()
     }
 
     pub fn par_generate_oblivious_pseudo_random_unsigned_custom_range(
