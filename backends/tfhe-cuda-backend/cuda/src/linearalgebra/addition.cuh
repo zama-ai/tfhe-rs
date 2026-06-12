@@ -9,6 +9,7 @@
 #include "helper_multi_gpu.h"
 #include "integer/integer.h"
 #include "integer/integer_utilities.h"
+#include "polynomial/parameters.cuh"
 #include "utils/helper.cuh"
 #include <stdio.h>
 
@@ -396,10 +397,25 @@ lwe_array_2d_reduce_rows_kernel(T *dst, SrcAccessor src, uint32_t chunk_size,
   uint32_t r_end = min(r_start + chunk_size, num_rows);
 
   T *out = dst + ((size_t)g * num_columns + j) * lwe_size + lane;
-  T s = Accumulate ? *out : T(0);
-  for (uint32_t r = r_start; r < r_end; r++)
-    s += src.row(r, j)[lane];
-  *out = s;
+
+  // Unroll the accumulation by 4 with independent partial sums. The naive
+  // serial chain (s += row[r]) makes every add depend on the previous one,
+  // serializing on global-load latency. Four independent accumulators let the
+  // compiler issue the loads back-to-back and expose instruction-level
+  // parallelism on this memory-bound reduction. ulonglong2 vectorization is
+  // intentionally avoided: per-row lwe alignment is not guaranteed.
+  T s0 = Accumulate ? *out : T(0);
+  T s1 = T(0), s2 = T(0), s3 = T(0);
+  uint32_t r = r_start;
+  for (; r + 4 <= r_end; r += 4) {
+    s0 += src.row(r, j)[lane];
+    s1 += src.row(r + 1, j)[lane];
+    s2 += src.row(r + 2, j)[lane];
+    s3 += src.row(r + 3, j)[lane];
+  }
+  for (; r < r_end; r++)
+    s0 += src.row(r, j)[lane];
+  *out = (s0 + s1) + (s2 + s3);
 }
 
 // Host-side (row, column) degree/noise accessor for a flat metadata array.

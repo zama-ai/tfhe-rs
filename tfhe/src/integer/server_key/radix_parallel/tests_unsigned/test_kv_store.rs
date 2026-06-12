@@ -143,7 +143,7 @@ fn get_num_block_for_key(msg_mod: MessageModulus) -> usize {
     KeyType::BITS.div_ceil(msg_mod.0.ilog2()) as usize
 }
 
-fn default_kv_store_get_update_test<P, T1, T2>(
+pub fn default_kv_store_get_update_test<P, T1, T2>(
     params: P,
     mut kv_store_get: T1,
     mut kv_store_update: T2,
@@ -177,7 +177,7 @@ fn default_kv_store_get_update_test<P, T1, T2>(
     kv_store_get.setup(&cks, sks.clone());
     kv_store_update.setup(&cks, sks);
 
-    // Test on an empty store
+    // Test on an empty store (num_entries == 0 path in host_binary_tree_fold_sum).
     {
         let mut empty_map: KVStore<KeyType, RadixCiphertext> = KVStore::new();
         let key = rand::random::<u8>();
@@ -194,50 +194,66 @@ fn default_kv_store_get_update_test<P, T1, T2>(
         assert!(!cks.decrypt_bool(&is_some));
     }
 
-    let num_keys = 20usize;
-    let (mut map, mut clear_store) = create_filled_stores(num_keys, modulus, &cks);
+    // Exercise three store sizes that cover distinct fold-schedule paths in
+    // host_binary_tree_fold_sum for 2_2 params (max_noise = 5, L = 2, extra = 1):
+    //
+    //   3  — R < max_noise: fold-only, no reservation (G = 0). Stops at 1
+    //         survivor before exhausting L levels.
+    //
+    //  20  — R is a multiple of max_noise: G = 4, T = 4, front = 16.
+    //         Two fold levels (16 → 4 survivors), absorb 4 tail entries, PBS
+    //         → 4. Second round: R = 4 < 5, fold-only → 1.
+    //
+    //  26  — R >= max_noise but R % max_noise != 0: G = 5, T = 5, front = 21.
+    //         Two fold levels (21 → 6 survivors), absorb 5 tail entries, PBS
+    //         → 6. Second round: G = 1, T = 1, front = 5, fold (5 → 2), absorb
+    //         1 tail, PBS → 2. Third round: R = 2 < 5, fold → 1. Three PBS
+    //         rounds with a non-multiple remainder at each full round.
+    for num_keys in [3usize, 20, 26] {
+        let (mut map, mut clear_store) = create_filled_stores(num_keys, modulus, &cks);
 
-    // Test modifying a key that does not exist
-    for _ in 0..num_keys.div_ceil(2) {
-        let key = generate_unused_key(&clear_store);
-        let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
+        // Test a key that does not exist.
+        for _ in 0..num_keys.div_ceil(2) {
+            let key = generate_unused_key(&clear_store);
+            let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
 
-        let (result, is_some) = kv_store_get.execute((&mut map, &encrypted_key));
-        assert!(!cks.decrypt_bool(&is_some));
-        assert_eq!(cks.decrypt::<u64>(&result), 0);
+            let (result, is_some) = kv_store_get.execute((&mut map, &encrypted_key));
+            assert!(!cks.decrypt_bool(&is_some));
+            assert_eq!(cks.decrypt::<u64>(&result), 0);
 
-        let new_value = rand::random::<u64>() % modulus;
-        let encrypted_new_value: RadixCiphertext = cks.encrypt(new_value);
-        let is_some = kv_store_update.execute((&mut map, &encrypted_key, &encrypted_new_value));
-        assert!(!cks.decrypt_bool(&is_some));
+            let new_value = rand::random::<u64>() % modulus;
+            let encrypted_new_value: RadixCiphertext = cks.encrypt(new_value);
+            let is_some = kv_store_update.execute((&mut map, &encrypted_key, &encrypted_new_value));
+            assert!(!cks.decrypt_bool(&is_some));
 
-        panic_if_not_the_same(&map, &clear_store, &cks);
-    }
+            panic_if_not_the_same(&map, &clear_store, &cks);
+        }
 
-    // Test modifying a key that exists
-    for _ in 0..num_keys.div_ceil(2) {
-        let key_index = rand::random::<usize>() % num_keys;
-        let key_target = *clear_store.iter().nth(key_index).unwrap().0;
-        let encrypted_key = cks.as_ref().encrypt_radix(key_target, nb_blocks_key);
+        // Test a key that exists.
+        for _ in 0..num_keys.div_ceil(2) {
+            let key_index = rand::random::<usize>() % num_keys;
+            let key_target = *clear_store.iter().nth(key_index).unwrap().0;
+            let encrypted_key = cks.as_ref().encrypt_radix(key_target, nb_blocks_key);
 
-        let expected_value = clear_store.get(&key_target).unwrap();
+            let expected_value = clear_store.get(&key_target).unwrap();
 
-        let (result, is_some) = kv_store_get.execute((&mut map, &encrypted_key));
-        assert!(cks.decrypt_bool(&is_some));
-        assert_eq!(cks.decrypt::<u64>(&result), *expected_value);
+            let (result, is_some) = kv_store_get.execute((&mut map, &encrypted_key));
+            assert!(cks.decrypt_bool(&is_some));
+            assert_eq!(cks.decrypt::<u64>(&result), *expected_value);
 
-        let new_value = rand::random::<u64>() % modulus;
-        let encrypted_new_value: RadixCiphertext = cks.encrypt(new_value);
-        let is_some = kv_store_update.execute((&mut map, &encrypted_key, &encrypted_new_value));
-        assert!(cks.decrypt_bool(&is_some));
+            let new_value = rand::random::<u64>() % modulus;
+            let encrypted_new_value: RadixCiphertext = cks.encrypt(new_value);
+            let is_some = kv_store_update.execute((&mut map, &encrypted_key, &encrypted_new_value));
+            assert!(cks.decrypt_bool(&is_some));
 
-        clear_store.insert(key_target, new_value);
+            clear_store.insert(key_target, new_value);
 
-        panic_if_not_properly_updated(&map, &clear_store, key_target, &cks);
+            panic_if_not_properly_updated(&map, &clear_store, key_target, &cks);
+        }
     }
 }
 
-fn default_kv_store_map_test<P, T>(params: P, mut kv_store_map: T)
+pub fn default_kv_store_map_test<P, T>(params: P, mut kv_store_map: T)
 where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<

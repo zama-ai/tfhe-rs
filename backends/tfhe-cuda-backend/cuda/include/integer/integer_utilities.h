@@ -25,6 +25,46 @@
 /// when all blocks should use the same LUT.
 constexpr std::nullptr_t LUT_0_FOR_ALL_BLOCKS = nullptr;
 
+/// Survivor count after one reserve-tail-and-absorb PBS round of the kv_store
+/// one-hot sum (host_binary_tree_fold_sum).
+///
+/// A radix block can absorb additions until its noise reaches
+/// max_noise = (message_modulus * carry_modulus - 1) / (message_modulus - 1),
+/// the largest factor by which max-degree-1 inputs can be summed before a PBS
+/// is mandatory. Each pairwise fold level doubles noise, so plain folding only
+/// permits L = floor(log2(max_noise)) levels per PBS, i.e. a factor 2^L < M of
+/// entry reduction. Reserving a tail of T = floor(R / M) * (M - 2^L) entries at
+/// noise 1 and absorbing them one-per-survivor after the L fold levels lifts
+/// each survivor from noise 2^L to exactly M, reaching the full factor-M
+/// reduction the noise budget allows.
+///
+/// The post-round survivor count equals the number of front survivors after the
+/// L fold levels (absorb adds tail entries onto existing survivors and does not
+/// change their count). When R < M the reservation is skipped and folding runs
+/// for up to L levels but stops at one entry. This is the single source of
+/// truth shared by the scratch allocation and the host loop so the two cannot
+/// drift.
+inline uint32_t kv_sum_pbs_round_survivors(uint32_t num_entries,
+                                           uint32_t message_modulus,
+                                           uint32_t carry_modulus) {
+  if (num_entries <= 1)
+    return num_entries;
+
+  uint32_t max_noise =
+      (message_modulus * carry_modulus - 1) / (message_modulus - 1);
+  uint32_t fold_levels = log2_int(max_noise);
+
+  uint32_t group_size = num_entries / max_noise;
+  uint32_t reserved_tail = group_size * (max_noise - (1u << fold_levels));
+  uint32_t remaining = num_entries - reserved_tail;
+
+  for (uint32_t level = 0; level < fold_levels && remaining > 1; level++) {
+    uint32_t half = remaining / 2;
+    remaining = remaining - half;
+  }
+  return remaining;
+}
+
 /// Generate LUT indexes with a generator, validate them, and copy to any GPU
 /// buffer.
 ///

@@ -243,6 +243,12 @@ __host__ void host_compute_eq_selectors_ct_vs_clears(
     int_eq_selectors_ct_vs_clears_buffer<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks) {
 
+  // A num_blocks of 0 would produce an all-zero selector matrix instead of the
+  // trivial all-match result, so the radix-block count is required to be at
+  // least 1. All callers derive num_blocks from a non-empty radix ciphertext.
+  PANIC_IF_FALSE(num_blocks >= 1, "num_blocks must be at least 1 in "
+                                  "host_compute_eq_selectors_ct_vs_clears");
+
   uint32_t num_possible_values = mem_ptr->num_possible_values;
   uint32_t message_modulus = mem_ptr->params.message_modulus;
   uint32_t carry_modulus = mem_ptr->params.carry_modulus;
@@ -486,6 +492,41 @@ uint64_t scratch_cuda_create_possible_results(
   return size_tracker;
 }
 
+// Given N encrypted radix ciphertexts forming a one-hot vector (at most one
+// non-zero entry), sum them into a single output ciphertext. Because the
+// vector is one-hot, the sum recovers the value of the single non-zero entry.
+//
+// Plain LWE addition accumulates noise in the carry bits. After chunk_size
+// additions the carry space is exhausted, so an identity PBS is applied after
+// each chunk to refresh the ciphertext (extract message, reset carry to zero).
+//
+// The algorithm has three phases:
+//
+// Phase 1 — Parallel chunked accumulation (one CUDA stream per partition):
+//
+//   stream 0: inputs[0..k)         stream 1: inputs[k..2k)        ...
+//   ┌──────────────────────┐       ┌──────────────────────┐
+//   │ acc  = 0             │       │ acc  = 0             │
+//   │ acc += input[0]      │       │ acc += input[k]      │
+//   │ acc += input[1]      │       │ acc += input[k+1]    │
+//   │ ...chunk_size adds...│       │ ...chunk_size adds...│
+//   │ acc = PBS(acc)  ← refresh    │ acc = PBS(acc)       │
+//   │ (repeat for next chunk)      │ (repeat)             │
+//   └──────────────────────┘       └──────────────────────┘
+//
+// Phase 2 — Cross-stream merge: sum partial accumulators into stream 0's
+//   result. num_streams must stay below the noise ceiling.
+//
+// Phase 3 — Message/carry extraction and interleaving:
+//   The accumulated blocks use both message and carry space. Two parallel
+//   PBS calls extract message bits and carry bits separately, then
+//   interleave them into the output:
+//
+//     output[2i]   = message_extract(acc[i])
+//     output[2i+1] = carry_extract(acc[i])
+//
+//   This unpacks each "packed" block into two standard blocks, so the
+//   output has up to 2 * num_blocks radix blocks.
 template <typename Torus>
 __host__ void host_aggregate_one_hot_vector(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
