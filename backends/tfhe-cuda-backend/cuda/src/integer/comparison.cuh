@@ -642,16 +642,187 @@ __host__ void host_difference_check(
                              bsks, ksks, num_comparisons);
 }
 
+/// @brief Computes the group carries the unsigned comparison needs,
+/// bootstrapping only `num_groups` blocks instead of all `num_radix_blocks`.
+///
+/// Unlike the full overflowing-sub, a comparison only consumes the group
+/// carries and the last simulator, so we gather just those `num_groups`
+/// cumulative-sum blocks, bootstrap them in a single batch, and reuse the
+/// existing group-carry resolvers. This matches the CPU implementation.
+///
+/// @param block_states each block has a previously computed state (borrow,
+/// carry, etc.)
+/// @param mem borrow-propagation memory (cumulative sums, group PGNs,
+/// simulators, resolved carries)
+/// @param num_radix_blocks number of radix blocks in the operands
+/// @param num_groups number of block groups (the bootstrap batch width)
+template <typename Torus, typename KSTorus>
+__host__ void host_compute_reduced_pgns_and_carries_for_comparison(
+    CudaStreams streams, CudaRadixCiphertextFFI *block_states,
+    int_radix_params params, int_prop_simu_group_carries_memory<Torus> *mem,
+    void *const *bsks, KSTorus *const *ksks, uint32_t num_radix_blocks,
+    uint32_t num_groups) {
+
+  auto message_modulus = params.message_modulus;
+  auto carry_modulus = params.carry_modulus;
+  auto group_size = mem->group_size;
+  auto propagation_cum_sums = mem->propagation_cum_sums;
+  auto grouping_pgns = mem->grouping_pgns;
+  auto simulators = mem->simulators;
+
+  // Cumulative sum of borrow states within each group.
+  host_radix_cumulative_sum_in_groups<Torus>(
+      streams.stream(0), streams.gpu_index(0), propagation_cum_sums,
+      block_states, num_radix_blocks, group_size);
+
+  // Gather the G cumulative-sum blocks the comparison actually needs into
+  // grouping_pgns: slots [0, num_groups-1) are the group totals (last block of
+  // each propagating group); the final slot is the source of the last
+  // simulator (block num_radix_blocks-2). The gather order must match the
+  // reduced LUT-index / corrector maps installed at scratch time.
+  for (uint32_t g = 0; g + 1 < num_groups; g++) {
+    uint32_t src = (g + 1) * group_size - 1;
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), grouping_pgns, g, g + 1,
+        propagation_cum_sums, src, src + 1);
+  }
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), grouping_pgns, num_groups - 1,
+      num_groups, propagation_cum_sums, num_radix_blocks - 2,
+      num_radix_blocks - 1);
+
+  // Single G-block bootstrap. The reduced LUT-index map (installed at scratch)
+  // selects, per slot, the same LUT the full path applies at that position.
+  integer_radix_apply_univariate_lookup_table<Torus>(
+      streams, grouping_pgns, grouping_pgns, bsks, ksks,
+      mem->luts_array_second_step, num_groups);
+
+  // Reduced negacyclic corrector map (installed at scratch).
+  host_scalar_addition_inplace<Torus>(
+      streams, grouping_pgns, mem->scalar_array_cum_sum,
+      mem->h_scalar_array_cum_sum, num_groups, message_modulus, carry_modulus);
+
+  // Move the last simulator into simulators[n-1] for the overflow combine;
+  // grouping_pgns[0 .. num_groups-2] stay in place for the resolvers (which
+  // never read the final slot).
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), simulators, num_radix_blocks - 1,
+      num_radix_blocks, grouping_pgns, num_groups - 1, num_groups);
+
+  // Group-carry resolution: reused verbatim from the full path.
+  auto resolved_carries = mem->resolved_carries;
+  if (mem->use_sequential_algorithm_to_resolve_group_carries) {
+    host_resolve_group_carries_sequentially(
+        streams, resolved_carries, grouping_pgns, params,
+        mem->seq_group_prop_mem, bsks, ksks, num_groups);
+  } else {
+    auto luts_carry_propagation_sum = mem->hs_group_prop_mem->lut_hillis_steele;
+    CudaRadixCiphertextFFI shifted_resolved_carries;
+    as_radix_ciphertext_slice<Torus>(&shifted_resolved_carries,
+                                     resolved_carries, 1, num_groups);
+    host_compute_prefix_sum_hillis_steele<Torus>(
+        streams, &shifted_resolved_carries, grouping_pgns,
+        luts_carry_propagation_sum, bsks, ksks, num_groups - 1);
+  }
+}
+
+/// @brief Unsigned GT/GE/LT/LE via borrow propagation: `a < b` iff `a - b`
+/// borrows out of the most significant block.
+///
+/// Reuses the borrow-propagation steps of the overflowing-sub and finishes with
+/// a single-block LUT (`lut_borrow_flag_cmp`) that extracts the borrow-out and
+/// applies the per-op inversion. The caller orders the operands so this always
+/// computes `left < right`.
+///
+/// @param lwe_array_out single boolean result block
+/// @param lwe_array_left left operand (ordered so the op is `left < right`)
+/// @param lwe_array_right right operand
+/// @param mem_ptr comparison buffer with the borrow fast-path memory and flag
+/// LUT
+/// @param num_radix_blocks number of radix blocks in the operands
+template <typename Torus, typename KSTorus>
+__host__ void host_difference_check_via_borrow(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_left,
+    CudaRadixCiphertextFFI const *lwe_array_right,
+    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
+    KSTorus *const *ksks, uint32_t num_radix_blocks) {
+
+  if (lwe_array_out->lwe_dimension != lwe_array_left->lwe_dimension ||
+      lwe_array_out->lwe_dimension != lwe_array_right->lwe_dimension)
+    PANIC("Cuda error: input lwe dimensions must be the same")
+
+  auto mem = mem_ptr->diff_borrow_mem;
+  auto params = mem_ptr->params;
+  auto message_modulus = params.message_modulus;
+  auto carry_modulus = params.carry_modulus;
+  auto lut_stride = mem->lut_stride;
+  auto num_many_lut = mem->num_many_lut;
+  auto num_groups = mem->num_groups;
+
+  // Step 0: per-block subtraction with the message_modulus - 1 correcting term,
+  // matching the CPU's `unchecked_sub` so the block-state LUTs see the expected
+  // encoding (block < message_modulus means the block borrows).
+  auto sub_blocks = mem_ptr->tmp_block_comparisons;
+  host_unchecked_sub_with_correcting_term<Torus>(
+      streams.stream(0), streams.gpu_index(0), sub_blocks, lwe_array_left,
+      lwe_array_right, num_radix_blocks, message_modulus, carry_modulus);
+
+  // Step 1: compute the per-block borrow states (shifted_blocks is unused
+  // here).
+  host_compute_shifted_blocks_and_borrow_states<Torus>(
+      streams, sub_blocks, mem->shifted_blocks_borrow_state_mem, bsks, ksks,
+      lut_stride, num_many_lut);
+
+  auto borrow_states = mem->shifted_blocks_borrow_state_mem->borrow_states;
+  // Save the borrow state of the last block to combine into the overflow block.
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), mem->overflow_block, 0, 1,
+      borrow_states, num_radix_blocks - 1, num_radix_blocks);
+
+  // Step 2: group PGNs + group-carry resolution. Comparison-only reduced
+  // version that bootstraps num_groups blocks instead of num_radix_blocks (see
+  // the function header). It also writes simulators[num_radix_blocks-1], the
+  // only per-block simulator the overflow combine below consumes.
+  host_compute_reduced_pgns_and_carries_for_comparison<Torus>(
+      streams, borrow_states, params, mem->prop_simu_group_carries_mem, bsks,
+      ksks, num_radix_blocks, num_groups);
+
+  // Combine into the overflow (borrow-out) block, mirroring the overflow branch
+  // of host_single_borrow_propagate.
+  CudaRadixCiphertextFFI shifted_simulators;
+  as_radix_ciphertext_slice<Torus>(&shifted_simulators,
+                                   mem->prop_simu_group_carries_mem->simulators,
+                                   num_radix_blocks - 1, num_radix_blocks);
+  host_addition<Torus>(streams.stream(0), streams.gpu_index(0),
+                       mem->overflow_block, mem->overflow_block,
+                       &shifted_simulators, 1, message_modulus, carry_modulus);
+
+  CudaRadixCiphertextFFI resolved_borrows;
+  as_radix_ciphertext_slice<Torus>(
+      &resolved_borrows, mem->prop_simu_group_carries_mem->resolved_carries,
+      num_groups - 1, num_groups);
+  host_addition<Torus>(streams.stream(0), streams.gpu_index(0),
+                       mem->overflow_block, mem->overflow_block,
+                       &resolved_borrows, 1, message_modulus, carry_modulus);
+
+  // Final LUT: ((overflow_block >> 2) & 1) ^ invert, producing the boolean
+  // result in a single block.
+  integer_radix_apply_univariate_lookup_table<Torus>(
+      streams, lwe_array_out, mem->overflow_block, bsks, ksks,
+      mem_ptr->lut_borrow_flag_cmp, 1);
+}
+
 template <typename Torus>
 __host__ uint64_t scratch_cuda_comparison_check(
     CudaStreams streams, int_comparison_buffer<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params, COMPARISON_TYPE op,
-    bool is_signed, bool allocate_gpu_memory) {
+    bool is_signed, bool allow_borrow_fast_path, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_comparison_buffer<Torus>(
       streams, op, params, num_radix_blocks, is_signed, allocate_gpu_memory,
-      size_tracker);
+      size_tracker, allow_borrow_fast_path);
   return size_tracker;
 }
 
