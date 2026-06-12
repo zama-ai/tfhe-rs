@@ -1,9 +1,14 @@
 pub mod dop;
 pub use dop::arg::Arg as DOpArg;
-pub use dop::{DOp, DigitParameters, ImmId, MemId, Pbs, PbsGid, PbsLut, RegId, ToHex};
+use dop::ParsingError;
+pub use dop::{
+    DOp, DigitParameters, ImmId, MemId, Pbs, PbsGid, PbsLut, RegId, ToHex, UcoreFlag, UcorePayload,
+    UcorePayloadMode, UserFlag,
+};
 pub mod iop;
-pub use iop::{AsmIOpcode, IOp, IOpProto, IOpcode, OperandKind};
+pub use iop::{AsmIOpcode, IOp, IOpProto, IOpcode, Operand, OperandKind};
 
+use lazy_static::lazy_static;
 use std::collections::VecDeque;
 use std::io::{BufRead, Write};
 
@@ -17,6 +22,93 @@ pub const ASM_COMMENT_PREFIX: [char; 2] = [';', '#'];
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct CtId(pub u16);
 
+/// Virtual Id
+/// Depict the Hpu virtual target for firmware definition
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default,
+)]
+pub struct VirtId(pub u8);
+
+impl std::fmt::Display for VirtId {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "N{}", self.0)
+    }
+}
+
+impl std::str::FromStr for VirtId {
+    type Err = ParsingError;
+
+    #[tracing::instrument(level = "trace", ret)]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        lazy_static! {
+            static ref HID_ARG_RE: regex::Regex =
+                regex::Regex::new(r"^N(?<id>(\d+))").expect("Invalid regex");
+        }
+        if let Some(caps) = HID_ARG_RE.captures(s) {
+            let hid = caps["id"]
+                .parse::<u8>()
+                .map_err(|err| ParsingError::InvalidArg(err.to_string()))?;
+            Ok(Self(hid))
+        } else {
+            Err(ParsingError::Unmatch(format!(
+                "Invalid argument format for VirtId {s}"
+            )))
+        }
+    }
+}
+
+/// TargetId
+/// Templated DOp used same field to encode PhysId/VirtId without available bit to keep the type
+/// information TargetId is a generic type that collude to PhysId/VirtId.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Default,
+)]
+pub struct PhysId(pub u8);
+
+impl std::fmt::Display for PhysId {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Np{}", self.0)
+    }
+}
+
+/// Describe IOp instruction Id, used to attach Ucore instruction flag to
+/// the correct IOp.
+/// Indeed, with the context of multi-hpu Node, multiple IOp could be executed at the same time.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize, Hash,
+)]
+pub struct IOpId(pub u8);
+
+impl std::fmt::Display for IOpId {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "iid{}", self.0)
+    }
+}
+
+impl std::str::FromStr for IOpId {
+    type Err = ParsingError;
+
+    #[tracing::instrument(level = "trace", ret)]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        lazy_static! {
+            static ref IID_ARG_RE: regex::Regex =
+                regex::Regex::new(r"^iid(?<id>(\d+))").expect("Invalid regex");
+        }
+        if let Some(caps) = IID_ARG_RE.captures(s) {
+            let iid = caps["id"]
+                .parse::<u8>()
+                .map_err(|err| ParsingError::InvalidArg(err.to_string()))?;
+            Ok(Self(iid))
+        } else {
+            Err(ParsingError::Unmatch(format!(
+                "Invalid argument format for IOpId {s}"
+            )))
+        }
+    }
+}
+
+/// Reserved IOpId for Sw generated value
+pub const SW_IOP_ID: IOpId = IOpId(0);
 // ---------------------------------------------------------------------------
 
 /// Simple test for Asm parsing

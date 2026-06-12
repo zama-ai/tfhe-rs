@@ -456,6 +456,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
+                    None,
                 )
                 .pop()
                 .unwrap();
@@ -530,6 +531,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
+                    None,
                 )
                 .pop()
                 .unwrap();
@@ -630,6 +632,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
+                    None,
                 )
                 .pop()
                 .unwrap();
@@ -704,6 +707,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
+                    None,
                 )
                 .pop()
                 .unwrap();
@@ -778,6 +782,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
+                    None,
                 )
                 .pop()
                 .unwrap();
@@ -852,6 +857,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
+                    None,
                 )
                 .pop()
                 .unwrap();
@@ -974,6 +980,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
+                    None,
                 );
                 let remainder = hpu_result.pop().expect("IOP_DIV must return 2 value");
                 let quotient = hpu_result.pop().expect("IOP_DIV must return 2 value");
@@ -1379,6 +1386,7 @@ generic_integer_impl_operation!(
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
+                    None
                 );
                 let _remainder = hpu_result.pop().expect("IOP_DIV must return 2 value");
                 let quotient = hpu_result.pop().expect("IOP_DIV must return 2 value");
@@ -1455,6 +1463,7 @@ generic_integer_impl_operation!(
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
+                    None
                 );
                 let remainder = hpu_result.pop().expect("IOP_MOD must return 1 value");
                     FheUint::new(remainder, device.tag.clone(), ReRandomizationMetadata::default())
@@ -1589,6 +1598,7 @@ generic_integer_impl_shift_rotate!(
                             opcode,
                             &[hpu_lhs.clone(), hpu_rhs.clone()],
                             &[],
+                            None
                         ).pop().expect("IOP_SHIFT_L must return 1 value");
                             FheUint::new(hpu_result, device.tag.clone(), ReRandomizationMetadata::default())
                     }
@@ -1653,6 +1663,7 @@ generic_integer_impl_shift_rotate!(
                             opcode,
                             &[hpu_lhs.clone(), hpu_rhs.clone()],
                             &[],
+                            None
                         ).pop().expect("IOP_SHIFT_R must return 1 value");
                             FheUint::new(hpu_result, device.tag.clone(), ReRandomizationMetadata::default())
                     }
@@ -1717,6 +1728,7 @@ generic_integer_impl_shift_rotate!(
                             opcode,
                             &[hpu_lhs.clone(), hpu_rhs.clone()],
                             &[],
+                            None
                         ).pop().expect("IOP_ROT_L must return 1 value");
                             FheUint::new(hpu_result, device.tag.clone(), ReRandomizationMetadata::default())
                     }
@@ -1781,6 +1793,7 @@ generic_integer_impl_shift_rotate!(
                             opcode,
                             &[hpu_lhs.clone(), hpu_rhs.clone()],
                             &[],
+                            None
                         ).pop().expect("IOP_ROT_R must return 1 value");
                             FheUint::new(hpu_result, device.tag.clone(), ReRandomizationMetadata::default())
                     }
@@ -2162,6 +2175,7 @@ where
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
+                    None,
                 );
                 let _remainder = hpu_result.pop().expect("IOP_DIV must return 2 value");
                 let quotient = hpu_result.pop().expect("IOP_DIV must return 2 value");
@@ -2642,6 +2656,7 @@ where
                     opcode,
                     std::slice::from_ref(&hpu_self),
                     &[0_u128],
+                    None,
                 )
                 .pop()
                 .expect("SSUB must return a single value");

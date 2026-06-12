@@ -29,8 +29,6 @@
 
 /Makefile                               @IceTDrinker @soonum
 
-/mockups/tfhe-hpu-mockup                @zama-ai/hardware
-
 /.github/                               @soonum @SouchonTheo
 /ci/                                    @soonum @SouchonTheo
 /scripts/                               @soonum @SouchonTheo

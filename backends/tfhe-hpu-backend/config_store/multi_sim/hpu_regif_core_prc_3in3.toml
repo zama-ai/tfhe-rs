@@ -1,0 +1,100 @@
+module_name="hpu_regif_core_prc_3in3"
+description="HPU top-level register interface. Used by the host to retrieve design information, and to configure it."
+word_size_b = 32
+offset = 0x30000
+range = 0x10000
+ext_pkg = ["axi_if_common_param_pkg", "axi_if_shell_axil_pkg"]
+
+# =====================================================================================================================
+[section.entry_prc_3in3]
+description="entry_prc_3in3 section with known value used for debug."
+offset= 0x0
+
+[section.entry_prc_3in3.register.dummy_val0]
+  description="RTL version"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x04040404}
+
+[section.entry_prc_3in3.register.dummy_val1]
+  description="RTL version"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x14141414}
+
+[section.entry_prc_3in3.register.dummy_val2]
+  description="RTL version"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x24242424}
+
+[section.entry_prc_3in3.register.dummy_val3]
+  description="RTL version"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x34343434}
+
+# =====================================================================================================================
+[section.status_3in3]
+description="HPU status of parts 2in3 and 3in3"
+offset= 0x10
+
+[section.status_3in3.register.error]
+  description="Error register (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+  field.pbs   = { size_b=32, offset_b=0 , default={Cst=0}, description="HPU error part 3in3"}
+
+# =====================================================================================================================
+[section.bsk_avail]
+description="BSK availability configuration"
+offset= 0x1000
+
+[section.bsk_avail.register.avail]
+  description="BSK available bit"
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  field.avail = { size_b=1, offset_b=0 , default={Cst=0}, description="avail"}
+
+[section.bsk_avail.register.reset]
+  description="BSK reset sequence"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+  field.request = { size_b=1, offset_b=0 ,  default={Cst=0}, description="request"}
+  field.done    = { size_b=1, offset_b=31 , default={Cst=0}, description="done"}
+
+# =====================================================================================================================
+[section.runtime_3in3]
+description="Runtime information"
+offset= 0x2000
+
+[section.runtime_3in3.register.pep_load_bsk_rcp_dur]
+  description="PEP: load BSK slice reception max duration (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+  duplicate=["_pc0","_pc1","_pc2","_pc3","_pc4","_pc5","_pc6","_pc7","_pc8","_pc9","_pc10","_pc11","_pc12","_pc13","_pc14","_pc15"]
+
+[section.runtime_3in3.register.pep_bskif_req_info_0]
+  description="PEP: BSK_IF: requester info 0"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  field.req_br_loop_rp   = { size_b=16, offset_b=0  , default={Cst=0}, description="PEP BSK_IF requester BSK read pointer"}
+  field.req_br_loop_wp   = { size_b=16, offset_b=16 , default={Cst=0}, description="PEP BSK_IF requester BSK write pointer"}
+
+[section.runtime_3in3.register.pep_bskif_req_info_1]
+  description="PEP: BSK_IF: requester info 0"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  field.req_prf_br_loop  = { size_b=16, offset_b=0  , default={Cst=0}, description="PEP BSK_IF requester BSK prefetch pointer"}
+  field.req_parity       = { size_b=1,  offset_b=16 , default={Cst=0}, description="PEP BSK_IF requester BSK pointer parity"}
+  field.req_assigned     = { size_b=1,  offset_b=31 , default={Cst=0}, description="PEP BSK_IF requester assignment"}

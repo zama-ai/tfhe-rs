@@ -57,7 +57,19 @@ offset= 0x100
 [section.hpu_reset.register.trigger]
   description="A soft reset for the whole HPU reconfigurable logic"
   owner="Kernel"
-  read_access="Read"
+  read_access="ReadNotify"
   write_access="WriteNotify"
   field.request = { size_b=1, offset_b=0 ,  default={Cst=0}, description="request"}
   field.done    = { size_b=1, offset_b=31 , default={Cst=0}, description="done"}
+
+[section.debug]
+description="Register used for debug purpose"
+offset= 0x200
+
+[section.debug.register.int]
+  description="debug register to test interrupts"
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  field.int0_cnt = { size_b=16, offset_b=16, default={Cst=0}, description="cnt of int trigger"}
+  field.int0     = { size_b=1, offset_b=0 , default={Cst=0}, description="debug int line 0"}

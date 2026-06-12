@@ -1,0 +1,155 @@
+ 
+[fpga]
+  regmap=["${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_cfg_1in3.toml",
+          "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_cfg_3in3.toml",
+          "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_mhdma_2in3.toml",
+          "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_prc_1in3.toml",
+          "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_prc_3in3.toml",
+          "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/sim_dummy_regif.toml"]
+  polling_us=1
+  node_id=[0,1,2,3]
+
+[fpga.ffi.Sim]
+  ipc_name="/tmp/${USER}/hpu_sim_ipc"
+  iopq={head_ofst=0x0, tail_ofst=0x8, data_ofst=0x10, size_w=512, mem= {Ddr={offset=0x2000_0000}}}
+  ackq={head_ofst=0x0, tail_ofst=0x8, data_ofst=0x10, size_w=512, mem= {Ddr={offset=0x2000_1000}}}
+
+[rtl]
+  bpip_use = true
+  bpip_use_opportunism = true
+  bpip_timeout = 100_000
+
+[board]
+  ct_pc = [
+    {Hbm= {pc=32}},
+    {Hbm= {pc=33}},
+  ]
+  user_size = 12288
+  b2b_size = 4096
+  heap_size = 16384
+
+  lut_mem = 256
+  lut_pc = {Hbm={pc=34}}
+
+  fw_size= 16777216 # i.e. 16 MiB
+  fw_pc = {Ddr= {offset= 0x3900_0000}} # NB: Allocation must take place in the Discrete DDR
+
+  bsk_pc = [
+    {Hbm={pc=8}},
+    {Hbm={pc=10}},
+    {Hbm={pc=12}},
+    {Hbm={pc=14}},
+    {Hbm={pc=24}},
+    {Hbm={pc=26}},
+    {Hbm={pc=28}},
+    {Hbm={pc=30}},
+    {Hbm={pc=40}},
+    {Hbm={pc=42}},
+    {Hbm={pc=44}},
+    {Hbm={pc=46}},
+    {Hbm={pc=56}},
+    {Hbm={pc=58}},
+    {Hbm={pc=60}},
+    {Hbm={pc=62}}
+  ]
+
+  ksk_pc = [
+    {Hbm={pc=0}},
+    {Hbm={pc=1}},
+    {Hbm={pc=2}},
+    {Hbm={pc=3}},
+    {Hbm={pc=4}},
+    {Hbm={pc=5}},
+    {Hbm={pc=6}},
+    {Hbm={pc=7}},
+    {Hbm={pc=16}},
+    {Hbm={pc=17}},
+    {Hbm={pc=18}},
+    {Hbm={pc=19}},
+    {Hbm={pc=20}},
+    {Hbm={pc=21}},
+    {Hbm={pc=22}},
+    {Hbm={pc=23}}
+  ]
+
+  trace_pc = {Hbm={pc=35}}
+  trace_depth = 32 # In MB
+
+[firmware]
+  implementation = "Ilp"
+  integer_w=[8,32,64]
+  min_batch_size = 12
+  kogge_cfg            = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/kogge_cfg.toml"
+[firmware.custom_iop.integer_w_2]
+  'IOP[16]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_2/cust_16"
+
+[firmware.custom_iop.integer_w_4]
+  'IOP[18]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_4/cust_18"
+
+[firmware.custom_iop.integer_w_6]
+  'IOP[8]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_6/cust_8"
+
+[firmware.custom_iop.integer_w_8]
+  'IOP[0]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_0"
+  'IOP[1]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_1"
+  'IOP[2]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_2"
+  'IOP[3]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_3"
+  'IOP[9]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_9"
+  'IOP[16]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_10"
+  'IOP[17]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_17"
+  'IOP[19]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_19"
+  'IOP[20]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_20"
+  'IOP[32]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_32"
+  'IOP[33]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_33"
+  'IOP[34]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_34"
+  'IOP[35]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_35"
+  'IOP[36]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/mul8b"
+  'IOP[37]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_37"
+
+[firmware.custom_iop.integer_w_16]
+  'IOP[21]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_16/cust_21"
+  'IOP[33]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_16/cust_33"
+
+[firmware.custom_iop.integer_w_32]
+  'IOP[33]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_32/cust_33"
+  'IOP[40]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_32/cust_40"
+
+[firmware.custom_iop.integer_w_64]
+  'IOP[4]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/cust_4"
+  'IOP[33]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/cust_33"
+  'IOP[40]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/cust_40"
+
+[firmware.custom_iop.integer_w_128]
+'IOP[5]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/cust_5"
+'IOP[6]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/cust_6"
+'IOP[7]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/cust_7"
+'IOP[15]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/cust_15"
+
+
+[firmware.op_cfg.default]
+  fill_batch_fifo = false
+  min_batch_size = true
+  use_tiers = false
+  flush_behaviour = "Patient"
+  flush = true
+
+[firmware.op_cfg.by_op.MUL]
+  fill_batch_fifo = false
+  min_batch_size = false
+  use_tiers = false
+  flush_behaviour = "Patient"
+  flush = true
+
+[firmware.op_cfg.by_op.MULS]
+  fill_batch_fifo = false
+  min_batch_size = false
+  use_tiers = false
+  flush_behaviour = "Patient"
+  flush = true
+
+[firmware.op_cfg.by_op.ERC_20]
+  fill_batch_fifo = true
+  min_batch_size = false
+  use_tiers = true
+  flush_behaviour = "Patient"
+  flush = true

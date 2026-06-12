@@ -11,18 +11,14 @@ readme = "README.md"
 keywords = ["encryption", "fhe", "cryptography", "hardware", "fpga"]
 
 [features]
-hw-xrt = []
 hw-v80 = ["bincode"]
 io-dump = ["num-traits"]
 rtl_graph = ["dot2"]
-utils = ["clap", "clap-num", "bitvec", "serde_json", "bincode", "serde_derive"]
-
-[build-dependencies]
-cxx-build = "1.0"
+utils = ["io-dump", "clap", "clap-num", "serde_json", "bincode"]
 
 [dependencies]
-cxx = "1.0"
-hw_regmap = "0.2.1"
+hw_regmap = "0.2.2"
+libc = "0.2"
 
 strum = { version = "0.26.2", features = ["derive"] }
 strum_macros = "0.26.2"
@@ -47,18 +43,17 @@ rayon = { workspace = true }
 zhc = "0.7.0"
 
 # Dependencies used for Sim feature
-ipc-channel = "0.18.3"
+ra2m_ffi = "1.0"
 
 # Dependencies used for debug feature
 num-traits = { version = "0.2", optional = true }
 clap = { version = "4.6.1", features = ["derive"], optional = true }
 clap-num = { version = "1.1.1", optional = true }
-nix = { version = "0.29.0", features = ["ioctl", "uio", "fs"] }
+nix = { version = "0.29.0", features = ["mman", "ioctl", "uio", "fs"] }
 
 # Dependencies used for rtl_graph features
 dot2 = { version = "1.0", optional = true }
 
-bitvec = { version = "1.0", optional = true }
 serde_json = { version = "1.0", optional = true }
 
 # Dependencies used for v80 pdi handling

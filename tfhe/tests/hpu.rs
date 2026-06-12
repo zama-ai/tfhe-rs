@@ -4,6 +4,15 @@
 //! A testcase simply bind a IOp to a closure describing it's behavior
 //! WARN: Only one Hpu could be use at a time, thus all test must be run sequentially
 
+//NB: Tests behavior could be altered at runtime with the following env variables:
+//     * HPU_SELECTED_NODE<u8>: Instead of using full cluster as target, use only the specified node
+//     * HPU_FORCE_RELOAD: Force pdi reload even if the uuid match targeted one
+//     * HPU_IO_DUMP<String>: Enable input/output dumping in given path
+//     * HPU_KEY_SEED<u128>: Force key seed value for reproducible results
+//     * HPU_TEST_SEED<u128>: Force test seed value for reproducible results
+//     * HPU_TEST_ITER<usize>: Specify number of iteration for each test (default: 32)
+//     * HPU_TEST_TRIVIAL: Use trivial ciphertext instead of real one
+
 #[cfg(feature = "hpu")]
 mod hpu_test {
     use std::str::FromStr;
@@ -11,7 +20,8 @@ mod hpu_test {
     use rand::rngs::StdRng;
     use rand::{Rng, RngCore, SeedableRng};
     use tfhe::core_crypto::commons::generators::DeterministicSeeder;
-    use tfhe::core_crypto::prelude::DefaultRandomGenerator;
+    use tfhe::core_crypto::prelude::{DefaultRandomGenerator, UnsignedInteger};
+    use tfhe::integer::hpu::ciphertext::HpuRadixCiphertext;
 
     use tfhe::Seed;
     pub use tfhe_hpu_backend::prelude::*;
@@ -49,6 +59,38 @@ mod hpu_test {
         }
     }
 
+    /// Simple function to retrieved targeted node from environment
+    /// Also extract force_reload request and return it as bool
+    fn update_config_node(config: &mut HpuConfig) -> bool {
+        match std::env::var("HPU_SELECTED_NODE") {
+            Ok(var) => {
+                let node = if let Some(hex) =
+                    var.strip_prefix("0x").or_else(|| var.strip_prefix("0X"))
+                {
+                    u8::from_str_radix(hex, 16)
+                } else if let Some(bin) = var.strip_prefix("0b").or_else(|| var.strip_prefix("0B"))
+                {
+                    u8::from_str_radix(bin, 2)
+                } else if let Some(oct) = var.strip_prefix("0o").or_else(|| var.strip_prefix("0O"))
+                {
+                    u8::from_str_radix(oct, 8)
+                } else {
+                    var.parse::<u8>() // default: base 10
+                }
+                .unwrap_or_else(|_| {
+                    panic!("HPU_SELECTED_NODE env variable {var} couldn't be casted in u8")
+                });
+                config.fpga.node_id = vec![node];
+            }
+            _ => {
+                // Use all node specify in toml file
+            }
+        }
+
+        // Extract force_reload from env
+        std::env::var("HPU_FORCE_RELOAD").is_ok()
+    }
+
     fn init_hpu_and_associated_material(
     ) -> (std::sync::Mutex<HpuDevice>, tfhe::integer::ClientKey, u128) {
         // Hpu io dump for debug  -------------------------------------------------
@@ -62,7 +104,12 @@ mod hpu_test {
             let config_file = ShellString::new(
                 "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
             );
-            HpuDevice::from_config(&config_file.expand())
+            // Read config and update it based on env variables
+            let mut hpu_config = HpuConfig::from_toml(config_file.expand().as_str());
+            let force_reload = update_config_node(&mut hpu_config);
+
+            HpuDevice::new(hpu_config, force_reload)
+                .expect("Impossible to create HpuDevice from current configuration")
         };
 
         // Check if user force a seed for the key generation
@@ -88,10 +135,135 @@ mod hpu_test {
         (std::sync::Mutex::new(hpu_device), cks, key_seed)
     }
 
+    fn hpu_check_iop_proto<T, F>(
+        iop: hpu_asm::AsmIOpcode,
+        proto: hpu_asm::IOpProto,
+        behav: F,
+        iter: usize,
+        device: &mut HpuDevice,
+        rng: &mut StdRng,
+        cks: &tfhe::integer::ClientKey,
+    ) -> bool
+    where
+        T: UnsignedInteger,
+        F: Fn(&[T], &[T]) -> Vec<T>,
+    {
+        // Check if current configured cluster has enough node
+        let nodes = device.config().fpga.node_id.len();
+        let proto_max_nodes = proto.used_nodes.max_node() as usize;
+        if proto_max_nodes > nodes {
+            println!("HpuDevice hasn't enough node to execute {iop:?} [get: {nodes}, req: {proto_max_nodes}].",);
+            return false;
+        }
+
+        // Check if user ask for test over trivial ciphertext
+        let (test_trivial, sks) = match std::env::var("HPU_TEST_TRIVIAL") {
+            Ok(var) => {
+                let flag_val = usize::from_str(&var).unwrap_or_else(|_| {
+                    panic!("HPU_TEST_TRIVIAL env variable {var} couldn't be casted in usize")
+                });
+                let sks_compressed = tfhe::integer::ServerKey::new_radix_server_key(cks);
+                (flag_val != 0, Some(sks_compressed))
+            }
+            _ => (false, None),
+        };
+
+        let width = T::BITS;
+        let max_val: u128 = T::MAX.cast_into();
+        let num_block = width / device.params().pbs_params.message_width;
+        // NB: To support both mono-hpu IOp and multi-hpu IOp,
+        // input are generated only on the first node.
+        // If you want to select a specific node for test, use `HPU_SELECTED_NODE` env variable
+        //  with the node id you want to target.
+        // This will fallback in mono-hpu setup
+        let targeted_node = hpu_asm::PhysId(device.config().fpga.node_id[0]);
+        (0..iter)
+            .map(|_| {
+                // Generate inputs ciphertext
+                let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
+                    .src
+                    .iter()
+                    .map(|mode| {
+                        let (bw, block) = match mode {
+                            hpu_asm::iop::VarMode::Native => (width, num_block),
+                            hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
+                            hpu_asm::iop::VarMode::Bool => (1, 1),
+                        };
+
+                        let clear = rng.gen_range(0_u128..=max_val >> (width - bw));
+                        let fhe = if test_trivial {
+                            sks.as_ref().unwrap().create_trivial_radix(clear, block)
+                        } else {
+                            cks.encrypt_radix(clear, block)
+                        };
+                        let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(
+                            &fhe,
+                            device,
+                            Some(targeted_node),
+                        );
+                        (T::cast_from(clear), hpu_fhe)
+                    })
+                    .unzip();
+
+                let imms_u128 = (0..proto.imm)
+                    .map(|_pos| rng.gen_range(0_u128..max_val))
+                    .collect::<Vec<_>>();
+                let imms_typed = imms_u128
+                    .iter()
+                    .map(|v| T::cast_from(*v))
+                    .collect::<Vec<_>>();
+
+                // execute on Hpu
+                let res_hpu =
+                    HpuRadixCiphertext::exec(&proto, iop.opcode(), &srcs_enc, &imms_u128, None);
+                let res_fhe = res_hpu
+                    .iter()
+                    .map(|x| x.to_radix_ciphertext())
+                    .collect::<Vec<_>>();
+                let res = res_fhe
+                    .iter()
+                    .map(|x| T::cast_from(cks.decrypt_radix::<u128>(x)))
+                    .collect::<Vec<T>>();
+
+                let exp_res = behav(&srcs_clear, &imms_typed);
+                println!(
+                    "[{:>4}] {:>8} <{:>8x?}> <{:>8x?}> => {:<8x?} [exp {:<8x?}] {{Delta: {:x?} }}",
+                    T::BITS,
+                    iop,
+                    srcs_clear,
+                    imms_typed,
+                    res,
+                    exp_res,
+                    std::iter::zip(res.iter(), exp_res.iter())
+                        .map(|(x, y)| {
+                            let x_u128: u128 = x.cast_into();
+                            let y_u128: u128 = y.cast_into();
+                            T::cast_from(x_u128 ^ y_u128)
+                        })
+                        .collect::<Vec<_>>()
+                );
+                std::iter::zip(res.iter(), exp_res.iter())
+                    .map(|(x, y)| x == y)
+                    .fold(true, |acc, val| acc & val)
+            })
+            .fold(true, |acc, val| acc & val)
+    }
+
     const DEFAULT_TEST_ITER: usize = 32;
 
+    // Create testbundle
+    // => Enable to reuse same Hpu backend for a set of tests
+    // NB: Two nested macros are used here to enable cross-product between integer_width * testcase
     macro_rules! hpu_testbundle {
-    ($base_name: literal::$integer_width:tt => [$($testcase: literal),+]) => {
+        ($base_name: literal::[$($integer_width:tt),+] => $testcases: tt) => {
+            $(
+                hpu_testbundle_at_width!($base_name::$integer_width => $testcases);
+            )*
+        };
+    }
+
+    macro_rules! hpu_testbundle_at_width {
+    ($base_name: literal::$integer_width:tt=> [$($testcase: literal),+]) => {
     ::paste::paste! {
         #[test]
         pub fn [<hpu_test_ $base_name:lower _u $integer_width>]() {
@@ -154,89 +326,77 @@ mod hpu_test {
     };
 }
 
+    // Test based on standard IOp
+    // Rely on backend firmware generation with known prototype
     macro_rules! hpu_testcase {
-    ($iop: literal => [$($user_type: ty),+] |$ct:ident, $imm: ident| $behav: expr) => {
-        ::paste::paste! {
-            $(
-            #[cfg(feature = "hpu")]
-            #[allow(unused)]
-            pub fn [<hpu_ $iop:lower _ $user_type>](iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: &tfhe::integer::ClientKey) -> bool {
-                use tfhe::integer::hpu::ciphertext::HpuRadixCiphertext;
-
-                // Check if user ask for test over trivial ciphertext
-                let (test_trivial, sks) = match(std::env::var("HPU_TEST_TRIVIAL")){
-                Ok(var) => {
-                    let flag_val = usize::from_str(&var).unwrap_or_else(|_| {
-                    panic!("HPU_TEST_TRIVIAL env variable {var} couldn't be casted in usize")
-                    });
-                    let sks_compressed =
-                    tfhe::integer::ServerKey::new_radix_server_key(&cks);
-                    (flag_val != 0, Some(sks_compressed))
-                    },
-                _ => (false, None)
+        ($iop: literal => [$($user_type: ty),+] |$ct:ident, $imm: ident| $behav: expr) => {
+            ::paste::paste! {
+                $(
+                #[cfg(feature = "hpu")]
+                #[allow(unused)]
+                pub fn [<hpu_ $iop:lower _ $user_type>](iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: &tfhe::integer::ClientKey) -> bool {
+                    let iop = hpu_asm::AsmIOpcode::from_str($iop).expect("Invalid AsmIOpcode ");
+                    let proto = if let Some(format) = iop.format() {
+                        format.proto.clone()
+                    } else {
+                        eprintln!("Hpu testcase only work on specified operations. Check test definition");
+                        return false;
                     };
+                    let behav = |ct:&[$user_type], imm: &[$user_type]| {
+                            let $ct = ct;
+                            let $imm = imm;
+                            ($behav.iter().map(|x| *x as $user_type).collect::<Vec<_>>())
+                        };
 
-                let iop = hpu_asm::AsmIOpcode::from_str($iop).expect("Invalid AsmIOpcode ");
-                let proto = if let Some(format) = iop.format() {
-                    format.proto.clone()
-                } else {
-                    eprintln!("Hpu testcase only work on specified operations. Check test definition");
-                    return false;
-                };
+                    hpu_check_iop_proto::<$user_type, _>(
+                        iop,
+                        proto,
+                        behav,
+                        iter,
+                        device,
+                        rng,
+                        cks,
+                    )
 
-                let width = $user_type::BITS as usize;
-                let num_block = width / device.params().pbs_params.message_width;
-                (0..iter).map(|_| {
-                    // Generate inputs ciphertext
-                    let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
-                        .src
-                        .iter()
-                        .enumerate()
-                        .map(|(pos, mode)| {
-                            let (bw, block) = match mode {
-                                hpu_asm::iop::VarMode::Native => (width, num_block),
-                                hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
-                                hpu_asm::iop::VarMode::Bool => (1, 1),
-                            };
-
-                            let clear = rng.gen_range(0..=$user_type::MAX >> ($user_type::BITS - (bw as u32)));
-                            let fhe = if test_trivial {
-                                sks.as_ref().unwrap().create_trivial_radix(clear, block)
-                            } else {
-                                cks.encrypt_radix(clear, block)
-                            };
-                            let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(&fhe, device);
-                            (clear, hpu_fhe)
-                        })
-                        .unzip();
-
-                    let imms = (0..proto.imm)
-                        .map(|pos| rng.gen_range(0..$user_type::MAX) as u128)
-                        .collect::<Vec<_>>();
-
-                    // execute on Hpu
-                    let res_hpu = HpuRadixCiphertext::exec(&proto, iop.opcode(), &srcs_enc, &imms);
-                    let res_fhe = res_hpu
-                        .iter()
-                        .map(|x| x.to_radix_ciphertext()).collect::<Vec<_>>();
-                    let res = res_fhe
-                        .iter()
-                        .map(|x| cks.decrypt_radix(x))
-                        .collect::<Vec<$user_type>>();
-
-                    let exp_res = {
-                        let $ct = &srcs_clear;
-                        let $imm = imms.iter().map(|x| *x as $user_type).collect::<Vec<_>>();
-                        ($behav.iter().map(|x| *x as $user_type).collect::<Vec<_>>())
-                    };
-                    println!("{:>8} <{:>8x?}> <{:>8x?}> => {:<8x?} [exp {:<8x?}] {{Delta: {:x?} }}", iop, srcs_clear, imms, res, exp_res, std::iter::zip(res.iter(), exp_res.iter()).map(|(x,y)| x ^y).collect::<Vec<_>>());
-                    std::iter::zip(res.iter(), exp_res.iter()).map(|(x,y)| x== y).fold(true, |acc, val| acc & val)
-                }).fold(true, |acc, val| acc & val)
+                }
+            )*
             }
-        )*
-        }
-    };
-}
+        };
+    }
+
+    // Test based on custom iop
+    // There are specialized hand crafted test for Hpu validation
+    // Prototype must be specified by hand
+    macro_rules! hpu_custom_testcase {
+        ($cust_id: literal, $inproto: literal => [$($user_type: ty),+] |$ct:ident, $imm: ident| $behav: expr) => {
+            ::paste::paste! {
+                $(
+                #[cfg(feature = "hpu")]
+                #[allow(unused)]
+                pub fn [<hpu_custom $cust_id:lower _ $user_type>](iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: &tfhe::integer::ClientKey) -> bool {
+                    let iop = hpu_asm::AsmIOpcode::from_opcode(hpu_asm::IOpcode($cust_id));
+                    let proto = $inproto.parse::<hpu_asm::IOpProto>().unwrap();
+                    let behav = |ct:&[$user_type], imm: &[$user_type]| {
+                            let $ct = ct;
+                            let $imm = imm;
+                            ($behav.iter().map(|x| *x as $user_type).collect::<Vec<_>>())
+                        };
+
+                    hpu_check_iop_proto::<$user_type, _>(
+                        iop,
+                        proto,
+                        behav,
+                        iter,
+                        device,
+                        rng,
+                        cks,
+                    )
+
+                }
+            )*
+            }
+        };
+    }
 
     // Define testcase implementation for all supported IOp
     // Alu IOp with Ct x Imm
@@ -359,9 +519,9 @@ mod hpu_test {
             let amount = ct[2];
             // TODO enhance this to prevent overflow
             if from >= amount {
-                vec![from - amount, to.wrapping_add(amount)]
+                [from - amount, to.wrapping_add(amount)]
                 } else {
-                    vec![from, to]
+                    [from, to]
                 }
     });
 
@@ -381,10 +541,33 @@ mod hpu_test {
     hpu_testcase!("TRAIL1" => [u8, u16, u32, u64, u128]
     |ct, imm| [ct[0].trailing_ones()]);
 
+    // Custom IOp
+    hpu_custom_testcase!(32, "[2]<N,N>::<N,N><0>" => [u8]
+    |ct, imm| [(ct[0] & 0xF) + (ct[1] & 0xF).wrapping_shl(4), (ct[0] & 0xF0).wrapping_shr(4) + (ct[1] & 0xF0)]);
+    hpu_custom_testcase!(33, "[2]<N>::<N><0>" => [u8, u32, u64]
+    |ct, imm| [ct[0]]);
+    hpu_custom_testcase!(34, "[2]<N>::<N,N><0>" => [u8]
+    |ct, imm| [ct[0].wrapping_add(ct[1])]);
+    hpu_custom_testcase!(35, "[2]<N>::<N><0>" => [u8]
+    |ct, imm| [ct[0]]);
+    hpu_custom_testcase!(36, "[2]<N>::<N,N><0>" => [u8]
+    |ct, imm| [ct[0].wrapping_mul(ct[1])]);
+    hpu_custom_testcase!(37, "[4]<N,N>::<N,N><0>" => [u8]
+    |ct, imm| [(ct[0] & 0xF) + (ct[1] & 0xF).wrapping_shl(4), (ct[0] & 0xF0).wrapping_shr(4) + (ct[1] & 0xF0)]);
+    hpu_custom_testcase!(40, "[2]<H,H>::<N,N><0>" => [u32]
+    |ct, imm| {
+        let res = ct[0].wrapping_mul(ct[1]);
+        [res & 0xFFFF, (res >>16) & 0xFFFF]
+    });
+    hpu_custom_testcase!(40, "[2]<H,H>::<N,N><0>" => [u64]
+    |ct, imm| {
+        let res = ct[0].wrapping_mul(ct[1]);
+        [res & 0xFFFFFFFF, (res >>32) & 0xFFFFFFFF]
+    });
+
     // Define a set of test bundle for various size
-    // 8bit ciphertext -----------------------------------------
     #[cfg(feature = "hpu")]
-    hpu_testbundle!("alus"::8 => [
+    hpu_testbundle!("alus"::[8,16,32,64,128] => [
         "adds",
         "subs",
         "ssub",
@@ -393,24 +576,26 @@ mod hpu_test {
         "mods"
     ]);
     #[cfg(feature = "hpu")]
-    hpu_testbundle!("ovf_alus"::8 => [
+    hpu_testbundle!("ovf_alus"::[8,16,32,64,128] => [
         "ovf_adds",
         "ovf_subs",
         "ovf_ssub",
         "ovf_muls"
     ]);
+    // NB: Currently disable shift/rot with scalar.
+    // This is a known limitation, associated IOps aren't implemented
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("rots"::[8,16,32,64,128] => [
+    //     "rots_r",
+    //     "rots_l"
+    // ]);
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("shifts"::[8,16,32,64,128] => [
+    //     "shifts_r",
+    //     "shifts_l"
+    // ]);
     #[cfg(feature = "hpu")]
-    hpu_testbundle!("rots"::8 => [
-        "rots_r",
-        "rots_l"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("shifts"::8 => [
-        "shifts_r",
-        "shifts_l"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("alu"::8 => [
+    hpu_testbundle!("alu"::[8,16,32,64,128] => [
         "add",
         "sub",
         "mul",
@@ -418,32 +603,32 @@ mod hpu_test {
         "mod"
     ]);
     #[cfg(feature = "hpu")]
-    hpu_testbundle!("ovf_alu"::8 => [
+    hpu_testbundle!("ovf_alu"::[8,16,32,64,128] => [
         "ovf_add",
         "ovf_sub",
         "ovf_mul"
     ]);
 
     #[cfg(feature = "hpu")]
-    hpu_testbundle!("rot"::8 => [
+    hpu_testbundle!("rot"::[8,16,32,64,128] => [
         "rot_r",
         "rot_l"
     ]);
     #[cfg(feature = "hpu")]
-    hpu_testbundle!("shift"::8 => [
+    hpu_testbundle!("shift"::[8,16,32,64,128] => [
         "shift_r",
         "shift_l"
     ]);
 
     #[cfg(feature = "hpu")]
-    hpu_testbundle!("bitwise"::8 => [
+    hpu_testbundle!("bitwise"::[8,16,32,64,128] => [
         "bw_and",
         "bw_or",
         "bw_xor"
     ]);
 
     #[cfg(feature = "hpu")]
-    hpu_testbundle!("cmp"::8 => [
+    hpu_testbundle!("cmp"::[8,16,32,64,128] => [
         "cmp_gt",
         "cmp_gte",
         "cmp_lt",
@@ -453,18 +638,18 @@ mod hpu_test {
     ]);
 
     #[cfg(feature = "hpu")]
-    hpu_testbundle!("ternary"::8 => [
+    hpu_testbundle!("ternary"::[8,16,32,64,128] => [
         "if_then_zero",
         "if_then_else"
     ]);
 
     #[cfg(feature = "hpu")]
-    hpu_testbundle!("algo"::8 => [
+    hpu_testbundle!("algo"::[8,16,32,64,128] => [
         "erc_7984"
     ]);
 
     #[cfg(feature = "hpu")]
-    hpu_testbundle!("cntbit"::8 => [
+    hpu_testbundle!("cntbit"::[8,16,32,64,128] => [
         "count0",
         "count1",
         "ilog2",
@@ -474,372 +659,20 @@ mod hpu_test {
         "trail1"
     ]);
 
-    // 16bit ciphertext -----------------------------------------
+    // multi-hpu test bundles -----------------------------------------
     #[cfg(feature = "hpu")]
-    hpu_testbundle!("alus"::16 => [
-        "adds",
-        "subs",
-        "ssub",
-        "muls",
-        "divs",
-        "mods"
+    hpu_testbundle!("multi-hpu"::[8] => [
+        "custom32",
+        "custom33",
+        "custom34",
+        "custom35",
+        "custom36",
+        "custom37"
     ]);
     #[cfg(feature = "hpu")]
-    hpu_testbundle!("ovf_alus"::16 => [
-        "ovf_adds",
-        "ovf_subs",
-        "ovf_ssub",
-        "ovf_muls"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("rots"::16 => [
-        "rots_r",
-        "rots_l"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("shifts"::16 => [
-        "shifts_r",
-        "shifts_l"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("alu"::16 => [
-        "add",
-        "sub",
-        "mul",
-        "div",
-        "mod"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("ovf_alu"::16 => [
-        "ovf_add",
-        "ovf_sub",
-        "ovf_mul"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("rot"::16 => [
-        "rot_r",
-        "rot_l"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("shift"::16 => [
-        "shift_r",
-        "shift_l"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("bitwise"::16 => [
-        "bw_and",
-        "bw_or",
-        "bw_xor"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("cmp"::16 => [
-        "cmp_gt",
-        "cmp_gte",
-        "cmp_lt",
-        "cmp_lte",
-        "cmp_eq",
-        "cmp_neq"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("ternary"::16 => [
-        "if_then_zero",
-        "if_then_else"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("algo"::16 => [
-        "erc_7984"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("cntbit"::16 => [
-        "count0",
-        "count1",
-        "ilog2",
-        "lead0",
-        "lead1",
-        "trail0",
-        "trail1"
-    ]);
-
-    // 32bit ciphertext -----------------------------------------
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("alus"::32 => [
-        "adds",
-        "subs",
-        "ssub",
-        "muls",
-        "divs",
-        "mods"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("ovf_alus"::32 => [
-        "ovf_adds",
-        "ovf_subs",
-        "ovf_ssub",
-        "ovf_muls"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("rots"::32 => [
-        "rots_r",
-        "rots_l"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("shifts"::32 => [
-        "shifts_r",
-        "shifts_l"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("alu"::32 => [
-        "add",
-        "sub",
-        "mul",
-        "div",
-        "mod"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("ovf_alu"::32 => [
-        "ovf_add",
-        "ovf_sub",
-        "ovf_mul"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("rot"::32 => [
-        "rot_r",
-        "rot_l"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("shift"::32 => [
-        "shift_r",
-        "shift_l"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("bitwise"::32 => [
-        "bw_and",
-        "bw_or",
-        "bw_xor"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("cmp"::32 => [
-        "cmp_gt",
-        "cmp_gte",
-        "cmp_lt",
-        "cmp_lte",
-        "cmp_eq",
-        "cmp_neq"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("ternary"::32 => [
-        "if_then_zero",
-        "if_then_else"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("algo"::32 => [
-        "erc_7984"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("cntbit"::32 => [
-        "count0",
-        "count1",
-        "ilog2",
-        "lead0",
-        "lead1",
-        "trail0",
-        "trail1"
-    ]);
-
-    // 64bit ciphertext -----------------------------------------
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("alus"::64 => [
-        "adds",
-        "subs",
-        "ssub",
-        "muls",
-        "divs",
-        "mods"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("ovf_alus"::64 => [
-        "ovf_adds",
-        "ovf_subs",
-        "ovf_ssub",
-        "ovf_muls"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("rots"::64 => [
-        "rots_r",
-        "rots_l"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("shifts"::64 => [
-        "shifts_r",
-        "shifts_l"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("alu"::64 => [
-        "add",
-        "sub",
-        "mul",
-        "div",
-        "mod"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("ovf_alu"::64 => [
-        "ovf_add",
-        "ovf_sub",
-        "ovf_mul"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("rot"::64 => [
-        "rot_r",
-        "rot_l"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("shift"::64 => [
-        "shift_r",
-        "shift_l"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("bitwise"::64 => [
-        "bw_and",
-        "bw_or",
-        "bw_xor"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("cmp"::64 => [
-        "cmp_gt",
-        "cmp_gte",
-        "cmp_lt",
-        "cmp_lte",
-        "cmp_eq",
-        "cmp_neq"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("ternary"::64 => [
-        "if_then_zero",
-        "if_then_else"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("algo"::64 => [
-        "erc_7984"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("cntbit"::64 => [
-        "count0",
-        "count1",
-        "ilog2",
-        "lead0",
-        "lead1",
-        "trail0",
-        "trail1"
-    ]);
-
-    // 128bit ciphertext -----------------------------------------
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("alus"::128 => [
-        "adds",
-        "subs",
-        "ssub",
-        "muls",
-        "divs",
-        "mods"
-    ]);
-
-    hpu_testbundle!("ovf_alus"::128 => [
-        "ovf_adds",
-        "ovf_subs",
-        "ovf_ssub",
-        "ovf_muls"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("rots"::128 => [
-        "rots_r",
-        "rots_l"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("shifts"::128 => [
-        "shifts_r",
-        "shifts_l"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("alu"::128 => [
-        "add",
-        "sub",
-        "mul",
-        "div",
-        "mod"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("ovf_alu"::128 => [
-        "ovf_add",
-        "ovf_sub",
-        "ovf_mul"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("rot"::128 => [
-        "rot_r",
-        "rot_l"
-    ]);
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("shift"::128 => [
-        "shift_r",
-        "shift_l"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("bitwise"::128 => [
-        "bw_and",
-        "bw_or",
-        "bw_xor"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("cmp"::128 => [
-        "cmp_gt",
-        "cmp_gte",
-        "cmp_lt",
-        "cmp_lte",
-        "cmp_eq",
-        "cmp_neq"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("ternary"::128 => [
-        "if_then_zero",
-        "if_then_else"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("algo"::128 => [
-        "erc_7984"
-    ]);
-
-    #[cfg(feature = "hpu")]
-    hpu_testbundle!("cntbit"::128 => [
-        "count0",
-        "count1",
-        "ilog2",
-        "lead0",
-        "lead1",
-        "trail0",
-        "trail1"
+    hpu_testbundle!("multi-hpu"::[32,64] => [
+        "custom33",
+        "custom40"
     ]);
 
     /// Simple test dedicated to check entities conversion from/to Cpu
@@ -965,4 +798,130 @@ mod hpu_test {
 
         assert_eq!(ksk_mismatch + bsk_mismatch, 0);
     }
+
+    // Custom test for MHDMA stress test
+    // It generate all the required inputs upfront and iterate over a chain of custom IOp
+    macro_rules! hpu_mhdma_test {
+        ($($user_type: ty),+) => {
+        ::paste::paste! {
+        $(
+        pub fn [<hpu_mhdma_test_ $user_type>](_iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: &tfhe::integer::ClientKey) -> bool {
+        use tfhe::integer::hpu::ciphertext::HpuRadixCiphertext;
+
+        // Since all inputs are generated upfront, iteration number is fixed to 256 here.
+        // This prevent deadlock on ciphertext allocation
+        let iter = 128;
+        // Check if current configured cluster has enough node
+        let proto = "[2]<H,H>::<N,N><0>".parse::<hpu_asm::IOpProto>().unwrap();
+        let nodes = device.config().fpga.node_id.len();
+        let proto_max_nodes = proto.used_nodes.max_node() as usize;
+        if proto_max_nodes > nodes {
+            println!("HpuDevice hasn't enough node to execute mhdma_test [get: {nodes}, req: {proto_max_nodes}].",);
+            return false;
+        }
+
+        // Check if user ask for test over trivial ciphertext
+        let (test_trivial, sks) = match (std::env::var("HPU_TEST_TRIVIAL")) {
+            Ok(var) => {
+                let flag_val = usize::from_str(&var).unwrap_or_else(|_| {
+                    panic!("HPU_TEST_TRIVIAL env variable {var} couldn't be casted in usize")
+                });
+                let sks_compressed = tfhe::integer::ServerKey::new_radix_server_key(&cks);
+                (flag_val != 0, Some(sks_compressed))
+            }
+            _ => (false, None),
+        };
+
+        let width = $user_type::BITS as usize;
+        let num_block = width / device.params().pbs_params.message_width;
+        // NB: To support both mono-hpu IOp and multi-hpu IOp,
+        // input are generated only on the first node.
+        // If you want to select a specific node for test, use `HPU_SELECTED_NODE` env variable
+        //  with the node id you want to target.
+        // This will fallback in mono-hpu setup
+        let targeted_node = hpu_asm::PhysId(device.config().fpga.node_id[0]);
+        let test_inputs = (0..iter)
+            .map(|_| {
+                // Generate inputs ciphertext
+                let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
+                    .src
+                    .iter()
+                    .enumerate()
+                    .map(|(_pos, mode)| {
+                        let (bw, block) = match mode {
+                            hpu_asm::iop::VarMode::Native => (width, num_block),
+                            hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
+                            hpu_asm::iop::VarMode::Bool => (1, 1),
+                        };
+
+                        let clear = rng.gen_range(0..u128::MAX >> (u128::BITS - (bw as u32)));
+                        let fhe = if test_trivial {
+                            sks.as_ref().unwrap().create_trivial_radix(clear, block)
+                        } else {
+                            cks.encrypt_radix(clear, block)
+                        };
+                        let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(
+                            &fhe,
+                            device,
+                            Some(targeted_node),
+                        );
+                        (clear, hpu_fhe)
+                    })
+                    .unzip();
+
+                let imms = (0..proto.imm)
+                    .map(|_pos| rng.gen_range(0..u128::MAX) as u128)
+                    .collect::<Vec<_>>();
+                (srcs_clear, srcs_enc, imms)
+            })
+            .collect::<Vec<_>>();
+
+        let aggregated_res = test_inputs
+        .iter()
+        .map(|(srcs_clear, srcs_enc, imms)| {
+            let res_hpu = {
+                let local_proto = "[2]<N>::<N><0>".parse::<hpu_asm::IOpProto>().unwrap();
+                let lsrcs_enc = srcs_enc.split_at(1);
+                let hpu_enc_res_1 = HpuRadixCiphertext::exec(&local_proto, hpu_asm::IOpcode(33), &lsrcs_enc.0, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[0])));
+                let hpu_enc_res_2 = HpuRadixCiphertext::exec(&local_proto, hpu_asm::IOpcode(33), &lsrcs_enc.1, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
+                let combined_inputs = [hpu_enc_res_1[0].clone(),hpu_enc_res_2[0].clone()];
+                let hpu_enc_res_3 = HpuRadixCiphertext::exec(&proto, hpu_asm::IOpcode(40), &combined_inputs, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
+                let local_proto2 = "[2]<H>::<H><0>".parse::<hpu_asm::IOpProto>().unwrap();
+                let hpu_enc_res_4 = HpuRadixCiphertext::exec(&local_proto2, hpu_asm::IOpcode(33), &[hpu_enc_res_3[0].clone()], imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
+                let hpu_enc_res_5 = HpuRadixCiphertext::exec(&local_proto2, hpu_asm::IOpcode(33), &[hpu_enc_res_3[1].clone()], imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[0])));
+                vec![hpu_enc_res_4[0].clone(), hpu_enc_res_5[0].clone()]
+            };
+            let res_fhe = res_hpu
+                .iter()
+                .map(|x| x.to_radix_ciphertext()).collect::<Vec<_>>();
+            let res_clear = res_fhe
+                .iter()
+                .map(|x| cks.decrypt_radix(x))
+                .collect::<Vec<u32>>();
+            let res : u64 = (res_clear[0] as u64 + ((res_clear[1] as u64) << width / 2));
+            let exp_res : u64 = ((srcs_clear[0] * srcs_clear[1]) % (1 << width)).try_into().unwrap();
+
+            println!("[{:>4}] mhdma_test <{:>8x?}> => {:<4x?}-{:<4x?} {:<8x?} [exp {:<8x?}] {{Delta: {:x?} }}",
+                $user_type::BITS,
+                srcs_clear,
+                res_clear[1],
+                res_clear[0],
+                res,
+                exp_res,
+                exp_res ^ res);
+            (res == exp_res)
+        }).fold(true, |acc, val| acc & val);
+        aggregated_res
+        })*
+        }
+        };
+    }
+    hpu_mhdma_test!(u32, u64);
+
+    // NB: Currently remove mhdma_u32 from testbundle.
+    // Indeed this new variant led to deadlock and need more investigation
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("mhdma"::[32,64] => [
+        "mhdma_test"
+    ]);
 }
