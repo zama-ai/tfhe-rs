@@ -41,6 +41,7 @@ boolean = ["tfhe/boolean"]
 shortint = ["tfhe/shortint"]
 integer = ["shortint", "tfhe/integer"]
 gpu = ["tfhe/gpu", "benchmark_spec/gpu"]
+extended-types = ["tfhe/extended-types"]
 # gpu enables tfhe-cuda-backend which provides CUDA stream management used by tfhe-zk-pok
 gpu-experimental-zk = [
     "gpu",
@@ -84,7 +85,7 @@ required-features = ["shortint", "internal-keycache"]
 name = "hlapi_unsigned"
 path = "benches/high_level_api/bench_unsigned.rs"
 harness = false
-required-features = ["integer", "internal-keycache", "pbs-stats"]
+required-features = ["integer", "internal-keycache", "pbs-stats", "extended-types"]
 
 [[bench]]
 name = "hlapi_signed"

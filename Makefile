@@ -2057,7 +2057,7 @@ bench_hlapi_unsigned: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi_unsigned \
-	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
+	--features=integer,internal-keycache,pbs-stats,extended-types -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_signed # Run benchmarks for signed integer operations
 bench_hlapi_signed: install_rs_check_toolchain

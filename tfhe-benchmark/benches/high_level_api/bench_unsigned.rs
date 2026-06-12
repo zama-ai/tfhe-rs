@@ -10,6 +10,8 @@ use std::marker::PhantomData;
 use std::ops::*;
 use tfhe::core_crypto::prelude::Numeric;
 use tfhe::prelude::*;
+#[cfg(feature = "extended-types")]
+use tfhe::{FheUint80, FheUint96};
 use tfhe::{
     ClientKey, CompressedServerKey, FheBool, FheUint128, FheUint16, FheUint2, FheUint32, FheUint4,
     FheUint64, FheUint8,
@@ -27,6 +29,10 @@ generate_typed_benches!(FheUint8, u128);
 generate_typed_benches!(FheUint16, u128);
 generate_typed_benches!(FheUint32, u128);
 generate_typed_benches!(FheUint64, u128);
+#[cfg(feature = "extended-types")]
+generate_typed_benches!(FheUint80, u128);
+#[cfg(feature = "extended-types")]
+generate_typed_benches!(FheUint96, u128);
 generate_typed_benches!(FheUint128, u128);
 
 #[cfg(not(feature = "hpu"))]
@@ -87,13 +93,16 @@ fn main() {
         BitSizesSet::Fast => {
             match env::var("__TFHE_RS_BENCH_OP_FLAVOR").as_deref() {
                 Ok("fast_default") => {
-                    run_benches_dedup!(&mut c, &cks, FheUint64);
-                    #[cfg(not(feature = "hpu"))]
-                    run_scalar_benches_dedup!(&mut c, &cks, FheUint64);
+
+                        #[cfg(feature = "extended-types")]
+                        run_benches_dedup!(&mut c, &cks, FheUint64,FheUint80,FheUint96);
+                        #[cfg(feature = "extended-types")]
+                        run_scalar_benches_dedup!(&mut c, &cks, FheUint64);
                 }
                 _ => {
-                    run_benches!(&mut c, &cks, FheUint64);
-                    #[cfg(not(feature = "hpu"))]
+                    #[cfg(feature = "extended-types")]
+                    run_benches!(&mut c, &cks, FheUint64,FheUint80,FheUint96);
+                    #[cfg(feature = "extended-types")]
                     run_scalar_benches!(&mut c, &cks, FheUint64);
                 }
             };
