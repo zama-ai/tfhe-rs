@@ -65,9 +65,10 @@ template <typename Torus> struct int_rerand_mem {
           static_cast<Torus *>(cuda_malloc_with_size_tracking_async(
               safe_mul_sizeof<Torus>(num_lwes), streams.stream(0),
               streams.gpu_index(0), size_tracker, allocate_gpu_memory));
-      cuda_memcpy_async_to_gpu(lwe_trivial_indexes, h_lwe_trivial_indexes,
-                               safe_mul_sizeof<Torus>(num_lwes),
-                               streams.stream(0), streams.gpu_index(0));
+      cuda_memcpy_with_size_tracking_async_to_gpu(
+          lwe_trivial_indexes, h_lwe_trivial_indexes,
+          safe_mul_sizeof<Torus>(num_lwes), streams.stream(0),
+          streams.gpu_index(0), allocate_gpu_memory);
       cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
       free(h_lwe_trivial_indexes);
     } else {

@@ -358,6 +358,12 @@ pub trait IfThenElseSizeOnGpu<Ciphertext> {
 }
 
 #[cfg(feature = "gpu")]
+pub trait RerandSizeOnGpu {
+    fn get_rerand_size_on_gpu(&self) -> u64;
+    fn get_rerand_without_ks_size_on_gpu(&self) -> u64;
+}
+
+#[cfg(feature = "gpu")]
 pub trait MulSizeOnGpu<Rhs = Self> {
     fn get_mul_size_on_gpu(&self, other: Rhs) -> u64;
 }
