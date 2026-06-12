@@ -1074,4 +1074,77 @@ mod gpu {
             check_valid_cuda_malloc_assert_oom(scalar_ne_size_on_gpu, GpuIndex::new(0));
         }
     }
+
+    #[test]
+    fn test_get_rerand_size_on_gpu() {
+        use crate::high_level_api::re_randomization::ReRandomizationMode;
+        for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+            let cks = setup_fn();
+            let clear_a = rand::random::<bool>();
+            let mut a = FheBool::encrypt(clear_a, &cks);
+            a.move_to_current_device();
+            let a = &a;
+
+            let result = a.get_rerand_size_on_gpu(ReRandomizationMode::UseAvailableMode);
+            assert!(result.is_err());
+        }
+
+        {
+            use crate::shortint::parameters::v1_5::meta::cpu::{
+                V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+                V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+            };
+            use crate::shortint::parameters::v1_5::meta::gpu::{
+                V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+                V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+            };
+            use crate::shortint::parameters::v1_6::meta::cpu::{
+                V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+                V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+            };
+            use crate::shortint::parameters::v1_6::meta::gpu::{
+                V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+                V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+            };
+            use crate::shortint::parameters::ReRandomizationConfiguration;
+
+            let meta_params = [
+                V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+                V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+                V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+                V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+                V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+                V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+                V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+                V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+            ];
+
+            for mut params in meta_params {
+                params.noise_squashing_parameters = None;
+                let cks = ClientKey::generate(params);
+                let cpk = crate::CompactPublicKey::new(&cks);
+                let sks = cks.generate_compressed_server_key();
+                set_server_key(sks.decompress_to_gpu());
+
+                let clear_a = rand::random::<bool>();
+                let mut a = FheBool::encrypt(clear_a, &cks);
+                a.move_to_current_device();
+                let a = &a;
+
+                let rerand_mode = match params.rerand_configuration {
+                    Some(ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch) => {
+                        ReRandomizationMode::UseAvailableMode
+                    }
+                    Some(
+                        ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch,
+                    ) => ReRandomizationMode::UseLegacyCPKIfNeeded { cpk: &cpk },
+                    None => unreachable!(),
+                };
+
+                let rerand_size = a.get_rerand_size_on_gpu(rerand_mode).unwrap();
+                check_valid_cuda_malloc_assert_oom(rerand_size, GpuIndex::new(0));
+                assert!(rerand_size > 0);
+            }
+        }
+    }
 }

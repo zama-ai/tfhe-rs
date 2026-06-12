@@ -3,13 +3,17 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::ciphertext::ReRandomizationSeed;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
-    CudaRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
+    CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaSignedRadixCiphertext,
+    CudaUnsignedRadixCiphertext,
 };
 use crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial;
+use crate::integer::gpu::server_key::CudaDynamicKeyswitchingKey;
 use crate::integer::gpu::{
-    cuda_backend_rerand_assign, cuda_backend_rerand_without_keyswitch_assign,
+    cuda_backend_get_rerand_size_on_gpu, cuda_backend_rerand_assign,
+    cuda_backend_rerand_without_keyswitch_assign, CudaServerKey, RerandMode,
 };
 use crate::integer::CompactPublicKey;
+use tfhe_cuda_backend::bindings::CudaLweKeyswitchKeyParamsFFI;
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::PBSOrder;
 
@@ -252,5 +256,53 @@ impl CudaRadixCiphertext {
         });
 
         Ok(())
+    }
+}
+
+impl CudaServerKey {
+    pub fn get_rerand_without_ks_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count();
+        let output_lwe_dim =
+            u32::try_from(self.bootstrapping_key.output_lwe_dimension().0).unwrap();
+
+        let ksk_params = CudaLweKeyswitchKeyParamsFFI {
+            input_lwe_dimension: output_lwe_dim,
+            output_lwe_dimension: 0,
+            level_count: 0,
+            base_log: 0,
+        };
+
+        cuda_backend_get_rerand_size_on_gpu(
+            streams,
+            self.message_modulus,
+            self.carry_modulus,
+            ksk_params,
+            num_blocks,
+            RerandMode::WithoutKs,
+        )
+    }
+    pub fn get_rerand_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count();
+
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+
+        cuda_backend_get_rerand_size_on_gpu(
+            streams,
+            self.message_modulus,
+            self.carry_modulus,
+            computing_ks_key.params_ffi(),
+            num_blocks,
+            RerandMode::WithKs,
+        )
     }
 }
