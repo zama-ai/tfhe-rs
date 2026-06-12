@@ -47,12 +47,22 @@ __global__ void device_negation(Torus *output, Torus const *input,
   }
 }
 
+/** @brief Negates the first num_radix_blocks blocks of a radix-ciphertext by
+ * computing (z*delta - ct) per block, where z = ceil(degree /
+ * message_modulus) * message_modulus is a correcting term added to each block
+ * body to prevent plaintext underflow, and zb = z / message_modulus is
+ * subtracted from subsequent block bodies to compensate. Noise levels are
+ * propagated unchanged. This is a fully levelled negation and no PBS is
+ * performed.
+ * @param lwe_array_out destination radix-ciphertext
+ * @param lwe_array_in input radix-ciphertext
+ * @param num_radix_blocks number of blocks to negate
+ */
 template <typename Torus>
-__host__ void host_negation(CudaStreams streams,
-                            CudaRadixCiphertextFFI *lwe_array_out,
-                            CudaRadixCiphertextFFI const *lwe_array_in,
-                            uint64_t message_modulus, uint64_t carry_modulus,
-                            uint32_t num_radix_blocks) {
+__host__ void host_negation_with_correcting_term(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in, uint32_t message_modulus,
+    uint32_t carry_modulus, uint32_t num_radix_blocks) {
   cuda_set_device(streams.gpu_index(0));
 
   if (lwe_array_out->num_radix_blocks < num_radix_blocks ||

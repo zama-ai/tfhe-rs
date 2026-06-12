@@ -381,16 +381,16 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     bool use_seq = overflow_sub_mem_1->prop_simu_group_carries_mem
                        ->use_sequential_algorithm_to_resolve_group_carries;
 
-    cuda_set_device(0);
+    cuda_set_device(streams.gpu_index(0));
     check_cuda_error(
         cudaEventCreateWithFlags(&create_indexes_done, cudaEventDisableTiming));
     create_indexes_for_overflow_sub(streams.get_ith(0), num_blocks, group_size,
                                     use_seq, allocate_gpu_memory, size_tracker);
     check_cuda_error(cudaEventRecord(create_indexes_done, streams.stream(0)));
-    cuda_set_device(1);
+    cuda_set_device(streams.gpu_index(1));
     check_cuda_error(
         cudaStreamWaitEvent(streams.stream(1), create_indexes_done, 0));
-    cuda_set_device(2);
+    cuda_set_device(streams.gpu_index(2));
     check_cuda_error(
         cudaStreamWaitEvent(streams.stream(2), create_indexes_done, 0));
 

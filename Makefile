@@ -1026,6 +1026,16 @@ test_signed_integer_gpu_ci: install_cargo_nextest
 		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
 		--signed-only --tfhe-package "tfhe"
 
+.PHONY: test_signed_integer_fake_multi_gpu # Run the tests for signed integer ci on gpu backend
+test_signed_integer_fake_multi_gpu: install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
+	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
+		./scripts/integer-tests.sh \
+		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" --gpufeature "gpu-debug-fake-multi-gpu" \
+		--signed-only --tfhe-package "tfhe"
+
+
 .PHONY: test_integer_multi_bit_gpu_ci # Run the tests for integer ci on gpu backend running only multibit tests
 test_integer_multi_bit_gpu_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
@@ -1252,6 +1262,12 @@ test_high_level_api_gpu_fast: install_cargo_nextest # Run all the GPU tests for 
 test_high_level_api_gpu: install_cargo_nextest # Run all the GPU tests for high_level_api
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
+		-E "test(/high_level_api::.*gpu.*/)"
+
+.PHONY: test_high_level_api_fake_multi_gpu
+test_high_level_api_fake_multi_gpu: install_cargo_nextest
+	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
+		--test-threads=4 --features=integer,internal-keycache,gpu-debug-fake-multi-gpu,zk-pok -p tfhe \
 		-E "test(/high_level_api::.*gpu.*/)"
 
 test_list_gpu: install_cargo_nextest
