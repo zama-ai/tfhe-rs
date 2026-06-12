@@ -2,10 +2,11 @@ use rand::Rng;
 
 use crate::core_crypto::gpu::get_number_of_gpus;
 use crate::high_level_api::global_state::CustomMultiGpuIndexes;
+use crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN;
 use crate::prelude::*;
 use crate::{
     clear_gpu_thread_locals, set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, Device,
-    FheUint32, FheUint8, GpuIndex,
+    FheBool, FheUint32, FheUint8, GpuIndex,
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rayon::ThreadPoolBuilder;
@@ -249,5 +250,23 @@ fn test_specific_gpu_selection() {
         // in order to test  that after calling it, the thread is still usable
         // (the needed thread locals will lazily recreate themselves, nothing prevents them)
         clear_gpu_thread_locals();
+    }
+}
+
+#[test]
+fn test_gpu_get_rerand_size_on_gpu_bool() {
+    for setup_fn in GPU_SETUP_FN {
+        let cks = setup_fn();
+        let clear_a = rand::random::<bool>();
+        let mut a = FheBool::encrypt(clear_a, &cks);
+        a.move_to_current_device();
+        let a = &a;
+
+        let rerand_size = a.get_rerand_size_on_gpu();
+        let rerand_without_ks_size = a.get_rerand_without_ks_size_on_gpu();
+        check_valid_cuda_malloc_assert_oom(rerand_size, GpuIndex::new(0));
+        check_valid_cuda_malloc_assert_oom(rerand_without_ks_size, GpuIndex::new(0));
+        assert!(rerand_size > 0);
+        assert!(rerand_without_ks_size > 0);
     }
 }
