@@ -11,7 +11,7 @@ use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{CudaStreams, PBSMSNoiseReductionType};
 use crate::core_crypto::prelude::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
-    LweDimension, Numeric, PolynomialSize, UnsignedInteger,
+    LweCiphertextCount, LweDimension, Numeric, PolynomialSize, UnsignedInteger,
 };
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
@@ -4896,6 +4896,66 @@ pub(crate) unsafe fn cuda_backend_rerand_without_keyswitch_assign<T: UnsignedInt
     );
     cleanup_cuda_rerand_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 }
+
+pub(crate) fn cuda_backend_get_rerand_size_on_gpu(
+    streams: &CudaStreams,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    num_blocks: LweCiphertextCount,
+) -> u64 {
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size_tracker = unsafe {
+        scratch_cuda_rerand_64_async(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            ksk_params.input_lwe_dimension,
+            ksk_params.output_lwe_dimension,
+            ksk_params.level_count,
+            ksk_params.base_log,
+            u32::try_from(num_blocks.0).unwrap(),
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            false,
+            RerandMode::WithKs as u32,
+        )
+    };
+    unsafe {
+        cleanup_cuda_rerand_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    }
+    size_tracker
+}
+
+pub(crate) fn cuda_backend_get_rerand_without_keyswitch_size_on_gpu(
+    streams: &CudaStreams,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    lwe_dimension: LweDimension,
+    num_blocks: LweCiphertextCount,
+) -> u64 {
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size_tracker = unsafe {
+        scratch_cuda_rerand_64_async(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            u32::try_from(lwe_dimension.0).unwrap(),
+            // KS parameters unused in WithoutKs mode — zeroed as sentinel values
+            0,
+            0,
+            0,
+            u32::try_from(num_blocks.0).unwrap(),
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            false,
+            RerandMode::WithoutKs as u32,
+        )
+    };
+    unsafe {
+        cleanup_cuda_rerand_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    }
+    size_tracker
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn cuda_backend_get_cmux_size_on_gpu(
     streams: &CudaStreams,
