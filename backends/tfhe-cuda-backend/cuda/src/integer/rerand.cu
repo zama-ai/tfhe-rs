@@ -1,16 +1,19 @@
 #include "rerand.cuh"
 
 extern "C" {
-uint64_t scratch_cuda_rerand_64_async(
-    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t big_lwe_dimension,
-    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
-    uint32_t lwe_ciphertext_count, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory, RERAND_MODE rerand_type) {
+uint64_t scratch_cuda_rerand_64_async(CudaStreamsFFI streams, int8_t **mem_ptr,
+                                      CudaLweKeyswitchKeyParamsFFI ksk_params,
+                                      uint32_t lwe_ciphertext_count,
+                                      uint32_t message_modulus,
+                                      uint32_t carry_modulus,
+                                      bool allocate_gpu_memory,
+                                      RERAND_MODE rerand_type) {
   PUSH_RANGE("scratch rerand")
-  int_radix_params params(PBS_TYPE::CLASSICAL, 0, 0, big_lwe_dimension,
-                          small_lwe_dimension, ks_level, ks_base_log, 0, 0, 0,
-                          message_modulus, carry_modulus,
-                          PBS_MS_REDUCTION_T::NO_REDUCTION);
+  int_radix_params params(
+      PBS_TYPE::CLASSICAL, 0, 0, ksk_params.input_lwe_dimension,
+      ksk_params.output_lwe_dimension, ksk_params.level_count,
+      ksk_params.base_log, 0, 0, 0, message_modulus, carry_modulus,
+      PBS_MS_REDUCTION_T::NO_REDUCTION);
 
   uint64_t ret = scratch_cuda_rerand<uint64_t>(
       CudaStreams(streams),

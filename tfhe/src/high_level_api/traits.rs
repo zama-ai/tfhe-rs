@@ -352,9 +352,20 @@ pub trait IfThenElseSizeOnGpu<Ciphertext> {
     fn get_select_size_on_gpu(&self, ct_when_true: &Ciphertext, ct_when_false: &Ciphertext) -> u64 {
         self.get_if_then_else_size_on_gpu(ct_when_true, ct_when_false)
     }
+
     fn get_cmux_size_on_gpu(&self, ct_then: &Ciphertext, ct_else: &Ciphertext) -> u64 {
         self.get_if_then_else_size_on_gpu(ct_then, ct_else)
     }
+}
+
+#[cfg(feature = "gpu")]
+pub trait RerandSizeOnGpu {
+    fn get_rerand_size_on_gpu<'a>(
+        &self,
+        re_randomization_mode: impl Into<
+            crate::high_level_api::re_randomization::ReRandomizationMode<'a>,
+        >,
+    ) -> crate::Result<u64>;
 }
 
 #[cfg(feature = "gpu")]
