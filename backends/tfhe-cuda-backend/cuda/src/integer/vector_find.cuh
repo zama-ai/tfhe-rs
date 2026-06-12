@@ -9,6 +9,85 @@
 #include "integer/vector_find.h"
 
 template <typename Torus>
+__global__ void
+map_gather_kernel(Torus *__restrict__ dst, const Torus *__restrict__ src,
+                  const uint32_t *__restrict__ map, uint32_t block_size) {
+
+  uint32_t block_idx = blockIdx.x;
+  uint32_t src_idx = map[block_idx];
+
+  uint32_t dst_offset = block_idx * block_size;
+  uint32_t src_offset = src_idx * block_size;
+
+  for (uint32_t tid = threadIdx.x; tid < block_size; tid += blockDim.x) {
+    dst[dst_offset + tid] = src[src_offset + tid];
+  }
+}
+
+template <typename Torus>
+__global__ void scatter_to_ptr_array_kernel(
+    Torus **__restrict__ dst_ptr_array, const Torus *__restrict__ src_batched,
+    uint32_t num_blocks, const uint32_t *__restrict__ src_offsets,
+    uint32_t block_size) {
+
+  uint32_t i = blockIdx.x / num_blocks;
+  uint32_t j = blockIdx.x % num_blocks;
+
+  Torus *dst = dst_ptr_array[i];
+  uint32_t dst_offset = j * block_size;
+  uint32_t src_idx = src_offsets[blockIdx.x];
+  uint32_t src_offset = src_idx * block_size;
+
+  for (uint32_t tid = threadIdx.x; tid < block_size; tid += blockDim.x) {
+    dst[dst_offset + tid] = src_batched[src_offset + tid];
+  }
+}
+
+template <typename Torus>
+__global__ void
+gather_from_ptr_array_kernel(Torus *__restrict__ dst_batched,
+                             const Torus *const *__restrict__ src_ptr_array,
+                             uint32_t num_blocks, uint32_t block_size) {
+
+  uint32_t i = blockIdx.x / num_blocks;
+  uint32_t j = blockIdx.x % num_blocks;
+
+  const Torus *src = src_ptr_array[i];
+
+  uint32_t dst_offset = blockIdx.x * block_size;
+  uint32_t src_offset = j * block_size;
+
+  for (uint32_t tid = threadIdx.x; tid < block_size; tid += blockDim.x) {
+    dst_batched[dst_offset + tid] = src[src_offset + tid];
+  }
+}
+
+template <typename Torus>
+__global__ void
+aggregate_chunk_prepare_kernel(Torus *__restrict__ batched_input,
+                               const Torus *__restrict__ tmp_out, uint32_t k,
+                               uint32_t chunk_size, uint32_t remaining,
+                               uint32_t num_blocks, uint32_t block_size) {
+
+  uint32_t c = blockIdx.x / num_blocks;
+  uint32_t block_in_c = blockIdx.x % num_blocks;
+
+  uint32_t idx = c * chunk_size + k;
+  uint32_t dst_offset = blockIdx.x * block_size;
+
+  if (idx < remaining) {
+    uint32_t src_offset = (idx * num_blocks + block_in_c) * block_size;
+    for (uint32_t tid = threadIdx.x; tid < block_size; tid += blockDim.x) {
+      batched_input[dst_offset + tid] = tmp_out[src_offset + tid];
+    }
+  } else {
+    for (uint32_t tid = threadIdx.x; tid < block_size; tid += blockDim.x) {
+      batched_input[dst_offset + tid] = 0;
+    }
+  }
+}
+
+template <typename Torus>
 __host__ void host_compute_equality_selectors(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_list,
     CudaRadixCiphertextFFI const *lwe_array_in, uint32_t num_blocks,
@@ -19,55 +98,49 @@ __host__ void host_compute_equality_selectors(
   uint32_t num_possible_values = mem_ptr->num_possible_values;
   uint32_t message_modulus = mem_ptr->params.message_modulus;
 
+  PUSH_RANGE("eq_selectors_apply_univariate_lut")
   integer_radix_apply_many_univariate_lookup_table<Torus>(
       streams, mem_ptr->tmp_many_luts_output, lwe_array_in, bsks,
       (Torus *const *)ksks, mem_ptr->comparison_luts, message_modulus,
       mem_ptr->lut_stride);
+  POP_RANGE()
 
-  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
-      streams);
+  CudaRadixCiphertextFFI *batched = mem_ptr->tmp_batched_block_comparisons;
 
-  uint32_t num_streams = mem_ptr->num_streams;
+  PUSH_RANGE("eq_selectors_scatter_comparisons")
+  uint32_t total_blocks = num_possible_values * num_blocks;
+  uint32_t *h_map = mem_ptr->h_map; // Utilisation du buffer pré-alloué
 
   for (uint32_t i = 0; i < num_possible_values; i++) {
-
-    uint32_t stream_idx = i % num_streams;
-
-    CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
-
-    CudaRadixCiphertextFFI *current_tmp_block_comparisons =
-        mem_ptr->tmp_block_comparisons[stream_idx];
-    int_comparison_buffer<Torus> *current_reduction_buffer =
-        mem_ptr->reduction_buffers[stream_idx];
-
     const uint64_t *current_clear_blocks =
         &h_decomposed_cleartexts[i * num_blocks];
-
     for (uint32_t j = 0; j < num_blocks; j++) {
       uint64_t block_value = current_clear_blocks[j];
-
       if (block_value >= message_modulus) {
-        PANIC("Cuda error: block value in compute_equality_selectors "
-              "exceeds message modulus");
+        PANIC("Cuda error: block value in compute_equality_selectors exceeds "
+              "message modulus");
       }
-
-      uint32_t input_start = (uint32_t)block_value * num_blocks + j;
-
-      copy_radix_ciphertext_slice_async<Torus>(
-          current_stream.stream(0), current_stream.gpu_index(0),
-          current_tmp_block_comparisons, j, j + 1,
-          mem_ptr->tmp_many_luts_output, input_start, input_start + 1);
+      h_map[i * num_blocks + j] = (uint32_t)block_value * num_blocks + j;
     }
-
-    CudaRadixCiphertextFFI *current_output_block = &lwe_array_out_list[i];
-
-    host_integer_are_all_comparisons_block_true<Torus>(
-        current_stream, current_output_block, current_tmp_block_comparisons,
-        current_reduction_buffer, bsks, (Torus **)ksks, num_blocks);
   }
 
-  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
-      streams);
+  cuda_memcpy_async_to_gpu(mem_ptr->d_map, h_map,
+                           total_blocks * sizeof(uint32_t), streams.stream(0),
+                           streams.gpu_index(0));
+
+  uint32_t block_size = batched->lwe_dimension + 1;
+  map_gather_kernel<Torus><<<total_blocks, 256, 0, streams.stream(0)>>>(
+      (Torus *)batched->ptr, (Torus *)mem_ptr->tmp_many_luts_output->ptr,
+      mem_ptr->d_map, block_size);
+  POP_RANGE()
+
+  PUSH_RANGE("eq_selectors_batched_are_all_eq_true")
+  host_batched_are_all_comparisons_eq_true<Torus>(
+      streams, lwe_array_out_list, batched, num_possible_values, num_blocks,
+      mem_ptr->params, mem_ptr->tmp_batched_out,
+      mem_ptr->tmp_batched_accumulated, mem_ptr->batched_is_max_value,
+      mem_ptr->preallocated_h_lut, bsks, ksks);
+  POP_RANGE()
 }
 
 template <typename Torus>
@@ -87,69 +160,73 @@ uint64_t scratch_cuda_compute_equality_selectors(
 template <typename Torus>
 __host__ void host_create_possible_results(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_list,
-    CudaRadixCiphertextFFI const *lwe_array_in_list,
+    CudaRadixCiphertextFFI const *batched_selectors,
     uint32_t num_possible_values, const uint64_t *h_decomposed_cleartexts,
     uint32_t num_blocks, int_possible_results_buffer<Torus> *mem_ptr,
     void *const *bsks, Torus *const *ksks) {
-
-  uint32_t max_packed_value = mem_ptr->max_packed_value;
-  uint32_t max_luts_per_call = mem_ptr->max_luts_per_call;
   uint32_t num_lut_accumulators = mem_ptr->num_lut_accumulators;
-  uint32_t num_streams = mem_ptr->num_streams;
+  uint32_t max_luts_per_call = mem_ptr->max_luts_per_call;
+  uint32_t max_packed_value = mem_ptr->max_packed_value;
 
-  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
-      streams);
+  PUSH_RANGE("possible_results_copy_selectors")
+  for (uint32_t k = 0; k < num_lut_accumulators; k++) {
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), mem_ptr->tmp_batched_selectors,
+        k * num_possible_values, (k + 1) * num_possible_values,
+        batched_selectors, 0, num_possible_values);
+  }
+  POP_RANGE()
 
+  PUSH_RANGE("possible_results_apply_accumulators_lut")
+  integer_radix_apply_many_univariate_lookup_table<Torus>(
+      streams, mem_ptr->tmp_many_luts_output, mem_ptr->tmp_batched_selectors,
+      bsks, (Torus *const *)ksks, mem_ptr->batched_accumulators_lut,
+      max_luts_per_call, mem_ptr->lut_stride);
+  POP_RANGE()
+
+  PUSH_RANGE("possible_results_gather_blocks")
+  uint32_t total_blocks = num_possible_values * num_blocks;
+
+  Torus **h_dst_ptrs = mem_ptr->h_dst_ptrs;
   for (uint32_t i = 0; i < num_possible_values; i++) {
+    h_dst_ptrs[i] = (Torus *)lwe_array_out_list[i].ptr;
+  }
 
-    uint32_t stream_idx = i % num_streams;
-    CudaStreams current_stream = mem_ptr->internal_cuda_streams[stream_idx];
-    CudaRadixCiphertextFFI *current_tmp_buffer =
-        mem_ptr->tmp_many_luts_output[stream_idx];
-
-    CudaRadixCiphertextFFI const *current_selector = &lwe_array_in_list[i];
-    CudaRadixCiphertextFFI *current_output = &lwe_array_out_list[i];
+  uint32_t *h_src_idx = mem_ptr->h_src_idx;
+  for (uint32_t i = 0; i < num_possible_values; i++) {
     const uint64_t *current_clear_blocks =
         &h_decomposed_cleartexts[i * num_blocks];
-
-    for (uint32_t k = 0; k < num_lut_accumulators; k++) {
-
-      uint32_t lut_index = stream_idx * num_lut_accumulators + k;
-
-      int_radix_lut<Torus> *current_lut = mem_ptr->stream_luts[lut_index];
-
-      uint32_t luts_in_this_call = current_lut->num_many_lut;
-
-      integer_radix_apply_many_univariate_lookup_table<Torus>(
-          current_stream, current_tmp_buffer, current_selector, bsks,
-          (Torus *const *)ksks, current_lut, luts_in_this_call,
-          mem_ptr->lut_stride);
-
-      for (uint32_t j = 0; j < num_blocks; j++) {
-        uint64_t packed_block_value = current_clear_blocks[j];
-        if (packed_block_value >= max_packed_value) {
-          PANIC("Cuda error: block value in create_possible_results "
-                "exceeds max packed value");
-        }
-
-        uint32_t accumulator_index = packed_block_value / max_luts_per_call;
-        if (accumulator_index != k) {
-          continue;
-        }
-
-        uint32_t lut_index_in_accumulator =
-            packed_block_value % max_luts_per_call;
-
-        copy_radix_ciphertext_slice_async<Torus>(
-            current_stream.stream(0), current_stream.gpu_index(0),
-            current_output, j, j + 1, current_tmp_buffer,
-            lut_index_in_accumulator, lut_index_in_accumulator + 1);
+    for (uint32_t j = 0; j < num_blocks; j++) {
+      uint64_t packed_block_value = current_clear_blocks[j];
+      if (packed_block_value >= max_packed_value) {
+        PANIC("Cuda error: block value in create_possible_results exceeds max "
+              "packed value");
       }
+      uint32_t k = packed_block_value / max_luts_per_call;
+      uint32_t lut_index_in_accumulator =
+          packed_block_value % max_luts_per_call;
+      uint32_t src_index = lut_index_in_accumulator *
+                               (num_lut_accumulators * num_possible_values) +
+                           k * num_possible_values + i;
+
+      h_src_idx[i * num_blocks + j] = src_index;
     }
   }
 
-  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
-      streams);
+  cuda_memcpy_async_to_gpu(mem_ptr->d_dst_ptrs, h_dst_ptrs,
+                           num_possible_values * sizeof(Torus *),
+                           streams.stream(0), streams.gpu_index(0));
+  cuda_memcpy_async_to_gpu(mem_ptr->d_src_idx, h_src_idx,
+                           total_blocks * sizeof(uint32_t), streams.stream(0),
+                           streams.gpu_index(0));
+
+  uint32_t block_size = lwe_array_out_list[0].lwe_dimension + 1;
+
+  scatter_to_ptr_array_kernel<Torus>
+      <<<total_blocks, 256, 0, streams.stream(0)>>>(
+          mem_ptr->d_dst_ptrs, (Torus *)mem_ptr->tmp_many_luts_output->ptr,
+          num_blocks, mem_ptr->d_src_idx, block_size);
+  POP_RANGE()
 }
 
 template <typename Torus>
@@ -173,146 +250,96 @@ __host__ void host_aggregate_one_hot_vector(
     uint32_t num_input_ciphertexts, uint32_t num_blocks,
     int_aggregate_one_hot_buffer<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks) {
-
   int_radix_params params = mem_ptr->params;
   if (params.message_modulus > 4 && params.carry_modulus > 4) {
     PANIC("Cuda error: aggregate one hot vector is only implemented for 1_1 "
           "and 2_2 params");
   }
+
+  if (num_input_ciphertexts == 0) {
+    set_zero_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), lwe_array_out, 0,
+        lwe_array_out->num_radix_blocks);
+    return;
+  }
+
   uint32_t chunk_size = mem_ptr->chunk_size;
-  uint32_t num_streams = mem_ptr->num_streams;
+  uint32_t remaining = num_input_ciphertexts;
 
-  mem_ptr->internal_cuda_streams.internal_streams_wait_for_main_stream_0(
-      streams);
+  PUSH_RANGE("aggregate_initial_copies")
+  const Torus **h_src_ptrs = mem_ptr->h_src_ptrs;
+  for (uint32_t i = 0; i < remaining; i++) {
+    h_src_ptrs[i] = (const Torus *)lwe_array_in_list[i].ptr;
+  }
 
-  uint32_t inputs_per_stream = CEIL_DIV(num_input_ciphertexts, num_streams);
+  cuda_memcpy_async_to_gpu(mem_ptr->d_src_ptrs, h_src_ptrs,
+                           remaining * sizeof(const Torus *), streams.stream(0),
+                           streams.gpu_index(0));
 
-  for (uint32_t s = 0; s < num_streams; s++) {
+  uint32_t block_size = mem_ptr->tmp_out->lwe_dimension + 1;
+  uint32_t total_blocks_initial = remaining * num_blocks;
 
-    CudaStreams current_stream = mem_ptr->internal_cuda_streams[s];
+  gather_from_ptr_array_kernel<Torus>
+      <<<total_blocks_initial, 256, 0, streams.stream(0)>>>(
+          (Torus *)mem_ptr->tmp_out->ptr, mem_ptr->d_src_ptrs, num_blocks,
+          block_size);
+  POP_RANGE()
 
-    CudaRadixCiphertextFFI *current_agg =
-        mem_ptr->partial_aggregated_vectors[s];
-    CudaRadixCiphertextFFI *current_temp = mem_ptr->partial_temp_vectors[s];
-    int_radix_lut<Torus> *current_identity_lut =
-        mem_ptr->stream_identity_luts[s];
+  PUSH_RANGE("aggregate_reduction_loop")
+  while (remaining > 1) {
+    uint32_t num_chunks = (remaining + chunk_size - 1) / chunk_size;
 
-    uint32_t start_idx = s * inputs_per_stream;
-    uint32_t end_idx =
-        std::min(start_idx + inputs_per_stream, num_input_ciphertexts);
-    uint32_t count_in_stream =
-        (end_idx > start_idx) ? (end_idx - start_idx) : 0;
+    set_zero_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), mem_ptr->tmp_accumulated, 0,
+        num_chunks * num_blocks);
 
-    //
-    // Initialize the partial aggregated vector to zero for the current stream
-    //
-    set_zero_radix_ciphertext_slice_async<Torus>(current_stream.stream(0),
-                                                 current_stream.gpu_index(0),
-                                                 current_agg, 0, num_blocks);
+    PUSH_RANGE("aggregate_chunk_processing")
+    for (uint32_t k = 0; k < chunk_size; k++) {
+      bool has_active = (k < remaining);
 
-    if (count_in_stream == 0)
-      continue;
+      uint32_t total_blocks_chunk = num_chunks * num_blocks;
+      aggregate_chunk_prepare_kernel<Torus>
+          <<<total_blocks_chunk, 256, 0, streams.stream(0)>>>(
+              (Torus *)mem_ptr->tmp_batched_input->ptr,
+              (const Torus *)mem_ptr->tmp_out->ptr, k, chunk_size, remaining,
+              num_blocks, block_size);
 
-    uint32_t num_chunks = CEIL_DIV(count_in_stream, chunk_size);
-
-    //
-    // Process chunks of input ciphertexts for the current stream
-    //
-    for (uint32_t chunk_idx = 0; chunk_idx < num_chunks; chunk_idx++) {
-      uint32_t chunk_start_relative = chunk_idx * chunk_size;
-      uint32_t chunk_end_relative =
-          std::min(chunk_start_relative + chunk_size, count_in_stream);
-      uint32_t current_chunk_size = chunk_end_relative - chunk_start_relative;
-
-      //
-      // Accumulate ciphertexts in the current chunk
-      //
-      for (uint32_t k = 0; k < current_chunk_size; k++) {
-        uint32_t global_idx = start_idx + chunk_start_relative + k;
-        CudaRadixCiphertextFFI const *current_one_hot_ct =
-            &lwe_array_in_list[global_idx];
-
-        host_addition<Torus>(current_stream.stream(0),
-                             current_stream.gpu_index(0), current_agg,
-                             current_agg, current_one_hot_ct, num_blocks,
-                             params.message_modulus, params.carry_modulus);
+      if (has_active) {
+        host_addition<Torus>(streams.stream(0), streams.gpu_index(0),
+                             mem_ptr->tmp_accumulated, mem_ptr->tmp_accumulated,
+                             mem_ptr->tmp_batched_input,
+                             num_chunks * num_blocks, params.message_modulus,
+                             params.carry_modulus);
       }
-
-      //
-      // Apply identity LUT to reduce noise after accumulation
-      //
-      copy_radix_ciphertext_slice_async<Torus>(
-          current_stream.stream(0), current_stream.gpu_index(0), current_temp,
-          0, num_blocks, current_agg, 0, num_blocks);
-
-      integer_radix_apply_univariate_lookup_table<Torus>(
-          current_stream, current_agg, current_temp, bsks, ksks,
-          current_identity_lut, num_blocks);
     }
+    POP_RANGE()
+
+    PUSH_RANGE("aggregate_identity_lut")
+    integer_radix_apply_univariate_lookup_table<Torus>(
+        streams, mem_ptr->tmp_out, mem_ptr->tmp_accumulated, bsks, ksks,
+        mem_ptr->identity_lut, num_chunks * num_blocks);
+    POP_RANGE()
+
+    remaining = num_chunks;
   }
+  POP_RANGE()
 
-  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams(
-      streams);
+  PUSH_RANGE("aggregate_extract_and_reassemble")
+  CudaRadixCiphertextFFI final_result;
+  as_radix_ciphertext_slice<Torus>(&final_result, mem_ptr->tmp_out, 0,
+                                   num_blocks);
 
-  CudaRadixCiphertextFFI *final_agg = mem_ptr->partial_aggregated_vectors[0];
-
-  //
-  // Aggregate partial results from all streams into the final aggregated vector
-  // num_streams has to be less than the max noise level otherwise we accumulate
-  // too much and the noise limit is exceeded
-  //
-  CHECK_NOISE_LEVEL(num_streams, params.message_modulus, params.carry_modulus);
-  for (uint32_t s = 1; s < num_streams; s++) {
-    uint32_t start_idx = s * inputs_per_stream;
-    if (start_idx >= num_input_ciphertexts)
-      break;
-
-    host_addition<Torus>(streams.stream(0), streams.gpu_index(0), final_agg,
-                         final_agg, mem_ptr->partial_aggregated_vectors[s],
-                         num_blocks, params.message_modulus,
-                         params.carry_modulus);
-  }
-
-  CudaRadixCiphertextFFI *temp_agg = mem_ptr->partial_temp_vectors[0];
   CudaRadixCiphertextFFI *message_ct = mem_ptr->message_ct;
   CudaRadixCiphertextFFI *carry_ct = mem_ptr->carry_ct;
 
-  //
-  // Copy the final aggregated result to a temporary buffer for extraction
-  //
-  copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), temp_agg, 0, num_blocks,
-      final_agg, 0, num_blocks);
-
-  CudaStreams message_stream = mem_ptr->internal_cuda_streams[0];
-  CudaStreams carry_stream = mem_ptr->internal_cuda_streams[1];
-
-  uint32_t stream_indexes[] = {0, 1};
-  size_t num_stream_indexes = 2;
-
-  mem_ptr->internal_cuda_streams.internal_streams_slice_wait_for_main_stream_0(
-      streams, stream_indexes, num_stream_indexes);
-
-  //
-  // Extract message part on a first substream
-  //
   integer_radix_apply_univariate_lookup_table<Torus>(
-      message_stream, message_ct, temp_agg, bsks, ksks,
+      streams, message_ct, &final_result, bsks, ksks,
       mem_ptr->message_extract_lut, num_blocks);
 
-  //
-  // Extract carry part on a second substream
-  //
   integer_radix_apply_univariate_lookup_table<Torus>(
-      carry_stream, carry_ct, temp_agg, bsks, ksks, mem_ptr->carry_extract_lut,
+      streams, carry_ct, &final_result, bsks, ksks, mem_ptr->carry_extract_lut,
       num_blocks);
 
-  mem_ptr->internal_cuda_streams.main_stream_0_wait_for_internal_streams_slice(
-      streams, stream_indexes, num_stream_indexes);
-
-  //
-  // Pack the message and carry parts into the output LWE array
-  //
   for (uint32_t index = 0; index < num_blocks; index++) {
     if (2 * index < lwe_array_out->num_radix_blocks) {
       copy_radix_ciphertext_slice_async<Torus>(
@@ -326,6 +353,7 @@ __host__ void host_aggregate_one_hot_vector(
           2 * index + 2, carry_ct, index, index + 1);
     }
   }
+  POP_RANGE()
 }
 
 template <typename Torus>
@@ -350,42 +378,49 @@ __host__ void host_unchecked_match_value(
     const uint64_t *h_match_inputs, const uint64_t *h_match_outputs,
     int_unchecked_match_buffer<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks) {
+  PUSH_RANGE("MATCH_VALUE")
+
+  PUSH_RANGE("host_compute_equality_selectors")
   host_compute_equality_selectors<Torus>(
       streams, mem_ptr->selectors_list, lwe_array_in_ct,
       mem_ptr->num_input_blocks, h_match_inputs, mem_ptr->eq_selectors_buffer,
       bsks, ksks);
-
-  for (uint32_t i = 0; i < mem_ptr->num_matches; i++) {
-    copy_radix_ciphertext_slice_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), mem_ptr->packed_selectors_ct,
-        i, i + 1, &mem_ptr->selectors_list[i], 0, 1);
-  }
+  POP_RANGE()
 
   if (!mem_ptr->max_output_is_zero) {
+    PUSH_RANGE("host_create_possible_results")
     host_create_possible_results<Torus>(
-        streams, mem_ptr->possible_results_list, mem_ptr->selectors_list,
+        streams, mem_ptr->possible_results_list, mem_ptr->packed_selectors_ct,
         mem_ptr->num_matches, h_match_outputs,
         mem_ptr->num_output_packed_blocks, mem_ptr->possible_results_buffer,
         bsks, ksks);
+    POP_RANGE()
   }
 
   if (mem_ptr->max_output_is_zero) {
+    PUSH_RANGE("host_integer_is_at_least_one_comparisons_block_true")
     host_integer_is_at_least_one_comparisons_block_true<Torus>(
         streams, lwe_array_out_boolean, mem_ptr->packed_selectors_ct,
         mem_ptr->at_least_one_true_buffer, bsks, (Torus **)ksks,
         mem_ptr->num_matches);
+    POP_RANGE()
     return;
   }
 
+  PUSH_RANGE("host_aggregate_one_hot_vector")
   host_aggregate_one_hot_vector<Torus>(
       streams, lwe_array_out_result, mem_ptr->possible_results_list,
       mem_ptr->num_matches, mem_ptr->num_output_packed_blocks,
       mem_ptr->aggregate_buffer, bsks, ksks);
+  POP_RANGE()
 
+  PUSH_RANGE("host_integer_is_at_least_one_comparisons_block_true")
   host_integer_is_at_least_one_comparisons_block_true<Torus>(
       streams, lwe_array_out_boolean, mem_ptr->packed_selectors_ct,
       mem_ptr->at_least_one_true_buffer, bsks, (Torus **)ksks,
       mem_ptr->num_matches);
+  POP_RANGE()
+  POP_RANGE()
 }
 
 template <typename Torus>
@@ -609,7 +644,7 @@ __host__ void host_compute_final_index_from_selectors(
   uint32_t packed_len = (num_blocks_index + 1) / 2;
 
   host_create_possible_results<Torus>(
-      streams, mem_ptr->possible_results_ct_list, mem_ptr->unpacked_selectors,
+      streams, mem_ptr->possible_results_ct_list, mem_ptr->packed_selectors,
       num_inputs, mem_ptr->h_indices, packed_len, mem_ptr->possible_results_buf,
       bsks, ksks);
 
@@ -667,7 +702,7 @@ __host__ void host_unchecked_index_in_clears(
 
   host_create_possible_results<Torus>(
       streams, mem_ptr->final_index_buf->possible_results_ct_list,
-      mem_ptr->final_index_buf->unpacked_selectors, num_clears,
+      mem_ptr->final_index_buf->packed_selectors, num_clears,
       mem_ptr->final_index_buf->h_indices, packed_len,
       mem_ptr->final_index_buf->possible_results_buf, bsks, ksks);
 
@@ -713,7 +748,7 @@ __host__ void host_unchecked_first_index_in_clears(
   uint32_t packed_len = (num_blocks_index + 1) / 2;
 
   host_create_possible_results<Torus>(
-      streams, mem_ptr->possible_results_ct_list, mem_ptr->unpacked_selectors,
+      streams, mem_ptr->possible_results_ct_list, mem_ptr->packed_selectors,
       num_unique, h_unique_indices, packed_len, mem_ptr->possible_results_buf,
       bsks, ksks);
 
@@ -806,7 +841,7 @@ __host__ void host_unchecked_first_index_of_clear(
   uint32_t packed_len = (num_blocks_index + 1) / 2;
 
   host_create_possible_results<Torus>(
-      streams, mem_ptr->possible_results_ct_list, mem_ptr->unpacked_selectors,
+      streams, mem_ptr->possible_results_ct_list, mem_ptr->packed_selectors,
       num_inputs, (const uint64_t *)mem_ptr->h_indices, packed_len,
       mem_ptr->possible_results_buf, bsks, ksks);
 
@@ -888,7 +923,7 @@ __host__ void host_unchecked_first_index_of(
   uint32_t packed_len = (num_blocks_index + 1) / 2;
 
   host_create_possible_results<Torus>(
-      streams, mem_ptr->possible_results_ct_list, mem_ptr->unpacked_selectors,
+      streams, mem_ptr->possible_results_ct_list, mem_ptr->packed_selectors,
       num_inputs, (const uint64_t *)mem_ptr->h_indices, packed_len,
       mem_ptr->possible_results_buf, bsks, ksks);
 
@@ -952,7 +987,7 @@ __host__ void host_unchecked_index_of(
 
   host_create_possible_results<Torus>(
       streams, mem_ptr->final_index_buf->possible_results_ct_list,
-      mem_ptr->final_index_buf->unpacked_selectors, num_inputs,
+      mem_ptr->final_index_buf->packed_selectors, num_inputs,
       (const uint64_t *)mem_ptr->final_index_buf->h_indices, packed_len,
       mem_ptr->final_index_buf->possible_results_buf, bsks, ksks);
 
@@ -1028,7 +1063,7 @@ __host__ void host_unchecked_index_of_clear(
 
   host_create_possible_results<Torus>(
       streams, mem_ptr->final_index_buf->possible_results_ct_list,
-      mem_ptr->final_index_buf->unpacked_selectors, num_inputs,
+      mem_ptr->final_index_buf->packed_selectors, num_inputs,
       (const uint64_t *)mem_ptr->final_index_buf->h_indices, packed_len,
       mem_ptr->final_index_buf->possible_results_buf, bsks, ksks);
 

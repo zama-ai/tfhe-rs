@@ -982,6 +982,33 @@ void cuda_cast_to_signed_64_async(CudaStreamsFFI streams,
 
 void cleanup_cuda_cast_to_signed_64(CudaStreamsFFI streams,
                                     int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_goldschmidt_division_64(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t lwe_dimension, uint32_t ks_level,
+    uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
+    uint32_t grouping_factor, uint32_t message_modulus, uint32_t carry_modulus,
+    PBS_TYPE pbs_type, uint32_t num_radix_blocks, uint32_t lut_precision,
+    bool allocate_gpu_memory);
+
+void cuda_goldschmidt_division_64(CudaStreamsFFI streams,
+                                  CudaRadixCiphertextFFI *quotient,
+                                  CudaRadixCiphertextFFI *remainder,
+                                  const CudaRadixCiphertextFFI *numerator,
+                                  const CudaRadixCiphertextFFI *denominator,
+                                  uint32_t iterations, uint32_t lut_precision,
+                                  int8_t *mem_ptr, void *const *bsks,
+                                  void *const *ksks);
+
+void cleanup_cuda_goldschmidt_division(CudaStreamsFFI streams,
+                                       int8_t **mem_ptr_void);
+
+void cuda_mul_add_fixed_point_with_rescaling_64(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *result,
+    const CudaRadixCiphertextFFI *lhs, const CudaRadixCiphertextFFI *rhs,
+    const CudaRadixCiphertextFFI *added, int32_t rescaling, uint32_t precision,
+    int8_t *mem_ptr, void *const *bsks, void *const *ksks);
+
 } // extern C
 
 #endif // CUDA_INTEGER_H

@@ -9821,3 +9821,214 @@ pub(crate) unsafe fn cuda_backend_kreyvium_step<T: UnsignedInteger, B: Numeric>(
     update_noise_degree(k_reg, &ffi_k);
     update_noise_degree(iv_reg, &ffi_iv_reg);
 }
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_goldschmidt_division<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    quotient: &mut CudaRadixCiphertext,
+    remainder: &mut CudaRadixCiphertext,
+    numerator: &CudaRadixCiphertext,
+    denominator: &CudaRadixCiphertext,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    grouping_factor: LweBskGroupingFactor,
+    pbs_type: PBSType,
+    iterations: u32,
+    lut_precision: u32,
+) {
+    let num_radix_blocks = numerator.info.blocks.len() as u32;
+
+    let mut quotient_degrees = quotient.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut quotient_noise_levels = quotient
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_quotient =
+        prepare_cuda_radix_ffi(quotient, &mut quotient_degrees, &mut quotient_noise_levels);
+
+    let mut remainder_degrees = remainder.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut remainder_noise_levels = remainder
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_remainder = prepare_cuda_radix_ffi(
+        remainder,
+        &mut remainder_degrees,
+        &mut remainder_noise_levels,
+    );
+
+    let mut numerator_degrees = numerator.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut numerator_noise_levels = numerator
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_numerator = prepare_cuda_radix_ffi(
+        numerator,
+        &mut numerator_degrees,
+        &mut numerator_noise_levels,
+    );
+
+    let mut denominator_degrees = denominator.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut denominator_noise_levels = denominator
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_denominator = prepare_cuda_radix_ffi(
+        denominator,
+        &mut denominator_degrees,
+        &mut denominator_noise_levels,
+    );
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    scratch_cuda_goldschmidt_division_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        num_radix_blocks,
+        lut_precision,
+        true,
+    );
+
+    cuda_goldschmidt_division_64(
+        streams.ffi(),
+        &raw mut cuda_ffi_quotient,
+        &raw mut cuda_ffi_remainder,
+        &raw const cuda_ffi_numerator,
+        &raw const cuda_ffi_denominator,
+        iterations,
+        lut_precision,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_goldschmidt_division(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(quotient, &cuda_ffi_quotient);
+    update_noise_degree(remainder, &cuda_ffi_remainder);
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) unsafe fn cuda_backend_mul_add_fixed_point_with_rescaling<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
+    streams: &CudaStreams,
+    result: &mut CudaRadixCiphertext,
+    lhs: &CudaRadixCiphertext,
+    rhs: &CudaRadixCiphertext,
+    added: Option<&CudaRadixCiphertext>,
+    rescaling: i32,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    grouping_factor: LweBskGroupingFactor,
+    pbs_type: PBSType,
+    lut_precision: usize,
+) {
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let num_blocks = result.d_blocks.lwe_ciphertext_count().0 as u32;
+
+    let mut result_degrees = result.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut result_noise_levels = result.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let mut cuda_ffi_result =
+        prepare_cuda_radix_ffi(result, &mut result_degrees, &mut result_noise_levels);
+
+    let mut lhs_degrees = lhs.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut lhs_noise_levels = lhs.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_lhs = prepare_cuda_radix_ffi(lhs, &mut lhs_degrees, &mut lhs_noise_levels);
+
+    let mut rhs_degrees = rhs.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut rhs_noise_levels = rhs.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_rhs = prepare_cuda_radix_ffi(rhs, &mut rhs_degrees, &mut rhs_noise_levels);
+
+    let (cuda_ffi_added, _added_degrees, _added_noise_levels) = added.map_or_else(
+        || (None, vec![], vec![]),
+        |added| {
+            let mut degrees: Vec<u64> = added.info.blocks.iter().map(|b| b.degree.0).collect();
+            let mut noise: Vec<u64> = added.info.blocks.iter().map(|b| b.noise_level.0).collect();
+            let ffi = prepare_cuda_radix_ffi(added, &mut degrees, &mut noise);
+            (Some(ffi), degrees, noise)
+        },
+    );
+    let added_ptr = cuda_ffi_added
+        .as_ref()
+        .map_or(std::ptr::null(), std::ptr::from_ref);
+
+    scratch_cuda_goldschmidt_division_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        num_blocks,
+        lut_precision as u32,
+        true,
+    );
+
+    cuda_mul_add_fixed_point_with_rescaling_64(
+        streams.ffi(),
+        &raw mut cuda_ffi_result,
+        &raw const cuda_ffi_lhs,
+        &raw const cuda_ffi_rhs,
+        added_ptr,
+        rescaling,
+        lut_precision as u32,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_goldschmidt_division(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(result, &cuda_ffi_result);
+}
