@@ -1,7 +1,7 @@
 SHELL:=$(shell /usr/bin/env which bash)
-# Enable stop on error, no undefined variables
-# the c flag is to run the script inline
-.SHELLFLAGS := -eu -c
+# https://www.gnu.org/software/make/manual/html_node/Choosing-the-Shell.html
+# POSIX conforming mode
+.SHELLFLAGS := -ec
 OS:=$(shell uname)
 RS_CHECK_TOOLCHAIN:=$(shell cat nightly-toolchain.txt | tr -d '\n')
 CARGO_RS_CHECK_TOOLCHAIN:=+$(RS_CHECK_TOOLCHAIN)
