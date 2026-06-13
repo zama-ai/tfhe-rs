@@ -262,3 +262,11 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     # This is a bug/unwanted behavior from wasm_bindgen macro, for now warn instead of erroring
     'cfg(wasm_bindgen_unstable_test_coverage)',
 ] }
+
+# wasm-opt args for wasm-pack release builds.
+# -Oz: optimize aggressively for size (wasm-pack default is -O).
+# --enable-simd: required because pulp (via tfhe-fft / tfhe-ntt) emits SIMD.
+# --enable-threads: required for the parallel build's +atomics target feature.
+# --enable-bulk-memory: required because modern rustc emits memory.copy/fill.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-simd", "--enable-threads", "--enable-bulk-memory"]
