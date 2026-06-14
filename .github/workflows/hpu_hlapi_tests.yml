@@ -33,7 +33,7 @@ jobs:
       hpu_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.hpu_any_changed }}
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
           persist-credentials: 'false'
@@ -60,7 +60,7 @@ jobs:
     # This is a temporary workaround to run the CI and pass the branch protection checks.
     runs-on: "runs-on=${{ github.run_id }}/image=ubuntu24-full-x64/family=m6i/cpu=64"
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
