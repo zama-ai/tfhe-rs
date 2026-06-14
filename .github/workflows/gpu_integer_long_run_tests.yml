@@ -37,7 +37,7 @@ jobs:
       is_needed_in_gpu_ci: ${{ env.IS_PR == 'false' || steps.changed-files.outputs.gpu_any_changed }}
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
           persist-credentials: 'false'
@@ -99,7 +99,7 @@ jobs:
     timeout-minutes: 4320 # 72 hours
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
