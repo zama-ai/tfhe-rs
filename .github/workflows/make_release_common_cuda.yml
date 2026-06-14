@@ -231,7 +231,7 @@ jobs:
       - name: Slack notification (hashes comparison)
         if: ${{ needs.package.outputs.hash != steps.published_hash.outputs.pub_hash }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2.4.0
         env:
           SLACK_COLOR: failure
           SLACK_MESSAGE: "SLSA ${{ inputs.package-name }} crate - hash comparison failure: (${{ env.ACTION_RUN_URL }})"
@@ -239,7 +239,7 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2.4.0
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "${{ inputs.package-name }} release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
@@ -262,7 +262,7 @@ jobs:
 
       - name: Slack Notification
         if: ${{ failure() }}
-        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2.4.0
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "Instance teardown (${{ inputs.package-name }} release) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
