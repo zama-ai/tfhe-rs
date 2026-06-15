@@ -77,9 +77,7 @@ jobs:
         shell: python
         env:
           INPUTS_EXTRA_RUNNERS_TO_USE: ${{ inputs.extra-runners-to-use }}
-#          REMOTE_RUNNER: "runs-on=${{ github.run_id }}/runner=cpu-small"
-          # This is a temporary workaround to run the CI and pass the branch protection checks.
-          REMOTE_RUNNER: "runs-on=${{ github.run_id }}/image=ubuntu24-full-x64/family=m6i/cpu=8"
+          REMOTE_RUNNER: "runs-on=${{ github.run_id }}/runner=cpu-small"
         run: |
           import os
           

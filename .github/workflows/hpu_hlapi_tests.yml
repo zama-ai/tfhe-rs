@@ -56,9 +56,7 @@ jobs:
     if:
       needs.should-run.outputs.hpu_test == 'true' &&
       ((github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||github.event_name == 'pull_request')
-    #runs-on: "runs-on=${{ github.run_id }}/runner=cpu-big"
-    # This is a temporary workaround to run the CI and pass the branch protection checks.
-    runs-on: "runs-on=${{ github.run_id }}/image=ubuntu24-full-x64/family=m6i/cpu=64"
+    runs-on: "runs-on=${{ github.run_id }}/runner=cpu-big"
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
