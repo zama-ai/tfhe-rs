@@ -653,6 +653,25 @@ __host__ void host_pack_bivariate_blocks_with_single_block(
   check_cuda_error(cudaGetLastError());
 }
 
+/// @brief Packs each LWE block with a per-ciphertext single-block condition
+/// for bivariate PBS evaluation.
+///
+/// For each output block, computes out = in * shift + condition, where the
+/// condition block is selected by the ciphertext index (one condition per
+/// entry). When replicate_input is true, the input is a single ciphertext
+/// reused across all entries.
+///
+/// @param lwe_array_out      Output packed LWE array
+/// @param lwe_array_in       Input LWE array (or single CT when
+/// replicate_input)
+/// @param lwe_conditions     Single-block conditions, one per entry
+/// @param lwe_dimension      LWE dimension (lwe_size = lwe_dimension + 1)
+/// @param shift              Multiplicative shift applied to the input block
+/// @param total_num_blocks   Total number of output blocks (num_entries *
+/// num_blocks_per_ct)
+/// @param num_blocks_per_ct  Number of radix blocks per ciphertext
+/// @param replicate_input    When true, reuse the first num_blocks_per_ct input
+/// blocks for every entry
 template <typename Torus>
 __global__ void device_pack_bivariate_blocks_with_per_ct_single_block(
     Torus *lwe_array_out, Torus const *lwe_array_in,
@@ -675,11 +694,26 @@ __global__ void device_pack_bivariate_blocks_with_per_ct_single_block(
   }
 }
 
-// Fused two-region variant of
-// device_pack_bivariate_blocks_with_per_ct_single_block for the batched CMUX:
-// a single launch packs lwe_array_true (region 0, replicated per entry when
-// replicate_true is set) and lwe_array_false (region 1, never replicated)
-// against the same conditions, halving launch overhead.
+/// @brief Fused two-region bivariate packing for batched CMUX.
+///
+/// Packs both the true and false branch LWE arrays against the same
+/// conditions in a single kernel launch. The output layout is the true
+/// region (total_num_blocks blocks) followed by the false region
+/// (total_num_blocks blocks), matching two sequential calls to
+/// device_pack_bivariate_blocks_with_per_ct_single_block.
+///
+/// @param lwe_array_out      Output packed array (2 * total_num_blocks blocks)
+/// @param lwe_array_true     True-branch LWE array (or single CT when
+/// replicate_true)
+/// @param lwe_array_false    False-branch LWE array
+/// @param lwe_conditions     Single-block conditions, one per entry
+/// @param lwe_dimension      LWE dimension (lwe_size = lwe_dimension + 1)
+/// @param shift              Multiplicative shift applied to each input block
+/// @param total_num_blocks   Blocks per region (num_entries *
+/// num_blocks_per_ct)
+/// @param num_blocks_per_ct  Number of radix blocks per ciphertext
+/// @param replicate_true     When true, reuse a single true-branch CT for every
+/// entry
 template <typename Torus>
 __global__ void device_pack_bivariate_blocks_cmux_two_regions(
     Torus *lwe_array_out, Torus const *lwe_array_true,
@@ -710,9 +744,20 @@ __global__ void device_pack_bivariate_blocks_cmux_two_regions(
   }
 }
 
-// Packs both CMUX branches into tmp_packed in one launch. Output layout matches
-// two back-to-back host_pack_bivariate_blocks_with_per_ct_single_block calls
-// (true branch first, false second), so it is a drop-in fusion.
+/// @brief Host wrapper that packs both CMUX branches into a single output
+/// buffer via device_pack_bivariate_blocks_cmux_two_regions.
+///
+/// @param lwe_array_out      Output packed radix ciphertext (2 * num_entries *
+/// num_blocks_per_ct blocks)
+/// @param lwe_array_true     True-branch radix ciphertext (or single CT when
+/// replicate_true)
+/// @param lwe_array_false    False-branch radix ciphertext
+/// @param lwe_conditions     Single-block encrypted conditions, one per entry
+/// @param shift              Multiplicative shift (typically message_modulus)
+/// @param num_entries        Number of CMUX entries to pack
+/// @param num_blocks_per_ct  Number of radix blocks per ciphertext
+/// @param replicate_true     When true, reuse a single true-branch CT for every
+/// entry
 template <typename Torus>
 __host__ void host_pack_bivariate_blocks_cmux_two_regions(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
@@ -761,6 +806,18 @@ __host__ void host_pack_bivariate_blocks_cmux_two_regions(
   check_cuda_error(cudaGetLastError());
 }
 
+/// @brief Host wrapper that packs input LWE blocks with per-ciphertext
+/// single-block conditions for bivariate PBS evaluation.
+///
+/// @param lwe_array_out      Output packed radix ciphertext
+/// @param lwe_array_in       Input radix ciphertext (or single CT when
+/// replicate_input)
+/// @param lwe_conditions     Single-block encrypted conditions, one per entry
+/// @param shift              Multiplicative shift (typically message_modulus)
+/// @param num_entries        Number of entries to pack
+/// @param num_blocks_per_ct  Number of radix blocks per ciphertext
+/// @param replicate_input    When true, reuse the first num_blocks_per_ct input
+/// blocks for every entry
 template <typename Torus>
 __host__ void host_pack_bivariate_blocks_with_per_ct_single_block(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
@@ -2981,12 +3038,17 @@ __host__ void host_cleartext_multiplication(
   }
 }
 
-// Pairwise add of one binary-tree-fold level: in place, data[idx] +=
-// data[idx + right_offset] over the flattened [entry][block][lwe_coeff] layout.
-// The caller precomputes right_offset = right_start * entry_size and
-// total_elements = half * entry_size, so no per-element div/mod is needed and
-// adjacent lanes touch adjacent Torus words (fully coalesced, memory bound).
-template <typename Torus, class params>
+/// @brief Pairwise in-place addition for one level of a binary tree fold.
+///
+/// Each thread adds data[idx + right_offset] onto data[idx] using a
+/// grid-stride loop, where the caller precomputes right_offset and
+/// total_elements so no per-element division is needed.
+///
+/// @param data            Flattened [entry][block][lwe_coeff] array (modified
+/// in place)
+/// @param right_offset    Offset in Torus words from left to right operand
+/// @param total_elements  Number of Torus words to process (left half only)
+template <typename Torus>
 __global__ void device_binary_tree_fold(Torus *__restrict__ data,
                                         uint32_t right_offset,
                                         uint32_t total_elements) {
@@ -2997,39 +3059,20 @@ __global__ void device_binary_tree_fold(Torus *__restrict__ data,
   }
 }
 
-// Reduces num_entries one-hot radix ciphertexts (noise 1) into one by pairwise
-// addition with an identity PBS resetting noise once per round.
-//
-// A max-degree-1 block can absorb additions up to noise M = max_degree (5 for
-// 2_2). Plain folding doubles noise per level, so it runs only L=floor(log2(M))
-// levels per PBS (factor 2^L<M). The reserve-tail-and-absorb schedule below
-// reaches the full factor M per round (R survivors in, all noise 1):
-//
-//   M = max_noise, L = floor(log2(M)), extra = M - 2^L
-//   G = floor(R / M), T = G * extra (reserved tail), F = R - T (front)
-//
-//   [0 .......................... F)[F ............ R)
-//    front: L pairwise fold levels    reserved tail (noise 1, untouched)
-//    F -> ... -> S survivors          T = G * extra entries
-//    (survivors at noise <= 2^L)
-//         |
-//   absorb: for k in [0, extra), add tail entries [F + k*G, F + (k+1)*G) onto
-//   survivors [0, G), one fold launch per k. Each lifts the G targets by 1, to
-//   2^L + extra = M.
-//         |
-//   batched identity PBS over S survivors -> all noise 1, repeat with R' = S
-//
-// S equals the post-fold front count (absorb targets are a subset of
-// survivors); kv_sum_pbs_round_survivors is the shared source of truth with
-// scratch alloc. For N=1024, M=5: 1024 -> 205 -> 41 -> 9 -> 2 -> 1.
-//
-// When R < M, G = 0 so the reservation is skipped (folding stops at one entry);
-// when extra == 0 (M a power of two) absorb is a no-op. The group_size guard
-// avoids launching zero-grid kernels in both cases. The identity PBS runs
-// in-place: the keyswitch consumes the input into LUT scratch before the PBS
-// writes output, so in == out is safe (as in vector_find.cuh), and it resets
-// degrees/noise from lut->degrees.
-template <typename Torus, class params>
+/// @brief Reduces num_entries one-hot radix ciphertexts into one via pairwise
+/// addition with identity PBS noise resets between rounds.
+///
+/// Uses a reserve-tail-and-absorb schedule to reach the full factor-M
+/// reduction per PBS round (M = max_degree), where plain binary folding
+/// would only achieve 2^floor(log2(M)).
+///
+/// @param output           Destination radix ciphertext (num_blocks blocks)
+/// @param input            Contiguous array of num_entries radix ciphertexts
+/// (modified in place)
+/// @param num_entries      Number of one-hot entries to reduce
+/// @param num_blocks       Number of radix blocks per entry
+/// @param identity_lut     Identity LUT used to reset noise after each round
+template <typename Torus>
 __host__ void host_binary_tree_fold_sum(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI *input, uint32_t num_entries, uint32_t num_blocks,
@@ -3091,9 +3134,8 @@ __host__ void host_binary_tree_fold_sum(
     int num_cuda_blocks = 0, num_threads = 0;
     getNumBlocksAndThreads(total_elements, 512, num_cuda_blocks, num_threads);
 
-    device_binary_tree_fold<Torus, params>
-        <<<num_cuda_blocks, num_threads, 0, stream>>>(data, right_offset,
-                                                      total_elements);
+    device_binary_tree_fold<Torus><<<num_cuda_blocks, num_threads, 0, stream>>>(
+        data, right_offset, total_elements);
     check_cuda_error(cudaGetLastError());
   };
 
@@ -3129,11 +3171,8 @@ __host__ void host_binary_tree_fold_sum(
       survivors = right_start;
     }
 
-    // Absorb the reserved tail onto the first group_size survivors: launch k
-    // adds tail entries [front+k*group_size, front+(k+1)*group_size) onto
-    // survivors [0, group_size). The group_size guard skips the no-tail
-    // (group_size==0) and power-of-two (extra==0) cases without a zero-grid
-    // launch.
+    // Fold each tail group onto the first group_size survivors.
+    // The guard skips the no-tail and power-of-two cases.
     if (group_size > 0) {
       for (uint32_t k = 0; k < extra; k++) {
         uint32_t tail_start = front + k * group_size;
@@ -3163,52 +3202,22 @@ __host__ void host_binary_tree_fold_sum(
       streams, output, &final_slice, bsks, ksks, identity_lut, num_blocks);
 }
 
+/// @brief Reduces num_entries one-hot radix ciphertexts into a single sum.
+///
+/// @param output           Destination radix ciphertext
+/// @param input            Contiguous array of num_entries radix ciphertexts
+/// @param num_entries      Number of one-hot entries to reduce
+/// @param num_blocks       Number of radix blocks per entry
+/// @param identity_lut     Identity LUT for noise resets
 template <typename Torus>
 __host__ void host_binary_tree_fold_sum_dispatch(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI *input, uint32_t num_entries, uint32_t num_blocks,
-    uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
-    void *const *bsks, Torus *const *ksks, int_radix_lut<Torus> *identity_lut) {
-  switch (polynomial_size) {
-  case 256:
-    host_binary_tree_fold_sum<Torus, Degree<256>>(
-        streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut);
-    break;
-  case 512:
-    host_binary_tree_fold_sum<Torus, Degree<512>>(
-        streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut);
-    break;
-  case 1024:
-    host_binary_tree_fold_sum<Torus, Degree<1024>>(
-        streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut);
-    break;
-  case 2048:
-    host_binary_tree_fold_sum<Torus, Degree<2048>>(
-        streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut);
-    break;
-  case 4096:
-    host_binary_tree_fold_sum<Torus, Degree<4096>>(
-        streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut);
-    break;
-  case 8192:
-    host_binary_tree_fold_sum<Torus, Degree<8192>>(
-        streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut);
-    break;
-  case 16384:
-    host_binary_tree_fold_sum<Torus, Degree<16384>>(
-        streams, output, input, num_entries, num_blocks, message_modulus,
-        carry_modulus, bsks, ksks, identity_lut);
-    break;
-  default:
-    PANIC("Cuda error (binary_tree_fold_sum): unsupported polynomial size. "
-          "Supported N's are powers of two in the interval [256..16384].")
-  }
+    uint32_t message_modulus, uint32_t carry_modulus, void *const *bsks,
+    Torus *const *ksks, int_radix_lut<Torus> *identity_lut) {
+  host_binary_tree_fold_sum<Torus>(streams, output, input, num_entries,
+                                   num_blocks, message_modulus, carry_modulus,
+                                   bsks, ksks, identity_lut);
 }
 
 #endif // TFHE_RS_INTERNAL_INTEGER_CUH

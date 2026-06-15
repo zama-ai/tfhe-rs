@@ -8,9 +8,21 @@
 #include "integer/kv_store/kv_store_utilities.h"
 #include "integer/vector_find.cuh"
 
-// Accumulates chunks of LWE blocks for multiple entries in a single kernel.
-// Each CUDA block (in the y-dimension) handles one (entry, chunk) pair,
-// summing chunk_length adjacent LWE blocks element-wise into one output block.
+/// @brief Accumulates chunks of LWE blocks for multiple entries in a single
+/// kernel.
+///
+/// Each CUDA block (in the y-dimension) handles one (entry, chunk) pair,
+/// summing chunk_length adjacent LWE blocks element-wise into one output block.
+///
+/// @param output                Output buffer receiving one accumulated block
+/// per
+///                              (entry, chunk) pair
+/// @param input                 Input LWE blocks in row-major layout (entries x
+///                              blocks_per_entry)
+/// @param lwe_dimension         LWE dimension (number of mask coefficients)
+/// @param blocks_per_entry      Number of input LWE blocks per map entry
+/// @param max_value             Maximum chunk length (accumulation width)
+/// @param num_chunks_per_entry  Number of chunks each entry is split into
 template <typename Torus>
 __global__ void device_accumulate_all_blocks_batched(
     Torus *output, Torus const *input, uint32_t lwe_dimension,
@@ -39,6 +51,17 @@ __global__ void device_accumulate_all_blocks_batched(
   output[chunk_flat_idx * stride + lwe_idx] = sum;
 }
 
+/// @brief Host wrapper launching device_accumulate_all_blocks_batched.
+///
+/// @param output                Output buffer receiving one accumulated block
+/// per
+///                              (entry, chunk) pair
+/// @param input                 Input LWE blocks in row-major layout
+/// @param lwe_dimension         LWE dimension (number of mask coefficients)
+/// @param blocks_per_entry      Number of input LWE blocks per map entry
+/// @param max_value             Maximum chunk length (accumulation width)
+/// @param num_entries           Number of map entries being processed
+/// @param num_chunks_per_entry  Number of chunks each entry is split into
 template <typename Torus>
 __host__ void host_accumulate_all_blocks_batched(
     cudaStream_t stream, uint32_t gpu_index, Torus *output, Torus const *input,
@@ -54,41 +77,53 @@ __host__ void host_accumulate_all_blocks_batched(
   check_cuda_error(cudaGetLastError());
 }
 
-// Given one encrypted radix ciphertext (num_blocks blocks, each a digit in
-// [0, message_modulus)) and N cleartext candidates (the clear kv_store keys),
-// produces N encrypted booleans: selector_i = Enc(input == candidate_i).
-//
-// Candidates live in h_decomposed_cleartexts, a flat array where candidate i
-// occupies [i*num_blocks .. (i+1)*num_blocks). N =
-// mem_ptr->num_possible_values.
-//
-// A per-candidate approach costs N * num_blocks PBS. Since there are only
-// message_modulus possible digit values (typically 2 or 4), we instead
-// precompute all per-block comparisons in one batched PBS, then let each
-// candidate pick the results it needs via memcpy:
-//
-// Step 1 — One batched PBS builds a message_modulus x num_blocks grid:
-//
-//                       block 0    block 1    block 2
-//                     ┌──────────┬──────────┬──────────┐
-//     LUT for v=0     │ b0==0?   │ b1==0?   │ b2==0?   │
-//     LUT for v=1     │ b0==1?   │ b1==1?   │ b2==1?   │
-//     LUT for v=2     │ b0==2?   │ b1==2?   │ b2==2?   │
-//     LUT for v=3     │ b0==3?   │ b1==3?   │ b2==3?   │
-//                     └──────────┴──────────┴──────────┘
-//     Flat: tmp_many_luts_output[v * num_blocks + j]
-//
-// Step 2 — For each candidate i with digits [d0, d1, ..], gather grid[dj][j]
-//   for all j into a flat N*num_blocks buffer.
-//
-// Step 3 — AND-reduce across all candidates simultaneously using a batched
-//   tree: at each level, accumulate chunks and apply one large batched PBS.
-//   This replaces per-candidate AND-trees with 2 batched PBS calls (for
-//   typical 2_2 params with 16-block keys).
-//
-// This is the few-entries kv_store variant; see
-// KV_STORE_EQ_SELECTORS_SMALL_MAP_MAX_ENTRIES for when it is preferred over
-// vector_find's host_compute_eq_selectors_ct_vs_clears.
+/// @brief Computes per-entry equality selectors using the small-map tree
+/// algorithm.
+///
+/// Given one encrypted radix ciphertext (num_blocks blocks, each a digit in
+/// [0, message_modulus)) and N cleartext candidates (the clear kv_store keys),
+/// produces N encrypted booleans: selector_i = Enc(input == candidate_i).
+///
+/// Candidates live in h_decomposed_cleartexts, a flat array where candidate i
+/// occupies [i*num_blocks .. (i+1)*num_blocks). N =
+/// mem_ptr->num_possible_values.
+///
+/// A per-candidate approach costs N * num_blocks PBS. Since there are only
+/// message_modulus possible digit values (typically 2 or 4), we instead
+/// precompute all per-block comparisons in one batched PBS, then let each
+/// candidate pick the results it needs via memcpy:
+///
+/// Step 1: One batched PBS builds a message_modulus x num_blocks grid:
+///
+///                       block 0    block 1    block 2
+///                     +----------+----------+----------+
+///     LUT for v=0     | b0==0?   | b1==0?   | b2==0?   |
+///     LUT for v=1     | b0==1?   | b1==1?   | b2==1?   |
+///     LUT for v=2     | b0==2?   | b1==2?   | b2==2?   |
+///     LUT for v=3     | b0==3?   | b1==3?   | b2==3?   |
+///                     +----------+----------+----------+
+///     Flat: tmp_many_luts_output[v * num_blocks + j]
+///
+/// Step 2: For each candidate i with digits [d0, d1, ..], gather grid[dj][j]
+///   for all j into a flat N*num_blocks buffer.
+///
+/// Step 3: AND-reduce across all candidates simultaneously using a batched
+///   tree: at each level, accumulate chunks and apply one large batched PBS.
+///   This replaces per-candidate AND-trees with 2 batched PBS calls (for
+///   typical 2_2 params with 16-block keys).
+///
+/// This is the few-entries kv_store variant; see
+/// KV_STORE_EQ_SELECTORS_SMALL_MAP_MAX_ENTRIES for when it is preferred over
+/// vector_find's host_compute_eq_selectors_ct_vs_clears.
+///
+/// @param lwe_array_out_packed       Output ciphertext: N single-block boolean
+///                                   selectors packed contiguously
+/// @param lwe_array_in               Input encrypted radix key
+/// @param num_blocks                 Number of radix blocks in the input key
+/// @param h_decomposed_cleartexts    Host flat array of candidate digit values
+///                                   (N * num_blocks)
+/// @param mem_ptr                    Scratch buffer holding LUTs, gather maps,
+///                                   and tree buffers
 template <typename Torus>
 __host__ void host_kv_store_compute_eq_selectors_small_map(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_packed,
@@ -202,9 +237,20 @@ __host__ void host_kv_store_compute_eq_selectors_small_map(
       num_possible_values, result_source, 0, num_possible_values);
 }
 
-// Computes one encrypted boolean per stored key (input == key_i), dispatching
-// to the variant the entry count selected at scratch time
-// (see KV_STORE_EQ_SELECTORS_SMALL_MAP_MAX_ENTRIES).
+/// @brief Dispatches equality-selector computation to the algorithm chosen at
+/// scratch time.
+///
+/// Computes one encrypted boolean per stored key (input == key_i), delegating
+/// to the small-map tree variant or the sequential-scan variant based on
+/// KV_STORE_EQ_SELECTORS_SMALL_MAP_MAX_ENTRIES.
+///
+/// @param lwe_array_out_packed       Output ciphertext: one boolean per entry
+/// @param lwe_array_in               Input encrypted radix key
+/// @param num_blocks                 Number of radix blocks in the input key
+/// @param h_decomposed_cleartexts    Host flat array of all candidate digit
+///                                   values
+/// @param mem_ptr                    Wrapper buffer selecting the active
+///                                   algorithm
 template <typename Torus>
 __host__ void host_kv_store_compute_eq_selectors(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_packed,
@@ -223,17 +269,24 @@ __host__ void host_kv_store_compute_eq_selectors(
   }
 }
 
-// Retrieves the encrypted value related with a clear key from an encrypted
-// key-value store. The store maps clear keys to encrypted values.
-//
-// This method does not leak which key was accessed or which value was returned.
-//
-// The clear key is compared against all stored keys. If a match
-// is found, the corresponding encrypted value is extracted; otherwise the
-// result is an encryption of zero (matching the CPU pattern).
-//
-// out_selectors holds one boolean per stored key; h_decomposed_clear_keys is
-// the host-side block-decomposition of all keys (num_entries * num_key_blocks).
+/// @brief Retrieves the encrypted value for a key from an encrypted kv_store.
+///
+/// Compares the encrypted key against all stored clear keys. If a match
+/// is found, the corresponding encrypted value is extracted; otherwise the
+/// result is an encryption of zero. Does not leak which key was accessed.
+///
+/// @param lwe_array_out_result       Output ciphertext receiving the looked-up
+///                                   value
+/// @param lwe_array_out_boolean      Output single-block ciphertext: 1 if key
+///                                   found, 0 otherwise
+/// @param lwe_array_out_selectors    Output per-entry boolean selectors
+/// @param lwe_array_in_encrypted_key Input encrypted key to look up
+/// @param lwe_array_in_values        Input flat array of all stored encrypted
+///                                   values
+/// @param h_decomposed_clear_keys    Host-side clear keys decomposed into radix
+///                                   blocks (num_entries * num_key_blocks)
+/// @param mem_ptr                    Scratch buffer from
+///                                   scratch_cuda_kv_store_get
 template <typename Torus>
 __host__ void
 host_kv_store_get(CudaStreams streams,
@@ -279,8 +332,8 @@ host_kv_store_get(CudaStreams streams,
   PUSH_RANGE("get: binary tree sum")
   host_binary_tree_fold_sum_dispatch<Torus>(
       streams, lwe_array_out_result, lwe_one_hot_vector, num_entries,
-      num_value_blocks, mem_ptr->params.polynomial_size, message_modulus,
-      carry_modulus, bsks, ksks, mem_ptr->identity_lut);
+      num_value_blocks, message_modulus, carry_modulus, bsks, ksks,
+      mem_ptr->identity_lut);
   POP_RANGE()
 
   PUSH_RANGE("get: OR selectors")
@@ -291,6 +344,13 @@ host_kv_store_get(CudaStreams streams,
   POP_RANGE()
 }
 
+/// @brief Allocates the scratch buffer for kv_store get.
+///
+/// @param mem_ptr            Output pointer receiving the allocated scratch
+///                           buffer
+/// @param num_entries        Number of stored key-value pairs
+/// @param num_key_blocks     Number of radix blocks per key
+/// @param num_value_blocks   Number of radix blocks per value
 template <typename Torus>
 uint64_t scratch_cuda_kv_store_get(
     CudaStreams streams, int_kv_store_get_buffer<Torus> **mem_ptr,
@@ -305,13 +365,24 @@ uint64_t scratch_cuda_kv_store_get(
   return size_tracker;
 }
 
-// Updates the encrypted value for a clear key in an encrypted key-value store.
-// For each entry, if the stored clear key matches the query, the old encrypted
-// value is replaced with lwe_in_new_value; otherwise the old value is kept.
-//
-// This method does not leak which key was accessed or whether a match was
-// found. lwe_check_out_block reports whether the key was found;
-// h_decomposed_clear_keys is the host-side block-decomposition of all keys.
+/// @brief Updates the encrypted value for a key in an encrypted kv_store.
+///
+/// For each entry, if the stored clear key matches the query, the old
+/// encrypted value is replaced with lwe_in_new_value; otherwise kept.
+/// Does not leak which key was accessed or whether a match was found.
+///
+/// @param lwe_check_out_block          Output single-block ciphertext: 1 if key
+///                                     found, 0 otherwise
+/// @param lwe_array_out_values         Output flat array of stored encrypted
+///                                     values (updated in place)
+/// @param lwe_array_in_encrypted_key   Input encrypted key to match
+/// @param lwe_array_in_values          Input flat array of current stored
+///                                     encrypted values
+/// @param lwe_in_new_value             Input encrypted replacement value
+/// @param h_decomposed_clear_keys      Host-side clear keys decomposed into
+///                                     radix blocks
+/// @param mem_ptr                      Scratch buffer from
+///                                     scratch_cuda_kv_store_update
 template <typename Torus, typename KSTorus>
 __host__ void
 host_kv_store_update(CudaStreams streams,
@@ -328,7 +399,6 @@ host_kv_store_update(CudaStreams streams,
   auto num_key_blocks = mem_ptr->num_key_blocks;
   auto num_value_blocks = mem_ptr->num_value_blocks;
   auto mem_eq_selectors_buffer = mem_ptr->mem_eq_selectors_buffer;
-  auto selectors_list = mem_ptr->selectors_list;
   uint32_t total_value_blocks = static_cast<uint32_t>(safe_mul(
       static_cast<size_t>(num_entries), static_cast<size_t>(num_value_blocks)));
 
@@ -369,6 +439,13 @@ host_kv_store_update(CudaStreams streams,
   POP_RANGE()
 }
 
+/// @brief Allocates the scratch buffer for kv_store update.
+///
+/// @param mem_ptr            Output pointer receiving the allocated scratch
+///                           buffer
+/// @param num_entries        Number of stored key-value pairs
+/// @param num_key_blocks     Number of radix blocks per key
+/// @param num_value_blocks   Number of radix blocks per value
 template <typename Torus>
 uint64_t scratch_cuda_kv_store_update(
     CudaStreams streams, int_kv_store_update_buffer<Torus> **mem_ptr,
@@ -381,14 +458,26 @@ uint64_t scratch_cuda_kv_store_update(
   return size_tracker;
 }
 
-// Applies a conditional update to all entries using pre-computed selectors.
-// For each entry, if the corresponding selector is 1, the old encrypted value
-// is replaced with lwe_in_new_value; otherwise the old value is kept.
-//
-// This is the inner CMUX step shared by update and insert. The caller provides
-// lwe_array_in_selectors (one boolean per entry, 1 = replace, 0 = keep), e.g.
-// from equality comparison or an empty-slot search. lwe_check_out_block is 1
-// if at least one selector was true.
+/// @brief Applies a conditional update to all entries using pre-computed
+/// selectors.
+///
+/// For each entry, if the corresponding selector is 1, the old encrypted value
+/// is replaced with lwe_in_new_value; otherwise the old value is kept. This is
+/// the inner CMUX step shared by update and insert.
+///
+/// @param lwe_check_out_block       Output single-block ciphertext: 1 if at
+///                                  least one selector was true
+/// @param lwe_array_out_values      Output flat array of stored encrypted
+/// values
+///                                  (updated)
+/// @param lwe_array_in_values       Input flat array of current stored
+/// encrypted
+///                                  values
+/// @param lwe_in_new_value          Input encrypted replacement value
+/// @param lwe_array_in_selectors    Input per-entry boolean selectors
+///                                  (1 = replace, 0 = keep)
+/// @param mem_ptr                   Scratch buffer from
+///                                  scratch_cuda_kv_store_map
 template <typename Torus, typename KSTorus>
 __host__ void
 host_kv_store_map(CudaStreams streams,
@@ -438,6 +527,12 @@ host_kv_store_map(CudaStreams streams,
   POP_RANGE()
 }
 
+/// @brief Allocates the scratch buffer for kv_store map.
+///
+/// @param mem_ptr            Output pointer receiving the allocated scratch
+///                           buffer
+/// @param num_entries        Number of stored key-value pairs
+/// @param num_value_blocks   Number of radix blocks per value
 template <typename Torus>
 uint64_t
 scratch_cuda_kv_store_map(CudaStreams streams,
@@ -451,9 +546,19 @@ scratch_cuda_kv_store_map(CudaStreams streams,
   return size_tracker;
 }
 
-// Checks whether a clear key exists in the encrypted key-value store, without
-// leaking which key was queried. h_decomposed_clear_keys is the host-side
-// block-decomposition of all keys.
+/// @brief Checks whether a clear key exists in the encrypted kv_store.
+///
+/// Compares the encrypted key against all stored clear keys and OR-reduces
+/// the per-entry booleans into a single key-found flag. Does not leak which
+/// key was queried.
+///
+/// @param lwe_array_out_boolean      Output single-block ciphertext: 1 if key
+///                                   found, 0 otherwise
+/// @param lwe_array_in_encrypted_key Input encrypted key to look up
+/// @param h_decomposed_clear_keys    Host-side clear keys decomposed into radix
+///                                   blocks
+/// @param mem_ptr                    Scratch buffer from
+///                                   scratch_cuda_kv_store_contains_key
 template <typename Torus, typename KSTorus>
 __host__ void host_kv_store_contains_key(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_boolean,
@@ -464,7 +569,6 @@ __host__ void host_kv_store_contains_key(
 
   auto num_entries = mem_ptr->num_entries;
   auto num_key_blocks = mem_ptr->num_key_blocks;
-  auto selectors_list = mem_ptr->selectors_list;
 
   cuda_set_device(streams.gpu_index(0));
 
@@ -484,6 +588,12 @@ __host__ void host_kv_store_contains_key(
   POP_RANGE()
 }
 
+/// @brief Allocates the scratch buffer for kv_store contains_key.
+///
+/// @param mem_ptr            Output pointer receiving the allocated scratch
+///                           buffer
+/// @param num_entries        Number of stored keys
+/// @param num_key_blocks     Number of radix blocks per key
 template <typename Torus>
 uint64_t scratch_cuda_kv_store_contains_key(
     CudaStreams streams, int_kv_store_contains_key_buffer<Torus> **mem_ptr,

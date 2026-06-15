@@ -7434,18 +7434,12 @@ pub(crate) unsafe fn cuda_backend_kv_store_get<
     carry_modulus: CarryModulus,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    big_lwe_dimension: LweDimension,
-    small_lwe_dimension: LweDimension,
-    ks_level: DecompositionLevelCount,
-    ks_base_log: DecompositionBaseLog,
-    pbs_level: DecompositionLevelCount,
-    pbs_base_log: DecompositionBaseLog,
-    pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    bsk: &impl CudaBskParams,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
+    let bsk_params = bsk.params_ffi();
+
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(
@@ -7586,21 +7580,13 @@ pub(crate) unsafe fn cuda_backend_kv_store_get<
     scratch_cuda_kv_store_get_64_async(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        u32::try_from(glwe_dimension.0).unwrap(),
-        u32::try_from(polynomial_size.0).unwrap(),
-        u32::try_from(big_lwe_dimension.0).unwrap(),
-        u32::try_from(small_lwe_dimension.0).unwrap(),
-        u32::try_from(ks_level.0).unwrap(),
-        u32::try_from(ks_base_log.0).unwrap(),
-        u32::try_from(pbs_level.0).unwrap(),
-        u32::try_from(pbs_base_log.0).unwrap(),
-        u32::try_from(grouping_factor.0).unwrap(),
+        bsk_params,
+        ksk_params,
         num_entries,
         num_input_blocks,
         num_blocks_per_value,
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
-        pbs_type as u32,
         true,
         noise_reduction_type as u32,
     );
@@ -7653,18 +7639,12 @@ pub(crate) unsafe fn cuda_backend_kv_store_update<
     carry_modulus: CarryModulus,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    big_lwe_dimension: LweDimension,
-    small_lwe_dimension: LweDimension,
-    ks_level: DecompositionLevelCount,
-    ks_base_log: DecompositionBaseLog,
-    pbs_level: DecompositionLevelCount,
-    pbs_base_log: DecompositionBaseLog,
-    pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    bsk: &impl CudaBskParams,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
+    let bsk_params = bsk.params_ffi();
+
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(
@@ -7800,21 +7780,13 @@ pub(crate) unsafe fn cuda_backend_kv_store_update<
     scratch_cuda_kv_store_update_64_async(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        u32::try_from(glwe_dimension.0).unwrap(),
-        u32::try_from(polynomial_size.0).unwrap(),
-        u32::try_from(big_lwe_dimension.0).unwrap(),
-        u32::try_from(small_lwe_dimension.0).unwrap(),
-        u32::try_from(ks_level.0).unwrap(),
-        u32::try_from(ks_base_log.0).unwrap(),
-        u32::try_from(pbs_level.0).unwrap(),
-        u32::try_from(pbs_base_log.0).unwrap(),
-        u32::try_from(grouping_factor.0).unwrap(),
+        bsk_params,
+        ksk_params,
         num_entries,
         num_input_blocks,
         num_blocks_per_value,
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
-        pbs_type as u32,
         true,
         noise_reduction_type as u32,
     );
@@ -7856,18 +7828,12 @@ pub(crate) unsafe fn cuda_backend_kv_store_map<T: UnsignedInteger, B: Numeric>(
     carry_modulus: CarryModulus,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    big_lwe_dimension: LweDimension,
-    small_lwe_dimension: LweDimension,
-    ks_level: DecompositionLevelCount,
-    ks_base_log: DecompositionBaseLog,
-    pbs_level: DecompositionLevelCount,
-    pbs_base_log: DecompositionBaseLog,
-    pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    bsk: &impl CudaBskParams,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
+    let bsk_params = bsk.params_ffi();
+
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(
@@ -7991,20 +7957,12 @@ pub(crate) unsafe fn cuda_backend_kv_store_map<T: UnsignedInteger, B: Numeric>(
     scratch_cuda_kv_store_map_64_async(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        u32::try_from(glwe_dimension.0).unwrap(),
-        u32::try_from(polynomial_size.0).unwrap(),
-        u32::try_from(big_lwe_dimension.0).unwrap(),
-        u32::try_from(small_lwe_dimension.0).unwrap(),
-        u32::try_from(ks_level.0).unwrap(),
-        u32::try_from(ks_base_log.0).unwrap(),
-        u32::try_from(pbs_level.0).unwrap(),
-        u32::try_from(pbs_base_log.0).unwrap(),
-        u32::try_from(grouping_factor.0).unwrap(),
+        bsk_params,
+        ksk_params,
         num_entries,
         num_blocks_per_value,
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
-        pbs_type as u32,
         true,
         noise_reduction_type as u32,
     );
@@ -8046,18 +8004,12 @@ pub(crate) unsafe fn cuda_backend_kv_store_contains_key<
     carry_modulus: CarryModulus,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    big_lwe_dimension: LweDimension,
-    small_lwe_dimension: LweDimension,
-    ks_level: DecompositionLevelCount,
-    ks_base_log: DecompositionBaseLog,
-    pbs_level: DecompositionLevelCount,
-    pbs_base_log: DecompositionBaseLog,
-    pbs_type: PBSType,
-    grouping_factor: LweBskGroupingFactor,
+    bsk: &impl CudaBskParams,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
+    let bsk_params = bsk.params_ffi();
+
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(
@@ -8130,20 +8082,12 @@ pub(crate) unsafe fn cuda_backend_kv_store_contains_key<
     scratch_cuda_kv_store_contains_key_64_async(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        u32::try_from(glwe_dimension.0).unwrap(),
-        u32::try_from(polynomial_size.0).unwrap(),
-        u32::try_from(big_lwe_dimension.0).unwrap(),
-        u32::try_from(small_lwe_dimension.0).unwrap(),
-        u32::try_from(ks_level.0).unwrap(),
-        u32::try_from(ks_base_log.0).unwrap(),
-        u32::try_from(pbs_level.0).unwrap(),
-        u32::try_from(pbs_base_log.0).unwrap(),
-        u32::try_from(grouping_factor.0).unwrap(),
+        bsk_params,
+        ksk_params,
         num_entries,
         num_input_blocks,
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
-        pbs_type as u32,
         true,
         noise_reduction_type as u32,
     );
