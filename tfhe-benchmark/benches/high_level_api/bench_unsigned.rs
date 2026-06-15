@@ -47,6 +47,10 @@ generate_typed_scalar_benches!(FheUint16, u128, u16, u16);
 generate_typed_scalar_benches!(FheUint32, u128, u32, u32);
 #[cfg(not(feature = "hpu"))]
 generate_typed_scalar_benches!(FheUint64, u128, u64, u64);
+#[cfg(all(not(feature = "hpu"), feature = "extended-types"))]
+generate_typed_scalar_benches!(FheUint80, u128, u128, u128);
+#[cfg(all(not(feature = "hpu"), feature = "extended-types"))]
+generate_typed_scalar_benches!(FheUint96, u128, u128, u128);
 #[cfg(not(feature = "hpu"))]
 generate_typed_scalar_benches!(FheUint128, u128, u128, u128);
 
@@ -94,16 +98,16 @@ fn main() {
             match env::var("__TFHE_RS_BENCH_OP_FLAVOR").as_deref() {
                 Ok("fast_default") => {
 
+                        // #[cfg(feature = "extended-types")]
+                        // run_benches_dedup!(&mut c, &cks, FheUint64,FheUint80,FheUint96);
                         #[cfg(feature = "extended-types")]
-                        run_benches_dedup!(&mut c, &cks, FheUint64,FheUint80,FheUint96);
-                        #[cfg(feature = "extended-types")]
-                        run_scalar_benches_dedup!(&mut c, &cks, FheUint64);
+                        run_scalar_benches_dedup!(&mut c, &cks, FheUint64, FheUint80,FheUint96);
                 }
                 _ => {
+                    // #[cfg(feature = "extended-types")]
+                    // run_benches!(&mut c, &cks, FheUint64,FheUint80,FheUint96);
                     #[cfg(feature = "extended-types")]
-                    run_benches!(&mut c, &cks, FheUint64,FheUint80,FheUint96);
-                    #[cfg(feature = "extended-types")]
-                    run_scalar_benches!(&mut c, &cks, FheUint64);
+                    run_scalar_benches!(&mut c, &cks, FheUint64,FheUint80,FheUint96);
                 }
             };
         }
