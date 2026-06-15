@@ -496,6 +496,12 @@ __host__ void host_create_possible_results(
       mem_ptr->d_src_idx, h_src_idx, num_possible_values, num_blocks);
 }
 
+/// @brief Allocates the scratch buffer for creating possible-result
+/// ciphertexts used in encrypted vector lookups.
+///
+/// @param mem_ptr              Receives the allocated buffer pointer
+/// @param num_blocks           Number of radix blocks per ciphertext
+/// @param num_possible_values  Number of distinct plaintext values to prepare
 template <typename Torus>
 uint64_t scratch_cuda_create_possible_results(
     CudaStreams streams, int_possible_results_buffer<Torus> **mem_ptr,

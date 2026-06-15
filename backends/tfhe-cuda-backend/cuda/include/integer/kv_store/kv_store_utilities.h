@@ -6,41 +6,61 @@
 #include "integer/cmux.cuh"
 #include "integer/radix_ciphertext.cuh"
 
-// Entry-count threshold selecting the equality-selector algorithm: num_entries
-// above this uses host_compute_eq_selectors_ct_vs_clears,
-// otherwise the small-map tree variant. 256 works well on H100s.
+/// Entry-count threshold for the equality-selector algorithm
 constexpr uint32_t KV_STORE_EQ_SELECTORS_SMALL_MAP_MAX_ENTRIES = 256;
 
-// kv_store-specific equality-selector buffer for the few-entries case.
-//
-// Given one encrypted radix key and the num_possible_values block-decomposed
-// clear keys, computes one encrypted boolean per clear key.
+/// @brief GPU scratch buffer for the few-entries equality-selector algorithm.
+///
+/// Given one encrypted radix key and num_possible_values block-decomposed
+/// clear keys, computes one encrypted boolean per clear key via a grid PBS
+/// followed by a batched tree AND-reduction.
+///
+/// @tparam Torus  Unsigned integer type representing a ciphertext torus element
 template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
+  /// PBS LUT stride in torus elements, derived from ciphertext modulus
   uint32_t lut_stride;
 
+  /// Number of cleartext key candidates (entries in the map)
   uint32_t num_possible_values;
 
   // Grid PBS
+  /// Per-digit equality LUTs (one per message_modulus value)
   int_radix_lut<Torus> *comparison_luts;
+  /// Grid PBS output: message_modulus x num_blocks equality indicators
   CudaRadixCiphertextFFI tmp_many_luts_output;
 
+  /// Gathered per-candidate comparison blocks
   CudaRadixCiphertextFFI tmp_batched_comparisons;
+  /// Device gather-index buffer for align_with_indexes
   Torus *d_map;
+  /// Host gather-index buffer, copied to d_map before each use
   Torus *h_map;
 
   // Tree reduction
+  /// Accumulator for tree-level block sums (null for single-block keys)
   CudaRadixCiphertextFFI *tree_accumulator;
+  /// PBS output at each tree level (null for single-block keys)
   CudaRadixCiphertextFFI *tree_pbs_output;
+  /// LUTs for the is-max-value check at each tree level
   int_radix_lut<Torus> *is_max_value_lut;
+  /// Maximum sum before a PBS round: (msg*carry - 1) / (msg - 1)
   uint32_t max_value;
+  /// Number of chunks per entry at the first tree level
   uint32_t max_chunks;
 
   // Per-level precomputed LUT-index buffers for the tree reduction.
+  /// Depth of the AND-reduction tree (0 for single-block keys)
   uint32_t num_tree_levels;
+  /// Device LUT-index arrays, one per tree level
   Torus **d_level_lut_indexes;
 
+  /// @brief Allocates GPU buffers for the small-map equality-selector
+  /// algorithm.
+  ///
+  /// @param num_possible_values  Number of cleartext key candidates
+  /// @param num_blocks           Number of radix blocks per key
   int_kv_store_eq_selectors_small_map_buffer(CudaStreams streams,
                                              int_radix_params params,
                                              uint32_t num_possible_values,
@@ -228,15 +248,26 @@ template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
   }
 };
 
-// Holds whichever equality-selector buffer the entry count selects, so a single
-// allocation matches the algorithm host_kv_store_compute_eq_selectors will run.
-// Exactly one of the two pointers is non-null, decided by num_entries against
-// KV_STORE_EQ_SELECTORS_SMALL_MAP_MAX_ENTRIES.
+/// @brief Wrapper selecting the equality-selector algorithm by entry count.
+///
+/// Holds whichever equality-selector buffer the entry count selects, so a
+/// single allocation matches the algorithm host_kv_store_compute_eq_selectors
+/// will run. Exactly one of the two pointers is non-null, decided by
+/// num_entries against KV_STORE_EQ_SELECTORS_SMALL_MAP_MAX_ENTRIES.
+///
+/// @tparam Torus  Unsigned integer type representing a ciphertext torus element
 template <typename Torus> struct int_kv_store_eq_selectors_wrapper_buffer {
+  /// True when the tree variant is selected
   bool use_small_map;
+  /// Tree-based buffer for few entries (non-null when use_small_map)
   int_kv_store_eq_selectors_small_map_buffer<Torus> *small_map_buffer;
+  /// Sequential-scan buffer for many entries (non-null when !use_small_map)
   int_eq_selectors_ct_vs_clears_buffer<Torus> *vector_find_buffer;
 
+  /// @brief Allocates the appropriate equality-selector sub-buffer.
+  ///
+  /// @param num_entries    Number of stored keys in the map
+  /// @param num_key_blocks Number of radix blocks per key
   int_kv_store_eq_selectors_wrapper_buffer(
       CudaStreams streams, int_radix_params params, uint32_t num_entries,
       uint32_t num_key_blocks, bool allocate_gpu_memory, uint64_t &size_tracker)
@@ -270,30 +301,49 @@ template <typename Torus> struct int_kv_store_eq_selectors_wrapper_buffer {
   }
 };
 
+/// @brief GPU scratch buffer for homomorphic kv_store get (value lookup by
+/// key).
+///
+/// Preallocates all intermediate buffers needed to look up an encrypted value
+/// by comparing an encrypted key against all stored clear keys, zero-out
+/// non-matching entries, and sum the survivors.
+///
+/// @tparam Torus  Unsigned integer type representing a ciphertext torus element
 template <typename Torus> struct int_kv_store_get_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
+  /// Number of stored key-value pairs
   uint32_t num_entries;
+  /// Number of radix blocks per key
   uint32_t num_key_blocks;
+  /// Number of radix blocks per value
   uint32_t num_value_blocks;
 
+  /// Message modulus from radix parameters
   Torus message_modulus;
+  /// Carry modulus from radix parameters
   Torus carry_modulus;
 
-  // Step 1: equality selectors (one encrypted boolean per entry)
+  /// Equality-selector sub-buffer (one boolean per entry)
   int_kv_store_eq_selectors_wrapper_buffer<Torus> *mem_eq_selectors_buffer;
 
-  // Step 2: one-hot vector generated via conditional zero-out
+  /// Batch zero-out buffer for the one-hot vector step
   int_zero_out_if_batch_buffer<Torus> *mem_zero_out_batch_buffer;
+  /// Bivariate LUT: keep block if selector is nonzero, else zero
   int_radix_lut<Torus> *one_hot_vector_predicate;
-  // Scratch for the one-hot vector
+  /// Scratch ciphertext for the one-hot vector
   CudaRadixCiphertextFFI *tmp_cmux_array;
-  // Step 3: Sum all elements in the vector
+  /// Identity LUT for carry propagation during the sum step
   int_radix_lut<Torus> *identity_lut;
 
-  // Step 4: OR all selectors into a single boolean (this is the key-found flag)
+  /// OR-reduction scratch producing the key-found boolean
   int_comparison_buffer<Torus> *at_least_one_true_buffer;
 
+  /// @brief Allocates GPU buffers required for kv_store get.
+  ///
+  /// @param num_entries      Number of stored key-value pairs
+  /// @param num_key_blocks   Number of radix blocks per key
+  /// @param num_value_blocks Number of radix blocks per value
   int_kv_store_get_buffer(CudaStreams streams, int_radix_params params,
                           uint32_t num_entries, uint32_t num_key_blocks,
                           uint32_t num_value_blocks, bool allocate_gpu_memory,
@@ -386,28 +436,47 @@ template <typename Torus> struct int_kv_store_get_buffer {
   }
 };
 
+/// @brief GPU scratch buffer for homomorphic kv_store update (conditional value
+/// replacement).
+///
+/// Preallocates buffers for comparing an encrypted key against all stored
+/// clear keys and replacing the matched entry's encrypted value with a new
+/// one via batched CMUX.
+///
+/// @tparam Torus  Unsigned integer type representing a ciphertext torus element
 template <typename Torus> struct int_kv_store_update_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
   bool gpu_memory_allocated;
+  /// Number of stored key-value pairs
   uint32_t num_entries;
+  /// Number of radix blocks per key
   uint32_t num_key_blocks;
+  /// Number of radix blocks per value
   uint32_t num_value_blocks;
 
+  /// Message modulus from radix parameters
   Torus message_modulus;
+  /// Carry modulus from radix parameters
   Torus carry_modulus;
 
+  /// Batched CMUX buffer for conditional value replacement
   int_cmux_batch_buffer<Torus> *cmux_batch_buffer;
 
+  /// Equality-selector sub-buffer (one boolean per entry)
   int_kv_store_eq_selectors_wrapper_buffer<Torus> *mem_eq_selectors_buffer;
 
-  // Contiguous buffer for selectors, sliced per entry
+  /// Contiguous buffer for selectors, one boolean per entry
   CudaRadixCiphertextFFI *selectors_contiguous;
-  CudaRadixCiphertextFFI *selectors_list;
 
-  // OR-reduction scratch for key-found boolean
+  /// OR-reduction scratch producing the key-found boolean
   int_comparison_buffer<Torus> *at_least_one_true_buffer;
 
+  /// @brief Allocates GPU buffers required for kv_store update.
+  ///
+  /// @param num_entries      Number of stored key-value pairs
+  /// @param num_key_blocks   Number of radix blocks per key
+  /// @param num_value_blocks Number of radix blocks per value
   int_kv_store_update_buffer(CudaStreams streams, int_radix_params params,
                              uint32_t num_entries, uint32_t num_key_blocks,
                              uint32_t num_value_blocks,
@@ -431,12 +500,6 @@ template <typename Torus> struct int_kv_store_update_buffer {
         num_entries, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    this->selectors_list = new CudaRadixCiphertextFFI[num_entries];
-    for (uint32_t i = 0; i < num_entries; i++) {
-      as_radix_ciphertext_slice<Torus>(&selectors_list[i], selectors_contiguous,
-                                       i, i + 1);
-    }
-
     auto condition_is_one = [](Torus x) -> Torus { return x == 1; };
     size_tracker += scratch_cuda_cmux_batch<Torus>(
         streams, &this->cmux_batch_buffer, condition_is_one, num_entries,
@@ -455,8 +518,6 @@ template <typename Torus> struct int_kv_store_update_buffer {
     this->cmux_batch_buffer->release(streams);
     delete this->cmux_batch_buffer;
 
-    delete[] this->selectors_list;
-
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    this->selectors_contiguous,
                                    this->gpu_memory_allocated);
@@ -469,21 +530,38 @@ template <typename Torus> struct int_kv_store_update_buffer {
   }
 };
 
+/// @brief GPU scratch buffer for homomorphic kv_store map (selector-driven
+/// conditional update).
+///
+/// Preallocates buffers for the inner CMUX step shared by update and insert:
+/// given pre-computed selectors (one boolean per entry), replace matched
+/// entries' values with a new one. Does not compute equality selectors itself.
+///
+/// @tparam Torus  Unsigned integer type representing a ciphertext torus element
 template <typename Torus> struct int_kv_store_map_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
   bool gpu_memory_allocated;
+  /// Number of stored key-value pairs
   uint32_t num_entries;
+  /// Number of radix blocks per value
   uint32_t num_value_blocks;
 
+  /// Message modulus from radix parameters
   Torus message_modulus;
+  /// Carry modulus from radix parameters
   Torus carry_modulus;
 
+  /// Batched CMUX buffer for conditional value replacement
   int_cmux_batch_buffer<Torus> *cmux_batch_buffer;
 
-  // OR-reduction scratch for key-found boolean
+  /// OR-reduction scratch producing the key-found boolean
   int_comparison_buffer<Torus> *at_least_one_true_buffer;
 
+  /// @brief Allocates GPU buffers required for kv_store map.
+  ///
+  /// @param num_entries      Number of stored key-value pairs
+  /// @param num_value_blocks Number of radix blocks per value
   int_kv_store_map_buffer(CudaStreams streams, int_radix_params params,
                           uint32_t num_entries, uint32_t num_value_blocks,
                           bool allocate_gpu_memory, uint64_t &size_tracker)
@@ -517,25 +595,41 @@ template <typename Torus> struct int_kv_store_map_buffer {
   }
 };
 
+/// @brief GPU scratch buffer for homomorphic kv_store contains_key (key
+/// existence check).
+///
+/// Preallocates buffers for comparing an encrypted key against all stored
+/// clear keys and OR-reducing the per-entry booleans into a single
+/// key-found flag.
+///
+/// @tparam Torus  Unsigned integer type representing a ciphertext torus element
 template <typename Torus> struct int_kv_store_contains_key_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
   bool gpu_memory_allocated;
+  /// Number of stored keys
   uint32_t num_entries;
+  /// Number of radix blocks per key
   uint32_t num_key_blocks;
 
+  /// Message modulus from radix parameters
   Torus message_modulus;
+  /// Carry modulus from radix parameters
   Torus carry_modulus;
 
+  /// Equality-selector sub-buffer (one boolean per entry)
   int_kv_store_eq_selectors_wrapper_buffer<Torus> *mem_eq_selectors_buffer;
 
-  // Contiguous buffer for selectors, sliced per entry
+  /// Contiguous buffer for selectors, one boolean per entry
   CudaRadixCiphertextFFI *selectors_contiguous;
-  CudaRadixCiphertextFFI *selectors_list;
 
-  // OR-reduction scratch for key-found boolean
+  /// OR-reduction scratch producing the key-found boolean
   int_comparison_buffer<Torus> *at_least_one_true_buffer;
 
+  /// @brief Allocates GPU buffers required for kv_store contains_key.
+  ///
+  /// @param num_entries    Number of stored keys
+  /// @param num_key_blocks Number of radix blocks per key
   int_kv_store_contains_key_buffer(CudaStreams streams, int_radix_params params,
                                    uint32_t num_entries,
                                    uint32_t num_key_blocks,
@@ -559,12 +653,6 @@ template <typename Torus> struct int_kv_store_contains_key_buffer {
         num_entries, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    this->selectors_list = new CudaRadixCiphertextFFI[num_entries];
-    for (uint32_t i = 0; i < num_entries; i++) {
-      as_radix_ciphertext_slice<Torus>(&selectors_list[i], selectors_contiguous,
-                                       i, i + 1);
-    }
-
     this->at_least_one_true_buffer = new int_comparison_buffer<Torus>(
         streams, EQ, params, num_entries, false, allocate_gpu_memory,
         size_tracker);
@@ -573,8 +661,6 @@ template <typename Torus> struct int_kv_store_contains_key_buffer {
   void release(CudaStreams streams) {
     this->at_least_one_true_buffer->release(streams);
     delete this->at_least_one_true_buffer;
-
-    delete[] this->selectors_list;
 
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    this->selectors_contiguous,

@@ -2306,29 +2306,23 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    #[doc = " @brief Allocates the scratch buffer for kv_store get.\n\n @param mem_ptr            Output pointer receiving the allocated scratch\n buffer\n @param bsk_params         Bootstrap key parameters (PBS type, dimensions,\n decomposition)\n @param ksk_params         Keyswitch key parameters (dimensions,\n decomposition)\n @param num_entries        Number of stored key-value pairs\n @param num_key_blocks     Number of radix blocks per key\n @param num_value_blocks   Number of radix blocks per value\n @param noise_reduction_type  Noise reduction strategy for PBS"]
     pub fn scratch_cuda_kv_store_get_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        big_lwe_dimension: u32,
-        small_lwe_dimension: u32,
-        ks_level: u32,
-        ks_base_log: u32,
-        pbs_level: u32,
-        pbs_base_log: u32,
-        grouping_factor: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_entries: u32,
         num_key_blocks: u32,
         num_value_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
-        pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
         noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
+    #[doc = " @brief Retrieves the encrypted value for a key from an encrypted kv_store.\n\n Compares the encrypted key against all stored clear keys and extracts\n the matching value. Does not leak which key was accessed.\n\n @param lwe_array_out_result       Output ciphertext receiving the looked-up\n value\n @param lwe_array_out_boolean      Output single-block ciphertext: 1 if key\n found, 0 otherwise\n @param lwe_array_out_selectors    Output per-entry boolean selectors (one\n block per entry; encrypts 1 if the entry corresponds to the looked-up key)\n @param lwe_array_in_encrypted_key Input encrypted key to look up\n @param lwe_array_in_values        Input flat array of all stored encrypted\n values\n @param h_decomposed_clear_keys    Host-side clear keys decomposed into radix\n blocks\n @param mem                        Scratch buffer from\n scratch_cuda_kv_store_get_64_async\n @param ksks                       Key-switching keys (one per GPU)"]
     pub fn cuda_kv_store_get_64_async(
         streams: CudaStreamsFFI,
         lwe_array_out_result: *mut CudaRadixCiphertextFFI,
@@ -2343,32 +2337,27 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    #[doc = " @brief Releases the scratch buffer allocated by\n scratch_cuda_kv_store_get_64_async.\n\n @param mem_ptr_void  Pointer to the scratch buffer pointer (set to nullptr\n on return)"]
     pub fn cleanup_cuda_kv_store_get_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
+    #[doc = " @brief Allocates the scratch buffer for kv_store update.\n\n @param mem_ptr            Output pointer receiving the allocated scratch\n buffer\n @param bsk_params         Bootstrap key parameters (PBS type, dimensions,\n decomposition)\n @param ksk_params         Keyswitch key parameters (dimensions,\n decomposition)\n @param num_entries        Number of stored key-value pairs\n @param num_key_blocks     Number of radix blocks per key\n @param num_value_blocks   Number of radix blocks per value\n @param noise_reduction_type  Noise reduction strategy for PBS"]
     pub fn scratch_cuda_kv_store_update_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        big_lwe_dimension: u32,
-        small_lwe_dimension: u32,
-        ks_level: u32,
-        ks_base_log: u32,
-        pbs_level: u32,
-        pbs_base_log: u32,
-        grouping_factor: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_entries: u32,
         num_key_blocks: u32,
         num_value_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
-        pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
         noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
+    #[doc = " @brief Updates the encrypted value for a key in an encrypted kv_store.\n\n For each entry, if the stored clear key matches the encrypted query key,\n the old value is replaced with lwe_in_new_value; otherwise kept unchanged.\n\n @param lwe_check_out_block          Output single-block ciphertext: 1 if key\n found, 0 otherwise\n @param lwe_array_out_values         Output flat array of all stored\n encrypted values (updated)\n @param lwe_array_in_encrypted_key   Input encrypted key to match\n @param lwe_array_in_values          Input flat array of current stored\n encrypted values\n @param lwe_in_new_value             Input encrypted replacement value\n @param h_decomposed_clear_keys      Host-side clear keys decomposed into\n radix blocks\n @param mem_ptr                      Scratch buffer from\n scratch_cuda_kv_store_update_64_async\n @param ksks                         Key-switching keys (one per GPU)"]
     pub fn cuda_kv_store_update_64_async(
         streams: CudaStreamsFFI,
         lwe_check_out_block: *mut CudaRadixCiphertextFFI,
@@ -2383,31 +2372,26 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    #[doc = " @brief Releases the scratch buffer allocated by\n scratch_cuda_kv_store_update_64_async.\n\n @param mem_ptr_void  Pointer to the scratch buffer pointer (set to nullptr\n on return)"]
     pub fn cleanup_cuda_kv_store_update_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
+    #[doc = " @brief Allocates the scratch buffer for kv_store map.\n\n @param mem_ptr            Output pointer receiving the allocated scratch\n buffer\n @param bsk_params         Bootstrap key parameters (PBS type, dimensions,\n decomposition)\n @param ksk_params         Keyswitch key parameters (dimensions,\n decomposition)\n @param num_entries        Number of stored key-value pairs\n @param num_value_blocks   Number of radix blocks per value\n @param noise_reduction_type  Noise reduction strategy for PBS"]
     pub fn scratch_cuda_kv_store_map_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        big_lwe_dimension: u32,
-        small_lwe_dimension: u32,
-        ks_level: u32,
-        ks_base_log: u32,
-        pbs_level: u32,
-        pbs_base_log: u32,
-        grouping_factor: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_entries: u32,
         num_value_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
-        pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
         noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
+    #[doc = " @brief Applies a conditional update to all entries using pre-computed\n selectors.\n\n For each entry, if the corresponding selector is 1, the old encrypted\n value is replaced with lwe_in_new_value; otherwise the old value is kept.\n\n @param lwe_check_out_block       Output single-block ciphertext: 1 if at\n least one selector was true\n @param lwe_array_out_values      Output flat array of all stored encrypted\n values (updated)\n @param lwe_array_in_values       Input flat array of current stored\n encrypted values\n @param lwe_in_new_value          Input encrypted replacement value\n @param lwe_array_in_selectors    Input per-entry boolean selectors (1 =\n entry must be replaced, 0 = entry should be kept)\n @param mem_ptr                   Scratch buffer from\n scratch_cuda_kv_store_map_64_async\n @param ksks                      Key-switching keys (one per GPU)"]
     pub fn cuda_kv_store_map_64_async(
         streams: CudaStreamsFFI,
         lwe_check_out_block: *mut CudaRadixCiphertextFFI,
@@ -2421,31 +2405,26 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    #[doc = " @brief Releases the scratch buffer allocated by\n scratch_cuda_kv_store_map_64_async.\n\n @param mem_ptr_void  Pointer to the scratch buffer pointer (set to nullptr\n on return)"]
     pub fn cleanup_cuda_kv_store_map_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
+    #[doc = " @brief Allocates the scratch buffer for kv_store contains_key.\n\n @param mem_ptr            Output pointer receiving the allocated scratch\n buffer\n @param bsk_params         Bootstrap key parameters (PBS type, dimensions,\n decomposition)\n @param ksk_params         Keyswitch key parameters (dimensions,\n decomposition)\n @param num_entries        Number of stored keys\n @param num_key_blocks     Number of radix blocks per key\n @param noise_reduction_type  Noise reduction strategy for PBS"]
     pub fn scratch_cuda_kv_store_contains_key_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        big_lwe_dimension: u32,
-        small_lwe_dimension: u32,
-        ks_level: u32,
-        ks_base_log: u32,
-        pbs_level: u32,
-        pbs_base_log: u32,
-        grouping_factor: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_entries: u32,
         num_key_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
-        pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
         noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
+    #[doc = " @brief Checks whether a clear key exists in the encrypted kv_store.\n\n Compares the encrypted key against all stored clear keys and OR-reduces\n the per-entry booleans into a single key-found flag.\n\n @param lwe_array_out_boolean      Output single-block ciphertext: 1 if key\n found, 0 otherwise\n @param lwe_array_in_encrypted_key Input encrypted key to look up\n @param h_decomposed_clear_keys    Host-side clear keys decomposed into radix\n blocks\n @param mem_ptr                    Scratch buffer from\n scratch_cuda_kv_store_contains_key_64_async\n @param ksks                       Key-switching keys (one per GPU)"]
     pub fn cuda_kv_store_contains_key_64_async(
         streams: CudaStreamsFFI,
         lwe_array_out_boolean: *mut CudaRadixCiphertextFFI,
@@ -2457,6 +2436,7 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    #[doc = " @brief Releases the scratch buffer allocated by\n scratch_cuda_kv_store_contains_key_64_async.\n\n @param mem_ptr_void  Pointer to the scratch buffer pointer (set to nullptr\n on return)"]
     pub fn cleanup_cuda_kv_store_contains_key_64(
         streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,

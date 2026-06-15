@@ -25,9 +25,10 @@
 /// when all blocks should use the same LUT.
 constexpr std::nullptr_t LUT_0_FOR_ALL_BLOCKS = nullptr;
 
-/// Survivor count after one reserve-tail-and-absorb PBS round of the kv_store
-/// one-hot sum (host_binary_tree_fold_sum). Shared by scratch allocation and
-/// the host loop so the two cannot drift.
+/// @brief Computes the survivor count after one reserve-tail-and-absorb PBS
+/// round of the kv_store one-hot sum (host_binary_tree_fold_sum).
+///
+/// Shared by scratch allocation and the host loop so the two cannot drift.
 ///
 /// max_noise M = (message_modulus*carry_modulus-1)/(message_modulus-1) is the
 /// max factor of degree-1 inputs summable before a PBS. Each fold level doubles
@@ -37,6 +38,8 @@ constexpr std::nullptr_t LUT_0_FOR_ALL_BLOCKS = nullptr;
 /// 2^L to M, reaching the full factor-M reduction. The survivor count equals
 /// the front survivors after L levels (absorb does not change their count).
 /// When R<M the reservation is skipped and folding stops at one entry.
+///
+/// @param num_entries      Number of one-hot entries entering this round
 inline uint32_t kv_sum_pbs_round_survivors(uint32_t num_entries,
                                            uint32_t message_modulus,
                                            uint32_t carry_modulus) {

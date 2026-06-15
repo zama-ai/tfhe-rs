@@ -1,20 +1,17 @@
 #include "integer/kv_store/kv_store.cuh"
 
 uint64_t scratch_cuda_kv_store_get_64_async(
-    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t big_lwe_dimension,
-    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
-    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
-    uint32_t num_entries, uint32_t num_key_blocks, uint32_t num_value_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_entries,
+    uint32_t num_key_blocks, uint32_t num_value_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
 
   PUSH_RANGE("scratch kv_store_get")
 
-  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          big_lwe_dimension, small_lwe_dimension, ks_level,
-                          ks_base_log, pbs_level, pbs_base_log, grouping_factor,
-                          message_modulus, carry_modulus, noise_reduction_type);
+  int_radix_params params(bsk_params, ksk_params, message_modulus,
+                          carry_modulus, noise_reduction_type);
 
   auto size = scratch_cuda_kv_store_get<uint64_t>(
       CudaStreams(streams), (int_kv_store_get_buffer<uint64_t> **)mem_ptr,
@@ -25,8 +22,6 @@ uint64_t scratch_cuda_kv_store_get_64_async(
   return size;
 }
 
-// h_decomposed_clear_keys: host-side clear keys pre-decomposed into radix
-// blocks, matching the encrypted key layout for block-by-block equality.
 void cuda_kv_store_get_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_result,
     CudaRadixCiphertextFFI *lwe_array_out_boolean,
@@ -73,20 +68,17 @@ void cleanup_cuda_kv_store_get_64(CudaStreamsFFI streams,
 }
 
 uint64_t scratch_cuda_kv_store_update_64_async(
-    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t big_lwe_dimension,
-    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
-    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
-    uint32_t num_entries, uint32_t num_key_blocks, uint32_t num_value_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_entries,
+    uint32_t num_key_blocks, uint32_t num_value_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
 
   PUSH_RANGE("scratch kv_store_update")
 
-  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          big_lwe_dimension, small_lwe_dimension, ks_level,
-                          ks_base_log, pbs_level, pbs_base_log, grouping_factor,
-                          message_modulus, carry_modulus, noise_reduction_type);
+  int_radix_params params(bsk_params, ksk_params, message_modulus,
+                          carry_modulus, noise_reduction_type);
 
   auto size = scratch_cuda_kv_store_update<uint64_t>(
       CudaStreams(streams), (int_kv_store_update_buffer<uint64_t> **)mem_ptr,
@@ -140,20 +132,16 @@ void cleanup_cuda_kv_store_update_64(CudaStreamsFFI streams,
 }
 
 uint64_t scratch_cuda_kv_store_map_64_async(
-    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t big_lwe_dimension,
-    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
-    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
-    uint32_t num_entries, uint32_t num_value_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_entries,
+    uint32_t num_value_blocks, uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
 
   PUSH_RANGE("scratch kv_store_map")
 
-  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          big_lwe_dimension, small_lwe_dimension, ks_level,
-                          ks_base_log, pbs_level, pbs_base_log, grouping_factor,
-                          message_modulus, carry_modulus, noise_reduction_type);
+  int_radix_params params(bsk_params, ksk_params, message_modulus,
+                          carry_modulus, noise_reduction_type);
 
   auto size = scratch_cuda_kv_store_map<uint64_t>(
       CudaStreams(streams), (int_kv_store_map_buffer<uint64_t> **)mem_ptr,
@@ -210,20 +198,16 @@ void cleanup_cuda_kv_store_map_64(CudaStreamsFFI streams,
 }
 
 uint64_t scratch_cuda_kv_store_contains_key_64_async(
-    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t big_lwe_dimension,
-    uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
-    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
-    uint32_t num_entries, uint32_t num_key_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_entries,
+    uint32_t num_key_blocks, uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
 
   PUSH_RANGE("scratch kv_store_contains_key")
 
-  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
-                          big_lwe_dimension, small_lwe_dimension, ks_level,
-                          ks_base_log, pbs_level, pbs_base_log, grouping_factor,
-                          message_modulus, carry_modulus, noise_reduction_type);
+  int_radix_params params(bsk_params, ksk_params, message_modulus,
+                          carry_modulus, noise_reduction_type);
 
   auto size = scratch_cuda_kv_store_contains_key<uint64_t>(
       CudaStreams(streams),
