@@ -45,6 +45,10 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Enable RAM huge pages
+        run: |
+          echo always | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
+
       - name: Run tests
         run: |
           make test_integer_long_run

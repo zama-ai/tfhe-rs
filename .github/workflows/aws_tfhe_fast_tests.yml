@@ -157,6 +157,10 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Enable RAM huge pages
+        run: |
+          echo always | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
+
       - name: Run tfhe-csprng tests
         if: needs.should-run.outputs.csprng_test == 'true'
         run: |

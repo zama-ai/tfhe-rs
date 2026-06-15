@@ -94,6 +94,10 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Enable RAM huge pages
+        run: |
+          echo always | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
+
       - name: Should skip big parameters set
         if: github.event_name == 'pull_request'
         run: |
