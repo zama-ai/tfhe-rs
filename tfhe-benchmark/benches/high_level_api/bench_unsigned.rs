@@ -98,14 +98,14 @@ fn main() {
             match env::var("__TFHE_RS_BENCH_OP_FLAVOR").as_deref() {
                 Ok("fast_default") => {
 
-                        // #[cfg(feature = "extended-types")]
-                        // run_benches_dedup!(&mut c, &cks, FheUint64,FheUint80,FheUint96);
+                        #[cfg(feature = "extended-types")]
+                        run_benches_dedup!(&mut c, &cks, FheUint64,FheUint80,FheUint96);
                         #[cfg(feature = "extended-types")]
                         run_scalar_benches_dedup!(&mut c, &cks, FheUint64, FheUint80,FheUint96);
                 }
                 _ => {
-                    // #[cfg(feature = "extended-types")]
-                    // run_benches!(&mut c, &cks, FheUint64,FheUint80,FheUint96);
+                    #[cfg(feature = "extended-types")]
+                    run_benches!(&mut c, &cks, FheUint64,FheUint80,FheUint96);
                     #[cfg(feature = "extended-types")]
                     run_scalar_benches!(&mut c, &cks, FheUint64,FheUint80,FheUint96);
                 }
