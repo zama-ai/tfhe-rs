@@ -646,7 +646,7 @@ check_cargo_lock:
 
 .PHONY: update_cargo_lock # Update all Cargo.lock files to match their Cargo.toml
 update_cargo_lock:
-	@for dir in $(CARGO_LOCK_DIRS); do \
+	@for dir in $(FLOATING_LOCK_DIRS); do \
 		echo "updating Cargo.lock for $$dir"; \
 		( cd $$dir && cargo metadata --format-version 1 > /dev/null ); \
 	done
