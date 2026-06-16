@@ -397,6 +397,15 @@ impl integer::CompressedCompactPublicKey {
         let shortint_pk = shortint::CompactPublicKey::from_raw_parts(pk, shortint_cpk.parameters);
         integer::CompactPublicKey::from_raw_parts(shortint_pk)
     }
+
+    pub(super) fn advance_generator<Gen>(
+        &self,
+        generator: &mut MaskRandomGenerator<Gen>,
+    ) where
+        Gen: ByteRandomGenerator,
+    {
+        generator.skip(self.key.key.decompression_fork_config(Uniform));
+    }
 }
 
 impl CompressedCompactPublicKey {
@@ -426,6 +435,15 @@ impl CompressedCompactPublicKey {
     {
         let integer_pk = self.key.key.decompress_with_pre_seeded_generator(generator);
         CompactPublicKey::from_raw_parts(integer_pk, self.tag.clone())
+    }
+
+    pub(super) fn advance_generator<Gen>(
+        &self,
+        generator: &mut MaskRandomGenerator<Gen>,
+    ) where
+        Gen: ByteRandomGenerator,
+    {
+        self.key.key.advance_generator(generator);
     }
 }
 
@@ -588,6 +606,19 @@ impl integer::compression_keys::CompressedCompressionKey {
             },
         }
     }
+
+    pub(super) fn advance_generator<Gen>(
+        &self,
+        generator: &mut MaskRandomGenerator<Gen>,
+    ) where
+        Gen: ByteRandomGenerator,
+    {
+        generator.skip(
+            self.key
+                .packing_key_switching_key
+                .decompression_fork_config(Uniform),
+        );
+    }
 }
 
 impl integer::compression_keys::CompressedDecompressionKey {
@@ -678,6 +709,13 @@ impl integer::compression_keys::CompressedDecompressionKey {
             bsk: bsk.decompress_with_pre_seeded_generator(generator),
             lwe_per_glwe,
         }
+    }
+
+    pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        self.key.bsk.advance_generator(generator);
     }
 }
 
@@ -1285,6 +1323,27 @@ where
             }
         }
     }
+
+    fn advance_generator<Gen>(&self, mask_generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        match self {
+            Self::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key,
+            } => {
+                mask_generator.skip(bsk.decompression_fork_config(Uniform));
+                modulus_switch_noise_reduction_key.advance_generator(mask_generator);
+            }
+            Self::MultiBit {
+                seeded_bsk,
+                deterministic_execution: _,
+            } => {
+                mask_generator.skip(seeded_bsk.decompression_fork_config(Uniform));
+            }
+        }
+    }
 }
 
 impl<ModSwitchScalar> CompressedShortint128BootstrappingKey<ModSwitchScalar>
@@ -1669,6 +1728,13 @@ where
             ms_input_variance: self.ms_input_variance,
         }
     }
+
+    pub(crate) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        generator.skip(self.modulus_switch_zeros.decompression_fork_config(Uniform));
+    }
 }
 
 impl<Scalar> CompressedModulusSwitchConfiguration<Scalar>
@@ -1731,6 +1797,16 @@ where
                     key.decompress_with_pre_seeded_generator(generator),
                 )
             }
+        }
+    }
+
+    pub(crate) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        match self {
+            Self::Standard | Self::CenteredMeanNoiseReduction => {}
+            Self::DriftTechniqueNoiseReduction(key) => key.advance_generator(generator),
         }
     }
 }
