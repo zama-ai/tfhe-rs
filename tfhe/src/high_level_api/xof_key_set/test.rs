@@ -213,7 +213,7 @@ fn test_xof_expansion_is_same_as_classic(key_set: CompressedXofKeySet) {
 }
 
 /// Fast-forwarding past skipped components stays byte-aligned with a full expansion: skipping to
-/// the decompression key, and on through it to the compute key, both reproduce the expanded keys.
+/// each subsequent key reproduces the key a full expansion produces.
 #[test]
 fn fast_forward_generator_works() {
     let config: Config = TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128.into();
@@ -268,6 +268,35 @@ fn fast_forward_generator_works() {
     assert!(
         expanded.compute_key.atomic_pattern == skipped_compute,
         "fast-forwarded compute key must equal the fully-expanded one",
+    );
+
+    // Skipping on *through* the compute key lands on the noise-squashing key.
+    let mut generator = MaskRandomGenerator::<DefaultRandomGenerator>::new(ks.seed.clone());
+    ks.compressed_public_key.advance_generator(&mut generator);
+    if let Some(compression_key) = integer_key.compression_key.as_ref() {
+        compression_key.advance_generator(&mut generator);
+    }
+    if let Some(decompression_key) = integer_key.decompression_key.as_ref() {
+        decompression_key.advance_generator(&mut generator);
+    }
+    integer_key
+        .key
+        .key
+        .compressed_ap_server_key
+        .advance_generator(&mut generator);
+    let skipped_nsk = integer_key
+        .noise_squashing_key
+        .as_ref()
+        .expect("test params carry a noise squashing key")
+        .decompress_with_pre_seeded_generator(&mut generator);
+
+    assert!(
+        expanded
+            .noise_squashing_key
+            .as_ref()
+            .expect("test params carry a noise squashing key")
+            == &skipped_nsk,
+        "fast-forwarded noise squashing key must equal the fully-expanded one",
     );
 }
 
