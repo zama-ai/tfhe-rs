@@ -1172,6 +1172,18 @@ impl CompressedKS32AtomicPatternServerKey {
             ciphertext_modulus: self.bootstrapping_key().ciphertext_modulus(),
         }
     }
+
+    pub(super) fn advance_generator<Gen>(&self, mask_generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        mask_generator.skip(
+            self.key_switching_key()
+                .as_seeded_lwe_ciphertext_list()
+                .decompression_fork_config(Uniform),
+        );
+        self.bootstrapping_key().advance_generator(mask_generator);
+    }
 }
 
 impl KS32AtomicPatternClientKey {
@@ -1265,6 +1277,16 @@ impl CompressedAtomicPatternServerKey {
             Self::KeySwitch32(ks32_ap) => ExpandedAtomicPatternServerKey::KeySwitch32(
                 ks32_ap.decompress_with_pre_seeded_generator(mask_generator),
             ),
+        }
+    }
+
+    pub(super) fn advance_generator<Gen>(&self, mask_generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        match self {
+            Self::Standard(std_ap) => std_ap.advance_generator(mask_generator),
+            Self::KeySwitch32(ks32_ap) => ks32_ap.advance_generator(mask_generator),
         }
     }
 }
@@ -1499,6 +1521,18 @@ impl CompressedStandardAtomicPatternServerKey {
             bootstrapping_key: shortint_bsk,
             pbs_order: self.pbs_order(),
         }
+    }
+
+    pub(super) fn advance_generator<Gen>(&self, mask_generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        mask_generator.skip(
+            self.key_switching_key()
+                .as_seeded_lwe_ciphertext_list()
+                .decompression_fork_config(Uniform),
+        );
+        self.bootstrapping_key().advance_generator(mask_generator);
     }
 }
 
