@@ -168,6 +168,14 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
             fork_config.mask_byte_count_per_child,
         )
     }
+
+    /// Advance the generator past `fork_config` worth of mask bytes, producing nothing.
+    pub(crate) fn skip(&mut self, fork_config: MaskRandomGeneratorForkConfig) {
+        // Forking advances the parent eagerly, so the lazy children are dropped unconsumed.
+        let _ = self
+            .try_fork_from_config(fork_config)
+            .expect("infallible: unbounded mask gen with non-zero children, each non-zero sized");
+    }
 }
 
 impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {

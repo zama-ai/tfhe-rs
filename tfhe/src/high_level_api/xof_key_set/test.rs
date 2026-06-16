@@ -1,5 +1,6 @@
 use super::*;
-use crate::core_crypto::prelude::new_seeder;
+use crate::core_crypto::commons::generators::MaskRandomGenerator;
+use crate::core_crypto::prelude::{new_seeder, DefaultRandomGenerator};
 use crate::prelude::*;
 use crate::shortint::parameters::test_params::*;
 use crate::xof_key_set::{CompressedXofKeySet, XofKeySet};
@@ -209,6 +210,65 @@ fn test_xof_expansion_is_same_as_classic(key_set: CompressedXofKeySet) {
         panic!("Expanded server keys are not equal");
     }
     assert_eq!(pk, xof_pk);
+}
+
+/// Fast-forwarding past skipped components stays byte-aligned with a full expansion: skipping to
+/// the decompression key, and on through it to the compute key, both reproduce the expanded keys.
+#[test]
+fn fast_forward_generator_works() {
+    let config: Config = TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128.into();
+    let (_cks, ks) = CompressedXofKeySet::generate(
+        config,
+        vec![7u8; 32],
+        128,
+        NormalizedHammingWeightBound::new(0.8).unwrap(),
+        Tag::default(),
+    )
+    .unwrap();
+
+    // Reference: decompression key from the full (standard-domain) expansion.
+    let (_pk, expanded) = ks.expand();
+    let reference = expanded
+        .decompression_key
+        .expect("test params carry a decompression key");
+
+    // Fast-forward: fresh generator, skip public key + compression key, then expand decompression.
+    let mut generator = MaskRandomGenerator::<DefaultRandomGenerator>::new(ks.seed.clone());
+    ks.compressed_public_key.advance_generator(&mut generator);
+    let integer_key = &ks.compressed_server_key.integer_key;
+    if let Some(compression_key) = integer_key.compression_key.as_ref() {
+        compression_key.advance_generator(&mut generator);
+    }
+    let skipped = integer_key
+        .decompression_key
+        .as_ref()
+        .expect("test params carry a decompression key")
+        .decompress_with_pre_seeded_generator(&mut generator);
+
+    assert!(
+        reference == skipped,
+        "fast-forwarded decompression key must equal the fully-expanded one",
+    );
+
+    // Skipping on *through* the decompression key lands on the compute key.
+    let mut generator = MaskRandomGenerator::<DefaultRandomGenerator>::new(ks.seed.clone());
+    ks.compressed_public_key.advance_generator(&mut generator);
+    if let Some(compression_key) = integer_key.compression_key.as_ref() {
+        compression_key.advance_generator(&mut generator);
+    }
+    if let Some(decompression_key) = integer_key.decompression_key.as_ref() {
+        decompression_key.advance_generator(&mut generator);
+    }
+    let skipped_compute = integer_key
+        .key
+        .key
+        .compressed_ap_server_key
+        .decompress_with_pre_seeded_generator(&mut generator);
+
+    assert!(
+        expanded.compute_key.atomic_pattern == skipped_compute,
+        "fast-forwarded compute key must equal the fully-expanded one",
+    );
 }
 
 fn test_xof_key_set(
