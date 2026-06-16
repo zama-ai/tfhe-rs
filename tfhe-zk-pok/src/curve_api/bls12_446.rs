@@ -34,6 +34,7 @@ fn bigint_to_le_bytes(x: [u64; 7]) -> [u8; 7 * 8] {
 }
 
 mod g1 {
+    use ark_ec::AffineRepr;
     use tfhe_versionable::Versionize;
 
     use crate::serialization::{InvalidSerializedAffineError, SerializableG1Affine};
@@ -203,7 +204,7 @@ mod g1 {
             let mut buf = [0u8; 2 * 7 * 8 + 1];
             buf[..7 * 8].copy_from_slice(&x);
             buf[7 * 8..][..7 * 8].copy_from_slice(&y);
-            buf[2 * 7 * 8] = g.infinity as u8;
+            buf[2 * 7 * 8] = g.is_zero() as u8;
             buf
         }
 
@@ -266,6 +267,7 @@ mod g1 {
 }
 
 mod g2 {
+    use ark_ec::AffineRepr;
     use tfhe_versionable::Versionize;
 
     use crate::serialization::SerializableG2Affine;
@@ -338,7 +340,7 @@ mod g2 {
             // group
             let zero = crate::curve_446::Fq2::ZERO;
 
-            if self.inner.infinity || other.inner.infinity {
+            if self.inner.is_zero() || other.inner.is_zero() {
                 return None;
             }
 
@@ -371,7 +373,7 @@ mod g2 {
         pub(crate) fn double(self, m: Option<crate::curve_446::Fq2>) -> Self {
             // in the context of elliptic curves, the point at infinity is the zero element of the
             // group
-            if self.inner.infinity {
+            if self.inner.is_zero() {
                 return self;
             }
 
@@ -386,7 +388,7 @@ mod g2 {
 
                 (result.inner.x, result.inner.y) = (x3, y3);
             } else {
-                result.inner.infinity = true;
+                result.inner = ark_ec::short_weierstrass::Affine::identity();
             }
 
             result
@@ -395,10 +397,10 @@ mod g2 {
         pub(crate) fn add_unequal(self, other: G2Affine, m: Option<crate::curve_446::Fq2>) -> Self {
             // in the context of elliptic curves, the point at infinity is the zero element of the
             // group
-            if self.inner.infinity {
+            if self.inner.is_zero() {
                 return other;
             }
-            if other.inner.infinity {
+            if other.inner.is_zero() {
                 return self;
             }
 
@@ -414,7 +416,7 @@ mod g2 {
 
                 (result.inner.x, result.inner.y) = (x3, y3);
             } else {
-                result.inner.infinity = true;
+                result.inner = ark_ec::short_weierstrass::Affine::identity();
             }
 
             result
@@ -572,7 +574,7 @@ mod g2 {
             buf[7 * 8..][..7 * 8].copy_from_slice(&xc1);
             buf[2 * 7 * 8..][..7 * 8].copy_from_slice(&yc0);
             buf[3 * 7 * 8..][..7 * 8].copy_from_slice(&yc1);
-            buf[4 * 7 * 8] = g.infinity as u8;
+            buf[4 * 7 * 8] = g.is_zero() as u8;
             buf
         }
 
@@ -640,6 +642,7 @@ mod gt {
 
     use super::*;
     use ark_ec::pairing::{MillerLoopOutput, Pairing};
+    use ark_ec::AffineRepr;
     use ark_ff::{CubicExtField, QuadExtField};
     use tfhe_versionable::Versionize;
 
@@ -799,7 +802,7 @@ mod gt {
             if t_bits[k] == b'1' {
                 let m = q.compute_m(qk);
                 let new_qk = q.add_unequal(qk, m);
-                if !new_qk.inner.infinity {
+                if !new_qk.inner.is_zero() {
                     fk *= ate_line_ev(q, p, m.unwrap());
                 }
                 qk = new_qk;
