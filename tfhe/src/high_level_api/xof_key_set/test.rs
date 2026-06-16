@@ -298,6 +298,47 @@ fn fast_forward_generator_works() {
             == &skipped_nsk,
         "fast-forwarded noise squashing key must equal the fully-expanded one",
     );
+
+    // Skipping every preceding component lands on the last one, the oprf key.
+    let mut generator = MaskRandomGenerator::<DefaultRandomGenerator>::new(ks.seed.clone());
+    ks.compressed_public_key.advance_generator(&mut generator);
+    if let Some(compression_key) = integer_key.compression_key.as_ref() {
+        compression_key.advance_generator(&mut generator);
+    }
+    if let Some(decompression_key) = integer_key.decompression_key.as_ref() {
+        decompression_key.advance_generator(&mut generator);
+    }
+    integer_key
+        .key
+        .key
+        .compressed_ap_server_key
+        .advance_generator(&mut generator);
+    if let Some(noise_squashing_key) = integer_key.noise_squashing_key.as_ref() {
+        noise_squashing_key.advance_generator(&mut generator);
+    }
+    if let Some(cpk_ksk) = integer_key.cpk_key_switching_key_material.as_ref() {
+        cpk_ksk.advance_generator(&mut generator);
+    }
+    if let Some(re_randomization_key) = integer_key.cpk_re_randomization_key.as_ref() {
+        re_randomization_key.advance_generator(&mut generator);
+    }
+    if let Some(ns_compression_key) = integer_key.noise_squashing_compression_key.as_ref() {
+        ns_compression_key.advance_generator(&mut generator);
+    }
+    let skipped_oprf = integer_key
+        .oprf_key
+        .as_ref()
+        .expect("test params carry an oprf key")
+        .decompress_with_pre_seeded_generator(&mut generator);
+
+    assert!(
+        expanded
+            .oprf_key
+            .as_ref()
+            .expect("test params carry an oprf key")
+            == &skipped_oprf,
+        "fast-forwarded oprf key must equal the fully-expanded one",
+    );
 }
 
 fn test_xof_key_set(

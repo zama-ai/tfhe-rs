@@ -921,6 +921,20 @@ impl CompressedNoiseSquashingKey {
             self.key.output_ciphertext_modulus(),
         )
     }
+
+    pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        match self.key.atomic_pattern() {
+            CompressedAtomicPatternNoiseSquashingKey::Standard(compressed_std) => {
+                compressed_std.bootstrapping_key().advance_generator(generator);
+            }
+            CompressedAtomicPatternNoiseSquashingKey::KeySwitch32(compressed_ks32) => {
+                compressed_ks32.bootstrapping_key().advance_generator(generator);
+            }
+        }
+    }
 }
 
 struct ShortintClassicCompressedBootstrappingKeyParts {
@@ -1413,6 +1427,28 @@ where
             }
         }
     }
+
+    fn advance_generator<Gen>(&self, mask_generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        match self {
+            Self::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key,
+            } => {
+                mask_generator.skip(bsk.decompression_fork_config(Uniform));
+                modulus_switch_noise_reduction_key.advance_generator(mask_generator);
+            }
+            Self::MultiBit {
+                bsk,
+                thread_count: _,
+                deterministic_execution: _,
+            } => {
+                mask_generator.skip(bsk.decompression_fork_config(Uniform));
+            }
+        }
+    }
 }
 
 impl CompressedStandardAtomicPatternServerKey {
@@ -1600,6 +1636,17 @@ impl CompressedNoiseSquashingCompressionKey {
             ),
         }
     }
+
+    pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        generator.skip(
+            self.key
+                .packing_key_switching_key
+                .decompression_fork_config(Uniform),
+        );
+    }
 }
 impl CompressedKeySwitchingKeyMaterial {
     pub(super) fn decompress_with_pre_seeded_generator<Gen>(
@@ -1631,6 +1678,35 @@ impl CompressedKeySwitchingKeyMaterial {
             destination_atomic_pattern: self.material.destination_atomic_pattern,
         };
         KeySwitchingKeyMaterial::from_raw_parts(shortint_cpk_ksk)
+    }
+
+    pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        generator.skip(
+            self.material
+                .key_switching_key
+                .as_seeded_lwe_ciphertext_list()
+                .decompression_fork_config(Uniform),
+        );
+    }
+}
+
+impl CompressedReRandomizationKey {
+    pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        match self {
+            Self::LegacyDedicatedCPK { ksk } => match ksk {
+                CompressedReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {}
+                CompressedReRandomizationKeySwitchingKey::DedicatedKSK(key) => {
+                    key.advance_generator(generator);
+                }
+            },
+            Self::DerivedCPKWithoutKeySwitch { cpk } => cpk.advance_generator(generator),
+        }
     }
 }
 
