@@ -103,12 +103,7 @@ fn compute_window<Aff: MsmAffine>(
 
     let get_base = |idx: usize| -> Affine<Aff::Config> {
         if idx >> (usize::BITS - 1) == 1 {
-            let base = bases[!idx].to_ark_affine();
-            Affine::<Aff::Config> {
-                x: base.x,
-                y: -base.y,
-                infinity: base.infinity,
-            }
+            -*bases[!idx].to_ark_affine()
         } else {
             *bases[idx].to_ark_affine()
         }
@@ -122,7 +117,7 @@ fn compute_window<Aff: MsmAffine>(
             if let Some(&idx) = idx.last() {
                 let value = get_base(idx);
 
-                if !bucket.infinity {
+                if !bucket.is_zero() {
                     let a = value.x - bucket.x;
                     if a != BaseField::<Aff>::ZERO {
                         d[k + 1] = d[k] * a;
@@ -145,7 +140,7 @@ fn compute_window<Aff: MsmAffine>(
             if let Some(&idx) = idx.last() {
                 let value = get_base(idx);
 
-                if !bucket.infinity {
+                if !bucket.is_zero() {
                     let a = value.x - bucket.x;
                     if a != BaseField::<Aff>::ZERO {
                         e[k] = e[k + 1] * a;
@@ -172,7 +167,7 @@ fn compute_window<Aff: MsmAffine>(
             if let Some(idx) = idx.pop() {
                 let value = get_base(idx);
 
-                if !bucket.infinity {
+                if !bucket.is_zero() {
                     let x1 = bucket.x;
                     let x2 = value.x;
                     let y1 = bucket.y;
@@ -181,7 +176,7 @@ fn compute_window<Aff: MsmAffine>(
                     let eq_x = x1 == x2;
 
                     if eq_x && y1 != y2 {
-                        bucket.infinity = true;
+                        *bucket = Affine::<Aff::Config>::zero();
                     } else {
                         let r = d * e;
                         let m = if eq_x {
