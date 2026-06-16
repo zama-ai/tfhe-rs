@@ -1,5 +1,6 @@
 use super::*;
-use crate::core_crypto::commons::generators::DeterministicSeeder;
+use crate::core_crypto::commons::generators::{DeterministicSeeder, MaskRandomGenerator};
+use crate::core_crypto::commons::math::random::Uniform;
 
 #[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
@@ -85,4 +86,54 @@ fn test_seeded_lwe_cpk_gen_equivalence_u32_native_mod() {
 #[test]
 fn test_seeded_lwe_cpk_gen_equivalence_u64_naive_mod() {
     test_seeded_lwe_cpk_gen_equivalence::<u64>(CiphertextModulus::new_native());
+}
+
+/// Verify a generator forked by `decompression_fork_config` is fully exhausted after the
+/// decompression call (its mask budget matches what decompression consumes).
+fn test_seeded_lwe_cpk_decompression_fork_config_exhaustion<Scalar: UnsignedTorus>(
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+) {
+    // `SeededLweCompactPublicKey` requires a power-of-2 lwe dimension.
+    let lwe_dimension = LweDimension(1024);
+
+    let mut seeder = new_seeder();
+    let seed = seeder.as_mut().seed();
+
+    // Contents don't affect byte consumption, so a zeroed seeded key suffices.
+    let seeded_cpk =
+        SeededLweCompactPublicKey::new(Scalar::ZERO, lwe_dimension, seed.into(), ciphertext_modulus);
+
+    let mut output_cpk = LweCompactPublicKey::new(Scalar::ZERO, lwe_dimension, ciphertext_modulus);
+
+    let mut generator =
+        MaskRandomGenerator::<DefaultRandomGenerator>::new(seeded_cpk.compression_seed());
+    let mut child = generator
+        .try_fork_from_config(seeded_cpk.decompression_fork_config(Uniform))
+        .expect("failed to fork generator")
+        .next()
+        .expect("decompression_fork_config must yield exactly one child");
+
+    decompress_seeded_lwe_compact_public_key_with_pre_seeded_generator(
+        &mut output_cpk,
+        &seeded_cpk,
+        &mut child,
+    );
+
+    assert_eq!(
+        child.remaining_bytes(),
+        Some(0),
+        "mask generator must be exhausted after compact public key decompression",
+    );
+}
+
+#[test]
+fn test_seeded_lwe_cpk_decompression_fork_config_exhaustion_u64_native_mod() {
+    test_seeded_lwe_cpk_decompression_fork_config_exhaustion::<u64>(CiphertextModulus::new_native());
+}
+
+#[test]
+fn test_seeded_lwe_cpk_decompression_fork_config_exhaustion_u64_custom_mod() {
+    test_seeded_lwe_cpk_decompression_fork_config_exhaustion::<u64>(
+        CiphertextModulus::try_new_power_of_2(63).unwrap(),
+    );
 }

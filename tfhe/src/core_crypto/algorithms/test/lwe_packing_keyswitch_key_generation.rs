@@ -1,5 +1,6 @@
 use super::*;
-use crate::core_crypto::commons::generators::DeterministicSeeder;
+use crate::core_crypto::commons::generators::{DeterministicSeeder, MaskRandomGenerator};
+use crate::core_crypto::commons::math::random::Uniform;
 
 #[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
@@ -121,4 +122,60 @@ fn test_seeded_lwe_pksk_gen_equivalence_u32_custom_mod() {
 #[test]
 fn test_seeded_lwe_pksk_gen_equivalence_u64_custom_mod() {
     test_seeded_lwe_pksk_gen_equivalence::<u64>(CiphertextModulus::try_new_power_of_2(63).unwrap());
+}
+
+/// Verify a generator forked by `decompression_fork_config` is fully exhausted after the
+/// decompression call (its mask budget matches what decompression consumes).
+fn test_seeded_lwe_pksk_decompression_fork_config_exhaustion<Scalar: UnsignedTorus>(
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+) {
+    let input_lwe_dimension = LweDimension(742);
+    let output_glwe_dimension = GlweDimension(1);
+    let output_polynomial_size = PolynomialSize(2048);
+    let decomp_base_log = DecompositionBaseLog(3);
+    let decomp_level_count = DecompositionLevelCount(5);
+
+    let mut seeder = new_seeder();
+    let seed = seeder.as_mut().seed();
+
+    // Contents don't affect byte consumption, so a zeroed seeded key suffices.
+    let seeded_pksk = SeededLwePackingKeyswitchKey::new(
+        Scalar::ZERO,
+        decomp_base_log,
+        decomp_level_count,
+        input_lwe_dimension,
+        output_glwe_dimension,
+        output_polynomial_size,
+        seed.into(),
+        ciphertext_modulus,
+    );
+
+    let mut generator =
+        MaskRandomGenerator::<DefaultRandomGenerator>::new(seeded_pksk.compression_seed());
+    let mut child = generator
+        .try_fork_from_config(seeded_pksk.decompression_fork_config(Uniform))
+        .expect("failed to fork generator")
+        .next()
+        .expect("decompression_fork_config must yield exactly one child");
+
+    let _decompressed =
+        seeded_pksk.decompress_to_lwe_packing_keyswitch_key_with_pre_seeded_generator(&mut child);
+
+    assert_eq!(
+        child.remaining_bytes(),
+        Some(0),
+        "mask generator must be exhausted after packing keyswitch key decompression",
+    );
+}
+
+#[test]
+fn test_seeded_lwe_pksk_decompression_fork_config_exhaustion_u64_native_mod() {
+    test_seeded_lwe_pksk_decompression_fork_config_exhaustion::<u64>(CiphertextModulus::new_native());
+}
+
+#[test]
+fn test_seeded_lwe_pksk_decompression_fork_config_exhaustion_u64_custom_mod() {
+    test_seeded_lwe_pksk_decompression_fork_config_exhaustion::<u64>(
+        CiphertextModulus::try_new_power_of_2(63).unwrap(),
+    );
 }
