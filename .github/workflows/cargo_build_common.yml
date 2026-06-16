@@ -8,6 +8,9 @@ on:
       run-pcc-hpu:
         type: boolean
         default: false
+      run-fast-tests-hpu:
+        type: boolean
+        default: false
       run-build:
         type: boolean
         default: false
@@ -65,7 +68,7 @@ permissions:
 jobs:
   prepare-matrix:
     name: cargo_build_common/prepare-matrix
-    if: inputs.run-pcc-cpu-batch || inputs.run-pcc-hpu || inputs.run-build || inputs.run-build-layers || inputs.run-build-tfhe-full || inputs.run-build-c-api
+    if: inputs.run-pcc-cpu-batch || inputs.run-pcc-hpu || inputs.run-fast-tests-hpu || inputs.run-build || inputs.run-build-layers || inputs.run-build-tfhe-full || inputs.run-build-c-api
     runs-on: ubuntu-latest
     outputs:
       runners: ${{ steps.set_matrix_runners.outputs.runners }}
@@ -167,6 +170,11 @@ jobs:
         if: inputs.run-pcc-hpu
         run: |
           make pcc_hpu
+
+      - name: Run Hpu fast integer tests
+        if: inputs.run-fast-tests-hpu
+        run: |
+          make test_integer_hpu_mockup_ci_fast
 
       - name: Build Release tfhe full
         if: inputs.run-build-tfhe-full

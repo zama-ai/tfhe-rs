@@ -71,6 +71,21 @@ jobs:
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
+  fast-tests-hpu:
+    name: cargo_build/fast-tests-hpu
+    uses: ./.github/workflows/cargo_build_common.yml
+    with:
+      run-fast-tests-hpu: true
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
   build-tfhe-full:
     name: cargo_build/build-tfhe-full
     uses: ./.github/workflows/cargo_build_common.yml
@@ -136,13 +151,14 @@ jobs:
 
   cargo-builds:
     name: cargo_build/cargo-builds (bpr)
-    needs: [ parallel-pcc-cpu, pcc-hpu, build-tfhe-full, build, build-layers, build-c-api ]
+    needs: [ parallel-pcc-cpu, pcc-hpu, fast-tests-hpu, build-tfhe-full, build, build-layers, build-c-api ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - name: Check all builds success
         if: needs.parallel-pcc-cpu.result == 'success' &&
           needs.pcc-hpu.result == 'success' &&
+          needs.fast-tests-hpu.result == 'success' &&
           needs.build-tfhe-full.result == 'success' &&
           needs.build.result == 'success' &&
           needs.build-layers.result == 'success' &&
@@ -153,6 +169,7 @@ jobs:
       - name: Check builds failure
         if: needs.parallel-pcc-cpu.result != 'success' ||
           needs.pcc-hpu.result != 'success' ||
+          needs.fast-tests-hpu.result != 'success' ||
           needs.build-tfhe-full.result != 'success' ||
           needs.build.result != 'success' ||
           needs.build-layers.result != 'success' ||

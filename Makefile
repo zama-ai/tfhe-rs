@@ -2450,7 +2450,6 @@ pcc_hpu:
 	$(call run_recipe_with_details,clippy_hpu)
 	$(call run_recipe_with_details,clippy_hpu_backend)
 	$(call run_recipe_with_details,clippy_hpu_mockup)
-	$(call run_recipe_with_details,test_integer_hpu_mockup_ci_fast)
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
 fpcc:
