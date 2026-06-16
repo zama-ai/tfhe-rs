@@ -5,7 +5,10 @@ use tfhe_versionable::Versionize;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::decompress_seeded_lwe_compact_public_key;
 use crate::core_crypto::backward_compatibility::entities::seeded_lwe_compact_public_key::SeededLweCompactPublicKeyVersions;
-use crate::core_crypto::commons::math::random::{CompressionSeed, DefaultRandomGenerator};
+use crate::core_crypto::commons::generators::MaskRandomGeneratorForkConfig;
+use crate::core_crypto::commons::math::random::{
+    CompressionSeed, DefaultRandomGenerator, Distribution, RandomGenerable,
+};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -164,6 +167,28 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCompactPu
     /// [`SeededLweCompactPublicKey`].
     pub fn as_seeded_glwe_ciphertext(&self) -> SeededGlweCiphertextView<'_, Scalar> {
         self.seeded_glwe_ciphertext.as_view()
+    }
+
+    /// Mask generator fork configuration consumed when decompressing this key.
+    pub fn decompression_fork_config<MaskDistribution>(
+        &self,
+        mask_distribution: MaskDistribution,
+    ) -> MaskRandomGeneratorForkConfig
+    where
+        MaskDistribution: Distribution,
+        Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
+    {
+        let glwe = self.as_seeded_glwe_ciphertext();
+        let mask_sample_count = glwe_ciphertext_encryption_mask_sample_count(
+            glwe.glwe_size().to_glwe_dimension(),
+            glwe.polynomial_size(),
+        );
+
+        let modulus = self
+            .ciphertext_modulus()
+            .get_custom_modulus_as_optional_scalar();
+
+        MaskRandomGeneratorForkConfig::new(1, mask_sample_count, mask_distribution, modulus)
     }
 
     /// Consume the [`SeededLweCompactPublicKey`] and decompress it into a standard
