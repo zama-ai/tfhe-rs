@@ -3,7 +3,7 @@ mod parts;
 #[cfg(test)]
 mod test;
 
-pub use parts::XofPart;
+pub use parts::XofParts;
 
 use crate::backward_compatibility::xof_key_set::{
     CompressedXofKeySetVersions, XofSeedStartVersions,
