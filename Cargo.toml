@@ -28,7 +28,11 @@ members = [
     "utils/wasm-par-mq/web_tests",
 ]
 
-exclude = ["utils/tfhe-lints", "apps/trivium"]
+exclude = [
+    "utils/tfhe-lints",
+    "apps/trivium",
+    "utils/tfhe-forward-compat-matrices",
+]
 
 [workspace.package]
 rust-version = "1.91.1"
