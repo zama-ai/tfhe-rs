@@ -398,10 +398,8 @@ impl integer::CompressedCompactPublicKey {
         integer::CompactPublicKey::from_raw_parts(shortint_pk)
     }
 
-    pub(super) fn advance_generator<Gen>(
-        &self,
-        generator: &mut MaskRandomGenerator<Gen>,
-    ) where
+    pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
         Gen: ByteRandomGenerator,
     {
         generator.skip(self.key.key.decompression_fork_config(Uniform));
@@ -437,10 +435,8 @@ impl CompressedCompactPublicKey {
         CompactPublicKey::from_raw_parts(integer_pk, self.tag.clone())
     }
 
-    pub(super) fn advance_generator<Gen>(
-        &self,
-        generator: &mut MaskRandomGenerator<Gen>,
-    ) where
+    pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
         Gen: ByteRandomGenerator,
     {
         self.key.key.advance_generator(generator);
@@ -607,10 +603,8 @@ impl integer::compression_keys::CompressedCompressionKey {
         }
     }
 
-    pub(super) fn advance_generator<Gen>(
-        &self,
-        generator: &mut MaskRandomGenerator<Gen>,
-    ) where
+    pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
         Gen: ByteRandomGenerator,
     {
         generator.skip(
@@ -928,10 +922,14 @@ impl CompressedNoiseSquashingKey {
     {
         match self.key.atomic_pattern() {
             CompressedAtomicPatternNoiseSquashingKey::Standard(compressed_std) => {
-                compressed_std.bootstrapping_key().advance_generator(generator);
+                compressed_std
+                    .bootstrapping_key()
+                    .advance_generator(generator);
             }
             CompressedAtomicPatternNoiseSquashingKey::KeySwitch32(compressed_ks32) => {
-                compressed_ks32.bootstrapping_key().advance_generator(generator);
+                compressed_ks32
+                    .bootstrapping_key()
+                    .advance_generator(generator);
             }
         }
     }
