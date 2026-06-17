@@ -318,10 +318,14 @@ mod tests {
     use super::*;
     use crate::core_crypto::prelude::NormalizedHammingWeightBound;
     use crate::shortint::parameters::test_params::TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
-    use crate::{integer, Tag};
+    use crate::shortint::parameters::{
+        PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    };
+    use crate::{integer, ConfigBuilder, Tag};
 
-    fn keyset() -> CompressedXofKeySet {
-        let config = TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128.into();
+    fn generate_keyset(config: crate::Config) -> CompressedXofKeySet {
         CompressedXofKeySet::generate(
             config,
             vec![9u8; 32],
@@ -333,17 +337,32 @@ mod tests {
         .1
     }
 
+    /// A key set carrying every optional part.
+    fn full_keyset() -> CompressedXofKeySet {
+        generate_keyset(TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128.into())
+    }
+
+    /// A minimal valid key set: a dedicated compact public key (required for an XOF key set) but no
+    /// compression, noise squashing, etc., so most optional parts are absent.
+    fn minimal_keyset() -> CompressedXofKeySet {
+        let config =
+            ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+                .use_dedicated_compact_public_key_parameters((
+                    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                ))
+                .build();
+        generate_keyset(config)
+    }
+
     fn ser<T: serde::Serialize>(value: &T) -> Vec<u8> {
         bincode::serialize(value).unwrap()
     }
 
     /// Every single-part fetch must byte-match the corresponding piece of a full
-    /// `decompress().into_raw_parts()` — bare for the always-present parts, `Option` for the rest
+    /// `decompress().into_raw_parts()`: bare for the always-present parts, `Option` for the rest
     /// (matching the `Option` from `into_raw_parts`, present or absent).
-    #[test]
-    fn single_parts_match_full_decompress() {
-        let ks = keyset();
-
+    fn assert_single_parts_match(ks: &CompressedXofKeySet) {
         let (public_key, server_key) = ks.decompress().into_raw_parts();
         let (
             isk,
@@ -361,7 +380,7 @@ mod tests {
             ser(&ks.decompress_parts::<CompactPublicKey>()),
             ser(&public_key)
         );
-        assert_eq!(ser(&ks.decompress_parts::<integer::ServerKey>()), ser(&isk),);
+        assert_eq!(ser(&ks.decompress_parts::<integer::ServerKey>()), ser(&isk));
         assert_eq!(
             ser(&ks.decompress_parts::<Option<KeySwitchingKeyMaterial>>()),
             ser(&cpk_ksk),
@@ -392,11 +411,28 @@ mod tests {
         );
     }
 
+    #[test]
+    fn single_parts_match_full_decompress() {
+        assert_single_parts_match(&full_keyset());
+    }
+
+    /// On a key set missing optional parts, those parts come back as `None` (present ones still
+    /// match). Exercises the `None` path and fast-forwarding past absent components.
+    #[test]
+    fn single_parts_match_minimal_keyset() {
+        let ks = minimal_keyset();
+        assert!(!ks.has_compression_key());
+        assert!(!ks.has_noise_squashing_key());
+        assert!(ks.decompress_parts::<Option<CompressionKey>>().is_none());
+        assert!(ks.decompress_parts::<Option<NoiseSquashingKey>>().is_none());
+        assert_single_parts_match(&ks);
+    }
+
     // Tuples fetch each element independently; verify the KMS `NoiseFloodSmall` triple and a
     // four-tuple against a full decompression.
     #[test]
     fn tuple_parts_match_full_decompress() {
-        let ks = keyset();
+        let ks = full_keyset();
 
         let (_pk, server_key) = ks.decompress().into_raw_parts();
         let (
@@ -430,5 +466,19 @@ mod tests {
         assert_eq!(ser(&q_decompk), ser(&decompression));
         assert_eq!(ser(&q_snsk), ser(&noise_squashing));
         assert_eq!(ser(&q_oprf), ser(&oprf));
+    }
+
+    /// The same part requested twice in one tuple yields two equal copies: each element walks the
+    /// stream independently from the seed, so they don't interfere.
+    #[test]
+    fn repeated_part_in_tuple() {
+        let ks = full_keyset();
+
+        let (a, b): (Option<DecompressionKey>, Option<DecompressionKey>) = ks.decompress_parts();
+        assert!(a.is_some());
+        assert_eq!(ser(&a), ser(&b));
+
+        let (isk_a, isk_b): (integer::ServerKey, integer::ServerKey) = ks.decompress_parts();
+        assert_eq!(ser(&isk_a), ser(&isk_b));
     }
 }
