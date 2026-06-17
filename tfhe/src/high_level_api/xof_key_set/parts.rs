@@ -7,13 +7,20 @@
 use super::CompressedXofKeySet;
 use crate::core_crypto::commons::generators::MaskRandomGenerator;
 use crate::core_crypto::prelude::DefaultRandomGenerator;
-use crate::high_level_api::keys::expanded::ExpandedDecompressionKey;
+use crate::high_level_api::keys::expanded::{
+    compute_key_to_cpu, expanded_decompression_key_to_cpu, expanded_noise_squashing_key_to_cpu,
+    ShortintExpandedServerKey,
+};
+use crate::high_level_api::keys::{CompressedReRandomizationKey, ReRandomizationKey};
 use crate::integer::ciphertext::NoiseSquashingCompressionKey;
 use crate::integer::compression_keys::{CompressionKey, DecompressionKey};
 use crate::integer::key_switching_key::KeySwitchingKeyMaterial;
+use crate::integer::noise_squashing::NoiseSquashingKey;
 use crate::integer::oprf::OprfServerKey;
 use crate::prelude::Tagged;
-use crate::CompactPublicKey;
+use crate::{
+    CompactPublicKey, CompressedReRandomizationKeySwitchingKey, ReRandomizationKeySwitchingKey,
+};
 
 /// Position of a component in the XOF mask stream (its generation/decompression order).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -85,7 +92,11 @@ impl CompressedXofKeySet {
                         k.advance_generator(&mut gen);
                     }
                 }
-                Compute => icsk.key.key.compressed_ap_server_key.advance_generator(&mut gen),
+                Compute => icsk
+                    .key
+                    .key
+                    .compressed_ap_server_key
+                    .advance_generator(&mut gen),
                 NoiseSquashing => {
                     if let Some(k) = icsk.noise_squashing_key.as_ref() {
                         k.advance_generator(&mut gen);
@@ -157,12 +168,8 @@ impl XofPart for DecompressionKey {
             .as_ref()
             .ok_or_else(|| crate::error!("key set has no decompression key"))?;
 
-        // Fourier conversion, mirroring `IntegerExpandedServerKey::convert_to_cpu`.
-        let ExpandedDecompressionKey { bsk, lwe_per_glwe } =
-            compressed.decompress_with_pre_seeded_generator(&mut gen);
-        let bsk = bsk.into_fourier();
-        Ok(DecompressionKey::from_raw_parts(
-            crate::shortint::list_compression::DecompressionKey { bsk, lwe_per_glwe },
+        Ok(expanded_decompression_key_to_cpu(
+            compressed.decompress_with_pre_seeded_generator(&mut gen),
         ))
     }
 }
@@ -214,6 +221,81 @@ impl XofPart for OprfServerKey {
     }
 }
 
+impl sealed::Sealed for crate::integer::ServerKey {}
+impl XofPart for crate::integer::ServerKey {
+    fn decompress_part(keyset: &CompressedXofKeySet) -> crate::Result<Self> {
+        let mut gen = keyset.generator_at(Slot::Compute);
+        let shortint_csk = &keyset.compressed_server_key.integer_key.key.key;
+
+        let compute_key = ShortintExpandedServerKey {
+            atomic_pattern: shortint_csk
+                .compressed_ap_server_key
+                .decompress_with_pre_seeded_generator(&mut gen),
+            message_modulus: shortint_csk.message_modulus,
+            carry_modulus: shortint_csk.carry_modulus,
+            max_degree: shortint_csk.max_degree,
+            max_noise_level: shortint_csk.max_noise_level,
+            ciphertext_modulus: shortint_csk.ciphertext_modulus(),
+        };
+        Ok(compute_key_to_cpu(compute_key))
+    }
+}
+
+impl sealed::Sealed for NoiseSquashingKey {}
+impl XofPart for NoiseSquashingKey {
+    fn decompress_part(keyset: &CompressedXofKeySet) -> crate::Result<Self> {
+        let mut gen = keyset.generator_at(Slot::NoiseSquashing);
+
+        let compressed = keyset
+            .compressed_server_key
+            .integer_key
+            .noise_squashing_key
+            .as_ref()
+            .ok_or_else(|| crate::error!("key set has no noise squashing key"))?;
+
+        Ok(expanded_noise_squashing_key_to_cpu(
+            compressed.decompress_with_pre_seeded_generator(&mut gen),
+        ))
+    }
+}
+
+impl sealed::Sealed for ReRandomizationKey {}
+impl XofPart for ReRandomizationKey {
+    fn decompress_part(keyset: &CompressedXofKeySet) -> crate::Result<Self> {
+        let mut gen = keyset.generator_at(Slot::ReRand);
+
+        let compressed = keyset
+            .compressed_server_key
+            .integer_key
+            .cpk_re_randomization_key
+            .as_ref()
+            .ok_or_else(|| crate::error!("key set has no re-randomization key"))?;
+
+        // Mirrors the inline expansion in
+        // `CompressedServerKey::decompress_with_pre_seeded_generator`.
+        Ok(match compressed {
+            CompressedReRandomizationKey::LegacyDedicatedCPK { ksk } => {
+                let ksk = match ksk {
+                    CompressedReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {
+                        ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK
+                    }
+                    CompressedReRandomizationKeySwitchingKey::DedicatedKSK(key) => {
+                        ReRandomizationKeySwitchingKey::DedicatedKSK(
+                            key.decompress_with_pre_seeded_generator(&mut gen),
+                        )
+                    }
+                };
+                ReRandomizationKey::LegacyDedicatedCPK { ksk }
+            }
+            CompressedReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk } => {
+                ReRandomizationKey::DerivedCPKWithoutKeySwitch {
+                    cpk: cpk.decompress_with_pre_seeded_generator(&mut gen),
+                }
+            }
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -240,8 +322,17 @@ mod tests {
         .unwrap();
 
         let (public_key, server_key) = ks.decompress().into_raw_parts();
-        let (_isk, cpk_ksk, compression, decompression, _snsk, ns_compression, _rerand, oprf, _tag) =
-            server_key.into_raw_parts();
+        let (
+            isk,
+            cpk_ksk,
+            compression,
+            decompression,
+            noise_squashing,
+            ns_compression,
+            re_rand,
+            oprf,
+            _tag,
+        ) = server_key.into_raw_parts();
 
         assert_eq!(
             ser(&ks.decompress_parts::<CompactPublicKey>().unwrap()),
@@ -264,7 +355,9 @@ mod tests {
             "cpk key switching material",
         );
         assert_eq!(
-            ser(&ks.decompress_parts::<NoiseSquashingCompressionKey>().unwrap()),
+            ser(&ks
+                .decompress_parts::<NoiseSquashingCompressionKey>()
+                .unwrap()),
             ser(&ns_compression.unwrap()),
             "noise squashing compression key",
         );
@@ -273,5 +366,27 @@ mod tests {
             ser(&oprf.unwrap()),
             "oprf key",
         );
+        assert_eq!(
+            ser(&ks.decompress_parts::<crate::integer::ServerKey>().unwrap()),
+            ser(&isk),
+            "integer server key",
+        );
+        assert_eq!(
+            ser(&ks.decompress_parts::<NoiseSquashingKey>().unwrap()),
+            ser(&noise_squashing.unwrap()),
+            "noise squashing key",
+        );
+        // Re-randomization is optional in the parameter set; verify whichever way it landed.
+        match re_rand {
+            Some(full) => assert_eq!(
+                ser(&ks.decompress_parts::<ReRandomizationKey>().unwrap()),
+                ser(&full),
+                "re-randomization key",
+            ),
+            None => assert!(
+                ks.decompress_parts::<ReRandomizationKey>().is_err(),
+                "absent re-randomization key should error",
+            ),
+        }
     }
 }
