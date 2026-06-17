@@ -490,33 +490,11 @@ impl crate::CompressedServerKey {
             .as_ref()
             .map(|k| k.decompress_with_pre_seeded_generator(generator));
 
-        let cpk_re_randomization_key =
-            self.integer_key
-                .cpk_re_randomization_key
-                .as_ref()
-                .map(|k| match k {
-                    CompressedReRandomizationKey::LegacyDedicatedCPK { ksk } => {
-                        let decompressed_ksk = match ksk {
-                            CompressedReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {
-                                ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK
-                            }
-                            CompressedReRandomizationKeySwitchingKey::DedicatedKSK(key) => {
-                                ReRandomizationKeySwitchingKey::DedicatedKSK(
-                                    key.decompress_with_pre_seeded_generator(generator),
-                                )
-                            }
-                        };
-
-                        ReRandomizationKey::LegacyDedicatedCPK {
-                            ksk: decompressed_ksk,
-                        }
-                    }
-                    CompressedReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk } => {
-                        ReRandomizationKey::DerivedCPKWithoutKeySwitch {
-                            cpk: cpk.decompress_with_pre_seeded_generator(generator),
-                        }
-                    }
-                });
+        let cpk_re_randomization_key = self
+            .integer_key
+            .cpk_re_randomization_key
+            .as_ref()
+            .map(|k| k.decompress_with_pre_seeded_generator(generator));
 
         let noise_squashing_compression_key = self
             .integer_key
@@ -1692,6 +1670,36 @@ impl CompressedKeySwitchingKeyMaterial {
 }
 
 impl CompressedReRandomizationKey {
+    pub(super) fn decompress_with_pre_seeded_generator<Gen>(
+        &self,
+        generator: &mut MaskRandomGenerator<Gen>,
+    ) -> ReRandomizationKey
+    where
+        Gen: ByteRandomGenerator,
+    {
+        match self {
+            Self::LegacyDedicatedCPK { ksk } => {
+                let ksk = match ksk {
+                    CompressedReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {
+                        ReRandomizationKeySwitchingKey::UseCPKEncryptionKSK
+                    }
+                    CompressedReRandomizationKeySwitchingKey::DedicatedKSK(key) => {
+                        ReRandomizationKeySwitchingKey::DedicatedKSK(
+                            key.decompress_with_pre_seeded_generator(generator),
+                        )
+                    }
+                };
+
+                ReRandomizationKey::LegacyDedicatedCPK { ksk }
+            }
+            Self::DerivedCPKWithoutKeySwitch { cpk } => {
+                ReRandomizationKey::DerivedCPKWithoutKeySwitch {
+                    cpk: cpk.decompress_with_pre_seeded_generator(generator),
+                }
+            }
+        }
+    }
+
     pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
     where
         Gen: ByteRandomGenerator,
