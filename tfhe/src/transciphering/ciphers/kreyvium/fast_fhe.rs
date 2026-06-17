@@ -5,7 +5,7 @@
 //! under 1-bit parameters (1 bit of message + 1 bit of padding, Δ = q/4), so
 //! the linear phase runs on shortint primitives with noise-level tracking.
 
-use crate::core_crypto::prelude::GlweCiphertextOwned;
+use crate::core_crypto::prelude::{GlweCiphertextOwned, LweBskGroupingFactor};
 use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::{
@@ -14,7 +14,9 @@ use crate::shortint::parameters::{
     MessageModulus, ModulusSwitchType, PolynomialSize,
 };
 use crate::shortint::server_key::LookupTableOwned;
-use crate::shortint::{Ciphertext, CiphertextModulus, ServerKey};
+use crate::shortint::{
+    Ciphertext, CiphertextModulus, EncryptionKeyChoice, MultiBitPBSParameters, ServerKey,
+};
 use crate::transciphering::ciphers::shift_register::ShiftRegister;
 use crate::transciphering::{Transcipherer, TranscipheringCipherKind};
 
@@ -51,6 +53,27 @@ pub const PARAM_KREYVIUM_1_0_KS32_TUNIFORM_2M128: KeySwitch32PBSParameters =
         post_keyswitch_ciphertext_modulus: CiphertextModulus32::new_native(),
         ciphertext_modulus: CiphertextModulus::new_native(),
         modulus_switch_noise_reduction_params: ModulusSwitchType::CenteredMeanNoiseReduction,
+    };
+
+pub const PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128: MultiBitPBSParameters =
+    MultiBitPBSParameters {
+        lwe_dimension: LweDimension(720),
+        glwe_dimension: GlweDimension(1),
+        polynomial_size: PolynomialSize(2048),
+        lwe_noise_distribution: DynamicDistribution::new_t_uniform(50),
+        glwe_noise_distribution: DynamicDistribution::new_t_uniform(17),
+        pbs_base_log: DecompositionBaseLog(22),
+        pbs_level: DecompositionLevelCount(1),
+        ks_base_log: DecompositionBaseLog(3),
+        ks_level: DecompositionLevelCount(4),
+        message_modulus: MessageModulus(2),
+        carry_modulus: CarryModulus(1),
+        max_noise_level: MaxNoiseLevel::new(14),
+        log2_p_fail: -128.992,
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        encryption_key_choice: EncryptionKeyChoice::Big,
+        grouping_factor: LweBskGroupingFactor(4),
+        deterministic_execution: false,
     };
 
 // Δ/2 = q/8 for the 1-bit encoding (Δ = q/4).
