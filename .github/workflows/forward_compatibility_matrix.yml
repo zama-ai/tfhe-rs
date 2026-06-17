@@ -1,0 +1,61 @@
+# Manually builds the tfhe forward/backward data-compatibility matrix and
+# surfaces it both as a rendered table in the run summary and as an artifact.
+name: forward_compatibility_matrix
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "full"
+  MATRIX_DIR: utils/tfhe-forward-compat-matrices
+
+permissions: {}
+
+jobs:
+  forward-compatibility-matrix:
+    name: forward_compatibility_matrix/forward-compatibility-matrix
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # Need to write a PR comment
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: 'false'
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        with:
+          toolchain: stable
+
+      - name: Generate the compatibility matrix
+        run: make generate_forward_compat_matrix
+
+      - name: Render matrix in the run summary
+        run: |
+          MATRIX_FILE="${MATRIX_DIR}/matrix.md"
+          if [ ! -s "${MATRIX_FILE}" ]; then
+            echo "::error::${MATRIX_FILE} was not created the run produced no matrix"
+            exit 1
+          fi
+          cat "${MATRIX_FILE}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Post report
+        if: github.event_name == 'pull_request'
+        uses: ./.github/actions/sticky_report
+        with:
+          report-path: ${{ env.MATRIX_DIR }}/matrix.md
+          header: forward-compat-matrix
+
+      - name: Upload matrix artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: forward-compat-matrix
+          path: ${{ env.MATRIX_DIR }}/matrix.md
+          if-no-files-found: error

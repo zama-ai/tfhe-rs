@@ -1,0 +1,16 @@
+[package]
+name = "compat_nightly"
+version = "0.1.0"
+edition = "2021"
+license = "BSD-3-Clause-Clear"
+
+# Own workspace so its tfhe pin is resolved independently of compat_15.
+[workspace]
+
+[dependencies]
+
+tfhe = { path = "../../../tfhe", features = ["integer", "zk-pok"] }
+tfhe-csprng = { path = "../../../tfhe-csprng" }
+tfhe-versionable = { path = "../../tfhe-versionable" }
+tfhe-zk-pok = { path = "../../../tfhe-zk-pok" }
+forward-common = { path = "../forward-common" }
