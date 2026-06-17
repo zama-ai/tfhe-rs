@@ -114,13 +114,8 @@ impl HpuCluster {
                         let workq_lock =
                             bg_workq.2.lock().expect("Encounter error with workq Mutex");
                         while let Ok(cmd) = workq_lock.try_recv() {
-                            for phys_id in cmd.op.mapping().iter() {
-                                let mut node_lock = bg_workq
-                                    .1
-                                    .get(&phys_id.0)
-                                    .expect("Required PhysId isn't available in the HpuCluster")
-                                    .lock()
-                                    .expect("Issue with node Mutex");
+                            for node in bg_workq.1.iter() {
+                                let mut node_lock = node.1.lock().expect("Issue with node Mutex");
                                 node_lock.workq_push(cmd.clone());
                             }
                         }
