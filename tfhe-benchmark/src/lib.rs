@@ -1,5 +1,4 @@
 pub mod crypto_record;
-#[cfg(not(any(feature = "gpu", feature = "hpu")))]
 pub mod find_optimal_batch;
 #[cfg(feature = "integer")]
 pub mod high_level_api;
