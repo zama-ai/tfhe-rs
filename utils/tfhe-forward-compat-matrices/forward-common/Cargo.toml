@@ -1,0 +1,11 @@
+[package]
+name = "forward-common"
+version = "0.1.0"
+edition = "2021"
+license = "BSD-3-Clause-Clear"
+
+# Version-agnostic: NO tfhe dependency, so it can be a shared path dependency of
+# every isolated per-version crate (and the orchestrator) without pinning tfhe.
+[workspace]
+
+[dependencies]

@@ -1,0 +1,8 @@
+[package]
+name = "fwd-compat-matrix"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+forward-common = { path = "../forward-common" }
+cargo_metadata = "0.23.1"

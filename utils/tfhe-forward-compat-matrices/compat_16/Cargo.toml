@@ -1,0 +1,19 @@
+[package]
+name = "compat_16"
+version = "0.1.0"
+edition = "2021"
+license = "BSD-3-Clause-Clear"
+
+# Own workspace so its tfhe pin is resolved independently of compat_15.
+[workspace]
+
+[dependencies]
+tfhe = { version = "=1.6.1", features = ["integer", "zk-pok"] }
+# Pin transitive deps to the versions that shipped with tfhe 1.6.1.
+# (csprng 0.9.1 migrated to tfhe-versionable 0.8.0, which clashes with tfhe's 0.7.0.)
+tfhe-csprng = "=0.9.0"
+tfhe-versionable = "=0.7.0"
+# safe_serialize lives in this crate for 1.6.x; 0.1.1 bumped versionable to 0.8.0.
+tfhe-safe-serialize = "=0.1.0"
+tfhe-zk-pok = "=0.8.1"
+forward-common = { path = "../forward-common" }
