@@ -46,6 +46,7 @@ export RUSTFLAGS?=-C target-cpu=native
 
 include utils/tfhe-lints/Makefile
 include make/transciphering.mk
+include make/compatibility.mk
 
 ifeq ($(GEN_KEY_CACHE_MULTI_BIT_ONLY),TRUE)
 		MULTI_BIT_ONLY=--multi-bit-only
