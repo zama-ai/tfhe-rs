@@ -42,8 +42,8 @@ use self::sealed::Sealed;
 /// A selection of parts that can be decompressed from a [`CompressedXofKeySet`] via
 /// [`CompressedXofKeySet::decompress_parts`].
 ///
-/// The trait is sealed. Implemented for `CompactPublicKey`, the compute `integer::ServerKey` and
-/// for `Option<K>` of each optional part, and for tuples of these.
+/// The trait is sealed. Implemented for `CompactPublicKey`, the compute `integer::ServerKey`,
+/// `Option<K>` of each optional part, and tuples of these.
 pub trait XofParts: Sized + Sealed {
     #[doc(hidden)]
     fn decompress_parts(keyset: &CompressedXofKeySet) -> Self;
@@ -143,8 +143,8 @@ impl XofParts for CompactPublicKey {
     }
 }
 
-impl Sealed for crate::integer::ServerKey {}
-impl XofParts for crate::integer::ServerKey {
+impl Sealed for integer::ServerKey {}
+impl XofParts for integer::ServerKey {
     fn decompress_parts(keyset: &CompressedXofKeySet) -> Self {
         let mut gen = keyset.generator_at(Slot::Compute);
         let shortint_csk = &keyset.compressed_server_key.integer_key.key.key;
