@@ -46,6 +46,7 @@ export RUSTFLAGS?=-C target-cpu=native
 
 include utils/tfhe-lints/Makefile
 include make/transciphering.mk
+include make/compatibility.mk
 
 ifeq ($(GEN_KEY_CACHE_MULTI_BIT_ONLY),TRUE)
 		MULTI_BIT_ONLY=--multi-bit-only
@@ -347,6 +348,11 @@ check_fmt: fmt_internal
 fmt_internal: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt $(FMT_CHECK)
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C utils/tfhe-lints fmt $(FMT_CHECK)
+	for manifest in `find utils/tfhe-forward-compat-matrices -maxdepth 2 -name Cargo.toml`; do \
+		dir=`dirname $$manifest`; \
+		echo "fmt $$dir"; \
+		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C $$dir fmt $(FMT_CHECK); \
+	done
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C apps/trivium fmt $(FMT_CHECK)
 	for crate in `ls -1 $(BACKWARD_COMPAT_DATA_DIR)/crates/ | grep generate_`; do \
 		echo "fmt $$crate"; \
