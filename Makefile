@@ -46,6 +46,7 @@ export RUSTFLAGS?=-C target-cpu=native
 
 include utils/tfhe-lints/Makefile
 include make/transciphering.mk
+include make/compatibility.mk
 
 ifeq ($(GEN_KEY_CACHE_MULTI_BIT_ONLY),TRUE)
 		MULTI_BIT_ONLY=--multi-bit-only
@@ -347,6 +348,11 @@ check_fmt: fmt_internal
 fmt_internal: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt $(FMT_CHECK)
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C utils/tfhe-lints fmt $(FMT_CHECK)
+	for manifest in `find utils/tfhe-forward-compat-matrices -name Cargo.toml`; do \
+		dir=`dirname $$manifest`; \
+		echo "fmt $$dir"; \
+		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C $$dir fmt $(FMT_CHECK); \
+	done
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C apps/trivium fmt $(FMT_CHECK)
 	for crate in `ls -1 $(BACKWARD_COMPAT_DATA_DIR)/crates/ | grep generate_`; do \
 		echo "fmt $$crate"; \
@@ -600,6 +606,14 @@ clippy_tasks: install_rs_check_toolchain
 clippy_trivium: install_rs_check_toolchain
 	cd apps/trivium; RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-trivium -- --no-deps -D warnings
+
+.PHONY: clippy_forward_compat # Run clippy lints on the forward compat matrix crates
+clippy_forward_compat: install_rs_check_toolchain
+	for manifest in `find utils/tfhe-forward-compat-matrices -name Cargo.toml`; do \
+		echo "clippy $$manifest"; \
+		RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+			--manifest-path $$manifest -- --no-deps -D warnings; \
+	done
 
 .PHONY: clippy_ws_tests # Run clippy on the workspace level tests
 clippy_ws_tests: install_rs_check_toolchain
@@ -2517,6 +2531,7 @@ pcc_batch_6:
 	$(call run_recipe_with_details,clippy_zk_pok)
 	$(call run_recipe_with_details,clippy_zk_pok_wasm)
 	$(call run_recipe_with_details,clippy_trivium)
+	$(call run_recipe_with_details,clippy_forward_compat)
 	$(call run_recipe_with_details,clippy_versionable)
 	$(call run_recipe_with_details,clippy_safe_serialize)
 	$(call run_recipe_with_details,clippy_param_dedup)
