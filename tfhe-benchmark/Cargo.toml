@@ -99,6 +99,12 @@ harness = false
 required-features = ["integer", "internal-keycache"]
 
 [[bench]]
+name = "hlapi-xof-keyset-decompress"
+path = "benches/high_level_api/xof_keyset_decompress.rs"
+harness = false
+required-features = ["integer", "internal-keycache"]
+
+[[bench]]
 name = "hlapi-bitonic-shuffle"
 path = "benches/high_level_api/bitonic_shuffle.rs"
 harness = false
