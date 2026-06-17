@@ -151,6 +151,23 @@ install_wasm_pack:
 
 .PHONY: install_node # Install last version of NodeJS via nvm
 install_node:
+	@# macOS is zsh now
+	@if [[ "$(OS)" == "Darwin" ]]; then\
+		"$(MAKE)" install_node_zsh;\
+	else \
+		"$(MAKE)" install_node_bash;\
+	fi
+
+.PHONY: install_node_bash # Install last version of NodeJS via nvm for bash
+install_node_bash: target_shell = bash
+install_node_bash: install_node_impl
+
+.PHONY: install_node_zsh # Install last version of NodeJS via nvm for zsh
+install_node_zsh: target_shell = zsh
+install_node_zsh: install_node_impl
+
+.PHONY: install_node_impl # Install last version of NodeJS via nvm for a given input shell
+install_node_impl:
 	curl -o nvm_install.sh https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh
 	@echo "2ed5e94ba12434370f0358800deb69f514e8bce90f13beb0e1b241d42c6abafd nvm_install.sh" > nvm_checksum
 	@sha256sum -c nvm_checksum
@@ -158,7 +175,7 @@ install_node:
 	$(SHELL) nvm_install.sh
 	@rm nvm_install.sh
 	source ~/.bashrc
-	$(SHELL) -i -c 'nvm install $(NODE_VERSION)' || \
+	$(target_shell) -i -c 'nvm install $(NODE_VERSION)' || \
 	( echo "Unable to install node, unknown error." && exit 1 )
 
 .PHONY: node_version # Return Node version that will be installed
