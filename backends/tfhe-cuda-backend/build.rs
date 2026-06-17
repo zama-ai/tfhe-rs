@@ -60,6 +60,15 @@ fn main() {
         if let Ok(check_cuda_dir) = std::env::var("DEP_TFHE_CUDA_COMMON_CHECK_CUDA_DIR") {
             cmake_config.define("TFHE_CUDA_COMMON_CHECK_CUDA_DIR", &check_cuda_dir);
         }
+        if let Ok(cupqc_path) = std::env::var("CUPQC_PATH") {
+            cmake_config.define("CUPQC_PATH", &cupqc_path);
+            println!("cargo:rerun-if-env-changed=CUPQC_PATH");
+            println!(
+                "cargo:rustc-link-search=native={}/lib",
+                cupqc_path
+            );
+            println!("cargo:rustc-link-lib=static=cupqc-hash");
+        }
 
         // Build the CMake project
         let dest = cmake_config.build();

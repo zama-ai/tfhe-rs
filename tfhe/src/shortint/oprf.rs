@@ -23,6 +23,8 @@ use aligned_vec::ABox;
 use itertools::Itertools;
 use rayon::prelude::*;
 use sha3::digest::Digest;
+#[cfg(any(test, feature = "gpu"))]
+use sha3::digest::{ExtendableOutput, Update as DigestUpdate};
 use tfhe_csprng::seeders::{Seed, XofSeed};
 use tfhe_fft::c64;
 
@@ -968,6 +970,51 @@ pub(crate) fn raw_seeded_msed_to_lwe<Scalar: UnsignedInteger + CastFrom<usize>>(
         .collect();
 
     LweCiphertext::from_container(container, ciphertext_modulus)
+}
+
+// ============================================================================
+// generate_lwe_masks_shake256_cpu_reference
+// ============================================================================
+
+/// CPU reference for the GPU SHAKE256 seeding kernel.
+///
+/// Protocol (must match `generate_lwe_masks_shake256_kernel`):
+///   SHAKE256("TFHE_PRF" ‖ seed_bytes ‖ LE32(mask_index))
+///   → squeeze lwe_dim × 8 bytes → interpret as LE u64
+///   → (val & ((1 << log_modulus) - 1)) << (64 - log_modulus)
+///   Body element = 0.
+///
+/// Output layout: `num_masks` rows of `lwe_dim + 1` u64 values.
+#[cfg(any(test, feature = "gpu"))]
+pub(crate) fn generate_lwe_masks_shake256_cpu_reference(
+    seed_bytes: &[u8],
+    lwe_dimension: LweDimension,
+    num_masks: usize,
+    log_modulus: u32,
+) -> Vec<u64> {
+    let lwe_dim = lwe_dimension.0;
+    let row_len = lwe_dim + 1;
+    let mut out = vec![0u64; num_masks * row_len];
+    let mod_mask = (1u64 << log_modulus) - 1;
+    let shift = 64u32 - log_modulus;
+
+    for i in 0..num_masks {
+        let mut xof = sha3::Shake256::default();
+        DigestUpdate::update(&mut xof, b"TFHE_PRF");
+        DigestUpdate::update(&mut xof, seed_bytes);
+        DigestUpdate::update(&mut xof, &(i as u32).to_le_bytes());
+        let mut reader = xof.finalize_xof();
+
+        let row = &mut out[i * row_len..i * row_len + lwe_dim];
+        let mut buf = [0u8; 8];
+        for slot in row.iter_mut() {
+            std::io::Read::read_exact(&mut reader, &mut buf).unwrap();
+            let raw = u64::from_le_bytes(buf);
+            *slot = (raw & mod_mask) << shift;
+        }
+        // body = 0 (already zeroed)
+    }
+    out
 }
 
 // ============================================================================

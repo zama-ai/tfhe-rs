@@ -3168,4 +3168,13 @@ unsafe extern "C" {
         num_many_lut: u32,
         lut_stride: u32,
     );
+    pub fn cuda_generate_lwe_masks_shake256_async(
+        streams: CudaStreamsFFI,
+        d_out: *mut u64,
+        d_seed: *const u8,
+        seed_len: u32,
+        lwe_dim: u32,
+        num_masks: u32,
+        log_modulus: u32,
+    );
 }

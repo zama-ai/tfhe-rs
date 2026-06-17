@@ -117,6 +117,10 @@ set(CMAKE_CUDA_FLAGS
   -std=c++17 --no-exceptions  --expt-relaxed-constexpr -rdc=true \
   --use_fast_math -Xcompiler -fPIC ")
 
+if(DEFINED CUPQC_PATH)
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -dlto")
+endif()
+
 set(INCLUDE_DIR include)
 
 if(NOT TFHE_CUDA_COMMON_INCLUDE_DIR)
@@ -138,6 +142,12 @@ enable_testing()
 add_subdirectory(tests_and_benchmarks)
 target_include_directories(tfhe_cuda_backend PRIVATE ${INCLUDE_DIR})
 target_include_directories(tfhe_cuda_backend PRIVATE ${TFHE_CUDA_COMMON_INCLUDE_DIR})
+
+if(DEFINED CUPQC_PATH)
+  target_include_directories(tfhe_cuda_backend PRIVATE "${CUPQC_PATH}/include")
+  target_link_libraries(tfhe_cuda_backend PRIVATE "${CUPQC_PATH}/lib/libcupqc-hash.a")
+  target_compile_definitions(tfhe_cuda_backend PRIVATE CUPQC_ENABLED)
+endif()
 
 # This is required for rust cargo build
 install(TARGETS tfhe_cuda_backend DESTINATION .)

@@ -10,10 +10,9 @@ use crate::integer::gpu::server_key::{
 };
 use itertools::Itertools;
 
-use crate::shortint::oprf::{create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe};
+use crate::integer::gpu::cuda_generate_lwe_masks_gpu;
 use crate::shortint::OprfSeed;
 
-use crate::core_crypto::gpu::vec::CudaVec;
 use crate::integer::block_decomposition::BlockDecomposer;
 use crate::integer::gpu::{
     cuda_backend_get_grouped_oprf_size_on_gpu, cuda_backend_grouped_oprf,
@@ -440,28 +439,19 @@ where
         let bootstrapping_key = self.bootstrapping_key.borrow();
         let input_lwe_dimension = bootstrapping_key.input_lwe_dimension();
         let polynomial_size = bootstrapping_key.polynomial_size();
-        let in_lwe_size = input_lwe_dimension.to_lwe_size();
         let message_bits_count = target_sks.message_modulus.0.ilog2();
 
-        let seeded = create_random_from_seed_modulus_switched(
-            seed,
-            in_lwe_size,
-            polynomial_size,
-            &[total_random_bits],
-            message_bits_count as u64,
-        );
-        let h_seeded_lwe_list: Vec<u64> = seeded
-            .into_iter()
-            .flat_map(|(seeded, _bits)| {
-                raw_seeded_msed_to_lwe(&seeded, target_sks.ciphertext_modulus).into_container()
-            })
-            .collect();
-
-        let mut d_seeded_lwe_input =
-            unsafe { CudaVec::<u64>::new_async(h_seeded_lwe_list.len(), streams, 0) };
-        unsafe {
-            d_seeded_lwe_input.copy_from_cpu_async(&h_seeded_lwe_list, streams, 0);
-        }
+        let log_modulus = polynomial_size.to_blind_rotation_input_modulus_log().0 as u32;
+        let seed_bytes = seed.into_bytes();
+        let d_seeded_lwe_input = unsafe {
+            cuda_generate_lwe_masks_gpu(
+                streams,
+                seed_bytes.as_ref(),
+                input_lwe_dimension,
+                num_active_blocks as usize,
+                log_modulus,
+            )
+        };
 
         unsafe {
             match bootstrapping_key {
@@ -537,7 +527,6 @@ where
         let bootstrapping_key = self.bootstrapping_key.borrow();
         let input_lwe_dimension = bootstrapping_key.input_lwe_dimension();
         let polynomial_size = bootstrapping_key.polynomial_size();
-        let in_lwe_size = input_lwe_dimension.to_lwe_size();
 
         let post_mul_num_bits =
             num_input_random_bits + (excluded_upper_bound as f64).log2().ceil() as u64;
@@ -556,24 +545,18 @@ where
             .iter_as::<u64>()
             .collect::<Vec<_>>();
 
-        let seeded = create_random_from_seed_modulus_switched(
-            seed,
-            in_lwe_size,
-            polynomial_size,
-            &[num_input_random_bits],
-            message_bits_count,
-        );
-
-        let h_seeded_lwe_list: Vec<u64> = seeded
-            .into_iter()
-            .flat_map(|(seeded, _bits)| {
-                raw_seeded_msed_to_lwe(&seeded, target_sks.ciphertext_modulus).into_container()
-            })
-            .collect();
-
-        let mut d_seeded_lwe_input =
-            unsafe { CudaVec::<u64>::new_async(h_seeded_lwe_list.len(), streams, 0) };
-        unsafe { d_seeded_lwe_input.copy_from_cpu_async(&h_seeded_lwe_list, streams, 0) };
+        let log_modulus = polynomial_size.to_blind_rotation_input_modulus_log().0 as u32;
+        let num_input_masks = num_input_random_bits.div_ceil(message_bits_count) as usize;
+        let seed_bytes = seed.into_bytes();
+        let d_seeded_lwe_input = unsafe {
+            cuda_generate_lwe_masks_gpu(
+                streams,
+                seed_bytes.as_ref(),
+                input_lwe_dimension,
+                num_input_masks,
+                log_modulus,
+            )
+        };
         streams.synchronize();
 
         let mut result: CudaUnsignedRadixCiphertext =

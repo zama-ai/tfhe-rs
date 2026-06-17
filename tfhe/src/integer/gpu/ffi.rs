@@ -2608,6 +2608,48 @@ pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<
     update_noise_degree(carry_out, &cuda_ffi_carry_out);
 }
 
+/// Generates `num_masks` LWE masks on GPU using SHAKE256, returning a `CudaVec<u64>`
+/// with `num_masks * (lwe_dimension.0 + 1)` elements in the same layout as
+/// `raw_seeded_msed_to_lwe`: mask values at MSB position, body = 0.
+///
+/// # Safety
+/// The returned `CudaVec` must not outlive `streams`.
+pub(crate) unsafe fn cuda_generate_lwe_masks_gpu(
+    streams: &CudaStreams,
+    seed_bytes: &[u8],
+    lwe_dimension: LweDimension,
+    num_masks: usize,
+    log_modulus: u32,
+) -> CudaVec<u64> {
+    let row_len = lwe_dimension.0 + 1;
+    let total = num_masks * row_len;
+
+    // Upload seed to GPU (pack into u64 buffer for alignment)
+    let seed_u64_count = seed_bytes.len().div_ceil(8);
+    let mut seed_buf = vec![0u64; seed_u64_count];
+    std::ptr::copy_nonoverlapping(
+        seed_bytes.as_ptr(),
+        seed_buf.as_mut_ptr().cast::<u8>(),
+        seed_bytes.len(),
+    );
+    let mut d_seed = CudaVec::<u64>::new_async(seed_u64_count, streams, 0);
+    d_seed.copy_from_cpu_async(&seed_buf, streams, 0);
+
+    let mut d_out = CudaVec::<u64>::new_async(total, streams, 0);
+
+    tfhe_cuda_backend::bindings::cuda_generate_lwe_masks_shake256_async(
+        streams.ffi(),
+        d_out.as_mut_c_ptr(0) as *mut u64,
+        d_seed.as_c_ptr(0) as *const u8,
+        seed_bytes.len() as u32,
+        lwe_dimension.0 as u32,
+        num_masks as u32,
+        log_modulus,
+    );
+
+    d_out
+}
+
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///

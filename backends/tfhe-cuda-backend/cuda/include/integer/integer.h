@@ -691,6 +691,13 @@ void cuda_integer_grouped_oprf_custom_range_64_async(
 void cleanup_cuda_integer_grouped_oprf_custom_range_64(CudaStreamsFFI streams,
                                                        int8_t **mem_ptr_void);
 
+void cuda_generate_lwe_masks_shake256_async(CudaStreamsFFI streams,
+                                            uint64_t *d_out,
+                                            const uint8_t *d_seed,
+                                            uint32_t seed_len, uint32_t lwe_dim,
+                                            uint32_t num_masks,
+                                            uint32_t log_modulus);
+
 uint64_t scratch_cuda_integer_ilog2_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
