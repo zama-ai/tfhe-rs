@@ -100,8 +100,12 @@ fn test_seeded_lwe_cpk_decompression_fork_config_exhaustion<Scalar: UnsignedToru
     let seed = seeder.as_mut().seed();
 
     // Contents don't affect byte consumption, so a zeroed seeded key suffices.
-    let seeded_cpk =
-        SeededLweCompactPublicKey::new(Scalar::ZERO, lwe_dimension, seed.into(), ciphertext_modulus);
+    let seeded_cpk = SeededLweCompactPublicKey::new(
+        Scalar::ZERO,
+        lwe_dimension,
+        seed.into(),
+        ciphertext_modulus,
+    );
 
     let mut output_cpk = LweCompactPublicKey::new(Scalar::ZERO, lwe_dimension, ciphertext_modulus);
 

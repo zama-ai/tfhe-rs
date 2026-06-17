@@ -170,7 +170,9 @@ fn test_seeded_lwe_pksk_decompression_fork_config_exhaustion<Scalar: UnsignedTor
 
 #[test]
 fn test_seeded_lwe_pksk_decompression_fork_config_exhaustion_u64_native_mod() {
-    test_seeded_lwe_pksk_decompression_fork_config_exhaustion::<u64>(CiphertextModulus::new_native());
+    test_seeded_lwe_pksk_decompression_fork_config_exhaustion::<u64>(
+        CiphertextModulus::new_native(),
+    );
 }
 
 #[test]
