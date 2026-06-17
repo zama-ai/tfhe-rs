@@ -34,6 +34,14 @@ offset= 0x0
   write_access="Write"
   field.read_req_timeout_dur = {size_b=32, offset_b=0, default={Cst=0x48000000}, description="Read-request retry timeout: mhdma clock cycles to wait for all ciphertext packets before re-sending the read request"}
 
+[section.mhdma_system.register.retry_max]
+  description="Timeout: maximum number of times we should do retries for both Notify & Retry "
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  field.retry_max_notify       = {size_b=8, offset_b=0, default={Cst=0xA}, description="Maximum number of retries to do before stopping and triggering error"}
+  field.retry_max_read_request = {size_b=8, offset_b=8, default={Cst=0xA}, description="Maximum number of retries to do before stopping and triggering error"}
+
 [section.mhdma_system.register.fsm_value]
   description="Packed read-only snapshot of all internal FSM states: [26:24] formatter, [20:18] slave notify-rx, [17:15] slave ciphertext-emission, [11:9] master read-request, [5:3] master notify"
   owner="Kernel"
@@ -42,7 +50,7 @@ offset= 0x0
   default={Cst=0x0}
 
 [section.mhdma_system.register.errors]
-  description="Sticky error flags (cleared by reset_registers): [9] master read-request cmd queue overflow, [8] master notify cmd queue overflow, [7] formatter payload gap, [6] decoder rx FIFO overflow, [5] slave read-request cmd queue overflow, [4] AXI4 HBM read response error, [3] ciphertext sequence number mismatch, [2:1] per-PC AXI4 HBM write error, [0] multi-HPU one-hot ID violation"
+  description="Sticky error flags (cleared by reset_registers): [13] master read-request cmd queue overflow, [12] master notify cmd queue overflow, [11] formatter master cmd discard, [10] formatter slave cmd discard, [9] formatter payload gap, [8] decoder rx FIFO overflow, [7] slave read-request cmd queue overflow, [6] AXI4 HBM read response error, [5] master max retry read-request hit, [4] master max retry notify hit, [3] ciphertext sequence number mismatch, [2:1] per-PC AXI4 HBM write error, [0] multi-HPU one-hot ID violation"
   owner="Kernel"
   read_access="ReadNotify"
   write_access="None"
@@ -161,7 +169,13 @@ offset= 0x100
   write_access="None"
   default={Cst=0x0}
 [section.mhdma_request.register.stat_read_req_timeout_retry]
-  description="Number of read-request retries triggered by timeout or sequence number mismatch"
+  description="Number of read-request retries triggered by timeout expiration"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"
+  default={Cst=0x0}
+[section.mhdma_request.register.stat_read_req_seq_num_retry]
+  description="Number of read-request retries triggered by sequence number mismatch"
   owner="Kernel"
   read_access="ReadNotify"
   write_access="None"
@@ -249,10 +263,10 @@ offset= 0x100
   default={Cst=0x0}
   duplicate=["_pc0", "_pc1"]
 
-[section.mhdma_request.register.stat_notify_timeout]
+[section.mhdma_request.register.stat_cur_notify_to_ack]
   description="Live value of the notify timeout counter (resets on each new notify send)"
   owner="Kernel"
-  read_access="ReadNotify"
+  read_access="Read"
   write_access="None"
   default={Cst=0x0}
 

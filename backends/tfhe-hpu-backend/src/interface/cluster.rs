@@ -11,7 +11,7 @@ use crate::asm::{IOpId, IOpProto, PhysId};
 use crate::entities::*;
 use crate::ffi::HpuHw;
 use itertools::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{atomic, mpsc, Arc, Mutex, OnceLock};
 
 use rayon::prelude::*;
@@ -32,6 +32,9 @@ pub struct HpuCluster {
     // Work management
     // Keep track of issued IOp and associated variables
     workq: Arc<Mutex<mpsc::Receiver<Arc<cmd::HpuCmd>>>>,
+    // Enforce that at most u8::MAX IOp are inflight in the cluster.
+    // => All node keep in the same IOp Round
+    iop_inflight: Arc<atomic::AtomicU8>,
 }
 
 impl HpuCluster {
@@ -73,6 +76,7 @@ impl HpuCluster {
             iop_id,
             cmd_tx,
             params,
+            iop_inflight: Arc::new(atomic::AtomicU8::new(0)),
             bg_poll: Arc::new(atomic::AtomicBool::new(false)),
             bg_handles: OnceLock::new(),
             workq: Arc::new(Mutex::new(cmd_rx)),
@@ -93,6 +97,7 @@ impl HpuCluster {
             workload,
             bg_handles,
             bg_poll,
+            iop_inflight,
             workq,
             ..
         } = self;
@@ -104,37 +109,49 @@ impl HpuCluster {
         };
 
         bg_poll.store(true, atomic::Ordering::SeqCst);
-        let bg_workq = (bg_poll.clone(), nodes.clone(), workq.clone());
-        let bg_ackq = (bg_poll.clone(), nodes.clone(), workload.clone());
+        let bg_workq = (
+            bg_poll.clone(),
+            nodes.clone(),
+            iop_inflight.clone(),
+            workq.clone(),
+        );
+        let bg_ackq = (
+            bg_poll.clone(),
+            nodes.clone(),
+            iop_inflight.clone(),
+            workload.clone(),
+        );
         let _ = bg_handles.get_or_init(|| {
             (
                 std::thread::spawn(move || {
-                    while bg_workq.0.load(atomic::Ordering::SeqCst) {
+                    let (poll, nodes, iop_inflight, workq) = bg_workq;
+                    while poll.load(atomic::Ordering::SeqCst) {
                         std::thread::sleep(tick);
-                        let workq_lock =
-                            bg_workq.2.lock().expect("Encounter error with workq Mutex");
+                        let workq_lock = workq.lock().expect("Encounter error with workq Mutex");
                         while let Ok(cmd) = workq_lock.try_recv() {
-                            for phys_id in cmd.op.mapping().iter() {
-                                let mut node_lock = bg_workq
-                                    .1
-                                    .get(&phys_id.0)
-                                    .expect("Required PhysId isn't available in the HpuCluster")
-                                    .lock()
-                                    .expect("Issue with node Mutex");
+                            // Check max inflight IOp
+                            while u8::MAX == iop_inflight.load(atomic::Ordering::SeqCst) {
+                                std::thread::sleep(tick);
+                            }
+                            for node in nodes.iter() {
+                                let mut node_lock = node.1.lock().expect("Issue with node Mutex");
                                 node_lock.workq_push(cmd.clone());
                             }
+                            iop_inflight.fetch_add(1, atomic::Ordering::SeqCst);
                         }
                     }
                 }),
                 std::thread::spawn(move || {
-                    while bg_ackq.0.load(atomic::Ordering::SeqCst) {
+                    let (poll, nodes, iop_inflight, workload) = bg_ackq;
+                    while poll.load(atomic::Ordering::SeqCst) {
                         std::thread::sleep(tick);
-                        for (id, node) in bg_ackq.1.iter() {
+                        for (id, node) in nodes.iter() {
                             let mut lock = node.lock().unwrap();
-                            let ack_cnt = lock.flush_ackq();
+                            let (ack_cnt, done_cnt) = lock.flush_ackq();
                             // Variable state are handled in node
-                            // Only update associated workload counter here
-                            bg_ackq.2[*id as usize].fetch_sub(ack_cnt, atomic::Ordering::SeqCst);
+                            // Only update associated workload/inflight counter here
+                            workload[*id as usize].fetch_sub(ack_cnt, atomic::Ordering::SeqCst);
+                            iop_inflight.fetch_sub(done_cnt as u8, atomic::Ordering::SeqCst);
                         }
                     }
                 }),
@@ -167,66 +184,74 @@ impl HpuCluster {
 }
 
 impl HpuCluster {
+    /// Compute ordered list of usable nodes
+    /// Nodes are sorted by workload and rhs position
+    pub(crate) fn usable_nodes(&self, hpu_id: &[u8], rhs_ct: &[HpuVarWrapped]) -> Vec<u8> {
+        // Extract inputs position
+        let inputs_pos_weight = rhs_ct.iter().map(|v| v.hpu_id.0 as usize).fold(
+            [0usize; MAX_HPU_IN_CLUSTER],
+            |mut acc, hid| {
+                acc[hid] += 1;
+                acc
+            },
+        );
+        // Compute node weight
+        let mut hpu_weight = std::iter::zip(inputs_pos_weight.iter(), self.workload.iter())
+            .enumerate()
+            .map(|(i, (p, w))| {
+                // To prevent issue with ordering of unload node (i.e. properly take var_pos when all load
+                // is at 0) A default workload of operands size is added, this prevent to have
+                // underflow on weight computation
+                let dflt_weight = rhs_ct.len() * VAR_POS_WEIGHT;
+                let work_weight = w.load(atomic::Ordering::SeqCst);
+                let pos_weight = *p * VAR_POS_WEIGHT;
+                (i as u8, dflt_weight + work_weight - pos_weight)
+            })
+            .collect::<Vec<_>>();
+        hpu_weight.sort_by_key(|x| x.1);
+
+        // Kept only the available ones
+        hpu_weight.into_iter().filter(|w| hpu_id.contains(&w.0))
+            .map(|(i,_w)| i)
+            .collect::<Vec<_>>()
+    }
+
     /// Compute Hpu mapping based on various heuristics
     /// Currently take into account:
     /// * Cluster nodes workload
     /// * Operand position
+    /// NB: It's mandatory that node owning the destination data is part of the compute
     pub(crate) fn compute_cmd_map(
         &self,
         hpu_id: &[u8],
         proto: &IOpProto,
-        var_pos: &[usize; MAX_HPU_IN_CLUSTER],
+        dst: &[HpuVarWrapped],
+        rhs_ct: &[HpuVarWrapped],
     ) -> IOpMapping {
-        // To prevent issue with ordering of unload node (i.e. properly take var_pos when all load
-        // is at 0) A default workload of operands size is added, this prevent to have
-        // underflow on weight computation
-        let hpu_ord = {
-            let var_num = var_pos.iter().sum::<usize>();
-            let hpu_weight = std::iter::zip(var_pos.iter(), self.workload.iter())
-                .enumerate()
-                .map(|(i, (p, w))| {
-                    let dflt_weight = 2 * var_num * VAR_POS_WEIGHT;
-                    let work_weight = w.load(atomic::Ordering::SeqCst);
-                    let pos_weight = *p * VAR_POS_WEIGHT;
-                    (i, dflt_weight + work_weight - pos_weight)
-                })
-                .collect::<Vec<_>>();
+        // Split it in two categories and ordered them back
+        //  a) Node that must belong to the IOp (because they own a destination)
+        //  b) Backup Node that optionnaly could by part of the Iop
+        let dst_pos = dst.iter().map(|v| v.hpu_id.0).collect::<HashSet<_>>();
+        let (mut hpu_ord, hpu_opt): (Vec<_>, Vec<_>) = self
+            .usable_nodes(hpu_id, rhs_ct)
+            .into_iter()
+            .partition(|x| dst_pos.contains(&x));
 
-            let mut hpu_weight_filtered = hpu_id
-                .iter()
-                .map(|i| hpu_weight[*i as usize])
-                .collect::<Vec<_>>();
-            hpu_weight_filtered.sort_by_key(|x| x.1);
-            hpu_weight_filtered
-                .iter()
-                .map(|x| x.0 as u8)
-                .collect::<Vec<_>>()
-        };
+        // Check that Hpu invariantes are satisfied
+        assert!(
+            proto.used_nodes.max_node() as usize >= hpu_ord.len(),
+            "Error: dst variables are spread on more nodes than compute"
+        );
+        // Check that dst var arn't on filtered out node
+        assert_eq!(
+            hpu_ord.len(),
+            dst_pos.len(),
+            "Error with dst variables position. Some dst variable are on unused nodes"
+        );
+        // Append optional nodes
+        hpu_ord.extend_from_slice(&hpu_opt);
         IOpMapping::from((hpu_ord, &proto.used_nodes))
     }
-
-    // /// Compute Hpu mapping for multi-hpu without inter-communication
-    // /// WARN: Temporary solution to enhance throughput of IOp
-    // pub(crate) fn compute_cmd_map(
-    //     &self,
-    //     _hpu_id: &[u8],
-    //     proto: &IOpProto,
-    //     var_pos: &[usize; MAX_HPU_IN_CLUSTER],
-    // ) -> IOpMapping {
-    //     let hpu_ord = var_pos
-    //         .iter()
-    //         .enumerate()
-    //         .filter(|(_id, x)| **x != 0)
-    //         .map(|(id, _val)| id as u8)
-    //         .collect::<Vec<_>>();
-
-    //     assert_eq!(
-    //         1,
-    //         hpu_ord.len(),
-    //         "Current MultiHpu implementation required Src/Dst on same Node"
-    //     );
-    //     IOpMapping::from((hpu_ord, &proto.used_nodes))
-    // }
 
     /// Workload getter
     pub(crate) fn workload(&self) -> &[atomic::AtomicUsize; MAX_HPU_IN_CLUSTER] {

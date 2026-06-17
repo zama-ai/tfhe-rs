@@ -243,19 +243,6 @@ impl HpuHw {
             self.0.iop_ackq_rd()
         }
     }
-
-    /// Custom command to user bar0 direct access for register instead of Gcq
-    /// No impact with simulation ffi
-    pub fn map_bar_reg(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        #[cfg(feature = "hw-v80")]
-        {
-            self.0.ami.map_bar_reg()
-        }
-        #[cfg(not(feature = "hw-v80"))]
-        {
-            Ok(())
-        }
-    }
 }
 
 pub struct MemZone(
@@ -308,7 +295,7 @@ impl MemZone {
 #[cfg(feature = "hw-v80")]
 mod v80;
 #[cfg(all(feature = "hw-v80", feature = "utils"))]
-pub use v80::HpuV80Pdi;
+pub use v80::{HpuV80Pdi, HpuV80Uuid};
 
 #[cfg(not(feature = "hw-v80"))]
 pub(crate) mod sim;

@@ -173,12 +173,6 @@ impl HpuNode {
             &config.fpga.ffi,
             std::time::Duration::from_micros(config.fpga.polling_us),
         );
-        // Try to use direct register access if available
-        if hpu_hw.map_bar_reg().is_ok() {
-            info!("Use BAR0 direct register access");
-        } else {
-            info!("BAR0 direct register access isn't available");
-        }
 
         let regmap_expanded = config
             .fpga
@@ -1101,13 +1095,17 @@ impl HpuNode {
         hpu_hw.iop_push(op_words.as_slice());
 
         // Keep track of op in cmdq for lifetime tracking
-        cmdq.push_back(cmd);
+        // Only for involved Hpu, other one just dispatch iop for keeping iid in sync
+        // and required no ack back
+        if cmd.op.mapping().virt_id(asm::PhysId(*hid)).is_some() {
+            cmdq.push_back(cmd);
+        }
     }
 
     /// flush ack_q
     /// Retrieved all available ack
     #[tracing::instrument(level = "debug", skip(self))]
-    pub fn flush_ackq(&mut self) -> usize {
+    pub fn flush_ackq(&mut self) -> (usize, usize) {
         let Self {
             ref mut hpu_hw,
             regmap,
@@ -1134,6 +1132,7 @@ impl HpuNode {
         );
 
         let ack_nb = hpu_hw.iop_ack_rd();
+        let mut done_nb = 0;
         for _ack in 0..ack_nb {
             let ack_cmd = cmdq
                 .pop_front()
@@ -1149,9 +1148,10 @@ impl HpuNode {
                     .dst
                     .iter()
                     .for_each(|dst| dst.inner.lock().unwrap().operation_done());
+                done_nb += 1;
             }
         }
-        ack_nb as usize
+        (ack_nb as usize, done_nb)
     }
 }
 
