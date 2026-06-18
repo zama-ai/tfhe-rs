@@ -38,6 +38,64 @@ pub unsafe extern "C" fn shortint_ciphertext_get_degree(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn shortint_ciphertext_clone(
+    ciphertext: *const ShortintCiphertext,
+    result: *mut *mut ShortintCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        *result = std::ptr::null_mut();
+        let ciphertext = get_ref_checked(ciphertext).unwrap();
+        let boxed = Box::new(ShortintCiphertext(ciphertext.0.clone()));
+
+        *result = Box::into_raw(boxed);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn shortint_ciphertext_clone_from(
+    dest: *mut ShortintCiphertext,
+    src: *const ShortintCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        let dest = get_mut_checked(dest).unwrap();
+        let src = get_ref_checked(src).unwrap();
+
+        dest.0.clone_from(&src.0);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn shortint_compressed_ciphertext_clone(
+    ciphertext: *const ShortintCompressedCiphertext,
+    result: *mut *mut ShortintCompressedCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        *result = std::ptr::null_mut();
+        let ciphertext = get_ref_checked(ciphertext).unwrap();
+        let boxed = Box::new(ShortintCompressedCiphertext(ciphertext.0.clone()));
+
+        *result = Box::into_raw(boxed);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn shortint_compressed_ciphertext_clone_from(
+    dest: *mut ShortintCompressedCiphertext,
+    src: *const ShortintCompressedCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        let dest = get_mut_checked(dest).unwrap();
+        let src = get_ref_checked(src).unwrap();
+
+        dest.0.clone_from(&src.0);
+    })
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn shortint_serialize_ciphertext(
     ciphertext: *const ShortintCiphertext,
     result: *mut DynamicBuffer,

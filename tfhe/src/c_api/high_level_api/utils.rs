@@ -219,6 +219,19 @@ macro_rules! impl_clone_on_type {
                     *result = Box::into_raw(heap_allocated_object);
                 })
             }
+
+            #[no_mangle]
+            pub unsafe extern "C" fn [<$wrapper_type:snake _clone_from>](
+                dest: *mut $wrapper_type,
+                src: *const $wrapper_type,
+            ) -> ::std::os::raw::c_int {
+                $crate::c_api::utils::catch_panic(|| {
+                    let dest = $crate::c_api::utils::get_mut_checked(dest).unwrap();
+                    let src = $crate::c_api::utils::get_ref_checked(src).unwrap();
+
+                    dest.0.clone_from(&src.0);
+                })
+            }
         }
     };
 }

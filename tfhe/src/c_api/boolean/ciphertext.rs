@@ -10,6 +10,64 @@ pub struct BooleanCompressedCiphertext(
 );
 
 #[no_mangle]
+pub unsafe extern "C" fn boolean_ciphertext_clone(
+    ciphertext: *const BooleanCiphertext,
+    result: *mut *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        *result = std::ptr::null_mut();
+        let ciphertext = get_ref_checked(ciphertext).unwrap();
+        let boxed = Box::new(BooleanCiphertext(ciphertext.0.clone()));
+
+        *result = Box::into_raw(boxed);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn boolean_ciphertext_clone_from(
+    dest: *mut BooleanCiphertext,
+    src: *const BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        let dest = get_mut_checked(dest).unwrap();
+        let src = get_ref_checked(src).unwrap();
+
+        dest.0.clone_from(&src.0);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn boolean_compressed_ciphertext_clone(
+    ciphertext: *const BooleanCompressedCiphertext,
+    result: *mut *mut BooleanCompressedCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        *result = std::ptr::null_mut();
+        let ciphertext = get_ref_checked(ciphertext).unwrap();
+        let boxed = Box::new(BooleanCompressedCiphertext(ciphertext.0.clone()));
+
+        *result = Box::into_raw(boxed);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn boolean_compressed_ciphertext_clone_from(
+    dest: *mut BooleanCompressedCiphertext,
+    src: *const BooleanCompressedCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        let dest = get_mut_checked(dest).unwrap();
+        let src = get_ref_checked(src).unwrap();
+
+        dest.0.clone_from(&src.0);
+    })
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn boolean_serialize_ciphertext(
     ciphertext: *const BooleanCiphertext,
     result: *mut DynamicBuffer,
