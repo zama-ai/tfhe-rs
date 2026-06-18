@@ -2470,6 +2470,15 @@ pcc_gpu:
 	$(call run_recipe_with_details,check_compile_tests_benches_gpu)
 	$(call run_recipe_with_details,test_integer_hl_test_gpu_check_warnings)
 
+.PHONY: pcc_gpu_ci # fast version of pre commit checks for GPU compilation
+pcc_gpu_ci:
+	$(call run_recipe_with_details,check_rust_bindings_did_not_change)
+	$(call run_recipe_with_details,clippy_rustdoc_gpu)
+	$(call run_recipe_with_details,clippy_gpu)
+	$(call run_recipe_with_details,clippy_cuda_backend)
+	$(call run_recipe_with_details,clippy_bench_gpu)
+	$(call run_recipe_with_details,test_integer_hl_test_gpu_check_warnings)
+
 .PHONY: pcc_hpu # pcc stands for pre commit checks for HPU compilation
 pcc_hpu:
 	$(call run_recipe_with_details,clippy_hpu)
