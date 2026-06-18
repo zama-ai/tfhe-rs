@@ -312,6 +312,8 @@ macro_rules! create_integer_wrapper_type {
 
         pub struct $name(pub(in $crate::c_api) $crate::high_level_api::$name);
 
+        $crate::c_api::utils::impl_wrapper_type!($name, $crate::high_level_api::$name);
+
         impl_destroy_on_type!($name);
 
         impl_operations_for_integer_type!(
@@ -346,6 +348,11 @@ macro_rules! create_integer_wrapper_type {
         // The compressed version of the ciphertext type
         ::paste::paste! {
             pub struct [<Compressed $name>]($crate::high_level_api::[<Compressed $name>]);
+
+            $crate::c_api::utils::impl_wrapper_type!(
+                [<Compressed $name>],
+                $crate::high_level_api::[<Compressed $name>]
+            );
 
             impl_destroy_on_type!([<Compressed $name>]);
 

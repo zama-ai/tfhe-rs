@@ -7,6 +7,9 @@ use std::os::raw::c_int;
 pub struct ShortintCiphertext(pub(in crate::c_api) shortint::Ciphertext);
 pub struct ShortintCompressedCiphertext(pub(in crate::c_api) shortint::CompressedCiphertext);
 
+impl_wrapper_type!(ShortintCiphertext, shortint::Ciphertext);
+impl_wrapper_type!(ShortintCompressedCiphertext, shortint::CompressedCiphertext);
+
 #[no_mangle]
 pub unsafe extern "C" fn shortint_ciphertext_set_degree(
     ciphertext: *mut ShortintCiphertext,
@@ -35,6 +38,38 @@ pub unsafe extern "C" fn shortint_ciphertext_get_degree(
 
         *result = inner_ct.degree.get();
     })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn shortint_ciphertext_clone(
+    ciphertext: *const ShortintCiphertext,
+    result: *mut *mut ShortintCiphertext,
+) -> c_int {
+    unsafe { generic_c_api_clone(ciphertext, result) }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn shortint_ciphertext_clone_from(
+    dest: *mut ShortintCiphertext,
+    src: *const ShortintCiphertext,
+) -> c_int {
+    unsafe { generic_c_api_clone_from(dest, src) }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn shortint_compressed_ciphertext_clone(
+    ciphertext: *const ShortintCompressedCiphertext,
+    result: *mut *mut ShortintCompressedCiphertext,
+) -> c_int {
+    unsafe { generic_c_api_clone(ciphertext, result) }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn shortint_compressed_ciphertext_clone_from(
+    dest: *mut ShortintCompressedCiphertext,
+    src: *const ShortintCompressedCiphertext,
+) -> c_int {
+    unsafe { generic_c_api_clone_from(dest, src) }
 }
 
 #[no_mangle]
