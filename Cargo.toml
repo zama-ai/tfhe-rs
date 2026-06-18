@@ -15,6 +15,7 @@ members = [
     "tfhe-ntt",
     "tfhe-zk-pok",
     "utils/fuzz/corpusgen",
+    "utils/fuzz/fuzz-stats",
     "utils/fuzz/fuzz-utils",
     "utils/fuzz/harness-compute",
     "utils/fuzz/harness-deser",

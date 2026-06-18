@@ -1,8 +1,8 @@
 use std::fs::File;
 
 use fuzz_utils::{
-    AUX_MAX_SIZE, INSECURE_FUZZ_KS_PARAMS, INSECURE_FUZZ_PARAMS, INSECURE_FUZZ_PKE_PARAMS,
-    aux_data_dir,
+    AUX_MAX_SIZE, FUZZ_DOMAIN_SEPARATOR, INSECURE_FUZZ_KS_PARAMS, INSECURE_FUZZ_PARAMS,
+    INSECURE_FUZZ_PKE_PARAMS, aux_data_dir,
 };
 use tfhe::core_crypto::prelude::*;
 use tfhe::safe_serialization::safe_serialize;
@@ -24,7 +24,7 @@ fn main() {
     let crs = CompactPkeCrs::from_config(config, 32).unwrap();
 
     let compact_list = compact_builder
-        .build_with_proof_packed(&crs, b"fuzz", ZkComputeLoad::Verify)
+        .build_with_proof_packed(&crs, FUZZ_DOMAIN_SEPARATOR, ZkComputeLoad::Verify)
         .unwrap();
 
     let fuzz_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");

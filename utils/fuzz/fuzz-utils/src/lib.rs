@@ -24,6 +24,9 @@ const MEGA: u64 = 1024 * 1024;
 pub const INPUT_MAX_SIZE: u64 = 64 * MEGA;
 pub const AUX_MAX_SIZE: u64 = 64 * MEGA;
 
+/// Metadata bound into the ZK proof. Must match between corpus generation and verification.
+pub const FUZZ_DOMAIN_SEPARATOR: &[u8] = b"fuzz";
+
 pub const INSECURE_FUZZ_PARAMS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(10),
     glwe_dimension: GlweDimension(1),
@@ -139,7 +142,7 @@ pub fn use_list(exp: &CompactCiphertextListExpander) -> ExecEndCause {
 
 /// The reason why the execution of a sample ended (without crash)
 ///
-/// All this cases are considered "successes" from the point of view of the fuzzer, meaning that no
+/// All these cases are considered "successes" from the point of view of the fuzzer, meaning that no
 /// crash occured and potential error were correctly caught.
 /// This type is only used for debug and statistics purpose
 pub enum ExecEndCause {
@@ -167,6 +170,53 @@ impl Display for ExecEndCause {
     }
 }
 
+/// Auxiliary data shared by all harnesses and `fuzz-stats`.
+///
+/// Holds everything needed to process an input: the conformance parameters that gate
+/// deserialization, the CRS and public key used for verification, and the server key used for
+/// computation.
+///
+/// The server key lives in a thread-local once installed, so [`install_server_key`] must be called
+/// on every thread that processes inputs.
+///
+/// [`install_server_key`]: FuzzContext::install_server_key
+pub struct FuzzContext {
+    pub conformance_params: IntegerProvenCompactCiphertextListConformanceParams,
+    pub crs: CompactPkeCrs,
+    pub pubkey: CompactPublicKey,
+    pub server_key: ServerKey,
+}
+
+impl FuzzContext {
+    /// Load all auxiliary data from the `aux_data` directory.
+    pub fn load() -> Self {
+        let server_key = load_server_key();
+        let pubkey = load_public_key();
+        let crs = load_crs();
+
+        let conformance_params =
+            IntegerProvenCompactCiphertextListConformanceParams::from_public_key_encryption_parameters_and_crs_parameters(
+                INSECURE_FUZZ_PKE_PARAMS,
+                &crs,
+            )
+            .allow_unpacked();
+
+        Self {
+            conformance_params,
+            crs,
+            pubkey,
+            server_key,
+        }
+    }
+
+    /// Install the server key into the current thread's thread-local storage.
+    ///
+    /// Required before any computation on the current thread; call once per worker thread.
+    pub fn install_server_key(&self) {
+        set_server_key(self.server_key.clone());
+    }
+}
+
 pub fn harness_main(
     handle_input: impl Fn(
         &[u8],
@@ -176,22 +226,12 @@ pub fn harness_main(
     ) -> ExecEndCause
     + std::panic::RefUnwindSafe,
 ) {
-    let server_key = load_server_key();
-    let pubkey = load_public_key();
-    let crs = load_crs();
-
-    let conformance_params =
-        IntegerProvenCompactCiphertextListConformanceParams::from_public_key_encryption_parameters_and_crs_parameters(
-            INSECURE_FUZZ_PKE_PARAMS,
-            &crs,
-        )
-        .allow_unpacked();
-
-    set_server_key(server_key);
+    let ctx = FuzzContext::load();
+    ctx.install_server_key();
 
     #[cfg(fuzzing)]
     fuzz!(|input: &[u8]| {
-        handle_input(input, &conformance_params, &crs, &pubkey);
+        handle_input(input, &ctx.conformance_params, &ctx.crs, &ctx.pubkey);
     });
 
     #[cfg(not(fuzzing))]
@@ -201,7 +241,7 @@ pub fn harness_main(
         let mut input: Vec<u8> = Vec::new();
 
         std::io::stdin().read_to_end(&mut input).unwrap();
-        let res = handle_input(&input, &conformance_params, &crs, &pubkey);
+        let res = handle_input(&input, &ctx.conformance_params, &ctx.crs, &ctx.pubkey);
         println!("{res}");
     }
 }

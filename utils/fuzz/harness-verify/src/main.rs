@@ -7,7 +7,7 @@ use tfhe::integer::ciphertext::IntegerProvenCompactCiphertextListConformancePara
 use tfhe::safe_serialization::safe_deserialize_conformant;
 use tfhe::{CompactPublicKey, ProvenCompactCiphertextList};
 
-use fuzz_utils::{ExecEndCause, INPUT_MAX_SIZE, harness_main};
+use fuzz_utils::{ExecEndCause, FUZZ_DOMAIN_SEPARATOR, INPUT_MAX_SIZE, harness_main};
 
 fn handle_input(
     input: &[u8],
@@ -23,7 +23,7 @@ fn handle_input(
         return ExecEndCause::SafeDeserializationFailed;
     };
 
-    match ct_list.verify(crs, public_key, b"fuzz") {
+    match ct_list.verify(crs, public_key, FUZZ_DOMAIN_SEPARATOR) {
         ZkVerificationOutcome::Valid => ExecEndCause::ExecSuccess,
         ZkVerificationOutcome::Invalid => ExecEndCause::ZkVerificationFailed,
     }
