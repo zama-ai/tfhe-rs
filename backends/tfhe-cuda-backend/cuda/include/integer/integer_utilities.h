@@ -85,36 +85,63 @@ public:
       if ((noise_level_expr) > max_noise_level)                                \
         PANIC("Cuda error: noise exceeds maximum authorized value for 1_1 "    \
               "parameters");                                                   \
-    } else if ((msg_mod) == 4 && (carry_mod) == 4) {                           \
-      constexpr int max_noise_level = 5;                                       \
-      if ((noise_level_expr) > max_noise_level)                                \
-        PANIC(                                                                 \
-            "Cuda error: noise %lu exceeds maximum authorized value 5 for 2_2" \
-            " parameters",                                                     \
-            (unsigned long)(noise_level_expr));                                \
-    } else if ((msg_mod) == 8 && (carry_mod) == 8) {                           \
-      constexpr int max_noise_level = 9;                                       \
-      if ((noise_level_expr) > max_noise_level)                                \
-        PANIC("Cuda error: noise exceeds maximum authorized value for 3_3 "    \
-              "parameters");                                                   \
-    } else if ((msg_mod) == 0 && (carry_mod) == 0) {                           \
-      break;                                                                   \
-    } else if ((msg_mod) == 4 && (carry_mod) == 32) {                          \
-      break;                                                                   \
-    } else {                                                                   \
-      PANIC("Invalid message modulus or carry modulus")                        \
-    }                                                                          \
-  } while (0)
+    } else if ((msg_mod) == 2 && (carry_mod) == 1) {                           \
+// Kreyvium ZZ_4 bit-extraction parameter set
+constexpr int max_noise_level = 14;
+const uint64_t nl = (noise_level_expr);
+if (nl > max_noise_level)
+  PANIC("Cuda error: noise %lu exceeds maximum authorized value 14 for "
+        "2_1 parameters",
+        (unsigned long)nl);
+}
+else if ((msg_mod) == 4 && (carry_mod) == 4) {
+  constexpr int max_noise_level = 5;
+  if ((noise_level_expr) > max_noise_level)
+    PANIC("Cuda error: noise %lu exceeds maximum authorized value 5 for 2_2"
+          " parameters",
+          (unsigned long)(noise_level_expr));
+}
+else if ((msg_mod) == 8 && (carry_mod) == 8) {
+  constexpr int max_noise_level = 9;
+  if ((noise_level_expr) > max_noise_level)
+    PANIC("Cuda error: noise exceeds maximum authorized value for 3_3 "
+          "parameters");
+}
+else if ((msg_mod) == 0 && (carry_mod) == 0) {
+  break;
+}
+else if ((msg_mod) == 4 && (carry_mod) == 32) {
+  break;
+}
+else {
+  PANIC("Invalid message modulus or carry modulus")
+}
+}
+while (0)
 #else
 #define CHECK_NOISE_LEVEL(noise_level_expr, message_modulus, carry_modulus)    \
   do {                                                                         \
   } while (0)
 #endif
 
-template <typename Torus>
-__global__ void radix_blocks_rotate_right(Torus *dst, Torus *src,
-                                          uint32_t value, uint32_t blocks_count,
-                                          uint32_t lwe_size);
+  /// @brief Rotates the blocks of a radix ciphertext right by a given number of
+  /// positions.
+  ///
+  /// Each CUDA block copies one source radix block to the destination position
+  /// shifted right by value modulo blocks_count, wrapping around the ends. The
+  /// rotation is out of place, so dst and src must not alias.
+  ///
+  /// @param dst           Destination buffer receiving the rotated radix blocks
+  /// @param src           Source buffer holding the radix blocks to rotate
+  /// @param value         Number of positions to rotate right (taken modulo
+  ///                      blocks_count)
+  /// @param blocks_count  Number of radix blocks to rotate
+  /// @param lwe_size      Number of Torus coefficients per block (lwe_dimension
+  ///                      + 1)
+  template <typename Torus>
+  __global__ void
+  radix_blocks_rotate_right(Torus *dst, Torus *src, uint32_t value,
+                            uint32_t blocks_count, uint32_t lwe_size);
 void generate_ids_update_degrees(uint64_t *terms_degree, size_t *h_lwe_idx_in,
                                  size_t *h_lwe_idx_out,
                                  int32_t *h_smart_copy_in,

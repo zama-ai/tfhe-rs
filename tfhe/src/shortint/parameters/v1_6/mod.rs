@@ -623,7 +623,7 @@ pub const VEC_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 142] =
 ];
 
 /// All [`MultiBitPBSParameters`] in this module.
-pub const VEC_ALL_MULTI_BIT_PBS_PARAMETERS: [(&MultiBitPBSParameters, &str); 240] = [
+pub const VEC_ALL_MULTI_BIT_PBS_PARAMETERS: [(&MultiBitPBSParameters, &str); 241] = [
     (
         &V1_6_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40,
         "V1_6_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40",
@@ -1584,6 +1584,10 @@ pub const VEC_ALL_MULTI_BIT_PBS_PARAMETERS: [(&MultiBitPBSParameters, &str); 240
         &V1_6_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
         "V1_6_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128",
     ),
+    (
+        &V1_6_PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128,
+        "V1_6_PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128",
+    ),
 ];
 
 /// All [`KeySwitch32PBSParameters`] in this module.
@@ -1749,7 +1753,7 @@ pub const VEC_ALL_HPU_PARAMETERS: [(&KeySwitch32PBSParameters, &str); 3] = [
 ];
 
 /// All [`MetaParameters`] in this module.
-pub const VEC_ALL_META_PARAMETERS: [(&MetaParameters, &str); 175] = [
+pub const VEC_ALL_META_PARAMETERS: [(&MetaParameters, &str); 176] = [
     (
         &V1_6_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M40,
         "V1_6_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M40",
@@ -2449,5 +2453,9 @@ pub const VEC_ALL_META_PARAMETERS: [(&MetaParameters, &str); 175] = [
     (
         &V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128,
         "V1_6_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128",
+    ),
+    (
+        &V1_6_META_PARAM_GPU_2_1_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128,
+        "V1_6_META_PARAM_GPU_2_1_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128",
     ),
 ];
