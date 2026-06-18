@@ -61,6 +61,7 @@ mod aes;
 mod aes256;
 mod kreyvium;
 pub(crate) mod kv_store;
+pub(crate) use kreyvium::CudaKreyviumState;
 #[cfg(test)]
 mod tests_long_run;
 #[cfg(test)]
@@ -68,7 +69,7 @@ mod tests_noise_distribution;
 #[cfg(test)]
 mod tests_signed;
 #[cfg(test)]
-mod tests_unsigned;
+pub(crate) mod tests_unsigned;
 mod trivium;
 
 impl CudaServerKey {
