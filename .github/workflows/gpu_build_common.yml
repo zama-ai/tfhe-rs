@@ -1,5 +1,34 @@
-# Perform tfhe-cuda-backend post-commit checks on an AWS instance
-name: gpu_pcc
+name: gpu_build_common
+
+on:
+  workflow_call:
+    inputs:
+      pull-request-number:  # ${{ github.event.pull_request.number }}
+        type: number
+        required: true
+      run-pcc-gpu:
+        type: boolean
+        default: false
+      run-compile-checks:
+        type: boolean
+        default: false
+    secrets:
+      REPO_CHECKOUT_TOKEN:
+        required: true
+      SLAB_ACTION_TOKEN:
+        required: true
+      SLAB_BASE_URL:
+        required: true
+      SLAB_URL:
+        required: true
+      JOB_SECRET:
+        required: true
+      SLACK_CHANNEL:
+        required: true
+      BOT_USERNAME:
+        required: true
+      SLACK_WEBHOOK:
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -13,15 +42,6 @@ env:
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
   SLACKIFY_MARKDOWN: true
   PULL_REQUEST_MD_LINK: ""
-  CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
-  # Secrets will be available only to zama-ai organization members
-  SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
-  EXTERNAL_CONTRIBUTION_RUNNER: "large_ubuntu_16-22.04"
-  CUDA_KEYRING_PACKAGE: cuda-keyring_1.1-1_all.deb
-  CUDA_KEYRING_SHA: "d93190d50b98ad4699ff40f4f7af50f16a76dac3bb8da1eaaf366d47898ff8df"
-
-on:
-  pull_request:
 
 permissions:
   contents: read
@@ -30,15 +50,14 @@ permissions:
 
 jobs:
   setup-instance:
-    name: gpu_pcc/setup-instance
+    name: gpu_build_common/setup-instance
     runs-on: ubuntu-latest
     outputs:
-      runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
-      cloud-provider: ${{ steps.start-remote-instance.outputs.cloud-provider || steps.start-github-instance.outputs.cloud-provider }}
+      runner-name: ${{ steps.start-remote-instance.outputs.label }}
+      cloud-provider: ${{ steps.start-remote-instance.outputs.cloud-provider }}
     steps:
       - name: Start remote instance
         id: start-remote-instance
-        if: env.SECRETS_AVAILABLE == 'true'
         uses: zama-ai/slab-github-runner@86c9d2378700ca356455e36ebb97b61e958ea47b # v1.6.2
         with:
           mode: start
@@ -48,22 +67,9 @@ jobs:
           backend: aws
           profile: gpu-build
 
-      # This instance will be spawned especially for pull-request from forked repository
-      - name: Start GitHub instance
-        id: start-github-instance
-        if: env.SECRETS_AVAILABLE == 'false'
-        run: |
-          {
-            echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}";
-            echo "cloud-provider=github";
-          } >> "$GITHUB_OUTPUT"
-
-  cuda-pcc:
-    name: gpu_pcc/cuda-pcc (bpr)
+  cuda-checks:
+    name: gpu_build_common/cuda-checks
     needs: setup-instance
-    concurrency:
-      group: ${{ github.workflow_ref }}_${{ github.sha }}
-      cancel-in-progress: true
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
       fail-fast: false
@@ -78,7 +84,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: 'false'
-          token: ${{ env.CHECKOUT_TOKEN }}
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Setup cloud GPU machine dependencies
         uses: ./.github/actions/gpu_setup
@@ -102,58 +108,69 @@ jobs:
           toolchain: stable
 
       - name: Run semgrep and lint checks on CUDA code
+        if: inputs.run-pcc-gpu
         run: |
           make semgrep_and_lint_gpu_code
 
       - name: Run fmt checks
+        if: inputs.run-pcc-gpu
         run: |
           make check_fmt_gpu
 
       - name: Run clippy checks
+        if: inputs.run-pcc-gpu
         run: |
-          make pcc_gpu
+          make pcc_gpu_ci
+
+      - name: Check build with hpu enabled
+        if: inputs.run-pcc-gpu
+        run: |
+          make clippy_gpu_hpu
+
+      - name: Run compilation checks for tests and benchmarks
+        if: inputs.run-compile-checks
+        run: |
+          make check_compile_tests_benches_gpu
 
       - name: Run semver checks on tfhe-cuda-backend
+        if: inputs.run-compile-checks
         run: |
           make semver_check_cuda_backend
 
       - name: Run semver checks on zk-cuda-backend
+        if: inputs.run-compile-checks
         run: |
           make semver_check_zk_cuda_backend
 
       - name: Run semver checks on tfhe-cuda-common
+        if: inputs.run-compile-checks
         run: |
           make semver_check_cuda_common
 
-      - name: Check build with hpu enabled
-        run: |
-          make clippy_gpu_hpu
-
       - name: Set pull-request URL
-        if: ${{ failure() && github.event_name == 'pull_request' }}
+        if: ${{ failure() }}
         run: |
           echo "PULL_REQUEST_MD_LINK=[pull-request](${PR_BASE_URL}${PR_NUMBER}), "  >> "${GITHUB_ENV}"
         env:
           PR_BASE_URL: ${{ vars.PR_BASE_URL }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ inputs.pull-request-number }}
 
       - name: Slack Notification
-        if: ${{ failure() && env.SECRETS_AVAILABLE == 'true' }}
+        if: ${{ failure() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "CUDA AWS post-commit checks finished with status: ${{ job.status }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
+          SLACK_MESSAGE: "CUDA checks finished with status: ${{ job.status }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: cuda_pcc/teardown-instance
+    name: gpu_build_common/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
-    needs: [ setup-instance, cuda-pcc ]
+    needs: [ setup-instance, cuda-checks ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop remote instance
         id: stop-instance
-        if: env.SECRETS_AVAILABLE == 'true'
         uses: zama-ai/slab-github-runner@86c9d2378700ca356455e36ebb97b61e958ea47b # v1.6.2
         with:
           mode: stop
@@ -167,4 +184,4 @@ jobs:
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cuda-pcc) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (cuda-checks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
