@@ -1,0 +1,70 @@
+# Perform tfhe-cuda-backend build checks
+name: gpu_build
+
+on:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-C target-cpu=native"
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  cuda-pcc:
+    name: gpu_build/cuda-pcc
+    uses: ./.github/workflows/gpu_build_common.yml
+    with:
+      pull-request-number: ${{ github.event.pull_request.number }}
+      run-pcc-gpu: true
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  cuda-compile-checks:
+    name: gpu_build/cuda-compile-checks
+    uses: ./.github/workflows/gpu_build_common.yml
+    with:
+      pull-request-number: ${{ github.event.pull_request.number }}
+      run-compile-checks: true
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  gpu-builds:
+    name: gpu_build/gpu-builds (bpr)
+    needs: [ cuda-pcc, cuda-compile-checks ]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all builds success
+        if: needs.cuda-pcc.result == 'success' &&
+          needs.cuda-compile-checks.result == 'success'
+        run: |
+          echo "All tfhe-rs CUDA build checks passed"
+
+      - name: Check builds failure
+        if: needs.cuda-pcc.result != 'success' ||
+          needs.cuda-compile-checks.result != 'success'
+        run: |
+          echo "Some tfhe-rs CUDA build checks failed"
+          exit 1
