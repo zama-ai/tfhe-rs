@@ -1101,7 +1101,11 @@ impl HpuNode {
         hpu_hw.iop_push(op_words.as_slice());
 
         // Keep track of op in cmdq for lifetime tracking
-        cmdq.push_back(cmd);
+        // Only for involved Hpu, other one just dispatch iop for keeping iid in sync
+        // and required no ack back
+        if cmd.op.mapping().virt_id(asm::PhysId(*hid)).is_some() {
+            cmdq.push_back(cmd);
+        }
     }
 
     /// flush ack_q
