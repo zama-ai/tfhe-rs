@@ -9,6 +9,44 @@ pub struct BooleanCompressedCiphertext(
     pub(in crate::c_api) boolean::ciphertext::CompressedCiphertext,
 );
 
+impl_wrapper_type!(BooleanCiphertext, boolean::ciphertext::Ciphertext);
+impl_wrapper_type!(
+    BooleanCompressedCiphertext,
+    boolean::ciphertext::CompressedCiphertext
+);
+
+#[no_mangle]
+pub unsafe extern "C" fn boolean_ciphertext_clone(
+    ciphertext: *const BooleanCiphertext,
+    result: *mut *mut BooleanCiphertext,
+) -> c_int {
+    unsafe { generic_c_api_clone(ciphertext, result) }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn boolean_ciphertext_clone_from(
+    dest: *mut BooleanCiphertext,
+    src: *const BooleanCiphertext,
+) -> c_int {
+    unsafe { generic_c_api_clone_from(dest, src) }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn boolean_compressed_ciphertext_clone(
+    ciphertext: *const BooleanCompressedCiphertext,
+    result: *mut *mut BooleanCompressedCiphertext,
+) -> c_int {
+    unsafe { generic_c_api_clone(ciphertext, result) }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn boolean_compressed_ciphertext_clone_from(
+    dest: *mut BooleanCompressedCiphertext,
+    src: *const BooleanCompressedCiphertext,
+) -> c_int {
+    unsafe { generic_c_api_clone_from(dest, src) }
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn boolean_serialize_ciphertext(
     ciphertext: *const BooleanCiphertext,

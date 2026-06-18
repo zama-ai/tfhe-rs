@@ -4,6 +4,8 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, N
 
 pub struct FheBool(pub(in crate::c_api) crate::high_level_api::FheBool);
 
+crate::c_api::utils::impl_wrapper_type!(FheBool, crate::high_level_api::FheBool);
+
 impl_destroy_on_type!(FheBool);
 impl_clone_on_type!(FheBool);
 impl_safe_serialize_on_type!(FheBool);
@@ -40,6 +42,11 @@ impl_try_encrypt_with_client_key_on_type!(FheBool{crate::high_level_api::FheBool
 impl_try_encrypt_with_public_key_on_type!(FheBool{crate::high_level_api::FheBool}, bool);
 
 pub struct CompressedFheBool(crate::high_level_api::CompressedFheBool);
+
+crate::c_api::utils::impl_wrapper_type!(
+    CompressedFheBool,
+    crate::high_level_api::CompressedFheBool
+);
 
 impl_destroy_on_type!(CompressedFheBool);
 impl_clone_on_type!(CompressedFheBool);

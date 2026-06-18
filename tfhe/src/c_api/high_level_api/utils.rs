@@ -201,6 +201,10 @@ macro_rules! impl_try_decrypt_trivial_on_type {
 
 pub(crate) use impl_try_decrypt_trivial_on_type;
 
+/// Generates the C API `*_clone` and `*_clone_from` functions for a wrapper.
+///
+/// The wrapper must already implement
+/// [`crate::c_api::utils::WrapperType`] (typically via `impl_wrapper_type!`).
 macro_rules! impl_clone_on_type {
     ($wrapper_type:ty) => {
         ::paste::paste! {
@@ -209,15 +213,15 @@ macro_rules! impl_clone_on_type {
                 sself: *const $wrapper_type,
                 result: *mut *mut $wrapper_type,
             ) -> ::std::os::raw::c_int {
-                $crate::c_api::utils::catch_panic(|| {
-                    $crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
+                unsafe { $crate::c_api::utils::generic_c_api_clone(sself, result) }
+            }
 
-                    let wrapper = $crate::c_api::utils::get_ref_checked(sself).unwrap();
-
-                    let heap_allocated_object = Box::new($wrapper_type(wrapper.0.clone()));
-
-                    *result = Box::into_raw(heap_allocated_object);
-                })
+            #[no_mangle]
+            pub unsafe extern "C" fn [<$wrapper_type:snake _clone_from>](
+                dest: *mut $wrapper_type,
+                src: *const $wrapper_type,
+            ) -> ::std::os::raw::c_int {
+                unsafe { $crate::c_api::utils::generic_c_api_clone_from(dest, src) }
             }
         }
     };
