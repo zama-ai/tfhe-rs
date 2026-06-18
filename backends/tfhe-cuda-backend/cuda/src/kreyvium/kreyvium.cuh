@@ -6,60 +6,7 @@
 #include "../integer/radix_ciphertext.cuh"
 #include "../integer/scalar_addition.cuh"
 #include "../linearalgebra/addition.cuh"
-
-// Creates a view (slice) of specific bits in a register.
-// Used to access specific taps like a[65], k[127], etc.
-template <typename Torus>
-__host__ void slice_reg_batch_kreyvium(CudaRadixCiphertextFFI *slice,
-                                       const CudaRadixCiphertextFFI *reg,
-                                       uint32_t start_bit_idx,
-                                       uint32_t num_bits, uint32_t num_inputs) {
-  as_radix_ciphertext_slice<Torus>(slice, reg, start_bit_idx * num_inputs,
-                                   (start_bit_idx + num_bits) * num_inputs);
-}
-
-// Standard shift-and-insert for Kreyvium registers A, B, C.
-// Shifts the register and inserts new bits at the start.
-template <typename Torus>
-__host__ void shift_and_insert_batch_kreyvium(
-    CudaStreams streams, CudaRadixCiphertextFFI *shift_workspace,
-    CudaRadixCiphertextFFI *reg, CudaRadixCiphertextFFI *new_bits,
-    uint32_t reg_size, uint32_t num_inputs) {
-  constexpr uint32_t BATCH = KREYVIUM_BATCH_SIZE;
-  uint32_t num_blocks_to_keep = (reg_size - BATCH) * num_inputs;
-  copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), shift_workspace, 0,
-      num_blocks_to_keep, reg, BATCH * num_inputs, reg_size * num_inputs);
-  copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), shift_workspace,
-      num_blocks_to_keep, reg_size * num_inputs, new_bits, 0,
-      BATCH * num_inputs);
-  copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), reg, 0, reg_size * num_inputs,
-      shift_workspace, 0, reg_size * num_inputs);
-}
-
-// Reverses the order of blocks in a ciphertext buffer.
-// Essential for aligning Key/IV bit ordering.
-template <typename Torus>
-void reverse_bitsliced_radix_inplace_kreyvium(
-    CudaStreams streams, CudaRadixCiphertextFFI *shift_workspace,
-    CudaRadixCiphertextFFI *radix, uint32_t num_bits_in_reg,
-    uint32_t num_inputs) {
-  for (uint32_t i = 0; i < num_bits_in_reg; i++) {
-    uint32_t src_start = i * num_inputs;
-    uint32_t src_end = (i + 1) * num_inputs;
-    uint32_t dest_start = (num_bits_in_reg - 1 - i) * num_inputs;
-    uint32_t dest_end = (num_bits_in_reg - i) * num_inputs;
-    copy_radix_ciphertext_slice_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), shift_workspace, dest_start,
-        dest_end, radix, src_start, src_end);
-  }
-  copy_radix_ciphertext_slice_async<Torus>(
-      streams.stream(0), streams.gpu_index(0), radix, 0,
-      num_bits_in_reg * num_inputs, shift_workspace, 0,
-      num_bits_in_reg * num_inputs);
-}
+#include "kreyvium_common.cuh"
 
 // Core evaluation function that advances the Kreyvium state by exactly 64
 // steps, applying linear updates and non-linear AND gates.
@@ -81,34 +28,33 @@ __host__ void kreyvium_compute_64_steps(
 
   // Extract register taps for A (93-bit register)
   CudaRadixCiphertextFFI a65, a92, a91, a90, a68;
-  slice_reg_batch_kreyvium<Torus>(&a65, a_reg, 27, BATCH, N);
-  slice_reg_batch_kreyvium<Torus>(&a92, a_reg, 0, BATCH, N);
-  slice_reg_batch_kreyvium<Torus>(&a91, a_reg, 1, BATCH, N);
-  slice_reg_batch_kreyvium<Torus>(&a90, a_reg, 2, BATCH, N);
-  slice_reg_batch_kreyvium<Torus>(&a68, a_reg, 24, BATCH, N);
+  slice_reg_batch_impl<Torus>(&a65, a_reg, 27, BATCH, N);
+  slice_reg_batch_impl<Torus>(&a92, a_reg, 0, BATCH, N);
+  slice_reg_batch_impl<Torus>(&a91, a_reg, 1, BATCH, N);
+  slice_reg_batch_impl<Torus>(&a90, a_reg, 2, BATCH, N);
+  slice_reg_batch_impl<Torus>(&a68, a_reg, 24, BATCH, N);
 
   // Extract register taps for B (84-bit register)
   CudaRadixCiphertextFFI b68, b83, b82, b81, b77;
-  slice_reg_batch_kreyvium<Torus>(&b68, b_reg, 15, BATCH, N);
-  slice_reg_batch_kreyvium<Torus>(&b83, b_reg, 0, BATCH, N);
-  slice_reg_batch_kreyvium<Torus>(&b82, b_reg, 1, BATCH, N);
-  slice_reg_batch_kreyvium<Torus>(&b81, b_reg, 2, BATCH, N);
-  slice_reg_batch_kreyvium<Torus>(&b77, b_reg, 6, BATCH, N);
+  slice_reg_batch_impl<Torus>(&b68, b_reg, 15, BATCH, N);
+  slice_reg_batch_impl<Torus>(&b83, b_reg, 0, BATCH, N);
+  slice_reg_batch_impl<Torus>(&b82, b_reg, 1, BATCH, N);
+  slice_reg_batch_impl<Torus>(&b81, b_reg, 2, BATCH, N);
+  slice_reg_batch_impl<Torus>(&b77, b_reg, 6, BATCH, N);
 
   // Extract register taps for C (111-bit register)
   CudaRadixCiphertextFFI c65, c110, c109, c108, c86;
-  slice_reg_batch_kreyvium<Torus>(&c65, c_reg, 45, BATCH, N);
-  slice_reg_batch_kreyvium<Torus>(&c110, c_reg, 0, BATCH, N);
-  slice_reg_batch_kreyvium<Torus>(&c109, c_reg, 1, BATCH, N);
-  slice_reg_batch_kreyvium<Torus>(&c108, c_reg, 2, BATCH, N);
-  slice_reg_batch_kreyvium<Torus>(&c86, c_reg, 24, BATCH, N);
+  slice_reg_batch_impl<Torus>(&c65, c_reg, 45, BATCH, N);
+  slice_reg_batch_impl<Torus>(&c110, c_reg, 0, BATCH, N);
+  slice_reg_batch_impl<Torus>(&c109, c_reg, 1, BATCH, N);
+  slice_reg_batch_impl<Torus>(&c108, c_reg, 2, BATCH, N);
+  slice_reg_batch_impl<Torus>(&c86, c_reg, 24, BATCH, N);
 
   // Extract Key/IV bits using the virtual rotation offset and advance offsets
   CudaRadixCiphertextFFI k127, iv127;
-  slice_reg_batch_kreyvium<Torus>(&k127, k_reg, *k_offset, KREYVIUM_BATCH_SIZE,
-                                  N);
-  slice_reg_batch_kreyvium<Torus>(&iv127, iv_reg, *iv_offset,
-                                  KREYVIUM_BATCH_SIZE, N);
+  slice_reg_batch_impl<Torus>(&k127, k_reg, *k_offset, KREYVIUM_BATCH_SIZE, N);
+  slice_reg_batch_impl<Torus>(&iv127, iv_reg, *iv_offset, KREYVIUM_BATCH_SIZE,
+                              N);
   *k_offset = (*k_offset + KREYVIUM_BATCH_SIZE) % KREYVIUM_KEY_BITS;
   *iv_offset = (*iv_offset + KREYVIUM_BATCH_SIZE) % KREYVIUM_IV_BITS;
 
@@ -225,15 +171,15 @@ __host__ void kreyvium_compute_64_steps(
                                      (i + 1) * batch_size_blocks);
 
   // Update registers in place: shift left by 64 and insert the new 64 bits
-  shift_and_insert_batch_kreyvium<Torus>(streams, ws->shift_workspace, a_reg,
-                                         &flushed_new_a,
-                                         KREYVIUM_REGISTER_A_BITS, N);
-  shift_and_insert_batch_kreyvium<Torus>(streams, ws->shift_workspace, b_reg,
-                                         &flushed_new_b,
-                                         KREYVIUM_REGISTER_B_BITS, N);
-  shift_and_insert_batch_kreyvium<Torus>(streams, ws->shift_workspace, c_reg,
-                                         &flushed_new_c,
-                                         KREYVIUM_REGISTER_C_BITS, N);
+  shift_and_insert_batch_impl<Torus>(streams, ws->shift_workspace, a_reg,
+                                     &flushed_new_a, KREYVIUM_REGISTER_A_BITS,
+                                     N, KREYVIUM_BATCH_SIZE);
+  shift_and_insert_batch_impl<Torus>(streams, ws->shift_workspace, b_reg,
+                                     &flushed_new_b, KREYVIUM_REGISTER_B_BITS,
+                                     N, KREYVIUM_BATCH_SIZE);
+  shift_and_insert_batch_impl<Torus>(streams, ws->shift_workspace, c_reg,
+                                     &flushed_new_c, KREYVIUM_REGISTER_C_BITS,
+                                     N, KREYVIUM_BATCH_SIZE);
 
   // Copy the keystream output if a destination is provided
   if (output_dest != nullptr)
@@ -262,71 +208,70 @@ host_kreyvium_init(CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
 
   // k = key_bits.to_vec();
   CudaRadixCiphertextFFI src_key_slice;
-  slice_reg_batch_kreyvium<Torus>(&src_key_slice, key_bitsliced, 0,
-                                  KREYVIUM_KEY_BITS, N);
+  slice_reg_batch_impl<Torus>(&src_key_slice, key_bitsliced, 0,
+                              KREYVIUM_KEY_BITS, N);
   CudaRadixCiphertextFFI dest_k_reg_slice;
-  slice_reg_batch_kreyvium<Torus>(&dest_k_reg_slice, k_reg, 0,
-                                  KREYVIUM_KEY_BITS, N);
+  slice_reg_batch_impl<Torus>(&dest_k_reg_slice, k_reg, 0, KREYVIUM_KEY_BITS,
+                              N);
   copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                      &dest_k_reg_slice, &src_key_slice);
 
   // a[0..93] = key[35..128]
   CudaRadixCiphertextFFI k_source_for_a;
-  slice_reg_batch_kreyvium<Torus>(&k_source_for_a, k_reg,
-                                  KREYVIUM_KEY_BITS - KREYVIUM_REGISTER_A_BITS,
-                                  KREYVIUM_REGISTER_A_BITS, N);
+  slice_reg_batch_impl<Torus>(&k_source_for_a, k_reg,
+                              KREYVIUM_KEY_BITS - KREYVIUM_REGISTER_A_BITS,
+                              KREYVIUM_REGISTER_A_BITS, N);
   CudaRadixCiphertextFFI dest_a_slice;
-  slice_reg_batch_kreyvium<Torus>(&dest_a_slice, a_reg, 0,
-                                  KREYVIUM_REGISTER_A_BITS, N);
+  slice_reg_batch_impl<Torus>(&dest_a_slice, a_reg, 0, KREYVIUM_REGISTER_A_BITS,
+                              N);
   copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                      &dest_a_slice, &k_source_for_a);
 
   // k.reverse();
-  reverse_bitsliced_radix_inplace_kreyvium<Torus>(
-      streams, mem->ws->shift_workspace, k_reg, KREYVIUM_KEY_BITS, N);
+  reverse_bitsliced_radix_inplace_impl<Torus>(streams, mem->ws->shift_workspace,
+                                              k_reg, KREYVIUM_KEY_BITS, N);
 
   // iv = iv_bits.to_vec();
   CudaRadixCiphertextFFI src_iv_slice;
-  slice_reg_batch_kreyvium<Torus>(&src_iv_slice, iv_bitsliced, 0,
-                                  KREYVIUM_IV_BITS, N);
+  slice_reg_batch_impl<Torus>(&src_iv_slice, iv_bitsliced, 0, KREYVIUM_IV_BITS,
+                              N);
   CudaRadixCiphertextFFI dest_iv_reg_slice;
-  slice_reg_batch_kreyvium<Torus>(&dest_iv_reg_slice, iv_reg, 0,
-                                  KREYVIUM_IV_BITS, N);
+  slice_reg_batch_impl<Torus>(&dest_iv_reg_slice, iv_reg, 0, KREYVIUM_IV_BITS,
+                              N);
   copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                      &dest_iv_reg_slice, &src_iv_slice);
 
   // b[0..84] = iv[44..128]
   CudaRadixCiphertextFFI iv_source_for_b;
-  slice_reg_batch_kreyvium<Torus>(&iv_source_for_b, iv_reg,
-                                  KREYVIUM_IV_BITS - KREYVIUM_REGISTER_B_BITS,
-                                  KREYVIUM_REGISTER_B_BITS, N);
+  slice_reg_batch_impl<Torus>(&iv_source_for_b, iv_reg,
+                              KREYVIUM_IV_BITS - KREYVIUM_REGISTER_B_BITS,
+                              KREYVIUM_REGISTER_B_BITS, N);
   CudaRadixCiphertextFFI dest_b_slice;
-  slice_reg_batch_kreyvium<Torus>(&dest_b_slice, b_reg, 0,
-                                  KREYVIUM_REGISTER_B_BITS, N);
+  slice_reg_batch_impl<Torus>(&dest_b_slice, b_reg, 0, KREYVIUM_REGISTER_B_BITS,
+                              N);
   copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                      &dest_b_slice, &iv_source_for_b);
 
   // c[67..111] = iv[0..44]
   CudaRadixCiphertextFFI iv_source_for_c;
-  slice_reg_batch_kreyvium<Torus>(&iv_source_for_c, iv_reg, 0,
-                                  KREYVIUM_IV_BITS - KREYVIUM_REGISTER_B_BITS,
-                                  N);
+  slice_reg_batch_impl<Torus>(&iv_source_for_c, iv_reg, 0,
+                              KREYVIUM_IV_BITS - KREYVIUM_REGISTER_B_BITS, N);
   CudaRadixCiphertextFFI dest_c_iv_part;
-  slice_reg_batch_kreyvium<Torus>(
-      &dest_c_iv_part, c_reg,
-      KREYVIUM_REGISTER_C_BITS - (KREYVIUM_IV_BITS - KREYVIUM_REGISTER_B_BITS),
-      KREYVIUM_IV_BITS - KREYVIUM_REGISTER_B_BITS, N);
+  slice_reg_batch_impl<Torus>(&dest_c_iv_part, c_reg,
+                              KREYVIUM_REGISTER_C_BITS -
+                                  (KREYVIUM_IV_BITS - KREYVIUM_REGISTER_B_BITS),
+                              KREYVIUM_IV_BITS - KREYVIUM_REGISTER_B_BITS, N);
   copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                      &dest_c_iv_part, &iv_source_for_c);
 
   // iv.reverse();
-  reverse_bitsliced_radix_inplace_kreyvium<Torus>(
-      streams, mem->ws->shift_workspace, iv_reg, KREYVIUM_IV_BITS, N);
+  reverse_bitsliced_radix_inplace_impl<Torus>(streams, mem->ws->shift_workspace,
+                                              iv_reg, KREYVIUM_IV_BITS, N);
 
   // for i in 0..66 { c[i + 1] = 1; }
   CudaRadixCiphertextFFI dest_c_ones;
-  slice_reg_batch_kreyvium<Torus>(&dest_c_ones, c_reg, KREYVIUM_C_ONES_OFFSET,
-                                  KREYVIUM_C_ONES_COUNT, N);
+  slice_reg_batch_impl<Torus>(&dest_c_ones, c_reg, KREYVIUM_C_ONES_OFFSET,
+                              KREYVIUM_C_ONES_COUNT, N);
   host_add_scalar_one_inplace<Torus>(streams, &dest_c_ones,
                                      mem->params.message_modulus,
                                      mem->params.carry_modulus);
@@ -358,9 +303,9 @@ __host__ void host_kreyvium_step(
   uint32_t num_batches = num_steps / KREYVIUM_BATCH_SIZE;
   for (uint32_t i = 0; i < num_batches; i++) {
     CudaRadixCiphertextFFI batch_out_slice;
-    slice_reg_batch_kreyvium<Torus>(&batch_out_slice, keystream_output,
-                                    i * KREYVIUM_BATCH_SIZE,
-                                    KREYVIUM_BATCH_SIZE, num_inputs);
+    slice_reg_batch_impl<Torus>(&batch_out_slice, keystream_output,
+                                i * KREYVIUM_BATCH_SIZE, KREYVIUM_BATCH_SIZE,
+                                num_inputs);
     kreyvium_compute_64_steps(streams, mem, a_reg, b_reg, c_reg, k_reg, iv_reg,
                               k_offset, iv_offset, &batch_out_slice, bsks,
                               ksks);
