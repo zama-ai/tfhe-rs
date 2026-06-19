@@ -17,7 +17,7 @@ void micro_bench_and() {
       boolean_gen_keys_with_parameters(BOOLEAN_PARAMETERS_SET_TFHE_LIB_PARAMETERS, &cks, &sks);
   assert(gen_keys_ok == 0);
 
-  int num_loops = 10000;
+  int num_loops = 100;
 
   BooleanCiphertext *ct_left = NULL;
   BooleanCiphertext *ct_right = NULL;

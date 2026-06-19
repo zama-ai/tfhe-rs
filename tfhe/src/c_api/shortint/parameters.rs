@@ -537,98 +537,25 @@ expose_as_shortint_compact_public_key_parameters!(
     ),
 );
 
-macro_rules! expose_as_shortint_pbs_parameters(
+macro_rules! expose_as_shortint_pbs_parameters {
     (
-        $(($version:ident, $pfail:ident)),*$(,)?
-    ) => {
+        $(
+            [
+                $(($version:ident, $pfail:ident)),*$(,)? @ $($param_base_name:ident),*$(,)?
+            ]
+        ),*$(,)?) => {
+        // TUniform is exposed once, independently of the versioned cartesian product
         expose_as_shortint_pbs_parameters!(inner @
             tuniform =>
             // TUniform
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         );
-        ::paste::paste!{
-        $(
-            expose_as_shortint_pbs_parameters!(inner @
-                $version =>
-                // Gaussian
-                [<$version:upper _ PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_3_CARRY_0_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_4_CARRY_0_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_4_CARRY_1_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_5_CARRY_0_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_4_CARRY_2_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_6_CARRY_0_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_5_CARRY_2_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_6_CARRY_1_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_7_CARRY_0_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_5_CARRY_3_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_6_CARRY_2_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_7_CARRY_1_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_8_CARRY_0_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                // Small params
-                [<$version:upper _ PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2 $pfail:upper>],
-                // CPK
-                [<$version:upper _ PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2 $pfail:upper>],
-                // CPK SMALL
-                [<$version:upper _ PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_PBS_KS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_PBS_KS_GAUSSIAN_2 $pfail:upper>],
-                [<$version:upper _ PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS_GAUSSIAN_2 $pfail:upper>],
-            );
-        )*
-        }
+
+        expose_as_shortint_pbs_parameters_helper_1!(
+            $(
+                [[$([($version, $pfail)])*][$([$param_base_name])*]]
+            )*
+        );
     };
     (
         inner @ $test_id:ident => $(
@@ -665,18 +592,161 @@ macro_rules! expose_as_shortint_pbs_parameters(
             }
         }
     };
-);
+}
+
+macro_rules! expose_as_shortint_pbs_parameters_helper_1 {
+    (
+        $(
+            [
+                [$([($version:ident, $pfail:ident)])*]$param_base_name:tt
+            ]
+        )*) => {
+        expose_as_shortint_pbs_parameters_helper_2!(
+            $(
+                $([[($version, $pfail)]$param_base_name])*
+            )*);
+    }
+}
+
+macro_rules! expose_as_shortint_pbs_parameters_helper_2 {
+    ($([[($version:ident, $pfail:ident)][$([$param_base_name:ident])*]])*) => {
+        ::paste::paste!{
+            $(
+                expose_as_shortint_pbs_parameters!(inner @
+                    [<$version:lower>] =>
+                    $(
+                        [<$version:upper _ $param_base_name $pfail:upper>],
+                    )*
+                );
+            )*
+        }
+    }
+}
 
 expose_as_shortint_pbs_parameters!(
-    (V1_7, M128),
-    (V1_6, M128),
-    (V1_5, M128),
-    (V1_4, M128),
-    (V1_3, M128),
-    (V1_2, M128),
-    (V1_1, M128),
-    (V1_0, M128),
-    (V0_11, M64),
+    [
+    (V0_11, M64), (V1_0, M128), (V1_1, M128), (V1_2, M128),
+    (V1_3, M128), (V1_4, M128), (V1_5, M128), (V1_6, M128) @
+    PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_0_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_4_CARRY_0_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_4_CARRY_1_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_5_CARRY_0_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_4_CARRY_2_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_6_CARRY_0_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_5_CARRY_2_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_6_CARRY_1_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_7_CARRY_0_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_5_CARRY_3_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_6_CARRY_2_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_7_CARRY_1_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_8_CARRY_0_KS_PBS_GAUSSIAN_2,
+    // Small params
+    PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2,
+    PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2,
+    // CPK
+    PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_KS_PBS_GAUSSIAN_2,
+    // CPK Small
+    PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_PBS_KS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_PBS_KS_GAUSSIAN_2,
+    PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS_GAUSSIAN_2
+    ],
+    [
+    (V1_7, M128) @
+    PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_2_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_0_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_3_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_4_CARRY_0_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_4_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_4_CARRY_1_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_5_CARRY_0_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_5_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_4_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_4_CARRY_2_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_6_CARRY_0_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_6_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_5_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_4_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_5_CARRY_2_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_6_CARRY_1_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_7_CARRY_0_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_1_CARRY_7_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_6_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_5_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_5_CARRY_3_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_6_CARRY_2_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_7_CARRY_1_KS_PBS_GAUSSIAN_2,
+    PARAM_MESSAGE_8_CARRY_0_KS_PBS_GAUSSIAN_2,
+    // Small params
+    PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2,
+    PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2,
+    PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2,
+    PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2
+    ]
 );
 
 pub struct CompressionParameters(
