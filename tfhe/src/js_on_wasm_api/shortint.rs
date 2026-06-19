@@ -14,6 +14,7 @@ use crate::shortint::parameters::v1_3::*;
 use crate::shortint::parameters::v1_4::*;
 use crate::shortint::parameters::v1_5::*;
 use crate::shortint::parameters::v1_6::*;
+use crate::shortint::parameters::v1_7::*;
 use crate::shortint::parameters::*;
 use std::panic::set_hook;
 use wasm_bindgen::prelude::*;
@@ -337,6 +338,14 @@ expose_predefined_pke_parameters!(
         V1_6_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
         V1_6_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1
     ),
+    (
+        V1_7_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_7_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    ),
+    (
+        V1_7_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        V1_7_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1
+    ),
 );
 
 #[wasm_bindgen]
@@ -453,7 +462,9 @@ macro_rules! expose_predefined_pbs_parameters_helper_2 {
 // A mistake was made in 1.1 and versions were added at the start, to conserve the backward
 // compatible order starting with 1.1, new versions are now added at the END
 expose_predefined_pbs_parameters!(
-    (V1_1, M128), (V1_0, M128), (V0_11, M64), (V1_2, M128), (V1_3, M128), (V1_4, M128), (V1_5, M128), (V1_6, M128) @
+    (V1_1, M128), (V1_0, M128), (V0_11, M64), (V1_2, M128),
+    (V1_3, M128), (V1_4, M128), (V1_5, M128), (V1_6, M128),
+    (V1_7, M128) @
     PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2,
     PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2,
     PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2,
