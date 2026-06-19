@@ -183,13 +183,15 @@ async function compactPublicKeyBench32Bit(params_name) {
 
 async function compactPublicKeyBench32BitBig() {
   return await compactPublicKeyBench32Bit(
-    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128,
+    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
   );
 }
 
+// Use an older parameter set here, since compact PK parameters for PBS_KS AP have been removed
+// in 1.7.0
 async function compactPublicKeyBench32BitSmall() {
   return await compactPublicKeyBench32Bit(
-    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128,
+    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128,
   );
 }
 
@@ -466,13 +468,15 @@ async function compactPublicKeyZeroKnowledgeTest() {
 
 async function compressedCompactPublicKeyTest256BitBig() {
   await compressedCompactPublicKeyTest256BitOnConfig(
-    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128,
+    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
   );
 }
 
+// Use an older parameter set here, since compact PK parameters for PBS_KS AP have been removed
+// in 1.7.0
 async function compressedCompactPublicKeyTest256BitSmall() {
   await compressedCompactPublicKeyTest256BitOnConfig(
-    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128,
+    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128,
   );
 }
 
@@ -552,13 +556,15 @@ async function compactPublicKeyBench256Bit(params_name) {
 
 async function compactPublicKeyBench256BitBig() {
   return await compactPublicKeyBench256Bit(
-    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128,
+    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
   );
 }
 
+// Use an older parameter set here, since compact PK parameters for PBS_KS AP have been removed
+// in 1.7.0
 async function compactPublicKeyBench256BitSmall() {
   return await compactPublicKeyBench256Bit(
-    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128,
+    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128,
   );
 }
 
