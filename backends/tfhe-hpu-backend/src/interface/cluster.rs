@@ -162,66 +162,77 @@ impl HpuCluster {
 }
 
 impl HpuCluster {
+    /// Compute ordered list of usable nodes
+    /// Nodes are sorted by workload and rhs position
+    pub(crate) fn usable_nodes(&self, hpu_id: &[u8], rhs_ct: &[HpuVarWrapped]) -> Vec<u8> {
+        // Extract inputs position
+        let inputs_pos_weight = rhs_ct.iter().map(|v| v.hpu_id.0 as usize).fold(
+            [0usize; MAX_HPU_IN_CLUSTER],
+            |mut acc, hid| {
+                acc[hid] += 1;
+                acc
+            },
+        );
+        // Compute node weight
+        let mut hpu_weight = std::iter::zip(inputs_pos_weight.iter(), self.workload.iter())
+            .enumerate()
+            .map(|(i, (p, w))| {
+                // To prevent issue with ordering of unload node (i.e. properly take var_pos when all load
+                // is at 0) A default workload of operands size is added, this prevent to have
+                // underflow on weight computation
+                let dflt_weight = rhs_ct.len() * VAR_POS_WEIGHT;
+                let work_weight = w.load(atomic::Ordering::SeqCst);
+                let pos_weight = *p * VAR_POS_WEIGHT;
+                (i as u8, dflt_weight + work_weight - pos_weight)
+            })
+            .collect::<Vec<_>>();
+        hpu_weight.sort_by_key(|x| x.1);
+
+        // Kept only the available ones
+        let hpu_weight_filtered = hpu_id
+            .iter()
+            .map(|i| hpu_weight[*i as usize].0)
+            .collect::<Vec<_>>();
+        hpu_weight_filtered
+    }
+
     /// Compute Hpu mapping based on various heuristics
     /// Currently take into account:
     /// * Cluster nodes workload
     /// * Operand position
+    /// NB: It's mandatory that node owning the destination data is part of the compute
     pub(crate) fn compute_cmd_map(
         &self,
         hpu_id: &[u8],
         proto: &IOpProto,
-        var_pos: &[usize; MAX_HPU_IN_CLUSTER],
+        dst: &[HpuVarWrapped],
+        rhs_ct: &[HpuVarWrapped],
     ) -> IOpMapping {
-        // To prevent issue with ordering of unload node (i.e. properly take var_pos when all load
-        // is at 0) A default workload of operands size is added, this prevent to have
-        // underflow on weight computation
-        let hpu_ord = {
-            let var_num = var_pos.iter().sum::<usize>();
-            let hpu_weight = std::iter::zip(var_pos.iter(), self.workload.iter())
-                .enumerate()
-                .map(|(i, (p, w))| {
-                    let dflt_weight = 2 * var_num * VAR_POS_WEIGHT;
-                    let work_weight = w.load(atomic::Ordering::SeqCst);
-                    let pos_weight = *p * VAR_POS_WEIGHT;
-                    (i, dflt_weight + work_weight - pos_weight)
-                })
-                .collect::<Vec<_>>();
+        // Split it in two categories and ordered them back
+        //  a) Node that must belong to the IOp (because they own a destination)
+        //  b) Backup Node that optionnaly could by part of the Iop
+        let dst_pos = dst.iter().map(|v| v.hpu_id.0).collect::<Vec<_>>();
+        let (mut hpu_ord, hpu_opt): (Vec<_>, Vec<_>) = self
+            .usable_nodes(hpu_id, rhs_ct)
+            .into_iter()
+            .partition(|x| dst_pos.contains(&x));
 
-            let mut hpu_weight_filtered = hpu_id
-                .iter()
-                .map(|i| hpu_weight[*i as usize])
-                .collect::<Vec<_>>();
-            hpu_weight_filtered.sort_by_key(|x| x.1);
-            hpu_weight_filtered
-                .iter()
-                .map(|x| x.0 as u8)
-                .collect::<Vec<_>>()
-        };
+        // Check that Hpu invariantes are satisfied
+        assert!(
+            proto.used_nodes.max_node() as usize >= hpu_ord.len(),
+            "Error: dst variables are spread on more nodes than compute"
+        );
+
+        // Check that dst var arn't on filtered out node
+        assert_eq!(
+            hpu_ord.len(),
+            dst.len(),
+            "Error with dst variables position. Some dst variable are on unused nodes"
+        );
+        // Append optional nodes
+        hpu_ord.extend_from_slice(&hpu_opt);
         IOpMapping::from((hpu_ord, &proto.used_nodes))
     }
-
-    // /// Compute Hpu mapping for multi-hpu without inter-communication
-    // /// WARN: Temporary solution to enhance throughput of IOp
-    // pub(crate) fn compute_cmd_map(
-    //     &self,
-    //     _hpu_id: &[u8],
-    //     proto: &IOpProto,
-    //     var_pos: &[usize; MAX_HPU_IN_CLUSTER],
-    // ) -> IOpMapping {
-    //     let hpu_ord = var_pos
-    //         .iter()
-    //         .enumerate()
-    //         .filter(|(_id, x)| **x != 0)
-    //         .map(|(id, _val)| id as u8)
-    //         .collect::<Vec<_>>();
-
-    //     assert_eq!(
-    //         1,
-    //         hpu_ord.len(),
-    //         "Current MultiHpu implementation required Src/Dst on same Node"
-    //     );
-    //     IOpMapping::from((hpu_ord, &proto.used_nodes))
-    // }
 
     /// Workload getter
     pub(crate) fn workload(&self) -> &[atomic::AtomicUsize; MAX_HPU_IN_CLUSTER] {

@@ -146,14 +146,7 @@ impl HpuCmd {
 
         // Compute mapping based on workload and operand position
         let hpu_id = cluster.keys().copied().collect::<Vec<_>>();
-        let mut var_pos = [0; MAX_HPU_IN_CLUSTER];
-        for hid in dst.iter().map(|v| v.hpu_id.0) {
-            var_pos[hid as usize] += 2;
-        }
-        for hid in rhs_ct.iter().map(|v| v.hpu_id.0) {
-            var_pos[hid as usize] += 1;
-        }
-        let map = cluster.compute_cmd_map(&hpu_id, proto, &var_pos);
+        let map = cluster.compute_cmd_map(&hpu_id, proto, dst, rhs_ct);
         let iop_id = cluster.gen_iop_id();
 
         // Create associated command
@@ -180,6 +173,7 @@ impl HpuCmd {
         rhs_imm: &[HpuImm],
         dst_pos: Option<crate::asm::PhysId>,
     ) -> Vec<HpuVarWrapped> {
+        // Use given position or default to node likely to be used
         let pos = dst_pos.unwrap_or(rhs_ct[0].hpu_id);
         let dst = proto
             .dst
