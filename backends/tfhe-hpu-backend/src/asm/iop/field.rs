@@ -537,10 +537,6 @@ impl IOp {
         &self.map
     }
 
-    pub fn phys_id(&self, tid: PhysId) -> Option<PhysId> {
-        self.map.phys_id(VirtId(tid.0))
-    }
-
     /// IOp doesn't store IOpId explicitly
     /// This information is contained in the destination operands.
     pub fn get_iid(&self) -> IOpId {
@@ -558,13 +554,7 @@ impl IOp {
     }
 
     /// Compute fw table entry for given IOp
-    pub fn fw_entry(&self, hpu_id: u8) -> usize {
-        // Search through mapping to find matching virtual id
-        let virt_id = self
-            .map
-            .virt_id(PhysId(hpu_id))
-            .unwrap_or_else(|| panic!("Error: {hpu_id} is not part of iop mapping {:?}", self.map));
-
+    pub fn fw_entry(&self, virt_id: VirtId) -> usize {
         // Fw lookup is composed of an entry for each fw_blk_with.
         // Each entries is composed of IOpWidth entries, itself composed of MAX_HPU_IN_CLUSTER slot
         let integer_w_bucket = (0x100 * MAX_HPU_IN_CLUSTER) * self.fw_blk_width();

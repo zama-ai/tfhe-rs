@@ -1,7 +1,6 @@
 //! Help with IOp management over HPU
 //! Track IOp status and handle backward update of associated HpuVariable
 use super::*;
-use crate::asm::dop::MAX_HPU_IN_CLUSTER;
 use crate::asm::iop::{IOpMapping, Immediate, Operand, OperandKind};
 use crate::asm::{IOp, IOpId, IOpcode};
 use variable::HpuVarWrapped;
