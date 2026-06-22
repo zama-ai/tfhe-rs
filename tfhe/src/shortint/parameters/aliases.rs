@@ -10,6 +10,7 @@ use current_params::classic::gaussian::p_fail_2_minus_128::ks_pbs::{
 };
 use current_params::classic::gaussian::p_fail_2_minus_64::ks_pbs::V1_6_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
 use current_params::classic::tuniform::p_fail_2_minus_128::ks_pbs::V1_6_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+use current_params::classic::tuniform::p_fail_2_minus_128::ks_pbs_gpu::V1_6_PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128;
 use current_params::classic::tuniform::p_fail_2_minus_64::ks_pbs::V1_6_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use current_params::compact_public_key_only::p_fail_2_minus_128::ks_pbs::V1_6_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use current_params::key_switching::p_fail_2_minus_128::ks_pbs::{
@@ -184,6 +185,9 @@ pub const PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128:
 
 pub const PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128: MultiBitPBSParameters =
     V1_6_PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128;
+
+pub const PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128: ClassicPBSParameters =
+    V1_6_PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128;
 
 pub const PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS: MultiBitPBSParameters =
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;

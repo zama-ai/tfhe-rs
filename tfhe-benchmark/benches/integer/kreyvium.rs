@@ -3,6 +3,7 @@ use criterion::Criterion;
 #[cfg(feature = "gpu")]
 pub mod cuda {
     use benchmark::params_aliases::{
+        BENCH_PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128,
         BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         BENCH_PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128,
         BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -324,23 +325,34 @@ pub mod cuda {
         let bench_name = "integer::cuda::fast_kreyvium";
         let mut bench_group = new_kreyvium_bench_group(c, bench_name);
 
-        let atomic_param: AtomicPatternParameters =
-            BENCH_PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128.into();
-        let param_name = BENCH_PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128.name();
+        let params = [
+            (
+                BENCH_PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128.into(),
+                BENCH_PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128.name(),
+            ),
+            (
+                BENCH_PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128.into(),
+                BENCH_PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128.name(),
+            ),
+        ];
 
-        bench_kreyvium_variant(
-            &mut bench_group,
-            bench_name,
-            "fast_kreyvium",
-            atomic_param,
-            param_name,
-            |sks, key, iv, streams| sks.fast_kreyvium_init(key, iv, streams).unwrap(),
-            |sks, state, steps, streams| sks.fast_kreyvium_next(state, steps, streams).unwrap(),
-            |sks, key, iv, steps, streams| {
-                sks.fast_kreyvium_generate_keystream(key, iv, steps, streams)
-                    .unwrap()
-            },
-        );
+        for (atomic_param_val, param_name) in params {
+            let atomic_param: AtomicPatternParameters = atomic_param_val;
+
+            bench_kreyvium_variant(
+                &mut bench_group,
+                bench_name,
+                "fast_kreyvium",
+                atomic_param,
+                param_name,
+                |sks, key, iv, streams| sks.fast_kreyvium_init(key, iv, streams).unwrap(),
+                |sks, state, steps, streams| sks.fast_kreyvium_next(state, steps, streams).unwrap(),
+                |sks, key, iv, steps, streams| {
+                    sks.fast_kreyvium_generate_keystream(key, iv, steps, streams)
+                        .unwrap()
+                },
+            );
+        }
 
         bench_group.finish();
     }
@@ -388,24 +400,37 @@ pub mod cuda {
         let bench_name = "integer::cuda::fast_kreyvium";
         let mut bench_group = new_kreyvium_bench_group(c, bench_name);
 
-        let atomic_param: AtomicPatternParameters =
-            BENCH_PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128.into();
-        let param_name = BENCH_PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128.name();
+        let params = [
+            (
+                BENCH_PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128.into(),
+                BENCH_PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128.name(),
+                "mbg4",
+            ),
+            (
+                BENCH_PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128.into(),
+                BENCH_PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128.name(),
+                "classical",
+            ),
+        ];
 
-        bench_kreyvium_throughput(
-            &mut bench_group,
-            bench_name,
-            "fast_kreyvium",
-            "kreyvium1_0",
-            atomic_param,
-            param_name,
-            |sks, key, iv, streams| sks.fast_kreyvium_init(key, iv, streams).unwrap(),
-            |sks, state, steps, streams| sks.fast_kreyvium_next(state, steps, streams).unwrap(),
-            |sks, key, iv, steps, streams| {
-                sks.fast_kreyvium_generate_keystream(key, iv, steps, streams)
-                    .unwrap()
-            },
-        );
+        for (atomic_param_val, param_name, param_tag) in params {
+            let atomic_param: AtomicPatternParameters = atomic_param_val;
+
+            bench_kreyvium_throughput(
+                &mut bench_group,
+                bench_name,
+                "fast_kreyvium",
+                param_tag,
+                atomic_param,
+                param_name,
+                |sks, key, iv, streams| sks.fast_kreyvium_init(key, iv, streams).unwrap(),
+                |sks, state, steps, streams| sks.fast_kreyvium_next(state, steps, streams).unwrap(),
+                |sks, key, iv, steps, streams| {
+                    sks.fast_kreyvium_generate_keystream(key, iv, steps, streams)
+                        .unwrap()
+                },
+            );
+        }
 
         bench_group.finish();
     }

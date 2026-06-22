@@ -47,7 +47,7 @@ pub mod shortint_params_aliases {
     pub const BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS: KeySwitch32PBSParameters =
         V1_6_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
 
-    pub const BENCH_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 142] =
+    pub const BENCH_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 143] =
         VEC_ALL_CLASSIC_PBS_PARAMETERS;
 
     // MultiBit
@@ -186,6 +186,8 @@ pub mod shortint_params_aliases {
         V1_6_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128;
     pub const BENCH_PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128: MultiBitPBSParameters =
         V1_6_PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128;
+    pub const BENCH_PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128: ClassicPBSParameters =
+        V1_6_PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128;
 
     pub const BENCH_ALL_MULTI_BIT_PBS_PARAMETERS: [(&MultiBitPBSParameters, &str); 241] =
         VEC_ALL_MULTI_BIT_PBS_PARAMETERS;

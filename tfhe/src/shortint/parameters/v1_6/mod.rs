@@ -51,7 +51,7 @@ use crate::shortint::parameters::{
 };
 
 /// All [`ClassicPBSParameters`] in this module.
-pub const VEC_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 142] = [
+pub const VEC_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 143] = [
     (
         &V1_6_PARAM_MESSAGE_1_CARRY_0_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
         "V1_6_PARAM_MESSAGE_1_CARRY_0_COMPACT_PK_KS_PBS_GAUSSIAN_2M64",
@@ -619,6 +619,10 @@ pub const VEC_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 142] =
     (
         &V1_6_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
         "V1_6_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128",
+    ),
+    (
+        &V1_6_PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128,
+        "V1_6_PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128",
     ),
 ];
 
