@@ -2585,6 +2585,74 @@ unsafe extern "C" {
         ksks: *const *mut ffi::c_void,
     );
 }
+unsafe extern "C" {
+    pub fn scratch_cuda_fast_kreyvium_init_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
+        message_modulus: u32,
+        carry_modulus: u32,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+        num_inputs: u32,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_fast_kreyvium_init(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_fast_kreyvium_step_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
+        message_modulus: u32,
+        carry_modulus: u32,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+        num_inputs: u32,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_fast_kreyvium_step(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
+    pub fn cuda_fast_kreyvium_init_async(
+        streams: CudaStreamsFFI,
+        a_reg: *mut CudaRadixCiphertextFFI,
+        b_reg: *mut CudaRadixCiphertextFFI,
+        c_reg: *mut CudaRadixCiphertextFFI,
+        k_reg: *mut CudaRadixCiphertextFFI,
+        iv_reg: *mut CudaRadixCiphertextFFI,
+        k_offset: *mut u32,
+        iv_offset: *mut u32,
+        key: *const CudaRadixCiphertextFFI,
+        iv_in: *const CudaRadixCiphertextFFI,
+        num_inputs: u32,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_fast_kreyvium_step_async(
+        streams: CudaStreamsFFI,
+        keystream_output: *mut CudaRadixCiphertextFFI,
+        a_reg: *mut CudaRadixCiphertextFFI,
+        b_reg: *mut CudaRadixCiphertextFFI,
+        c_reg: *mut CudaRadixCiphertextFFI,
+        k_reg: *mut CudaRadixCiphertextFFI,
+        iv_reg: *mut CudaRadixCiphertextFFI,
+        k_offset: *mut u32,
+        iv_offset: *mut u32,
+        num_inputs: u32,
+        num_steps: u32,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
 pub const EXPAND_KIND_NO_CASTING: EXPAND_KIND = 0;
 pub const EXPAND_KIND_CASTING: EXPAND_KIND = 1;
 pub const EXPAND_KIND_SANITY_CHECK: EXPAND_KIND = 2;
