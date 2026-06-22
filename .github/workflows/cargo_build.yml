@@ -155,16 +155,16 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
-      - name: Check all builds success
-        if: needs.parallel-pcc-cpu.result == 'success' &&
-          needs.pcc-hpu.result == 'success' &&
-          needs.fast-tests-hpu.result == 'success' &&
-          needs.build-tfhe-full.result == 'success' &&
-          needs.build.result == 'success' &&
-          needs.build-layers.result == 'success' &&
-          needs.build-c-api.result == 'success'
-        run: |
-          echo "All tfhe-rs build checks passed"
+#      - name: Check all builds success
+#        if: needs.parallel-pcc-cpu.result == 'success' &&
+#          needs.pcc-hpu.result == 'success' &&
+#          needs.fast-tests-hpu.result == 'success' &&
+#          needs.build-tfhe-full.result == 'success' &&
+#          needs.build.result == 'success' &&
+#          needs.build-layers.result == 'success' &&
+#          needs.build-c-api.result == 'success'
+#        run: |
+#          echo "All tfhe-rs build checks passed"
 
       - name: Check builds failure
         if: needs.parallel-pcc-cpu.result != 'success' ||
