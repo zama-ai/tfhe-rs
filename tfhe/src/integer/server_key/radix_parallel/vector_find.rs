@@ -2,7 +2,11 @@ use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::block_decomposition::{BlockDecomposer, Decomposable, DecomposableInto};
 use crate::integer::{BooleanBlock, IntegerRadixCiphertext, RadixCiphertext, ServerKey};
 use crate::prelude::CastInto;
-use crate::shortint::Ciphertext;
+use crate::shortint::atomic_pattern::AtomicPattern;
+use crate::shortint::server_key::{
+    generate_lookup_table_with_output_encoding, unchecked_add_assign,
+};
+use crate::shortint::{CarryModulus, Ciphertext, MaxNoiseLevel};
 use itertools::Itertools;
 use rayon::prelude::*;
 use std::collections::HashSet;
@@ -96,13 +100,6 @@ impl ServerKey {
         let num_blocks_to_represent_values =
             self.num_blocks_to_represent_unsigned_value(max_output_value);
 
-        let possible_results_to_be_aggregated = self.create_possible_results(
-            num_blocks_to_represent_values,
-            selectors
-                .into_par_iter()
-                .zip(matches.0.par_iter().map(|(_input, output)| *output)),
-        );
-
         if max_output_value == Clear::ZERO {
             // If the max output value is zero, it means 0 is the only output possible
             // and in the case where none of the input matches the ct, the returned value is 0
@@ -118,8 +115,13 @@ impl ServerKey {
         } else {
             rayon::join(
                 || {
-                    let result: RadixCiphertext =
-                        self.aggregate_and_unpack_one_hot_vector(possible_results_to_be_aggregated);
+                    let output_clears = matches.0.iter().map(|x| x.1).collect_vec();
+                    let result: RadixCiphertext = self
+                        .unchecked_boolean_scalar_one_hot_dot_prod_parallelized(
+                            &selectors,
+                            &output_clears,
+                            num_blocks_to_represent_values as u32,
+                        );
                     self.cast_to_unsigned(result, num_blocks_to_represent_values)
                 },
                 || {
@@ -472,7 +474,7 @@ impl ServerKey {
             );
         }
         let selectors = self.compute_equality_selectors(ct, clears.par_iter().copied());
-        self.compute_final_index_from_selectors(selectors)
+        self.compute_final_index_from_selectors(&selectors)
     }
 
     /// Returns the encrypted index of the encrypted `value` in the clear slice
@@ -560,19 +562,23 @@ impl ServerKey {
             ct,
             unique_clears.par_iter().copied().map(|(_, value)| value),
         );
+
         let selectors2 = selectors.iter().cloned().map(|x| x.0).collect::<Vec<_>>();
-        let num_blocks_result =
-            (clears.len().ilog2() + 1).div_ceil(self.message_modulus().0.ilog2()) as usize;
 
         rayon::join(
             || {
-                let possible_values = self.create_possible_results(
-                    num_blocks_result,
-                    selectors
-                        .into_par_iter()
-                        .zip(unique_clears.into_par_iter().map(|(index, _)| index as u64)),
-                );
-                self.aggregate_and_unpack_one_hot_vector(possible_values)
+                let indices = unique_clears
+                    .into_par_iter()
+                    .map(|(index, _)| index as u64)
+                    .collect::<Vec<_>>();
+                let max = indices.iter().copied().max().unwrap();
+                let num_blocks_to_represent_values =
+                    self.num_blocks_to_represent_unsigned_value(max);
+                self.unchecked_boolean_scalar_one_hot_dot_prod_parallelized(
+                    &selectors,
+                    &indices,
+                    num_blocks_to_represent_values as u32,
+                )
             },
             || BooleanBlock::new_unchecked(self.is_at_least_one_comparisons_block_true(selectors2)),
         )
@@ -656,7 +662,7 @@ impl ServerKey {
             .map(|ct| self.eq_parallelized(ct, value))
             .collect::<Vec<_>>();
 
-        self.compute_final_index_from_selectors(selectors)
+        self.compute_final_index_from_selectors(&selectors)
     }
 
     /// Returns the encrypted index of the of encrypted `value` in the ciphertext slice
@@ -751,7 +757,7 @@ impl ServerKey {
             .map(|ct| self.scalar_eq_parallelized(ct, clear))
             .collect::<Vec<_>>();
 
-        self.compute_final_index_from_selectors(selectors)
+        self.compute_final_index_from_selectors(&selectors)
     }
 
     /// Returns the encrypted index of the of clear `value` in the ciphertext slice
@@ -833,35 +839,15 @@ impl ServerKey {
                 self.create_trivial_boolean_block(false),
             );
         }
-        let num_blocks_result =
-            (cts.len().ilog2() + 1).div_ceil(self.message_modulus().0.ilog2()) as usize;
 
         let selectors = cts
             .par_iter()
-            .map(|ct| self.scalar_eq_parallelized(ct, clear).0)
+            .map(|ct| self.scalar_eq_parallelized(ct, clear))
             .collect::<Vec<_>>();
 
         let selectors = self.only_keep_first_true(selectors);
 
-        let selectors2 = selectors
-            .iter()
-            .cloned()
-            .map(BooleanBlock::new_unchecked)
-            .collect::<Vec<_>>();
-
-        rayon::join(
-            || {
-                let possible_values = self.create_possible_results(
-                    num_blocks_result,
-                    selectors2
-                        .into_par_iter()
-                        .enumerate()
-                        .map(|(i, v)| (v, i as u64)),
-                );
-                self.aggregate_and_unpack_one_hot_vector(possible_values)
-            },
-            || BooleanBlock::new_unchecked(self.is_at_least_one_comparisons_block_true(selectors)),
-        )
+        self.compute_final_index_from_selectors(&selectors)
     }
 
     /// Returns the encrypted index of the _first_ occurrence of clear `value` in the ciphertext
@@ -941,35 +927,14 @@ impl ServerKey {
             );
         }
 
-        let num_blocks_result =
-            (cts.len().ilog2() + 1).div_ceil(self.message_modulus().0.ilog2()) as usize;
-
         let selectors = cts
             .par_iter()
-            .map(|ct| self.eq_parallelized(ct, value).0)
+            .map(|ct| self.eq_parallelized(ct, value))
             .collect::<Vec<_>>();
 
         let selectors = self.only_keep_first_true(selectors);
 
-        let selectors2 = selectors
-            .iter()
-            .cloned()
-            .map(BooleanBlock::new_unchecked)
-            .collect::<Vec<_>>();
-
-        rayon::join(
-            || {
-                let possible_values = self.create_possible_results(
-                    num_blocks_result,
-                    selectors2
-                        .into_par_iter()
-                        .enumerate()
-                        .map(|(i, v)| (v, i as u64)),
-                );
-                self.aggregate_and_unpack_one_hot_vector(possible_values)
-            },
-            || BooleanBlock::new_unchecked(self.is_at_least_one_comparisons_block_true(selectors)),
-        )
+        self.compute_final_index_from_selectors(&selectors)
     }
 
     /// Returns the encrypted index of the _first_ occurrence of encrypted `value` in the ciphertext
@@ -1040,23 +1005,20 @@ impl ServerKey {
 
     fn compute_final_index_from_selectors(
         &self,
-        selectors: Vec<BooleanBlock>,
+        selectors: &[BooleanBlock],
     ) -> (RadixCiphertext, BooleanBlock) {
-        let num_blocks_result =
-            (selectors.len().ilog2() + 1).div_ceil(self.message_modulus().0.ilog2()) as usize;
-
         let selectors2 = selectors.iter().cloned().map(|x| x.0).collect::<Vec<_>>();
 
         rayon::join(
             || {
-                let possible_values = self.create_possible_results(
-                    num_blocks_result,
-                    selectors
-                        .into_par_iter()
-                        .enumerate()
-                        .map(|(i, v)| (v, i as u64)),
-                );
-                self.aggregate_and_unpack_one_hot_vector(possible_values)
+                let indices = (0..selectors.len() as u32).collect::<Vec<_>>();
+                let num_blocks_to_represent_values =
+                    self.num_blocks_to_represent_unsigned_value(selectors.len() - 1);
+                self.unchecked_boolean_scalar_one_hot_dot_prod_parallelized(
+                    selectors,
+                    &indices,
+                    num_blocks_to_represent_values as u32,
+                )
             },
             || BooleanBlock::new_unchecked(self.is_at_least_one_comparisons_block_true(selectors2)),
         )
@@ -1131,156 +1093,54 @@ impl ServerKey {
             .collect::<Vec<_>>()
     }
 
-    /// Creates a vector of radix ciphertext from an iterator that associates encrypted boolean
-    /// values to clear values.
+    /// Aggregates the on_hot_vector into a single result
     ///
-    /// The elements of the resulting vector are zero if the corresponding BooleanBlock encrypted 0,
-    /// otherwise it encrypts the associated clear value.
+    /// the blocks inside the one hot vector must have their message
+    /// pushed onto the carry part, and the message part must be empty.
     ///
-    /// This is only really useful if only one of the boolean block is known to be non-zero.
-    ///
-    /// `num_blocks`: number of blocks (unpacked) needed to represent the biggest clear value
-    ///
-    /// - Resulting radix ciphertexts have their block packed, thus they will have ceil (numb_blocks
-    ///   / 2) elements
-    fn create_possible_results<T, Iter, Clear>(
+    /// The output will be a regular radix with the message into the message_part
+    pub(crate) fn aggregate_one_hot_vector_with_noise_trick<T>(
         &self,
-        num_blocks: usize,
-        possible_outputs: Iter,
-    ) -> Vec<T>
+        mut one_hot_vector: Vec<T>,
+    ) -> T
     where
         T: IntegerRadixCiphertext,
-        Iter: ParallelIterator<Item = (BooleanBlock, Clear)>,
-        Clear: Decomposable + CastInto<usize>,
     {
-        assert!(
-            self.carry_modulus().0 >= self.message_modulus().0,
-            "As this function packs blocks, it requires to have at least as much carry \
-                space as message space ({:?} vs {:?})",
-            self.carry_modulus(),
-            self.message_modulus()
+        let lut_size = self.key.atomic_pattern.lookup_table_size();
+
+        // As the blocks have the message/data into the carry part
+        // the is equivalent to blocks being encoded as no carry modulus
+        // and only the message modulus.
+        //
+        // This allows to do more leveled additions before cleaning the noise,
+        // and to clean the noise, we need to use a lookup table that respect
+        // the proper encoding
+        let identity_lut = generate_lookup_table_with_output_encoding(
+            lut_size,
+            self.key.ciphertext_modulus,
+            self.message_modulus(),
+            CarryModulus(1),
+            self.message_modulus(),
+            CarryModulus(1),
+            |x| x,
         );
-        // Vector of functions that returns function, that will be used to create LUTs later
-        let scalar_block_cmp_fns = (0..(self.message_modulus().0 * self.message_modulus().0))
-            .map(|packed_block_value| {
-                move |is_selected: u64| {
-                    if is_selected == 1 {
-                        packed_block_value
-                    } else {
-                        0
-                    }
-                }
-            })
-            .collect::<Vec<_>>();
 
-        // How "many LUTs" we can apply, since we are going to apply luts on boolean values
-        // (Degree(1), Modulus(2))
-        // Equivalent to (2^(msg_bits + carry_bits - 1)
-        let max_num_many_luts = (self.message_modulus().0 * self.carry_modulus().0) / 2;
-
-        let num_bits_in_message = self.message_modulus().0.ilog2();
-        possible_outputs
-            .map(|(selector, output_value)| {
-                let decomposed_value = BlockDecomposer::new(output_value, 2 * num_bits_in_message)
-                    .take(num_blocks.div_ceil(2))
-                    .collect::<Vec<_>>();
-
-                // Since there is a limit in the number of how many lut we can apply in one PBS
-                // we pre-chunk LUTs according to that amount
-                let blocks = decomposed_value
-                    .par_chunks(max_num_many_luts as usize)
-                    .flat_map(|chunk_of_packed_value| {
-                        let fns = chunk_of_packed_value
-                            .iter()
-                            .map(|packed_value| {
-                                &(scalar_block_cmp_fns[(*packed_value).cast_into()])
-                                    as &dyn Fn(u64) -> u64
-                            })
-                            .collect::<Vec<_>>();
-                        let luts = self.key.generate_many_lookup_table(fns.as_slice());
-                        self.key.apply_many_lookup_table(&selector.0, &luts)
-                    })
-                    .collect::<Vec<_>>();
-
-                T::from_blocks(blocks)
-            })
-            .collect::<Vec<_>>()
-    }
-
-    /// Aggregate/combines a vec of one-hot vector of radix ciphertexts
-    /// (i.e. at most one of the vector element is non-zero) into single ciphertext
-    /// containing the non-zero value.
-    ///
-    /// The elements in the one hot vector may have their block packed or not
-    ///
-    /// The returned result has non packed blocks
-    pub(super) fn aggregate_and_unpack_one_hot_vector<T>(&self, one_hot_vector: Vec<T>) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        let result = self.partial_aggregate_one_hot_vector(one_hot_vector);
-
-        let unpacked_blocks = result
-            .blocks()
-            .par_iter()
-            .flat_map(|block| -> [Ciphertext; 2] {
-                rayon::join(
-                    || self.key.message_extract(block),
-                    || self.key.carry_extract(block),
-                )
-                .into()
-            })
-            .collect::<Vec<_>>();
-
-        T::from_blocks(unpacked_blocks)
-    }
-
-    /// Aggregate/combines a vec of one-hot vector of radix ciphertexts
-    /// (i.e. at most one of the vector element is non-zero) into single ciphertext
-    /// containing the non-zero value.
-    ///
-    /// * The returned result has block still packed if the input blocks where packed.
-    pub(super) fn aggregate_one_hot_vector<T>(&self, one_hot_vector: Vec<T>) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        let mut result = self.partial_aggregate_one_hot_vector(one_hot_vector);
-
-        result
-            .blocks_mut()
-            .par_iter_mut()
-            .for_each(|block| self.key.message_extract_assign(block));
-
-        result
-    }
-
-    /// Aggregate/combines a vec of one-hot vector of radix ciphertexts
-    /// (i.e. at most one of the vector element is non-zero) into single ciphertext
-    /// containing the non-zero value.
-    ///
-    /// * The elements in the one hot vector may have their block packed or not
-    /// * The returned result has block still packed if the input blocks where packed.
-    ///
-    /// # Warning
-    ///
-    /// The returned value will need to be unpacked if the inputs where packed or
-    /// if they were not, noise cleaning may still need to be done.
-    fn partial_aggregate_one_hot_vector<T>(&self, mut one_hot_vector: Vec<T>) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        // Used to clean the noise
-        let identity_lut = self.key.generate_lookup_table(|x| x);
-
-        // Since all but one radix are zeros, the limiting factor
-        // for additions is the noise level
-        let chunk_size = self.key.max_noise_level.get() as usize;
-
+        let old_precision = self.message_modulus().0 * self.carry_modulus().0;
+        let new_precision = self.message_modulus().0;
+        let diff = old_precision / new_precision;
+        let max_noise_level = MaxNoiseLevel::new(self.key.max_noise_level.get() * diff);
+        let chunk_size = max_noise_level.get() as usize;
         let (num_init_chunks, num_init_rest) = (
             one_hot_vector.len() / chunk_size,
             one_hot_vector.len() % chunk_size,
         );
         let mut workbench = Vec::with_capacity(num_init_chunks + num_init_rest);
+
+        let radix_add_assign = |lhs: &mut T, rhs: &T| {
+            for (l, r) in lhs.blocks_mut().iter_mut().zip(rhs.blocks().iter()) {
+                unchecked_add_assign(l, r, max_noise_level);
+            }
+        };
 
         while one_hot_vector.len() > chunk_size {
             one_hot_vector
@@ -1288,7 +1148,7 @@ impl ServerKey {
                 .map(|chunk| {
                     let mut result = chunk[0].clone();
                     for r in &chunk[1..] {
-                        self.unchecked_add_assign(&mut result, r);
+                        radix_add_assign(&mut result, r);
                     }
                     result
                         .blocks_mut()
@@ -1307,20 +1167,33 @@ impl ServerKey {
         let mut result = one_hot_vector[0].clone();
         if one_hot_vector.len() > 1 {
             for r in &one_hot_vector[1..] {
-                self.unchecked_add_assign(&mut result, r);
+                radix_add_assign(&mut result, r);
             }
         }
+
+        // The final LUT needs to change the encoding to the original one
+        let encoding_change_lut = generate_lookup_table_with_output_encoding(
+            lut_size,
+            self.key.ciphertext_modulus,
+            self.message_modulus(),
+            CarryModulus(1),
+            self.message_modulus(),
+            self.carry_modulus(),
+            |x| x,
+        );
+        result.blocks_mut().par_iter_mut().for_each(|block| {
+            self.key
+                .apply_lookup_table_assign(block, &encoding_change_lut);
+        });
 
         result
     }
 
-    /// Only keeps at most one Ciphertext that encrypts 1
+    /// Only keeps at most one BooleanBlock that encrypts 1
     ///
-    /// Given a Vec of Ciphertexts where each Ciphertext encrypts 0 or 1
-    /// This function will return a Vec of Ciphertext where at most one encryption of 1 is present
-    ///
-    /// The first encryption of one is kept
-    fn only_keep_first_true(&self, mut values: Vec<Ciphertext>) -> Vec<Ciphertext> {
+    /// Given a Vec of BooleanBlocks (each encrypting 0 or 1) this function returns a Vec where at
+    /// most one encryption of 1 is present. The first encryption of 1 is kept.
+    fn only_keep_first_true(&self, mut values: Vec<BooleanBlock>) -> Vec<BooleanBlock> {
         if values.len() <= 1 {
             return values;
         }
@@ -1328,7 +1201,7 @@ impl ServerKey {
             self.message_modulus().0 < 3 || (self.carry_modulus().0 < self.message_modulus().0);
 
         if does_not_have_enough_bits {
-            let mut true_already_seen = values[0].clone();
+            let mut true_already_seen = values[0].0.clone();
             let lut =
                 self.key
                     .generate_lookup_table_bivariate(|current_block, true_already_seen| {
@@ -1340,9 +1213,12 @@ impl ServerKey {
                     });
 
             for block in &mut values[1..] {
-                let new_true_already_seen = self.key.bitor(&true_already_seen, block);
-                self.key
-                    .apply_lookup_table_bivariate_assign(block, &mut true_already_seen, &lut);
+                let new_true_already_seen = self.key.bitor(&true_already_seen, &block.0);
+                self.key.apply_lookup_table_bivariate_assign(
+                    &mut block.0,
+                    &mut true_already_seen,
+                    &lut,
+                );
                 true_already_seen = new_true_already_seen;
             }
 
@@ -1362,7 +1238,8 @@ impl ServerKey {
                 self.key
                     .unchecked_apply_lookup_table_bivariate_assign(current, previous, &lut_fn);
             };
-            let mut values = self.compute_prefix_sum_hillis_steele(values, sum_function);
+            let raw = values.into_iter().map(|b| b.0).collect();
+            let mut raw = self.compute_prefix_sum_hillis_steele(raw, sum_function);
             let lut = self.key.generate_lookup_table(|x| {
                 let x = x % self.message_modulus().0;
                 if x == ALREADY_SEEN {
@@ -1371,10 +1248,9 @@ impl ServerKey {
                     x
                 }
             });
-            values
-                .par_iter_mut()
+            raw.par_iter_mut()
                 .for_each(|block| self.key.apply_lookup_table_assign(block, &lut));
-            values
+            raw.into_iter().map(BooleanBlock::new_unchecked).collect()
         }
     }
 }
