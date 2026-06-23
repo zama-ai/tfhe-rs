@@ -24,6 +24,8 @@ pub mod expanded;
 
 pub use expanded::{ShortintExpandedBootstrappingKey, ShortintExpandedServerKey};
 
+#[cfg(feature = "integer")]
+pub(crate) use add::unchecked_add_assign;
 pub use bivariate_pbs::{
     BivariateLookupTableMutView, BivariateLookupTableOwned, BivariateLookupTableView,
 };
