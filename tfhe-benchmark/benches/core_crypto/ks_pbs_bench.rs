@@ -1,5 +1,5 @@
 use benchmark::params::{
-    benchmark_parameters, multi_bit_benchmark_parameters, multi_bit_num_threads,
+    core_benchmark_parameters, core_multi_bit_benchmark_parameters, multi_bit_num_threads,
 };
 
 use benchmark::utilities::{get_param_type, write_to_json, OperatorType, ParamType};
@@ -513,7 +513,7 @@ fn multi_bit_ks_pbs<
 
 #[cfg(feature = "gpu")]
 mod cuda {
-    use super::{benchmark_parameters, multi_bit_benchmark_parameters, BenchPbsParams};
+    use super::{core_benchmark_parameters, core_multi_bit_benchmark_parameters, BenchPbsParams};
     use benchmark::utilities::{
         cuda_local_keys_core, cuda_local_streams_core, throughput_num_threads, write_to_json,
         CpuKeys, CpuKeysBuilder, CudaIndexes, CudaLocalKeys, OperatorType,
@@ -1147,12 +1147,12 @@ mod cuda {
 
     pub fn cuda_ks_pbs_group() {
         let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-        cuda_ks_pbs(&mut criterion, &benchmark_parameters());
+        cuda_ks_pbs(&mut criterion, &core_benchmark_parameters());
     }
 
     pub fn cuda_multi_bit_ks_pbs_group() {
         let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-        cuda_multi_bit_ks_pbs(&mut criterion, &multi_bit_benchmark_parameters());
+        cuda_multi_bit_ks_pbs(&mut criterion, &core_multi_bit_benchmark_parameters());
     }
 }
 
@@ -1161,12 +1161,12 @@ use cuda::{cuda_ks_pbs_group, cuda_multi_bit_ks_pbs_group};
 
 pub fn ks_pbs_group() {
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-    ks_pbs(&mut criterion, &benchmark_parameters());
+    ks_pbs(&mut criterion, &core_benchmark_parameters());
 }
 
 pub fn multi_bit_ks_pbs_group() {
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-    multi_bit_ks_pbs(&mut criterion, &multi_bit_benchmark_parameters(), true);
+    multi_bit_ks_pbs(&mut criterion, &core_multi_bit_benchmark_parameters(), true);
 }
 
 #[cfg(feature = "gpu")]
