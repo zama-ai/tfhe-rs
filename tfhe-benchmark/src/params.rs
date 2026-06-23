@@ -35,116 +35,218 @@ pub mod shortint_params {
         MultiBitPBSParameters,
     };
 
-    pub const SHORTINT_BENCH_PARAMS_TUNIFORM: [ClassicPBSParameters; 4] = [
-        BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
-        BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
-        BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
-    ];
-
-    pub const SHORTINT_BENCH_PARAMS_GAUSSIAN: [ClassicPBSParameters; 4] = [
-        BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-        BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-        BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
-    ];
-
-    pub const SHORTINT_BENCH_PARAMS_TUNIFORM_DOCUMENTATION: [ClassicPBSParameters; 8] = [
-        BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
-        BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
-        BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,
-        BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
-        BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
-        BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
-    ];
-
-    #[cfg(feature = "gpu")]
-    pub const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 6] = [
-        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
-        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
-        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-    ];
-
-    #[cfg(feature = "gpu")]
-    pub const SHORTINT_MULTI_BIT_BENCH_PARAMS_DOCUMENTATION: [(&str, MultiBitPBSParameters); 6] = [
+    pub const SHORTINT_BENCH_PARAMS_TUNIFORM: [(ClassicPBSParameters, &str); 4] = [
         (
-            "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64",
-            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+            BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+            "BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128",
         ),
         (
-            "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64",
-            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            "BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
         ),
         (
-            "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64",
-            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+            BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+            "BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128",
         ),
         (
-            "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128",
-            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
-        ),
-        (
-            "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
-            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        ),
-        (
-            "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128",
-            BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+            BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
+            "BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128",
         ),
     ];
 
-    #[cfg(not(feature = "gpu"))]
-    pub const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 6] = [
-        BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-        BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-        BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-        BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    pub const SHORTINT_BENCH_PARAMS_GAUSSIAN: [(ClassicPBSParameters, &str); 4] = [
+        (
+            BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128",
+        ),
     ];
 
-    #[cfg(not(feature = "gpu"))]
-    pub const SHORTINT_MULTI_BIT_BENCH_PARAMS_DOCUMENTATION: [(&str, MultiBitPBSParameters); 8] = [
-        // Message_1_carry_1 2M64 and 2M128 are exactly the same, so we run one variant only
-        // otherwise we would get a panic due to unicity rules of benchmark IDs/
+    pub const SHORTINT_BENCH_PARAMS_TUNIFORM_DOCUMENTATION: [(ClassicPBSParameters, &str); 8] = [
         (
-            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64",
-            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+            BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+            "BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,",
         ),
         (
-            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64",
-            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            "BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,",
         ),
         (
-            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64",
-            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+            BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+            "BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,",
         ),
         (
-            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64",
-            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,
+            BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,
+            "BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,",
         ),
         (
-            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128",
-            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+            BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+            "BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,",
         ),
         (
-            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
-            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            "BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,",
         ),
         (
-            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128",
-            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+            BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+            "BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,",
         ),
         (
-            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128",
-            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
+            BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
+            "BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,",
         ),
     ];
+
+    pub const SHORTINT_MULTI_BIT_BENCH_PARAMS: &[(MultiBitPBSParameters, &str)] = {
+        #[cfg(feature = "gpu")]
+        {
+            &[
+                // TUniform
+                (
+                    BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+                    "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128",
+                ),
+                (
+                    BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+                ),
+                (
+                    BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+                    "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128",
+                ),
+                // Gaussian
+                (
+                    BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+                    "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128",
+                ),
+                (
+                    BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+                    "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128",
+                ),
+                (
+                    BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+                    "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128",
+                ),
+            ]
+        }
+
+        #[cfg(not(feature = "gpu"))]
+        {
+            &[
+                // Group 2
+                (
+                    BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+                    "BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128",
+                ),
+                (
+                    BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+                    "BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128",
+                ),
+                (
+                    BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+                    "BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128",
+                ),
+                // Group 3
+                (
+                    BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+                    "BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128",
+                ),
+                (
+                    BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+                    "BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128",
+                ),
+                (
+                    BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+                    "BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128",
+                ),
+            ]
+        }
+    };
+
+    pub const SHORTINT_MULTI_BIT_BENCH_PARAMS_DOCUMENTATION: &[(MultiBitPBSParameters, &str)] = {
+        #[cfg(feature = "gpu")]
+        {
+            &[
+                // 2^-64
+                (
+                    BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+                    "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64",
+                ),
+                (
+                    BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                    "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64",
+                ),
+                (
+                    BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+                    "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64",
+                ),
+                // 2^-128
+                (
+                    BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+                    "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128",
+                ),
+                (
+                    BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+                ),
+                (
+                    BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+                    "BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128",
+                ),
+            ]
+        }
+
+        #[cfg(not(feature = "gpu"))]
+        {
+            &[
+                // 2^-64
+                (
+                    BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+                    "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64",
+                ),
+                (
+                    BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                    "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64",
+                ),
+                (
+                    BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+                    "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64",
+                ),
+                (
+                    BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,
+                    "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64",
+                ),
+                // 2^-128
+                (
+                    BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+                    "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128",
+                ),
+                (
+                    BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+                ),
+                (
+                    BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+                    "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128",
+                ),
+                (
+                    BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
+                    "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128",
+                ),
+            ]
+        }
+    };
 
     use tfhe::shortint::parameters::MetaParameters;
 
@@ -153,9 +255,8 @@ pub mod shortint_params {
         use super::*;
         use crate::crypto_record::{BenchPackingKsParams, BenchPbsParams};
         use crate::utilities::{get_param_type, ParamType};
-        use tfhe::keycache::NamedParam;
 
-        pub fn benchmark_parameters() -> Vec<(String, BenchPbsParams<u64>)> {
+        pub fn core_benchmark_parameters() -> Vec<(String, BenchPbsParams<u64>)> {
             match get_parameters_set() {
                 ParametersSet::Default => {
                     let iterator = match get_param_type() {
@@ -169,7 +270,7 @@ pub mod shortint_params {
                             .chain(SHORTINT_BENCH_PARAMS_GAUSSIAN.iter()),
                     };
                     iterator
-                        .map(|params| (params.name(), (*params).into()))
+                        .map(|(params, name)| (name.to_string(), (*params).into()))
                         .collect()
                 }
                 ParametersSet::All => filter_parameters(
@@ -183,7 +284,8 @@ pub mod shortint_params {
             }
         }
 
-        pub fn benchmark_compression_parameters() -> Vec<(String, BenchPackingKsParams<u64>)> {
+        pub fn core_benchmark_compression_parameters() -> Vec<(String, BenchPackingKsParams<u64>)> {
+            use tfhe::keycache::NamedParam;
             vec![(
                 BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.name(),
                 (
@@ -194,21 +296,23 @@ pub mod shortint_params {
             )]
         }
 
-        pub fn multi_bit_benchmark_parameters(
+        pub fn core_multi_bit_benchmark_parameters(
         ) -> Vec<(String, BenchPbsParams<u64>, LweBskGroupingFactor)> {
             match get_parameters_set() {
                 ParametersSet::Default => match get_param_type() {
                     ParamType::MultiBitDocumentation => {
                         SHORTINT_MULTI_BIT_BENCH_PARAMS_DOCUMENTATION
                             .iter()
-                            .map(|(name, params)| {
+                            .map(|(params, name)| {
                                 (name.to_string(), (*params).into(), params.grouping_factor)
                             })
                             .collect()
                     }
                     _ => SHORTINT_MULTI_BIT_BENCH_PARAMS
                         .iter()
-                        .map(|params| (params.name(), (*params).into(), params.grouping_factor))
+                        .map(|(params, name)| {
+                            (name.to_string(), (*params).into(), params.grouping_factor)
+                        })
                         .collect(),
                 },
                 ParametersSet::All => {
@@ -235,7 +339,7 @@ pub mod shortint_params {
     #[cfg(feature = "internal-keycache")]
     pub use shortint_params_keycache::*;
 
-    pub fn raw_benchmark_parameters() -> Vec<AtomicPatternParameters> {
+    pub fn raw_benchmark_parameters() -> Vec<(String, AtomicPatternParameters)> {
         let is_multi_bit = match env::var("__TFHE_RS_PARAM_TYPE") {
             Ok(val) => val.to_lowercase() == "multi_bit",
             Err(_) => false,
@@ -244,13 +348,13 @@ pub mod shortint_params {
         if is_multi_bit {
             SHORTINT_MULTI_BIT_BENCH_PARAMS
                 .iter()
-                .map(|p| (*p).into())
+                .map(|(p, name)| (name.to_string(), (*p).into()))
                 .collect()
         } else {
             SHORTINT_BENCH_PARAMS_TUNIFORM
                 .iter()
                 .chain(SHORTINT_BENCH_PARAMS_GAUSSIAN.iter())
-                .map(|p| (*p).into())
+                .map(|(p, name)| (name.to_string(), (*p).into()))
                 .collect()
         }
     }
