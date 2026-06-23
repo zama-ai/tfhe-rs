@@ -7,7 +7,6 @@ use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, ShortintBench};
 use criterion::{criterion_group, Criterion};
 use rand::Rng;
 use std::env;
-use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::KEY_CACHE;
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::{Ciphertext, CompressedServerKey, ServerKey};
@@ -22,8 +21,8 @@ fn bench_server_key_unary_function<F>(
 {
     let mut bench_group = c.benchmark_group(shortint_bench.to_string());
 
-    for param in raw_benchmark_parameters().iter() {
-        let keys = KEY_CACHE.get_from_param(*param);
+    for (param_name, param) in raw_benchmark_parameters() {
+        let keys = KEY_CACHE.get_from_param(param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
         let mut rng = rand::thread_rng();
@@ -34,7 +33,6 @@ fn bench_server_key_unary_function<F>(
 
         let mut ct = cks.encrypt(clear_text);
 
-        let param_name = param.name();
         let benchmark_spec = BenchmarkSpec::<str>::new_shortint(
             shortint_bench,
             &param_name,
@@ -69,8 +67,8 @@ fn bench_server_key_binary_function<F>(
 {
     let mut bench_group = c.benchmark_group(shortint_bench.to_string());
 
-    for param in raw_benchmark_parameters().iter() {
-        let keys = KEY_CACHE.get_from_param(*param);
+    for (param_name, param) in raw_benchmark_parameters() {
+        let keys = KEY_CACHE.get_from_param(param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
         let mut rng = rand::thread_rng();
@@ -83,7 +81,6 @@ fn bench_server_key_binary_function<F>(
         let mut ct_0 = cks.encrypt(clear_0);
         let mut ct_1 = cks.encrypt(clear_1);
 
-        let param_name = param.name();
         let benchmark_spec = BenchmarkSpec::<str>::new_shortint(
             shortint_bench,
             &param_name,
@@ -118,8 +115,8 @@ fn bench_server_key_binary_scalar_function<F>(
 {
     let mut bench_group = c.benchmark_group(shortint_bench.to_string());
 
-    for param in raw_benchmark_parameters().iter() {
-        let keys = KEY_CACHE.get_from_param(*param);
+    for (param_name, param) in raw_benchmark_parameters() {
+        let keys = KEY_CACHE.get_from_param(param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
         let mut rng = rand::thread_rng();
@@ -131,7 +128,6 @@ fn bench_server_key_binary_scalar_function<F>(
 
         let mut ct_0 = cks.encrypt(clear_0);
 
-        let param_name = param.name();
         let benchmark_spec = BenchmarkSpec::<str>::new_shortint(
             shortint_bench,
             &param_name,
@@ -166,8 +162,8 @@ fn bench_server_key_binary_scalar_division_function<F>(
 {
     let mut bench_group = c.benchmark_group(shortint_bench.to_string());
 
-    for param in raw_benchmark_parameters().iter() {
-        let keys = KEY_CACHE.get_from_param(*param);
+    for (param_name, param) in raw_benchmark_parameters() {
+        let keys = KEY_CACHE.get_from_param(param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
         let mut rng = rand::thread_rng();
@@ -183,7 +179,6 @@ fn bench_server_key_binary_scalar_division_function<F>(
 
         let mut ct_0 = cks.encrypt(clear_0);
 
-        let param_name = param.name();
         let benchmark_spec = BenchmarkSpec::<str>::new_shortint(
             shortint_bench,
             &param_name,
@@ -212,8 +207,8 @@ fn carry_extract_bench(c: &mut Criterion) {
     let shortint_bench = ShortintBench::CarryExtract;
     let mut bench_group = c.benchmark_group(shortint_bench.to_string());
 
-    for param in raw_benchmark_parameters().iter() {
-        let keys = KEY_CACHE.get_from_param(*param);
+    for (param_name, param) in raw_benchmark_parameters() {
+        let keys = KEY_CACHE.get_from_param(param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
         let mut rng = rand::thread_rng();
@@ -224,7 +219,6 @@ fn carry_extract_bench(c: &mut Criterion) {
 
         let ct_0 = cks.encrypt(clear_0);
 
-        let param_name = param.name();
         let benchmark_spec = BenchmarkSpec::<str>::new_shortint(
             shortint_bench,
             &param_name,
@@ -253,8 +247,8 @@ fn programmable_bootstrapping_bench(c: &mut Criterion) {
     let shortint_bench = ShortintBench::ProgrammableBootstrap;
     let mut bench_group = c.benchmark_group(shortint_bench.to_string());
 
-    for param in raw_benchmark_parameters().iter() {
-        let keys = KEY_CACHE.get_from_param(*param);
+    for (param_name, param) in raw_benchmark_parameters() {
+        let keys = KEY_CACHE.get_from_param(param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
         let mut rng = rand::thread_rng();
@@ -267,7 +261,6 @@ fn programmable_bootstrapping_bench(c: &mut Criterion) {
 
         let ctxt = cks.encrypt(clear_0);
 
-        let param_name = param.name();
         let benchmark_spec = BenchmarkSpec::<str>::new_shortint(
             shortint_bench,
             &param_name,
@@ -303,22 +296,21 @@ fn server_key_from_compressed_key(c: &mut Criterion) {
     let mut params = SHORTINT_BENCH_PARAMS_TUNIFORM
         .iter()
         .chain(SHORTINT_BENCH_PARAMS_GAUSSIAN.iter())
-        .map(|p| (*p).into())
-        .collect::<Vec<PBSParameters>>();
+        .map(|(p, name)| (name.to_string(), (*p).into()))
+        .collect::<Vec<(String, PBSParameters)>>();
     let multi_bit_params = SHORTINT_MULTI_BIT_BENCH_PARAMS
         .iter()
-        .map(|p| (*p).into())
-        .collect::<Vec<PBSParameters>>();
-    params.extend(&multi_bit_params);
+        .map(|(p, name)| (name.to_string(), (*p).into()))
+        .collect::<Vec<(String, PBSParameters)>>();
+    params.extend(multi_bit_params);
 
-    for param in params.iter() {
+    for (param_name, param) in params.iter() {
         let keys = KEY_CACHE.get_from_param(*param);
         let sks_compressed = CompressedServerKey::new(keys.client_key());
 
-        let param_name = param.name();
         let benchmark_spec = BenchmarkSpec::<str>::new_shortint(
             shortint_bench,
-            &param_name,
+            param_name,
             BenchmarkMetric::Latency,
         );
         let bench_id = benchmark_spec.to_string();

@@ -4,41 +4,60 @@ pub mod shortint_params_aliases {
     use tfhe::shortint::parameters::current_params::meta::gpu::*;
     use tfhe::shortint::parameters::current_params::*;
     use tfhe::shortint::parameters::{
-        ClassicPBSParameters, CompactPublicKeyEncryptionParameters, CompressionParameters,
+        v1_6, ClassicPBSParameters, CompactPublicKeyEncryptionParameters, CompressionParameters,
         KeySwitch32PBSParameters, MetaParameters, MultiBitPBSParameters,
         NoiseSquashingCompressionParameters, NoiseSquashingParameters,
         ShortintKeySwitchingParameters,
     };
 
     // KS PBS Gaussian
-    #[cfg(not(feature = "gpu"))]
+    pub const BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64: ClassicPBSParameters =
+        V1_7_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64;
+    pub const BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64: ClassicPBSParameters =
+        V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    pub const BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64: ClassicPBSParameters =
+        V1_7_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
+    pub const BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64: ClassicPBSParameters =
+        V1_7_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64;
+
     pub const BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128: ClassicPBSParameters =
-        V1_7_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128;
-    #[cfg(feature = "gpu")]
-    pub const BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128: ClassicPBSParameters =
-        V1_7_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128;
+        if cfg!(feature = "gpu") {
+            V1_7_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128
+        } else {
+            V1_7_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128
+        };
     pub const BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128: ClassicPBSParameters =
         V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     pub const BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128: ClassicPBSParameters =
         V1_7_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128;
     pub const BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128: ClassicPBSParameters =
         V1_7_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128;
+    // PBS KS Gaussian
+    pub const BENCH_PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M128: ClassicPBSParameters =
+        V1_7_PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M128;
+    pub const BENCH_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128: ClassicPBSParameters =
+        V1_7_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    pub const BENCH_PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M128: ClassicPBSParameters =
+        V1_7_PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M128;
+    pub const BENCH_PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M128: ClassicPBSParameters =
+        V1_7_PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M128;
 
     // KS PBS TUniform
     pub const BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
-        V1_7_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64;
+        v1_6::V1_6_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64;
     pub const BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
-        V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        v1_6::V1_6_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     pub const BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
-        V1_7_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64;
+        v1_6::V1_6_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64;
     pub const BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
-        V1_7_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64;
-    #[cfg(not(feature = "gpu"))]
+        v1_6::V1_6_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64;
+
     pub const BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128: ClassicPBSParameters =
-        V1_7_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128;
-    #[cfg(feature = "gpu")]
-    pub const BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128: ClassicPBSParameters =
-        V1_7_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128;
+        if cfg!(feature = "gpu") {
+            V1_7_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128
+        } else {
+            V1_7_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128
+        };
     pub const BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: ClassicPBSParameters =
         V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     pub const BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128: ClassicPBSParameters =
@@ -50,8 +69,93 @@ pub mod shortint_params_aliases {
     pub const BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS: KeySwitch32PBSParameters =
         V1_7_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
 
-    pub const BENCH_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 54] =
-        VEC_ALL_CLASSIC_PBS_PARAMETERS;
+    pub const BENCH_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 20] = [
+        // Gaussian 2^-64
+        (
+            &BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,",
+        ),
+        (
+            &BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,",
+        ),
+        (
+            &BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,",
+        ),
+        (
+            &BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,",
+        ),
+        // Gaussian 2^-128
+        (
+            &BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            &BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            &BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            &BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128",
+        ),
+        // Gaussian 2^-128, PBS_KS
+        (
+            &BENCH_PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M128",
+        ),
+        (
+            &BENCH_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128",
+        ),
+        (
+            &BENCH_PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M128",
+        ),
+        (
+            &BENCH_PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M128",
+        ),
+        // TUniform 2^-64
+        (
+            &BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+            "BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64",
+        ),
+        (
+            &BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            "BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64",
+        ),
+        (
+            &BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+            "BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64",
+        ),
+        (
+            &BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64,
+            "BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64",
+        ),
+        // TUniform 2^-128
+        (
+            &BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+            "BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128",
+        ),
+        (
+            &BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            "BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+        ),
+        (
+            &BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+            "BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128",
+        ),
+        (
+            &BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
+            "BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128",
+        ),
+    ];
 
     // MultiBit
     // CPU Gaussian

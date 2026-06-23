@@ -677,7 +677,7 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
     let custom_ciphertext_modulus =
         tfhe::core_crypto::prelude::CiphertextModulus::new((1 << 64) - (1 << 32) + 1);
 
-    for (name, params) in benchmark_parameters().iter_mut() {
+    for (name, mut params) in benchmark_parameters() {
         match (
             params.lwe_noise_distribution,
             params.glwe_noise_distribution,
