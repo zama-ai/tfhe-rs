@@ -231,7 +231,7 @@ pub mod shortint_params_keycache {
     use crate::crypto_record::{BenchPackingKsParams, BenchPbsParams};
     use crate::utilities::{get_param_type, ParamType};
 
-    pub fn benchmark_parameters() -> Vec<(String, BenchPbsParams<u64>)> {
+    pub fn core_benchmark_parameters() -> Vec<(String, BenchPbsParams<u64>)> {
         match get_parameters_set() {
             ParametersSet::Default => {
                 let iterator = match get_param_type() {
@@ -259,7 +259,7 @@ pub mod shortint_params_keycache {
         }
     }
 
-    pub fn benchmark_compression_parameters() -> Vec<(String, BenchPackingKsParams<u64>)> {
+    pub fn core_benchmark_compression_parameters() -> Vec<(String, BenchPackingKsParams<u64>)> {
         use tfhe::keycache::NamedParam;
         vec![(
             BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.name(),
@@ -271,7 +271,7 @@ pub mod shortint_params_keycache {
         )]
     }
 
-    pub fn multi_bit_benchmark_parameters(
+    pub fn core_multi_bit_benchmark_parameters(
     ) -> Vec<(String, BenchPbsParams<u64>, LweBskGroupingFactor)> {
         match get_parameters_set() {
             ParametersSet::Default => match get_param_type() {

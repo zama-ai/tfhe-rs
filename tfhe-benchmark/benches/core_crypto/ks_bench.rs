@@ -1,7 +1,8 @@
 #[cfg(feature = "boolean")]
 use benchmark::params::benchmark_32bits_parameters;
 use benchmark::params::{
-    benchmark_compression_parameters, benchmark_parameters, multi_bit_benchmark_parameters,
+    core_benchmark_compression_parameters, core_benchmark_parameters,
+    core_multi_bit_benchmark_parameters,
 };
 use benchmark::utilities::{get_param_type, write_to_json, OperatorType, ParamType};
 use benchmark::{BenchPackingKsParams, BenchPbsParams};
@@ -338,7 +339,7 @@ fn packing_keyswitch<Scalar, F>(
 
 #[cfg(feature = "gpu")]
 mod cuda {
-    use benchmark::params::{benchmark_parameters, multi_bit_benchmark_parameters};
+    use benchmark::params::{core_benchmark_parameters, core_multi_bit_benchmark_parameters};
     use benchmark::utilities::{
         cuda_local_keys_core, cuda_local_streams_core, throughput_num_threads, write_to_json,
         CpuKeys, CpuKeysBuilder, CudaIndexes, CudaLocalKeys, OperatorType,
@@ -886,23 +887,23 @@ mod cuda {
         let mut criterion: Criterion<_> = (Criterion::default().sample_size(15))
             .measurement_time(std::time::Duration::from_secs(60))
             .configure_from_args();
-        cuda_keyswitch_classical_and_gemm::<u64, u32>(&mut criterion, &benchmark_parameters());
-        cuda_keyswitch_classical_and_gemm::<u64, u64>(&mut criterion, &benchmark_parameters());
-        cuda_packing_keyswitch(&mut criterion, &benchmark_parameters());
+        cuda_keyswitch_classical_and_gemm::<u64, u32>(&mut criterion, &core_benchmark_parameters());
+        cuda_keyswitch_classical_and_gemm::<u64, u64>(&mut criterion, &core_benchmark_parameters());
+        cuda_packing_keyswitch(&mut criterion, &core_benchmark_parameters());
     }
 
     pub fn cuda_ks_group_documentation() {
         let mut criterion: Criterion<_> = (Criterion::default().sample_size(15))
             .measurement_time(std::time::Duration::from_secs(60))
             .configure_from_args();
-        cuda_keyswitch_classical_and_gemm::<u64, u32>(&mut criterion, &benchmark_parameters());
-        cuda_keyswitch_classical_and_gemm::<u64, u64>(&mut criterion, &benchmark_parameters());
+        cuda_keyswitch_classical_and_gemm::<u64, u32>(&mut criterion, &core_benchmark_parameters());
+        cuda_keyswitch_classical_and_gemm::<u64, u64>(&mut criterion, &core_benchmark_parameters());
     }
 
     pub fn cuda_multi_bit_ks_group() {
         let mut criterion: Criterion<_> =
             (Criterion::default().sample_size(2000)).configure_from_args();
-        let multi_bit_parameters = multi_bit_benchmark_parameters()
+        let multi_bit_parameters = core_multi_bit_benchmark_parameters()
             .into_iter()
             .map(|(string, params, _)| (string, params))
             .collect_vec();
@@ -914,7 +915,7 @@ mod cuda {
     pub fn cuda_multi_bit_ks_group_documentation() {
         let mut criterion: Criterion<_> =
             (Criterion::default().sample_size(2000)).configure_from_args();
-        let multi_bit_parameters = multi_bit_benchmark_parameters()
+        let multi_bit_parameters = core_multi_bit_benchmark_parameters()
             .into_iter()
             .map(|(string, params, _)| (string, params))
             .collect_vec();
@@ -934,13 +935,13 @@ pub fn ks_group() {
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60)))
     .configure_from_args();
-    keyswitch(&mut criterion, &benchmark_parameters());
+    keyswitch(&mut criterion, &core_benchmark_parameters());
     #[cfg(feature = "boolean")]
     keyswitch(&mut criterion, &benchmark_32bits_parameters());
 }
 
 pub fn multi_bit_ks_group() {
-    let multi_bit_parameters = multi_bit_benchmark_parameters()
+    let multi_bit_parameters = core_multi_bit_benchmark_parameters()
         .into_iter()
         .map(|(string, params, _)| (string, params))
         .collect_vec();
@@ -960,13 +961,13 @@ pub fn packing_ks_group() {
     packing_keyswitch(
         &mut criterion,
         CoreCryptoBench::PackingKeyswitch,
-        &benchmark_compression_parameters(),
+        &core_benchmark_compression_parameters(),
         keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext,
     );
     packing_keyswitch(
         &mut criterion,
         CoreCryptoBench::ParPackingKeyswitch,
-        &benchmark_compression_parameters(),
+        &core_benchmark_compression_parameters(),
         par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext,
     );
 }
