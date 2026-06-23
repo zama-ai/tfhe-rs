@@ -402,7 +402,7 @@ impl integer::CompressedCompactPublicKey {
     where
         Gen: ByteRandomGenerator,
     {
-        generator.skip(self.key.key.decompression_fork_config(Uniform));
+        generator.skip(self.key.key.decompression_fork_config(Uniform).byte_count());
     }
 }
 
@@ -610,7 +610,8 @@ impl integer::compression_keys::CompressedCompressionKey {
         generator.skip(
             self.key
                 .packing_key_switching_key
-                .decompression_fork_config(Uniform),
+                .decompression_fork_config(Uniform)
+                .byte_count(),
         );
     }
 }
@@ -1192,7 +1193,8 @@ impl CompressedKS32AtomicPatternServerKey {
         mask_generator.skip(
             self.key_switching_key()
                 .as_seeded_lwe_ciphertext_list()
-                .decompression_fork_config(Uniform),
+                .decompression_fork_config(Uniform)
+                .byte_count(),
         );
         self.bootstrapping_key().advance_generator(mask_generator);
     }
@@ -1367,14 +1369,14 @@ where
                 bsk,
                 modulus_switch_noise_reduction_key,
             } => {
-                mask_generator.skip(bsk.decompression_fork_config(Uniform));
+                mask_generator.skip(bsk.decompression_fork_config(Uniform).byte_count());
                 modulus_switch_noise_reduction_key.advance_generator(mask_generator);
             }
             Self::MultiBit {
                 seeded_bsk,
                 deterministic_execution: _,
             } => {
-                mask_generator.skip(seeded_bsk.decompression_fork_config(Uniform));
+                mask_generator.skip(seeded_bsk.decompression_fork_config(Uniform).byte_count());
             }
         }
     }
@@ -1435,7 +1437,7 @@ where
                 bsk,
                 modulus_switch_noise_reduction_key,
             } => {
-                mask_generator.skip(bsk.decompression_fork_config(Uniform));
+                mask_generator.skip(bsk.decompression_fork_config(Uniform).byte_count());
                 modulus_switch_noise_reduction_key.advance_generator(mask_generator);
             }
             Self::MultiBit {
@@ -1443,7 +1445,7 @@ where
                 thread_count: _,
                 deterministic_execution: _,
             } => {
-                mask_generator.skip(bsk.decompression_fork_config(Uniform));
+                mask_generator.skip(bsk.decompression_fork_config(Uniform).byte_count());
             }
         }
     }
@@ -1564,7 +1566,8 @@ impl CompressedStandardAtomicPatternServerKey {
         mask_generator.skip(
             self.key_switching_key()
                 .as_seeded_lwe_ciphertext_list()
-                .decompression_fork_config(Uniform),
+                .decompression_fork_config(Uniform)
+                .byte_count(),
         );
         self.bootstrapping_key().advance_generator(mask_generator);
     }
@@ -1642,7 +1645,8 @@ impl CompressedNoiseSquashingCompressionKey {
         generator.skip(
             self.key
                 .packing_key_switching_key
-                .decompression_fork_config(Uniform),
+                .decompression_fork_config(Uniform)
+                .byte_count(),
         );
     }
 }
@@ -1686,7 +1690,8 @@ impl CompressedKeySwitchingKeyMaterial {
             self.material
                 .key_switching_key
                 .as_seeded_lwe_ciphertext_list()
-                .decompression_fork_config(Uniform),
+                .decompression_fork_config(Uniform)
+                .byte_count(),
         );
     }
 }
@@ -1841,7 +1846,11 @@ where
     where
         Gen: ByteRandomGenerator,
     {
-        generator.skip(self.modulus_switch_zeros.decompression_fork_config(Uniform));
+        generator.skip(
+            self.modulus_switch_zeros
+                .decompression_fork_config(Uniform)
+                .byte_count(),
+        );
     }
 }
 
