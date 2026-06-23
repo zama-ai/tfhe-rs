@@ -1,5 +1,5 @@
 use benchmark::params::{
-    benchmark_32bits_parameters, benchmark_parameters, multi_bit_benchmark_parameters,
+    benchmark_32bits_parameters, core_benchmark_parameters, core_multi_bit_benchmark_parameters,
     multi_bit_num_threads,
 };
 use benchmark::utilities::{get_param_type, write_to_json, OperatorType, ParamType};
@@ -677,7 +677,7 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
     let custom_ciphertext_modulus =
         tfhe::core_crypto::prelude::CiphertextModulus::new((1 << 64) - (1 << 32) + 1);
 
-    for (name, mut params) in benchmark_parameters() {
+    for (name, mut params) in core_benchmark_parameters() {
         match (
             params.lwe_noise_distribution,
             params.glwe_noise_distribution,
@@ -919,7 +919,7 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
 #[cfg(feature = "gpu")]
 mod cuda {
     use super::BenchPbsParams;
-    use benchmark::params::{benchmark_parameters, multi_bit_benchmark_parameters};
+    use benchmark::params::{core_benchmark_parameters, core_multi_bit_benchmark_parameters};
     use benchmark::utilities::{
         cuda_local_keys_core, cuda_local_streams_core, throughput_num_threads, write_to_json,
         CpuKeys, CpuKeysBuilder, CudaIndexes, CudaLocalKeys, OperatorType,
@@ -1442,12 +1442,12 @@ mod cuda {
 
     pub fn cuda_pbs_group() {
         let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-        cuda_pbs(&mut criterion, &benchmark_parameters());
+        cuda_pbs(&mut criterion, &core_benchmark_parameters());
     }
 
     pub fn cuda_multi_bit_pbs_group() {
         let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-        cuda_multi_bit_pbs(&mut criterion, &multi_bit_benchmark_parameters());
+        cuda_multi_bit_pbs(&mut criterion, &core_multi_bit_benchmark_parameters());
     }
 }
 
@@ -1456,26 +1456,30 @@ use cuda::{cuda_multi_bit_pbs_group, cuda_pbs_group};
 
 pub fn pbs_group() {
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-    mem_optimized_pbs(&mut criterion, &benchmark_parameters());
+    mem_optimized_pbs(&mut criterion, &core_benchmark_parameters());
     mem_optimized_pbs(&mut criterion, &benchmark_32bits_parameters());
     mem_optimized_pbs_ntt(&mut criterion);
-    mem_optimized_batched_pbs(&mut criterion, &benchmark_parameters());
+    mem_optimized_batched_pbs(&mut criterion, &core_benchmark_parameters());
 }
 
 pub fn pbs_group_documentation() {
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-    mem_optimized_pbs(&mut criterion, &benchmark_parameters());
+    mem_optimized_pbs(&mut criterion, &core_benchmark_parameters());
 }
 
 pub fn multi_bit_pbs_group() {
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-    multi_bit_pbs(&mut criterion, &multi_bit_benchmark_parameters(), false);
-    multi_bit_pbs(&mut criterion, &multi_bit_benchmark_parameters(), true);
+    multi_bit_pbs(
+        &mut criterion,
+        &core_multi_bit_benchmark_parameters(),
+        false,
+    );
+    multi_bit_pbs(&mut criterion, &core_multi_bit_benchmark_parameters(), true);
 }
 
 pub fn multi_bit_pbs_group_documentation() {
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-    multi_bit_pbs(&mut criterion, &multi_bit_benchmark_parameters(), true);
+    multi_bit_pbs(&mut criterion, &core_multi_bit_benchmark_parameters(), true);
 }
 
 #[cfg(feature = "gpu")]
