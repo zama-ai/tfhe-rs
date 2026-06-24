@@ -11,7 +11,7 @@ use crate::asm::{IOpId, IOpProto, PhysId};
 use crate::entities::*;
 use crate::ffi::HpuHw;
 use itertools::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{atomic, mpsc, Arc, Mutex, OnceLock};
 
 use rayon::prelude::*;
@@ -211,11 +211,9 @@ impl HpuCluster {
         hpu_weight.sort_by_key(|x| x.1);
 
         // Kept only the available ones
-        let hpu_weight_filtered = hpu_id
-            .iter()
-            .map(|i| hpu_weight[*i as usize].0)
-            .collect::<Vec<_>>();
-        hpu_weight_filtered
+        hpu_weight.into_iter().filter(|w| hpu_id.contains(&w.0))
+            .map(|(i,_w)| i)
+            .collect::<Vec<_>>()
     }
 
     /// Compute Hpu mapping based on various heuristics
@@ -233,7 +231,7 @@ impl HpuCluster {
         // Split it in two categories and ordered them back
         //  a) Node that must belong to the IOp (because they own a destination)
         //  b) Backup Node that optionnaly could by part of the Iop
-        let dst_pos = dst.iter().map(|v| v.hpu_id.0).collect::<Vec<_>>();
+        let dst_pos = dst.iter().map(|v| v.hpu_id.0).collect::<HashSet<_>>();
         let (mut hpu_ord, hpu_opt): (Vec<_>, Vec<_>) = self
             .usable_nodes(hpu_id, rhs_ct)
             .into_iter()
@@ -244,11 +242,10 @@ impl HpuCluster {
             proto.used_nodes.max_node() as usize >= hpu_ord.len(),
             "Error: dst variables are spread on more nodes than compute"
         );
-
         // Check that dst var arn't on filtered out node
         assert_eq!(
             hpu_ord.len(),
-            dst.len(),
+            dst_pos.len(),
             "Error with dst variables position. Some dst variable are on unused nodes"
         );
         // Append optional nodes
