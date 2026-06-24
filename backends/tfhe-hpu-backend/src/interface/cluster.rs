@@ -32,6 +32,9 @@ pub struct HpuCluster {
     // Work management
     // Keep track of issued IOp and associated variables
     workq: Arc<Mutex<mpsc::Receiver<Arc<cmd::HpuCmd>>>>,
+    // Enforce that at most u8::MAX IOp are inflight in the cluster.
+    // => All node keep in the same IOp Round
+    iop_inflight: Arc<atomic::AtomicU8>,
 }
 
 impl HpuCluster {
@@ -73,6 +76,7 @@ impl HpuCluster {
             iop_id,
             cmd_tx,
             params,
+            iop_inflight: Arc::new(atomic::AtomicU8::new(u8::MAX)),
             bg_poll: Arc::new(atomic::AtomicBool::new(false)),
             bg_handles: OnceLock::new(),
             workq: Arc::new(Mutex::new(cmd_rx)),
@@ -93,6 +97,7 @@ impl HpuCluster {
             workload,
             bg_handles,
             bg_poll,
+            iop_inflight,
             workq,
             ..
         } = self;
@@ -104,32 +109,49 @@ impl HpuCluster {
         };
 
         bg_poll.store(true, atomic::Ordering::SeqCst);
-        let bg_workq = (bg_poll.clone(), nodes.clone(), workq.clone());
-        let bg_ackq = (bg_poll.clone(), nodes.clone(), workload.clone());
+        let bg_workq = (
+            bg_poll.clone(),
+            nodes.clone(),
+            iop_inflight.clone(),
+            workq.clone(),
+        );
+        let bg_ackq = (
+            bg_poll.clone(),
+            nodes.clone(),
+            iop_inflight.clone(),
+            workload.clone(),
+        );
         let _ = bg_handles.get_or_init(|| {
             (
                 std::thread::spawn(move || {
-                    while bg_workq.0.load(atomic::Ordering::SeqCst) {
+                    let (poll, nodes, iop_inflight, workq) = bg_workq;
+                    while poll.load(atomic::Ordering::SeqCst) {
                         std::thread::sleep(tick);
-                        let workq_lock =
-                            bg_workq.2.lock().expect("Encounter error with workq Mutex");
+                        let workq_lock = workq.lock().expect("Encounter error with workq Mutex");
                         while let Ok(cmd) = workq_lock.try_recv() {
-                            for node in bg_workq.1.iter() {
+                            // Check max inflight IOp
+                            while u8::MAX == iop_inflight.load(atomic::Ordering::SeqCst) {
+                                std::thread::sleep(tick);
+                            }
+                            for node in nodes.iter() {
                                 let mut node_lock = node.1.lock().expect("Issue with node Mutex");
                                 node_lock.workq_push(cmd.clone());
                             }
+                            iop_inflight.fetch_add(1, atomic::Ordering::SeqCst);
                         }
                     }
                 }),
                 std::thread::spawn(move || {
-                    while bg_ackq.0.load(atomic::Ordering::SeqCst) {
+                    let (poll, nodes, iop_inflight, workload) = bg_ackq;
+                    while poll.load(atomic::Ordering::SeqCst) {
                         std::thread::sleep(tick);
-                        for (id, node) in bg_ackq.1.iter() {
+                        for (id, node) in nodes.iter() {
                             let mut lock = node.lock().unwrap();
                             let ack_cnt = lock.flush_ackq();
                             // Variable state are handled in node
-                            // Only update associated workload counter here
-                            bg_ackq.2[*id as usize].fetch_sub(ack_cnt, atomic::Ordering::SeqCst);
+                            // Only update associated workload/inflight counter here
+                            workload[*id as usize].fetch_sub(ack_cnt, atomic::Ordering::SeqCst);
+                            iop_inflight.fetch_sub(ack_cnt as u8, atomic::Ordering::SeqCst);
                         }
                     }
                 }),
