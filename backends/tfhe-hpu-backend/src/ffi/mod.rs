@@ -295,7 +295,7 @@ impl MemZone {
 #[cfg(feature = "hw-v80")]
 mod v80;
 #[cfg(all(feature = "hw-v80", feature = "utils"))]
-pub use v80::HpuV80Pdi;
+pub use v80::{HpuV80Pdi, HpuV80Uuid};
 
 #[cfg(not(feature = "hw-v80"))]
 pub(crate) mod sim;

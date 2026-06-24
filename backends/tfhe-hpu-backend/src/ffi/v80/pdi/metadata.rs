@@ -86,6 +86,21 @@ pub struct Metadata {
     pub bitstream: BitstreamMetadata,
 }
 
+impl std::fmt::Display for Metadata {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Metadata {{")?;
+        writeln!(f, "  pdi_stg1_file: {}", self.pdi_stg1_file)?;
+        writeln!(f, "  pdi_stg2_file: {}", self.pdi_stg2_file)?;
+        writeln!(f, "  xsa_file: {}", self.xsa_file)?;
+        writeln!(f, "  elf_file: {}", self.elf_file)?;
+        writeln!(f, "  amc_his: {}", self.amc.his_version)?;
+        writeln!(f, "  bitstream: {:?}", self.bitstream)?;
+        writeln!(f, "}}")?;
+        Ok(())
+    }
+}
+
+
 impl Metadata {
     #[allow(unused)]
     /// Provide Serde mechanisms from TOML file

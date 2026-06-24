@@ -223,7 +223,7 @@ impl std::fmt::Display for Date {
     }
 }
 
-pub struct V80Uuid {
+pub struct HpuV80Uuid {
     hash: Hash,
     freq: Freq,
     version: Version,
@@ -234,7 +234,7 @@ pub struct V80Uuid {
     date: Date,
 }
 
-impl std::fmt::Display for V80Uuid {
+impl std::fmt::Display for HpuV80Uuid {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "hash: {}, ", self.hash)?;
         write!(f, "freq: {}, ", self.freq)?;
@@ -248,7 +248,7 @@ impl std::fmt::Display for V80Uuid {
     }
 }
 
-impl FromStr for V80Uuid {
+impl FromStr for HpuV80Uuid {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {

@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 mod ami;
 use ami::AmiDriver;
 mod pdi;
-pub use pdi::HpuV80Pdi;
+pub use pdi::{HpuV80Pdi, HpuV80Uuid};
 
 use super::{MemAlloc, MemChunk};
 
@@ -57,7 +57,7 @@ impl HpuHw {
         // Open Pdi archive
         let hpu_pdi = HpuV80Pdi::from_bincode(hpu_path)
             .unwrap_or_else(|err| panic!("Invalid \'.hpu\' {hpu_path:?}: {err}"));
-        let pdi_uuid = pdi::V80Uuid::from_str(&hpu_pdi.metadata.bitstream.uuid)
+        let pdi_uuid = HpuV80Uuid::from_str(&hpu_pdi.metadata.bitstream.uuid)
             .expect("Invalid UUID format in pdi");
 
         // Extract the list of boards that need to be reprogrammed
@@ -92,8 +92,8 @@ impl HpuHw {
 
     fn check_invalid_state(
         board_props: &[ffi::BoardProperties],
-        hpu_pdi: &pdi::HpuV80Pdi,
-        hpu_uuid: &pdi::V80Uuid,
+        hpu_pdi: &HpuV80Pdi,
+        hpu_uuid: &HpuV80Uuid,
     ) -> Vec<ffi::BoardProperties> {
         let trgt = board_props
             .iter()
@@ -170,8 +170,8 @@ impl HpuHw {
 
     fn load_stage_1(
         board_props: &[ffi::BoardProperties],
-        hpu_pdi: &pdi::HpuV80Pdi,
-        hpu_uuid: &pdi::V80Uuid,
+        hpu_pdi: &HpuV80Pdi,
+        hpu_uuid: &HpuV80Uuid,
     ) {
         tracing::info!("[{board_props:?}] will be loaded with pdi -> [{hpu_uuid}]");
 

@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::error::Error;
-use tfhe_hpu_backend::ffi::HpuV80Pdi;
+use tfhe_hpu_backend::ffi::{HpuV80Pdi, HpuV80Uuid};
+use std::str::FromStr;
 
 #[derive(Parser)]
 #[command(name = "Pdi Management. Enable Packing/Unpacking of Hpu Pdi")]
@@ -13,6 +14,7 @@ struct Cli {
 enum Commands {
     Pack { from_path: String, to_file: String },
     Unpack { from_file: String, to_path: String },
+    Inspect { file: String },
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -29,6 +31,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             let hpu_pdi = HpuV80Pdi::from_bincode(&from_file)?;
             hpu_pdi.to_folder(&to_path)?;
             println!("Successfully unpacked file {from_file} into {to_path} folder.");
+        }
+        Commands::Inspect { file} => {
+            let hpu_pdi = HpuV80Pdi::from_bincode(&file)?;
+            println!("File {file}:");
+            println!("{}", hpu_pdi.metadata);
+            let pdi_uuid = HpuV80Uuid::from_str(&hpu_pdi.metadata.bitstream.uuid)?;
+            println!("UUID: {{ {pdi_uuid} }}");
         }
     }
 
