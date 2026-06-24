@@ -287,7 +287,11 @@ fn round_naive(
                     sk.add_assign(&mut new_c, &temp_b);
                     new_c
                 },
-                || sk.bitxor(&sk.unchecked_add(&temp_a, &temp_b), &temp_c),
+                || {
+                    let lhs = sk.unchecked_add(&temp_a, &temp_b);
+                    let xor_low_bit = sk.generate_lookup_table_bivariate(|x, y| (x ^ y) & 1);
+                    sk.apply_lookup_table_bivariate(&lhs, &temp_c, &xor_low_bit)
+                },
             )
         },
     );
