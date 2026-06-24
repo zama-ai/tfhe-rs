@@ -1,7 +1,6 @@
 use clap::{Arg, ArgAction, Command};
 use tfhe::boolean;
 use tfhe::boolean::parameters::{BooleanParameters, DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS};
-use tfhe::keycache::NamedParam;
 #[cfg(feature = "experimental")]
 use tfhe::shortint::keycache::KEY_CACHE_WOPBS;
 use tfhe::shortint::keycache::{KEY_CACHE, KEY_CACHE_KSK};
@@ -17,7 +16,7 @@ use tfhe::shortint::parameters::key_switching::ShortintKeySwitchingParameters;
 
 use tfhe::shortint::parameters::current_params::*;
 use tfhe::shortint::parameters::{
-    ClassicPBSParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    v1_6, ClassicPBSParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 #[cfg(feature = "experimental")]
 use tfhe::shortint::parameters::{
@@ -64,12 +63,12 @@ fn client_server_keys() {
     let coverage_only: bool = matches.get_flag("coverage_only");
     if multi_bit_only {
         const MULTI_BIT_PARAMS: [MultiBitPBSParameters; 6] = [
-            V1_7_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-            V1_7_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            V1_7_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            V1_7_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-            V1_7_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            V1_7_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            v1_6::V1_6_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            v1_6::V1_6_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            v1_6::V1_6_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            v1_6::V1_6_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            v1_6::V1_6_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            v1_6::V1_6_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
         ];
 
         generate_pbs_multi_bit_keys(&MULTI_BIT_PARAMS);
@@ -159,12 +158,7 @@ fn generate_pbs_keys(params: &[ClassicPBSParameters]) {
     println!("Generating shortint (ClientKey, ServerKey)");
 
     for (i, param) in params.iter().copied().enumerate() {
-        println!(
-            "Generating [{} / {}] : {}",
-            i + 1,
-            params.len(),
-            param.name()
-        );
+        println!("Generating [{} / {}]", i + 1, params.len());
 
         let start = std::time::Instant::now();
 
@@ -183,12 +177,7 @@ fn generate_pbs_multi_bit_keys(params: &[MultiBitPBSParameters]) {
     println!("Generating shortint multibit (ClientKey, ServerKey)");
 
     for (i, param) in params.iter().copied().enumerate() {
-        println!(
-            "Generating [{} / {}] : {}",
-            i + 1,
-            params.len(),
-            param.name()
-        );
+        println!("Generating [{} / {}]", i + 1, params.len());
 
         let start = std::time::Instant::now();
 
@@ -213,14 +202,7 @@ fn generate_ksk_keys(
     println!("Generating shortint Key Switching keys (ClientKey, ServerKey)");
 
     for (i, (param_1, param_2, param_ksk)) in params.iter().copied().enumerate() {
-        println!(
-            "Generating [{} / {}] : {}__{}__{}",
-            i + 1,
-            params.len(),
-            param_1.name(),
-            param_2.name(),
-            param_ksk.name()
-        );
+        println!("Generating [{} / {}]", i + 1, params.len());
 
         let start = std::time::Instant::now();
 
@@ -240,13 +222,7 @@ fn generate_wopbs_keys(params: &[(ClassicPBSParameters, WopbsParameters)]) {
     println!("Generating woPBS keys");
 
     for (i, (params_shortint, params_wopbs)) in params.iter().copied().enumerate() {
-        println!(
-            "Generating [{} / {}] : {}, {}",
-            i + 1,
-            params.len(),
-            params_shortint.name(),
-            params_wopbs.name(),
-        );
+        println!("Generating [{} / {}]", i + 1, params.len());
 
         let start = std::time::Instant::now();
 
@@ -265,12 +241,7 @@ fn generate_boolean_keys(params: &[BooleanParameters]) {
     println!("Generating boolean (ClientKey, ServerKey)");
 
     for (i, param) in params.iter().copied().enumerate() {
-        println!(
-            "Generating [{} / {}] : {}",
-            i + 1,
-            params.len(),
-            param.name()
-        );
+        println!("Generating [{} / {}]", i + 1, params.len());
 
         let start = std::time::Instant::now();
 
