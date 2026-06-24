@@ -242,9 +242,11 @@ mod hpu_test {
                         })
                         .collect::<Vec<_>>()
                 );
-                std::iter::zip(res.iter(), exp_res.iter())
+                let check = std::iter::zip(res.iter(), exp_res.iter())
                     .map(|(x, y)| x == y)
-                    .fold(true, |acc, val| acc & val)
+                    .fold(true, |acc, val| acc & val);
+                assert!( check);
+                check
             })
             .fold(true, |acc, val| acc & val)
     }
@@ -909,6 +911,7 @@ mod hpu_test {
                 res,
                 exp_res,
                 exp_res ^ res);
+            assert!(res == exp_res);
             (res == exp_res)
         }).fold(true, |acc, val| acc & val);
         aggregated_res
