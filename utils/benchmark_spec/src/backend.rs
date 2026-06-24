@@ -5,6 +5,7 @@ use strum::Display;
 
 #[derive(Debug, Clone, Copy, Display, Deserialize, Serialize)]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum Backend {
     Cpu,
     Cuda,
