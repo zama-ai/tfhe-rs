@@ -1,5 +1,6 @@
 //! Plaintext implementation of the Kreyvium Algorithm
 
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::ClientKey;
 use crate::transciphering::ciphers::shift_register::ShiftRegister;
 use crate::transciphering::ciphers::{pack_bits_lsb_first, unpack_bits_lsb_first};
@@ -30,13 +31,15 @@ impl KreyviumPlainKey {
     /// Encrypt this key bit-by-bit under `client_key`, producing the FHE-side
     /// key consumed by [`KreyviumFheState`](super::KreyviumFheState).
     pub fn encrypt(&self, client_key: &ClientKey) -> KreyviumFheKey {
-        super::collect_boxed_array(
-            unpack_key_bits(&self.bits)
-                .iter()
-                .map(|&b| client_key.encrypt(b as u64)),
+        KreyviumFheKey::new(
+            super::collect_boxed_array(unpack_key_bits(&self.bits).iter().map(|&b| {
+                let mut ct = client_key.encrypt(b as u64);
+                // We know each value is a single bit, so we can set a tighter degree.
+                ct.degree = Degree::new(1);
+                ct
+            }))
+            .expect("array and iter size match"),
         )
-        .expect("array and iter size match")
-        .into()
     }
 
     pub fn init_state(self, iv: KreyviumIV) -> KreyviumPlainState {
