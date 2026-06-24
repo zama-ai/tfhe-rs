@@ -97,15 +97,31 @@ pub mod utils {
         }
     }
 
+    fn hash_params_string<P>(param: &P) -> String
+    where
+        P: Serialize,
+    {
+        use sha3::{Digest, Sha3_256};
+        let params_as_bytes = bincode::serialize(param).unwrap();
+
+        let mut hasher = Sha3_256::new();
+        hasher.update(&params_as_bytes);
+        let hash = hasher.finalize();
+        format!("{hash:x}")
+    }
+
     impl<P, K> PersistentStorage<P, K> for FileStorage
     where
-        P: NamedParam + DeserializeOwned + Serialize + PartialEq,
+        P: DeserializeOwned + Serialize + PartialEq,
         K: DeserializeOwned + Serialize,
     {
         fn load(&self, param: P) -> Option<K> {
             let mut path_buf = PathBuf::with_capacity(256);
             path_buf.push(&self.prefix);
-            path_buf.push(param.name());
+
+            let hash_as_string = hash_params_string(&param);
+
+            path_buf.push(hash_as_string);
             path_buf.set_extension("bin");
 
             if path_buf.exists() {
@@ -128,7 +144,10 @@ pub mod utils {
             let mut path_buf = PathBuf::with_capacity(256);
             path_buf.push(&self.prefix);
             std::fs::create_dir_all(&path_buf).unwrap();
-            path_buf.push(param.name());
+
+            let hash_as_string = hash_params_string(&param);
+
+            path_buf.push(hash_as_string);
             path_buf.set_extension("bin");
 
             let file = OpenOptions::new()
