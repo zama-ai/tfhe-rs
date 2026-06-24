@@ -1,5 +1,6 @@
 //! TFHE implementation of the Kreyvium Algorithm
 
+use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::{Ciphertext, ServerKey};
 use crate::transciphering::ciphers::shift_register::ShiftRegister;
 use crate::transciphering::{FheKeyStream, StreamCipherKind, Transcipherer};
@@ -15,20 +16,24 @@ pub struct KreyviumFheKey {
 }
 
 impl KreyviumFheKey {
-    pub fn init_state(self, iv: KreyviumIV, sk: &ServerKey) -> KreyviumFheState {
-        KreyviumFheState::new(self, iv, sk)
-    }
-}
-
-impl From<Box<[Ciphertext; 128]>> for KreyviumFheKey {
-    fn from(cts: Box<[Ciphertext; 128]>) -> Self {
+    pub(super) fn new(cts: Box<[Ciphertext; 128]>) -> Self {
+        for (i, ct) in cts.iter().enumerate() {
+            assert!(
+                ct.degree.get() <= 1,
+                "kreyvium key ciphertext {i} is not a single bit (degree {})",
+                ct.degree.get(),
+            );
+            assert!(
+                ct.noise_level() <= NoiseLevel::NOMINAL,
+                "kreyvium key ciphertext {i} exceeds nominal noise (level {:?})",
+                ct.noise_level(),
+            );
+        }
         Self { cts }
     }
-}
 
-impl From<[Ciphertext; 128]> for KreyviumFheKey {
-    fn from(cts: [Ciphertext; 128]) -> Self {
-        Self { cts: Box::new(cts) }
+    pub fn init_state(self, iv: KreyviumIV, sk: &ServerKey) -> KreyviumFheState {
+        KreyviumFheState::new(self, iv, sk)
     }
 }
 
@@ -38,8 +43,8 @@ impl KreyviumFheState {
     /// Constructor for `KreyviumFheState`: arguments are the secret key, the input vector,
     /// and a `ServerKey` reference. Outputs a state object already initialized
     /// (1152 steps have been run before returning).
-    pub fn new(key: impl Into<KreyviumFheKey>, iv: impl Into<KreyviumIV>, sk: &ServerKey) -> Self {
-        let mut key = key.into().cts;
+    pub fn new(key: KreyviumFheKey, iv: impl Into<KreyviumIV>, sk: &ServerKey) -> Self {
+        let mut key = key.cts;
         let mut iv = iv.into().expand().map(|b| b as u64);
 
         // Initialization of Kreyvium registers: a has the secret key, b the beginning of the IV,
