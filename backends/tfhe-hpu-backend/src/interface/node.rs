@@ -173,12 +173,6 @@ impl HpuNode {
             &config.fpga.ffi,
             std::time::Duration::from_micros(config.fpga.polling_us),
         );
-        // Try to use direct register access if available
-        if hpu_hw.map_bar_reg().is_ok() {
-            info!("Use BAR0 direct register access");
-        } else {
-            info!("BAR0 direct register access isn't available");
-        }
 
         let regmap_expanded = config
             .fpga

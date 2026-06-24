@@ -132,31 +132,37 @@ impl AmiDriver {
 
         let iop_ack_atomic_ptr: NonNull<AtomicU32> = addr.cast();
 
+        // Try to use direct register access if available
+        let bar_reg_ptr = Self::map_bar_reg(&ami_dev).ok();
+        if bar_reg_ptr.is_some() {
+            tracing::info!("Use BAR0 direct register access");
+        } else {
+            tracing::info!("BAR0 direct register access isn't available");
+        }
+
         Ok(Self {
             ami_dev,
-            bar_reg_ptr: None,
+            bar_reg_ptr,
             iop_ack_atomic_ptr,
             retry_rate: retry_rate.unwrap_or(std::time::Duration::from_micros(1)),
         })
     }
 
-    pub fn map_bar_reg(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn map_bar_reg(ami_dev: &File) -> Result<NonNull<u8>, Box<dyn std::error::Error>> {
         let map_addr = unsafe {
             mmap(
                 None,
                 NonZero::new(AMI_BAR_LEN).unwrap(),
                 ProtFlags::PROT_READ | ProtFlags::PROT_WRITE, // Read & Write
                 MapFlags::MAP_SHARED,
-                &self.ami_dev,
+                ami_dev,
                 0, // Offset in BAR0
             )?
         };
         tracing::info!("mapping HPU BAR0 at address -> {:p}", map_addr);
 
         let bar_addr: NonNull<u8> = map_addr.cast();
-        self.bar_reg_ptr = Some(bar_addr);
-
-        Ok(())
+        Ok(bar_addr)
     }
 
     pub fn munmap_cnt(&self) -> Result<(), Box<dyn Error>> {
