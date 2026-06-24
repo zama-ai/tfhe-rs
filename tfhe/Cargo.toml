@@ -33,6 +33,8 @@ num-bigint = "0.4.6"
 clap = { version = "=4.6.1", features = ["derive"] }
 # Used in user documentation
 fs2 = { version = "0.4.3" }
+# Needed for keycache now which is active for test and doctest
+sha3 = { version = "0.10" }
 statrs = "0.18"
 # Begin regex-engine deps
 test-case = "3.1.0"
@@ -107,7 +109,7 @@ boolean = []
 shortint = ["dep:sha3", "dep:blake3"]
 integer = ["shortint", "dep:strum"]
 strings = ["integer"]
-internal-keycache = ["dep:fs2"]
+internal-keycache = ["dep:fs2", "dep:sha3"]
 gpu = ["dep:tfhe-cuda-backend", "shortint"]
 gpu-experimental-zk = ["gpu", "zk-pok", "tfhe-zk-pok/gpu-experimental"]
 gpu-experimental-multi-arch = [
