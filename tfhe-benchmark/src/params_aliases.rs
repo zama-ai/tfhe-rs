@@ -190,7 +190,7 @@ pub mod shortint_params_aliases {
         MultiBitPBSParameters =
         V1_7_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128;
 
-    pub const BENCH_ALL_MULTI_BIT_PBS_PARAMETERS: [(&MultiBitPBSParameters, &str); 192] =
+    pub const BENCH_ALL_MULTI_BIT_PBS_PARAMETERS: [(&MultiBitPBSParameters, &str); 72] =
         VEC_ALL_MULTI_BIT_PBS_PARAMETERS;
 
     // PKE
