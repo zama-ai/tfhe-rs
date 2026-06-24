@@ -322,7 +322,7 @@ pub mod shortint_params {
                         DesiredBackend::Cpu
                     };
                     filter_parameters(
-                        &BENCH_ALL_MULTI_BIT_PBS_PARAMETERS,
+                        &CORE_BENCH_ALL_MULTI_BIT_PBS_PARAMETERS,
                         DesiredNoiseDistribution::Both,
                         desired_backend,
                     )
