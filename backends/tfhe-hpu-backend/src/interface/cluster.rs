@@ -76,7 +76,7 @@ impl HpuCluster {
             iop_id,
             cmd_tx,
             params,
-            iop_inflight: Arc::new(atomic::AtomicU8::new(u8::MAX)),
+            iop_inflight: Arc::new(atomic::AtomicU8::new(0)),
             bg_poll: Arc::new(atomic::AtomicBool::new(false)),
             bg_handles: OnceLock::new(),
             workq: Arc::new(Mutex::new(cmd_rx)),
@@ -147,11 +147,11 @@ impl HpuCluster {
                         std::thread::sleep(tick);
                         for (id, node) in nodes.iter() {
                             let mut lock = node.lock().unwrap();
-                            let ack_cnt = lock.flush_ackq();
+                            let (ack_cnt, done_cnt) = lock.flush_ackq();
                             // Variable state are handled in node
                             // Only update associated workload/inflight counter here
                             workload[*id as usize].fetch_sub(ack_cnt, atomic::Ordering::SeqCst);
-                            iop_inflight.fetch_sub(ack_cnt as u8, atomic::Ordering::SeqCst);
+                            iop_inflight.fetch_sub(done_cnt as u8, atomic::Ordering::SeqCst);
                         }
                     }
                 }),

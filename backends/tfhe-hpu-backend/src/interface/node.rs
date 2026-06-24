@@ -1111,7 +1111,7 @@ impl HpuNode {
     /// flush ack_q
     /// Retrieved all available ack
     #[tracing::instrument(level = "debug", skip(self))]
-    pub fn flush_ackq(&mut self) -> usize {
+    pub fn flush_ackq(&mut self) -> (usize, usize) {
         let Self {
             ref mut hpu_hw,
             regmap,
@@ -1138,6 +1138,7 @@ impl HpuNode {
         );
 
         let ack_nb = hpu_hw.iop_ack_rd();
+        let mut done_nb = 0;
         for _ack in 0..ack_nb {
             let ack_cmd = cmdq
                 .pop_front()
@@ -1153,9 +1154,10 @@ impl HpuNode {
                     .dst
                     .iter()
                     .for_each(|dst| dst.inner.lock().unwrap().operation_done());
+                done_nb += 1;
             }
         }
-        ack_nb as usize
+        (ack_nb as usize, done_nb)
     }
 }
 
