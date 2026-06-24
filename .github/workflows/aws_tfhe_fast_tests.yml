@@ -46,6 +46,9 @@ jobs:
       shortint_test: ${{ env.IS_PULL_REQUEST == 'false' ||
         steps.changed-files.outputs.shortint_any_changed ||
         steps.changed-files.outputs.dependencies_any_changed }}
+      transciphering_test: ${{ env.IS_PULL_REQUEST == 'false' ||
+        steps.changed-files.outputs.transciphering_any_changed ||
+        steps.changed-files.outputs.dependencies_any_changed }}
       integer_test: ${{ env.IS_PULL_REQUEST == 'false' ||
         steps.changed-files.outputs.integer_any_changed ||
         steps.changed-files.outputs.dependencies_any_changed }}
@@ -97,6 +100,10 @@ jobs:
             shortint:
               - tfhe/src/core_crypto/**
               - tfhe/src/shortint/**
+            transciphering:
+              - tfhe/src/core_crypto/**
+              - tfhe/src/shortint/**
+              - tfhe/src/transciphering/**
             integer:
               - tfhe/src/core_crypto/**
               - tfhe/src/shortint/**
@@ -129,6 +136,7 @@ jobs:
           steps.changed-files.outputs.core_crypto_any_changed == 'true' ||
           steps.changed-files.outputs.boolean_any_changed == 'true' ||
           steps.changed-files.outputs.shortint_any_changed == 'true' ||
+          steps.changed-files.outputs.transciphering_any_changed == 'true' ||
           steps.changed-files.outputs.integer_any_changed == 'true' ||
           steps.changed-files.outputs.wasm_any_changed == 'true' ||
           steps.changed-files.outputs.high_level_api_any_changed == 'true' ||
@@ -248,6 +256,11 @@ jobs:
         if: needs.should-run.outputs.integer_test == 'true'
         run: |
           BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_integer_ci
+
+      - name: Run transciphering tests
+        if: needs.should-run.outputs.transciphering_test == 'true'
+        run: |
+          make test_transciphering
 
       - name: Run high-level API tests
         if: needs.should-run.outputs.high_level_api_test == 'true'

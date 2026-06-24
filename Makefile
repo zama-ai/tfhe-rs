@@ -1127,6 +1127,11 @@ test_shortint:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=shortint,internal-keycache -p tfhe -- shortint::
 
+.PHONY: test_transciphering # Run all the tests for the transciphering module
+test_transciphering:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=shortint -p tfhe -- transciphering::
+
 .PHONY: test_shortint_cov # Run the tests of the shortint module with code coverage
 test_shortint_cov: install_tarpaulin
 	RUSTFLAGS="$(RUSTFLAGS)" cargo tarpaulin --profile $(CARGO_PROFILE) \
