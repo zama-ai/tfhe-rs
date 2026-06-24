@@ -15,7 +15,7 @@ use crate::curve_api::CurveGroupOps;
 use ark_ec::CurveGroup;
 use ark_ff::{BigInt, MontFp, PrimeField};
 use tfhe_cuda_common::cuda_bind::{
-    cuda_create_stream, cuda_destroy_stream, cuda_get_number_of_gpus,
+    cuda_create_stream_ffi, cuda_destroy_stream, cuda_get_number_of_gpus,
 };
 use zk_cuda_backend::{G1Affine as CudaG1Affine, G2Affine as CudaG2Affine, Scalar as CudaScalar};
 
@@ -206,12 +206,12 @@ pub fn g1_msm_gpu(bases: &[G1Affine], scalars: &[Zp], gpu_index: u32) -> G1 {
         "gpu_index {gpu_index} exceeds available GPUs ({num_gpus})",
     );
     // SAFETY: gpu_index was validated by the assert above
-    let stream = unsafe { cuda_create_stream(gpu_index) };
+    let stream = unsafe { cuda_create_stream_ffi(gpu_index) };
 
     let result =
         zk_cuda_backend::G1Projective::msm(&gpu_bases, &gpu_scalars, stream, gpu_index, false);
 
-    // SAFETY: stream was created by cuda_create_stream above with the same gpu_index and is not
+    // SAFETY: stream was created by cuda_create_stream_ffi above with the same gpu_index and is not
     // used after this point
     unsafe { cuda_destroy_stream(stream, gpu_index) };
 
@@ -269,12 +269,12 @@ pub fn g2_msm_gpu(bases: &[G2Affine], scalars: &[Zp], gpu_index: u32) -> G2 {
         "gpu_index {gpu_index} exceeds available GPUs ({num_gpus})",
     );
     // SAFETY: gpu_index was validated by the assert above
-    let stream = unsafe { cuda_create_stream(gpu_index) };
+    let stream = unsafe { cuda_create_stream_ffi(gpu_index) };
 
     let result =
         zk_cuda_backend::G2Projective::msm(&gpu_bases, &gpu_scalars, stream, gpu_index, false);
 
-    // SAFETY: stream was created by cuda_create_stream above with the same gpu_index and is not
+    // SAFETY: stream was created by cuda_create_stream_ffi above with the same gpu_index and is not
     // used after this point
     unsafe { cuda_destroy_stream(stream, gpu_index) };
 

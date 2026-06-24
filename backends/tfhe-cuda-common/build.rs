@@ -114,9 +114,13 @@ fn generate_cuda_bind_bindings(manifest_dir: &str, include_dir: &PathBuf) {
     if headers_modified > bindings_modified {
         let bindings = bindgen::Builder::default()
             .header(header_path.to_str().unwrap())
-            .allowlist_function("cuda_.*")
-            .blocklist_type("CUstream_st")
-            .blocklist_type("CUevent_st")
+            .allowlist_function(concat!(
+                "cuda_(create_stream_ffi|destroy_stream|synchronize_stream|",
+                "is_available|malloc|malloc_async|check_valid_malloc|",
+                "device_total_memory|memcpy_async_to_gpu|memcpy_async_gpu_to_gpu|",
+                "memcpy_gpu_to_gpu|memcpy_async_to_cpu|memset_async|",
+                "get_number_of_gpus|get_number_of_sms|synchronize_device|drop)",
+            ))
             .clang_arg("-x")
             .clang_arg("c++")
             .clang_arg("-std=c++17")
