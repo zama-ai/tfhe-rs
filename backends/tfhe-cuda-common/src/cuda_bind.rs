@@ -3,29 +3,7 @@
 use crate::ffi;
 
 unsafe extern "C" {
-    pub fn cuda_get_device() -> u32;
-}
-unsafe extern "C" {
-    pub fn cuda_set_device(gpu_index: u32);
-}
-unsafe extern "C" {
-    pub fn cuda_create_event(gpu_index: u32) -> *mut ffi::c_void;
-}
-unsafe extern "C" {
-    pub fn cuda_event_record(event: *mut ffi::c_void, stream: *mut ffi::c_void, gpu_index: u32);
-}
-unsafe extern "C" {
-    pub fn cuda_stream_wait_event(
-        stream: *mut ffi::c_void,
-        event: *mut ffi::c_void,
-        gpu_index: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_event_destroy(event: *mut ffi::c_void, gpu_index: u32);
-}
-unsafe extern "C" {
-    pub fn cuda_create_stream(gpu_index: u32) -> *mut ffi::c_void;
+    pub fn cuda_create_stream_ffi(gpu_index: u32) -> *mut ffi::c_void;
 }
 unsafe extern "C" {
     pub fn cuda_destroy_stream(stream: *mut ffi::c_void, gpu_index: u32);
@@ -38,15 +16,6 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn cuda_malloc(size: u64, gpu_index: u32) -> *mut ffi::c_void;
-}
-unsafe extern "C" {
-    pub fn cuda_malloc_with_size_tracking_async(
-        size: u64,
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        size_tracker: *mut u64,
-        allocate_gpu_memory: bool,
-    ) -> *mut ffi::c_void;
 }
 unsafe extern "C" {
     pub fn cuda_malloc_async(
@@ -62,32 +31,12 @@ unsafe extern "C" {
     pub fn cuda_device_total_memory(gpu_index: u32) -> u64;
 }
 unsafe extern "C" {
-    pub fn cuda_memcpy_with_size_tracking_async_to_gpu(
-        dest: *mut ffi::c_void,
-        src: *const ffi::c_void,
-        size: u64,
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        gpu_memory_allocated: bool,
-    );
-}
-unsafe extern "C" {
     pub fn cuda_memcpy_async_to_gpu(
         dest: *mut ffi::c_void,
         src: *const ffi::c_void,
         size: u64,
         stream: *mut ffi::c_void,
         gpu_index: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
-        dest: *mut ffi::c_void,
-        src: *const ffi::c_void,
-        size: u64,
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        gpu_memory_allocated: bool,
     );
 }
 unsafe extern "C" {
@@ -117,16 +66,6 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn cuda_memset_with_size_tracking_async(
-        dest: *mut ffi::c_void,
-        val: u64,
-        size: u64,
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        gpu_memory_allocated: bool,
-    );
-}
-unsafe extern "C" {
     pub fn cuda_memset_async(
         dest: *mut ffi::c_void,
         val: u64,
@@ -146,15 +85,4 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn cuda_drop(ptr: *mut ffi::c_void, gpu_index: u32);
-}
-unsafe extern "C" {
-    pub fn cuda_drop_with_size_tracking_async(
-        ptr: *mut ffi::c_void,
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        gpu_memory_allocated: bool,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_drop_async(ptr: *mut ffi::c_void, stream: *mut ffi::c_void, gpu_index: u32);
 }

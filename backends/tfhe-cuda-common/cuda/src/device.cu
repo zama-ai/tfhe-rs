@@ -153,7 +153,7 @@ void cuda_event_destroy(cudaEvent_t event, uint32_t gpu_index) {
 }
 
 /// Unsafe function to create a CUDA stream, must check first that GPU exists
-cudaStream_t cuda_create_stream(uint32_t gpu_index) {
+void *cuda_create_stream_ffi(uint32_t gpu_index) {
   cuda_set_device(gpu_index);
   cudaStream_t stream;
   check_cuda_error(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
@@ -161,14 +161,15 @@ cudaStream_t cuda_create_stream(uint32_t gpu_index) {
 }
 
 /// Unsafe function to destroy CUDA stream, must check first the GPU exists
-void cuda_destroy_stream(cudaStream_t stream, uint32_t gpu_index) {
+void cuda_destroy_stream(void *stream, uint32_t gpu_index) {
   cuda_set_device(gpu_index);
-  check_cuda_error(cudaStreamDestroy(stream));
+  check_cuda_error(cudaStreamDestroy(static_cast<cudaStream_t>(stream)));
 }
 
-void cuda_synchronize_stream(cudaStream_t stream, uint32_t gpu_index) {
+void cuda_synchronize_stream(void *stream, uint32_t gpu_index) {
   cuda_set_device(gpu_index);
-  check_cuda_error(cudaStreamSynchronize(stream));
+  check_cuda_error(
+      cudaStreamSynchronize(static_cast<cudaStream_t>(stream)));
 }
 
 // Determine if a CUDA device is available at runtime
@@ -218,11 +219,10 @@ void *cuda_malloc_with_size_tracking_async(uint64_t size, cudaStream_t stream,
 
 /// Allocates a size-byte array at the device memory. Tries to do it
 /// asynchronously.
-void *cuda_malloc_async(uint64_t size, cudaStream_t stream,
-                        uint32_t gpu_index) {
+void *cuda_malloc_async(uint64_t size, void *stream, uint32_t gpu_index) {
   uint64_t size_tracker = 0;
-  return cuda_malloc_with_size_tracking_async(size, stream, gpu_index,
-                                              size_tracker, true);
+  return cuda_malloc_with_size_tracking_async(
+      size, static_cast<cudaStream_t>(stream), gpu_index, size_tracker, true);
 }
 
 /// Check that allocation is valid
@@ -304,9 +304,9 @@ void cuda_memcpy_with_size_tracking_async_to_gpu(void *dest, const void *src,
 /// asynchronous data copy from the CPU to all the GPUs simultaneously (for
 /// example to copy the bootstrapping key).
 void cuda_memcpy_async_to_gpu(void *dest, const void *src, uint64_t size,
-                              cudaStream_t stream, uint32_t gpu_index) {
-  cuda_memcpy_with_size_tracking_async_to_gpu(dest, src, size, stream,
-                                              gpu_index, true);
+                              void *stream, uint32_t gpu_index) {
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      dest, src, size, static_cast<cudaStream_t>(stream), gpu_index, true);
 }
 
 /// Copy memory within a GPU asynchronously.
@@ -329,10 +329,9 @@ void cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
   }
 }
 void cuda_memcpy_async_gpu_to_gpu(void *dest, void const *src, uint64_t size,
-                                  cudaStream_t stream, uint32_t gpu_index) {
-
-  cuda_memcpy_with_size_tracking_async_gpu_to_gpu(dest, src, size, stream,
-                                                  gpu_index, true);
+                                  void *stream, uint32_t gpu_index) {
+  cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+      dest, src, size, static_cast<cudaStream_t>(stream), gpu_index, true);
 }
 
 /// Copy memory within a GPU
@@ -383,10 +382,10 @@ void cuda_memset_with_size_tracking_async(void *dest, uint64_t val,
 }
 
 /// cuda_memset sets bytes, we basically only use it to initialize data to 0
-void cuda_memset_async(void *dest, uint64_t val, uint64_t size,
-                       cudaStream_t stream, uint32_t gpu_index) {
-  cuda_memset_with_size_tracking_async(dest, val, size, stream, gpu_index,
-                                       true);
+void cuda_memset_async(void *dest, uint64_t val, uint64_t size, void *stream,
+                       uint32_t gpu_index) {
+  cuda_memset_with_size_tracking_async(
+      dest, val, size, static_cast<cudaStream_t>(stream), gpu_index, true);
 }
 
 template <typename Torus>
@@ -429,15 +428,15 @@ template void cuda_set_value_async(cudaStream_t stream, uint32_t gpu_index,
 /// memory is pinned (using cudaMallocHost for the CPU allocation),
 /// so it should be avoided at all costs
 void cuda_memcpy_async_to_cpu(void *dest, const void *src, uint64_t size,
-                              cudaStream_t stream, uint32_t gpu_index) {
+                              void *stream, uint32_t gpu_index) {
   GPU_ASSERT(dest != nullptr, "Cuda error: null host ptr");
   if (size == 0)
     return;
   validate_device_ptr_and_gpu_index(src, gpu_index);
 
   cuda_set_device(gpu_index);
-  check_cuda_error(
-      cudaMemcpyAsync(dest, src, size, cudaMemcpyDeviceToHost, stream));
+  check_cuda_error(cudaMemcpyAsync(dest, src, size, cudaMemcpyDeviceToHost,
+                                   static_cast<cudaStream_t>(stream)));
 }
 
 /// Return number of GPUs available

@@ -3,7 +3,7 @@
 use crate::curve_api::bls12_446::{Zp, G1, G2};
 use crate::curve_api::CurveGroupOps;
 use crate::gpu::{g1_affine_from_cuda, g1_affine_to_cuda, g2_affine_from_cuda, g2_affine_to_cuda};
-use tfhe_cuda_common::cuda_bind::{cuda_create_stream, cuda_destroy_stream};
+use tfhe_cuda_common::cuda_bind::{cuda_create_stream_ffi, cuda_destroy_stream};
 use zk_cuda_backend::conversions::{g1_affine_from_montgomery, g2_affine_from_montgomery};
 use zk_cuda_backend::{
     G1Affine as CudaG1Affine, G1Projective as CudaG1Projective, G2Affine as CudaG2Affine,
@@ -170,7 +170,7 @@ fn msm_large_n<T: MsmTestGroup>() {
         let probe_points = vec![gen_cuda];
         let probe_scalars = vec![CudaScalar::from_u64(1)];
         // SAFETY: gpu_index 0 is assumed valid on any CUDA-capable machine
-        let probe_stream = unsafe { cuda_create_stream(0) };
+        let probe_stream = unsafe { cuda_create_stream_ffi(0) };
         if T::msm(&probe_points, &probe_scalars, probe_stream, 0).is_err() {
             // SAFETY: stream was created above and is not used after this point
             unsafe { cuda_destroy_stream(probe_stream, 0) };
@@ -188,7 +188,7 @@ fn msm_large_n<T: MsmTestGroup>() {
         let scalars: Vec<CudaScalar> = (1..=n).map(CudaScalar::from_u64).collect();
 
         // SAFETY: gpu_index 0 is assumed valid on any CUDA-capable machine
-        let stream = unsafe { cuda_create_stream(0) };
+        let stream = unsafe { cuda_create_stream_ffi(0) };
         let gpu_result_proj = T::msm(&points, &scalars, stream, 0)
             .unwrap_or_else(|_| panic!("CUDA MSM failed at N={}", n));
         // SAFETY: stream was created above and is not used after this point
@@ -234,7 +234,7 @@ fn msm_zero_scalars<T: MsmTestGroup>() {
 
     let gpu_index = 0;
     // SAFETY: gpu_index 0 is assumed valid on any CUDA-capable machine
-    let stream = unsafe { cuda_create_stream(gpu_index) };
+    let stream = unsafe { cuda_create_stream_ffi(gpu_index) };
     let result_proj = T::msm(&points, &scalars, stream, gpu_index)
         .unwrap_or_else(|e| panic!("CUDA MSM failed: {e}"));
     // SAFETY: stream was created above and is not used after this point
@@ -258,7 +258,7 @@ fn msm_canceling<T: MsmTestGroup>() {
 
     let gpu_index = 0;
     // SAFETY: gpu_index 0 is assumed valid on any CUDA-capable machine
-    let stream = unsafe { cuda_create_stream(gpu_index) };
+    let stream = unsafe { cuda_create_stream_ffi(gpu_index) };
     let result_proj = T::msm(&points, &scalars, stream, gpu_index)
         .unwrap_or_else(|e| panic!("CUDA MSM failed: {e}"));
     // SAFETY: stream was created above and is not used after this point
@@ -287,7 +287,7 @@ fn msm_infinity_input<T: MsmTestGroup>() {
 
     let gpu_index = 0;
     // SAFETY: gpu_index 0 is assumed valid on any CUDA-capable machine
-    let stream = unsafe { cuda_create_stream(gpu_index) };
+    let stream = unsafe { cuda_create_stream_ffi(gpu_index) };
     let result_proj = T::msm(&points, &scalars, stream, gpu_index)
         .unwrap_or_else(|e| panic!("CUDA MSM failed: {e}"));
     // SAFETY: stream was created above and is not used after this point
@@ -394,7 +394,7 @@ fn test_g1_msm_multi_limb_scalar() {
 
     let gpu_index = 0;
     // SAFETY: gpu_index 0 is assumed valid on any CUDA-capable machine
-    let stream = unsafe { cuda_create_stream(gpu_index) };
+    let stream = unsafe { cuda_create_stream_ffi(gpu_index) };
     let gpu_result_proj = CudaG1Projective::msm(&points, &scalars, stream, gpu_index, false)
         .unwrap_or_else(|e| panic!("CUDA MSM failed: {e}"));
     // SAFETY: stream was created above and is not used after this point

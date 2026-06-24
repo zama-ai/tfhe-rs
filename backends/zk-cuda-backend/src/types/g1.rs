@@ -270,9 +270,9 @@ impl G1Projective {
         //
         // SAFETY:
         // - `stream` was validated as non-null above and must be a valid `cudaStream_t` obtained
-        //   from `cuda_create_stream`. The raw pointer type is `*mut c_void` because CUDA streams
-        //   are opaque pointers. If the stream is invalid (e.g., already destroyed or corrupted),
-        //   the CUDA runtime will report an error through `cudaGetLastError()`.
+        //   from `cuda_create_stream_ffi`. The raw pointer type is `*mut c_void` because CUDA
+        //   streams are opaque pointers. If the stream is invalid (e.g., already destroyed or
+        //   corrupted), the CUDA runtime will report an error through `cudaGetLastError()`.
         // - This function borrows the stream for the duration of the call; it does not take
         //   ownership. The caller remains responsible for destroying the stream after use.
         // - `gpu_index` is passed directly to CUDA; the C++ wrapper validates it

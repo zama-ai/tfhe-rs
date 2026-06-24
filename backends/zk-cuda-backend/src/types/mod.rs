@@ -193,7 +193,7 @@ mod tests {
         let gen = G1Affine::new(Fp::new(G1_GENERATOR_X), Fp::new(G1_GENERATOR_Y), false);
         let one = Scalar::from_u64(1);
 
-        let stream = unsafe { tfhe_cuda_common::cuda_bind::cuda_create_stream(0) };
+        let stream = unsafe { tfhe_cuda_common::cuda_bind::cuda_create_stream_ffi(0) };
         let result = G1Projective::msm(&[gen], &[one], stream, 0, false).unwrap();
         unsafe { tfhe_cuda_common::cuda_bind::cuda_destroy_stream(stream, 0) };
 
@@ -218,7 +218,7 @@ mod tests {
         let gen = G2Affine::new(x, y, false);
         let one = Scalar::from_u64(1);
 
-        let stream = unsafe { tfhe_cuda_common::cuda_bind::cuda_create_stream(0) };
+        let stream = unsafe { tfhe_cuda_common::cuda_bind::cuda_create_stream_ffi(0) };
         let result = G2Projective::msm(&[gen], &[one], stream, 0, false).unwrap();
         unsafe { tfhe_cuda_common::cuda_bind::cuda_destroy_stream(stream, 0) };
 

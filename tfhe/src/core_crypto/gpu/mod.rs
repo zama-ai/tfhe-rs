@@ -45,7 +45,7 @@ impl CudaStreams {
         let mut ptr_array = Vec::with_capacity(gpu_count as usize);
 
         for _ in 0..gpu_count {
-            ptr_array.push(unsafe { cuda_create_stream(0) });
+            ptr_array.push(unsafe { cuda_create_stream_ffi(0) });
             gpu_indexes.push(GpuIndex::new(0));
         }
         Self {
@@ -62,7 +62,7 @@ impl CudaStreams {
         let mut ptr_array = Vec::with_capacity(gpu_count as usize);
 
         for i in 0..gpu_count {
-            ptr_array.push(unsafe { cuda_create_stream(i) });
+            ptr_array.push(unsafe { cuda_create_stream_ffi(i) });
             gpu_indexes.push(GpuIndex::new(i));
         }
         Self {
@@ -81,7 +81,7 @@ impl CudaStreams {
         for &i in indexes {
             let index = i.get();
             assert!(index < gpu_count, "Cuda error: invalid device index");
-            ptr_array.push(unsafe { cuda_create_stream(index) });
+            ptr_array.push(unsafe { cuda_create_stream_ffi(index) });
             gpu_indexes.push(i);
         }
         Self {
@@ -93,7 +93,7 @@ impl CudaStreams {
     /// as input
     pub fn new_single_gpu(gpu_index: GpuIndex) -> Self {
         Self {
-            ptr: vec![unsafe { cuda_create_stream(gpu_index.get()) }],
+            ptr: vec![unsafe { cuda_create_stream_ffi(gpu_index.get()) }],
             gpu_indexes: vec![gpu_index],
         }
     }
