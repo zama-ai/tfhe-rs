@@ -70,7 +70,6 @@ macro_rules! create_gpu_parameterized_stringified_test{
 
 use crate::integer::gpu::server_key::radix::kv_store::CudaKVStore;
 use crate::integer::gpu::server_key::radix::tests_signed::GpuMultiDeviceFunctionExecutor;
-use crate::integer::server_key::radix_parallel::tests_unsigned::test_kv_store::KeyType;
 use crate::integer::server_key::KVStore;
 pub(crate) use create_gpu_parameterized_stringified_test;
 pub(crate) use create_gpu_parameterized_test;
@@ -1841,12 +1840,13 @@ where
     }
 }
 
-impl<'a, F> FunctionExecutor<(&'a KVStore<KeyType, RadixCiphertext>, u64), BooleanBlock>
+impl<'a, Key, F> FunctionExecutor<(&'a KVStore<Key, RadixCiphertext>, u64), BooleanBlock>
     for GpuFunctionExecutor<F>
 where
+    Key: Clone + Ord,
     F: Fn(
         &CudaServerKey,
-        &CudaKVStore<KeyType, CudaUnsignedRadixCiphertext>,
+        &CudaKVStore<Key, CudaUnsignedRadixCiphertext>,
         u64,
         &CudaStreams,
     ) -> CudaBooleanBlock,
@@ -1855,7 +1855,7 @@ where
         self.setup_from_keys(cks, &sks);
     }
 
-    fn execute(&mut self, input: (&'a KVStore<KeyType, RadixCiphertext>, u64)) -> BooleanBlock {
+    fn execute(&mut self, input: (&'a KVStore<Key, RadixCiphertext>, u64)) -> BooleanBlock {
         let context = self
             .context
             .as_ref()
@@ -1869,19 +1869,20 @@ where
     }
 }
 
-impl<'a, F>
+impl<'a, Key, F>
     FunctionExecutor<
         (
-            &'a mut KVStore<KeyType, RadixCiphertext>,
+            &'a mut KVStore<Key, RadixCiphertext>,
             &'a RadixCiphertext,
             &'a dyn Fn(RadixCiphertext) -> RadixCiphertext,
         ),
         (RadixCiphertext, RadixCiphertext, BooleanBlock),
     > for GpuFunctionExecutor<F>
 where
+    Key: Clone + Ord,
     F: Fn(
         &CudaServerKey,
-        &mut CudaKVStore<KeyType, CudaUnsignedRadixCiphertext>,
+        &mut CudaKVStore<Key, CudaUnsignedRadixCiphertext>,
         &CudaUnsignedRadixCiphertext,
         &dyn Fn(CudaUnsignedRadixCiphertext) -> CudaUnsignedRadixCiphertext,
         &CudaStreams,
@@ -1898,7 +1899,7 @@ where
     fn execute(
         &mut self,
         input: (
-            &'a mut KVStore<KeyType, RadixCiphertext>,
+            &'a mut KVStore<Key, RadixCiphertext>,
             &'a RadixCiphertext,
             &'a dyn Fn(RadixCiphertext) -> RadixCiphertext,
         ),

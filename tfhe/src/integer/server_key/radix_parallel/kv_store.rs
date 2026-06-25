@@ -1,19 +1,9 @@
-#[cfg(feature = "gpu")]
-use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::backward_compatibility::ciphertext::CompressedKVStoreVersions;
 use crate::integer::block_decomposition::{Decomposable, DecomposableInto};
 use crate::integer::ciphertext::{
     CompressedCiphertextList, CompressedCiphertextListBuilder, Compressible, Expandable,
 };
 use crate::integer::compression_keys::{CompressionKey, DecompressionKey};
-#[cfg(feature = "gpu")]
-use crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaExpandable;
-#[cfg(feature = "gpu")]
-use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
-#[cfg(feature = "gpu")]
-use crate::integer::gpu::list_compression::server_keys::CudaDecompressionKey;
-#[cfg(feature = "gpu")]
-use crate::integer::gpu::server_key::radix::kv_store::CudaKVStore;
 use crate::integer::prelude::ServerKeyDefaultCMux;
 use crate::integer::{BooleanBlock, IntegerRadixCiphertext, ServerKey};
 use crate::prelude::CastInto;
@@ -423,6 +413,15 @@ pub struct CompressedKVStore<Key, Value> {
     _v: PhantomData<Value>,
 }
 
+// The only consumer is the GPU decompression path (in `integer::gpu`); it lives in another module
+// and so cannot read the private fields directly. Hence unused, and dead in non-gpu builds.
+impl<Key, Value> CompressedKVStore<Key, Value> {
+    #[allow(dead_code)]
+    pub(crate) fn parts(&self) -> (&[Key], &CompressedCiphertextList, bool) {
+        (&self.keys, &self.values, self.is_signed)
+    }
+}
+
 impl<Key, Value> CompressedKVStore<Key, Value>
 where
     Value: Expandable + IntegerRadixCiphertext,
@@ -483,47 +482,6 @@ where
                 ));
             }
 
-            let _ = store.insert(*key, value);
-        }
-
-        Ok(store)
-    }
-}
-
-#[cfg(feature = "gpu")]
-impl<Key, Value> CompressedKVStore<Key, Value>
-where
-    Value: IntegerRadixCiphertext,
-{
-    pub(crate) fn decompress_to_cuda<GpuCt>(
-        &self,
-        decompression_key: &CudaDecompressionKey,
-        streams: &CudaStreams,
-    ) -> crate::Result<CudaKVStore<Key, GpuCt>>
-    where
-        Key: Copy + Display + Ord,
-        GpuCt: CudaIntegerRadixCiphertext + CudaExpandable,
-    {
-        if Value::IS_SIGNED != self.is_signed {
-            let requested = if Value::IS_SIGNED {
-                "signed"
-            } else {
-                "unsigned"
-            };
-            let stored = if self.is_signed { "signed" } else { "unsigned" };
-            return Err(crate::error!(
-                "Requested value signedness does not match stored data: \
-                 requested {requested} values but stored values are {stored}"
-            ));
-        }
-
-        let cuda_compressed = self.values.to_cuda_compressed_ciphertext_list(streams);
-        let mut store = CudaKVStore::<Key, GpuCt>::new();
-
-        for (i, key) in self.keys.iter().enumerate() {
-            let value: GpuCt = cuda_compressed
-                .get(i, decompression_key, streams)?
-                .ok_or_else(|| crate::error!("Missing value for key '{key}'"))?;
             let _ = store.insert(*key, value);
         }
 

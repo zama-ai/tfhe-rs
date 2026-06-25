@@ -6,12 +6,16 @@ use crate::integer::ciphertext::{
     AsShortintCiphertextSlice, DataKind, Expandable, IntegerRadixCiphertext,
 };
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
-use crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
+use crate::integer::gpu::ciphertext::compressed_ciphertext_list::{
+    CudaCompressedCiphertextListBuilder, CudaExpandable,
+};
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
-use crate::integer::gpu::list_compression::server_keys::CudaCompressionKey;
+use crate::integer::gpu::list_compression::server_keys::{
+    CudaCompressionKey, CudaDecompressionKey,
+};
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaDynamicKeyswitchingKey};
 use crate::integer::gpu::{
     cuda_backend_kv_store_contains_key, cuda_backend_kv_store_get, cuda_backend_kv_store_map,
@@ -24,6 +28,7 @@ use crate::shortint::parameters::AtomicPatternKind;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::prelude::ParallelIterator;
 use std::collections::BTreeMap;
+use std::fmt::Display;
 use std::num::NonZeroUsize;
 use tfhe_cuda_backend::cuda_bind::cuda_memcpy_async_gpu_to_gpu;
 
@@ -337,6 +342,51 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
 impl<Key, Ct> Default for CudaKVStore<Key, Ct> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<Key, Value> CompressedKVStore<Key, Value>
+where
+    Value: IntegerRadixCiphertext,
+{
+    /// Decompresses the stored values directly onto the GPU, mirroring the CPU-side
+    /// [`CompressedKVStore::decompress`] but producing a [`CudaKVStore`]. This is the
+    /// `CompressedKVStore -> CudaKVStore` direction; [`CudaKVStore::to_kv_store`] is the inverse.
+    pub(crate) fn decompress_to_cuda<GpuCt>(
+        &self,
+        decompression_key: &CudaDecompressionKey,
+        streams: &CudaStreams,
+    ) -> crate::Result<CudaKVStore<Key, GpuCt>>
+    where
+        Key: Copy + Display + Ord,
+        GpuCt: CudaIntegerRadixCiphertext + CudaExpandable,
+    {
+        let (keys, values, is_signed) = self.parts();
+
+        if Value::IS_SIGNED != is_signed {
+            let requested = if Value::IS_SIGNED {
+                "signed"
+            } else {
+                "unsigned"
+            };
+            let stored = if is_signed { "signed" } else { "unsigned" };
+            return Err(crate::error!(
+                "Requested value signedness does not match stored data: \
+                 requested {requested} values but stored values are {stored}"
+            ));
+        }
+
+        let cuda_compressed = values.to_cuda_compressed_ciphertext_list(streams);
+        let mut store = CudaKVStore::<Key, GpuCt>::new();
+
+        for (i, key) in keys.iter().enumerate() {
+            let value: GpuCt = cuda_compressed
+                .get(i, decompression_key, streams)?
+                .ok_or_else(|| crate::error!("Missing value for key '{key}'"))?;
+            let _ = store.insert(*key, value);
+        }
+
+        Ok(store)
     }
 }
 

@@ -127,13 +127,13 @@ fn integer_default_kv_store_contains_key(params: impl Into<TestParameters>) {
 
 fn integer_default_kv_store_contains_value(params: impl Into<TestParameters>) {
     let contains_value_executor = CpuFunctionExecutor::new(&ServerKey::kv_store_contains_value);
-    default_kv_store_contains_value_test(params, contains_value_executor);
+    default_kv_store_contains_value_test::<u8, _, _>(params, contains_value_executor);
 }
 
 fn integer_default_kv_store_contains_clear_value(params: impl Into<TestParameters>) {
     let contains_clear_value_executor =
         CpuFunctionExecutor::new(&ServerKey::kv_store_contains_clear_value);
-    default_kv_store_contains_clear_value_test(params, contains_clear_value_executor);
+    default_kv_store_contains_clear_value_test::<u8, _, _>(params, contains_clear_value_executor);
 }
 
 fn integer_default_kv_store_map(params: impl Into<TestParameters>) {
@@ -144,10 +144,8 @@ fn integer_default_kv_store_map(params: impl Into<TestParameters>) {
         sks.kv_store_map(store, encrypted_key, func)
     };
     let map_executor = CpuFunctionExecutor::new(closure);
-    default_kv_store_map_test(params, map_executor);
+    default_kv_store_map_test::<u8, _, _>(params, map_executor);
 }
-
-pub type KeyType = u8;
 
 fn get_num_block_for_key<Key: UnsignedNumeric>(msg_mod: MessageModulus) -> usize {
     Key::BITS.div_ceil(msg_mod.0.ilog2() as usize)
@@ -279,12 +277,13 @@ pub fn default_kv_store_get_update_test<Key, P, T1, T2>(
     }
 }
 
-pub fn default_kv_store_map_test<P, T>(params: P, mut kv_store_map: T)
+pub fn default_kv_store_map_test<Key, P, T>(params: P, mut kv_store_map: T)
 where
+    Key: DecomposableInto<u64> + UnsignedNumeric + CastFrom<u64> + Ord + Copy + Display,
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
         (
-            &'a mut KVStore<KeyType, RadixCiphertext>,
+            &'a mut KVStore<Key, RadixCiphertext>,
             &'a RadixCiphertext,
             &'a dyn Fn(RadixCiphertext) -> RadixCiphertext,
         ),
@@ -298,17 +297,19 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let nb_blocks_key = get_num_block_for_key::<KeyType>(params.message_modulus());
+    let nb_blocks_key = get_num_block_for_key::<Key>(params.message_modulus());
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
     kv_store_map.setup(&cks, sks);
 
+    let key_modulus = key_space_modulus::<Key>(params.message_modulus(), nb_blocks_key);
+
     // Test on an empty store
     {
-        let mut empty_map: KVStore<KeyType, RadixCiphertext> = KVStore::new();
-        let key = rand::random::<u8>();
+        let mut empty_map: KVStore<Key, RadixCiphertext> = KVStore::new();
+        let key = random_key::<Key>(key_modulus);
         let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
         let identity: &dyn Fn(RadixCiphertext) -> RadixCiphertext = &|x| x;
         let (_, _, is_some) = kv_store_map.execute((&mut empty_map, &encrypted_key, identity));
@@ -316,7 +317,7 @@ where
     }
 
     let num_keys = 20usize;
-    let (mut map, mut clear_store) = create_filled_stores(num_keys, 1 << u8::BITS, modulus, &cks);
+    let (mut map, mut clear_store) = create_filled_stores(num_keys, key_modulus, modulus, &cks);
 
     let clear_function = |x: u64| -> u64 { x / 3 };
     let function = Box::new(|input: RadixCiphertext| -> RadixCiphertext {
@@ -328,7 +329,7 @@ where
 
     // Test modifying a key that does not exist
     for _ in 0..num_keys.div_ceil(2) {
-        let key = generate_unused_key(&clear_store, 1 << u8::BITS);
+        let key = generate_unused_key(&clear_store, key_modulus);
         let encrypted_key = cks.as_ref().encrypt_radix(key, nb_blocks_key);
 
         let (_, _, is_some) = kv_store_map.execute((&mut map, &encrypted_key, &function));
@@ -495,11 +496,12 @@ pub fn default_kv_store_contains_test<Key, P, T1>(
     }
 }
 
-pub fn default_kv_store_contains_value_test<P, T1>(params: P, mut kv_store_contains_value: T1)
+pub fn default_kv_store_contains_value_test<Key, P, T1>(params: P, mut kv_store_contains_value: T1)
 where
+    Key: DecomposableInto<u64> + UnsignedNumeric + CastFrom<u64> + Ord + Copy + Display,
     P: Into<TestParameters>,
     T1: for<'a> FunctionExecutor<
-        (&'a KVStore<KeyType, RadixCiphertext>, &'a RadixCiphertext),
+        (&'a KVStore<Key, RadixCiphertext>, &'a RadixCiphertext),
         BooleanBlock,
     >,
 {
@@ -510,6 +512,9 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
+    let nb_blocks_key = get_num_block_for_key::<Key>(params.message_modulus());
+    let key_modulus = key_space_modulus::<Key>(params.message_modulus(), nb_blocks_key);
+
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
@@ -517,14 +522,14 @@ where
 
     // Test on an empty store
     {
-        let empty_map: KVStore<KeyType, RadixCiphertext> = KVStore::new();
+        let empty_map: KVStore<Key, RadixCiphertext> = KVStore::new();
         let value: RadixCiphertext = cks.encrypt(rand::random::<u64>() % modulus);
         let is_contained = kv_store_contains_value.execute((&empty_map, &value));
         assert!(!cks.decrypt_bool(&is_contained));
     }
 
     let num_keys = 20usize;
-    let (map, clear_store) = create_filled_stores(num_keys, 1 << u8::BITS, modulus, &cks);
+    let (map, clear_store) = create_filled_stores(num_keys, key_modulus, modulus, &cks);
 
     // Test a value that exists in the store
     for _ in 0..num_keys.div_ceil(2) {
@@ -551,12 +556,13 @@ where
     }
 }
 
-pub fn default_kv_store_contains_clear_value_test<P, T1>(
+pub fn default_kv_store_contains_clear_value_test<Key, P, T1>(
     params: P,
     mut kv_store_contains_clear_value: T1,
 ) where
+    Key: DecomposableInto<u64> + UnsignedNumeric + CastFrom<u64> + Ord + Copy + Display,
     P: Into<TestParameters>,
-    T1: for<'a> FunctionExecutor<(&'a KVStore<KeyType, RadixCiphertext>, u64), BooleanBlock>,
+    T1: for<'a> FunctionExecutor<(&'a KVStore<Key, RadixCiphertext>, u64), BooleanBlock>,
 {
     let params = params.into();
     let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
@@ -565,6 +571,9 @@ pub fn default_kv_store_contains_clear_value_test<P, T1>(
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
+    let nb_blocks_key = get_num_block_for_key::<Key>(params.message_modulus());
+    let key_modulus = key_space_modulus::<Key>(params.message_modulus(), nb_blocks_key);
+
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
 
@@ -572,14 +581,14 @@ pub fn default_kv_store_contains_clear_value_test<P, T1>(
 
     // Test on an empty store
     {
-        let empty_map: KVStore<KeyType, RadixCiphertext> = KVStore::new();
+        let empty_map: KVStore<Key, RadixCiphertext> = KVStore::new();
         let is_contained =
             kv_store_contains_clear_value.execute((&empty_map, rand::random::<u64>() % modulus));
         assert!(!cks.decrypt_bool(&is_contained));
     }
 
     let num_keys = 20usize;
-    let (map, clear_store) = create_filled_stores(num_keys, 1 << u8::BITS, modulus, &cks);
+    let (map, clear_store) = create_filled_stores(num_keys, key_modulus, modulus, &cks);
 
     // Test a value that exists in the store
     for _ in 0..num_keys.div_ceil(2) {

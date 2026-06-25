@@ -44,13 +44,13 @@ fn integer_default_kv_store_contains_key(params: impl Into<TestParameters>) {
 
 fn integer_default_kv_store_contains_value(params: impl Into<TestParameters>) {
     let contains_value_executor = GpuFunctionExecutor::new(&CudaServerKey::kv_store_contains_value);
-    default_kv_store_contains_value_test(params, contains_value_executor);
+    default_kv_store_contains_value_test::<u8, _, _>(params, contains_value_executor);
 }
 
 fn integer_default_kv_store_contains_clear_value(params: impl Into<TestParameters>) {
     let contains_clear_value_executor =
         GpuFunctionExecutor::new(&CudaServerKey::kv_store_contains_clear_value);
-    default_kv_store_contains_clear_value_test(params, contains_clear_value_executor);
+    default_kv_store_contains_clear_value_test::<u8, _, _>(params, contains_clear_value_executor);
 }
 
 fn integer_default_kv_store_map(params: impl Into<TestParameters>) {
@@ -63,7 +63,7 @@ fn integer_default_kv_store_map(params: impl Into<TestParameters>) {
          func: &dyn Fn(CudaUnsignedRadixCiphertext) -> CudaUnsignedRadixCiphertext,
          streams: &CudaStreams| { sks.kv_store_map(store, encrypted_key, func, streams) };
     let map_executor = GpuFunctionExecutor::new(closure);
-    default_kv_store_map_test(params, map_executor);
+    default_kv_store_map_test::<u8, _, _>(params, map_executor);
 }
 
 // 300 entries exceeds the CUDA backend's small-map limit
