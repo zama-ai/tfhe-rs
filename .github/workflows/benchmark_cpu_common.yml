@@ -148,7 +148,7 @@ jobs:
     name: benchmark_cpu_common/integer-benchmarks
     needs: [ prepare-matrix, setup-instance ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
-    timeout-minutes: 1440  # 24 hours
+    timeout-minutes: 2880  # 24 hours
     strategy:
       max-parallel: 1
       matrix:
