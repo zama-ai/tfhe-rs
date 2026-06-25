@@ -46,7 +46,7 @@ jobs:
       gpu_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.gpu_any_changed }}
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           fetch-depth: 0
           persist-credentials: 'false'
@@ -122,7 +122,7 @@ jobs:
             gcc: 11
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}

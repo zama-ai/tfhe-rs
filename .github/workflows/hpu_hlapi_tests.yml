@@ -33,7 +33,7 @@ jobs:
       hpu_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.hpu_any_changed }}
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           fetch-depth: 0
           persist-credentials: 'false'
@@ -58,7 +58,7 @@ jobs:
       ((github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||github.event_name == 'pull_request')
     runs-on: "runs-on=${{ github.run_id }}/runner=cpu-big"
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
