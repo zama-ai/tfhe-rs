@@ -68,6 +68,19 @@ pub enum Commands {
         #[arg(default_value = "trace_dump.json")]
         file: String,
     },
+    /// Ciphertext readback
+    #[command(about = "")]
+    Ciphertext {
+        /// Tfhe Key seed
+        #[arg(long, short, value_parser=maybe_hex::<u128>)]
+        key_seed: u128,
+        /// Ciphertext addr (Expressed in Slot#)
+        #[arg(long, short, value_parser=maybe_hex::<usize>)]
+        addr: usize,
+        /// Ciphertext size (Expressend in Block)
+        #[arg(long, short, value_parser=maybe_hex::<usize>)]
+        size: usize,
+    },
 }
 
 /// Action for the Register command
@@ -286,6 +299,12 @@ fn main() {
 
             trace_dump(&mut hpu_hw, &regmap, size_b, &file)
         }
+
+        Commands::Ciphertext {
+            key_seed,
+            addr,
+            size,
+        } => read_and_dump_ct(&mut hpu_hw, &regmap, key_seed, addr, size),
     }
 }
 
@@ -485,4 +504,72 @@ fn trace_dump(hw: &mut ffi::HpuHw, regmap: &FlatRegmap, size_b: usize, filename:
     let file = File::create(filename).expect("Failed to create or open trace dump file");
     let buf_wr = std::io::BufWriter::new(file);
     serde_json::to_writer_pretty(buf_wr, &trace_stream).expect("Could not write trace dump");
+}
+
+fn read_and_dump_ct(
+    hw: &mut ffi::HpuHw,
+    regmap: &FlatRegmap,
+    key_seed: u128,
+    addr: u64,
+    size: usize,
+) {
+    // Generate tfhe key
+    // Force key seeder if seed specified by user
+    if let Some(seed) = args.seed {
+        let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(seed));
+        let shortint_engine = crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder);
+        crate::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
+            std::mem::replace(engine, shortint_engine)
+        });
+    }
+
+    // Extract pbs_configuration from Hpu and create Client/Server Key
+    let params = HpuParameters::from_rtl(hw, regmap);
+    let cks = ClientKey::new(KeySwitch32PBSParameters::from(&params));
+
+    // Use Hpu memory view for ease
+    let cut_size_b = memory::page_align(
+        hpu_big_lwe_ciphertext_size(&params).div_ceil(params.pc_params.pem_pc)
+            * std::mem::size_of::<u64>(),
+    );
+    let ct_props = memory::CiphertextMemoryProperties {
+        mem_cut: config.board.ct_pc.clone(),
+        // NB: Xrt only support page align memory allocation. Thus we round cut coefs to
+        // match the next 4k page boundary
+        cut_size_b,
+        slot_nb: config.board.user_size,
+        retry_rate_us: config.fpga.polling_us,
+    };
+    tracing::debug!("[N{hid}] Ct_mem properties -> {:?}", ct_props);
+
+    // Convert addr and size in vec of slotId
+    let slots = (0..size)
+        .iter()
+        .map(|b| SlotId(addr + b))
+        .collect::<Vec<_>>();
+
+    let hpu_ct = CiphertextSlot::raw_readback(hw, &slots, &ct_props, &params);
+    let cpu_ct = RadixCiphertext {
+        blocks: hpu_ct
+            .into_iter()
+            .map(|ct| {
+                let pbs_p = KeySwitch32PBSParameters::from(ct.params());
+                let cpu_ct = LweCiphertextOwned::from(ct.as_view());
+                // Hpu output clean ciphertext without carry
+                Ciphertext::new(
+                    cpu_ct,
+                    Degree::new(pbs_p.message_modulus.0 - 1),
+                    NoiseLevel::NOMINAL,
+                    pbs_p.message_modulus,
+                    pbs_p.carry_modulus,
+                    AtomicPatternKind::KeySwitch32,
+                )
+            })
+            .collect::<Vec<_>>(),
+    };
+    let pt = cks.decrypt_radix(cpu_ct);
+    println!(
+        "Read {size} blocks from [@{addr:x}] and decrypt it's content => 0x{:x}",
+        pt
+    );
 }

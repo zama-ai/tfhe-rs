@@ -1,7 +1,10 @@
 //!
 //! Memory manager for HPU
 //! Memory is allocatod upfront and abstract as a set of slot
-use crate::ffi;
+use crate::{
+    ffi,
+    prelude::{HpuLweCiphertextOwned, HpuParameters},
+};
 use crossbeam::queue::ArrayQueue;
 
 /// Define the rate of WARNING on allocation retry
@@ -43,6 +46,42 @@ impl CiphertextSlot {
 
     fn release(&mut self, ffi_hw: &mut ffi::HpuHw) {
         self.mz.iter_mut().for_each(|mz| ffi_hw.release(mz));
+    }
+
+    #[cfg(feature = "utils")]
+    /// Readback raw memory and extract associated ciphertext
+    /// This function readback a chunk of memory and interpret it as a ciphertext list
+    /// Caller must enforce that associated memory ranges are not in used by another process
+    pub unsafe fn raw_readback(
+        ffi_hw: &mut ffi::HpuHw,
+        id: &[SlotId],
+        props: &CiphertextMemoryProperties,
+        params: &HpuParameters,
+    ) -> Vec<HpuLweCiphertextOwned<u64>> {
+        // Alloc associated CiphertextSlot
+        // WARN: Caller must enforce that matching memory region are not used by anything else
+        let slots = id
+            .iter()
+            .map(|i| Self::alloc(ffi_hw, *i, props))
+            .collect::<Vec<_>>();
+        // Cast raw memory in HpuLwe view
+        // WARN: Caller must enforce that slots data are in a valid sync state
+        slots
+            .iter()
+            .map(|s| {
+                let mut hpu_lwe = HpuLweCiphertextOwned::<u64>::new(0, params.clone());
+                let mut hw_slice = hpu_lwe.as_mut_view().into_container();
+
+                // Copy from Hw memory
+                #[allow(unused_variables)]
+                std::iter::zip(s.mz.iter(), hw_slice.iter_mut())
+                    .enumerate()
+                    .for_each(|(id, (mz, cut))| {
+                        mz.read(0, cut);
+                    });
+                hpu_lwe
+            })
+            .collect::<Vec<_>>()
     }
 }
 
