@@ -12,6 +12,7 @@ use super::{
 use super::v1_5;
 // v1.6 is the "reference" legacy version for:
 // - classic parameters guaranteed to be compatible with the compact public key
+// - classic gaussian parameters 2^-64 pfail
 // - multi bit parameters for 2^-64 pfail
 use super::v1_6;
 
@@ -88,13 +89,13 @@ pub const TEST_PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS_GAUSSIAN_2M128: Classic
 // KS PBS Gaussian
 // 2^-64
 pub const TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64: ClassicPBSParameters =
-    V1_7_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64;
+    v1_6::V1_6_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64;
 pub const TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64: ClassicPBSParameters =
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    v1_6::V1_6_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
 pub const TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64: ClassicPBSParameters =
-    V1_7_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
+    v1_6::V1_6_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64;
 pub const TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64: ClassicPBSParameters =
-    V1_7_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64;
+    v1_6::V1_6_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64;
 
 // 2^-128
 pub const TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128: ClassicPBSParameters =
