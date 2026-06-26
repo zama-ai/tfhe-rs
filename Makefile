@@ -203,6 +203,10 @@ install_tarpaulin:
 install_cargo_audit:
 	cargo install --locked cargo-audit
 
+.PHONY: install_cargo_deny # Install cargo-deny for license checks
+install_cargo_deny:
+	cargo install --locked cargo-deny
+
 .PHONY: install_taplo # Check Cargo.toml format
 install_taplo:
 	@./scripts/install_taplo.sh --taplo-version $(TAPLO_VERSION)
@@ -732,6 +736,10 @@ check_rust_bindings_did_not_change:
 .PHONY: audit_dependencies # Run cargo audit to check vulnerable dependencies
 audit_dependencies: install_cargo_audit
 	cargo audit
+
+.PHONY: check_licenses # Run cargo-deny on licenses
+check_licenses: install_cargo_deny
+	cargo deny check licenses
 
 .PHONY: check_floating_deps # Build & lint tfhe-rs against the latest semver-compatible deps
 check_floating_deps:
@@ -2399,6 +2407,7 @@ pcc_batch_2:
 	$(call run_recipe_with_details,clippy_test_vectors)
 	$(call run_recipe_with_details,check_test_vectors)
 	$(call run_recipe_with_details,clippy_wasm_par_mq)
+	$(call run_recipe_with_details,check_licenses)
 
 .PHONY: pcc_batch_3 # duration: 6'50''
 pcc_batch_3:
