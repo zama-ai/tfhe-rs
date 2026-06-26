@@ -2,7 +2,6 @@ use super::super::super::meta::{
     DedicatedCompactPublicKeyParameters, MetaParameters, ReRandomizationConfiguration,
 };
 use super::super::classic::gaussian::p_fail_2_minus_128::ks_pbs::*;
-use super::super::classic::gaussian::p_fail_2_minus_64::ks_pbs::*;
 use super::super::classic::tuniform::p_fail_2_minus_128::ks_pbs::*;
 use super::super::compact_public_key_only::p_fail_2_minus_128::ks_pbs::*;
 use super::super::key_switching::p_fail_2_minus_128::ks_pbs::*;
@@ -14,50 +13,6 @@ use super::super::noise_squashing::p_fail_2_minus_128::*;
 use crate::shortint::parameters::{Backend, MetaNoiseSquashingParameters};
 use crate::shortint::{AtomicPatternParameters, PBSParameters};
 
-pub const V1_7_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaParameters {
-    backend: Backend::Cpu,
-    compute_parameters: AtomicPatternParameters::Standard(PBSParameters::PBS(
-        V1_7_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    )),
-    dedicated_compact_public_key_parameters: None,
-    compression_parameters: None,
-    noise_squashing_parameters: None,
-    rerand_configuration: None,
-}
-.validate();
-pub const V1_7_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaParameters {
-    backend: Backend::Cpu,
-    compute_parameters: AtomicPatternParameters::Standard(PBSParameters::PBS(
-        V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    )),
-    dedicated_compact_public_key_parameters: None,
-    compression_parameters: None,
-    noise_squashing_parameters: None,
-    rerand_configuration: None,
-}
-.validate();
-pub const V1_7_META_PARAM_CPU_3_3_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaParameters {
-    backend: Backend::Cpu,
-    compute_parameters: AtomicPatternParameters::Standard(PBSParameters::PBS(
-        V1_7_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    )),
-    dedicated_compact_public_key_parameters: None,
-    compression_parameters: None,
-    noise_squashing_parameters: None,
-    rerand_configuration: None,
-}
-.validate();
-pub const V1_7_META_PARAM_CPU_4_4_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaParameters {
-    backend: Backend::Cpu,
-    compute_parameters: AtomicPatternParameters::Standard(PBSParameters::PBS(
-        V1_7_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-    )),
-    dedicated_compact_public_key_parameters: None,
-    compression_parameters: None,
-    noise_squashing_parameters: None,
-    rerand_configuration: None,
-}
-.validate();
 pub const V1_7_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M128: MetaParameters = MetaParameters {
     backend: Backend::Cpu,
     compute_parameters: AtomicPatternParameters::Standard(PBSParameters::PBS(

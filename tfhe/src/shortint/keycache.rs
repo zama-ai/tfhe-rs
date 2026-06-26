@@ -56,13 +56,6 @@ named_params_impl!( ShortintParameterSet =>
     V1_7_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
     V1_7_PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M128,
     V1_7_PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M128,
-    // For GPU classical tests until they have the drift technique parameters
-    // To avoid crashing shortint tests with slow/too large keys for 4_4
-    // And to have parameters without drift technique for WOPBS tests
-    V1_7_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-    V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    V1_7_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-    V1_7_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
     // MultiBit Group 2
     V1_7_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
     V1_7_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
