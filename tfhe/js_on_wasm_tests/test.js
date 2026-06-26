@@ -196,8 +196,10 @@ test("shortint_compressed_encrypt_decrypt", (t) => {
 });
 
 test("shortint_public_encrypt_decrypt", (t) => {
+  // Use an older parameter set here, since parameters with imbalanced message and carry
+  // have been removed in 1.7.0
   let params_name_2_0 =
-    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M128;
   let params_2_0 = new ShortintParameters(params_name_2_0);
   let cks = Shortint.new_client_key(params_2_0);
   let pk = Shortint.new_public_key(cks);
