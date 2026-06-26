@@ -293,13 +293,8 @@ __host__ void host_compute_eq_selectors_ct_vs_clears(
       (Torus *const *)ksks, mem_ptr->comparison_luts, message_modulus,
       mem_ptr->lut_stride);
 
-  // Equality between the input radix-ciphertext and each decomposed clear value
-  // is determined by inspecting the indicator matrix cells corresponding to the
-  // decomposed clear value.
-  // E.g. for clear value = 20, the decomposed clear value with 2_2 params is
-  // [1, 1, 0]. Thus we extract the cells [indicator_matrix[0,1],
-  // indicator_matrix[1,1], indicator_matrix[2,0]]. If all these cells are 1
-  // then the input radix-ciphertext matched this clear value.
+  // For each candidate, look up the indicator cells that correspond to its
+  // decomposed block values. If all cells are 1, the input matched.
   Torus *h_map = mem_ptr->h_map;
   uint32_t total_blocks = num_possible_values * num_blocks;
   for (uint32_t j = 0; j < num_blocks; j++) {
