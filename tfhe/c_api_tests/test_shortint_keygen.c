@@ -220,9 +220,9 @@ int main(void) {
   test_predefined_keygen_w_serde();
   test_custom_keygen();
   test_public_keygen(SHORTINT_V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
-  test_public_keygen(SHORTINT_V1_7_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128);
+  test_public_keygen(SHORTINT_V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128);
   test_compressed_public_keygen(SHORTINT_V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
-  test_compressed_public_keygen(SHORTINT_V1_7_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128);
+  test_compressed_public_keygen(SHORTINT_V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128);
   test_server_key_trivial_encrypt();
   return EXIT_SUCCESS;
 }
