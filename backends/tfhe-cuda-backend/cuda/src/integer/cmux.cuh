@@ -222,25 +222,18 @@ host_cmux_batch(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
 
   cuda_set_device(streams.gpu_index(0));
 
-  // Step 1: pack bivariate CMUX inputs
-  // For each entry, put (true_value, condition) into the true branch and
-  // (false_value, condition) into the false branch. Both branches are packed
-  // into tmp_packed (true first, false second) in a single fused launch.
+  // Step 1: pack bivariate CMUX inputs (true and false branches).
   host_pack_bivariate_blocks_cmux_two_regions<Torus>(
       streams, mem_ptr->tmp_packed, lwe_array_true, lwe_array_false,
       lwe_conditions, params.message_modulus, num_entries, num_blocks_per_ct,
       replicate_true);
 
-  // Step 2: evaluate CMUX predicate on both branches
-  // The LUT zeroes out the branch that does not match: true branch is zeroed
-  // where condition==0, false branch is zeroed where condition==1.
+  // Step 2: evaluate CMUX predicate, zeroing the non-selected branch.
   integer_radix_apply_univariate_lookup_table<Torus>(
       streams, mem_ptr->buffer_out, mem_ptr->tmp_packed, bsks, ksks,
       mem_ptr->predicate_lut, 2 * total_num_blocks);
 
-  // Step 3: combine branches
-  // Exactly one branch is non-zero per entry, so addition yields the CMUX
-  // result.
+  // Step 3: combine branches (exactly one is non-zero, so addition = select).
   CudaRadixCiphertextFFI true_out, false_out;
   as_radix_ciphertext_slice<Torus>(&true_out, mem_ptr->buffer_out, 0,
                                    total_num_blocks);
@@ -251,8 +244,7 @@ host_cmux_batch(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
                        &true_out, &false_out, total_num_blocks,
                        params.message_modulus, params.carry_modulus);
 
-  // Step 4: message extraction
-  // Clean up noise and carry bits introduced by the addition.
+  // Step 4: message extraction (clean up noise/carry from the addition).
   integer_radix_apply_univariate_lookup_table<Torus>(
       streams, lwe_array_out, &true_out, bsks, ksks,
       mem_ptr->message_extract_lut, total_num_blocks);
