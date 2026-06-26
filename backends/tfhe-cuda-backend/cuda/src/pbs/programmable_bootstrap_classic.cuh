@@ -351,7 +351,6 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
   constexpr uint32_t level_count = 1;
   constexpr uint32_t polynomial_size = 2048;
   constexpr uint32_t glwe_dimension = 1;
-  auto this_block_rank = threadIdx.y;
   const int fft_id = threadIdx.y;
 
   extern __shared__ int8_t sharedmem[];
@@ -1222,7 +1221,7 @@ __host__ void host_programmable_bootstrap_with_mode(
     auto noise_reduction_type = pbs_buffer->noise_reduction_type;
 
     // Kept the old specialized version as fallback, default is throughput
-    // oriented verison.
+    // oriented version.
     if (specialized_2_2_use_throughput_oriented<Torus>(
             polynomial_size, glwe_dimension, level_count, lwe_dimension,
             max_shared_memory)) {

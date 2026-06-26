@@ -38,7 +38,8 @@ int get_threshold_multi_gpu_classical() {
     if ((major == 7 && minor == 0) || (major == 8 && minor == 0)) {
       threshold = num_sms + 2;
     } else {
-      threshold = num_sms / 2 + 2;
+      // For throughput oriented pbs we scale up to num_sms
+      threshold = num_sms + 2;
     }
   });
 
