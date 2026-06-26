@@ -12,7 +12,6 @@ pub mod multi_bit;
 pub mod noise_squashing;
 pub use classic::gaussian::p_fail_2_minus_128::ks_pbs::*;
 pub use classic::gaussian::p_fail_2_minus_128::ks_pbs_gpu::*;
-pub use classic::gaussian::p_fail_2_minus_128::pbs_ks::*;
 pub use classic::tuniform::p_fail_2_minus_128::ks_pbs::*;
 pub use classic::tuniform::p_fail_2_minus_128::ks_pbs_gpu::*;
 pub use compact_public_key_only::p_fail_2_minus_128::ks_pbs::*;
@@ -34,7 +33,7 @@ use crate::shortint::parameters::{
 };
 
 /// All [`ClassicPBSParameters`] in this module.
-pub const VEC_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 46] = [
+pub const VEC_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 42] = [
     (
         &V1_7_PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M128,
         "V1_7_PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M128",
@@ -178,22 +177,6 @@ pub const VEC_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 46] = 
     (
         &V1_7_PARAM_MESSAGE_8_CARRY_0_KS_PBS_GAUSSIAN_2M128,
         "V1_7_PARAM_MESSAGE_8_CARRY_0_KS_PBS_GAUSSIAN_2M128",
-    ),
-    (
-        &V1_7_PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M128,
-        "V1_7_PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M128",
-    ),
-    (
-        &V1_7_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
-        "V1_7_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128",
-    ),
-    (
-        &V1_7_PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M128,
-        "V1_7_PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M128",
-    ),
-    (
-        &V1_7_PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M128,
-        "V1_7_PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M128",
     ),
     (
         &V1_7_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
