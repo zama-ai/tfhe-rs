@@ -53,28 +53,50 @@ __global__ void device_accumulate_all_blocks_batched(
 
 /// @brief Host wrapper launching device_accumulate_all_blocks_batched.
 ///
-/// @param output                Output buffer receiving one accumulated block
-/// per
-///                              (entry, chunk) pair
-/// @param input                 Input LWE blocks in row-major layout
-/// @param lwe_dimension         LWE dimension (number of mask coefficients)
+/// @param output                Output ciphertext receiving one accumulated
+///                              block per (entry, chunk) pair
+/// @param input                 Input ciphertext with LWE blocks in row-major
+///                              layout (entries x blocks_per_entry)
 /// @param blocks_per_entry      Number of input LWE blocks per map entry
 /// @param max_value             Maximum chunk length (accumulation width)
 /// @param num_entries           Number of map entries being processed
 /// @param num_chunks_per_entry  Number of chunks each entry is split into
+/// @param message_modulus       Message modulus for noise-level validation
+/// @param carry_modulus         Carry modulus for noise-level validation
 template <typename Torus>
 __host__ void host_accumulate_all_blocks_batched(
-    cudaStream_t stream, uint32_t gpu_index, Torus *output, Torus const *input,
-    uint32_t lwe_dimension, uint32_t blocks_per_entry, uint32_t max_value,
-    uint32_t num_entries, uint32_t num_chunks_per_entry) {
+    cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI const *input, uint32_t blocks_per_entry,
+    uint32_t max_value, uint32_t num_entries, uint32_t num_chunks_per_entry,
+    uint32_t message_modulus, uint32_t carry_modulus) {
   cuda_set_device(gpu_index);
+  uint32_t lwe_dimension = input->lwe_dimension;
   int num_blocks_x = 0, num_threads = 0;
   getNumBlocksAndThreads(lwe_dimension + 1, 512, num_blocks_x, num_threads);
   dim3 grid(num_blocks_x, num_entries * num_chunks_per_entry);
   device_accumulate_all_blocks_batched<Torus><<<grid, num_threads, 0, stream>>>(
-      output, input, lwe_dimension, blocks_per_entry, max_value,
-      num_chunks_per_entry);
+      (Torus *)output->ptr, (Torus const *)input->ptr, lwe_dimension,
+      blocks_per_entry, max_value, num_chunks_per_entry);
   check_cuda_error(cudaGetLastError());
+
+  for (uint32_t flat = 0; flat < num_entries * num_chunks_per_entry; flat++) {
+    uint32_t entry_idx = flat / num_chunks_per_entry;
+    uint32_t chunk_idx = flat % num_chunks_per_entry;
+    uint32_t chunk_start = chunk_idx * max_value;
+    uint32_t chunk_length = std::min(max_value, blocks_per_entry - chunk_start);
+
+    uint64_t total_degree = 0;
+    uint64_t total_noise = NoiseLevel::ZERO;
+    for (uint32_t i = 0; i < chunk_length; i++) {
+      uint32_t src = entry_idx * blocks_per_entry + chunk_start + i;
+      total_degree += input->degrees[src];
+      total_noise += input->noise_levels[src];
+    }
+    output->degrees[flat] = total_degree;
+    output->noise_levels[flat] = total_noise;
+    CHECK_NOISE_LEVEL(output->noise_levels[flat], message_modulus,
+                      carry_modulus);
+  }
 }
 
 /// @brief Computes per-entry equality selectors using the small-map tree
@@ -192,7 +214,9 @@ __host__ void host_kv_store_compute_eq_selectors_small_map(
   auto tree_accumulator = mem_ptr->tree_accumulator;
   auto tree_pbs_output = mem_ptr->tree_pbs_output;
 
-  Torus *current_input_ptr = (Torus *)mem_ptr->tmp_batched_comparisons.ptr;
+  CudaRadixCiphertextFFI const *current_input =
+      &mem_ptr->tmp_batched_comparisons;
+  uint32_t carry_modulus = mem_ptr->params.carry_modulus;
   uint32_t blocks_per_entry = num_blocks;
   uint32_t level = 0;
 
@@ -201,17 +225,9 @@ __host__ void host_kv_store_compute_eq_selectors_small_map(
     uint32_t total_chunks = num_possible_values * num_chunks;
 
     host_accumulate_all_blocks_batched<Torus>(
-        streams.stream(0), streams.gpu_index(0), (Torus *)tree_accumulator->ptr,
-        current_input_ptr, big_lwe_dimension, blocks_per_entry, max_value,
-        num_possible_values, num_chunks);
-
-    for (uint32_t flat = 0; flat < total_chunks; flat++) {
-      uint32_t chunk = flat % num_chunks;
-      uint32_t chunk_start = chunk * max_value;
-      uint32_t chunk_len = std::min(max_value, blocks_per_entry - chunk_start);
-      tree_accumulator->degrees[flat] = chunk_len;
-      tree_accumulator->noise_levels[flat] = NoiseLevel::NOMINAL;
-    }
+        streams.stream(0), streams.gpu_index(0), tree_accumulator,
+        current_input, blocks_per_entry, max_value, num_possible_values,
+        num_chunks, message_modulus, carry_modulus);
 
     // Switch to this level's precomputed index buffer (slots baked at scratch
     // time): a small gpu-to-gpu copy plus broadcast, no per-level LUT regen.
@@ -224,12 +240,12 @@ __host__ void host_kv_store_compute_eq_selectors_small_map(
         streams, tree_pbs_output, tree_accumulator, bsks, ksks,
         is_max_value_lut, total_chunks);
 
-    current_input_ptr = (Torus *)tree_pbs_output->ptr;
+    current_input = tree_pbs_output;
     blocks_per_entry = num_chunks;
     level++;
   }
 
-  CudaRadixCiphertextFFI *result_source =
+  CudaRadixCiphertextFFI const *result_source =
       (blocks_per_entry == num_blocks) ? &mem_ptr->tmp_batched_comparisons
                                        : tree_pbs_output;
   copy_radix_ciphertext_slice_async<Torus>(

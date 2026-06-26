@@ -129,7 +129,7 @@ template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
       this->d_level_lut_indexes = nullptr;
     } else {
       uint32_t acc_blocks = num_possible_values * this->max_chunks;
-      uint32_t mv = this->max_value;
+      uint32_t max_value = this->max_value;
 
       this->tree_accumulator = new CudaRadixCiphertextFFI;
       create_zero_radix_ciphertext_async<Torus>(
@@ -148,8 +148,9 @@ template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
       {
         uint32_t blocks_per_entry = num_blocks;
         while (blocks_per_entry > 1) {
-          uint32_t num_chunks = CEIL_DIV(blocks_per_entry, mv);
-          uint32_t last_chunk_length = blocks_per_entry - (num_chunks - 1) * mv;
+          uint32_t num_chunks = CEIL_DIV(blocks_per_entry, max_value);
+          uint32_t last_chunk_length =
+              blocks_per_entry - (num_chunks - 1) * max_value;
           level_num_chunks.push_back(num_chunks);
           level_last_chunk_length.push_back(last_chunk_length);
           blocks_per_entry = num_chunks;
@@ -167,7 +168,8 @@ template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
       lut_ids.reserve(num_luts);
       lut_fns.reserve(num_luts);
       lut_ids.push_back(0);
-      lut_fns.push_back([mv](Torus x) -> Torus { return x == mv; });
+      lut_fns.push_back(
+          [max_value](Torus x) -> Torus { return x == max_value; });
       for (uint32_t L = 0; L < this->num_tree_levels; L++) {
         uint32_t lcl = level_last_chunk_length[L];
         lut_ids.push_back(L + 1);
@@ -187,7 +189,7 @@ template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
       for (uint32_t L = 0; L < this->num_tree_levels; L++) {
         uint32_t num_chunks = level_num_chunks[L];
         uint32_t total_chunks = num_possible_values * num_chunks;
-        bool special = (level_last_chunk_length[L] != mv);
+        bool special = (level_last_chunk_length[L] != max_value);
         for (uint32_t idx = 0; idx < acc_blocks; idx++) {
           if (special && idx < total_chunks &&
               (idx % num_chunks) == num_chunks - 1) {
@@ -228,11 +230,9 @@ template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
       release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                      this->tree_accumulator,
                                      this->allocate_gpu_memory);
-      delete this->tree_accumulator;
       release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                      this->tree_pbs_output,
                                      this->allocate_gpu_memory);
-      delete this->tree_pbs_output;
       this->is_max_value_lut->release(streams);
       delete this->is_max_value_lut;
       for (uint32_t L = 0; L < this->num_tree_levels; L++) {
@@ -244,6 +244,11 @@ template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
 
     cuda_drop_async(this->d_map, streams.stream(0), streams.gpu_index(0));
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+
+    if (this->tree_accumulator != nullptr) {
+      delete this->tree_accumulator;
+      delete this->tree_pbs_output;
+    }
     delete[] this->h_map;
   }
 };
@@ -418,7 +423,6 @@ template <typename Torus> struct int_kv_store_get_buffer {
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    this->tmp_cmux_array,
                                    this->allocate_gpu_memory);
-    delete this->tmp_cmux_array;
 
     this->one_hot_vector_predicate->release(streams);
     delete this->one_hot_vector_predicate;
@@ -433,6 +437,7 @@ template <typename Torus> struct int_kv_store_get_buffer {
     delete this->mem_eq_selectors_buffer;
 
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+    delete this->tmp_cmux_array;
   }
 };
 
@@ -521,12 +526,12 @@ template <typename Torus> struct int_kv_store_update_buffer {
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    this->selectors_contiguous,
                                    this->gpu_memory_allocated);
-    delete this->selectors_contiguous;
 
     this->mem_eq_selectors_buffer->release(streams);
     delete this->mem_eq_selectors_buffer;
 
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+    delete this->selectors_contiguous;
   }
 };
 
@@ -665,12 +670,12 @@ template <typename Torus> struct int_kv_store_contains_key_buffer {
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    this->selectors_contiguous,
                                    this->gpu_memory_allocated);
-    delete this->selectors_contiguous;
 
     this->mem_eq_selectors_buffer->release(streams);
     delete this->mem_eq_selectors_buffer;
 
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+    delete this->selectors_contiguous;
   }
 };
 

@@ -25,9 +25,9 @@ template <typename Torus> struct int_zero_out_if_buffer {
   void release(CudaStreams streams) {
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0), tmp,
                                    gpu_memory_allocated);
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     delete tmp;
     tmp = nullptr;
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
@@ -66,9 +66,9 @@ template <typename Torus> struct int_zero_out_if_batch_buffer {
   void release(CudaStreams streams) {
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0), tmp,
                                    gpu_memory_allocated);
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     delete tmp;
     tmp = nullptr;
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
 
