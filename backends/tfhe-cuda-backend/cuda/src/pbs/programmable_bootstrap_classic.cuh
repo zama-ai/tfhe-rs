@@ -31,6 +31,10 @@
 #ifdef __CUDACC_DEBUG__
 #define SPECIALIZED_2_2_PARAMS_THROUGHPUT_LAUNCH_BOUNDS
 #else
+// Each FFT16x4x16 instance uses 64 threads, and we have 2 y-groups (mask/body)
+// per block. So we need a total of 128 threads per block, and we can to impose
+// that two blocks can be resident on the same SM, so we set the max blocks per
+// SM to 2.
 #define SPECIALIZED_2_2_PARAMS_THROUGHPUT_LAUNCH_BOUNDS                        \
   __launch_bounds__(128, 2)
 #endif
@@ -67,7 +71,9 @@ uint64_t get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params(
 // ─────────────────────────────────────────────────────────────────────────────
 static constexpr int
     SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_ACC_OFFSET_DOUBLES =
-        FFT16x4x16_DUAL_TWIST_OFFSET + 2 * 513;
+        FFT16x4x16_DUAL_TWIST_OFFSET +
+        // ×2 because each complex coefficient stores a real and an img parts.
+        2 * FFT16x4x16_TWIST_HALF_TABLE_SIZE;
 // 2 y-groups × 2048 uint32 elements = 2048 doubles.
 static constexpr int SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_ACC_DOUBLES =
     2048;
@@ -261,8 +267,8 @@ device_programmable_bootstrap_specialized_2_2_params(
     double2 buffer_regs[params::opt / 2];
     mul_ggsw_glwe_in_fourier_domain_2_2_params_classical_no_tbc<
         params, polynomial_size, glwe_dimension, level_count>(
-        accumulator_fft, fft_out_regs, buffer_regs, base_smem,
-        bootstrapping_key, i, this_block_rank);
+        fft_out_regs, buffer_regs, base_smem, bootstrapping_key, i,
+        this_block_rank);
 
     NSMFFT_inverse_2_2_params<HalfDegree<params>>(shared_fft, buffer_regs,
                                                   shared_twiddles);
@@ -351,7 +357,6 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
   constexpr uint32_t level_count = 1;
   constexpr uint32_t polynomial_size = 2048;
   constexpr uint32_t glwe_dimension = 1;
-  auto this_block_rank = threadIdx.y;
   const int fft_id = threadIdx.y;
 
   extern __shared__ int8_t sharedmem[];
@@ -390,11 +395,6 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
       smem + (fft_id == 0 ? FFT16x4x16_DUAL_XPOSE0_OFFSET
                           : FFT16x4x16_DUAL_XPOSE1_OFFSET));
 
-  FFT16x4x16MBarrierStorage *barrier =
-      fft16x4x16_dual_mbarrier_storage(smem, fft_id);
-  FFT16x4x16MBarrierStorage *startup_barrier =
-      fft16x4x16_dual_startup_mbarrier_storage(smem);
-
   double2 *smem_twist =
       reinterpret_cast<double2 *>(smem + FFT16x4x16_DUAL_TWIST_OFFSET);
 
@@ -423,20 +423,10 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
   uint32_t *a_hat_table = reinterpret_cast<uint32_t *>(
       smem + SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_AHAT_OFFSET_DOUBLES);
 
-  // Initialise mbarriers (no-ops on pre-SM90); named-barrier publish to 128 t.
-  if (threadIdx.x == 0 && threadIdx.y == 0) {
-    fft16x4x16_mbarrier_init_raw(fft16x4x16_dual_mbarrier_storage(smem, 0), 2u);
-    fft16x4x16_mbarrier_init_raw(fft16x4x16_dual_mbarrier_storage(smem, 1), 2u);
-    fft16x4x16_mbarrier_init_raw(startup_barrier, 4u); // 4 warps in the block
-  }
-  fft16x4x16_named_barrier_sync(15u, 128u);
-
   // Cooperative twiddle / compact_twiddles load (128-thread loader).
   fft16x4x16_load_shared_twiddles_128t(smem);
-  // Startup sync is block-wide (all 4 warps) → plain __syncthreads() (bar.sync
-  // 0) replacing the mbarrier spin. Per-group FFT syncs use named ids 1/2 (see
-  // sync_coupled_warps); the mbarrier storage/init above is now unused
-  // but left in place so the smem layout is unchanged for the A/B.
+  // Block-wide startup sync (all 4 warps). Per-group FFT syncs use named ids
+  // 1/2 (see sync_coupled_warps), so no mbarrier init is needed.
   __syncthreads();
 
   // Preload the 3 compact 4×4 twiddles into per-thread registers (one-time
@@ -504,7 +494,7 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
   // compact precalc rotation helper to read the negacyclic sign each PBS
   // iteration.
   {
-    const int linear_tid = threadIdx.x + threadIdx.y * 64;
+    const int linear_tid = threadIdx.x + threadIdx.y * blockDim.x;
     for (int idx = linear_tid; idx < static_cast<int>(lwe_dimension);
          idx += 128) {
       Torus a_hat_full = 0;
@@ -565,12 +555,14 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
     double2 fft_out_regs[params::opt / 2];
     decompose_balanced_simplified<params>(fft_out_regs, reg_rotated);
 
-    FFT16x4x16_fwd_optimized_for_pbs(
-        fft_out_regs, tw_shared, smem_twist, smem_xpose, smem_xpose_pong,
-        compact_w1, compact_w2, compact_w3, barrier, tw_cache_r7, tw_cache_r3,
-        tw_cache_r11, tw_cache_r1);
+    FFT16x4x16_fwd_optimized_for_pbs(fft_out_regs, tw_shared, smem_twist,
+                                     smem_xpose, smem_xpose_pong, compact_w1,
+                                     compact_w2, compact_w3, tw_cache_r7,
+                                     tw_cache_r3, tw_cache_r11, tw_cache_r1);
 
     // Copy fft from regs to shared memory to be used in the external product
+    // We don't need to sync here because we are using a ping pong strategy in
+    // shared memory and we know it is safe to write at this point.
 #pragma unroll
     for (int j = 0; j < params::opt / 2; j++)
       smem_comm[threadIdx.x + j * 64] = fft_out_regs[j];
@@ -594,8 +586,8 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
 
     FFT16x4x16_inv_optimized_for_pbs(
         buffer_natural, tw_shared, smem_twist, smem_xpose_inv_pong,
-        smem_xpose_inv, compact_w1, compact_w2, compact_w3, barrier,
-        tw_cache_r7, tw_cache_r3, tw_cache_r11, tw_cache_r1);
+        smem_xpose_inv, compact_w1, compact_w2, compact_w3, tw_cache_r7,
+        tw_cache_r3, tw_cache_r11, tw_cache_r1);
 
     // Last iteration requires the final accumulation in 64-bit precision.
     bool is_last_iter = (i + 1 >= lwe_dimension);
@@ -641,21 +633,22 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
         shared_accumulator[threadIdx.x + k * (params::degree / params::opt)] =
             reg_acc_running[k];
       }
-    }
 
-    // At the end of the iteration we need to swap buffers to use a ping pong
-    // strategy that save us extra syncs.
-    // Swap fwd <-> inv buffer roles for the next iteration so its forward FFT
-    // writes the set THIS y-group's inverse FFT just wrote (within-y WAW),
-    // which keeps the top-of-loop barrier a 64-thread named sync.
-    double *tmp_xpose = smem_xpose;
-    smem_xpose = smem_xpose_inv;
-    smem_xpose_inv = tmp_xpose;
-    double *tmp_pong = smem_xpose_pong;
-    smem_xpose_pong = smem_xpose_inv_pong;
-    smem_xpose_inv_pong = tmp_pong;
-    smem_comm = reinterpret_cast<double2 *>(smem_xpose);
-    other_fft_ptr = reinterpret_cast<double2 *>(smem_xpose_inv);
+      // Only swap buffers when another iteration follows: the last iteration
+      // never reads these pointers again, so doing the swap here (inside the
+      // non-last branch) avoids the dead ping pong update.
+      // Swap fwd <-> inv buffer roles for the next iteration so its forward FFT
+      // writes the set THIS y-group's inverse FFT just wrote (within-y WAW),
+      // which keeps the top-of-loop barrier a 64-thread named sync.
+      double *tmp_xpose = smem_xpose;
+      smem_xpose = smem_xpose_inv;
+      smem_xpose_inv = tmp_xpose;
+      double *tmp_pong = smem_xpose_pong;
+      smem_xpose_pong = smem_xpose_inv_pong;
+      smem_xpose_inv_pong = tmp_pong;
+      smem_comm = reinterpret_cast<double2 *>(smem_xpose);
+      other_fft_ptr = reinterpret_cast<double2 *>(smem_xpose_inv);
+    }
   }
 
   // Sample extraction follows the same logic than other pbs
@@ -1222,27 +1215,20 @@ __host__ void host_programmable_bootstrap_with_mode(
     auto noise_reduction_type = pbs_buffer->noise_reduction_type;
 
     // Kept the old specialized version as fallback, default is throughput
-    // oriented verison.
+    // oriented version.
     if (specialized_2_2_use_throughput_oriented<Torus>(
             polynomial_size, glwe_dimension, level_count, lwe_dimension,
             max_shared_memory)) {
       using mp_params = AccumulatorDegree<2048>;
       int mp_thds = polynomial_size / mp_params::opt; // 64
-      dim3 grid(input_lwe_ciphertext_count, 1, level_count);
+      dim3 mp_grid(input_lwe_ciphertext_count, 1, level_count);
       dim3 mp_block(mp_thds, glwe_dimension + 1, 1); // (64, 2, 1) = 128 threads
       uint64_t mp_smem =
           get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params_throughput<
               Torus>(lwe_dimension);
 
-      // 2-block-per-SM residency guard (H100 with
-      // cudaSharedmemCarveoutMaxShared = 228 KiB → 114 KiB per block at
-      // occupancy 2). With the fwd-FFT ping-pong PONG buffers in the smem
-      // layout, lwe_dimension ≲ 1370 fits. Larger params would silently drop to
-      // 1 block/SM — panic instead so the regression is visible.
-      if (mp_smem > 114ull * 1024ull) {
-        PANIC("specialized 2_2 mixprecision smem exceeds 2-block-per-SM "
-              "residency budget (114 KiB); shrink PONG or revisit layout");
-      }
+      // smem is already bounded to the 114 KiB / 2-block-per-SM budget by the
+      // specialized_2_2_use_throughput_oriented predicate above.
 
 #define LAUNCH_SPECIALIZED_2_2_MIXPRECISION(BL)                                \
   do {                                                                         \
@@ -1261,7 +1247,7 @@ __host__ void host_programmable_bootstrap_with_mode(
         cudaFuncCachePreferShared));                                           \
     check_cuda_error(cudaGetLastError());                                      \
     device_programmable_bootstrap_specialized_2_2_params_throughput<           \
-        Torus, mp_params, BL><<<grid, mp_block, mp_smem, stream>>>(            \
+        Torus, mp_params, BL><<<mp_grid, mp_block, mp_smem, stream>>>(         \
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,     \
         lwe_array_in, lwe_input_indexes, bootstrapping_key, lwe_dimension,     \
         num_many_lut, lut_stride, noise_reduction_type);                       \
@@ -1288,7 +1274,11 @@ __host__ void host_programmable_bootstrap_with_mode(
         PANIC("Unsupported base_log value for specialized 2_2_params "
               "mixprecision kernel");
       }
-#undef LAUNCH_SPECIALIZED_2_2_MIXPRECISION
+      // NOTE: LAUNCH_SPECIALIZED_2_2_MIXPRECISION is intentionally left defined
+      // (not #undef-ed): the TBC entry point in
+      // programmable_bootstrap_tbc_classic.cuh includes this header and reuses
+      // it. It expects a `mp_grid` (and mp_block/mp_smem/mp_params/...) in
+      // scope.
       return;
     }
 

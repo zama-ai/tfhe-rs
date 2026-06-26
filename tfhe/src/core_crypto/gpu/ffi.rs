@@ -1051,6 +1051,39 @@ pub unsafe fn fourier_transform_backward_as_torus_f128_async<T: UnsignedInteger>
     );
 }
 
+/// forward pass of the throughput-oriented FFT16x4x16 (test/debug helper)
+///
+/// Runs the forward negacyclic transform of the throughput-oriented FFT16x4x16
+/// core (the FFT used by the specialized 2_2 throughput PBS) on a batch of
+/// `total_polynomials` inputs. Each input/output holds `polynomial_size / 2`
+/// complex coefficients stored interleaved as `[re, im, re, im, ...]` f64
+/// values (so `polynomial_size` f64 per sample). The output spectrum is in
+/// natural frequency order.
+///
+/// Specialized for `polynomial_size == 2048` and requires compute capability
+/// 9.x (H100 or newer).
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+pub unsafe fn forward_fft16x4x16_async(
+    streams: &CudaStreams,
+    input: &CudaVec<f64>,
+    output: &mut CudaVec<f64>,
+    polynomial_size: u32,
+    total_polynomials: u32,
+) {
+    cuda_forward_fft16x4x16_async(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        input.as_c_ptr(0),
+        output.as_mut_c_ptr(0),
+        polynomial_size,
+        total_polynomials,
+    );
+}
+
 pub fn get_packing_keyswitch_list_64_size_on_gpu(
     streams: &CudaStreams,
     input_lwe_dimension: LweDimension,

@@ -266,7 +266,7 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params(
 template <class params, uint32_t polynomial_size, uint32_t glwe_dimension,
           uint32_t level_count>
 __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params_classical_no_tbc(
-    double2 *fft, double2 *fft_regs, double2 *buffer_regs, double2 *base_smem,
+    double2 *fft_regs, double2 *buffer_regs, double2 *base_smem,
     const double2 *__restrict__ bootstrapping_key, int iteration,
     int this_block_rank) {
   // Continues multiplying fft by every polynomial in that particular bsk level
@@ -294,7 +294,6 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params_classical_no_tbc(
           bootstrapping_key, iteration, idx);
   bsk_poly = bsk_slice + threadIdx.y * polynomial_size / 2;
   auto fft_slice = base_smem + 2 * idx * (polynomial_size / 2);
-  // get_join_buffer_element_tbc<G, level_id, glwe_dimension>(idx, group, fft);
   polynomial_product_accumulate_in_fourier_domain_2_2_params<params, double2,
                                                              false>(
       buffer_regs, fft_slice, bsk_poly);
@@ -309,6 +308,9 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params_classical_no_tbc(
 // We want to have the sync outside the function, so the product can leverage
 // the complex ops to overlap the bsk loads. This is an empirical observation
 // after trying both options.
+// This kernel assumes that both glwe reside on the same SM, the cuda block
+// dimensions are (64, glwe_dimension + 1, 1), so threadIdx.y is used to
+// selectthe glwe_id.
 template <class params, uint32_t polynomial_size, uint32_t glwe_dimension,
           uint32_t level_count>
 __device__ __forceinline__ void
@@ -319,18 +321,18 @@ mul_ggsw_glwe_in_fourier_domain_2_2_params_fused_no_tbc(
   // Each y-block accumulates in a different polynomial at each iteration
   // We accumulate in registers to free shared memory
   // In 2_2 params we only have one level
-  constexpr uint32_t level_id = 0;
+  constexpr uint32_t LEVEL_ID = 0;
   auto self_bsk_slice =
       get_ith_mask_kth_block_2_2_params<double2, polynomial_size,
-                                        glwe_dimension, level_count, level_id>(
+                                        glwe_dimension, level_count, LEVEL_ID>(
           bootstrapping_key, iteration, threadIdx.y);
   auto self_bsk_poly = self_bsk_slice + threadIdx.y * polynomial_size / 2;
 
-  constexpr uint32_t glwe_id = 1;
-  int idx = (glwe_id + threadIdx.y) % (glwe_dimension + 1);
+  constexpr uint32_t GLWE_ID = 1;
+  int idx = (GLWE_ID + threadIdx.y) % (glwe_dimension + 1);
   auto other_bsk_slice =
       get_ith_mask_kth_block_2_2_params<double2, polynomial_size,
-                                        glwe_dimension, level_count, level_id>(
+                                        glwe_dimension, level_count, LEVEL_ID>(
           bootstrapping_key, iteration, idx);
   auto other_bsk_poly = other_bsk_slice + threadIdx.y * polynomial_size / 2;
   // other_fft points directly at the other GLWE component's FFT communication

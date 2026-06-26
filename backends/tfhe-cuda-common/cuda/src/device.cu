@@ -82,7 +82,7 @@ void cuda_setup_mempool(uint32_t caller_gpu_index) {
       check_cuda_error(cudaMemGetInfo(&free_mem, &total_mem));
 
       // If we have more than 5% of free memory, we can set up the mempool
-      uint64_t mem_pool_threshold = total_mem / 10; // 5% of total memory
+      uint64_t mem_pool_threshold = total_mem / 20; // 5% of total memory
       mem_pool_threshold =
           mem_pool_threshold - (mem_pool_threshold % 1024); // Align to 1KB
       if (mem_pool_threshold < free_mem) {
