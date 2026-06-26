@@ -16,6 +16,7 @@
 //     other TU sees only the `extern __device__ __constant__` declarations.
 
 #include <cuda_runtime.h>
+#include <device.h>
 
 #ifdef FFT16X4X16_TWIDDLES_INSTANTIATE
 __device__ __constant__ double2 tw_1024[15][64] = {
@@ -1040,7 +1041,7 @@ static inline void init_twiddle_tables() {
       h_tw[k - 1][tid] = make_double2(cos(angle), sin(angle));
     }
   }
-  cudaMemcpyToSymbol(tw_1024, h_tw, sizeof(h_tw));
+  check_cuda_error(cudaMemcpyToSymbol(tw_1024, h_tw, sizeof(h_tw)));
 }
 
 // ============================================================================
