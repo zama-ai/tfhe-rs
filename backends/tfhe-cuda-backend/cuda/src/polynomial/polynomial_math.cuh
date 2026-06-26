@@ -59,11 +59,34 @@ __device__ void polynomial_product_accumulate_in_fourier_domain(
   }
 }
 
-// Computes result += first * second
-// If init_accumulator is set, assumes that result was not initialized and does
-// that with the outcome of first * second
-// The result is always in registers and if init_accumulator true
-// the first is also in registers this is tuned for 2_2 params
+// Fused version that calculates result= fft0*bsk0 + fft1*bsk1
+// The idea is forcing the use of fma and expose more parallel ops
+template <class params>
+__device__ __forceinline__ void
+polynomial_product_accumulate_in_fourier_domain_2_2_params_fused(
+    double2 *__restrict__ result, const double2 *__restrict__ first_regs,
+    const double2 *__restrict__ second, const double2 *__restrict__ first_bsk,
+    const double2 *__restrict__ second_bsk) {
+  int tid = threadIdx.x;
+  constexpr int stride = params::degree / params::opt;
+#pragma unroll
+  for (int i = 0; i < params::opt / 2; i++) {
+    const double2 a = first_regs[i];
+    const double2 b = first_bsk[tid];
+    double real = __fma_rn(a.x, b.x, -a.y * b.y);
+    double imag = __fma_rn(a.x, b.y, a.y * b.x);
+
+    const double2 c = second[tid];
+    const double2 d = second_bsk[tid];
+    real = __fma_rn(c.x, d.x, real);
+    real = __fma_rn(-c.y, d.y, real);
+    imag = __fma_rn(c.x, d.y, imag);
+    imag = __fma_rn(c.y, d.x, imag);
+    result[i] = make_double2(real, imag);
+    tid += stride;
+  }
+}
+
 template <class params, typename T, bool init_accumulator>
 __device__ void polynomial_product_accumulate_in_fourier_domain_2_2_params(
     T *__restrict__ result, T *__restrict__ first,

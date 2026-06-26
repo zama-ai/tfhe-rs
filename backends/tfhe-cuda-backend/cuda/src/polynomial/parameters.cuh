@@ -60,6 +60,14 @@ public:
   constexpr static int opt = choose_opt(N);
   constexpr static int log2_degree = log2_int(N);
 };
+// Degree type used only for the specialized PBS based on FFT16x4x16
+// In that case each thread works with 32 elements.
+template <int N> class AccumulatorDegree {
+public:
+  constexpr static int degree = N;
+  constexpr static int opt = 32;
+  constexpr static int log2_degree = log2_int(N);
+};
 
 template <int N> class AmortizedDegree {
 public:
