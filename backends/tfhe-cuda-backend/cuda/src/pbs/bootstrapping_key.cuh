@@ -227,8 +227,8 @@ void cuda_convert_lwe_programmable_bootstrap_key(
     if (shared_memory_size <= max_shared_memory) {
       if (use_specialized_fft_2_2) {
         if (use_throughput_oriented) {
-          // Mixprecision path: FFT16x4x16 forward, writes bsk in bit-reversed
-          // frequency order to match the new accumulate kernel.
+          // Throughput oriented path: FFT16x4x16 forward, writes bsk in
+          // bit-reversed frequency order to match the new accumulate kernel.
           // AccumulatorDegree<2048> → opt=32 → 64 threads/block.
           blockSize = polynomial_size / AccumulatorDegree<2048>::opt;
           size_t throughput_smem = BATCH_FFT16X4X16_BSK_SMEM_BYTES;
@@ -245,7 +245,10 @@ void cuda_convert_lwe_programmable_bootstrap_key(
               FFTDegree<AccumulatorDegree<2048>, ForwardFFT>>
               <<<gridSize, blockSize, throughput_smem, stream>>>(d_bsk, dest);
         } else {
-          // Legacy fallback (NSMFFT natural-order layout, 512 threads/block).
+          // Specialized natural-order layout consumed by the old
+          // device_programmable_bootstrap_specialized_2_2_params kernel (used
+          // when the throughput path is unavailable, e.g. GPUs without enough
+          // shared memory for the FFT16x4x16 kernel).
           blockSize = polynomial_size / choose_opt(polynomial_size);
           check_cuda_error(
               cudaFuncSetAttribute(batch_NSMFFT_classical_specialized<

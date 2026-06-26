@@ -115,7 +115,42 @@ static inline __device__ void FFT4(double2 &a0, double2 &a1, double2 &a2,
 
 static inline __device__ void FFT4(double2 *a) { FFT4(a[0], a[1], a[2], a[3]); }
 
-// 16-point DFT on 16 registers (column pass for FFT16x4x16's outer stage)
+// ---------------------------------------------------------------------------
+//  16-point DFT held entirely in 16 registers a[0..15] (column pass for the
+//  FFT16x4x16 outer stage). Computed as a 4x4 Cooley-Tukey grid, IN PLACE:
+//  no transpose happens here, so every register keeps its index across both
+//  passes and the two FFT4 layers just couple different subsets of the lines.
+//
+//  PASS 1 runs an FFT4 down each STRIDE-4 group; PASS 2 runs an FFT4 across
+//  each CONTIGUOUS block; a twiddle layer scales 9 registers in between.
+//  W = exp(-2*pi*i / 16).
+//
+//   reg   PASS 1 group (stride-4 FFT4)   x W^e     PASS 2 group (block FFT4)
+//   ----  ---------------------------   -------    -------------------------
+//   a0    {0, 4, 8,12}                  x 1        {0, 1, 2, 3}
+//   a1    {1, 5, 9,13}                  x 1        {0, 1, 2, 3}
+//   a2    {2, 6,10,14}                  x 1        {0, 1, 2, 3}
+//   a3    {3, 7,11,15}                  x 1        {0, 1, 2, 3}
+//   a4    {0, 4, 8,12}                  x 1        {4, 5, 6, 7}
+//   a5    {1, 5, 9,13}                  x W^2      {4, 5, 6, 7}
+//   a6    {2, 6,10,14}                  x W^4      {4, 5, 6, 7}
+//   a7    {3, 7,11,15}                  x W^6      {4, 5, 6, 7}
+//   a8    {0, 4, 8,12}                  x 1        {8, 9,10,11}
+//   a9    {1, 5, 9,13}                  x W^1      {8, 9,10,11}
+//   a10   {2, 6,10,14}                  x W^2      {8, 9,10,11}
+//   a11   {3, 7,11,15}                  x W^3      {8, 9,10,11}
+//   a12   {0, 4, 8,12}                  x 1        {12,13,14,15}
+//   a13   {1, 5, 9,13}                  x W^3      {12,13,14,15}
+//   a14   {2, 6,10,14}                  x W^6      {12,13,14,15}
+//   a15   {3, 7,11,15}                  x W^9      {12,13,14,15}
+//
+//  Twiddle exponent e = bitrev2(j >> 2) * (j & 3): registers in pass-1 output
+//  slot 0 (a0,a4,a8,a12) or in block 0 (a0..a3) fall on e = 0 and are left
+//  untouched. W^4 = -i and W^2/W^6 = (+/-1 -i)/sqrt(2) are applied directly
+//  (cmul_exp_1_4, d_exp_1_8, d_exp_3_8); the rest come from the d_exp_* table.
+//
+//  Output is in bit-reversed order: a[j] holds coefficient bitreversal16(j).
+// ---------------------------------------------------------------------------
 static inline __device__ void FFT16(double2 *a) {
   FFT4(a[0], a[4], a[8], a[12]);
   FFT4(a[1], a[5], a[9], a[13]);
@@ -216,17 +251,6 @@ static inline __device__ void mul_twiddles_16(double2 *__restrict__ a, int tid,
   }
 }
 
-// Inverse twiddles are conjugates of the forward ones (exp(+2*pi*i))
-static inline __device__ void mul_itwiddles_16(double2 *__restrict__ a, int tid,
-                                               const double2 *__restrict__ tw) {
-#pragma unroll
-  for (int j = 1; j < 16; j++) {
-    int r =
-        (((j & 1) << 3) | ((j & 2) << 1) | ((j & 4) >> 1) | ((j & 8) >> 3)) - 1;
-    a[j] = a[j] * conjugate(tw[r * 64 + tid]);
-  }
-}
-
 // Register-cached variants: tw_r7/r3/r11/r1 are the twiddles for r==7 (j==1),
 // r==3 (j==2), r==11 (j==3), r==1 (j==4), preloaded once before the PBS loop
 // (= tw[{7,3,11,1}*64+tid]) and held in registers across all iterations.
@@ -255,6 +279,7 @@ mul_twiddles_16_cached(double2 *__restrict__ a, int tid,
   }
 }
 
+// Inverse twiddles are conjugates of the forward ones (exp(+2*pi*i))
 static inline __device__ void
 mul_itwiddles_16_cached(double2 *__restrict__ a, int tid,
                         const double2 *__restrict__ tw, double2 tw_r7,
@@ -327,37 +352,6 @@ static inline __device__ void mul_twiddles_4x4_regs(double2 *a, double2 w1,
   a[15] = a[15] * w3;
 }
 
-static inline __device__ void
-mul_itwiddles_4x4(double2 *a, const double *compact_twiddles) {
-  int lane = threadIdx.x & 31;
-  int lo4 = lane & 15;
-  const double *re = compact_twiddles, *im = compact_twiddles + 3 * 17;
-  double2 w1 = make_double2(0.0, 0.0);
-  double2 w2 = make_double2(0.0, 0.0);
-  double2 w3 = make_double2(0.0, 0.0);
-  if (lane < 16) {
-    // Conjugate by negating the imaginary part
-    w1 = make_double2(re[lo4], -im[lo4]);
-    w2 = make_double2(re[17 + lo4], -im[17 + lo4]);
-    w3 = make_double2(re[34 + lo4], -im[34 + lo4]);
-  }
-  w1 = shfl_idx_d2(w1, lo4);
-  w2 = shfl_idx_d2(w2, lo4);
-  w3 = shfl_idx_d2(w3, lo4);
-  a[1] = a[1] * w1;
-  a[5] = a[5] * w1;
-  a[9] = a[9] * w1;
-  a[13] = a[13] * w1;
-  a[2] = a[2] * w2;
-  a[6] = a[6] * w2;
-  a[10] = a[10] * w2;
-  a[14] = a[14] * w2;
-  a[3] = a[3] * w3;
-  a[7] = a[7] * w3;
-  a[11] = a[11] * w3;
-  a[15] = a[15] * w3;
-}
-
 static inline __device__ void mul_itwiddles_4x4_regs(double2 *a, double2 w1,
                                                      double2 w2, double2 w3) {
   w1 = make_double2(w1.x, -w1.y);
@@ -395,14 +389,16 @@ static constexpr int TW_SMEM_DOUBLES =
     2 * 15 * 64; // 1920 doubles = 15360 bytes
 static constexpr int XPOSE_SMEM_DOUBLES =
     2 * 69 * 16; // 2208 doubles = 17664 bytes
-static constexpr int XPOSE_SPLIT_SMEM_DOUBLES =
-    69 * 16; // 1104 doubles = 8832 bytes
 static constexpr int COMPACT_TW_SMEM_OFFSET =
     TW_SMEM_DOUBLES + XPOSE_SMEM_DOUBLES; // 4128 doubles
 static constexpr int COMPACT_TW_SMEM_DOUBLES =
     6 * 17; // 102 doubles = 816 bytes
 static constexpr int TWIST_HALF_SMEM_OFFSET =
     COMPACT_TW_SMEM_OFFSET + COMPACT_TW_SMEM_DOUBLES; // 4230 doubles
+
+// Number of complex coefficients in the negacyclic twist half-table:
+// (N/2 + 1) for the 1024-point (16×4×16) FFT, i.e. 1024/2 + 1 = 513.
+static constexpr int FFT16x4x16_TWIST_HALF_TABLE_SIZE = 513;
 
 struct alignas(8) FFT16x4x16MBarrierStorage {
   unsigned long long barrier;
@@ -438,152 +434,29 @@ static constexpr int FFT16x4x16_DUAL_BARRIER1_OFFSET =
     FFT16x4x16_DUAL_BARRIER0_OFFSET + FFT16x4x16_MBARRIER_STORAGE_DOUBLES;
 static constexpr int FFT16x4x16_DUAL_STARTUP_BARRIER_OFFSET =
     FFT16x4x16_DUAL_BARRIER1_OFFSET + FFT16x4x16_MBARRIER_STORAGE_DOUBLES;
-// One padding double after the startup barrier so the negacyclic twist table
-// (double2 = 16 bytes) lands on a 16-byte boundary.
-// Without padding: (6440+1)*8 = 51528 bytes; 51528 % 16 = 8  → misaligned.
-// With padding:    (6440+1+1)*8 = 51536 bytes; 51536 % 16 = 0 → aligned.
+// Padding double so the negacyclic twist table (double2) is 16-byte aligned.
 static constexpr int FFT16x4x16_DUAL_TWIST_OFFSET =
     FFT16x4x16_DUAL_STARTUP_BARRIER_OFFSET +
     FFT16x4x16_MBARRIER_STORAGE_DOUBLES + 1;
+static_assert((FFT16x4x16_DUAL_TWIST_OFFSET * sizeof(double)) %
+                      sizeof(double2) ==
+                  0,
+              "twist table must be 16-byte aligned");
 
-static __device__ __forceinline__ FFT16x4x16MBarrierStorage *
-fft16x4x16_dual_mbarrier_storage(double *smem, int fft_id) {
-  const int offset = (fft_id == 0) ? FFT16x4x16_DUAL_BARRIER0_OFFSET
-                                   : FFT16x4x16_DUAL_BARRIER1_OFFSET;
-  return reinterpret_cast<FFT16x4x16MBarrierStorage *>(smem + offset);
-}
-
-static __device__ __forceinline__ FFT16x4x16MBarrierStorage *
-fft16x4x16_dual_startup_mbarrier_storage(double *smem) {
-  return reinterpret_cast<FFT16x4x16MBarrierStorage *>(
-      smem + FFT16x4x16_DUAL_STARTUP_BARRIER_OFFSET);
-}
-
-// Dual ping-pong smem offsets: one shared twiddle table, two xpose areas,
-// and one dedicated CTA-wide communication area. The xpose scratch and the
-// cross-group exchange buffer are separated, but the exchange buffer itself is
-// reused every iteration.
-static constexpr int FFT16x4x16_DUAL_PINGPONG_COMPACT_TW_OFFSET =
-    TW_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_DUAL_PINGPONG_XPOSE0_OFFSET =
-    FFT16x4x16_DUAL_PINGPONG_COMPACT_TW_OFFSET + COMPACT_TW_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_DUAL_PINGPONG_XPOSE1_OFFSET =
-    FFT16x4x16_DUAL_PINGPONG_XPOSE0_OFFSET + XPOSE_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_DUAL_PINGPONG_COMM_SMEM_DOUBLES = 2048;
-static constexpr int FFT16x4x16_DUAL_PINGPONG_COMM_OFFSET =
-    FFT16x4x16_DUAL_PINGPONG_XPOSE1_OFFSET + XPOSE_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_DUAL_PINGPONG_BARRIER0_OFFSET =
-    FFT16x4x16_DUAL_PINGPONG_COMM_OFFSET +
-    2 * FFT16x4x16_DUAL_PINGPONG_COMM_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_DUAL_PINGPONG_BARRIER1_OFFSET =
-    FFT16x4x16_DUAL_PINGPONG_BARRIER0_OFFSET +
-    FFT16x4x16_MBARRIER_STORAGE_DOUBLES;
-static constexpr int FFT16x4x16_DUAL_PINGPONG_STARTUP_BARRIER_OFFSET =
-    FFT16x4x16_DUAL_PINGPONG_BARRIER1_OFFSET +
-    FFT16x4x16_MBARRIER_STORAGE_DOUBLES;
-// One padding double after the startup barrier keeps the twist table aligned
-// for double2 access.
-static constexpr int FFT16x4x16_DUAL_PINGPONG_TWIST_OFFSET =
-    FFT16x4x16_DUAL_PINGPONG_STARTUP_BARRIER_OFFSET +
-    FFT16x4x16_MBARRIER_STORAGE_DOUBLES + 1;
-
-static __device__ __forceinline__ FFT16x4x16MBarrierStorage *
-fft16x4x16_dual_pingpong_mbarrier_storage(double *smem, int fft_id) {
-  const int offset = (fft_id == 0) ? FFT16x4x16_DUAL_PINGPONG_BARRIER0_OFFSET
-                                   : FFT16x4x16_DUAL_PINGPONG_BARRIER1_OFFSET;
-  return reinterpret_cast<FFT16x4x16MBarrierStorage *>(smem + offset);
-}
-
-static __device__ __forceinline__ FFT16x4x16MBarrierStorage *
-fft16x4x16_dual_pingpong_startup_mbarrier_storage(double *smem) {
-  return reinterpret_cast<FFT16x4x16MBarrierStorage *>(
-      smem + FFT16x4x16_DUAL_PINGPONG_STARTUP_BARRIER_OFFSET);
-}
-
-static __device__ __forceinline__ double2 *
-fft16x4x16_dual_pingpong_comm_buffer(double *smem, int buffer_id) {
-  const int offset = FFT16x4x16_DUAL_PINGPONG_COMM_OFFSET +
-                     buffer_id * FFT16x4x16_DUAL_PINGPONG_COMM_SMEM_DOUBLES;
-  return reinterpret_cast<double2 *>(smem + offset);
-}
-
-// Split-real/imag ping-pong offsets: same rollback-safe layout as the regular
-// ping-pong variant, but each xpose scratch stores one double plane at a time.
-static constexpr int FFT16x4x16_DUAL_PINGPONG_SPLIT_COMPACT_TW_OFFSET =
-    TW_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_DUAL_PINGPONG_SPLIT_XPOSE0_OFFSET =
-    FFT16x4x16_DUAL_PINGPONG_SPLIT_COMPACT_TW_OFFSET + COMPACT_TW_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_DUAL_PINGPONG_SPLIT_XPOSE1_OFFSET =
-    FFT16x4x16_DUAL_PINGPONG_SPLIT_XPOSE0_OFFSET + XPOSE_SPLIT_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_DUAL_PINGPONG_SPLIT_COMM_OFFSET =
-    FFT16x4x16_DUAL_PINGPONG_SPLIT_XPOSE1_OFFSET + XPOSE_SPLIT_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_DUAL_PINGPONG_SPLIT_BARRIER0_OFFSET =
-    FFT16x4x16_DUAL_PINGPONG_SPLIT_COMM_OFFSET +
-    2 * FFT16x4x16_DUAL_PINGPONG_COMM_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_DUAL_PINGPONG_SPLIT_BARRIER1_OFFSET =
-    FFT16x4x16_DUAL_PINGPONG_SPLIT_BARRIER0_OFFSET +
-    FFT16x4x16_MBARRIER_STORAGE_DOUBLES;
-static constexpr int FFT16x4x16_DUAL_PINGPONG_SPLIT_STARTUP_BARRIER_OFFSET =
-    FFT16x4x16_DUAL_PINGPONG_SPLIT_BARRIER1_OFFSET +
-    FFT16x4x16_MBARRIER_STORAGE_DOUBLES;
-// One padding double after the startup barrier keeps the twist table aligned
-// for double2 access.
-static constexpr int FFT16x4x16_DUAL_PINGPONG_SPLIT_TWIST_OFFSET =
-    FFT16x4x16_DUAL_PINGPONG_SPLIT_STARTUP_BARRIER_OFFSET +
-    FFT16x4x16_MBARRIER_STORAGE_DOUBLES + 1;
-
-static __device__ __forceinline__ FFT16x4x16MBarrierStorage *
-fft16x4x16_dual_pingpong_split_mbarrier_storage(double *smem, int fft_id) {
-  const int offset = (fft_id == 0)
-                         ? FFT16x4x16_DUAL_PINGPONG_SPLIT_BARRIER0_OFFSET
-                         : FFT16x4x16_DUAL_PINGPONG_SPLIT_BARRIER1_OFFSET;
-  return reinterpret_cast<FFT16x4x16MBarrierStorage *>(smem + offset);
-}
-
-static __device__ __forceinline__ FFT16x4x16MBarrierStorage *
-fft16x4x16_dual_pingpong_split_startup_mbarrier_storage(double *smem) {
-  return reinterpret_cast<FFT16x4x16MBarrierStorage *>(
-      smem + FFT16x4x16_DUAL_PINGPONG_SPLIT_STARTUP_BARRIER_OFFSET);
-}
-
-static __device__ __forceinline__ double2 *
-fft16x4x16_dual_pingpong_split_comm_buffer(double *smem, int buffer_id) {
-  const int offset = FFT16x4x16_DUAL_PINGPONG_SPLIT_COMM_OFFSET +
-                     buffer_id * FFT16x4x16_DUAL_PINGPONG_COMM_SMEM_DOUBLES;
-  return reinterpret_cast<double2 *>(smem + offset);
-}
-
-// Quad smem offsets: one shared twiddle table then four independent xpose areas
-// + four per-group mbarriers + one startup mbarrier.
-static constexpr int FFT16x4x16_QUAD_COMPACT_TW_OFFSET = TW_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_QUAD_XPOSE0_OFFSET =
-    FFT16x4x16_QUAD_COMPACT_TW_OFFSET + COMPACT_TW_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_QUAD_XPOSE1_OFFSET =
-    FFT16x4x16_QUAD_XPOSE0_OFFSET + XPOSE_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_QUAD_XPOSE2_OFFSET =
-    FFT16x4x16_QUAD_XPOSE1_OFFSET + XPOSE_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_QUAD_XPOSE3_OFFSET =
-    FFT16x4x16_QUAD_XPOSE2_OFFSET + XPOSE_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_QUAD_BARRIER0_OFFSET =
-    FFT16x4x16_QUAD_XPOSE3_OFFSET + XPOSE_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_QUAD_BARRIER1_OFFSET =
-    FFT16x4x16_QUAD_BARRIER0_OFFSET + FFT16x4x16_MBARRIER_STORAGE_DOUBLES;
-static constexpr int FFT16x4x16_QUAD_BARRIER2_OFFSET =
-    FFT16x4x16_QUAD_BARRIER1_OFFSET + FFT16x4x16_MBARRIER_STORAGE_DOUBLES;
-static constexpr int FFT16x4x16_QUAD_BARRIER3_OFFSET =
-    FFT16x4x16_QUAD_BARRIER2_OFFSET + FFT16x4x16_MBARRIER_STORAGE_DOUBLES;
-static constexpr int FFT16x4x16_QUAD_STARTUP_BARRIER_OFFSET =
-    FFT16x4x16_QUAD_BARRIER3_OFFSET + FFT16x4x16_MBARRIER_STORAGE_DOUBLES;
-// One padding double after the startup barrier so the negacyclic twist table
-// (double2 = 16 bytes) lands on a 16-byte boundary.
-static constexpr int FFT16x4x16_QUAD_TWIST_OFFSET =
-    FFT16x4x16_QUAD_STARTUP_BARRIER_OFFSET +
-    FFT16x4x16_MBARRIER_STORAGE_DOUBLES + 1;
+// Fixed smem of the dual FFT layout (through the twist table). Bulk of the
+// 114 KiB per-block budget; the PBS kernel adds its accumulator on top.
+static constexpr size_t FFT16x4x16_DUAL_SMEM_BYTES =
+    static_cast<size_t>(FFT16x4x16_DUAL_TWIST_OFFSET) * sizeof(double) +
+    513 * sizeof(double2);
+static_assert(FFT16x4x16_DUAL_SMEM_BYTES <= 114u * 1024u,
+              "dual FFT16x4x16 smem layout exceeds the per-block budget");
 
 // ============================================================================
 //  mbarrier helpers — SM90+ uses hardware mbarrier for intra-warp-group sync;
 //  older architectures fall back to __syncthreads().
 // ============================================================================
+// expected_count must equal the number of warps that sync on this barrier:
+// fft16x4x16_mbarrier_sync arrives once per warp (lane 0 only).
 static __device__ __forceinline__ void
 fft16x4x16_mbarrier_init_raw(FFT16x4x16MBarrierStorage *storage,
                              unsigned expected_count) {
@@ -722,10 +595,8 @@ permute_4x4_mbarrier(double2 *a, double *smem,
   }
 }
 // Performs the data permutation using specialized barriers
-static inline __device__ void
-permute_16x64_optimized(double2 *a, double *smem,
-                        FFT16x4x16MBarrierStorage *barrier) {
-  (void)barrier;
+static inline __device__ void permute_16x64_optimized(double2 *a,
+                                                      double *smem) {
   double2 *smem_c = reinterpret_cast<double2 *>(smem);
   int lo4 = threadIdx.x & 15;
   int hi4 = threadIdx.x >> 4;
@@ -746,27 +617,41 @@ permute_16x64_optimized(double2 *a, double *smem,
     a[i] = smem_c[li];
   }
 }
-// Permutation for the 4xfft-4 using specialized barriers
-static inline __device__ void
-permute_4x4_optimized(double2 *a, double *smem,
-                      FFT16x4x16MBarrierStorage *barrier) {
-  (void)barrier;
+// Permutation for the 4xfft-4 using specialized barriers.
+//
+// Transposes the 4x4 blocks between the FFT4x4 and the final FFT16 pass, in
+// smem, using the same double2 grid as its mbarrier twin
+// (permute_4x4_mbarrier).
+//
+// The 64-lane group id splits into three radix-4 digits:
+//   tid = hi2*16 + mi2*4 + lo2   (lo2,mi2,hi2 each in 0..3)
+// The smem grid is padded to dodge bank conflicts:
+//   17  = one 4x4 block (16 double2) + 1 pad slot   -> sub-block pitch
+//   69  = 4 sub-blocks * 17 + 1 extra pad           -> row pitch
+//   276 = 4 * 69                                     -> 4-row stride
+// Also note that ri is solved at compilation time.
+static inline __device__ void permute_4x4_optimized(double2 *a, double *smem) {
   double2 *smem_c = reinterpret_cast<double2 *>(smem);
-  int lo2 = threadIdx.x & 3;
-  int mi2 = (threadIdx.x >> 2) & 3;
-  int hi2 = threadIdx.x >> 4;
+  int lo2 = threadIdx.x & 3;        // lane bits 0..1
+  int mi2 = (threadIdx.x >> 2) & 3; // lane bits 2..3
+  int hi2 = threadIdx.x >> 4;       // lane bits 4..5
+  // Store base: row 0, sub-block hi2, in-block slot (mi2*4 + lo2) of 0..15.
   int sb = hi2 * 17 + (mi2 << 2) + lo2;
+  // Load base: row (4*mi2 + hi2), sub-block lo2, in-block slot 0 (the +i below
+  // walks slots 0..15). This picks up the transposed axes written by the store.
   int lb = mi2 * 276 + hi2 * 69 + lo2 * 17;
 
 #pragma unroll
   for (int i = 0; i < 16; i++) {
+    // ri keeps bits 2..3, swaps bits 0<->1: registers 1<->2 within each group
+    // of 4, matching the bit-reversed FFT4 output order.
     int ri = (i & 12) | ((i & 1) << 1) | ((i & 2) >> 1);
-    smem_c[sb + i * 69] = a[ri];
+    smem_c[sb + i * 69] = a[ri]; // i steps one full row (pitch 69) per register
   }
   sync_coupled_warps();
 #pragma unroll
   for (int i = 0; i < 16; i++) {
-    a[i] = smem_c[lb + i];
+    a[i] = smem_c[lb + i]; // 16 contiguous slots of load-base sub-block
   }
 }
 
@@ -793,20 +678,6 @@ static __device__ void FFT16x4x16_fwd_core_mbarrier_explicit(
   fft16x4x16_mbarrier_sync(barrier);
   permute_4x4_mbarrier(a, smem_xpose, barrier);
   FFT16(a);
-}
-
-static __device__ void FFT16x4x16_inv_core_mbarrier_explicit(
-    double2 *a, const double2 *tw, double *smem_xpose,
-    const double *compact_twiddles, FFT16x4x16MBarrierStorage *barrier) {
-  int tid = threadIdx.x;
-  IFFT16(a);
-  mul_itwiddles_16(a, tid, tw);
-  permute_16x64_mbarrier(a, smem_xpose, barrier);
-  IFFT4x4(a);
-  mul_itwiddles_4x4(a, compact_twiddles);
-  fft16x4x16_mbarrier_sync(barrier);
-  permute_4x4_mbarrier(a, smem_xpose, barrier);
-  IFFT16(a);
 }
 
 // First fused pre-twist experiment for the ping-pong accumulate path.
@@ -843,20 +714,20 @@ apply_negacyclic_pre_twist_16x64_stage_fused(double2 *a,
 static __device__ void FFT16x4x16_fwd_optimized_for_pbs(
     double2 *a, const double2 *tw, const double2 *smem_twist,
     double *smem_xpose_ping, double *smem_xpose_pong, double2 compact_w1,
-    double2 compact_w2, double2 compact_w3, FFT16x4x16MBarrierStorage *barrier,
-    double2 tw_r7, double2 tw_r3, double2 tw_r11, double2 tw_r1) {
+    double2 compact_w2, double2 compact_w3, double2 tw_r7, double2 tw_r3,
+    double2 tw_r11, double2 tw_r1) {
   int tid = threadIdx.x;
   apply_negacyclic_pre_twist_16x64_stage_fused(a, smem_twist);
   FFT16(a);
   mul_twiddles_16_cached(a, tid, tw, tw_r7, tw_r3, tw_r11, tw_r1);
-  permute_16x64_optimized(a, smem_xpose_ping,
-                          barrier); // STS→PING, LDS←PING (named bar.sync)
+  permute_16x64_optimized(
+      a, smem_xpose_ping); // STS→PING, LDS←PING (named bar.sync)
   FFT4x4(a);
   mul_twiddles_4x4_regs(a, compact_w1, compact_w2, compact_w3);
   // [explicit mbarrier dropped — permute_4x4 below writes to PONG, no WAR on
   // PING]
-  permute_4x4_optimized(a, smem_xpose_pong,
-                        barrier); // STS→PONG, LDS←PONG (named bar.sync)
+  permute_4x4_optimized(a,
+                        smem_xpose_pong); // STS→PONG, LDS←PONG (named bar.sync)
   FFT16(a);
 }
 
@@ -893,8 +764,8 @@ apply_negacyclic_post_twist_16x64_stage_fused(double2 *a,
 }
 
 // Ping-pong inverse core WITH the negacyclic post-twist (untwist) + 1/N fused
-// in. Identical to FFT16x4x16_inv_core_mbarrier_explicit_compact_regs_pingpong
-// except apply_negacyclic_post_twist_16x64_stage_fused is applied to the
+// in. Same as FFT16x4x16_fwd_optimized_for_pbs in reverse, except
+// apply_negacyclic_post_twist_16x64_stage_fused is applied to the
 // bit-reversed time-domain registers at the end, replacing the kernel's
 // separate twist_lookup loop. Mathematically identical, still reads smem_twist;
 // ping-pong (PING for permute_16x64, PONG for permute_4x4) and the dropped
@@ -904,19 +775,19 @@ apply_negacyclic_post_twist_16x64_stage_fused(double2 *a,
 static __device__ void FFT16x4x16_inv_optimized_for_pbs(
     double2 *a, const double2 *tw, const double2 *smem_twist,
     double *smem_xpose_ping, double *smem_xpose_pong, double2 compact_w1,
-    double2 compact_w2, double2 compact_w3, FFT16x4x16MBarrierStorage *barrier,
-    double2 tw_r7, double2 tw_r3, double2 tw_r11, double2 tw_r1) {
+    double2 compact_w2, double2 compact_w3, double2 tw_r7, double2 tw_r3,
+    double2 tw_r11, double2 tw_r1) {
   int tid = threadIdx.x;
   IFFT16(a);
   mul_itwiddles_16_cached(a, tid, tw, tw_r7, tw_r3, tw_r11, tw_r1);
-  permute_16x64_optimized(a, smem_xpose_ping,
-                          barrier); // STS→PING, LDS←PING (named bar.sync)
+  permute_16x64_optimized(
+      a, smem_xpose_ping); // STS→PING, LDS←PING (named bar.sync)
   IFFT4x4(a);
   mul_itwiddles_4x4_regs(a, compact_w1, compact_w2, compact_w3);
   // [explicit mbarrier dropped — permute_4x4 below writes to PONG, no WAR on
   // PING]
-  permute_4x4_optimized(a, smem_xpose_pong,
-                        barrier); // STS→PONG, LDS←PONG (named bar.sync)
+  permute_4x4_optimized(a,
+                        smem_xpose_pong); // STS→PONG, LDS←PONG (named bar.sync)
   IFFT16(a);
   apply_negacyclic_post_twist_16x64_stage_fused(a, smem_twist);
 }

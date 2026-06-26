@@ -17,7 +17,7 @@ const int THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS = 12;
 const int THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128 = 12;
 
 // Returns the threshold for multi-GPU with classical params.
-// Computed once based on GPU 0's compute capability and SM count.
+// Computed once based on GPU 0's SM count.
 // We are assuming that 2_2 params are going to be used.
 int get_threshold_multi_gpu_classical() {
   static int threshold = -1;
@@ -27,19 +27,10 @@ int get_threshold_multi_gpu_classical() {
     cudaDeviceProp deviceProp;
     check_cuda_error(cudaGetDeviceProperties(&deviceProp, 0));
     int num_sms = deviceProp.multiProcessorCount;
-    int major = deviceProp.major;
-    int minor = deviceProp.minor;
 
-    // For cc70 and cc80 we can scale up to the number of SMs
-    // because the default specialized pbs is triggered
-    // for other compute capabilities each lwe use 2 SMs, so we can only scale
-    // up to half the number of SMs the +2 is added so the multi-gpu is enabled
-    // only when we have more than the number of SMs.
-    if ((major == 7 && minor == 0) || (major == 8 && minor == 0)) {
-      threshold = num_sms + 2;
-    } else {
-      threshold = num_sms / 2 + 2;
-    }
+    // The throughput-oriented 2_2 PBS uses one block per LWE, so we scale up to
+    // num_sms before splitting across GPUs.
+    threshold = num_sms + 1;
   });
 
   return threshold;
