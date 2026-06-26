@@ -20,7 +20,6 @@ pub use compact_public_key_only::p_fail_2_minus_128::ks_pbs::*;
 pub use key_switching::p_fail_2_minus_128::ks_pbs::*;
 pub use ks32::tuniform::p_fail_2_minus_128::ks_pbs::*;
 pub use list_compression::p_fail_2_minus_128::*;
-pub use list_compression::p_fail_2_minus_64::*;
 use meta::cpu::*;
 use meta::gpu::*;
 pub use multi_bit::gaussian::p_fail_2_minus_128::ks_pbs::*;
@@ -442,15 +441,7 @@ pub const VEC_ALL_KEY_SWITCH32_PBS_PARAMETERS: [(&KeySwitch32PBSParameters, &str
 )];
 
 /// All [`CompressionParameters`] in this module.
-pub const VEC_ALL_COMPRESSION_PARAMETERS: [(&CompressionParameters, &str); 6] = [
-    (
-        &V1_7_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        "V1_7_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64",
-    ),
-    (
-        &V1_7_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-        "V1_7_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64",
-    ),
+pub const VEC_ALL_COMPRESSION_PARAMETERS: [(&CompressionParameters, &str); 4] = [
     (
         &V1_7_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         "V1_7_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
