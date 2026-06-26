@@ -1,6 +1,7 @@
 #ifndef GPU_BOOTSTRAP_FFT_CUH
 #define GPU_BOOTSTRAP_FFT_CUH
 
+#include "fft/fft16x4x16.cuh"
 #include "polynomial/functions.cuh"
 #include "polynomial/parameters.cuh"
 #include "twiddles.cuh"
@@ -579,6 +580,116 @@ __global__ void batch_NSMFFT_classical_specialized(double2 *d_input,
     tid = tid + params::degree / params::opt;
   }
 }
+
+// FFT16x4x16-based batch BSK forward transform for the specialized 2_2 path.
+//
+// Replacement for batch_NSMFFT_classical_specialized that converts each
+// bootstrapping-key polynomial into the same bit-reversed-frequency layout the
+// FFT16x4x16-based accumulate kernel produces and reads. Both sides therefore
+// pair identical frequencies during the GGSW pointwise multiply without any
+// per-iteration register permutation.
+//
+// Layout convention
+// ─────────────────
+//   For an N=2048 real polynomial encoded as N/2=1024 complex doubles via the
+//   compressed real layout (input[k].x = poly[k], input[k].y = poly[k+1024]):
+//
+//     d_output[blockIdx.x*(N/2) + tid + j*64]  =  Â_bsk[bitreversal16(j)*64 +
+//     tid]
+//
+//   tid ∈ [0,64), j ∈ [0,16).  The accumulate kernel's FFT16x4x16 forward
+//   leaves register a[j] holding Â_acc[bitreversal16(j)*64+tid]; reading bsk at
+//   physical index tid+j*64 picks the matching frequency.
+//
+// SMEM layout (≈41 KB, single 64-thread FFT — Strategy A from the keybundle
+// migration plan, no monomial precalc needed for the classic bsk):
+//   [0 .. TW_SMEM_DOUBLES-1]                   tw_1024 twiddle table (1920)
+//   [FFT16x4x16_DUAL_COMPACT_TW_OFFSET .. +101] compact_twiddles (102)
+//   [FFT16x4x16_DUAL_XPOSE0_OFFSET .. +2207]   xpose scratch (2208)
+//   [KB_BARRIER_OFFSET]                         mbarrier (1 storage double)
+//   [KB_TWIST_OFFSET .. +1025]                  negacyclic twist half-table
+template <class params>
+__global__ void batch_FFT16x4x16_classical_specialized(double2 *d_input,
+                                                       double2 *d_output) {
+  extern __shared__ int8_t batch_fft16_sharedmem[];
+  double *smem = reinterpret_cast<double *>(batch_fft16_sharedmem);
+
+  const double2 *tw_shared = reinterpret_cast<const double2 *>(smem);
+  const double *compact_twiddles = smem + FFT16x4x16_DUAL_COMPACT_TW_OFFSET;
+  double *smem_xpose = smem + FFT16x4x16_DUAL_XPOSE0_OFFSET;
+  double2 *smem_twist = reinterpret_cast<double2 *>(smem + KB_TWIST_OFFSET);
+  FFT16x4x16MBarrierStorage *barrier =
+      reinterpret_cast<FFT16x4x16MBarrierStorage *>(smem + KB_BARRIER_OFFSET);
+
+  // 64 threads / 32 lanes = 2 warps participate in each per-FFT barrier.
+  if (threadIdx.x == 0)
+    fft16x4x16_mbarrier_init_raw(barrier, 2u);
+
+  // Load FFT twiddle table cooperatively (64 threads × 15 iters = 960 d2's).
+  double2 *tw_shared_w = reinterpret_cast<double2 *>(smem);
+#pragma unroll
+  for (int idx = threadIdx.x; idx < 15 * 64; idx += 64)
+    tw_shared_w[idx] = tw_1024[idx >> 6][idx & 63];
+
+  // Compact twiddles: 3 rows × 16 columns of (re, im).  First 48 threads each
+  // load one (row, col) entry; matches the convention used by the dual-FFT
+  // 128-thread loader in fft16x4x16_load_shared_twiddles_128t.
+  double *compact_twiddles_w = smem + FFT16x4x16_DUAL_COMPACT_TW_OFFSET;
+  if (threadIdx.x < 48) {
+    int r = threadIdx.x >> 4;
+    int col = threadIdx.x & 15;
+    int table_row = (r == 0) ? 7 : (r == 1) ? 3 : 11;
+    double2 v = tw_1024[table_row][4 * col];
+    compact_twiddles_w[r * 17 + col] = v.x;
+    compact_twiddles_w[3 * 17 + r * 17 + col] = v.y;
+  }
+
+  // Negacyclic twist half-table (513 entries; symmetric reflection for k>512).
+  for (int idx = threadIdx.x; idx < 512; idx += 64)
+    smem_twist[idx] = twisting_twiddles[idx];
+  if (threadIdx.x == 0)
+    smem_twist[512] = twisting_twiddles[512];
+
+  __syncthreads();
+
+  // Read this block's compressed bsk polynomial (16 complex per thread).
+  double2 a[16];
+#pragma unroll
+  for (int j = 0; j < 16; j++)
+    a[j] = d_input[blockIdx.x * (params::degree / 2) + threadIdx.x + j * 64];
+
+    // Negacyclic pre-twist: multiply each element by conj(ψ_{tid+j*64}). This
+    // is the same convention applied on the accumulator side, so both Â_bsk and
+    // Â_acc are produced with the matching negacyclic embedding.
+#pragma unroll
+  for (int j = 0; j < 16; j++) {
+    double2 tw = twist_lookup(smem_twist, threadIdx.x + j * 64);
+    a[j] = a[j] * make_double2(tw.x, -tw.y);
+  }
+
+  // Standard 1024-point FFT; output is in bit-reversed register order.
+  FFT16x4x16_fwd_core_mbarrier_explicit(a, tw_shared, smem_xpose,
+                                        compact_twiddles, barrier);
+  fft16x4x16_mbarrier_sync(barrier);
+
+  // Persist a[j] at physical index tid + j*64 — see layout comment at the top.
+  //
+  // Scaled by 1/N (N = 1024, the FFT length): the PBS inverse path's fused
+  // post-twist no longer multiplies by inv_n — the bsk spectrum carries the
+  // 1/N instead, saving 32 dependent DMULs per IFFT per PBS iteration.
+  constexpr double inv_n = 1.0 / 1024.0;
+#pragma unroll
+  for (int j = 0; j < 16; j++)
+    d_output[blockIdx.x * (params::degree / 2) + threadIdx.x + j * 64] =
+        a[j] * inv_n;
+}
+
+// Shared-memory footprint of batch_FFT16x4x16_classical_specialized.
+//   KB_TWIST_OFFSET doubles + 513 double2 entries
+//   = 4232 * 8 + 513 * 16 = 33856 + 8208 = 42064 bytes  (≈41 KB)
+static constexpr size_t BATCH_FFT16X4X16_BSK_SMEM_BYTES =
+    static_cast<size_t>(KB_TWIST_OFFSET) * sizeof(double) +
+    513 * sizeof(double2);
 
 /*
  * global batch polynomial multiplication

@@ -13,8 +13,8 @@ void cuda_convert_lwe_programmable_bootstrap_key_32_async(
   bool use_specialized = false;
   cuda_convert_lwe_programmable_bootstrap_key<uint32_t, int32_t>(
       static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
-      (const int32_t *)src, polynomial_size, total_polynomials,
-      use_specialized);
+      (const int32_t *)src, polynomial_size, total_polynomials, use_specialized,
+      /*use_throughput_oriented=*/false);
 }
 
 void cuda_convert_lwe_programmable_bootstrap_key_64_async(
@@ -27,10 +27,14 @@ void cuda_convert_lwe_programmable_bootstrap_key_64_async(
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   bool use_specialized = supports_specialized_2_2_params<uint64_t>(
       polynomial_size, glwe_dim, level_count, max_shared_memory);
+  bool use_throughput_oriented =
+      use_specialized && specialized_2_2_use_throughput_oriented<uint64_t>(
+                             polynomial_size, glwe_dim, level_count,
+                             input_lwe_dim, max_shared_memory);
   cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
       static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
-      (const int64_t *)src, polynomial_size, total_polynomials,
-      use_specialized);
+      (const int64_t *)src, polynomial_size, total_polynomials, use_specialized,
+      use_throughput_oriented);
 }
 
 // Only used for testing to keep the vanilla layout of the bsk.
@@ -46,7 +50,7 @@ void cuda_convert_lwe_programmable_bootstrap_key_standard_64_async(
   cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
       static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
       (const int64_t *)src, polynomial_size, total_polynomials,
-      use_specialized_fft_2_2);
+      use_specialized_fft_2_2, /*use_throughput_oriented=*/false);
 }
 
 // Only used during testing to convert the classical bsk in the specialized
@@ -61,10 +65,15 @@ void cuda_convert_lwe_programmable_bootstrap_key_specialized_2_2_64_async(
                (size_t)(glwe_dim + 1), (size_t)level_count);
   // We will force the conversion that's why we set the boolean to true.
   constexpr bool use_specialized_fft_2_2 = true;
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  bool use_throughput_oriented =
+      specialized_2_2_use_throughput_oriented<uint64_t>(
+          polynomial_size, glwe_dim, level_count, input_lwe_dim,
+          max_shared_memory);
   cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
       static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
       (const int64_t *)src, polynomial_size, total_polynomials,
-      use_specialized_fft_2_2);
+      use_specialized_fft_2_2, use_throughput_oriented);
 }
 
 void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64_async(
