@@ -834,8 +834,6 @@ __host__ void host_pack_bivariate_blocks_with_per_ct_single_block(
       lwe_array_out->num_radix_blocks >= total_num_blocks,
       "Cuda error: output radix ciphertext does not have enough blocks");
 
-  // replicate_input: kernel reuses the first num_blocks_per_ct blocks for every
-  // entry, for packing one ciphertext against many conditions.
   uint32_t required_in_blocks =
       replicate_input ? num_blocks_per_ct : total_num_blocks;
   PANIC_IF_FALSE(
@@ -3129,8 +3127,6 @@ __host__ void host_binary_tree_fold_sum(
     uint32_t total_elements = static_cast<uint32_t>(total_elements_sz);
     uint32_t right_offset = static_cast<uint32_t>(right_offset_sz);
 
-    // One thread per Torus word; getNumBlocksAndThreads caps the launch and the
-    // grid-stride loop covers any remainder.
     int num_cuda_blocks = 0, num_threads = 0;
     getNumBlocksAndThreads(total_elements, 512, num_cuda_blocks, num_threads);
 

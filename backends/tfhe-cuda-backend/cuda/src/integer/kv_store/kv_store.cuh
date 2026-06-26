@@ -53,28 +53,50 @@ __global__ void device_accumulate_all_blocks_batched(
 
 /// @brief Host wrapper launching device_accumulate_all_blocks_batched.
 ///
-/// @param output                Output buffer receiving one accumulated block
-/// per
-///                              (entry, chunk) pair
-/// @param input                 Input LWE blocks in row-major layout
-/// @param lwe_dimension         LWE dimension (number of mask coefficients)
+/// @param output                Output ciphertext receiving one accumulated
+///                              block per (entry, chunk) pair
+/// @param input                 Input ciphertext with LWE blocks in row-major
+///                              layout (entries x blocks_per_entry)
 /// @param blocks_per_entry      Number of input LWE blocks per map entry
 /// @param max_value             Maximum chunk length (accumulation width)
 /// @param num_entries           Number of map entries being processed
 /// @param num_chunks_per_entry  Number of chunks each entry is split into
+/// @param message_modulus       Message modulus for noise-level validation
+/// @param carry_modulus         Carry modulus for noise-level validation
 template <typename Torus>
 __host__ void host_accumulate_all_blocks_batched(
-    cudaStream_t stream, uint32_t gpu_index, Torus *output, Torus const *input,
-    uint32_t lwe_dimension, uint32_t blocks_per_entry, uint32_t max_value,
-    uint32_t num_entries, uint32_t num_chunks_per_entry) {
+    cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI const *input, uint32_t blocks_per_entry,
+    uint32_t max_value, uint32_t num_entries, uint32_t num_chunks_per_entry,
+    uint32_t message_modulus, uint32_t carry_modulus) {
   cuda_set_device(gpu_index);
+  uint32_t lwe_dimension = input->lwe_dimension;
   int num_blocks_x = 0, num_threads = 0;
   getNumBlocksAndThreads(lwe_dimension + 1, 512, num_blocks_x, num_threads);
   dim3 grid(num_blocks_x, num_entries * num_chunks_per_entry);
   device_accumulate_all_blocks_batched<Torus><<<grid, num_threads, 0, stream>>>(
-      output, input, lwe_dimension, blocks_per_entry, max_value,
-      num_chunks_per_entry);
+      (Torus *)output->ptr, (Torus const *)input->ptr, lwe_dimension,
+      blocks_per_entry, max_value, num_chunks_per_entry);
   check_cuda_error(cudaGetLastError());
+
+  for (uint32_t flat = 0; flat < num_entries * num_chunks_per_entry; flat++) {
+    uint32_t entry_idx = flat / num_chunks_per_entry;
+    uint32_t chunk_idx = flat % num_chunks_per_entry;
+    uint32_t chunk_start = chunk_idx * max_value;
+    uint32_t chunk_length = std::min(max_value, blocks_per_entry - chunk_start);
+
+    uint64_t total_degree = 0;
+    uint64_t total_noise = NoiseLevel::ZERO;
+    for (uint32_t i = 0; i < chunk_length; i++) {
+      uint32_t src = entry_idx * blocks_per_entry + chunk_start + i;
+      total_degree += input->degrees[src];
+      total_noise += input->noise_levels[src];
+    }
+    output->degrees[flat] = total_degree;
+    output->noise_levels[flat] = total_noise;
+    CHECK_NOISE_LEVEL(output->noise_levels[flat], message_modulus,
+                      carry_modulus);
+  }
 }
 
 /// @brief Computes per-entry equality selectors using the small-map tree
@@ -142,17 +164,14 @@ __host__ void host_kv_store_compute_eq_selectors_small_map(
   uint32_t message_modulus = mem_ptr->params.message_modulus;
   uint32_t big_lwe_dimension = mem_ptr->params.big_lwe_dimension;
 
-  // Step 1: Grid PBS — precompute all per-block equality indicators.
-  // One batched PBS builds a message_modulus x num_blocks grid where
-  // grid[v][j] = Enc(input_block_j == v).
+  // Step 1: Grid PBS — one indicator per (block_value, block_position) pair.
   integer_radix_apply_many_univariate_lookup_table<Torus>(
       streams, &mem_ptr->tmp_many_luts_output, lwe_array_in, bsks,
       (Torus *const *)ksks, mem_ptr->comparison_luts, message_modulus,
       mem_ptr->lut_stride);
 
-  // Step 2: Gather — for each candidate i, extract its comparison blocks
-  // from the grid PBS output into a flat row-major buffer:
-  //   batched[i * num_blocks + j] = grid[decomposed[i][j]][j]
+  // Step 2: Gather — extract each candidate's comparison blocks from the
+  // grid into a flat row-major buffer.
   Torus *h_map = mem_ptr->h_map;
   uint32_t total_blocks = num_possible_values * num_blocks;
   for (uint32_t i = 0; i < num_possible_values; i++) {
@@ -183,16 +202,16 @@ __host__ void host_kv_store_compute_eq_selectors_small_map(
     return;
   }
 
-  // Step 3: Batched tree reduction — AND-reduce the per-entry comparison
-  // blocks using host_accumulate_all_blocks_batched + is_max_value PBS.
-  // The data is in row-major layout: entry_i occupies blocks
-  // [i*num_blocks .. (i+1)*num_blocks).
+  // Step 3: Batched tree reduction — AND-reduce each entry's comparison
+  // blocks into a single boolean.
   uint32_t max_value = mem_ptr->max_value;
   auto is_max_value_lut = mem_ptr->is_max_value_lut;
   auto tree_accumulator = mem_ptr->tree_accumulator;
   auto tree_pbs_output = mem_ptr->tree_pbs_output;
 
-  Torus *current_input_ptr = (Torus *)mem_ptr->tmp_batched_comparisons.ptr;
+  CudaRadixCiphertextFFI const *current_input =
+      &mem_ptr->tmp_batched_comparisons;
+  uint32_t carry_modulus = mem_ptr->params.carry_modulus;
   uint32_t blocks_per_entry = num_blocks;
   uint32_t level = 0;
 
@@ -201,20 +220,12 @@ __host__ void host_kv_store_compute_eq_selectors_small_map(
     uint32_t total_chunks = num_possible_values * num_chunks;
 
     host_accumulate_all_blocks_batched<Torus>(
-        streams.stream(0), streams.gpu_index(0), (Torus *)tree_accumulator->ptr,
-        current_input_ptr, big_lwe_dimension, blocks_per_entry, max_value,
-        num_possible_values, num_chunks);
+        streams.stream(0), streams.gpu_index(0), tree_accumulator,
+        current_input, blocks_per_entry, max_value, num_possible_values,
+        num_chunks, message_modulus, carry_modulus);
 
-    for (uint32_t flat = 0; flat < total_chunks; flat++) {
-      uint32_t chunk = flat % num_chunks;
-      uint32_t chunk_start = chunk * max_value;
-      uint32_t chunk_len = std::min(max_value, blocks_per_entry - chunk_start);
-      tree_accumulator->degrees[flat] = chunk_len;
-      tree_accumulator->noise_levels[flat] = NoiseLevel::NOMINAL;
-    }
-
-    // Switch to this level's precomputed index buffer (slots baked at scratch
-    // time): a small gpu-to-gpu copy plus broadcast, no per-level LUT regen.
+    // Use this level's precomputed LUT-index buffer instead of regenerating
+    // the LUT per level.
     auto active =
         streams.active_gpu_subset(total_chunks, mem_ptr->params.pbs_type);
     is_max_value_lut->set_lut_indexes_and_broadcast_from_gpu(
@@ -224,12 +235,12 @@ __host__ void host_kv_store_compute_eq_selectors_small_map(
         streams, tree_pbs_output, tree_accumulator, bsks, ksks,
         is_max_value_lut, total_chunks);
 
-    current_input_ptr = (Torus *)tree_pbs_output->ptr;
+    current_input = tree_pbs_output;
     blocks_per_entry = num_chunks;
     level++;
   }
 
-  CudaRadixCiphertextFFI *result_source =
+  CudaRadixCiphertextFFI const *result_source =
       (blocks_per_entry == num_blocks) ? &mem_ptr->tmp_batched_comparisons
                                        : tree_pbs_output;
   copy_radix_ciphertext_slice_async<Torus>(
@@ -318,8 +329,7 @@ host_kv_store_get(CudaStreams streams,
       bsks, ksks);
   POP_RANGE()
 
-  // Step 2: one-hot vector, zeroing every value whose selector is 0 so only the
-  // matched value (if any) survives.
+  // Step 2: zero values whose selector is 0, keeping only the matched value.
   PUSH_RANGE("get: one-hot vector")
   auto lwe_one_hot_vector = tmp_cmux_array;
   host_zero_out_if_batch(streams, lwe_one_hot_vector, lwe_array_in_values,
@@ -422,8 +432,7 @@ host_kv_store_update(CudaStreams streams,
       ksks);
   POP_RANGE()
 
-  // Step 2: batched CMUX selecting new_value where selector==1, old otherwise.
-  // The true branch (new_value) is replicated across all entries.
+  // Step 2: batched CMUX — replace value where selector==1, keep old otherwise.
   PUSH_RANGE("update: batched cmux")
   host_cmux_batch<Torus, KSTorus>(
       streams, lwe_array_out_values, lwe_in_new_value, lwe_array_in_values,
@@ -510,8 +519,7 @@ host_kv_store_map(CudaStreams streams,
 
   cuda_set_device(streams.gpu_index(0));
 
-  // Batched CMUX selecting new_value where selector==1, old otherwise. The true
-  // branch (new_value) is replicated across all entries.
+  // Batched CMUX — replace value where selector==1, keep old otherwise.
   PUSH_RANGE("map: batched cmux")
   host_cmux_batch<Torus, KSTorus>(
       streams, lwe_array_out_values, lwe_in_new_value, lwe_array_in_values,

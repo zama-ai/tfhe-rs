@@ -307,11 +307,9 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
             let byte_offset = src_offset * std::mem::size_of::<u64>();
             let copy_size = elements_per_value * std::mem::size_of::<u64>();
 
-            // SAFETY: both pointers are valid GPU allocations on the same device,
-            // and the slice [src_offset..src_offset+elements_per_value) is within
-            // the concatenated buffer's allocation. The destination buffer owns at
-            // least `elements_per_value` elements. All copies are on the same
-            // stream, so no concurrent-access hazard.
+            // SAFETY: both pointers are valid GPU allocations on the same device.
+            // Source and destination slices are non-overlapping and in-bounds.
+            // All copies are on the same stream (no concurrent-access hazard).
             unsafe {
                 cuda_memcpy_async_gpu_to_gpu(
                     value.as_mut().d_blocks.0.d_vec.as_mut_c_ptr(0),
@@ -391,8 +389,7 @@ where
 }
 
 impl CudaServerKey {
-    // Returns the selectors ("which entry matches the encrypted key?") alongside the value so
-    // callers like `map` (a get followed by an update) reuse them instead of recomputing.
+    // Returns selectors alongside the value so callers like `map` can reuse them.
     fn kv_store_get_impl<Key, Ct>(
         &self,
         kv_store: &CudaKVStore<Key, Ct>,
@@ -454,19 +451,12 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
-        // num_blocks_per_value is bounded by GPU memory; it cannot exceed u32::MAX
         let num_blocks_per_value_u32 =
             u32::try_from(num_blocks_per_value).expect("num_blocks_per_value exceeds u32::MAX");
 
-        // SAFETY: result_ct, result_bool and selectors_ct are freshly allocated on
-        // the device bound to `streams` and are passed mutably for exclusive write
-        // access; the keys, concatenated values and bootstrapping/keyswitching keys
-        // are read-only and live on that same device. clear_keys has one entry per
-        // store value, matching the num_entries used to size selectors_ct, and every
-        // value holds num_blocks_per_value blocks. The kernels are enqueued on
-        // `streams`; the returned ciphertexts carry those same streams, so any
-        // downstream host access only happens after a synchronization on the
-        // ordered stream.
+        // SAFETY: all output buffers are freshly allocated on the device bound
+        // to `streams` with exclusive write access. All input buffers are
+        // read-only and live on the same device.
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -540,9 +530,8 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
-        // SAFETY: all GPU buffers are valid allocations on the same device,
-        // the FFI function has exclusive access to result_bool and read-only
-        // access to the other buffers.
+        // SAFETY: all buffers are valid allocations on the same device.
+        // result_bool has exclusive write access; all others are read-only.
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -668,17 +657,12 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
-        // num_blocks_per_value is bounded by GPU memory; it cannot exceed u32::MAX
         let num_blocks_per_value_u32 =
             u32::try_from(num_blocks_per_value).expect("num_blocks_per_value exceeds u32::MAX");
 
-        // SAFETY: d_check_block and d_updated_values are freshly allocated on the
-        // device bound to `streams` and passed mutably for exclusive write access;
-        // d_updated_values holds map.len() * num_blocks_per_value blocks, matching
-        // the concatenated old values. The key, new value, old values and
-        // bootstrapping/keyswitching keys are read-only and live on the same device.
-        // clear_keys has one entry per store value. All buffers outlive the call,
-        // which synchronizes the stream before returning.
+        // SAFETY: all output buffers are freshly allocated on the device bound
+        // to `streams` with exclusive write access. All input buffers are
+        // read-only and live on the same device.
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -765,7 +749,7 @@ impl CudaServerKey {
 
         let concatenated_old_values = map.to_vec(streams);
 
-        // Wrap the selectors as a CudaRadixCiphertext so the FFI can consume them uniformly.
+        // The FFI expects a CudaRadixCiphertext, not a raw CudaLweCiphertextList.
         let selector_block_info = CudaBlockInfo {
             degree: Degree::new(1),
             message_modulus: self.message_modulus,
@@ -785,7 +769,6 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
-        // num_blocks_per_value is bounded by GPU memory; it cannot exceed u32::MAX
         let num_blocks_per_value_u32 =
             u32::try_from(num_blocks_per_value).expect("num_blocks_per_value exceeds u32::MAX");
 
@@ -796,13 +779,9 @@ impl CudaServerKey {
         let mut d_updated_values: CudaUnsignedRadixCiphertext =
             self.create_trivial_zero_radix(total_blocks, streams);
 
-        // SAFETY: d_check_block and d_updated_values are freshly allocated on the
-        // device bound to `streams` and passed mutably for exclusive write access;
-        // d_updated_values holds map.len() * num_blocks_per_value blocks, matching
-        // the concatenated old values. The old values, new value and selectors are
-        // read-only, as are the bootstrapping/keyswitching keys, and all live on the
-        // same device. selectors_ct carries num_entries blocks, one per store value.
-        // All buffers outlive the call, which synchronizes the stream before returning.
+        // SAFETY: all output buffers are freshly allocated on the device bound
+        // to `streams` with exclusive write access. All input buffers are
+        // read-only and live on the same device.
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
