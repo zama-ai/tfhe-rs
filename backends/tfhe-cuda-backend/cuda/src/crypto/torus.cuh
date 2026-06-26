@@ -278,6 +278,73 @@ __device__ T centered_binary_modulus_switch_body_correction_to_add(
   return sum_half_mask_round_errors - half_case;
 }
 
+// Block-cooperative variant of
+// centered_binary_modulus_switch_body_correction_to_add. All threads in the
+// block participate in the two additive reductions over lwe[0..lwe_dimension):
+// each thread accumulates a strided slice, each warp does a butterfly reduce
+// via __shfl_xor_sync, lane 0 of each warp publishes its partial into smem, and
+// after a __syncthreads every thread folds the per-warp partials and computes
+// the final correction. Every thread returns the same value.
+template <typename T, int num_warps>
+__device__ T centered_binary_modulus_switch_body_correction_to_add_cooperative(
+    const T *__restrict__ lwe, const uint32_t lwe_dimension,
+    const uint32_t log_modulus, T *smem_scratch) {
+  using ST = signed_torus_t<T>;
+  constexpr ST TWO = static_cast<ST>(2);
+  constexpr uint32_t BITS = sizeof(T) * 8;
+  constexpr int block_size = num_warps * 32;
+
+  // The block from where is called could have x,y,z dims to match the
+  // throughput oriented version
+  const int linear_tid = threadIdx.x + threadIdx.y * blockDim.x +
+                         threadIdx.z * blockDim.x * blockDim.y;
+  const int lane = linear_tid & 31;
+  const int warp_id = linear_tid >> 5;
+
+  // Per-thread strided accumulation.
+  T local_half = 0;
+  ST local_halving_doubled = 0;
+  for (uint32_t i = static_cast<uint32_t>(linear_tid); i < lwe_dimension;
+       i += block_size) {
+    auto error = round_error(lwe[i], log_modulus);
+    auto signed_error = static_cast<ST>(error);
+    auto half_error = signed_error / TWO;
+    auto halving_error_doubled = (half_error * TWO) - signed_error;
+    local_half += static_cast<T>(half_error);
+    local_halving_doubled += halving_error_doubled;
+  }
+
+  // Intra-warp butterfly: every lane ends up with its warp's full sum.
+#pragma unroll
+  for (int off = 16; off > 0; off >>= 1) {
+    local_half += __shfl_xor_sync(0xFFFFFFFFu, local_half, off);
+    local_halving_doubled +=
+        __shfl_xor_sync(0xFFFFFFFFu, local_halving_doubled, off);
+  }
+
+  // Lane 0 of each warp publishes its partial (2 values per warp).
+  if (lane == 0) {
+    smem_scratch[warp_id * 2 + 0] = local_half;
+    smem_scratch[warp_id * 2 + 1] = static_cast<T>(local_halving_doubled);
+  }
+  __syncthreads();
+
+  // Every thread folds the per-warp partials.
+  T sum_half = 0;
+  T sum_halving_doubled_T = 0;
+#pragma unroll
+  for (int w = 0; w < num_warps; w++) {
+    sum_half += smem_scratch[w * 2 + 0];
+    sum_halving_doubled_T += smem_scratch[w * 2 + 1];
+  }
+
+  const ST sum_halving_doubled = static_cast<ST>(sum_halving_doubled_T);
+  const auto sum_halving = static_cast<T>(sum_halving_doubled / TWO);
+  const T sum_half_mask = sum_half - sum_halving;
+  const T half_case = static_cast<T>(1) << (BITS - log_modulus - 1);
+  return sum_half_mask - half_case;
+}
+
 template <typename Torus>
 __global__ void centered_modulus_switch(Torus *output, const Torus *input,
                                         uint32_t lwe_dimension,
