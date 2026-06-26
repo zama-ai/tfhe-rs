@@ -138,8 +138,9 @@ test("shortint_encrypt_decrypt", (t) => {
   // No equality tests here, as wasm stores pointers which will always differ
 
   // Encryption using small keys
+  // Use an older parameter set here, since parameters for PBS_KS AP have been removed in 1.7.0
   let params_name_small =
-    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
   let params_small = new ShortintParameters(params_name_small);
   let cks_small = Shortint.new_client_key(params_small);
 
@@ -174,8 +175,9 @@ test("shortint_compressed_encrypt_decrypt", (t) => {
 
   // Encryption using small keys
   // We don't have TUniform small params so use previous gaussian ones.
+  // Use an older parameter set here, since parameters for PBS_KS AP have been removed in 1.7.0
   let params_name_small =
-    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
   let params_small = new ShortintParameters(params_name_small);
   let cks_small = Shortint.new_client_key(params_small);
 
@@ -209,8 +211,9 @@ test("shortint_public_encrypt_decrypt", (t) => {
   assert.deepStrictEqual(decrypted, BigInt(3));
 
   // Small
+  // Use an older parameter set here, since parameters for PBS_KS AP have been removed in 1.7.0
   let params_name_2_2_small =
-    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
   let params_2_2_small = new ShortintParameters(params_name_2_2_small);
   let cks_small = Shortint.new_client_key(params_2_2_small);
 
@@ -249,8 +252,9 @@ test("shortint_compressed_public_encrypt_decrypt", (t) => {
   assert.deepStrictEqual(decrypted, BigInt(1));
 
   // Small
+  // Use an older parameter set here, since parameters for PBS_KS AP have been removed in 1.7.0
   let params_name_small =
-    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
   let params_small = new ShortintParameters(params_name_small);
   let cks_small = Shortint.new_client_key(params_small);
 

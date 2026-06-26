@@ -58,8 +58,11 @@ function get_tfhe_config_with_casting(block_params_name, casting_params_name) {
 }
 
 async function compressedPublicKeyTest() {
+  // Use an older parameter set here, since parameters for PBS_KS AP have been removed in 1.7.0
+  // This test is from the legacy public key
+  // It has size issues on WASM with only 32 bits of address space and requires PBS_KS params
   let config = get_tfhe_config(
-    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
+    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
   );
 
   console.time("ClientKey Gen");
@@ -89,8 +92,11 @@ async function compressedPublicKeyTest() {
 }
 
 async function publicKeyTest() {
+  // Use an older parameter set here, since parameters for PBS_KS AP have been removed in 1.7.0
+  // This test is from the legacy public key
+  // It has size issues on WASM with only 32 bits of address space and requires PBS_KS params
   let config = get_tfhe_config(
-    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
+    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
   );
 
   console.time("ClientKey Gen");
