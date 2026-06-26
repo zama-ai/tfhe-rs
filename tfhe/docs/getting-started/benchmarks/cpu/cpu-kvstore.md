@@ -8,7 +8,7 @@ The Key-Value Store (KVStore) is a specialized encrypted HashMap where:
 This document details the CPU performance benchmarks of homomorphic operations on KVStore with encrypted keys using **TFHE-rs**.
 
 {% hint style="info" %}
-All CPU benchmarks were launched on an `AWS hpc7a.96xlarge` instance equipped with two 96-core `AMD EPYC 9R14 CPU @ 2.60GHz` and 740GB of RAM.
+All CPU benchmarks were launched on an `AWS hpc8a.96xlarge` instance equipped with two 96-core `AMD EPYC 9R45 CPU @ 2.30GHz` and 768GB of RAM.
 {% endhint %}
 
 The following tables benchmark the execution time of operations using `FheUint`.
