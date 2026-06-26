@@ -538,7 +538,7 @@ fn cuda_bench_transfer_throughput<FheType, F>(
 
     // 300 * num_gpus seems to be enough for maximum throughput on 8xH100 SXM5
     // and is a multiple of the number of streams per GPU to avoid a bigger batch on one stream
-    let num_elems = 300 * num_gpus;
+    let num_elems = 800 * num_gpus;
 
     let mut group = c.benchmark_group(type_name);
     group.throughput(Throughput::Elements(num_elems));
@@ -562,7 +562,7 @@ fn cuda_bench_transfer_throughput<FheType, F>(
             .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
             .collect::<Vec<_>>();
 
-        let num_streams_per_gpu = 6; // Hard coded stream value for FheUint64
+        let num_streams_per_gpu = 16; // Hard coded stream value for FheUint64
         let chunk_size = (num_elems / num_gpus) as usize;
 
         b.iter(|| {

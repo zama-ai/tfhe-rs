@@ -304,6 +304,45 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params_classical_no_tbc(
   // the buffer in registers to avoid synchronizations and shared memory usage
 }
 
+// We need a different version for the default specialized 2_2 params because
+// in that case we don't need to use dsm and then no cluster sync
+// We want to have the sync outside the function, so the product can leverage
+// the complex ops to overlap the bsk loads. This is an empirical observation
+// after trying both options.
+template <class params, uint32_t polynomial_size, uint32_t glwe_dimension,
+          uint32_t level_count>
+__device__ __forceinline__ void
+mul_ggsw_glwe_in_fourier_domain_2_2_params_fused_no_tbc(
+    double2 *fft, double2 *fft_regs, double2 *buffer_regs, double2 *other_fft,
+    const double2 *__restrict__ bootstrapping_key, int iteration) {
+  // Continues multiplying fft by every polynomial in that particular bsk level
+  // Each y-block accumulates in a different polynomial at each iteration
+  // We accumulate in registers to free shared memory
+  // In 2_2 params we only have one level
+  constexpr uint32_t level_id = 0;
+  auto self_bsk_slice =
+      get_ith_mask_kth_block_2_2_params<double2, polynomial_size,
+                                        glwe_dimension, level_count, level_id>(
+          bootstrapping_key, iteration, threadIdx.y);
+  auto self_bsk_poly = self_bsk_slice + threadIdx.y * polynomial_size / 2;
+
+  constexpr uint32_t glwe_id = 1;
+  int idx = (glwe_id + threadIdx.y) % (glwe_dimension + 1);
+  auto other_bsk_slice =
+      get_ith_mask_kth_block_2_2_params<double2, polynomial_size,
+                                        glwe_dimension, level_count, level_id>(
+          bootstrapping_key, iteration, idx);
+  auto other_bsk_poly = other_bsk_slice + threadIdx.y * polynomial_size / 2;
+  // other_fft points directly at the other GLWE component's FFT communication
+  // buffer; the caller is responsible for placing the right pointer here.
+  polynomial_product_accumulate_in_fourier_domain_2_2_params_fused<params>(
+      buffer_regs, fft_regs, other_fft, self_bsk_poly, other_bsk_poly);
+
+  // We don't need to synchronize here, cause we are going to use a buffer
+  // different than the input In 2_2 params, level_count=1 so we can just return
+  // the buffer in registers to avoid synchronizations and shared memory usage
+}
+
 template <typename InputTorus, typename OutputTorus>
 void execute_pbs_async(CudaStreams streams,
                        const LweArrayVariant<OutputTorus> &lwe_array_out,
