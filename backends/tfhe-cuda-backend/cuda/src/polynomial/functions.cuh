@@ -119,6 +119,41 @@ __device__ void divide_by_monomial_negacyclic_2_2_params_inplace(
   }
 }
 
+// Throughput oriented variant of
+// divide_by_monomial_negacyclic_2_2_params_inplace: The main assumption is that
+// we can have different precisions for lut an accumulator. reads LutTorus (e.g.
+// uint64_t from the LUT) and writes AccumulatorTorus (e.g. uint32_t for the
+// internal accumulator), dropping the least-significant bits. We can do this
+// because in our specialized version bits below the baselog are discarded.
+template <typename LutTorus, typename AccumulatorTorus, int elems_per_thread,
+          int block_size>
+__device__ void divide_by_monomial_negacyclic_2_2_params_throughput(
+    AccumulatorTorus *accumulator, const LutTorus *__restrict__ input,
+    uint32_t j) {
+  constexpr int degree = block_size * elems_per_thread;
+  // Bits to discard when narrowing LutT → AccT
+  constexpr int shift = sizeof(LutTorus) * 8 - sizeof(AccumulatorTorus) * 8;
+  int tid = threadIdx.x;
+  if (j < degree) {
+    for (int i = 0; i < elems_per_thread; i++) {
+      int x = tid + j - SEL(degree, 0, tid < degree - j);
+      accumulator[i] =
+          (AccumulatorTorus)((SEL(-1, 1, tid < degree - j) * input[x]) >>
+                             shift);
+      tid += block_size;
+    }
+  } else {
+    int32_t jj = j - degree;
+    for (int i = 0; i < elems_per_thread; i++) {
+      int x = tid + jj - SEL(degree, 0, tid < degree - jj);
+      accumulator[i] =
+          (AccumulatorTorus)((SEL(1, -1, tid < degree - jj) * input[x]) >>
+                             shift);
+      tid += block_size;
+    }
+  }
+}
+
 /*
  * Receives num_poly  concatenated polynomials of type T. For each:
  *
@@ -202,6 +237,31 @@ __device__ void multiply_by_monomial_negacyclic_and_sub_polynomial_both_in_regs(
       int x = tid - jj + SEL(0, degree, tid < jj);
       result_acc[i] = SEL(-1, 1, tid < jj) * acc[x] - acc_in_regs[i];
     }
+    tid += block_size;
+  }
+}
+
+// Precalc-coefs variant of the rotation above. Mirrors the keybundle-side
+// pattern (polynomial_accumulate_monic_monomial_mul_on_regs_precalc): the
+// per-position negation/wrap sign that depends on (j, p) is fetched from a
+// shared-memory int8_t table instead of being recomputed each call.
+// Compact-coefs variant: collapses the 3×degree byte table down to 3×elems
+// (one entry per `block_size`-position chunk). Each threads has a different
+// jump that does the trick to select the correct sign for each case.
+template <typename T, int elems_per_thread, int block_size>
+__device__ void
+multiply_by_monomial_negacyclic_and_sub_polynomial_both_in_regs_precalc_compact(
+    T *acc, T *acc_in_regs, T *result_acc, const int8_t *coefs, uint32_t j) {
+  constexpr int degree = block_size * elems_per_thread;
+  static_assert((block_size & (block_size - 1)) == 0,
+                "block_size must be a power of two");
+  int tid = threadIdx.x;
+#pragma unroll
+  for (int i = 0; i < elems_per_thread; i++) {
+    int pos = (tid - (int)j) & (degree - 1);
+    T element = acc[pos];
+    int sign = coefs[i];
+    result_acc[i] = (T)(sign * element) - acc_in_regs[i];
     tid += block_size;
   }
 }
@@ -299,6 +359,22 @@ __device__ void add_to_torus_2_2_params(double2 *m_values, Torus *result) {
     tid = tid + params::degree / params::opt;
   }
 }
+
+// Simplified decompose for the mixprecision kernel when reg_acc_rotated is
+// already in the baselog balanced form produced by init_decomposer_state or the
+// fused add_to_torus_and_init_decomposer call.
+template <class params>
+__device__ void decompose_balanced_simplified(double2 *result,
+                                              const uint32_t *state) {
+#pragma unroll
+  for (int i = 0; i < params::opt / 2; i++) {
+    // Cast to int32_t first so the intrinsic sees the sign; the balanced
+    // representation guarantees this is the correct decomposition coefficient.
+    result[i].x = __int2double_rn((int32_t)state[i]);
+    result[i].y = __int2double_rn((int32_t)state[i + params::opt / 2]);
+  }
+}
+
 /**
  * In case of 2_2_classical PBS, this method should accumulate the result.
  * and the result is stored in shared memory
