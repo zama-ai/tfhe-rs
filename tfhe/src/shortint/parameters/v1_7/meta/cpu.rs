@@ -8,7 +8,6 @@ use super::super::compact_public_key_only::p_fail_2_minus_128::ks_pbs::*;
 use super::super::key_switching::p_fail_2_minus_128::ks_pbs::*;
 use super::super::ks32::tuniform::p_fail_2_minus_128::ks_pbs::*;
 use super::super::list_compression::p_fail_2_minus_128::*;
-use super::super::list_compression::p_fail_2_minus_64::*;
 use super::super::multi_bit::gaussian::p_fail_2_minus_128::ks_pbs::*;
 use super::super::multi_bit::tuniform::p_fail_2_minus_128::ks_pbs::*;
 use super::super::noise_squashing::p_fail_2_minus_128::*;
@@ -32,7 +31,7 @@ pub const V1_7_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaPar
         V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     )),
     dedicated_compact_public_key_parameters: None,
-    compression_parameters: Some(V1_7_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64),
+    compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
 }
