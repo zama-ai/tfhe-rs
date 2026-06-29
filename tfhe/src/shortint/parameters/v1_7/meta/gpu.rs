@@ -290,7 +290,7 @@ pub const V1_7_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIF
     MetaParameters {
         backend: Backend::CudaGpu,
         compute_parameters: AtomicPatternParameters::Standard(PBSParameters::MultiBitPBS(
-            V1_7_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_7_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.with_deterministic_execution(),
         )),
         dedicated_compact_public_key_parameters: Some(DedicatedCompactPublicKeyParameters {
             pke_params: V1_7_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
@@ -302,9 +302,9 @@ pub const V1_7_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIF
             V1_7_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         ),
         noise_squashing_parameters: Some(MetaNoiseSquashingParameters {
-            parameters: V1_7_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            parameters: V1_7_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.with_deterministic_execution(),
             compression_parameters: Some(
-                V1_7_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                V1_7_NOISE_SQUASHING_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             ),
         }),
         rerand_configuration: Some(
@@ -316,7 +316,7 @@ pub const V1_7_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUN
     MetaParameters {
         backend: Backend::CudaGpu,
         compute_parameters: AtomicPatternParameters::Standard(PBSParameters::MultiBitPBS(
-            V1_7_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_7_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.with_deterministic_execution(),
         )),
         dedicated_compact_public_key_parameters: Some(DedicatedCompactPublicKeyParameters {
             pke_params: V1_7_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
@@ -328,9 +328,9 @@ pub const V1_7_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUN
             V1_7_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         ),
         noise_squashing_parameters: Some(MetaNoiseSquashingParameters {
-            parameters: V1_7_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            parameters: V1_7_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.with_deterministic_execution(),
             compression_parameters: Some(
-                V1_7_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                V1_7_NOISE_SQUASHING_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             ),
         }),
         rerand_configuration: Some(

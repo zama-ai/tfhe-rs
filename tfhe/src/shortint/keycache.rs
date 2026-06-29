@@ -255,12 +255,12 @@ fn cpke_params_default_name(params: &CompactPublicKeyEncryptionParameters) -> St
 
 named_params_impl!( NoiseSquashingParameters =>
     V1_7_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    V1_7_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     V1_7_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 );
 
 named_params_impl!( NoiseSquashingCompressionParameters =>
     V1_7_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    V1_7_NOISE_SQUASHING_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 );
 
 impl From<AtomicPatternParameters> for (ClientKey, ServerKey) {

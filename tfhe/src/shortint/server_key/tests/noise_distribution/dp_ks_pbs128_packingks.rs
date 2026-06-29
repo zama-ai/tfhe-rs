@@ -3,7 +3,10 @@ use super::should_use_single_key_debug;
 use super::utils::noise_simulation::*;
 use super::utils::to_json::TestResult;
 use super::utils::traits::*;
-use super::utils::{mean_and_variance_check, noise_check, DecryptionAndNoiseResult, NoiseSample};
+use super::utils::{
+    mean_and_variance_check, noise_check, post_squashing_and_packing_noise_check,
+    DecryptionAndNoiseResult, NoiseSample,
+};
 use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::generate_programmable_bootstrap_glwe_lut;
 use crate::core_crypto::commons::dispersion::Variance;
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
@@ -761,7 +764,12 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise(
         after_packing_sim.modulus().as_f64(),
     );
 
+    let post_noise_squashing_bound_is_ok = post_squashing_and_packing_noise_check(
+        &noise_samples_after_packing,
+        noise_squashing_compression_params,
+    );
     noise_check(&guard, mean_variance_result, None);
+    assert!(post_noise_squashing_bound_is_ok)
 }
 
 create_parameterized_stringified_test!(

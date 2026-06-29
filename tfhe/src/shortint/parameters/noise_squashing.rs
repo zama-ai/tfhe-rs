@@ -99,7 +99,7 @@ impl NoiseSquashingParameters {
             }
         }
     }
-    pub fn set_deterministic_execution(&mut self, do_it: bool) {
+    pub const fn set_deterministic_execution(&mut self, do_it: bool) {
         match self {
             Self::Classic(_) => (),
             Self::MultiBit(noise_squashing_multi_bit_parameters) => {
@@ -107,7 +107,7 @@ impl NoiseSquashingParameters {
             }
         }
     }
-    pub fn with_deterministic_execution(mut self) -> Self {
+    pub const fn with_deterministic_execution(mut self) -> Self {
         self.set_deterministic_execution(true);
 
         self

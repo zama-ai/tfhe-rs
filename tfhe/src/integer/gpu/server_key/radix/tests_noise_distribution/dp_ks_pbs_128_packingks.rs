@@ -36,7 +36,8 @@ use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
     TestJsonGuard, TestResult,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::{
-    mean_and_variance_check, noise_check, DecryptionAndNoiseResult, NoiseSample,
+    mean_and_variance_check, noise_check, post_squashing_and_packing_noise_check,
+    DecryptionAndNoiseResult, NoiseSample,
 };
 use crate::shortint::{PaddingBit, ShortintEncoding, ShortintParameterSet};
 use crate::{this_function_name, GpuIndex};
@@ -925,7 +926,12 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise_gpu(
         after_packing_sim.modulus().as_f64(),
     );
 
+    let post_noise_squashing_bound_is_ok = post_squashing_and_packing_noise_check(
+        &noise_samples_after_packing_flattened,
+        noise_squashing_compression_params,
+    );
     noise_check(&guard, mean_variance_result, None);
+    assert!(post_noise_squashing_bound_is_ok)
 }
 
 create_gpu_parameterized_stringified_test!(

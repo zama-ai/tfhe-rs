@@ -34,6 +34,7 @@ use crate::core_crypto::entities::lwe_ciphertext::{LweCiphertext, LweCiphertextO
 use crate::core_crypto::entities::lwe_secret_key::LweSecretKey;
 use crate::core_crypto::entities::{Cleartext, Plaintext, PlaintextList};
 use crate::shortint::encoding::ShortintEncoding;
+use crate::shortint::parameters::noise_squashing::NoiseSquashingCompressionParameters;
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, MessageModulus, PBSParameters,
 };
@@ -366,6 +367,53 @@ pub fn noise_check(
 
     guard.write_results(valid, None, test_result).unwrap();
     assert!(valid);
+}
+
+#[track_caller]
+pub fn post_squashing_and_packing_noise_check(
+    noise_samples_after_packing: &[f64],
+    noise_squashing_compression_params: NoiseSquashingCompressionParameters,
+) -> bool {
+    // Variance and std dev are on the torus
+    let variance_after_packing = variance(noise_samples_after_packing);
+    let std_dev_after_packing = variance_after_packing.get_standard_dev();
+    println!("variance_after_packing={variance_after_packing:?}");
+    println!("std_dev_after_packing ={std_dev_after_packing:?}");
+    // We need the value over the discretized torus
+    let modulus_as_f64_after_packing = noise_squashing_compression_params
+        .ciphertext_modulus
+        .raw_modulus_float();
+    println!("modulus_as_f64_after_packing={modulus_as_f64_after_packing}");
+    let std_dev_under_modulus_after_packing =
+        std_dev_after_packing.0 * modulus_as_f64_after_packing;
+    println!("std_dev_under_modulus_after_packing={std_dev_under_modulus_after_packing:?}");
+
+    // Equation (22) page 95 from https://eprint.iacr.org/2025/699.pdf
+    // c_err,1 page 96 from the same doc is 13.15 (should provide a pfail ~2^-128 for a gaussian)
+    // This value is more pessimistic than what we would use (13.10862617448018) for 2^-128, so we
+    // keep it
+    let c_err_1 = 13.15f64;
+    // Using paper notations, equation (22) requires all the noise before noise flooding to be taken
+    // into account (not just noise squashing), so including the post squashing compression in
+    // our case
+    let b_switch_squash = c_err_1 * std_dev_under_modulus_after_packing;
+    let b_switch_squash_log2 = b_switch_squash.log2();
+
+    println!("b_switch_squash={b_switch_squash}");
+    println!("b_switch_squash_log2={b_switch_squash_log2}");
+
+    let bound = 2.0f64.powi(70);
+    println!("bound_log2={}", bound.log2());
+
+    let is_ok = b_switch_squash <= bound;
+
+    if is_ok {
+        println!("PASS: noise after noise squashing and packing respects bound.");
+    } else {
+        println!("FAIL: noise after noise squashing and packing is too large.");
+    }
+
+    is_ok
 }
 
 #[derive(Clone, Copy)]
