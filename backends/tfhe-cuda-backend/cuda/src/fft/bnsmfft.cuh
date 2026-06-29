@@ -763,4 +763,218 @@ __global__ void batch_polynomial_mul(double2 *d_input1, double2 *d_input2,
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Test-only negacyclic polynomial multiplication using the FFT16x4x16 path.
+//
+// Analog of batch_polynomial_mul, but exercises the throughput-oriented
+// FFT16x4x16 forward/inverse cores actually used by the specialized 2_2_params
+// PBS (FFT16x4x16_fwd/inv_optimized_for_pbs). Hardcoded to N = 2048
+// (N/2 = 1024 = 16×64) and to a single 64-thread FFT group per block.
+//
+// REQUIRES sm_90 (H100): the optimized cores rely on named-barrier / mbarrier
+// primitives only available there.
+//
+// Data flow (mirrors the production PBS exactly):
+//   - both operands get the fused negacyclic pre-twist inside the forward core;
+//   - their spectra are produced in bit-reversed frequency order
+//     (a[j] ↔ frequency bitreversal16(j)*64 + tid), so the pointwise product is
+//     a register-wise a[j]*b[j];
+//   - the 1/N (N = 1024) scaling — which production bakes into the BSK spectrum
+//     via batch_FFT16x4x16_classical_specialized, NOT into the inverse core —
+//     is applied here on the product;
+//   - the inverse core expects natural-order input, so we unscramble once
+//     (nat[j] = prod[bitreversal16(j)]) before calling it;
+//   - after the inverse, nat[j] holds the time value at position
+//     bitreversal16(j)*64 + tid in the compressed real layout (.x = coeff k,
+//     .y = coeff k+1024).
+//
+// Smem: reuses the dual-FFT layout offsets (group 0 only) so the pointers
+// handed to the cores stay consistent; allocate FFT16x4x16_DUAL_SMEM_BYTES.
+template <class params>
+__global__ void
+batch_polynomial_mul_fft16x4x16(const double2 *__restrict__ d_input1,
+                                const double2 *__restrict__ d_input2,
+                                double2 *__restrict__ d_output) {
+  extern __shared__ int8_t batch_fft16_mul_sharedmem[];
+  double *smem = reinterpret_cast<double *>(batch_fft16_mul_sharedmem);
+
+  const double2 *tw_shared = reinterpret_cast<const double2 *>(smem);
+  const double *compact_twiddles = smem + FFT16x4x16_DUAL_COMPACT_TW_OFFSET;
+  double *smem_xpose = smem + FFT16x4x16_DUAL_XPOSE0_OFFSET;
+  double *smem_xpose_pong = smem + FFT16x4x16_DUAL_XPOSE0_PONG_OFFSET;
+  double2 *smem_twist =
+      reinterpret_cast<double2 *>(smem + FFT16x4x16_DUAL_TWIST_OFFSET);
+
+  // Cooperative twiddle table load (64 threads × 15 iters = 960 double2's).
+  double2 *tw_shared_w = reinterpret_cast<double2 *>(smem);
+#pragma unroll
+  for (int idx = threadIdx.x; idx < 15 * 64; idx += 64)
+    tw_shared_w[idx] = tw_1024[idx >> 6][idx & 63];
+
+  // Compact twiddles: 3 rows × 16 columns of (re, im).
+  double *compact_twiddles_w = smem + FFT16x4x16_DUAL_COMPACT_TW_OFFSET;
+  if (threadIdx.x < 48) {
+    int r = threadIdx.x >> 4;
+    int col = threadIdx.x & 15;
+    int table_row = (r == 0) ? 7 : (r == 1) ? 3 : 11;
+    double2 v = tw_1024[table_row][4 * col];
+    compact_twiddles_w[r * 17 + col] = v.x;
+    compact_twiddles_w[3 * 17 + r * 17 + col] = v.y;
+  }
+
+  // Negacyclic twist half-table (513 entries; reflection recovers k > 512).
+  for (int idx = threadIdx.x; idx < 512; idx += 64)
+    smem_twist[idx] = twisting_twiddles[idx];
+  if (threadIdx.x == 0)
+    smem_twist[512] = twisting_twiddles[512];
+
+  __syncthreads();
+
+  // Register-cached twiddles — same preload the PBS kernel performs.
+  const double2 tw_cache_r7 = tw_shared[7 * 64 + threadIdx.x];
+  const double2 tw_cache_r3 = tw_shared[3 * 64 + threadIdx.x];
+  const double2 tw_cache_r11 = tw_shared[11 * 64 + threadIdx.x];
+  const double2 tw_cache_r1 = tw_shared[1 * 64 + threadIdx.x];
+  const int lo4 = threadIdx.x & 15;
+  double2 compact_w1 =
+      make_double2(compact_twiddles[lo4], compact_twiddles[3 * 17 + lo4]);
+  double2 compact_w2 = make_double2(compact_twiddles[17 + lo4],
+                                    compact_twiddles[3 * 17 + 17 + lo4]);
+  double2 compact_w3 = make_double2(compact_twiddles[34 + lo4],
+                                    compact_twiddles[3 * 17 + 34 + lo4]);
+
+  constexpr int half_degree = params::degree / 2; // 1024
+  double2 a[16];
+  double2 b[16];
+#pragma unroll
+  for (int j = 0; j < 16; j++) {
+    a[j] = d_input1[blockIdx.x * half_degree + threadIdx.x + j * 64];
+    b[j] = d_input2[blockIdx.x * half_degree + threadIdx.x + j * 64];
+  }
+
+  // Forward FFT (fused pre-twist) on both operands.
+  FFT16x4x16_fwd_optimized_for_pbs(a, tw_shared, smem_twist, smem_xpose,
+                                   smem_xpose_pong, compact_w1, compact_w2,
+                                   compact_w3, tw_cache_r7, tw_cache_r3,
+                                   tw_cache_r11, tw_cache_r1);
+  FFT16x4x16_fwd_optimized_for_pbs(b, tw_shared, smem_twist, smem_xpose,
+                                   smem_xpose_pong, compact_w1, compact_w2,
+                                   compact_w3, tw_cache_r7, tw_cache_r3,
+                                   tw_cache_r11, tw_cache_r1);
+
+  // Pointwise product in matching bit-reversed layout, fold in 1/N.
+  constexpr double inv_n = 1.0 / 1024.0;
+  double2 prod[16];
+#pragma unroll
+  for (int j = 0; j < 16; j++)
+    prod[j] = (a[j] * b[j]) * inv_n;
+
+  // Inverse core expects natural-order input → unscramble once.
+  double2 nat[16];
+#pragma unroll
+  for (int j = 0; j < 16; j++)
+    nat[j] = prod[bitreversal16(j)];
+
+  FFT16x4x16_inv_optimized_for_pbs(nat, tw_shared, smem_twist, smem_xpose,
+                                   smem_xpose_pong, compact_w1, compact_w2,
+                                   compact_w3, tw_cache_r7, tw_cache_r3,
+                                   tw_cache_r11, tw_cache_r1);
+
+#pragma unroll
+  for (int j = 0; j < 16; j++) {
+    int k = bitreversal16(j);
+    d_output[blockIdx.x * half_degree + threadIdx.x + k * 64] = nat[j];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test-only forward-only negacyclic FFT using the throughput-oriented
+// FFT16x4x16 core (FFT16x4x16_fwd_optimized_for_pbs, the transform used by the
+// specialized 2_2_params PBS). Hardcoded to N = 2048 (N/2 = 1024 = 16×64), one
+// 64-thread FFT group per block.
+//
+// REQUIRES sm_90 (H100): the optimized core relies on named-barrier / mbarrier
+// primitives only available there.
+//
+// Output layout: the spectrum is written in NATURAL frequency order. The
+// forward core leaves register a[j] holding the DFT coefficient at frequency
+// bitreversal16(j)*64 + tid, so we un-scramble on store:
+//
+//     d_output[block*(N/2) + bitreversal16(j)*64 + tid] = a[j]
+//
+// so d_output[block*(N/2) + f] is the coefficient at frequency f. This lets a
+// host-side comparison line the spectrum up against another negacyclic FFT
+// without any per-frequency bookkeeping beyond that FFT's own ordering.
+template <class params>
+__global__ void batch_forward_fft16x4x16(const double2 *__restrict__ d_input,
+                                         double2 *__restrict__ d_output) {
+  extern __shared__ int8_t batch_fft16_fwd_sharedmem[];
+  double *smem = reinterpret_cast<double *>(batch_fft16_fwd_sharedmem);
+
+  const double2 *tw_shared = reinterpret_cast<const double2 *>(smem);
+  const double *compact_twiddles = smem + FFT16x4x16_DUAL_COMPACT_TW_OFFSET;
+  double *smem_xpose = smem + FFT16x4x16_DUAL_XPOSE0_OFFSET;
+  double *smem_xpose_pong = smem + FFT16x4x16_DUAL_XPOSE0_PONG_OFFSET;
+  double2 *smem_twist =
+      reinterpret_cast<double2 *>(smem + FFT16x4x16_DUAL_TWIST_OFFSET);
+
+  // Cooperative twiddle table load (64 threads × 15 iters = 960 double2's).
+  double2 *tw_shared_w = reinterpret_cast<double2 *>(smem);
+#pragma unroll
+  for (int idx = threadIdx.x; idx < 15 * 64; idx += 64)
+    tw_shared_w[idx] = tw_1024[idx >> 6][idx & 63];
+
+  // Compact twiddles: 3 rows × 16 columns of (re, im).
+  double *compact_twiddles_w = smem + FFT16x4x16_DUAL_COMPACT_TW_OFFSET;
+  if (threadIdx.x < 48) {
+    int r = threadIdx.x >> 4;
+    int col = threadIdx.x & 15;
+    int table_row = (r == 0) ? 7 : (r == 1) ? 3 : 11;
+    double2 v = tw_1024[table_row][4 * col];
+    compact_twiddles_w[r * 17 + col] = v.x;
+    compact_twiddles_w[3 * 17 + r * 17 + col] = v.y;
+  }
+
+  // Negacyclic twist half-table (513 entries; reflection recovers k > 512).
+  for (int idx = threadIdx.x; idx < 512; idx += 64)
+    smem_twist[idx] = twisting_twiddles[idx];
+  if (threadIdx.x == 0)
+    smem_twist[512] = twisting_twiddles[512];
+
+  __syncthreads();
+
+  // Register-cached twiddles — same preload the PBS kernel performs.
+  const double2 tw_cache_r7 = tw_shared[7 * 64 + threadIdx.x];
+  const double2 tw_cache_r3 = tw_shared[3 * 64 + threadIdx.x];
+  const double2 tw_cache_r11 = tw_shared[11 * 64 + threadIdx.x];
+  const double2 tw_cache_r1 = tw_shared[1 * 64 + threadIdx.x];
+  const int lo4 = threadIdx.x & 15;
+  double2 compact_w1 =
+      make_double2(compact_twiddles[lo4], compact_twiddles[3 * 17 + lo4]);
+  double2 compact_w2 = make_double2(compact_twiddles[17 + lo4],
+                                    compact_twiddles[3 * 17 + 17 + lo4]);
+  double2 compact_w3 = make_double2(compact_twiddles[34 + lo4],
+                                    compact_twiddles[3 * 17 + 34 + lo4]);
+
+  constexpr int half_degree = params::degree / 2; // 1024
+  double2 a[16];
+#pragma unroll
+  for (int j = 0; j < 16; j++)
+    a[j] = d_input[blockIdx.x * half_degree + threadIdx.x + j * 64];
+
+  // Forward FFT (fused negacyclic pre-twist), output in bit-reversed register
+  // order.
+  FFT16x4x16_fwd_optimized_for_pbs(a, tw_shared, smem_twist, smem_xpose,
+                                   smem_xpose_pong, compact_w1, compact_w2,
+                                   compact_w3, tw_cache_r7, tw_cache_r3,
+                                   tw_cache_r11, tw_cache_r1);
+
+  // Un-scramble to natural frequency order on store.
+#pragma unroll
+  for (int j = 0; j < 16; j++) {
+    int f = bitreversal16(j) * 64 + threadIdx.x;
+    d_output[blockIdx.x * half_degree + f] = a[j];
+  }
+}
+
 #endif // GPU_BOOTSTRAP_FFT_CUH
