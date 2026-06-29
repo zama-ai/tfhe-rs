@@ -170,8 +170,8 @@ mod cuda {
     use tfhe::core_crypto::prelude::*;
     use tfhe::shortint::parameters::{
         ModulusSwitchType, NoiseSquashingParameters,
-        NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
 
@@ -185,7 +185,7 @@ mod cuda {
 
         type Scalar = u128;
         let input_params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let squash_params = NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let squash_params = NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let NoiseSquashingParameters::Classic(squash_params) = squash_params else {
             panic!("Multi bit noise squashing PBS currently not supported on GPU");
