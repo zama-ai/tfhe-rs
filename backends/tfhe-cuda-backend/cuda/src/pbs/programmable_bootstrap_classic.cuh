@@ -389,11 +389,6 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
       smem + (fft_id == 0 ? FFT16x4x16_DUAL_XPOSE0_OFFSET
                           : FFT16x4x16_DUAL_XPOSE1_OFFSET));
 
-  FFT16x4x16MBarrierStorage *barrier =
-      fft16x4x16_dual_mbarrier_storage(smem, fft_id);
-  FFT16x4x16MBarrierStorage *startup_barrier =
-      fft16x4x16_dual_startup_mbarrier_storage(smem);
-
   double2 *smem_twist =
       reinterpret_cast<double2 *>(smem + FFT16x4x16_DUAL_TWIST_OFFSET);
 
@@ -422,20 +417,10 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
   uint32_t *a_hat_table = reinterpret_cast<uint32_t *>(
       smem + SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_AHAT_OFFSET_DOUBLES);
 
-  // Initialise mbarriers (no-ops on pre-SM90); named-barrier publish to 128 t.
-  if (threadIdx.x == 0 && threadIdx.y == 0) {
-    fft16x4x16_mbarrier_init_raw(fft16x4x16_dual_mbarrier_storage(smem, 0), 2u);
-    fft16x4x16_mbarrier_init_raw(fft16x4x16_dual_mbarrier_storage(smem, 1), 2u);
-    fft16x4x16_mbarrier_init_raw(startup_barrier, 4u); // 4 warps in the block
-  }
-  fft16x4x16_named_barrier_sync(15u, 128u);
-
   // Cooperative twiddle / compact_twiddles load (128-thread loader).
   fft16x4x16_load_shared_twiddles_128t(smem);
-  // Startup sync is block-wide (all 4 warps) → plain __syncthreads() (bar.sync
-  // 0) replacing the mbarrier spin. Per-group FFT syncs use named ids 1/2 (see
-  // sync_coupled_warps); the mbarrier storage/init above is now unused
-  // but left in place so the smem layout is unchanged for the A/B.
+  // Block-wide startup sync (all 4 warps). Per-group FFT syncs use named ids
+  // 1/2 (see sync_coupled_warps), so no mbarrier init is needed.
   __syncthreads();
 
   // Preload the 3 compact 4×4 twiddles into per-thread registers (one-time
@@ -564,10 +549,10 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
     double2 fft_out_regs[params::opt / 2];
     decompose_balanced_simplified<params>(fft_out_regs, reg_rotated);
 
-    FFT16x4x16_fwd_optimized_for_pbs(
-        fft_out_regs, tw_shared, smem_twist, smem_xpose, smem_xpose_pong,
-        compact_w1, compact_w2, compact_w3, barrier, tw_cache_r7, tw_cache_r3,
-        tw_cache_r11, tw_cache_r1);
+    FFT16x4x16_fwd_optimized_for_pbs(fft_out_regs, tw_shared, smem_twist,
+                                     smem_xpose, smem_xpose_pong, compact_w1,
+                                     compact_w2, compact_w3, tw_cache_r7,
+                                     tw_cache_r3, tw_cache_r11, tw_cache_r1);
 
     // Copy fft from regs to shared memory to be used in the external product
 #pragma unroll
@@ -593,8 +578,8 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
 
     FFT16x4x16_inv_optimized_for_pbs(
         buffer_natural, tw_shared, smem_twist, smem_xpose_inv_pong,
-        smem_xpose_inv, compact_w1, compact_w2, compact_w3, barrier,
-        tw_cache_r7, tw_cache_r3, tw_cache_r11, tw_cache_r1);
+        smem_xpose_inv, compact_w1, compact_w2, compact_w3, tw_cache_r7,
+        tw_cache_r3, tw_cache_r11, tw_cache_r1);
 
     // Last iteration requires the final accumulation in 64-bit precision.
     bool is_last_iter = (i + 1 >= lwe_dimension);
@@ -1233,15 +1218,8 @@ __host__ void host_programmable_bootstrap_with_mode(
           get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params_throughput<
               Torus>(lwe_dimension);
 
-      // 2-block-per-SM residency guard (H100 with
-      // cudaSharedmemCarveoutMaxShared = 228 KiB → 114 KiB per block at
-      // occupancy 2). With the fwd-FFT ping-pong PONG buffers in the smem
-      // layout, lwe_dimension ≲ 1370 fits. Larger params would silently drop to
-      // 1 block/SM — panic instead so the regression is visible.
-      if (mp_smem > 114ull * 1024ull) {
-        PANIC("specialized 2_2 mixprecision smem exceeds 2-block-per-SM "
-              "residency budget (114 KiB); shrink PONG or revisit layout");
-      }
+      // smem is already bounded to the 114 KiB / 2-block-per-SM budget by the
+      // specialized_2_2_use_throughput_oriented predicate above.
 
 #define LAUNCH_SPECIALIZED_2_2_MIXPRECISION(BL)                                \
   do {                                                                         \

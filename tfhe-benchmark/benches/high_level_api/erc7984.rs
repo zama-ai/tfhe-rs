@@ -536,7 +536,7 @@ fn cuda_bench_transfer_throughput<FheType, F>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
-    // 300 * num_gpus seems to be enough for maximum throughput on 8xH100 SXM5
+    // 800 * num_gpus seems to be enough for maximum throughput on 8xH100 SXM5
     // and is a multiple of the number of streams per GPU to avoid a bigger batch on one stream
     let num_elems = 800 * num_gpus;
 
