@@ -852,7 +852,7 @@ impl<Id: FheIntId> FheInt<Id> {
                 let streams = &cuda_key.streams;
                 cuda_key
                     .oprf_key()
-                    .get_par_generate_oblivious_pseudo_random_unsigned_integer_bounded_size_on_gpu(
+                    .get_par_generate_oblivious_pseudo_random_signed_integer_bounded_size_on_gpu(
                         cuda_key.pbs_key(),
                         streams,
                     )
