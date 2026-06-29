@@ -285,6 +285,9 @@ __device__ T centered_binary_modulus_switch_body_correction_to_add(
 // via __shfl_xor_sync, lane 0 of each warp publishes its partial into smem, and
 // after a __syncthreads every thread folds the per-warp partials and computes
 // the final correction. Every thread returns the same value.
+//
+// Must be called by every thread of the block (it syncs internally). The block
+// must have num_warps*32 threads and smem_scratch must hold 2*num_warps elems.
 template <typename T, int num_warps>
 __device__ T centered_binary_modulus_switch_body_correction_to_add_cooperative(
     const T *__restrict__ lwe, const uint32_t lwe_dimension,
@@ -292,14 +295,22 @@ __device__ T centered_binary_modulus_switch_body_correction_to_add_cooperative(
   using ST = signed_torus_t<T>;
   constexpr ST TWO = static_cast<ST>(2);
   constexpr uint32_t BITS = sizeof(T) * 8;
-  constexpr int block_size = num_warps * 32;
+  constexpr int THREADS_IN_WARP = 32;
+  constexpr int MAX_WARP_PER_BLOCK = 32;
+  // num_warps must fit a single block (max 32 warps = 1024 threads). This also
+  // guarantees the per-warp partials published below stay within the caller's
+  // 2*num_warps scratch and that the full-warp shuffle mask is valid.
+  static_assert(num_warps > 0 && num_warps <= MAX_WARP_PER_BLOCK,
+                "num_warps must be in [1, 32]");
+  static_assert(sizeof(T) <= 8, "warp shuffle has no 128-bit overload");
+  constexpr int block_size = num_warps * THREADS_IN_WARP;
 
   // The block from where is called could have x,y,z dims to match the
   // throughput oriented version
   const int linear_tid = threadIdx.x + threadIdx.y * blockDim.x +
                          threadIdx.z * blockDim.x * blockDim.y;
-  const int lane = linear_tid & 31;
-  const int warp_id = linear_tid >> 5;
+  const int lane = linear_tid & (THREADS_IN_WARP - 1);
+  const int warp_id = linear_tid / THREADS_IN_WARP;
 
   // Per-thread strided accumulation.
   T local_half = 0;
@@ -316,7 +327,7 @@ __device__ T centered_binary_modulus_switch_body_correction_to_add_cooperative(
 
   // Intra-warp butterfly: every lane ends up with its warp's full sum.
 #pragma unroll
-  for (int off = 16; off > 0; off >>= 1) {
+  for (int off = THREADS_IN_WARP / 2; off > 0; off >>= 1) {
     local_half += __shfl_xor_sync(0xFFFFFFFFu, local_half, off);
     local_halving_doubled +=
         __shfl_xor_sync(0xFFFFFFFFu, local_halving_doubled, off);
@@ -337,6 +348,10 @@ __device__ T centered_binary_modulus_switch_body_correction_to_add_cooperative(
     sum_half += smem_scratch[w * 2 + 0];
     sum_halving_doubled_T += smem_scratch[w * 2 + 1];
   }
+
+  // We sync to make sure it is safe to reuse the shared memory after the call
+  // of this kernel. So we avoid potential race conditions in future uses of it.
+  __syncthreads();
 
   const ST sum_halving_doubled = static_cast<ST>(sum_halving_doubled_T);
   const auto sum_halving = static_cast<T>(sum_halving_doubled / TWO);
