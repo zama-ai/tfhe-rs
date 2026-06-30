@@ -1,4 +1,4 @@
-use dyn_stack::{PodStack, PodBuffer};
+use dyn_stack::{PodBuffer, PodStack};
 use tfhe::core_crypto::fft_impl::{fft128, fft128_u128};
 use tfhe::core_crypto::prelude::*;
 
@@ -70,65 +70,77 @@ pub fn main() {
         *hi = (*val >> 64) as u64;
     }
 
-    let mut out = GlweCiphertext::new(
-        0u128,
-        glwe_dimension.to_glwe_size(),
-        polynomial_size,
-        ciphertext_modulus,
-    );
+    let out_non_split = {
+        let mut out = GlweCiphertext::new(
+            0u128,
+            glwe_dimension.to_glwe_size(),
+            polynomial_size,
+            ciphertext_modulus,
+        );
 
-    fft128::crypto::ggsw::add_external_product_assign(
-        &mut out,
-        &ggsw,
-        &glwe,
-        fft,
-        PodStack::new(
-            &mut PodBuffer::try_new(fft128::crypto::ggsw::add_external_product_assign_scratch::<
-                u128,
-            >(
-                glwe_dimension.to_glwe_size(), polynomial_size, fft
-            ))
-            .unwrap(),
-        ),
-    );
+        fft128::crypto::ggsw::add_external_product_assign(
+            &mut out,
+            &ggsw,
+            &glwe,
+            fft,
+            PodStack::new(
+                &mut PodBuffer::try_new(
+                    fft128::crypto::ggsw::add_external_product_assign_scratch::<u128>(
+                        glwe_dimension.to_glwe_size(),
+                        polynomial_size,
+                        fft,
+                    ),
+                )
+                .unwrap(),
+            ),
+        );
 
-    let mut out_lo = GlweCiphertext::new(
-        0u64,
-        glwe_dimension.to_glwe_size(),
-        polynomial_size,
-        ciphertext_modulus_split,
-    );
-    let mut out_hi = GlweCiphertext::new(
-        0u64,
-        glwe_dimension.to_glwe_size(),
-        polynomial_size,
-        ciphertext_modulus_split,
-    );
+        out
+    };
 
-    fft128_u128::crypto::ggsw::add_external_product_assign_split(
-        &mut out_lo,
-        &mut out_hi,
-        &ggsw,
-        &glwe_lo,
-        &glwe_hi,
-        fft,
-        PodStack::new(
-            &mut PodBuffer::try_new(fft128::crypto::ggsw::add_external_product_assign_scratch::<
-                u128,
-            >(
-                glwe_dimension.to_glwe_size(), polynomial_size, fft
-            ))
-            .unwrap(),
-        ),
-    );
+    let out_split = {
+        let mut out_lo = GlweCiphertext::new(
+            0u64,
+            glwe_dimension.to_glwe_size(),
+            polynomial_size,
+            ciphertext_modulus_split,
+        );
+        let mut out_hi = GlweCiphertext::new(
+            0u64,
+            glwe_dimension.to_glwe_size(),
+            polynomial_size,
+            ciphertext_modulus_split,
+        );
 
-    let out_non_split = out.into_container();
-    let out_split: Vec<_> = out_lo
-        .as_ref()
-        .iter()
-        .zip(out_hi.as_ref().iter())
-        .map(|(lo, hi)| *lo as u128 | ((*hi as u128) << 64))
-        .collect();
+        fft128_u128::crypto::ggsw::add_external_product_assign_split(
+            &mut out_lo,
+            &mut out_hi,
+            &ggsw,
+            &glwe_lo,
+            &glwe_hi,
+            fft,
+            PodStack::new(
+                &mut PodBuffer::try_new(
+                    fft128::crypto::ggsw::add_external_product_assign_scratch::<u128>(
+                        glwe_dimension.to_glwe_size(),
+                        polynomial_size,
+                        fft,
+                    ),
+                )
+                .unwrap(),
+            ),
+        );
+        let out_split: Vec<_> = out_lo
+            .as_ref()
+            .iter()
+            .zip(out_hi.as_ref().iter())
+            .map(|(lo, hi)| *lo as u128 | ((*hi as u128) << 64))
+            .collect();
+
+        out_split
+    };
+
+    let out_non_split = out_non_split.into_container();
 
     // println!("out_split={out_split:?}");
     // println!("\n\n\n\nout_nonsplit={out_non_split:?}");
