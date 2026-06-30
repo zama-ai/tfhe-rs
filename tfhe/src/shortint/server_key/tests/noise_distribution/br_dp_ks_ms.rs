@@ -326,7 +326,10 @@ fn encrypt_br_dp_ks_any_ms_pfail_helper(
     after_ms
 }
 
-fn noise_check_encrypt_br_dp_ks_ms_noise(meta_params: MetaParameters, filename_suffix: &str) {
+pub(crate) fn noise_check_encrypt_br_dp_ks_ms_noise(
+    meta_params: MetaParameters,
+    filename_suffix: &str,
+) {
     let function_name = this_function_name!();
     let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
     let params = meta_params
@@ -449,7 +452,10 @@ create_parameterized_stringified_test!(noise_check_encrypt_br_dp_ks_ms_noise {
     TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 });
 
-fn noise_check_encrypt_br_dp_ks_ms_pfail(meta_params: MetaParameters, filename_suffix: &str) {
+pub(crate) fn noise_check_encrypt_br_dp_ks_ms_pfail(
+    meta_params: MetaParameters,
+    filename_suffix: &str,
+) {
     let function_name = this_function_name!();
     let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
     let (pfail_test_meta, params) = {
