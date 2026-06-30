@@ -546,7 +546,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_left_shift);
-    unchecked_scalar_left_shift_test(param, executor, true);
+    unchecked_scalar_left_shift_test(param, executor);
 }
 
 fn integer_unchecked_scalar_right_shift<P>(param: P)
@@ -554,7 +554,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_right_shift);
-    unchecked_scalar_right_shift_test(param, executor, true);
+    unchecked_scalar_right_shift_test(param, executor);
 }
 
 fn integer_unchecked_neg<P>(param: P)

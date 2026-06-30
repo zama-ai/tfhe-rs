@@ -192,11 +192,15 @@ mod clear_functions {
     // Warning this rotate definition only works with 64-bit ciphertexts
     pub(crate) const clear_rotate_left: fn(u64, u64) -> u64 =
         |x: u64, y: u64| x.rotate_left(y as u32);
-    pub(crate) const clear_left_shift: fn(u64, u64) -> u64 = |x, y| x.wrapping_shl(y as u32);
+    // An overshift (amount >= number of bits) pushes every bit out, so a
+    // logical shift returns 0.
+    pub(crate) const clear_left_shift: fn(u64, u64) -> u64 =
+        |x, y| if y >= 64 { 0 } else { x << y };
     // Warning this rotate definition only works with 64-bit ciphertexts
     pub(crate) const clear_rotate_right: fn(u64, u64) -> u64 =
         |x: u64, y: u64| x.rotate_right(y as u32);
-    pub(crate) const clear_right_shift: fn(u64, u64) -> u64 = |x, y| x.wrapping_shr(y as u32);
+    pub(crate) const clear_right_shift: fn(u64, u64) -> u64 =
+        |x, y| if y >= 64 { 0 } else { x >> y };
     pub(crate) const clear_max: fn(u64, u64) -> u64 = |x: u64, y: u64| std::cmp::max(x, y);
     pub(crate) const clear_min: fn(u64, u64) -> u64 = |x: u64, y: u64| std::cmp::min(x, y);
     pub(crate) const clear_neg: fn(u64) -> u64 = |x: u64| x.wrapping_neg();
