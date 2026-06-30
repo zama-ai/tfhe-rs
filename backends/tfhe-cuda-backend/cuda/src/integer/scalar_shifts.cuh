@@ -35,11 +35,19 @@ __host__ void host_logical_scalar_shift_inplace(
 
   size_t num_bits_in_block = (size_t)log2_int(message_modulus);
   size_t total_num_bits = num_bits_in_block * num_blocks;
-  shift = shift % total_num_bits;
 
   if (shift == 0) {
     return;
   }
+
+  // Overshift: a logical shift (used for unsigned shifts, left or right, and
+  // for the signed left shift) pushes every bit out, so the result is 0.
+  if (shift >= total_num_bits) {
+    set_zero_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), lwe_array, 0, num_blocks);
+    return;
+  }
+
   size_t rotations = std::min(shift / num_bits_in_block, (size_t)num_blocks);
   size_t shift_within_block = shift % num_bits_in_block;
 
@@ -126,6 +134,49 @@ __host__ uint64_t scratch_cuda_arithmetic_scalar_shift(
   return size_tracker;
 }
 
+/**
+ * @brief Overshift fixup for an arithmetic right shift: when the shift amount
+ * is >= the bit width, the result saturates to the sign, so every block becomes
+ * the "sign block" (message_modulus - 1 if the input is negative, else 0).
+ * @param shifted_ct Ciphertext shifted in place; overwritten with the sign.
+ * @param mem Scratch buffer holding the padding-block LUT and tmp_rotated.
+ * @param num_blocks Number of radix blocks in shifted_ct.
+ * @param num_bits_in_block Message bits per block (1 skips the sign-extract
+ * PBS).
+ */
+template <typename Torus, typename KSTorus>
+__host__ void host_arithmetic_scalar_shift_overshift(
+    CudaStreams streams, CudaRadixCiphertextFFI *shifted_ct,
+    int_arithmetic_scalar_shift_buffer<Torus> *mem, void *const *bsks,
+    KSTorus *const *ksks, size_t num_bits_in_block) {
+  auto num_blocks = shifted_ct->num_radix_blocks;
+  CudaRadixCiphertextFFI sign_block;
+  as_radix_ciphertext_slice<Torus>(&sign_block, mem->tmp_rotated,
+                                   num_blocks + 1, num_blocks + 2);
+  CudaRadixCiphertextFFI last_block;
+  as_radix_ciphertext_slice<Torus>(&last_block, shifted_ct, num_blocks - 1,
+                                   num_blocks);
+
+  if (num_bits_in_block == 1) {
+    // A 1-bit-message block already is its own sign bit, so no PBS is needed.
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), &sign_block, 0, 1, shifted_ct,
+        num_blocks - 1, num_blocks);
+  } else {
+    // The last univariate LUT is the "padding block" LUT, producing
+    // (message_modulus - 1) * sign_bit from the (sign-holding) last block.
+    auto padding_block_lut = mem->lut_buffers_univariate[num_bits_in_block - 1];
+    integer_radix_apply_univariate_lookup_table<Torus>(
+        streams, &sign_block, &last_block, bsks, ksks, padding_block_lut, 1);
+  }
+
+  for (uint i = 0; i < num_blocks; i++) {
+    copy_radix_ciphertext_slice_async<Torus>(streams.stream(0),
+                                             streams.gpu_index(0), shifted_ct,
+                                             i, i + 1, &sign_block, 0, 1);
+  }
+}
+
 template <typename Torus, typename KSTorus>
 __host__ void host_arithmetic_scalar_shift_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
@@ -138,11 +189,22 @@ __host__ void host_arithmetic_scalar_shift_inplace(
 
   size_t num_bits_in_block = (size_t)log2_int(message_modulus);
   size_t total_num_bits = num_bits_in_block * num_blocks;
-  shift = shift % total_num_bits;
 
   if (shift == 0) {
     return;
   }
+
+  if (mem->shift_type != RIGHT_SHIFT) {
+    PANIC("Cuda error (scalar shift): left scalar shift is never of the "
+          "arithmetic type")
+  }
+
+  if (shift >= total_num_bits) {
+    host_arithmetic_scalar_shift_overshift<Torus, KSTorus>(
+        streams, lwe_array, mem, bsks, ksks, num_bits_in_block);
+    return;
+  }
+
   size_t rotations = std::min(shift / num_bits_in_block, (size_t)num_blocks);
   size_t shift_within_block = shift % num_bits_in_block;
 
