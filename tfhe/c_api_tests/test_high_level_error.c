@@ -4,6 +4,9 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+
+const char *expected_panic_message = "The server key was not properly initialized.\nDid you forget to call `set_server_key` in the current thread ?";
+
 int main(void) {
   tfhe_error_disable_automatic_prints();
 
@@ -47,6 +50,7 @@ int main(void) {
   last_error = tfhe_error_get_last();
   assert(last_error != NULL);
   printf("Error message Received from tfhe-rs: '%s'\n", last_error);
+  assert(strcmp(last_error, expected_panic_message) == 0);
 
   // Destroy the ciphertexts
   fhe_uint128_destroy(lhs);
