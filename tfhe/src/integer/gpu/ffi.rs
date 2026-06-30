@@ -2785,6 +2785,145 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
 }
 
 #[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+/// - In `WithoutKs` mode, when `rerand_keyswitch_key` is `None`, the `rerand_ksks` pointer passed
+///   to the backend is null and is never dereferenced because the encryptions of zero are added
+///   directly. In `rerand_ksk_params`, only `input_lwe_dimension` is read in that mode: it sizes
+///   the expanded encryptions of zero and selects the expansion kernel. `output_lwe_dimension`,
+///   `base_log` and `level_count` are unused.
+pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range_with_rerand<
+    T: UnsignedInteger,
+    B: Numeric,
+    KST: Numeric,
+>(
+    streams: &CudaStreams,
+    radix_lwe_out: &mut CudaRadixCiphertext,
+    num_blocks_intermediate: u32,
+    seeded_lwe_input: &CudaVec<u64>,
+    decomposed_scalar: &[T],
+    has_at_least_one_set: &[T],
+    shift: u32,
+    bootstrapping_key: &CudaVec<B>,
+    compute_bootstrapping_key: &CudaVec<B>,
+    key_switching_key: &CudaVec<KST>,
+    bsk: &impl CudaBskParams,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    message_bits_per_block: u32,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+    zero_lwes: &CudaLweCompactCiphertextList<u64>,
+    rerand_keyswitch_key: Option<&CudaLweKeyswitchKey<u64>>,
+) {
+    let bsk_params = bsk.params_ffi();
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
+    );
+    assert_eq!(streams.gpu_indexes[0], seeded_lwe_input.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(
+        streams.gpu_indexes[0],
+        compute_bootstrapping_key.gpu_index(0)
+    );
+    assert_eq!(streams.gpu_indexes[0], key_switching_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], zero_lwes.0.d_vec.gpu_index(0));
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let num_scalars = u32::try_from(decomposed_scalar.len()).unwrap();
+
+    // Same rerand keyswitch parameter layout as `cuda_backend_rerand_assign` and
+    // `cuda_backend_rerand_without_keyswitch_assign`.
+    let (rerand_ksk_params, rerand_mode) = match rerand_keyswitch_key {
+        Some(ksk) => {
+            assert_eq!(streams.gpu_indexes[0], ksk.d_vec.gpu_index(0));
+            (ksk.params_ffi(), RerandMode::WithKs)
+        }
+        None => {
+            // Without keyswitch, encryptions of zero already live at the radix block dimension.
+            // Only input_lwe_dimension is read; the other fields are unused.
+            let radix_lwe_dimension =
+                u32::try_from(radix_lwe_out.d_blocks.lwe_dimension().0).unwrap();
+            (
+                CudaLweKeyswitchKeyParamsFFI {
+                    input_lwe_dimension: radix_lwe_dimension,
+                    output_lwe_dimension: radix_lwe_dimension,
+                    base_log: 0,
+                    level_count: 0,
+                },
+                RerandMode::WithoutKs,
+            )
+        }
+    };
+    let rerand_ksks_ptr = rerand_keyswitch_key
+        .map(|ksk| ksk.d_vec.ptr.as_ptr())
+        .unwrap_or(std::ptr::null());
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let mut out_degrees = radix_lwe_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.get())
+        .collect();
+    let mut out_noise_levels = radix_lwe_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_radix_lwe_out =
+        prepare_cuda_radix_ffi(radix_lwe_out, &mut out_degrees, &mut out_noise_levels);
+
+    scratch_cuda_integer_grouped_oprf_custom_range_with_rerand_64_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        bsk_params,
+        ksk_params,
+        num_blocks_intermediate,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        true,
+        message_bits_per_block,
+        shift,
+        num_scalars,
+        noise_reduction_type as u32,
+        rerand_ksk_params,
+        rerand_mode as u32,
+    );
+
+    cuda_integer_grouped_oprf_custom_range_with_rerand_64_async(
+        streams.ffi(),
+        &raw mut cuda_ffi_radix_lwe_out,
+        num_blocks_intermediate,
+        seeded_lwe_input.as_c_ptr(0),
+        decomposed_scalar.as_ptr().cast::<u64>(),
+        has_at_least_one_set.as_ptr().cast::<u64>(),
+        num_scalars,
+        shift,
+        zero_lwes.0.d_vec.as_c_ptr(0),
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        compute_bootstrapping_key.ptr.as_ptr(),
+        key_switching_key.ptr.as_ptr(),
+        rerand_ksks_ptr,
+    );
+
+    cleanup_cuda_integer_grouped_oprf_custom_range_with_rerand_64(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+
+    update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
+}
+
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn cuda_backend_get_grouped_oprf_size_on_gpu(
     streams: &CudaStreams,
     num_blocks_to_process: u32,

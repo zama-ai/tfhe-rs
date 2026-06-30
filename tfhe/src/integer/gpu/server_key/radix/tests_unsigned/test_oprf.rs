@@ -67,8 +67,7 @@ where
 /// GPU implementation of [`OprfReRandTestRunner`].
 ///
 /// Uses a derived compact public key (no key-switch) for re-randomization, mirroring the CPU
-/// executor. The custom-range re-randomizing primitive is not available on GPU yet, so
-/// `unsigned_custom_range` returns `None` and the generic test skips that sub-case.
+/// executor.
 struct GpuOprfReRandTestRunner {
     state: Option<GpuOprfReRandState>,
 }
@@ -206,15 +205,46 @@ impl OprfReRandTestRunner for GpuOprfReRandTestRunner {
 
     fn unsigned_custom_range(
         &mut self,
-        _prf_seed: impl OprfSeed,
-        _num_input_random_bits: u64,
-        _excluded_upper_bound: NonZeroU64,
-        _num_blocks_output: u64,
-        _rerand_hash_algo: ReRandomizationHashAlgo,
-    ) -> Option<(RadixCiphertext, RadixCiphertext)> {
-        // The GPU backend does not expose a re-randomizing custom-range primitive yet
-        // Return None to skip the corresponding sub case
-        None
+        prf_seed: impl OprfSeed,
+        num_input_random_bits: u64,
+        excluded_upper_bound: NonZeroU64,
+        num_blocks_output: u64,
+        rerand_hash_algo: ReRandomizationHashAlgo,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let state = self.state();
+        let rerand_key = state.rerand_key();
+
+        let prf_seed = prf_seed.into_bytes();
+        let prf_seed = prf_seed.as_ref();
+
+        let prf_not_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_unsigned_custom_range(
+                prf_seed,
+                num_input_random_bits,
+                excluded_upper_bound.get(),
+                num_blocks_output,
+                &state.sks,
+                &state.streams,
+            );
+        let prf_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_unsigned_custom_range_and_re_randomize(
+                prf_seed,
+                num_input_random_bits,
+                excluded_upper_bound.get(),
+                num_blocks_output,
+                &state.sks,
+                &rerand_key,
+                rerand_hash_algo,
+                &state.streams,
+            )
+            .unwrap();
+
+        (
+            prf_not_rerand.to_radix_ciphertext(&state.streams),
+            prf_rerand.to_radix_ciphertext(&state.streams),
+        )
     }
 
     fn signed_full(

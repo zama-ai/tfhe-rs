@@ -42,6 +42,11 @@ enum Direction { Trailing = 0, Leading = 1 };
 
 enum BitValue { Zero = 0, One = 1 };
 
+enum RERAND_MODE {
+  RERAND_WITH_KS = 0,
+  RERAND_WITHOUT_KS = 1,
+};
+
 extern "C" {
 
 typedef struct {
@@ -690,6 +695,27 @@ void cuda_integer_grouped_oprf_custom_range_64_async(
 
 void cleanup_cuda_integer_grouped_oprf_custom_range_64(CudaStreamsFFI streams,
                                                        int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_integer_grouped_oprf_custom_range_with_rerand_64_async(
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks_intermediate,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    uint32_t message_bits_per_block, uint32_t num_input_random_bits,
+    uint32_t num_scalar_bits, PBS_MS_REDUCTION_T noise_reduction_type,
+    CudaLweKeyswitchKeyParamsFFI rerand_ksk_params, RERAND_MODE rerand_mode);
+
+void cuda_integer_grouped_oprf_custom_range_with_rerand_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_out,
+    uint32_t num_blocks_intermediate, const void *seeded_lwe_input,
+    const uint64_t *decomposed_scalar, const uint64_t *has_at_least_one_set,
+    uint32_t num_scalars, uint32_t shift,
+    const void *lwe_flattened_encryptions_of_zero_compact_array_in, int8_t *mem,
+    void *const *bsks, void *const *compute_bsks, void *const *ksks,
+    void *const *rerand_ksks);
+
+void cleanup_cuda_integer_grouped_oprf_custom_range_with_rerand_64(
+    CudaStreamsFFI streams, int8_t **mem_ptr_void);
 
 uint64_t scratch_cuda_integer_ilog2_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,

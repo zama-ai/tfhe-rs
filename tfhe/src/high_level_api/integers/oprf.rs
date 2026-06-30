@@ -455,9 +455,6 @@ impl<Id: FheUintId> FheUint<Id> {
     }
 
     /// Re-randomizing variant of [`Self::generate_oblivious_pseudo_random_custom_range`].
-    ///
-    /// The GPU backend does not yet expose a re-randomizing custom-range PRF primitive; calling
-    /// this function with a GPU server key currently panics for the non-power-of-two case.
     pub fn generate_oblivious_pseudo_random_custom_range_and_re_randomize<
         'a,
         RRD: Into<ReRandomizationMode<'a>>,
@@ -522,11 +519,38 @@ impl<Id: FheUintId> FheUint<Id> {
                     ))
                 }
                 #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_cuda_key) => {
-                    panic!(
-                        "generate_oblivious_pseudo_random_custom_range_and_re_randomize is not yet \
-                        supported on GPU for non-power-of-two ranges."
+                InternalServerKey::Cuda(cuda_key) => {
+                    let streams = &cuda_key.streams;
+                    let message_modulus = cuda_key.message_modulus();
+
+                    let num_input_random_bits = num_input_random_bits_for_max_distance(
+                        excluded_upper_bound,
+                        max_distance,
+                        message_modulus,
                     );
+
+                    let num_blocks_output = Id::num_blocks(message_modulus) as u64;
+
+                    let rerand_key =
+                        cuda_key.integer_re_randomization_key_from_mode(re_randomization_mode)?;
+                    let d_ct: CudaUnsignedRadixCiphertext = cuda_key
+                        .oprf_key()
+                        .par_generate_oblivious_pseudo_random_unsigned_custom_range_and_re_randomize(
+                            seed,
+                            num_input_random_bits,
+                            excluded_upper_bound.get(),
+                            num_blocks_output,
+                            cuda_key.pbs_key(),
+                            &rerand_key,
+                            re_randomization_hash_algo,
+                            streams,
+                        )?;
+
+                    Ok(Self::new(
+                        d_ct,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ))
                 }
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
@@ -1639,8 +1663,97 @@ mod test {
 
                 assert_eq!(expected_results, gpu_results);
 
-                // TODO add custom_range test for GPU
+                prf_equivalence_subtest_custom_range(&client_key, rerand_mode);
             }
+        }
+
+        /// Asserts that re-randomization leaves the custom_range value unchanged (it only adds an
+        /// encryption of zero). Iterates fixed non-power-of-two bounds so the custom_range path
+        /// (rather than the power-of-two bounded path) is always exercised, for both hash algos.
+        fn custom_range_rerand_equivalence_subtest(
+            client_key: &ClientKey,
+            rerand_mode: ReRandomizationMode<'_>,
+        ) {
+            // Make sure seed generation is secure in production, this is a test setup
+            let seed = Seed(rand::random());
+
+            for excluded_upper_bound in [3u64, 100, 255] {
+                let range = RangeForRandom::new_from_excluded_upper_bound(
+                    NonZeroU64::new(excluded_upper_bound).unwrap(),
+                );
+
+                let baseline =
+                    FheUint8::generate_oblivious_pseudo_random_custom_range(seed, &range, None);
+                let baseline_decrypted: u8 = baseline.decrypt(client_key);
+
+                for hash_algo in [
+                    ReRandomizationHashAlgo::Blake3,
+                    ReRandomizationHashAlgo::Shake256,
+                ] {
+                    let reranded =
+                        FheUint8::generate_oblivious_pseudo_random_custom_range_and_re_randomize(
+                            seed,
+                            &range,
+                            None,
+                            rerand_mode,
+                            hash_algo,
+                        )
+                        .unwrap();
+                    let reranded_decrypted: u8 = reranded.decrypt(client_key);
+
+                    assert_eq!(
+                        baseline_decrypted, reranded_decrypted,
+                        "re-randomization changed the custom_range value for \
+                        excluded_upper_bound={excluded_upper_bound}"
+                    );
+                }
+            }
+        }
+
+        // Covers the DerivedCPKWithoutKeySwitch (no keyswitch) re-randomization mode for the GPU
+        // custom_range path deterministically (the shared subtest above relies on a random bound).
+        #[test]
+        fn test_prf_custom_range_rerand_equivalence_derived_cpk_gpu() {
+            let config = ConfigBuilder::with_custom_parameters(
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            )
+            .use_dedicated_oprf_key(true)
+            .enable_ciphertext_re_randomization(
+                ReRandomizationParameters::DerivedCPKWithoutKeySwitch,
+            )
+            .build();
+
+            let client_key = ClientKey::generate(config);
+            let server_key = CompressedServerKey::new(&client_key).decompress_to_gpu();
+            set_server_key(server_key);
+
+            custom_range_rerand_equivalence_subtest(
+                &client_key,
+                ReRandomizationMode::UseAvailableMode,
+            );
+        }
+
+        // Covers the legacy dedicated CPK re-randomization mode, exercising the fused kernel's
+        // keyswitch branch that the DerivedCPKWithoutKeySwitch test does not.
+        #[test]
+        fn test_prf_custom_range_rerand_equivalence_legacy_cpk_gpu() {
+            use crate::shortint::parameters::v1_5::meta::gpu::V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+
+            let client_key = ClientKey::generate(
+                V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+            );
+            let compact_public_key = crate::high_level_api::CompactPublicKey::new(&client_key);
+            let server_key = client_key
+                .generate_compressed_server_key()
+                .decompress_to_gpu();
+            set_server_key(server_key);
+
+            custom_range_rerand_equivalence_subtest(
+                &client_key,
+                ReRandomizationMode::UseLegacyCPKIfNeeded {
+                    cpk: &compact_public_key,
+                },
+            );
         }
 
         #[test]
