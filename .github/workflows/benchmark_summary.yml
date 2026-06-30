@@ -115,6 +115,51 @@ jobs:
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
+  summary-csv-gpu:
+    name: benchmark_summary/summary-csv-gpu
+    if: inputs.run-gpu-benchmarks
+    needs: [ parse-gpu-inputs, run-benchmarks-gpu ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tfhe-rs repo
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Download parsed benchmark results
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          path: summary-artifacts
+
+      - name: Extract GPU summary CSV
+        run: |
+          mapfile -t json_files < <(find summary-artifacts -path "*${PROFILE}*" -name 'parsed_benchmark_results_*.json')
+          if [ "${#json_files[@]}" -eq 0 ]; then
+            echo "No parsed GPU summary result files found for profile '${PROFILE}'" >&2
+            exit 1
+          fi
+          gpu_info_file="$(find summary-artifacts -path "*${PROFILE}*" -name 'gpu_info.txt' | head -n 1)"
+          if [ -z "${gpu_info_file}" ]; then
+            echo "No gpu_info.txt file found for profile '${PROFILE}'" >&2
+            exit 1
+          fi
+          inputs=()
+          for f in "${json_files[@]}"; do inputs+=(-i "$f"); done
+          python3 ci/parse_summary_benches_to_csv.py "${inputs[@]}" \
+            --gpu-info-file "${gpu_info_file}" \
+            --output-file summary_benchmarks_gpu.csv
+          echo "----- summary_benchmarks_gpu.csv -----"
+          cat summary_benchmarks_gpu.csv
+        env:
+          PROFILE: ${{ needs.parse-gpu-inputs.outputs.profile }}
+
+      - name: Upload summary CSV artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ github.sha }}_summary_benchmarks_gpu_csv
+          path: summary_benchmarks_gpu.csv
+
 # TODO add make recipe for HPU benchmarks
 #  run-benchmarks-hpu:
 #    name: benchmark_documentation/run-benchmarks-hpu
