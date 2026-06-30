@@ -1232,6 +1232,11 @@ pub fn convert_add_backward_torus_split(
     in_im0: &[f64],
     in_im1: &[f64],
 ) {
+    println!("split convert in: in_re0={in_re0:?}");
+    println!("split convert in: in_re1={in_re1:?}");
+    println!("split convert in: in_im0={in_im0:?}");
+    println!("split convert in: in_im1={in_im1:?}");
+
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     #[cfg(feature = "avx512")]
     if let Some(simd) = V4::try_new() {

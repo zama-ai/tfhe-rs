@@ -274,7 +274,7 @@ pub fn convert_forward_integer<Scalar: UnsignedTorus>(
 }
 
 #[inline(never)]
-fn convert_add_backward_torus_non_split<Scalar: UnsignedTorus>(
+pub fn convert_add_backward_torus_non_split<Scalar: UnsignedTorus>(
     out_re: &mut [Scalar],
     out_im: &mut [Scalar],
     in_re0: &[f64],
@@ -282,6 +282,11 @@ fn convert_add_backward_torus_non_split<Scalar: UnsignedTorus>(
     in_im0: &[f64],
     in_im1: &[f64],
 ) {
+    // println!("non split convert in: in_re0={in_re0:?}");
+    // println!("non split convert in: in_re1={in_re1:?}");
+    // println!("non split convert in: in_im0={in_im0:?}");
+    // println!("non split convert in: in_im1={in_im1:?}");
+
     // println!("non split add");
     let norm = 1.0 / in_re0.len() as f64;
     for (out_re, out_im, in_re0, in_re1, in_im0, in_im1) in

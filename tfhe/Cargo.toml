@@ -189,6 +189,10 @@ name = "miscompile_znver4_1_95"
 path = "examples/miscompile_znver4_1_95.rs"
 
 [[example]]
+name = "miscompile_znver4_1_95_minified"
+path = "examples/miscompile_znver4_1_95_minified.rs"
+
+[[example]]
 name = "generates_test_keys"
 path = "examples/utilities/generates_test_keys.rs"
 required-features = ["boolean", "shortint", "internal-keycache"]
