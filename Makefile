@@ -2297,6 +2297,12 @@ bench_summary: install_rs_check_toolchain
 	--bench hlapi-erc7984 \
 	--features=integer,internal-keycache -p tfhe-benchmark -- '::transfer::overflow'
 
+	# ERC7984 (all transfer flavors)
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-erc7984 \
+	--features=integer,internal-keycache -p tfhe-benchmark -- '::transfer::'
+
 	# DEX
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
@@ -2342,6 +2348,12 @@ bench_summary_gpu: install_rs_check_toolchain
 	--bench hlapi-erc7984 \
 	--features=integer,gpu,internal-keycache -p tfhe-benchmark --profile release_lto_off -- '::transfer::overflow'
 
+	# ERC7984 (all transfer flavors)
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-erc7984 \
+	--features=integer,gpu,internal-keycache -p tfhe-benchmark --profile release_lto_off -- '::transfer::'
+
 	# DEX
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
@@ -2366,6 +2378,24 @@ bench_summary_gpu: install_rs_check_toolchain
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-glwe_packing_compression \
 	--features=integer,internal-keycache,gpu,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+
+	# Bitonic shuffle (64b/16b, 64b/32b, 160b/16b value/key @ 16 elements)
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-bitonic-shuffle \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- 'hlapi::bitonic_shuffle_gpu::summary::'
+
+	# Key-Value store (summary: N=64, u64 key, u64 value)
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-kvstore \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- 'kv_store::(get|update|map)::'
+
+	# Vector find (contains + match_value, FheUint64 + FheUint8, @ 50 and 1000 elements)
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-vector-find \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
 .PHONY: bench_custom # Run benchmarks with a user-defined command
 bench_custom: install_rs_check_toolchain

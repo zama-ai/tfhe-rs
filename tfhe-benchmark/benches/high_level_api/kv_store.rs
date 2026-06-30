@@ -135,16 +135,13 @@ where
             let (elements, mut kv_stores) = {
                 #[cfg(any(feature = "gpu", feature = "hpu"))]
                 {
-                    use benchmark::utilities::hlapi_throughput_num_ops;
-                    let factor = hlapi_throughput_num_ops(
-                        || {
-                            kv_store.map(&encrypted_key, |v| v);
-                        },
-                        cks,
-                    )
-                    .max(1);
+                    use benchmark::utilities::throughput_num_threads;
+                    use tfhe::IntegerId;
+                    let value_blocks = Value::Id::num_blocks(param.message_modulus());
+                    let factor =
+                        throughput_num_threads(num_elements * value_blocks, 1).max(1) as usize;
 
-                    let mut kv_stores = vec![];
+                    let mut kv_stores = Vec::with_capacity(factor);
                     for _ in 0..factor {
                         kv_stores.push(kv_store.clone());
                     }
@@ -275,7 +272,7 @@ fn main() {
 
     match env_config.bit_sizes_set {
         BitSizesSet::Fast => {
-            bench_kv_store::<u64, FheUint64, FheUint64>(&mut c, &cks, 1 << 10);
+            bench_kv_store::<u64, FheUint64, FheUint64>(&mut c, &cks, 64);
         }
         _ => {
             for pow in 1..=10 {

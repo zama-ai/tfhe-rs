@@ -227,6 +227,9 @@ jobs:
           BENCH_COMMAND: ${{ matrix.command }}
           PRECISIONS_SET: ${{ inputs.precisions_set }}
 
+      - name: Collect GPU information
+        run: nvidia-smi --query-gpu=name --format=csv,noheader | tee gpu_info.txt
+
       - name: Parse results
         run: |
           cargo run --release -p tfhe-benchmark-parser -- -i target/criterion -o "${RESULTS_FILENAME}" \
@@ -263,7 +266,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ github.sha }}_${{ matrix.command }}_${{ matrix.op_flavor }}_${{ inputs.profile }}_${{ matrix.bench_type }}_${{ matrix.params_type }}
-          path: ${{ env.RESULTS_FILENAME }}
+          path: |
+            ${{ env.RESULTS_FILENAME }}
+            gpu_info.txt
 
       - name: Checkout Slab repo
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
