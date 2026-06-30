@@ -3,6 +3,7 @@
 
 template <typename Torus> struct int_scalar_mul_buffer;
 template <typename Torus> struct int_logical_scalar_shift_buffer;
+template <typename Torus> struct int_rerand_mem;
 
 template <typename Torus> struct int_grouped_oprf_memory {
   int_radix_params params;
@@ -233,5 +234,66 @@ template <typename Torus> struct int_grouped_oprf_custom_range_memory {
     this->tmp_oprf_output = nullptr;
 
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+  }
+};
+
+/// @brief Scratch buffer for the custom-range grouped OPRF with
+/// re-randomization.
+///
+/// Composes the plain custom-range OPRF scratch with a re-randomization scratch
+/// sized for the freshly generated random blocks.
+///
+/// @tparam Torus Unsigned integer type representing a ciphertext torus element.
+template <typename Torus>
+struct int_grouped_oprf_custom_range_with_rerand_memory {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+
+  int_grouped_oprf_custom_range_memory<Torus>
+      *oprf_memory; ///< Scratch for the grouped OPRF and range-mapping stages
+  int_rerand_mem<Torus>
+      *rerand_memory; ///< Scratch for re-randomizing the fresh random blocks
+
+  /// @brief Allocates the composed scratch buffer for custom-range OPRF with
+  /// re-randomization.
+  ///
+  /// @param rerand_params            Radix parameters for the re-randomization
+  /// keyswitch stage
+  /// @param num_blocks_intermediate  Number of radix blocks for scalar-multiply
+  /// and shift
+  /// @param message_bits_per_block   Number of message bits per radix block
+  /// @param num_input_random_bits    Random bits to generate before range
+  /// mapping
+  /// @param num_scalar_bits          Bit-width of the scalar multiplier
+  /// @param rerand_mode              Re-randomization mode (with or without
+  /// keyswitch)
+  int_grouped_oprf_custom_range_with_rerand_memory(
+      CudaStreams streams, int_radix_params params,
+      int_radix_params rerand_params, uint32_t num_blocks_intermediate,
+      uint32_t message_bits_per_block, uint64_t num_input_random_bits,
+      uint32_t num_scalar_bits, RERAND_MODE rerand_mode,
+      bool allocate_gpu_memory, uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+
+    this->oprf_memory = new int_grouped_oprf_custom_range_memory<Torus>(
+        streams, params, num_blocks_intermediate, message_bits_per_block,
+        num_input_random_bits, num_scalar_bits, allocate_gpu_memory,
+        size_tracker);
+
+    this->rerand_memory = new int_rerand_mem<Torus>(
+        streams, rerand_params, this->oprf_memory->num_random_input_blocks,
+        rerand_mode, allocate_gpu_memory, size_tracker);
+  }
+
+  /// @brief Releases GPU and host resources owned by this scratch buffer.
+  void release(CudaStreams streams) {
+    this->oprf_memory->release(streams);
+    delete this->oprf_memory;
+    this->oprf_memory = nullptr;
+
+    this->rerand_memory->release(streams);
+    delete this->rerand_memory;
+    this->rerand_memory = nullptr;
   }
 };
