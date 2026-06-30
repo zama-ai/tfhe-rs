@@ -2,11 +2,6 @@
 
 #include "integer.h"
 
-enum RERAND_MODE {
-  RERAND_WITH_KS = 0,
-  RERAND_WITHOUT_KS = 1,
-};
-
 extern "C" {
 uint64_t scratch_cuda_rerand_64_async(CudaStreamsFFI streams, int8_t **mem_ptr,
                                       CudaLweKeyswitchKeyParamsFFI ksk_params,

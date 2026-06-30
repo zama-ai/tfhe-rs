@@ -47,3 +47,275 @@ where
     );
     oprf_almost_uniformity_test(param, executor);
 }
+
+// PRF + rerand
+
+/// GPU implementation of [`OprfReRandTestRunner`].
+///
+/// Uses a derived compact public key (no key-switch) for re-randomization, mirroring the CPU
+/// executor.
+struct GpuOprfReRandTestRunner {
+    state: Option<GpuOprfReRandState>,
+}
+
+struct GpuOprfReRandState {
+    streams: CudaStreams,
+    sks: CudaServerKey,
+    oprf_sks: CudaOprfServerKey,
+    rerand_cpk: CompactPublicKey,
+}
+
+impl GpuOprfReRandState {
+    fn rerand_key(&self) -> CudaReRandomizationKey<'_> {
+        CudaReRandomizationKey::DerivedCPKWithoutKeySwitch {
+            cpk: &self.rerand_cpk,
+        }
+    }
+}
+
+impl GpuOprfReRandTestRunner {
+    fn new() -> Self {
+        Self { state: None }
+    }
+
+    fn state(&self) -> &GpuOprfReRandState {
+        self.state.as_ref().expect("setup was not properly called")
+    }
+}
+
+impl OprfReRandTestRunner for GpuOprfReRandTestRunner {
+    fn setup(&mut self, param: TestParameters) -> ClientKey {
+        let cks = ClientKey::new(param);
+
+        let streams = CudaStreams::new_multi_gpu();
+
+        let sks = CudaServerKey::new(&cks, &streams);
+
+        // Derived compact public key, re-using the compute secret key
+        // legacy rerand not covered by this test
+        let privk: CompactPrivateKey<&[u64]> = (&cks).try_into().unwrap();
+        let rerand_cpk = CompactPublicKey::new(&privk);
+
+        let oprf_pk = OprfPrivateKey::new(&cks);
+        let compressed_oprf_sk = CompressedOprfServerKey::new(&oprf_pk, &cks).unwrap();
+        let oprf_sks = CudaOprfServerKey::decompress_from_cpu(&compressed_oprf_sk, &streams);
+
+        self.state = Some(GpuOprfReRandState {
+            streams,
+            sks,
+            oprf_sks,
+            rerand_cpk,
+        });
+
+        cks
+    }
+
+    fn unsigned_full(
+        &mut self,
+        prf_seed: impl OprfSeed,
+        num_blocks: u64,
+        rerand_hash_algo: ReRandomizationHashAlgo,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let state = self.state();
+        let rerand_key = state.rerand_key();
+
+        let prf_seed = prf_seed.into_bytes();
+        let prf_seed = prf_seed.as_ref();
+
+        let prf_not_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_unsigned_integer(
+                prf_seed,
+                num_blocks,
+                &state.sks,
+                &state.streams,
+            );
+        let prf_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_unsigned_integer_and_re_randomize(
+                prf_seed,
+                num_blocks,
+                &state.sks,
+                &rerand_key,
+                rerand_hash_algo,
+                &state.streams,
+            )
+            .unwrap();
+
+        (
+            prf_not_rerand.to_radix_ciphertext(&state.streams),
+            prf_rerand.to_radix_ciphertext(&state.streams),
+        )
+    }
+
+    fn unsigned_bounded(
+        &mut self,
+        prf_seed: impl OprfSeed,
+        random_bit_count: u64,
+        num_blocks: u64,
+        rerand_hash_algo: ReRandomizationHashAlgo,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let state = self.state();
+        let rerand_key = state.rerand_key();
+
+        let prf_seed = prf_seed.into_bytes();
+        let prf_seed = prf_seed.as_ref();
+
+        let prf_not_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                prf_seed,
+                random_bit_count,
+                num_blocks,
+                &state.sks,
+                &state.streams,
+            );
+        let prf_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_unsigned_integer_bounded_and_re_randomize(
+                prf_seed,
+                random_bit_count,
+                num_blocks,
+                &state.sks,
+                &rerand_key,
+                rerand_hash_algo,
+                &state.streams,
+            )
+            .unwrap();
+
+        (
+            prf_not_rerand.to_radix_ciphertext(&state.streams),
+            prf_rerand.to_radix_ciphertext(&state.streams),
+        )
+    }
+
+    fn unsigned_custom_range(
+        &mut self,
+        prf_seed: impl OprfSeed,
+        num_input_random_bits: u64,
+        excluded_upper_bound: NonZeroU64,
+        num_blocks_output: u64,
+        rerand_hash_algo: ReRandomizationHashAlgo,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let state = self.state();
+        let rerand_key = state.rerand_key();
+
+        let prf_seed = prf_seed.into_bytes();
+        let prf_seed = prf_seed.as_ref();
+
+        let prf_not_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_unsigned_custom_range(
+                prf_seed,
+                num_input_random_bits,
+                excluded_upper_bound.get(),
+                num_blocks_output,
+                &state.sks,
+                &state.streams,
+            );
+        let prf_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_unsigned_custom_range_and_re_randomize(
+                prf_seed,
+                num_input_random_bits,
+                excluded_upper_bound.get(),
+                num_blocks_output,
+                &state.sks,
+                &rerand_key,
+                rerand_hash_algo,
+                &state.streams,
+            )
+            .unwrap();
+
+        (
+            prf_not_rerand.to_radix_ciphertext(&state.streams),
+            prf_rerand.to_radix_ciphertext(&state.streams),
+        )
+    }
+
+    fn signed_full(
+        &mut self,
+        prf_seed: impl OprfSeed,
+        num_blocks: u64,
+        rerand_hash_algo: ReRandomizationHashAlgo,
+    ) -> (SignedRadixCiphertext, SignedRadixCiphertext) {
+        let state = self.state();
+        let rerand_key = state.rerand_key();
+
+        let prf_seed = prf_seed.into_bytes();
+        let prf_seed = prf_seed.as_ref();
+
+        let prf_not_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_signed_integer(
+                prf_seed,
+                num_blocks,
+                &state.sks,
+                &state.streams,
+            );
+        let prf_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_signed_integer_and_re_randomize(
+                prf_seed,
+                num_blocks,
+                &state.sks,
+                &rerand_key,
+                rerand_hash_algo,
+                &state.streams,
+            )
+            .unwrap();
+
+        (
+            prf_not_rerand.to_signed_radix_ciphertext(&state.streams),
+            prf_rerand.to_signed_radix_ciphertext(&state.streams),
+        )
+    }
+
+    fn signed_bounded(
+        &mut self,
+        prf_seed: impl OprfSeed,
+        random_bit_count: u64,
+        num_blocks: u64,
+        rerand_hash_algo: ReRandomizationHashAlgo,
+    ) -> (SignedRadixCiphertext, SignedRadixCiphertext) {
+        let state = self.state();
+        let rerand_key = state.rerand_key();
+
+        let prf_seed = prf_seed.into_bytes();
+        let prf_seed = prf_seed.as_ref();
+
+        let prf_not_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_signed_integer_bounded(
+                prf_seed,
+                random_bit_count,
+                num_blocks,
+                &state.sks,
+                &state.streams,
+            );
+        let prf_rerand = state
+            .oprf_sks
+            .par_generate_oblivious_pseudo_random_signed_integer_bounded_and_re_randomize(
+                prf_seed,
+                random_bit_count,
+                num_blocks,
+                &state.sks,
+                &rerand_key,
+                rerand_hash_algo,
+                &state.streams,
+            )
+            .unwrap();
+
+        (
+            prf_not_rerand.to_signed_radix_ciphertext(&state.streams),
+            prf_rerand.to_signed_radix_ciphertext(&state.streams),
+        )
+    }
+}
+
+fn pseudo_random_integer_and_rerand<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    pseudo_random_integer_and_rerand_test(param, GpuOprfReRandTestRunner::new());
+}

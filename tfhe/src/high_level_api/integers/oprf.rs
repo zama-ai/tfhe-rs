@@ -65,7 +65,7 @@ impl<Id: FheUintId> FheUint<Id> {
             }
         })
     }
-    #[cfg(feature = "gpu")]
+
     /// Returns the amount of memory required to execute generate_oblivious_pseudo_random
     ///
     /// ```rust
@@ -83,6 +83,7 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// check_valid_cuda_malloc_assert_oom(size, GpuIndex::new(0));
     /// ```
+    #[cfg(feature = "gpu")]
     pub fn get_generate_oblivious_pseudo_random_size_on_gpu() -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
@@ -281,7 +282,6 @@ impl<Id: FheUintId> FheUint<Id> {
         }
     }
 
-    #[cfg(feature = "gpu")]
     /// Returns the amount of memory required to execute generate_oblivious_pseudo_random_bounded
     ///
     /// ```rust
@@ -299,6 +299,7 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// check_valid_cuda_malloc_assert_oom(size, GpuIndex::new(0));
     /// ```
+    #[cfg(feature = "gpu")]
     pub fn get_generate_oblivious_pseudo_random_bounded_size_on_gpu() -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
@@ -313,6 +314,112 @@ impl<Id: FheUintId> FheUint<Id> {
                 0
             }
         })
+    }
+
+    /// Re-randomizing variant of [`Self::generate_oblivious_pseudo_random_custom_range`].
+    pub fn generate_oblivious_pseudo_random_custom_range_and_re_randomize<
+        'a,
+        RRD: Into<ReRandomizationMode<'a>>,
+    >(
+        seed: impl OprfSeed,
+        range: &RangeForRandom,
+        max_distance: Option<f64>,
+        re_randomization_mode: RRD,
+        re_randomization_hash_algo: ReRandomizationHashAlgo,
+    ) -> crate::Result<Self> {
+        let excluded_upper_bound = range.excluded_upper_bound;
+
+        if excluded_upper_bound.is_power_of_two() {
+            let random_bits_count = excluded_upper_bound.ilog2() as u64;
+
+            Self::generate_oblivious_pseudo_random_bounded_and_re_randomize(
+                seed,
+                random_bits_count,
+                re_randomization_mode,
+                re_randomization_hash_algo,
+            )
+        } else {
+            let max_distance = max_distance.unwrap_or_else(|| 2_f64.powi(-128));
+
+            assert!(
+                0_f64 < max_distance && max_distance < 1_f64,
+                "max_distance (={max_distance}) should be in ]0, 1["
+            );
+
+            let re_randomization_mode: ReRandomizationMode = re_randomization_mode.into();
+            global_state::with_internal_keys(|key| match key {
+                InternalServerKey::Cpu(key) => {
+                    let message_modulus = key.message_modulus();
+
+                    let num_input_random_bits = num_input_random_bits_for_max_distance(
+                        excluded_upper_bound,
+                        max_distance,
+                        message_modulus,
+                    );
+
+                    let num_blocks_output = Id::num_blocks(key.message_modulus()) as u64;
+
+                    let sk = key.pbs_key();
+                    let rerand_key =
+                        key.integer_re_randomization_key_from_mode(re_randomization_mode)?;
+                    let ct = key
+                        .oprf_key()
+                        .par_generate_oblivious_pseudo_random_unsigned_custom_range_and_re_randomize(
+                            seed,
+                            num_input_random_bits,
+                            excluded_upper_bound,
+                            num_blocks_output,
+                            sk,
+                            &rerand_key,
+                            re_randomization_hash_algo,
+                        )?;
+
+                    Ok(Self::new(
+                        ct,
+                        key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ))
+                }
+                #[cfg(feature = "gpu")]
+                InternalServerKey::Cuda(cuda_key) => {
+                    let streams = &cuda_key.streams;
+                    let message_modulus = cuda_key.message_modulus();
+
+                    let num_input_random_bits = num_input_random_bits_for_max_distance(
+                        excluded_upper_bound,
+                        max_distance,
+                        message_modulus,
+                    );
+
+                    let num_blocks_output = Id::num_blocks(message_modulus) as u64;
+
+                    let rerand_key =
+                        cuda_key.integer_re_randomization_key_from_mode(re_randomization_mode)?;
+                    let d_ct: CudaUnsignedRadixCiphertext = cuda_key
+                        .oprf_key()
+                        .par_generate_oblivious_pseudo_random_unsigned_custom_range_and_re_randomize(
+                            seed,
+                            num_input_random_bits,
+                            excluded_upper_bound.get(),
+                            num_blocks_output,
+                            cuda_key.pbs_key(),
+                            &rerand_key,
+                            re_randomization_hash_algo,
+                            streams,
+                        )?;
+
+                    Ok(Self::new(
+                        d_ct,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ))
+                }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    panic!("Hpu does not support this operation yet.")
+                }
+            })
+        }
     }
 }
 
@@ -375,7 +482,6 @@ impl<Id: FheIntId> FheInt<Id> {
         })
     }
 
-    #[cfg(feature = "gpu")]
     /// Returns the amount of memory required to execute generate_oblivious_pseudo_random
     ///
     /// ```rust
@@ -393,6 +499,7 @@ impl<Id: FheIntId> FheInt<Id> {
     ///
     /// check_valid_cuda_malloc_assert_oom(size, GpuIndex::new(0));
     /// ```
+    #[cfg(feature = "gpu")]
     pub fn get_generate_oblivious_pseudo_random_size_on_gpu() -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
@@ -472,7 +579,73 @@ impl<Id: FheIntId> FheInt<Id> {
             }
         })
     }
-    #[cfg(feature = "gpu")]
+
+    /// Re-randomizing variant of [`Self::generate_oblivious_pseudo_random_bounded`].
+    ///
+    /// WARNING: If the requested `random_bits_count` is 0, then the returned ciphertext is a
+    /// trivial encryption of 0.
+    pub fn generate_oblivious_pseudo_random_bounded_and_re_randomize<
+        'a,
+        RRD: Into<ReRandomizationMode<'a>>,
+    >(
+        seed: impl OprfSeed,
+        random_bits_count: u64,
+        re_randomization_mode: RRD,
+        re_randomization_hash_algo: ReRandomizationHashAlgo,
+    ) -> crate::Result<Self> {
+        let re_randomization_mode: ReRandomizationMode = re_randomization_mode.into();
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(key) => {
+                let sk = key.pbs_key();
+                let rerand_key =
+                    key.integer_re_randomization_key_from_mode(re_randomization_mode)?;
+                let ct = key
+                    .oprf_key()
+                    .par_generate_oblivious_pseudo_random_signed_integer_bounded_and_re_randomize(
+                        seed,
+                        random_bits_count,
+                        Id::num_blocks(key.message_modulus()) as u64,
+                        sk,
+                        &rerand_key,
+                        re_randomization_hash_algo,
+                    )?;
+
+                Ok(Self::new(
+                    ct,
+                    key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                ))
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
+                let rerand_key =
+                    cuda_key.integer_re_randomization_key_from_mode(re_randomization_mode)?;
+                let d_ct: CudaSignedRadixCiphertext = cuda_key
+                    .oprf_key()
+                    .par_generate_oblivious_pseudo_random_signed_integer_bounded_and_re_randomize(
+                        seed,
+                        random_bits_count,
+                        Id::num_blocks(cuda_key.message_modulus()) as u64,
+                        cuda_key.pbs_key(),
+                        &rerand_key,
+                        re_randomization_hash_algo,
+                        streams,
+                    )?;
+
+                Ok(Self::new(
+                    d_ct,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                ))
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
+        })
+    }
+
     /// Returns the amount of memory required to execute generate_oblivious_pseudo_random_bounded
     ///
     /// ```rust
@@ -490,6 +663,7 @@ impl<Id: FheIntId> FheInt<Id> {
     ///
     /// check_valid_cuda_malloc_assert_oom(size, GpuIndex::new(0));
     /// ```
+    #[cfg(feature = "gpu")]
     pub fn get_generate_oblivious_pseudo_random_bounded_size_on_gpu() -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
@@ -911,12 +1085,230 @@ mod test {
         // PRF with 0 bits is equivalent to modulo 1 meaning only 0 is generated
         assert_eq!(result_unsigned_bounded, 0);
 
-        // Do not use static seed in production
-        let ct_signed_bounded = FheInt8::generate_oblivious_pseudo_random_bounded(Seed(0), 0);
-        assert!(ct_signed_bounded.is_trivial());
-        let result_signed_bounded: i8 = ct_signed_bounded.decrypt(&client_key);
-        // PRF with 0 bits is equivalent to modulo 1 meaning only 0 is generated
-        assert_eq!(result_signed_bounded, 0);
+        {
+            // Do not use static seed in production
+            let ct_signed_bounded = FheInt8::generate_oblivious_pseudo_random_bounded(Seed(0), 0);
+            assert!(ct_signed_bounded.is_trivial());
+            let result_signed_bounded: i8 = ct_signed_bounded.decrypt(&client_key);
+            // PRF with 0 bits is equivalent to modulo 1 meaning only 0 is generated
+            assert_eq!(result_signed_bounded, 0);
+        }
+
+        {
+            for rerand_algo in [
+                ReRandomizationHashAlgo::Blake3,
+                ReRandomizationHashAlgo::Shake256,
+            ] {
+                // Do not use static seed in production
+                let ct_unsigned_bounded =
+                    FheUint8::generate_oblivious_pseudo_random_bounded_and_re_randomize(
+                        Seed(0),
+                        0,
+                        ReRandomizationMode::UseAvailableMode,
+                        rerand_algo,
+                    )
+                    .unwrap();
+                assert!(ct_unsigned_bounded.is_trivial());
+                let result_unsigned_bounded: u8 = ct_unsigned_bounded.decrypt(&client_key);
+                // PRF with 0 bits is equivalent to modulo 1 meaning only 0 is generated
+                assert_eq!(result_unsigned_bounded, 0);
+            }
+        }
+
+        {
+            for rerand_algo in [
+                ReRandomizationHashAlgo::Blake3,
+                ReRandomizationHashAlgo::Shake256,
+            ] {
+                // Do not use static seed in production
+                let ct_signed_bounded =
+                    FheInt8::generate_oblivious_pseudo_random_bounded_and_re_randomize(
+                        Seed(0),
+                        0,
+                        ReRandomizationMode::UseAvailableMode,
+                        rerand_algo,
+                    )
+                    .unwrap();
+                assert!(ct_signed_bounded.is_trivial());
+                let result_signed_bounded: i8 = ct_signed_bounded.decrypt(&client_key);
+                // PRF with 0 bits is equivalent to modulo 1 meaning only 0 is generated
+                assert_eq!(result_signed_bounded, 0);
+            }
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    struct FullAndBoundedResults {
+        seed: Seed,
+        unsigned_full: u8,
+        signed_full: i8,
+        bit_count_bounded: u64,
+        unsigned_bounded: u8,
+        signed_bounded: i8,
+    }
+
+    fn prf_equivalence_subtests_full_and_bounded(
+        client_key: &ClientKey,
+        rerand_mode: ReRandomizationMode,
+        seed: Option<Seed>,
+        bit_count_bounded: Option<u64>,
+    ) -> FullAndBoundedResults {
+        // Make sure seed generation is secure in production, this is a test setup
+        let seed = seed.unwrap_or_else(|| crate::Seed(rand::random()));
+
+        // Full sub-case
+        let (unsigned_full, signed_full) = {
+            let unsigned_rnd = FheUint8::generate_oblivious_pseudo_random(seed);
+            let signed_rnd = FheInt8::generate_oblivious_pseudo_random(seed);
+
+            let unsigned_decrypted_result: u8 = unsigned_rnd.decrypt(client_key);
+            let signed_decrypted_result: i8 = signed_rnd.decrypt(client_key);
+
+            for hash_algo in [
+                ReRandomizationHashAlgo::Blake3,
+                ReRandomizationHashAlgo::Shake256,
+            ] {
+                let unsigned_rnd_rerand =
+                    FheUint8::generate_oblivious_pseudo_random_and_re_randomize(
+                        seed,
+                        rerand_mode,
+                        hash_algo,
+                    )
+                    .unwrap();
+                let signed_rnd_rerand = FheInt8::generate_oblivious_pseudo_random_and_re_randomize(
+                    seed,
+                    rerand_mode,
+                    hash_algo,
+                )
+                .unwrap();
+
+                let decrypted_unsigned_result_rerand: u8 = unsigned_rnd_rerand.decrypt(client_key);
+                let decrypted_signed_result_rerand: i8 = signed_rnd_rerand.decrypt(client_key);
+
+                assert_eq!(unsigned_decrypted_result, decrypted_unsigned_result_rerand);
+                assert_eq!(signed_decrypted_result, decrypted_signed_result_rerand);
+            }
+
+            (unsigned_decrypted_result, signed_decrypted_result)
+        };
+
+        // Bounded sub-case
+        let (bit_count_bounded, unsigned_bounded, signed_bounded) = {
+            // Case zero bits handled by test_oprf_bounded_zero
+            let bit_count_bounded: u64 = bit_count_bounded
+                .unwrap_or_else(|| rand::thread_rng().gen_range(1..u8::BITS).into())
+                .max(1);
+
+            let unsigned_rnd =
+                FheUint8::generate_oblivious_pseudo_random_bounded(seed, bit_count_bounded);
+            let signed_rnd =
+                FheInt8::generate_oblivious_pseudo_random_bounded(seed, bit_count_bounded);
+
+            let unsigned_decrypted_result: u8 = unsigned_rnd.decrypt(client_key);
+            let signed_decrypted_result: i8 = signed_rnd.decrypt(client_key);
+
+            for hash_algo in [
+                ReRandomizationHashAlgo::Blake3,
+                ReRandomizationHashAlgo::Shake256,
+            ] {
+                let unsigned_rnd_rerand =
+                    FheUint8::generate_oblivious_pseudo_random_bounded_and_re_randomize(
+                        seed,
+                        bit_count_bounded,
+                        rerand_mode,
+                        hash_algo,
+                    )
+                    .unwrap();
+                let signed_rnd_rerand =
+                    FheInt8::generate_oblivious_pseudo_random_bounded_and_re_randomize(
+                        seed,
+                        bit_count_bounded,
+                        rerand_mode,
+                        hash_algo,
+                    )
+                    .unwrap();
+
+                let decrypted_unsigned_result_rerand: u8 = unsigned_rnd_rerand.decrypt(client_key);
+                let decrypted_signed_result_rerand: i8 = signed_rnd_rerand.decrypt(client_key);
+
+                assert_eq!(unsigned_decrypted_result, decrypted_unsigned_result_rerand);
+                assert_eq!(signed_decrypted_result, decrypted_signed_result_rerand);
+            }
+
+            (
+                bit_count_bounded,
+                unsigned_decrypted_result,
+                signed_decrypted_result,
+            )
+        };
+
+        FullAndBoundedResults {
+            seed,
+            unsigned_full,
+            signed_full,
+            bit_count_bounded,
+            unsigned_bounded,
+            signed_bounded,
+        }
+    }
+
+    fn prf_equivalence_subtest_custom_range(
+        client_key: &ClientKey,
+        rerand_mode: ReRandomizationMode,
+    ) {
+        // Make sure seed generation is secure in production, this is a test setup
+        let seed = crate::Seed(rand::random());
+
+        // Custom Range
+        {
+            // Case zero bits handled by test_oprf_bounded_zero
+            let inclusive_upper_bound: u64 = rand::thread_rng().gen_range(1..=u8::MAX).into();
+            let exclusive_upper_bound = NonZeroU64::new(inclusive_upper_bound + 1).unwrap();
+            let range = RangeForRandom::new_from_excluded_upper_bound(exclusive_upper_bound);
+
+            let unsigned_rnd =
+                FheUint8::generate_oblivious_pseudo_random_custom_range(seed, &range, None);
+
+            let unsigned_decrypted_result: u8 = unsigned_rnd.decrypt(client_key);
+
+            for hash_algo in [
+                ReRandomizationHashAlgo::Blake3,
+                ReRandomizationHashAlgo::Shake256,
+            ] {
+                let unsigned_rnd_rerand =
+                    FheUint8::generate_oblivious_pseudo_random_custom_range_and_re_randomize(
+                        seed,
+                        &range,
+                        None,
+                        rerand_mode,
+                        hash_algo,
+                    )
+                    .unwrap();
+
+                let decrypted_unsigned_result_rerand: u8 = unsigned_rnd_rerand.decrypt(client_key);
+
+                assert_eq!(unsigned_decrypted_result, decrypted_unsigned_result_rerand);
+            }
+        }
+    }
+
+    #[test]
+    fn test_prf_and_re_rand_equivalence() {
+        let config = ConfigBuilder::with_custom_parameters(
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .use_dedicated_oprf_key(true)
+        .enable_ciphertext_re_randomization(ReRandomizationParameters::DerivedCPKWithoutKeySwitch)
+        .build();
+
+        let rerand_mode = ReRandomizationMode::UseAvailableMode;
+
+        let client_key = crate::ClientKey::generate(config);
+        let cpu_key = crate::ServerKey::new(&client_key);
+        crate::set_server_key(cpu_key);
+
+        let _ = prf_equivalence_subtests_full_and_bounded(&client_key, rerand_mode, None, None);
+        prf_equivalence_subtest_custom_range(&client_key, rerand_mode);
     }
 
     #[cfg(feature = "gpu")]
@@ -946,14 +1338,198 @@ mod test {
                 // PRF with 0 bits is equivalent to modulo 1 meaning only 0 is generated
                 assert_eq!(result_unsigned_bounded, 0);
 
-                // Do not use static seed in production
-                let ct_signed_bounded =
-                    FheInt8::generate_oblivious_pseudo_random_bounded(Seed(0), 0);
-                assert!(ct_signed_bounded.is_trivial());
-                let result_signed_bounded: i8 = ct_signed_bounded.decrypt(&client_key);
-                // PRF with 0 bits is equivalent to modulo 1 meaning only 0 is generated
-                assert_eq!(result_signed_bounded, 0);
+                {
+                    // Do not use static seed in production
+                    let ct_unsigned_bounded =
+                        FheUint8::generate_oblivious_pseudo_random_bounded(Seed(0), 0);
+                    assert!(ct_unsigned_bounded.is_trivial());
+                    let result_unsigned_bounded: u8 = ct_unsigned_bounded.decrypt(&client_key);
+                    // PRF with 0 bits is equivalent to modulo 1 meaning only 0 is generated
+                    assert_eq!(result_unsigned_bounded, 0);
+                }
+
+                {
+                    // Do not use static seed in production
+                    let ct_signed_bounded =
+                        FheInt8::generate_oblivious_pseudo_random_bounded(Seed(0), 0);
+                    assert!(ct_signed_bounded.is_trivial());
+                    let result_signed_bounded: i8 = ct_signed_bounded.decrypt(&client_key);
+                    // PRF with 0 bits is equivalent to modulo 1 meaning only 0 is generated
+                    assert_eq!(result_signed_bounded, 0);
+                }
+
+                {
+                    for rerand_algo in [
+                        ReRandomizationHashAlgo::Blake3,
+                        ReRandomizationHashAlgo::Shake256,
+                    ] {
+                        // Do not use static seed in production
+                        let ct_unsigned_bounded =
+                            FheUint8::generate_oblivious_pseudo_random_bounded_and_re_randomize(
+                                Seed(0),
+                                0,
+                                ReRandomizationMode::UseAvailableMode,
+                                rerand_algo,
+                            )
+                            .unwrap();
+                        assert!(ct_unsigned_bounded.is_trivial());
+                        let result_unsigned_bounded: u8 = ct_unsigned_bounded.decrypt(&client_key);
+                        // PRF with 0 bits is equivalent to modulo 1 meaning only 0 is generated
+                        assert_eq!(result_unsigned_bounded, 0);
+                    }
+                }
+
+                {
+                    for rerand_algo in [
+                        ReRandomizationHashAlgo::Blake3,
+                        ReRandomizationHashAlgo::Shake256,
+                    ] {
+                        // Do not use static seed in production
+                        let ct_signed_bounded =
+                            FheInt8::generate_oblivious_pseudo_random_bounded_and_re_randomize(
+                                Seed(0),
+                                0,
+                                ReRandomizationMode::UseAvailableMode,
+                                rerand_algo,
+                            )
+                            .unwrap();
+                        assert!(ct_signed_bounded.is_trivial());
+                        let result_signed_bounded: i8 = ct_signed_bounded.decrypt(&client_key);
+                        // PRF with 0 bits is equivalent to modulo 1 meaning only 0 is generated
+                        assert_eq!(result_signed_bounded, 0);
+                    }
+                }
             }
+        }
+
+        #[test]
+        fn test_prf_and_re_rand_equivalence() {
+            for params in [
+                AtomicPatternParameters::from(
+                    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                ),
+                AtomicPatternParameters::from(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+            ] {
+                let config = ConfigBuilder::with_custom_parameters(params)
+                    .use_dedicated_oprf_key(true)
+                    .enable_ciphertext_re_randomization(
+                        ReRandomizationParameters::DerivedCPKWithoutKeySwitch,
+                    )
+                    .build();
+
+                let client_key = ClientKey::generate(config);
+                let compressed_sk = CompressedServerKey::new(&client_key);
+                let rerand_mode = ReRandomizationMode::UseAvailableMode;
+
+                let cpu_key = compressed_sk.decompress();
+                crate::set_server_key(cpu_key);
+
+                let expected_results =
+                    prf_equivalence_subtests_full_and_bounded(&client_key, rerand_mode, None, None);
+
+                let server_key = compressed_sk.decompress_to_gpu();
+                set_server_key(server_key);
+
+                let gpu_results = prf_equivalence_subtests_full_and_bounded(
+                    &client_key,
+                    rerand_mode,
+                    Some(expected_results.seed),
+                    Some(expected_results.bit_count_bounded),
+                );
+
+                assert_eq!(expected_results, gpu_results);
+
+                prf_equivalence_subtest_custom_range(&client_key, rerand_mode);
+            }
+        }
+
+        /// Asserts that re-randomization leaves the custom_range value unchanged (it only adds an
+        /// encryption of zero). Iterates fixed non-power-of-two bounds so the custom_range path
+        /// (rather than the power-of-two bounded path) is always exercised, for both hash algos.
+        fn custom_range_rerand_equivalence_subtest(
+            client_key: &ClientKey,
+            rerand_mode: ReRandomizationMode<'_>,
+        ) {
+            // Make sure seed generation is secure in production, this is a test setup
+            let seed = Seed(rand::random());
+
+            for excluded_upper_bound in [3u64, 100, 255] {
+                let range = RangeForRandom::new_from_excluded_upper_bound(
+                    NonZeroU64::new(excluded_upper_bound).unwrap(),
+                );
+
+                let baseline =
+                    FheUint8::generate_oblivious_pseudo_random_custom_range(seed, &range, None);
+                let baseline_decrypted: u8 = baseline.decrypt(client_key);
+
+                for hash_algo in [
+                    ReRandomizationHashAlgo::Blake3,
+                    ReRandomizationHashAlgo::Shake256,
+                ] {
+                    let reranded =
+                        FheUint8::generate_oblivious_pseudo_random_custom_range_and_re_randomize(
+                            seed,
+                            &range,
+                            None,
+                            rerand_mode,
+                            hash_algo,
+                        )
+                        .unwrap();
+                    let reranded_decrypted: u8 = reranded.decrypt(client_key);
+
+                    assert_eq!(
+                        baseline_decrypted, reranded_decrypted,
+                        "re-randomization changed the custom_range value for \
+                        excluded_upper_bound={excluded_upper_bound}"
+                    );
+                }
+            }
+        }
+
+        // Covers the DerivedCPKWithoutKeySwitch (no keyswitch) re-randomization mode for the GPU
+        // custom_range path deterministically (the shared subtest above relies on a random bound).
+        #[test]
+        fn test_prf_custom_range_rerand_equivalence_derived_cpk_gpu() {
+            let config = ConfigBuilder::with_custom_parameters(
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            )
+            .use_dedicated_oprf_key(true)
+            .enable_ciphertext_re_randomization(
+                ReRandomizationParameters::DerivedCPKWithoutKeySwitch,
+            )
+            .build();
+
+            let client_key = ClientKey::generate(config);
+            let server_key = CompressedServerKey::new(&client_key).decompress_to_gpu();
+            set_server_key(server_key);
+
+            custom_range_rerand_equivalence_subtest(
+                &client_key,
+                ReRandomizationMode::UseAvailableMode,
+            );
+        }
+
+        // Covers the legacy dedicated CPK re-randomization mode, exercising the fused kernel's
+        // keyswitch branch that the DerivedCPKWithoutKeySwitch test does not.
+        #[test]
+        fn test_prf_custom_range_rerand_equivalence_legacy_cpk_gpu() {
+            use crate::shortint::parameters::v1_5::meta::gpu::V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+
+            let client_key = ClientKey::generate(
+                V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+            );
+            let compact_public_key = crate::high_level_api::CompactPublicKey::new(&client_key);
+            let server_key = client_key
+                .generate_compressed_server_key()
+                .decompress_to_gpu();
+            set_server_key(server_key);
+
+            custom_range_rerand_equivalence_subtest(
+                &client_key,
+                ReRandomizationMode::UseLegacyCPKIfNeeded {
+                    cpk: &compact_public_key,
+                },
+            );
         }
 
         #[test]

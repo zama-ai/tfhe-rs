@@ -10,10 +10,15 @@ use crate::integer::gpu::server_key::{
 };
 use itertools::Itertools;
 
-use crate::shortint::oprf::{create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe};
-use crate::shortint::OprfSeed;
+use crate::shortint::oprf::{
+    create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe, RandomBitsRleLeBytes,
+};
+use crate::shortint::{OprfSeed, PBSOrder};
 
+use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCiphertextList;
+use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::vec::CudaVec;
+use crate::core_crypto::prelude::LweCiphertextCount;
 use crate::integer::block_decomposition::BlockDecomposer;
 use crate::integer::gpu::{
     cuda_backend_get_grouped_oprf_size_on_gpu, cuda_backend_grouped_oprf,
@@ -498,6 +503,213 @@ where
         target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
+        self.par_generate_oblivious_pseudo_random_unsigned_custom_range_impl(
+            seed,
+            num_input_random_bits,
+            excluded_upper_bound,
+            num_blocks_output,
+            target_sks,
+            streams,
+            |result,
+             num_blocks_intermediate,
+             d_seeded_lwe_input,
+             decomposed_scalar,
+             has_at_least_one_set,
+             shift,
+             computing_ks_key,
+             _prf_seed,
+             _rle_info| {
+                // SAFETY: all device buffers referenced below outlive the backend call, and this
+                // closure holds exclusive access to `result`.
+                unsafe {
+                    self.dispatch_custom_range_oprf(
+                        streams,
+                        result,
+                        num_blocks_intermediate,
+                        d_seeded_lwe_input,
+                        decomposed_scalar,
+                        has_at_least_one_set,
+                        shift,
+                        computing_ks_key,
+                        target_sks,
+                        false,
+                        None,
+                        None,
+                    );
+                }
+                Ok(())
+            },
+        )
+        // Safe to unwrap: the plain dispatch closure always returns Ok.
+        .unwrap()
+    }
+
+    /// Re-randomizing variant of
+    /// [`Self::par_generate_oblivious_pseudo_random_unsigned_custom_range`].
+    ///
+    /// The random blocks are re-randomized after the grouped OPRF and before the range mapping,
+    /// matching the CPU implementation. Re-randomization only adds an encryption of zero, so the
+    /// decrypted value is identical to the non-re-randomizing variant for the same seed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `re_randomization_key` is incompatible with the target server key, with
+    /// the same checks as `CudaRadixCiphertext::re_randomize`.
+    ///
+    /// # Panics
+    ///
+    /// Panics under the same conditions as
+    /// [`Self::par_generate_oblivious_pseudo_random_unsigned_custom_range`].
+    #[allow(clippy::too_many_arguments)]
+    pub fn par_generate_oblivious_pseudo_random_unsigned_custom_range_and_re_randomize(
+        &self,
+        seed: impl OprfSeed,
+        num_input_random_bits: u64,
+        excluded_upper_bound: u64,
+        num_blocks_output: u64,
+        target_sks: &CudaServerKey,
+        re_randomization_key: &CudaReRandomizationKey<'_>,
+        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        streams: &CudaStreams,
+    ) -> crate::Result<CudaUnsignedRadixCiphertext> {
+        let message_bits_count: u64 = target_sks.message_modulus.0.ilog2().into();
+        self.par_generate_oblivious_pseudo_random_unsigned_custom_range_impl(
+            seed,
+            num_input_random_bits,
+            excluded_upper_bound,
+            num_blocks_output,
+            target_sks,
+            streams,
+            |result,
+             num_blocks_intermediate,
+             d_seeded_lwe_input,
+             decomposed_scalar,
+             has_at_least_one_set,
+             shift,
+             computing_ks_key,
+             prf_seed,
+             rle_info| {
+                // The fused kernel re-randomizes the radix blocks directly instead of going
+                // through `CudaRadixCiphertext::re_randomize`, so replicate that function's
+                // key-compatibility checks here.
+                let radix_block_lwe_size = result.d_blocks.lwe_dimension().to_lwe_size();
+                let (compact_public_key, rerand_keyswitch_key) = match *re_randomization_key {
+                    CudaReRandomizationKey::LegacyDedicatedCPK { cpk, ksk } => {
+                        let lwe_keyswitch_key = &ksk.lwe_keyswitch_key;
+                        if lwe_keyswitch_key.output_key_lwe_size() != radix_block_lwe_size {
+                            return Err(crate::error!(
+                                "Mismatched LweSize between the ciphertext being re-randomized \
+                                and the provided re-randomization keyswitch key output."
+                            ));
+                        }
+                        if lwe_keyswitch_key.input_key_lwe_size()
+                            != cpk.parameters().encryption_lwe_dimension.to_lwe_size()
+                        {
+                            return Err(crate::error!(
+                                "Mismatched LweDimension between the provided CompactPublicKey \
+                                and the re-randomization keyswitch key input."
+                            ));
+                        }
+                        if ksk.destination_key.into_pbs_order() != PBSOrder::KeyswitchBootstrap {
+                            return Err(crate::error!(
+                                "Tried to re-randomize with a re-randomization keyswitch key \
+                                whose destination key uses an unsupported PBSOrder. Required \
+                                PBSOrder::KeyswitchBootstrap."
+                            ));
+                        }
+                        if ksk.cast_rshift != 0 {
+                            return Err(crate::error!(
+                                "Tried to re-randomize with a re-randomization keyswitch key that \
+                                has a non-zero cast_rshift, this is unsupported."
+                            ));
+                        }
+                        (cpk, Some(lwe_keyswitch_key))
+                    }
+                    CudaReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk } => {
+                        if cpk.key.key.lwe_dimension().to_lwe_size() != radix_block_lwe_size {
+                            return Err(crate::error!(
+                                "Mismatched LweSize between the ciphertext being re-randomized \
+                                and the provided CompactPublicKey."
+                            ));
+                        }
+                        (cpk, None)
+                    }
+                };
+
+                // Only the active random blocks are re-randomized (matching CPU); the high
+                // intermediate blocks are trivial-zero headroom for the multiply.
+                let num_random_input_blocks = (shift as u64).div_ceil(message_bits_count);
+                let rerand_seed = ReRandomizationSeed::new_prf_rerand_seed(
+                    re_randomization_hash_algo,
+                    prf_seed,
+                    rle_info,
+                );
+                let encryption_of_zero = compact_public_key.key.prepare_cpk_zero_for_rerand(
+                    rerand_seed,
+                    LweCiphertextCount(num_random_input_blocks as usize),
+                );
+                let d_zero_lwes = CudaLweCompactCiphertextList::from_lwe_compact_ciphertext_list(
+                    &encryption_of_zero,
+                    streams,
+                );
+
+                // SAFETY: all device buffers referenced below outlive the backend call, and this
+                // closure holds exclusive access to `result`.
+                unsafe {
+                    self.dispatch_custom_range_oprf(
+                        streams,
+                        result,
+                        num_blocks_intermediate,
+                        d_seeded_lwe_input,
+                        decomposed_scalar,
+                        has_at_least_one_set,
+                        shift,
+                        computing_ks_key,
+                        target_sks,
+                        true,
+                        Some(&d_zero_lwes),
+                        rerand_keyswitch_key,
+                    );
+                }
+                Ok(())
+            },
+        )
+    }
+
+    /// Shared setup for the custom-range grouped OPRF (plain and re-randomizing variants).
+    ///
+    /// Performs the range/precondition assertions, computes the range-mapping scalar
+    /// decomposition, uploads the seeded LWE inputs to the GPU, and allocates the output radix.
+    /// The variant-specific work (plain generation vs. generation + re-randomization) is delegated
+    /// to `prf_dispatch`, which issues the backend call with the shared setup.
+    ///
+    /// `prf_dispatch` is invoked with, in order: the mutable output radix blocks, the number of
+    /// intermediate blocks, the uploaded seeded LWE inputs, the decomposed range scalar, the
+    /// per-message-bit "has at least one set" markers, the number of input random bits (the shift
+    /// applied after the range multiply), the computing keyswitch key, the PRF seed bytes, and the
+    /// RLE info describing the random bit layout (only the re-randomizing variant uses the last
+    /// two to derive the re-randomization seed).
+    #[allow(clippy::too_many_arguments)]
+    fn par_generate_oblivious_pseudo_random_unsigned_custom_range_impl(
+        &self,
+        seed: impl OprfSeed,
+        num_input_random_bits: u64,
+        excluded_upper_bound: u64,
+        num_blocks_output: u64,
+        target_sks: &CudaServerKey,
+        streams: &CudaStreams,
+        prf_dispatch: impl FnOnce(
+            &mut CudaRadixCiphertext,
+            u32,
+            &CudaVec<u64>,
+            &[u64],
+            &[u64],
+            u32,
+            &CudaLweKeyswitchKey<u64>,
+            &[u8],
+            &RandomBitsRleLeBytes,
+        ) -> crate::Result<()>,
+    ) -> crate::Result<CudaUnsignedRadixCiphertext> {
         assert!(
             target_sks.message_modulus.0.is_power_of_two(),
             "Message modulus must be a power of two"
@@ -535,9 +747,7 @@ where
         let polynomial_size = bootstrapping_key.polynomial_size();
         let in_lwe_size = input_lwe_dimension.to_lwe_size();
 
-        let post_mul_num_bits =
-            num_input_random_bits + (excluded_upper_bound as f64).log2().ceil() as u64;
-
+        let post_mul_num_bits = num_input_random_bits + excluded_upper_bound_ceil_log2;
         let num_blocks_intermediate = post_mul_num_bits.div_ceil(message_bits_count);
 
         let decomposer =
@@ -552,8 +762,13 @@ where
             .iter_as::<u64>()
             .collect::<Vec<_>>();
 
-        let (seeded, _rle_info) = create_random_from_seed_modulus_switched(
-            seed,
+        // Use the seed bytes uniformly: the plain variant ignores the RLE info, while the
+        // re-randomizing variant needs both the seed bytes and RLE info to derive the rerand seed.
+        let seed_bytes = seed.into_bytes();
+        let prf_seed: &[u8] = seed_bytes.as_ref();
+
+        let (seeded, rle_info) = create_random_from_seed_modulus_switched(
+            prf_seed,
             in_lwe_size,
             polynomial_size,
             &[num_input_random_bits],
@@ -576,63 +791,110 @@ where
         let mut result: CudaUnsignedRadixCiphertext =
             target_sks.create_trivial_zero_radix(num_blocks_output as usize, streams);
 
-        unsafe {
-            match (bootstrapping_key, &target_sks.bootstrapping_key) {
-                (
-                    CudaBootstrappingKey::Classic(d_bsk),
-                    CudaBootstrappingKey::Classic(compute_d_bsk),
-                ) => {
-                    cuda_backend_grouped_oprf_custom_range(
-                        streams,
-                        result.as_mut(),
-                        num_blocks_intermediate as u32,
-                        &d_seeded_lwe_input,
-                        decomposed_scalar.as_slice(),
-                        has_at_least_one_set.as_slice(),
-                        num_input_random_bits as u32,
-                        &d_bsk.d_vec,
-                        &compute_d_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                        target_sks.message_modulus,
-                        target_sks.carry_modulus,
-                        message_bits_count as u32,
-                        post_mul_num_bits as u32,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    );
-                }
-                (
-                    CudaBootstrappingKey::MultiBit(d_bsk),
-                    CudaBootstrappingKey::MultiBit(compute_d_bsk),
-                ) => {
-                    cuda_backend_grouped_oprf_custom_range(
-                        streams,
-                        result.as_mut(),
-                        num_blocks_intermediate as u32,
-                        &d_seeded_lwe_input,
-                        decomposed_scalar.as_slice(),
-                        has_at_least_one_set.as_slice(),
-                        num_input_random_bits as u32,
-                        &d_bsk.d_vec,
-                        &compute_d_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                        target_sks.message_modulus,
-                        target_sks.carry_modulus,
-                        message_bits_count as u32,
-                        post_mul_num_bits as u32,
-                        None,
-                    );
-                }
-                (_, _) => {
-                    panic!("OPRF and compute bootstrapping keys must have matching types");
-                }
+        prf_dispatch(
+            result.as_mut(),
+            num_blocks_intermediate as u32,
+            &d_seeded_lwe_input,
+            decomposed_scalar.as_slice(),
+            has_at_least_one_set.as_slice(),
+            num_input_random_bits as u32,
+            computing_ks_key,
+            prf_seed,
+            &rle_info,
+        )?;
+
+        Ok(result)
+    }
+
+    /// Dispatches the custom-range grouped OPRF backend call for the matching bootstrapping key
+    /// variant (classic or multi-bit).
+    ///
+    /// When `apply_rerand` is `true`, `zero_lwes` must be `Some` and carries the encryptions of
+    /// zero added to re-randomize the fresh random blocks; `rerand_keyswitch_key` selects the
+    /// keyswitching mode (see [`cuda_backend_grouped_oprf_custom_range`]).
+    ///
+    /// # Safety
+    ///
+    /// All device buffers referenced by `self`, `target_sks`, `computing_ks_key`, the input
+    /// arguments, and `zero_lwes`/`rerand_keyswitch_key` must remain alive and unmodified for the
+    /// duration of the backend call.
+    #[allow(clippy::too_many_arguments)]
+    unsafe fn dispatch_custom_range_oprf(
+        &self,
+        streams: &CudaStreams,
+        result: &mut CudaRadixCiphertext,
+        num_blocks_intermediate: u32,
+        d_seeded_lwe_input: &CudaVec<u64>,
+        decomposed_scalar: &[u64],
+        has_at_least_one_set: &[u64],
+        num_input_random_bits: u32,
+        computing_ks_key: &CudaLweKeyswitchKey<u64>,
+        target_sks: &CudaServerKey,
+        apply_rerand: bool,
+        zero_lwes: Option<&CudaLweCompactCiphertextList<u64>>,
+        rerand_keyswitch_key: Option<&CudaLweKeyswitchKey<u64>>,
+    ) {
+        let message_bits_count = target_sks.message_modulus.0.ilog2();
+        match (
+            self.bootstrapping_key.borrow(),
+            &target_sks.bootstrapping_key,
+        ) {
+            (
+                CudaBootstrappingKey::Classic(d_bsk),
+                CudaBootstrappingKey::Classic(compute_d_bsk),
+            ) => {
+                cuda_backend_grouped_oprf_custom_range(
+                    streams,
+                    result,
+                    num_blocks_intermediate,
+                    d_seeded_lwe_input,
+                    decomposed_scalar,
+                    has_at_least_one_set,
+                    num_input_random_bits,
+                    &d_bsk.d_vec,
+                    &compute_d_bsk.d_vec,
+                    &computing_ks_key.d_vec,
+                    d_bsk,
+                    computing_ks_key.params_ffi(),
+                    target_sks.message_modulus,
+                    target_sks.carry_modulus,
+                    message_bits_count,
+                    d_bsk.ms_noise_reduction_configuration.as_ref(),
+                    apply_rerand,
+                    zero_lwes,
+                    rerand_keyswitch_key,
+                );
+            }
+            (
+                CudaBootstrappingKey::MultiBit(d_bsk),
+                CudaBootstrappingKey::MultiBit(compute_d_bsk),
+            ) => {
+                cuda_backend_grouped_oprf_custom_range(
+                    streams,
+                    result,
+                    num_blocks_intermediate,
+                    d_seeded_lwe_input,
+                    decomposed_scalar,
+                    has_at_least_one_set,
+                    num_input_random_bits,
+                    &d_bsk.d_vec,
+                    &compute_d_bsk.d_vec,
+                    &computing_ks_key.d_vec,
+                    d_bsk,
+                    computing_ks_key.params_ffi(),
+                    target_sks.message_modulus,
+                    target_sks.carry_modulus,
+                    message_bits_count,
+                    None,
+                    apply_rerand,
+                    zero_lwes,
+                    rerand_keyswitch_key,
+                );
+            }
+            (_, _) => {
+                panic!("OPRF and compute bootstrapping keys must have matching types");
             }
         }
-
-        result
     }
 
     // Getter for the GPU memory usage of OPRF.

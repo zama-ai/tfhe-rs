@@ -3,9 +3,18 @@
 
 #include "integer/integer.cuh"
 #include "integer/oprf.h"
+#include "integer/rerand.cuh"
 #include "integer/scalar_mul.cuh"
 #include "integer/scalar_shifts.cuh"
 
+/// @brief Allocates the scratch buffer for the grouped OPRF.
+///
+/// @param mem_ptr                  Receives the allocated buffer pointer
+/// @param num_blocks_to_process    Number of radix blocks the grouped OPRF
+/// evaluates
+/// @param message_bits_per_block   Number of message bits per radix block
+/// @param total_random_bits        Total random bits to generate across all
+/// blocks
 template <typename Torus>
 uint64_t scratch_cuda_integer_grouped_oprf(
     CudaStreams streams, int_grouped_oprf_memory<Torus> **mem_ptr,
@@ -21,6 +30,17 @@ uint64_t scratch_cuda_integer_grouped_oprf(
   return size_tracker;
 }
 
+/// @brief Runs the grouped OPRF on a seeded LWE input.
+///
+/// Each output block is produced by PBS with a per-block LUT, then a plaintext
+/// correction is added.
+///
+/// @param radix_lwe_out            Output radix ciphertext (fresh random
+/// blocks)
+/// @param seeded_lwe_input         Seeded LWE ciphertext used as OPRF input
+/// @param num_blocks_to_process    Number of radix blocks to evaluate
+/// @param mem_ptr                  Scratch buffer holding LUTs and plaintext
+/// corrections
 template <typename Torus>
 void host_integer_grouped_oprf(CudaStreams streams,
                                CudaRadixCiphertextFFI *radix_lwe_out,
@@ -91,6 +111,14 @@ void host_integer_grouped_oprf(CudaStreams streams,
                        mem_ptr->params.carry_modulus);
 }
 
+/// @brief Allocates the scratch buffer for the custom-range grouped OPRF.
+///
+/// @param mem_ptr                  Receives the allocated buffer pointer
+/// @param num_blocks_intermediate  Number of radix blocks for scalar-multiply
+/// and shift
+/// @param message_bits_per_block   Number of message bits per radix block
+/// @param num_input_random_bits    Random bits to generate before range mapping
+/// @param num_scalar_bits          Bit-width of the scalar multiplier
 template <typename Torus>
 uint64_t scratch_cuda_integer_grouped_oprf_custom_range(
     CudaStreams streams, int_grouped_oprf_custom_range_memory<Torus> **mem_ptr,
@@ -107,14 +135,50 @@ uint64_t scratch_cuda_integer_grouped_oprf_custom_range(
   return size_tracker;
 }
 
-template <typename Torus>
+/// @brief Runs the grouped OPRF then maps its output into an arbitrary range,
+/// optionally re-randomizing the fresh random blocks.
+///
+/// Fresh random blocks are produced by the grouped OPRF and, when apply_rerand
+/// is true, re-randomized in place before being scalar-multiplied and
+/// right-shifted into the requested range, then copied into radix_lwe_out. When
+/// apply_rerand is false the re-randomization stage is skipped and the params
+/// template parameter, lwe_flattened_encryptions_of_zero_compact_array_in,
+/// rerand_memory, and rerand_ksks arguments are unused.
+///
+/// @tparam params                  Compile-time polynomial-size traits for the
+/// re-randomization kernels (unused when apply_rerand is false)
+/// @param radix_lwe_out            Output radix ciphertext (range-mapped
+/// result)
+/// @param num_blocks_intermediate  Number of radix blocks for scalar-multiply
+/// and shift
+/// @param seeded_lwe_input         Seeded LWE ciphertext used as OPRF input
+/// @param decomposed_scalar        Blockwise decomposition of the scalar
+/// multiplier
+/// @param has_at_least_one_set     Per-scalar flag marking non-zero scalar
+/// blocks
+/// @param num_scalars              Number of scalar blocks in decomposed_scalar
+/// @param shift                    Right-shift amount after the scalar multiply
+/// @param apply_rerand             When true, re-randomize the fresh random
+/// blocks after the grouped OPRF and before range mapping
+/// @param lwe_flattened_encryptions_of_zero_compact_array_in  Compact
+/// encryptions of zero consumed by the re-randomization stage (only read when
+/// apply_rerand is true)
+/// @param mem_ptr                  Scratch buffer holding OPRF,
+/// scalar-multiply, and shift intermediates
+/// @param rerand_memory           Scratch buffer for the re-randomization stage
+/// (only used when apply_rerand is true)
+/// @param rerand_ksks             Array of keyswitch key pointers for the
+/// re-randomization stage, one per GPU (only used when apply_rerand is true)
+template <typename Torus, class params>
 void host_integer_grouped_oprf_custom_range(
     CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
     uint32_t num_blocks_intermediate, const Torus *seeded_lwe_input,
     const Torus *decomposed_scalar, const Torus *has_at_least_one_set,
-    uint32_t num_scalars, uint32_t shift,
-    int_grouped_oprf_custom_range_memory<Torus> *mem_ptr, void *const *bsks,
-    void *const *compute_bsks, Torus *const *ksks) {
+    uint32_t num_scalars, uint32_t shift, bool apply_rerand,
+    const Torus *lwe_flattened_encryptions_of_zero_compact_array_in,
+    int_grouped_oprf_custom_range_memory<Torus> *mem_ptr,
+    int_rerand_mem<Torus> *rerand_memory, void *const *bsks,
+    void *const *compute_bsks, Torus *const *ksks, Torus *const *rerand_ksks) {
 
   CudaRadixCiphertextFFI *computation_buffer = mem_ptr->tmp_oprf_output;
   set_zero_radix_ciphertext_slice_async<Torus>(
@@ -124,6 +188,13 @@ void host_integer_grouped_oprf_custom_range(
   host_integer_grouped_oprf<Torus>(
       streams, computation_buffer, seeded_lwe_input,
       mem_ptr->num_random_input_blocks, mem_ptr->grouped_oprf_memory, bsks);
+
+  if (apply_rerand) {
+    host_rerand_inplace<Torus, params>(
+        streams, static_cast<Torus *>(computation_buffer->ptr),
+        lwe_flattened_encryptions_of_zero_compact_array_in, rerand_ksks,
+        rerand_memory);
+  }
 
   host_integer_scalar_mul_radix<Torus>(
       streams, computation_buffer, decomposed_scalar, has_at_least_one_set,
@@ -149,6 +220,37 @@ void host_integer_grouped_oprf_custom_range(
         streams.stream(0), streams.gpu_index(0), radix_lwe_out, blocks_to_copy,
         num_blocks_output);
   }
+}
+
+/// @brief Allocates the scratch buffer for the custom-range grouped OPRF with
+/// re-randomization.
+///
+/// @param mem_ptr                  Receives the allocated buffer pointer
+/// @param rerand_params            Radix parameters for the re-randomization
+/// keyswitch stage
+/// @param num_blocks_intermediate  Number of radix blocks for scalar-multiply
+/// and shift
+/// @param message_bits_per_block   Number of message bits per radix block
+/// @param num_input_random_bits    Random bits to generate before range mapping
+/// @param num_scalar_bits          Bit-width of the scalar multiplier
+/// @param rerand_mode              Re-randomization mode (with or without
+/// keyswitch)
+template <typename Torus>
+uint64_t scratch_cuda_integer_grouped_oprf_custom_range_with_rerand(
+    CudaStreams streams,
+    int_grouped_oprf_custom_range_with_rerand_memory<Torus> **mem_ptr,
+    int_radix_params params, int_radix_params rerand_params,
+    uint32_t num_blocks_intermediate, uint32_t message_bits_per_block,
+    uint64_t num_input_random_bits, uint32_t num_scalar_bits,
+    RERAND_MODE rerand_mode, bool allocate_gpu_memory) {
+  uint64_t size_tracker = 0;
+
+  *mem_ptr = new int_grouped_oprf_custom_range_with_rerand_memory<Torus>(
+      streams, params, rerand_params, num_blocks_intermediate,
+      message_bits_per_block, num_input_random_bits, num_scalar_bits,
+      rerand_mode, allocate_gpu_memory, size_tracker);
+
+  return size_tracker;
 }
 
 #endif
