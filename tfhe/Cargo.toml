@@ -185,6 +185,10 @@ rustdoc-args = ["--html-in-header", "katex-header.html"]
 # Examples used as tools
 
 [[example]]
+name = "miscompile_znver4_1_95"
+path = "examples/miscompile_znver4_1_95.rs"
+
+[[example]]
 name = "generates_test_keys"
 path = "examples/utilities/generates_test_keys.rs"
 required-features = ["boolean", "shortint", "internal-keycache"]

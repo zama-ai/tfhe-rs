@@ -6,4 +6,4 @@ pub mod common;
 pub mod fft64;
 
 pub mod fft128;
-mod fft128_u128;
+pub mod fft128_u128;
