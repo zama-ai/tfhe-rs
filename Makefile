@@ -2249,6 +2249,13 @@ bench_hlapi_kvstore: install_rs_check_toolchain
 	--bench hlapi-kvstore \
 	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
 
+.PHONY: bench_hlapi_kvstore_gpu # Run benchmarks for Key-Value Store operations on GPU
+bench_hlapi_kvstore_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-kvstore \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+
 .PHONY: bench_summary # Run summary benchmarks
 bench_summary: install_rs_check_toolchain
 	# Arithmetic operations: addition, multiplication, division, comparison
