@@ -273,7 +273,8 @@ pub fn convert_forward_integer<Scalar: UnsignedTorus>(
     }
 }
 
-fn convert_add_backward_torus<Scalar: UnsignedTorus>(
+#[inline(never)]
+fn convert_add_backward_torus_non_split<Scalar: UnsignedTorus>(
     out_re: &mut [Scalar],
     out_im: &mut [Scalar],
     in_re0: &[f64],
@@ -281,6 +282,7 @@ fn convert_add_backward_torus<Scalar: UnsignedTorus>(
     in_im0: &[f64],
     in_im1: &[f64],
 ) {
+    // println!("non split add");
     let norm = 1.0 / in_re0.len() as f64;
     for (out_re, out_im, in_re0, in_re1, in_im0, in_im1) in
         izip_eq!(out_re, out_im, in_re0, in_re1, in_im0, in_im1)
@@ -437,7 +439,7 @@ impl Fft128View<'_> {
             fourier_re1,
             fourier_im0,
             fourier_im1,
-            convert_add_backward_torus,
+            convert_add_backward_torus_non_split,
             stack,
         );
     }
@@ -473,6 +475,12 @@ impl Fft128View<'_> {
         self.plan.inv(tmp_re0, tmp_re1, tmp_im0, tmp_im1);
 
         let (standard_re, standard_im) = standard.split_at_mut(n / 2);
+
+        // println!("non split backward fourier_re0={fourier_re0:?}");
+        // println!("non split backward fourier_re1={fourier_re1:?}");
+        // println!("non split backward fourier_im0={fourier_im0:?}");
+        // println!("non split backward fourier_im1={fourier_im1:?}");
+
         conv_fn(standard_re, standard_im, tmp_re0, tmp_re1, tmp_im0, tmp_im1);
     }
 }

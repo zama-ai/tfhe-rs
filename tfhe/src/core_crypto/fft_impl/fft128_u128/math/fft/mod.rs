@@ -1009,7 +1009,7 @@ pub fn convert_forward_integer(
     );
 }
 
-pub fn convert_add_backward_torus_scalar(
+pub fn convert_add_backward_torus_split_scalar(
     out_re_lo: &mut [u64],
     out_re_hi: &mut [u64],
     out_im_lo: &mut [u64],
@@ -1035,7 +1035,7 @@ pub fn convert_add_backward_torus_scalar(
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-pub fn convert_add_backward_torus_avx2(
+pub fn convert_add_backward_torus_split_avx2(
     simd: V3,
     out_re_lo: &mut [u64],
     out_re_hi: &mut [u64],
@@ -1129,7 +1129,7 @@ pub fn convert_add_backward_torus_avx2(
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[cfg(feature = "avx512")]
-pub fn convert_add_backward_torus_avx512(
+pub fn convert_add_backward_torus_split_avx512(
     simd: V4,
     out_re_lo: &mut [u64],
     out_re_hi: &mut [u64],
@@ -1221,7 +1221,8 @@ pub fn convert_add_backward_torus_avx512(
     });
 }
 
-pub fn convert_add_backward_torus(
+// add_backward_torus_split
+pub fn convert_add_backward_torus_split(
     out_re_lo: &mut [u64],
     out_re_hi: &mut [u64],
     out_im_lo: &mut [u64],
@@ -1234,17 +1235,21 @@ pub fn convert_add_backward_torus(
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     #[cfg(feature = "avx512")]
     if let Some(simd) = V4::try_new() {
-        return convert_add_backward_torus_avx512(
+        // println!("avx512 split add");
+        return convert_add_backward_torus_split_avx512(
             simd, out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1,
         );
     }
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     if let Some(simd) = V3::try_new() {
-        return convert_add_backward_torus_avx2(
+        // println!("avx2 split add");
+        return convert_add_backward_torus_split_avx2(
             simd, out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1,
         );
     }
-    convert_add_backward_torus_scalar(
+
+    // println!("scalar split add");
+    convert_add_backward_torus_split_scalar(
         out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1,
     );
 }
@@ -1293,7 +1298,7 @@ impl Fft128View<'_> {
             fourier_re1,
             fourier_im0,
             fourier_im1,
-            convert_add_backward_torus,
+            convert_add_backward_torus_split,
             stack,
         );
     }
@@ -1360,6 +1365,12 @@ impl Fft128View<'_> {
 
         let (standard_re_lo, standard_im_lo) = standard_lo.split_at_mut(n / 2);
         let (standard_re_hi, standard_im_hi) = standard_hi.split_at_mut(n / 2);
+
+        // println!("split backward fourier_re0={fourier_re0:?}");
+        // println!("split backward fourier_re1={fourier_re1:?}");
+        // println!("split backward fourier_im0={fourier_im0:?}");
+        // println!("split backward fourier_im1={fourier_im1:?}");
+
         conv_fn(
             standard_re_lo,
             standard_re_hi,

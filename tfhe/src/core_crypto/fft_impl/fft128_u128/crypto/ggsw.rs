@@ -88,6 +88,7 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
             let (decomposition_states_hi, substack1) =
                 stack.make_aligned_raw::<u64>(poly_size * glwe_size, align);
 
+            // println!("split state: [");
             for (out_lo, out_hi, in_lo, in_hi) in izip_eq!(
                 &mut *decomposition_states_lo,
                 &mut *decomposition_states_hi,
@@ -96,9 +97,11 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
             ) {
                 let input = (*in_lo as u128) | ((*in_hi as u128) << 64);
                 let value = decomposer.init_decomposer_state(input);
+                // print!("{value:?}, ");
                 *out_lo = value as u64;
                 *out_hi = (value >> 64) as u64;
             }
+            // println!("]");
             // Reborrow to avoid mut slices to be moved
             let decomposition_states_lo = &mut *decomposition_states_lo;
             let decomposition_states_hi = &mut *decomposition_states_hi;
@@ -175,6 +178,12 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
                         glwe_poly_lo.as_ref(),
                         glwe_poly_hi.as_ref(),
                     );
+
+                    // println!("split after_forward_as_integer: fourier_re0={fourier_re0:?}",);
+                    // println!("split after_forward_as_integer: fourier_re1={fourier_re1:?}",);
+                    // println!("split after_forward_as_integer: fourier_im0={fourier_im0:?}",);
+                    // println!("split after_forward_as_integer: fourier_im1={fourier_im1:?}",);
+
                     // Now we loop through the polynomials of the output, and add the
                     // corresponding product of polynomials.
 
@@ -191,6 +200,11 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
                         is_output_uninit,
                         fourier_poly_size,
                     );
+
+                    // println!("split after_updated_with_fmadd: output_fft_buffer_re0={output_fft_buffer_re0:?}",);
+                    // println!("split after_updated_with_fmadd: output_fft_buffer_re1={output_fft_buffer_re1:?}",);
+                    // println!("split after_updated_with_fmadd: output_fft_buffer_im0={output_fft_buffer_im0:?}",);
+                    // println!("split after_updated_with_fmadd: output_fft_buffer_im1={output_fft_buffer_im1:?}",);
 
                     // we initialized `output_fft_buffer, so we can set this to false
                     is_output_uninit = false;
