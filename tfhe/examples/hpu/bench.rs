@@ -298,7 +298,14 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     let bench_res = bench_inputs
                         .iter()
                         .map(|(_, srcs_enc, imms)| {
-                            HpuRadixCiphertext::exec(&proto, iop.opcode(), srcs_enc, imms, None)
+                            HpuRadixCiphertext::exec(
+                                &proto,
+                                hpu_asm::FwMode::Static,
+                                iop.opcode(),
+                                srcs_enc,
+                                imms,
+                                None,
+                            )
                         })
                         .collect::<Vec<_>>();
                     if i == (args.iter - 1) {

@@ -41,7 +41,7 @@ lru = "0.18.2"
 bitfield-struct = "0.13.0"
 crossbeam = { version = "0.8.4", features = ["crossbeam-queue"] }
 rayon = { workspace = true }
-zhc = "0.8.3"
+zhc = "0.9"
 
 # Dependencies used for Sim feature
 ra2m_ffi = "1.0"

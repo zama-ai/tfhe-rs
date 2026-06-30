@@ -69,10 +69,16 @@ impl Clone for RadixCiphertext {
                         &asm_iop.format().expect("Unspecified IOP format").proto,
                     )
                 };
-                let deep_clone =
-                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(inner), &[], None)
-                        .pop()
-                        .expect("IOP_MEMCPY must return 1 operand");
+                let deep_clone = HpuRadixCiphertext::exec(
+                    proto,
+                    hpu_asm::FwMode::Static,
+                    opcode,
+                    std::slice::from_ref(inner),
+                    &[],
+                    None,
+                )
+                .pop()
+                .expect("IOP_MEMCPY must return 1 operand");
                 Self::Hpu(deep_clone)
             }
         }

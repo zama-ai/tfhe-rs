@@ -1,6 +1,7 @@
 /// Implement inner-view of Hpu backend
 use super::*;
 use crate::asm::dop::MAX_HPU_IN_CLUSTER;
+use crate::asm::iop::opcode::{USER_RANGE_LB, USER_RANGE_UB};
 use crate::asm::PbsLut;
 use crate::entities::*;
 use crate::fw::isc_sim::PeConfigStore;
@@ -14,10 +15,9 @@ use std::collections::VecDeque;
 use std::str::FromStr;
 use std::sync::{atomic, Arc, Mutex};
 use strum::VariantNames;
+
 use zhc::builder::CiphertextSpec;
 use zhc::pipeline::compat::Iop;
-use zhc::sim::hpu::HpuConfig;
-use zhc::sim::{Cycle, MHz};
 
 use tracing::{debug, info, trace};
 
@@ -37,15 +37,24 @@ pub struct UcoreConfig {
     pub user_size: u16,
     pub b2b_size: u16,
     _padding: [u8; 2],
+    pub zhc_cache_addr: u32,
+    pub zhc_cache_size: u32,
     // NB: modification in this file must match the one in amc.c
-    _reserved_word: [u32; 61],
+    _reserved_word: [u32; 59],
 }
 // SAFETY: UcoreConfig is repr(C) with only Zeroable/Pod types
 unsafe impl Zeroable for UcoreConfig {}
 unsafe impl Pod for UcoreConfig {}
 
 impl UcoreConfig {
-    pub fn new(node_id: u8, node_mask: u8, user_size: u16, b2b_size: u16) -> Self {
+    pub fn new(
+        node_id: u8,
+        node_mask: u8,
+        user_size: u16,
+        b2b_size: u16,
+        zhc_cache_addr: u32,
+        zhc_cache_size: u32,
+    ) -> Self {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards!")
@@ -58,7 +67,9 @@ impl UcoreConfig {
             user_size,
             b2b_size,
             _padding: [0; 2],
-            _reserved_word: [u32::MAX; 61],
+            zhc_cache_addr,
+            zhc_cache_size,
+            _reserved_word: [u32::MAX; 59],
         }
     }
 }
@@ -95,6 +106,7 @@ pub struct HpuNode {
     lut_mem: memory::HugeMemory<u64>,
     fw_mem: memory::HugeMemory<u32>,
     init_fw_width: Vec<usize>,
+    zhc_cache: cache::ZhcCache,
 
     // Memory management
     // Board memory is abstract as a bunch of ciphertext slot
@@ -302,6 +314,10 @@ impl HpuNode {
         debug!("[N{hid}] Fw_mem properties -> {:?}", fw_props);
         let fw_mem = memory::HugeMemory::alloc(&mut hpu_hw, fw_props);
 
+        // Allocate cache structure for Zhc dynamic Iop handling
+        let zhc_cache =
+            cache::ZhcCache::new(&mut hpu_hw, config.board.zhc_pc, config.board.zhc_size);
+
         // Allocate memory pool for Ct
         // NB: Compute size of each cut.
         // Cut are 4k aligned -> One cut match with page boundary but the second one (with body
@@ -340,6 +356,7 @@ impl HpuNode {
             ksk_key,
             lut_mem,
             fw_mem,
+            zhc_cache,
             init_fw_width: Vec::new(),
             ct_mem,
             ct_base_addr,
@@ -775,7 +792,10 @@ impl HpuNode {
     }
 }
 
-pub fn new_config(params: &HpuParameters) -> HpuConfig {
+pub fn new_zhc_config(params: &HpuParameters) -> zhc::config::hpu::HpuConfig {
+    use zhc::config::hpu::HpuConfig;
+    use zhc::utils::units::{Cycle, MHz};
+
     // TODO: Add register to depicts the number of computation units (NB: Currently fixed to 1)
     let total_pbs_nb = params.ntt_params.total_pbs_nb;
 
@@ -813,6 +833,7 @@ pub fn new_config(params: &HpuParameters) -> HpuConfig {
         + batch_pbs * blwe_coefs.div_ceil(rpsi / 2 /* approx */)
         //Sample extract latency
     ) / batch_pbs;
+
     HpuConfig {
         freq: MHz(300),
         isc_depth: 64,
@@ -838,6 +859,10 @@ pub fn new_config(params: &HpuParameters) -> HpuConfig {
 
 /// Handle Fw Lut and translation table init
 /// NB: First part of the translation table in the ucore runtime configuration
+/// Two kinds of fw are available:
+/// * Static firmware: Upload during setup time, contains OffTheShelf IOp supported by Hpu
+/// * Dyn firmware: All IOp uploaded by User at runtime. There are tracked by a local zhc cache to
+///   handle on-chip memory.
 impl HpuNode {
     #[tracing::instrument(skip(self, config))]
     pub(crate) fn fw_init(&mut self, config: &config::HpuConfig) {
@@ -852,13 +877,22 @@ impl HpuNode {
         // |      DOp stream [Size_in_word] [Dop stream]
         // |--->
 
+        // Extract zhc_cache_addr
+        let zhc_cache_addr = if let ffi::MemKind::Ddr { offset } = config.board.zhc_pc {
+            offset
+        } else {
+            panic!("ZhcCachePc must be in DDR");
+        };
+
         // Write runtime configuration
-        // FW cut is view as u32 array, cost UcoreConfig accordingly
+        // FW cut is view as u32 array, cast UcoreConfig accordingly
         let fw_cfg = UcoreConfig::new(
             self.hid,
             self.node_mask,
             config.board.user_size as u16,
             config.board.b2b_size as u16,
+            zhc_cache_addr as u32,
+            config.board.zhc_size as u32,
         );
         let fw_cfg_raw_u8 = bytemuck::bytes_of(&fw_cfg);
         let fw_cfg_raw_u32 = bytemuck::cast_slice::<u8, u32>(fw_cfg_raw_u8);
@@ -945,7 +979,7 @@ impl HpuNode {
                     let translation_table = match iop.format().unwrap().name.as_str().parse::<Iop>()
                     {
                         Ok(iop) => iop.get_translation_table(
-                            &new_config(&self.params),
+                            &new_zhc_config(&self.params),
                             CiphertextSpec::new(*integer_w as u16, 2, 2),
                         ),
                         Err(()) => {
@@ -969,6 +1003,9 @@ impl HpuNode {
                         .unwrap_or_else(|_| panic!("Invalid Custom Iop name {name}"));
                     let opcode = iop.opcode();
                     let mut used_vid = 0;
+                    if !(USER_RANGE_LB..=USER_RANGE_UB).contains(&opcode.0) {
+                        panic!("Custom Iop [{integer_w}::{}] outside of USER_RANGE [{USER_RANGE_LB}; {USER_RANGE_UB}]", opcode.0);
+                    }
 
                     for vid in 0..MAX_HPU_IN_CLUSTER {
                         let asm_file = format!("{}_v{vid}.asm", asm_base_file.expand());
@@ -988,7 +1025,11 @@ impl HpuNode {
                             }
                         }
                     }
-                    assert!(used_vid >0, "Custom IOp: {opcode:?} failed. No file match given path {}_v{{[0-7]}}.asm", asm_base_file.expand());
+                    assert!(
+                        used_vid > 0,
+                        "Custom IOp: {opcode:?} failed. No file match given path {}_v{{[0-7]}}.asm",
+                        asm_base_file.expand()
+                    );
                 }
             }
 
@@ -1063,6 +1104,18 @@ impl HpuNode {
             // Update init_fw_width list enable to runtime check
             self.init_fw_width.push(*integer_w);
         }
+    }
+
+    #[tracing::instrument(skip(self, stream))]
+    pub(crate) fn fw_dyn(
+        &mut self,
+        hash: ZhcStreamHash,
+        stream: ZhcStream,
+        proto: asm::IOpProto,
+    ) -> Result<asm::IOpcode, cache::CacheError> {
+        self.zhc_cache
+            .get_or_insert(hash, stream, proto)
+            .map(|entry| entry.iop())
     }
 }
 

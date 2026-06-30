@@ -5,6 +5,7 @@ mod node;
 use std::sync::Arc;
 
 pub use cmd::{HpuCmd, HpuImm};
+mod cache;
 mod config;
 mod device;
 mod memory;
@@ -21,10 +22,11 @@ pub const ACKQ_EMPTY: u32 = 0xdeadc0de;
 pub const FW_RUNTIME_MAX_WORD: usize = 64;
 pub const FW_TABLE_ENTRY: usize = 128;
 pub const IOP_NUMBER: usize = 256;
+pub use cache::{ZhcStream, ZhcStreamHash};
 pub use config::{BoardConfig, FFIMode, HpuConfig, QueueConfig, ShellString};
 pub use device::HpuDevice;
 pub use memory::page_align;
-pub use node::UcoreConfig;
+pub use node::{new_zhc_config, UcoreConfig};
 pub use variable::HpuVarWrapped;
 
 use crate::prelude::HpuParameters;

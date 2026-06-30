@@ -2,7 +2,9 @@
 //! IOp definition
 use super::dop::MAX_HPU_IN_CLUSTER;
 mod field;
-pub use field::{HexParsingError, IOp, IOpMapping, IOpcode, Immediate, Operand, OperandKind};
+pub use field::{
+    FwMode, HexParsingError, IOp, IOpMapping, IOpcode, Immediate, Operand, OperandKind,
+};
 mod fmt;
 pub use fmt::{IOpRepr, IOpWordRepr};
 mod iop_macro;

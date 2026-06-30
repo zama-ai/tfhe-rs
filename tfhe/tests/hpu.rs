@@ -214,8 +214,14 @@ mod hpu_test {
                     .collect::<Vec<_>>();
 
                 // execute on Hpu
-                let res_hpu =
-                    HpuRadixCiphertext::exec(&proto, iop.opcode(), &srcs_enc, &imms_u128, None);
+                let res_hpu = HpuRadixCiphertext::exec(
+                    &proto,
+                    hpu_asm::FwMode::Static,
+                    iop.opcode(),
+                    &srcs_enc,
+                    &imms_u128,
+                    None,
+                );
                 let res_fhe = res_hpu
                     .iter()
                     .map(|x| x.to_radix_ciphertext())
@@ -882,13 +888,13 @@ mod hpu_test {
             let res_hpu = {
                 let local_proto = "[2]<N>::<N><0>".parse::<hpu_asm::IOpProto>().unwrap();
                 let lsrcs_enc = srcs_enc.split_at(1);
-                let hpu_enc_res_1 = HpuRadixCiphertext::exec(&local_proto, hpu_asm::IOpcode(33), &lsrcs_enc.0, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[0])));
-                let hpu_enc_res_2 = HpuRadixCiphertext::exec(&local_proto, hpu_asm::IOpcode(33), &lsrcs_enc.1, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
+                let hpu_enc_res_1 = HpuRadixCiphertext::exec(&local_proto, hpu_asm::FwMode::Static, hpu_asm::IOpcode(33), &lsrcs_enc.0, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[0])));
+                let hpu_enc_res_2 = HpuRadixCiphertext::exec(&local_proto, hpu_asm::FwMode::Static, hpu_asm::IOpcode(33), &lsrcs_enc.1, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
                 let combined_inputs = [hpu_enc_res_1[0].clone(),hpu_enc_res_2[0].clone()];
-                let hpu_enc_res_3 = HpuRadixCiphertext::exec(&proto, hpu_asm::IOpcode(40), &combined_inputs, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
+                let hpu_enc_res_3 = HpuRadixCiphertext::exec(&proto, hpu_asm::FwMode::Static, hpu_asm::IOpcode(40), &combined_inputs, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
                 let local_proto2 = "[2]<H>::<H><0>".parse::<hpu_asm::IOpProto>().unwrap();
-                let hpu_enc_res_4 = HpuRadixCiphertext::exec(&local_proto2, hpu_asm::IOpcode(33), &[hpu_enc_res_3[0].clone()], imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
-                let hpu_enc_res_5 = HpuRadixCiphertext::exec(&local_proto2, hpu_asm::IOpcode(33), &[hpu_enc_res_3[1].clone()], imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[0])));
+                let hpu_enc_res_4 = HpuRadixCiphertext::exec(&local_proto2, hpu_asm::FwMode::Static, hpu_asm::IOpcode(33), &[hpu_enc_res_3[0].clone()], imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
+                let hpu_enc_res_5 = HpuRadixCiphertext::exec(&local_proto2, hpu_asm::FwMode::Static, hpu_asm::IOpcode(33), &[hpu_enc_res_3[1].clone()], imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[0])));
                 vec![hpu_enc_res_4[0].clone(), hpu_enc_res_5[0].clone()]
             };
             let res_fhe = res_hpu
