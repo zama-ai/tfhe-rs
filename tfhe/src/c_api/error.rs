@@ -66,20 +66,27 @@ pub(in crate::c_api) fn replace_last_error_with_panic_payload(payload: &Box<dyn 
 }
 
 fn panic_payload_to_error(payload: &Box<dyn Any + Send>) -> LastError {
-    // Add a catch panic as technically the to_vec could fail
+    // By default, rust's std aborts on oom, but it's possible to enable some special compilation
+    // flag to make it panic instead, so we keep the catch unwind in all cases
     let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-        // Rust doc says:
-        // An invocation of the panic!() macro in Rust 2021 or later
-        // will always result in a panic payload of type &'static str or String.
-        payload
-            .downcast_ref::<&str>()
-            .map_or_else(|| b"panic occurred".to_vec(), |s| s.as_bytes().to_vec())
+        let bytes = payload
+            .downcast_ref::<&'static str>()
+            .map(|s| s.as_bytes().to_vec())
+            .or_else(|| {
+                payload
+                    .downcast_ref::<String>()
+                    .map(|s| s.as_bytes().to_vec())
+            })
+            .unwrap_or_else(|| b"panic occurred".to_vec());
+
+        // `CString::new` fails if `bytes` contains an interior NUL. Fall back
+        // to a fixed safe message rather than `.unwrap()`-ing into a second
+        // panic.
+        CString::new(bytes)
+            .unwrap_or_else(|_| CString::new("panic message contained nul byte").unwrap())
     }));
 
-    result.map_or_else(
-        |_| LastError::NoMemory,
-        |bytes| LastError::Message(CString::new(bytes).unwrap()),
-    )
+    result.map_or(LastError::NoMemory, LastError::Message)
 }
 
 /// Returns a pointer to a nul-terminated string describing the last error in the thread.
