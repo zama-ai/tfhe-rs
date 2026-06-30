@@ -36,7 +36,7 @@ use crate::core_crypto::entities::{Cleartext, Plaintext, PlaintextList};
 use crate::shortint::encoding::ShortintEncoding;
 use crate::shortint::parameters::noise_squashing::NoiseSquashingCompressionParameters;
 use crate::shortint::parameters::{
-    AtomicPatternParameters, CarryModulus, MessageModulus, PBSParameters,
+    AtomicPatternParameters, CarryModulus, MessageModulus, NoiseSquashingParameters, PBSParameters,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
     DynLwe, DynLweSecretKeyView, DynModSwitchedLwe, DynStandardMultiBitModulusSwitchedCt,
@@ -388,24 +388,7 @@ pub fn post_squashing_and_packing_noise_check(
         std_dev_after_packing.0 * modulus_as_f64_after_packing;
     println!("std_dev_under_modulus_after_packing={std_dev_under_modulus_after_packing:?}");
 
-    // Equation (22) page 95 from https://eprint.iacr.org/2025/699.pdf
-    // c_err,1 page 96 from the same doc is 13.15 (should provide a pfail ~2^-128 for a gaussian)
-    // This value is more pessimistic than what we would use (13.10862617448018) for 2^-128, so we
-    // keep it
-    let c_err_1 = 13.15f64;
-    // Using paper notations, equation (22) requires all the noise before noise flooding to be taken
-    // into account (not just noise squashing), so including the post squashing compression in
-    // our case
-    let b_switch_squash = c_err_1 * std_dev_under_modulus_after_packing;
-    let b_switch_squash_log2 = b_switch_squash.log2();
-
-    println!("b_switch_squash={b_switch_squash}");
-    println!("b_switch_squash_log2={b_switch_squash_log2}");
-
-    let bound = 2.0f64.powi(70);
-    println!("bound_log2={}", bound.log2());
-
-    let is_ok = b_switch_squash <= bound;
+    let is_ok = noise_check_after_switch_squash(std_dev_under_modulus_after_packing);
 
     if is_ok {
         println!("PASS: noise after noise squashing and packing respects bound.");
@@ -414,6 +397,57 @@ pub fn post_squashing_and_packing_noise_check(
     }
 
     is_ok
+}
+
+#[track_caller]
+pub fn post_squashing_noise_check(
+    noise_samples_after_noise_squashing: &[f64],
+    noise_squashing_params: NoiseSquashingParameters,
+) -> bool {
+    // Variance and std dev are on the torus
+    let variance_after_noise_squashing = variance(noise_samples_after_noise_squashing);
+    let std_dev_after_noise_squashing = variance_after_noise_squashing.get_standard_dev();
+    println!("variance_after_noise_squashing={variance_after_noise_squashing:?}");
+    println!("std_dev_after_noise_squashing ={std_dev_after_noise_squashing:?}");
+    // We need the value over the discretized torus
+    let modulus_as_f64_after_noise_squashing = noise_squashing_params
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    println!("modulus_as_f64_after_noise_squashing={modulus_as_f64_after_noise_squashing}");
+    let std_dev_under_modulus_after_noise_squashing =
+        std_dev_after_noise_squashing.0 * modulus_as_f64_after_noise_squashing;
+    println!("std_dev_under_modulus_after_noise_squashing={std_dev_under_modulus_after_noise_squashing:?}");
+
+    let is_ok = noise_check_after_switch_squash(std_dev_under_modulus_after_noise_squashing);
+
+    if is_ok {
+        println!("PASS: noise after noise squashing respects bound.");
+    } else {
+        println!("FAIL: noise after noise squashing is too large.");
+    }
+
+    is_ok
+}
+
+fn noise_check_after_switch_squash(std_dev_under_modulus: f64) -> bool {
+    // Equation (22) page 95 from https://eprint.iacr.org/2025/699.pdf
+    // c_err,1 page 96 from the same doc is 13.15 (should provide a pfail ~2^-128 for a gaussian)
+    // This value is more pessimistic than what we would use (13.10862617448018) for 2^-128, so we
+    // keep it
+    let c_err_1 = 13.15f64;
+    // Using paper notations, equation (22) requires all the noise before noise flooding to be taken
+    // into account (not just noise squashing), so including the post squashing compression in
+    // our case
+    let b_switch_squash = c_err_1 * std_dev_under_modulus;
+    let b_switch_squash_log2 = b_switch_squash.log2();
+
+    println!("b_switch_squash={b_switch_squash}");
+    println!("b_switch_squash_log2={b_switch_squash_log2}");
+
+    let bound = 2.0f64.powi(70);
+    println!("bound_log2={}", bound.log2());
+
+    b_switch_squash <= bound
 }
 
 #[derive(Clone, Copy)]

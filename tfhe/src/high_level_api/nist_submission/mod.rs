@@ -4,7 +4,7 @@ pub mod parameters;
 pub mod prelude;
 mod re_randomization;
 #[cfg(test)]
-mod test;
+mod tests;
 
 pub use crate::core_crypto::prelude::NormalizedHammingWeightBound;
 
