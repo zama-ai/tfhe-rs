@@ -19,7 +19,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_left_shift);
-    signed_unchecked_scalar_left_shift_test(param, executor, false);
+    signed_unchecked_scalar_left_shift_test(param, executor);
 }
 
 fn integer_signed_scalar_left_shift<P>(param: P)
@@ -27,7 +27,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_left_shift);
-    signed_default_scalar_left_shift_test(param, executor, false);
+    signed_default_scalar_left_shift_test(param, executor);
 }
 
 fn integer_signed_unchecked_scalar_right_shift<P>(param: P)
@@ -35,7 +35,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_right_shift);
-    signed_unchecked_scalar_right_shift_test(param, executor, false);
+    signed_unchecked_scalar_right_shift_test(param, executor);
 }
 
 fn integer_signed_scalar_right_shift<P>(param: P)
@@ -43,5 +43,5 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_right_shift);
-    signed_default_scalar_right_shift_test(param, executor, false);
+    signed_default_scalar_right_shift_test(param, executor);
 }

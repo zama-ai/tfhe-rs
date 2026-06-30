@@ -325,11 +325,8 @@ where
     }
 }
 
-pub(crate) fn unchecked_scalar_left_shift_test<P, T>(
-    param: P,
-    mut executor: T,
-    test_overshift: bool,
-) where
+pub(crate) fn unchecked_scalar_left_shift_test<P, T>(param: P, mut executor: T)
+where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
@@ -367,7 +364,7 @@ pub(crate) fn unchecked_scalar_left_shift_test<P, T>(
         }
 
         // case when scalar >= nb_bits
-        if test_overshift {
+        {
             // An overshift pushes every bit out, so a left shift returns 0.
             let scalar = scalar.saturating_add(nb_bits);
             let encrypted_result = executor.execute((&ct, scalar as u64));
@@ -396,11 +393,8 @@ pub(crate) fn unchecked_scalar_left_shift_test<P, T>(
     }
 }
 
-pub(crate) fn unchecked_scalar_right_shift_test<P, T>(
-    param: P,
-    mut executor: T,
-    test_overshift: bool,
-) where
+pub(crate) fn unchecked_scalar_right_shift_test<P, T>(param: P, mut executor: T)
+where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
@@ -439,7 +433,7 @@ pub(crate) fn unchecked_scalar_right_shift_test<P, T>(
         }
 
         // case when scalar >= nb_bits
-        if test_overshift {
+        {
             // An overshift pushes every bit out, so an unsigned right shift returns 0.
             let scalar = scalar.saturating_add(nb_bits);
             let encrypted_result = executor.execute((&ct, scalar as u64));
@@ -2112,7 +2106,7 @@ where
     }
 }
 
-pub(crate) fn default_scalar_left_shift_test<P, T>(param: P, mut executor: T, test_overshift: bool)
+pub(crate) fn default_scalar_left_shift_test<P, T>(param: P, mut executor: T)
 where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
@@ -2150,7 +2144,7 @@ where
         }
 
         // case when scalar >= nb_bits
-        if test_overshift {
+        {
             // An overshift pushes every bit out, so a left shift returns 0.
             let scalar = scalar.saturating_add(nb_bits);
             let ct_res = executor.execute((&ct, scalar as u64));
@@ -2173,7 +2167,7 @@ where
     }
 }
 
-pub(crate) fn default_scalar_right_shift_test<P, T>(param: P, mut executor: T, test_overshift: bool)
+pub(crate) fn default_scalar_right_shift_test<P, T>(param: P, mut executor: T)
 where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
@@ -2212,7 +2206,7 @@ where
         }
 
         // case when scalar >= nb_bits
-        if test_overshift {
+        {
             // An overshift pushes every bit out, so an unsigned right shift returns 0.
             let scalar = scalar.saturating_add(nb_bits);
             let ct_res = executor.execute((&ct, scalar as u64));

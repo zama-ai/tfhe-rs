@@ -5,6 +5,7 @@
 #include "device.h"
 #include "integer.cuh"
 #include "integer/integer_utilities.h"
+#include "integer/scalar_comparison.cuh"
 #include "integer/shift_and_rotate.h"
 #include "pbs/programmable_bootstrap_classic.cuh"
 #include "pbs/programmable_bootstrap_multibit.cuh"
@@ -22,6 +23,85 @@ __host__ uint64_t scratch_cuda_shift_and_rotate(
   return size_tracker;
 }
 
+/**
+ * @brief Computes the overshift condition (shift_amount >= total_nb_bits) and
+ * packs it into the carry of mem->tmp_overshift, so it can later be fused into
+ * the final cleaning PBS of the reassembly at no extra per-block PBS cost. For
+ * an arithmetic right shift the condition also encodes the input's sign.
+ * @param lwe_shift Encrypted shift amount to compare against the bit width.
+ * @param last_bit Input's original sign bit, used for the arithmetic case.
+ * @param mem Scratch buffer holding the comparison memory, scalar and LUTs.
+ */
+template <typename Torus, typename KSTorus>
+__host__ void
+host_compute_overshift_condition(CudaStreams streams,
+                                 CudaRadixCiphertextFFI const *lwe_shift,
+                                 CudaRadixCiphertextFFI const *last_bit,
+                                 int_shift_and_rotate_buffer<Torus> *mem,
+                                 void *const *bsks, KSTorus *const *ksks) {
+  auto message_modulus = mem->params.message_modulus;
+  auto carry_modulus = mem->params.carry_modulus;
+
+  auto num_radix_blocks = lwe_shift->num_radix_blocks;
+  CudaRadixCiphertextFFI const *compare_in;
+  if (mem->tmp_padded_shift != nullptr) {
+    // Pad the shift amount to an even number of blocks (high block is 0).
+    set_zero_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), mem->tmp_padded_shift, 0,
+        mem->tmp_padded_shift->num_radix_blocks);
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), mem->tmp_padded_shift, 0,
+        num_radix_blocks, lwe_shift, 0, num_radix_blocks);
+    compare_in = mem->tmp_padded_shift;
+  } else {
+    compare_in = lwe_shift;
+  }
+  integer_radix_unsigned_scalar_difference_check<Torus>(
+      streams, mem->tmp_overshift, compare_in, mem->d_overshift_scalar_blocks,
+      mem->h_overshift_scalar_blocks, mem->overshift_compare_mem,
+      mem->overshift_compare_mem->diff_buffer->operator_f, bsks, ksks,
+      mem->overshift_compare_num_blocks, mem->num_overshift_scalar_blocks);
+
+  if (mem->is_signed && (mem->shift_type == RIGHT_SHIFT)) {
+    // cond = 2 * overshift + is_neg, where is_neg is the input's sign bit
+    // (`last_bit`, still the original sign bit since the loop reads a copy).
+    host_integer_small_scalar_mul_radix<Torus>(streams, mem->tmp_overshift,
+                                               mem->tmp_overshift, 2,
+                                               message_modulus, carry_modulus);
+    host_addition<Torus>(streams.stream(0), streams.gpu_index(0),
+                         mem->tmp_overshift, mem->tmp_overshift, last_bit, 1,
+                         message_modulus, carry_modulus);
+  }
+  // Move cond into the carry space (clean output).
+  integer_radix_apply_univariate_lookup_table<Torus>(
+      streams, mem->tmp_overshift, mem->tmp_overshift, bsks, ksks,
+      mem->overshift_pack_lut, 1);
+}
+
+/**
+ * @brief Applies the overshift selection: adds the packed condition from
+ * mem->tmp_overshift to every block and runs the overshift cleanup LUT, which
+ * both refreshes the noise and selects the overshift result (0 / the sign) in a
+ * single PBS.
+ * @param shifted_ct Shift result, updated in place with the selection.
+ * @param mem Scratch buffer holding tmp_overshift and the cleanup LUT.
+ */
+template <typename Torus, typename KSTorus>
+__host__ void
+host_apply_overshift_cleanup(CudaStreams streams,
+                             CudaRadixCiphertextFFI *shifted_ct,
+                             int_shift_and_rotate_buffer<Torus> *mem,
+                             void *const *bsks, KSTorus *const *ksks) {
+  auto num_radix_blocks = shifted_ct->num_radix_blocks;
+  host_add_the_same_block_to_all_blocks<Torus>(
+      streams.stream(0), streams.gpu_index(0), shifted_ct, shifted_ct,
+      mem->tmp_overshift, mem->params.message_modulus,
+      mem->params.carry_modulus);
+  integer_radix_apply_univariate_lookup_table<Torus>(
+      streams, shifted_ct, shifted_ct, bsks, ksks, mem->overshift_cleanup_lut,
+      num_radix_blocks);
+}
+
 template <typename Torus, typename KSTorus>
 __host__ void
 host_shift_and_rotate_inplace(CudaStreams streams,
@@ -30,7 +110,13 @@ host_shift_and_rotate_inplace(CudaStreams streams,
                               int_shift_and_rotate_buffer<Torus> *mem,
                               void *const *bsks, KSTorus *const *ksks) {
   cuda_set_device(streams.gpu_index(0));
-
+  // The barrel shifter packs three bits (control | previous | current) into a
+  // single block for the mux LUT, so it needs the control bit at plaintext
+  // position 2 (value 4). This only fits when a block holds at least 3 bits.
+  if (mem->params.message_modulus * mem->params.carry_modulus < 8)
+    PANIC("Cuda error: shift/rotate by an encrypted amount requires "
+          "message_modulus * carry_modulus >= 8 (1_1 parameters are not "
+          "supported)")
   if (lwe_array->num_radix_blocks != lwe_shift->num_radix_blocks)
     PANIC("Cuda error: lwe_shift and lwe_array num radix blocks must be "
           "the same")
@@ -163,6 +249,13 @@ host_shift_and_rotate_inplace(CudaStreams streams,
         streams, input_bits_a, mux_inputs, bsks, ksks, mux_lut, total_nb_bits);
   }
 
+  if (mem->handle_overshift) {
+    // lwe array number of blocks is the same as the shift amount number of
+    // blocks
+    host_compute_overshift_condition<Torus, KSTorus>(
+        streams, lwe_shift, &last_bit, mem, bsks, ksks);
+  }
+
   // Initializes the output
   // Copy the last bit for each radix block
   for (int i = 0; i < num_radix_blocks; i++) {
@@ -189,11 +282,28 @@ host_shift_and_rotate_inplace(CudaStreams streams,
                            mem->params.carry_modulus);
     }
 
-    // To give back a clean ciphertext
-    auto cleaning_lut = mem->cleaning_lut;
-    integer_radix_apply_univariate_lookup_table<Torus>(
-        streams, lwe_array, lwe_array, bsks, ksks, cleaning_lut,
-        num_radix_blocks);
+    // To give back a clean ciphertext.
+    // For a shift (not a rotation), the final cleaning PBS also applies the
+    // overshift selection: we add `cond` (packed in the carry) to every block
+    // and use the overshift cleanup LUT, which both resets the noise and
+    // selects the overshift result in a single PBS (no extra PBS round).
+    if (i == 0 && mem->handle_overshift) {
+      host_apply_overshift_cleanup<Torus, KSTorus>(streams, lwe_array, mem,
+                                                   bsks, ksks);
+    } else {
+      auto cleaning_lut = mem->cleaning_lut;
+      integer_radix_apply_univariate_lookup_table<Torus>(
+          streams, lwe_array, lwe_array, bsks, ksks, cleaning_lut,
+          num_radix_blocks);
+    }
+  }
+
+  // 1-bit-message blocks: the reassembly loop above does not run, so the
+  // overshift selection could not be fused into a cleaning PBS; apply it as a
+  // standalone step instead.
+  if (bits_per_block == 1 && mem->handle_overshift) {
+    host_apply_overshift_cleanup<Torus, KSTorus>(streams, lwe_array, mem, bsks,
+                                                 ksks);
   }
 }
 #endif

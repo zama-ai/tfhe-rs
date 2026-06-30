@@ -19,7 +19,7 @@ where
     P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_right_shift);
-    signed_unchecked_right_shift_test(param, executor, false);
+    signed_unchecked_right_shift_test(param, executor);
 }
 
 fn integer_signed_right_shift<P>(param: P)
@@ -27,7 +27,7 @@ where
     P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::right_shift);
-    signed_default_right_shift_test(param, executor, false);
+    signed_default_right_shift_test(param, executor);
 }
 
 fn integer_signed_unchecked_left_shift<P>(param: P)
@@ -35,7 +35,7 @@ where
     P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_left_shift);
-    signed_unchecked_left_shift_test(param, executor, false);
+    signed_unchecked_left_shift_test(param, executor);
 }
 
 fn integer_signed_left_shift<P>(param: P)
@@ -43,5 +43,5 @@ where
     P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::left_shift);
-    signed_default_left_shift_test(param, executor, false);
+    signed_default_left_shift_test(param, executor);
 }
