@@ -279,13 +279,11 @@ fn main() {
         },
         Commands::TraceDump { file, size_mib } => {
             // trace depth is expressed in MiB
-            let size_b = std::cmp::min(
-                config.board.trace_depth,
-                size_mib.unwrap_or(usize::max_value()),
-            ) * 1024
+            let size_b = std::cmp::min(config.board.trace_depth, size_mib.unwrap_or(usize::MAX))
+                * 1024
                 * 1024;
 
-            trace_dump(&mut hpu_hw, &regmap, size_b, &file)
+            trace_dump(&mut hpu_hw, &regmap, size_b, file)
         }
     }
 }
@@ -333,24 +331,24 @@ fn read_register_by_section(hw: &mut ffi::HpuHw, regmap: &FlatRegmap, section: &
         match sec {
             Section::PePbs => println!(
                 "{sec} registers {:?}",
-                rtl::runtime::InfoPePbs::from_rtl(hw, &regmap)
+                rtl::runtime::InfoPePbs::from_rtl(hw, regmap)
             ),
             Section::PeMem => println!(
                 "{sec} registers {:?}",
-                rtl::runtime::InfoPeMem::from_rtl(hw, &regmap)
+                rtl::runtime::InfoPeMem::from_rtl(hw, regmap)
             ),
             Section::PeAlu => println!(
                 "{sec} registers {:?}",
-                rtl::runtime::InfoPeAlu::from_rtl(hw, &regmap)
+                rtl::runtime::InfoPeAlu::from_rtl(hw, regmap)
             ),
             Section::Isc => println!(
                 "{sec} registers {:?}",
-                rtl::runtime::InfoIsc::from_rtl(hw, &regmap)
+                rtl::runtime::InfoIsc::from_rtl(hw, regmap)
             ),
-            Section::Arch => println!("{sec} registers {:?}", HpuParameters::from_rtl(hw, &regmap)),
+            Section::Arch => println!("{sec} registers {:?}", HpuParameters::from_rtl(hw, regmap)),
             Section::MhDma => println!(
                 "{sec} registers {:?}",
-                rtl::runtime::InfoMhDma::from_rtl(hw, &regmap)
+                rtl::runtime::InfoMhDma::from_rtl(hw, regmap)
             ),
         }
     }
@@ -391,7 +389,6 @@ fn reset_register_by_section(hw: &mut ffi::HpuHw, regmap: &FlatRegmap, section: 
     }
 }
 
-
 fn read_mem(hw: &mut ffi::HpuHw, addr: u64, size_b: usize) -> Vec<u8> {
     let mut data = vec![0; size_b];
     hw.read_abs(addr, &mut data);
@@ -420,11 +417,11 @@ fn pretty_display(data: Vec<u8>, addr: u64, byte_per_line: usize) {
             }
             print!("{b:0>2x}");
         }
-        println!("");
+        println!();
     }
 }
 
-fn write_mem(hw: &mut ffi::HpuHw, addr: u64, size_b: usize, value: &Vec<u64>) {
+fn write_mem(hw: &mut ffi::HpuHw, addr: u64, size_b: usize, value: &[u64]) {
     // Construct full pattern
     let pattern = (0..((size_b / std::mem::size_of::<u64>()) + 1))
         .map(|i| value[i % value.len()])

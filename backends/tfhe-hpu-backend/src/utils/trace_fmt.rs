@@ -1,12 +1,14 @@
 //!
 //! Application used to convert a set of isc raw hardware trace
 //! It produces:
-//!  * a refined trace files: discrete event (Refill, Issue, RdUnlock, Retired) are gather in instruction lifetime
+//!  * a refined trace files: discrete event (Refill, Issue, RdUnlock, Retired) are gather in
+//!    instruction lifetime
 //!  * Each set are gather in a perfetto readable trace
 
+use std::collections::BTreeMap;
+use std::fs;
 use std::fs::File;
 use std::io::BufReader;
-use std::{collections::BTreeMap, fs};
 
 use serde_json::json;
 use tfhe_hpu_backend::asm::dop::ToAsm;
@@ -14,7 +16,8 @@ use tfhe_hpu_backend::prelude::*;
 
 /// Define CLI arguments
 use clap::Parser;
-use zhc::utils::tracing::{Microseconds, Scope};
+use zhc::utils::tracing::Scope;
+use zhc::utils::units::Microseconds;
 #[derive(Parser, Debug, Clone)]
 #[command(long_about = "Isc hardware trace parsing")]
 pub struct Args {
@@ -135,7 +138,7 @@ fn main() -> Result<(), anyhow::Error> {
         for insn in v.as_view().iter() {
             // All instruction generate Events
             ptrace.new_instant(
-                insn.lifetime.refill as Microseconds,
+                Microseconds(insn.lifetime.refill as f64),
                 cur_pid,
                 tid_events,
                 "Refill",
@@ -143,7 +146,7 @@ fn main() -> Result<(), anyhow::Error> {
                 Scope::Thread,
             );
             ptrace.new_instant(
-                insn.lifetime.issue as Microseconds,
+                Microseconds(insn.lifetime.issue as f64),
                 cur_pid,
                 tid_events,
                 "Issue",
@@ -151,7 +154,7 @@ fn main() -> Result<(), anyhow::Error> {
                 Scope::Thread,
             );
             ptrace.new_instant(
-                insn.lifetime.rd_unlock as Microseconds,
+                Microseconds(insn.lifetime.rd_unlock as f64),
                 cur_pid,
                 tid_events,
                 "RdUnlock",
@@ -159,7 +162,7 @@ fn main() -> Result<(), anyhow::Error> {
                 Scope::Thread,
             );
             ptrace.new_instant(
-                insn.lifetime.retire as Microseconds,
+                Microseconds(insn.lifetime.retire as f64),
                 cur_pid,
                 tid_events,
                 "Retire",
@@ -175,23 +178,24 @@ fn main() -> Result<(), anyhow::Error> {
                 hpu_asm::dop::DOpType::PBS => tid_pbs,
             };
             ptrace.new_complete(
-                insn.lifetime.issue as Microseconds,
+                Microseconds(insn.lifetime.issue as f64),
                 cur_pid,
                 target_tid,
                 &insn.insn_asm,
                 None,
-                insn.lifetime.exec_cycles() as Microseconds,
+                Microseconds(insn.lifetime.exec_cycles() as f64),
             );
 
             // Handle side opcode effect
             match opcode.optype() {
                 hpu_asm::dop::DOpType::PBS => {
                     // Pbs also handle load counter
-                    // NB: Pbs could accept up-to 2 batch in issue mode. Thus to enhance counter readability, rd_unlock event is used.
-                    // => Only 1 full batch could be between rd_unlock/retire state at a time
+                    // NB: Pbs could accept up-to 2 batch in issue mode. Thus to enhance counter
+                    // readability, rd_unlock event is used. => Only 1 full
+                    // batch could be between rd_unlock/retire state at a time
                     pbs_cnt += 1;
                     ptrace.new_counter(
-                        insn.lifetime.rd_unlock as Microseconds,
+                        Microseconds(insn.lifetime.rd_unlock as f64),
                         cur_pid,
                         tid_pbs,
                         "Pbs_load",
@@ -201,14 +205,14 @@ fn main() -> Result<(), anyhow::Error> {
                     if opcode.is_flush() {
                         pbs_cnt = 0;
                         ptrace.new_counter(
-                            insn.lifetime.retire as Microseconds,
+                            Microseconds(insn.lifetime.retire as f64),
                             cur_pid,
                             tid_pbs,
                             "Pbs_load",
                             Some(json!({"pbs_in_batch": pbs_cnt})),
                         );
                         ptrace.new_instant(
-                            insn.lifetime.rd_unlock as Microseconds,
+                            Microseconds(insn.lifetime.rd_unlock as f64),
                             cur_pid,
                             tid_pbs,
                             "PbsFlush",

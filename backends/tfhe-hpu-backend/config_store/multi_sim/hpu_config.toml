@@ -31,8 +31,11 @@
   lut_mem = 256
   lut_pc = {Hbm={pc=34}}
 
-  fw_size= 16777216 # i.e. 16 MiB
+  fw_size= 16777216 # i.e. u32 coefs ->  64 MiB
   fw_pc = {Ddr= {offset= 0x3900_0000}} # NB: Allocation must take place in the Discrete DDR
+
+  zhc_size= 8388608 # i.e. u32 coefs -> 32 MiB
+  zhc_pc = {Ddr= {offset= 0x3D00_0000}} # NB: Allocation must take place in the Discrete DDR
 
   bsk_pc = [
     {Hbm={pc=8}},

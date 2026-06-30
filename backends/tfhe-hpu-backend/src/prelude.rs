@@ -4,10 +4,15 @@ pub use super::entities::*;
 /// Export Hw_hpu for asm definition
 pub use super::asm as hpu_asm;
 
+/// Export zhc for dyn_fw definition
+pub use zhc;
+
 /// Export hw_regmap.
 /// Prevent version mismatch between user code and backend
 pub use hw_regmap as hpu_regmap;
 
+/// Load zhc bridging stuff
+pub use super::interface::{new_zhc_config, ZhcStream, ZhcStreamHash};
 /// Load Hw-interface stuff
 pub use super::interface::{
     page_align, BoardConfig, FFIMode, HpuCmd, HpuConfig, HpuDevice, HpuError, HpuImm,
