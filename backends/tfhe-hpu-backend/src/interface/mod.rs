@@ -5,6 +5,7 @@ mod node;
 use std::sync::Arc;
 
 pub use cmd::{HpuCmd, HpuImm};
+mod cache;
 mod config;
 mod device;
 mod memory;
