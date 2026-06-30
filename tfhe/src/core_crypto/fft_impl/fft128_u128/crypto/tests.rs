@@ -11,6 +11,7 @@ use dyn_stack::{PodBuffer, PodStack};
 
 #[test]
 fn test_split_external_product() {
+    // test
     let params = FFT128_U128_PARAMS;
 
     let glwe_dimension = params.glwe_dimension;
