@@ -500,6 +500,7 @@ use std::collections::VecDeque;
 /// Used to construct IOp from Backend HpuVar
 impl IOp {
     pub fn new(
+        fw_mode: FwMode,
         opcode: IOpcode,
         map: IOpMapping,
         dst: Vec<Operand>,
@@ -515,7 +516,7 @@ impl IOp {
             dst_align,
             opcode,
             has_imm,
-            fw_mode: FwMode::Static,
+            fw_mode,
         };
         Self {
             header,
@@ -526,6 +527,9 @@ impl IOp {
         }
     }
 
+    pub fn fw_mode(&self) -> FwMode {
+        self.header.fw_mode
+    }
     pub fn opcode(&self) -> IOpcode {
         self.header.opcode
     }
@@ -555,9 +559,14 @@ impl IOp {
 
     /// Compute fw table entry for given IOp
     pub fn fw_entry(&self, virt_id: VirtId) -> usize {
-        // Fw lookup is composed of an entry for each fw_blk_with.
-        // Each entries is composed of IOpWidth entries, itself composed of MAX_HPU_IN_CLUSTER slot
-        let integer_w_bucket = (0x100 * MAX_HPU_IN_CLUSTER) * self.fw_blk_width();
+        // Static Fw lookup is composed of an entry for each fw_blk_width.
+        // Dynamic Fw lookup is composed of one entry (i.e. no fw_blk_width index)
+        // For both cases, each entries is composed of IOpWidth entries, itself composed of
+        // MAX_HPU_IN_CLUSTER slot
+        let integer_w_bucket = match self.fw_mode() {
+            FwMode::Static => (0x100 * MAX_HPU_IN_CLUSTER) * self.fw_blk_width(),
+            FwMode::Dynamic => 1, /* First entry used as error entry */
+        };
         let iop_bucket = integer_w_bucket + self.header.opcode.0 as usize * MAX_HPU_IN_CLUSTER;
         iop_bucket + (virt_id.0 as usize)
     }

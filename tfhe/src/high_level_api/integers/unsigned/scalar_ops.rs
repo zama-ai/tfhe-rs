@@ -774,6 +774,7 @@ macro_rules! generic_integer_impl_scalar_div_rem {
                                     };
                                     let mut hpu_result = HpuRadixCiphertext::exec(
                                         proto,
+                                        hpu_asm::FwMode::Static,
                                         opcode,
                                         std::slice::from_ref(&hpu_lhs),
                                         &[u128::cast_from(rhs)],
@@ -1901,6 +1902,7 @@ macro_rules! define_scalar_ops {
                                     };
                                     let mut hpu_result = HpuRadixCiphertext::exec(
                                         proto,
+                                        hpu_asm::FwMode::Static,
                                         opcode,
                                         std::slice::from_ref(&hpu_lhs),
                                         &[u128::cast_from(rhs)],
@@ -1978,6 +1980,7 @@ macro_rules! define_scalar_ops {
                             };
                             let mut hpu_result = HpuRadixCiphertext::exec(
                                 proto,
+                                        hpu_asm::FwMode::Static,
                                 opcode,
                                 std::slice::from_ref(&hpu_lhs),
                                 &[u128::cast_from(rhs)],
@@ -2490,6 +2493,7 @@ macro_rules! define_scalar_ops {
                             };
                             let mut hpu_result = HpuRadixCiphertext::exec(
                                 proto,
+                                        hpu_asm::FwMode::Static,
                                 opcode,
                                 std::slice::from_ref(&hpu_lhs),
                                 &[u128::cast_from(rhs)],
@@ -2538,6 +2542,7 @@ macro_rules! define_scalar_ops {
                             };
                             HpuRadixCiphertext::exec_assign(
                                 proto,
+                                        hpu_asm::FwMode::Static,
                                 opcode,
                                 std::slice::from_ref(&hpu_lhs),
                                 &[u128::cast_from(rhs)],

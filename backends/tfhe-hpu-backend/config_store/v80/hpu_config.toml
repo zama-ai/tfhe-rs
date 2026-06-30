@@ -5,7 +5,13 @@
           "${HPU_BACKEND_DIR}/config_store/regmap/hpu_regif_core_prc_1in3.toml",
           "${HPU_BACKEND_DIR}/config_store/regmap/hpu_regif_core_prc_3in3.toml"]
   polling_us=1
-  node_id=[0,1,2,3,4,5,6,7]
+  # Nodes list definition
+  # Cluster of 8
+  # node_id=[0,1,2,3,4,5,6,7]
+  # Cluster of 4
+  # node_id=[0,1,2,3]
+  # Default cluster of 1
+  node_id=[0]
 [fpga.ffi.V80]
   hpu_path="${HPU_BACKEND_DIR}/config_store/v80_archives/psi64.hpu"
   ami_path="${AMI_PATH}/ami.ko"
@@ -28,8 +34,11 @@
   lut_mem = 256
   lut_pc = {Hbm={pc=34}}
 
-  fw_size= 16777216 # i.e. 16 MiB
+  fw_size= 16777216 # i.e. u32 coefs ->  64 MiB
   fw_pc = {Ddr= {offset= 0x3900_0000}} # NB: Allocation must take place in the Discrete DDR
+
+  zhc_size= 8388608 # i.e. u32 coefs -> 32 MiB
+  zhc_pc = {Ddr= {offset= 0x3D00_0000}} # NB: Allocation must take place in the Discrete DDR
 
   bsk_pc = [
     {Hbm={pc=8}},

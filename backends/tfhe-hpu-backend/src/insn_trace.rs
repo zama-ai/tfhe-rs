@@ -116,58 +116,48 @@ impl From<&IscTraceStream> for InsnTraceStream {
         let mut ll_view: LinkedList<&IscTrace> = value.as_view().iter().collect();
 
         let mut insn_stream = Vec::with_capacity(value.as_view().len().div_ceil(4));
-        loop {
-            // Get first refill
-            if let Some(refill) = ll_view
-                .extract_if(|e| matches!(e.state.cmd, IscCommand::Refill))
-                .next()
+        // Get first refill
+        while let Some(refill) = ll_view
+            .extract_if(|e| matches!(e.state.cmd, IscCommand::Refill))
+            .next()
+        {
+            // Found & remove other matching item
+            let cmds = if dop::Opcode::from(dop::DOpRawHex::from_bits(refill.insn_hex).opcode())
+                .is_sync_inst()
             {
-                // Found & remove other matching item
-                let cmds = if dop::Opcode::from(dop::DOpRawHex::from_bits(refill.insn_hex).opcode())
-                    .is_sync_inst()
-                {
-                    // Sync instruction as != lifecycle
-                    vec![IscCommand::Issue]
-                } else {
-                    vec![IscCommand::Issue, IscCommand::RdUnlock, IscCommand::Retire]
-                };
-                let timestamp = cmds
-                    .iter()
-                    .filter_map(|cmd| {
-                        if let Some(insn) = ll_view
-                            .extract_if(|e| {
-                                (e.insn_hex == refill.insn_hex) && (e.state.cmd == *cmd)
-                            })
-                            .next()
-                        {
-                            Some(insn.timestamp)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                if timestamp.len() != cmds.len() {
-                    println!("{refill:?} has incomplete lifecycle");
-                    break;
-                } else {
-                    let insn = dop::DOp::from_hex(refill.insn_hex).expect("Invalid Dop Hex code");
-                    let insn_asm = insn.to_string();
-                    let insn_trace = InsnTrace {
-                        lifetime: InsnLifetime {
-                            refill: refill.timestamp,
-                            issue: timestamp[0],
-                            rd_unlock: *timestamp.get(1).unwrap_or(&timestamp[0]),
-                            retire: *timestamp.get(2).unwrap_or(&timestamp[0]),
-                        },
-                        insn_hex: refill.insn_hex,
-                        insn,
-                        insn_asm,
-                    };
-                    insn_stream.push(insn_trace);
-                }
+                // Sync instruction has != lifecycle
+                vec![IscCommand::Issue]
             } else {
-                break;
+                vec![IscCommand::Issue, IscCommand::RdUnlock, IscCommand::Retire]
             };
+            let timestamp = cmds
+                .iter()
+                .filter_map(|cmd| {
+                    ll_view
+                        .extract_if(|e| (e.insn_hex == refill.insn_hex) && (e.state.cmd == *cmd))
+                        .next()
+                        .map(|insn| insn.timestamp)
+                })
+                .collect::<Vec<_>>();
+            if timestamp.len() != cmds.len() {
+                println!("{refill:?} has incomplete lifecycle");
+                break;
+            } else {
+                let insn = dop::DOp::from_hex(refill.insn_hex).expect("Invalid Dop Hex code");
+                let insn_asm = insn.to_string();
+                let insn_trace = InsnTrace {
+                    lifetime: InsnLifetime {
+                        refill: refill.timestamp,
+                        issue: timestamp[0],
+                        rd_unlock: *timestamp.get(1).unwrap_or(&timestamp[0]),
+                        retire: *timestamp.get(2).unwrap_or(&timestamp[0]),
+                    },
+                    insn_hex: refill.insn_hex,
+                    insn,
+                    insn_asm,
+                };
+                insn_stream.push(insn_trace);
+            }
         }
 
         Self(insn_stream)

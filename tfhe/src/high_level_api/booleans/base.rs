@@ -546,6 +546,7 @@ where
                 // These clones are cheap are they are just Arc
                 let hpu_result = HpuRadixCiphertext::exec(
                     proto,
+                    hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_then.clone(), hpu_else.clone(), hpu_cond.clone()],
                     &[],
@@ -607,6 +608,7 @@ where
                 // These clones are cheap are they are just Arc
                 let hpu_result = HpuRadixCiphertext::exec(
                     proto,
+                    hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_then.clone(), hpu_cond.clone()],
                     &[],

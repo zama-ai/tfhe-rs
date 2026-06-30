@@ -78,11 +78,11 @@ impl IscTrace {
             return Err(TraceParsingError::EmptyStream);
         } else {
             let flit0_raw = u128::from_le_bytes(bytes[0..16].try_into().unwrap());
-            let flit0 = IscTraceFmtFlit0::from_bits(flit0_raw);
-            flit0
+
+            IscTraceFmtFlit0::from_bits(flit0_raw)
         };
 
-        let cmd = unsafe { std::mem::transmute(flit0.cmd()) };
+        let cmd = unsafe { std::mem::transmute::<u8, IscCommand>(flit0.cmd()) };
         let asm = match cmd {
             IscCommand::None => "Garbage".to_string(),
             _ => dop::DOp::from_hex(flit0.insn())
@@ -93,8 +93,8 @@ impl IscTrace {
         let insn = match cmd {
             IscCommand::None => None,
             _ => {
-                let dop = dop::DOp::from_hex(flit0.insn())
-                    .map_err(|e| TraceParsingError::IncorrectDOp(e))?;
+                let dop =
+                    dop::DOp::from_hex(flit0.insn()).map_err(TraceParsingError::IncorrectDOp)?;
                 Some(dop)
             }
         };

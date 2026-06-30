@@ -251,6 +251,11 @@ path = "examples/hpu/matmul.rs"
 required-features = ["hpu"]
 
 [[example]]
+name = "hpu_fw_dyn"
+path = "examples/hpu/fw_dyn.rs"
+required-features = ["hpu"]
+
+[[example]]
 name = "hpu_bench"
 path = "examples/hpu/bench.rs"
 required-features = ["hpu"]

@@ -246,7 +246,14 @@ where
                 )
             };
             // These clones are cheap as they are just Arc
-            let hpu_res = HpuRadixCiphertext::exec(proto, opcode, &srcs, &src.imm, None);
+            let hpu_res = HpuRadixCiphertext::exec(
+                proto,
+                hpu_asm::FwMode::Static,
+                opcode,
+                &srcs,
+                &src.imm,
+                None,
+            );
             HpuHandle {
                 native: hpu_res
                     .iter()
@@ -650,6 +657,7 @@ where
                 };
                 let hpu_result = HpuRadixCiphertext::exec(
                     proto,
+                    hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_self),
                     &[],
@@ -730,6 +738,7 @@ where
                 };
                 let hpu_result = HpuRadixCiphertext::exec(
                     proto,
+                    hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_self),
                     &[],
@@ -810,6 +819,7 @@ where
                 };
                 let hpu_result = HpuRadixCiphertext::exec(
                     proto,
+                    hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_self),
                     &[],
@@ -890,6 +900,7 @@ where
                 };
                 let hpu_result = HpuRadixCiphertext::exec(
                     proto,
+                    hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_self),
                     &[],
@@ -957,6 +968,7 @@ where
                 };
                 let hpu_result = HpuRadixCiphertext::exec(
                     proto,
+                    hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_self),
                     &[],
@@ -1024,6 +1036,7 @@ where
                 };
                 let hpu_result = HpuRadixCiphertext::exec(
                     proto,
+                    hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_self),
                     &[],
@@ -1106,6 +1119,7 @@ where
                 };
                 let hpu_result = HpuRadixCiphertext::exec(
                     proto,
+                    hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_self),
                     &[],

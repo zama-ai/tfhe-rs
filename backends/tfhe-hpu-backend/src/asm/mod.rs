@@ -6,7 +6,7 @@ pub use dop::{
     UcorePayloadMode, UserFlag,
 };
 pub mod iop;
-pub use iop::{AsmIOpcode, IOp, IOpProto, IOpcode, Operand, OperandKind};
+pub use iop::{AsmIOpcode, FwMode, IOp, IOpProto, IOpcode, Operand, OperandKind};
 
 use lazy_static::lazy_static;
 use std::collections::VecDeque;

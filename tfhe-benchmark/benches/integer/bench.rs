@@ -2832,6 +2832,7 @@ mod hpu {
                             |(srcs, imms)| {
                                 let res = HpuRadixCiphertext::exec(
                                     &proto,
+                                    hpu_asm::FwMode::Static,
                                     iop.opcode(),
                                     &srcs,
                                     &imms,
@@ -2919,6 +2920,7 @@ mod hpu {
                                 .map(|input| {
                                     HpuRadixCiphertext::exec(
                                         &proto,
+                                        hpu_asm::FwMode::Static,
                                         iop.opcode(),
                                         &input.0,
                                         &input.1,

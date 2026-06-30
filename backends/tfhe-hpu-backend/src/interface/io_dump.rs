@@ -110,7 +110,7 @@ pub fn dump<T: num_traits::PrimInt + num_traits::cast::AsPrimitive<u32>>(
             // Shrink value to 32b when possible
             if word_bits <= u32::BITS {
                 let value_32b = value
-                    .into_iter()
+                    .iter()
                     .map(|x| {
                         let x_u32: u32 = x.as_();
                         x_u32

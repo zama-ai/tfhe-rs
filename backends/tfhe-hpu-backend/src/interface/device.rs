@@ -5,8 +5,10 @@
 //! HpuDevice is a collection of HpuNode (i.e. cluster) backed in a common structure.
 //! Hpu nodes work concurrently and thus must have same configuration/parameters
 
+use super::cache::{CacheError, ZhcStream, ZhcStreamHash};
 use super::config::HpuConfig;
 use super::{HpuClusterWrapped, HpuInstError, HpuVarWrapped};
+use crate::asm;
 use crate::entities::*;
 use std::sync::Arc;
 
@@ -40,7 +42,7 @@ impl HpuDevice {
         ksk: HpuLweKeyswitchKeyView<u64>,
         gen_lut: &F,
     ) where
-        F: Fn(&HpuParameters, &crate::asm::Pbs) -> HpuGlweLookuptableOwned<u64> + Sync,
+        F: Fn(&HpuParameters, &asm::Pbs) -> HpuGlweLookuptableOwned<u64> + Sync,
     {
         self.cluster.par_iter().for_each(|(_id, node)| {
             let mut node_lock = node.lock().expect("Error with backend mutex");
@@ -63,6 +65,30 @@ impl HpuDevice {
             // Init MHDMA
             node_lock.mhdma_cfg();
         })
+    }
+
+    /// Register a new dynamic fw entry in each nodes
+    pub fn fw_dyn(
+        &self,
+        hash: ZhcStreamHash,
+        stream: ZhcStream,
+        proto: asm::IOpProto,
+    ) -> Result<asm::IOpcode, CacheError> {
+        let iops = self
+            .cluster
+            .par_iter()
+            .map(|(_id, node)| {
+                let mut node_lock = node.lock().expect("Error with backend mutex");
+                node_lock.fw_dyn(hash.clone(), stream.clone(), proto.clone())
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let all_match = iops.windows(2).all(|w| w[0] == w[1]);
+        if !all_match {
+            Err(CacheError::UnsyncView)
+        } else {
+            Ok(iops[0])
+        }
     }
 }
 

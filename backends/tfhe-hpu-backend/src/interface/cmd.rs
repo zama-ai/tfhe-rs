@@ -2,7 +2,7 @@
 //! Track IOp status and handle backward update of associated HpuVariable
 use super::*;
 use crate::asm::iop::{IOpMapping, Immediate, Operand, OperandKind};
-use crate::asm::{IOp, IOpId, IOpcode};
+use crate::asm::{FwMode, IOp, IOpId, IOpcode};
 use variable::HpuVarWrapped;
 
 use std::sync::atomic;
@@ -26,6 +26,7 @@ pub struct HpuCmd {
 impl HpuCmd {
     fn new(
         map: IOpMapping,
+        fw_mode: FwMode,
         opcode: IOpcode,
         iid: IOpId,
         dst: &[HpuVarWrapped],
@@ -90,7 +91,7 @@ impl HpuCmd {
             .map(|var| Immediate::from_cst(*var))
             .collect::<Vec<_>>();
 
-        let op = IOp::new(opcode, map, dst_op, src_op, imm_op);
+        let op = IOp::new(fw_mode, opcode, map, dst_op, src_op, imm_op);
 
         // Update HpuVar state and keep track for lifetime enforcement
         // i.e. Prevent release of associated variable while IOp is pending
@@ -113,13 +114,14 @@ impl HpuCmd {
 
     pub fn new_wrapped(
         map: IOpMapping,
+        fw_mode: FwMode,
         opcode: IOpcode,
         iop_id: IOpId,
         dst: &[HpuVarWrapped],
         src: &[HpuVarWrapped],
         imm: &[HpuImm],
     ) -> Arc<Self> {
-        Arc::new(Self::new(map, opcode, iop_id, dst, src, imm))
+        Arc::new(Self::new(map, fw_mode, opcode, iop_id, dst, src, imm))
     }
 
     pub fn op(&self) -> &IOp {
@@ -131,6 +133,7 @@ impl HpuCmd {
 impl HpuCmd {
     pub fn exec_raw(
         proto: &crate::asm::iop::IOpProto,
+        fw_mode: crate::asm::FwMode,
         opcode: crate::asm::IOpcode,
         dst: &[HpuVarWrapped],
         rhs_ct: &[HpuVarWrapped],
@@ -149,7 +152,7 @@ impl HpuCmd {
         let iop_id = cluster.gen_iop_id();
 
         // Create associated command
-        let cmd = Self::new_wrapped(map.clone(), opcode, iop_id, dst, rhs_ct, rhs_imm);
+        let cmd = Self::new_wrapped(map.clone(), fw_mode, opcode, iop_id, dst, rhs_ct, rhs_imm);
 
         // Update cluster workload
         // _NB_: Done here to prevent bg_polling delay in workload update
@@ -167,6 +170,7 @@ impl HpuCmd {
 
     pub fn exec(
         proto: &crate::asm::iop::IOpProto,
+        fw_mode: crate::asm::FwMode,
         opcode: crate::asm::IOpcode,
         rhs_ct: &[HpuVarWrapped],
         rhs_imm: &[HpuImm],
@@ -179,12 +183,13 @@ impl HpuCmd {
             .iter()
             .map(|m| rhs_ct[0].fork(*m, pos))
             .collect::<Vec<_>>();
-        Self::exec_raw(proto, opcode, &dst, rhs_ct, rhs_imm);
+        Self::exec_raw(proto, fw_mode, opcode, &dst, rhs_ct, rhs_imm);
         dst
     }
 
     pub fn exec_assign(
         proto: &crate::asm::iop::IOpProto,
+        fw_mode: crate::asm::FwMode,
         opcode: crate::asm::IOpcode,
         rhs_ct: &[HpuVarWrapped],
         rhs_imm: &[HpuImm],
@@ -199,6 +204,6 @@ impl HpuCmd {
                 v.clone()
             })
             .collect::<Vec<_>>();
-        Self::exec_raw(proto, opcode, &dst, rhs_ct, rhs_imm);
+        Self::exec_raw(proto, fw_mode, opcode, &dst, rhs_ct, rhs_imm);
     }
 }
