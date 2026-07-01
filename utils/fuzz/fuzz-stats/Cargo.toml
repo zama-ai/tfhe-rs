@@ -1,11 +1,13 @@
 [package]
-name = "tfhe-backward-compat-checker"
+name = "fuzz-stats"
 version = "0.1.0"
 edition = "2024"
-rust-version.workspace = true
 publish = false
 
 [dependencies]
+tfhe = { path = "../../../tfhe", features = ["zk-pok", "integer"] }
+fuzz-utils = { path = "../fuzz-utils" }
+rayon = { workspace = true }
 clap = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

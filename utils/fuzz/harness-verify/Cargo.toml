@@ -1,0 +1,12 @@
+[package]
+name = "harness-verify"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+tfhe = { path = "../../../tfhe", features = ["zk-pok", "integer"] }
+fuzz-utils = { path = "../fuzz-utils" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }
