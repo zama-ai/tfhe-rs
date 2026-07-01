@@ -65,7 +65,7 @@ fn oprf_any_range_bench(c: &mut Criterion, cks: &ClientKey) {
     let bench_type = get_bench_type();
 
     for excluded_upper_bound in [3, 52] {
-        let bound_type = format!("bound_{excluded_upper_bound}",);
+        let bound_type = format!("bound_{excluded_upper_bound}");
         let benchmark_spec = BenchmarkSpec::new_hlapi(
             hlapi_op,
             &param_name,
@@ -147,7 +147,7 @@ fn oprf_any_range_rerand_bench(c: &mut Criterion, cks: &ClientKey) {
     let bench_type = get_bench_type();
 
     for excluded_upper_bound in [3, 52] {
-        let bound_type = format!("bound_{excluded_upper_bound}",);
+        let bound_type = format!("bound_{excluded_upper_bound}");
         let benchmark_spec = BenchmarkSpec::new_hlapi(
             hlapi_op,
             &param_name,
@@ -173,7 +173,8 @@ fn oprf_any_range_rerand_bench(c: &mut Criterion, cks: &ClientKey) {
                                 None,
                                 ReRandomizationMode::UseAvailableMode,
                                 ReRandomizationHashAlgo::Blake3,
-                            ),
+                            )
+                            .unwrap(),
                         );
                     })
                 });
