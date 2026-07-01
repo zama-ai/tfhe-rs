@@ -397,6 +397,13 @@ impl integer::CompressedCompactPublicKey {
         let shortint_pk = shortint::CompactPublicKey::from_raw_parts(pk, shortint_cpk.parameters);
         integer::CompactPublicKey::from_raw_parts(shortint_pk)
     }
+
+    pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        generator.skip(self.key.key.decompression_fork_config(Uniform).byte_count());
+    }
 }
 
 impl CompressedCompactPublicKey {
@@ -426,6 +433,13 @@ impl CompressedCompactPublicKey {
     {
         let integer_pk = self.key.key.decompress_with_pre_seeded_generator(generator);
         CompactPublicKey::from_raw_parts(integer_pk, self.tag.clone())
+    }
+
+    pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        self.key.key.advance_generator(generator);
     }
 }
 
@@ -588,6 +602,18 @@ impl integer::compression_keys::CompressedCompressionKey {
             },
         }
     }
+
+    pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        generator.skip(
+            self.key
+                .packing_key_switching_key
+                .decompression_fork_config(Uniform)
+                .byte_count(),
+        );
+    }
 }
 
 impl integer::compression_keys::CompressedDecompressionKey {
@@ -678,6 +704,13 @@ impl integer::compression_keys::CompressedDecompressionKey {
             bsk: bsk.decompress_with_pre_seeded_generator(generator),
             lwe_per_glwe,
         }
+    }
+
+    pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        self.key.bsk.advance_generator(generator);
     }
 }
 
@@ -882,6 +915,24 @@ impl CompressedNoiseSquashingKey {
             self.key.carry_modulus(),
             self.key.output_ciphertext_modulus(),
         )
+    }
+
+    pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        match self.key.atomic_pattern() {
+            CompressedAtomicPatternNoiseSquashingKey::Standard(compressed_std) => {
+                compressed_std
+                    .bootstrapping_key()
+                    .advance_generator(generator);
+            }
+            CompressedAtomicPatternNoiseSquashingKey::KeySwitch32(compressed_ks32) => {
+                compressed_ks32
+                    .bootstrapping_key()
+                    .advance_generator(generator);
+            }
+        }
     }
 }
 
@@ -1134,6 +1185,19 @@ impl CompressedKS32AtomicPatternServerKey {
             ciphertext_modulus: self.bootstrapping_key().ciphertext_modulus(),
         }
     }
+
+    pub(super) fn advance_generator<Gen>(&self, mask_generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        mask_generator.skip(
+            self.key_switching_key()
+                .as_seeded_lwe_ciphertext_list()
+                .decompression_fork_config(Uniform)
+                .byte_count(),
+        );
+        self.bootstrapping_key().advance_generator(mask_generator);
+    }
 }
 
 impl KS32AtomicPatternClientKey {
@@ -1229,6 +1293,16 @@ impl CompressedAtomicPatternServerKey {
             ),
         }
     }
+
+    pub(super) fn advance_generator<Gen>(&self, mask_generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        match self {
+            Self::Standard(std_ap) => std_ap.advance_generator(mask_generator),
+            Self::KeySwitch32(ks32_ap) => ks32_ap.advance_generator(mask_generator),
+        }
+    }
 }
 
 impl<ModSwitchScalar> ShortintCompressedBootstrappingKey<ModSwitchScalar>
@@ -1285,6 +1359,27 @@ where
             }
         }
     }
+
+    fn advance_generator<Gen>(&self, mask_generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        match self {
+            Self::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key,
+            } => {
+                mask_generator.skip(bsk.decompression_fork_config(Uniform).byte_count());
+                modulus_switch_noise_reduction_key.advance_generator(mask_generator);
+            }
+            Self::MultiBit {
+                seeded_bsk,
+                deterministic_execution: _,
+            } => {
+                mask_generator.skip(seeded_bsk.decompression_fork_config(Uniform).byte_count());
+            }
+        }
+    }
 }
 
 impl<ModSwitchScalar> CompressedShortint128BootstrappingKey<ModSwitchScalar>
@@ -1329,6 +1424,28 @@ where
                     thread_count: *thread_count,
                     deterministic_execution: true,
                 }
+            }
+        }
+    }
+
+    fn advance_generator<Gen>(&self, mask_generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        match self {
+            Self::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key,
+            } => {
+                mask_generator.skip(bsk.decompression_fork_config(Uniform).byte_count());
+                modulus_switch_noise_reduction_key.advance_generator(mask_generator);
+            }
+            Self::MultiBit {
+                bsk,
+                thread_count: _,
+                deterministic_execution: _,
+            } => {
+                mask_generator.skip(bsk.decompression_fork_config(Uniform).byte_count());
             }
         }
     }
@@ -1441,6 +1558,19 @@ impl CompressedStandardAtomicPatternServerKey {
             pbs_order: self.pbs_order(),
         }
     }
+
+    pub(super) fn advance_generator<Gen>(&self, mask_generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        mask_generator.skip(
+            self.key_switching_key()
+                .as_seeded_lwe_ciphertext_list()
+                .decompression_fork_config(Uniform)
+                .byte_count(),
+        );
+        self.bootstrapping_key().advance_generator(mask_generator);
+    }
 }
 
 impl CompressedNoiseSquashingCompressionKey {
@@ -1507,6 +1637,18 @@ impl CompressedNoiseSquashingCompressionKey {
             ),
         }
     }
+
+    pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        generator.skip(
+            self.key
+                .packing_key_switching_key
+                .decompression_fork_config(Uniform)
+                .byte_count(),
+        );
+    }
 }
 impl CompressedKeySwitchingKeyMaterial {
     pub(super) fn decompress_with_pre_seeded_generator<Gen>(
@@ -1538,6 +1680,36 @@ impl CompressedKeySwitchingKeyMaterial {
             destination_atomic_pattern: self.material.destination_atomic_pattern,
         };
         KeySwitchingKeyMaterial::from_raw_parts(shortint_cpk_ksk)
+    }
+
+    pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        generator.skip(
+            self.material
+                .key_switching_key
+                .as_seeded_lwe_ciphertext_list()
+                .decompression_fork_config(Uniform)
+                .byte_count(),
+        );
+    }
+}
+
+impl CompressedReRandomizationKey {
+    pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        match self {
+            Self::LegacyDedicatedCPK { ksk } => match ksk {
+                CompressedReRandomizationKeySwitchingKey::UseCPKEncryptionKSK => {}
+                CompressedReRandomizationKeySwitchingKey::DedicatedKSK(key) => {
+                    key.advance_generator(generator);
+                }
+            },
+            Self::DerivedCPKWithoutKeySwitch { cpk } => cpk.advance_generator(generator),
+        }
     }
 }
 
@@ -1669,6 +1841,17 @@ where
             ms_input_variance: self.ms_input_variance,
         }
     }
+
+    pub(crate) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        generator.skip(
+            self.modulus_switch_zeros
+                .decompression_fork_config(Uniform)
+                .byte_count(),
+        );
+    }
 }
 
 impl<Scalar> CompressedModulusSwitchConfiguration<Scalar>
@@ -1731,6 +1914,16 @@ where
                     key.decompress_with_pre_seeded_generator(generator),
                 )
             }
+        }
+    }
+
+    pub(crate) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
+    where
+        Gen: ByteRandomGenerator,
+    {
+        match self {
+            Self::Standard | Self::CenteredMeanNoiseReduction => {}
+            Self::DriftTechniqueNoiseReduction(key) => key.advance_generator(generator),
         }
     }
 }

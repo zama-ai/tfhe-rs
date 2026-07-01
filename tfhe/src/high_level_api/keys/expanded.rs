@@ -47,15 +47,96 @@ pub struct IntegerExpandedServerKey {
     pub oprf_key: Option<ExpandedOprfServerKey>,
 }
 
+/// Convert an expanded (standard-domain) compute server key to its CPU (Fourier-domain) form.
+pub(crate) fn compute_key_to_cpu(
+    compute_key: ShortintExpandedServerKey,
+) -> crate::integer::ServerKey {
+    use crate::shortint::atomic_pattern::{
+        AtomicPatternServerKey, KS32AtomicPatternServerKey, StandardAtomicPatternServerKey,
+    };
+
+    let atomic_pattern_key = match compute_key.atomic_pattern {
+        ExpandedAtomicPatternServerKey::Standard(std_ap) => {
+            let ExpandedStandardAtomicPatternServerKey {
+                key_switching_key,
+                bootstrapping_key,
+                pbs_order,
+            } = std_ap;
+            AtomicPatternServerKey::Standard(StandardAtomicPatternServerKey {
+                key_switching_key,
+                bootstrapping_key: bootstrapping_key.into_fourier(),
+                pbs_order,
+            })
+        }
+        ExpandedAtomicPatternServerKey::KeySwitch32(ks32_ap) => {
+            let ExpandedKS32AtomicPatternServerKey {
+                key_switching_key,
+                bootstrapping_key,
+                ciphertext_modulus,
+            } = ks32_ap;
+            AtomicPatternServerKey::KeySwitch32(KS32AtomicPatternServerKey {
+                key_switching_key,
+                bootstrapping_key: bootstrapping_key.into_fourier(),
+                ciphertext_modulus,
+            })
+        }
+    };
+
+    crate::integer::ServerKey::from_raw_parts(crate::shortint::ServerKey::from_raw_parts(
+        atomic_pattern_key,
+        compute_key.message_modulus,
+        compute_key.carry_modulus,
+        compute_key.max_degree,
+        compute_key.max_noise_level,
+    ))
+}
+
+/// Convert an expanded (standard-domain) noise squashing key to its CPU (Fourier-domain) form.
+pub(crate) fn expanded_noise_squashing_key_to_cpu(
+    ns_key: ExpandedNoiseSquashingKey,
+) -> crate::integer::noise_squashing::NoiseSquashingKey {
+    use crate::shortint::noise_squashing::atomic_pattern::ks32::KS32AtomicPatternNoiseSquashingKey;
+    use crate::shortint::noise_squashing::atomic_pattern::standard::StandardAtomicPatternNoiseSquashingKey;
+    use crate::shortint::noise_squashing::atomic_pattern::AtomicPatternNoiseSquashingKey;
+
+    let (ap, msg_mod, carry_mod, ct_mod) = ns_key.into_raw_parts();
+    let ap = match ap {
+        ExpandedAtomicPatternNoiseSquashingKey::Standard(bootstrapping_key) => {
+            AtomicPatternNoiseSquashingKey::Standard(
+                StandardAtomicPatternNoiseSquashingKey::from_raw_parts(
+                    bootstrapping_key.into_fourier(),
+                ),
+            )
+        }
+        ExpandedAtomicPatternNoiseSquashingKey::KeySwitch32(bootstrapping_key) => {
+            AtomicPatternNoiseSquashingKey::KeySwitch32(
+                KS32AtomicPatternNoiseSquashingKey::from_raw_parts(
+                    bootstrapping_key.into_fourier(),
+                ),
+            )
+        }
+    };
+    crate::integer::noise_squashing::NoiseSquashingKey::from_raw_parts(
+        crate::shortint::noise_squashing::NoiseSquashingKey::from_raw_parts(
+            ap, msg_mod, carry_mod, ct_mod,
+        ),
+    )
+}
+
+/// Convert an expanded (standard-domain) decompression key to its CPU (Fourier-domain) form.
+pub(crate) fn expanded_decompression_key_to_cpu(
+    key: ExpandedDecompressionKey,
+) -> crate::integer::compression_keys::DecompressionKey {
+    let ExpandedDecompressionKey { bsk, lwe_per_glwe } = key;
+    let bsk = bsk.into_fourier();
+    crate::integer::compression_keys::DecompressionKey::from_raw_parts(
+        crate::shortint::list_compression::DecompressionKey { bsk, lwe_per_glwe },
+    )
+}
+
 impl IntegerExpandedServerKey {
     pub fn convert_to_cpu(self) -> crate::high_level_api::keys::IntegerServerKey {
         use crate::high_level_api::keys::IntegerServerKey;
-        use crate::shortint::atomic_pattern::{
-            AtomicPatternServerKey, KS32AtomicPatternServerKey, StandardAtomicPatternServerKey,
-        };
-        use crate::shortint::noise_squashing::atomic_pattern::ks32::KS32AtomicPatternNoiseSquashingKey;
-        use crate::shortint::noise_squashing::atomic_pattern::standard::StandardAtomicPatternNoiseSquashingKey;
-        use crate::shortint::noise_squashing::atomic_pattern::AtomicPatternNoiseSquashingKey;
 
         let Self {
             compute_key,
@@ -68,90 +149,15 @@ impl IntegerExpandedServerKey {
             oprf_key,
         } = self;
 
-        let atomic_pattern_key = match compute_key.atomic_pattern {
-            ExpandedAtomicPatternServerKey::Standard(std_ap) => {
-                let ExpandedStandardAtomicPatternServerKey {
-                    key_switching_key,
-                    bootstrapping_key,
-                    pbs_order,
-                } = std_ap;
-
-                let bootstrapping_key = bootstrapping_key.into_fourier();
-
-                AtomicPatternServerKey::Standard(StandardAtomicPatternServerKey {
-                    key_switching_key,
-                    bootstrapping_key,
-                    pbs_order,
-                })
-            }
-            ExpandedAtomicPatternServerKey::KeySwitch32(ks32_ap) => {
-                let ExpandedKS32AtomicPatternServerKey {
-                    key_switching_key,
-                    bootstrapping_key,
-                    ciphertext_modulus,
-                } = ks32_ap;
-
-                let bootstrapping_key = bootstrapping_key.into_fourier();
-
-                AtomicPatternServerKey::KeySwitch32(KS32AtomicPatternServerKey {
-                    key_switching_key,
-                    bootstrapping_key,
-                    ciphertext_modulus,
-                })
-            }
-        };
-
-        let key =
-            crate::integer::ServerKey::from_raw_parts(crate::shortint::ServerKey::from_raw_parts(
-                atomic_pattern_key,
-                compute_key.message_modulus,
-                compute_key.carry_modulus,
-                compute_key.max_degree,
-                compute_key.max_noise_level,
-            ));
-
-        let noise_squashing_key = noise_squashing_key.map(|ns_key| {
-            let (ap, msg_mod, carry_mod, ct_mod) = ns_key.into_raw_parts();
-            let ap = match ap {
-                ExpandedAtomicPatternNoiseSquashingKey::Standard(bootstrapping_key) => {
-                    let bootstrapping_key = bootstrapping_key.into_fourier();
-                    AtomicPatternNoiseSquashingKey::Standard(
-                        StandardAtomicPatternNoiseSquashingKey::from_raw_parts(bootstrapping_key),
-                    )
-                }
-                ExpandedAtomicPatternNoiseSquashingKey::KeySwitch32(bootstrapping_key) => {
-                    let bootstrapping_key = bootstrapping_key.into_fourier();
-                    AtomicPatternNoiseSquashingKey::KeySwitch32(
-                        KS32AtomicPatternNoiseSquashingKey::from_raw_parts(bootstrapping_key),
-                    )
-                }
-            };
-            crate::integer::noise_squashing::NoiseSquashingKey::from_raw_parts(
-                crate::shortint::noise_squashing::NoiseSquashingKey::from_raw_parts(
-                    ap, msg_mod, carry_mod, ct_mod,
-                ),
-            )
-        });
-
-        let decompression_key = decompression_key.map(|key| {
-            let ExpandedDecompressionKey { bsk, lwe_per_glwe } = key;
-            let bsk = bsk.into_fourier();
-            crate::integer::compression_keys::DecompressionKey::from_raw_parts(
-                crate::shortint::list_compression::DecompressionKey { bsk, lwe_per_glwe },
-            )
-        });
-
-        let oprf_key = oprf_key.map(|oprf_key| oprf_key.to_fourier());
-
         IntegerServerKey {
-            key,
+            key: compute_key_to_cpu(compute_key),
             cpk_key_switching_key_material,
             compression_key,
-            decompression_key,
-            noise_squashing_key,
+            decompression_key: decompression_key.map(expanded_decompression_key_to_cpu),
+            noise_squashing_key: noise_squashing_key.map(expanded_noise_squashing_key_to_cpu),
             noise_squashing_compression_key,
             cpk_re_randomization_key,
-            oprf_key,
+            oprf_key: oprf_key.map(|oprf_key| oprf_key.to_fourier()),
         }
     }
 }

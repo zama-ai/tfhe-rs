@@ -3,8 +3,10 @@
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::backward_compatibility::entities::seeded_lwe_packing_keyswitch_key::SeededLwePackingKeyswitchKeyVersions;
-use crate::core_crypto::commons::generators::MaskRandomGenerator;
-use crate::core_crypto::commons::math::random::{CompressionSeed, DefaultRandomGenerator};
+use crate::core_crypto::commons::generators::{MaskRandomGenerator, MaskRandomGeneratorForkConfig};
+use crate::core_crypto::commons::math::random::{
+    CompressionSeed, DefaultRandomGenerator, Distribution, RandomGenerable,
+};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -347,6 +349,31 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
 
     pub fn ciphertext_modulus(&self) -> CiphertextModulus<C::Element> {
         self.ciphertext_modulus
+    }
+
+    /// Mask generator fork configuration consumed when decompressing this key.
+    pub fn decompression_fork_config<MaskDistribution>(
+        &self,
+        mask_distribution: MaskDistribution,
+    ) -> MaskRandomGeneratorForkConfig
+    where
+        MaskDistribution: Distribution,
+        Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
+    {
+        let glwe_list = self.as_seeded_glwe_ciphertext_list();
+        let per_glwe_mask_sample_count = glwe_ciphertext_encryption_mask_sample_count(
+            glwe_list.glwe_size().to_glwe_dimension(),
+            glwe_list.polynomial_size(),
+        );
+        let total_mask_sample_count = EncryptionMaskSampleCount(
+            glwe_list.glwe_ciphertext_count().0 * per_glwe_mask_sample_count.0,
+        );
+
+        let modulus = self
+            .ciphertext_modulus()
+            .get_custom_modulus_as_optional_scalar();
+
+        MaskRandomGeneratorForkConfig::new(1, total_mask_sample_count, mask_distribution, modulus)
     }
 }
 
