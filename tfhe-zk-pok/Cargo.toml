@@ -40,7 +40,7 @@ cross-origin-wasm = ["dep:wasm-par-mq"]
 gpu = ["dep:zk-cuda-backend", "dep:tfhe-cuda-common"]
 
 [dev-dependencies]
-serde_json = "~1.0"
+serde_json = { workspace = true }
 itertools = { workspace = true }
 bincode = { workspace = true }
 criterion = { workspace = true }
