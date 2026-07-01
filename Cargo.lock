@@ -25,6 +25,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "afl"
+version = "0.18.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97f234ba65eadcb51ea4e5c33dfdf05d6c512e297b4fb8fd31159e2dac4e7cc8"
+dependencies = [
+ "home",
+ "libc",
+ "rustc_version",
+ "xdg",
+]
+
+[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -728,6 +740,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
+name = "corpusgen"
+version = "0.1.0"
+dependencies = [
+ "fuzz-utils",
+ "tfhe",
+]
+
+[[package]]
 name = "cpu-time"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1223,6 +1243,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "fuzz-stats"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "fuzz-utils",
+ "rayon",
+ "serde",
+ "serde_json",
+ "tfhe",
+]
+
+[[package]]
+name = "fuzz-utils"
+version = "0.1.0"
+dependencies = [
+ "afl",
+ "tfhe",
+]
+
+[[package]]
 name = "gag"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1332,6 +1372,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "harness-compute"
+version = "0.1.0"
+dependencies = [
+ "fuzz-utils",
+ "tfhe",
+]
+
+[[package]]
+name = "harness-deser"
+version = "0.1.0"
+dependencies = [
+ "fuzz-utils",
+ "tfhe",
+]
+
+[[package]]
+name = "harness-verify"
+version = "0.1.0"
+dependencies = [
+ "fuzz-utils",
+ "tfhe",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1381,6 +1445,15 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
+name = "home"
+version = "0.5.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc627f471c528ff0c4a49e1d5e60450c8f6461dd6d10ba9dcd3a61d3dff7728d"
+dependencies = [
+ "windows-sys",
+]
 
 [[package]]
 name = "humansize"
@@ -4048,6 +4121,12 @@ dependencies = [
  "unicode-xid",
  "wasmparser",
 ]
+
+[[package]]
+name = "xdg"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2fb433233f2df9344722454bc7e96465c9d03bff9d77c248f9e7523fe79585b5"
 
 [[package]]
 name = "zerocopy"

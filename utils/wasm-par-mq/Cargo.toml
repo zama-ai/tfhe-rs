@@ -55,7 +55,7 @@ web-sys = { version = "0.3", features = [
 js-sys = { workspace = true }
 postcard2 = { version = "0.2", features = ["alloc"] }
 serde = { workspace = true, features = ["default", "derive"] }
-serde_json = "1.0"
+serde_json = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
 futures = "0.3"
 paste = { workspace = true }
