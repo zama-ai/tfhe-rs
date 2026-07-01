@@ -3,15 +3,52 @@
 //! Handle lifetime management, deallocation and state inside HpuDevice.
 
 use super::*;
+use crate::asm::dop::MAX_HPU_IN_CLUSTER;
 use crate::asm::iop::VarMode;
 use crate::asm::{IOpId, PhysId, SW_IOP_ID};
 use crate::entities::{HpuLweCiphertextOwned, HpuParameters};
+use std::sync::atomic;
 use std::sync::{Arc, Mutex};
 
 pub(crate) struct HpuVar {
     bundle: memory::CiphertextBundle,
     pending: usize,
     iid: IOpId,
+    // Use to kept track of allocation load
+    hpu_id: u8,
+    memload: Arc<[atomic::AtomicUsize; MAX_HPU_IN_CLUSTER]>,
+}
+
+impl HpuVar {
+    fn new(
+        bundle: memory::CiphertextBundle,
+        hpu_id: PhysId,
+        memload: Arc<[atomic::AtomicUsize; MAX_HPU_IN_CLUSTER]>,
+    ) -> Self {
+        // Update memload
+        memload[hpu_id.0 as usize].fetch_add(bundle.len(), atomic::Ordering::SeqCst);
+
+        Self {
+            bundle,
+            pending: 0,
+            iid: SW_IOP_ID,
+            hpu_id: hpu_id.0,
+            memload,
+        }
+    }
+}
+impl Drop for HpuVar {
+    fn drop(&mut self) {
+        let Self {
+            hpu_id,
+            memload,
+            bundle,
+            ..
+        } = self;
+
+        // Update memload
+        memload[*hpu_id as usize].fetch_sub(bundle.len(), atomic::Ordering::SeqCst);
+    }
 }
 
 impl std::fmt::Debug for HpuVar {
@@ -75,6 +112,7 @@ impl HpuVarWrapped {
     ) -> Self {
         let pool = &cluster.get(&hpu_id.0).expect("Invalid Hpu Id").ct_mem;
         let bundle = pool.get_bundle(width);
+        let memload = cluster.memload.clone();
 
         Self {
             id: *bundle.id(),
@@ -83,11 +121,7 @@ impl HpuVarWrapped {
             mode,
             hpu_id,
             parent: cluster,
-            inner: Arc::new(Mutex::new(HpuVar {
-                bundle,
-                pending: 0,
-                iid: SW_IOP_ID,
-            })),
+            inner: Arc::new(Mutex::new(HpuVar::new(bundle, hpu_id, memload))),
         }
     }
 

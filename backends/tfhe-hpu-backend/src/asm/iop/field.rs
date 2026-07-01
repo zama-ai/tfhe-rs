@@ -458,20 +458,19 @@ impl std::ops::Deref for IOpMapping {
 }
 
 /// Construct IOpMapping from a vector of hpu_id
-impl From<Vec<u8>> for IOpMapping {
-    fn from(value: Vec<u8>) -> Self {
-        let pid = value.into_iter().map(PhysId).collect::<Vec<_>>();
-        if pid.len() > MAX_HPU_IN_CLUSTER {
-            Self::new(&pid[0..MAX_HPU_IN_CLUSTER])
+impl From<Vec<PhysId>> for IOpMapping {
+    fn from(value: Vec<PhysId>) -> Self {
+        if value.len() > MAX_HPU_IN_CLUSTER {
+            Self::new(&value[0..MAX_HPU_IN_CLUSTER])
         } else {
-            Self::new(&pid)
+            Self::new(&value)
         }
     }
 }
 
 /// Construct IOpMapping from a vector of hpu_id and IOp NodesMap definition
-impl From<(Vec<u8>, &NodesMap)> for IOpMapping {
-    fn from(value: (Vec<u8>, &NodesMap)) -> Self {
+impl From<(Vec<PhysId>, &NodesMap)> for IOpMapping {
+    fn from(value: (Vec<PhysId>, &NodesMap)) -> Self {
         let (val, nodes_map) = value;
         let mut raw = Self::from(val);
         let used_nodes = nodes_map.get_nodes(raw.0.len() as u8);

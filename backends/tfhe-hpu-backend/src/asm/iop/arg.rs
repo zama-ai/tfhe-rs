@@ -272,7 +272,7 @@ impl std::str::FromStr for IOpMapping {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let specified_map = s
             .split(',')
-            .map(|id| id.trim().parse::<u8>())
+            .map(|id| id.trim().parse::<u8>().map(PhysId))
             .collect::<Result<Vec<_>, std::num::ParseIntError>>()
             .map_err(|x| Box::new(ParsingError::InvalidArg(format!("{x:?}"))))?;
 
