@@ -4,7 +4,8 @@ use criterion::Criterion;
 pub mod cuda {
     use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     use benchmark::utilities::{write_to_json_unchecked, OperatorType};
-    use criterion::{black_box, criterion_group, Criterion};
+    use criterion::{criterion_group, Criterion};
+    use std::hint::black_box;
     use tfhe::core_crypto::gpu::{check_valid_cuda_malloc, CudaStreams};
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::CudaServerKey;

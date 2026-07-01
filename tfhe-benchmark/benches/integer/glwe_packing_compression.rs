@@ -1,8 +1,9 @@
 use benchmark::params_aliases::*;
 use benchmark::utilities::{write_to_json_unchecked, BitSizesSet, EnvConfig, OperatorType};
 use benchmark_spec::{get_bench_type, BenchmarkType};
-use criterion::{black_box, criterion_group, Criterion, Throughput};
+use criterion::{criterion_group, Criterion, Throughput};
 use rayon::prelude::*;
+use std::hint::black_box;
 use tfhe::integer::ciphertext::CompressedCiphertextListBuilder;
 use tfhe::integer::{ClientKey, RadixCiphertext};
 use tfhe::keycache::NamedParam;

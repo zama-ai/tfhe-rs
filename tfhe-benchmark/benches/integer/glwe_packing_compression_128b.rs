@@ -4,8 +4,9 @@ mod cuda {
     use benchmark::utilities::cuda_integer_utils::cuda_local_streams;
     use benchmark::utilities::{cuda_local_keys, write_to_json_unchecked, OperatorType};
     use benchmark_spec::{get_bench_type, BenchmarkType};
-    use criterion::{black_box, criterion_group, Criterion, Throughput};
+    use criterion::{criterion_group, Criterion, Throughput};
     use rayon::prelude::*;
+    use std::hint::black_box;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::ciphertext::{
         NoiseSquashingCompressionKey, NoiseSquashingCompressionPrivateKey,

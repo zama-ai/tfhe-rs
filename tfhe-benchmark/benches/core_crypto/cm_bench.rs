@@ -1,6 +1,7 @@
 use cm_fft64::programmable_bootstrap_cm_lwe_ciphertext;
-use criterion::{black_box, criterion_main, Criterion};
+use criterion::{criterion_main, Criterion};
 use itertools::Itertools;
+use std::hint::black_box;
 use tfhe::core_crypto::experimental::prelude::cm_lwe_keyswitch_key_generation::allocate_and_generate_new_cm_lwe_keyswitch_key;
 use tfhe::core_crypto::experimental::prelude::cm_modulus_switch_noise_reduction::improve_lwe_ciphertext_modulus_switch_noise_for_binary_key_cm;
 use tfhe::core_crypto::experimental::prelude::*;

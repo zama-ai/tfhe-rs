@@ -2994,7 +2994,8 @@ use cuda::{
 #[cfg(feature = "hpu")]
 mod hpu {
     use super::*;
-    use criterion::{black_box, criterion_group};
+    use criterion::criterion_group;
+    use std::hint::black_box;
     use tfhe::integer::hpu::ciphertext::HpuRadixCiphertext;
     use tfhe::prelude::CastFrom;
     use tfhe::tfhe_hpu_backend::prelude::*;

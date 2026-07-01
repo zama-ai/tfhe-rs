@@ -19,7 +19,7 @@ bincode = { workspace = true }
 # clap has to be pinned as its minimum supported rust version
 # changes often between minor releases, which breaks our CI
 clap = { version = "=4.6.1", features = ["derive"] }
-criterion = "0.5.1"
+criterion = "0.8.2"
 dyn-stack = { workspace = true, features = ["default"] }
 itertools = "0.14"
 serde = { version = "1.0", default-features = false }
