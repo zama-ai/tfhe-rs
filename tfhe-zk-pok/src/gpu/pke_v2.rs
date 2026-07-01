@@ -1114,7 +1114,7 @@ fn verify_impl(
         return Err(());
     }
 
-    if a.len() != d || b.len() != d {
+    if a.len() != d || b.len() != d || c1.len() != d {
         return Err(());
     }
 
