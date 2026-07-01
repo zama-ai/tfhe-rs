@@ -160,12 +160,11 @@ jobs:
           echo "using ${HPU_NUMBER} HPU"
           # to get available list of boards
           . /etc/profile.d/v80_pcie_dev.sh
-          sudo -n /usr/sbin/rmmod ami; echo "exit: $?"
           # to modify hpu_config.toml to use only selected number of HPU
           # will fail at start of backend if requesting more than available HPU
           ids=$(seq -s, 0 $((HPU_NUMBER - 1))) && sed -i "s/^  node_id=.*/  node_id=[$ids]/" backends/tfhe-hpu-backend/config_store/v80/hpu_config.toml
           make pull_hpu_files
-          make BIT_SIZES_SET="${PRECISIONS_SET}" BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" BENCH_PARAM_TYPE="${BENCH_PARAMS_TYPE}" bench_"${BENCH_COMMAND}"_hpu
+          export RUST_LOG=debug && export PATH=$PATH:/usr/local/sbin && make BIT_SIZES_SET="${PRECISIONS_SET}" BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" BENCH_PARAM_TYPE="${BENCH_PARAMS_TYPE}" bench_"${BENCH_COMMAND}"_hpu
         env:
           OP_FLAVOR: ${{ matrix.op_flavor }}
           BENCH_TYPE: ${{ matrix.bench_type }}
