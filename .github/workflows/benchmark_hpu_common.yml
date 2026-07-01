@@ -16,12 +16,12 @@ on:
       precisions_set:
         type: string
         default: fast
-      v80_pcie_dev:
+      hpu_number:
         type: string
-        default: 24
-      v80_serial_number:
+        default: 4
+      runner_target:
         type: string
-        default: XFL12NWY3ZKG
+        default: v80-marais
     secrets:
       REPO_CHECKOUT_TOKEN:
         required: true
@@ -107,7 +107,7 @@ jobs:
   hpu-benchmarks:
     name: benchmark_hpu_common/hpu-benchmarks
     needs: prepare-matrix
-    runs-on: v80-marais
+    runs-on: ${{ inputs.runner_target }}
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -151,15 +151,19 @@ jobs:
 
       - name: Select HPU board
         run: |
-          echo "V80_PCIE_DEV=${PCIE_DEV}" >> "${GITHUB_ENV}"
-          echo "V80_SERIAL_NUMBER=${SERIAL_NUMBER}" >> "${GITHUB_ENV}"
+          echo "HPU_NUMBER=${HPU_NUMBER}" >> "${GITHUB_ENV}"
         env:
-          PCIE_DEV: ${{ inputs.v80_pcie_dev }}
-          SERIAL_NUMBER: ${{ inputs.v80_serial_number }}
+          HPU_NUMBER: ${{ inputs.hpu_number }}
 
       - name: Run benchmarks
         run: |
-          echo "${V80_PCIE_DEV} ${V80_SERIAL_NUMBER}"
+          echo "using ${HPU_NUMBER} HPU"
+          # to get available list of boards
+          . /etc/profile.d/v80_pcie_dev.sh
+          sudo -n /usr/sbin/rmmod ami; echo "exit: $?"
+          # to modify hpu_config.toml to use only selected number of HPU
+          # will fail at start of backend if requesting more than available HPU
+          ids=$(seq -s, 0 $((HPU_NUMBER - 1))) && sed -i "s/^  node_id=.*/  node_id=[$ids]/" backends/tfhe-hpu-backend/config_store/v80/hpu_config.toml
           make pull_hpu_files
           make BIT_SIZES_SET="${PRECISIONS_SET}" BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" BENCH_PARAM_TYPE="${BENCH_PARAMS_TYPE}" bench_"${BENCH_COMMAND}"_hpu
         env:
@@ -172,7 +176,7 @@ jobs:
         run: |
           cargo run --release -p tfhe-benchmark-parser -- -i target/criterion -o "${RESULTS_FILENAME}" \
           --database tfhe_rs \
-          --hardware "hpu_x1" \
+          --hardware "hpu_x${HPU_NUMBER}" \
           --backend hpu \
           --project-version "${COMMIT_HASH}" \
           --branch "${REF_NAME}" \

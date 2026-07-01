@@ -38,12 +38,12 @@ on:
           - latency
           - throughput
           - both
-      v80_pcie_dev:
-        description: "V80 PCIe device number"
-        default: 24
-      v80_serial_number:
-        description: "V80 serial number"
-        default: XFL12NWY3ZKG
+      hpu_number:
+        description: "number of hpu used"
+        default: 4
+      runner_target:
+        description: "machine used for bench"
+        default: v80-marais
 
 permissions: {}
 
@@ -58,8 +58,8 @@ jobs:
       op_flavor: ${{ inputs.op_flavor }}
       bench_type: ${{ inputs.bench_type }}
       precisions_set: ${{ inputs.precisions_set }}
-      v80_pcie_dev: ${{ inputs.v80_pcie_dev }}
-      v80_serial_number: ${{ inputs.v80_serial_number }}
+      hpu_number: ${{ inputs.hpu_number }}
+      runner_target: ${{ inputs.runner_target }}
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
