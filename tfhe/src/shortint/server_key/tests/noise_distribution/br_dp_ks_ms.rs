@@ -11,18 +11,15 @@ use super::utils::{
 };
 use super::{should_run_short_pfail_tests_debug, should_use_single_key_debug};
 use crate::core_crypto::commons::dispersion::Variance;
-use crate::core_crypto::commons::parameters::CiphertextModulusLog;
+use crate::core_crypto::commons::parameters::*;
 use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::test_params::{
-    TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
-    TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
-    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
-    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+use crate::shortint::parameters::{
+    AtomicPatternParameters, Backend, CarryModulus, ClassicPBSParameters, MaxNoiseLevel,
+    MessageModulus, MetaParameters,
 };
-use crate::shortint::parameters::{AtomicPatternParameters, CarryModulus, MetaParameters};
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
     DynLwe, NoiseSimulationModulus,
 };
@@ -192,12 +189,39 @@ fn sanity_check_encrypt_br_dp_ks_pbs(meta_params: MetaParameters, filename_suffi
     }
 }
 
-create_parameterized_stringified_test!(sanity_check_encrypt_br_dp_ks_pbs {
-    TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
-    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
-    TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
-    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
-});
+// start@w=14.97	cost ratio 1.46657	 log2 pfail -131.84
+// {'l_ks': 4, 'l_bs': 2, 'k': 1, 'N': 2048, 'n': 918, 'b_ks': 16, 'b_bs': 32768, 'bound_n_1': 45,
+// 'bound_kN_1': 17, 'bound_k_N': 17}
+pub const PARAM_NU_15: MetaParameters = MetaParameters {
+    backend: Backend::Cpu,
+    compute_parameters: AtomicPatternParameters::Standard(crate::shortint::PBSParameters::PBS(
+        ClassicPBSParameters {
+            lwe_dimension: LweDimension(918),
+            glwe_dimension: GlweDimension(1),
+            polynomial_size: PolynomialSize(2048),
+            lwe_noise_distribution: DynamicDistribution::new_t_uniform(45),
+            glwe_noise_distribution: DynamicDistribution::new_t_uniform(17),
+            pbs_base_log: DecompositionBaseLog(15),
+            pbs_level: DecompositionLevelCount(2),
+            ks_base_log: DecompositionBaseLog(4),
+            ks_level: DecompositionLevelCount(4),
+            message_modulus: MessageModulus(4),
+            carry_modulus: CarryModulus(4),
+            max_noise_level: MaxNoiseLevel::new(15),
+            log2_p_fail: -131.84,
+            ciphertext_modulus: CiphertextModulus::new_native(),
+            encryption_key_choice: EncryptionKeyChoice::Big,
+            modulus_switch_noise_reduction_params:
+                crate::shortint::prelude::ModulusSwitchType::CenteredMeanNoiseReduction,
+        },
+    )),
+    dedicated_compact_public_key_parameters: None,
+    compression_parameters: None,
+    noise_squashing_parameters: None,
+    rerand_configuration: None,
+};
+
+create_parameterized_stringified_test!(sanity_check_encrypt_br_dp_ks_pbs { PARAM_NU_15 });
 
 fn encrypt_br_dp_ks_any_ms_inner_helper(
     params: AtomicPatternParameters,
@@ -442,12 +466,7 @@ fn noise_check_encrypt_br_dp_ks_ms_noise(meta_params: MetaParameters, filename_s
     );
 }
 
-create_parameterized_stringified_test!(noise_check_encrypt_br_dp_ks_ms_noise {
-    TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
-    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
-    TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
-    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
-});
+create_parameterized_stringified_test!(noise_check_encrypt_br_dp_ks_ms_noise { PARAM_NU_15 });
 
 fn noise_check_encrypt_br_dp_ks_ms_pfail(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
@@ -513,9 +532,4 @@ fn noise_check_encrypt_br_dp_ks_ms_pfail(meta_params: MetaParameters, filename_s
     pfail_check(&pfail_test_meta, test_result, &guard);
 }
 
-create_parameterized_stringified_test!(noise_check_encrypt_br_dp_ks_ms_pfail {
-    TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128,
-    TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
-    TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
-    TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
-});
+create_parameterized_stringified_test!(noise_check_encrypt_br_dp_ks_ms_pfail { PARAM_NU_15 });
