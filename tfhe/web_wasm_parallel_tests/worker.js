@@ -193,14 +193,6 @@ async function compactPublicKeyBench32BitBig() {
   );
 }
 
-// Use an older parameter set here, since compact PK parameters for PBS_KS AP have been removed
-// in 1.7.0
-async function compactPublicKeyBench32BitSmall() {
-  return await compactPublicKeyBench32Bit(
-    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128,
-  );
-}
-
 function generateRandomBigInt(bitLen) {
   let result = BigInt(0);
   for (let i = 0; i < bitLen; i++) {
@@ -566,14 +558,6 @@ async function compactPublicKeyBench256BitBig() {
   );
 }
 
-// Use an older parameter set here, since compact PK parameters for PBS_KS AP have been removed
-// in 1.7.0
-async function compactPublicKeyBench256BitSmall() {
-  return await compactPublicKeyBench256Bit(
-    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128,
-  );
-}
-
 async function compressedServerKeyBench(params_name) {
   const bench_loops = 5;
   let bench_results = {};
@@ -772,9 +756,7 @@ async function main() {
     compressedCompactPublicKeyTest256BitBig,
     compactPublicKeyZeroKnowledgeTest,
     compactPublicKeyBench32BitBig,
-    compactPublicKeyBench32BitSmall,
     compactPublicKeyBench256BitBig,
-    compactPublicKeyBench256BitSmall,
     compactPublicKeyWithCastingTest256Bit,
     compressedCompactPublicKeyWithCastingTest256Bit,
     compressedServerKeyBenchMessage1Carry1,
