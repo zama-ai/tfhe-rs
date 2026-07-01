@@ -472,7 +472,7 @@ fn bench_transfer_throughput<FheType, F>(
 
     let mut group = c.benchmark_group(type_name);
 
-    for num_elems in [10, 100, 500] {
+    for num_elems in [40, 400, 800] {
         group.throughput(Throughput::Elements(num_elems));
         let bench_spec = BenchmarkSpec::new_hlapi(
             HlapiBench::Erc7984(erc7984_bench_spec),
@@ -701,7 +701,7 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
     let params_name = params.name();
 
     let mut group = group.benchmark_group(type_name);
-    for num_elems in [2, 8] {
+    for num_elems in [8, 16] {
         let real_num_elems = num_elems * (hpu_simd_n as u64);
         group.throughput(Throughput::Elements(real_num_elems));
         let bench_spec = BenchmarkSpec::new_hlapi(
