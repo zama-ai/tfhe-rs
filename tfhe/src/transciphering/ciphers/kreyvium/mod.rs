@@ -8,7 +8,8 @@ use super::shift_register::ShiftRegister;
 
 pub use fast_fhe::{
     FastBit, KreyviumFastEncryptedKey, KreyviumFastFheStream,
-    PARAM_KREYVIUM_1_0_KS32_TUNIFORM_2M128,
+    PARAM_KREYVIUM_1_0_KS32_TUNIFORM_K5_2M127, PARAM_KREYVIUM_1_0_KS32_TUNIFORM_K5_2M128,
+    PARAM_KREYVIUM_1_0_KS32_TUNIFORM_K7_2M128,
 };
 pub use fhe::{KreyviumEncryptedKey, KreyviumFheStream};
 pub use plain::KreyviumPlainStream;

@@ -37,8 +37,12 @@ criterion_group!(
 mod kreyvium_shortint_transciphering_fast;
 criterion_group!(
     kreyvium_shortint_transciphering_fast,
-    kreyvium_shortint_transciphering_fast::kreyvium_fast_transciphering_gen,
-    kreyvium_shortint_transciphering_fast::kreyvium_fast_transciphering_warmup
+    kreyvium_shortint_transciphering_fast::kreyvium_fast_transciphering_gen_k5_2m128,
+    kreyvium_shortint_transciphering_fast::kreyvium_fast_transciphering_warmup_k5_2m128,
+    kreyvium_shortint_transciphering_fast::kreyvium_fast_transciphering_gen_k5_2m127,
+    kreyvium_shortint_transciphering_fast::kreyvium_fast_transciphering_warmup_k5_2m127,
+    kreyvium_shortint_transciphering_fast::kreyvium_fast_transciphering_gen_k7_2m128,
+    kreyvium_shortint_transciphering_fast::kreyvium_fast_transciphering_warmup_k7_2m128,
 );
 
 mod trivium_byte;

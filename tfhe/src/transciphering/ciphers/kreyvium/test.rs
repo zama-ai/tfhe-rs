@@ -7,7 +7,7 @@ use crate::shortint::parameters::test_params::{
 use crate::shortint::prelude::*;
 use crate::transciphering::ciphers::kreyvium::{
     KreyviumEncryptedKey, KreyviumFastEncryptedKey, KreyviumFastFheStream, KreyviumFheStream,
-    KreyviumPlainStream, PARAM_KREYVIUM_1_0_KS32_TUNIFORM_2M128,
+    KreyviumPlainStream, PARAM_KREYVIUM_1_0_KS32_TUNIFORM_K7_2M128,
 };
 use crate::transciphering::{trans_cipher_2_2, StreamCipher, Transcipherer};
 
@@ -145,7 +145,7 @@ fn kreyvium_test_fhe() {
 }
 
 fn kreyvium_fast_fhe_keystream_known_answer() {
-    let (client_key, server_key) = gen_keys(PARAM_KREYVIUM_1_0_KS32_TUNIFORM_2M128);
+    let (client_key, server_key) = gen_keys(PARAM_KREYVIUM_1_0_KS32_TUNIFORM_K7_2M128);
 
     let key_bytes = hex_to_bytes_16("0053A6F94C9FF24598EB000000000000");
     let iv_bytes = hex_to_bytes_16("0D74DB42A91077DE45AC000000000000");

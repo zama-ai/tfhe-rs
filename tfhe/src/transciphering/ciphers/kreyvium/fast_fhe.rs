@@ -31,11 +31,61 @@ use super::{
 #[derive(Clone)]
 pub struct FastBit(pub Ciphertext);
 
-/// Dedicated parameter set for the fast Kreyvium pipeline: KS32 atomic
-/// pattern, TUniform noise, 132-bit security, p-fail = 2^-128.58. Encodes
-/// 1 bit of message with 1 bit of padding (Δ = q/4), matching the
-/// pipeline's native register encoding.
-pub const PARAM_KREYVIUM_1_0_KS32_TUNIFORM_2M128: KeySwitch32PBSParameters =
+// Dedicated parameter sets for the fast Kreyvium pipeline: KS32 atomic
+// pattern, TUniform noise, 132-bit security. All variants encode 1 bit of
+// message with 1 bit of padding (Δ = q/4), matching the pipeline's native
+// register encoding. The `K5`/`K7` suffix is the GLWE dimension `k` and the
+// `2M128`/`2M127` suffix rounds the reported `log2(p_fail)` down to an
+// integer.
+
+/// k=5 variant from `kreyvium_compression_params.json`: reported p-fail =
+/// 2^-128.99, PBS `(base_log=9, level=2)`, KS `(base_log=2, level=6)`.
+pub const PARAM_KREYVIUM_1_0_KS32_TUNIFORM_K5_2M128: KeySwitch32PBSParameters =
+    KeySwitch32PBSParameters {
+        lwe_dimension: LweDimension(720),
+        glwe_dimension: GlweDimension(5),
+        polynomial_size: PolynomialSize(256),
+        lwe_noise_distribution: DynamicDistribution::new_t_uniform(18),
+        glwe_noise_distribution: DynamicDistribution::new_t_uniform(36),
+        pbs_base_log: DecompositionBaseLog(9),
+        pbs_level: DecompositionLevelCount(2),
+        ks_base_log: DecompositionBaseLog(2),
+        ks_level: DecompositionLevelCount(6),
+        message_modulus: MessageModulus(2),
+        carry_modulus: CarryModulus(1),
+        max_noise_level: MaxNoiseLevel::new(14),
+        log2_p_fail: -128.99198847813602,
+        post_keyswitch_ciphertext_modulus: CiphertextModulus32::new_native(),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        modulus_switch_noise_reduction_params: ModulusSwitchType::CenteredMeanNoiseReduction,
+    };
+
+/// k=5 variant from `kreyvium_compression_params_fixed_k5.json`: same PBS/KS
+/// shape as [`PARAM_KREYVIUM_1_0_KS32_TUNIFORM_K5_2M128`] but the estimator
+/// reports p-fail = 2^-127.77 (below the 2^-128 bar — kept for comparison).
+pub const PARAM_KREYVIUM_1_0_KS32_TUNIFORM_K5_2M127: KeySwitch32PBSParameters =
+    KeySwitch32PBSParameters {
+        lwe_dimension: LweDimension(720),
+        glwe_dimension: GlweDimension(5),
+        polynomial_size: PolynomialSize(256),
+        lwe_noise_distribution: DynamicDistribution::new_t_uniform(18),
+        glwe_noise_distribution: DynamicDistribution::new_t_uniform(36),
+        pbs_base_log: DecompositionBaseLog(9),
+        pbs_level: DecompositionLevelCount(2),
+        ks_base_log: DecompositionBaseLog(2),
+        ks_level: DecompositionLevelCount(6),
+        message_modulus: MessageModulus(2),
+        carry_modulus: CarryModulus(1),
+        max_noise_level: MaxNoiseLevel::new(14),
+        log2_p_fail: -127.77219627711234,
+        post_keyswitch_ciphertext_modulus: CiphertextModulus32::new_native(),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        modulus_switch_noise_reduction_params: ModulusSwitchType::CenteredMeanNoiseReduction,
+    };
+
+/// k=7 variant from `kreyvium_compression_params_fixed_k7.json`: reported
+/// p-fail = 2^-128.58, PBS `(base_log=20, level=1)`, KS `(base_log=3, level=4)`.
+pub const PARAM_KREYVIUM_1_0_KS32_TUNIFORM_K7_2M128: KeySwitch32PBSParameters =
     KeySwitch32PBSParameters {
         lwe_dimension: LweDimension(759),
         glwe_dimension: GlweDimension(7),
@@ -134,7 +184,7 @@ impl KreyviumFastFheState {
             sk.message_modulus.0 * sk.carry_modulus.0,
             2,
             "KreyviumFastFheStream requires parameters encoding 1 bit of message with 1 bit of \
-            padding, such as PARAM_KREYVIUM_1_0_KS32_TUNIFORM_2M128 (got message modulus {}, \
+            padding, such as PARAM_KREYVIUM_1_0_KS32_TUNIFORM_K7_2M128 (got message modulus {}, \
             carry modulus {})",
             sk.message_modulus.0,
             sk.carry_modulus.0,
