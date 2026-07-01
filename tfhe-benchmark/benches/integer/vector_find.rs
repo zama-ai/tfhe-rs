@@ -1,6 +1,7 @@
 use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use benchmark::utilities::{write_to_json_unchecked, OperatorType};
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
+use std::hint::black_box;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::{IntegerKeyKind, RadixClientKey};
 use tfhe::keycache::NamedParam;

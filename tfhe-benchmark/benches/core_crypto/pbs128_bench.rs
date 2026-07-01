@@ -4,8 +4,9 @@ use benchmark::params_aliases::{
 };
 use benchmark::utilities::{write_to_json, OperatorType};
 use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, CoreCryptoBench};
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use dyn_stack::PodStack;
+use std::hint::black_box;
 use tfhe::core_crypto::fft_impl::fft128::crypto::bootstrap::bootstrap_scratch;
 use tfhe::core_crypto::prelude::*;
 use tfhe::keycache::NamedParam;
@@ -158,8 +159,9 @@ mod cuda {
         CpuKeys, CpuKeysBuilder, CudaIndexes, CudaLocalKeys, OperatorType,
     };
     use benchmark_spec::{get_bench_type, BenchmarkSpec, BenchmarkType, CoreCryptoBench};
-    use criterion::{black_box, Criterion, Throughput};
+    use criterion::{Criterion, Throughput};
     use rayon::prelude::*;
+    use std::hint::black_box;
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_bootstrap_key::CudaModulusSwitchNoiseReductionConfiguration;
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;

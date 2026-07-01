@@ -3,10 +3,11 @@ use benchmark::params::ParamsAndNumBlocksIter;
 use benchmark::utilities::throughput_num_threads;
 use benchmark::utilities::{write_to_json_unchecked, OperatorType};
 use benchmark_spec::{get_bench_type, BenchmarkType};
-use criterion::{black_box, Criterion, Throughput};
+use criterion::{Criterion, Throughput};
 use rayon::prelude::*;
 #[cfg(any(feature = "gpu", feature = "hpu"))]
 use std::cmp::max;
+use std::hint::black_box;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::oprf::{OprfPrivateKey, OprfServerKey};
 use tfhe::integer::IntegerKeyKind;
@@ -160,7 +161,7 @@ pub fn unsigned_oprf(c: &mut Criterion) {
 pub mod cuda {
     use super::*;
     use benchmark::utilities::cuda_integer_utils::cuda_local_keys;
-    use criterion::black_box;
+    use std::hint::black_box;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::gpu::server_key::CudaServerKey;
     use tfhe::integer::gpu::CudaOprfServerKey;

@@ -3,7 +3,9 @@ use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY
 #[cfg(feature = "gpu")]
 use benchmark::utilities::{configure_gpu, write_to_json_unchecked, OperatorType};
 #[cfg(feature = "gpu")]
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
+#[cfg(feature = "gpu")]
+use std::hint::black_box;
 #[cfg(feature = "gpu")]
 use tfhe::keycache::NamedParam;
 #[cfg(feature = "gpu")]

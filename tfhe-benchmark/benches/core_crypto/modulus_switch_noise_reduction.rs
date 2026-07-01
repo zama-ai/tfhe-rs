@@ -1,5 +1,6 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use modulus_switch_noise_reduction::improve_lwe_ciphertext_modulus_switch_noise_for_binary_key;
+use std::hint::black_box;
 use tfhe::core_crypto::commons::parameters::{NoiseEstimationMeasureBound, RSigmaFactor};
 use tfhe::core_crypto::prelude::*;
 

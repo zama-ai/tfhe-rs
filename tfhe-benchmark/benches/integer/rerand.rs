@@ -6,11 +6,12 @@ use benchmark::params_aliases::{
 };
 use benchmark::utilities::{write_to_json_unchecked, OperatorType};
 use benchmark_spec::{get_bench_type, BenchmarkType};
-use criterion::{black_box, criterion_group, BatchSize, Criterion, Throughput};
+use criterion::{criterion_group, BatchSize, Criterion, Throughput};
 #[cfg(feature = "gpu")]
 use cuda::gpu_re_randomize_group;
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::prelude::{IntoParallelIterator, IntoParallelRefMutIterator};
+use std::hint::black_box;
 use tfhe::integer::ciphertext::{
     CompressedCiphertextListBuilder, ReRandomizationContext, ReRandomizationKey,
 };
@@ -235,8 +236,9 @@ mod cuda {
     use benchmark::utilities::cuda_integer_utils::cuda_local_streams;
     use benchmark::utilities::{throughput_num_threads, write_to_json_unchecked, OperatorType};
     use benchmark_spec::{get_bench_type, BenchmarkType};
-    use criterion::{black_box, criterion_group, BatchSize, Criterion, Throughput};
+    use criterion::{criterion_group, BatchSize, Criterion, Throughput};
     use rayon::prelude::*;
+    use std::hint::black_box;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::ciphertext::ReRandomizationContext;
     use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;

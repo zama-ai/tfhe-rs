@@ -9,6 +9,7 @@ use rand::prelude::*;
 use rand::thread_rng;
 #[cfg(not(feature = "hpu"))]
 use rayon::prelude::*;
+use std::hint::black_box;
 #[cfg(not(feature = "hpu"))]
 use std::ops::Mul;
 use std::ops::{Add, Sub};
@@ -373,9 +374,9 @@ fn bench_transfer_latency<FheType, F>(
         b.iter(|| {
             let (new_from, new_to) = transfer_func(&from_amount, &to_amount, &amount);
             new_from.wait();
-            criterion::black_box(new_from);
+            black_box(new_from);
             new_to.wait();
-            criterion::black_box(new_to);
+            black_box(new_to);
         })
     });
 
@@ -440,7 +441,7 @@ fn bench_transfer_latency_simd<FheType, F>(
             let res = transfer_func(&from_amounts, &to_amounts, &amounts);
             for ct in res {
                 ct.wait();
-                criterion::black_box(ct);
+                black_box(ct);
             }
         })
     });
@@ -659,9 +660,9 @@ fn hpu_bench_transfer_throughput<FheType, F>(
 
                 // Wait on last result to enforce all computation is over
                 last_new_from.wait();
-                criterion::black_box(last_new_from);
+                black_box(last_new_from);
                 last_new_to.wait();
-                criterion::black_box(last_new_to);
+                black_box(last_new_to);
             });
         });
 
@@ -749,7 +750,7 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
                 // Wait on last result to enforce all computation is over
                 for ct in last_res_vec {
                     ct.wait();
-                    criterion::black_box(ct);
+                    black_box(ct);
                 }
             });
         });
