@@ -40,6 +40,7 @@ TAPLO_VERSION=0.10.0
 TYPOS_VERSION=1.46.0
 ZIZMOR_VERSION=1.22.0
 CARGO_SEMVER_CHECKS_VERSION=0.47.0
+CARGO_AFL_VERSION=0.18.2
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -209,6 +210,22 @@ install_cargo_audit:
 .PHONY: install_cargo_deny # Install cargo-deny for license checks
 install_cargo_deny:
 	cargo install --locked cargo-deny
+
+.PHONY: install_cargo_afl # Install cargo-afl and build its AFL LLVM runtime for the active rustc
+install_cargo_afl: install_rs_msrv_toolchain
+	@# Skip the install if the pinned version is already on disk; cargo install otherwise.
+	@cargo afl --version 2>/dev/null | grep -q "$(CARGO_AFL_VERSION)" \
+		|| cargo install --locked --version $(CARGO_AFL_VERSION) cargo-afl
+	@# `cargo afl config --build` is fatal (not idempotent) when the runtime is already built
+	@# for the active rustc; treat "already built" as success so this stays callable as a dep.
+	@if output=$$(cargo afl config --build 2>&1); then \
+		echo "$$output"; \
+	elif echo "$$output" | grep -q "already built"; then \
+		:; \
+	else \
+		echo "$$output" >&2; \
+		exit 1; \
+	fi
 
 .PHONY: install_taplo # Check Cargo.toml format
 install_taplo:
@@ -674,6 +691,51 @@ clippy_benchmark_parser: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-benchmark-parser -- --no-deps -D warnings
 
+.PHONY: clippy_fuzz # Run clippy lints on fuzzing crates
+clippy_fuzz: install_rs_check_toolchain
+	@find utils/fuzz -name Cargo.toml -not -path '*/target/*' | while read crate; do \
+		echo "checking $$(dirname $$crate)"; \
+		RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+			--manifest-path $$crate -- --no-deps -D warnings; \
+	done
+
+.PHONY: fuzz_system_config # Configure kernel for AFL fuzzing (one-shot per runner boot)
+fuzz_system_config: install_cargo_afl
+	cargo afl system-config
+
+.PHONY: check_fuzz_system_config # Verify AFL kernel settings are in place; print fix command if not
+check_fuzz_system_config:
+	@# AFL only aborts when core_pattern pipes to an external handler ("|" prefix); any other
+	@# value (empty, "core", "core.%p"...) is acceptable.
+	@cp=$$(cat /proc/sys/kernel/core_pattern 2>/dev/null); \
+	case "$$cp" in \
+		\|*) \
+			echo "ERROR: AFL refuses to start because kernel.core_pattern pipes to a crash reporter ('$$cp')." >&2; \
+			echo "Run this first (needs sudo, persists until reboot):" >&2; \
+			echo "  make fuzz_system_config" >&2; \
+			exit 1;; \
+	esac
+
+.PHONY: fuzz_precampaign # Build AFL harnesses and seed corpus (auxiliary keys, CRS, public key)
+fuzz_precampaign: install_cargo_afl
+	cd utils/fuzz && ./build.sh --corpusgen
+
+.PHONY: fuzz_build # Build AFL harnesses but do NOT seed corpus
+fuzz_build: install_cargo_afl
+	cd utils/fuzz && ./build.sh
+
+.PHONY: fuzz_run # Run an AFL fuzzing campaign (override length with FUZZ_DURATION_SECONDS)
+fuzz_run: install_cargo_afl check_fuzz_system_config
+	cd utils/fuzz && ./run.sh $(if $(FUZZ_DURATION_SECONDS),--duration-seconds $(FUZZ_DURATION_SECONDS))
+
+.PHONY: fuzz_postcampaign # Postprocess a finished campaign: save crashes, minimize corpus, write summary.md
+fuzz_postcampaign: install_cargo_afl
+	cd utils/fuzz && ./postcampaign.sh
+
+.PHONY: fuzz_clean # Remove all artifacts produced by a campaign (keeps corpus/ and aux_data/)
+fuzz_clean:
+	rm -rf utils/fuzz/sync_dir utils/fuzz/stored_corpus utils/fuzz/stored_crashes utils/fuzz/summary.md
+
 .PHONY: clippy_wasm_par_mq # Run clippy lints on wasm-par-mq and its examples
 clippy_wasm_par_mq: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets --all-features \
@@ -726,7 +788,7 @@ clippy_test_vectors: install_rs_check_toolchain
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
 clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_zk_pok_wasm clippy_trivium \
 clippy_versionable clippy_safe_serialize clippy_tfhe_lints clippy_ws_tests clippy_bench clippy_param_dedup \
-clippy_benchmark_parser clippy_test_vectors clippy_backward_compat_data clippy_wasm_par_mq
+clippy_benchmark_parser clippy_test_vectors clippy_backward_compat_data clippy_wasm_par_mq clippy_fuzz
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy_rustdoc clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks \
