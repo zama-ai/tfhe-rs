@@ -97,6 +97,9 @@ impl CiphertextBundle {
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, CiphertextSlot> {
         self.slots.iter_mut()
     }
+    pub fn len(&self) -> usize {
+        self.slots.len()
+    }
 }
 
 impl CiphertextMemory {

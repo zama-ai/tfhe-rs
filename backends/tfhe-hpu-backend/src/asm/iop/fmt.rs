@@ -243,7 +243,7 @@ impl From<&IOpMappingHex> for field::IOpMapping {
             if (vid_pid_map.len() != (max + 1) as usize) || (min != 0) {
                 panic!("Invalid mapping: contain hole or duplicate values");
             }
-            vid_pid_map.iter().map(|x| x.1).collect::<Vec<_>>()
+            vid_pid_map.iter().map(|x| PhysId(x.1)).collect::<Vec<_>>()
         };
         Self::from(map)
     }
