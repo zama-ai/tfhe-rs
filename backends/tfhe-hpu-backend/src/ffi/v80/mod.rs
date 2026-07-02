@@ -77,7 +77,7 @@ impl HpuHw {
             // Reload Ami driver
             tracing::info!("Load ami kernel module [{ami_path}]");
             Command::new("sudo")
-                .arg("--stdin")
+                .arg("--non-interactive")
                 .arg("/usr/sbin/insmod")
                 .arg(ami_path)
                 .status()
@@ -180,7 +180,7 @@ impl HpuHw {
         // If either we fail to unload ami or qdma we must raise an error
         tracing::info!("Unload drivers ami/qdma_pf");
         let _ = Command::new("sudo")
-            .arg("--stdin")
+            .arg("--non-interactive")
             .arg("/usr/sbin/rmmod")
             .arg("--syslog") // Output to syslog instead of stderr
             .arg("ami")
@@ -190,7 +190,7 @@ impl HpuHw {
             "Failed to unload ami driver: module still loaded"
         );
         let _ = Command::new("sudo")
-            .arg("--stdin")
+            .arg("--non-interactive")
             .arg("/usr/sbin/rmmod")
             .arg("--syslog") // Output to syslog instead of stderr
             .arg("qdma_pf")
