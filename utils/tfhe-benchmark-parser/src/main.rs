@@ -13,12 +13,12 @@ use tfhe_benchmark_parser::model::{Point, Series};
 fn run_parse(args: &Cli) -> anyhow::Result<ParseOutcome> {
     if args.object_sizes {
         println!("Parsing key sizes results... ");
-        return parse_object_sizes(&args.input_results_file, args.backend);
+        return parse_object_sizes(&args.input_results_file, &args.params_dirs, args.backend);
     }
 
     if args.key_gen {
         println!("Parsing key generation time results... ");
-        return parse_key_gen_time(&args.input_results_file, args.backend);
+        return parse_key_gen_time(&args.input_results_file, &args.params_dirs, args.backend);
     }
 
     println!("Parsing benchmark results... ");
@@ -31,6 +31,7 @@ fn run_parse(args: &Cli) -> anyhow::Result<ParseOutcome> {
         args.bench_type,
         args.walk_subdirs,
         &args.name_suffix,
+        &args.params_dirs,
         args.backend,
     )
 }

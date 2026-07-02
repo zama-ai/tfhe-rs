@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use benchmark_spec::{Backend, BenchmarkMetric};
 use serde::Deserialize;
 use serde_json::Number;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tfhe_benchmark_parser::model::{ParsingFailure, Point, PointClass};
 
 #[derive(Deserialize)]
@@ -13,21 +13,31 @@ struct KeyResultRow {
     value: i64,
 }
 
-pub fn parse_object_sizes(result_file: &Path, backend: Backend) -> Result<ParseOutcome> {
+pub fn parse_object_sizes(
+    result_file: &Path,
+    extra_params_dirs: &[PathBuf],
+    backend: Backend,
+) -> Result<ParseOutcome> {
     // Note: matching the Python parser, both CSV modes use `class = "keygen"`. Only `type` differs.
     parse_key_results(
         result_file,
         PointClass::KeyGen,
         BenchmarkMetric::KeySize,
+        extra_params_dirs,
         backend,
     )
 }
 
-pub fn parse_key_gen_time(result_file: &Path, backend: Backend) -> Result<ParseOutcome> {
+pub fn parse_key_gen_time(
+    result_file: &Path,
+    extra_params_dirs: &[PathBuf],
+    backend: Backend,
+) -> Result<ParseOutcome> {
     parse_key_results(
         result_file,
         PointClass::KeyGen,
         BenchmarkMetric::Latency,
+        extra_params_dirs,
         backend,
     )
 }
@@ -36,6 +46,7 @@ fn parse_key_results(
     result_file: &Path,
     class: PointClass,
     point_type: BenchmarkMetric,
+    extra_params_dirs: &[PathBuf],
     backend: Backend,
 ) -> Result<ParseOutcome> {
     let mut points = Vec::new();
@@ -58,16 +69,17 @@ fn parse_key_results(
             }
         };
 
-        let (params, display_name, operator) = match get_parameters(&row.test_name) {
-            Ok(triple) => triple,
-            Err(err) => {
-                failures.push(ParsingFailure {
-                    source: row.test_name,
-                    error: format!("failed to get parameters: {err:#}"),
-                });
-                continue;
-            }
-        };
+        let (params, display_name, operator) =
+            match get_parameters(&row.test_name, extra_params_dirs) {
+                Ok(triple) => triple,
+                Err(err) => {
+                    failures.push(ParsingFailure {
+                        source: row.test_name,
+                        error: format!("failed to get parameters: {err:#}"),
+                    });
+                    continue;
+                }
+            };
 
         points.push(Point {
             value: Number::from(row.value),

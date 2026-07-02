@@ -19,6 +19,7 @@ pub fn recursive_parse(
     bench_type: BenchmarkMetric,
     walk_subdirs: bool,
     name_suffix: &str,
+    extra_params_dirs: &[std::path::PathBuf],
     backend: Backend,
 ) -> Result<ParseOutcome> {
     let mut points = Vec::new();
@@ -66,6 +67,7 @@ pub fn recursive_parse(
                 &subdir,
                 bench_type,
                 name_suffix,
+                extra_params_dirs,
                 backend,
                 &mut points,
                 &mut failures,
@@ -80,6 +82,7 @@ fn process_leaf(
     subdir: &Path,
     bench_type: BenchmarkMetric,
     name_suffix: &str,
+    extra_params_dirs: &[std::path::PathBuf],
     backend: Backend,
     points: &mut Vec<Point>,
     failures: &mut Vec<ParsingFailure>,
@@ -115,7 +118,7 @@ fn process_leaf(
         }
     };
 
-    let (params, display_name, operator) = match get_parameters(&test_name) {
+    let (params, display_name, operator) = match get_parameters(&test_name, extra_params_dirs) {
         Ok(triple) => triple,
         Err(err) => {
             failures.push(ParsingFailure {
