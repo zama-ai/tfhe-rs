@@ -24,6 +24,14 @@ struct int_goldschmidt_division_buffer
     int_comparison_buffer<Torus> *is_denominator_zero_buffer;
     Torus *d_zero_scalar;
 
+    CudaRadixCiphertextFFI *full_precision_product_buffer;
+    CudaRadixCiphertextFFI *padded_lhs_operand;
+    int_shift_and_rotate_buffer<Torus> *normalize_batched_shift_buffer;
+    CudaRadixCiphertextFFI *current_numerator_Ni;
+    CudaRadixCiphertextFFI *current_denominator_Di;
+
+    CudaStreams sub_streams_1;
+
     int_goldschmidt_division_buffer(CudaStreams streams, int_radix_params params,
                                     uint32_t num_radix_blocks,
                                     uint32_t lut_precision,
@@ -42,6 +50,9 @@ struct int_goldschmidt_division_buffer
             prev_size = size_tracker;
         };
 
+        auto active_streams =
+            streams.active_gpu_subset(2 * num_radix_blocks, params.pbs_type);
+        sub_streams_1.create_on_same_gpus(active_streams);
         PUSH_RANGE("Goldschmidt Setup: Init Params");
         this->params = params;
         this->num_radix_blocks = num_radix_blocks;
@@ -84,6 +95,31 @@ struct int_goldschmidt_division_buffer
                               streams.stream(0), streams.gpu_index(0));
         }
         POP_RANGE();
+
+        uint32_t max_intermediate_len = 3 * intermediate_num_blocks;
+        full_precision_product_buffer = new CudaRadixCiphertextFFI;
+        create_zero_radix_ciphertext_async<Torus>(
+            streams.stream(0), streams.gpu_index(0), full_precision_product_buffer,
+            max_intermediate_len, params.big_lwe_dimension, size_tracker,
+            allocate_gpu_memory);
+        padded_lhs_operand = new CudaRadixCiphertextFFI;
+        create_zero_radix_ciphertext_async<Torus>(
+            streams.stream(0), streams.gpu_index(0), padded_lhs_operand,
+            max_intermediate_len, params.big_lwe_dimension, size_tracker,
+            allocate_gpu_memory);
+        normalize_batched_shift_buffer = new int_shift_and_rotate_buffer<Torus>(
+            streams, LEFT_SHIFT, false, params, 3 * num_radix_blocks,
+            allocate_gpu_memory, size_tracker);
+        current_numerator_Ni = new CudaRadixCiphertextFFI;
+        create_zero_radix_ciphertext_async<Torus>(
+            streams.stream(0), streams.gpu_index(0), current_numerator_Ni,
+            intermediate_num_blocks, params.big_lwe_dimension, size_tracker,
+            allocate_gpu_memory);
+        current_denominator_Di = new CudaRadixCiphertextFFI;
+        create_zero_radix_ciphertext_async<Torus>(
+            streams.stream(0), streams.gpu_index(0), current_denominator_Di,
+            intermediate_num_blocks, params.big_lwe_dimension, size_tracker,
+            allocate_gpu_memory);
     }
 
     void release(CudaStreams streams)
@@ -102,5 +138,23 @@ struct int_goldschmidt_division_buffer
         if (allocate_gpu_memory)
             cuda_drop_async(d_zero_scalar, streams.stream(0), streams.gpu_index(0));
         POP_RANGE();
+
+        release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                       full_precision_product_buffer,
+                                       allocate_gpu_memory);
+        delete full_precision_product_buffer;
+        release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                       padded_lhs_operand, allocate_gpu_memory);
+        delete padded_lhs_operand;
+        normalize_batched_shift_buffer->release(streams);
+        delete normalize_batched_shift_buffer;
+        release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                       current_numerator_Ni, allocate_gpu_memory);
+        delete current_numerator_Ni;
+        release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                       current_denominator_Di, allocate_gpu_memory);
+        delete current_denominator_Di;
+
+        sub_streams_1.release();
     }
 };

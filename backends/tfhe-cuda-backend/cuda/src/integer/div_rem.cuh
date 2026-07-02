@@ -524,7 +524,6 @@ __host__ void host_unsigned_integer_div_rem(
     if (mem_ptr->params.message_modulus == 4 &&
         mem_ptr->params.carry_modulus == 4)
     {
-        printf("Using optimized division for message_modulus=4 and carry_modulus=4\n");
         host_goldschmidt_division<Torus, uint64_t>(
             streams, quotient, remainder, numerator, divisor, mem_ptr->div_rem_2_2_mem,
             3, 9, bsks, ksks);
