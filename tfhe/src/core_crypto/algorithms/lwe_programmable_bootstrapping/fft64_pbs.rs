@@ -18,7 +18,7 @@ use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
 use crate::core_crypto::prelude::ModulusSwitchedLweCiphertext;
 use dyn_stack::{PodStack, StackReq};
-use tfhe_fft::c64;
+pub use tfhe_fft::c64;
 
 /// Perform a blind rotation given an input [`modulus switched LWE
 /// ciphertext`](`ModulusSwitchedLweCiphertext`), modifying a look-up table passed as a [`GLWE
