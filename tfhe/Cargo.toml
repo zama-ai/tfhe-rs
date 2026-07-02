@@ -24,7 +24,7 @@ rust-version.workspace = true
 [dev-dependencies]
 rand = { workspace = true }
 rand_distr = "0.4.3"
-criterion = "0.5.1"
+criterion = { workspace = true }
 doc-comment = "0.3.3"
 serde_json = "1.0.150"
 num-bigint = "0.4.6"

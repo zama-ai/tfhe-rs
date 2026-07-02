@@ -1,6 +1,7 @@
 use benchmark::params_aliases::*;
-use criterion::{black_box, criterion_group, Criterion};
+use criterion::{criterion_group, Criterion};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use std::hint::black_box;
 use tfhe::shortint::prelude::*;
 
 fn glwe_packing(c: &mut Criterion) {

@@ -1,8 +1,9 @@
 use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 #[cfg(feature = "gpu")]
 use benchmark::params_aliases::BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-use criterion::{black_box, criterion_group, Criterion};
+use criterion::{criterion_group, Criterion};
 use rand::prelude::*;
+use std::hint::black_box;
 use tfhe::integer::server_key::BitonicShuffleKeySize;
 use tfhe::prelude::*;
 use tfhe::{bitonic_shuffle, set_server_key, ClientKey, ConfigBuilder, FheUint64, Seed, ServerKey};

@@ -1,6 +1,7 @@
 use benchmark_spec::{get_bench_type, BenchmarkType};
-use criterion::{black_box, Criterion, Throughput};
+use criterion::{Criterion, Throughput};
 use rayon::prelude::*;
+use std::hint::black_box;
 use tfhe::core_crypto::experimental::prelude::*;
 use tfhe::core_crypto::prelude::*;
 

@@ -1,5 +1,6 @@
 use benchmark::utilities::{write_to_json_unchecked, OperatorType};
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
 use tfhe::boolean::client_key::ClientKey;
 use tfhe::boolean::parameters::{
     BooleanParameters, DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS,

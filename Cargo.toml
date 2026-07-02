@@ -38,6 +38,7 @@ aligned-vec = { version = "0.6", default-features = false }
 ark-ec = "0.5.0"
 ark-ff = "0.5.0"
 bytemuck = "1.24"
+criterion = "0.8.2"
 dyn-stack = { version = "0.13", default-features = false }
 itertools = "0.14"
 num-complex = "0.4"

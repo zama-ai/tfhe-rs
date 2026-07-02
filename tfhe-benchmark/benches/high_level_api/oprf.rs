@@ -5,7 +5,8 @@ use benchmark::params_aliases::BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_K
 use benchmark::utilities::{write_to_json, OperatorType};
 use benchmark_spec::tfhe::hlapi::oprf::OprfKind;
 use benchmark_spec::{BenchmarkSpec, BenchmarkType, HlapiBench, OperandType};
-use criterion::{black_box, criterion_group, Criterion};
+use criterion::{criterion_group, Criterion};
+use std::hint::black_box;
 use std::num::NonZeroU64;
 use tfhe::keycache::NamedParam;
 use tfhe::{set_server_key, ClientKey, ConfigBuilder, FheUint64, RangeForRandom, Seed, ServerKey};

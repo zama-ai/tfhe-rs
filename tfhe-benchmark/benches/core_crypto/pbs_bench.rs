@@ -5,9 +5,10 @@ use benchmark::params::{
 use benchmark::utilities::{get_param_type, write_to_json, OperatorType, ParamType};
 use benchmark::BenchPbsParams;
 use benchmark_spec::{get_bench_type, BenchmarkSpec, BenchmarkType, CoreCryptoBench};
-use criterion::{black_box, Criterion, Throughput};
+use criterion::{Criterion, Throughput};
 use rayon::prelude::*;
 use serde::Serialize;
+use std::hint::black_box;
 use tfhe::core_crypto::commons::math::ntt::ntt64::Ntt64;
 use tfhe::core_crypto::prelude::*;
 
@@ -926,9 +927,10 @@ mod cuda {
         GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE,
     };
     use benchmark_spec::{get_bench_type, BenchmarkSpec, BenchmarkType, CoreCryptoBench};
-    use criterion::{black_box, Criterion, Throughput};
+    use criterion::{Criterion, Throughput};
     use rayon::prelude::*;
     use serde::Serialize;
+    use std::hint::black_box;
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
     use tfhe::core_crypto::gpu::{

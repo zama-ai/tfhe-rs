@@ -1,5 +1,6 @@
 use benchmark::params_aliases::*;
-use criterion::{black_box, criterion_group, Criterion};
+use criterion::{criterion_group, Criterion};
+use std::hint::black_box;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::KEY_CACHE;
 use tfhe::shortint::oprf::{OprfPrivateKey, OprfServerKey};

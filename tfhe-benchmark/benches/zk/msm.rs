@@ -21,10 +21,11 @@
 
 use benchmark::utilities::{write_to_json_unchecked, OperatorType};
 use benchmark_spec::{get_bench_type, BenchmarkType};
-use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion, Throughput};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use rayon::prelude::*;
+use std::hint::black_box;
 use std::time::Duration;
 
 use tfhe_zk_pok::curve_api::bls12_446::{G1Affine, G2Affine, Zp, G1, G2};
