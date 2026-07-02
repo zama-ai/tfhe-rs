@@ -142,8 +142,8 @@ pub use compressed_noise_squashed_ciphertext_list::{
     HlSquashedNoiseCompressible, HlSquashedNoiseExpandable,
 };
 pub use re_randomization::{
-    ReRandomizationContext, ReRandomizationHashAlgo, ReRandomizationMetadata, ReRandomizationMode,
-    ReRandomizationSeedGen, ReRandomizationSupport,
+    PrfReRandomizationContext, ReRandomizationContext, ReRandomizationHashAlgo,
+    ReRandomizationMetadata, ReRandomizationMode, ReRandomizationSeedGen, ReRandomizationSupport,
 };
 #[cfg(feature = "strings")]
 pub use strings::ascii::{EncryptableString, FheAsciiString, FheStringIsEmpty, FheStringLen};

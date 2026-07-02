@@ -201,3 +201,65 @@ pub(crate) fn re_randomize_ciphertext_blocks(
         seed,
     )
 }
+
+pub struct PrfReRandomizationContext {
+    inner: crate::shortint::ciphertext::ReRandomizationContext,
+}
+
+impl PrfReRandomizationContext {
+    /// Create a new re-randomization context with the default seed hasher (blake3).
+    ///
+    /// `rerand_seeder_domain_separator` is the domain separator that will be fed into the
+    /// seed generator.
+    /// `public_encryption_domain_separator` is the domain separator that will be used along this
+    /// seed to generate the encryptions of zero.
+    ///
+    /// (See [`XofSeed`] for more information)
+    ///
+    /// # Example
+    /// ```rust
+    /// use tfhe::integer::ciphertext::PrfReRandomizationContext;
+    /// let _re_rand_context = PrfReRandomizationContext::new(
+    ///     *b"PRF_RRND",
+    ///     *b"TFHE_Enc"
+    ///  );
+    pub fn new(
+        rerand_seeder_domain_separator: [u8; XofSeed::DOMAIN_SEP_LEN],
+        public_encryption_domain_separator: [u8; XofSeed::DOMAIN_SEP_LEN],
+    ) -> Self {
+        Self {
+            inner: crate::shortint::ciphertext::ReRandomizationContext::new(
+                rerand_seeder_domain_separator,
+                public_encryption_domain_separator,
+            ),
+        }
+    }
+
+    /// Create a new re-randomization context with the provided seed hasher.
+    pub fn new_with_hasher(
+        public_encryption_domain_separator: [u8; XofSeed::DOMAIN_SEP_LEN],
+        seed_hasher: ReRandomizationSeedHasher,
+    ) -> Self {
+        Self {
+            inner: crate::shortint::ciphertext::ReRandomizationContext::new_with_hasher(
+                public_encryption_domain_separator,
+                seed_hasher,
+            ),
+        }
+    }
+
+    pub(crate) fn inner(&self) -> &crate::shortint::ciphertext::ReRandomizationContext {
+        &self.inner
+    }
+}
+
+impl Default for PrfReRandomizationContext {
+    fn default() -> Self {
+        Self {
+            inner: crate::shortint::ciphertext::ReRandomizationContext::new(
+                crate::shortint::oprf::TFHE_PRF_RERAND_DOMAIN_SEPARATOR,
+                crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR,
+            ),
+        }
+    }
+}

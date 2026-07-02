@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 
 use crate::core_crypto::gpu::CudaStreams;
-use crate::integer::ciphertext::{ReRandomizationHashAlgo, ReRandomizationSeed};
+use crate::integer::ciphertext::{PrfReRandomizationContext, ReRandomizationSeed};
 use crate::integer::gpu::ciphertext::re_randomization::CudaReRandomizationKey;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaSignedRadixCiphertext,
@@ -140,7 +140,7 @@ where
         num_blocks: u64,
         target_sks: &CudaServerKey,
         re_randomization_key: &CudaReRandomizationKey<'_>,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
         streams: &CudaStreams,
     ) -> crate::Result<CudaUnsignedRadixCiphertext> {
         self.generate_oblivious_pseudo_random_unbounded_integer_and_re_randomize(
@@ -148,7 +148,7 @@ where
             num_blocks,
             target_sks,
             re_randomization_key,
-            re_randomization_hash_algo,
+            prf_re_randomization_context,
             streams,
         )
     }
@@ -231,7 +231,7 @@ where
         num_blocks: u64,
         target_sks: &CudaServerKey,
         re_randomization_key: &CudaReRandomizationKey<'_>,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
         streams: &CudaStreams,
     ) -> crate::Result<CudaUnsignedRadixCiphertext> {
         assert!(target_sks.message_modulus.0.is_power_of_two());
@@ -251,7 +251,7 @@ where
             num_blocks,
             target_sks,
             re_randomization_key,
-            re_randomization_hash_algo,
+            prf_re_randomization_context,
             streams,
         )
     }
@@ -310,7 +310,7 @@ where
         num_blocks: u64,
         target_sks: &CudaServerKey,
         re_randomization_key: &CudaReRandomizationKey<'_>,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
         streams: &CudaStreams,
     ) -> crate::Result<CudaSignedRadixCiphertext> {
         self.generate_oblivious_pseudo_random_unbounded_integer_and_re_randomize(
@@ -318,7 +318,7 @@ where
             num_blocks,
             target_sks,
             re_randomization_key,
-            re_randomization_hash_algo,
+            prf_re_randomization_context,
             streams,
         )
     }
@@ -407,7 +407,7 @@ where
         num_blocks: u64,
         target_sks: &CudaServerKey,
         re_randomization_key: &CudaReRandomizationKey<'_>,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
         streams: &CudaStreams,
     ) -> crate::Result<CudaSignedRadixCiphertext> {
         assert!(target_sks.message_modulus.0.is_power_of_two());
@@ -431,7 +431,7 @@ where
             num_blocks,
             target_sks,
             re_randomization_key,
-            re_randomization_hash_algo,
+            prf_re_randomization_context,
             streams,
         )
     }
@@ -478,7 +478,7 @@ where
         num_blocks: u64,
         target_sks: &CudaServerKey,
         re_randomization_key: &CudaReRandomizationKey<'_>,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
         streams: &CudaStreams,
     ) -> crate::Result<T>
     where
@@ -500,7 +500,7 @@ where
             num_blocks * message_bits_count,
             target_sks,
             re_randomization_key,
-            re_randomization_hash_algo,
+            prf_re_randomization_context,
             streams,
         )?;
 
@@ -555,7 +555,7 @@ where
         num_blocks: u64,
         target_sks: &CudaServerKey,
         re_randomization_key: &CudaReRandomizationKey<'_>,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
         streams: &CudaStreams,
     ) -> crate::Result<T>
     where
@@ -586,7 +586,7 @@ where
             random_bits_count,
             target_sks,
             re_randomization_key,
-            re_randomization_hash_algo,
+            prf_re_randomization_context,
             streams,
         )?;
 
@@ -701,7 +701,7 @@ where
         total_random_bits: u64,
         target_sks: &CudaServerKey,
         re_randomization_key: &CudaReRandomizationKey<'_>,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
         streams: &CudaStreams,
     ) -> crate::Result<()> {
         let prf_seed = prf_seed.into_bytes();
@@ -719,7 +719,7 @@ where
         );
 
         let rerand_seed = ReRandomizationSeed::new_prf_rerand_seed(
-            re_randomization_hash_algo,
+            prf_re_randomization_context.inner(),
             prf_seed,
             &prf_random_bits_rle_bytes,
         );

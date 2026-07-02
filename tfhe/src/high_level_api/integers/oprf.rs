@@ -2,7 +2,7 @@ use super::{FheIntId, FheUint, FheUintId};
 use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::{
-    ReRandomizationHashAlgo, ReRandomizationMetadata, ReRandomizationMode,
+    PrfReRandomizationContext, ReRandomizationMetadata, ReRandomizationMode,
 };
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
@@ -111,7 +111,7 @@ impl<Id: FheUintId> FheUint<Id> {
     >(
         seed: impl OprfSeed,
         re_randomization_mode: RRD,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> crate::Result<Self> {
         let re_randomization_mode: ReRandomizationMode = re_randomization_mode.into();
         global_state::with_internal_keys(|key| match key {
@@ -126,7 +126,7 @@ impl<Id: FheUintId> FheUint<Id> {
                         Id::num_blocks(key.message_modulus()) as u64,
                         sk,
                         &rerand_key,
-                        re_randomization_hash_algo,
+                        prf_re_randomization_context.inner(),
                     )?;
 
                 Ok(Self::new(
@@ -147,7 +147,7 @@ impl<Id: FheUintId> FheUint<Id> {
                         Id::num_blocks(cuda_key.message_modulus()) as u64,
                         cuda_key.pbs_key(),
                         &rerand_key,
-                        re_randomization_hash_algo,
+                        prf_re_randomization_context.inner(),
                         streams,
                     )?;
 
@@ -244,7 +244,7 @@ impl<Id: FheUintId> FheUint<Id> {
         seed: impl OprfSeed,
         random_bits_count: u64,
         re_randomization_mode: RRD,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> crate::Result<Self> {
         let re_randomization_mode: ReRandomizationMode = re_randomization_mode.into();
         global_state::with_internal_keys(|key| match key {
@@ -260,7 +260,7 @@ impl<Id: FheUintId> FheUint<Id> {
                         Id::num_blocks(key.message_modulus()) as u64,
                         sk,
                         &rerand_key,
-                        re_randomization_hash_algo,
+                        prf_re_randomization_context.inner(),
                     )?;
 
                 Ok(Self::new(
@@ -282,7 +282,7 @@ impl<Id: FheUintId> FheUint<Id> {
                         Id::num_blocks(cuda_key.message_modulus()) as u64,
                         cuda_key.pbs_key(),
                         &rerand_key,
-                        re_randomization_hash_algo,
+                        prf_re_randomization_context.inner(),
                         streams,
                     )?;
 
@@ -466,7 +466,7 @@ impl<Id: FheUintId> FheUint<Id> {
         range: &RangeForRandom,
         max_distance: Option<f64>,
         re_randomization_mode: RRD,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> crate::Result<Self> {
         let excluded_upper_bound = range.excluded_upper_bound;
 
@@ -477,7 +477,7 @@ impl<Id: FheUintId> FheUint<Id> {
                 seed,
                 random_bits_count,
                 re_randomization_mode,
-                re_randomization_hash_algo,
+                prf_re_randomization_context,
             )
         } else {
             let max_distance = max_distance.unwrap_or_else(|| 2_f64.powi(-128));
@@ -512,7 +512,7 @@ impl<Id: FheUintId> FheUint<Id> {
                             num_blocks_output,
                             sk,
                             &rerand_key,
-                            re_randomization_hash_algo,
+                            prf_re_randomization_context.inner()
                         )?;
 
                     Ok(Self::new(
@@ -639,7 +639,7 @@ impl<Id: FheIntId> FheInt<Id> {
     >(
         seed: impl OprfSeed,
         re_randomization_mode: RRD,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> crate::Result<Self> {
         let re_randomization_mode: ReRandomizationMode = re_randomization_mode.into();
         global_state::with_internal_keys(|key| match key {
@@ -654,7 +654,7 @@ impl<Id: FheIntId> FheInt<Id> {
                         Id::num_blocks(key.message_modulus()) as u64,
                         sk,
                         &rerand_key,
-                        re_randomization_hash_algo,
+                        prf_re_randomization_context.inner(),
                     )?;
 
                 Ok(Self::new(
@@ -675,7 +675,7 @@ impl<Id: FheIntId> FheInt<Id> {
                         Id::num_blocks(cuda_key.message_modulus()) as u64,
                         cuda_key.pbs_key(),
                         &rerand_key,
-                        re_randomization_hash_algo,
+                        prf_re_randomization_context.inner(),
                         streams,
                     )?;
 
@@ -773,7 +773,7 @@ impl<Id: FheIntId> FheInt<Id> {
         seed: impl OprfSeed,
         random_bits_count: u64,
         re_randomization_mode: RRD,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> crate::Result<Self> {
         let re_randomization_mode: ReRandomizationMode = re_randomization_mode.into();
         global_state::with_internal_keys(|key| match key {
@@ -789,7 +789,7 @@ impl<Id: FheIntId> FheInt<Id> {
                         Id::num_blocks(key.message_modulus()) as u64,
                         sk,
                         &rerand_key,
-                        re_randomization_hash_algo,
+                        prf_re_randomization_context.inner(),
                     )?;
 
                 Ok(Self::new(
@@ -811,7 +811,7 @@ impl<Id: FheIntId> FheInt<Id> {
                         Id::num_blocks(cuda_key.message_modulus()) as u64,
                         cuda_key.pbs_key(),
                         &rerand_key,
-                        re_randomization_hash_algo,
+                        prf_re_randomization_context.inner(),
                         streams,
                     )?;
 
@@ -941,6 +941,7 @@ fn mod_pow_2(exponent: u64, modulus: u64) -> u64 {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::integer::ciphertext::{ReRandomizationHashAlgo, ReRandomizationSeedHasher};
     use crate::integer::server_key::radix_parallel::tests_unsigned::test_oprf::{
         oprf_density_function, p_value_upper_bound_oprf_almost_uniformity_from_values,
         probability_density_function_from_density,
@@ -1283,17 +1284,25 @@ mod test {
         }
 
         {
-            for rerand_algo in [
+            for rerand_hash_algo in [
                 ReRandomizationHashAlgo::Blake3,
                 ReRandomizationHashAlgo::Shake256,
             ] {
+                let seed_hasher = ReRandomizationSeedHasher::new(
+                    rerand_hash_algo,
+                    crate::shortint::oprf::TFHE_PRF_RERAND_DOMAIN_SEPARATOR,
+                );
+                let prf_rerand_context = PrfReRandomizationContext::new_with_hasher(
+                    crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR,
+                    seed_hasher,
+                );
                 // Do not use static seed in production
                 let ct_unsigned_bounded =
                     FheUint8::generate_oblivious_pseudo_random_bounded_and_re_randomize(
                         Seed(0),
                         0,
                         ReRandomizationMode::UseAvailableMode,
-                        rerand_algo,
+                        &prf_rerand_context,
                     )
                     .unwrap();
                 assert!(ct_unsigned_bounded.is_trivial());
@@ -1304,17 +1313,25 @@ mod test {
         }
 
         {
-            for rerand_algo in [
+            for rerand_hash_algo in [
                 ReRandomizationHashAlgo::Blake3,
                 ReRandomizationHashAlgo::Shake256,
             ] {
+                let seed_hasher = ReRandomizationSeedHasher::new(
+                    rerand_hash_algo,
+                    crate::shortint::oprf::TFHE_PRF_RERAND_DOMAIN_SEPARATOR,
+                );
+                let prf_rerand_context = PrfReRandomizationContext::new_with_hasher(
+                    crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR,
+                    seed_hasher,
+                );
                 // Do not use static seed in production
                 let ct_signed_bounded =
                     FheInt8::generate_oblivious_pseudo_random_bounded_and_re_randomize(
                         Seed(0),
                         0,
                         ReRandomizationMode::UseAvailableMode,
-                        rerand_algo,
+                        &prf_rerand_context,
                     )
                     .unwrap();
                 assert!(ct_signed_bounded.is_trivial());
@@ -1352,21 +1369,29 @@ mod test {
             let unsigned_decrypted_result: u8 = unsigned_rnd.decrypt(client_key);
             let signed_decrypted_result: i8 = signed_rnd.decrypt(client_key);
 
-            for hash_algo in [
+            for rerand_hash_algo in [
                 ReRandomizationHashAlgo::Blake3,
                 ReRandomizationHashAlgo::Shake256,
             ] {
+                let seed_hasher = ReRandomizationSeedHasher::new(
+                    rerand_hash_algo,
+                    crate::shortint::oprf::TFHE_PRF_RERAND_DOMAIN_SEPARATOR,
+                );
+                let prf_rerand_context = PrfReRandomizationContext::new_with_hasher(
+                    crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR,
+                    seed_hasher,
+                );
                 let unsigned_rnd_rerand =
                     FheUint8::generate_oblivious_pseudo_random_and_re_randomize(
                         seed,
                         rerand_mode,
-                        hash_algo,
+                        &prf_rerand_context,
                     )
                     .unwrap();
                 let signed_rnd_rerand = FheInt8::generate_oblivious_pseudo_random_and_re_randomize(
                     seed,
                     rerand_mode,
-                    hash_algo,
+                    &prf_rerand_context,
                 )
                 .unwrap();
 
@@ -1395,16 +1420,24 @@ mod test {
             let unsigned_decrypted_result: u8 = unsigned_rnd.decrypt(client_key);
             let signed_decrypted_result: i8 = signed_rnd.decrypt(client_key);
 
-            for hash_algo in [
+            for rerand_hash_algo in [
                 ReRandomizationHashAlgo::Blake3,
                 ReRandomizationHashAlgo::Shake256,
             ] {
+                let seed_hasher = ReRandomizationSeedHasher::new(
+                    rerand_hash_algo,
+                    crate::shortint::oprf::TFHE_PRF_RERAND_DOMAIN_SEPARATOR,
+                );
+                let prf_rerand_context = PrfReRandomizationContext::new_with_hasher(
+                    crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR,
+                    seed_hasher,
+                );
                 let unsigned_rnd_rerand =
                     FheUint8::generate_oblivious_pseudo_random_bounded_and_re_randomize(
                         seed,
                         bit_count_bounded,
                         rerand_mode,
-                        hash_algo,
+                        &prf_rerand_context,
                     )
                     .unwrap();
                 let signed_rnd_rerand =
@@ -1412,7 +1445,7 @@ mod test {
                         seed,
                         bit_count_bounded,
                         rerand_mode,
-                        hash_algo,
+                        &prf_rerand_context,
                     )
                     .unwrap();
 
@@ -1460,17 +1493,25 @@ mod test {
 
             let unsigned_decrypted_result: u8 = unsigned_rnd.decrypt(client_key);
 
-            for hash_algo in [
+            for rerand_hash_algo in [
                 ReRandomizationHashAlgo::Blake3,
                 ReRandomizationHashAlgo::Shake256,
             ] {
+                let seed_hasher = ReRandomizationSeedHasher::new(
+                    rerand_hash_algo,
+                    crate::shortint::oprf::TFHE_PRF_RERAND_DOMAIN_SEPARATOR,
+                );
+                let prf_rerand_context = PrfReRandomizationContext::new_with_hasher(
+                    crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR,
+                    seed_hasher,
+                );
                 let unsigned_rnd_rerand =
                     FheUint8::generate_oblivious_pseudo_random_custom_range_and_re_randomize(
                         seed,
                         &range,
                         None,
                         rerand_mode,
-                        hash_algo,
+                        &prf_rerand_context,
                     )
                     .unwrap();
 
@@ -1559,17 +1600,25 @@ mod test {
                 }
 
                 {
-                    for rerand_algo in [
+                    for rerand_hash_algo in [
                         ReRandomizationHashAlgo::Blake3,
                         ReRandomizationHashAlgo::Shake256,
                     ] {
+                        let seed_hasher = ReRandomizationSeedHasher::new(
+                            rerand_hash_algo,
+                            crate::shortint::oprf::TFHE_PRF_RERAND_DOMAIN_SEPARATOR,
+                        );
+                        let prf_rerand_context = PrfReRandomizationContext::new_with_hasher(
+                            crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR,
+                            seed_hasher,
+                        );
                         // Do not use static seed in production
                         let ct_unsigned_bounded =
                             FheUint8::generate_oblivious_pseudo_random_bounded_and_re_randomize(
                                 Seed(0),
                                 0,
                                 ReRandomizationMode::UseAvailableMode,
-                                rerand_algo,
+                                &prf_rerand_context,
                             )
                             .unwrap();
                         assert!(ct_unsigned_bounded.is_trivial());
@@ -1580,17 +1629,25 @@ mod test {
                 }
 
                 {
-                    for rerand_algo in [
+                    for rerand_hash_algo in [
                         ReRandomizationHashAlgo::Blake3,
                         ReRandomizationHashAlgo::Shake256,
                     ] {
+                        let seed_hasher = ReRandomizationSeedHasher::new(
+                            rerand_hash_algo,
+                            crate::shortint::oprf::TFHE_PRF_RERAND_DOMAIN_SEPARATOR,
+                        );
+                        let prf_rerand_context = PrfReRandomizationContext::new_with_hasher(
+                            crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR,
+                            seed_hasher,
+                        );
                         // Do not use static seed in production
                         let ct_signed_bounded =
                             FheInt8::generate_oblivious_pseudo_random_bounded_and_re_randomize(
                                 Seed(0),
                                 0,
                                 ReRandomizationMode::UseAvailableMode,
-                                rerand_algo,
+                                &prf_rerand_context,
                             )
                             .unwrap();
                         assert!(ct_signed_bounded.is_trivial());
