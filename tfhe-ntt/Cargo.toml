@@ -22,7 +22,7 @@ std = ["pulp/std", "aligned-vec/std"]
 avx512 = ["pulp/x86-v4"]
 
 [dev-dependencies]
-criterion = "0.8"
+criterion = { workspace = true }
 rand = { workspace = true }
 serde = "1.0.163"
 serde_json = "1.0.150"

@@ -23,7 +23,7 @@ libc = "0.2.186"
 
 [dev-dependencies]
 rand = { workspace = true }
-criterion = "0.8.2"
+criterion = { workspace = true }
 clap = "=4.6.1"
 ctr = "0.9.2"
 
