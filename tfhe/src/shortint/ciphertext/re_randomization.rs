@@ -14,7 +14,6 @@ use crate::core_crypto::prelude::lwe_compact_ciphertext_list_add_assign;
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::key_switching_key::KeySwitchingKeyMaterialView;
 use crate::shortint::oprf::{OprfSeed, RandomBitsRleLeBytes};
-use crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR;
 use crate::shortint::{Ciphertext, CompactPublicKey, PBSOrder};
 
 use rayon::prelude::*;
@@ -110,12 +109,12 @@ pub struct ReRandomizationSeed(pub(crate) XofSeed);
 
 impl ReRandomizationSeed {
     pub(crate) fn new_prf_rerand_seed(
-        hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &ReRandomizationContext,
         prf_seed: impl OprfSeed,
         random_bits_rle_bytes: &RandomBitsRleLeBytes,
     ) -> Self {
         let mut seed_gen = ReRandomizationSeedGen::new_prf_rerand_seed_gen(
-            hash_algo,
+            prf_re_randomization_context,
             prf_seed,
             random_bits_rle_bytes,
         );
@@ -129,6 +128,7 @@ impl ReRandomizationSeed {
 /// At this level, the context will directly hash any data passed to it.
 /// This means that the order in which the data will be hashed matches exactly the order in which
 /// the different `add_*` functions are called
+#[derive(Clone)]
 pub struct ReRandomizationContext {
     hash_state: ReRandomizationSeedHasher,
     public_encryption_domain_separator: [u8; XofSeed::DOMAIN_SEP_LEN],
@@ -245,16 +245,11 @@ pub struct ReRandomizationSeedGen {
 
 impl ReRandomizationSeedGen {
     pub(crate) fn new_prf_rerand_seed_gen(
-        hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &ReRandomizationContext,
         prf_seed: impl OprfSeed,
         random_bits_rle_bytes: &RandomBitsRleLeBytes,
     ) -> Self {
-        const PRF_RERAND_DOMAIN_SEPARATOR: [u8; XofSeed::DOMAIN_SEP_LEN] = *b"PRF_RRND";
-
-        let mut context = ReRandomizationContext::new_with_hasher(
-            TFHE_PKE_DOMAIN_SEPARATOR,
-            ReRandomizationSeedHasher::new(hash_algo, PRF_RERAND_DOMAIN_SEPARATOR),
-        );
+        let mut context = prf_re_randomization_context.clone();
 
         let prf_seed = prf_seed.into_bytes();
         let prf_seed = prf_seed.as_ref();

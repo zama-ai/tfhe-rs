@@ -2,7 +2,7 @@ use crate::high_level_api::global_state;
 use crate::high_level_api::integers::FheIntegerType;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::{
-    ReRandomizationHashAlgo, ReRandomizationMetadata, ReRandomizationMode,
+    PrfReRandomizationContext, ReRandomizationMetadata, ReRandomizationMode,
 };
 use crate::integer::server_key::radix_parallel::bitonic_shuffle::BitonicShuffleKeySize;
 use crate::OprfSeed;
@@ -70,7 +70,7 @@ pub fn re_randomized_keys_bitonic_shuffle<T, S>(
     key_size: BitonicShuffleKeySize,
     seed: S,
     re_randomization_mode: ReRandomizationMode,
-    re_randomization_hash_algo: ReRandomizationHashAlgo,
+    prf_re_randomization_context: &PrfReRandomizationContext,
 ) -> Result<Vec<T>, crate::Error>
 where
     T: FheIntegerType,
@@ -87,7 +87,7 @@ where
                 key_size,
                 seed,
                 &re_randomization_key,
-                re_randomization_hash_algo,
+                prf_re_randomization_context.inner(),
             )?;
             Ok(result
                 .into_iter()
@@ -114,6 +114,7 @@ mod test {
     use crate::high_level_api::prelude::*;
     use crate::high_level_api::tests::setup_default_cpu;
     use crate::high_level_api::{set_server_key, ClientKey, ConfigBuilder, ServerKey};
+    use crate::shortint::ciphertext::{ReRandomizationHashAlgo, ReRandomizationSeedHasher};
     use crate::shortint::parameters::ReRandomizationParameters;
     #[cfg(feature = "gpu")]
     use crate::{FheInt16, FheUint32};
@@ -156,17 +157,26 @@ mod test {
         let shuffled_rerand = {
             let mut shuffled_rerand = vec![];
 
-            for algo in [
+            for rerand_hash_algo in [
                 ReRandomizationHashAlgo::Blake3,
                 ReRandomizationHashAlgo::Shake256,
             ] {
+                let seed_hasher = ReRandomizationSeedHasher::new(
+                    rerand_hash_algo,
+                    crate::shortint::oprf::TFHE_PRF_RERAND_DOMAIN_SEPARATOR,
+                );
+                let prf_rerand_context = PrfReRandomizationContext::new_with_hasher(
+                    crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR,
+                    seed_hasher,
+                );
+
                 shuffled_rerand.push(
                     re_randomized_keys_bitonic_shuffle(
                         encrypted.clone(),
                         key_size,
                         seed,
                         ReRandomizationMode::UseAvailableMode,
-                        algo,
+                        &prf_rerand_context,
                     )
                     .unwrap(),
                 );
@@ -230,17 +240,26 @@ mod test {
         let shuffled_rerand = {
             let mut shuffled_rerand = vec![];
 
-            for algo in [
+            for rerand_hash_algo in [
                 ReRandomizationHashAlgo::Blake3,
                 ReRandomizationHashAlgo::Shake256,
             ] {
+                let seed_hasher = ReRandomizationSeedHasher::new(
+                    rerand_hash_algo,
+                    crate::shortint::oprf::TFHE_PRF_RERAND_DOMAIN_SEPARATOR,
+                );
+                let prf_rerand_context = PrfReRandomizationContext::new_with_hasher(
+                    crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR,
+                    seed_hasher,
+                );
+
                 shuffled_rerand.push(
                     re_randomized_keys_bitonic_shuffle(
                         encrypted.clone(),
                         key_size,
                         seed,
                         ReRandomizationMode::UseAvailableMode,
-                        algo,
+                        &prf_rerand_context,
                     )
                     .unwrap(),
                 );

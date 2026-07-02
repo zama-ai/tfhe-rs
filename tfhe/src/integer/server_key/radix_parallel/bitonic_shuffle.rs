@@ -3,7 +3,7 @@
 //! A bitonic sorting network for n=2^k elements has k*(k+1)/2 stages,
 //! each with n/2 comparators. It sorts any input sequence.
 use crate::core_crypto::prelude::Container;
-use crate::integer::ciphertext::{ReRandomizationHashAlgo, ReRandomizationKey};
+use crate::integer::ciphertext::{PrfReRandomizationContext, ReRandomizationKey};
 use crate::integer::oprf::GenericOprfServerKey;
 use crate::integer::prelude::ServerKeyDefaultCMux;
 use crate::integer::{IntegerRadixCiphertext, RadixCiphertext, ServerKey};
@@ -139,7 +139,7 @@ impl ServerKey {
         key_size: BitonicShuffleKeySize,
         seed: S,
         re_randomization_key: &ReRandomizationKey,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> Result<Vec<T>, crate::Error>
     where
         T: IntegerRadixCiphertext,
@@ -157,7 +157,7 @@ impl ServerKey {
                     &self.key,
                     &cpk.key,
                     ksk.as_ref().map(|k| &k.material),
-                    re_randomization_hash_algo,
+                    prf_re_randomization_context.inner(),
                 )
         })
     }

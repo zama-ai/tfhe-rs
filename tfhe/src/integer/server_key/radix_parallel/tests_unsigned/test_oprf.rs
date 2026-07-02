@@ -3,7 +3,8 @@ use crate::core_crypto::commons::math::random::tests::{
     cumulate, dkw_alpha_from_epsilon, sup_diff,
 };
 use crate::integer::ciphertext::{
-    RadixCiphertext, ReRandomizationHashAlgo, ReRandomizationKey, SignedRadixCiphertext,
+    PrfReRandomizationContext, RadixCiphertext, ReRandomizationHashAlgo, ReRandomizationKey,
+    ReRandomizationSeedHasher, SignedRadixCiphertext,
 };
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::oprf::{OprfPrivateKey, OprfServerKey};
@@ -327,7 +328,7 @@ pub(crate) trait OprfReRandTestRunner {
         &mut self,
         prf_seed: impl OprfSeed,
         num_blocks: u64,
-        rerand_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> (RadixCiphertext, RadixCiphertext);
 
     /// Return the prf output once without and once with re-randomization.
@@ -336,7 +337,7 @@ pub(crate) trait OprfReRandTestRunner {
         prf_seed: impl OprfSeed,
         random_bit_count: u64,
         num_blocks: u64,
-        rerand_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> (RadixCiphertext, RadixCiphertext);
 
     // TODO: make this function return the tuple directly once GPU supports the custom_range
@@ -351,7 +352,7 @@ pub(crate) trait OprfReRandTestRunner {
         num_input_random_bits: u64,
         excluded_upper_bound: NonZeroU64,
         num_blocks_output: u64,
-        rerand_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> Option<(RadixCiphertext, RadixCiphertext)>;
 
     /// Return the prf output once without and once with re-randomization.
@@ -359,7 +360,7 @@ pub(crate) trait OprfReRandTestRunner {
         &mut self,
         prf_seed: impl OprfSeed,
         num_blocks: u64,
-        rerand_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> (SignedRadixCiphertext, SignedRadixCiphertext);
 
     /// Return the prf output once without and once with re-randomization.
@@ -368,7 +369,7 @@ pub(crate) trait OprfReRandTestRunner {
         prf_seed: impl OprfSeed,
         random_bit_count: u64,
         num_blocks: u64,
-        rerand_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> (SignedRadixCiphertext, SignedRadixCiphertext);
 }
 
@@ -428,7 +429,7 @@ impl OprfReRandTestRunner for CpuOprfReRandTestRunner {
         &mut self,
         prf_seed: impl OprfSeed,
         num_blocks: u64,
-        rerand_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> (RadixCiphertext, RadixCiphertext) {
         let state = self.state();
         let rerand_key = state.rerand_key();
@@ -448,7 +449,7 @@ impl OprfReRandTestRunner for CpuOprfReRandTestRunner {
                 num_blocks,
                 &state.sks,
                 &rerand_key,
-                rerand_hash_algo,
+                prf_re_randomization_context,
             )
             .unwrap();
 
@@ -460,7 +461,7 @@ impl OprfReRandTestRunner for CpuOprfReRandTestRunner {
         prf_seed: impl OprfSeed,
         random_bit_count: u64,
         num_blocks: u64,
-        rerand_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> (RadixCiphertext, RadixCiphertext) {
         let state = self.state();
         let rerand_key = state.rerand_key();
@@ -484,7 +485,7 @@ impl OprfReRandTestRunner for CpuOprfReRandTestRunner {
                 num_blocks,
                 &state.sks,
                 &rerand_key,
-                rerand_hash_algo,
+                prf_re_randomization_context,
             )
             .unwrap();
 
@@ -497,7 +498,7 @@ impl OprfReRandTestRunner for CpuOprfReRandTestRunner {
         num_input_random_bits: u64,
         excluded_upper_bound: NonZeroU64,
         num_blocks_output: u64,
-        rerand_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> Option<(RadixCiphertext, RadixCiphertext)> {
         let state = self.state();
         let rerand_key = state.rerand_key();
@@ -523,7 +524,7 @@ impl OprfReRandTestRunner for CpuOprfReRandTestRunner {
                 num_blocks_output,
                 &state.sks,
                 &rerand_key,
-                rerand_hash_algo,
+                prf_re_randomization_context,
             )
             .unwrap();
 
@@ -534,7 +535,7 @@ impl OprfReRandTestRunner for CpuOprfReRandTestRunner {
         &mut self,
         prf_seed: impl OprfSeed,
         num_blocks: u64,
-        rerand_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> (SignedRadixCiphertext, SignedRadixCiphertext) {
         let state = self.state();
         let rerand_key = state.rerand_key();
@@ -552,7 +553,7 @@ impl OprfReRandTestRunner for CpuOprfReRandTestRunner {
                 num_blocks,
                 &state.sks,
                 &rerand_key,
-                rerand_hash_algo,
+                prf_re_randomization_context,
             )
             .unwrap();
 
@@ -564,7 +565,7 @@ impl OprfReRandTestRunner for CpuOprfReRandTestRunner {
         prf_seed: impl OprfSeed,
         random_bit_count: u64,
         num_blocks: u64,
-        rerand_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> (SignedRadixCiphertext, SignedRadixCiphertext) {
         let state = self.state();
         let rerand_key = state.rerand_key();
@@ -588,7 +589,7 @@ impl OprfReRandTestRunner for CpuOprfReRandTestRunner {
                 num_blocks,
                 &state.sks,
                 &rerand_key,
-                rerand_hash_algo,
+                prf_re_randomization_context,
             )
             .unwrap();
 
@@ -642,7 +643,7 @@ fn subtest_unsigned_integer_full<TestRunner: OprfReRandTestRunner>(
     prf_seed: impl OprfSeed,
     cks: &ClientKey,
     test_runner: &mut TestRunner,
-    rerand_hash_algo: ReRandomizationHashAlgo,
+    prf_re_randomization_context: &PrfReRandomizationContext,
 ) {
     const OUTPUT_BIT_COUNT: u64 = 16;
 
@@ -654,7 +655,7 @@ fn subtest_unsigned_integer_full<TestRunner: OprfReRandTestRunner>(
     let num_blocks = OUTPUT_BIT_COUNT.div_ceil(message_bits);
 
     let (prf_not_rerand, prf_rerand) =
-        test_runner.unsigned_full(prf_seed, num_blocks, rerand_hash_algo);
+        test_runner.unsigned_full(prf_seed, num_blocks, prf_re_randomization_context);
 
     assert_eq!(prf_not_rerand.blocks.len() as u64, num_blocks);
     assert_eq!(prf_rerand.blocks.len() as u64, num_blocks);
@@ -677,7 +678,7 @@ fn subtest_unsigned_integer_bounded<TestRunner: OprfReRandTestRunner>(
     prf_seed: impl OprfSeed,
     cks: &ClientKey,
     test_runner: &mut TestRunner,
-    rerand_hash_algo: ReRandomizationHashAlgo,
+    prf_re_randomization_context: &PrfReRandomizationContext,
 ) {
     let mut rng = rand::thread_rng();
     const OUTPUT_BIT_COUNT: u64 = 16;
@@ -690,8 +691,12 @@ fn subtest_unsigned_integer_bounded<TestRunner: OprfReRandTestRunner>(
     let random_value_range = 0..=1 << random_bit_count;
     let random_block_count = random_bit_count.div_ceil(message_bits);
 
-    let (prf_not_rerand, prf_rerand) =
-        test_runner.unsigned_bounded(prf_seed, random_bit_count, num_blocks, rerand_hash_algo);
+    let (prf_not_rerand, prf_rerand) = test_runner.unsigned_bounded(
+        prf_seed,
+        random_bit_count,
+        num_blocks,
+        prf_re_randomization_context,
+    );
 
     assert_eq!(prf_not_rerand.blocks.len() as u64, num_blocks);
     assert_eq!(prf_rerand.blocks.len() as u64, num_blocks);
@@ -713,7 +718,7 @@ fn subtest_integer_bounded_padding_stays_trivial<TestRunner: OprfReRandTestRunne
     prf_seed: impl OprfSeed,
     cks: &ClientKey,
     test_runner: &mut TestRunner,
-    rerand_hash_algo: ReRandomizationHashAlgo,
+    prf_re_randomization_context: &PrfReRandomizationContext,
 ) {
     let mut rng = rand::thread_rng();
     const OUTPUT_BIT_COUNT: u64 = 16;
@@ -730,8 +735,12 @@ fn subtest_integer_bounded_padding_stays_trivial<TestRunner: OprfReRandTestRunne
     let random_block_count = random_bit_count.div_ceil(message_bits);
 
     {
-        let (prf_not_rerand, prf_rerand) =
-            test_runner.unsigned_bounded(prf_seed, random_bit_count, num_blocks, rerand_hash_algo);
+        let (prf_not_rerand, prf_rerand) = test_runner.unsigned_bounded(
+            prf_seed,
+            random_bit_count,
+            num_blocks,
+            prf_re_randomization_context,
+        );
 
         assert!(
             prf_not_rerand.blocks[random_block_count as usize..]
@@ -748,8 +757,12 @@ fn subtest_integer_bounded_padding_stays_trivial<TestRunner: OprfReRandTestRunne
     }
 
     {
-        let (prf_not_rerand, prf_rerand) =
-            test_runner.signed_bounded(prf_seed, random_bit_count, num_blocks, rerand_hash_algo);
+        let (prf_not_rerand, prf_rerand) = test_runner.signed_bounded(
+            prf_seed,
+            random_bit_count,
+            num_blocks,
+            prf_re_randomization_context,
+        );
 
         assert!(
             prf_not_rerand.blocks[random_block_count as usize..]
@@ -770,7 +783,7 @@ fn subtest_unsigned_integer_custom_range<TestRunner: OprfReRandTestRunner>(
     prf_seed: impl OprfSeed,
     cks: &ClientKey,
     test_runner: &mut TestRunner,
-    rerand_hash_algo: ReRandomizationHashAlgo,
+    prf_re_randomization_context: &PrfReRandomizationContext,
 ) {
     let mut rng = rand::thread_rng();
     // This may cause some values to not appear, but it's fine since we don't test uniformity
@@ -804,7 +817,7 @@ fn subtest_unsigned_integer_custom_range<TestRunner: OprfReRandTestRunner>(
         INPUT_RANDOM_BIT_COUNT,
         excluded_upper_bound,
         output_num_blocks,
-        rerand_hash_algo,
+        prf_re_randomization_context,
     ) else {
         // Underlying executor does not have the custom_range support
         // TODO: remove when GPU has support
@@ -873,7 +886,7 @@ fn subtest_signed_integer_full<TestRunner: OprfReRandTestRunner>(
     prf_seed: impl OprfSeed,
     cks: &ClientKey,
     test_runner: &mut TestRunner,
-    rerand_hash_algo: ReRandomizationHashAlgo,
+    prf_re_randomization_context: &PrfReRandomizationContext,
 ) {
     const OUTPUT_BIT_COUNT: u64 = 16;
 
@@ -882,7 +895,7 @@ fn subtest_signed_integer_full<TestRunner: OprfReRandTestRunner>(
     let num_blocks = OUTPUT_BIT_COUNT.div_ceil(message_bits);
 
     let (prf_not_rerand, prf_rerand) =
-        test_runner.signed_full(prf_seed, num_blocks, rerand_hash_algo);
+        test_runner.signed_full(prf_seed, num_blocks, prf_re_randomization_context);
 
     assert_eq!(prf_not_rerand.blocks.len() as u64, num_blocks);
     assert_eq!(prf_rerand.blocks.len() as u64, num_blocks);
@@ -905,7 +918,7 @@ fn subtest_signed_integer_bounded<TestRunner: OprfReRandTestRunner>(
     prf_seed: impl OprfSeed,
     cks: &ClientKey,
     test_runner: &mut TestRunner,
-    rerand_hash_algo: ReRandomizationHashAlgo,
+    prf_re_randomization_context: &PrfReRandomizationContext,
 ) {
     let mut rng = rand::thread_rng();
     const OUTPUT_BIT_COUNT: u64 = 16;
@@ -920,8 +933,12 @@ fn subtest_signed_integer_bounded<TestRunner: OprfReRandTestRunner>(
     let random_value_range = 0..=1 << random_bit_count;
     let random_block_count = random_bit_count.div_ceil(message_bits);
 
-    let (prf_not_rerand, prf_rerand) =
-        test_runner.signed_bounded(prf_seed, random_bit_count, num_blocks, rerand_hash_algo);
+    let (prf_not_rerand, prf_rerand) = test_runner.signed_bounded(
+        prf_seed,
+        random_bit_count,
+        num_blocks,
+        prf_re_randomization_context,
+    );
 
     assert_eq!(prf_not_rerand.blocks.len() as u64, num_blocks);
     assert_eq!(prf_rerand.blocks.len() as u64, num_blocks);
@@ -965,23 +982,31 @@ where
         ReRandomizationHashAlgo::Shake256,
     ] {
         println!("rerand_hash_algo: {rerand_hash_algo:?}");
+        let seed_hasher = ReRandomizationSeedHasher::new(
+            rerand_hash_algo,
+            crate::shortint::oprf::TFHE_PRF_RERAND_DOMAIN_SEPARATOR,
+        );
+        let prf_rerand_context = PrfReRandomizationContext::new_with_hasher(
+            crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR,
+            seed_hasher,
+        );
 
         subtest_integer_bounded_padding_stays_trivial(
             prf_seed,
             &cks,
             &mut test_runner,
-            rerand_hash_algo,
+            &prf_rerand_context,
         );
 
         // A fresh seed per call: re-using a seed across re-randomization calls is unsafe in
         // production, but each call here is self-contained (plain vs rerand from the same seed).
-        subtest_unsigned_integer_full(prf_seed, &cks, &mut test_runner, rerand_hash_algo);
-        subtest_signed_integer_full(prf_seed, &cks, &mut test_runner, rerand_hash_algo);
+        subtest_unsigned_integer_full(prf_seed, &cks, &mut test_runner, &prf_rerand_context);
+        subtest_signed_integer_full(prf_seed, &cks, &mut test_runner, &prf_rerand_context);
 
         // Run bounded tests a little more since they have a random component
         for _ in 0..10 {
-            subtest_unsigned_integer_bounded(prf_seed, &cks, &mut test_runner, rerand_hash_algo);
-            subtest_signed_integer_bounded(prf_seed, &cks, &mut test_runner, rerand_hash_algo);
+            subtest_unsigned_integer_bounded(prf_seed, &cks, &mut test_runner, &prf_rerand_context);
+            subtest_signed_integer_bounded(prf_seed, &cks, &mut test_runner, &prf_rerand_context);
         }
 
         // This test has a random component but is much heavier (and is skipped on backends that
@@ -991,7 +1016,7 @@ where
                 prf_seed,
                 &cks,
                 &mut test_runner,
-                rerand_hash_algo,
+                &prf_rerand_context,
             );
         }
     }

@@ -2,7 +2,7 @@ use super::{FheBool, InnerBoolean};
 use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::{
-    ReRandomizationHashAlgo, ReRandomizationMetadata, ReRandomizationMode,
+    PrfReRandomizationContext, ReRandomizationMetadata, ReRandomizationMode,
 };
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
@@ -97,7 +97,7 @@ impl FheBool {
     /// use tfhe::prelude::*;
     /// use tfhe::shortint::parameters::*;
     /// use tfhe::{
-    ///     generate_keys, set_server_key, ConfigBuilder, FheBool, ReRandomizationHashAlgo,
+    ///     generate_keys, set_server_key, ConfigBuilder, FheBool, PrfReRandomizationContext,
     ///     ReRandomizationMode,
     /// };
     ///
@@ -121,7 +121,7 @@ impl FheBool {
     /// let ct_res_rerand = FheBool::generate_oblivious_pseudo_random_and_re_randomize(
     ///     seed,
     ///     ReRandomizationMode::default(),
-    ///     ReRandomizationHashAlgo::default(),
+    ///     &PrfReRandomizationContext::default(),
     /// )
     /// .unwrap();
     ///
@@ -138,7 +138,7 @@ impl FheBool {
     >(
         seed: impl OprfSeed,
         re_randomization_mode: RRD,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> crate::Result<Self> {
         let re_randomization_mode: ReRandomizationMode = re_randomization_mode.into();
         global_state::with_internal_keys(|key| match key {
@@ -156,7 +156,7 @@ impl FheBool {
                         1,
                         sk,
                         &rerand_key,
-                        re_randomization_hash_algo,
+                        prf_re_randomization_context.inner(),
                     )?;
 
                 let ct = ct_wrapped.blocks.into_iter().next().unwrap();
@@ -181,7 +181,7 @@ impl FheBool {
                         1,
                         cuda_key.pbs_key(),
                         &rerand_key,
-                        re_randomization_hash_algo,
+                        prf_re_randomization_context.inner(),
                         streams,
                     )?;
                 Ok((
@@ -203,6 +203,7 @@ impl FheBool {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::integer::ciphertext::{ReRandomizationHashAlgo, ReRandomizationSeedHasher};
     use crate::prelude::FheDecrypt;
     use crate::shortint::parameters::ReRandomizationParameters;
 
@@ -227,14 +228,23 @@ mod test {
         let rnd = FheBool::generate_oblivious_pseudo_random(seed);
         let decrypted_result: bool = rnd.decrypt(&client_key);
 
-        for hash_algo in [
+        for rerand_hash_algo in [
             ReRandomizationHashAlgo::Blake3,
             ReRandomizationHashAlgo::Shake256,
         ] {
+            let seed_hasher = ReRandomizationSeedHasher::new(
+                rerand_hash_algo,
+                crate::shortint::oprf::TFHE_PRF_RERAND_DOMAIN_SEPARATOR,
+            );
+            let prf_rerand_context = PrfReRandomizationContext::new_with_hasher(
+                crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR,
+                seed_hasher,
+            );
+
             let rnd_rerand = FheBool::generate_oblivious_pseudo_random_and_re_randomize(
                 seed,
                 rerand_mode,
-                hash_algo,
+                &prf_rerand_context,
             )
             .unwrap();
 
@@ -280,14 +290,23 @@ mod test {
                 let rnd = FheBool::generate_oblivious_pseudo_random(seed);
                 let decrypted_result: bool = rnd.decrypt(&client_key);
 
-                for hash_algo in [
+                for rerand_hash_algo in [
                     ReRandomizationHashAlgo::Blake3,
                     ReRandomizationHashAlgo::Shake256,
                 ] {
+                    let seed_hasher = ReRandomizationSeedHasher::new(
+                        rerand_hash_algo,
+                        crate::shortint::oprf::TFHE_PRF_RERAND_DOMAIN_SEPARATOR,
+                    );
+                    let prf_rerand_context = PrfReRandomizationContext::new_with_hasher(
+                        crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR,
+                        seed_hasher,
+                    );
+
                     let rnd_rerand = FheBool::generate_oblivious_pseudo_random_and_re_randomize(
                         seed,
                         rerand_mode,
-                        hash_algo,
+                        &prf_rerand_context,
                     )
                     .unwrap();
 

@@ -2,7 +2,7 @@ use super::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{Container, IntoContainerOwned};
 use crate::integer::ciphertext::{
-    IntegerRadixCiphertext, ReRandomizationHashAlgo, ReRandomizationKey,
+    IntegerRadixCiphertext, PrfReRandomizationContext, ReRandomizationKey,
 };
 use crate::integer::ClientKey;
 use crate::named::Named;
@@ -150,14 +150,14 @@ where
         num_blocks: u64,
         target_sks: &ServerKey,
         re_randomization_key: &ReRandomizationKey,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> crate::Result<RadixCiphertext> {
         self.par_generate_oblivious_pseudo_random_integer_full_and_re_randomize_impl(
             seed,
             num_blocks,
             target_sks,
             re_randomization_key,
-            re_randomization_hash_algo,
+            prf_re_randomization_context,
         )
     }
 
@@ -217,7 +217,7 @@ where
         num_blocks: u64,
         target_sks: &ServerKey,
         re_randomization_key: &ReRandomizationKey,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> crate::Result<RadixCiphertext> {
         self.par_generate_oblivious_pseudo_random_integer_bounded_and_re_randomize_impl(
             seed,
@@ -225,7 +225,7 @@ where
             num_blocks,
             target_sks,
             re_randomization_key,
-            re_randomization_hash_algo,
+            prf_re_randomization_context,
         )
     }
 
@@ -317,7 +317,7 @@ where
         num_blocks_output: u64,
         target_sks: &ServerKey,
         re_randomization_key: &ReRandomizationKey,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> crate::Result<RadixCiphertext>
     where
         InputSeed: OprfSeed,
@@ -339,7 +339,7 @@ where
                     num_blocks,
                     target_sks,
                     re_randomization_key,
-                    re_randomization_hash_algo,
+                    prf_re_randomization_context,
                 )
             },
         )
@@ -389,14 +389,14 @@ where
         num_blocks: u64,
         target_sks: &ServerKey,
         re_randomization_key: &ReRandomizationKey,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> crate::Result<SignedRadixCiphertext> {
         self.par_generate_oblivious_pseudo_random_integer_full_and_re_randomize_impl(
             seed,
             num_blocks,
             target_sks,
             re_randomization_key,
-            re_randomization_hash_algo,
+            prf_re_randomization_context,
         )
     }
 
@@ -457,7 +457,7 @@ where
         num_blocks: u64,
         target_sks: &ServerKey,
         re_randomization_key: &ReRandomizationKey,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> crate::Result<SignedRadixCiphertext> {
         self.par_generate_oblivious_pseudo_random_integer_bounded_and_re_randomize_impl(
             seed,
@@ -465,7 +465,7 @@ where
             num_blocks,
             target_sks,
             re_randomization_key,
-            re_randomization_hash_algo,
+            prf_re_randomization_context,
         )
     }
 
@@ -500,7 +500,7 @@ where
         num_blocks: u64,
         target_sks: &ServerKey,
         re_randomization_key: &ReRandomizationKey,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> crate::Result<T> {
         assert!(target_sks.message_modulus().0.is_power_of_two());
         let message_bits_count = target_sks.message_modulus().0.ilog2() as u64;
@@ -516,7 +516,7 @@ where
                 &target_sks.key,
                 &compact_public_key.key,
                 key_switching_key_material.as_ref().map(|k| &k.material),
-                re_randomization_hash_algo,
+                prf_re_randomization_context.inner(),
             )?
             .into_iter()
             .next()
@@ -579,7 +579,7 @@ where
         num_blocks: u64,
         target_sks: &ServerKey,
         re_randomization_key: &ReRandomizationKey,
-        re_randomization_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> crate::Result<T> {
         assert!(target_sks.message_modulus().0.is_power_of_two());
         let message_bits_count = target_sks.message_modulus().0.ilog2() as u64;
@@ -613,7 +613,7 @@ where
                 &target_sks.key,
                 &compact_public_key.key,
                 key_switching_key_material.as_ref().map(|k| &k.material),
-                re_randomization_hash_algo,
+                prf_re_randomization_context.inner(),
             )?
             .into_iter()
             .next()

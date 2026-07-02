@@ -281,3 +281,57 @@ impl ReRandomizationMetadata {
         self.inner.clear();
     }
 }
+
+/// A context used specifically for re-randomization in PRF functions like
+/// [`crate::high_level_api::integers::FheUint::generate_oblivious_pseudo_random_and_re_randomize`].
+#[derive(Default)]
+pub struct PrfReRandomizationContext {
+    pub(in crate::high_level_api) inner: crate::integer::ciphertext::PrfReRandomizationContext,
+}
+
+impl PrfReRandomizationContext {
+    /// Create a new re-randomization context with the default seed hasher (blake3).
+    ///
+    /// `rerand_seeder_domain_separator` is the domain separator that will be fed into the
+    /// seed generator.
+    /// `public_encryption_domain_separator` is the domain separator that will be used along this
+    /// seed to generate the encryptions of zero.
+    ///
+    /// (See [`XofSeed`] for more information)
+    ///
+    /// # Example
+    /// ```rust
+    /// use tfhe::PrfReRandomizationContext;
+    /// let _re_rand_context = PrfReRandomizationContext::new(
+    ///     *b"PRF_RRND",
+    ///     *b"TFHE_Enc"
+    ///  );
+    pub fn new(
+        rerand_seeder_domain_separator: [u8; XofSeed::DOMAIN_SEP_LEN],
+        public_encryption_domain_separator: [u8; XofSeed::DOMAIN_SEP_LEN],
+    ) -> Self {
+        Self {
+            inner: crate::integer::ciphertext::PrfReRandomizationContext::new(
+                rerand_seeder_domain_separator,
+                public_encryption_domain_separator,
+            ),
+        }
+    }
+
+    /// Create a new re-randomization context with the provided seed hasher.
+    pub fn new_with_hasher(
+        public_encryption_domain_separator: [u8; XofSeed::DOMAIN_SEP_LEN],
+        seed_hasher: ReRandomizationSeedHasher,
+    ) -> Self {
+        Self {
+            inner: crate::integer::ciphertext::PrfReRandomizationContext::new_with_hasher(
+                public_encryption_domain_separator,
+                seed_hasher,
+            ),
+        }
+    }
+
+    pub fn inner(&self) -> &crate::integer::ciphertext::PrfReRandomizationContext {
+        &self.inner
+    }
+}
