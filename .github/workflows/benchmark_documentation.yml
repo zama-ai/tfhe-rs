@@ -138,8 +138,8 @@ jobs:
       op_flavor: default
       bench_type: both
       precisions_set: documentation
-      v80_pcie_dev: 24
-      v80_serial_number: XFL12NWY3ZKG
+      hpu_number: 4
+      runner_target: v80-marais
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
