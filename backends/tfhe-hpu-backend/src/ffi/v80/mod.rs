@@ -418,14 +418,6 @@ impl HpuHw {
             }
         }
 
-        if let Err(e) = OpenOptions::new()
-            .write(true)
-            .open(format!("/sys/bus/pci/devices/0000:{dev}:00.1/qdma/qmax"))
-            .and_then(|mut f| f.write_all(b"100\n"))
-        {
-            tracing::debug!("Dma: Failed to configure qmax ({e}). Must have been already done after the last rescan");
-        }
-
         // Create user queues ----------------------------------------------
         let h2c_path = format!("/dev/qdma{dev}001-MM-1");
         let c2h_path = format!("/dev/qdma{dev}001-MM-2");
