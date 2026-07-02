@@ -3540,10 +3540,10 @@ criterion_group!(
 
 criterion_group!(
     default_dedup_ops,
-    add_parallelized,
-    // mul_parallelized,
-    // div_rem_parallelized,
-    bitand_parallelized,
+    //add_parallelized,
+    mul_parallelized,
+    div_rem_parallelized,
+    /*bitand_parallelized,
     bitnot,
     left_shift_parallelized,
     rotate_left_parallelized,
@@ -3564,7 +3564,7 @@ criterion_group!(
     scalar_rotate_left_parallelized,
     scalar_max_parallelized,
     scalar_eq_parallelized,
-    scalar_gt_parallelized,
+    scalar_gt_parallelized,*/
 );
 
 criterion_group!(
@@ -3854,7 +3854,7 @@ fn go_through_cpu_bench_groups(val: &str) {
         }
         "fast_default" => {
             default_dedup_ops();
-            vector_find();
+            // vector_find();
         }
         "smart" => {
             smart_ops();
