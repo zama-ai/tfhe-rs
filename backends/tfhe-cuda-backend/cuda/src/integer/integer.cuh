@@ -1475,20 +1475,7 @@ void generate_device_accumulator_bivariate(
 
     cuda_synchronize_stream(stream, gpu_index);
     free(h_lut);
-  } else {
-    *max_degree = message_modulus * carry_modulus - 1;
-    // fill bivariate accumulator
-    *degree = generate_lookup_table_bivariate<Torus>(
-        preallocated_cpu_lut, glwe_dimension, polynomial_size, message_modulus,
-        carry_modulus, f);
-
-    // copy host lut and lut_indexes_vec to device
-    cuda_memcpy_with_size_tracking_async_to_gpu(
-        acc_bivariate, preallocated_cpu_lut,
-        (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream,
-        gpu_index, gpu_memory_allocated);
-  }
-  POP_RANGE()
+    POP_RANGE()
 }
 
 /*
@@ -1524,20 +1511,6 @@ void generate_device_accumulator_bivariate_with_factor(
 
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
-}
-
-  *max_degree = message_modulus * carry_modulus - 1;
-  // fill bivariate accumulator
-  *degree = generate_lookup_table_bivariate<Torus>(
-      h_lut, glwe_dimension, polynomial_size, message_modulus, carry_modulus,
-      f);
-
-  // copy host lut and lut_indexes_vec to device
-  cuda_memcpy_with_size_tracking_async_to_gpu(
-      acc_bivariate, h_lut,
-      safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size), stream,
-      gpu_index, gpu_memory_allocated);
-  POP_RANGE()
 }
 
 template <typename Torus>
@@ -1649,18 +1622,6 @@ void generate_many_lut_device_accumulator(
 
     cuda_synchronize_stream(stream, gpu_index);
     free(h_lut);
-  } else {
-    // fill accumulator
-    *max_degree = generate_many_lookup_table<Torus>(
-        preallocated_h_lut, degrees, glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, functions);
-
-    // copy host lut and lut_indexes_vec to device
-    cuda_memcpy_with_size_tracking_async_to_gpu(
-        acc, preallocated_h_lut,
-        (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream,
-        gpu_index, gpu_memory_allocated);
-  }
   POP_RANGE()
 }
 

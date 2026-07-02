@@ -46,7 +46,7 @@ template <typename Torus> struct int_erc20_buffer {
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), has_enough_funds, 1,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    active_streams = streams.active_gpu_subset(num_radix_blocks);
+    active_streams = streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
     num_internal_streams = 2;
     this->internal_cuda_streams.create_internal_cuda_streams_on_same_gpus(
         active_streams, num_internal_streams);
