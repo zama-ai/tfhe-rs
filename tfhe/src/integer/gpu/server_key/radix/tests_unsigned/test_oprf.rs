@@ -1,5 +1,7 @@
 use crate::core_crypto::gpu::CudaStreams;
-use crate::integer::ciphertext::{RadixCiphertext, ReRandomizationHashAlgo, SignedRadixCiphertext};
+use crate::integer::ciphertext::{
+    PrfReRandomizationContext, RadixCiphertext, SignedRadixCiphertext,
+};
 use crate::integer::gpu::ciphertext::re_randomization::CudaReRandomizationKey;
 use crate::integer::gpu::server_key::radix::tests_long_run::OpSequenceGpuMultiDeviceFunctionExecutor;
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
@@ -129,7 +131,7 @@ impl OprfReRandTestRunner for GpuOprfReRandTestRunner {
         &mut self,
         prf_seed: impl OprfSeed,
         num_blocks: u64,
-        rerand_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> (RadixCiphertext, RadixCiphertext) {
         let state = self.state();
         let rerand_key = state.rerand_key();
@@ -152,7 +154,7 @@ impl OprfReRandTestRunner for GpuOprfReRandTestRunner {
                 num_blocks,
                 &state.sks,
                 &rerand_key,
-                rerand_hash_algo,
+                prf_re_randomization_context,
                 &state.streams,
             )
             .unwrap();
@@ -168,7 +170,7 @@ impl OprfReRandTestRunner for GpuOprfReRandTestRunner {
         prf_seed: impl OprfSeed,
         random_bit_count: u64,
         num_blocks: u64,
-        rerand_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> (RadixCiphertext, RadixCiphertext) {
         let state = self.state();
         let rerand_key = state.rerand_key();
@@ -193,7 +195,7 @@ impl OprfReRandTestRunner for GpuOprfReRandTestRunner {
                 num_blocks,
                 &state.sks,
                 &rerand_key,
-                rerand_hash_algo,
+                prf_re_randomization_context,
                 &state.streams,
             )
             .unwrap();
@@ -210,7 +212,7 @@ impl OprfReRandTestRunner for GpuOprfReRandTestRunner {
         _num_input_random_bits: u64,
         _excluded_upper_bound: NonZeroU64,
         _num_blocks_output: u64,
-        _rerand_hash_algo: ReRandomizationHashAlgo,
+        _prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> Option<(RadixCiphertext, RadixCiphertext)> {
         // The GPU backend does not expose a re-randomizing custom-range primitive yet
         // Return None to skip the corresponding sub case
@@ -221,7 +223,7 @@ impl OprfReRandTestRunner for GpuOprfReRandTestRunner {
         &mut self,
         prf_seed: impl OprfSeed,
         num_blocks: u64,
-        rerand_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> (SignedRadixCiphertext, SignedRadixCiphertext) {
         let state = self.state();
         let rerand_key = state.rerand_key();
@@ -244,7 +246,7 @@ impl OprfReRandTestRunner for GpuOprfReRandTestRunner {
                 num_blocks,
                 &state.sks,
                 &rerand_key,
-                rerand_hash_algo,
+                prf_re_randomization_context,
                 &state.streams,
             )
             .unwrap();
@@ -260,7 +262,7 @@ impl OprfReRandTestRunner for GpuOprfReRandTestRunner {
         prf_seed: impl OprfSeed,
         random_bit_count: u64,
         num_blocks: u64,
-        rerand_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> (SignedRadixCiphertext, SignedRadixCiphertext) {
         let state = self.state();
         let rerand_key = state.rerand_key();
@@ -285,7 +287,7 @@ impl OprfReRandTestRunner for GpuOprfReRandTestRunner {
                 num_blocks,
                 &state.sks,
                 &rerand_key,
-                rerand_hash_algo,
+                prf_re_randomization_context,
                 &state.streams,
             )
             .unwrap();
