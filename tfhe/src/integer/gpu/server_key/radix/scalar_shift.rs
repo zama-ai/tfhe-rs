@@ -56,8 +56,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> T
     where
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
+        u64: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = ct.duplicate(streams);
@@ -71,11 +70,14 @@ impl CudaServerKey {
         shift: Scalar,
         streams: &CudaStreams,
     ) where
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
+        u64: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
+        // Clamp to the bit count so a large amount overshifts instead of wrapping after the u32
+        // cast (matches the CPU backend).
+        let total_num_bits = lwe_ciphertext_count.0 as u64 * self.message_modulus.0.ilog2() as u64;
+        let shift = u64::cast_from(shift).min(total_num_bits) as u32;
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
@@ -98,7 +100,7 @@ impl CudaServerKey {
                     cuda_backend_unchecked_scalar_left_shift_assign(
                         streams,
                         ct.as_mut(),
-                        u32::cast_from(shift),
+                        shift,
                         &d_bsk.d_vec,
                         &computing_ks_key.d_vec,
                         self.message_modulus,
@@ -125,7 +127,7 @@ impl CudaServerKey {
                     cuda_backend_unchecked_scalar_left_shift_assign(
                         streams,
                         ct.as_mut(),
-                        u32::cast_from(shift),
+                        shift,
                         &d_multibit_bsk.d_vec,
                         &computing_ks_key.d_vec,
                         self.message_modulus,
@@ -183,8 +185,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> T
     where
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
+        u64: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = ct.duplicate(streams);
@@ -198,11 +199,14 @@ impl CudaServerKey {
         shift: Scalar,
         streams: &CudaStreams,
     ) where
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
+        u64: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
+        // Clamp to the bit count so a large amount overshifts instead of wrapping after the u32
+        // cast (matches the CPU backend).
+        let total_num_bits = lwe_ciphertext_count.0 as u64 * self.message_modulus.0.ilog2() as u64;
+        let shift = u64::cast_from(shift).min(total_num_bits) as u32;
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
@@ -226,7 +230,7 @@ impl CudaServerKey {
                         cuda_backend_unchecked_scalar_arithmetic_right_shift_assign(
                             streams,
                             ct.as_mut(),
-                            u32::cast_from(shift),
+                            shift,
                             &d_bsk.d_vec,
                             &computing_ks_key.d_vec,
                             self.message_modulus,
@@ -252,7 +256,7 @@ impl CudaServerKey {
                         cuda_backend_unchecked_scalar_arithmetic_right_shift_assign(
                             streams,
                             ct.as_mut(),
-                            u32::cast_from(shift),
+                            shift,
                             &d_multibit_bsk.d_vec,
                             &computing_ks_key.d_vec,
                             self.message_modulus,
@@ -281,7 +285,7 @@ impl CudaServerKey {
                         cuda_backend_unchecked_scalar_logical_right_shift_assign(
                             streams,
                             ct.as_mut(),
-                            u32::cast_from(shift),
+                            shift,
                             &d_bsk.d_vec,
                             &computing_ks_key.d_vec,
                             self.message_modulus,
@@ -308,7 +312,7 @@ impl CudaServerKey {
                         cuda_backend_unchecked_scalar_logical_right_shift_assign(
                             streams,
                             ct.as_mut(),
-                            u32::cast_from(shift),
+                            shift,
                             &d_multibit_bsk.d_vec,
                             &computing_ks_key.d_vec,
                             self.message_modulus,
@@ -330,8 +334,7 @@ impl CudaServerKey {
         shift: Scalar,
         streams: &CudaStreams,
     ) where
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
+        u64: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
@@ -379,8 +382,7 @@ impl CudaServerKey {
     /// ```
     pub fn scalar_right_shift<Scalar, T>(&self, ct: &T, shift: Scalar, streams: &CudaStreams) -> T
     where
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
+        u64: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = ct.duplicate(streams);
@@ -426,8 +428,7 @@ impl CudaServerKey {
     /// ```
     pub fn scalar_left_shift<Scalar, T>(&self, ct: &T, shift: Scalar, streams: &CudaStreams) -> T
     where
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
+        u64: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = ct.duplicate(streams);
@@ -441,8 +442,7 @@ impl CudaServerKey {
         shift: Scalar,
         streams: &CudaStreams,
     ) where
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
+        u64: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {

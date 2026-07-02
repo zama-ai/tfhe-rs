@@ -24,7 +24,7 @@ create_parameterized_test!(integer_signed_unchecked_right_shift);
 create_parameterized_test!(integer_signed_left_shift);
 create_parameterized_test!(integer_signed_right_shift);
 
-pub(crate) fn signed_default_left_shift_test<P, T>(param: P, mut executor: T, test_overshift: bool)
+pub(crate) fn signed_default_left_shift_test<P, T>(param: P, mut executor: T)
 where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
@@ -82,9 +82,7 @@ where
         }
 
         // case when shift >= nb_bits
-        // TODO: remove the `test_overshift` parameter (and this branch's gating) once the
-        // GPU backend implements the new overshift-returns-zero behavior.
-        if test_overshift {
+        {
             // Here we create a encrypted shift value >= nb_bits
             // in a way that the shift ciphertext is seen as having non empty carries
             let mut clear_shift = rng.gen::<u32>() % nb_bits;
@@ -110,7 +108,7 @@ where
     }
 }
 
-pub(crate) fn signed_default_right_shift_test<P, T>(param: P, mut executor: T, test_overshift: bool)
+pub(crate) fn signed_default_right_shift_test<P, T>(param: P, mut executor: T)
 where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
@@ -168,9 +166,7 @@ where
         }
 
         // case when shift >= nb_bits
-        // TODO: remove the `test_overshift` parameter (and this branch's gating) once the
-        // GPU backend implements the new overshift-returns-zero behavior.
-        if test_overshift {
+        {
             // Here we create a encrypted shift value >= nb_bits
             // in a way that the shift ciphertext is seen as having non empty carries
             let mut clear_shift = rng.gen::<u32>() % nb_bits;
@@ -197,11 +193,8 @@ where
     }
 }
 
-pub(crate) fn signed_unchecked_left_shift_test<P, T>(
-    param: P,
-    mut executor: T,
-    test_overshift: bool,
-) where
+pub(crate) fn signed_unchecked_left_shift_test<P, T>(param: P, mut executor: T)
+where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a RadixCiphertext),
@@ -242,9 +235,7 @@ pub(crate) fn signed_unchecked_left_shift_test<P, T>(
         }
 
         // case when shift >= nb_bits
-        // TODO: remove the `test_overshift` parameter (and this branch's gating) once the
-        // GPU backend implements the new overshift-returns-zero behavior.
-        if test_overshift {
+        {
             // The shift amount lies in [nb_bits, modulus), so it encrypts without
             // wrapping and is a genuine overshift: a left shift must return 0.
             let clear_shift = rng.gen_range(nb_bits..modulus as u32);
@@ -257,11 +248,8 @@ pub(crate) fn signed_unchecked_left_shift_test<P, T>(
     }
 }
 
-pub(crate) fn signed_unchecked_right_shift_test<P, T>(
-    param: P,
-    mut executor: T,
-    test_overshift: bool,
-) where
+pub(crate) fn signed_unchecked_right_shift_test<P, T>(param: P, mut executor: T)
+where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a RadixCiphertext),
@@ -301,9 +289,7 @@ pub(crate) fn signed_unchecked_right_shift_test<P, T>(
         }
 
         // case when shift >= nb_bits
-        // TODO: remove the `test_overshift` parameter (and this branch's gating) once the
-        // GPU backend implements the new overshift-returns-zero behavior.
-        if test_overshift {
+        {
             // The shift amount lies in [nb_bits, modulus), so it encrypts without
             // wrapping and is a genuine overshift: an arithmetic right shift
             // saturates to the sign bit (-1 if negative, 0 otherwise).
@@ -322,7 +308,7 @@ where
     P: Into<TestParameters> + Copy,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_right_shift_parallelized);
-    signed_unchecked_right_shift_test(param, executor, true);
+    signed_unchecked_right_shift_test(param, executor);
 }
 
 fn integer_signed_right_shift<P>(param: P)
@@ -330,7 +316,7 @@ where
     P: Into<TestParameters> + Copy,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::right_shift_parallelized);
-    signed_default_right_shift_test(param, executor, true);
+    signed_default_right_shift_test(param, executor);
 }
 
 fn integer_signed_unchecked_left_shift<P>(param: P)
@@ -338,7 +324,7 @@ where
     P: Into<TestParameters> + Copy,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_left_shift_parallelized);
-    signed_unchecked_left_shift_test(param, executor, true);
+    signed_unchecked_left_shift_test(param, executor);
 }
 
 fn integer_signed_left_shift<P>(param: P)
@@ -346,5 +332,5 @@ where
     P: Into<TestParameters> + Copy,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::left_shift_parallelized);
-    signed_default_left_shift_test(param, executor, true);
+    signed_default_left_shift_test(param, executor);
 }
