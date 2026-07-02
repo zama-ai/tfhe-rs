@@ -7,13 +7,20 @@ use std::path::{Path, PathBuf};
 const BENCHMARK_DIRS: [&str; 2] = ["tfhe-benchmark", "tfhe-zk-pok"];
 
 /// Locate and read the `parameters.json` file produced by `write_to_json_unchecked` for a given
-/// `bench_id`. Tries each candidate in [`BENCHMARK_DIRS`] in turn.
+/// `bench_id`. Tries each candidate in [`BENCHMARK_DIRS`] in turn, then each of `extra_dirs`.
 ///
 /// Returns `(params, display_name, operator_type)` where `params` is the remaining top-level JSON
 /// object after `display_name` and `operator_type` have been extracted.
-pub(super) fn get_parameters(bench_id: &str) -> Result<(Map<String, Value>, String, String)> {
-    for dirname in BENCHMARK_DIRS {
-        let path = PathBuf::from(dirname)
+pub(super) fn get_parameters(
+    bench_id: &str,
+    extra_dirs: &[PathBuf],
+) -> Result<(Map<String, Value>, String, String)> {
+    for dirname in BENCHMARK_DIRS
+        .iter()
+        .map(PathBuf::from)
+        .chain(extra_dirs.iter().cloned())
+    {
+        let path = dirname
             .join("benchmarks_parameters")
             .join(bench_id)
             .join("parameters.json");

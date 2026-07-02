@@ -50,6 +50,11 @@ pub struct Cli {
     #[arg(long = "name-suffix", default_value = "")]
     pub name_suffix: String,
 
+    /// Additional directory in which to look for a `benchmarks_parameters` records directory,
+    /// on top of the built-in candidates. Can be given multiple times.
+    #[arg(long = "params-dir")]
+    pub params_dirs: Vec<PathBuf>,
+
     /// Append parsed results to an existing file.
     #[arg(long = "append-results")]
     pub append_results: bool,

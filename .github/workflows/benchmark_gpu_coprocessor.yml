@@ -45,7 +45,7 @@ env:
   OPTIMIZATION_TARGET: "throughput"
   BATCH_SIZE: "5000"
   SCHEDULING_POLICY: "MAX_PARALLELISM"
-  BENCHMARKS: "erc7984"
+  BENCHMARKS: "erc20"
   BRANCH_NAME: ${{ github.ref_name }}
   COMMIT_SHA: ${{ github.sha }}
   SLAB_SECRET: ${{ secrets.JOB_SECRET }}
@@ -138,7 +138,6 @@ jobs:
       - name: Checkout tfhe-rs
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          path: tfhe-rs
           persist-credentials: false
 
       - name: Check fhEVM and TFHE-rs repos
@@ -164,20 +163,19 @@ jobs:
             echo "COMMIT_DATE=$COMMIT_DATE_ENV";
             echo "COMMIT_HASH=$(git rev-parse HEAD)";
           } >> "${GITHUB_ENV}"
-        working-directory: tfhe-rs/
 
       - name: Setup cloud GPU machine dependencies
-        uses: ./tfhe-rs/.github/actions/gpu_setup
+        uses: ./.github/actions/gpu_setup
         with:
           cuda-version: ${{ matrix.cuda }}
           gcc-version: ${{ matrix.gcc }}
           cloud-provider: ${{ needs.parse-inputs.outputs.cloud_provider }}
 
-      - name: Check fhEVM and TFHE-rs repos
-        run: |
-          pwd
-          ls
-          mv tfhe-rs fhevm/coprocessor/
+      - name: Checkout tfhe-rs in fhevm coprocessor
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: fhevm/coprocessor/tfhe-rs
+          persist-credentials: false
 
       - name: Checkout LFS objects
         run: git lfs checkout
@@ -191,15 +189,22 @@ jobs:
       - name: Install Safe-chain
         run: |
           make install_aikido_safe_chain_ci
+        working-directory: fhevm/coprocessor/tfhe-rs
 
       - name: Install cargo dependencies
         run: |
           sudo apt-get install -y protobuf-compiler pkg-config libssl-dev \
-                                  libclang-dev docker-compose-v2 docker.io acl
+                                  libclang-dev acl
+          if ! command -v docker >/dev/null 2>&1; then
+            sudo apt-get install -y docker.io
+          fi
+          if ! docker compose version >/dev/null 2>&1; then
+            sudo apt-get install -y docker-compose-v2
+          fi
           sudo usermod -aG docker "$USER"
           newgrp docker
           sudo setfacl --modify user:"$USER":rw /var/run/docker.sock
-          cargo install sqlx-cli
+          cargo install sqlx-cli --version=0.8.6 --locked
 
       - name: Install foundry
         uses: foundry-rs/foundry-toolchain@c7450ba673e133f5ee30098b3b54f444d3a2ca2d
@@ -249,13 +254,18 @@ jobs:
           npm install && npm run deploy:emptyProxies && npx hardhat compile
         working-directory: fhevm/
 
-      - name: Profile erc7984 no-cmux benchmark on GPU
+      - name: Profile erc20 no-cmux benchmark on GPU
         run: |
-          BENCHMARK_BATCH_SIZE="${BATCH_SIZE}" \
-          FHEVM_DF_SCHEDULE="${SCHEDULING_POLICY}" \
-          BENCHMARK_TYPE="THROUGHPUT_200" \
-          OPTIMIZATION_TARGET="${OPTIMIZATION_TARGET}" \
-          make -e "profile_erc7984_gpu"
+          export DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/coprocessor"
+          export RUSTFLAGS="-C target-cpu=native"
+          export BENCHMARK_BATCH_SIZE="${BATCH_SIZE}"
+          export FHEVM_DF_SCHEDULE="${SCHEDULING_POLICY}"
+          export BENCHMARK_TYPE="LATENCY"
+          export OPTIMIZATION_TARGET="latency"
+          export FHEVM_TEST_NUM_SAMPLES=20
+          cargo +nightly bench --no-run --bench erc20 --features=gpu-profile,bench,"${OPTIMIZATION_TARGET}" --
+          nsys profile --trace=cuda,osrt,nvtx \
+            cargo +nightly bench --bench erc20 --features=gpu-profile,bench,"${OPTIMIZATION_TARGET}" -- 'latency::no_cmux'
         working-directory: fhevm/coprocessor/fhevm-engine/tfhe-worker
 
       - name: Get nsys profile name
@@ -289,7 +299,7 @@ jobs:
 
       - name: Parse results
         run: |
-          cargo run --release -p tfhe-benchmark-parser -- -i coprocessor/fhevm-engine/target/criterion -o "${RESULTS_FILENAME}" \
+          cargo run --release -p tfhe-benchmark-parser -- -i "${GITHUB_WORKSPACE}/fhevm/coprocessor/fhevm-engine/target/criterion" -o "${RESULTS_FILENAME}" \
           --database coprocessor \
           --hardware "${HW_NAME}" \
           --backend cuda \
@@ -298,15 +308,15 @@ jobs:
           --commit-date "${COMMIT_DATE}" \
           --bench-date "${BENCH_DATE}" \
           --walk-subdirs \
-          --crate "coprocessor/fhevm-engine/tfhe-worker" \
+          --params-dir "${GITHUB_WORKSPACE}/fhevm/coprocessor/fhevm-engine/tfhe-worker" \
           --name-suffix "operation_batch_size_${BATCH_SIZE}-schedule_${SCHEDULING_POLICY}-optimization_target_${OPTIMIZATION_TARGET}"
-        working-directory: fhevm/
+        working-directory: fhevm/coprocessor/tfhe-rs
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: ${COMMIT_SHA}_${BENCHMARKS}_${{ needs.parse-inputs.outputs.profile }}
-          path: fhevm/$${{ env.RESULTS_FILENAME }}
+          name: ${{ env.COMMIT_SHA }}_${{ env.BENCHMARKS }}_${{ needs.parse-inputs.outputs.profile }}
+          path: fhevm/coprocessor/tfhe-rs/${{ env.RESULTS_FILENAME }}
 
       - name: Checkout Slab repo
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -321,7 +331,7 @@ jobs:
         env:
           SLAB_URL: ${{ secrets.SLAB_URL }}
         run: |
-          python3 slab/scripts/data_sender.py fhevm/"${RESULTS_FILENAME}" "${SLAB_SECRET}" \
+          python3 slab/scripts/data_sender.py fhevm/coprocessor/tfhe-rs/"${RESULTS_FILENAME}" "${SLAB_SECRET}" \
           --slab-url "${SLAB_URL}"
 
   teardown-instance:
