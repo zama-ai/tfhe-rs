@@ -3541,8 +3541,8 @@ criterion_group!(
 criterion_group!(
     default_dedup_ops,
     add_parallelized,
-    mul_parallelized,
-    div_rem_parallelized,
+    // mul_parallelized,
+    // div_rem_parallelized,
     bitand_parallelized,
     bitnot,
     left_shift_parallelized,
