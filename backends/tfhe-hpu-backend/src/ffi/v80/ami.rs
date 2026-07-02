@@ -119,7 +119,7 @@ impl AmiDriver {
             .open(&ami_proc_path)
             .unwrap();
 
-        let addr = unsafe {
+        let iop_ack_addr = unsafe {
             mmap(
                 None,
                 NonZero::new(AMI_ACK_PTR_LEN).unwrap(),
@@ -130,7 +130,7 @@ impl AmiDriver {
             )?
         };
 
-        let iop_ack_atomic_ptr: NonNull<AtomicU32> = addr.cast();
+        let iop_ack_atomic_ptr: NonNull<AtomicU32> = iop_ack_addr.cast();
 
         // Try to use direct register access if available
         let bar_reg_ptr = Self::map_bar_reg(&ami_dev).ok();
@@ -163,14 +163,6 @@ impl AmiDriver {
 
         let bar_addr: NonNull<u8> = map_addr.cast();
         Ok(bar_addr)
-    }
-
-    pub fn munmap_cnt(&self) -> Result<(), Box<dyn Error>> {
-        let cnt_addr = self.iop_ack_atomic_ptr.cast();
-        unsafe {
-            munmap(cnt_addr, AMI_ACK_PTR_LEN)?;
-        }
-        Ok(())
     }
 
     /// Read currently loaded UUID in BAR
@@ -448,6 +440,22 @@ impl AmiDriver {
     // read shared atomic counter of iop acknowledge
     pub fn iop_ackq_rd(&self) -> u32 {
         unsafe { self.iop_ack_atomic_ptr.as_ref().swap(0, Ordering::SeqCst) }
+    }
+}
+
+impl Drop for AmiDriver {
+    fn drop(&mut self) {
+        let iop_ack_addr = self.iop_ack_atomic_ptr.cast();
+        unsafe {
+            munmap(iop_ack_addr, AMI_ACK_PTR_LEN).expect("Unable to unmap iop_ack_ptr");
+        }
+
+        if let Some(bar_ptr) = self.bar_reg_ptr {
+            let bar_addr = bar_ptr.cast();
+            unsafe {
+                munmap(bar_addr, AMI_BAR_LEN).expect("Unable to unmap bar_reg_ptr");
+            }
+        }
     }
 }
 

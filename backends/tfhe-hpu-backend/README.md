@@ -147,7 +147,8 @@ Following code snippet shows how to instantiate and configure a `HpuDevice`:
 ```rust
     // Following code snippets used the HighLevelApi abstraction
     // Instantiate HpuDevice --------------------------------------------------
-    let hpu_device = HpuDevice::from_config(&args.config.expand());
+    let hpu_device = HpuDevice::from_config(&config_path.expand(), false)
+        .expect("Hpu device init failed");
 
     // Generate keys ----------------------------------------------------------
     let config = Config::from_hpu_device(&hpu_device);

@@ -77,6 +77,7 @@ impl HpuHw {
             // Reload Ami driver
             tracing::info!("Load ami kernel module [{ami_path}]");
             Command::new("sudo")
+                .arg("--stdin")
                 .arg("/usr/sbin/insmod")
                 .arg(ami_path)
                 .status()
@@ -101,7 +102,6 @@ impl HpuHw {
                 // Check state and version
                 match AmiDriver::new(&board.pcie_id, &hpu_pdi.metadata.amc.his_version, None) {
                     Ok(ami) => {
-                        ami.munmap_cnt().unwrap();
                         if hpu_pdi.metadata.bitstream.uuid.to_lowercase()
                             == ami.uuid().to_lowercase()
                         {
@@ -180,6 +180,7 @@ impl HpuHw {
         // If either we fail to unload ami or qdma we must raise an error
         tracing::info!("Unload drivers ami/qdma_pf");
         let _ = Command::new("sudo")
+            .arg("--stdin")
             .arg("/usr/sbin/rmmod")
             .arg("--syslog") // Output to syslog instead of stderr
             .arg("ami")
@@ -189,6 +190,7 @@ impl HpuHw {
             "Failed to unload ami driver: module still loaded"
         );
         let _ = Command::new("sudo")
+            .arg("--stdin")
             .arg("/usr/sbin/rmmod")
             .arg("--syslog") // Output to syslog instead of stderr
             .arg("qdma_pf")
@@ -396,14 +398,25 @@ impl HpuHw {
     /// Thus dma_queues must be recreated for each node when any of the cluster node is reloaded -_-
     pub fn cfg_dma_queues(dev: &str) {
         // Configure maximum Dma queues
-        OpenOptions::new()
-            .write(true)
-            .open(format!(
-                "/sys/bus/pci/devices/0000:{dev}:00.1/qdma/qmax"
-            ))
-            .expect("Unable to open qdma qmax cmd file")
-            .write_all(b"100\n")
-        .unwrap_or_else(|_| tracing::debug!("Dma: Failed to configure qmax. Must have been already done after the last rescan"));
+        let qmax_path = format!("/sys/bus/pci/devices/0000:{dev}:00.1/qdma/qmax");
+
+        match std::fs::read_to_string(&qmax_path) {
+            Ok(current) if current.trim() == "100" => {
+                tracing::debug!("Dma: qmax already set to 100, skipping");
+            }
+            Ok(_) => {
+                if let Err(e) = OpenOptions::new()
+                    .write(true)
+                    .open(&qmax_path)
+                    .and_then(|mut f| f.write_all(b"100\n"))
+                {
+                    tracing::debug!("Dma: Failed to configure qmax ({e}). Must have been already done after the last rescan");
+                }
+            }
+            Err(e) => {
+                tracing::debug!("Dma: Failed to read qmax ({e}), skipping configuration");
+            }
+        }
 
         // Create user queues ----------------------------------------------
         let h2c_path = format!("/dev/qdma{dev}001-MM-1");
