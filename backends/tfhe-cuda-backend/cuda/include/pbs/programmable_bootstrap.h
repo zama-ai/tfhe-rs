@@ -10,6 +10,10 @@ void cuda_fourier_polynomial_mul_async(void *stream, uint32_t gpu_index,
                                        void *output, uint32_t polynomial_size,
                                        uint32_t total_polynomials);
 
+void cuda_fourier_polynomial_mul_fft16x4x16_async(
+    void *stream, uint32_t gpu_index, void const *input1, void const *input2,
+    void *output, uint32_t polynomial_size, uint32_t total_polynomials);
+
 void cuda_convert_lwe_programmable_bootstrap_key_32_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
     uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,

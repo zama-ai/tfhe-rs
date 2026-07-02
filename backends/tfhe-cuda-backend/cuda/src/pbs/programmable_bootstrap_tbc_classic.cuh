@@ -23,6 +23,7 @@
 #include "fft/twiddles.cuh"
 #include "pbs/pbs_utilities.h"
 #include "pbs/programmable_bootstrap.h"
+#include "pbs/programmable_bootstrap_classic.cuh"
 #include "polynomial/parameters.cuh"
 #include "polynomial/polynomial_math.cuh"
 #include "programmable_bootstrap.cuh"
@@ -568,6 +569,68 @@ __host__ void host_programmable_bootstrap_tbc_with_mode(
         (launch_mode == ClassicalTbcLaunchMode::AUTO && can_use_specialized);
 
     if (use_specialized) {
+      // For now i left a fallback to the old tbc version which i plan to modify
+      // a bit in the future to perform more generic params efficiently
+      if (specialized_2_2_use_throughput_oriented<Torus>(
+              polynomial_size, glwe_dimension, level_count, lwe_dimension,
+              max_shared_memory)) {
+        using mp_params = AccumulatorDegree<2048>;
+        int mp_thds = polynomial_size / mp_params::opt; // 64
+        dim3 mp_grid(input_lwe_ciphertext_count, 1, level_count);
+        dim3 mp_block(mp_thds, glwe_dimension + 1, 1); // (64, 2, 1)
+        uint64_t mp_smem =
+            get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params_throughput<
+                Torus>(lwe_dimension);
+
+#define LAUNCH_TBC_SPECIALIZED_2_2_MIXPRECISION(BL)                            \
+  do {                                                                         \
+    check_cuda_error(cudaFuncSetAttribute(                                     \
+        device_programmable_bootstrap_specialized_2_2_params_throughput<       \
+            Torus, mp_params, BL>,                                             \
+        cudaFuncAttributeMaxDynamicSharedMemorySize, mp_smem));                \
+    check_cuda_error(cudaFuncSetAttribute(                                     \
+        device_programmable_bootstrap_specialized_2_2_params_throughput<       \
+            Torus, mp_params, BL>,                                             \
+        cudaFuncAttributePreferredSharedMemoryCarveout,                        \
+        cudaSharedmemCarveoutMaxShared));                                      \
+    check_cuda_error(cudaFuncSetCacheConfig(                                   \
+        device_programmable_bootstrap_specialized_2_2_params_throughput<       \
+            Torus, mp_params, BL>,                                             \
+        cudaFuncCachePreferShared));                                           \
+    check_cuda_error(cudaGetLastError());                                      \
+    device_programmable_bootstrap_specialized_2_2_params_throughput<           \
+        Torus, mp_params, BL><<<mp_grid, mp_block, mp_smem, stream>>>(         \
+        lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,     \
+        lwe_array_in, lwe_input_indexes, bootstrapping_key, lwe_dimension,     \
+        num_many_lut, lut_stride, noise_reduction_type);                       \
+    check_cuda_error(cudaGetLastError());                                      \
+  } while (0)
+
+        switch (base_log) {
+        case 21:
+          LAUNCH_TBC_SPECIALIZED_2_2_MIXPRECISION(21);
+          break;
+        case 22:
+          LAUNCH_TBC_SPECIALIZED_2_2_MIXPRECISION(22);
+          break;
+        case 23:
+          LAUNCH_TBC_SPECIALIZED_2_2_MIXPRECISION(23);
+          break;
+        case 24:
+          LAUNCH_TBC_SPECIALIZED_2_2_MIXPRECISION(24);
+          break;
+        case 25:
+          LAUNCH_TBC_SPECIALIZED_2_2_MIXPRECISION(25);
+          break;
+        default:
+          PANIC("Cuda error (TBC PBS): unsupported base_log for mixprecision "
+                "specialized 2_2 kernel (got %d, must be 21..25)",
+                base_log);
+        }
+#undef LAUNCH_TBC_SPECIALIZED_2_2_MIXPRECISION
+        return;
+      }
+
       uint64_t full_sm_2_2 =
           get_buffer_size_full_sm_programmable_bootstrap_tbc_2_2_params<Torus>(
               polynomial_size);

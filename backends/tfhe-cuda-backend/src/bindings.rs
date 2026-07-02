@@ -2928,6 +2928,17 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn cuda_fourier_polynomial_mul_fft16x4x16_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        input1: *const ffi::c_void,
+        input2: *const ffi::c_void,
+        output: *mut ffi::c_void,
+        polynomial_size: u32,
+        total_polynomials: u32,
+    );
+}
+unsafe extern "C" {
     pub fn cuda_convert_lwe_programmable_bootstrap_key_32_async(
         stream: *mut ffi::c_void,
         gpu_index: u32,
