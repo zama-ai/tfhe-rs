@@ -14,7 +14,6 @@ use crate::core_crypto::prelude::lwe_compact_ciphertext_list_add_assign;
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::key_switching_key::KeySwitchingKeyMaterialView;
 use crate::shortint::oprf::{OprfSeed, RandomBitsRleLeBytes};
-use crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR;
 use crate::shortint::{Ciphertext, CompactPublicKey, PBSOrder};
 
 use rayon::prelude::*;
@@ -27,7 +26,7 @@ use super::CompactCiphertextList;
 const RERAND_SEED_BITS: usize = 256;
 
 /// The XoF algorithm used to generate the re-randomization seed
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, Debug)]
 pub enum ReRandomizationHashAlgo {
     /// Used for NIST compliance
     Shake256,
@@ -110,12 +109,12 @@ pub struct ReRandomizationSeed(pub(crate) XofSeed);
 
 impl ReRandomizationSeed {
     pub(crate) fn new_prf_rerand_seed(
-        hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &ReRandomizationContext,
         prf_seed: impl OprfSeed,
         random_bits_rle_bytes: &RandomBitsRleLeBytes,
     ) -> Self {
         let mut seed_gen = ReRandomizationSeedGen::new_prf_rerand_seed_gen(
-            hash_algo,
+            prf_re_randomization_context,
             prf_seed,
             random_bits_rle_bytes,
         );
@@ -129,6 +128,7 @@ impl ReRandomizationSeed {
 /// At this level, the context will directly hash any data passed to it.
 /// This means that the order in which the data will be hashed matches exactly the order in which
 /// the different `add_*` functions are called
+#[derive(Clone)]
 pub struct ReRandomizationContext {
     hash_state: ReRandomizationSeedHasher,
     public_encryption_domain_separator: [u8; XofSeed::DOMAIN_SEP_LEN],
@@ -245,16 +245,11 @@ pub struct ReRandomizationSeedGen {
 
 impl ReRandomizationSeedGen {
     pub(crate) fn new_prf_rerand_seed_gen(
-        hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &ReRandomizationContext,
         prf_seed: impl OprfSeed,
         random_bits_rle_bytes: &RandomBitsRleLeBytes,
     ) -> Self {
-        const PRF_RERAND_DOMAIN_SEPARATOR: [u8; XofSeed::DOMAIN_SEP_LEN] = *b"PRF_RRND";
-
-        let mut context = ReRandomizationContext::new_with_hasher(
-            TFHE_PKE_DOMAIN_SEPARATOR,
-            ReRandomizationSeedHasher::new(hash_algo, PRF_RERAND_DOMAIN_SEPARATOR),
-        );
+        let mut context = prf_re_randomization_context.clone();
 
         let prf_seed = prf_seed.into_bytes();
         let prf_seed = prf_seed.as_ref();
@@ -574,17 +569,18 @@ mod test {
         let ksk_material = ksk_material.as_ref().map(|k| k.as_view());
 
         let pke_lwe_dim = pubk.parameters().encryption_lwe_dimension.0;
-
-        let msg1 = 1;
-        let msg2 = 2;
+        let message_modulus = cks.parameters().message_modulus();
 
         {
             let mut cts = Vec::with_capacity(pke_lwe_dim * 2);
+            let clears: Vec<u64> = (0..cts.capacity())
+                .map(|_| rand::random::<u64>() % message_modulus.0)
+                .collect();
 
-            for _ in 0..pke_lwe_dim {
-                let ct1 = cks.encrypt(msg1);
+            for chunk in clears.chunks_exact(2) {
+                let ct1 = cks.encrypt(chunk[0]);
                 cts.push(ct1);
-                let ct2 = cks.encrypt(msg2);
+                let ct2 = cks.encrypt(chunk[1]);
                 cts.push(ct2);
             }
 
@@ -600,16 +596,19 @@ mod test {
             pubk.re_randomize_ciphertexts(&mut cts, ksk_material.as_ref(), seeder.next_seed())
                 .unwrap();
 
-            cts.par_chunks(2).for_each(|pair| {
-                let sum = sks.add(&pair[0], &pair[1]);
-                let dec = cks.decrypt(&sum);
+            cts.par_chunks_exact(2)
+                .zip(clears.par_chunks_exact(2))
+                .for_each(|(pair, clear_pair)| {
+                    let sum = sks.add(&pair[0], &pair[1]);
+                    let dec = cks.decrypt(&sum);
 
-                assert_eq!(dec, msg1 + msg2);
-            });
+                    assert_eq!(dec, (clear_pair[0] + clear_pair[1]) % message_modulus.0);
+                });
         }
 
         {
-            let mut trivial = sks.create_trivial(3);
+            let random_clear = rand::random::<u64>() % cks.parameters().message_modulus().0;
+            let mut trivial = sks.create_trivial(random_clear);
 
             let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
             let mut re_rand_context = ReRandomizationContext::new(*b"TFHE_Rrd", *b"TFHE_Enc");
@@ -629,10 +628,12 @@ mod test {
 
             let not_trivial = trivial;
 
+            // non trivial ct should have a non zero mask
+            assert!(not_trivial.ct.get_mask().as_ref().iter().any(|&x| x != 0));
             assert!(not_trivial.noise_level() == NoiseLevel::NOMINAL);
 
             let dec = cks.decrypt(&not_trivial);
-            assert_eq!(dec, 3);
+            assert_eq!(dec, random_clear);
         }
     }
 

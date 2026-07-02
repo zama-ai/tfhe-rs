@@ -1,6 +1,8 @@
 use std::borrow::Borrow;
 
 use crate::core_crypto::gpu::CudaStreams;
+use crate::integer::ciphertext::{PrfReRandomizationContext, ReRandomizationSeed};
+use crate::integer::gpu::ciphertext::re_randomization::CudaReRandomizationKey;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaSignedRadixCiphertext,
     CudaUnsignedRadixCiphertext,
@@ -10,7 +12,9 @@ use crate::integer::gpu::server_key::{
 };
 use itertools::Itertools;
 
-use crate::shortint::oprf::{create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe};
+use crate::shortint::oprf::{
+    create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe, RandomBitsRleLeBytes,
+};
 use crate::shortint::OprfSeed;
 
 use crate::core_crypto::gpu::vec::CudaVec;
@@ -109,6 +113,8 @@ where
     /// let compressed_oprf_sk = CompressedOprfServerKey::new(&oprf_pk, &cks).unwrap();
     /// let cuda_oprf_sk = CudaOprfServerKey::decompress_from_cpu(&compressed_oprf_sk, &streams);
     ///
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(Seed(0), size as u64, &sks, &streams);
     /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     /// // Decrypt:
@@ -125,6 +131,25 @@ where
     ) -> CudaUnsignedRadixCiphertext {
         self.generate_oblivious_pseudo_random_unbounded_integer(
             seed, num_blocks, target_sks, streams,
+        )
+    }
+
+    pub fn par_generate_oblivious_pseudo_random_unsigned_integer_and_re_randomize(
+        &self,
+        seed: impl OprfSeed,
+        num_blocks: u64,
+        target_sks: &CudaServerKey,
+        re_randomization_key: &CudaReRandomizationKey<'_>,
+        prf_re_randomization_context: &PrfReRandomizationContext,
+        streams: &CudaStreams,
+    ) -> crate::Result<CudaUnsignedRadixCiphertext> {
+        self.generate_oblivious_pseudo_random_unbounded_integer_and_re_randomize(
+            seed,
+            num_blocks,
+            target_sks,
+            re_randomization_key,
+            prf_re_randomization_context,
+            streams,
         )
     }
 
@@ -156,6 +181,8 @@ where
     ///
     /// let random_bits_count = 3;
     ///
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
     ///     Seed(0),
     ///     random_bits_count,
@@ -196,6 +223,39 @@ where
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn par_generate_oblivious_pseudo_random_unsigned_integer_bounded_and_re_randomize(
+        &self,
+        seed: impl OprfSeed,
+        random_bits_count: u64,
+        num_blocks: u64,
+        target_sks: &CudaServerKey,
+        re_randomization_key: &CudaReRandomizationKey<'_>,
+        prf_re_randomization_context: &PrfReRandomizationContext,
+        streams: &CudaStreams,
+    ) -> crate::Result<CudaUnsignedRadixCiphertext> {
+        assert!(target_sks.message_modulus.0.is_power_of_two());
+        let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
+        let range_bits_count = message_bits_count * num_blocks;
+        assert!(range_bits_count > 0);
+
+        assert!(
+            random_bits_count <= range_bits_count,
+            "The range asked for a random value (=[0, 2^{random_bits_count}[) \
+            does not fit in the available range [0, 2^{range_bits_count}[",
+        );
+
+        self.generate_oblivious_pseudo_random_bounded_integer_and_re_randomize(
+            seed,
+            random_bits_count,
+            num_blocks,
+            target_sks,
+            re_randomization_key,
+            prf_re_randomization_context,
+            streams,
+        )
+    }
+
     /// Generates an encrypted `num_block` blocks signed integer
     /// taken uniformly in its full range using the given seed.
     /// The encrypted value is oblivious to the server.
@@ -222,6 +282,8 @@ where
     /// let compressed_oprf_sk = CompressedOprfServerKey::new(&oprf_pk, &cks).unwrap();
     /// let cuda_oprf_sk = CudaOprfServerKey::decompress_from_cpu(&compressed_oprf_sk, &streams);
     ///
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_signed_integer(Seed(0), size as u64, &sks, &streams);
     /// let ct_res = d_ct_res.to_signed_radix_ciphertext(&streams);
     ///
@@ -239,6 +301,25 @@ where
     ) -> CudaSignedRadixCiphertext {
         self.generate_oblivious_pseudo_random_unbounded_integer(
             seed, num_blocks, target_sks, streams,
+        )
+    }
+
+    pub fn par_generate_oblivious_pseudo_random_signed_integer_and_re_randomize(
+        &self,
+        seed: impl OprfSeed,
+        num_blocks: u64,
+        target_sks: &CudaServerKey,
+        re_randomization_key: &CudaReRandomizationKey<'_>,
+        prf_re_randomization_context: &PrfReRandomizationContext,
+        streams: &CudaStreams,
+    ) -> crate::Result<CudaSignedRadixCiphertext> {
+        self.generate_oblivious_pseudo_random_unbounded_integer_and_re_randomize(
+            seed,
+            num_blocks,
+            target_sks,
+            re_randomization_key,
+            prf_re_randomization_context,
+            streams,
         )
     }
 
@@ -270,6 +351,8 @@ where
     ///
     /// let random_bits_count = 3;
     ///
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_signed_integer_bounded(
     ///     Seed(0),
     ///     random_bits_count,
@@ -316,9 +399,45 @@ where
         )
     }
 
-    // Generic internal implementation for unbounded pseudo-random generation.
-    // It calls the core implementation with parameters for the unbounded case.
-    //
+    #[allow(clippy::too_many_arguments)]
+    pub fn par_generate_oblivious_pseudo_random_signed_integer_bounded_and_re_randomize(
+        &self,
+        seed: impl OprfSeed,
+        random_bits_count: u64,
+        num_blocks: u64,
+        target_sks: &CudaServerKey,
+        re_randomization_key: &CudaReRandomizationKey<'_>,
+        prf_re_randomization_context: &PrfReRandomizationContext,
+        streams: &CudaStreams,
+    ) -> crate::Result<CudaSignedRadixCiphertext> {
+        assert!(target_sks.message_modulus.0.is_power_of_two());
+        let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
+        let range_bits_count = message_bits_count * num_blocks;
+        assert!(range_bits_count > 0);
+
+        {
+            let signed_range_bits_count = range_bits_count.saturating_sub(1);
+            assert!(
+                random_bits_count <= signed_range_bits_count,
+                "The range asked for a random value (=[0, 2^{random_bits_count}[) \
+                which does not fit in the available range \
+                [-2^{signed_range_bits_count}, 2^{signed_range_bits_count}[",
+            );
+        }
+
+        self.generate_oblivious_pseudo_random_bounded_integer_and_re_randomize(
+            seed,
+            random_bits_count,
+            num_blocks,
+            target_sks,
+            re_randomization_key,
+            prf_re_randomization_context,
+            streams,
+        )
+    }
+
+    /// Generic internal implementation for unbounded pseudo-random generation.
+    /// It calls the core implementation with parameters for the unbounded case.
     fn generate_oblivious_pseudo_random_unbounded_integer<T>(
         &self,
         seed: impl OprfSeed,
@@ -339,7 +458,7 @@ where
             return result;
         }
 
-        self.generate_multiblocks_oblivious_pseudo_random(
+        let _random_bits_rle_bytes = self.generate_multiblocks_oblivious_pseudo_random(
             result.as_mut(),
             seed,
             num_blocks,
@@ -351,9 +470,45 @@ where
         result
     }
 
-    // Generic internal implementation for bounded pseudo-random generation.
-    // It calls the core implementation with parameters for the bounded case.
-    //
+    /// Same as [`Self::generate_oblivious_pseudo_random_unbounded_integer`] with additional
+    /// re-randomization of the output.
+    fn generate_oblivious_pseudo_random_unbounded_integer_and_re_randomize<T>(
+        &self,
+        prf_seed: impl OprfSeed,
+        num_blocks: u64,
+        target_sks: &CudaServerKey,
+        re_randomization_key: &CudaReRandomizationKey<'_>,
+        prf_re_randomization_context: &PrfReRandomizationContext,
+        streams: &CudaStreams,
+    ) -> crate::Result<T>
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
+        assert!(target_sks.message_modulus.0.is_power_of_two());
+
+        let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
+
+        let mut result = target_sks.create_trivial_zero_radix(num_blocks as usize, streams);
+
+        if num_blocks == 0 {
+            return Ok(result);
+        }
+
+        self.generate_multiblocks_oblivious_pseudo_random_and_re_randomize(
+            result.as_mut(),
+            prf_seed,
+            num_blocks * message_bits_count,
+            target_sks,
+            re_randomization_key,
+            prf_re_randomization_context,
+            streams,
+        )?;
+
+        Ok(result)
+    }
+
+    /// Generic internal implementation for bounded pseudo-random generation.
+    /// It calls the core implementation with parameters for the bounded case.
     fn generate_oblivious_pseudo_random_bounded_integer<T>(
         &self,
         seed: impl OprfSeed,
@@ -379,7 +534,7 @@ where
             return result;
         }
 
-        self.generate_multiblocks_oblivious_pseudo_random(
+        let _random_bits_rle_bytes = self.generate_multiblocks_oblivious_pseudo_random(
             result.as_mut(),
             seed,
             num_active_blocks,
@@ -388,6 +543,64 @@ where
             streams,
         );
         result
+    }
+
+    /// Same as [`Self::generate_oblivious_pseudo_random_bounded_integer`] with additional
+    /// re-randomization of the output.
+    #[allow(clippy::too_many_arguments)]
+    fn generate_oblivious_pseudo_random_bounded_integer_and_re_randomize<T>(
+        &self,
+        seed: impl OprfSeed,
+        random_bits_count: u64,
+        num_blocks: u64,
+        target_sks: &CudaServerKey,
+        re_randomization_key: &CudaReRandomizationKey<'_>,
+        prf_re_randomization_context: &PrfReRandomizationContext,
+        streams: &CudaStreams,
+    ) -> crate::Result<T>
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
+        assert!(target_sks.message_modulus.0.is_power_of_two());
+        let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
+        let num_active_blocks = random_bits_count.div_ceil(message_bits_count);
+
+        // We need the PRF + ReRand to be applied only on the num_active_blocks and later extend
+        // with trivial 0s (so that the padding is not re-randed)
+        //
+        // The multiblocks primitive applies the rerand to all the blocks (there is no
+        // "active blocks" rerand primitive currently)
+        let mut result = target_sks.create_trivial_zero_radix(num_active_blocks as usize, streams);
+
+        assert!(
+            num_blocks >= num_active_blocks,
+            "Cuda error: num_blocks should be greater than num_blocks_to_process"
+        );
+        if num_active_blocks == 0 {
+            return Ok(result);
+        }
+
+        self.generate_multiblocks_oblivious_pseudo_random_and_re_randomize(
+            result.as_mut(),
+            seed,
+            random_bits_count,
+            target_sks,
+            re_randomization_key,
+            prf_re_randomization_context,
+            streams,
+        )?;
+
+        if num_blocks == num_active_blocks {
+            Ok(result)
+        } else {
+            // We manually cast to unsigned to be able to extend the ciphertext after PRF +
+            // ReRand without sign issues
+            let inner_radix = result.into_inner();
+            let unsigned_radix =
+                <CudaUnsignedRadixCiphertext as CudaIntegerRadixCiphertext>::from(inner_radix);
+            let result = target_sks.cast_to_unsigned(unsigned_radix, num_blocks as usize, streams);
+            Ok(T::from(result.into_inner()))
+        }
     }
 
     /// Core private implementation that calls the OPRF backend.
@@ -402,7 +615,7 @@ where
         total_random_bits: u64,
         target_sks: &CudaServerKey,
         streams: &CudaStreams,
-    ) {
+    ) -> RandomBitsRleLeBytes {
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &target_sks.key_switching_key
         else {
             panic!("Only the standard atomic pattern is supported");
@@ -418,7 +631,7 @@ where
         let carry_bits_count = target_sks.carry_modulus.0.ilog2();
         let bits_per_block = message_bits_count + carry_bits_count + 1;
 
-        let (seeded, _rle_info) = create_random_from_seed_modulus_switched(
+        let (seeded, rle_info) = create_random_from_seed_modulus_switched(
             seed,
             in_lwe_size,
             polynomial_size,
@@ -476,6 +689,42 @@ where
                 }
             }
         }
+
+        rle_info
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn generate_multiblocks_oblivious_pseudo_random_and_re_randomize(
+        &self,
+        result: &mut CudaRadixCiphertext,
+        prf_seed: impl OprfSeed,
+        total_random_bits: u64,
+        target_sks: &CudaServerKey,
+        re_randomization_key: &CudaReRandomizationKey<'_>,
+        prf_re_randomization_context: &PrfReRandomizationContext,
+        streams: &CudaStreams,
+    ) -> crate::Result<()> {
+        let prf_seed = prf_seed.into_bytes();
+        let prf_seed = prf_seed.as_ref();
+
+        let num_blocks = result.d_blocks.lwe_ciphertext_count().0 as u64;
+
+        let prf_random_bits_rle_bytes = self.generate_multiblocks_oblivious_pseudo_random(
+            result,
+            prf_seed,
+            num_blocks,
+            total_random_bits,
+            target_sks,
+            streams,
+        );
+
+        let rerand_seed = ReRandomizationSeed::new_prf_rerand_seed(
+            prf_re_randomization_context.inner(),
+            prf_seed,
+            &prf_random_bits_rle_bytes,
+        );
+
+        result.re_randomize(*re_randomization_key, rerand_seed, streams)
     }
 
     pub(crate) fn bootstrapping_key(&self) -> &CudaBootstrappingKey<u64> {
@@ -516,11 +765,17 @@ where
             function instead"
         );
 
+        // Since excluded_upper_bound is not a power of two, we know the ceil log2 of the value is
+        // the ilog2 + 1, this is how many bits are needed to represent the value
+        let excluded_upper_bound_log2: u64 = excluded_upper_bound.ilog2().into();
+        let excluded_upper_bound_ceil_log2 = excluded_upper_bound_log2 + 1;
         let num_bits_output = num_blocks_output * message_bits_count;
+
         assert!(
-            (excluded_upper_bound as f64) < 2_f64.powi(num_bits_output as i32),
+            excluded_upper_bound_ceil_log2 <= num_bits_output,
             "num_blocks_output(={num_blocks_output}) is too small to hold an integer \
-            up to excluded_upper_bound(={excluded_upper_bound})"
+            up to excluded_upper_bound(={excluded_upper_bound}). Output has {num_bits_output} bits,\
+            {excluded_upper_bound} needs {excluded_upper_bound_ceil_log2} bits to be represented."
         );
 
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &target_sks.key_switching_key
@@ -535,8 +790,7 @@ where
         let polynomial_size = bootstrapping_key.polynomial_size();
         let in_lwe_size = input_lwe_dimension.to_lwe_size();
 
-        let post_mul_num_bits =
-            num_input_random_bits + (excluded_upper_bound as f64).log2().ceil() as u64;
+        let post_mul_num_bits = num_input_random_bits + excluded_upper_bound_ceil_log2;
 
         let num_blocks_intermediate = post_mul_num_bits.div_ceil(message_bits_count);
 
@@ -635,8 +889,7 @@ where
         result
     }
 
-    // Getter for the GPU memory usage of OPRF.
-    //
+    /// Getter for the GPU memory usage of OPRF.
     pub fn get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(
         &self,
         target_sks: &CudaServerKey,

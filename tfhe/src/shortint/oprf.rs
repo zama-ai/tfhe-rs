@@ -11,7 +11,7 @@ use crate::core_crypto::commons::math::random::{RandomGenerator, Uniform};
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::*;
 use crate::shortint::atomic_pattern::{AtomicPattern, AtomicPatternServerKey};
-use crate::shortint::ciphertext::{Degree, ReRandomizationHashAlgo, ReRandomizationSeed};
+use crate::shortint::ciphertext::{Degree, ReRandomizationContext, ReRandomizationSeed};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::key_switching_key::KeySwitchingKeyMaterialView;
 use crate::shortint::parameters::{KeySwitch32PBSParameters, NoiseLevel};
@@ -665,7 +665,7 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
         target_sks: &ServerKey,
         compact_public_key: &CompactPublicKey,
         key_switching_key_material: Option<&KeySwitchingKeyMaterialView>,
-        rerand_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &ReRandomizationContext,
     ) -> crate::Result<Vec<Vec<Ciphertext>>> {
         self.inner
             .generate_pseudo_random_bits_chunks_and_re_randomize(
@@ -675,7 +675,7 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
                 target_sks,
                 compact_public_key,
                 key_switching_key_material,
-                rerand_hash_algo,
+                prf_re_randomization_context,
             )
     }
 }
@@ -900,6 +900,7 @@ impl RandomBitsRleLeBytes {
 
 pub const TFHE_PRF_DOMAIN_SEPARATOR: [u8; 8] = *b"TFHE_PRF";
 pub const TFHE_PRF_XOF_SEED_DOMAIN_SEPARATOR: [u8; XofSeed::DOMAIN_SEP_LEN] = *b"PRF_INIT";
+pub const TFHE_PRF_RERAND_DOMAIN_SEPARATOR: [u8; XofSeed::DOMAIN_SEP_LEN] = *b"PRF_RRND";
 
 /// Return the seeded inputs for each output block of the PRF, along with the Run Length Encoding
 /// (RLE) byte representation of the output random bits layout. The RLE output is e.g. used in
@@ -1281,7 +1282,7 @@ impl<C: Container<Element = c64> + Sync> OprfBootstrappingKey<C> {
         target_sks: &ServerKey,
         compact_public_key: &CompactPublicKey,
         key_switching_key_material: Option<&KeySwitchingKeyMaterialView>,
-        rerand_hash_algo: ReRandomizationHashAlgo,
+        prf_re_randomization_context: &ReRandomizationContext,
     ) -> crate::Result<Vec<Vec<Ciphertext>>> {
         let prf_seed = prf_seed.into_bytes();
         let prf_seed = prf_seed.as_ref();
@@ -1293,8 +1294,11 @@ impl<C: Container<Element = c64> + Sync> OprfBootstrappingKey<C> {
             target_sks,
         );
 
-        let rerand_seed =
-            ReRandomizationSeed::new_prf_rerand_seed(rerand_hash_algo, prf_seed, &random_bits_rle);
+        let rerand_seed = ReRandomizationSeed::new_prf_rerand_seed(
+            prf_re_randomization_context,
+            prf_seed,
+            &random_bits_rle,
+        );
 
         compact_public_key.re_randomize_ciphertexts(
             &mut flat_result,
@@ -1363,6 +1367,7 @@ pub(crate) mod test {
     use crate::core_crypto::prelude::{
         decrypt_lwe_ciphertext, new_seeder, CastInto, LweSecretKeyView,
     };
+    use crate::shortint::ciphertext::{ReRandomizationHashAlgo, ReRandomizationSeedHasher};
     use crate::shortint::oprf::create_random_from_seed_modulus_switched;
     use crate::shortint::parameters::test_params::{
         TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
@@ -1797,6 +1802,15 @@ pub(crate) mod test {
                 ReRandomizationHashAlgo::Blake3,
                 ReRandomizationHashAlgo::Shake256,
             ] {
+                let seed_hasher = ReRandomizationSeedHasher::new(
+                    rerand_hash_algo,
+                    TFHE_PRF_RERAND_DOMAIN_SEPARATOR,
+                );
+                let prf_rerand_context = ReRandomizationContext::new_with_hasher(
+                    crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR,
+                    seed_hasher,
+                );
+
                 let prf_rerand_chunks = oprf_sks
                     .generate_oblivious_pseudo_random_bits_chunks_and_re_randomize(
                         prf_seed.as_ref(),
@@ -1804,7 +1818,7 @@ pub(crate) mod test {
                         &sks,
                         &pubk,
                         None,
-                        rerand_hash_algo,
+                        &prf_rerand_context,
                     )
                     .unwrap();
 
@@ -1859,7 +1873,12 @@ pub(crate) mod test {
                         } = prf_rerand_ct;
                         let prf_rerand_noise_level = prf_rerand_ct.noise_level();
 
-                        assert_ne!(prf_lwe, prf_rerand_lwe);
+                        assert_ne!(prf_lwe.as_ref(), prf_rerand_lwe.as_ref());
+                        assert_eq!(prf_lwe.lwe_size(), prf_rerand_lwe.lwe_size());
+                        assert_eq!(
+                            prf_lwe.ciphertext_modulus(),
+                            prf_rerand_lwe.ciphertext_modulus()
+                        );
                         assert_eq!(prf_degree, prf_rerand_degree);
                         // Check expected max degree
                         assert_eq!(prf_degree.0, expected_max_value - 1);

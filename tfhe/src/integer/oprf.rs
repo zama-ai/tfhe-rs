@@ -1,7 +1,9 @@
 use super::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{Container, IntoContainerOwned};
-use crate::integer::ciphertext::IntegerRadixCiphertext;
+use crate::integer::ciphertext::{
+    IntegerRadixCiphertext, PrfReRandomizationContext, ReRandomizationKey,
+};
 use crate::integer::ClientKey;
 use crate::named::Named;
 use crate::shortint::oprf::{
@@ -102,6 +104,7 @@ where
     pub fn into_raw_parts(self) -> ShortintGenericOprfServerKey<C> {
         self.key
     }
+
     /// Generates an encrypted `num_block` blocks unsigned integer
     /// taken uniformly in its full range using the given seed.
     /// The encrypted value is oblivious to the server.
@@ -121,6 +124,8 @@ where
     /// let oprf_pk = OprfPrivateKey::new(cks.as_ref());
     /// let oprf_sk = OprfServerKey::new(&oprf_pk, cks.as_ref()).unwrap();
     ///
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// // `seed` can be either a `Seed` or any byte-like input (`&[u8]`, `&[u8; N]`, ...).
     /// let ct_res =
     ///     oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(Seed(0), size as u64, &sks);
@@ -137,6 +142,23 @@ where
         target_sks: &ServerKey,
     ) -> RadixCiphertext {
         self.par_generate_oblivious_pseudo_random_integer_full_impl(seed, num_blocks, target_sks)
+    }
+
+    pub fn par_generate_oblivious_pseudo_random_unsigned_integer_and_re_randomize(
+        &self,
+        seed: impl OprfSeed,
+        num_blocks: u64,
+        target_sks: &ServerKey,
+        re_randomization_key: &ReRandomizationKey,
+        prf_re_randomization_context: &PrfReRandomizationContext,
+    ) -> crate::Result<RadixCiphertext> {
+        self.par_generate_oblivious_pseudo_random_integer_full_and_re_randomize_impl(
+            seed,
+            num_blocks,
+            target_sks,
+            re_randomization_key,
+            prf_re_randomization_context,
+        )
     }
 
     /// Generates an encrypted `num_block` blocks unsigned integer
@@ -160,6 +182,8 @@ where
     ///
     /// let random_bits_count = 3;
     ///
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let ct_res = oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
     ///     Seed(0),
     ///     random_bits_count,
@@ -183,6 +207,25 @@ where
             random_bits_count,
             num_blocks,
             target_sks,
+        )
+    }
+
+    pub fn par_generate_oblivious_pseudo_random_unsigned_integer_bounded_and_re_randomize(
+        &self,
+        seed: impl OprfSeed,
+        random_bits_count: u64,
+        num_blocks: u64,
+        target_sks: &ServerKey,
+        re_randomization_key: &ReRandomizationKey,
+        prf_re_randomization_context: &PrfReRandomizationContext,
+    ) -> crate::Result<RadixCiphertext> {
+        self.par_generate_oblivious_pseudo_random_integer_bounded_and_re_randomize_impl(
+            seed,
+            random_bits_count,
+            num_blocks,
+            target_sks,
+            re_randomization_key,
+            prf_re_randomization_context,
         )
     }
 
@@ -214,6 +257,8 @@ where
     /// let excluded_upper_bound = NonZeroU64::new(3).unwrap();
     /// let num_blocks_output = 8;
     ///
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let ct_res = oprf_sk.par_generate_oblivious_pseudo_random_unsigned_custom_range(
     ///     Seed(0),
     ///     num_input_random_bits,
@@ -227,57 +272,77 @@ where
     ///
     /// assert!(dec_result < excluded_upper_bound.get());
     /// ```
-    pub fn par_generate_oblivious_pseudo_random_unsigned_custom_range(
+    pub fn par_generate_oblivious_pseudo_random_unsigned_custom_range<InputSeed>(
         &self,
-        seed: impl OprfSeed,
+        seed: InputSeed,
         num_input_random_bits: u64,
         excluded_upper_bound: NonZeroU64,
         num_blocks_output: u64,
         target_sks: &ServerKey,
-    ) -> RadixCiphertext {
-        let excluded_upper_bound = excluded_upper_bound.get();
+    ) -> RadixCiphertext
+    where
+        InputSeed: OprfSeed,
+    {
+        self.par_generate_oblivious_pseudo_random_unsigned_custom_range_impl(
+            seed,
+            num_input_random_bits,
+            excluded_upper_bound,
+            num_blocks_output,
+            target_sks,
+            |sself: &Self,
+             seed: InputSeed,
+             num_input_random_bits: u64,
+             num_blocks: u64,
+             target_sks: &ServerKey| {
+                Ok(
+                    sself.par_generate_oblivious_pseudo_random_integer_bounded_impl(
+                        seed,
+                        num_input_random_bits,
+                        num_blocks,
+                        target_sks,
+                    ),
+                )
+            },
+        )
+        .unwrap()
+        // Safe to unwrap our closure returns an Ok result
+    }
 
-        assert!(target_sks.message_modulus().0.is_power_of_two());
-        let message_bits_count = target_sks.message_modulus().0.ilog2() as u64;
-
-        assert!(
-            !excluded_upper_bound.is_power_of_two(),
-            "Use the cheaper par_generate_oblivious_pseudo_random_unsigned_integer_bounded \
-            function instead"
-        );
-
-        let num_bits_output = num_blocks_output * message_bits_count;
-        assert!(
-            (excluded_upper_bound as f64) < 2_f64.powi(num_bits_output as i32),
-            "num_blocks_output(={num_blocks_output}) is too small to hold an integer \
-            up to excluded_upper_bound(={excluded_upper_bound})"
-        );
-
-        let post_mul_num_bits =
-            num_input_random_bits + (excluded_upper_bound as f64).log2().ceil() as u64;
-
-        let num_blocks = post_mul_num_bits.div_ceil(message_bits_count);
-
-        let random_input: RadixCiphertext = self
-            .par_generate_oblivious_pseudo_random_integer_bounded_impl(
-                seed,
-                num_input_random_bits,
-                num_blocks,
-                target_sks,
-            );
-
-        let random_multiplied =
-            target_sks.scalar_mul_parallelized(&random_input, excluded_upper_bound);
-
-        let mut result =
-            target_sks.scalar_right_shift_parallelized(&random_multiplied, num_input_random_bits);
-
-        // Adjust the number of leading (MSB) trivial zeros blocks
-        result
-            .blocks
-            .resize(num_blocks_output as usize, target_sks.key.create_trivial(0));
-
-        result
+    #[allow(clippy::too_many_arguments)]
+    pub fn par_generate_oblivious_pseudo_random_unsigned_custom_range_and_re_randomize<InputSeed>(
+        &self,
+        seed: InputSeed,
+        num_input_random_bits: u64,
+        excluded_upper_bound: NonZeroU64,
+        num_blocks_output: u64,
+        target_sks: &ServerKey,
+        re_randomization_key: &ReRandomizationKey,
+        prf_re_randomization_context: &PrfReRandomizationContext,
+    ) -> crate::Result<RadixCiphertext>
+    where
+        InputSeed: OprfSeed,
+    {
+        self.par_generate_oblivious_pseudo_random_unsigned_custom_range_impl(
+            seed,
+            num_input_random_bits,
+            excluded_upper_bound,
+            num_blocks_output,
+            target_sks,
+            |sself: &Self,
+             seed: InputSeed,
+             num_input_random_bits: u64,
+             num_blocks: u64,
+             target_sks: &ServerKey| {
+                sself.par_generate_oblivious_pseudo_random_integer_bounded_and_re_randomize_impl(
+                    seed,
+                    num_input_random_bits,
+                    num_blocks,
+                    target_sks,
+                    re_randomization_key,
+                    prf_re_randomization_context,
+                )
+            },
+        )
     }
 
     /// Generates an encrypted `num_block` blocks signed integer
@@ -289,6 +354,7 @@ where
     /// use tfhe::integer::gen_keys_radix;
     /// use tfhe::integer::oprf::{OprfPrivateKey, OprfServerKey};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+    /// use tfhe::Seed;
     ///
     /// let size = 4;
     ///
@@ -298,11 +364,10 @@ where
     /// let oprf_pk = OprfPrivateKey::new(cks.as_ref());
     /// let oprf_sk = OprfServerKey::new(&oprf_pk, cks.as_ref()).unwrap();
     ///
-    /// let ct_res = oprf_sk.par_generate_oblivious_pseudo_random_signed_integer(
-    ///     tfhe::Seed(0),
-    ///     size as u64,
-    ///     &sks,
-    /// );
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
+    /// let ct_res =
+    ///     oprf_sk.par_generate_oblivious_pseudo_random_signed_integer(Seed(0), size as u64, &sks);
     ///
     /// // Decrypt:
     /// let dec_result: i64 = cks.decrypt_signed(&ct_res);
@@ -316,6 +381,23 @@ where
         target_sks: &ServerKey,
     ) -> SignedRadixCiphertext {
         self.par_generate_oblivious_pseudo_random_integer_full_impl(seed, num_blocks, target_sks)
+    }
+
+    pub fn par_generate_oblivious_pseudo_random_signed_integer_and_re_randomize(
+        &self,
+        seed: impl OprfSeed,
+        num_blocks: u64,
+        target_sks: &ServerKey,
+        re_randomization_key: &ReRandomizationKey,
+        prf_re_randomization_context: &PrfReRandomizationContext,
+    ) -> crate::Result<SignedRadixCiphertext> {
+        self.par_generate_oblivious_pseudo_random_integer_full_and_re_randomize_impl(
+            seed,
+            num_blocks,
+            target_sks,
+            re_randomization_key,
+            prf_re_randomization_context,
+        )
     }
 
     /// Generates an encrypted `num_block` blocks signed integer
@@ -339,6 +421,8 @@ where
     /// let oprf_pk = OprfPrivateKey::new(cks.as_ref());
     /// let oprf_sk = OprfServerKey::new(&oprf_pk, cks.as_ref()).unwrap();
     ///
+    /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
+    /// // The proper way of generating a seed depends on your application.
     /// let ct_res = oprf_sk.par_generate_oblivious_pseudo_random_signed_integer_bounded(
     ///     Seed(0),
     ///     random_bits_count,
@@ -366,6 +450,25 @@ where
         )
     }
 
+    pub fn par_generate_oblivious_pseudo_random_signed_integer_bounded_and_re_randomize(
+        &self,
+        seed: impl OprfSeed,
+        random_bits_count: u64,
+        num_blocks: u64,
+        target_sks: &ServerKey,
+        re_randomization_key: &ReRandomizationKey,
+        prf_re_randomization_context: &PrfReRandomizationContext,
+    ) -> crate::Result<SignedRadixCiphertext> {
+        self.par_generate_oblivious_pseudo_random_integer_bounded_and_re_randomize_impl(
+            seed,
+            random_bits_count,
+            num_blocks,
+            target_sks,
+            re_randomization_key,
+            prf_re_randomization_context,
+        )
+    }
+
     fn par_generate_oblivious_pseudo_random_integer_full_impl<T: IntegerRadixCiphertext>(
         &self,
         seed: impl OprfSeed,
@@ -387,6 +490,39 @@ where
             .expect("Expected a single chunk for the radix being generated, got 0");
 
         T::from(blocks)
+    }
+
+    fn par_generate_oblivious_pseudo_random_integer_full_and_re_randomize_impl<
+        T: IntegerRadixCiphertext,
+    >(
+        &self,
+        seed: impl OprfSeed,
+        num_blocks: u64,
+        target_sks: &ServerKey,
+        re_randomization_key: &ReRandomizationKey,
+        prf_re_randomization_context: &PrfReRandomizationContext,
+    ) -> crate::Result<T> {
+        assert!(target_sks.message_modulus().0.is_power_of_two());
+        let message_bits_count = target_sks.message_modulus().0.ilog2() as u64;
+
+        let (compact_public_key, key_switching_key_material) =
+            re_randomization_key.get_cpk_and_optional_ksk();
+
+        let blocks = self
+            .key
+            .generate_oblivious_pseudo_random_bits_chunks_and_re_randomize(
+                seed,
+                &[num_blocks * message_bits_count],
+                &target_sks.key,
+                &compact_public_key.key,
+                key_switching_key_material.as_ref().map(|k| &k.material),
+                prf_re_randomization_context.inner(),
+            )?
+            .into_iter()
+            .next()
+            .expect("Expected a single chunk for the radix being generated, got 0");
+
+        Ok(T::from(blocks))
     }
 
     fn par_generate_oblivious_pseudo_random_integer_bounded_impl<T: IntegerRadixCiphertext>(
@@ -432,6 +568,124 @@ where
         }
 
         T::from(blocks)
+    }
+
+    fn par_generate_oblivious_pseudo_random_integer_bounded_and_re_randomize_impl<
+        T: IntegerRadixCiphertext,
+    >(
+        &self,
+        seed: impl OprfSeed,
+        random_bits_count: u64,
+        num_blocks: u64,
+        target_sks: &ServerKey,
+        re_randomization_key: &ReRandomizationKey,
+        prf_re_randomization_context: &PrfReRandomizationContext,
+    ) -> crate::Result<T> {
+        assert!(target_sks.message_modulus().0.is_power_of_two());
+        let message_bits_count = target_sks.message_modulus().0.ilog2() as u64;
+        let range_bits_count = message_bits_count * num_blocks;
+        assert!(range_bits_count > 0);
+
+        if T::IS_SIGNED {
+            let signed_range_bits_count = range_bits_count.saturating_sub(1);
+            assert!(
+                random_bits_count <= signed_range_bits_count,
+                "The range asked for a random value in (=[0, 2^{random_bits_count}[) \
+                which does not fit in the available range \
+                [-2^{signed_range_bits_count}, 2^{signed_range_bits_count}[",
+            );
+        } else {
+            assert!(
+                random_bits_count <= range_bits_count,
+                "The range asked for a random value in (=[0, 2^{random_bits_count}[) \
+                which does not fit in the available range [0, 2^{range_bits_count}[",
+            );
+        }
+
+        let (compact_public_key, key_switching_key_material) =
+            re_randomization_key.get_cpk_and_optional_ksk();
+
+        let mut blocks = self
+            .key
+            .generate_oblivious_pseudo_random_bits_chunks_and_re_randomize(
+                seed,
+                &[random_bits_count],
+                &target_sks.key,
+                &compact_public_key.key,
+                key_switching_key_material.as_ref().map(|k| &k.material),
+                prf_re_randomization_context.inner(),
+            )?
+            .into_iter()
+            .next()
+            .expect("Expected a single chunk for the radix being generated, got 0");
+
+        if blocks.len() < num_blocks as usize {
+            blocks.resize(num_blocks as usize, target_sks.key.create_trivial(0));
+        }
+
+        Ok(T::from(blocks))
+    }
+
+    fn par_generate_oblivious_pseudo_random_unsigned_custom_range_impl<InputSeed>(
+        &self,
+        seed: InputSeed,
+        num_input_random_bits: u64,
+        excluded_upper_bound: NonZeroU64,
+        num_blocks_output: u64,
+        target_sks: &ServerKey,
+        prf_callback: impl Fn(
+            &Self,      // sself
+            InputSeed,  // seed
+            u64,        // num_input_random_bits
+            u64,        // num_blocks
+            &ServerKey, // target_sks
+        ) -> crate::Result<RadixCiphertext>,
+    ) -> crate::Result<RadixCiphertext>
+    where
+        InputSeed: OprfSeed,
+    {
+        let excluded_upper_bound = excluded_upper_bound.get();
+
+        assert!(target_sks.message_modulus().0.is_power_of_two());
+        let message_bits_count: u64 = target_sks.message_modulus().0.ilog2().into();
+
+        assert!(
+            !excluded_upper_bound.is_power_of_two(),
+            "Use the cheaper par_generate_oblivious_pseudo_random_unsigned_integer_bounded \
+            function instead"
+        );
+
+        // Since excluded_upper_bound is not a power of two, we know the ceil log2 of the value is
+        // the ilog2 + 1, this is how many bits are needed to represent the value
+        let excluded_upper_bound_log2: u64 = excluded_upper_bound.ilog2().into();
+        let excluded_upper_bound_ceil_log2 = excluded_upper_bound_log2 + 1;
+        let num_bits_output = num_blocks_output * message_bits_count;
+
+        assert!(
+            excluded_upper_bound_ceil_log2 <= num_bits_output,
+            "num_blocks_output(={num_blocks_output}) is too small to hold an integer \
+            up to excluded_upper_bound(={excluded_upper_bound}). Output has {num_bits_output} bits,\
+            {excluded_upper_bound} needs {excluded_upper_bound_ceil_log2} bits to be represented."
+        );
+
+        let post_mul_num_bits = num_input_random_bits + excluded_upper_bound_ceil_log2;
+
+        let num_blocks = post_mul_num_bits.div_ceil(message_bits_count);
+
+        let random_input = prf_callback(self, seed, num_input_random_bits, num_blocks, target_sks)?;
+
+        let random_multiplied =
+            target_sks.scalar_mul_parallelized(&random_input, excluded_upper_bound);
+
+        let mut result =
+            target_sks.scalar_right_shift_parallelized(&random_multiplied, num_input_random_bits);
+
+        // Adjust the number of leading (MSB) trivial zeros blocks
+        result
+            .blocks
+            .resize(num_blocks_output as usize, target_sks.key.create_trivial(0));
+
+        Ok(result)
     }
 }
 
