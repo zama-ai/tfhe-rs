@@ -101,7 +101,7 @@ pub fn g1_affine_to_cuda(affine: &G1Affine) -> CudaG1Affine {
         .expect("non-infinity point must have coordinates");
     let x = fq_to_cuda_fp(&xy.0);
     let y = fq_to_cuda_fp(&xy.1);
-    CudaG1Affine::new(x, y, affine.inner.infinity)
+    CudaG1Affine::new(x, y, false)
 }
 
 /// Convert a zk-cuda-backend G1Affine back to a tfhe-zk-pok G1Affine.
@@ -142,7 +142,7 @@ pub fn g2_affine_to_cuda(affine: &G2Affine) -> CudaG2Affine {
         .expect("non-infinity point must have coordinates");
     let x = fq2_to_cuda_fp2(&xy.0);
     let y = fq2_to_cuda_fp2(&xy.1);
-    CudaG2Affine::new(x, y, affine.inner.infinity)
+    CudaG2Affine::new(x, y, false)
 }
 
 /// Convert a zk-cuda-backend G2Affine back to a tfhe-zk-pok G2Affine.

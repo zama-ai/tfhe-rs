@@ -34,6 +34,7 @@ fn bigint_to_le_bytes(x: [u64; 6]) -> [u8; 6 * 8] {
 }
 
 mod g1 {
+    use ark_ec::AffineRepr;
     use tfhe_versionable::Versionize;
 
     use crate::serialization::{InvalidSerializedAffineError, SerializableG1Affine};
@@ -194,7 +195,7 @@ mod g1 {
             let mut buf = [0u8; 2 * 6 * 8 + 1];
             buf[..6 * 8].copy_from_slice(&x);
             buf[6 * 8..][..6 * 8].copy_from_slice(&y);
-            buf[2 * 6 * 8] = g.infinity as u8;
+            buf[2 * 6 * 8] = g.is_zero() as u8;
             buf
         }
 
@@ -257,6 +258,7 @@ mod g1 {
 }
 
 mod g2 {
+    use ark_ec::AffineRepr;
     use tfhe_versionable::Versionize;
 
     use crate::serialization::{InvalidSerializedAffineError, SerializableG2Affine};
@@ -466,7 +468,7 @@ mod g2 {
             buf[6 * 8..][..6 * 8].copy_from_slice(&xc1);
             buf[2 * 6 * 8..][..6 * 8].copy_from_slice(&yc0);
             buf[3 * 6 * 8..][..6 * 8].copy_from_slice(&yc1);
-            buf[4 * 6 * 8] = g.infinity as u8;
+            buf[4 * 6 * 8] = g.is_zero() as u8;
             buf
         }
 
