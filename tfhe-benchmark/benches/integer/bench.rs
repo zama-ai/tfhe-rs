@@ -2818,6 +2818,154 @@ mod cuda {
         cuda_unchecked_unsigned_overflowing_scalar_add,
     );
 
+    /// Benchmark the Goldschmidt division on the GPU backend.
+    ///
+    /// `goldschmidt_division` has a non-standard signature (extra `iterations`
+    /// / `lut_precision` arguments, immutable operands, and no CPU counterpart),
+    /// so it gets its own bench function rather than reusing the generic
+    /// binary-op helper. The default 64-bit case uses 32 blocks of 2 bits.
+    fn cuda_goldschmidt_division(c: &mut Criterion) {
+        // Convergence parameters matching the correctness test for 64-bit inputs.
+        const GS_ITERATIONS: usize = 3;
+        const GS_LUT_PRECISION: usize = 9;
+
+        let bench_name = "integer::cuda::unsigned::goldschmidt_division";
+        let display_name = "goldschmidt_div";
+        let mut bench_group = c.benchmark_group(bench_name);
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(30));
+        let mut rng = rand::thread_rng();
+
+        for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+            // Goldschmidt division requires exactly 2 bits per block (message_modulus == 4).
+            if param.message_modulus().0 != 4 {
+                continue;
+            }
+
+            let param_name = param.name();
+            let bench_id;
+
+            match get_bench_type() {
+                BenchmarkType::Latency => {
+                    let streams = CudaStreams::new_multi_gpu();
+                    bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (cks, _cpu_sks) =
+                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let gpu_sks = CudaServerKey::new(&cks, &streams);
+
+                        let encrypt_two_values = || {
+                            let ct_n = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                            let ct_d = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                            let d_ctxt_n = CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                                &ct_n, &streams,
+                            );
+                            let d_ctxt_d = CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                                &ct_d, &streams,
+                            );
+                            (d_ctxt_n, d_ctxt_d)
+                        };
+
+                        b.iter_batched(
+                            encrypt_two_values,
+                            |(ct_n, ct_d)| {
+                                let _ = gpu_sks.goldschmidt_division(
+                                    &ct_n,
+                                    &ct_d,
+                                    GS_ITERATIONS,
+                                    GS_LUT_PRECISION,
+                                    &streams,
+                                );
+                            },
+                            criterion::BatchSize::SmallInput,
+                        )
+                    });
+                }
+                BenchmarkType::Throughput => {
+                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let gpu_sks_vec = cuda_local_keys(&cks);
+                    let gpu_count = get_number_of_gpus() as usize;
+
+                    // Goldschmidt has no CPU implementation to count PBS with, so we use
+                    // div_rem_parallelized (the closest CPU analog) purely to size the batch.
+                    let ct_0 = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                    let ct_1 = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                    reset_pbs_count();
+                    let _ = cpu_sks.div_rem_parallelized(&ct_0, &ct_1);
+                    let pbs_count = max(get_pbs_count(), 1);
+
+                    bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                    bench_group
+                        .sample_size(10)
+                        .measurement_time(std::time::Duration::from_secs(30));
+                    let elements = throughput_num_threads(num_block, pbs_count);
+                    bench_group.throughput(Throughput::Elements(elements));
+                    bench_group.bench_function(&bench_id, |b| {
+                        let setup_encrypted_values = || {
+                            let local_streams = cuda_local_streams(num_block, elements as usize);
+                            let cts_n = (0..elements)
+                                .map(|i| {
+                                    let ct =
+                                        cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                                    CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                                        &ct,
+                                        &local_streams[i as usize],
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+                            let cts_d = (0..elements)
+                                .map(|i| {
+                                    let ct =
+                                        cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                                    CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                                        &ct,
+                                        &local_streams[i as usize],
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+                            (cts_n, cts_d, local_streams)
+                        };
+
+                        b.iter_batched(
+                            setup_encrypted_values,
+                            |(cts_n, cts_d, local_streams)| {
+                                cts_n
+                                    .par_iter()
+                                    .zip(cts_d.par_iter())
+                                    .zip(local_streams.par_iter())
+                                    .enumerate()
+                                    .for_each(|(i, ((ct_n, ct_d), local_stream))| {
+                                        let _ = gpu_sks_vec[i % gpu_count].goldschmidt_division(
+                                            ct_n,
+                                            ct_d,
+                                            GS_ITERATIONS,
+                                            GS_LUT_PRECISION,
+                                            local_stream,
+                                        );
+                                    })
+                            },
+                            criterion::BatchSize::SmallInput,
+                        );
+                    });
+                }
+            }
+
+            write_to_json_unchecked::<u64, _>(
+                &bench_id,
+                param,
+                param.name(),
+                display_name,
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus().0.ilog2(); num_block],
+            );
+        }
+
+        bench_group.finish()
+    }
+
     criterion_group!(
         default_cuda_ops,
         cuda_neg,
@@ -2827,6 +2975,7 @@ mod cuda {
         cuda_add,
         cuda_mul,
         cuda_div_rem,
+        cuda_goldschmidt_division,
         //cuda_div,
         //cuda_rem,
         cuda_eq,
@@ -2861,6 +3010,7 @@ mod cuda {
         cuda_neg,
         cuda_mul,
         cuda_div_rem,
+        cuda_goldschmidt_division,
         cuda_bitand,
         cuda_bitnot,
         cuda_left_shift,
