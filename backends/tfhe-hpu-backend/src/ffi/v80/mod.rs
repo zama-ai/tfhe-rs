@@ -102,7 +102,6 @@ impl HpuHw {
                 // Check state and version
                 match AmiDriver::new(&board.pcie_id, &hpu_pdi.metadata.amc.his_version, None) {
                     Ok(ami) => {
-                        ami.munmap_cnt().unwrap();
                         if hpu_pdi.metadata.bitstream.uuid.to_lowercase()
                             == ami.uuid().to_lowercase()
                         {
