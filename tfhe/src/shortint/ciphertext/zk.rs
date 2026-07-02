@@ -83,6 +83,10 @@ pub struct ProvenCompactCiphertextList {
 }
 
 impl ProvenCompactCiphertextList {
+    pub fn into_raw_parts(self) -> Vec<(CompactCiphertextList, CompactPkeProof)> {
+        self.proved_lists
+    }
+
     pub fn ciphertext_count(&self) -> usize {
         self.proved_lists
             .iter()
