@@ -2684,11 +2684,24 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
 }
 
 #[allow(clippy::too_many_arguments)]
+/// Custom-range grouped OPRF backend call, optionally re-randomizing the fresh random blocks.
+///
+/// When `apply_rerand` is `false`, this performs the plain custom-range grouped OPRF. When
+/// `apply_rerand` is `true`, `zero_lwes` must be `Some` and carries the encryptions of zero added
+/// to re-randomize the random blocks before the range mapping, and `rerand_keyswitch_key` selects
+/// the keyswitching mode.
+///
 /// # Safety
 ///
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
+/// - When `apply_rerand` is `true`, `zero_lwes` must be `Some`.
+/// - In `WithoutKs` mode, when `rerand_keyswitch_key` is `None`, the `rerand_ksks` pointer passed
+///   to the backend is null and is never dereferenced because the encryptions of zero are added
+///   directly. In `rerand_ksk_params`, only `input_lwe_dimension` is read in that mode: it sizes
+///   the expanded encryptions of zero and selects the expansion kernel. `output_lwe_dimension`,
+///   `base_log` and `level_count` are unused.
 pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
     T: UnsignedInteger,
     B: Numeric,
@@ -2709,8 +2722,10 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     message_bits_per_block: u32,
-    _total_random_bits: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+    apply_rerand: bool,
+    zero_lwes: Option<&CudaLweCompactCiphertextList<u64>>,
+    rerand_keyswitch_key: Option<&CudaLweKeyswitchKey<u64>>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -2746,6 +2761,45 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
     let mut cuda_ffi_radix_lwe_out =
         prepare_cuda_radix_ffi(radix_lwe_out, &mut out_degrees, &mut out_noise_levels);
 
+    let (rerand_ksk_params, rerand_mode, zero_lwes_ptr) = if apply_rerand {
+        let zero_lwes = zero_lwes.expect("apply_rerand requires zero_lwes to be Some");
+        assert_eq!(streams.gpu_indexes[0], zero_lwes.0.d_vec.gpu_index(0));
+        let (rerand_ksk_params, rerand_mode) = if let Some(ksk) = rerand_keyswitch_key {
+            assert_eq!(streams.gpu_indexes[0], ksk.d_vec.gpu_index(0));
+            (ksk.params_ffi(), RerandMode::WithKs)
+        } else {
+            let radix_lwe_dimension =
+                u32::try_from(radix_lwe_out.d_blocks.lwe_dimension().0).unwrap();
+            (
+                CudaLweKeyswitchKeyParamsFFI {
+                    input_lwe_dimension: radix_lwe_dimension,
+                    output_lwe_dimension: radix_lwe_dimension,
+                    base_log: 0,
+                    level_count: 0,
+                },
+                RerandMode::WithoutKs,
+            )
+        };
+        (
+            rerand_ksk_params,
+            rerand_mode,
+            zero_lwes.0.d_vec.as_c_ptr(0),
+        )
+    } else {
+        (
+            CudaLweKeyswitchKeyParamsFFI {
+                input_lwe_dimension: 0,
+                output_lwe_dimension: 0,
+                base_log: 0,
+                level_count: 0,
+            },
+            RerandMode::WithoutKs,
+            std::ptr::null(),
+        )
+    };
+    let rerand_ksks_ptr =
+        rerand_keyswitch_key.map_or(std::ptr::null(), |ksk| ksk.d_vec.ptr.as_ptr());
+
     scratch_cuda_integer_grouped_oprf_custom_range_64_async(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
@@ -2759,6 +2813,9 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
         shift,
         num_scalars,
         noise_reduction_type as u32,
+        apply_rerand,
+        rerand_ksk_params,
+        rerand_mode as u32,
     );
 
     cuda_integer_grouped_oprf_custom_range_64_async(
@@ -2770,10 +2827,12 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
         has_at_least_one_set.as_ptr().cast::<u64>(),
         num_scalars,
         shift,
+        zero_lwes_ptr,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         compute_bootstrapping_key.ptr.as_ptr(),
         key_switching_key.ptr.as_ptr(),
+        rerand_ksks_ptr,
     );
 
     cleanup_cuda_integer_grouped_oprf_custom_range_64(

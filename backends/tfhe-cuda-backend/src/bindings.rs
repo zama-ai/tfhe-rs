@@ -310,6 +310,9 @@ pub type Direction = ffi::c_uint;
 pub const BitValue_Zero: BitValue = 0;
 pub const BitValue_One: BitValue = 1;
 pub type BitValue = ffi::c_uint;
+pub const RERAND_MODE_RERAND_WITH_KS: RERAND_MODE = 0;
+pub const RERAND_MODE_RERAND_WITHOUT_KS: RERAND_MODE = 1;
+pub type RERAND_MODE = ffi::c_uint;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct CudaStreamsFFI {
@@ -1592,6 +1595,9 @@ unsafe extern "C" {
         num_input_random_bits: u32,
         num_scalar_bits: u32,
         noise_reduction_type: PBS_MS_REDUCTION_T,
+        apply_rerand: bool,
+        rerand_ksk_params: CudaLweKeyswitchKeyParamsFFI,
+        rerand_mode: RERAND_MODE,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1604,10 +1610,12 @@ unsafe extern "C" {
         has_at_least_one_set: *const u64,
         num_scalars: u32,
         shift: u32,
+        lwe_flattened_encryptions_of_zero_compact_array_in: *const ffi::c_void,
         mem: *mut i8,
         bsks: *const *mut ffi::c_void,
         compute_bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        rerand_ksks: *const *mut ffi::c_void,
     );
 }
 unsafe extern "C" {
@@ -2507,9 +2515,6 @@ unsafe extern "C" {
         mem_ptr_void: *mut *mut i8,
     );
 }
-pub const RERAND_MODE_RERAND_WITH_KS: RERAND_MODE = 0;
-pub const RERAND_MODE_RERAND_WITHOUT_KS: RERAND_MODE = 1;
-pub type RERAND_MODE = ffi::c_uint;
 unsafe extern "C" {
     pub fn scratch_cuda_rerand_64_async(
         streams: CudaStreamsFFI,

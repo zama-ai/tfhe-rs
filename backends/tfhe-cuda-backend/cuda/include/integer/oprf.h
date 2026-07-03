@@ -3,6 +3,10 @@
 
 template <typename Torus> struct int_scalar_mul_buffer;
 template <typename Torus> struct int_logical_scalar_shift_buffer;
+/// @brief Scratch buffer for re-randomizing LWE ciphertext blocks (defined in
+/// rerand.h).
+/// @tparam Torus Unsigned integer type representing a ciphertext torus element.
+template <typename Torus> struct int_rerand_mem;
 
 template <typename Torus> struct int_grouped_oprf_memory {
   int_radix_params params;
@@ -181,7 +185,22 @@ template <typename Torus> struct int_grouped_oprf_custom_range_memory {
   int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_buffer;
   CudaRadixCiphertextFFI *tmp_oprf_output;
   uint32_t num_random_input_blocks;
+  /// @brief Optional scratch for re-randomizing the fresh random blocks
+  /// (nullptr when re-randomization is not requested).
+  int_rerand_mem<Torus> *rerand_memory;
 
+  /// @brief Returns whether this scratch buffer was allocated with
+  /// re-randomization support.
+  bool applies_rerand() const { return rerand_memory != nullptr; }
+
+  /// @brief Allocates the scratch buffer without re-randomization support.
+  ///
+  /// @param num_blocks_intermediate  Number of radix blocks for scalar-multiply
+  /// and shift
+  /// @param message_bits_per_block   Number of message bits per radix block
+  /// @param num_input_random_bits    Random bits to generate before range
+  /// mapping
+  /// @param num_scalar_bits          Bit-width of the scalar multiplier
   int_grouped_oprf_custom_range_memory(
       CudaStreams streams, int_radix_params params,
       uint32_t num_blocks_intermediate, uint32_t message_bits_per_block,
@@ -189,6 +208,7 @@ template <typename Torus> struct int_grouped_oprf_custom_range_memory {
       bool allocate_gpu_memory, uint64_t &size_tracker) {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
+    this->rerand_memory = nullptr;
 
     this->num_random_input_blocks =
         CEIL_DIV(num_input_random_bits, message_bits_per_block);
@@ -213,6 +233,33 @@ template <typename Torus> struct int_grouped_oprf_custom_range_memory {
         allocate_gpu_memory);
   }
 
+  /// @brief Allocates the scratch buffer with re-randomization support.
+  ///
+  /// @param rerand_params            Radix parameters for the re-randomization
+  /// keyswitch stage
+  /// @param num_blocks_intermediate  Number of radix blocks for scalar-multiply
+  /// and shift
+  /// @param message_bits_per_block   Number of message bits per radix block
+  /// @param num_input_random_bits    Random bits to generate before range
+  /// mapping
+  /// @param num_scalar_bits          Bit-width of the scalar multiplier
+  /// @param rerand_mode              Re-randomization mode (with or without
+  /// keyswitch)
+  int_grouped_oprf_custom_range_memory(
+      CudaStreams streams, int_radix_params params,
+      int_radix_params rerand_params, uint32_t num_blocks_intermediate,
+      uint32_t message_bits_per_block, uint64_t num_input_random_bits,
+      uint32_t num_scalar_bits, RERAND_MODE rerand_mode,
+      bool allocate_gpu_memory, uint64_t &size_tracker)
+      : int_grouped_oprf_custom_range_memory(
+            streams, params, num_blocks_intermediate, message_bits_per_block,
+            num_input_random_bits, num_scalar_bits, allocate_gpu_memory,
+            size_tracker) {
+    this->rerand_memory = new int_rerand_mem<Torus>(
+        streams, rerand_params, this->num_random_input_blocks, rerand_mode,
+        allocate_gpu_memory, size_tracker);
+  }
+
   void release(CudaStreams streams) {
     this->scalar_mul_buffer->release(streams);
     delete this->scalar_mul_buffer;
@@ -231,6 +278,12 @@ template <typename Torus> struct int_grouped_oprf_custom_range_memory {
                                    this->allocate_gpu_memory);
     delete this->tmp_oprf_output;
     this->tmp_oprf_output = nullptr;
+
+    if (this->applies_rerand()) {
+      this->rerand_memory->release(streams);
+      delete this->rerand_memory;
+      this->rerand_memory = nullptr;
+    }
 
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }

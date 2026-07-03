@@ -8,6 +8,7 @@ use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFuncti
 use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, SignedRadixCiphertext, U256};
 use crate::{CompressedServerKey, CudaGpuChoice, CustomMultiGpuIndexes, GpuIndex, MatchValues};
 use std::cell::RefCell;
+use std::num::NonZeroU64;
 use std::sync::Arc;
 use tfhe_csprng::generators::DefaultRandomGenerator;
 use tfhe_csprng::seeders::{Seed, Seeder};
@@ -1692,7 +1693,7 @@ where
         &CudaOprfServerKey,
         Seed,
         u64,
-        u64,
+        NonZeroU64,
         u64,
         &CudaServerKey,
         &CudaStreams,
@@ -1714,11 +1715,13 @@ where
             .expect("setup was not properly called");
         let oprf_key = context.oprf_key.as_ref().expect("OPRF key not set");
 
+        let excluded_upper_bound =
+            NonZeroU64::new(input.2).expect("excluded_upper_bound must be non-zero");
         let gpu_result = (self.func)(
             oprf_key,
             input.0,
             input.1,
-            input.2,
+            excluded_upper_bound,
             input.3,
             &context.sks,
             &context.streams,
