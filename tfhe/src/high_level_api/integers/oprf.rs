@@ -404,7 +404,7 @@ impl<Id: FheUintId> FheUint<Id> {
                         .par_generate_oblivious_pseudo_random_unsigned_custom_range(
                             seed,
                             num_input_random_bits,
-                            excluded_upper_bound.get(),
+                            excluded_upper_bound,
                             num_blocks_output,
                             cuda_key.pbs_key(),
                             &cuda_key.streams,
@@ -455,9 +455,6 @@ impl<Id: FheUintId> FheUint<Id> {
     }
 
     /// Re-randomizing variant of [`Self::generate_oblivious_pseudo_random_custom_range`].
-    ///
-    /// The GPU backend does not yet expose a re-randomizing custom-range PRF primitive; calling
-    /// this function with a GPU server key currently panics for the non-power-of-two case.
     pub fn generate_oblivious_pseudo_random_custom_range_and_re_randomize<
         'a,
         RRD: Into<ReRandomizationMode<'a>>,
@@ -522,11 +519,38 @@ impl<Id: FheUintId> FheUint<Id> {
                     ))
                 }
                 #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_cuda_key) => {
-                    panic!(
-                        "generate_oblivious_pseudo_random_custom_range_and_re_randomize is not yet \
-                        supported on GPU for non-power-of-two ranges."
+                InternalServerKey::Cuda(cuda_key) => {
+                    let streams = &cuda_key.streams;
+                    let message_modulus = cuda_key.message_modulus();
+
+                    let num_input_random_bits = num_input_random_bits_for_max_distance(
+                        excluded_upper_bound,
+                        max_distance,
+                        message_modulus,
                     );
+
+                    let num_blocks_output = Id::num_blocks(cuda_key.message_modulus()) as u64;
+
+                    let rerand_key =
+                        cuda_key.integer_re_randomization_key_from_mode(re_randomization_mode)?;
+                    let d_ct = cuda_key
+                        .oprf_key()
+                        .par_generate_oblivious_pseudo_random_unsigned_custom_range_and_re_randomize(
+                            seed,
+                            num_input_random_bits,
+                            excluded_upper_bound,
+                            num_blocks_output,
+                            cuda_key.pbs_key(),
+                            &rerand_key,
+                            prf_re_randomization_context.inner(),
+                            streams,
+                        )?;
+
+                    Ok(Self::new(
+                        d_ct,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ))
                 }
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
@@ -1473,7 +1497,6 @@ mod test {
         }
     }
 
-    // TODO fuse in the other function once GPU is available for custom_range
     fn prf_equivalence_subtest_custom_range(
         client_key: &ClientKey,
         rerand_mode: ReRandomizationMode,
@@ -1696,7 +1719,7 @@ mod test {
 
                 assert_eq!(expected_results, gpu_results);
 
-                // TODO add custom_range test for GPU
+                prf_equivalence_subtest_custom_range(&client_key, rerand_mode);
             }
         }
 
