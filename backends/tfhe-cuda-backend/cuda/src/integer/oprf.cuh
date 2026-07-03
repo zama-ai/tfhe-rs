@@ -3,6 +3,7 @@
 
 #include "integer/integer.cuh"
 #include "integer/oprf.h"
+#include "integer/rerand.cuh"
 #include "integer/scalar_mul.cuh"
 #include "integer/scalar_shifts.cuh"
 
@@ -113,8 +114,9 @@ void host_integer_grouped_oprf_custom_range(
     uint32_t num_blocks_intermediate, const Torus *seeded_lwe_input,
     const Torus *decomposed_scalar, const Torus *has_at_least_one_set,
     uint32_t num_scalars, uint32_t shift,
+    const Torus *lwe_flattened_encryptions_of_zero_compact_array_in,
     int_grouped_oprf_custom_range_memory<Torus> *mem_ptr, void *const *bsks,
-    void *const *compute_bsks, Torus *const *ksks) {
+    void *const *compute_bsks, Torus *const *ksks, Torus *const *rerand_ksks) {
 
   CudaRadixCiphertextFFI *computation_buffer = mem_ptr->tmp_oprf_output;
   set_zero_radix_ciphertext_slice_async<Torus>(
@@ -124,6 +126,43 @@ void host_integer_grouped_oprf_custom_range(
   host_integer_grouped_oprf<Torus>(
       streams, computation_buffer, seeded_lwe_input,
       mem_ptr->num_random_input_blocks, mem_ptr->grouped_oprf_memory, bsks);
+
+  if (mem_ptr->applies_rerand()) {
+    auto rerand = [&](auto degree_tag) {
+      host_rerand_inplace<Torus, decltype(degree_tag)>(
+          streams, static_cast<Torus *>(computation_buffer->ptr),
+          lwe_flattened_encryptions_of_zero_compact_array_in, rerand_ksks,
+          mem_ptr->rerand_memory);
+    };
+
+    switch (mem_ptr->rerand_memory->params.polynomial_size) {
+    case 256:
+      rerand(AmortizedDegree<256>{});
+      break;
+    case 512:
+      rerand(AmortizedDegree<512>{});
+      break;
+    case 1024:
+      rerand(AmortizedDegree<1024>{});
+      break;
+    case 2048:
+      rerand(AmortizedDegree<2048>{});
+      break;
+    case 4096:
+      rerand(AmortizedDegree<4096>{});
+      break;
+    case 8192:
+      rerand(AmortizedDegree<8192>{});
+      break;
+    case 16384:
+      rerand(AmortizedDegree<16384>{});
+      break;
+    default:
+      PANIC("CUDA error: compact public key dimension not supported. Supported "
+            "dimensions are powers of two in the interval [256..16384].");
+      break;
+    }
+  }
 
   host_integer_scalar_mul_radix<Torus>(
       streams, computation_buffer, decomposed_scalar, has_at_least_one_set,
