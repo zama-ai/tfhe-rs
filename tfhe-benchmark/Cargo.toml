@@ -172,6 +172,12 @@ harness = false
 required-features = ["shortint", "internal-keycache"]
 
 [[bench]]
+name = "shortint-kreyvium-transciphering"
+path = "benches/shortint/kreyvium_transciphering.rs"
+harness = false
+required-features = ["shortint", "internal-keycache"]
+
+[[bench]]
 name = "integer-trivium"
 path = "benches/integer/trivium.rs"
 harness = false

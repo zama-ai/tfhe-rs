@@ -1,4 +1,5 @@
-use criterion::Criterion;
+use criterion::measurement::WallTime;
+use criterion::{Bencher, BenchmarkGroup, Criterion};
 use std::env;
 use std::sync::OnceLock;
 #[cfg(feature = "gpu")]
@@ -7,6 +8,34 @@ use tfhe::core_crypto::gpu::{get_number_of_gpus, get_number_of_sms};
 use tfhe::prelude::*;
 
 pub use tfhe_benchmark_parser::{write_to_json, write_to_json_unchecked, OperatorType};
+
+/// Run a criterion routine and record its metadata via `write_to_json_unchecked`
+pub fn bench_and_record<F>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    id: &str,
+    param_name: &str,
+    display_name: &str,
+    bit_size: u32,
+    decomposition_basis: Vec<u32>,
+    mut routine: F,
+) where
+    F: FnMut(&mut Bencher<'_, WallTime>),
+{
+    let recorded = std::sync::Once::new();
+    group.bench_function(id, |b| {
+        routine(b);
+        recorded.call_once(|| {
+            write_to_json_unchecked(
+                id,
+                param_name,
+                display_name,
+                &OperatorType::Atomic,
+                bit_size,
+                decomposition_basis.clone(),
+            );
+        });
+    });
+}
 
 const FAST_BENCH_BIT_SIZES: [usize; 1] = [64];
 #[cfg(not(feature = "gpu"))]

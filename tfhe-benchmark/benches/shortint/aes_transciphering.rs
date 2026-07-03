@@ -17,9 +17,8 @@
 //! ```
 
 use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-use benchmark::utilities::{write_to_json_unchecked, OperatorType};
-use criterion::measurement::WallTime;
-use criterion::{criterion_group, Bencher, BenchmarkGroup, Criterion};
+use benchmark::utilities::bench_and_record;
+use criterion::{criterion_group, Criterion};
 use rand::{Rng, SeedableRng};
 use std::hint::black_box;
 use tfhe::keycache::NamedParam;
@@ -33,33 +32,6 @@ use tfhe::transciphering::{StreamCipher, Transcipherer};
 const N_BLOCKS: usize = 16;
 const BLOCK_BITS: usize = 128;
 const BLOCK_BYTES: usize = 16;
-
-fn bench_and_record<F>(
-    group: &mut BenchmarkGroup<'_, WallTime>,
-    id: &str,
-    param_name: &str,
-    display_name: &str,
-    bit_size: u32,
-    decomposition_basis: Vec<u32>,
-    mut routine: F,
-) where
-    F: FnMut(&mut Bencher<'_, WallTime>),
-{
-    let recorded = std::sync::Once::new();
-    group.bench_function(id, |b| {
-        routine(b);
-        recorded.call_once(|| {
-            write_to_json_unchecked(
-                id,
-                param_name,
-                display_name,
-                &OperatorType::Atomic,
-                bit_size,
-                decomposition_basis.clone(),
-            );
-        });
-    });
-}
 
 pub fn cpu_aes_transciphering(c: &mut Criterion) {
     let bench_name = "transciphering::cpu::aes";
@@ -86,6 +58,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
 
     // ---- key_expansion ----
     let id = format!("{bench_name}::{}::key_expansion", &param_name);
+    println!("{id}");
     bench_and_record(
         &mut group,
         &id,
@@ -103,6 +76,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
     // ---- key_expansion_plus_1_block ----
     // Cold-start cost: fresh key schedule + one CTR block keystream per iter.
     let id = format!("{bench_name}::{}::key_expansion_plus_1_block", &param_name);
+    println!("{id}");
     bench_and_record(
         &mut group,
         &id,
@@ -125,6 +99,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
 
     // ---- keystream_1_block ----
     let id = format!("{bench_name}::{}::keystream_1_block", &param_name);
+    println!("{id}");
     bench_and_record(
         &mut group,
         &id,
@@ -143,6 +118,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
     // ---- keystream_16_blocks ----
     let total_bits = BLOCK_BITS * N_BLOCKS;
     let id = format!("{bench_name}::{}::keystream_16_blocks", &param_name);
+    println!("{id}");
     bench_and_record(
         &mut group,
         &id,
@@ -167,6 +143,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
     let sym_cipher = AesPlainState::new(key, iv).encrypt(&message);
 
     let id = format!("{bench_name}::{}::transcipher_16_blocks", &param_name);
+    println!("{id}");
     bench_and_record(
         &mut group,
         &id,
