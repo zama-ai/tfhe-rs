@@ -4,7 +4,7 @@ use std::env;
 use std::sync::OnceLock;
 #[cfg(feature = "gpu")]
 use tfhe::core_crypto::gpu::{get_number_of_gpus, get_number_of_sms};
-#[cfg(feature = "integer")]
+#[cfg(all(feature = "integer", feature = "pbs-stats"))]
 use tfhe::prelude::*;
 
 pub use tfhe_benchmark_parser::{write_to_json, write_to_json_unchecked, OperatorType};
