@@ -5,7 +5,8 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
     MAX_NB_CTXT, NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params, CpuFunctionExecutor,
+    nb_tests_for_params, nb_tests_smaller_for_params, panic_if_boolean_block_is_not_clean,
+    panic_if_radix_is_not_clean, CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
@@ -122,6 +123,7 @@ where
             let ctxt_0 = cks.encrypt_signed_radix(clear_0, num_blocks);
 
             let mut ct_res = executor.execute((&ctxt_0, clear_1));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             assert!(ct_res.block_carries_are_empty());
 
             clear = signed_add_under_modulus(clear_0, clear_1, modulus);
@@ -129,7 +131,9 @@ where
             // add multiple times to raise the degree
             for _ in 0..nb_tests_smaller {
                 let tmp = executor.execute((&ct_res, clear_1));
+                panic_if_radix_is_not_clean(&tmp, &cks);
                 ct_res = executor.execute((&ct_res, clear_1));
+                panic_if_radix_is_not_clean(&ct_res, &cks);
                 assert!(ct_res.block_carries_are_empty());
                 assert_eq!(ct_res, tmp);
                 clear = signed_add_under_modulus(clear, clear_1, modulus);
@@ -184,6 +188,8 @@ where
             let ctxt_0 = cks.encrypt_signed_radix(clear_0, num_blocks);
 
             let (ct_res, result_overflowed) = executor.execute((&ctxt_0, clear_1));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
+            panic_if_boolean_block_is_not_clean(&result_overflowed, &cks);
             let (expected_result, expected_overflowed) =
                 signed_overflowing_add_under_modulus(clear_0, clear_1, modulus);
 
@@ -200,8 +206,6 @@ where
             "Invalid overflow flag result for overflowing_add for ({clear_0} + {clear_1}) % {modulus} \
              expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
-            assert_eq!(result_overflowed.0.degree.get(), 1);
-            assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
         }
 
         for _ in 0..nb_tests_smaller {
@@ -211,7 +215,11 @@ where
             let ctxt_0 = cks.encrypt_signed_radix(clear_0, num_blocks);
 
             let (ct_res, result_overflowed) = executor.execute((&ctxt_0, clear_1));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
+            panic_if_boolean_block_is_not_clean(&result_overflowed, &cks);
             let (tmp_ct, tmp_o) = executor.execute((&ctxt_0, clear_1));
+            panic_if_radix_is_not_clean(&tmp_ct, &cks);
+            panic_if_boolean_block_is_not_clean(&tmp_o, &cks);
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp_ct, "Failed determinism check,\n\n\n msg0: {clear_0}, msg1: {clear_1},  \n\n\nct: {ctxt_0:?}, \n\n\nclear: {clear_1:?}\n\n\n");
             assert_eq!(tmp_o, result_overflowed, "Failed determinism check,\n\n\n msg0: {clear_0}, msg1: {clear_1},  \n\n\nct: {ctxt_0:?}, \n\n\nclear: {clear_1:?}\n\n\n");
@@ -232,8 +240,6 @@ where
             "Invalid overflow flag result for overflowing_add for ({clear_0} + {clear_1}) % {modulus} \
              expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
-            assert_eq!(result_overflowed.0.degree.get(), 1);
-            assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
 
             for _ in 0..nb_tests_smaller {
                 // Add non zero scalar to have non clean ciphertexts
@@ -247,6 +253,8 @@ where
                 assert_eq!(d0, clear_lhs, "Failed sanity decryption check");
 
                 let (ct_res, result_overflowed) = executor.execute((&ctxt_0, clear_rhs));
+                panic_if_radix_is_not_clean(&ct_res, &cks);
+                panic_if_boolean_block_is_not_clean(&result_overflowed, &cks);
                 assert!(ct_res.block_carries_are_empty());
                 let (expected_result, expected_overflowed) =
                     signed_overflowing_add_under_modulus(clear_lhs, clear_rhs, modulus);
@@ -264,8 +272,6 @@ where
                 "Invalid overflow flag result for overflowing_add, for ({clear_lhs} + {clear_rhs}) % {modulus} \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
             );
-                assert_eq!(result_overflowed.0.degree.get(), 1);
-                assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
             }
         }
 
@@ -277,6 +283,8 @@ where
             let a: SignedRadixCiphertext = sks.create_trivial_radix(clear_0, num_blocks);
 
             let (encrypted_result, encrypted_overflow) = executor.execute((&a, clear_1));
+            panic_if_radix_is_not_clean(&encrypted_result, &cks);
+            panic_if_boolean_block_is_not_clean(&encrypted_overflow, &cks);
 
             let (expected_result, expected_overflowed) =
                 signed_overflowing_add_under_modulus(clear_0, clear_1, modulus);
@@ -294,12 +302,6 @@ where
             "Invalid overflow flag result for overflowing_add, for ({clear_0} + {clear_1}) % {modulus} \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
-            assert_eq!(encrypted_overflow.0.degree.get(), 1);
-            #[cfg(feature = "gpu")]
-            assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::NOMINAL);
-
-            #[cfg(not(feature = "gpu"))]
-            assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
         }
 
         // Test with scalar that is bigger than ciphertext modulus
@@ -310,6 +312,8 @@ where
             let a = cks.encrypt_signed_radix(clear_0, num_blocks);
 
             let (encrypted_result, encrypted_overflow) = executor.execute((&a, clear_1));
+            panic_if_radix_is_not_clean(&encrypted_result, &cks);
+            panic_if_boolean_block_is_not_clean(&encrypted_overflow, &cks);
 
             let (expected_result, expected_overflowed) =
                 signed_overflowing_add_under_modulus(clear_0, clear_1, modulus);
@@ -328,8 +332,6 @@ where
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
             assert!(decrypted_overflowed); // Actually we know its an overflow case
-            assert_eq!(encrypted_overflow.0.degree.get(), 1);
-            assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
         }
     }
 }

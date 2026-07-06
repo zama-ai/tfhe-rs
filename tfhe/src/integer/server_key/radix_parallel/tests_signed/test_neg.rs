@@ -4,7 +4,9 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
     create_iterator_of_signed_random_pairs, signed_neg_under_modulus, NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_smaller_for_params, nb_unchecked_tests_for_params, CpuFunctionExecutor, MAX_NB_CTXT,
+    nb_tests_smaller_for_params, nb_unchecked_tests_for_params,
+    panic_if_boolean_block_is_not_clean, panic_if_radix_is_not_clean, CpuFunctionExecutor,
+    MAX_NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
@@ -171,7 +173,9 @@ where
         let ctxt = cks.encrypt_signed(clear);
 
         let ct_res = executor.execute(&ctxt);
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         let tmp = executor.execute(&ctxt);
+        panic_if_radix_is_not_clean(&tmp, &cks);
         assert!(ct_res.block_carries_are_empty());
         assert_eq!(ct_res, tmp);
 
@@ -187,7 +191,9 @@ where
         let ctxt = cks.encrypt_signed(clear);
 
         let ct_res = executor.execute(&ctxt);
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         let tmp = executor.execute(&ctxt);
+        panic_if_radix_is_not_clean(&tmp, &cks);
         assert!(ct_res.block_carries_are_empty());
         assert_eq!(ct_res, tmp);
 
@@ -232,9 +238,8 @@ where
             let ctxt = cks.encrypt_signed_radix(clear, num_blocks);
 
             let (ct_res, flag) = overflowing_neg.execute(&ctxt);
-
-            assert_eq!(flag.0.noise_level(), NoiseLevel::NOMINAL);
-            assert_eq!(flag.0.degree.get(), 1);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
+            panic_if_boolean_block_is_not_clean(&flag, &cks);
 
             let dec_flag = cks.decrypt_bool(&flag);
             assert!(
@@ -257,6 +262,8 @@ where
             );
 
             let (ct_res2, flag2) = overflowing_neg.execute(&ctxt);
+            panic_if_radix_is_not_clean(&ct_res2, &cks);
+            panic_if_boolean_block_is_not_clean(&flag2, &cks);
             assert_eq!(ct_res, ct_res2, "Failed determinism check");
             assert_eq!(flag, flag2, "Failed determinism check");
         }
@@ -265,9 +272,8 @@ where
         let ctxt = cks.encrypt_signed_radix(-modulus, num_blocks);
 
         let (ct_res, flag) = overflowing_neg.execute(&ctxt);
-
-        assert_eq!(flag.0.noise_level(), NoiseLevel::NOMINAL);
-        assert_eq!(flag.0.degree.get(), 1);
+        panic_if_radix_is_not_clean(&ct_res, &cks);
+        panic_if_boolean_block_is_not_clean(&flag, &cks);
 
         let dec_flag = cks.decrypt_bool(&flag);
         assert!(
