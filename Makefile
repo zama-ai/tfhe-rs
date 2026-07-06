@@ -165,7 +165,7 @@ install_tarpaulin:
 
 .PHONY: install_cargo_dylint # Install custom tfhe-rs lints
 install_cargo_dylint:
-	cargo install --locked cargo-dylint dylint-link
+	cargo install --locked cargo-dylint@4.1.2 dylint-link@4.1.2
 
 .PHONY: install_cargo_audit # Check dependencies
 install_cargo_audit:
