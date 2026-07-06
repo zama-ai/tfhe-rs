@@ -1,6 +1,6 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
-use crate::integer::server_key::radix_parallel::tests_unsigned::panic_if_any_block_is_not_clean_or_trivial;
+use crate::integer::server_key::radix_parallel::tests_unsigned::panic_if_any_block_is_not_clean;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -417,7 +417,7 @@ where
         for ct in inputs {
             let (result, is_ok) = executor.execute((&ct, &lut));
 
-            panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
+            panic_if_any_block_is_not_clean(&result, &cks);
 
             assert!(result.blocks.len() > ct.blocks.len());
 
@@ -454,7 +454,7 @@ where
         let lut = MatchValues::new(lut.clone()).unwrap();
         let (result, is_ok) = executor.execute((&ct, &lut));
 
-        panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
+        panic_if_any_block_is_not_clean(&result, &cks);
         assert_eq!(is_ok.0.degree, Degree::new(1));
         assert_eq!(is_ok.0.noise_level(), NoiseLevel::NOMINAL);
 
@@ -486,7 +486,7 @@ where
         let lut = MatchValues::new(lut).unwrap();
         let (result, is_ok) = executor.execute((&ct, &lut));
 
-        panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
+        panic_if_any_block_is_not_clean(&result, &cks);
         assert_eq!(is_ok.0.degree, Degree::new(1));
         assert_eq!(is_ok.0.noise_level(), NoiseLevel::NOMINAL);
 
@@ -560,7 +560,7 @@ where
         assert_eq!(result, result_2, "Failed determinism test");
         assert_eq!(is_ok, is_ok_2, "Failed determinism test");
 
-        panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
+        panic_if_any_block_is_not_clean(&result, &cks);
         assert_eq!(is_ok.0.degree, Degree::new(1));
         assert_eq!(is_ok.0.noise_level(), NoiseLevel::NOMINAL);
 
@@ -633,7 +633,7 @@ where
         for ct in inputs {
             let result = executor.execute((&ct, &lut, u64::MAX));
 
-            panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
+            panic_if_any_block_is_not_clean(&result, &cks);
 
             assert_eq!(
                 result.blocks.len(),
@@ -673,7 +673,7 @@ where
         let lut = MatchValues::new(lut.clone()).unwrap();
         let result = executor.execute((&ct, &lut, clear_default));
 
-        panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
+        panic_if_any_block_is_not_clean(&result, &cks);
         let result = cks.decrypt::<u64>(&result);
 
         assert_eq!(result, expected_result);
@@ -738,7 +738,7 @@ where
         let result_2 = executor.execute((&ct, &lut, clear_default));
         assert_eq!(result, result_2, "Failed determinism test");
 
-        panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
+        panic_if_any_block_is_not_clean(&result, &cks);
         let result = cks.decrypt::<u64>(&result);
 
         assert_eq!(result, expected_result);
