@@ -50,7 +50,7 @@ macro_rules! export_concrete_array_types {
 pub use crate::core_crypto::commons::math::random::{Seed, Seeder, XofSeed};
 pub use crate::high_level_api::integers::oprf::RangeForRandom;
 pub use crate::high_level_api::integers::shuffle::{
-    bitonic_shuffle, re_randomized_keys_bitonic_shuffle,
+    bitonic_shuffle, re_randomized_keys_bitonic_shuffle, BitonicShuffleKeySize,
 };
 pub use crate::integer::server_key::MatchValues;
 pub use crate::shortint::OprfSeed;

@@ -80,11 +80,11 @@ Note that if ciphertexts require auxiliary metadata to perform the re-randomizat
 
 ```rust
 use tfhe::prelude::*;
-use tfhe::shortint::parameters::v1_4::meta::cpu::V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+use tfhe::shortint::parameters::v1_7::meta::cpu::V1_7_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
 use tfhe::{ClientKey, FheUint64};
 
 pub fn main() {
-    let cks = ClientKey::generate(V1_4_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
+    let cks = ClientKey::generate(V1_7_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
 
     let clear_a = rand::random::<u64>();
     let mut a = FheUint64::encrypt(clear_a, &cks);
@@ -165,6 +165,132 @@ pub fn main() {
     let dec_c: bool = c.decrypt(&cks);
     assert!(!dec_c);
 }
+```
+
+## Re-Randomized PRF
+
+Here is an example of how to call the re-randomized PRF in the same setting:
+
+```rust
+use std::num::NonZeroU64;
+use tfhe::prelude::{FheDecrypt, FheTryEncrypt};
+use tfhe::shortint::parameters::v1_7::meta::cpu::V1_7_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+use tfhe::{
+    generate_keys, re_randomized_keys_bitonic_shuffle, set_server_key, BitonicShuffleKeySize,
+    FheInt8, FheUint8, PrfReRandomizationContext, RangeForRandom, ReRandomizationMode, Seed,
+};
+
+pub fn main() {
+    // The chosen parameters have re-rand enabled and don't require an extra CompactPublicKey
+    let (client_key, server_key) =
+        generate_keys(V1_7_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
+
+    set_server_key(server_key);
+
+    let excluded_upper_bound = NonZeroU64::new(3).unwrap();
+    let range = RangeForRandom::new_from_excluded_upper_bound(excluded_upper_bound);
+    // Uses default domain separators and Blake3 for hashing during re-randomization
+    let prf_rerand_context = PrfReRandomizationContext::default();
+    let rerand_mode = ReRandomizationMode::default();
+
+    // in [0, excluded_upper_bound[ = {0, 1, 2}
+    // DANGER: Static Seed(0) given as an example only
+    // use proper seeding strategy depending on use case
+    let ct_res = FheUint8::generate_oblivious_pseudo_random_custom_range_and_re_randomize(
+        Seed(0),
+        &range,
+        None,
+        rerand_mode,
+        &prf_rerand_context,
+    )
+    .unwrap();
+    let dec_result: u8 = ct_res.decrypt(&client_key);
+
+    let random_bits_count = 3;
+
+    // in [0, 2^8[
+    // DANGER: Static Seed(0) given as an example only
+    // use proper seeding strategy depending on use case
+    let ct_res = FheUint8::generate_oblivious_pseudo_random_and_re_randomize(
+        Seed(0),
+        rerand_mode,
+        &prf_rerand_context,
+    )
+    .unwrap();
+    let dec_result: u8 = ct_res.decrypt(&client_key);
+
+    // in [0, 2^random_bits_count[ = [0, 8[
+    // DANGER: Static Seed(0) given as an example only
+    // use proper seeding strategy depending on use case
+    let ct_res = FheUint8::generate_oblivious_pseudo_random_bounded_and_re_randomize(
+        Seed(0),
+        random_bits_count,
+        rerand_mode,
+        &prf_rerand_context,
+    )
+    .unwrap();
+    let dec_result: u8 = ct_res.decrypt(&client_key);
+    assert!(dec_result < (1 << random_bits_count));
+
+    // in [-2^7, 2^7[
+    // DANGER: Static Seed(0) given as an example only
+    // use proper seeding strategy depending on use case
+    let ct_res = FheInt8::generate_oblivious_pseudo_random_and_re_randomize(
+        Seed(0),
+        rerand_mode,
+        &prf_rerand_context,
+    )
+    .unwrap();
+    let dec_result: i8 = ct_res.decrypt(&client_key);
+
+    // in [0, 2^random_bits_count[ = [0, 8[
+    // DANGER: Static Seed(0) given as an example only
+    // use proper seeding strategy depending on use case
+    let ct_res = FheInt8::generate_oblivious_pseudo_random_bounded_and_re_randomize(
+        Seed(0),
+        random_bits_count,
+        rerand_mode,
+        &prf_rerand_context,
+    )
+    .unwrap();
+    let dec_result: i8 = ct_res.decrypt(&client_key);
+    assert!(dec_result < (1 << random_bits_count));
+
+    // Shuffle
+    let mut clear_values: Vec<u8> = (0..15).map(|_| rand::random()).collect();
+
+    let encrypted: Vec<FheUint8> = clear_values
+        .iter()
+        .map(|&v| FheUint8::try_encrypt(v, &client_key).unwrap())
+        .collect();
+
+    // Depending on applications this won't be enough to guarantee a low enough collision
+    // probability to have an unbiased shuffle, adapt to your use case
+    let key_size = BitonicShuffleKeySize::num_bits(32);
+
+    // DANGER: Static Seed(0) given as an example only
+    // use proper seeding strategy depending on use case
+    let rerand_result = re_randomized_keys_bitonic_shuffle(
+        encrypted.clone(),
+        key_size,
+        Seed(0),
+        rerand_mode,
+        &prf_rerand_context,
+    )
+    .unwrap();
+
+    clear_values.sort_unstable();
+
+    let mut decrypted_rerand: Vec<u8> = rerand_result
+        .iter()
+        .map(|ct| ct.decrypt(&client_key))
+        .collect();
+
+    // Check the input values are still there
+    decrypted_rerand.sort_unstable();
+    assert_eq!(clear_values, decrypted_rerand);
+}
+
 ```
 
 ## Managing legacy Re-Randomization API
