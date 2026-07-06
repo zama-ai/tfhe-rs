@@ -968,6 +968,7 @@ impl HpuNode {
                     let iop = asm::AsmIOpcode::from_str(name)
                         .unwrap_or_else(|_| panic!("Invalid Custom Iop name {name}"));
                     let opcode = iop.opcode();
+                    let mut used_vid = 0;
 
                     for vid in 0..MAX_HPU_IN_CLUSTER {
                         let asm_file = format!("{}_v{vid}.asm", asm_base_file.expand());
@@ -975,6 +976,7 @@ impl HpuNode {
                         match asm::Program::<asm::DOp>::read_asm(&asm_file) {
                             Ok(prog) => {
                                 debug!("Read custom asm file: {asm_file}");
+                                used_vid += 1;
                                 id_fw.push(((opcode.0 as usize, vid), prog.tr_table()));
                             }
                             Err(e) => {
@@ -986,6 +988,7 @@ impl HpuNode {
                             }
                         }
                     }
+                    assert!(used_vid >0, "Custom IOp: {opcode:?} failed. No file match given path {}_v{{[0-7]}}.asm", asm_base_file.expand());
                 }
             }
 
