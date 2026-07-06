@@ -5,7 +5,8 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
     signed_right_shift_under_modulus, NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params, CpuFunctionExecutor,
+    nb_tests_for_params, nb_tests_smaller_for_params, panic_if_any_block_is_not_clean_or_trivial,
+    CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
@@ -69,6 +70,7 @@ where
             assert!(!shift.block_carries_are_empty());
 
             let ct_res = executor.execute((&ct, &shift));
+            panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let clear_res = signed_left_shift_under_modulus(clear, clear_shift, modulus);
             assert_eq!(
@@ -93,6 +95,7 @@ where
             assert!(!shift.block_carries_are_empty());
 
             let ct_res = executor.execute((&ct, &shift));
+            panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             // When nb_bits is not a power of two
             // then the behaviour is not the same
@@ -160,6 +163,7 @@ where
             assert!(!shift.block_carries_are_empty());
 
             let ct_res = executor.execute((&ct, &shift));
+            panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let clear_res = signed_right_shift_under_modulus(clear, clear_shift, modulus);
             assert_eq!(
@@ -184,6 +188,7 @@ where
             assert!(!shift.block_carries_are_empty());
 
             let ct_res = executor.execute((&ct, &shift));
+            panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             // When nb_bits is not a power of two
             // then the behaviour is not the same
@@ -303,6 +308,7 @@ where
             let clear_shift = clear_shift % nb_bits;
             let shift = cks.encrypt(clear_shift as u64);
             let ct_res = executor.execute((&ct, &shift));
+            panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let clear_res = signed_right_shift_under_modulus(clear, clear_shift, modulus);
             assert_eq!(clear_res, dec_res);
