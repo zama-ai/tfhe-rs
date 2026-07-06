@@ -5,7 +5,8 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
     signed_right_shift_under_modulus, NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params, CpuFunctionExecutor,
+    nb_tests_for_params, nb_tests_smaller_for_params, panic_if_radix_is_not_clean,
+    CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
@@ -180,6 +181,7 @@ where
         {
             let clear_shift = rng.gen::<u32>() % nb_bits;
             let ct_res = executor.execute((&ct, clear_shift as i64));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let clear_res = signed_left_shift_under_modulus(clear, clear_shift, modulus);
             assert_eq!(
@@ -189,6 +191,7 @@ where
             );
 
             let ct_res2 = executor.execute((&ct, clear_shift as i64));
+            panic_if_radix_is_not_clean(&ct_res2, &cks);
             assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, \n\n\nct: {ct:?}, \n\n\nclear: {clear_shift:?}\n\n\n");
         }
 
@@ -197,6 +200,7 @@ where
             // An overshift pushes every bit out, so a left shift returns 0.
             let clear_shift = rng.gen_range(nb_bits..=u32::MAX);
             let ct_res = executor.execute((&ct, clear_shift as i64));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let clear_res = 0i64;
             assert_eq!(
@@ -206,6 +210,7 @@ where
             );
 
             let ct_res2 = executor.execute((&ct, clear_shift as i64));
+            panic_if_radix_is_not_clean(&ct_res2, &cks);
             assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, \n\n\nct: {ct:?}, \n\n\nclear: {clear_shift:?}\n\n\n");
         }
     }
@@ -246,6 +251,7 @@ where
         {
             let clear_shift = rng.gen::<u32>() % nb_bits;
             let ct_res = executor.execute((&ct, clear_shift as i64));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let clear_res = signed_right_shift_under_modulus(clear, clear_shift, modulus);
             assert_eq!(
@@ -255,6 +261,7 @@ where
             );
 
             let ct_res2 = executor.execute((&ct, clear_shift as i64));
+            panic_if_radix_is_not_clean(&ct_res2, &cks);
             assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, \n\n\nct: {ct:?}, \n\n\nclear: {clear_shift:?}\n\n\n");
         }
 
@@ -263,6 +270,7 @@ where
             // An overshift saturates an arithmetic right shift to the sign: -1 if negative, else 0.
             let clear_shift = rng.gen_range(nb_bits..=u32::MAX);
             let ct_res = executor.execute((&ct, clear_shift as i64));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let clear_res = if clear < 0 { -1i64 } else { 0i64 };
             assert_eq!(
@@ -272,6 +280,7 @@ where
             );
 
             let ct_res2 = executor.execute((&ct, clear_shift as i64));
+            panic_if_radix_is_not_clean(&ct_res2, &cks);
             assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, \n\n\nct: {ct:?}, \n\n\nclear: {clear_shift:?}\n\n\n");
         }
     }

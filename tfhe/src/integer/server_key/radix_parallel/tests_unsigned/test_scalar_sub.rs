@@ -16,7 +16,7 @@ use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use rand::prelude::*;
 
-use super::{MAX_NB_CTXT, NB_CTXT};
+use super::{panic_if_radix_is_not_clean, MAX_NB_CTXT, NB_CTXT};
 
 create_parameterized_test!(integer_smart_scalar_sub);
 create_parameterized_test!(integer_default_scalar_sub);
@@ -195,9 +195,11 @@ where
             let ctxt_1 = cks.encrypt_radix(clear_1, num_blocks);
 
             let ct_res = executor.execute((clear_0, &ctxt_1));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             assert!(ct_res.block_carries_are_empty());
 
             let tmp = executor.execute((clear_0, &ctxt_1));
+            panic_if_radix_is_not_clean(&tmp, &cks);
             assert_eq!(ct_res, tmp, "Operation is not deterministic");
 
             let dec_res: u64 = cks.decrypt_radix(&ct_res);
@@ -206,6 +208,7 @@ where
             let non_zero = random_non_zero_value(&mut rng, modulus);
             let non_clean = sks.unchecked_scalar_add(&ctxt_1, non_zero);
             let ct_res = executor.execute((clear_0, &non_clean));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             assert!(ct_res.block_carries_are_empty());
             let dec_res: u64 = cks.decrypt_radix(&ct_res);
             assert_eq!(
@@ -214,6 +217,7 @@ where
             );
 
             let ct_res2 = executor.execute((clear_0, &non_clean));
+            panic_if_radix_is_not_clean(&ct_res2, &cks);
             assert_eq!(ct_res, ct_res2, "Failed determinism check");
         }
     }

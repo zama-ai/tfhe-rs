@@ -1,9 +1,9 @@
 use super::{
     nb_tests_for_params, nb_tests_smaller_for_params, overflowing_add_under_modulus,
-    panic_if_any_block_info_exceeds_max_degree_or_noise, panic_if_any_block_is_not_clean,
-    panic_if_any_block_values_exceeds_its_degree, random_non_zero_value, unsigned_modulus,
-    unsigned_modulus_u128, CpuFunctionExecutor, ExpectedDegrees, ExpectedNoiseLevels, MAX_NB_CTXT,
-    NB_CTXT,
+    panic_if_any_block_values_exceeds_its_degree, panic_if_boolean_block_is_not_clean,
+    panic_if_radix_is_not_clean, panic_if_smart_op_bounds_exceeded, random_non_zero_value,
+    unsigned_modulus, unsigned_modulus_u128, CpuFunctionExecutor, ExpectedDegrees,
+    ExpectedNoiseLevels, MAX_NB_CTXT, NB_CTXT,
 };
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
@@ -311,12 +311,7 @@ where
         expected_degrees
             .after_unchecked_add(&ctxt_0, &ctxt_1)
             .panic_if_any_is_not_equal(&encrypted_result);
-        panic_if_any_block_info_exceeds_max_degree_or_noise(
-            &encrypted_result,
-            max_degree,
-            max_noise_level,
-            &cks,
-        );
+        panic_if_smart_op_bounds_exceeded(&encrypted_result, max_degree, max_noise_level, &cks);
 
         let decrypted_result: u64 = cks.decrypt(&encrypted_result);
         let expected_result = clear_0.wrapping_add(clear_1) % modulus;
@@ -367,12 +362,7 @@ where
 
         expected_noise_levels.panic_if_any_is_not_equal(&ctxt_0);
         expected_degrees.panic_if_any_is_not_equal(&ctxt_0);
-        panic_if_any_block_info_exceeds_max_degree_or_noise(
-            &ctxt_0,
-            max_degree,
-            max_noise_level,
-            &cks,
-        );
+        panic_if_smart_op_bounds_exceeded(&ctxt_0, max_degree, max_noise_level, &cks);
 
         let decrypted_result: u64 = cks.decrypt(&ctxt_0);
         let expected_result = clear_0.wrapping_add(clear_1) % modulus;
@@ -431,12 +421,7 @@ where
         for _ in 0..nb_tests_smaller {
             ct_res = executor.execute((&mut ct_res, &mut ctxt_0));
 
-            panic_if_any_block_info_exceeds_max_degree_or_noise(
-                &ct_res,
-                max_degree,
-                max_noise_level,
-                &cks,
-            );
+            panic_if_smart_op_bounds_exceeded(&ct_res, max_degree, max_noise_level, &cks);
             panic_if_any_block_values_exceeds_its_degree(&ct_res, &cks);
 
             clear = clear.wrapping_add(clear_0) % modulus;
@@ -481,7 +466,7 @@ where
         let mut ct_res = executor.execute((&ctxt_0, &ctxt_1));
         let tmp_ct = executor.execute((&ctxt_0, &ctxt_1));
 
-        panic_if_any_block_is_not_clean(&ct_res, &cks);
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         assert_eq!(ct_res, tmp_ct);
 
         clear = clear_0.wrapping_add(clear_1) % modulus;
@@ -494,7 +479,7 @@ where
 
         for _ in 0..nb_tests_smaller {
             ct_res = executor.execute((&ct_res, &ctxt_0));
-            panic_if_any_block_is_not_clean(&ct_res, &cks);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
 
             let result = (clear + clear_0) % modulus;
 
@@ -543,6 +528,7 @@ where
             let ctxt_1 = sks.create_trivial_radix(clear_1, num_blocks as usize);
 
             let ct_res = executor.execute((&ctxt_0, &ctxt_1));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: u128 = cks.decrypt(&ct_res);
 
             let expected_clear = clear_0.wrapping_add(clear_1) % modulus;
@@ -586,7 +572,10 @@ where
 
         let (ct_res, result_overflowed) = executor.execute((&ctxt_0, &ctxt_1));
         let (tmp_ct, tmp_o) = executor.execute((&ctxt_0, &ctxt_1));
-        panic_if_any_block_is_not_clean(&ct_res, &cks);
+        panic_if_radix_is_not_clean(&ct_res, &cks);
+        panic_if_boolean_block_is_not_clean(&result_overflowed, &cks);
+        panic_if_radix_is_not_clean(&tmp_ct, &cks);
+        panic_if_boolean_block_is_not_clean(&tmp_o, &cks);
         assert_eq!(ct_res, tmp_ct, "Failed determinism check, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nctxt0: {ctxt_0:?}, \n\n\nctxt1: {ctxt_1:?}\n\n\n");
         assert_eq!(tmp_o, result_overflowed, "Failed determinism check, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nctxt0: {ctxt_0:?}, \n\n\nctxt1: {ctxt_1:?}\n\n\n");
 
@@ -606,8 +595,6 @@ where
             "Invalid overflow flag result for overflowing_add for ({clear_0} + {clear_1}) % {modulus} \
              expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
-        assert_eq!(result_overflowed.0.degree.get(), 1);
-        assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
 
         for _ in 0..nb_tests_smaller {
             // Add non-zero scalar to have non-clean ciphertexts
@@ -626,7 +613,8 @@ where
             assert_eq!(d1, clear_rhs, "Failed sanity decryption check");
 
             let (ct_res, result_overflowed) = executor.execute((&ctxt_0, &ctxt_1));
-            panic_if_any_block_is_not_clean(&ct_res, &cks);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
+            panic_if_boolean_block_is_not_clean(&result_overflowed, &cks);
 
             let (expected_result, expected_overflowed) =
                 overflowing_add_under_modulus(clear_lhs, clear_rhs, modulus);
@@ -644,8 +632,6 @@ where
                 "Invalid overflow flag result for overflowing_add, for ({clear_lhs} + {clear_rhs}) % {modulus} \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
             );
-            assert_eq!(result_overflowed.0.degree.get(), 1);
-            assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
         }
     }
 
@@ -659,6 +645,8 @@ where
         let b: RadixCiphertext = sks.create_trivial_radix(clear_1, NB_CTXT);
 
         let (encrypted_result, encrypted_overflow) = executor.execute((&a, &b));
+        panic_if_radix_is_not_clean(&encrypted_result, &cks);
+        panic_if_boolean_block_is_not_clean(&encrypted_overflow, &cks);
 
         let (expected_result, expected_overflowed) =
             overflowing_add_under_modulus(clear_0, clear_1, modulus);
@@ -676,8 +664,6 @@ where
             "Invalid overflow flag result for overflowing_add, for ({clear_0} + {clear_1}) % {modulus} \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
-        assert_eq!(encrypted_overflow.0.degree.get(), 1);
-        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
     }
 }
 
@@ -717,6 +703,8 @@ where
             let ctxt_1 = sks.create_trivial_radix(clear_1, num_blocks as usize);
 
             let (ct_res, o_res) = executor.execute((&ctxt_0, &ctxt_1));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
+            panic_if_boolean_block_is_not_clean(&o_res, &cks);
             let dec_res: u128 = cks.decrypt(&ct_res);
             let dec_overflow = cks.decrypt_bool(&o_res);
 

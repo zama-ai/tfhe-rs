@@ -5,7 +5,8 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
     signed_add_under_modulus, signed_mul_under_modulus, NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_smaller_for_params, nb_unchecked_tests_for_params, CpuFunctionExecutor,
+    nb_tests_smaller_for_params, nb_unchecked_tests_for_params,
+    panic_if_boolean_block_is_not_clean, panic_if_radix_is_not_clean, CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
@@ -83,7 +84,11 @@ fn integer_signed_default_overflowing_mul(param: impl Into<TestParameters>) {
         let ctxt_1 = cks.encrypt_signed(clear_1);
 
         let (ct_res, result_overflowed) = sks.signed_overflowing_mul_parallelized(&ctxt_0, &ctxt_1);
+        panic_if_radix_is_not_clean(&ct_res, &cks);
+        panic_if_boolean_block_is_not_clean(&result_overflowed, &cks);
         let (tmp_ct, tmp_o) = sks.signed_overflowing_mul_parallelized(&ctxt_0, &ctxt_1);
+        panic_if_radix_is_not_clean(&tmp_ct, &cks);
+        panic_if_boolean_block_is_not_clean(&tmp_o, &cks);
         assert!(ct_res.block_carries_are_empty());
         assert_eq!(ct_res, tmp_ct, "Failed determinism check, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nct0: {ctxt_0:?}, \n\n\nct1: {ctxt_1:?}\n\n\n");
         assert_eq!(tmp_o, result_overflowed, "Failed determinism check, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nct0: {ctxt_0:?}, \n\n\nct1: {ctxt_1:?}\n\n\n");
@@ -104,8 +109,6 @@ fn integer_signed_default_overflowing_mul(param: impl Into<TestParameters>) {
             "Invalid overflow flag result for overflowing_mul for ({clear_0} * {clear_1}) % {modulus}
             expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
-        assert_eq!(result_overflowed.0.degree.get(), 1);
-        assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
 
         for _ in 0..nb_tests_smaller {
             // Add non zero scalar to have non clean ciphertexts
@@ -125,6 +128,8 @@ fn integer_signed_default_overflowing_mul(param: impl Into<TestParameters>) {
 
             let (ct_res, result_overflowed) =
                 sks.signed_overflowing_mul_parallelized(&ctxt_lhs, &ctxt_rhs);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
+            panic_if_boolean_block_is_not_clean(&result_overflowed, &cks);
             assert!(ct_res.block_carries_are_empty());
 
             let (expected_result, expected_overflowed) =
@@ -143,8 +148,6 @@ fn integer_signed_default_overflowing_mul(param: impl Into<TestParameters>) {
                 "Invalid overflow flag result for overflowing_mul, for ({clear_lhs} * {clear_rhs}) % {modulus}
                  expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
             );
-            assert_eq!(result_overflowed.0.degree.get(), 1);
-            assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
         }
     }
 
@@ -164,6 +167,8 @@ fn integer_signed_default_overflowing_mul(param: impl Into<TestParameters>) {
 
         let (encrypted_result, encrypted_overflow) =
             sks.signed_overflowing_mul_parallelized(&a, &b);
+        panic_if_radix_is_not_clean(&encrypted_result, &cks);
+        panic_if_boolean_block_is_not_clean(&encrypted_overflow, &cks);
 
         let (expected_result, expected_overflowed) =
             overflowing_mul_under_modulus(clear_0, clear_1, modulus);
@@ -181,8 +186,6 @@ fn integer_signed_default_overflowing_mul(param: impl Into<TestParameters>) {
             "Invalid overflow flag result for overflowing_mul, for ({clear_0}  {clear_1}) %  {modulus}
              expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
-        assert_eq!(encrypted_overflow.0.degree.get(), 1);
-        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
     }
 }
 
@@ -252,7 +255,9 @@ where
         let ctxt_1 = cks.encrypt_signed(clear_1);
 
         let mut ct_res = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         let tmp_ct = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&tmp_ct, &cks);
         assert!(ct_res.block_carries_are_empty());
         assert_eq!(ct_res, tmp_ct);
         assert_eq!(ct_res, tmp_ct, "Failed determinism check, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nctxt0: {ctxt_0:?}, \n\n\nctxt1: {ctxt_1:?}\n\n\n");
@@ -262,6 +267,7 @@ where
         // mul multiple times to raise the degree
         for _ in 0..nb_tests_smaller {
             ct_res = executor.execute((&ct_res, &ctxt_0));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             assert!(ct_res.block_carries_are_empty());
             clear = signed_mul_under_modulus(clear, clear_0, modulus);
 

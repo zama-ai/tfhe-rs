@@ -1,7 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_smaller_for_params, panic_if_any_block_is_not_clean_or_trivial, unsigned_modulus,
+    nb_tests_smaller_for_params, panic_if_radix_is_not_clean, unsigned_modulus,
     CpuFunctionExecutor, MAX_VEC_LEN, NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
@@ -105,7 +105,7 @@ where
             "
         );
 
-        panic_if_any_block_is_not_clean_or_trivial(&e_result, &cks);
+        panic_if_radix_is_not_clean(&e_result, &cks);
 
         let e_result2 = dot_prod_executor.execute((&e_booleans, &e_values));
         assert_eq!(e_result2, e_result, "Failed determinism check");

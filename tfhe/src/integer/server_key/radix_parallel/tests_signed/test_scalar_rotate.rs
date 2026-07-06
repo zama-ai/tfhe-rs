@@ -5,7 +5,8 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
     NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params, CpuFunctionExecutor,
+    nb_tests_for_params, nb_tests_smaller_for_params, panic_if_radix_is_not_clean,
+    CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
@@ -180,6 +181,7 @@ where
         {
             let clear_shift = rng.gen::<u32>() % nb_bits;
             let ct_res = executor.execute((&ct, clear_shift as i64));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let clear_res = rotate_left_helper(clear, clear_shift, nb_bits);
             assert_eq!(
@@ -189,6 +191,7 @@ where
             );
 
             let ct_res2 = executor.execute((&ct, clear_shift as i64));
+            panic_if_radix_is_not_clean(&ct_res2, &cks);
             assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, \n\n\nct: {ct:?}, \n\n\nclear: {clear_shift:?}\n\n\n");
         }
 
@@ -196,6 +199,7 @@ where
         {
             let clear_shift = rng.gen_range(nb_bits..=u32::MAX);
             let ct_res = executor.execute((&ct, clear_shift as i64));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             // We mimic wrapping_shl manually as we use a bigger type
             // than the nb_bits we actually simulate in this test
@@ -207,6 +211,7 @@ where
             );
 
             let ct_res2 = executor.execute((&ct, clear_shift as i64));
+            panic_if_radix_is_not_clean(&ct_res2, &cks);
             assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, \n\n\nct: {ct:?}, \n\n\nclear: {clear_shift:?}\n\n\n");
         }
     }
@@ -247,6 +252,7 @@ where
         {
             let clear_shift = rng.gen::<u32>() % nb_bits;
             let ct_res = executor.execute((&ct, clear_shift as i64));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let clear_res = rotate_right_helper(clear, clear_shift, nb_bits);
             assert_eq!(
@@ -256,6 +262,7 @@ where
             );
 
             let ct_res2 = executor.execute((&ct, clear_shift as i64));
+            panic_if_radix_is_not_clean(&ct_res2, &cks);
             assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, \n\n\nct: {ct:?}, \n\n\nclear: {clear_shift:?}\n\n\n");
         }
 
@@ -263,6 +270,7 @@ where
         {
             let clear_shift = rng.gen_range(nb_bits..=u32::MAX);
             let ct_res = executor.execute((&ct, clear_shift as i64));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             // We mimic wrapping_shl manually as we use a bigger type
             // than the nb_bits we actually simulate in this test
@@ -274,6 +282,7 @@ where
             );
 
             let ct_res2 = executor.execute((&ct, clear_shift as i64));
+            panic_if_radix_is_not_clean(&ct_res2, &cks);
             assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, \n\n\nct: {ct:?}, \n\n\nclear: {clear_shift:?}\n\n\n");
         }
     }

@@ -2,10 +2,9 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix::neg::NegatedDegreeIter;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionExecutor, NB_CTXT};
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params,
-    panic_if_any_block_info_exceeds_max_degree_or_noise, panic_if_any_block_is_not_clean,
-    random_non_zero_value, unsigned_modulus, CpuFunctionExecutor, ExpectedDegrees,
-    ExpectedNoiseLevels, MAX_NB_CTXT,
+    nb_tests_for_params, nb_tests_smaller_for_params, panic_if_boolean_block_is_not_clean,
+    panic_if_radix_is_not_clean, panic_if_smart_op_bounds_exceeded, random_non_zero_value,
+    unsigned_modulus, CpuFunctionExecutor, ExpectedDegrees, ExpectedNoiseLevels, MAX_NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
@@ -97,12 +96,7 @@ where
         expected_degrees
             .after_unchecked_neg(&ctxt)
             .panic_if_any_is_not_equal(&encrypted_result);
-        panic_if_any_block_info_exceeds_max_degree_or_noise(
-            &encrypted_result,
-            max_degree,
-            max_noise_level,
-            &cks,
-        );
+        panic_if_smart_op_bounds_exceeded(&encrypted_result, max_degree, max_noise_level, &cks);
 
         let decrypted_result: u64 = cks.decrypt(&encrypted_result);
         let expected_result = clear.wrapping_neg() % modulus;
@@ -158,12 +152,7 @@ where
             ct_res = executor.execute(&mut ct_res);
 
             expected_noise_levels.panic_if_any_is_not_equal(&ct_res);
-            panic_if_any_block_info_exceeds_max_degree_or_noise(
-                &ct_res,
-                max_degree,
-                max_noise_level,
-                &cks,
-            );
+            panic_if_smart_op_bounds_exceeded(&ct_res, max_degree, max_noise_level, &cks);
 
             clear_res = clear_res.wrapping_neg() % modulus;
             let dec: u64 = cks.decrypt(&ct_res);
@@ -203,7 +192,7 @@ where
             let mut ctxt = cks.encrypt_radix(clear, num_blocks);
 
             let ct_res = neg.execute(&ctxt);
-            panic_if_any_block_is_not_clean(&ct_res, &cks);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
 
             let dec_ct: u64 = cks.decrypt_radix(&ct_res);
             let expected = clear.wrapping_neg() % modulus;
@@ -223,7 +212,7 @@ where
             clear = clear.wrapping_add(random_non_zero) % modulus;
 
             let ct_res = neg.execute(&ctxt);
-            panic_if_any_block_is_not_clean(&ct_res, &cks);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
 
             let dec_ct: u64 = cks.decrypt_radix(&ct_res);
             let expected = clear.wrapping_neg() % modulus;
@@ -267,9 +256,8 @@ where
 
             let (ct_res, flag) = overflowing_neg.execute(&ctxt);
 
-            panic_if_any_block_is_not_clean(&ct_res, &cks);
-            assert_eq!(flag.0.noise_level(), NoiseLevel::NOMINAL);
-            assert_eq!(flag.0.degree.get(), 1);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
+            panic_if_boolean_block_is_not_clean(&flag, &cks);
 
             let dec_flag = cks.decrypt_bool(&flag);
             assert!(
@@ -287,6 +275,8 @@ where
             );
 
             let (ct_res2, flag2) = overflowing_neg.execute(&ctxt);
+            panic_if_radix_is_not_clean(&ct_res2, &cks);
+            panic_if_boolean_block_is_not_clean(&flag2, &cks);
             assert_eq!(ct_res, ct_res2, "Failed determinism check");
             assert_eq!(flag, flag2, "Failed determinism check");
         }
@@ -296,9 +286,8 @@ where
 
         let (ct_res, flag) = overflowing_neg.execute(&ctxt);
 
-        panic_if_any_block_is_not_clean(&ct_res, &cks);
-        assert_eq!(flag.0.noise_level(), NoiseLevel::NOMINAL);
-        assert_eq!(flag.0.degree.get(), 1);
+        panic_if_radix_is_not_clean(&ct_res, &cks);
+        panic_if_boolean_block_is_not_clean(&flag, &cks);
 
         let dec_flag = cks.decrypt_bool(&flag);
         assert!(
