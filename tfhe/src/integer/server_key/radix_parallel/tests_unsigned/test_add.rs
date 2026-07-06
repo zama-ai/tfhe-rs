@@ -311,11 +311,11 @@ where
         expected_degrees
             .after_unchecked_add(&ctxt_0, &ctxt_1)
             .panic_if_any_is_not_equal(&encrypted_result);
-        panic_if_any_block_values_exceeds_its_degree(&encrypted_result, &cks);
         panic_if_any_block_info_exceeds_max_degree_or_noise(
             &encrypted_result,
             max_degree,
             max_noise_level,
+            &cks,
         );
 
         let decrypted_result: u64 = cks.decrypt(&encrypted_result);
@@ -367,8 +367,12 @@ where
 
         expected_noise_levels.panic_if_any_is_not_equal(&ctxt_0);
         expected_degrees.panic_if_any_is_not_equal(&ctxt_0);
-        panic_if_any_block_values_exceeds_its_degree(&ctxt_0, &cks);
-        panic_if_any_block_info_exceeds_max_degree_or_noise(&ctxt_0, max_degree, max_noise_level);
+        panic_if_any_block_info_exceeds_max_degree_or_noise(
+            &ctxt_0,
+            max_degree,
+            max_noise_level,
+            &cks,
+        );
 
         let decrypted_result: u64 = cks.decrypt(&ctxt_0);
         let expected_result = clear_0.wrapping_add(clear_1) % modulus;
@@ -431,6 +435,7 @@ where
                 &ct_res,
                 max_degree,
                 max_noise_level,
+                &cks,
             );
             panic_if_any_block_values_exceeds_its_degree(&ct_res, &cks);
 

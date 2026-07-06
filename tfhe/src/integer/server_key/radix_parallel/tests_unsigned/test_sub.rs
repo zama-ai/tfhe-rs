@@ -4,8 +4,8 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionE
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, nb_tests_smaller_for_params, overflowing_sub_under_modulus,
     panic_if_any_block_info_exceeds_max_degree_or_noise, panic_if_any_block_is_not_clean,
-    panic_if_any_block_values_exceeds_its_degree, random_non_zero_value, unsigned_modulus,
-    unsigned_modulus_u128, CpuFunctionExecutor, ExpectedDegrees, ExpectedNoiseLevels,
+    random_non_zero_value, unsigned_modulus, unsigned_modulus_u128, CpuFunctionExecutor,
+    ExpectedDegrees, ExpectedNoiseLevels,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
@@ -227,11 +227,11 @@ where
         expected_degrees
             .after_unchecked_sub(&ctxt_0, &ctxt_1)
             .panic_if_any_is_not_equal(&encrypted_result);
-        panic_if_any_block_values_exceeds_its_degree(&encrypted_result, &cks);
         panic_if_any_block_info_exceeds_max_degree_or_noise(
             &encrypted_result,
             max_degree,
             max_noise_level,
+            &cks,
         );
 
         let decrypted_result: u64 = cks.decrypt(&encrypted_result);
@@ -284,8 +284,12 @@ where
         // Subtract multiple times to raise the degree
         for _ in 0..nb_tests_smaller {
             res = executor.execute((&mut res, &mut ctxt_2));
-            panic_if_any_block_info_exceeds_max_degree_or_noise(&res, max_degree, max_noise_level);
-            panic_if_any_block_values_exceeds_its_degree(&res, &cks);
+            panic_if_any_block_info_exceeds_max_degree_or_noise(
+                &res,
+                max_degree,
+                max_noise_level,
+                &cks,
+            );
 
             clear = clear.wrapping_sub(clear2) % modulus;
             let dec_res: u64 = cks.decrypt(&res);
