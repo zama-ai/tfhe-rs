@@ -1,5 +1,11 @@
 # Generate encrypted pseudo random values
 
+{% hint style="warning" %}
+If your usage of **TFHE-rs** falls under the sIND-CPA^D security model described in [Ciphertexts Rerandomization](./rerand.md) then you **must** use the re-randomized variants of the PRF APIs.
+This includes array shuffling which calls the PRF.
+You can check how to use these APIS [here](./rerand.md#re-randomized-prf)
+{% endhint %}
+
 This document explains the mechanism and steps to generate an oblivious encrypted random value using only server keys.
 
 The goal is to give to the server the possibility to generate a random value, which will be obtained in an encrypted format and will remain unknown to the server.
@@ -47,25 +53,35 @@ pub fn main() {
     let range = RangeForRandom::new_from_excluded_upper_bound(excluded_upper_bound);
 
     // in [0, excluded_upper_bound[ = {0, 1, 2}
+    // DANGER: Static Seed(0) given as an example only
+    // use proper seeding strategy depending on use case
     let ct_res = FheUint8::generate_oblivious_pseudo_random_custom_range(Seed(0), &range, None);
     let dec_result: u8 = ct_res.decrypt(&client_key);
 
     let random_bits_count = 3;
 
     // in [0, 2^8[
+    // DANGER: Static Seed(0) given as an example only
+    // use proper seeding strategy depending on use case
     let ct_res = FheUint8::generate_oblivious_pseudo_random(Seed(0));
     let dec_result: u8 = ct_res.decrypt(&client_key);
 
     // in [0, 2^random_bits_count[ = [0, 8[
+    // DANGER: Static Seed(0) given as an example only
+    // use proper seeding strategy depending on use case
     let ct_res = FheUint8::generate_oblivious_pseudo_random_bounded(Seed(0), random_bits_count);
     let dec_result: u8 = ct_res.decrypt(&client_key);
     assert!(dec_result < (1 << random_bits_count));
 
     // in [-2^7, 2^7[
+    // DANGER: Static Seed(0) given as an example only
+    // use proper seeding strategy depending on use case
     let ct_res = FheInt8::generate_oblivious_pseudo_random(Seed(0));
     let dec_result: i8 = ct_res.decrypt(&client_key);
-    
+
     // in [0, 2^random_bits_count[ = [0, 8[
+    // DANGER: Static Seed(0) given as an example only
+    // use proper seeding strategy depending on use case
     let ct_res = FheInt8::generate_oblivious_pseudo_random_bounded(Seed(0), random_bits_count);
     let dec_result: i8 = ct_res.decrypt(&client_key);
     assert!(dec_result < (1 << random_bits_count));

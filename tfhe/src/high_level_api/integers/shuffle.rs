@@ -4,7 +4,7 @@ use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::{
     PrfReRandomizationContext, ReRandomizationMetadata, ReRandomizationMode,
 };
-use crate::integer::server_key::radix_parallel::bitonic_shuffle::BitonicShuffleKeySize;
+pub use crate::integer::server_key::radix_parallel::bitonic_shuffle::BitonicShuffleKeySize;
 use crate::OprfSeed;
 
 /// Shuffles `data` into a uniformly random permutation using a bitonic
