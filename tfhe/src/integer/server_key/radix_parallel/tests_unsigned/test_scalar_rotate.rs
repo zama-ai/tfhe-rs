@@ -1,7 +1,8 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionExecutor, NB_CTXT};
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, rotate_left_helper, rotate_right_helper, CpuFunctionExecutor,
+    nb_tests_for_params, panic_if_radix_is_not_clean, rotate_left_helper, rotate_right_helper,
+    CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
@@ -213,7 +214,9 @@ where
         {
             let scalar = scalar - (scalar % bits_per_block);
             let ct_res = executor.execute((&ct, scalar as u64));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let tmp = executor.execute((&ct, scalar as u64));
+            panic_if_radix_is_not_clean(&tmp, &cks);
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
@@ -230,7 +233,9 @@ where
                 scalar
             };
             let ct_res = executor.execute((&ct, scalar as u64));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let tmp = executor.execute((&ct, scalar as u64));
+            panic_if_radix_is_not_clean(&tmp, &cks);
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
@@ -245,7 +250,9 @@ where
             let value = rng.gen_range(1..=u32::MAX);
             let scalar = value.trailing_zeros() + rng.gen_range(1..nb_bits);
             let ct_res = executor.execute((&ct, scalar as u64));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let tmp = executor.execute((&ct, scalar as u64));
+            panic_if_radix_is_not_clean(&tmp, &cks);
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
@@ -287,7 +294,9 @@ where
         {
             let scalar = scalar - (scalar % bits_per_block);
             let ct_res = executor.execute((&ct, scalar as u64));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let tmp = executor.execute((&ct, scalar as u64));
+            panic_if_radix_is_not_clean(&tmp, &cks);
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
@@ -304,7 +313,9 @@ where
                 scalar
             };
             let ct_res = executor.execute((&ct, scalar as u64));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let tmp = executor.execute((&ct, scalar as u64));
+            panic_if_radix_is_not_clean(&tmp, &cks);
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
@@ -319,7 +330,9 @@ where
             let value = rng.gen_range(1..=u32::MAX);
             let scalar = value.leading_zeros() + rng.gen_range(1..nb_bits);
             let ct_res = executor.execute((&ct, scalar as u64));
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let tmp = executor.execute((&ct, scalar as u64));
+            panic_if_radix_is_not_clean(&tmp, &cks);
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);

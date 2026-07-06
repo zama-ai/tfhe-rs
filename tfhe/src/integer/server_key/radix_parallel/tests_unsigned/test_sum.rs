@@ -1,7 +1,8 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionExecutor, NB_CTXT};
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_smaller_for_params, overflowing_sum_slice_under_modulus, CpuFunctionExecutor,
+    nb_tests_smaller_for_params, overflowing_sum_slice_under_modulus,
+    panic_if_boolean_block_is_not_clean, panic_if_radix_is_not_clean, CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
@@ -66,21 +67,8 @@ where
             let (ct_res, overflow_res) = sks
                 .unsigned_overflowing_sum_ciphertexts_parallelized(&ctxts)
                 .unwrap();
-
-            assert_eq!(
-                overflow_res.0.degree.get(),
-                if len == 1 { 0 } else { 1 },
-                "invalid degree"
-            );
-            assert_eq!(
-                overflow_res.0.noise_level(),
-                if len == 1 {
-                    NoiseLevel::ZERO
-                } else {
-                    NoiseLevel::NOMINAL
-                },
-                "invalid noise level"
-            );
+            panic_if_radix_is_not_clean(&ct_res, &cks);
+            panic_if_boolean_block_is_not_clean(&overflow_res, &cks);
 
             let decrypted_res: u64 = cks.decrypt(&ct_res);
             let decrypted_overflow = cks.decrypt_bool(&overflow_res);
@@ -111,17 +99,8 @@ where
             let (ct_res, overflow_res) = sks
                 .unsigned_overflowing_sum_ciphertexts_parallelized(&ctxts)
                 .unwrap();
-
-            assert_eq!(
-                overflow_res.0.degree.get(),
-                if len == 1 { 0 } else { 1 },
-                "invalid degree"
-            );
-            assert_eq!(
-                overflow_res.0.noise_level(),
-                NoiseLevel::ZERO,
-                "invalid noise level"
-            );
+            panic_if_radix_is_not_clean(&ct_res, &cks);
+            panic_if_boolean_block_is_not_clean(&overflow_res, &cks);
 
             let decrypted_res: u64 = cks.decrypt(&ct_res);
             let decrypted_overflow = cks.decrypt_bool(&overflow_res);
@@ -176,12 +155,14 @@ where
                 .collect::<Vec<_>>();
 
             let ct_res = executor.execute(&ctxts).unwrap();
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let res: u64 = cks.decrypt(&ct_res);
             let clear = clears.iter().sum::<u64>() % modulus;
 
             assert_eq!(res, clear);
 
             let ct_res_2 = executor.execute(&ctxts).unwrap();
+            panic_if_radix_is_not_clean(&ct_res_2, &cks);
             assert_eq!(ct_res, ct_res_2, "Failed determinism check");
         }
     }

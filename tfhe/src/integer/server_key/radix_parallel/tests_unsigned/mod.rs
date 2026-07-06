@@ -45,7 +45,8 @@ use crate::integer::oprf::OprfServerKey;
 use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
-    IntegerKeyKind, IntegerRadixCiphertext, RadixCiphertext, RadixClientKey, ServerKey,
+    BooleanBlock, IntegerKeyKind, IntegerRadixCiphertext, RadixCiphertext, RadixClientKey,
+    ServerKey,
 };
 use crate::shortint::ciphertext::MaxDegree;
 #[cfg(tarpaulin)]
@@ -312,28 +313,27 @@ where
     }
 }
 
-/// Panics if any of the blocks of the radix either have:
+/// Panics if any block in the slice either has:
 /// * noise_level > max_noise_level
 /// * degree > max_degree
 /// * decrypted(block) > degree
 #[track_caller]
-fn panic_if_any_block_info_exceeds_max_degree_or_noise<T, C>(
-    ct: &T,
+fn panic_if_any_block_exceeds_max_degree_or_noise<C>(
+    blocks: &[crate::shortint::Ciphertext],
     max_degree: MaxDegree,
     max_noise_level: MaxNoiseLevel,
     cks: &C,
 ) where
-    T: IntegerRadixCiphertext,
     C: AsRef<crate::integer::ClientKey>,
 {
-    if ct.blocks().is_empty() {
+    if blocks.is_empty() {
         return;
     }
 
     let cks = cks.as_ref();
-    let last_block_index = ct.blocks().len() - 1;
+    let last_block_index = blocks.len() - 1;
 
-    for (i, block) in ct.blocks().iter().enumerate() {
+    for (i, block) in blocks.iter().enumerate() {
         assert!(
             max_degree.validate(block.degree).is_ok(),
             "Block at index {i} / {last_block_index} has a degree {:?} that exceeds max degree ({max_degree:?})",
@@ -362,7 +362,7 @@ fn panic_if_any_block_info_exceeds_max_degree_or_noise<T, C>(
 ///
 /// All output of default operation should pass these checks
 #[track_caller]
-pub(crate) fn panic_if_any_block_is_not_clean<T, C>(ct: &T, cks: &C)
+pub(crate) fn panic_if_radix_is_not_clean<T, C>(ct: &T, cks: &C)
 where
     T: IntegerRadixCiphertext,
     C: AsRef<crate::integer::ClientKey>,
@@ -370,9 +370,73 @@ where
     let max_degree_acceptable =
         MaxDegree::new(cks.as_ref().key.parameters().message_modulus().0 - 1);
     let max_noise_level = MaxNoiseLevel::new(NoiseLevel::NOMINAL.get());
-    panic_if_any_block_info_exceeds_max_degree_or_noise(
-        ct,
+    panic_if_any_block_exceeds_max_degree_or_noise(
+        ct.blocks(),
         max_degree_acceptable,
+        max_noise_level,
+        cks,
+    );
+}
+
+/// A boolean block is considered clean if:
+/// - Its degree is <= 1
+/// - Its noise level is <= nominal
+/// - Its decrypted value is 0 or 1 (i.e. <= its degree)
+///
+/// All output of default operation returning a BooleanBlock should pass this check.
+#[track_caller]
+pub(crate) fn panic_if_boolean_block_is_not_clean<C>(bb: &BooleanBlock, cks: &C)
+where
+    C: AsRef<crate::integer::ClientKey>,
+{
+    let max_degree = MaxDegree::new(1);
+    let max_noise_level = MaxNoiseLevel::new(NoiseLevel::NOMINAL.get());
+    panic_if_any_block_exceeds_max_degree_or_noise(
+        std::slice::from_ref(&bb.0),
+        max_degree,
+        max_noise_level,
+        cks,
+    );
+}
+
+/// Panics if the output of a smart op does not respect the bounds a smart op is expected to keep.
+///
+/// Smart ops guarantee that a sequential carry propagation can still be run on their output. For
+/// that:
+/// - the first (least significant) block may have degree up to `message_modulus * carry_modulus -
+///   1` (no lower block can send it a carry)
+/// - the following blocks must have degree <= `tail_max_degree` (typically `sks.key.max_degree`),
+///   to leave room for the carry propagated from the block below
+///
+/// Noise level of every block must be <= `max_noise_level`, and decrypted(block) <= degree.
+#[track_caller]
+pub(crate) fn panic_if_smart_op_bounds_exceeded<T, C>(
+    ct: &T,
+    tail_max_degree: MaxDegree,
+    max_noise_level: MaxNoiseLevel,
+    cks: &C,
+) where
+    T: IntegerRadixCiphertext,
+    C: AsRef<crate::integer::ClientKey>,
+{
+    let blocks = ct.blocks();
+    if blocks.is_empty() {
+        return;
+    }
+
+    let params = cks.as_ref().key.parameters();
+    let head_max_degree =
+        MaxDegree::from_msg_carry_modulus(params.message_modulus(), params.carry_modulus());
+
+    panic_if_any_block_exceeds_max_degree_or_noise(
+        &blocks[..1],
+        head_max_degree,
+        max_noise_level,
+        cks,
+    );
+    panic_if_any_block_exceeds_max_degree_or_noise(
+        &blocks[1..],
+        tail_max_degree,
         max_noise_level,
         cks,
     );

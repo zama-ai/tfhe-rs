@@ -5,7 +5,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
     signed_right_shift_under_modulus, NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params, panic_if_any_block_is_not_clean,
+    nb_tests_for_params, nb_tests_smaller_for_params, panic_if_radix_is_not_clean,
     CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
@@ -70,7 +70,7 @@ where
             assert!(!shift.block_carries_are_empty());
 
             let ct_res = executor.execute((&ct, &shift));
-            panic_if_any_block_is_not_clean(&ct_res, &cks);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let clear_res = signed_left_shift_under_modulus(clear, clear_shift, modulus);
             assert_eq!(
@@ -97,7 +97,7 @@ where
             assert!(!shift.block_carries_are_empty());
 
             let ct_res = executor.execute((&ct, &shift));
-            panic_if_any_block_is_not_clean(&ct_res, &cks);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             // A shift >= nb_bits is an overshift; a left shift must return 0
             let clear_res = 0i64;
@@ -158,7 +158,7 @@ where
             assert!(!shift.block_carries_are_empty());
 
             let ct_res = executor.execute((&ct, &shift));
-            panic_if_any_block_is_not_clean(&ct_res, &cks);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let clear_res = signed_right_shift_under_modulus(clear, clear_shift, modulus);
             assert_eq!(
@@ -185,7 +185,7 @@ where
             assert!(!shift.block_carries_are_empty());
 
             let ct_res = executor.execute((&ct, &shift));
-            panic_if_any_block_is_not_clean(&ct_res, &cks);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             // A shift >= nb_bits is an overshift; an arithmetic right shift
             // saturates to the sign bit: -1 if negative, 0 otherwise
@@ -300,7 +300,7 @@ pub(crate) fn signed_unchecked_right_shift_test<P, T>(
             let clear_shift = clear_shift % nb_bits;
             let shift = cks.encrypt(clear_shift as u64);
             let ct_res = executor.execute((&ct, &shift));
-            panic_if_any_block_is_not_clean(&ct_res, &cks);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let clear_res = signed_right_shift_under_modulus(clear, clear_shift, modulus);
             assert_eq!(clear_res, dec_res);
