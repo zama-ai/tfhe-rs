@@ -912,10 +912,13 @@ impl ServerKey {
             .par_iter_mut()
             .filter(|block| block.degree.get() != 0)
             .for_each(|block| {
+                // At the end, the block either keeps its original value or is zeroed
+                let saved_degree = block.degree;
                 self.key
                     .unchecked_scalar_mul_assign(block, condition_mod as u8);
                 self.key.unchecked_add_assign(block, condition_block);
                 self.key.apply_lookup_table_assign(block, &lut);
+                block.degree = saved_degree;
             });
     }
 
