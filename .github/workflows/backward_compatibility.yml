@@ -61,41 +61,18 @@ jobs:
 
       - name: Generate diff report
         if: github.event_name == 'pull_request'
-        id: report
         run: |
           make backward_snapshot_report \
             BASE_SNAPSHOT_DIR=/tmp/snapshots/base \
             HEAD_SNAPSHOT_DIR=/tmp/snapshots/head \
             OUTPUT_FILE=report.md
 
-          if [ -s report.md ]; then
-            HASH=$(sha256sum report.md | cut -d' ' -f1)
-            printf '\n<!-- content-hash:%s -->\n' "$HASH" >> report.md
-            echo "has_report=true" >> "$GITHUB_OUTPUT"
-            echo "hash=$HASH" >> "$GITHUB_OUTPUT"
-          elif [ -f report.md ]; then
-            echo "has_report=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "::error::report.md was not created — something went wrong"
-            exit 1
-          fi
-
-      - name: Find existing comment with same content
-        if: github.event_name == 'pull_request' && steps.report.outputs.has_report == 'true'
-        uses: peter-evans/find-comment@b30e6a3c0ed37e7c023ccd3f1db5c6c0b0c23aad # v4.0.0
-        id: existing
+      - name: Post report
+        if: github.event_name == 'pull_request'
+        uses: ./.github/actions/sticky_report
         with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body-includes: content-hash:${{ steps.report.outputs.hash }}
-
-      - name: Post/refresh backward-compatibility report
-        if: github.event_name == 'pull_request' && steps.report.outputs.has_report == 'true' && !steps.existing.outputs.comment-id
-        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0
-        with:
+          report-path: report.md
           header: backward-compatibility-snapshot
-          hide_and_recreate: true
-          hide_classify: OUTDATED
-          path: report.md
 
       - name: Slack Notification
         if: steps.check.outcome == 'failure'
