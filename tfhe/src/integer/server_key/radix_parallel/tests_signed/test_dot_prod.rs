@@ -1,7 +1,8 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_smaller_for_params, unsigned_modulus, CpuFunctionExecutor, MAX_VEC_LEN, NB_CTXT,
+    nb_tests_smaller_for_params, panic_if_radix_is_not_clean, unsigned_modulus,
+    CpuFunctionExecutor, MAX_VEC_LEN, NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
@@ -22,26 +23,6 @@ create_parameterized_test!(signed_boolean_one_hot_dot_prod);
 fn signed_boolean_one_hot_dot_prod(params: impl Into<TestParameters>) {
     let executor = CpuFunctionExecutor::new(&ServerKey::boolean_one_hot_dot_prod);
     signed_default_boolean_one_hot_dot_prod_test_case(params, executor);
-}
-
-/// Asserts that every non-trivial block of the result has empty carries and a nominal noise
-/// level, i.e. the output is clean.
-fn panic_if_signed_result_is_not_clean(ct: &SignedRadixCiphertext) {
-    for (i, block) in ct.blocks.iter().enumerate() {
-        if block.is_trivial() {
-            continue;
-        }
-        assert!(
-            block.carry_is_empty(),
-            "Block at index {i} has non-empty carries"
-        );
-        assert_eq!(
-            block.noise_level(),
-            NoiseLevel::NOMINAL,
-            "Block at index {i} has a non nominal noise level: {:?}",
-            block.noise_level()
-        );
-    }
 }
 
 pub(crate) fn signed_default_boolean_one_hot_dot_prod_test_case<P, E>(
@@ -136,7 +117,7 @@ pub(crate) fn signed_default_boolean_one_hot_dot_prod_test_case<P, E>(
             "
         );
 
-        panic_if_signed_result_is_not_clean(&e_result);
+        panic_if_radix_is_not_clean(&e_result, &cks);
 
         let e_result2 = dot_prod_executor.execute((&e_booleans, &e_values));
         assert_eq!(e_result2, e_result, "Failed determinism check");
