@@ -1,6 +1,6 @@
 use crate::integer::server_key::radix_parallel::bit_extractor::BitExtractor;
 use crate::integer::{IntegerRadixCiphertext, RadixCiphertext};
-use crate::shortint::ciphertext::Ciphertext;
+use crate::shortint::ciphertext::{Ciphertext, Degree};
 use crate::shortint::parameters::NoiseLevel;
 use crate::shortint::server_key::{LookupTableOwned, ManyLookupTableOwned};
 use std::ops::Range;
@@ -227,6 +227,7 @@ impl ServerKey {
                     &mut current_blocks[i],
                     &messages_and_carries[i][CARRY_INDEX],
                 );
+                current_blocks[i].degree = Degree::new(self.message_modulus().0 - 1);
             }
 
             d += 1;
