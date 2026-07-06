@@ -377,7 +377,12 @@ impl ToAsm for PeSyncInsn {
         vec![]
     }
     fn src(&self) -> Vec<arg::Arg> {
-        vec![Arg::IOpId(self.iid)]
+        let mut src = Vec::with_capacity(2);
+        src.push(Arg::IOpId(self.iid));
+        if self.is_inner_sync {
+            src.push(Arg::UcoreFlag(self.flag));
+        }
+        src
     }
 }
 
