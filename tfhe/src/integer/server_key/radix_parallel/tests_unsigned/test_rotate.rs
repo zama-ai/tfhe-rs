@@ -1,8 +1,8 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionExecutor, NB_CTXT};
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params, rotate_left_helper, rotate_right_helper,
-    CpuFunctionExecutor, MAX_NB_CTXT,
+    nb_tests_for_params, nb_tests_smaller_for_params, panic_if_any_block_is_not_clean_or_trivial,
+    rotate_left_helper, rotate_right_helper, CpuFunctionExecutor, MAX_NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{ClientKey, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
@@ -196,14 +196,8 @@ where
                 let clear_shift = clear_shift % nb_bits;
                 let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
                 let encrypted_result = executor.execute((&ct, &shift));
+                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
-                assert!(
-                    encrypted_result
-                        .blocks
-                        .iter()
-                        .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
-                    "Expected all blocks to have at most NOMINAL noise level"
-                );
                 let expected = rotate_left_helper(clear, clear_shift, nb_bits);
                 assert_eq!(expected, decrypted_result);
             }
@@ -213,13 +207,7 @@ where
                 let clear_shift = rng.gen_range(nb_bits..modulus as u32);
                 let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
                 let encrypted_result = executor.execute((&ct, &shift));
-                assert!(
-                    encrypted_result
-                        .blocks
-                        .iter()
-                        .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
-                    "Expected all blocks to have at most NOMINAL noise level"
-                );
+                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
                 // When nb_bits is not a power of two
                 // then the behaviour is not the same
@@ -268,13 +256,7 @@ where
                 let clear_shift = clear_shift % nb_bits;
                 let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
                 let encrypted_result = executor.execute((&ct, &shift));
-                assert!(
-                    encrypted_result
-                        .blocks
-                        .iter()
-                        .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
-                    "Expected all blocks to have at most NOMINAL noise level"
-                );
+                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
                 let expected = rotate_right_helper(clear, clear_shift, nb_bits);
                 assert_eq!(expected, decrypted_result);
@@ -285,13 +267,7 @@ where
                 let clear_shift = rng.gen_range(nb_bits..modulus as u32);
                 let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
                 let encrypted_result = executor.execute((&ct, &shift));
-                assert!(
-                    encrypted_result
-                        .blocks
-                        .iter()
-                        .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
-                    "Expected all blocks to have at most NOMINAL noise level"
-                );
+                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
                 // When nb_bits is not a power of two
                 // then the behaviour is not the same
