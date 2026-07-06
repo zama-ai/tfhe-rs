@@ -4,8 +4,8 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionE
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, nb_tests_smaller_for_params,
     panic_if_any_block_info_exceeds_max_degree_or_noise, panic_if_any_block_is_not_clean,
-    panic_if_any_block_values_exceeds_its_degree, random_non_zero_value, unsigned_modulus,
-    CpuFunctionExecutor, ExpectedDegrees, ExpectedNoiseLevels, MAX_NB_CTXT,
+    random_non_zero_value, unsigned_modulus, CpuFunctionExecutor, ExpectedDegrees,
+    ExpectedNoiseLevels, MAX_NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
@@ -95,11 +95,11 @@ where
         expected_degrees
             .after_unchecked_neg(&ctxt)
             .panic_if_any_is_not_equal(&encrypted_result);
-        panic_if_any_block_values_exceeds_its_degree(&encrypted_result, &cks);
         panic_if_any_block_info_exceeds_max_degree_or_noise(
             &encrypted_result,
             max_degree,
             max_noise_level,
+            &cks,
         );
 
         let decrypted_result: u64 = cks.decrypt(&encrypted_result);
@@ -160,8 +160,8 @@ where
                 &ct_res,
                 max_degree,
                 max_noise_level,
+                &cks,
             );
-            panic_if_any_block_values_exceeds_its_degree(&ct_res, &cks);
 
             clear_res = clear_res.wrapping_neg() % modulus;
             let dec: u64 = cks.decrypt(&ct_res);
