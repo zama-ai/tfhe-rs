@@ -1,0 +1,42 @@
+name: Sticky report
+description: Post or refresh a markdown report as a sticky PR comment.
+
+inputs:
+  report-path:
+    description: Markdown path
+    required: true
+  header:
+    description: Id of the report
+    required: true
+  github-token:
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check report
+      id: report
+      shell: bash
+      env:
+        REPORT_PATH: ${{ inputs.report-path }}
+      run: |
+        if [ -s "$REPORT_PATH" ]; then
+          echo "has_report=true" >> "$GITHUB_OUTPUT"
+        elif [ -f "$REPORT_PATH" ]; then
+          echo "has_report=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "::error::$REPORT_PATH was not created something went wrong"
+          exit 1
+        fi
+
+    - name: Post/refresh report
+      if: steps.report.outputs.has_report == 'true'
+      uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0
+      with:
+        header: ${{ inputs.header }}
+        hide_and_recreate: true
+        hide_classify: OUTDATED
+        skip_unchanged: true
+        path: ${{ inputs.report-path }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
