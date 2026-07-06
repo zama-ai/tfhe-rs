@@ -358,16 +358,18 @@ fn panic_if_any_block_info_exceeds_max_degree_or_noise(
 /// - Its decrypted_value is <= its degree
 /// - Its noise level is nominal
 #[track_caller]
-fn panic_if_any_block_is_not_clean<C>(ct: &RadixCiphertext, cks: &C)
+pub(crate) fn panic_if_any_block_is_not_clean<T, C>(ct: &T, cks: &C)
 where
+    T: crate::integer::IntegerRadixCiphertext,
     C: AsRef<crate::integer::ClientKey>,
 {
     let cks = cks.as_ref();
 
     let max_degree_acceptable = cks.key.parameters().message_modulus().0 - 1;
-    let num_blocks = ct.blocks.len();
+    let blocks = ct.blocks();
+    let num_blocks = blocks.len();
 
-    for (i, block) in ct.blocks.iter().enumerate() {
+    for (i, block) in blocks.iter().enumerate() {
         assert_eq!(
             block.noise_level(),
             NoiseLevel::NOMINAL,
@@ -394,15 +396,16 @@ where
 /// Panics if a block is not either a clean block (see [panic_if_any_block_is_not_clean])
 /// or if it not trivial
 #[track_caller]
-fn panic_if_any_block_is_not_clean_or_trivial<C>(ct: &RadixCiphertext, cks: &C)
+pub(crate) fn panic_if_any_block_is_not_clean_or_trivial<T, C>(ct: &T, cks: &C)
 where
+    T: crate::integer::IntegerRadixCiphertext,
     C: AsRef<crate::integer::ClientKey>,
 {
     let cks = cks.as_ref();
 
     let max_degree_acceptable = cks.key.parameters().message_modulus().0 - 1;
 
-    for (i, block) in ct.blocks.iter().enumerate() {
+    for (i, block) in ct.blocks().iter().enumerate() {
         if block.is_trivial() {
             continue;
         }

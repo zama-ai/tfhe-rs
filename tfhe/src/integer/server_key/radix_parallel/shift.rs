@@ -1,6 +1,7 @@
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::server_key::radix_parallel::bit_extractor::BitExtractor;
 use crate::integer::{BooleanBlock, ServerKey};
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
 
@@ -1010,6 +1011,8 @@ impl ServerKey {
             ) {
                 self.key.unchecked_add_assign(m0, m1);
                 self.key.unchecked_add_assign(m0, m2);
+                // only one of the block has a non zero value
+                m0.degree = Degree::new(self.message_modulus().0 - 1);
             }
 
             let radix = T::from_blocks(messages);
