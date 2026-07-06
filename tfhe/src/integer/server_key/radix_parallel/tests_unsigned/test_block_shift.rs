@@ -2,7 +2,7 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionExecutor, NB_CTXT};
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     block_shift_left_helper, block_shift_right_helper, nb_tests_smaller_for_params,
-    CpuFunctionExecutor, MAX_NB_CTXT,
+    panic_if_any_block_is_not_clean_or_trivial, CpuFunctionExecutor, MAX_NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{ClientKey, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
@@ -67,17 +67,7 @@ where
                 let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
                 let encrypted_result = executor.execute((&ct, &shift));
                 assert_eq!(encrypted_result.blocks.len(), num_blocks);
-                assert!(
-                    encrypted_result
-                        .blocks
-                        .iter()
-                        .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
-                    "Expected all blocks to have at most NOMINAL noise level"
-                );
-                assert!(
-                    encrypted_result.block_carries_are_empty(),
-                    "Expected all blocks to have no carries"
-                );
+                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
                 let expected =
                     block_shift_left_helper(clear, clear_shift, num_blocks as u32, bits_per_blocks);
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
@@ -95,17 +85,7 @@ where
                 let clear_shift = rng.gen_range(num_blocks as u32..modulus as u32);
                 let shift = sks.create_trivial_radix(clear_shift as u64, num_blocks);
                 let encrypted_result = executor.execute((&ct, &shift));
-                assert!(
-                    encrypted_result
-                        .blocks
-                        .iter()
-                        .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
-                    "Expected all blocks to have at most NOMINAL noise level"
-                );
-                assert!(
-                    encrypted_result.block_carries_are_empty(),
-                    "Expected all blocks to have no carries"
-                );
+                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
                 let expected =
                     block_shift_left_helper(clear, clear_shift, num_blocks as u32, bits_per_blocks);
@@ -155,17 +135,7 @@ where
                 let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
                 let encrypted_result = executor.execute((&ct, &shift));
                 assert_eq!(encrypted_result.blocks.len(), num_blocks);
-                assert!(
-                    encrypted_result
-                        .blocks
-                        .iter()
-                        .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
-                    "Expected all blocks to have at most NOMINAL noise level"
-                );
-                assert!(
-                    encrypted_result.block_carries_are_empty(),
-                    "Expected all blocks to have no carries"
-                );
+                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
                 let expected = block_shift_right_helper(
                     clear,
                     clear_shift,
@@ -187,17 +157,7 @@ where
                 let clear_shift = rng.gen_range(num_blocks as u32..modulus as u32);
                 let shift = sks.create_trivial_radix(clear_shift as u64, num_blocks);
                 let encrypted_result = executor.execute((&ct, &shift));
-                assert!(
-                    encrypted_result
-                        .blocks
-                        .iter()
-                        .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
-                    "Expected all blocks to have at most NOMINAL noise level"
-                );
-                assert!(
-                    encrypted_result.block_carries_are_empty(),
-                    "Expected all blocks to have no carries"
-                );
+                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
                 let expected = block_shift_right_helper(
                     clear,
