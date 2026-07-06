@@ -1,0 +1,33 @@
+LD R0 TS[1].0
+LD R1 TS[0].1
+LD R2 TS[0].0
+MAC R3 R1 R0 4
+LD R4 TS[1].1
+MAC R0 R2 R0 4
+MAC R2 R2 R4 4
+PBS R5 R2 PbsMultCarryMsgLsb
+PBS R6 R0 PbsMultCarryMsgMsb
+PBS_F R7 R3 PbsMultCarryMsgLsb
+MAC R1 R1 R4 4
+ADD R4 R5 R6
+ADD R4 R7 R4
+PBS R5 R3 PbsMultCarryMsgMsb
+PBS R6 R2 PbsMultCarryMsgMsb
+PBS R7 R4 PbsCarryInMsg
+PBS_F R8 R1 PbsMultCarryMsgLsb
+ADD R2 R5 R6
+ADD R2 R7 R2
+ADD R2 R8 R2
+PBS_F R3 R2 PbsMsgOnly
+ST TH.0 R3
+NOTIFY N1 F1 TH.0
+PBS R3 R2 PbsCarryInMsg
+PBS_F R5 R1 PbsMultCarryMsgMsb
+ADD R1 R3 R5
+PBS_F R2 R1 PbsMsgOnly
+ST TH.1 R2
+NOTIFY N1 F2 TH.1
+PBS R1 R0 PbsMultCarryMsgLsb
+PBS_F R2 R4 PbsMsgOnly
+ST TD[0].0 R1
+ST TD[0].1 R2
