@@ -82,6 +82,12 @@ pub struct AesFheKey {
     key: [Ciphertext; 128],
 }
 
+impl AesFheKey {
+    pub fn ciphertexts(&self) -> &[Ciphertext; 128] {
+        &self.key
+    }
+}
+
 /// AES-128 IV / initial CTR counter, as a plain 128-bit integer.
 ///
 /// The counter is incremented directly (`iv + block_index`), the big-endian

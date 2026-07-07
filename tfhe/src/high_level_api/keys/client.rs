@@ -190,6 +190,12 @@ impl AsRef<crate::integer::ClientKey> for ClientKey {
     }
 }
 
+impl AsRef<crate::shortint::ClientKey> for ClientKey {
+    fn as_ref(&self) -> &crate::shortint::ClientKey {
+        AsRef::<crate::shortint::ClientKey>::as_ref(&self.key.key)
+    }
+}
+
 impl Named for ClientKey {
     const NAME: &'static str = "high_level_api::ClientKey";
 }
