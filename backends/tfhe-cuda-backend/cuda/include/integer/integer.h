@@ -1013,12 +1013,15 @@ uint64_t scratch_cuda_integer_oprf_bitonic_shuffle_64_async(
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t key_num_radix_blocks,
     uint32_t data_num_radix_blocks, uint32_t num_values,
     uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    PBS_MS_REDUCTION_T noise_reduction_type, bool apply_rerand,
+    CudaLweKeyswitchKeyParamsFFI rerand_ksk_params, RERAND_MODE rerand_mode);
 
 void cuda_integer_oprf_bitonic_shuffle_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI **values,
     uint32_t num_values, const void *seeded_lwe_input, int8_t *mem_ptr,
-    void *const *oprf_bsks, void *const *bsks, void *const *ksks);
+    void *const *oprf_bsks, void *const *bsks, void *const *ksks,
+    const void *lwe_flattened_encryptions_of_zero_compact_array_in,
+    void *const *rerand_ksks);
 
 void cleanup_cuda_integer_oprf_bitonic_shuffle_64(CudaStreamsFFI streams,
                                                   int8_t **mem_ptr_void);

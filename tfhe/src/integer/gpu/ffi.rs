@@ -10738,6 +10738,9 @@ pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger, B: Nu
     key_num_blocks: u32,
     data_num_blocks: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+    apply_rerand: bool,
+    zero_lwes: Option<&CudaLweCompactCiphertextList<u64>>,
+    rerand_keyswitch_key: Option<&CudaLweKeyswitchKey<u64>>,
 ) {
     let num_values = values.len();
     assert!(
@@ -10770,6 +10773,44 @@ pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger, B: Nu
     let bsk_params = bsk.params_ffi();
     let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
+    let (rerand_ksk_params, rerand_mode, zero_lwes_ptr) = if apply_rerand {
+        let zero_lwes = zero_lwes.expect("apply_rerand requires zero_lwes to be Some");
+        assert_eq!(streams.gpu_indexes[0], zero_lwes.0.d_vec.gpu_index(0));
+        let (rerand_ksk_params, rerand_mode) = rerand_keyswitch_key.map_or(
+            (
+                CudaLweKeyswitchKeyParamsFFI {
+                    input_lwe_dimension: bsk_params.big_lwe_dimension,
+                    output_lwe_dimension: 0,
+                    level_count: 0,
+                    base_log: 0,
+                },
+                RerandMode::WithoutKs,
+            ),
+            |ksk| {
+                assert_eq!(streams.gpu_indexes[0], ksk.d_vec.gpu_index(0));
+                (ksk.params_ffi(), RerandMode::WithKs)
+            },
+        );
+        (
+            rerand_ksk_params,
+            rerand_mode,
+            zero_lwes.0.d_vec.as_c_ptr(0),
+        )
+    } else {
+        (
+            CudaLweKeyswitchKeyParamsFFI {
+                input_lwe_dimension: 0,
+                output_lwe_dimension: 0,
+                base_log: 0,
+                level_count: 0,
+            },
+            RerandMode::WithoutKs,
+            std::ptr::null(),
+        )
+    };
+    let rerand_ksks_ptr =
+        rerand_keyswitch_key.map_or(std::ptr::null(), |ksk| ksk.d_vec.ptr.as_ptr());
+
     let mut data_degrees: Vec<Vec<u64>> = values
         .iter()
         .map(|v| v.info.blocks.iter().map(|b| b.degree.0).collect())
@@ -10800,6 +10841,9 @@ pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger, B: Nu
         u32::try_from(carry_modulus.0).unwrap(),
         true,
         noise_reduction_type as u32,
+        apply_rerand,
+        rerand_ksk_params,
+        rerand_mode as u32,
     );
 
     cuda_integer_oprf_bitonic_shuffle_64_async(
@@ -10811,6 +10855,8 @@ pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger, B: Nu
         oprf_bootstrapping_key.ptr.as_ptr(),
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        zero_lwes_ptr,
+        rerand_ksks_ptr,
     );
 
     cleanup_cuda_integer_oprf_bitonic_shuffle_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
