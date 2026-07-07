@@ -52,7 +52,7 @@ pub(crate) fn test_unchecked_function<P, T, ClearF, Scalar>(
     // Test with low number of blocks, as they take a different branches
     // (regression tests)
     for num_block in [num_block, 1, 2] {
-        let max = Scalar::MAX >> (Scalar::BITS - (num_block * num_bits_per_block));
+        let max = Scalar::MAX >> Scalar::BITS.saturating_sub(num_block * num_bits_per_block);
         for _ in 0..num_test {
             let clear_a = rng.gen::<Scalar>() & max;
             let clear_b = rng.gen::<Scalar>() & max;
@@ -433,7 +433,7 @@ pub(crate) fn test_unchecked_minmax<P, T, ClearF, Scalar>(
     // Test with low number of blocks, as they take a different branches
     // (regression tests)
     for num_block in [num_block, 1, 2] {
-        let max = Scalar::MAX >> (Scalar::BITS - (num_block * num_bits_per_block));
+        let max = Scalar::MAX >> Scalar::BITS.saturating_sub(num_block * num_bits_per_block);
         for _ in 0..num_test {
             let clear_a = rng.gen::<Scalar>() & max;
             let clear_b = rng.gen::<Scalar>() & max;
