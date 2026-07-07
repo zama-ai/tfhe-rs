@@ -2218,6 +2218,9 @@ unsafe extern "C" {
         carry_modulus: u32,
         allocate_gpu_memory: bool,
         noise_reduction_type: PBS_MS_REDUCTION_T,
+        apply_rerand: bool,
+        rerand_ksk_params: CudaLweKeyswitchKeyParamsFFI,
+        rerand_mode: RERAND_MODE,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2230,6 +2233,8 @@ unsafe extern "C" {
         oprf_bsks: *const *mut ffi::c_void,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        lwe_flattened_encryptions_of_zero_compact_array_in: *const ffi::c_void,
+        rerand_ksks: *const *mut ffi::c_void,
     );
 }
 unsafe extern "C" {

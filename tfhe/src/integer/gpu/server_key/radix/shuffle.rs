@@ -1,5 +1,9 @@
+use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::LweCiphertextCount;
+use crate::integer::ciphertext::{PrfReRandomizationContext, ReRandomizationSeed};
+use crate::integer::gpu::ciphertext::re_randomization::CudaReRandomizationKey;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::radix::oprf::GenericCudaOprfServerKey;
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaDynamicKeyswitchingKey};
@@ -137,6 +141,9 @@ impl CudaServerKey {
                         key_num_blocks as u32,
                         data_num_blocks as u32,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
+                        false,
+                        None,
+                        None,
                     );
                 }
                 (
@@ -157,6 +164,183 @@ impl CudaServerKey {
                         key_num_blocks as u32,
                         data_num_blocks as u32,
                         None,
+                        false,
+                        None,
+                        None,
+                    );
+                }
+                _ => panic!("OPRF key and compute key must use the same kind of bootstrapping key"),
+            }
+        }
+
+        Ok(data)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn bitonic_shuffle_and_re_randomize<T, S, K>(
+        &self,
+        oprf_key: &GenericCudaOprfServerKey<K>,
+        mut data: Vec<T>,
+        key_size: BitonicShuffleKeySize,
+        seed: S,
+        re_randomization_key: &CudaReRandomizationKey<'_>,
+        prf_re_randomization_context: &PrfReRandomizationContext,
+        streams: &CudaStreams,
+    ) -> Result<Vec<T>, crate::Error>
+    where
+        T: CudaIntegerRadixCiphertext,
+        S: OprfSeed,
+        K: Borrow<CudaBootstrappingKey<u64>>,
+    {
+        if self.message_modulus.0 != 4 || self.carry_modulus.0 != 4 {
+            return Err(crate::Error::new(
+                "bitonic_shuffle on GPU currently only supports MESSAGE_2_CARRY_2 parameters"
+                    .to_string(),
+            ));
+        }
+
+        let key_num_blocks = key_size.num_blocks_of_keys(data.len(), self.message_modulus) as u64;
+
+        if key_num_blocks == 0 {
+            return Err(crate::Error::new(
+                "key_num_blocks must be at least 1".to_string(),
+            ));
+        }
+
+        if data.len() <= 1 {
+            return Ok(data);
+        }
+
+        let data_num_blocks = data[0].as_ref().d_blocks.lwe_ciphertext_count().0;
+        if data[1..]
+            .iter()
+            .any(|d| d.as_ref().d_blocks.lwe_ciphertext_count().0 != data_num_blocks)
+        {
+            return Err(crate::Error::new(
+                "all data elements must have the same number of blocks".to_string(),
+            ));
+        }
+
+        for v in data.iter_mut() {
+            let needs_propagate = v
+                .as_ref()
+                .info
+                .blocks
+                .iter()
+                .any(|b| !b.carry_is_empty() || b.noise_level != NoiseLevel::NOMINAL);
+            if needs_propagate {
+                self.full_propagate_assign(v, streams);
+            }
+        }
+
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+
+        let oprf_bsk = oprf_key.bootstrapping_key();
+        oprf_key.assert_compatible_with_target_bsk(&self.bootstrapping_key);
+
+        let input_lwe_dimension = self.bootstrapping_key.input_lwe_dimension();
+        let polynomial_size = self.bootstrapping_key.polynomial_size();
+        let in_lwe_size = input_lwe_dimension.to_lwe_size();
+        let message_bits_count = self.message_modulus.0.ilog2() as u64;
+        let bits_per_block = message_bits_count + self.carry_modulus.0.ilog2() as u64 + 1;
+        let key_num_bits = key_num_blocks * message_bits_count;
+
+        let seed_bytes = seed.into_bytes();
+        let chunks = vec![key_num_bits; data.len()];
+        let (seeded, rle_info) = create_random_from_seed_modulus_switched(
+            seed_bytes.as_ref(),
+            in_lwe_size,
+            polynomial_size,
+            &chunks,
+            message_bits_count,
+            bits_per_block,
+        );
+        let h_seeded_lwe_list: Vec<u64> = seeded
+            .into_iter()
+            .flat_map(|(seeded, _bits)| {
+                raw_seeded_msed_to_lwe(&seeded, self.ciphertext_modulus).into_container()
+            })
+            .collect();
+
+        let mut d_seeded_lwe_input =
+            unsafe { CudaVec::<u64>::new_async(h_seeded_lwe_list.len(), streams, 0) };
+        unsafe {
+            d_seeded_lwe_input.copy_from_cpu_async(&h_seeded_lwe_list, streams, 0);
+        }
+        streams.synchronize();
+
+        let rerand_seed = ReRandomizationSeed::new_prf_rerand_seed(
+            prf_re_randomization_context.inner(),
+            seed_bytes.as_ref(),
+            &rle_info,
+        );
+
+        let total_key_blocks = data.len() * key_num_blocks as usize;
+        let mut value_refs: Vec<_> = data.iter_mut().map(|v| v.as_mut()).collect();
+
+        let (cpk, rerand_ksk) = match re_randomization_key {
+            CudaReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk } => (cpk, None),
+            CudaReRandomizationKey::LegacyDedicatedCPK { cpk, ksk } => {
+                (cpk, Some(&ksk.lwe_keyswitch_key))
+            }
+        };
+
+        let encryption_of_zero = cpk
+            .key
+            .prepare_cpk_zero_for_rerand(rerand_seed, LweCiphertextCount(total_key_blocks));
+        let d_zero_lwes = CudaLweCompactCiphertextList::from_lwe_compact_ciphertext_list(
+            &encryption_of_zero,
+            streams,
+        );
+
+        unsafe {
+            match (&self.bootstrapping_key, oprf_bsk) {
+                (
+                    CudaBootstrappingKey::Classic(d_bsk),
+                    CudaBootstrappingKey::Classic(oprf_d_bsk),
+                ) => {
+                    cuda_backend_oprf_bitonic_shuffle(
+                        streams,
+                        &mut value_refs,
+                        &d_seeded_lwe_input,
+                        &oprf_d_bsk.d_vec,
+                        &d_bsk.d_vec,
+                        &computing_ks_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk,
+                        computing_ks_key.params_ffi(),
+                        key_num_blocks as u32,
+                        data_num_blocks as u32,
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
+                        true,
+                        Some(&d_zero_lwes),
+                        rerand_ksk,
+                    );
+                }
+                (
+                    CudaBootstrappingKey::MultiBit(d_multibit_bsk),
+                    CudaBootstrappingKey::MultiBit(oprf_d_multibit_bsk),
+                ) => {
+                    cuda_backend_oprf_bitonic_shuffle(
+                        streams,
+                        &mut value_refs,
+                        &d_seeded_lwe_input,
+                        &oprf_d_multibit_bsk.d_vec,
+                        &d_multibit_bsk.d_vec,
+                        &computing_ks_key.d_vec,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk,
+                        computing_ks_key.params_ffi(),
+                        key_num_blocks as u32,
+                        data_num_blocks as u32,
+                        None,
+                        true,
+                        Some(&d_zero_lwes),
+                        rerand_ksk,
                     );
                 }
                 _ => panic!("OPRF key and compute key must use the same kind of bootstrapping key"),

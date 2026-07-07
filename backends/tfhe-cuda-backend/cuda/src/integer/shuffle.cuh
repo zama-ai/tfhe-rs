@@ -2,6 +2,7 @@
 #define TFHE_RS_SHUFFLE_CUH
 
 #include "integer/oprf.cuh"
+#include "integer/rerand.cuh"
 #include "integer/shuffle_utilities.h"
 #include "radix_ciphertext.cuh"
 
@@ -787,12 +788,19 @@ template <typename Torus>
 __host__ uint64_t scratch_cuda_integer_oprf_bitonic_shuffle(
     CudaStreams streams, int_oprf_bitonic_shuffle_buffer<Torus> **mem_ptr,
     uint32_t key_num_blocks, uint32_t data_num_blocks, uint32_t num_values,
-    int_radix_params params, bool allocate_gpu_memory) {
+    int_radix_params params, bool apply_rerand, int_radix_params rerand_params,
+    RERAND_MODE rerand_mode, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
-  *mem_ptr = new int_oprf_bitonic_shuffle_buffer<Torus>(
-      streams, params, key_num_blocks, data_num_blocks, num_values,
-      allocate_gpu_memory, size_tracker);
+  if (apply_rerand) {
+    *mem_ptr = new int_oprf_bitonic_shuffle_buffer<Torus>(
+        streams, params, rerand_params, key_num_blocks, data_num_blocks,
+        num_values, rerand_mode, allocate_gpu_memory, size_tracker);
+  } else {
+    *mem_ptr = new int_oprf_bitonic_shuffle_buffer<Torus>(
+        streams, params, key_num_blocks, data_num_blocks, num_values,
+        allocate_gpu_memory, size_tracker);
+  }
   return size_tracker;
 }
 
@@ -804,22 +812,73 @@ __host__ uint64_t scratch_cuda_integer_oprf_bitonic_shuffle(
  * radix-ciphertexts.
  * @param num_values       Number of values to shuffle.
  * @param seeded_lwe_input Seeded LWE ciphertext used as OPRF input.
+ * @param lwe_flattened_encryptions_of_zero_compact_array_in Flattened compact
+ * array of encryptions of zero used for re-randomization.
+ * @param rerand_ksks      Array of re-randomization keyswitch key pointers, one
+ * per GPU.
  * @param oprf_bsks        Array of OPRF bootstrapping key pointers, one per
  * GPU.
  */
 template <typename Torus, typename KSTorus>
-__host__ void
-host_oprf_bitonic_shuffle(CudaStreams streams, CudaRadixCiphertextFFI **values,
-                          uint32_t num_values, const Torus *seeded_lwe_input,
-                          int_oprf_bitonic_shuffle_buffer<Torus> *mem_ptr,
-                          void *const *oprf_bsks, void *const *bsks,
-                          KSTorus *const *ksks) {
+__host__ void host_oprf_bitonic_shuffle(
+    CudaStreams streams, CudaRadixCiphertextFFI **values, uint32_t num_values,
+    const Torus *seeded_lwe_input,
+    const Torus *lwe_flattened_encryptions_of_zero_compact_array_in,
+    Torus *const *rerand_ksks, int_oprf_bitonic_shuffle_buffer<Torus> *mem_ptr,
+    void *const *oprf_bsks, void *const *bsks, KSTorus *const *ksks) {
 
   uint32_t key_num_blocks = mem_ptr->key_num_blocks;
 
   host_integer_grouped_oprf<Torus>(
       streams, mem_ptr->keys_storage, seeded_lwe_input,
       num_values * key_num_blocks, mem_ptr->oprf_memory, oprf_bsks);
+
+  if (mem_ptr->applies_rerand()) {
+    auto *rerand_mem = mem_ptr->rerand_memory;
+    auto *keys_ptr = static_cast<Torus *>(mem_ptr->keys_storage->ptr);
+
+    switch (rerand_mem->params.big_lwe_dimension) {
+    case 256:
+      host_rerand_inplace<Torus, AmortizedDegree<256>>(
+          streams, keys_ptr, lwe_flattened_encryptions_of_zero_compact_array_in,
+          rerand_ksks, rerand_mem);
+      break;
+    case 512:
+      host_rerand_inplace<Torus, AmortizedDegree<512>>(
+          streams, keys_ptr, lwe_flattened_encryptions_of_zero_compact_array_in,
+          rerand_ksks, rerand_mem);
+      break;
+    case 1024:
+      host_rerand_inplace<Torus, AmortizedDegree<1024>>(
+          streams, keys_ptr, lwe_flattened_encryptions_of_zero_compact_array_in,
+          rerand_ksks, rerand_mem);
+      break;
+    case 2048:
+      host_rerand_inplace<Torus, AmortizedDegree<2048>>(
+          streams, keys_ptr, lwe_flattened_encryptions_of_zero_compact_array_in,
+          rerand_ksks, rerand_mem);
+      break;
+    case 4096:
+      host_rerand_inplace<Torus, AmortizedDegree<4096>>(
+          streams, keys_ptr, lwe_flattened_encryptions_of_zero_compact_array_in,
+          rerand_ksks, rerand_mem);
+      break;
+    case 8192:
+      host_rerand_inplace<Torus, AmortizedDegree<8192>>(
+          streams, keys_ptr, lwe_flattened_encryptions_of_zero_compact_array_in,
+          rerand_ksks, rerand_mem);
+      break;
+    case 16384:
+      host_rerand_inplace<Torus, AmortizedDegree<16384>>(
+          streams, keys_ptr, lwe_flattened_encryptions_of_zero_compact_array_in,
+          rerand_ksks, rerand_mem);
+      break;
+    default:
+      PANIC("CUDA error: rerand lwe_dimension not supported. "
+            "Supported values are powers of two in [256..16384].");
+      break;
+    }
+  }
 
   host_bitonic_shuffle<Torus>(streams, mem_ptr->keys_ptrs, values, num_values,
                               mem_ptr->shuffle_buffer, bsks, ksks);
