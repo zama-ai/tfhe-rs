@@ -90,6 +90,8 @@ if [[ "${RUN_VALGRIND}" == "1" ]]; then
 fi
 
 if [[ "${RUN_COMPUTE_SANITIZER}" == "1" ]]; then
+  export TFHE_RS_COMPUTE_SANITIZER=1
+
   # List the tests into a temporary file using the GPU feature set
   RUSTFLAGS="$RUSTFLAGS" cargo nextest list --cargo-profile "${CARGO_PROFILE}" \
             --features="${SANITIZER_CARGO_FEATURES_GPU}" -p "${SANITIZER_CARGO_PACKAGE}" &> /tmp/test_list.txt

@@ -125,6 +125,11 @@ mod test {
     #[cfg(feature = "gpu")]
     use std::fmt::Debug;
 
+    #[cfg(feature = "gpu")]
+    fn is_sanitizer_run() -> bool {
+        std::env::var("TFHE_RS_COMPUTE_SANITIZER").is_ok_and(|v| v == "1")
+    }
+
     #[test]
     fn test_bitonic_shuffle_fheuint() {
         let cks = {
@@ -380,8 +385,11 @@ mod test {
 
         let mut rng = rand::thread_rng();
 
-        // List of number of items sort
-        let ns: &[usize] = &[2, 5, 9, 11, 3, 6, 7, 10];
+        let ns: &[usize] = if is_sanitizer_run() {
+            &[2, 5, 11]
+        } else {
+            &[2, 5, 9, 11, 3, 6, 7, 10]
+        };
 
         // Pre-generate clear data: three categories of key patterns.
         let cases: Vec<(Vec<u32>, Vec<CT>)> = ns
@@ -471,8 +479,10 @@ mod test {
     #[test]
     fn test_bitonic_sort_order_cpu_vs_gpu() {
         common_test_bitonic_sort_order_cpu_vs_gpu::<i16, FheInt16>();
-        common_test_bitonic_sort_order_cpu_vs_gpu::<i8, FheInt8>();
-        common_test_bitonic_sort_order_cpu_vs_gpu::<u32, FheUint32>();
+        if !is_sanitizer_run() {
+            common_test_bitonic_sort_order_cpu_vs_gpu::<i8, FheInt8>();
+            common_test_bitonic_sort_order_cpu_vs_gpu::<u32, FheUint32>();
+        }
     }
 
     #[cfg(feature = "gpu")]
@@ -520,9 +530,11 @@ mod test {
     #[cfg(feature = "gpu")]
     #[test]
     fn test_bitonic_shuffle_unique_seed_gpu() {
-        common_test_bitonic_shuffle_seed_unique_gpu::<i16, FheInt16>();
-        common_test_bitonic_shuffle_seed_unique_gpu::<i8, FheInt8>();
         common_test_bitonic_shuffle_seed_unique_gpu::<u32, FheUint32>();
+        if !is_sanitizer_run() {
+            common_test_bitonic_shuffle_seed_unique_gpu::<i16, FheInt16>();
+            common_test_bitonic_shuffle_seed_unique_gpu::<i8, FheInt8>();
+        }
     }
 
     #[cfg(feature = "gpu")]

@@ -135,7 +135,7 @@ void host_integer_grouped_oprf_custom_range(
           mem_ptr->rerand_memory);
     };
 
-    switch (mem_ptr->rerand_memory->params.polynomial_size) {
+    switch (mem_ptr->rerand_memory->params.big_lwe_dimension) {
     case 256:
       rerand(AmortizedDegree<256>{});
       break;
