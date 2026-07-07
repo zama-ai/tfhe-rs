@@ -1,29 +1,32 @@
+// Run with:
+//   cargo run --release --example pbs_count --features="integer,pbs-stats"
+
 use tfhe::prelude::*;
 use tfhe::*;
 
-pub fn main() {
-    let config = ConfigBuilder::default().build();
-
-    let (cks, sks) = generate_keys(config);
-
-    let a = FheUint32::encrypt(42u32, &cks);
-    let b = FheUint32::encrypt(69u32, &cks);
-
-    set_server_key(sks);
-
-    let c = &a * &b;
-    let mul_32_count = get_pbs_count();
+fn pbs_count<T, S>(cks: &ClientKey, op_name: &str, op: &dyn Fn(T, T))
+where
+    T: FheEncrypt<S, ClientKey>,
+    S: From<u8>,
+{
+    let bits = size_of::<S>() * 8;
+    let a = T::encrypt(S::from(42), cks);
+    let b = T::encrypt(S::from(69), cks);
 
     reset_pbs_count();
-    let d = &a & &b;
-    let and_32_count = get_pbs_count();
+    op(a, b);
+    println!("{bits:<3} bits | {op_name:<3} | {} PBS", get_pbs_count());
+}
 
-    println!("mul_32_count: {mul_32_count}");
-    println!("and_32_count: {and_32_count}");
+fn main() {
+    let config = ConfigBuilder::default().build();
+    let (cks, sks) = generate_keys(config);
+    set_server_key(sks);
 
-    let c_dec: u32 = c.decrypt(&cks);
-    let d_dec: u32 = d.decrypt(&cks);
-
-    assert_eq!(42 * 69, c_dec);
-    assert_eq!(42 & 69, d_dec);
+    pbs_count::<FheUint64, u64>(&cks, "mul", &|a, b| {
+        let _ = a * b;
+    });
+    pbs_count::<FheUint128, u128>(&cks, "mul", &|a, b| {
+        let _ = a * b;
+    });
 }
