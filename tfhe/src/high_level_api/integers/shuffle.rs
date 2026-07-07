@@ -95,9 +95,25 @@ where
                 .collect())
         }
         #[cfg(feature = "gpu")]
-        InternalServerKey::Cuda(_) => Err(crate::Error::new(
-            "bitonic_shuffle is not supported on Cuda".to_string(),
-        )),
+        InternalServerKey::Cuda(cuda_key) => {
+            let re_randomization_key =
+                cuda_key.integer_re_randomization_key_from_mode(re_randomization_mode)?;
+            let streams = &cuda_key.streams;
+            let inner = data.into_iter().map(|v| v.into_gpu(streams)).collect();
+            let result = cuda_key.pbs_key().bitonic_shuffle_and_re_randomize(
+                &cuda_key.oprf_key(),
+                inner,
+                key_size,
+                seed,
+                &re_randomization_key,
+                prf_re_randomization_context.inner(),
+                streams,
+            )?;
+            Ok(result
+                .into_iter()
+                .map(|ct| T::from_gpu(ct, cuda_key.tag.clone(), ReRandomizationMetadata::default()))
+                .collect())
+        }
         #[cfg(feature = "hpu")]
         InternalServerKey::Hpu(_) => Err(crate::Error::new(
             "bitonic_shuffle is not supported on Hpu".to_string(),
@@ -116,6 +132,8 @@ mod test {
     use crate::high_level_api::{set_server_key, ClientKey, ConfigBuilder, ServerKey};
     use crate::shortint::ciphertext::{ReRandomizationHashAlgo, ReRandomizationSeedHasher};
     use crate::shortint::parameters::ReRandomizationParameters;
+    #[cfg(feature = "gpu")]
+    use crate::CompressedServerKey;
     #[cfg(feature = "gpu")]
     use crate::{FheInt16, FheUint32};
     use crate::{FheInt8, FheUint8};
@@ -559,6 +577,81 @@ mod test {
             clear_values.sort_unstable();
             decrypted.sort_unstable();
             assert_eq!(decrypted, clear_values);
+        }
+    }
+
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn test_bitonic_shuffle_rerand_fheuint_gpu() {
+        let cks = {
+            let config = ConfigBuilder::default()
+                .use_dedicated_oprf_key(true)
+                .enable_ciphertext_re_randomization(
+                    ReRandomizationParameters::DerivedCPKWithoutKeySwitch,
+                )
+                .build();
+            let cks = ClientKey::generate(config);
+            let compressed_sks = CompressedServerKey::new(&cks);
+            let sks = compressed_sks.decompress_to_gpu();
+            set_server_key(sks);
+            cks
+        };
+        let mut rng = rand::thread_rng();
+        let mut clear_values: Vec<u8> = (0..15).map(|_| rng.gen()).collect();
+
+        let encrypted: Vec<FheUint8> = clear_values
+            .iter()
+            .map(|&v| FheUint8::try_encrypt(v, &cks).unwrap())
+            .collect();
+
+        let seed = new_seeder().seed();
+        println!("seed: {seed:?}");
+        let key_size = BitonicShuffleKeySize::num_bits(32);
+        let shuffled = bitonic_shuffle(encrypted.clone(), key_size, seed).unwrap();
+        let shuffled_rerand = {
+            let mut shuffled_rerand = vec![];
+            for rerand_hash_algo in [
+                ReRandomizationHashAlgo::Blake3,
+                ReRandomizationHashAlgo::Shake256,
+            ] {
+                let seed_hasher = ReRandomizationSeedHasher::new(
+                    rerand_hash_algo,
+                    crate::shortint::oprf::TFHE_PRF_RERAND_DOMAIN_SEPARATOR,
+                );
+                let prf_rerand_context = PrfReRandomizationContext::new_with_hasher(
+                    crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR,
+                    seed_hasher,
+                );
+                shuffled_rerand.push(
+                    re_randomized_keys_bitonic_shuffle(
+                        encrypted.clone(),
+                        key_size,
+                        seed,
+                        ReRandomizationMode::UseAvailableMode,
+                        &prf_rerand_context,
+                    )
+                    .unwrap(),
+                );
+            }
+            shuffled_rerand
+        };
+
+        let decrypted_ref: Vec<u8> = shuffled.iter().map(|ct| ct.decrypt(&cks)).collect();
+        clear_values.sort_unstable();
+        let decrypted_sorted = {
+            let mut tmp = decrypted_ref.clone();
+            tmp.sort_unstable();
+            tmp
+        };
+        assert_eq!(decrypted_sorted, clear_values);
+
+        for (idx, rerand_result) in shuffled_rerand.into_iter().enumerate() {
+            let decrypted_rerand: Vec<u8> =
+                rerand_result.iter().map(|ct| ct.decrypt(&cks)).collect();
+            assert_eq!(
+                decrypted_ref, decrypted_rerand,
+                "failed at index {idx} of decrypted_rerand"
+            );
         }
     }
 }

@@ -4,6 +4,9 @@
 #include "integer_utilities.h"
 #include "oprf.h"
 
+/// @brief Forward declaration of the re-randomization scratch buffer.
+template <typename Torus> struct int_rerand_mem;
+
 /**
  * @brief Scratch buffer for batched encrypted key comparisons. Holds
  * contiguous lhs/rhs key blocks for all pairs, intermediate packing and
@@ -480,11 +483,15 @@ template <typename Torus> struct int_oprf_bitonic_shuffle_buffer {
   int_radix_params params;
   /// @brief Number of radix blocks per OPRF-generated key.
   uint32_t key_num_blocks;
+  /// @brief Number of data elements to shuffle.
+  uint32_t num_values;
 
   /// @brief OPRF scratch memory used to produce the random sorting keys.
   int_grouped_oprf_memory<Torus> *oprf_memory;
   /// @brief Underlying bitonic shuffle buffer that sorts data by the OPRF keys.
   int_bitonic_shuffle_buffer<Torus> *shuffle_buffer;
+  /// @brief Optional re-randomization scratch for sort keys.
+  int_rerand_mem<Torus> *rerand_memory;
 
   /// @brief Flat storage for all num_values OPRF-generated keys: num_values *
   /// key_num_blocks blocks.
@@ -497,6 +504,9 @@ template <typename Torus> struct int_oprf_bitonic_shuffle_buffer {
 
   bool gpu_memory_allocated;
 
+  /// @brief Returns true when re-randomization of sort keys is enabled.
+  bool applies_rerand() const { return rerand_memory != nullptr; }
+
   int_oprf_bitonic_shuffle_buffer(CudaStreams streams, int_radix_params params,
                                   uint32_t key_num_blocks,
                                   uint32_t data_num_blocks, uint32_t num_values,
@@ -505,6 +515,8 @@ template <typename Torus> struct int_oprf_bitonic_shuffle_buffer {
     this->params = params;
     this->gpu_memory_allocated = allocate_gpu_memory;
     this->key_num_blocks = key_num_blocks;
+    this->num_values = num_values;
+    this->rerand_memory = nullptr;
 
     uint64_t message_bits_per_block = log2_int(params.message_modulus);
     uint32_t total_oprf_blocks = num_values * key_num_blocks;
@@ -535,7 +547,31 @@ template <typename Torus> struct int_oprf_bitonic_shuffle_buffer {
     }
   }
 
+  /// @brief Overloaded constructor that also allocates re-randomization scratch
+  ///        for the OPRF-generated sort keys.
+  ///
+  /// @param rerand_params      Radix params for the re-randomization key.
+  /// @param rerand_mode        Re-randomization mode (with or without KS).
+  int_oprf_bitonic_shuffle_buffer(CudaStreams streams, int_radix_params params,
+                                  int_radix_params rerand_params,
+                                  uint32_t key_num_blocks,
+                                  uint32_t data_num_blocks, uint32_t num_values,
+                                  RERAND_MODE rerand_mode,
+                                  bool allocate_gpu_memory,
+                                  uint64_t &size_tracker)
+      : int_oprf_bitonic_shuffle_buffer(streams, params, key_num_blocks,
+                                        data_num_blocks, num_values,
+                                        allocate_gpu_memory, size_tracker) {
+    this->rerand_memory = new int_rerand_mem<Torus>(
+        streams, rerand_params, num_values * key_num_blocks, rerand_mode,
+        allocate_gpu_memory, size_tracker);
+  }
+
   void release(CudaStreams streams) {
+    if (this->applies_rerand()) {
+      rerand_memory->release(streams);
+      delete rerand_memory;
+    }
     oprf_memory->release(streams);
     delete oprf_memory;
     shuffle_buffer->release(streams);
