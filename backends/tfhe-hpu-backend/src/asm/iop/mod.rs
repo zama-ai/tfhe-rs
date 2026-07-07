@@ -194,6 +194,12 @@ pub const IOP1_CT_F_2CT: ConstIOpProto<1, 2> = ConstIOpProto {
     src: [VarMode::Native; 2],
     imm: 0,
 };
+pub const IOP4_CT_F_2CT: ConstIOpProto<1, 2> = ConstIOpProto {
+    used_nodes: NodesMap([4; MAX_HPU_IN_CLUSTER]),
+    dst: [VarMode::Native; 1],
+    src: [VarMode::Native; 2],
+    imm: 0,
+};
 pub const IOP1_CT_F_2CT_BOOL: ConstIOpProto<1, 3> = ConstIOpProto {
     used_nodes: NODE_MAP_SINGLE,
     dst: [VarMode::Native; 1],
@@ -286,6 +292,7 @@ iop!(
     [IOP1_CT_F_2CT -> "ADD", opcode::ADD],
     [IOP1_CT_F_2CT -> "SUB", opcode::SUB],
     [IOP1_CT_F_2CT -> "MUL", opcode::MUL],
+    [IOP4_CT_F_2CT -> "MHMUL", opcode::MHMUL],
     [IOP1_2CT_F_2CT -> "DIV", opcode::DIV],
     [IOP1_CT_F_2CT -> "MOD", opcode::MOD],
     [IOP1_CT_BOOL_F_2CT -> "OVF_ADD", opcode::OVF_ADD],

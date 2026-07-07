@@ -38,6 +38,7 @@ pub const ROTS_L: u8 = 0xAF;
 pub const ADD: u8 = 0xE0;
 pub const SUB: u8 = 0xE2;
 pub const MUL: u8 = 0xE4;
+pub const MHMUL: u8 = 0x29;
 pub const DIV: u8 = 0xE5;
 pub const MOD: u8 = 0xE6;
 

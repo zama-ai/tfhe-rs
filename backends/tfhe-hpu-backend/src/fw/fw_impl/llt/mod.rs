@@ -21,6 +21,7 @@ crate::impl_fw!("Llt" [
     ADD => fw_impl::llt::iop_add;
     SUB => fw_impl::llt::iop_sub;
     MUL => fw_impl::llt::iop_mul;
+    MHMUL => |_prog: &mut Program| {};
     DIV => fw_impl::ilp_div::iop_div;
     MOD => fw_impl::ilp_div::iop_mod;
 

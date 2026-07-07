@@ -3236,7 +3236,7 @@ mod hpu {
         display_name: sub
     );
     define_hpu_bench_default_fn!(
-        iop_name: mul,
+        iop_name: mhmul,
         display_name: mul
     );
     define_hpu_bench_default_fn!(
@@ -3264,7 +3264,7 @@ mod hpu {
         default_hpu_ops,
         default_hpu_add,
         default_hpu_sub,
-        default_hpu_mul,
+        default_hpu_mhmul,
         default_hpu_div,
         default_hpu_mod,
         default_hpu_ovf_add,

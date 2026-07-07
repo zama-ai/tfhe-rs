@@ -18,6 +18,7 @@ crate::impl_fw!("Ilp" [
     ADD => fw_impl::ilp::iop_add;
     SUB => fw_impl::ilp::iop_sub;
     MUL => fw_impl::ilp::iop_mul;
+    MHMUL => |_prog: &mut Program| {};
     DIV => fw_impl::ilp_div::iop_div;
     MOD => fw_impl::ilp_div::iop_mod;
 
