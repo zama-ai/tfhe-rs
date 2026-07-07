@@ -35,7 +35,7 @@ void cuda_rerand_64_async(
   PUSH_RANGE("rerand")
   auto rerand_buffer = reinterpret_cast<int_rerand_mem<uint64_t> *>(mem_ptr);
 
-  switch (rerand_buffer->params.polynomial_size) {
+  switch (rerand_buffer->params.big_lwe_dimension) {
   case 256:
     host_rerand_inplace<uint64_t, AmortizedDegree<256>>(
         streams, static_cast<uint64_t *>(lwe_array),
