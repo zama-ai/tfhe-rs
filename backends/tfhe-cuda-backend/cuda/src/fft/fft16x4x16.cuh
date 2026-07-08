@@ -402,6 +402,10 @@ static constexpr int COMPACT_TW_SMEM_DOUBLES =
 static constexpr int TWIST_HALF_SMEM_OFFSET =
     COMPACT_TW_SMEM_OFFSET + COMPACT_TW_SMEM_DOUBLES; // 4230 doubles
 
+// Number of complex coefficients in the negacyclic twist half-table:
+// (N/2 + 1) for the 1024-point (16×4×16) FFT, i.e. 1024/2 + 1 = 513.
+static constexpr int FFT16x4x16_TWIST_HALF_TABLE_SIZE = 513;
+
 struct alignas(8) FFT16x4x16MBarrierStorage {
   unsigned long long barrier;
 };

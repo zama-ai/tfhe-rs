@@ -125,10 +125,12 @@ __device__ const T *get_multi_bit_ith_lwe_gth_group_kth_block(
 
 ////////////////////////////////////////////////
 template <typename T, typename ST>
-void cuda_convert_lwe_programmable_bootstrap_key(
-    cudaStream_t stream, uint32_t gpu_index, double2 *dest, ST const *src,
-    uint32_t polynomial_size, uint32_t total_polynomials,
-    bool use_specialized_fft_2_2, bool use_throughput_oriented) {
+void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
+                                                 uint32_t gpu_index,
+                                                 double2 *dest, ST const *src,
+                                                 uint32_t polynomial_size,
+                                                 uint32_t total_polynomials,
+                                                 bool use_throughput_oriented) {
   cuda_set_device(gpu_index);
   int shared_memory_size = safe_mul_sizeof<double>(polynomial_size);
 
@@ -225,42 +227,24 @@ void cuda_convert_lwe_programmable_bootstrap_key(
     break;
   case 2048:
     if (shared_memory_size <= max_shared_memory) {
-      if (use_specialized_fft_2_2) {
-        if (use_throughput_oriented) {
-          // Mixprecision path: FFT16x4x16 forward, writes bsk in bit-reversed
-          // frequency order to match the new accumulate kernel.
-          // AccumulatorDegree<2048> → opt=32 → 64 threads/block.
-          blockSize = polynomial_size / AccumulatorDegree<2048>::opt;
-          size_t throughput_smem = BATCH_FFT16X4X16_BSK_SMEM_BYTES;
-          check_cuda_error(cudaFuncSetAttribute(
-              batch_FFT16x4x16_classical_specialized<
-                  FFTDegree<AccumulatorDegree<2048>, ForwardFFT>>,
-              cudaFuncAttributeMaxDynamicSharedMemorySize,
-              static_cast<int>(throughput_smem)));
-          check_cuda_error(cudaFuncSetCacheConfig(
-              batch_FFT16x4x16_classical_specialized<
-                  FFTDegree<AccumulatorDegree<2048>, ForwardFFT>>,
-              cudaFuncCachePreferShared));
-          batch_FFT16x4x16_classical_specialized<
-              FFTDegree<AccumulatorDegree<2048>, ForwardFFT>>
-              <<<gridSize, blockSize, throughput_smem, stream>>>(d_bsk, dest);
-        } else {
-          // Legacy fallback (NSMFFT natural-order layout, 512 threads/block).
-          blockSize = polynomial_size / choose_opt(polynomial_size);
-          check_cuda_error(
-              cudaFuncSetAttribute(batch_NSMFFT_classical_specialized<
-                                       FFTDegree<Degree<2048>, ForwardFFT>>,
-                                   cudaFuncAttributeMaxDynamicSharedMemorySize,
-                                   2 * shared_memory_size));
-          check_cuda_error(
-              cudaFuncSetCacheConfig(batch_NSMFFT_classical_specialized<
-                                         FFTDegree<Degree<2048>, ForwardFFT>>,
-                                     cudaFuncCachePreferShared));
-          batch_NSMFFT_classical_specialized<
-              FFTDegree<Degree<2048>, ForwardFFT>>
-              <<<gridSize, blockSize, 2 * shared_memory_size, stream>>>(d_bsk,
-                                                                        dest);
-        }
+      if (use_throughput_oriented) {
+        // Throughput oriented path: FFT16x4x16 forward, writes bsk in
+        // bit-reversed frequency order to match the new accumulate kernel.
+        // AccumulatorDegree<2048> → opt=32 → 64 threads/block.
+        blockSize = polynomial_size / AccumulatorDegree<2048>::opt;
+        size_t throughput_smem = BATCH_FFT16X4X16_BSK_SMEM_BYTES;
+        check_cuda_error(cudaFuncSetAttribute(
+            batch_FFT16x4x16_classical_specialized<
+                FFTDegree<AccumulatorDegree<2048>, ForwardFFT>>,
+            cudaFuncAttributeMaxDynamicSharedMemorySize,
+            static_cast<int>(throughput_smem)));
+        check_cuda_error(cudaFuncSetCacheConfig(
+            batch_FFT16x4x16_classical_specialized<
+                FFTDegree<AccumulatorDegree<2048>, ForwardFFT>>,
+            cudaFuncCachePreferShared));
+        batch_FFT16x4x16_classical_specialized<
+            FFTDegree<AccumulatorDegree<2048>, ForwardFFT>>
+            <<<gridSize, blockSize, throughput_smem, stream>>>(d_bsk, dest);
       } else {
         check_cuda_error(cudaFuncSetAttribute(
             batch_NSMFFT<FFTDegree<AmortizedDegree<2048>, ForwardFFT>, FULLSM>,

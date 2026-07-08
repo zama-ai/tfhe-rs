@@ -10,10 +10,9 @@ void cuda_convert_lwe_programmable_bootstrap_key_32_async(
       safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
                (size_t)(glwe_dim + 1), (size_t)level_count);
   // We don't have a specialized version for 32 bit
-  bool use_specialized = false;
   cuda_convert_lwe_programmable_bootstrap_key<uint32_t, int32_t>(
       static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
-      (const int32_t *)src, polynomial_size, total_polynomials, use_specialized,
+      (const int32_t *)src, polynomial_size, total_polynomials,
       /*use_throughput_oriented=*/false);
 }
 
@@ -33,7 +32,7 @@ void cuda_convert_lwe_programmable_bootstrap_key_64_async(
                              input_lwe_dim, max_shared_memory);
   cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
       static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
-      (const int64_t *)src, polynomial_size, total_polynomials, use_specialized,
+      (const int64_t *)src, polynomial_size, total_polynomials,
       use_throughput_oriented);
 }
 
@@ -46,11 +45,10 @@ void cuda_convert_lwe_programmable_bootstrap_key_standard_64_async(
       safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
                (size_t)(glwe_dim + 1), (size_t)level_count);
   // Force vanilla FFT layout.
-  constexpr bool use_specialized_fft_2_2 = false;
   cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
       static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
       (const int64_t *)src, polynomial_size, total_polynomials,
-      use_specialized_fft_2_2, /*use_throughput_oriented=*/false);
+      /*use_throughput_oriented=*/false);
 }
 
 // Only used during testing to convert the classical bsk in the specialized
@@ -63,8 +61,6 @@ void cuda_convert_lwe_programmable_bootstrap_key_specialized_2_2_64_async(
   size_t total_polynomials =
       safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
                (size_t)(glwe_dim + 1), (size_t)level_count);
-  // We will force the conversion that's why we set the boolean to true.
-  constexpr bool use_specialized_fft_2_2 = true;
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   bool use_throughput_oriented =
       specialized_2_2_use_throughput_oriented<uint64_t>(
@@ -73,7 +69,7 @@ void cuda_convert_lwe_programmable_bootstrap_key_specialized_2_2_64_async(
   cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
       static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
       (const int64_t *)src, polynomial_size, total_polynomials,
-      use_specialized_fft_2_2, use_throughput_oriented);
+      use_throughput_oriented);
 }
 
 void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64_async(
@@ -371,9 +367,9 @@ void cuda_fourier_polynomial_mul_fft16x4x16_async(
 
   auto stream = static_cast<cudaStream_t>(stream_v);
   cuda_set_device(gpu_index);
-  auto input1 = (const double2 *)_input1;
-  auto input2 = (const double2 *)_input2;
-  auto output = (double2 *)_output;
+  auto input1 = static_cast<const double2 *>(_input1);
+  auto input2 = static_cast<const double2 *>(_input2);
+  auto output = static_cast<double2 *>(_output);
 
   using params = AccumulatorDegree<2048>;
   size_t shared_memory_size = FFT16x4x16_DUAL_SMEM_BYTES;
