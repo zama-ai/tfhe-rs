@@ -19,7 +19,10 @@ use tfhe::core_crypto::prelude::Numeric;
 use tfhe::integer::block_decomposition::DecomposableInto;
 use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
-use tfhe::{ClientKey, FheIntegerType, FheUint128, FheUint32, FheUint64, FheUintId, KVStore};
+use tfhe::{
+    ClientKey, FheIntegerType, FheUint128, FheUint16, FheUint32, FheUint64, FheUint8, FheUintId,
+    KVStore,
+};
 
 fn bench_kv_store<Key, FheKey, Value>(c: &mut Criterion, cks: &ClientKey, num_elements: usize)
 where
@@ -276,11 +279,11 @@ fn main() {
         }
         _ => {
             for pow in 1..=10 {
+                bench_kv_store::<u64, FheUint64, FheUint8>(&mut c, &cks, 1 << pow);
+                bench_kv_store::<u64, FheUint64, FheUint16>(&mut c, &cks, 1 << pow);
                 bench_kv_store::<u64, FheUint64, FheUint32>(&mut c, &cks, 1 << pow);
-            }
-
-            for pow in 1..=10 {
                 bench_kv_store::<u64, FheUint64, FheUint64>(&mut c, &cks, 1 << pow);
+                bench_kv_store::<u64, FheUint64, FheUint128>(&mut c, &cks, 1 << pow);
             }
 
             for pow in 1..=10 {
