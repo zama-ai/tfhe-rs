@@ -93,10 +93,12 @@ where
 {
     assert_eq!(accumulator.polynomial_size(), polynomial_size);
     assert_eq!(accumulator.glwe_size(), glwe_size);
+    // For now shortint does not really support non power of 2 moduli, so assert here to make sure
+    // the rest of the function makes sense
+    assert!(accumulator.ciphertext_modulus().is_power_of_two());
 
-    // NB: Following path will not go `power_of_two_scaling_to_native_torus`
-    // Thus keep value MSB aligned without considering real delta
-    // i.e force modulus to be native
+    // Power of 2 moduli are represented on the native torus to re-use the existing core code
+    // WARNING: do not forget to update fill_many_lut_accumulator in case of updates
     let output_encoding = ShortintEncoding {
         ciphertext_modulus: CiphertextModulus::new_native(),
         message_modulus: output_message_modulus,
@@ -178,9 +180,14 @@ where
 {
     assert_eq!(accumulator.polynomial_size(), polynomial_size);
     assert_eq!(accumulator.glwe_size(), glwe_size);
+    // For now shortint does not really support non power of 2 moduli, so assert here to make sure
+    // the rest of the function makes sense
+    assert!(accumulator.ciphertext_modulus().is_power_of_two());
 
+    // Power of 2 moduli are represented on the native torus to re-use the existing core code
+    // WARNING: do not forget to update fill_accumulator_with_encoding in case of updates
     let encoding = ShortintEncoding {
-        ciphertext_modulus: accumulator.ciphertext_modulus(),
+        ciphertext_modulus: CiphertextModulus::new_native(),
         message_modulus,
         carry_modulus,
         padding_bit: PaddingBit::Yes,
@@ -399,8 +406,12 @@ mod test {
     use rand::Rng;
     use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-    use crate::shortint::parameters::test_params::TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    use crate::shortint::{CompactPrivateKey, CompactPublicKey};
+    use crate::shortint::parameters::test_params::{
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    };
+    use crate::shortint::parameters::{CiphertextModulus, ClassicPBSParameters};
+    use crate::shortint::{gen_keys, CompactPrivateKey, CompactPublicKey};
 
     /// Test the case where a thread is reused by rayon and thread engine will be already borrowed
     #[test]
@@ -427,5 +438,43 @@ mod test {
         messages.par_iter().for_each(|msg| {
             pk.encrypt_iter_with_modulus(msg.iter().copied(), packed_modulus);
         })
+    }
+
+    #[test]
+    fn test_non_native_power_of_two_luts_ci_run_filter() {
+        // We should be fine pfail wise, since we encrypt and compute directly
+        let non_native_params = ClassicPBSParameters {
+            ciphertext_modulus: CiphertextModulus::try_new_power_of_2(63).unwrap(),
+            ..TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+        };
+
+        assert!(!non_native_params.ciphertext_modulus.is_native_modulus());
+        let (cks, sks) = gen_keys(non_native_params);
+
+        for clear in 0..non_native_params.message_modulus.0 {
+            let enc = cks.encrypt(clear);
+
+            // Single lut case
+            {
+                let id_lut = sks.generate_lookup_table(|x| x);
+                let res = sks.apply_lookup_table(&enc, &id_lut);
+
+                let dec = cks.decrypt(&res);
+
+                assert_eq!(clear, dec);
+            }
+
+            // many lut case
+            {
+                let many_id_lut = sks.generate_many_lookup_table(&[&|x| x, &|x| x]);
+                let res = sks.apply_many_lookup_table(&enc, &many_id_lut);
+
+                for res in res {
+                    let dec = cks.decrypt(&res);
+
+                    assert_eq!(clear, dec);
+                }
+            }
+        }
     }
 }
