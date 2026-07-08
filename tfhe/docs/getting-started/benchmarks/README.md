@@ -14,7 +14,7 @@ make print_doc_bench_parameters
 
 {% hint style="info" %}
 Benchmarks in the Table below were launched on: 
- * CPU: using an `AWS hpc7a.96xlarge` instance equipped with two 96-core `AMD EPYC 9R14 CPU @ 2.60GHz` and 740GB of RAM
+ * CPU: using an `AWS hpc8a.96xlarge` instance equipped with two 96-core `AMD EPYC 9R45 CPU @ 2.30GHz` and 768GB of RAM
  * GPU: using 8xH100 GPU, and rely on the multithreaded PBS algorithm
  * HPU: using 1xv80 Alveo board
 {% endhint %}
