@@ -611,6 +611,16 @@ fn check_unsigned_value_and_re_rand_are_ok(
     let message_bits: u64 = cks.parameters().message_modulus().0.ilog2().into();
     let ct_bits = lhs_blocks.len() as u64 * message_bits;
 
+    assert!(
+        ct_bits <= u128::BITS as u64,
+        "ciphertext too large to decrypt properly"
+    );
+
+    let dec_lhs: u128 = cks.decrypt_radix(lhs);
+    let dec_rhs: u128 = cks.decrypt_radix(rhs);
+
+    assert_eq!(dec_lhs, dec_rhs);
+
     // The total number of blocks can be larger than the random bit count for bounded cases
     for (idx, (lhs_block, rhs_block)) in lhs_blocks.iter().zip(rhs_blocks.iter()).enumerate() {
         if idx < random_block_count {
@@ -622,19 +632,15 @@ fn check_unsigned_value_and_re_rand_are_ok(
         } else {
             // Upper blocks which are not random are trivial 0s;
             assert_eq!(lhs_block.ct.as_ref(), rhs_block.ct.as_ref());
-            assert!(lhs_block.ct.as_ref().iter().all(|&x| x == 0))
+            // Checks noise and masks are 0
+            assert!(lhs_block.is_trivial());
+            // Body of the LWE is also 0
+            assert!(*lhs_block.ct.get_body().data == 0);
+            let noise_degree = lhs_block.noise_degree();
+            // Degree is properly 0
+            assert!(noise_degree.degree.0 == 0);
         }
     }
-
-    assert!(
-        ct_bits <= u128::BITS as u64,
-        "ciphertext too large to decrypt properly"
-    );
-
-    let dec_lhs: u128 = cks.decrypt_radix(lhs);
-    let dec_rhs: u128 = cks.decrypt_radix(rhs);
-
-    assert_eq!(dec_lhs, dec_rhs);
 
     dec_lhs
 }
@@ -786,9 +792,10 @@ fn subtest_unsigned_integer_custom_range<TestRunner: OprfReRandTestRunner>(
     prf_re_randomization_context: &PrfReRandomizationContext,
 ) {
     let mut rng = rand::thread_rng();
-    // This may cause some values to not appear, but it's fine since we don't test uniformity
-    // Do not use in production
-    const INPUT_RANDOM_BIT_COUNT: u64 = 8;
+    // INPUT_RANDOM_BIT_COUNT needs to be >= OUTPUT_BIT_COUNT for the checks we run (it also makes
+    // no sense in production to generate less bits than what the output value can hold since you
+    // would not be able to generate all the possible values of the range)
+    const INPUT_RANDOM_BIT_COUNT: u64 = 16;
     const OUTPUT_BIT_COUNT: u64 = 16;
 
     let message_bits: u64 = cks.parameters().message_modulus().0.ilog2().into();
@@ -805,6 +812,9 @@ fn subtest_unsigned_integer_custom_range<TestRunner: OprfReRandTestRunner>(
 
         result
     };
+
+    println!("excluded_upper_bound={excluded_upper_bound:?}");
+
     let random_value_range = 0u128..excluded_upper_bound.get().into();
     // range_excluded_upper_bound is not a power of 2, get how many bits are necessary to
     // represent it via the ceil log2
