@@ -17,7 +17,9 @@
 //! ```
 
 use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-use benchmark::utilities::{write_to_json_unchecked, OperatorType};
+use benchmark::utilities::OperatorType;
+use benchmark_spec::tfhe::hlapi::transciphering::{AesFlavor, Transciphering};
+use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, HlapiBench, OperandType, TypeName};
 use criterion::measurement::WallTime;
 use criterion::{criterion_group, Bencher, BenchmarkGroup, Criterion};
 use rand::{Rng, SeedableRng};
@@ -29,15 +31,15 @@ use tfhe::transciphering::ciphers::aes::{
     AesFheRoundKeys, AesFheState, AesPlainKey, AesPlainState,
 };
 use tfhe::transciphering::{StreamCipher, Transcipherer};
+use tfhe_benchmark_parser::write_to_json;
 
 const N_BLOCKS: usize = 16;
 const BLOCK_BITS: usize = 128;
 const BLOCK_BYTES: usize = 16;
 
-fn bench_and_record<F>(
+fn bench_and_record<F, T: TypeName + ?Sized>(
     group: &mut BenchmarkGroup<'_, WallTime>,
-    id: &str,
-    param_name: &str,
+    benchmark_spec: &BenchmarkSpec<T>,
     display_name: &str,
     bit_size: u32,
     decomposition_basis: Vec<u32>,
@@ -46,12 +48,11 @@ fn bench_and_record<F>(
     F: FnMut(&mut Bencher<'_, WallTime>),
 {
     let recorded = std::sync::Once::new();
-    group.bench_function(id, |b| {
+    group.bench_function(benchmark_spec.to_string(), |b| {
         routine(b);
         recorded.call_once(|| {
-            write_to_json_unchecked(
-                id,
-                param_name,
+            write_to_json(
+                benchmark_spec,
                 display_name,
                 &OperatorType::Atomic,
                 bit_size,
@@ -85,11 +86,17 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
     let enc_key = AesPlainKey::from(key).encrypt(&cks);
 
     // ---- key_expansion ----
-    let id = format!("{bench_name}::{}::key_expansion", &param_name);
+    let benchmark_spec = BenchmarkSpec::<str>::new_hlapi(
+        HlapiBench::Transciphering(Transciphering::Aes(AesFlavor::KeyExpansion)),
+        &param_name,
+        OperandType::CipherText,
+        None,
+        BenchmarkMetric::Latency,
+        None,
+    );
     bench_and_record(
         &mut group,
-        &id,
-        &param_name,
+        &benchmark_spec,
         "aes_key_expansion",
         BLOCK_BITS as u32,
         vec![log2_msg; BLOCK_BITS],
@@ -102,11 +109,18 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
 
     // ---- key_expansion_plus_1_block ----
     // Cold-start cost: fresh key schedule + one CTR block keystream per iter.
-    let id = format!("{bench_name}::{}::key_expansion_plus_1_block", &param_name);
+
+    let benchmark_spec = BenchmarkSpec::<str>::new_hlapi(
+        HlapiBench::Transciphering(Transciphering::Aes(AesFlavor::KeyExpansionPlus1Block)),
+        &param_name,
+        OperandType::CipherText,
+        None,
+        BenchmarkMetric::Latency,
+        None,
+    );
     bench_and_record(
         &mut group,
-        &id,
-        &param_name,
+        &benchmark_spec,
         "aes_key_expansion_plus_1_block",
         BLOCK_BITS as u32,
         vec![log2_msg; BLOCK_BITS],
@@ -124,11 +138,18 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
     let mut stream = AesFheState::new(fhe_key, iv);
 
     // ---- keystream_1_block ----
-    let id = format!("{bench_name}::{}::keystream_1_block", &param_name);
+
+    let benchmark_spec = BenchmarkSpec::<str>::new_hlapi(
+        HlapiBench::Transciphering(Transciphering::Aes(AesFlavor::Keystream1Block)),
+        &param_name,
+        OperandType::CipherText,
+        None,
+        BenchmarkMetric::Latency,
+        None,
+    );
     bench_and_record(
         &mut group,
-        &id,
-        &param_name,
+        &benchmark_spec,
         "aes_keystream_1_block",
         BLOCK_BITS as u32,
         vec![log2_msg; BLOCK_BITS],
@@ -142,11 +163,18 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
 
     // ---- keystream_16_blocks ----
     let total_bits = BLOCK_BITS * N_BLOCKS;
-    let id = format!("{bench_name}::{}::keystream_16_blocks", &param_name);
+
+    let benchmark_spec = BenchmarkSpec::<str>::new_hlapi(
+        HlapiBench::Transciphering(Transciphering::Aes(AesFlavor::Keystream16Blocks)),
+        &param_name,
+        OperandType::CipherText,
+        None,
+        BenchmarkMetric::Latency,
+        None,
+    );
     bench_and_record(
         &mut group,
-        &id,
-        &param_name,
+        &benchmark_spec,
         "aes_keystream_16_blocks",
         total_bits as u32,
         vec![log2_msg; total_bits],
@@ -166,11 +194,17 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
     let message = vec![0u8; total_bytes];
     let sym_cipher = AesPlainState::new(key, iv).encrypt(&message);
 
-    let id = format!("{bench_name}::{}::transcipher_16_blocks", &param_name);
+    let benchmark_spec = BenchmarkSpec::<str>::new_hlapi(
+        HlapiBench::Transciphering(Transciphering::Aes(AesFlavor::Transcipher16Blocks)),
+        &param_name,
+        OperandType::CipherText,
+        None,
+        BenchmarkMetric::Latency,
+        None,
+    );
     bench_and_record(
         &mut group,
-        &id,
-        &param_name,
+        &benchmark_spec,
         "aes_transcipher_16_blocks",
         total_bits as u32,
         vec![log2_msg; total_bits],

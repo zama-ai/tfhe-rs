@@ -36,7 +36,7 @@ test_aes_transciphering_fast:
 bench_aes_transciphering:
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo bench \
-		--bench shortint-aes-transciphering \
+		--bench hlapi-aes-transciphering \
 		--features=shortint,internal-keycache \
 		-p tfhe-benchmark -- $(BENCH_FILTER)
 
@@ -52,7 +52,7 @@ bench_aes_keystream_16:
 
 .PHONY: bench_aes_key_expansion # AES: one-time key schedule cost
 bench_aes_key_expansion:
-	$(MAKE) bench_aes_transciphering BENCH_FILTER=key_expansion$$
+	$(MAKE) bench_aes_transciphering BENCH_FILTER=key_expansion::
 
 .PHONY: bench_aes_key_expansion_plus_1_block # AES: cold-start (key schedule + 1 CTR block)
 bench_aes_key_expansion_plus_1_block:

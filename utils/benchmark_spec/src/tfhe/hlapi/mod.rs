@@ -3,6 +3,7 @@ pub mod erc7984;
 pub mod kv_store;
 pub mod noise_squash;
 pub mod oprf;
+pub mod transciphering;
 
 use dex::Dex;
 use erc7984::Erc7984;
@@ -10,6 +11,7 @@ use kv_store::KvStoreOp;
 use noise_squash::NoiseSquashingKind;
 use oprf::OprfKind;
 use strum::Display;
+use transciphering::Transciphering;
 
 use crate::traits::SpecNode;
 
@@ -31,6 +33,7 @@ pub enum HlapiBench {
     KvStore(KvStoreOp),
     NoiseSquashing(NoiseSquashingKind),
     Oprf(OprfKind),
+    Transciphering(Transciphering),
 }
 
 impl SpecNode for HlapiBench {
@@ -42,6 +45,7 @@ impl SpecNode for HlapiBench {
             HlapiBench::KvStore(op) => op,
             HlapiBench::NoiseSquashing(op) => op,
             HlapiBench::Oprf(op) => op,
+            HlapiBench::Transciphering(op) => op,
         })
     }
 }
