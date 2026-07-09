@@ -1,8 +1,6 @@
-use core::fmt;
-
 use strum::Display;
 
-use crate::traits::SpecFmt;
+use crate::traits::{SpecLeafNode, SpecNode};
 
 /// DEX (decentralized exchange) benchmark operations for the HLAPI layer.
 #[derive(Debug, Clone, Copy, Display)]
@@ -12,18 +10,12 @@ pub enum Dex {
     SwapClaim(DexFlavor),
 }
 
-impl Dex {
-    fn op(&self) -> &dyn fmt::Display {
-        match self {
+impl SpecNode for Dex {
+    fn child(&self) -> Option<&dyn SpecNode> {
+        Some(match self {
             Dex::SwapRequest(op) => op,
             Dex::SwapClaim(op) => op,
-        }
-    }
-}
-
-impl SpecFmt for Dex {
-    fn fmt_spec(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "::{}::{}", self, self.op())
+        })
     }
 }
 
@@ -35,3 +27,5 @@ pub enum DexFlavor {
     Prepare,
     Finalize,
 }
+
+impl SpecLeafNode for DexFlavor {}

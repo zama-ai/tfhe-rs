@@ -1,7 +1,21 @@
 use std::fmt;
 
-/// Any level in the benchmark spec hierarchy must implement this.
-/// Used by layers (hlapi, integer...) and bench categories (ops, erc7984...).
-pub(crate) trait SpecFmt: fmt::Display {
-    fn fmt_spec(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
+pub(crate) trait SpecNode: fmt::Display {
+    fn child(&self) -> Option<&dyn SpecNode>;
+}
+
+pub(crate) trait SpecLeafNode: fmt::Display {}
+
+impl<T: SpecLeafNode> SpecNode for T {
+    fn child(&self) -> Option<&dyn SpecNode> {
+        None
+    }
+}
+
+pub(crate) fn write_spec(node: &dyn SpecNode, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "::{node}")?;
+    if let Some(child) = node.child() {
+        write_spec(child, f)?;
+    }
+    Ok(())
 }

@@ -3,10 +3,9 @@ pub mod hl_integer_op;
 pub mod hlapi;
 pub mod shortint;
 
-use std::fmt;
 use strum::Display;
 
-use crate::traits::SpecFmt;
+use crate::traits::SpecNode;
 
 pub use core_crypto::CoreCryptoBench;
 pub use hl_integer_op::HlIntegerOp;
@@ -17,9 +16,8 @@ pub use shortint::ShortintBench;
 ///
 /// Adding a new layer requires:
 /// 1. Add the variant here (strum handles the name)
-/// 2. Add a match arm in `bench()` — the inner type must implement `SpecFmt`
-///
-/// `SpecFmt` is already implemented generically — no change needed there.
+/// 2. Add a match arm in `child()` returning the inner type as `&dyn SpecNode` (the inner type must
+///    implement `SpecNode`).
 #[derive(Debug, Clone, Copy, Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum TfheLayer {
@@ -28,19 +26,12 @@ pub enum TfheLayer {
     Shortint(ShortintBench),
 }
 
-impl TfheLayer {
-    fn bench(&self) -> &dyn SpecFmt {
-        match self {
+impl SpecNode for TfheLayer {
+    fn child(&self) -> Option<&dyn SpecNode> {
+        Some(match self {
             TfheLayer::CoreCrypto(bench) => bench,
             TfheLayer::Hlapi(bench) => bench,
             TfheLayer::Shortint(bench) => bench,
-        }
-    }
-}
-
-impl SpecFmt for TfheLayer {
-    fn fmt_spec(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "::{self}")?;
-        self.bench().fmt_spec(f)
+        })
     }
 }
