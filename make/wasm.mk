@@ -16,7 +16,7 @@ build_web_js_api: install_wasm_pack
 	cd tfhe && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS)" wasm-pack build --release --target=web \
 		-- --features=boolean-js-wasm-api,integer-js-wasm-api,zk-pok,extended-types,cross-origin-wasm-api && \
-	find pkg/snippets -type f -iname worker_helpers.js -exec sed -i 's|import("../../..")|import("../../../tfhe.js")|g' {} \;
+	find pkg/snippets -type f -iname worker_helpers.js -exec $(SED_INPLACE) 's|import("../../..")|import("../../../tfhe.js")|g' {} \;
 	cp utils/wasm-par-mq/js/coordinator.js tfhe/pkg/
 	jq '.files += ["snippets"]' tfhe/pkg/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/pkg/package.json
 
@@ -29,7 +29,7 @@ build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack install_
 		rustup run $(RS_CHECK_TOOLCHAIN) wasm-pack build --release --target=web \
 		-- --features=boolean-js-wasm-api,integer-js-wasm-api,parallel-wasm-api,zk-pok,extended-types \
 		-Z build-std=panic_abort,std && \
-	find pkg/snippets -type f -iname workerHelpers.js -exec sed -i "s|const pkg = await import('..\/..\/..');|const pkg = await import('..\/..\/..\/tfhe.js');|" {} \;
+	find pkg/snippets -type f -iname workerHelpers.js -exec $(SED_INPLACE) "s|const pkg = await import('..\/..\/..');|const pkg = await import('..\/..\/..\/tfhe.js');|g" {} \;
 	jq '.files += ["snippets"]' tfhe/pkg/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/pkg/package.json
 
 .PHONY: build_node_js_api # Build the js API targeting nodejs
@@ -52,7 +52,7 @@ build_web_js_api_client: install_wasm_pack
 		--out-dir $(WEB_CLIENT_OUT_DIR) \
 		-- --no-default-features \
 		--features=integer-client-js-wasm-api,zk-pok,cross-origin-wasm-api && \
-	find $(WEB_CLIENT_OUT_DIR)/snippets -type f -iname worker_helpers.js -exec sed -i 's|import("../../..")|import("../../../tfhe.js")|g' {} \;
+	find $(WEB_CLIENT_OUT_DIR)/snippets -type f -iname worker_helpers.js -exec $(SED_INPLACE) 's|import("../../..")|import("../../../tfhe.js")|g' {} \;
 	cp utils/wasm-par-mq/js/coordinator.js tfhe/$(WEB_CLIENT_OUT_DIR)/
 	jq '.files += ["snippets"]' tfhe/$(WEB_CLIENT_OUT_DIR)/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/$(WEB_CLIENT_OUT_DIR)/package.json
 
@@ -67,5 +67,5 @@ build_web_js_api_parallel_client: install_rs_check_toolchain install_wasm_pack i
 		-- --no-default-features \
 		--features=integer-client-js-wasm-api,zk-pok,parallel-wasm-api \
 		-Z build-std=panic_abort,std && \
-	find $(WEB_CLIENT_OUT_DIR)/snippets -type f -iname workerHelpers.js -exec sed -i "s|const pkg = await import('..\/..\/..');|const pkg = await import('..\/..\/..\/tfhe.js');|" {} \;
+	find $(WEB_CLIENT_OUT_DIR)/snippets -type f -iname workerHelpers.js -exec $(SED_INPLACE) "s|const pkg = await import('..\/..\/..');|const pkg = await import('..\/..\/..\/tfhe.js');|g" {} \;
 	jq '.files += ["snippets"]' tfhe/$(WEB_CLIENT_OUT_DIR)/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/$(WEB_CLIENT_OUT_DIR)/package.json

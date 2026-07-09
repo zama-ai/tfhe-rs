@@ -40,6 +40,7 @@ TAPLO_VERSION=0.10.0
 TYPOS_VERSION=1.46.0
 ZIZMOR_VERSION=1.22.0
 CARGO_SEMVER_CHECKS_VERSION=0.47.0
+SED_INPLACE="$(shell pwd)/scripts/sed_inplace.sh"
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -1723,7 +1724,7 @@ WASM_PAR_MQ_TEST_DIR=utils/wasm-par-mq/web_tests
 build_wasm_par_mq_tests: install_wasm_pack
 	cd $(WASM_PAR_MQ_TEST_DIR) && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS)" wasm-pack build --target=web --out-dir pkg && \
-	find pkg/snippets -type f -iname worker_helpers.js -exec sed -i 's|import("../../..")|import("../../../wasm_par_mq_web_tests.js")|g' {} \;
+	find pkg/snippets -type f -iname worker_helpers.js -exec $(SED_INPLACE) 's|import("../../..")|import("../../../wasm_par_mq_web_tests.js")|g' {} +
 
 # This is an internal target, not meant to be called on its own.
 run_wasm_par_mq_tests: build_wasm_par_mq_tests setup_venv
