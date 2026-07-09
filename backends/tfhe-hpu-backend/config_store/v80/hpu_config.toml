@@ -103,32 +103,39 @@
   'IOP[35]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_35"
   'IOP[36]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/mul8b"
   'IOP[37]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_37"
-  'IOP[42]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/mhmul8f8"
+  'IOP[42]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/mhmul8f2"
+  'IOP[44]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/mhmul8f4"
+  'IOP[48]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/mhmul8f8"
 
 [firmware.custom_iop.integer_w_16]
   'IOP[21]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_16/cust_21"
   'IOP[33]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_16/cust_33"
-  'IOP[42]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_16/mhmul16f8"
+  'IOP[42]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_16/mhmul16f2"
+  'IOP[44]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_16/mhmul16f4"
+  'IOP[48]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_16/mhmul16f8"
 
 [firmware.custom_iop.integer_w_32]
   'IOP[33]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_32/cust_33"
   'IOP[40]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_32/cust_40"
   'IOP[41]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_32/mhmul32f4"
-  'IOP[42]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_32/mhmul32f8"
+  'IOP[42]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_32/mhmul32f2"
+  'IOP[44]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_32/mhmul32f4"
+  'IOP[48]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_32/mhmul32f8"
 
 [firmware.custom_iop.integer_w_64]
   'IOP[4]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/cust_4"
   'IOP[33]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/cust_33"
   'IOP[40]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/cust_40"
-  'IOP[41]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/mhmul64f4"
-  'IOP[42]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/mhmul64f8"
+  'IOP[42]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/mhmul64f2"
+  'IOP[44]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/mhmul64f4"
+  'IOP[48]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/mhmul64f8"
 
 [firmware.custom_iop.integer_w_128]
   'IOP[5]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/cust_5"
   'IOP[6]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/cust_6"
   'IOP[7]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/cust_7"
   'IOP[15]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/cust_15"
-  'IOP[42]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/mhmul128f8"
+  'IOP[48]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/mhmul128f8"
 
 [firmware.op_cfg.default]
   fill_batch_fifo = false
