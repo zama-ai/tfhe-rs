@@ -1,5 +1,7 @@
 use strum::Display;
 
+use crate::traits::SpecNode;
+
 /// Atomic operations shared across layers (hlapi, integer...).
 #[derive(Debug, Clone, Copy, Display)]
 #[strum(serialize_all = "snake_case")]
@@ -46,3 +48,5 @@ pub enum HlIntegerOp {
     TrailingOnes,
     TrailingZeros,
 }
+
+impl SpecNode for HlIntegerOp {}
