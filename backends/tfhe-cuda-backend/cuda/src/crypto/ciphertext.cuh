@@ -2,6 +2,7 @@
 #define CUDA_CIPHERTEXT_CUH
 
 #include "checked_arithmetic.h"
+#include "helper_profile.cuh"
 #include "ciphertext.h"
 #include "device.h"
 #include "polynomial/functions.cuh"
@@ -63,6 +64,7 @@ __host__ void host_sample_extract(cudaStream_t stream, uint32_t gpu_index,
                                   uint32_t num_lwes_to_extract_per_glwe,
                                   uint32_t num_lwes_stored_per_glwe,
                                   uint32_t glwe_dimension) {
+  PUSH_RANGE("SAMPLE_EXTRACT")
   cuda_set_device(gpu_index);
   dim3 grid(num_nths);
   dim3 thds(params::degree / params::opt);
@@ -70,6 +72,7 @@ __host__ void host_sample_extract(cudaStream_t stream, uint32_t gpu_index,
       lwe_array_out, glwe_array_in, nth_array, num_lwes_to_extract_per_glwe,
       num_lwes_stored_per_glwe, glwe_dimension);
   check_cuda_error(cudaGetLastError());
+  POP_RANGE()
 }
 
 #endif

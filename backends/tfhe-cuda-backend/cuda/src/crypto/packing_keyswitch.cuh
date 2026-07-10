@@ -6,6 +6,7 @@
 #include "device.h"
 #include "gadget.cuh"
 #include "helper_multi_gpu.h"
+#include "helper_profile.cuh"
 #include "keyswitch.cuh"
 #include "linearalgebra/multiplication.cuh"
 #include "polynomial/functions.cuh"
@@ -84,7 +85,7 @@ __host__ void host_packing_keyswitch_lwe_list_to_glwe(
     uint32_t base_log, uint32_t level_count, uint32_t num_lwes) {
 
   // Optimization of packing keyswitch when packing many LWEs
-
+PUSH_RANGE("PACKING_KEYSWITCH")
   cuda_set_device(gpu_index);
   check_cuda_error(cudaGetLastError());
 
@@ -184,6 +185,7 @@ __host__ void host_packing_keyswitch_lwe_list_to_glwe(
       glwe_out, d_mem_0, glwe_dimension, polynomial_size, num_lwes);
 
   check_cuda_error(cudaGetLastError());
+  POP_RANGE()
 }
 
 #endif

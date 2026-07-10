@@ -202,7 +202,7 @@ host_integer_compress(CudaStreams streams,
                       CudaPackedGlweCiphertextListFFI *glwe_array_out,
                       CudaLweCiphertextListFFI const *lwe_array_in,
                       Torus *const *fp_ksk, int_compression<Torus> *mem_ptr) {
-
+PUSH_RANGE("COMPRESS")
   static_assert(std::is_same_v<Torus, uint64_t> ||
                     std::is_same_v<Torus, __uint128_t>,
                 "Torus must be either uint64_t or __uint128_t");
@@ -288,6 +288,7 @@ host_integer_compress(CudaStreams streams,
                    (Torus *)glwe_array_out->ptr, tmp_glwe_array_out,
                    glwe_array_out->storage_log_modulus, num_glwes,
                    per_glwe_in_len, glwe_out_size);
+  POP_RANGE()
 }
 
 template <typename Torus>
@@ -402,7 +403,7 @@ host_integer_decompress(CudaStreams streams,
                         CudaPackedGlweCiphertextListFFI const *d_packed_glwe_in,
                         uint32_t const *h_indexes_array, void *const *d_bsks,
                         int_decompression<Torus> *h_mem_ptr) {
-
+PUSH_RANGE("DECOMPRESS")
   static_assert(std::is_same_v<Torus, uint64_t> ||
                     std::is_same_v<Torus, __uint128_t>,
                 "Torus must be either uint64_t or __uint128_t");
@@ -551,6 +552,7 @@ host_integer_decompress(CudaStreams streams,
     static_assert(std::is_same_v<Torus, __uint128_t>,
                   "Torus must be either uint64_t or __uint128_t");
   }
+  POP_RANGE()
 }
 
 template <typename Torus>
@@ -558,11 +560,12 @@ __host__ uint64_t scratch_cuda_compress_ciphertext(
     CudaStreams streams, int_compression<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params compression_params,
     uint32_t num_lwes_stored_per_glwe, bool allocate_gpu_memory) {
-
+PUSH_RANGE("COMPRESS scratch")
   uint64_t size_tracker = 0;
   *mem_ptr = new int_compression<Torus>(
       streams, compression_params, num_radix_blocks, num_lwes_stored_per_glwe,
       allocate_gpu_memory, size_tracker);
+      POP_RANGE()
   return size_tracker;
 }
 
@@ -571,11 +574,12 @@ __host__ uint64_t scratch_cuda_integer_decompress_radix_ciphertext(
     CudaStreams streams, int_decompression<Torus> **mem_ptr,
     uint32_t num_blocks_to_decompress, int_radix_params encryption_params,
     int_radix_params compression_params, bool allocate_gpu_memory) {
-
+PUSH_RANGE("DECOMPRESS scratch")
   uint64_t size_tracker = 0;
   *mem_ptr = new int_decompression<Torus>(
       streams, encryption_params, compression_params, num_blocks_to_decompress,
       allocate_gpu_memory, size_tracker);
+  POP_RANGE()
   return size_tracker;
 }
 #endif

@@ -126,40 +126,44 @@ void cuda_integer_compress_radix_ciphertext_128_async(
     CudaStreamsFFI streams, CudaPackedGlweCiphertextListFFI *glwe_array_out,
     CudaLweCiphertextListFFI const *lwe_array_in, void *const *fp_ksk,
     int8_t *mem_ptr) {
-
+  PUSH_RANGE("COMPRESS 128bit")
   host_integer_compress<__uint128_t>(
       CudaStreams(streams), glwe_array_out, lwe_array_in,
       (__uint128_t *const *)(fp_ksk), (int_compression<__uint128_t> *)mem_ptr);
+POP_RANGE()
 }
 void cuda_integer_decompress_radix_ciphertext_128_async(
     CudaStreamsFFI streams, CudaLweCiphertextListFFI *lwe_array_out,
     CudaPackedGlweCiphertextListFFI const *glwe_in,
     uint32_t const *indexes_array, int8_t *mem_ptr) {
-
+PUSH_RANGE("DECOMPRESS 128bit")
   host_integer_decompress<__uint128_t>(
       CudaStreams(streams), lwe_array_out, glwe_in, indexes_array, nullptr,
       (int_decompression<__uint128_t> *)mem_ptr);
+POP_RANGE()
 }
 void cleanup_cuda_integer_compress_radix_ciphertext_128(CudaStreamsFFI streams,
                                                         int8_t **mem_ptr_void) {
-
+  PUSH_RANGE("CLEANUP COMPRESS 128bit")
   int_compression<__uint128_t> *mem_ptr =
       (int_compression<__uint128_t> *)(*mem_ptr_void);
   mem_ptr->release(CudaStreams(streams));
 
   delete mem_ptr;
   *mem_ptr_void = nullptr;
+    POP_RANGE()
 }
 
 void cleanup_cuda_integer_decompress_radix_ciphertext_128(
     CudaStreamsFFI streams, int8_t **mem_ptr_void) {
-
+PUSH_RANGE("CLEANUP DECOMPRESS 128bit")
   int_decompression<__uint128_t> *mem_ptr =
       (int_decompression<__uint128_t> *)(*mem_ptr_void);
   mem_ptr->release(CudaStreams(streams));
 
   delete mem_ptr;
   *mem_ptr_void = nullptr;
+    POP_RANGE()
 }
 
 void cuda_integer_extract_glwe_128_async(
