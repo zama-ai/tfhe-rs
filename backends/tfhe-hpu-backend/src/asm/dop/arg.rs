@@ -349,24 +349,36 @@ impl FromAsm for field::PeSyncInsn {
             }
         };
 
-        let (is_inner_sync, flag) = if let Some(arg) = args.get(1) {
-            match arg {
-                Arg::UcoreFlag(flag) => (true, *flag),
+        let (is_inner_sync, hid, flag) = if args.len() > 1 {
+            let hid = match args[1] {
+                Arg::HpuId(vid) => vid,
+                _ => {
+                    return Err(Box::new(ParsingError::ArgType(
+                        "Arg::HpuId".to_string(),
+                        args[1].clone(),
+                    )))
+                }
+            };
+
+            let flag = match args[2] {
+                Arg::UcoreFlag(flag) => flag,
                 _ => {
                     return Err(Box::new(ParsingError::ArgType(
                         "Arg::UcoreFlag".to_string(),
                         args[1].clone(),
                     )))
                 }
-            }
+            };
+            (true, hid, flag)
         } else {
-            (false, Default::default())
+            (false, Default::default(), Default::default())
         };
 
         Ok(Self {
             opcode: Opcode::from(opcode),
-            iid,
             is_inner_sync,
+            iid,
+            hid,
             flag,
         })
     }
