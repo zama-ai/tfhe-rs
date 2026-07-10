@@ -119,6 +119,7 @@ pub enum Section {
     PeAlu,
     Isc,
     Arch,
+    MhDma,
 }
 
 /// Action for the Memory command
@@ -347,6 +348,10 @@ fn read_register_by_section(hw: &mut ffi::HpuHw, regmap: &FlatRegmap, section: &
                 rtl::runtime::InfoIsc::from_rtl(hw, &regmap)
             ),
             Section::Arch => println!("{sec} registers {:?}", HpuParameters::from_rtl(hw, &regmap)),
+            Section::MhDma => println!(
+                "{sec} registers {:?}",
+                rtl::runtime::InfoMhDma::from_rtl(hw, &regmap)
+            ),
         }
     }
 }
@@ -385,6 +390,7 @@ fn reset_register_by_section(hw: &mut ffi::HpuHw, regmap: &FlatRegmap, section: 
         }
     }
 }
+
 
 fn read_mem(hw: &mut ffi::HpuHw, addr: u64, size_b: usize) -> Vec<u8> {
     let mut data = vec![0; size_b];
