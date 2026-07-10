@@ -275,6 +275,10 @@ jobs:
             printf '\n[patch.crates-io]\n'
             printf 'tfhe = { path = "../../../tfhe" }\n'
           } >> fhevm/coprocessor/fhevm-engine/Cargo.toml
+          # This branch's tfhe-rs pulls newer transitive deps (e.g. tfhe-csprng -> libc
+          # >=0.2.186) than fhevm's committed Cargo.lock pins, so refresh the lock to
+          # re-resolve against the patched tfhe.
+          cargo update --manifest-path fhevm/coprocessor/fhevm-engine/Cargo.toml
 
       - name: Profile erc20 no-cmux benchmark on GPU
         run: |
