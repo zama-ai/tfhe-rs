@@ -932,3 +932,666 @@ impl ErrorHpu {
         self.error_3in3 = ffi_hw.read_reg(*reg.offset() as u64);
     }
 }
+
+// =====================================================================================================================
+// MhDma register section
+// Covers all registers defined in hpu_regif_core_mhdma_2in3.toml:
+//   mhdma_system, mhdma_reset, mhdma_request (stats), mhdma_lane, mhdma_hbm_axi4_addr_2in3
+// =====================================================================================================================
+#[derive(Default)]
+pub struct InfoMhDma {
+    // --- mhdma_system ---
+    lane: u32,
+    timeout_notify: u32,
+    timeout_read_req: u32,
+    retry_max: u32,
+    fsm_value: u32,
+    errors: u32,
+    hpu_id: [u32; 8],
+
+    // --- mhdma_reset ---
+    datapath: u32,
+    monitor: u32,
+
+    // --- mhdma_request: completion descriptors ---
+    notify_req_id: u32,
+    notify_req_addr: u32,
+    read_request_req_id: u32,
+    read_request: u32,
+
+    // --- mhdma_request: TX statistics ---
+    stat_notify: u32,
+    stat_notify_ack: u32,
+    stat_notify_timeout_retry: u32,
+    stat_read_req_timeout_retry: u32,
+    stat_read_req_seq_num_retry: u32,
+    stat_nb_notify_sent: u32,
+    stat_nb_ce_sent: u32,
+    stat_nb_notify_ack_sent: u32,
+    stat_nb_read_req_sent: u32,
+
+    // --- mhdma_request: RX statistics ---
+    stat_nb_nack_received: u32,
+    stat_nb_notify_received: u32,
+    stat_nb_read_req_received: u32,
+    stat_nb_ce_received: u32,
+    stat_nb_decoder_dropped: u32,
+
+    // --- mhdma_request: HBM / data-path statistics ---
+    stat_nb_read_to_hbm: u32,
+    stat_nb_words_received_pc: [u32; 2],
+    stat_nb_ce_words_received: u32,
+    stat_cnt_nb_write_complete: u32,
+    stat_physical_addr: [u32; 4],
+
+    // --- mhdma_request: latency statistics ---
+    stat_t_notify_to_ack: u32,
+    stat_t_notify_to_ack_max: u32,
+    stat_t_notify_to_ack_min: u32,
+    stat_t_rr_to_ce_received: u32,
+    stat_t_rr_to_ce_received_max: u32,
+    stat_t_rr_to_ce_received_min: u32,
+    stat_t_ce_first_to_last_pkt: u32,
+    stat_t_rr_wait_words_pc: [u32; 2],
+    stat_cur_notify_to_ack: u32,
+    stat_t_hbm_write_latency: u32,
+    stat_t_hbm_write_latency_max: u32,
+    stat_t_hbm_write_latency_min: u32,
+
+    // --- mhdma_lane ---
+    lane_debug: u32,
+
+    // --- mhdma_hbm_axi4_addr_2in3 ---
+    ct_addr: [u32; 4],
+}
+
+impl std::fmt::Debug for InfoMhDma {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InfoMhDma")
+            // system
+            .field("lane", &format_args!("{:#010x}", self.lane))
+            .field("timeout_notify", &self.timeout_notify)
+            .field("timeout_read_req", &self.timeout_read_req)
+            .field("retry_max", &format_args!("{:#010x}", self.retry_max))
+            .field("fsm_value", &format_args!("{:#010x}", self.fsm_value))
+            .field("errors", &format_args!("{:#010x}", self.errors))
+            .field("hpu_id", &self.hpu_id.map(|v| format!("{v:#010x}")))
+            // reset
+            .field("datapath", &format_args!("{:#010x}", self.datapath))
+            .field("monitor", &format_args!("{:#010x}", self.monitor))
+            // completion descriptors
+            .field(
+                "notify_req_id",
+                &format_args!("{:#010x}", self.notify_req_id),
+            )
+            .field(
+                "notify_req_addr",
+                &format_args!("{:#010x}", self.notify_req_addr),
+            )
+            .field(
+                "read_request_req_id",
+                &format_args!("{:#010x}", self.read_request_req_id),
+            )
+            .field("read_request", &format_args!("{:#010x}", self.read_request))
+            // TX stats
+            .field("stat_notify", &self.stat_notify)
+            .field("stat_notify_ack", &self.stat_notify_ack)
+            .field("stat_notify_timeout_retry", &self.stat_notify_timeout_retry)
+            .field(
+                "stat_read_req_timeout_retry",
+                &self.stat_read_req_timeout_retry,
+            )
+            .field(
+                "stat_read_req_seq_num_retry",
+                &self.stat_read_req_seq_num_retry,
+            )
+            .field("stat_nb_notify_sent", &self.stat_nb_notify_sent)
+            .field("stat_nb_ce_sent", &self.stat_nb_ce_sent)
+            .field("stat_nb_notify_ack_sent", &self.stat_nb_notify_ack_sent)
+            .field("stat_nb_read_req_sent", &self.stat_nb_read_req_sent)
+            // RX stats
+            .field("stat_nb_nack_received", &self.stat_nb_nack_received)
+            .field("stat_nb_notify_received", &self.stat_nb_notify_received)
+            .field("stat_nb_read_req_received", &self.stat_nb_read_req_received)
+            .field("stat_nb_ce_received", &self.stat_nb_ce_received)
+            .field("stat_nb_decoder_dropped", &self.stat_nb_decoder_dropped)
+            // HBM / data-path stats
+            .field("stat_nb_read_to_hbm", &self.stat_nb_read_to_hbm)
+            .field("stat_nb_words_received_pc", &self.stat_nb_words_received_pc)
+            .field("stat_nb_ce_words_received", &self.stat_nb_ce_words_received)
+            .field(
+                "stat_cnt_nb_write_complete",
+                &self.stat_cnt_nb_write_complete,
+            )
+            .field(
+                "stat_physical_addr",
+                &self.stat_physical_addr.map(|v| format!("{v:#010x}")),
+            )
+            // latency stats
+            .field("stat_t_notify_to_ack", &self.stat_t_notify_to_ack)
+            .field("stat_t_notify_to_ack_max", &self.stat_t_notify_to_ack_max)
+            .field("stat_t_notify_to_ack_min", &self.stat_t_notify_to_ack_min)
+            .field("stat_t_rr_to_ce_received", &self.stat_t_rr_to_ce_received)
+            .field(
+                "stat_t_rr_to_ce_received_max",
+                &self.stat_t_rr_to_ce_received_max,
+            )
+            .field(
+                "stat_t_rr_to_ce_received_min",
+                &self.stat_t_rr_to_ce_received_min,
+            )
+            .field(
+                "stat_t_ce_first_to_last_pkt",
+                &self.stat_t_ce_first_to_last_pkt,
+            )
+            .field("stat_t_rr_wait_words_pc", &self.stat_t_rr_wait_words_pc)
+            .field("stat_cur_notify_to_ack", &self.stat_cur_notify_to_ack)
+            .field("stat_t_hbm_write_latency", &self.stat_t_hbm_write_latency)
+            .field(
+                "stat_t_hbm_write_latency_max",
+                &self.stat_t_hbm_write_latency_max,
+            )
+            .field(
+                "stat_t_hbm_write_latency_min",
+                &self.stat_t_hbm_write_latency_min,
+            )
+            // lane debug
+            .field("lane_debug", &format_args!("{:#010x}", self.lane_debug))
+            // HBM addresses
+            .field("ct_addr", &self.ct_addr.map(|v| format!("{v:#010x}")))
+            .finish()
+    }
+}
+
+impl FromRtl for InfoMhDma {
+    fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
+        let mut infos = Self::default();
+        infos.update(ffi_hw, regmap);
+        infos
+    }
+}
+
+impl InfoMhDma {
+    pub fn update(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        // system
+        self.update_lane(ffi_hw, regmap);
+        self.update_timeout_notify(ffi_hw, regmap);
+        self.update_timeout_read_req(ffi_hw, regmap);
+        self.update_retry_max(ffi_hw, regmap);
+        self.update_fsm_value(ffi_hw, regmap);
+        self.update_errors(ffi_hw, regmap);
+        self.update_hpu_id(ffi_hw, regmap);
+        // reset
+        self.update_datapath(ffi_hw, regmap);
+        self.update_monitor(ffi_hw, regmap);
+        // completion descriptors
+        self.update_notify_req_id(ffi_hw, regmap);
+        self.update_notify_req_addr(ffi_hw, regmap);
+        self.update_read_request_req_id(ffi_hw, regmap);
+        self.update_read_request(ffi_hw, regmap);
+        // TX stats
+        self.update_stat_notify(ffi_hw, regmap);
+        self.update_stat_notify_ack(ffi_hw, regmap);
+        self.update_stat_notify_timeout_retry(ffi_hw, regmap);
+        self.update_stat_read_req_timeout_retry(ffi_hw, regmap);
+        self.update_stat_read_req_seq_num_retry(ffi_hw, regmap);
+        self.update_stat_nb_notify_sent(ffi_hw, regmap);
+        self.update_stat_nb_ce_sent(ffi_hw, regmap);
+        self.update_stat_nb_notify_ack_sent(ffi_hw, regmap);
+        self.update_stat_nb_read_req_sent(ffi_hw, regmap);
+        // RX stats
+        self.update_stat_nb_nack_received(ffi_hw, regmap);
+        self.update_stat_nb_notify_received(ffi_hw, regmap);
+        self.update_stat_nb_read_req_received(ffi_hw, regmap);
+        self.update_stat_nb_ce_received(ffi_hw, regmap);
+        self.update_stat_nb_decoder_dropped(ffi_hw, regmap);
+        // HBM / data-path stats
+        self.update_stat_nb_read_to_hbm(ffi_hw, regmap);
+        self.update_stat_nb_words_received_pc(ffi_hw, regmap);
+        self.update_stat_nb_ce_words_received(ffi_hw, regmap);
+        self.update_stat_cnt_nb_write_complete(ffi_hw, regmap);
+        self.update_stat_physical_addr(ffi_hw, regmap);
+        // latency stats
+        self.update_stat_t_notify_to_ack(ffi_hw, regmap);
+        self.update_stat_t_notify_to_ack_max(ffi_hw, regmap);
+        self.update_stat_t_notify_to_ack_min(ffi_hw, regmap);
+        self.update_stat_t_rr_to_ce_received(ffi_hw, regmap);
+        self.update_stat_t_rr_to_ce_received_max(ffi_hw, regmap);
+        self.update_stat_t_rr_to_ce_received_min(ffi_hw, regmap);
+        self.update_stat_t_ce_first_to_last_pkt(ffi_hw, regmap);
+        self.update_stat_t_rr_wait_words_pc(ffi_hw, regmap);
+        self.update_stat_cur_notify_to_ack(ffi_hw, regmap);
+        self.update_stat_t_hbm_write_latency(ffi_hw, regmap);
+        self.update_stat_t_hbm_write_latency_max(ffi_hw, regmap);
+        self.update_stat_t_hbm_write_latency_min(ffi_hw, regmap);
+        // lane debug
+        self.update_lane_debug(ffi_hw, regmap);
+        // HBM addresses
+        self.update_ct_addr(ffi_hw, regmap);
+    }
+
+    // --- mhdma_system ---
+    pub fn update_lane(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_system::lane")
+            .expect("Unknown register, check regmap definition");
+        self.lane = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_timeout_notify(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_system::timeout_notify")
+            .expect("Unknown register, check regmap definition");
+        self.timeout_notify = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_timeout_read_req(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_system::timeout_read_req")
+            .expect("Unknown register, check regmap definition");
+        self.timeout_read_req = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_retry_max(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_system::retry_max")
+            .expect("Unknown register, check regmap definition");
+        self.retry_max = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_fsm_value(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_system::fsm_value")
+            .expect("Unknown register, check regmap definition");
+        self.fsm_value = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_errors(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_system::errors")
+            .expect("Unknown register, check regmap definition");
+        self.errors = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_hpu_id(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        for i in 0..8_usize {
+            let reg_name = format!("mhdma_system::hpu_id_{i}");
+            let reg = regmap
+                .register()
+                .get(&reg_name)
+                .expect("Unknown register, check regmap definition");
+            self.hpu_id[i] = ffi_hw.read_reg(*reg.offset() as u64);
+        }
+    }
+
+    // --- mhdma_reset ---
+    pub fn update_datapath(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_reset::datapath")
+            .expect("Unknown register, check regmap definition");
+        self.datapath = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_monitor(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_reset::monitor")
+            .expect("Unknown register, check regmap definition");
+        self.monitor = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+
+    // --- mhdma_request: completion descriptors ---
+    pub fn update_notify_req_id(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::notify_req_id")
+            .expect("Unknown register, check regmap definition");
+        self.notify_req_id = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_notify_req_addr(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::notify_req_addr")
+            .expect("Unknown register, check regmap definition");
+        self.notify_req_addr = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_read_request_req_id(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::read_request_req_id")
+            .expect("Unknown register, check regmap definition");
+        self.read_request_req_id = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_read_request(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::read_request")
+            .expect("Unknown register, check regmap definition");
+        self.read_request = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+
+    // --- mhdma_request: TX statistics ---
+    pub fn update_stat_notify(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_notify")
+            .expect("Unknown register, check regmap definition");
+        self.stat_notify = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_notify_ack(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_notify_ack")
+            .expect("Unknown register, check regmap definition");
+        self.stat_notify_ack = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_notify_timeout_retry(
+        &mut self,
+        ffi_hw: &mut ffi::HpuHw,
+        regmap: &FlatRegmap,
+    ) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_notify_timeout_retry")
+            .expect("Unknown register, check regmap definition");
+        self.stat_notify_timeout_retry = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_read_req_timeout_retry(
+        &mut self,
+        ffi_hw: &mut ffi::HpuHw,
+        regmap: &FlatRegmap,
+    ) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_read_req_timeout_retry")
+            .expect("Unknown register, check regmap definition");
+        self.stat_read_req_timeout_retry = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_read_req_seq_num_retry(
+        &mut self,
+        ffi_hw: &mut ffi::HpuHw,
+        regmap: &FlatRegmap,
+    ) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_read_req_seq_num_retry")
+            .expect("Unknown register, check regmap definition");
+        self.stat_read_req_seq_num_retry = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_nb_notify_sent(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_nb_notify_sent")
+            .expect("Unknown register, check regmap definition");
+        self.stat_nb_notify_sent = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_nb_ce_sent(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_nb_ce_sent")
+            .expect("Unknown register, check regmap definition");
+        self.stat_nb_ce_sent = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_nb_notify_ack_sent(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_nb_notify_ack_sent")
+            .expect("Unknown register, check regmap definition");
+        self.stat_nb_notify_ack_sent = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_nb_read_req_sent(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_nb_read_req_sent")
+            .expect("Unknown register, check regmap definition");
+        self.stat_nb_read_req_sent = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+
+    // --- mhdma_request: RX statistics ---
+    pub fn update_stat_nb_nack_received(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_nb_nack_received")
+            .expect("Unknown register, check regmap definition");
+        self.stat_nb_nack_received = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_nb_notify_received(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_nb_notify_received")
+            .expect("Unknown register, check regmap definition");
+        self.stat_nb_notify_received = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_nb_read_req_received(
+        &mut self,
+        ffi_hw: &mut ffi::HpuHw,
+        regmap: &FlatRegmap,
+    ) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_nb_read_req_received")
+            .expect("Unknown register, check regmap definition");
+        self.stat_nb_read_req_received = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_nb_ce_received(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_nb_ce_received")
+            .expect("Unknown register, check regmap definition");
+        self.stat_nb_ce_received = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_nb_decoder_dropped(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_nb_decoder_dropped")
+            .expect("Unknown register, check regmap definition");
+        self.stat_nb_decoder_dropped = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+
+    // --- mhdma_request: HBM / data-path statistics ---
+    pub fn update_stat_nb_read_to_hbm(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_nb_read_to_hbm")
+            .expect("Unknown register, check regmap definition");
+        self.stat_nb_read_to_hbm = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_nb_words_received_pc(
+        &mut self,
+        ffi_hw: &mut ffi::HpuHw,
+        regmap: &FlatRegmap,
+    ) {
+        for (i, suffix) in ["_pc0", "_pc1"].iter().enumerate() {
+            let reg_name = format!("mhdma_request::stat_nb_words_received_pc{suffix}");
+            let reg = regmap
+                .register()
+                .get(&reg_name)
+                .expect("Unknown register, check regmap definition");
+            self.stat_nb_words_received_pc[i] = ffi_hw.read_reg(*reg.offset() as u64);
+        }
+    }
+    pub fn update_stat_nb_ce_words_received(
+        &mut self,
+        ffi_hw: &mut ffi::HpuHw,
+        regmap: &FlatRegmap,
+    ) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_nb_ce_words_received")
+            .expect("Unknown register, check regmap definition");
+        self.stat_nb_ce_words_received = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_cnt_nb_write_complete(
+        &mut self,
+        ffi_hw: &mut ffi::HpuHw,
+        regmap: &FlatRegmap,
+    ) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_cnt_nb_write_complete")
+            .expect("Unknown register, check regmap definition");
+        self.stat_cnt_nb_write_complete = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_physical_addr(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        for (i, suffix) in ["_pc0_lsb", "_pc0_msb", "_pc1_lsb", "_pc1_msb"]
+            .iter()
+            .enumerate()
+        {
+            let reg_name = format!("mhdma_request::stat_physical_addr{suffix}");
+            let reg = regmap
+                .register()
+                .get(&reg_name)
+                .expect("Unknown register, check regmap definition");
+            self.stat_physical_addr[i] = ffi_hw.read_reg(*reg.offset() as u64);
+        }
+    }
+
+    // --- mhdma_request: latency statistics ---
+    pub fn update_stat_t_notify_to_ack(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_t_notify_to_ack")
+            .expect("Unknown register, check regmap definition");
+        self.stat_t_notify_to_ack = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_t_notify_to_ack_max(
+        &mut self,
+        ffi_hw: &mut ffi::HpuHw,
+        regmap: &FlatRegmap,
+    ) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_t_notify_to_ack_max")
+            .expect("Unknown register, check regmap definition");
+        self.stat_t_notify_to_ack_max = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_t_notify_to_ack_min(
+        &mut self,
+        ffi_hw: &mut ffi::HpuHw,
+        regmap: &FlatRegmap,
+    ) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_t_notify_to_ack_min")
+            .expect("Unknown register, check regmap definition");
+        self.stat_t_notify_to_ack_min = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_t_rr_to_ce_received(
+        &mut self,
+        ffi_hw: &mut ffi::HpuHw,
+        regmap: &FlatRegmap,
+    ) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_t_rr_to_ce_received")
+            .expect("Unknown register, check regmap definition");
+        self.stat_t_rr_to_ce_received = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_t_rr_to_ce_received_max(
+        &mut self,
+        ffi_hw: &mut ffi::HpuHw,
+        regmap: &FlatRegmap,
+    ) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_t_rr_to_ce_received_max")
+            .expect("Unknown register, check regmap definition");
+        self.stat_t_rr_to_ce_received_max = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_t_rr_to_ce_received_min(
+        &mut self,
+        ffi_hw: &mut ffi::HpuHw,
+        regmap: &FlatRegmap,
+    ) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_t_rr_to_ce_received_min")
+            .expect("Unknown register, check regmap definition");
+        self.stat_t_rr_to_ce_received_min = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_t_ce_first_to_last_pkt(
+        &mut self,
+        ffi_hw: &mut ffi::HpuHw,
+        regmap: &FlatRegmap,
+    ) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_t_ce_first_to_last_pkt")
+            .expect("Unknown register, check regmap definition");
+        self.stat_t_ce_first_to_last_pkt = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_t_rr_wait_words_pc(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        for (i, suffix) in ["_pc0", "_pc1"].iter().enumerate() {
+            let reg_name = format!("mhdma_request::stat_t_rr_wait_words_pc{suffix}");
+            let reg = regmap
+                .register()
+                .get(&reg_name)
+                .expect("Unknown register, check regmap definition");
+            self.stat_t_rr_wait_words_pc[i] = ffi_hw.read_reg(*reg.offset() as u64);
+        }
+    }
+    pub fn update_stat_cur_notify_to_ack(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_cur_notify_to_ack")
+            .expect("Unknown register, check regmap definition");
+        self.stat_cur_notify_to_ack = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_t_hbm_write_latency(
+        &mut self,
+        ffi_hw: &mut ffi::HpuHw,
+        regmap: &FlatRegmap,
+    ) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_t_hbm_write_latency")
+            .expect("Unknown register, check regmap definition");
+        self.stat_t_hbm_write_latency = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_t_hbm_write_latency_max(
+        &mut self,
+        ffi_hw: &mut ffi::HpuHw,
+        regmap: &FlatRegmap,
+    ) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_t_hbm_write_latency_max")
+            .expect("Unknown register, check regmap definition");
+        self.stat_t_hbm_write_latency_max = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+    pub fn update_stat_t_hbm_write_latency_min(
+        &mut self,
+        ffi_hw: &mut ffi::HpuHw,
+        regmap: &FlatRegmap,
+    ) {
+        let reg = regmap
+            .register()
+            .get("mhdma_request::stat_t_hbm_write_latency_min")
+            .expect("Unknown register, check regmap definition");
+        self.stat_t_hbm_write_latency_min = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+
+    // --- mhdma_lane ---
+    pub fn update_lane_debug(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("mhdma_lane::debug")
+            .expect("Unknown register, check regmap definition");
+        self.lane_debug = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+
+    // --- mhdma_hbm_axi4_addr_2in3 ---
+    pub fn update_ct_addr(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        for (i, suffix) in ["_pc0_lsb", "_pc0_msb", "_pc1_lsb", "_pc1_msb"]
+            .iter()
+            .enumerate()
+        {
+            let reg_name = format!("mhdma_hbm_axi4_addr_2in3::ct{suffix}");
+            let reg = regmap
+                .register()
+                .get(&reg_name)
+                .expect("Unknown register, check regmap definition");
+            self.ct_addr[i] = ffi_hw.read_reg(*reg.offset() as u64);
+        }
+    }
+}
