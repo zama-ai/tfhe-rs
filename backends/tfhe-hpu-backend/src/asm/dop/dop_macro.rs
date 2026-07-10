@@ -231,7 +231,7 @@ macro_rules! impl_dop {
             pub struct [<DOp $asm:camel>](pub PeSyncInsn);
 
             impl [<DOp $asm:camel>] {
-                pub fn new(iid: IOpId, flag: Option<UserFlag> ) -> Self {
+                pub fn new(iid: IOpId, hid: VirtId, flag: Option<UserFlag> ) -> Self {
                     let (is_inner_sync, inner_flag) = if let Some(inner_flag) = flag {
                         (true, inner_flag)
                         } else {
@@ -239,8 +239,9 @@ macro_rules! impl_dop {
                             };
                     Self(PeSyncInsn {
                         opcode: $opcode,
-                        iid,
                         is_inner_sync,
+                        iid,
+                        hid,
                         flag: inner_flag,
                         })
                 }

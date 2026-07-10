@@ -387,8 +387,9 @@ pub struct PeMemInsn {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PeSyncInsn {
     pub flag: UserFlag,
-    pub is_inner_sync: bool,
+    pub hid: VirtId,
     pub iid: IOpId,
+    pub is_inner_sync: bool,
     pub opcode: Opcode,
 }
 

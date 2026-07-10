@@ -31,7 +31,7 @@ PBS R2 R1 PbsNone
 PBS_F R2 R1 PbsCarryInMsg
 
 ; Test Ucore operation
-SYNC   iid0 F1
+SYNC   iid0 N0 F1
 WAIT   F0 TH.0
 NOTIFY N1 F3 TH.2
 LD_B2B F4 TS[0].0

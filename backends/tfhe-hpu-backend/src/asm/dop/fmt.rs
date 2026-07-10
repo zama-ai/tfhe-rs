@@ -193,13 +193,19 @@ impl From<&PeMemHex> for PeMemInsn {
 /// PeSync instructions
 #[bitfield(u32)]
 pub struct PeSyncHex {
-    #[bits(11)]
-    _pad: u32,
     #[bits(6)]
     flag: u8,
-    is_inner_sync: bool,
+    #[bits(2)]
+    _pad_a: u32,
+    #[bits(3)]
+    hid: u8,
+    #[bits(5)]
+    _pad_b: u32,
     #[bits(8)]
     iid: u8,
+    is_inner_sync: bool,
+    #[bits(1)]
+    _pad_c: u8,
     #[bits(6)]
     opcode: u8,
 }
@@ -216,8 +222,9 @@ impl From<&PeSyncHex> for PeSyncInsn {
     fn from(value: &PeSyncHex) -> Self {
         Self {
             flag: UserFlag(value.flag()),
-            is_inner_sync: value.is_inner_sync(),
+            hid: VirtId(value.hid()),
             iid: IOpId(value.iid()),
+            is_inner_sync: value.is_inner_sync(),
             opcode: Opcode::from(value.opcode()),
         }
     }
