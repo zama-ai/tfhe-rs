@@ -171,11 +171,18 @@ jobs:
           gcc-version: ${{ matrix.gcc }}
           cloud-provider: ${{ needs.parse-inputs.outputs.cloud_provider }}
 
-      - name: Checkout tfhe-rs in fhevm coprocessor
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          path: fhevm/coprocessor/tfhe-rs
-          persist-credentials: false
+      # Disabled: this checked out a *fresh* tfhe-rs into the coprocessor. Instead we build
+      # the fhevm bench against the tfhe-rs already checked out at the workspace root (this
+      # CI branch), via a [patch.crates-io] applied later (see "Pin fhevm-engine to this
+      # branch's tfhe-rs"). tfhe-rs must stay at the root because the gpu_setup action
+      # resolves ci/*.sh relative to the workspace root. The patch is applied only after
+      # `init_db` so it does not leak into that step's Docker build (whose context does not
+      # contain the root tfhe-rs).
+      # - name: Checkout tfhe-rs in fhevm coprocessor
+      #   uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      #   with:
+      #     path: fhevm/coprocessor/tfhe-rs
+      #     persist-credentials: false
 
       - name: Checkout LFS objects
         run: git lfs checkout
@@ -189,7 +196,6 @@ jobs:
       - name: Install Safe-chain
         run: |
           make install_aikido_safe_chain_ci
-        working-directory: fhevm/coprocessor/tfhe-rs
 
       - name: Install cargo dependencies
         run: |
@@ -254,6 +260,22 @@ jobs:
           npm install && npm run deploy:emptyProxies && npx hardhat compile
         working-directory: fhevm/
 
+      - name: Pin fhevm-engine to this branch's tfhe-rs
+        run: |
+          # Applied here (after init_db) so it does not leak into init_db's Docker build,
+          # whose build context does not include the root tfhe-rs. Only the native
+          # `cargo bench` below needs to link this branch.
+          #
+          # fhevm pins `tfhe = "=1.6.2"` from crates.io, so a [patch.crates-io] only applies
+          # if the local crate reports that exact version. Make this checkout report it.
+          sed -i '0,/^version = "[^"]*"/ s//version = "1.6.2"/' tfhe/Cargo.toml
+          # Point fhevm-engine at this checked-out tfhe-rs (workspace root) so the bench
+          # builds this branch instead of the crates.io release.
+          {
+            printf '\n[patch.crates-io]\n'
+            printf 'tfhe = { path = "../../../tfhe" }\n'
+          } >> fhevm/coprocessor/fhevm-engine/Cargo.toml
+
       - name: Profile erc20 no-cmux benchmark on GPU
         run: |
           export DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/coprocessor"
@@ -263,6 +285,8 @@ jobs:
           export BENCHMARK_TYPE="THROUGHPUT_200"
           export OPTIMIZATION_TARGET="${OPTIMIZATION_TARGET}"
           #export FHEVM_TEST_NUM_SAMPLES=20
+          export RAYON_NUM_THREADS=32 
+          export CUDA_DEVICE_MAX_CONNECTIONS=32
           export CUDA_VISIBLE_DEVICES=0
           cargo +nightly bench --no-run --bench erc20 --features=gpu-profile,bench,"${OPTIMIZATION_TARGET}" --
           sudo -E env "PATH=$PATH" numactl --cpunodebind=0 --membind=0 \
@@ -312,13 +336,12 @@ jobs:
           --walk-subdirs \
           --params-dir "${GITHUB_WORKSPACE}/fhevm/coprocessor/fhevm-engine/tfhe-worker" \
           --name-suffix "operation_batch_size_${BATCH_SIZE}-schedule_${SCHEDULING_POLICY}-optimization_target_${OPTIMIZATION_TARGET}"
-        working-directory: fhevm/coprocessor/tfhe-rs
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ env.COMMIT_SHA }}_${{ env.BENCHMARKS }}_${{ needs.parse-inputs.outputs.profile }}
-          path: fhevm/coprocessor/tfhe-rs/${{ env.RESULTS_FILENAME }}
+          path: ${{ env.RESULTS_FILENAME }}
 
       - name: Checkout Slab repo
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -333,7 +356,7 @@ jobs:
         env:
           SLAB_URL: ${{ secrets.SLAB_URL }}
         run: |
-          python3 slab/scripts/data_sender.py fhevm/coprocessor/tfhe-rs/"${RESULTS_FILENAME}" "${SLAB_SECRET}" \
+          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${SLAB_SECRET}" \
           --slab-url "${SLAB_URL}"
 
   teardown-instance:
