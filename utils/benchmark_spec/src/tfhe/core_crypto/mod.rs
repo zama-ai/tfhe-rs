@@ -21,6 +21,7 @@ pub enum CoreCryptoBench {
     MultiBitDeterministicKsPbs,
     // pbs128_bench.rs
     Pbs128,
+    Pbs128HalfRotate,
     MultiBitPbs128,
 }
 
