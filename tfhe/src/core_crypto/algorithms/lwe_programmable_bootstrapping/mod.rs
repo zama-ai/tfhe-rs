@@ -1,9 +1,11 @@
+pub mod fft128_half_rotate_pbs;
 pub mod fft128_pbs;
 pub mod fft64_pbs;
 pub mod karatsuba_pbs;
 pub mod ntt64_bnf_pbs;
 pub mod ntt64_pbs;
 
+pub use fft128_half_rotate_pbs::*;
 pub use fft128_pbs::*;
 pub use fft64_pbs::*;
 pub use karatsuba_pbs::*;
