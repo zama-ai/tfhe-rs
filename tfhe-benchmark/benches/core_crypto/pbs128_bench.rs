@@ -5,21 +5,51 @@ use benchmark::params_aliases::{
 use benchmark::utilities::{write_to_json, OperatorType};
 use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, CoreCryptoBench};
 use criterion::Criterion;
-use dyn_stack::PodStack;
+use dyn_stack::{PodStack, StackReq};
 use std::hint::black_box;
+use tfhe::core_crypto::algorithms::lwe_half_rotate_bootstrap_key_conversion::par_convert_standard_half_rotate_lwe_bootstrap_key_to_fourier_128;
+use tfhe::core_crypto::algorithms::lwe_half_rotate_bootstrap_key_generation::par_allocate_and_generate_new_half_rotate_lwe_bootstrap_key;
 use tfhe::core_crypto::fft_impl::fft128::crypto::bootstrap::bootstrap_scratch;
+use tfhe::core_crypto::fft_impl::fft128::crypto::bootstrap_half_rotate::half_rotate_bootstrap_scratch;
+use tfhe::core_crypto::fft_impl::fft128::math::fft::Fft128View;
 use tfhe::core_crypto::prelude::*;
 use tfhe::keycache::NamedParam;
 
-fn pbs_128(c: &mut Criterion) {
-    let cc_bench = CoreCryptoBench::Pbs128;
-    let mut bench_group = c.benchmark_group(cc_bench.to_string());
+type InputScalar = u64;
+type OutputScalar = u128;
+
+/// Everything the PBS-128 variants have in common: key material, input ciphertext, accumulator,
+/// output ciphertext, scratch buffer and criterion configuration.
+///
+/// A variant only provides its benchmark node, how to build its bootstrap key, how much scratch
+/// that key needs and how to run one bootstrap with it. Keeping the rest shared is what makes the
+/// four measurements comparable: they differ by the key and nothing else.
+///
+/// The variant is carried by `cc_bench` rather than by a suffix on the parameter name: criterion
+/// truncates benchmark ids when deriving the result directory, so a discriminator at the end of an
+/// id this long collides across variants and gets silently renamed to `… #2`, `… #3`.
+fn bench_pbs_128_variant<Bsk>(
+    c: &mut Criterion,
+    cc_bench: CoreCryptoBench,
+    build_key: impl FnOnce(
+        &LweSecretKeyOwned<InputScalar>,
+        &GlweSecretKeyOwned<OutputScalar>,
+        &mut EncryptionRandomGenerator<DefaultRandomGenerator>,
+    ) -> Bsk,
+    scratch: impl Fn(GlweSize, PolynomialSize, Fft128View<'_>) -> StackReq,
+    bootstrap: impl Fn(
+        &Bsk,
+        &mut LweCiphertextOwned<OutputScalar>,
+        &LweCiphertextOwned<InputScalar>,
+        &GlweCiphertextOwned<OutputScalar>,
+        Fft128View<'_>,
+        &mut PodStack,
+    ),
+) {
+    let mut bench_group = c.benchmark_group(CoreCryptoBench::Pbs128.to_string());
     bench_group
         .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(30));
-
-    type InputScalar = u64;
-    type OutputScalar = u128;
 
     let noise_params = BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     let base_params = BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
@@ -28,9 +58,6 @@ fn pbs_128(c: &mut Criterion) {
     let glwe_dimension = noise_params.glwe_dimension();
     let polynomial_size = noise_params.polynomial_size();
     let lwe_noise_distribution = base_params.lwe_noise_distribution;
-    let glwe_noise_distribution = noise_params.glwe_noise_distribution();
-    let pbs_base_log = noise_params.decomp_base_log();
-    let pbs_level = noise_params.decomp_level_count();
     let input_ciphertext_modulus = base_params.ciphertext_modulus;
     let output_ciphertext_modulus = noise_params.ciphertext_modulus();
 
@@ -53,31 +80,11 @@ fn pbs_128(c: &mut Criterion) {
 
     let output_lwe_secret_key = output_glwe_secret_key.clone().into_lwe_secret_key();
 
-    let mut bsk = LweBootstrapKey::new(
-        OutputScalar::ZERO,
-        glwe_dimension.to_glwe_size(),
-        polynomial_size,
-        pbs_base_log,
-        pbs_level,
-        lwe_dimension,
-        output_ciphertext_modulus,
-    );
-    par_generate_lwe_bootstrap_key(
+    let fourier_bsk = build_key(
         &input_lwe_secret_key,
         &output_glwe_secret_key,
-        &mut bsk,
-        glwe_noise_distribution,
         &mut encryption_generator,
     );
-
-    let mut fourier_bsk = Fourier128LweBootstrapKey::new(
-        lwe_dimension,
-        glwe_dimension.to_glwe_size(),
-        polynomial_size,
-        pbs_base_log,
-        pbs_level,
-    );
-    convert_standard_lwe_bootstrap_key_to_fourier_128(&bsk, &mut fourier_bsk);
 
     let message_modulus: InputScalar = 1 << 4;
 
@@ -103,7 +110,7 @@ fn pbs_128(c: &mut Criterion) {
         output_ciphertext_modulus,
     );
 
-    let mut out_pbs_ct: LweCiphertext<Vec<OutputScalar>> = LweCiphertext::new(
+    let mut out_pbs_ct: LweCiphertextOwned<OutputScalar> = LweCiphertext::new(
         OutputScalar::ZERO,
         output_lwe_secret_key.lwe_dimension().to_lwe_size(),
         output_ciphertext_modulus,
@@ -114,12 +121,8 @@ fn pbs_128(c: &mut Criterion) {
 
     let mut buffers = vec![
         0u8;
-        bootstrap_scratch::<OutputScalar>(
-            fourier_bsk.glwe_size(),
-            fourier_bsk.polynomial_size(),
-            fft
-        )
-        .unaligned_bytes_required()
+        scratch(glwe_dimension.to_glwe_size(), polynomial_size, fft)
+            .unaligned_bytes_required()
     ];
 
     let param_name = noise_params.name();
@@ -129,7 +132,8 @@ fn pbs_128(c: &mut Criterion) {
     let id = benchmark_spec.to_string();
     bench_group.bench_function(&id, |b| {
         b.iter(|| {
-            fourier_bsk.bootstrap(
+            bootstrap(
+                &fourier_bsk,
                 &mut out_pbs_ct,
                 &lwe_ciphertext_in,
                 &accumulator,
@@ -149,6 +153,102 @@ fn pbs_128(c: &mut Criterion) {
         &OperatorType::Atomic,
         bit_size as u64,
         vec![bit_size],
+    );
+}
+
+fn pbs_128(c: &mut Criterion) {
+    let noise_params = BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+    let glwe_dimension = noise_params.glwe_dimension();
+    let polynomial_size = noise_params.polynomial_size();
+    let glwe_noise_distribution = noise_params.glwe_noise_distribution();
+    let pbs_base_log = noise_params.decomp_base_log();
+    let pbs_level = noise_params.decomp_level_count();
+    let output_ciphertext_modulus = noise_params.ciphertext_modulus();
+
+    bench_pbs_128_variant(
+        c,
+        CoreCryptoBench::Pbs128,
+        |input_lwe_secret_key, output_glwe_secret_key, encryption_generator| {
+            let lwe_dimension = input_lwe_secret_key.lwe_dimension();
+
+            let mut bsk = LweBootstrapKey::new(
+                OutputScalar::ZERO,
+                glwe_dimension.to_glwe_size(),
+                polynomial_size,
+                pbs_base_log,
+                pbs_level,
+                lwe_dimension,
+                output_ciphertext_modulus,
+            );
+            par_generate_lwe_bootstrap_key(
+                input_lwe_secret_key,
+                output_glwe_secret_key,
+                &mut bsk,
+                glwe_noise_distribution,
+                encryption_generator,
+            );
+
+            let mut fourier_bsk = Fourier128LweBootstrapKey::new(
+                lwe_dimension,
+                glwe_dimension.to_glwe_size(),
+                polynomial_size,
+                pbs_base_log,
+                pbs_level,
+            );
+            convert_standard_lwe_bootstrap_key_to_fourier_128(&bsk, &mut fourier_bsk);
+            fourier_bsk
+        },
+        bootstrap_scratch::<OutputScalar>,
+        |bsk, out, input, accumulator, fft, stack| {
+            bsk.bootstrap(out, input, accumulator, fft, stack);
+        },
+    );
+}
+
+/// Same as [`pbs_128`] but using the "half-rotate" 128-bit PBS: the input LWE mask is split into a
+/// first section (base log 32, 2 levels) and a second section of 636 elements (base log 24, 3
+/// levels). Benchmarked against the classic variant to measure the speed difference on the same
+/// 2_2 parameters.
+fn pbs_128_half_rotate(c: &mut Criterion) {
+    let noise_params = BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+    let glwe_noise_distribution = noise_params.glwe_noise_distribution();
+    let output_ciphertext_modulus = noise_params.ciphertext_modulus();
+
+    // Half-rotate split: the second section covers 636 mask elements, the first covers the rest.
+    let input_lwe_dimension_end = LweDimension(636);
+    let base_log_start = DecompositionBaseLog(32);
+    let level_start = DecompositionLevelCount(2);
+    let base_log_end = DecompositionBaseLog(24);
+    let level_end = DecompositionLevelCount(3);
+
+    bench_pbs_128_variant(
+        c,
+        CoreCryptoBench::Pbs128HalfRotate,
+        |input_lwe_secret_key, output_glwe_secret_key, encryption_generator| {
+            let input_lwe_dimension_start =
+                LweDimension(input_lwe_secret_key.lwe_dimension().0 - input_lwe_dimension_end.0);
+
+            let std_bsk = par_allocate_and_generate_new_half_rotate_lwe_bootstrap_key(
+                input_lwe_secret_key,
+                output_glwe_secret_key,
+                input_lwe_dimension_start,
+                base_log_start,
+                level_start,
+                base_log_end,
+                level_end,
+                glwe_noise_distribution,
+                output_ciphertext_modulus,
+                encryption_generator,
+            );
+
+            par_allocate_and_convert_standard_half_rotate_lwe_bootstrap_key_to_fourier_128(&std_bsk)
+        },
+        half_rotate_bootstrap_scratch::<OutputScalar>,
+        |bsk, out, input, accumulator, fft, stack| {
+            bsk.bootstrap(out, input, accumulator, fft, stack);
+        },
     );
 }
 
@@ -687,6 +787,7 @@ use cuda::{cuda_multi_bit_pbs128_group, cuda_pbs128_group};
 pub fn pbs128_group() {
     let mut criterion: Criterion<_> = Criterion::default().configure_from_args();
     pbs_128(&mut criterion);
+    pbs_128_half_rotate(&mut criterion);
 }
 
 #[cfg(feature = "gpu")]
