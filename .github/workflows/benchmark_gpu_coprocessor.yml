@@ -123,13 +123,7 @@ jobs:
     steps:
       - name: Install git LFS
         run: |
-          # Disable unattended-upgrades to avoid lock issues
-          sudo systemctl mask --now unattended-upgrades
-          sudo systemctl stop --now unattended-upgrades
-
-          sudo apt-get clean
-          sudo rm -rf /var/lib/apt/lists/*
-          sudo apt purge -y unattended-upgrades
+          bash ci/wait_for_apt_lock.sh
 
           sudo apt-get update
           sudo apt-get install -y git-lfs protobuf-compiler
