@@ -152,10 +152,22 @@ where
         OpSequenceCpuFunctionExecutor::new(&ServerKey::right_shift_parallelized);
     // Warning this rotate definition only works with 64-bit ciphertexts
     let clear_rotate_left = |x: i64, y: u64| x.rotate_left(y as u32);
-    let clear_left_shift = |x: i64, y: u64| x << y;
+    // Warning this shift definition only works with 64-bit ciphertexts
+    let clear_left_shift = |x, y| if y >= (u64::BITS as u64) { 0 } else { x << y };
     // Warning this rotate definition only works with 64-bit ciphertexts
     let clear_rotate_right = |x: i64, y: u64| x.rotate_right(y as u32);
-    let clear_right_shift = |x: i64, y: u64| x >> y;
+    // Warning this shift definition only works with 64-bit ciphertexts
+    let clear_right_shift = |x: i64, y: u64| {
+        if y >= u64::BITS as u64 {
+            if x < 0 {
+                -1
+            } else {
+                0
+            }
+        } else {
+            x >> y
+        }
+    };
     #[allow(clippy::type_complexity)]
     let mut rotate_shift_ops: Vec<(
         SignedShiftRotateExecutor,

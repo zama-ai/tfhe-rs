@@ -131,10 +131,12 @@ where
     let clear_mul = |x: u64, y: u64| x.wrapping_mul(y);
     // Warning this rotate definition only works with 64-bit ciphertexts
     let clear_rotate_left = |x: u64, y: u64| x.rotate_left(y as u32);
-    let clear_left_shift = |x, y| x << y;
+    // Warning this shift definition only works with 64-bit ciphertexts
+    let clear_left_shift = |x, y| if y >= u64::BITS as u64 { 0 } else { x << y };
     // Warning this rotate definition only works with 64-bit ciphertexts
     let clear_rotate_right = |x: u64, y: u64| x.rotate_right(y as u32);
-    let clear_right_shift = |x, y| x >> y;
+    // Warning this shift definition only works with 64-bit ciphertexts
+    let clear_right_shift = |x, y| if y >= u64::BITS as u64 { 0 } else { x >> y };
     let clear_max = |x: u64, y: u64| max(x, y);
     let clear_min = |x: u64, y: u64| min(x, y);
 
