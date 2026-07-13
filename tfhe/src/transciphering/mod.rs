@@ -55,6 +55,10 @@ pub use ciphers::aes::{
 pub use ciphers::kreyvium::{
     KreyviumFheKey, KreyviumFheState, KreyviumIV, KreyviumPlainKey, KreyviumPlainState,
 };
+pub use ciphers::pregened_otp::{
+    PreGenedOtpFheSecretMask, PreGenedOtpFheState, PreGenedOtpPlainSecretMask,
+    PreGenedOtpPlainState,
+};
 
 use rayon::prelude::*;
 use tfhe_fft::c64;
@@ -64,11 +68,10 @@ use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::utils::ZipChecked;
 use crate::core_crypto::prelude::Container;
 use crate::shortint::oprf::GenericOprfServerKey;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::{Ciphertext, OprfSeed, ServerKey};
 use crate::transciphering::backward_compatibility::{
     StreamCipherKindVersions, StreamCiphertextVersions,
 };
-use crate::OprfSeed;
 
 /// Identifier for a concrete stream-cipher family.
 ///
@@ -84,6 +87,7 @@ pub enum StreamCipherKind {
     Dynamic,
     Kreyvium,
     Aes,
+    PreGenedOtp,
 }
 
 /// Output of [`StreamCipher::encrypt`] / [`StreamCipher::encrypt_bits`]: a

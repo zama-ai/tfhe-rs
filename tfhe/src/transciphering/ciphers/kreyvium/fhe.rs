@@ -3,10 +3,9 @@
 use crate::core_crypto::commons::traits::Container;
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::oprf::GenericOprfServerKey;
-use crate::shortint::{Ciphertext, ClientKey, ServerKey};
+use crate::shortint::{Ciphertext, ClientKey, OprfSeed, ServerKey};
 use crate::transciphering::ciphers::shift_register::ShiftRegister;
 use crate::transciphering::{FheKeyStream, KreyviumPlainKey, StreamCipherKind, Transcipherer};
-use crate::OprfSeed;
 use tfhe_fft::c64;
 
 use super::{
