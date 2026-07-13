@@ -95,7 +95,9 @@ jobs:
           requires-a-gpu: "false"
 
       - name: Install python3-venv
-        run: sudo apt-get install -y python3-venv doxygen
+        run: |
+          bash ci/wait_for_apt_lock.sh
+          sudo apt-get install -y python3-venv doxygen
 
       - name: Check doxygen on new GPU code
         run: python3 ci/check_doxygen_gpu.py
