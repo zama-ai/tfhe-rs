@@ -101,7 +101,7 @@ jobs:
       group: ${{ github.workflow_ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
-    timeout-minutes: 240
+    timeout-minutes: 300
     strategy:
       fail-fast: false
       # explicit include-based build matrix, of known valid options
