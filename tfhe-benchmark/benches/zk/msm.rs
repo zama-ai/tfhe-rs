@@ -5,7 +5,7 @@
 //!
 //! CPU benchmarks use the arkworks-based `G1Affine::multi_mul_scalar` /
 //! `G2Affine::multi_mul_scalar`. GPU benchmarks (gated behind the
-//! `gpu-experimental-zk` feature) call `tfhe_zk_pok::gpu::g1_msm_gpu` /
+//! `gpu-zk` feature) call `tfhe_zk_pok::gpu::g1_msm_gpu` /
 //! `tfhe_zk_pok::gpu::g2_msm_gpu` directly, which dispatch to the
 //! zk-cuda-backend.
 //!
@@ -16,7 +16,7 @@
 //! cargo bench --package tfhe-benchmark --bench zk-msm
 //!
 //! # CPU and GPU
-//! cargo bench --package tfhe-benchmark --bench zk-msm --features gpu-experimental-zk
+//! cargo bench --package tfhe-benchmark --bench zk-msm --features gpu-zk
 //! ```
 
 use benchmark::utilities::{write_to_json_unchecked, OperatorType};
@@ -67,7 +67,7 @@ trait MsmBenchGroup {
 
     fn generate_points(rng: &mut StdRng, n: usize) -> Vec<Self::Affine>;
     fn cpu_msm(bases: &[Self::Affine], scalars: &[Zp]);
-    #[cfg(feature = "gpu-experimental-zk")]
+    #[cfg(feature = "gpu-zk")]
     fn gpu_msm(bases: &[Self::Affine], scalars: &[Zp], gpu_index: u32);
 }
 
@@ -95,7 +95,7 @@ impl MsmBenchGroup for G1Bench {
         ));
     }
 
-    #[cfg(feature = "gpu-experimental-zk")]
+    #[cfg(feature = "gpu-zk")]
     fn gpu_msm(bases: &[G1Affine], scalars: &[Zp], gpu_index: u32) {
         use tfhe_zk_pok::gpu::g1_msm_gpu;
         black_box(g1_msm_gpu(black_box(bases), black_box(scalars), gpu_index));
@@ -126,7 +126,7 @@ impl MsmBenchGroup for G2Bench {
         ));
     }
 
-    #[cfg(feature = "gpu-experimental-zk")]
+    #[cfg(feature = "gpu-zk")]
     fn gpu_msm(bases: &[G2Affine], scalars: &[Zp], gpu_index: u32) {
         use tfhe_zk_pok::gpu::g2_msm_gpu;
         black_box(g2_msm_gpu(black_box(bases), black_box(scalars), gpu_index));
@@ -205,7 +205,7 @@ fn bench_cpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(feature = "gpu-experimental-zk")]
+#[cfg(feature = "gpu-zk")]
 fn bench_gpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
     use tfhe_zk_pok::gpu::select_gpu_for_msm;
 
@@ -291,23 +291,23 @@ fn bench_cpu_g2_msm(c: &mut Criterion) {
     bench_cpu_msm::<G2Bench>(c);
 }
 
-#[cfg(feature = "gpu-experimental-zk")]
+#[cfg(feature = "gpu-zk")]
 fn bench_gpu_g1_msm(c: &mut Criterion) {
     bench_gpu_msm::<G1Bench>(c);
 }
 
-#[cfg(feature = "gpu-experimental-zk")]
+#[cfg(feature = "gpu-zk")]
 fn bench_gpu_g2_msm(c: &mut Criterion) {
     bench_gpu_msm::<G2Bench>(c);
 }
 
 criterion_group!(benches_cpu, bench_cpu_g1_msm, bench_cpu_g2_msm,);
 
-#[cfg(feature = "gpu-experimental-zk")]
+#[cfg(feature = "gpu-zk")]
 criterion_group!(benches_gpu, bench_gpu_g1_msm, bench_gpu_g2_msm,);
 
-#[cfg(feature = "gpu-experimental-zk")]
+#[cfg(feature = "gpu-zk")]
 criterion_main!(benches_cpu, benches_gpu);
 
-#[cfg(not(feature = "gpu-experimental-zk"))]
+#[cfg(not(feature = "gpu-zk"))]
 criterion_main!(benches_cpu);
