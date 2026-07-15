@@ -661,6 +661,7 @@ fn panic_if_not_properly_updated<Key>(
         let decrypted_value: u64 = cks.decrypt(stored_value);
 
         if decrypted_value != *expected_value {
+            #[allow(clippy::redundant_else)]
             if key == &updated_key {
                 panic!(
                     "Value for key={key} was not properly updated \

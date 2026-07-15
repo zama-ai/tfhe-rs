@@ -54,7 +54,7 @@ where
 pub fn oprf_uniformity_bounded_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
-    E: for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64), SignedRadixCiphertext>,
+    E: OpSequenceFunctionExecutor<(Seed, u64, u64), SignedRadixCiphertext>,
 {
     let cks = setup_oprf_test(param, &mut executor);
 
@@ -76,7 +76,7 @@ where
 pub fn oprf_uniformity_unbounded_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
-    E: for<'a> OpSequenceFunctionExecutor<(Seed, u64), SignedRadixCiphertext>,
+    E: OpSequenceFunctionExecutor<(Seed, u64), SignedRadixCiphertext>,
 {
     let cks = setup_oprf_test(param, &mut executor);
 

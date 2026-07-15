@@ -90,34 +90,34 @@ mod tests {
         deque.push(4);
 
         // Youngest: 4
-        assert!(deque.bit(0) == 0);
-        assert!(deque.bit(1) == 0);
+        assert_eq!(deque.bit(0), 0);
+        assert_eq!(deque.bit(1), 0);
         assert!(deque.bit(2) > 0);
-        assert!(deque.bit(3) == 0);
-        assert!(deque.bit(4) == 0);
-        assert!(deque.bit(5) == 0);
-        assert!(deque.bit(6) == 0);
-        assert!(deque.bit(7) == 0);
+        assert_eq!(deque.bit(3), 0);
+        assert_eq!(deque.bit(4), 0);
+        assert_eq!(deque.bit(5), 0);
+        assert_eq!(deque.bit(6), 0);
+        assert_eq!(deque.bit(7), 0);
 
         // second youngest: 128
-        assert!(deque.bit(8) == 0);
-        assert!(deque.bit(8 + 1) == 0);
-        assert!(deque.bit(8 + 2) == 0);
-        assert!(deque.bit(8 + 3) == 0);
-        assert!(deque.bit(8 + 4) == 0);
-        assert!(deque.bit(8 + 5) == 0);
-        assert!(deque.bit(8 + 6) == 0);
+        assert_eq!(deque.bit(8), 0);
+        assert_eq!(deque.bit(8 + 1), 0);
+        assert_eq!(deque.bit(8 + 2), 0);
+        assert_eq!(deque.bit(8 + 3), 0);
+        assert_eq!(deque.bit(8 + 4), 0);
+        assert_eq!(deque.bit(8 + 5), 0);
+        assert_eq!(deque.bit(8 + 6), 0);
         assert!(deque.bit(8 + 7) > 0);
 
         // oldest: 64
-        assert!(deque.bit(16) == 0);
-        assert!(deque.bit(16 + 1) == 0);
-        assert!(deque.bit(16 + 2) == 0);
-        assert!(deque.bit(16 + 3) == 0);
-        assert!(deque.bit(16 + 4) == 0);
-        assert!(deque.bit(16 + 5) == 0);
+        assert_eq!(deque.bit(16), 0);
+        assert_eq!(deque.bit(16 + 1), 0);
+        assert_eq!(deque.bit(16 + 2), 0);
+        assert_eq!(deque.bit(16 + 3), 0);
+        assert_eq!(deque.bit(16 + 4), 0);
+        assert_eq!(deque.bit(16 + 5), 0);
         assert!(deque.bit(16 + 6) > 0);
-        assert!(deque.bit(16 + 7) == 0);
+        assert_eq!(deque.bit(16 + 7), 0);
 
         assert_eq!(deque.byte(0), 4u8);
         assert_eq!(deque.byte(1), 9u8);

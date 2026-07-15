@@ -156,5 +156,5 @@ fn main() {
     println!("\n> decrypted result {dec_result:?}");
     println!("> cleartext result {clear_result:?}");
 
-    assert!(clear_result == dec_result, "matrices are not the same");
+    assert_eq!(clear_result, dec_result, "matrices are not the same");
 }

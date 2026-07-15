@@ -18,7 +18,7 @@ use tfhe::prelude::*;
 use tfhe_trivium::TriviumStream;
 
 fn get_hexadecimal_string_from_lsb_first_stream(a: Vec<bool>) -> String {
-    assert!(a.len() % 8 == 0);
+    assert!(a.len().is_multiple_of(8));
     let mut hexadecimal: String = "".to_string();
     for test in a.chunks(8) {
         // Encoding is bytes in LSB order

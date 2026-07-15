@@ -95,7 +95,7 @@ impl HpuDevice {
     /// Currently only enforce proper state of the Ciphertext pool
     /// i.e. No already allocated Ciphertext and no fragmentation
     pub fn mem_sanitizer(&self) {
-        for (_id, node) in self.cluster.iter() {
+        for node in self.cluster.values() {
             node.ct_mem.reorder_pool();
         }
     }

@@ -62,7 +62,7 @@ const NUM_DATA_BLOCKS: usize = 16;
 pub(crate) fn bitonic_shuffle_with_keys_test<P, T>(param: P, mut executor: T)
 where
     P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
+    T: FunctionExecutor<
         (Vec<RadixCiphertext>, Vec<RadixCiphertext>),
         Result<Vec<RadixCiphertext>, crate::Error>,
     >,
@@ -140,7 +140,7 @@ where
 pub(crate) fn unchecked_bitonic_shuffle_with_keys_test<P, T>(param: P, mut executor: T)
 where
     P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<(Vec<RadixCiphertext>, Vec<RadixCiphertext>), Vec<RadixCiphertext>>,
+    T: FunctionExecutor<(Vec<RadixCiphertext>, Vec<RadixCiphertext>), Vec<RadixCiphertext>>,
 {
     let param = param.into();
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -183,7 +183,7 @@ where
 pub(crate) fn bitonic_shuffle_test<P, T>(param: P, mut executor: T)
 where
     P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
+    T: FunctionExecutor<
         (Vec<RadixCiphertext>, BitonicShuffleKeySize, Seed),
         Result<Vec<RadixCiphertext>, crate::Error>,
     >,
@@ -234,7 +234,7 @@ where
 pub(crate) fn bitonic_shuffle_with_keys_errors_test<P, T>(param: P, mut executor: T)
 where
     P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
+    T: FunctionExecutor<
         (Vec<RadixCiphertext>, Vec<RadixCiphertext>),
         Result<Vec<RadixCiphertext>, crate::Error>,
     >,
@@ -261,7 +261,7 @@ where
 pub(crate) fn bitonic_shuffle_with_keys_invalid_block_counts_test<P, T>(param: P, mut executor: T)
 where
     P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
+    T: FunctionExecutor<
         (Vec<RadixCiphertext>, Vec<RadixCiphertext>),
         Result<Vec<RadixCiphertext>, crate::Error>,
     >,

@@ -1,6 +1,5 @@
 //! Module containing the definition of the [`CmLweCiphertext`].
 
-use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::experimental::prelude::*;
 use crate::core_crypto::prelude::*;
 

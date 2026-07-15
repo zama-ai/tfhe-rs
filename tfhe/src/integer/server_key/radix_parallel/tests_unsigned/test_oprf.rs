@@ -185,7 +185,7 @@ where
 pub(crate) fn oprf_uniformity_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
-    E: for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64), RadixCiphertext>,
+    E: OpSequenceFunctionExecutor<(Seed, u64, u64), RadixCiphertext>,
 {
     let cks = setup_oprf_test(param, &mut executor);
 
@@ -205,7 +205,7 @@ where
 pub(crate) fn oprf_any_range_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
-    E: for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>,
+    E: OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>,
 {
     let cks = setup_oprf_test(param, &mut executor);
 
@@ -237,7 +237,7 @@ where
 pub(crate) fn oprf_almost_uniformity_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
-    E: for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>,
+    E: OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>,
 {
     let cks = setup_oprf_test(param, &mut executor);
 
@@ -633,10 +633,10 @@ fn check_unsigned_value_and_re_rand_are_ok(
             // Checks noise and masks are 0
             assert!(lhs_block.is_trivial());
             // Body of the LWE is also 0
-            assert!(*lhs_block.ct.get_body().data == 0);
+            assert_eq!(*lhs_block.ct.get_body().data, 0);
             let noise_degree = lhs_block.noise_degree();
             // Degree is properly 0
-            assert!(noise_degree.degree.0 == 0);
+            assert_eq!(noise_degree.degree.0, 0);
         }
     }
 

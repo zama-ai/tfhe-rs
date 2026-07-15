@@ -69,7 +69,7 @@ fn noise_gen_native<Scalar: UnsignedTorus>() {
         }
 
         assert!(retries != 0);
-        assert!(val != Scalar::ZERO);
+        assert_ne!(val, Scalar::ZERO);
     }
 }
 
@@ -112,7 +112,7 @@ fn noise_gen_custom_mod<Scalar: UnsignedTorus>(ciphertext_modulus: CiphertextMod
         }
 
         assert!(retries != 0);
-        assert!(val != Scalar::ZERO);
+        assert_ne!(val, Scalar::ZERO);
     }
 }
 

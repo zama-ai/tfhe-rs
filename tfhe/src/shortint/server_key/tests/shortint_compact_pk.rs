@@ -165,8 +165,8 @@ fn shortint_compact_public_key_base_list_smart_sub(params: ClassicPBSParameters)
 
     for _ in 0..(NB_TESTS / 2).min(5) {
         let num_ct_for_this_iter = rng.gen_range(1..=max_ct);
-        first_clear_vec.truncate(0);
-        second_clear_vec.truncate(0);
+        first_clear_vec.clear();
+        second_clear_vec.clear();
         for _ in 0..num_ct_for_this_iter {
             let clear_0 = rng.gen::<u64>() % modulus;
             let clear_1 = rng.gen::<u64>() % modulus;

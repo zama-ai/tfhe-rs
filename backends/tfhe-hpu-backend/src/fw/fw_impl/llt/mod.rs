@@ -613,7 +613,7 @@ pub fn iop_mulx_par(
     let mut b: Vec<Option<VarCell>> = (0..dst.len() + 1).map(|_| None).collect();
 
     pp.into_iter().enumerate().for_each(|(i, pp)| {
-        assert!(pp.len() == 1);
+        assert_eq!(pp.len(), 1);
         let vardeg = pp.first().unwrap();
         let (msg, carry) = vardeg.bootstrap(&props);
         a[i] = Some(msg.var);

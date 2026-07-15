@@ -504,7 +504,7 @@ pub mod test_tools {
             })
             .sum::<f64>();
         let failure_rate = failures / (RUNS as f64);
-        assert!(failure_rate == 1.0);
+        assert_eq!(failure_rate, 1.0);
     }
 
     #[test]

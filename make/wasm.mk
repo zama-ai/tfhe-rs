@@ -1,11 +1,12 @@
 WEB_CLIENT_OUT_DIR ?= pkg
 
 # Extra RUSTFLAGS required for the parallel (multi-threaded) wasm build.
-# See https://github.com/rust-lang/rust/pull/147225
+# See https://github.com/rust-lang/rust/pull/147225 and https://github.com/rust-lang/rust/pull/156174
 WASM_PARALLEL_RUSTFLAGS := -C target-feature=+atomics,+bulk-memory \
 	-Clink-arg=--shared-memory \
 	-Clink-arg=--max-memory=1073741824 \
 	-Clink-arg=--import-memory \
+	-Clink-arg=--export=__heap_base \
 	-Clink-arg=--export=__wasm_init_tls \
 	-Clink-arg=--export=__tls_size \
 	-Clink-arg=--export=__tls_align \
