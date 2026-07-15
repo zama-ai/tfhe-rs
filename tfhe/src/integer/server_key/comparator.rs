@@ -223,7 +223,9 @@ impl<'a> Comparator<'a> {
     {
         while sign_blocks.len() > 2 {
             let mut sign_blocks_2: Vec<_> = sign_blocks
-                .chunks_exact(2)
+                .as_chunks::<2>()
+                .0
+                .iter()
                 .map(|chunk| {
                     let (low, high) = (&chunk[0], &chunk[1]);
                     let mut high = high.clone();
@@ -291,68 +293,64 @@ impl<'a> Comparator<'a> {
 
         // false positive as compare_blocks does not mean the same in both branches
         #[allow(clippy::branches_sharing_code)]
-        let compare_blocks_fn = if lhs.blocks()[0].carry_modulus.0
-            < lhs.blocks()[0].message_modulus.0
-        {
-            fn compare_blocks(
-                comparator: &Comparator,
-                lhs_blocks: &[crate::shortint::Ciphertext],
-                rhs_blocks: &[crate::shortint::Ciphertext],
-                out_comparisons: &mut Vec<crate::shortint::Ciphertext>,
-            ) {
-                out_comparisons.reserve(lhs_blocks.len());
-                for i in 0..lhs_blocks.len() {
-                    let mut lhs = lhs_blocks[i].clone();
-                    let rhs = &rhs_blocks[i];
+        let compare_blocks_fn =
+            if lhs.blocks()[0].carry_modulus.0 < lhs.blocks()[0].message_modulus.0 {
+                fn compare_blocks(
+                    comparator: &Comparator,
+                    lhs_blocks: &[crate::shortint::Ciphertext],
+                    rhs_blocks: &[crate::shortint::Ciphertext],
+                    out_comparisons: &mut Vec<crate::shortint::Ciphertext>,
+                ) {
+                    out_comparisons.reserve(lhs_blocks.len());
+                    for i in 0..lhs_blocks.len() {
+                        let mut lhs = lhs_blocks[i].clone();
+                        let rhs = &rhs_blocks[i];
 
-                    comparator.compare_block_assign(&mut lhs, rhs);
-                    out_comparisons.push(lhs);
+                        comparator.compare_block_assign(&mut lhs, rhs);
+                        out_comparisons.push(lhs);
+                    }
                 }
-            }
-            compare_blocks
-        } else {
-            fn compare_blocks(
-                comparator: &Comparator,
-                lhs_blocks: &[crate::shortint::Ciphertext],
-                rhs_blocks: &[crate::shortint::Ciphertext],
-                out_comparisons: &mut Vec<crate::shortint::Ciphertext>,
-            ) {
-                let identity = comparator.server_key.key.generate_lookup_table(|x| x);
-                let mut lhs_chunks_iter = lhs_blocks.chunks_exact(2);
-                let mut rhs_chunks_iter = rhs_blocks.chunks_exact(2);
-                out_comparisons.reserve(lhs_chunks_iter.len() + lhs_chunks_iter.remainder().len());
+                compare_blocks
+            } else {
+                fn compare_blocks(
+                    comparator: &Comparator,
+                    lhs_blocks: &[crate::shortint::Ciphertext],
+                    rhs_blocks: &[crate::shortint::Ciphertext],
+                    out_comparisons: &mut Vec<crate::shortint::Ciphertext>,
+                ) {
+                    let identity = comparator.server_key.key.generate_lookup_table(|x| x);
+                    let (lhs_chunks, lhs_remainder) = lhs_blocks.as_chunks::<2>();
+                    let (rhs_chunks, rhs_remainder) = rhs_blocks.as_chunks::<2>();
+                    out_comparisons.reserve(lhs_chunks.len() + lhs_remainder.len());
 
-                for (lhs_chunk, rhs_chunk) in lhs_chunks_iter.by_ref().zip(rhs_chunks_iter.by_ref())
-                {
-                    let mut packed_lhs = comparator.pack_block_chunk(lhs_chunk);
-                    let mut packed_rhs = comparator.pack_block_chunk(rhs_chunk);
-                    comparator
-                        .server_key
-                        .key
-                        .apply_lookup_table_assign(&mut packed_lhs, &identity);
-                    comparator
-                        .server_key
-                        .key
-                        .apply_lookup_table_assign(&mut packed_rhs, &identity);
-                    comparator.compare_block_assign(&mut packed_lhs, &packed_rhs);
-                    out_comparisons.push(packed_lhs);
+                    for (lhs_chunk, rhs_chunk) in lhs_chunks.iter().zip(rhs_chunks.iter()) {
+                        let mut packed_lhs = comparator.pack_block_chunk(lhs_chunk);
+                        let mut packed_rhs = comparator.pack_block_chunk(rhs_chunk);
+                        comparator
+                            .server_key
+                            .key
+                            .apply_lookup_table_assign(&mut packed_lhs, &identity);
+                        comparator
+                            .server_key
+                            .key
+                            .apply_lookup_table_assign(&mut packed_rhs, &identity);
+                        comparator.compare_block_assign(&mut packed_lhs, &packed_rhs);
+                        out_comparisons.push(packed_lhs);
+                    }
+
+                    if let ([last_lhs_block], [last_rhs_block]) = (lhs_remainder, rhs_remainder) {
+                        let mut last_lhs_block = last_lhs_block.clone();
+                        comparator
+                            .server_key
+                            .key
+                            .apply_lookup_table_assign(&mut last_lhs_block, &identity);
+                        comparator.compare_block_assign(&mut last_lhs_block, last_rhs_block);
+                        out_comparisons.push(last_lhs_block);
+                    }
                 }
 
-                if let ([last_lhs_block], [last_rhs_block]) =
-                    (lhs_chunks_iter.remainder(), rhs_chunks_iter.remainder())
-                {
-                    let mut last_lhs_block = last_lhs_block.clone();
-                    comparator
-                        .server_key
-                        .key
-                        .apply_lookup_table_assign(&mut last_lhs_block, &identity);
-                    comparator.compare_block_assign(&mut last_lhs_block, last_rhs_block);
-                    out_comparisons.push(last_lhs_block);
-                }
-            }
-
-            compare_blocks
-        };
+                compare_blocks
+            };
 
         let mut comparisons = Vec::new();
         if T::IS_SIGNED {

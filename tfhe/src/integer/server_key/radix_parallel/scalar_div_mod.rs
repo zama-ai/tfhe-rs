@@ -401,7 +401,7 @@ impl ServerKey {
         };
 
         if chosen_multiplier.multiplier >= (T::DoublePrecision::ONE << numerator_bits as usize) {
-            assert!(shift_pre == 0);
+            assert_eq!(shift_pre, 0);
 
             let inverse =
                 chosen_multiplier.multiplier - (T::DoublePrecision::ONE << numerator_bits as usize);
@@ -475,8 +475,7 @@ impl ServerKey {
             return self.create_trivial_zero_radix(numerator.blocks.len());
         }
 
-        let quotient;
-        if absolute_divisor == (T::Unsigned::ONE << chosen_multiplier.l as usize) {
+        let quotient = if absolute_divisor == (T::Unsigned::ONE << chosen_multiplier.l as usize) {
             // Issue q = SRA(n + SRL(SRA(n, l − 1), N − l), l);
             let l = chosen_multiplier.l;
 
@@ -492,7 +491,7 @@ impl ServerKey {
             self.add_assign_parallelized(&mut tmp, numerator);
             // SRA(n + SRL(SRA(n, l − 1), N − l), l);
             self.unchecked_scalar_right_shift_assign_parallelized(&mut tmp, l);
-            quotient = tmp;
+            tmp
         } else if chosen_multiplier.multiplier
             < (<T::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1))
         {
@@ -526,7 +525,7 @@ impl ServerKey {
             );
 
             self.sub_assign_parallelized(&mut tmp, &xsign);
-            quotient = tmp;
+            tmp
         } else {
             // Issue q = SRA(n + MULSH(m − 2^N , n), shpost) − XSIGN(n);
             // Note from the paper: m - 2^N is negative
@@ -563,8 +562,8 @@ impl ServerKey {
             );
 
             self.sub_assign_parallelized(&mut tmp, &xsign);
-            quotient = tmp;
-        }
+            tmp
+        };
 
         if divisor < T::ZERO {
             self.neg_parallelized(&quotient)
