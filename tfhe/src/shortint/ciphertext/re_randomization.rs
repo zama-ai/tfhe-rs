@@ -577,10 +577,10 @@ mod test {
                 .map(|_| rand::random::<u64>() % message_modulus.0)
                 .collect();
 
-            for chunk in clears.chunks_exact(2) {
-                let ct1 = cks.encrypt(chunk[0]);
+            for &[clear1, clear2] in clears.as_chunks::<2>().0 {
+                let ct1 = cks.encrypt(clear1);
                 cts.push(ct1);
-                let ct2 = cks.encrypt(chunk[1]);
+                let ct2 = cks.encrypt(clear2);
                 cts.push(ct2);
             }
 

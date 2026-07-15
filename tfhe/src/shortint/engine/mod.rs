@@ -275,7 +275,7 @@ where
 
 impl std::fmt::Display for EngineError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", &self.error)
+        write!(f, "{}", self.error)
     }
 }
 

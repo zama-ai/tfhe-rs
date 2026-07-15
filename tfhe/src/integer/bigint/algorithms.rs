@@ -9,7 +9,12 @@ pub(crate) fn copy_from_le_byte_slice(lhs: &mut [u64], bytes: &[u8]) {
     assert_eq!(bytes.len(), lhs.len() * BYTES_PER_U64);
 
     let mut array = [0u8; BYTES_PER_U64];
-    for (sub_bytes, word) in bytes.chunks_exact(BYTES_PER_U64).zip(lhs.iter_mut()) {
+    for (sub_bytes, word) in bytes
+        .as_chunks::<BYTES_PER_U64>()
+        .0
+        .iter()
+        .zip(lhs.iter_mut())
+    {
         array.copy_from_slice(sub_bytes);
         *word = u64::from_le_bytes(array);
     }
@@ -19,7 +24,12 @@ pub(crate) fn copy_from_be_byte_slice(lhs: &mut [u64], bytes: &[u8]) {
     assert_eq!(bytes.len(), lhs.len() * BYTES_PER_U64);
 
     let mut array = [0u8; BYTES_PER_U64];
-    for (sub_bytes, word) in bytes.chunks_exact(BYTES_PER_U64).zip(lhs.iter_mut().rev()) {
+    for (sub_bytes, word) in bytes
+        .as_chunks::<BYTES_PER_U64>()
+        .0
+        .iter()
+        .zip(lhs.iter_mut().rev())
+    {
         array.copy_from_slice(sub_bytes);
         *word = u64::from_be_bytes(array);
     }
@@ -28,7 +38,12 @@ pub(crate) fn copy_from_be_byte_slice(lhs: &mut [u64], bytes: &[u8]) {
 pub(crate) fn copy_to_le_byte_slice(lhs: &[u64], bytes: &mut [u8]) {
     assert_eq!(bytes.len(), lhs.len() * BYTES_PER_U64);
 
-    for (sub_bytes, word) in bytes.chunks_exact_mut(BYTES_PER_U64).zip(lhs.iter()) {
+    for (sub_bytes, word) in bytes
+        .as_chunks_mut::<BYTES_PER_U64>()
+        .0
+        .iter_mut()
+        .zip(lhs.iter())
+    {
         sub_bytes.copy_from_slice(word.to_le_bytes().as_slice());
     }
 }
@@ -36,7 +51,12 @@ pub(crate) fn copy_to_le_byte_slice(lhs: &[u64], bytes: &mut [u8]) {
 pub(crate) fn copy_to_be_byte_slice(lhs: &[u64], bytes: &mut [u8]) {
     assert_eq!(bytes.len(), lhs.len() * BYTES_PER_U64);
 
-    for (sub_bytes, word) in bytes.chunks_exact_mut(BYTES_PER_U64).zip(lhs.iter().rev()) {
+    for (sub_bytes, word) in bytes
+        .as_chunks_mut::<BYTES_PER_U64>()
+        .0
+        .iter_mut()
+        .zip(lhs.iter().rev())
+    {
         sub_bytes.copy_from_slice(word.to_be_bytes().as_slice());
     }
 }
@@ -258,7 +278,7 @@ where
         + Ord
         + CastFrom<T>,
 {
-    assert!(divisor != T::ZERO);
+    assert_ne!(divisor, T::ZERO);
     assert_eq!(
         T::BITS,
         T::NumericUnsignedType::BITS,

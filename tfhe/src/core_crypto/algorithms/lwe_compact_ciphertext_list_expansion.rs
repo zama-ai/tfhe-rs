@@ -17,12 +17,14 @@ pub fn expand_lwe_compact_ciphertext_list<Scalar, InputCont, OutputCont>(
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
 {
-    assert!(
-        output_lwe_ciphertext_list.entity_count()
-            == input_lwe_compact_ciphertext_list.lwe_ciphertext_count().0
+    assert_eq!(
+        output_lwe_ciphertext_list.entity_count(),
+        input_lwe_compact_ciphertext_list.lwe_ciphertext_count().0
     );
-
-    assert!(output_lwe_ciphertext_list.lwe_size() == input_lwe_compact_ciphertext_list.lwe_size());
+    assert_eq!(
+        output_lwe_ciphertext_list.lwe_size(),
+        input_lwe_compact_ciphertext_list.lwe_size()
+    );
 
     let (input_mask_list, input_body_list) =
         input_lwe_compact_ciphertext_list.get_mask_and_body_list();
@@ -67,12 +69,14 @@ pub fn par_expand_lwe_compact_ciphertext_list<Scalar, InputCont, OutputCont>(
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
 {
-    assert!(
-        output_lwe_ciphertext_list.entity_count()
-            == input_lwe_compact_ciphertext_list.lwe_ciphertext_count().0
+    assert_eq!(
+        output_lwe_ciphertext_list.entity_count(),
+        input_lwe_compact_ciphertext_list.lwe_ciphertext_count().0
     );
-
-    assert!(output_lwe_ciphertext_list.lwe_size() == input_lwe_compact_ciphertext_list.lwe_size());
+    assert_eq!(
+        output_lwe_ciphertext_list.lwe_size(),
+        input_lwe_compact_ciphertext_list.lwe_size()
+    );
 
     let (input_mask_list, input_body_list) =
         input_lwe_compact_ciphertext_list.get_mask_and_body_list();
