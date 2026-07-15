@@ -90,9 +90,9 @@ pub(crate) type SignedLog2OpExecutor =
 
 // Add these new types for Signed OPRF operations
 pub(crate) type SignedOprfExecutor =
-    Box<dyn for<'a> OpSequenceFunctionExecutor<(Seed, u64), SignedRadixCiphertext>>;
+    Box<dyn OpSequenceFunctionExecutor<(Seed, u64), SignedRadixCiphertext>>;
 pub(crate) type SignedOprfBoundedExecutor =
-    Box<dyn for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64), SignedRadixCiphertext>>;
+    Box<dyn OpSequenceFunctionExecutor<(Seed, u64, u64), SignedRadixCiphertext>>;
 
 fn random_op_sequence<P>(param: P)
 where

@@ -30,7 +30,7 @@ pub fn sha256_fhe(
         trivial_bools(&hex_to_bools(0x5be0cd19), sk),
     ];
 
-    let chunks = padded_input.chunks_exact(512);
+    let chunks = padded_input.as_chunks::<512>().0;
 
     for chunk in chunks {
         // Compute the 64 words

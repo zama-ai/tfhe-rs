@@ -72,24 +72,25 @@ fn brent_kung(
         let updates: Vec<(usize, Ciphertext, Ciphertext)> = indices
             .into_par_iter()
             .map(|(n, index)| {
-                let new_p;
-                let new_g;
-
-                if n == 0 {
+                let (new_p, new_g) = if n == 0 {
                     // grey cell
-                    new_p = propagate[index].clone();
-                    new_g = sk.or(
-                        &generate[index],
-                        &sk.and(&generate[index + stride], &propagate[index]),
-                    );
+                    (
+                        propagate[index].clone(),
+                        sk.or(
+                            &generate[index],
+                            &sk.and(&generate[index + stride], &propagate[index]),
+                        ),
+                    )
                 } else {
                     // black cell
-                    new_p = sk.and(&propagate[index], &propagate[index + stride]);
-                    new_g = sk.or(
-                        &generate[index],
-                        &sk.and(&generate[index + stride], &propagate[index]),
-                    );
-                }
+                    (
+                        sk.and(&propagate[index], &propagate[index + stride]),
+                        sk.or(
+                            &generate[index],
+                            &sk.and(&generate[index + stride], &propagate[index]),
+                        ),
+                    )
+                };
 
                 (index, new_p, new_g)
             })
@@ -163,18 +164,19 @@ fn ladner_fischer(
 
                 let p = propagate[i + 1].clone(); // propagate from a previous column
                 let g = generate[i + 1].clone(); // generate from a previous column
-                let new_p;
-                let new_g;
-
-                if index < 32 - (2 * stride) {
+                let (new_p, new_g) = if index < 32 - (2 * stride) {
                     // black cell
-                    new_p = sk.and(&propagate[index], &p);
-                    new_g = sk.or(&generate[index], &sk.and(&g, &propagate[index]));
+                    (
+                        sk.and(&propagate[index], &p),
+                        sk.or(&generate[index], &sk.and(&g, &propagate[index])),
+                    )
                 } else {
                     // grey cell
-                    new_p = propagate[index].clone();
-                    new_g = sk.or(&generate[index], &sk.and(&g, &propagate[index]));
-                }
+                    (
+                        propagate[index].clone(),
+                        sk.or(&generate[index], &sk.and(&g, &propagate[index])),
+                    )
+                };
                 (index, new_p, new_g)
             })
             .collect();

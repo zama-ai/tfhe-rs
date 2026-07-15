@@ -70,19 +70,13 @@ impl ServerKey {
             "Compression does not support max_noise_level < message_modulus + 1"
         );
 
-        let paired_blocks;
-
-        let last_block;
-
         let len = blocks.len();
 
-        if len.is_multiple_of(2) {
-            paired_blocks = blocks;
-            last_block = None;
+        let (paired_blocks, last_block) = if len.is_multiple_of(2) {
+            (blocks, None)
         } else {
-            paired_blocks = &blocks[..len - 1];
-            last_block = Some(blocks.last().unwrap());
-        }
+            (&blocks[..len - 1], Some(blocks.last().unwrap()))
+        };
 
         let paired_blocks = paired_blocks
             .par_chunks_exact(2)

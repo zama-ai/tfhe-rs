@@ -278,7 +278,7 @@ pub fn prove<G: Curve>(
             if new_ck >= q / 2 {
                 new_ck -= q;
             }
-            assert!((old_ck - new_ck) % q == 0);
+            assert_eq!((old_ck - new_ck) % q, 0);
             assert!((*rk).unsigned_abs() < b_r);
 
             *ck = new_ck as i64;

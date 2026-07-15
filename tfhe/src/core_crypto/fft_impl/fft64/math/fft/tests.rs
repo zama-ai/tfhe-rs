@@ -33,7 +33,7 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
 
         for (expected, actual) in izip_eq!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
             if Scalar::BITS == 32 {
-                assert!(modular_distance(*expected, *actual) == Scalar::ZERO);
+                assert_eq!(modular_distance(*expected, *actual), Scalar::ZERO);
             } else {
                 assert!(modular_distance(*expected, *actual) < (Scalar::ONE << (64 - 50)));
             }
@@ -47,7 +47,7 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
 
         for (expected, actual) in izip_eq!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
             if Scalar::BITS == 32 {
-                assert!(modular_distance(*expected, *actual) == Scalar::ZERO);
+                assert_eq!(modular_distance(*expected, *actual), Scalar::ZERO);
             } else {
                 assert!(modular_distance(*expected, *actual) < (Scalar::ONE << (64 - 50)));
             }
@@ -61,7 +61,7 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
 
         for (expected, actual) in izip_eq!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
             if Scalar::BITS == 32 {
-                assert!(modular_distance(*expected, *actual) == Scalar::ZERO);
+                assert_eq!(modular_distance(*expected, *actual), Scalar::ZERO);
             } else {
                 assert!(modular_distance(*expected, *actual) < (Scalar::ONE << (64 - 50)));
             }

@@ -1048,14 +1048,20 @@ pub fn assemble_lwe_keyswitch_key_from_chunks<Scalar, Cont, ContMut>(
 {
     let total_chunk_size: usize = chunks.iter().map(|c| c.chunk_size().0).sum();
     let chunks_lwe_dimension = LweDimension(total_chunk_size);
-    assert!(chunks_lwe_dimension == output.input_key_lwe_dimension());
+    assert_eq!(chunks_lwe_dimension, output.input_key_lwe_dimension());
 
     let mut start: usize = 0;
     for chunk in chunks {
-        assert!(output.decomposition_base_log() == chunk.decomposition_base_log());
-        assert!(output.decomposition_level_count() == chunk.decomposition_level_count());
-        assert!(output.output_lwe_size() == chunk.output_lwe_size());
-        assert!(output.ciphertext_modulus() == chunk.ciphertext_modulus());
+        assert_eq!(
+            output.decomposition_base_log(),
+            chunk.decomposition_base_log()
+        );
+        assert_eq!(
+            output.decomposition_level_count(),
+            chunk.decomposition_level_count()
+        );
+        assert_eq!(output.output_lwe_size(), chunk.output_lwe_size());
+        assert_eq!(output.ciphertext_modulus(), chunk.ciphertext_modulus());
 
         let end = start + chunk.as_ref().len();
         output.as_mut()[start..end].copy_from_slice(chunk.as_ref());
@@ -1401,15 +1407,21 @@ pub fn assemble_seeded_lwe_keyswitch_key_from_chunks<Scalar, Cont, ContMut>(
 {
     let total_chunk_size: usize = chunks.iter().map(|c| c.chunk_size().0).sum();
     let chunks_lwe_dimension = LweDimension(total_chunk_size);
-    assert!(chunks_lwe_dimension == output.input_key_lwe_dimension());
+    assert_eq!(chunks_lwe_dimension, output.input_key_lwe_dimension());
 
     let mut start: usize = 0;
     for chunk in chunks {
-        assert!(output.decomposition_base_log() == chunk.decomposition_base_log());
-        assert!(output.decomposition_level_count() == chunk.decomposition_level_count());
-        assert!(output.output_lwe_size() == chunk.output_lwe_size());
-        assert!(output.ciphertext_modulus() == chunk.ciphertext_modulus());
-        assert!(output.compression_seed() == chunk.compression_seed());
+        assert_eq!(
+            output.decomposition_base_log(),
+            chunk.decomposition_base_log()
+        );
+        assert_eq!(
+            output.decomposition_level_count(),
+            chunk.decomposition_level_count()
+        );
+        assert_eq!(output.output_lwe_size(), chunk.output_lwe_size());
+        assert_eq!(output.ciphertext_modulus(), chunk.ciphertext_modulus());
+        assert_eq!(output.compression_seed(), chunk.compression_seed());
 
         let end = start + chunk.as_ref().len();
         output.as_mut()[start..end].copy_from_slice(chunk.as_ref());

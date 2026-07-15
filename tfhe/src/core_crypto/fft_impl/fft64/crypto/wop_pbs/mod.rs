@@ -68,8 +68,11 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
     fft: FftView<'_>,
     stack: &mut PodStack,
 ) {
-    debug_assert!(lwe_list_out.ciphertext_modulus() == lwe_in.ciphertext_modulus());
-    debug_assert!(lwe_in.ciphertext_modulus() == ksk.ciphertext_modulus());
+    debug_assert_eq!(
+        lwe_list_out.ciphertext_modulus(),
+        lwe_in.ciphertext_modulus()
+    );
+    debug_assert_eq!(lwe_in.ciphertext_modulus(), ksk.ciphertext_modulus());
     debug_assert!(
         ksk.ciphertext_modulus().is_native_modulus(),
         "This operation only supports native moduli"
@@ -111,8 +114,11 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
         fourier_bsk.input_lwe_dimension().0,
         ksk.output_key_lwe_dimension().0,
     );
-    debug_assert!(lwe_list_out.ciphertext_modulus() == lwe_in.ciphertext_modulus());
-    debug_assert!(lwe_in.ciphertext_modulus() == ksk.ciphertext_modulus());
+    debug_assert_eq!(
+        lwe_list_out.ciphertext_modulus(),
+        lwe_in.ciphertext_modulus()
+    );
+    debug_assert_eq!(lwe_in.ciphertext_modulus(), ksk.ciphertext_modulus());
 
     let polynomial_size = fourier_bsk.polynomial_size();
     let glwe_size = fourier_bsk.glwe_size();
@@ -242,8 +248,11 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     fft: FftView<'_>,
     stack: &mut PodStack,
 ) {
-    debug_assert!(lwe_in.ciphertext_modulus() == ggsw_out.ciphertext_modulus());
-    debug_assert!(ggsw_out.ciphertext_modulus() == pfpksk_list.ciphertext_modulus());
+    debug_assert_eq!(lwe_in.ciphertext_modulus(), ggsw_out.ciphertext_modulus());
+    debug_assert_eq!(
+        ggsw_out.ciphertext_modulus(),
+        pfpksk_list.ciphertext_modulus()
+    );
 
     debug_assert!(
         pfpksk_list.ciphertext_modulus().is_native_modulus(),
@@ -365,7 +374,7 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     fft: FftView<'_>,
     stack: &mut PodStack,
 ) {
-    debug_assert!(lwe_out.ciphertext_modulus() == lwe_in.ciphertext_modulus());
+    debug_assert_eq!(lwe_out.ciphertext_modulus(), lwe_in.ciphertext_modulus());
     debug_assert!(
         lwe_in.ciphertext_modulus().is_native_modulus(),
         "This operation currently only supports native moduli"
@@ -459,7 +468,7 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
     fft: FftView<'_>,
     stack: &mut PodStack,
 ) {
-    debug_assert!(lut_per_layer.polynomial_count().0 == 1 << ggsw_list.count());
+    debug_assert_eq!(lut_per_layer.polynomial_count().0, 1 << ggsw_list.count());
 
     if ggsw_list.count() > 0 {
         let glwe_size = output_glwe.glwe_size();
@@ -661,8 +670,14 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
         lwe_list_out.lwe_size().to_lwe_dimension().0,
         fourier_bsk.output_lwe_dimension().0
     );
-    debug_assert!(lwe_list_out.ciphertext_modulus() == lwe_list_in.ciphertext_modulus());
-    debug_assert!(lwe_list_in.ciphertext_modulus() == pfpksk_list.ciphertext_modulus());
+    debug_assert_eq!(
+        lwe_list_out.ciphertext_modulus(),
+        lwe_list_in.ciphertext_modulus()
+    );
+    debug_assert_eq!(
+        lwe_list_in.ciphertext_modulus(),
+        pfpksk_list.ciphertext_modulus()
+    );
     debug_assert!(
         pfpksk_list.ciphertext_modulus().is_native_modulus(),
         "This operation currently only supports native moduli"

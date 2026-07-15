@@ -1,5 +1,4 @@
 use crate::shortint::keycache::KEY_CACHE_WOPBS;
-use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use crate::shortint::wopbs::WopbsKey;

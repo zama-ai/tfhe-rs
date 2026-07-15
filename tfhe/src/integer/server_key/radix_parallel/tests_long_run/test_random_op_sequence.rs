@@ -91,14 +91,13 @@ pub(crate) type MatchValueOrExecutor = Box<
     >,
 >;
 
-pub(crate) type OprfExecutor =
-    Box<dyn for<'a> OpSequenceFunctionExecutor<(Seed, u64), RadixCiphertext>>;
+pub(crate) type OprfExecutor = Box<dyn OpSequenceFunctionExecutor<(Seed, u64), RadixCiphertext>>;
 
 pub(crate) type OprfBoundedExecutor =
-    Box<dyn for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64), RadixCiphertext>>;
+    Box<dyn OpSequenceFunctionExecutor<(Seed, u64, u64), RadixCiphertext>>;
 
 pub(crate) type OprfCustomRangeExecutor =
-    Box<dyn for<'a> OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>>;
+    Box<dyn OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>>;
 
 fn random_op_sequence<P>(param: P)
 where

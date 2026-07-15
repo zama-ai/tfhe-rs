@@ -455,7 +455,7 @@ impl ServerKey {
                 ];
 
                 let mut packed_blocks = Vec::new();
-                for chunk_of_3 in duo_completer_blocks.chunks_exact(3) {
+                for chunk_of_3 in duo_completer_blocks.as_chunks::<3>().0 {
                     packed_blocks.push(self.pack_block_chunk(&chunk_of_3[..2]));
                     packed_blocks.push(self.pack_block_chunk(&chunk_of_3[1..3]));
                 }

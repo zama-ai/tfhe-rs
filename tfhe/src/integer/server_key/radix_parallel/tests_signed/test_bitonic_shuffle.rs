@@ -62,7 +62,7 @@ const NUM_DATA_BLOCKS: usize = 16;
 pub(crate) fn signed_bitonic_shuffle_with_keys_test<P, T>(param: P, mut executor: T)
 where
     P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
+    T: FunctionExecutor<
         (Vec<SignedRadixCiphertext>, Vec<RadixCiphertext>),
         Result<Vec<SignedRadixCiphertext>, crate::Error>,
     >,
@@ -108,7 +108,7 @@ where
 pub(crate) fn signed_unchecked_bitonic_shuffle_with_keys_test<P, T>(param: P, mut executor: T)
 where
     P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
+    T: FunctionExecutor<
         (Vec<SignedRadixCiphertext>, Vec<RadixCiphertext>),
         Vec<SignedRadixCiphertext>,
     >,
@@ -154,7 +154,7 @@ where
 pub(crate) fn signed_bitonic_shuffle_test<P, T>(param: P, mut executor: T)
 where
     P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
+    T: FunctionExecutor<
         (Vec<SignedRadixCiphertext>, BitonicShuffleKeySize, Seed),
         Result<Vec<SignedRadixCiphertext>, crate::Error>,
     >,

@@ -577,10 +577,10 @@ mod test {
                 .map(|_| rand::random::<u64>() % message_modulus.0)
                 .collect();
 
-            for chunk in clears.chunks_exact(2) {
-                let ct1 = cks.encrypt(chunk[0]);
+            for &[clear1, clear2] in clears.as_chunks::<2>().0 {
+                let ct1 = cks.encrypt(clear1);
                 cts.push(ct1);
-                let ct2 = cks.encrypt(chunk[1]);
+                let ct2 = cks.encrypt(clear2);
                 cts.push(ct2);
             }
 
@@ -630,7 +630,7 @@ mod test {
 
             // non trivial ct should have a non zero mask
             assert!(not_trivial.ct.get_mask().as_ref().iter().any(|&x| x != 0));
-            assert!(not_trivial.noise_level() == NoiseLevel::NOMINAL);
+            assert_eq!(not_trivial.noise_level(), NoiseLevel::NOMINAL);
 
             let dec = cks.decrypt(&not_trivial);
             assert_eq!(dec, random_clear);

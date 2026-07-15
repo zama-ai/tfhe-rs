@@ -399,12 +399,30 @@ mod tests {
 
     #[test]
     fn test_modulus_struct() {
-        assert!(std::mem::size_of::<CiphertextModulus<u32>>() == std::mem::size_of::<u128>());
-        assert!(std::mem::size_of::<CiphertextModulus<u64>>() == std::mem::size_of::<u128>());
-        assert!(std::mem::size_of::<CiphertextModulus<u128>>() == std::mem::size_of::<u128>());
-        assert!(std::mem::align_of::<CiphertextModulus<u32>>() == std::mem::align_of::<u128>());
-        assert!(std::mem::align_of::<CiphertextModulus<u64>>() == std::mem::align_of::<u128>());
-        assert!(std::mem::align_of::<CiphertextModulus<u128>>() == std::mem::align_of::<u128>());
+        assert_eq!(
+            std::mem::size_of::<CiphertextModulus<u32>>(),
+            std::mem::size_of::<u128>()
+        );
+        assert_eq!(
+            std::mem::size_of::<CiphertextModulus<u64>>(),
+            std::mem::size_of::<u128>()
+        );
+        assert_eq!(
+            std::mem::size_of::<CiphertextModulus<u128>>(),
+            std::mem::size_of::<u128>()
+        );
+        assert_eq!(
+            std::mem::align_of::<CiphertextModulus<u32>>(),
+            std::mem::align_of::<u128>()
+        );
+        assert_eq!(
+            std::mem::align_of::<CiphertextModulus<u64>>(),
+            std::mem::align_of::<u128>()
+        );
+        assert_eq!(
+            std::mem::align_of::<CiphertextModulus<u128>>(),
+            std::mem::align_of::<u128>()
+        );
 
         {
             let mod_32 = CiphertextModulus::<u32>::try_new_power_of_2(32).unwrap();

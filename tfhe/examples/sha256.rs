@@ -323,7 +323,7 @@ fn decrypt_hash(encrypted_hash: [FheUint32; 8], client_key: Option<&ClientKey>) 
     let mut decrypted_hash = [0u8; 32];
     encrypted_hash
         .iter()
-        .zip(decrypted_hash.chunks_exact_mut(4))
+        .zip(decrypted_hash.as_chunks_mut::<4>().0)
         .for_each(|(ciphertext, out_clear)| {
             let clear: u32 = if let Some(cks) = client_key {
                 ciphertext.decrypt(cks)

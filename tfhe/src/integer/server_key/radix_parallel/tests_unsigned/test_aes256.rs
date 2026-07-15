@@ -58,12 +58,11 @@ fn plain_key_expansion(key_hi: u128, key_lo: u128) -> Vec<u128> {
         words[i] = words[i - 8] ^ temp;
     }
     words
-        .chunks_exact(4)
-        .map(|chunk| {
-            ((chunk[0] as u128) << 96)
-                | ((chunk[1] as u128) << 64)
-                | ((chunk[2] as u128) << 32)
-                | (chunk[3] as u128)
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|&[b0, b1, b2, b3]| {
+            ((b0 as u128) << 96) | ((b1 as u128) << 64) | ((b2 as u128) << 32) | (b3 as u128)
         })
         .collect()
 }

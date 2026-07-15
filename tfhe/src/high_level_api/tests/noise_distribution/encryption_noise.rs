@@ -53,7 +53,7 @@ fn test_noise_check_secret_key_encryption_noise_tuniform() {
             let shortint_key: &crate::shortint::ClientKey = integer_key.as_ref();
 
             let radix = encrypted.into_raw_parts().0;
-            assert!(radix.blocks.len() == 1);
+            assert_eq!(radix.blocks.len(), 1);
             let shortint_block = radix.blocks.into_iter().next().unwrap();
 
             let noise = shortint_key.decrypt_no_decode(&shortint_block);
@@ -185,7 +185,7 @@ fn noise_check_compact_public_key_encryption_noise_tuniform(
                         let core_key = shortint_key.into_raw_parts().0;
 
                         let radix = encrypted.into_raw_parts().0;
-                        assert!(radix.blocks.len() == 1);
+                        assert_eq!(radix.blocks.len(), 1);
                         let shortint_block = radix.blocks.into_iter().next().unwrap();
                         let lwe_ct = shortint_block.ct;
 

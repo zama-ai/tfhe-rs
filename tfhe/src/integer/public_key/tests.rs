@@ -112,7 +112,7 @@ fn radix_encrypt_decrypt_compact_128_bits_list(params: ClassicPBSParameters) {
     let mut clear_vec = Vec::with_capacity(MAX_CT);
     for _ in 0..25 {
         let num_ct_for_this_iter = rng.gen_range(1..=MAX_CT);
-        clear_vec.truncate(0);
+        clear_vec.clear();
         for _ in 0..num_ct_for_this_iter {
             let clear = rng.gen::<u128>();
             clear_vec.push(clear);
