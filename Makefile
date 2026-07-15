@@ -440,14 +440,14 @@ check_typos: install_typos_checker
 .PHONY: clippy_gpu # Run clippy lints on tfhe with "gpu" enabled
 clippy_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean,shortint,integer,internal-keycache,gpu,gpu-experimental-zk,pbs-stats,extended-types,zk-pok \
+		--features=boolean,shortint,integer,internal-keycache,gpu,gpu-zk,pbs-stats,extended-types,zk-pok \
 		--all-targets \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: check_gpu # Run check on tfhe with "gpu" enabled
 check_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" check \
-		--features=boolean,shortint,integer,internal-keycache,gpu,gpu-experimental-zk,pbs-stats \
+		--features=boolean,shortint,integer,internal-keycache,gpu,gpu-zk,pbs-stats \
 		--all-targets \
 		-p tfhe
 
@@ -461,7 +461,7 @@ clippy_hpu: install_rs_check_toolchain
 .PHONY: clippy_gpu_hpu # Run clippy lints on tfhe with "gpu" and "hpu" enabled
 clippy_gpu_hpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean,shortint,integer,internal-keycache,gpu,gpu-experimental-zk,hpu,pbs-stats,extended-types,zk-pok \
+		--features=boolean,shortint,integer,internal-keycache,gpu,gpu-zk,hpu,pbs-stats,extended-types,zk-pok \
 		--all-targets \
 		-p tfhe -- --no-deps -D warnings
 
@@ -558,7 +558,7 @@ clippy_rustdoc_gpu: install_rs_check_toolchain
 	fi && \
 	CARGO_TERM_QUIET=true CLIPPYFLAGS="-D warnings" RUSTDOCFLAGS="--no-run --test-builder ./scripts/clippy_driver.sh -Z unstable-options" \
 		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" test --doc \
-		--features=boolean,shortint,integer,zk-pok,pbs-stats,strings,experimental,gpu,gpu-experimental-zk \
+		--features=boolean,shortint,integer,zk-pok,pbs-stats,strings,experimental,gpu,gpu-zk \
 		-p tfhe -- --nocapture
 
 .PHONY: clippy_c_api # Run clippy lints enabling the boolean, shortint and the C API
@@ -816,7 +816,7 @@ build_c_api: install_rs_check_toolchain
 .PHONY: build_c_api_gpu # Build the C API for boolean, shortint and integer
 build_c_api_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,extended-types,gpu,gpu-experimental-zk \
+		--features=boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,extended-types,gpu,gpu-zk \
 		-p tfhe
 
 .PHONY: build_c_api_experimental_deterministic_fft # Build the C API for boolean, shortint and integer with experimental deterministic FFT
@@ -1463,7 +1463,7 @@ test_integer_zk_gpu:
 .PHONY: test_integer_zk_experimental_gpu # Run tfhe-zk-pok tests
 test_integer_zk_experimental_gpu:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=integer,zk-pok,gpu,gpu-experimental-zk -p tfhe -- \
+		--features=integer,zk-pok,gpu,gpu-zk -p tfhe -- \
 		integer::gpu::zk::
 
 .PHONY: test_zk_cuda # Run all GPU MSM integration tests (CPU vs GPU comparison + integration test)
@@ -1897,7 +1897,7 @@ bench_msm_zk_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench zk-msm \
-	--features=gpu,gpu-experimental-zk,zk-pok -p tfhe-benchmark --profile release -- zk::cuda::msm
+	--features=gpu,gpu-zk,zk-pok -p tfhe-benchmark --profile release -- zk::cuda::msm
 
 # GPU benchmarks need --profile release for correct measurements
 .PHONY: bench_integer_zk_gpu
@@ -1913,7 +1913,7 @@ bench_integer_zk_experimental_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-zk-pke \
-	--features=integer,internal-keycache,gpu,gpu-experimental-zk,pbs-stats,zk-pok -p tfhe-benchmark --profile release --
+	--features=integer,internal-keycache,gpu,gpu-zk,pbs-stats,zk-pok -p tfhe-benchmark --profile release --
 
 .PHONY: bench_integer_aes_gpu # Run benchmarks for AES on GPU backend
 bench_integer_aes_gpu: install_rs_check_toolchain

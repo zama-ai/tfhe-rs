@@ -21,12 +21,12 @@ For GPU-accelerated **expansion only**, build with:
 {% hint style="warning" %}
 For GPU-accelerated **proof generation** and **verification**, build with:
 ```shell
---features=gpu-experimental-zk
+--features=gpu-zk
 ```
-This feature implies `gpu` and `zk-pok`, so you do not need to specify them separately. It requires a CUDA-capable GPU. This feature is experimental and should not be used in production.
+This feature implies `gpu` and `zk-pok`, so you do not need to specify them separately. It requires a CUDA-capable GPU.
 {% endhint %}
 
-The Rust API is identical in both cases. The `gpu-experimental-zk` feature flag switches the internal dispatch for proof generation and verification from CPU to GPU at compile time, so no code changes are needed beyond the feature flag.
+The Rust API is identical in both cases. The `gpu-zk` feature flag switches the internal dispatch for proof generation and verification from CPU to GPU at compile time, so no code changes are needed beyond the feature flag.
 
 ## API elements discussed in this document
 
@@ -42,7 +42,7 @@ GPU acceleration is manifested in different ways depending on the operation.
 
 ### Proof generation and verification
 
-If the `gpu-experimental-zk` feature is active, the compute-intensive parts of proof generation and verification are offloaded to the GPU, producing proofs bitwise compatible with the CPU implementation. This is supported only for the PKE v2 scheme, which is selected by default with current parameters.
+If the `gpu-zk` feature is active, the compute-intensive parts of proof generation and verification are offloaded to the GPU, producing proofs bitwise compatible with the CPU implementation. This is supported only for the PKE v2 scheme, which is selected by default with current parameters.
 
 When multiple GPUs are available, ZK operations automatically distribute work across them.
 
@@ -117,7 +117,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 {% hint style="info" %}
-When built with `--features=gpu-experimental-zk`, the `build_with_proof_packed` and `verify_and_expand` calls in this same code will automatically use the GPU for proof generation, verification, and ciphertext expansion. If built with `--features=gpu`, only ciphertext expansion will be accelerated by the GPU. No code changes are required.
+When built with `--features=gpu-zk`, the `build_with_proof_packed` and `verify_and_expand` calls in this same code will automatically use the GPU for proof generation, verification, and ciphertext expansion. If built with `--features=gpu`, only ciphertext expansion will be accelerated by the GPU. No code changes are required.
 {% endhint %}
 
 ## Benchmark
