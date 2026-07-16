@@ -1,0 +1,4 @@
+%hw ALL=(ALL) NOPASSWD: /usr/sbin/rmmod --syslog ami, /usr/sbin/insmod /opt/v80/ami/*/ami.ko
+%hw ALL=(ALL) NOPASSWD: /usr/sbin/rmmod --syslog qdma_pf, /usr/sbin/insmod --syslog qdma_pf
+%hw ALL=(ALL) NOPASSWD: /usr/bin/chgrp hw /sys/bus/pci/rescan, /usr/bin/chmod g+w /sys/bus/pci/rescan
+%hw ALL=(ALL) NOPASSWD: /usr/bin/chgrp -R hw /sys/bus/pci/devices/*, /usr/bin/chmod -R g=u /sys/bus/pci/devices/*
