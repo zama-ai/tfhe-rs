@@ -84,6 +84,14 @@ void host_rerand_inplace(
   compact_lwe_lists.release();
 }
 
+/// @brief Dispatches re-randomization over the supported polynomial sizes.
+///
+/// @param lwe_array                LWE ciphertext array to re-randomize in
+/// place
+/// @param lwe_flattened_encryptions_of_zero_compact_array_in  Flattened compact
+///        encryptions of zero used as noise source
+/// @param ksk                     Keyswitch key pointers (one per GPU)
+/// @param mem_ptr                 Pre-allocated re-randomization scratch buffer
 template <typename Torus>
 void host_rerand_inplace_dispatch(
     CudaStreams const streams, Torus *lwe_array,
@@ -92,38 +100,38 @@ void host_rerand_inplace_dispatch(
   switch (mem_ptr->params.big_lwe_dimension) {
   case 256:
     host_rerand_inplace<Torus, AmortizedDegree<256>>(
-        streams, lwe_array,
-        lwe_flattened_encryptions_of_zero_compact_array_in, ksk, mem_ptr);
+        streams, lwe_array, lwe_flattened_encryptions_of_zero_compact_array_in,
+        ksk, mem_ptr);
     break;
   case 512:
     host_rerand_inplace<Torus, AmortizedDegree<512>>(
-        streams, lwe_array,
-        lwe_flattened_encryptions_of_zero_compact_array_in, ksk, mem_ptr);
+        streams, lwe_array, lwe_flattened_encryptions_of_zero_compact_array_in,
+        ksk, mem_ptr);
     break;
   case 1024:
     host_rerand_inplace<Torus, AmortizedDegree<1024>>(
-        streams, lwe_array,
-        lwe_flattened_encryptions_of_zero_compact_array_in, ksk, mem_ptr);
+        streams, lwe_array, lwe_flattened_encryptions_of_zero_compact_array_in,
+        ksk, mem_ptr);
     break;
   case 2048:
     host_rerand_inplace<Torus, AmortizedDegree<2048>>(
-        streams, lwe_array,
-        lwe_flattened_encryptions_of_zero_compact_array_in, ksk, mem_ptr);
+        streams, lwe_array, lwe_flattened_encryptions_of_zero_compact_array_in,
+        ksk, mem_ptr);
     break;
   case 4096:
     host_rerand_inplace<Torus, AmortizedDegree<4096>>(
-        streams, lwe_array,
-        lwe_flattened_encryptions_of_zero_compact_array_in, ksk, mem_ptr);
+        streams, lwe_array, lwe_flattened_encryptions_of_zero_compact_array_in,
+        ksk, mem_ptr);
     break;
   case 8192:
     host_rerand_inplace<Torus, AmortizedDegree<8192>>(
-        streams, lwe_array,
-        lwe_flattened_encryptions_of_zero_compact_array_in, ksk, mem_ptr);
+        streams, lwe_array, lwe_flattened_encryptions_of_zero_compact_array_in,
+        ksk, mem_ptr);
     break;
   case 16384:
     host_rerand_inplace<Torus, AmortizedDegree<16384>>(
-        streams, lwe_array,
-        lwe_flattened_encryptions_of_zero_compact_array_in, ksk, mem_ptr);
+        streams, lwe_array, lwe_flattened_encryptions_of_zero_compact_array_in,
+        ksk, mem_ptr);
     break;
   default:
     PANIC("CUDA error: lwe_dimension not supported. Supported dimensions are "
