@@ -77,19 +77,22 @@ uint64_t scratch_cuda_integer_grouped_oprf_custom_range_64_async(
         rerand_ksk_params.base_log, 0, 0, 0, message_modulus, carry_modulus,
         PBS_MS_REDUCTION_T::NO_REDUCTION);
 
-    size_tracker = scratch_cuda_integer_grouped_oprf_custom_range_async<uint64_t>(
-        CudaStreams(streams),
-        reinterpret_cast<int_grouped_oprf_custom_range_memory<uint64_t> **>(
-            mem_ptr),
-        params, rerand_params, num_blocks_intermediate, num_input_random_bits,
-        num_scalar_bits, rerand_mode, allocate_gpu_memory);
+    size_tracker =
+        scratch_cuda_integer_grouped_oprf_custom_range_async<uint64_t>(
+            CudaStreams(streams),
+            reinterpret_cast<int_grouped_oprf_custom_range_memory<uint64_t> **>(
+                mem_ptr),
+            params, rerand_params, num_blocks_intermediate,
+            num_input_random_bits, num_scalar_bits, rerand_mode,
+            allocate_gpu_memory);
   } else {
-    size_tracker = scratch_cuda_integer_grouped_oprf_custom_range_async<uint64_t>(
-        CudaStreams(streams),
-        reinterpret_cast<int_grouped_oprf_custom_range_memory<uint64_t> **>(
-            mem_ptr),
-        params, num_blocks_intermediate, num_input_random_bits, num_scalar_bits,
-        allocate_gpu_memory);
+    size_tracker =
+        scratch_cuda_integer_grouped_oprf_custom_range_async<uint64_t>(
+            CudaStreams(streams),
+            reinterpret_cast<int_grouped_oprf_custom_range_memory<uint64_t> **>(
+                mem_ptr),
+            params, num_blocks_intermediate, num_input_random_bits,
+            num_scalar_bits, allocate_gpu_memory);
   }
 
   return size_tracker;

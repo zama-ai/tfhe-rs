@@ -15,8 +15,8 @@ uint64_t scratch_cuda_integer_grouped_oprf_async(
   uint64_t size_tracker = 0;
 
   *mem_ptr = new int_grouped_oprf_memory<Torus>(
-      streams, params, num_blocks_to_process,
-      total_random_bits, allocate_gpu_memory, size_tracker);
+      streams, params, num_blocks_to_process, total_random_bits,
+      allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
@@ -100,9 +100,8 @@ uint64_t scratch_cuda_integer_grouped_oprf_custom_range_async(
   uint64_t size_tracker = 0;
 
   *mem_ptr = new int_grouped_oprf_custom_range_memory<Torus>(
-      streams, params, num_blocks_intermediate,
-      num_input_random_bits, num_scalar_bits, allocate_gpu_memory,
-      size_tracker);
+      streams, params, num_blocks_intermediate, num_input_random_bits,
+      num_scalar_bits, allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }
