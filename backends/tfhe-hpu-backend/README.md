@@ -65,14 +65,11 @@ HPU configuration knobs are gathered in a TOML configuration file. This file des
           "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_cfg_3in3.toml",
           "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_prc_1in3.toml",
           "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_prc_3in3.toml"]
-  polling_us=2
+  polling_us=1
+  node_id=[0,1,2,3] # example for a 4 HPU cluster
 [fpga.ffi.V80] # Hardware properties
-  id="${V80_PCIE_DEV}"
-  board_sn="${V80_SERIAL_NUMBER}"
   hpu_path="${HPU_BACKEND_DIR}/config_store/v80_archives/psi64.hpu"
   ami_path="${AMI_PATH}/ami.ko"
-  qdma_h2c="/dev/qdma${V80_PCIE_DEV}001-MM-0" # QDma host to card device
-  qdma_c2h="/dev/qdma${V80_PCIE_DEV}001-MM-1" # QDma card to host device
 
 [rtl] # RTL option
   bpip_used = true # BPIP/IPIP mode
@@ -80,11 +77,12 @@ HPU configuration knobs are gathered in a TOML configuration file. This file des
   bpip_timeout = 100_000 # BPIP timeout in clock `cycles`
 
 [board] # Board configuration
-  ct_mem = 32768 # Number of allocated ciphertext
   ct_pc = [ # Memory used for ciphertext
     {Hbm= {pc=32}},
     {Hbm= {pc=33}},
   ]
+  user_size = 12288 # Number of slots reserved for host ciphertexts
+  b2b_size = 4096   # Number of slots reserved for ciphertexts exchanged between HPUs
   heap_size = 16384 # Number of slots reserved for heap
 
   lut_mem = 256 # Number of allocated LUT table
@@ -95,13 +93,21 @@ HPU configuration knobs are gathered in a TOML configuration file. This file des
 
   bsk_pc = [ # Memory used for Bootstrapping key
     {Hbm={pc=8}},
+    {Hbm={pc=10}},
     {Hbm={pc=12}},
+    {Hbm={pc=14}},
     {Hbm={pc=24}},
+    {Hbm={pc=26}},
     {Hbm={pc=28}},
+    {Hbm={pc=30}},
     {Hbm={pc=40}},
+    {Hbm={pc=42}},
     {Hbm={pc=44}},
+    {Hbm={pc=46}},
     {Hbm={pc=56}},
-    {Hbm={pc=60}}
+    {Hbm={pc=58}},
+    {Hbm={pc=60}},
+    {Hbm={pc=62}}
   ]
 
   ksk_pc = [ # Memory used for Keyswitching key
@@ -128,10 +134,42 @@ HPU configuration knobs are gathered in a TOML configuration file. This file des
 
 [firmware] # Firmware properties
   implementation = "Llt" # Firmware flavor to use
-  integer_w=[4,6,8,10,12,14,16,32,64,128] # List of supported IOp width
-  min_batch_size = 11 # Minimum batch size for maximum throughput
+  integer_w=[2,4,8,16,32,64,128] # List of supported IOp width
+  min_batch_size = 12 # Minimum batch size for maximum throughput
   kogge_cfg            = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/kogge_cfg.toml"
-  custom_iop.'IOP[0]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_0.asm"
+
+[firmware.custom_iop.integer_w_2]
+  'IOP[16]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_2/cust_16"
+
+[firmware.custom_iop.integer_w_4]
+  'IOP[18]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_4/cust_18"
+
+[firmware.custom_iop.integer_w_6]
+  'IOP[8]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_6/cust_8"
+
+[firmware.custom_iop.integer_w_8]
+  'IOP[0]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_0"
+...
+  'IOP[37]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_37"
+
+[firmware.custom_iop.integer_w_16]
+  'IOP[21]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_16/cust_21"
+  'IOP[33]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_16/cust_33"
+
+[firmware.custom_iop.integer_w_32]
+  'IOP[33]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_32/cust_33"
+  'IOP[40]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_32/cust_40"
+
+[firmware.custom_iop.integer_w_64]
+  'IOP[4]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/cust_4"
+  'IOP[33]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/cust_33"
+  'IOP[40]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/cust_40"
+
+[firmware.custom_iop.integer_w_128]
+  'IOP[5]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/cust_5"
+  'IOP[6]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/cust_6"
+  'IOP[7]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/cust_7"
+  'IOP[15]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/cust_15"
 
 # Default firmware configuration. Could be edited on per-IOp basis
 [firmware.op_cfg.default]
@@ -197,6 +235,79 @@ Following code snippets show how to start operation on HPU:
   let dec_sum_ab: u64 = fhe_sum_ab.decrypt(cks);
 ```
 
+## HPU cluster setup
+HPU can now be part of a cluster from 2 to 8. Each of these HPU needs to be connected via 25Gb Ethernet link on lane 0 of QSFP module 3 (port 4)
+to all the other HPU of the cluster (usually via a switch).
+
+Before doing any run on hardware using HPU backend, you need to setup the local environment:
+```  bash
+# create a "hw" group for driver & PCIe devices access & add current user to this group
+$ sudo groupadd hw
+$ sudo usermod -aG hw username
+
+# update sudo rules (verify that /etc/sudoers.d directory is included correctly in /etc/sudoers)
+$ sudo cp <path>/tfhe-rs/backends/tfhe-hpu-backend/scripts/v80_sudo_rules /etc/sudoers.d/
+
+# compile AMI driver (at this point we use revision bd569ee)
+$ git clone git@github.com:zama-ai/AVED.git zama_aved
+$ cd zama_aved/sw/AMI/driver
+$ make
+$ sudo mkdir -p /opt/v80/ami/bd569ee/
+$ sudo chown -R root:hw /opt/v80
+$ sudo chmod -R 775 /opt/v80
+$ cp ami.ko /opt/v80/ami/bd569ee/
+$ cd ..
+$ make -C api all
+$ make -C app all
+
+# if your V80 boards are loaded with correct bitstream you can try
+$ sudo insmod /opt/v80/ami/bd569ee/ami.ko
+
+# setup cluster description profile: collect serial numbers &
+# MAC addresses
+# list V80 devices
+$ lspci -d 10ee:50b4
+01:00.0 Processing accelerators: Xilinx Corporation Device 50b4
+24:00.0 Processing accelerators: Xilinx Corporation Device 50b4
+81:00.0 Processing accelerators: Xilinx Corporation Device 50b4
+a1:00.0 Processing accelerators: Xilinx Corporation Device 50b4
+# if AMI driver can be loaded use its information to fill
+# the file <path>/backends/tfhe-hpu-backend/scripts/v80_pcie_dev.sh
+$ cat /sys/module/ami/drivers/pci\:ami/0000\:01\:00.0/board_serial
+XFL1C0UK15KC
+$ cat /sys/module/ami/drivers/pci\:ami/0000\:01\:00.0/mac_addr
+00:0a:35:25:43:C0
+# in v80_pcie_dev.sh only the MAC 3 LSB are set (here 0x2543C0)
+...
+# if AMI driver cannot be loaded you can get the serial numbers using xsdb
+# but it is not easy to match serial numbers with PCIe devices
+# you can keep default MAC addresses for now and update later when AMI can be loaded
+$ xsdb -eval "connect;puts [lsort -unique [regex -all -inline {( XFL[A-Z0-9]*)} [targets -target-properties]]]"
+****** Xilinx hw_server v2024.2
+  **** Build date : Oct 29 2024 at 10:16:47
+    ** Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
+    ** Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+
+INFO: hw_server application started
+INFO: Use Ctrl-C to exit hw_server application
+
+INFO: To connect to this hw_server instance use url: TCP:127.0.0.1:3121
+
+{ XFL1C0UK15KCA} { XFL1TYZ3GUIXA} { XFL1ORE0X5YBA} { XFL1OGGL9CT4A}
+...
+# you need to remove the 'A' at the end of these serial numbers
+# and then copy this file in /etc/profile.d/
+$ cp <path>/backends/tfhe-hpu-backend/scripts/v80_pcie_dev.sh /etc/profile.d/
+$ . /etc/profile.d/v80_pcie_dev.sh
+# you should be able to display cluster description:
+$ display_v80_board_map 
+@0: pcie_id:01, serial_number:XFL1C0UK15KC, mac_address:0x2543C0
+@1: pcie_id:24, serial_number:XFL1TYZ3GUIX, mac_address:0x25AB50
+@2: pcie_id:81, serial_number,XFL1ORE0X5YB, mac_address:0x2468F0
+@3: pcie_id:A1, serial_number:XFL1OGGL9CT4, mac_address:0x249080
+```
+At this point, you should also update the file `<path>/tfhe-rs/backends/tfhe-hpu-backend/config_store/v80/hpu_config.toml` to reflect the number of HPU are available or which one you want to use. For example, if you have x8 V80 available you should modify `node_id=[0,1,2,3]` to `node_id=[0,1,2,3,4,5,6,7]` to let HPU backend know that you want to use all x8 HPU.
+
 ## Pre-made Examples
 There are some example applications already available in `tfhe/examples/hpu`:
  * hpu_hlapi: Depict the used of HPU device through HighLevelApi.
@@ -213,22 +324,7 @@ In order to run those applications on hardware, user must build from the project
 ``` bash
 $ cargo build --release --features="hpu-v80" --example hpu_hlapi --example hpu_bench
 # Correctly setup environment with setup_hpu.sh script
-$ source setup_hpu.sh --config v80 -p
-# Source Xilinx environment (2024 or 2025 version)
-$ source /opt/xilinx/Vivado/2024.2/settings64.sh
-$ xsdb -eval "connect;puts [lsort -unique [regex -all -inline {( XFL[A-Z0-9]*)} [targets -target-properties]]]"
-****** Xilinx hw_server v2024.2
-  **** Build date : Oct 29 2024 at 10:16:47
-    ** Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
-    ** Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
-
-INFO: hw_server application started
-INFO: Use Ctrl-C to exit hw_server application
-
-INFO: To connect to this hw_server instance use url: TCP:127.0.0.1:3121
-
-{ XFL12E5XJHWLA}
-$ export V80_SERIAL_NUMBER=XFL12E5XJHWL
+$ source setup_hpu.sh --config v80
 $ ./target/release/examples/hpu_bench --integer-w 64 --integer-w 32 --iop MUL --iter 10
 $ ./target/release/examples/hpu_hlapi
 ```
@@ -239,27 +335,7 @@ $ ./target/release/examples/hpu_hlapi
 > make pull_hpu_files
 > ```
 
-> NB: tfhe-hpu-backend can only use one V80 board at this time but if you have several boards on your server you can do
-> ```bash
-> $ . setup_hpu.sh --config v80 -p
-> getopt: option requires an argument -- 'p'
-> Please select a device in following list (1st two digits):
-> 24:00.1 Processing accelerators: Xilinx Corporation Device 50b5
-> 61:00.1 Processing accelerators: Xilinx Corporation Device 50b5
-> $ . setup_hpu.sh --config v80 -p 61
-> $ source /opt/xilinx/Vivado/2024.2/settings64.sh
-> # if AMI driver is loaded and AMC version running is the expected one
-> $ cat /sys/module/ami/drivers/pci\:ami/0000\:61\:00.0/board_serial
-> XFL1UKRD42KW
-> # list serial number available on USB JTAG
-> $ xsdb -eval "connect;puts [lsort -unique [regex -all -inline {( XFL[A-Z0-9]*)} [targets -target-properties]]]"
-> ...
-> { XFL12E5XJHWLA} { XFL1UKRD42KWA}
-> $ export V80_SERIAL_NUMBER=XFL1UKRD42KW
-> $ ./target/release/examples/hpu_hlapi
-> ```
-
-> NB: By default setup_hpu.sh will set AMI_PATH to something like /opt/v80/ami/e55d02d where e55d02d is the git revision of AMI driver.
+> NB: By default setup_hpu.sh will set AMI_PATH to something like /opt/v80/ami/bd569ee where bd569ee is the git revision of AMI driver.
 > To run properly, You need to either place a compiled ami.ko from this revision in this directory or set AMI_PATH to your AVED extraction:
 > ```bash
 > export AMI_PATH=/home/user/AVED/sw/AMI/driver/
@@ -279,7 +355,7 @@ Those tests have 5 sub-kind:
 Snippets below give some example of command that could be used for testing:
 ``` bash
 # Correctly setup environment with setup_hpu.sh script
-source setup_hpu.sh --config v80 -p
+source setup_hpu.sh --config v80
 
 # Run all sub-kind for 64b integer width
 cargo test --release --features="hpu-v80" --test hpu -- u64
@@ -293,7 +369,7 @@ HPU is completely integrated in tfhe benchmark system. Performances results coul
 Three benchmarks could be started, through the following Makefile target for simplicity:
 ``` bash
 # Do not forget to correctly set environment before hand
-source setup_hpu.sh --config v80 -p
+source setup_hpu.sh --config v80
 
 # Run hlapi benches
 make test_high_level_api_hpu
