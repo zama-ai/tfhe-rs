@@ -107,7 +107,7 @@ fn bench_pke_v2_verify(c: &mut Criterion) {
     }
 }
 
-#[cfg(feature = "gpu-experimental")]
+#[cfg(feature = "gpu")]
 mod gpu {
     use super::*;
     use tfhe_zk_pok::gpu::pke_v2 as gpu_pke_v2;
@@ -219,18 +219,18 @@ mod gpu {
 
 criterion_group!(benches_pke_v2, bench_pke_v2_verify, bench_pke_v2_prove);
 
-#[cfg(feature = "gpu-experimental")]
+#[cfg(feature = "gpu")]
 use gpu::{bench_pke_v2_prove_gpu, bench_pke_v2_verify_gpu};
 
-#[cfg(feature = "gpu-experimental")]
+#[cfg(feature = "gpu")]
 criterion_group!(
     benches_pke_v2_gpu,
     bench_pke_v2_verify_gpu,
     bench_pke_v2_prove_gpu
 );
 
-#[cfg(feature = "gpu-experimental")]
+#[cfg(feature = "gpu")]
 criterion_main!(benches_pke_v2, benches_pke_v2_gpu);
 
-#[cfg(not(feature = "gpu-experimental"))]
+#[cfg(not(feature = "gpu"))]
 criterion_main!(benches_pke_v2);
