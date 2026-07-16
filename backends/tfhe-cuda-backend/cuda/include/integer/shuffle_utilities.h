@@ -512,7 +512,7 @@ template <typename Torus> struct int_oprf_bitonic_shuffle_buffer {
         (uint64_t)total_oprf_blocks * message_bits_per_block;
 
     this->oprf_memory = new int_grouped_oprf_memory<Torus>(
-        streams, params, total_oprf_blocks, (uint32_t)message_bits_per_block,
+        streams, params, total_oprf_blocks,
         total_random_bits, allocate_gpu_memory, size_tracker);
 
     this->shuffle_buffer = new int_bitonic_shuffle_buffer<Torus>(

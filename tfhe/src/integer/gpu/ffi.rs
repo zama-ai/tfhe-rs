@@ -2624,7 +2624,6 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    message_bits_per_block: u32,
     total_random_bits: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
@@ -2664,7 +2663,6 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        message_bits_per_block,
         total_random_bits,
         noise_reduction_type as u32,
     );
@@ -2721,7 +2719,6 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    message_bits_per_block: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
     apply_rerand: bool,
     zero_lwes: Option<&CudaLweCompactCiphertextList<u64>>,
@@ -2809,7 +2806,6 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        message_bits_per_block,
         shift,
         num_scalars,
         noise_reduction_type as u32,
@@ -2851,7 +2847,6 @@ pub(crate) fn cuda_backend_get_grouped_oprf_size_on_gpu(
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    message_bits_per_block: u32,
     total_random_bits: u32,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
@@ -2870,7 +2865,6 @@ pub(crate) fn cuda_backend_get_grouped_oprf_size_on_gpu(
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             false,
-            message_bits_per_block,
             total_random_bits,
             noise_reduction_type as u32,
         )

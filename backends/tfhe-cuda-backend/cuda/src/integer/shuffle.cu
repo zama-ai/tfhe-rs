@@ -12,7 +12,7 @@ uint64_t scratch_cuda_integer_bitonic_shuffle_64_async(
   int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
 
-  uint64_t ret = scratch_cuda_integer_bitonic_shuffle<uint64_t>(
+  uint64_t ret = scratch_cuda_integer_bitonic_shuffle_async<uint64_t>(
       CudaStreams(streams), (int_bitonic_shuffle_buffer<uint64_t> **)mem_ptr,
       key_num_radix_blocks, data_num_radix_blocks, num_values, params,
       allocate_gpu_memory);
@@ -68,7 +68,7 @@ uint64_t scratch_cuda_integer_oprf_bitonic_shuffle_64_async(
   int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
 
-  uint64_t ret = scratch_cuda_integer_oprf_bitonic_shuffle<uint64_t>(
+  uint64_t ret = scratch_cuda_integer_oprf_bitonic_shuffle_async<uint64_t>(
       CudaStreams(streams),
       (int_oprf_bitonic_shuffle_buffer<uint64_t> **)mem_ptr,
       key_num_radix_blocks, data_num_radix_blocks, num_values, params,

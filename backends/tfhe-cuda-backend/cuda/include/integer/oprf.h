@@ -16,12 +16,13 @@ template <typename Torus> struct int_grouped_oprf_memory {
   CudaRadixCiphertextFFI *plaintext_corrections;
   Torus *h_lut_indexes;
 
-  // with message_bits_per_block == ilog2(msg_modulus) from crypto params
   int_grouped_oprf_memory(CudaStreams streams, int_radix_params params,
                           uint32_t num_blocks_to_process,
-                          uint32_t message_bits_per_block,
                           uint64_t total_random_bits, bool allocate_gpu_memory,
                           uint64_t &size_tracker) {
+
+    uint32_t message_bits_per_block =
+        (uint32_t)std::log2(params.message_modulus);
 
     uint32_t calculated_active_blocks =
         total_random_bits == 0
@@ -45,12 +46,8 @@ template <typename Torus> struct int_grouped_oprf_memory {
         num_blocks_to_process, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    uint64_t message_modulus_log2 = (uint64_t)std::log2(params.message_modulus);
-    if (message_modulus_log2 != message_bits_per_block) {
-      PANIC("message_modulus_log2 should be equal to message_bits_per_block");
-    }
     uint64_t carry_modulus_log2 = (uint64_t)std::log2(params.carry_modulus);
-    uint64_t full_bits_count = 1 + carry_modulus_log2 + message_modulus_log2;
+    uint64_t full_bits_count = 1 + carry_modulus_log2 + message_bits_per_block;
     uint64_t delta = 1ULL << (64 - full_bits_count);
     size_t lwe_size = params.big_lwe_dimension + 1;
 
@@ -197,24 +194,26 @@ template <typename Torus> struct int_grouped_oprf_custom_range_memory {
   ///
   /// @param num_blocks_intermediate  Number of radix blocks for scalar-multiply
   /// and shift
-  /// @param message_bits_per_block   Number of message bits per radix block
   /// @param num_input_random_bits    Random bits to generate before range
   /// mapping
   /// @param num_scalar_bits          Bit-width of the scalar multiplier
   int_grouped_oprf_custom_range_memory(
       CudaStreams streams, int_radix_params params,
-      uint32_t num_blocks_intermediate, uint32_t message_bits_per_block,
-      uint64_t num_input_random_bits, uint32_t num_scalar_bits,
-      bool allocate_gpu_memory, uint64_t &size_tracker) {
+      uint32_t num_blocks_intermediate, uint64_t num_input_random_bits,
+      uint32_t num_scalar_bits, bool allocate_gpu_memory,
+      uint64_t &size_tracker) {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->rerand_memory = nullptr;
+
+    uint32_t message_bits_per_block =
+        (uint32_t)std::log2(params.message_modulus);
 
     this->num_random_input_blocks =
         CEIL_DIV(num_input_random_bits, message_bits_per_block);
 
     this->grouped_oprf_memory = new int_grouped_oprf_memory<Torus>(
-        streams, params, this->num_random_input_blocks, message_bits_per_block,
+        streams, params, this->num_random_input_blocks,
         num_input_random_bits, allocate_gpu_memory, size_tracker);
 
     this->scalar_mul_buffer = new int_scalar_mul_buffer<Torus>(
@@ -239,7 +238,6 @@ template <typename Torus> struct int_grouped_oprf_custom_range_memory {
   /// keyswitch stage
   /// @param num_blocks_intermediate  Number of radix blocks for scalar-multiply
   /// and shift
-  /// @param message_bits_per_block   Number of message bits per radix block
   /// @param num_input_random_bits    Random bits to generate before range
   /// mapping
   /// @param num_scalar_bits          Bit-width of the scalar multiplier
@@ -248,11 +246,11 @@ template <typename Torus> struct int_grouped_oprf_custom_range_memory {
   int_grouped_oprf_custom_range_memory(
       CudaStreams streams, int_radix_params params,
       int_radix_params rerand_params, uint32_t num_blocks_intermediate,
-      uint32_t message_bits_per_block, uint64_t num_input_random_bits,
-      uint32_t num_scalar_bits, RERAND_MODE rerand_mode,
-      bool allocate_gpu_memory, uint64_t &size_tracker)
+      uint64_t num_input_random_bits, uint32_t num_scalar_bits,
+      RERAND_MODE rerand_mode, bool allocate_gpu_memory,
+      uint64_t &size_tracker)
       : int_grouped_oprf_custom_range_memory(
-            streams, params, num_blocks_intermediate, message_bits_per_block,
+            streams, params, num_blocks_intermediate,
             num_input_random_bits, num_scalar_bits, allocate_gpu_memory,
             size_tracker) {
     this->rerand_memory = new int_rerand_mem<Torus>(
