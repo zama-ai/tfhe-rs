@@ -196,11 +196,11 @@ pub struct PeSyncHex {
     #[bits(6)]
     flag: u8,
     #[bits(2)]
-    _pad_a: u32,
+    _pad_a: u8,
     #[bits(3)]
     hid: u8,
     #[bits(5)]
-    _pad_b: u32,
+    _pad_b: u8,
     #[bits(8)]
     iid: u8,
     is_inner_sync: bool,
