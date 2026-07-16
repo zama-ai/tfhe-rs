@@ -1,6 +1,6 @@
 pub mod curve_446;
 pub mod curve_api;
-#[cfg(feature = "gpu-experimental")]
+#[cfg(feature = "gpu")]
 pub mod gpu;
 pub mod proofs;
 pub mod serialization;

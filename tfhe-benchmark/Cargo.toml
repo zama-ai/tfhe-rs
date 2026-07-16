@@ -43,7 +43,7 @@ shortint = ["tfhe/shortint"]
 integer = ["shortint", "tfhe/integer"]
 gpu = ["tfhe/gpu", "benchmark_spec/gpu"]
 # gpu enables tfhe-cuda-backend which provides CUDA stream management used by tfhe-zk-pok
-gpu-zk = ["gpu", "zk-pok", "tfhe/gpu-zk", "tfhe-zk-pok/gpu-experimental"]
+gpu-zk = ["gpu", "zk-pok", "tfhe/gpu-zk", "tfhe-zk-pok/gpu"]
 hpu = ["tfhe/hpu", "benchmark_spec/hpu"]
 hpu-v80 = ["tfhe/hpu-v80"]
 internal-keycache = ["tfhe/internal-keycache"]
