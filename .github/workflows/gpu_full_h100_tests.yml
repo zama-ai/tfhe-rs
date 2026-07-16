@@ -37,7 +37,7 @@ jobs:
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: terraform
-          profile: scaleway-2-h100-sxm5
+          profile: scaleway-2-h100-sxm5-tests
 
   cuda-tests-linux:
     name: gpu_full_h100_tests/cuda-tests-linux

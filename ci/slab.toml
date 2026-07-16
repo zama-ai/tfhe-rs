@@ -64,6 +64,7 @@ region = "us-east-1"
 image_id = "ami-0250f541bc1358116"
 instance_type = "g6.24xlarge"
 user = "ubuntu"
+fallbacks = [ "hyperstack.4-l40", "terraform.scaleway-4-l40" ]
 
 [backend.aws.small-gpu]
 region = "us-east-1"
@@ -76,6 +77,7 @@ environment_name = "canada"
 image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-L40x1"
 user = "ubuntu"
+fallbacks = [ "terraform.scaleway-small-gpu", "hyperstack.rtx-a6000" ]
 
 [backend.hyperstack.single-h100]
 environment_name = "canada"
@@ -137,6 +139,20 @@ image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-RTX-A6000x1"
 user = "ubuntu"
 
+[backend.hyperstack.l40-tests]
+environment_name = "canada"
+image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
+flavor_name = "n3-L40x1"
+user = "ubuntu"
+fallbacks = [ "hyperstack.rtx-a6000", "terraform.scaleway-small-gpu" ]
+
+# Fallback target only.
+[backend.hyperstack.rtx-a6000]
+environment_name = "canada"
+image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
+flavor_name = "n3-RTX-A6000x1"
+user = "ubuntu"
+
 [backend.hyperstack.4-l40]
 environment_name = "canada"
 image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
@@ -170,6 +186,16 @@ script_path = "ci/terraform_scripts/scaleway/terraform.tf"
 instance_type = "H100-SXM-2-80G"
 user = "ubuntu"
 
+[backend.terraform.scaleway-2-h100-sxm5-tests]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "H100-SXM-2-80G"
+user = "ubuntu"
+fallbacks = [
+    "hyperstack.2-h100",
+    "terraform.scaleway-4-h100-sxm5",
+    "hyperstack.4-h100",
+]
+
 [backend.terraform.scaleway-single-h100]
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
 instance_type = "H100-1-80G"
@@ -179,6 +205,16 @@ user = "ubuntu"
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
 instance_type = "H100-SXM-2-80G"
 user = "ubuntu"
+
+[backend.terraform.scaleway-single-h100-tests]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "H100-1-80G"
+user = "ubuntu"
+fallbacks = [
+    "hyperstack.single-h100",
+    "terraform.scaleway-2-h100-sxm5",
+    "terraform.scaleway-4-h100-sxm5",
+]
 
 [backend.terraform.scaleway-4-l40]
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
@@ -194,8 +230,4 @@ user = "ubuntu"
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
 instance_type = "L40S-1-48G"
 user = "ubuntu"
-
-[backend.terraform.scaleway-small-gpu_fallback]
-script_path = "ci/terraform_scripts/scaleway/terraform.tf"
-instance_type = "L4-2-24G"
-user = "ubuntu"
+fallbacks = [ "hyperstack.gpu-test", "terraform.scaleway-2-l4" ]
