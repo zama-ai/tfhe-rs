@@ -236,7 +236,7 @@ Following code snippets show how to start operation on HPU:
 ```
 
 ## HPU cluster setup
-HPU can now be part of a cluster from 2 to 8. Each of these HPU needs to be connected via 25Gb Ethernet link on lane 0 of QSFP module 3 (port 4)
+HPU can now be part of a cluster of 2 to 8 FPGA. Each of these HPU needs to be connected via 25Gb Ethernet link on lane 0 of QSFP module 3 (port 4)
 to all the other HPU of the cluster (usually via a switch).
 
 Before doing any run on hardware using HPU backend, you need to setup the local environment:
@@ -303,7 +303,7 @@ $ . /etc/profile.d/v80_pcie_dev.sh
 $ display_v80_board_map 
 @0: pcie_id:01, serial_number:XFL1C0UK15KC, mac_address:0x2543C0
 @1: pcie_id:24, serial_number:XFL1TYZ3GUIX, mac_address:0x25AB50
-@2: pcie_id:81, serial_number,XFL1ORE0X5YB, mac_address:0x2468F0
+@2: pcie_id:81, serial_number:XFL1ORE0X5YB, mac_address:0x2468F0
 @3: pcie_id:A1, serial_number:XFL1OGGL9CT4, mac_address:0x249080
 ```
 At this point, you should also update the file `<path>/tfhe-rs/backends/tfhe-hpu-backend/config_store/v80/hpu_config.toml` to reflect the number of HPU are available or which one you want to use. For example, if you have x8 V80 available you should modify `node_id=[0,1,2,3]` to `node_id=[0,1,2,3,4,5,6,7]` to let HPU backend know that you want to use all x8 HPU.
