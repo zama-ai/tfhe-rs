@@ -66,6 +66,10 @@ where
 
 // PRF + rerand
 
+/// GPU implementation of [`OprfReRandTestRunner`].
+///
+/// Uses a derived compact public key (no key-switch) for re-randomization, mirroring the CPU
+/// executor.
 struct GpuOprfReRandTestRunner {
     state: Option<GpuOprfReRandState>,
 }

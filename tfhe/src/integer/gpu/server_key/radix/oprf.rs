@@ -671,7 +671,6 @@ where
                         computing_ks_key.params_ffi(),
                         target_sks.message_modulus,
                         target_sks.carry_modulus,
-                        message_bits_count,
                         total_random_bits as u32,
                         d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
@@ -687,7 +686,6 @@ where
                         computing_ks_key.params_ffi(),
                         target_sks.message_modulus,
                         target_sks.carry_modulus,
-                        message_bits_count,
                         total_random_bits as u32,
                         None,
                     );
@@ -1041,7 +1039,6 @@ where
         zero_lwes: Option<&CudaLweCompactCiphertextList<u64>>,
         rerand_keyswitch_key: Option<&CudaLweKeyswitchKey<u64>>,
     ) {
-        let message_bits_count = target_sks.message_modulus.0.ilog2();
         match (
             self.bootstrapping_key.borrow(),
             &target_sks.bootstrapping_key,
@@ -1065,7 +1062,6 @@ where
                     computing_ks_key.params_ffi(),
                     target_sks.message_modulus,
                     target_sks.carry_modulus,
-                    message_bits_count,
                     d_bsk.ms_noise_reduction_configuration.as_ref(),
                     apply_rerand,
                     zero_lwes,
@@ -1091,7 +1087,6 @@ where
                     computing_ks_key.params_ffi(),
                     target_sks.message_modulus,
                     target_sks.carry_modulus,
-                    message_bits_count,
                     None,
                     apply_rerand,
                     zero_lwes,
@@ -1125,7 +1120,6 @@ where
                 target_sks.message_modulus,
                 target_sks.carry_modulus,
                 message_bits,
-                message_bits,
                 d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_bsk) => cuda_backend_get_grouped_oprf_size_on_gpu(
@@ -1135,7 +1129,6 @@ where
                 computing_ks_key.params_ffi(),
                 target_sks.message_modulus,
                 target_sks.carry_modulus,
-                message_bits,
                 message_bits,
                 None,
             ),

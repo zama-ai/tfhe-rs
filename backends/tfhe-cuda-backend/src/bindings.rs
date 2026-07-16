@@ -1560,7 +1560,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        message_bits_per_block: u32,
         total_random_bits: u32,
         noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
@@ -1591,7 +1590,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        message_bits_per_block: u32,
         num_input_random_bits: u32,
         num_scalar_bits: u32,
         noise_reduction_type: PBS_MS_REDUCTION_T,

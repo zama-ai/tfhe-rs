@@ -666,8 +666,7 @@ uint64_t scratch_cuda_integer_grouped_oprf_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks_to_process,
     uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    uint32_t message_bits_per_block, uint32_t total_random_bits,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    uint32_t total_random_bits, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_grouped_oprf_64_async(CudaStreamsFFI streams,
                                         CudaRadixCiphertextFFI *radix_lwe_out,
@@ -683,10 +682,9 @@ uint64_t scratch_cuda_integer_grouped_oprf_custom_range_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks_intermediate,
     uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    uint32_t message_bits_per_block, uint32_t num_input_random_bits,
-    uint32_t num_scalar_bits, PBS_MS_REDUCTION_T noise_reduction_type,
-    bool apply_rerand, CudaLweKeyswitchKeyParamsFFI rerand_ksk_params,
-    RERAND_MODE rerand_mode);
+    uint32_t num_input_random_bits, uint32_t num_scalar_bits,
+    PBS_MS_REDUCTION_T noise_reduction_type, bool apply_rerand,
+    CudaLweKeyswitchKeyParamsFFI rerand_ksk_params, RERAND_MODE rerand_mode);
 
 void cuda_integer_grouped_oprf_custom_range_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_out,

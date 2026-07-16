@@ -35,62 +35,11 @@ void cuda_rerand_64_async(
   PUSH_RANGE("rerand")
   auto rerand_buffer = reinterpret_cast<int_rerand_mem<uint64_t> *>(mem_ptr);
 
-  switch (rerand_buffer->params.big_lwe_dimension) {
-  case 256:
-    host_rerand_inplace<uint64_t, AmortizedDegree<256>>(
-        streams, static_cast<uint64_t *>(lwe_array),
-        static_cast<const uint64_t *>(
-            lwe_flattened_encryptions_of_zero_compact_array_in),
-        reinterpret_cast<uint64_t *const *>(ksk), rerand_buffer);
-    break;
-  case 512:
-    host_rerand_inplace<uint64_t, AmortizedDegree<512>>(
-        streams, static_cast<uint64_t *>(lwe_array),
-        static_cast<const uint64_t *>(
-            lwe_flattened_encryptions_of_zero_compact_array_in),
-        reinterpret_cast<uint64_t *const *>(ksk), rerand_buffer);
-    break;
-  case 1024:
-    host_rerand_inplace<uint64_t, AmortizedDegree<1024>>(
-        streams, static_cast<uint64_t *>(lwe_array),
-        static_cast<const uint64_t *>(
-            lwe_flattened_encryptions_of_zero_compact_array_in),
-        reinterpret_cast<uint64_t *const *>(ksk), rerand_buffer);
-    break;
-  case 2048:
-    host_rerand_inplace<uint64_t, AmortizedDegree<2048>>(
-        streams, static_cast<uint64_t *>(lwe_array),
-        static_cast<const uint64_t *>(
-            lwe_flattened_encryptions_of_zero_compact_array_in),
-        reinterpret_cast<uint64_t *const *>(ksk), rerand_buffer);
-    break;
-  case 4096:
-    host_rerand_inplace<uint64_t, AmortizedDegree<4096>>(
-        streams, static_cast<uint64_t *>(lwe_array),
-        static_cast<const uint64_t *>(
-            lwe_flattened_encryptions_of_zero_compact_array_in),
-        reinterpret_cast<uint64_t *const *>(ksk), rerand_buffer);
-    break;
-  case 8192:
-    host_rerand_inplace<uint64_t, AmortizedDegree<8192>>(
-        streams, static_cast<uint64_t *>(lwe_array),
-        static_cast<const uint64_t *>(
-            lwe_flattened_encryptions_of_zero_compact_array_in),
-        reinterpret_cast<uint64_t *const *>(ksk), rerand_buffer);
-    break;
-  case 16384:
-    host_rerand_inplace<uint64_t, AmortizedDegree<16384>>(
-        streams, static_cast<uint64_t *>(lwe_array),
-        static_cast<const uint64_t *>(
-            lwe_flattened_encryptions_of_zero_compact_array_in),
-        reinterpret_cast<uint64_t *const *>(ksk), rerand_buffer);
-    break;
-  default:
-    PANIC("CUDA error: lwe_dimension not supported."
-          "Supported n's are powers of two"
-          " in the interval [256..16384].");
-    break;
-  }
+  host_rerand_inplace_dispatch<uint64_t>(
+      streams, static_cast<uint64_t *>(lwe_array),
+      static_cast<const uint64_t *>(
+          lwe_flattened_encryptions_of_zero_compact_array_in),
+      reinterpret_cast<uint64_t *const *>(ksk), rerand_buffer);
   POP_RANGE()
 }
 

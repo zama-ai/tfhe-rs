@@ -631,7 +631,7 @@ apply_cmux_batched(CudaStreams streams, CudaRadixCiphertextFFI **keys,
 }
 
 template <typename Torus>
-__host__ uint64_t scratch_cuda_integer_bitonic_shuffle(
+__host__ uint64_t scratch_cuda_integer_bitonic_shuffle_async(
     CudaStreams streams, int_bitonic_shuffle_buffer<Torus> **mem_ptr,
     uint32_t key_num_radix_blocks, uint32_t data_num_radix_blocks,
     uint32_t num_values, int_radix_params params, bool allocate_gpu_memory) {
@@ -784,7 +784,7 @@ host_bitonic_shuffle(CudaStreams streams, CudaRadixCiphertextFFI **keys,
 }
 
 template <typename Torus>
-__host__ uint64_t scratch_cuda_integer_oprf_bitonic_shuffle(
+__host__ uint64_t scratch_cuda_integer_oprf_bitonic_shuffle_async(
     CudaStreams streams, int_oprf_bitonic_shuffle_buffer<Torus> **mem_ptr,
     uint32_t key_num_blocks, uint32_t data_num_blocks, uint32_t num_values,
     int_radix_params params, bool allocate_gpu_memory) {

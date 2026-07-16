@@ -8,15 +8,14 @@
 #include "integer/scalar_shifts.cuh"
 
 template <typename Torus>
-uint64_t scratch_cuda_integer_grouped_oprf(
+uint64_t scratch_cuda_integer_grouped_oprf_async(
     CudaStreams streams, int_grouped_oprf_memory<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_blocks_to_process,
-    uint32_t message_bits_per_block, uint64_t total_random_bits,
-    bool allocate_gpu_memory) {
+    uint64_t total_random_bits, bool allocate_gpu_memory) {
   uint64_t size_tracker = 0;
 
   *mem_ptr = new int_grouped_oprf_memory<Torus>(
-      streams, params, num_blocks_to_process, message_bits_per_block,
+      streams, params, num_blocks_to_process,
       total_random_bits, allocate_gpu_memory, size_tracker);
 
   return size_tracker;
@@ -93,16 +92,33 @@ void host_integer_grouped_oprf(CudaStreams streams,
 }
 
 template <typename Torus>
-uint64_t scratch_cuda_integer_grouped_oprf_custom_range(
+uint64_t scratch_cuda_integer_grouped_oprf_custom_range_async(
     CudaStreams streams, int_grouped_oprf_custom_range_memory<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_blocks_intermediate,
-    uint32_t message_bits_per_block, uint64_t num_input_random_bits,
-    uint32_t num_scalar_bits, bool allocate_gpu_memory) {
+    uint64_t num_input_random_bits, uint32_t num_scalar_bits,
+    bool allocate_gpu_memory) {
   uint64_t size_tracker = 0;
 
   *mem_ptr = new int_grouped_oprf_custom_range_memory<Torus>(
-      streams, params, num_blocks_intermediate, message_bits_per_block,
+      streams, params, num_blocks_intermediate,
       num_input_random_bits, num_scalar_bits, allocate_gpu_memory,
+      size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+uint64_t scratch_cuda_integer_grouped_oprf_custom_range_async(
+    CudaStreams streams, int_grouped_oprf_custom_range_memory<Torus> **mem_ptr,
+    int_radix_params params, int_radix_params rerand_params,
+    uint32_t num_blocks_intermediate, uint64_t num_input_random_bits,
+    uint32_t num_scalar_bits, RERAND_MODE rerand_mode,
+    bool allocate_gpu_memory) {
+  uint64_t size_tracker = 0;
+
+  *mem_ptr = new int_grouped_oprf_custom_range_memory<Torus>(
+      streams, params, rerand_params, num_blocks_intermediate,
+      num_input_random_bits, num_scalar_bits, rerand_mode, allocate_gpu_memory,
       size_tracker);
 
   return size_tracker;
@@ -128,40 +144,10 @@ void host_integer_grouped_oprf_custom_range(
       mem_ptr->num_random_input_blocks, mem_ptr->grouped_oprf_memory, bsks);
 
   if (mem_ptr->applies_rerand()) {
-    auto rerand = [&](auto degree_tag) {
-      host_rerand_inplace<Torus, decltype(degree_tag)>(
-          streams, static_cast<Torus *>(computation_buffer->ptr),
-          lwe_flattened_encryptions_of_zero_compact_array_in, rerand_ksks,
-          mem_ptr->rerand_memory);
-    };
-
-    switch (mem_ptr->rerand_memory->params.big_lwe_dimension) {
-    case 256:
-      rerand(AmortizedDegree<256>{});
-      break;
-    case 512:
-      rerand(AmortizedDegree<512>{});
-      break;
-    case 1024:
-      rerand(AmortizedDegree<1024>{});
-      break;
-    case 2048:
-      rerand(AmortizedDegree<2048>{});
-      break;
-    case 4096:
-      rerand(AmortizedDegree<4096>{});
-      break;
-    case 8192:
-      rerand(AmortizedDegree<8192>{});
-      break;
-    case 16384:
-      rerand(AmortizedDegree<16384>{});
-      break;
-    default:
-      PANIC("CUDA error: compact public key dimension not supported. Supported "
-            "dimensions are powers of two in the interval [256..16384].");
-      break;
-    }
+    host_rerand_inplace_dispatch<Torus>(
+        streams, static_cast<Torus *>(computation_buffer->ptr),
+        lwe_flattened_encryptions_of_zero_compact_array_in, rerand_ksks,
+        mem_ptr->rerand_memory);
   }
 
   host_integer_scalar_mul_radix<Torus>(
