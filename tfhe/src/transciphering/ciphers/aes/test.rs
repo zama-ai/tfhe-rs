@@ -1,5 +1,4 @@
 use super::sbox::sbox;
-use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use crate::shortint::prelude::*;
 use crate::transciphering::ciphers::aes::{
@@ -183,11 +182,8 @@ fn fhe_sbox_exhaustive() {
         .enumerate()
         .filter_map(|(b, expected)| {
             let b = b as u8;
-            let mut bits: [Ciphertext; 8] = std::array::from_fn(|j| {
-                let mut c = cks.encrypt(((b >> j) & 1) as u64);
-                c.degree = Degree::new(1);
-                c
-            });
+            let mut bits: [Ciphertext; 8] =
+                core::array::from_fn(|j| cks.encrypt_bool(((b >> j) & 1) == 1));
             sbox(&sks, &flush_lut, &mut bits);
             let got = (0..8u8).fold(0u8, |acc, j| {
                 acc | (((cks.decrypt(&bits[j as usize]) & 1) as u8) << j)
