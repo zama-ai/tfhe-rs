@@ -4,6 +4,8 @@ use crate::integer::gpu::CudaOprfServerKey;
 use crate::integer::server_key::radix_parallel::tests_signed::test_oprf::{
     oprf_uniformity_bounded_test, oprf_uniformity_unbounded_test,
 };
+use crate::integer::server_key::radix_parallel::tests_unsigned::test_oprf::oprf_compare_plain_test;
+use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use crate::shortint::parameters::{
     TestParameters, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
@@ -14,6 +16,11 @@ create_gpu_parameterized_test!(oprf_signed_uniformity_bounded {
 
 create_gpu_parameterized_test!(oprf_signed_uniformity_unbounded {
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+});
+
+create_gpu_parameterized_test!(oprf_compare_plain_signed {
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 });
 
 fn oprf_signed_uniformity_bounded<P>(param: P)
@@ -34,4 +41,16 @@ where
         &CudaOprfServerKey::par_generate_oblivious_pseudo_random_signed_integer,
     );
     oprf_uniformity_unbounded_test(param, executor);
+}
+
+fn oprf_compare_plain_signed<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
+        &CudaOprfServerKey::par_generate_oblivious_pseudo_random_signed_integer,
+    );
+    oprf_compare_plain_test(param, executor, |cks, img| {
+        cks.decrypt_signed::<i64>(img) as i128
+    });
 }

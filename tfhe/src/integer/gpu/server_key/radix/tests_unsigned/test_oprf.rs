@@ -8,8 +8,8 @@ use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameter
 use crate::integer::gpu::{CudaOprfServerKey, CudaServerKey};
 use crate::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey};
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_oprf::{
-    oprf_almost_uniformity_test, oprf_any_range_test, oprf_uniformity_test,
-    pseudo_random_integer_and_rerand_test, OprfReRandTestRunner,
+    oprf_almost_uniformity_test, oprf_any_range_test, oprf_compare_plain_test,
+    oprf_uniformity_test, pseudo_random_integer_and_rerand_test, OprfReRandTestRunner,
 };
 use crate::integer::{ClientKey, CompactPrivateKey, CompactPublicKey};
 use crate::shortint::oprf::OprfSeed;
@@ -30,6 +30,11 @@ create_gpu_parameterized_test!(oprf_almost_uniformity_unsigned {
 });
 
 create_gpu_parameterized_test!(pseudo_random_integer_and_rerand {
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
+
+create_gpu_parameterized_test!(oprf_compare_plain_unsigned {
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 });
@@ -62,6 +67,16 @@ where
         &CudaOprfServerKey::par_generate_oblivious_pseudo_random_unsigned_custom_range,
     );
     oprf_almost_uniformity_test(param, executor);
+}
+
+fn oprf_compare_plain_unsigned<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
+        &CudaOprfServerKey::par_generate_oblivious_pseudo_random_unsigned_integer,
+    );
+    oprf_compare_plain_test(param, executor, |cks, img| cks.decrypt::<u64>(img) as i128);
 }
 
 // PRF + rerand
