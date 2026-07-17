@@ -101,6 +101,7 @@ impl HlStreamDecryptable for bool {
     }
 }
 
+// dbg! if T is signed then recompose_unsigned_with_size can have problems
 impl<T> HlStreamDecryptable for T
 where
     T: RecomposableFrom<u8>

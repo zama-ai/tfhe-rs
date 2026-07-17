@@ -172,7 +172,7 @@ impl std::fmt::Display for TranscipherError {
             } => write!(
                 f,
                 "stream ciphertext cipher kind mismatch: session kind {session_kind:?}, \
-                ciphertext kond {ciphertext_kind:?}"
+                ciphertext kind {ciphertext_kind:?}"
             ),
             Self::CounterMismatch {
                 session_counter,

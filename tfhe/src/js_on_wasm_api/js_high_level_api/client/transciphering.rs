@@ -201,6 +201,7 @@ pub enum StreamCipherKind {
     Dynamic = 0,
     Kreyvium = 1,
     Aes = 2,
+    PreGenedOtp = 3,
 }
 
 impl From<InternalStreamCipherKind> for StreamCipherKind {
@@ -209,6 +210,7 @@ impl From<InternalStreamCipherKind> for StreamCipherKind {
             InternalStreamCipherKind::Dynamic => Self::Dynamic,
             InternalStreamCipherKind::Kreyvium => Self::Kreyvium,
             InternalStreamCipherKind::Aes => Self::Aes,
+            InternalStreamCipherKind::PreGenedOtp => Self::PreGenedOtp,
         }
     }
 }

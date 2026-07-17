@@ -7,6 +7,10 @@ use crate::integer::oprf::{GenericOprfServerKey, OprfServerKey};
 use crate::integer::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::transciphering::{StreamCipher, StreamCiphertext, TranscipherError, Transcipherer};
 
+// dbg! serialization + backard
+// dbg! have a way to fetch something containing both the tag + bit size from an accessor and build
+// it from the available metadata of the StreamCiphertext type
+
 /// Signedness / shape tag attached to an [`IntegerStreamCiphertext`] so the
 /// server can expand it into the correct integer type without extra hints.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -134,6 +138,7 @@ impl<C: StreamCipher + ?Sized> IntegerStreamCipher for C {
         } else {
             IntegerStreamCiphertextKind::Unsigned
         };
+        // dbg! security critical, ensure bits above n_bits are zeroed out before encryption
         IntegerStreamCiphertext {
             inner: encrypt_le_bits(self, input, n_bits),
             kind,
