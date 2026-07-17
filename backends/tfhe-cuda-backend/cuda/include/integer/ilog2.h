@@ -204,8 +204,11 @@ template <typename Torus> struct int_ilog2_buffer {
         streams, params, input_num_blocks, Leading, Zero, allocate_gpu_memory,
         size_tracker);
 
-    uint32_t sum_input_total_blocks =
-        (input_num_blocks + 1) * counter_num_blocks;
+    // sum_input_cts is reused for the final sum of 3 ciphertexts
+    // (message_blocks_not, rotated_carry_blocks, trivial_ct_2), so it must
+    // hold at least 3 of them even for single-block inputs.
+    const uint32_t max_num_radix_in_vec = std::max(input_num_blocks + 1, 3u);
+    uint32_t sum_input_total_blocks = max_num_radix_in_vec * counter_num_blocks;
     this->sum_input_cts = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->sum_input_cts,
@@ -213,7 +216,7 @@ template <typename Torus> struct int_ilog2_buffer {
         allocate_gpu_memory);
 
     this->sum_mem = new int_sum_ciphertexts_vec_memory<Torus>(
-        streams, params, counter_num_blocks, input_num_blocks + 1, false,
+        streams, params, counter_num_blocks, max_num_radix_in_vec, false,
         allocate_gpu_memory, size_tracker);
 
     this->sum_output_not_propagated = new CudaRadixCiphertextFFI;

@@ -1,7 +1,10 @@
+use crate::core_crypto::gpu::vec::GpuIndex;
+use crate::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
+use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parameterized_test, GpuFunctionExecutor,
 };
-use crate::integer::gpu::CudaServerKey;
+use crate::integer::gpu::{gen_keys_gpu, CudaServerKey};
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
     default_contains_clear_test_case, default_contains_test_case,
     default_first_index_in_clears_test_case, default_first_index_of_clear_test_case,
@@ -218,4 +221,46 @@ where
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::first_index_of_clear);
     default_first_index_of_clear_test_case(param, executor);
+}
+
+/// Checks that an input list mixing ciphertexts from several GPUs panics
+/// cleanly instead of causing an illegal memory access.
+#[test]
+fn test_gpu_integer_contains_rejects_mixed_gpu_inputs() {
+    if get_number_of_gpus() < 2 {
+        println!("skipping mixed-GPU input test: fewer than 2 GPUs visible");
+        return;
+    }
+
+    let streams0 = CudaStreams::new_single_gpu(GpuIndex::new(0));
+    let streams1 = CudaStreams::new_single_gpu(GpuIndex::new(1));
+    let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams0);
+
+    let num_blocks = 4;
+    let d_value = CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+        &cks.encrypt_radix(3u32, num_blocks),
+        &streams0,
+    );
+
+    let mut cts: Vec<CudaUnsignedRadixCiphertext> = (0..3u32)
+        .map(|m| {
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                &cks.encrypt_radix(m, num_blocks),
+                &streams0,
+            )
+        })
+        .collect();
+    // This input lives on GPU 1 while the computation runs on GPU 0
+    cts.push(CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+        &cks.encrypt_radix(3u32, num_blocks),
+        &streams1,
+    ));
+
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        sks.unchecked_contains(&cts, &d_value, &streams0)
+    }));
+    assert!(
+        result.is_err(),
+        "contains must reject an input list mixing ciphertexts from several GPUs"
+    );
 }

@@ -338,6 +338,8 @@ __global__ void radix_blocks_reverse_lwe_inplace(Torus *src,
 template <typename Torus>
 __host__ void host_radix_blocks_reverse_inplace(CudaStreams streams,
                                                 CudaRadixCiphertextFFI *src) {
+  if (src->num_radix_blocks < 2)
+    return;
   cuda_set_device(streams.gpu_index(0));
   int num_blocks = src->num_radix_blocks / 2, num_threads = 1024;
   radix_blocks_reverse_lwe_inplace<Torus>
