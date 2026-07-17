@@ -12,7 +12,6 @@ pub use fhe::AesFheState;
 pub use key::AesFheRoundKeys;
 pub use plain::AesPlainState;
 
-use crate::shortint::ciphertext::Degree;
 use crate::shortint::{Ciphertext, ClientKey};
 use crate::transciphering::ciphers::*;
 
@@ -45,11 +44,7 @@ impl AesPlainKey {
 
     pub fn encrypt(&self, client_key: &ClientKey) -> AesFheKey {
         AesFheKey {
-            key: self.expand().map(|b| {
-                let mut c = client_key.encrypt(b as u64);
-                c.degree = Degree::new(1);
-                c
-            }),
+            key: self.expand().map(|b| client_key.encrypt_bool(b)),
         }
     }
 
