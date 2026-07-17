@@ -12,7 +12,10 @@ use std::path::Path;
 use std::str::FromStr;
 use std::{env, fmt};
 pub use tfhe::hlapi::HlapiBench;
-pub use tfhe::{CoreCryptoBench, HlIntegerOp, ShortintBench, TfheLayer};
+pub use tfhe::{
+    CoreCryptoBench, HlIntegerOp, IntegerBench, IntegerOp, IntegerOpBySign, ShortintBench,
+    TfheLayer,
+};
 
 use crate::tfhe::TranscipheringBench;
 
@@ -261,6 +264,24 @@ impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
         }
     }
 
+    pub fn new_integer_ops(
+        ops: IntegerOpBySign,
+        param_name: &'a str,
+        type_name: Option<&'a T>,
+        bench_type: impl Into<BenchmarkMetric>,
+        num_elements: Option<usize>,
+    ) -> Self {
+        Self {
+            bench_crate: BenchCrate::Tfhe(TfheLayer::Integer(IntegerBench::Ops(ops))),
+            backend: bench_backend_from_cfg(),
+            param_name,
+            operand_type: OperandType::CipherText,
+            type_name,
+            bench_type: bench_type.into(),
+            num_elements,
+        }
+    }
+
     pub fn new_shortint(
         shortint_bench: ShortintBench,
         param_name: &'a str,
@@ -436,6 +457,66 @@ mod tests {
         assert_eq!(
             spec.to_string(),
             "tfhe::hlapi::ops::neg::PARAM_MESSAGE_2_CARRY_2"
+        );
+    }
+
+    #[test]
+    fn integer_ops_latency() {
+        let spec = BenchmarkSpec::<str>::new_integer_ops(
+            IntegerOpBySign::Unsigned(IntegerOp::SmartAddParallelized),
+            "PARAM_MESSAGE_2_CARRY_2",
+            Some("64_bits"),
+            BenchmarkMetric::Latency,
+            None,
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::integer::ops::unsigned::smart_add_parallelized::PARAM_MESSAGE_2_CARRY_2::64_bits"
+        );
+    }
+
+    #[test]
+    fn integer_ops_signed() {
+        let spec = BenchmarkSpec::<str>::new_integer_ops(
+            IntegerOpBySign::Signed(IntegerOp::MulParallelized),
+            "PARAM_MESSAGE_2_CARRY_2",
+            Some("64_bits"),
+            BenchmarkMetric::Latency,
+            None,
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::integer::ops::signed::mul_parallelized::PARAM_MESSAGE_2_CARRY_2::64_bits"
+        );
+    }
+
+    #[test]
+    fn integer_ops_throughput_with_num_elements() {
+        let spec = BenchmarkSpec::<str>::new_integer_ops(
+            IntegerOpBySign::Unsigned(IntegerOp::SumCiphertextsParallelized),
+            "PARAM_MESSAGE_2_CARRY_2",
+            Some("64_bits"),
+            BenchmarkMetric::Throughput,
+            Some(5),
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::integer::ops::unsigned::sum_ciphertexts_parallelized::throughput::PARAM_MESSAGE_2_CARRY_2::64_bits::5_elements"
+        );
+    }
+
+    #[test]
+    fn integer_ops_ilog2_serialization() {
+        let spec = BenchmarkSpec::<str>::new_integer_ops(
+            IntegerOpBySign::Unsigned(IntegerOp::CheckedIlog2Parallelized),
+            "PARAM_MESSAGE_2_CARRY_2",
+            Some("8_bits"),
+            BenchmarkMetric::Latency,
+            None,
+        );
+        assert_eq!(
+            spec.to_string(),
+            "tfhe::integer::ops::unsigned::checked_ilog2_parallelized::PARAM_MESSAGE_2_CARRY_2::8_bits"
         );
     }
 

@@ -1,8 +1,10 @@
 use benchmark::params::ParamsAndNumBlocksIter;
 use benchmark::utilities::{
-    throughput_num_threads, write_to_json_unchecked, EnvConfig, OperatorType,
+    throughput_num_threads, write_to_json, EnvConfig, OperatorType,
 };
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark_spec::{
+    get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, IntegerOp, IntegerOpBySign,
+};
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -26,14 +28,14 @@ fn gen_random_i256(rng: &mut ThreadRng) -> I256 {
 /// contain only zero carries
 fn bench_server_key_signed_binary_function_clean_inputs<F>(
     c: &mut Criterion,
-    bench_name: &str,
+    integer_op: IntegerOp,
     display_name: &str,
     binary_op: F,
     sample_size: usize,
 ) where
     F: Fn(&ServerKey, &SignedRadixCiphertext, &SignedRadixCiphertext) + Sync,
 {
-    let mut bench_group = c.benchmark_group(bench_name);
+    let mut bench_group = c.benchmark_group(integer_op.to_string());
     bench_group
         .sample_size(sample_size)
         .measurement_time(std::time::Duration::from_secs(60));
@@ -42,7 +44,15 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bench_id;
+        let bits = format!("{bit_size}_bits");
+        let benchmark_spec = BenchmarkSpec::<str>::new_integer_ops(
+            IntegerOpBySign::Signed(integer_op),
+            &param_name,
+            Some(bits.as_str()),
+            *get_bench_type(),
+            None,
+        );
+        let bench_id = benchmark_spec.to_string();
 
         match get_bench_type() {
             BenchmarkType::Latency => {
@@ -55,7 +65,6 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
                     (sks, ct_0, ct_1)
                 });
 
-                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
                 bench_group.bench_function(&bench_id, |b| {
                     let (sks, ct_0, ct_1) = (&bench_data.0, &bench_data.1, &bench_data.2);
 
@@ -67,7 +76,6 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
             BenchmarkType::Throughput => {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 let setup = |batch_size: usize| {
                     let mut rng = rand::thread_rng();
                     let cts_0 = (0..batch_size)
@@ -117,9 +125,8 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
             }
         }
 
-        write_to_json_unchecked(
-            &bench_id,
-            param.name(),
+        write_to_json(
+            &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
             bit_size as u32,
@@ -134,13 +141,13 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
 /// i.e. the shift amount has to be a positive radix type.
 fn bench_server_key_signed_shift_function_clean_inputs<F>(
     c: &mut Criterion,
-    bench_name: &str,
+    integer_op: IntegerOp,
     display_name: &str,
     binary_op: F,
 ) where
     F: Fn(&ServerKey, &SignedRadixCiphertext, &RadixCiphertext) + Sync,
 {
-    let mut bench_group = c.benchmark_group(bench_name);
+    let mut bench_group = c.benchmark_group(integer_op.to_string());
     bench_group
         .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(60));
@@ -149,7 +156,15 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bench_id;
+        let bits = format!("{bit_size}_bits");
+        let benchmark_spec = BenchmarkSpec::<str>::new_integer_ops(
+            IntegerOpBySign::Signed(integer_op),
+            &param_name,
+            Some(bits.as_str()),
+            *get_bench_type(),
+            None,
+        );
+        let bench_id = benchmark_spec.to_string();
 
         match get_bench_type() {
             BenchmarkType::Latency => {
@@ -164,7 +179,6 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
                     (sks, ct_0, ct_1)
                 });
 
-                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
                 bench_group.bench_function(&bench_id, |b| {
                     let (sks, ct_0, ct_1) = (&bench_data.0, &bench_data.1, &bench_data.2);
 
@@ -185,7 +199,6 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
                 binary_op(&sks, &ct_0, &ct_1);
                 let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
-                bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
@@ -217,9 +230,8 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
             }
         }
 
-        write_to_json_unchecked(
-            &bench_id,
-            param.name(),
+        write_to_json(
+            &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
             bit_size as u32,
@@ -234,13 +246,13 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
 /// contain only zero carries
 fn bench_server_key_unary_function_clean_inputs<F>(
     c: &mut Criterion,
-    bench_name: &str,
+    integer_op: IntegerOp,
     display_name: &str,
     unary_fn: F,
 ) where
     F: Fn(&ServerKey, &SignedRadixCiphertext) + Sync,
 {
-    let mut bench_group = c.benchmark_group(bench_name);
+    let mut bench_group = c.benchmark_group(integer_op.to_string());
     bench_group
         .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(60));
@@ -250,7 +262,15 @@ fn bench_server_key_unary_function_clean_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bench_id;
+        let bits = format!("{bit_size}_bits");
+        let benchmark_spec = BenchmarkSpec::<str>::new_integer_ops(
+            IntegerOpBySign::Signed(integer_op),
+            &param_name,
+            Some(bits.as_str()),
+            *get_bench_type(),
+            None,
+        );
+        let bench_id = benchmark_spec.to_string();
 
         match get_bench_type() {
             BenchmarkType::Latency => {
@@ -261,7 +281,6 @@ fn bench_server_key_unary_function_clean_inputs<F>(
                     (sks, ct_0)
                 });
 
-                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
                 bench_group.bench_function(&bench_id, |b| {
                     let (sks, ct_0) = (&bench_data.0, &bench_data.1);
                     b.iter(|| {
@@ -279,7 +298,6 @@ fn bench_server_key_unary_function_clean_inputs<F>(
                 unary_fn(&sks, &ct_0);
                 let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
-                bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
@@ -302,9 +320,8 @@ fn bench_server_key_unary_function_clean_inputs<F>(
             }
         }
 
-        write_to_json_unchecked(
-            &bench_id,
-            param.name(),
+        write_to_json(
+            &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
             bit_size as u32,
@@ -316,10 +333,10 @@ fn bench_server_key_unary_function_clean_inputs<F>(
 }
 
 fn signed_if_then_else_parallelized(c: &mut Criterion) {
-    let bench_name = "integer::signed::if_then_else_parallelized";
+    let integer_op = IntegerOp::IfThenElseParallelized;
     let display_name = "if_then_else";
 
-    let mut bench_group = c.benchmark_group(bench_name);
+    let mut bench_group = c.benchmark_group(integer_op.to_string());
     bench_group
         .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(60));
@@ -328,7 +345,15 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bench_id;
+        let bits = format!("{bit_size}_bits");
+        let benchmark_spec = BenchmarkSpec::<str>::new_integer_ops(
+            IntegerOpBySign::Signed(integer_op),
+            &param_name,
+            Some(bits.as_str()),
+            *get_bench_type(),
+            None,
+        );
+        let bench_id = benchmark_spec.to_string();
 
         match get_bench_type() {
             BenchmarkType::Latency => {
@@ -342,7 +367,6 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
                     (sks, condition, true_ct, false_ct)
                 });
 
-                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
                 bench_group.bench_function(&bench_id, |b| {
                     let (sks, condition, true_ct, false_ct) =
                         (&bench_data.0, &bench_data.1, &bench_data.2, &bench_data.3);
@@ -362,7 +386,6 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
                 sks.if_then_else_parallelized(&cond, &ct_then, &ct_else);
                 let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
-                bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
@@ -398,9 +421,8 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
             }
         }
 
-        write_to_json_unchecked(
-            &bench_id,
-            param.name(),
+        write_to_json(
+            &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
             bit_size as u32,
@@ -413,16 +435,18 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
 
 macro_rules! define_server_key_bench_binary_signed_clean_inputs_fn (
     (method_name: $server_key_method:ident, display_name:$name:ident $(,)?) => {
-        fn $server_key_method(c: &mut Criterion) {
-            bench_server_key_signed_binary_function_clean_inputs(
-                c,
-                concat!("integer::signed::", stringify!($server_key_method)),
-                stringify!($name),
-                |server_key, lhs, rhs| {
-                    server_key.$server_key_method(lhs, rhs);
-                },
-                15 /* sample_size */
-            )
+        ::paste::paste! {
+            fn $server_key_method(c: &mut Criterion) {
+                bench_server_key_signed_binary_function_clean_inputs(
+                    c,
+                    IntegerOp::[<$server_key_method:camel>],
+                    stringify!($name),
+                    |server_key, lhs, rhs| {
+                        server_key.$server_key_method(lhs, rhs);
+                    },
+                    15 /* sample_size */
+                )
+            }
         }
     };
     (
@@ -430,31 +454,35 @@ macro_rules! define_server_key_bench_binary_signed_clean_inputs_fn (
         display_name:$name:ident,
         sample_size: $sample_size:expr $(,)?
     ) => {
-        fn $server_key_method(c: &mut Criterion) {
-            bench_server_key_signed_binary_function_clean_inputs(
-                c,
-                concat!("integer::signed::", stringify!($server_key_method)),
-                stringify!($name),
-                |server_key, lhs, rhs| {
-                    server_key.$server_key_method(lhs, rhs);
-                },
-                $sample_size
-            )
+        ::paste::paste! {
+            fn $server_key_method(c: &mut Criterion) {
+                bench_server_key_signed_binary_function_clean_inputs(
+                    c,
+                    IntegerOp::[<$server_key_method:camel>],
+                    stringify!($name),
+                    |server_key, lhs, rhs| {
+                        server_key.$server_key_method(lhs, rhs);
+                    },
+                    $sample_size
+                )
+            }
         }
     }
 );
 
 macro_rules! define_server_key_bench_unary_signed_clean_input_fn (
     (method_name: $server_key_method:ident, display_name:$name:ident $(,)?) => {
-        fn $server_key_method(c: &mut Criterion) {
-            bench_server_key_unary_function_clean_inputs(
-                c,
-                concat!("integer::signed::", stringify!($server_key_method)),
-                stringify!($name),
-                |server_key, lhs| {
-                    server_key.$server_key_method(lhs);
-                },
-            )
+        ::paste::paste! {
+            fn $server_key_method(c: &mut Criterion) {
+                bench_server_key_unary_function_clean_inputs(
+                    c,
+                    IntegerOp::[<$server_key_method:camel>],
+                    stringify!($name),
+                    |server_key, lhs| {
+                        server_key.$server_key_method(lhs);
+                    },
+                )
+            }
         }
     };
 );
@@ -568,7 +596,7 @@ define_server_key_bench_binary_signed_clean_inputs_fn!(
 fn left_shift_parallelized(c: &mut Criterion) {
     bench_server_key_signed_shift_function_clean_inputs(
         c,
-        concat!("integer::signed::", "left_shift_parallelized"),
+        IntegerOp::LeftShiftParallelized,
         "left_shift",
         |server_key, lhs, rhs| {
             server_key.left_shift_parallelized(lhs, rhs);
@@ -579,7 +607,7 @@ fn left_shift_parallelized(c: &mut Criterion) {
 fn right_shift_parallelized(c: &mut Criterion) {
     bench_server_key_signed_shift_function_clean_inputs(
         c,
-        concat!("integer::signed::", "right_shift_parallelized"),
+        IntegerOp::RightShiftParallelized,
         "right_shift",
         |server_key, lhs, rhs| {
             server_key.right_shift_parallelized(lhs, rhs);
@@ -590,7 +618,7 @@ fn right_shift_parallelized(c: &mut Criterion) {
 fn rotate_left_parallelized(c: &mut Criterion) {
     bench_server_key_signed_shift_function_clean_inputs(
         c,
-        concat!("integer::signed::", "rotate_left_parallelized"),
+        IntegerOp::RotateLeftParallelized,
         "rotate_left",
         |server_key, lhs, rhs| {
             server_key.rotate_left_parallelized(lhs, rhs);
@@ -601,7 +629,7 @@ fn rotate_left_parallelized(c: &mut Criterion) {
 fn rotate_right_parallelized(c: &mut Criterion) {
     bench_server_key_signed_shift_function_clean_inputs(
         c,
-        concat!("integer::signed::", "rotate_right_parallelized"),
+        IntegerOp::RotateRightParallelized,
         "rotate_right",
         |server_key, lhs, rhs| {
             server_key.rotate_right_parallelized(lhs, rhs);
@@ -757,7 +785,7 @@ define_server_key_bench_binary_signed_clean_inputs_fn!(
 fn unchecked_left_shift_parallelized(c: &mut Criterion) {
     bench_server_key_signed_shift_function_clean_inputs(
         c,
-        concat!("integer::signed::", "unchecked_left_shift_parallelized"),
+        IntegerOp::UncheckedLeftShiftParallelized,
         "left_shift",
         |server_key, lhs, rhs| {
             server_key.unchecked_left_shift_parallelized(lhs, rhs);
@@ -768,7 +796,7 @@ fn unchecked_left_shift_parallelized(c: &mut Criterion) {
 fn unchecked_right_shift_parallelized(c: &mut Criterion) {
     bench_server_key_signed_shift_function_clean_inputs(
         c,
-        concat!("integer::signed::", "unchecked_right_shift_parallelized"),
+        IntegerOp::UncheckedRightShiftParallelized,
         "right_shift",
         |server_key, lhs, rhs| {
             server_key.unchecked_right_shift_parallelized(lhs, rhs);
@@ -779,7 +807,7 @@ fn unchecked_right_shift_parallelized(c: &mut Criterion) {
 fn unchecked_rotate_left_parallelized(c: &mut Criterion) {
     bench_server_key_signed_shift_function_clean_inputs(
         c,
-        concat!("integer::signed::", "unchecked_rotate_left_parallelized"),
+        IntegerOp::UncheckedRotateLeftParallelized,
         "rotate_left",
         |server_key, lhs, rhs| {
             server_key.unchecked_rotate_left_parallelized(lhs, rhs);
@@ -790,7 +818,7 @@ fn unchecked_rotate_left_parallelized(c: &mut Criterion) {
 fn unchecked_rotate_right_parallelized(c: &mut Criterion) {
     bench_server_key_signed_shift_function_clean_inputs(
         c,
-        concat!("integer::signed::", "unchecked_rotate_right_parallelized"),
+        IntegerOp::UncheckedRotateRightParallelized,
         "rotate_right",
         |server_key, lhs, rhs| {
             server_key.unchecked_rotate_right_parallelized(lhs, rhs);
@@ -840,7 +868,7 @@ type ScalarType = I256;
 
 fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
     c: &mut Criterion,
-    bench_name: &str,
+    integer_op: IntegerOp,
     display_name: &str,
     binary_op: F,
     rng_func: G,
@@ -848,7 +876,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
     F: Fn(&ServerKey, &mut SignedRadixCiphertext, ScalarType) + Sync,
     G: Fn(&mut ThreadRng, usize) -> ScalarType,
 {
-    let mut bench_group = c.benchmark_group(bench_name);
+    let mut bench_group = c.benchmark_group(integer_op.to_string());
     bench_group
         .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(60));
@@ -862,11 +890,21 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
 
         let range = range_for_signed_bit_size(bit_size);
 
-        let bench_id;
+        let bits = match get_bench_type() {
+            BenchmarkType::Latency => format!("{bit_size}_bits_scalar_{bit_size}"),
+            BenchmarkType::Throughput => format!("{bit_size}_bits"),
+        };
+        let benchmark_spec = BenchmarkSpec::<str>::new_integer_ops(
+            IntegerOpBySign::Signed(integer_op),
+            &param_name,
+            Some(bits.as_str()),
+            *get_bench_type(),
+            None,
+        );
+        let bench_id = benchmark_spec.to_string();
 
         match get_bench_type() {
             BenchmarkType::Latency => {
-                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
                 bench_group.bench_function(&bench_id, |b| {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -902,7 +940,6 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
                 binary_op(&sks, &mut ct_0, clear_1);
                 let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
-                bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
@@ -939,9 +976,8 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
             }
         }
 
-        write_to_json_unchecked(
-            &bench_id,
-            param.name(),
+        write_to_json(
+            &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
             bit_size as u32,
@@ -1023,10 +1059,10 @@ fn div_scalar(rng: &mut ThreadRng, clear_bit_size: usize) -> ScalarType {
 }
 
 fn signed_flip_parallelized(c: &mut Criterion) {
-    let bench_name = "integer::flip_parallelized";
+    let integer_op = IntegerOp::FlipParallelized;
     let display_name = "flip";
 
-    let mut bench_group = c.benchmark_group(bench_name);
+    let mut bench_group = c.benchmark_group(integer_op.to_string());
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
@@ -1035,7 +1071,15 @@ fn signed_flip_parallelized(c: &mut Criterion) {
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bench_id;
+        let bits = format!("{bit_size}_bits");
+        let benchmark_spec = BenchmarkSpec::<str>::new_integer_ops(
+            IntegerOpBySign::Signed(integer_op),
+            &param_name,
+            Some(bits.as_str()),
+            *get_bench_type(),
+            None,
+        );
+        let bench_id = benchmark_spec.to_string();
 
         match get_bench_type() {
             BenchmarkType::Latency => {
@@ -1053,7 +1097,6 @@ fn signed_flip_parallelized(c: &mut Criterion) {
                     (sks, condition, true_ct, false_ct)
                 });
 
-                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
                 bench_group.bench_function(&bench_id, |b| {
                     let (sks, condition, true_ct, false_ct) =
                         (&bench_data.0, &bench_data.1, &bench_data.2, &bench_data.3);
@@ -1077,7 +1120,6 @@ fn signed_flip_parallelized(c: &mut Criterion) {
                 sks.flip_parallelized(&condition, &true_ct, &false_ct);
                 let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
-                bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                 bench_group
                     .sample_size(10)
                     .measurement_time(std::time::Duration::from_secs(30));
@@ -1116,9 +1158,8 @@ fn signed_flip_parallelized(c: &mut Criterion) {
             }
         }
 
-        write_to_json_unchecked(
-            &bench_id,
-            param.name(),
+        write_to_json(
+            &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
             bit_size as u32,
@@ -1131,14 +1172,16 @@ fn signed_flip_parallelized(c: &mut Criterion) {
 
 macro_rules! define_server_key_bench_binary_scalar_clean_inputs_fn (
     (method_name: $server_key_method:ident, display_name:$name:ident, rng_func:$($rng_fn:tt)*) => {
-        fn $server_key_method(c: &mut Criterion) {
-            bench_server_key_binary_scalar_function_clean_inputs(
-                c,
-                concat!("integer::signed::", stringify!($server_key_method)),
-                stringify!($name),
-                |server_key, lhs, rhs| {
-                    server_key.$server_key_method(lhs, rhs);
-                }, $($rng_fn)*)
+        ::paste::paste! {
+            fn $server_key_method(c: &mut Criterion) {
+                bench_server_key_binary_scalar_function_clean_inputs(
+                    c,
+                    IntegerOp::[<$server_key_method:camel>],
+                    stringify!($name),
+                    |server_key, lhs, rhs| {
+                        server_key.$server_key_method(lhs, rhs);
+                    }, $($rng_fn)*)
+            }
         }
     }
 );
@@ -1429,13 +1472,13 @@ criterion_group!(
 
 fn bench_server_key_signed_cast_function<F>(
     c: &mut Criterion,
-    bench_name: &str,
+    integer_op: IntegerOp,
     display_name: &str,
     cast_op: F,
 ) where
     F: Fn(&ServerKey, SignedRadixCiphertext, usize),
 {
-    let mut bench_group = c.benchmark_group(bench_name);
+    let mut bench_group = c.benchmark_group(integer_op.to_string());
     bench_group
         .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(30));
@@ -1454,7 +1497,15 @@ fn bench_server_key_signed_cast_function<F>(
 
         for target_num_blocks in all_num_blocks.iter().copied() {
             let target_bit_size = target_num_blocks * param.message_modulus().0.ilog2() as usize;
-            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_to_{target_bit_size}");
+            let conversion = format!("{bit_size}_to_{target_bit_size}");
+            let benchmark_spec = BenchmarkSpec::<str>::new_integer_ops(
+                IntegerOpBySign::Signed(integer_op),
+                &param_name,
+                Some(conversion.as_str()),
+                BenchmarkMetric::Latency,
+                None,
+            );
+            let bench_id = benchmark_spec.to_string();
             bench_group.bench_function(&bench_id, |b| {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -1470,9 +1521,8 @@ fn bench_server_key_signed_cast_function<F>(
                 )
             });
 
-            write_to_json_unchecked(
-                &bench_id,
-                param.name(),
+            write_to_json(
+                &benchmark_spec,
                 display_name,
                 &OperatorType::Atomic,
                 bit_size as u32,
@@ -1486,14 +1536,16 @@ fn bench_server_key_signed_cast_function<F>(
 
 macro_rules! define_server_key_bench_cast_fn (
     (method_name: $server_key_method:ident, display_name:$name:ident) => {
-        fn $server_key_method(c: &mut Criterion) {
-            bench_server_key_signed_cast_function(
-                c,
-                concat!("integer::signed::", stringify!($server_key_method)),
-                stringify!($name),
-                |server_key, lhs, rhs| {
-                    server_key.$server_key_method(lhs, rhs);
-            })
+        ::paste::paste! {
+            fn $server_key_method(c: &mut Criterion) {
+                bench_server_key_signed_cast_function(
+                    c,
+                    IntegerOp::[<$server_key_method:camel>],
+                    stringify!($name),
+                    |server_key, lhs, rhs| {
+                        server_key.$server_key_method(lhs, rhs);
+                })
+            }
         }
     }
 );
@@ -1520,7 +1572,7 @@ mod cuda {
     /// will contain only zero carries
     fn bench_cuda_server_key_binary_signed_function_clean_inputs<F, G>(
         c: &mut Criterion,
-        bench_name: &str,
+        integer_op: IntegerOp,
         display_name: &str,
         binary_op: F,
         binary_op_cpu: G,
@@ -1533,7 +1585,7 @@ mod cuda {
             ) + Sync,
         G: Fn(&ServerKey, &SignedRadixCiphertext, &SignedRadixCiphertext) + Sync,
     {
-        let mut bench_group = c.benchmark_group(bench_name);
+        let mut bench_group = c.benchmark_group(integer_op.to_string());
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
@@ -1542,13 +1594,19 @@ mod cuda {
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
 
-            let bench_id;
+            let bits = format!("{bit_size}_bits");
+            let benchmark_spec = BenchmarkSpec::<str>::new_integer_ops(
+                IntegerOpBySign::Signed(integer_op),
+                &param_name,
+                Some(bits.as_str()),
+                *get_bench_type(),
+                None,
+            );
+            let bench_id = benchmark_spec.to_string();
 
             match get_bench_type() {
                 BenchmarkType::Latency => {
                     let stream = CudaStreams::new_multi_gpu();
-
-                    bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
 
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _cpu_sks) =
@@ -1599,7 +1657,6 @@ mod cuda {
                     binary_op_cpu(&cpu_sks, &mut ct_0, &mut ct_1);
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
-                    bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
@@ -1658,9 +1715,8 @@ mod cuda {
                 }
             }
 
-            write_to_json_unchecked(
-                &bench_id,
-                param.name(),
+            write_to_json(
+                &benchmark_spec,
                 display_name,
                 &OperatorType::Atomic,
                 bit_size as u32,
@@ -1677,7 +1733,7 @@ mod cuda {
                 fn [<cuda_ $server_key_method>](c: &mut Criterion) {
                     bench_cuda_server_key_binary_signed_function_clean_inputs(
                         c,
-                        concat!("integer::cuda::signed::", stringify!($server_key_method)),
+                        IntegerOp::[<$server_key_method:camel>],
                         stringify!($name),
                         |server_key, lhs, rhs, stream| {
                             server_key.$server_key_method(lhs, rhs, stream);
@@ -1695,7 +1751,7 @@ mod cuda {
     /// will contain only zero carries
     fn bench_cuda_server_key_unary_signed_function_clean_inputs<F, G>(
         c: &mut Criterion,
-        bench_name: &str,
+        integer_op: IntegerOp,
         display_name: &str,
         unary_op: F,
         unary_op_cpu: G,
@@ -1703,7 +1759,7 @@ mod cuda {
         F: Fn(&CudaServerKey, &mut CudaSignedRadixCiphertext, &CudaStreams) + Sync,
         G: Fn(&ServerKey, &SignedRadixCiphertext) + Sync,
     {
-        let mut bench_group = c.benchmark_group(bench_name);
+        let mut bench_group = c.benchmark_group(integer_op.to_string());
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
@@ -1712,13 +1768,19 @@ mod cuda {
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
 
-            let bench_id;
+            let bits = format!("{bit_size}_bits");
+            let benchmark_spec = BenchmarkSpec::<str>::new_integer_ops(
+                IntegerOpBySign::Signed(integer_op),
+                &param_name,
+                Some(bits.as_str()),
+                *get_bench_type(),
+                None,
+            );
+            let bench_id = benchmark_spec.to_string();
 
             match get_bench_type() {
                 BenchmarkType::Latency => {
                     let stream = CudaStreams::new_multi_gpu();
-
-                    bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
 
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _cpu_sks) =
@@ -1756,7 +1818,6 @@ mod cuda {
                     unary_op_cpu(&cpu_sks, &ct_0);
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
-                    bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
@@ -1795,9 +1856,8 @@ mod cuda {
                 }
             }
 
-            write_to_json_unchecked(
-                &bench_id,
-                param.name(),
+            write_to_json(
+                &benchmark_spec,
                 display_name,
                 &OperatorType::Atomic,
                 bit_size as u32,
@@ -1814,7 +1874,7 @@ mod cuda {
                 fn [<cuda_ $server_key_method>](c: &mut Criterion) {
                     bench_cuda_server_key_unary_signed_function_clean_inputs(
                         c,
-                        concat!("integer::cuda::signed::", stringify!($server_key_method)),
+                        IntegerOp::[<$server_key_method:camel>],
                         stringify!($name),
                         |server_key, input, stream| {
                             server_key.$server_key_method(input, stream);
@@ -1830,7 +1890,7 @@ mod cuda {
 
     fn bench_cuda_server_key_binary_scalar_signed_function_clean_inputs<F, G, H>(
         c: &mut Criterion,
-        bench_name: &str,
+        integer_op: IntegerOp,
         display_name: &str,
         binary_op: F,
         binary_op_cpu: G,
@@ -1840,7 +1900,7 @@ mod cuda {
         G: Fn(&ServerKey, &mut SignedRadixCiphertext, ScalarType) + Sync,
         H: Fn(&mut ThreadRng, usize) -> ScalarType,
     {
-        let mut bench_group = c.benchmark_group(bench_name);
+        let mut bench_group = c.benchmark_group(integer_op.to_string());
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
@@ -1854,14 +1914,20 @@ mod cuda {
 
             let max_value_for_bit_size = ScalarType::MAX >> (ScalarType::BITS as usize - bit_size);
 
-            let bench_id;
+            let bits = format!("{bit_size}_bits_scalar_{bit_size}");
+            let benchmark_spec = BenchmarkSpec::<str>::new_integer_ops(
+                IntegerOpBySign::Signed(integer_op),
+                &param_name,
+                Some(bits.as_str()),
+                *get_bench_type(),
+                None,
+            );
+            let bench_id = benchmark_spec.to_string();
 
             match get_bench_type() {
                 BenchmarkType::Latency => {
                     let stream = CudaStreams::new_multi_gpu();
 
-                    bench_id =
-                        format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _cpu_sks) =
                             KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -1905,9 +1971,6 @@ mod cuda {
                     binary_op_cpu(&cpu_sks, &mut ct_0, clear_0);
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
-                    bench_id = format!(
-                        "{bench_name}::throughput::{param_name}::{bit_size}_bits_scalar_{bit_size}"
-                    );
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
@@ -1956,9 +2019,8 @@ mod cuda {
                 }
             }
 
-            write_to_json_unchecked(
-                &bench_id,
-                param.name(),
+            write_to_json(
+                &benchmark_spec,
                 display_name,
                 &OperatorType::Atomic,
                 bit_size as u32,
@@ -1975,7 +2037,7 @@ mod cuda {
                 fn [<cuda_ $server_key_method>](c: &mut Criterion) {
                     bench_cuda_server_key_binary_scalar_signed_function_clean_inputs(
                         c,
-                        concat!("integer::cuda::signed::", stringify!($server_key_method)),
+                        IntegerOp::[<$server_key_method:camel>],
                         stringify!($name),
                         |server_key, lhs, rhs, stream| {
                             server_key.$server_key_method(lhs, rhs, stream);
@@ -1994,7 +2056,7 @@ mod cuda {
     /// input ciphertext will contain only zero carries
     fn bench_cuda_server_key_shift_rotate_signed_function_clean_inputs<F, G>(
         c: &mut Criterion,
-        bench_name: &str,
+        integer_op: IntegerOp,
         display_name: &str,
         binary_op: F,
         binary_op_cpu: G,
@@ -2007,7 +2069,7 @@ mod cuda {
             ) + Sync,
         G: Fn(&ServerKey, &SignedRadixCiphertext, &RadixCiphertext) + Sync,
     {
-        let mut bench_group = c.benchmark_group(bench_name);
+        let mut bench_group = c.benchmark_group(integer_op.to_string());
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
@@ -2016,13 +2078,19 @@ mod cuda {
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
 
-            let bench_id;
+            let bits = format!("{bit_size}_bits");
+            let benchmark_spec = BenchmarkSpec::<str>::new_integer_ops(
+                IntegerOpBySign::Signed(integer_op),
+                &param_name,
+                Some(bits.as_str()),
+                *get_bench_type(),
+                None,
+            );
+            let bench_id = benchmark_spec.to_string();
 
             match get_bench_type() {
                 BenchmarkType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
-
-                    bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
 
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _cpu_sks) =
@@ -2073,7 +2141,6 @@ mod cuda {
                     binary_op_cpu(&cpu_sks, &ct_0, &ct_1);
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
-                    bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
@@ -2132,9 +2199,8 @@ mod cuda {
                 }
             }
 
-            write_to_json_unchecked(
-                &bench_id,
-                param.name(),
+            write_to_json(
+                &benchmark_spec,
                 display_name,
                 &OperatorType::Atomic,
                 bit_size as u32,
@@ -2151,7 +2217,7 @@ mod cuda {
                 fn [<cuda_ $server_key_method>](c: &mut Criterion) {
                     bench_cuda_server_key_shift_rotate_signed_function_clean_inputs(
                         c,
-                        concat!("integer::cuda::signed::", stringify!($server_key_method)),
+                        IntegerOp::[<$server_key_method:camel>],
                         stringify!($name),
                         |server_key, lhs, rhs, stream| {
                             server_key.$server_key_method(lhs, rhs, stream);
@@ -2166,8 +2232,8 @@ mod cuda {
     );
 
     fn cuda_if_then_else(c: &mut Criterion) {
-        let bench_name = "integer::cuda::signed::if_then_else";
-        let mut bench_group = c.benchmark_group(bench_name);
+        let integer_op = IntegerOp::IfThenElse;
+        let mut bench_group = c.benchmark_group(integer_op.to_string());
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
@@ -2180,13 +2246,19 @@ mod cuda {
 
             let param_name = param.name();
 
-            let bench_id;
+            let bits = format!("{bit_size}_bits");
+            let benchmark_spec = BenchmarkSpec::<str>::new_integer_ops(
+                IntegerOpBySign::Signed(integer_op),
+                &param_name,
+                Some(bits.as_str()),
+                *get_bench_type(),
+                None,
+            );
+            let bench_id = benchmark_spec.to_string();
 
             match get_bench_type() {
                 BenchmarkType::Latency => {
                     let stream = CudaStreams::new_multi_gpu();
-
-                    bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
 
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _cpu_sks) =
@@ -2236,7 +2308,6 @@ mod cuda {
                     cpu_sks.if_then_else_parallelized(&cond, &ct_then, &ct_else);
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
-                    bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
@@ -2301,9 +2372,8 @@ mod cuda {
                 }
             }
 
-            write_to_json_unchecked(
-                &bench_id,
-                param.name(),
+            write_to_json(
+                &benchmark_spec,
                 "if_then_else",
                 &OperatorType::Atomic,
                 bit_size as u32,
@@ -3026,13 +3096,13 @@ mod cuda {
 
     fn cuda_bench_server_key_signed_cast_function<F>(
         c: &mut Criterion,
-        bench_name: &str,
+        integer_op: IntegerOp,
         display_name: &str,
         cast_op: F,
     ) where
         F: Fn(&CudaServerKey, CudaSignedRadixCiphertext, usize, &CudaStreams),
     {
-        let mut bench_group = c.benchmark_group(bench_name);
+        let mut bench_group = c.benchmark_group(integer_op.to_string());
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
@@ -3053,8 +3123,15 @@ mod cuda {
             for target_num_blocks in all_num_blocks.iter().copied() {
                 let target_bit_size =
                     target_num_blocks * param.message_modulus().0.ilog2() as usize;
-                let bench_id =
-                    format!("{bench_name}::{param_name}::{bit_size}_to_{target_bit_size}");
+                let conversion = format!("{bit_size}_to_{target_bit_size}");
+                let benchmark_spec = BenchmarkSpec::<str>::new_integer_ops(
+                    IntegerOpBySign::Signed(integer_op),
+                    &param_name,
+                    Some(conversion.as_str()),
+                    BenchmarkMetric::Latency,
+                    None,
+                );
+                let bench_id = benchmark_spec.to_string();
                 bench_group.bench_function(&bench_id, |b| {
                     let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                     let gpu_sks = CudaServerKey::new(&cks, &stream);
@@ -3073,9 +3150,8 @@ mod cuda {
                     )
                 });
 
-                write_to_json_unchecked(
-                    &bench_id,
-                    param.name(),
+                write_to_json(
+                    &benchmark_spec,
                     display_name,
                     &OperatorType::Atomic,
                     bit_size as u32,
@@ -3093,7 +3169,7 @@ mod cuda {
                 fn [<cuda_ $server_key_method>](c: &mut Criterion) {
                     cuda_bench_server_key_signed_cast_function(
                         c,
-                        concat!("integer::cuda::signed::", stringify!($server_key_method)),
+                        IntegerOp::[<$server_key_method:camel>],
                         stringify!($name),
                         |server_key, lhs, rhs, stream| {
                             server_key.$server_key_method(lhs, rhs, stream);

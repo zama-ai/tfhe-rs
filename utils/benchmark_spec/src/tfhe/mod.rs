@@ -1,6 +1,7 @@
 pub mod core_crypto;
 pub mod hl_integer_op;
 pub mod hlapi;
+pub mod integer;
 pub mod shortint;
 pub mod transciphering;
 
@@ -11,6 +12,8 @@ use crate::traits::SpecNode;
 pub use core_crypto::CoreCryptoBench;
 pub use hl_integer_op::HlIntegerOp;
 pub use hlapi::HlapiBench;
+pub use integer::ops::IntegerOp;
+pub use integer::{IntegerBench, IntegerOpBySign};
 pub use shortint::ShortintBench;
 pub use transciphering::TranscipheringBench;
 
@@ -27,6 +30,7 @@ pub enum TfheLayer {
     Hlapi(HlapiBench),
     Shortint(ShortintBench),
     Transciphering(TranscipheringBench),
+    Integer(IntegerBench),
 }
 
 impl SpecNode for TfheLayer {
@@ -36,6 +40,7 @@ impl SpecNode for TfheLayer {
             TfheLayer::Hlapi(bench) => bench,
             TfheLayer::Shortint(bench) => bench,
             TfheLayer::Transciphering(bench) => bench,
+            TfheLayer::Integer(bench) => bench,
         })
     }
 }
