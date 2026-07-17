@@ -179,6 +179,29 @@ impl<AP: EncryptionAtomicPattern> GenericClientKey<AP> {
         ShortintEngine::with_thread_local_mut(|engine| engine.encrypt(self, message))
     }
 
+    /// Encrypt a boolean message using the client key.
+    ///
+    /// The input message is converted to 1u64 if true, 0u64 otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    /// use tfhe::shortint::ClientKey;
+    ///
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    ///
+    /// for msg in [false, true] {
+    ///     let ct = cks.encrypt_bool(msg);
+    ///     assert_eq!(ct.degree.get(), 1);
+    ///     let dec = cks.decrypt(&ct);
+    ///     assert_eq!(u64::from(msg), dec);
+    /// }
+    /// ```
+    pub fn encrypt_bool(&self, message: bool) -> Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| engine.encrypt_bool(self, message))
+    }
+
     /// Encrypt a integer message using the client key returning a compressed ciphertext.
     ///
     /// The input message is reduced to the encrypted message space modulus
