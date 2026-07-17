@@ -138,29 +138,39 @@ pub enum TranscipherError {
     /// The [`StreamCiphertext`] was produced by a cipher different from the
     /// one consuming it.
     KindMismatch {
-        expected: StreamCipherKind,
-        got: StreamCipherKind,
+        session_kind: StreamCipherKind,
+        ciphertext_kind: StreamCipherKind,
     },
     /// The consumer's current keystream counter does not match the
-    /// [`StreamCiphertext`]'s recorded counter. When the ciphertext is
-    /// ahead, the caller can call [`StreamCipher::seek`] / [`Transcipherer::seek`]
-    /// to align and retry.
-    CounterMismatch { expected: u64, got: u64 },
+    /// [`StreamCiphertext`]'s recorded counter. The caller can call
+    /// [`StreamCipher::seek`] / [`Transcipherer::seek`] with the ciphertext's
+    /// counter to align and retry.
+    CounterMismatch {
+        session_counter: u64,
+        ciphertext_counter: u64,
+    },
 }
 
 impl std::fmt::Display for TranscipherError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::KindMismatch { expected, got } => write!(
+            Self::KindMismatch {
+                session_kind,
+                ciphertext_kind,
+            } => write!(
                 f,
-                "stream ciphertext cipher kind mismatch: expected {expected:?}, got {got:?}"
+                "stream ciphertext cipher kind mismatch: session kind {session_kind:?}, \
+                ciphertext kond {ciphertext_kind:?}"
             ),
-            Self::CounterMismatch { expected, got } => {
+            Self::CounterMismatch {
+                session_counter,
+                ciphertext_counter,
+            } => {
                 write!(
                     f,
-                    "stream ciphertext counter mismatch: session at {expected}, \
-                         ciphertext at {got}. Call `seek({})` to align",
-                    got - expected,
+                    "stream ciphertext counter mismatch: session at {session_counter}, \
+                    ciphertext at {ciphertext_counter}. \
+                    Call `seek({ciphertext_counter})` to align",
                 )
             }
         }
@@ -222,14 +232,14 @@ pub trait StreamCipher {
     fn decrypt(&mut self, encrypted: &StreamCiphertext) -> Result<Vec<u8>, TranscipherError> {
         if encrypted.kind != self.kind() {
             return Err(TranscipherError::KindMismatch {
-                expected: self.kind(),
-                got: encrypted.kind,
+                session_kind: self.kind(),
+                ciphertext_kind: encrypted.kind,
             });
         }
         if encrypted.encryption_counter != self.current_counter() {
             return Err(TranscipherError::CounterMismatch {
-                expected: self.current_counter(),
-                got: encrypted.encryption_counter,
+                session_counter: self.current_counter(),
+                ciphertext_counter: encrypted.encryption_counter,
             });
         }
 
@@ -272,14 +282,14 @@ pub trait Transcipherer {
     ) -> Result<Vec<Ciphertext>, TranscipherError> {
         if input.kind != self.kind() {
             return Err(TranscipherError::KindMismatch {
-                expected: self.kind(),
-                got: input.kind,
+                session_kind: self.kind(),
+                ciphertext_kind: input.kind,
             });
         }
         if input.encryption_counter != self.current_counter() {
             return Err(TranscipherError::CounterMismatch {
-                expected: self.current_counter(),
-                got: input.encryption_counter,
+                session_counter: self.current_counter(),
+                ciphertext_counter: input.encryption_counter,
             });
         }
 
