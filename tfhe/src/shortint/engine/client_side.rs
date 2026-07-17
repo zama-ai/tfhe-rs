@@ -80,6 +80,17 @@ impl ShortintEngine {
         )
     }
 
+    pub fn encrypt_bool<AP: EncryptionAtomicPattern>(
+        &mut self,
+        client_key: &GenericClientKey<AP>,
+        message: bool,
+    ) -> Ciphertext {
+        let mut ct = self.encrypt(client_key, message.into());
+        ct.degree = Degree::new(1);
+
+        ct
+    }
+
     pub fn encrypt_compressed<AP: EncryptionAtomicPattern>(
         &mut self,
         client_key: &GenericClientKey<AP>,
