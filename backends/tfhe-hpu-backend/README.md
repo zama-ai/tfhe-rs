@@ -306,7 +306,7 @@ $ display_v80_board_map
 @2: pcie_id:81, serial_number:XFL1ORE0X5YB, mac_address:0x2468F0
 @3: pcie_id:A1, serial_number:XFL1OGGL9CT4, mac_address:0x249080
 ```
-At this point, you should also update the file `<path>/tfhe-rs/backends/tfhe-hpu-backend/config_store/v80/hpu_config.toml` to reflect the number of HPU are available or which one you want to use. For example, if you have x8 V80 available you should modify `node_id=[0,1,2,3]` to `node_id=[0,1,2,3,4,5,6,7]` to let HPU backend know that you want to use all x8 HPU.
+At this point, you should also update the file `<path>/tfhe-rs/backends/tfhe-hpu-backend/config_store/v80/hpu_config.toml` to reflect how many HPU are available or which one you want to use. For example, if you have x8 V80 available you should modify `node_id=[0,1,2,3]` to `node_id=[0,1,2,3,4,5,6,7]` to let HPU backend know that you want to use all x8 HPU.
 
 ## Pre-made Examples
 There are some example applications already available in `tfhe/examples/hpu`:
