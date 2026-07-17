@@ -1,6 +1,8 @@
 use crate::high_level_api::traits::BitSlice;
 use crate::integer::U256;
 use crate::prelude::*;
+#[cfg(feature = "gpu")]
+use crate::FheUint2;
 use crate::{
     ClientKey, FheBool, FheUint16, FheUint256, FheUint32, FheUint64, FheUint8, MatchValues,
 };
@@ -680,6 +682,28 @@ fn test_case_ilog2(cks: &ClientKey) {
         let is_ok = is_ok.decrypt(cks);
         assert!(!is_ok);
     }
+}
+
+// FheUint2 is a single radix block with 2_2 parameters.
+#[cfg(feature = "gpu")]
+fn test_case_ilog2_one_block(cks: &ClientKey) {
+    for clear_a in 1..=3u32 {
+        let a = FheUint2::try_encrypt(clear_a, cks).unwrap();
+
+        let ilog2: u32 = a.ilog2().decrypt(cks);
+        assert_eq!(ilog2, clear_a.ilog2());
+
+        let leading_zeros: u32 = a.leading_zeros().decrypt(cks);
+        assert_eq!(leading_zeros, clear_a.leading_zeros() - 30);
+
+        let trailing_zeros: u32 = a.trailing_zeros().decrypt(cks);
+        assert_eq!(trailing_zeros, clear_a.trailing_zeros().min(2));
+    }
+
+    let a = FheUint2::try_encrypt(0u32, cks).unwrap();
+    let (_ilog2, is_ok) = a.checked_ilog2();
+    let is_ok = is_ok.decrypt(cks);
+    assert!(!is_ok);
 }
 
 fn test_case_bitslice(cks: &ClientKey) {
