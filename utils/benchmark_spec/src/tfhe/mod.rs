@@ -1,3 +1,4 @@
+pub mod boolean;
 pub mod core_crypto;
 pub mod hl_integer_op;
 pub mod hlapi;
@@ -8,6 +9,7 @@ use strum::Display;
 
 use crate::traits::SpecNode;
 
+pub use boolean::BooleanBench;
 pub use core_crypto::CoreCryptoBench;
 pub use hl_integer_op::HlIntegerOp;
 pub use hlapi::HlapiBench;
@@ -23,6 +25,7 @@ pub use transciphering::TranscipheringBench;
 #[derive(Debug, Clone, Copy, Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum TfheLayer {
+    Boolean(BooleanBench),
     CoreCrypto(CoreCryptoBench),
     Hlapi(HlapiBench),
     Shortint(ShortintBench),
@@ -32,6 +35,7 @@ pub enum TfheLayer {
 impl SpecNode for TfheLayer {
     fn child(&self) -> Option<&dyn SpecNode> {
         Some(match self {
+            TfheLayer::Boolean(bench) => bench,
             TfheLayer::CoreCrypto(bench) => bench,
             TfheLayer::Hlapi(bench) => bench,
             TfheLayer::Shortint(bench) => bench,
