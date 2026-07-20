@@ -1,7 +1,13 @@
 #[cfg(feature = "gpu")]
 use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 #[cfg(feature = "gpu")]
-use benchmark::utilities::{configure_gpu, write_to_json_unchecked, OperatorType};
+use benchmark::utilities::{configure_gpu, write_to_json, OperatorType};
+#[cfg(feature = "gpu")]
+use benchmark_spec::tfhe::hlapi::vector_find::VectorFindOp;
+#[cfg(feature = "gpu")]
+use benchmark_spec::tfhe::hlapi::HlapiBench;
+#[cfg(feature = "gpu")]
+use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, OperandType};
 #[cfg(feature = "gpu")]
 use criterion::Criterion;
 #[cfg(feature = "gpu")]
@@ -17,15 +23,12 @@ use tfhe::{ClientKey, ConfigBuilder, FheUint64, FheUint8, MatchValues};
 
 #[cfg(feature = "gpu")]
 fn write_contains_metadata(
-    bench_id: &str,
+    spec: &BenchmarkSpec<str>,
     params: AtomicPatternParameters,
-    params_name: &str,
     num_bits: usize,
 ) {
-    write_to_json_unchecked::<u64, _>(
-        bench_id,
-        params,
-        params_name,
+    write_to_json(
+        spec,
         "contains",
         &OperatorType::Atomic,
         num_bits as u32,
@@ -35,15 +38,12 @@ fn write_contains_metadata(
 
 #[cfg(feature = "gpu")]
 fn write_match_value_metadata(
-    bench_id: &str,
+    spec: &BenchmarkSpec<str>,
     params: AtomicPatternParameters,
-    params_name: &str,
     num_bits: usize,
 ) {
-    write_to_json_unchecked::<u64, _>(
-        bench_id,
-        params,
-        params_name,
+    write_to_json(
+        spec,
         "match_value",
         &OperatorType::Atomic,
         num_bits as u32,
@@ -53,13 +53,20 @@ fn write_match_value_metadata(
 
 #[cfg(feature = "gpu")]
 fn bench_contains_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_elements: usize) {
-    let bench_name = "hlapi::cuda::contains";
-    let mut group = c.benchmark_group(bench_name);
+    let mut group = c.benchmark_group("vector_find");
     group.sample_size(15);
 
     let params = client_key.computation_parameters();
     let params_name = params.name();
-    let bench_id = format!("{bench_name}::{params_name}::FheUint64_{num_elements}elements");
+    let spec = BenchmarkSpec::<str>::new_hlapi(
+        HlapiBench::VectorFind(VectorFindOp::Contains),
+        &params_name,
+        OperandType::CipherText,
+        Some("FheUint64"),
+        BenchmarkMetric::Latency,
+        Some(num_elements),
+    );
+    let bench_id = spec.to_string();
 
     let cts: Vec<FheUint64> = (0..num_elements as u64)
         .map(|i| FheUint64::encrypt(i, client_key))
@@ -72,19 +79,26 @@ fn bench_contains_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_elem
         })
     });
 
-    write_contains_metadata(&bench_id, params, &params_name, 64);
+    write_contains_metadata(&spec, params, 64);
     group.finish();
 }
 
 #[cfg(feature = "gpu")]
 fn bench_contains_fhe_uint8(c: &mut Criterion, client_key: &ClientKey, num_elements: usize) {
-    let bench_name = "hlapi::cuda::contains";
-    let mut group = c.benchmark_group(bench_name);
+    let mut group = c.benchmark_group("vector_find");
     group.sample_size(15);
 
     let params = client_key.computation_parameters();
     let params_name = params.name();
-    let bench_id = format!("{bench_name}::{params_name}::FheUint8_{num_elements}elements");
+    let spec = BenchmarkSpec::<str>::new_hlapi(
+        HlapiBench::VectorFind(VectorFindOp::Contains),
+        &params_name,
+        OperandType::CipherText,
+        Some("FheUint8"),
+        BenchmarkMetric::Latency,
+        Some(num_elements),
+    );
+    let bench_id = spec.to_string();
 
     let cts: Vec<FheUint8> = (0..num_elements)
         .map(|i| FheUint8::encrypt((i % 256) as u8, client_key))
@@ -97,19 +111,26 @@ fn bench_contains_fhe_uint8(c: &mut Criterion, client_key: &ClientKey, num_eleme
         })
     });
 
-    write_contains_metadata(&bench_id, params, &params_name, 8);
+    write_contains_metadata(&spec, params, 8);
     group.finish();
 }
 
 #[cfg(feature = "gpu")]
 fn bench_match_value_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_elements: usize) {
-    let bench_name = "hlapi::cuda::match_value";
-    let mut group = c.benchmark_group(bench_name);
+    let mut group = c.benchmark_group("vector_find");
     group.sample_size(15);
 
     let params = client_key.computation_parameters();
     let params_name = params.name();
-    let bench_id = format!("{bench_name}::{params_name}::FheUint64_{num_elements}elements");
+    let spec = BenchmarkSpec::<str>::new_hlapi(
+        HlapiBench::VectorFind(VectorFindOp::MatchValue),
+        &params_name,
+        OperandType::CipherText,
+        Some("FheUint64"),
+        BenchmarkMetric::Latency,
+        Some(num_elements),
+    );
+    let bench_id = spec.to_string();
 
     let pairs: Vec<(u64, u64)> = (0..num_elements as u64).map(|i| (i, i + 1)).collect();
     let match_values = MatchValues::new(pairs).unwrap();
@@ -121,19 +142,26 @@ fn bench_match_value_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_e
         })
     });
 
-    write_match_value_metadata(&bench_id, params, &params_name, 64);
+    write_match_value_metadata(&spec, params, 64);
     group.finish();
 }
 
 #[cfg(feature = "gpu")]
 fn bench_match_value_fhe_uint8(c: &mut Criterion, client_key: &ClientKey, num_elements: usize) {
-    let bench_name = "hlapi::cuda::match_value";
-    let mut group = c.benchmark_group(bench_name);
+    let mut group = c.benchmark_group("vector_find");
     group.sample_size(15);
 
     let params = client_key.computation_parameters();
     let params_name = params.name();
-    let bench_id = format!("{bench_name}::{params_name}::FheUint8_{num_elements}elements");
+    let spec = BenchmarkSpec::<str>::new_hlapi(
+        HlapiBench::VectorFind(VectorFindOp::MatchValue),
+        &params_name,
+        OperandType::CipherText,
+        Some("FheUint8"),
+        BenchmarkMetric::Latency,
+        Some(num_elements),
+    );
+    let bench_id = spec.to_string();
 
     let limit = std::cmp::min(num_elements, 256);
     let pairs: Vec<(u8, u8)> = (0..limit)
@@ -148,7 +176,7 @@ fn bench_match_value_fhe_uint8(c: &mut Criterion, client_key: &ClientKey, num_el
         })
     });
 
-    write_match_value_metadata(&bench_id, params, &params_name, 8);
+    write_match_value_metadata(&spec, params, 8);
     group.finish();
 }
 
