@@ -94,7 +94,7 @@ impl<Id: FheIntId> Expandable for FheInt<Id> {
 }
 
 impl Expandable for FheBool {
-    fn from_expanded_blocks(blocks: Vec<Ciphertext>, kind: DataKind) -> crate::Result<Self> {
+    fn from_expanded_blocks(mut blocks: Vec<Ciphertext>, kind: DataKind) -> crate::Result<Self> {
         match kind {
             DataKind::Unsigned(_) => {
                 let stored_num_bits = num_bits_of_blocks(&blocks) as usize;
@@ -109,7 +109,16 @@ impl Expandable for FheBool {
                 ))
             }
             DataKind::Boolean => {
-                let mut boolean_block = BooleanBlock::new_unchecked(blocks[0].clone());
+                if blocks.len() != 1 {
+                    return Err(crate::error!(
+                        "Tried to expand an FheBool but expected a single block. \
+                        {} blocks were provided.",
+                        blocks.len(),
+                    ));
+                }
+
+                // Succeeds unconditionnally since blocks.len() == 1
+                let mut boolean_block = BooleanBlock::new_unchecked(blocks.pop().unwrap());
                 // We know the value is a boolean one (via the data kind)
                 boolean_block.0.degree = crate::shortint::ciphertext::Degree::new(1);
 

@@ -31,7 +31,15 @@ impl IntegerStreamCiphertextKind {
                 NonZeroUsize::new(n_blocks)
                     .ok_or_else(|| crate::error!("empty transcipher output"))?,
             ),
-            Self::Boolean => DataKind::Boolean,
+            Self::Boolean => {
+                if n_blocks != 1 {
+                    return Err(crate::error!(
+                        "Tried to convert IntegerStreamCiphertextKind::Boolean \
+                        to DataKind::Boolean with n_blocks != 1"
+                    ));
+                }
+                DataKind::Boolean
+            }
         })
     }
 }
@@ -163,6 +171,8 @@ pub enum IntegerTranscipherError {
         expected: IntegerStreamCiphertextKind,
         got: IntegerStreamCiphertextKind,
     },
+    /// The stream ciphertext did not have the right bit count for a boolean value.
+    BooleanInvalidBitCount { ciphertext_bit_count: usize },
 }
 
 impl From<TranscipherError> for IntegerTranscipherError {
@@ -178,6 +188,13 @@ impl std::fmt::Display for IntegerTranscipherError {
             Self::KindMismatch { expected, got } => write!(
                 f,
                 "integer stream ciphertext kind mismatch: expected {expected:?}, got {got:?}"
+            ),
+            Self::BooleanInvalidBitCount {
+                ciphertext_bit_count,
+            } => write!(
+                f,
+                "integer stream ciphertext bit count mismatch for boolean value. \
+                Expected 1 bit, got {ciphertext_bit_count}"
             ),
         }
     }
@@ -236,6 +253,12 @@ impl<T: Transcipherer> IntegerTranscipherer for T {
         sks: &ServerKey,
         input: &IntegerStreamCiphertext,
     ) -> Result<BooleanBlock, IntegerTranscipherError> {
+        let input_n_bits = input.n_bits();
+        if input_n_bits != 1 {
+            return Err(IntegerTranscipherError::BooleanInvalidBitCount {
+                ciphertext_bit_count: input_n_bits,
+            });
+        }
         check_kind(input, IntegerStreamCiphertextKind::Boolean)?;
         let mut blocks = self.transcipher(&sks.key, &input.inner)?;
         let block = blocks.pop().expect("boolean transcipher produced no block");
