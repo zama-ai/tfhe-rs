@@ -13,7 +13,7 @@ use std::path::Path;
 use std::str::FromStr;
 use std::{env, fmt};
 pub use tfhe::hlapi::HlapiBench;
-pub use tfhe::{CoreCryptoBench, HlIntegerOp, ShortintBench, TfheLayer};
+pub use tfhe::{BooleanBench, CoreCryptoBench, HlIntegerOp, ShortintBench, TfheLayer};
 
 use crate::tfhe::TranscipheringBench;
 use crate::zk::ZkLayer;
@@ -271,6 +271,22 @@ impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
     ) -> Self {
         Self {
             bench_crate: BenchCrate::Tfhe(TfheLayer::Shortint(shortint_bench)),
+            backend: bench_backend_from_cfg(),
+            param_name,
+            operand_type: OperandType::CipherText,
+            type_name: None,
+            bench_type: bench_type.into(),
+            num_elements: None,
+        }
+    }
+
+    pub fn new_boolean(
+        boolean_bench: BooleanBench,
+        param_name: &'a str,
+        bench_type: impl Into<BenchmarkMetric>,
+    ) -> Self {
+        Self {
+            bench_crate: BenchCrate::Tfhe(TfheLayer::Boolean(boolean_bench)),
             backend: bench_backend_from_cfg(),
             param_name,
             operand_type: OperandType::CipherText,
