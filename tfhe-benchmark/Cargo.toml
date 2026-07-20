@@ -257,3 +257,8 @@ name = "cm-bench"
 path = "benches/core_crypto/cm_bench.rs"
 harness = false
 required-features = ["experimental"]
+
+[[bench]]
+name = "vector-find-hlapi"
+path = "benches/high_level_api/vector_find.rs"
+required-features = ["integer"]
