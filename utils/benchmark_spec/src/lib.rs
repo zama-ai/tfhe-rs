@@ -2,6 +2,7 @@ mod backend;
 mod bench_crate;
 pub mod tfhe;
 mod traits;
+pub mod zk;
 
 pub use backend::{Backend, bench_backend_from_cfg};
 pub use bench_crate::BenchCrate;
@@ -15,6 +16,8 @@ pub use tfhe::hlapi::HlapiBench;
 pub use tfhe::{CoreCryptoBench, HlIntegerOp, ShortintBench, TfheLayer};
 
 use crate::tfhe::TranscipheringBench;
+use crate::zk::ZkLayer;
+use crate::zk::msm::MsmBench;
 
 pub trait TypeName {
     fn type_name(&self) -> String;
@@ -325,6 +328,23 @@ impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
             num_elements: None,
         }
     }
+
+    pub fn new_zk_msm(
+        zk_bench: MsmBench,
+        backend: Backend,
+        bench_type: impl Into<BenchmarkMetric>,
+        num_elements: Option<usize>,
+    ) -> Self {
+        Self {
+            bench_crate: BenchCrate::Zk(ZkLayer::Msm(zk_bench)),
+            backend,
+            param_name: "",
+            operand_type: OperandType::CipherText,
+            type_name: None,
+            bench_type: bench_type.into(),
+            num_elements,
+        }
+    }
 }
 
 impl<T: TypeName + ?Sized> fmt::Display for BenchmarkSpec<'_, T> {
@@ -339,7 +359,9 @@ impl<T: TypeName + ?Sized> fmt::Display for BenchmarkSpec<'_, T> {
             BenchmarkMetric::KeySize => write!(f, "::key_size")?,
             BenchmarkMetric::Latency => {}
         }
-        write!(f, "::{}", self.param_name)?;
+        if !self.param_name.is_empty() {
+            write!(f, "::{}", self.param_name)?;
+        }
         if self.operand_type.is_scalar() {
             write!(f, "::scalar")?;
         }
