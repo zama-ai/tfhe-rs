@@ -19,8 +19,9 @@
 //! cargo bench --package tfhe-benchmark --bench zk-msm --features gpu-zk
 //! ```
 
-use benchmark::utilities::{write_to_json_unchecked, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark::utilities::{write_to_json, OperatorType};
+use benchmark_spec::zk::msm::{MsmBench, MsmFlavor};
+use benchmark_spec::{get_bench_type, Backend, BenchmarkSpec, BenchmarkType};
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion, Throughput};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
@@ -59,11 +60,7 @@ fn generate_scalars(rng: &mut StdRng, n: usize) -> Vec<Zp> {
 trait MsmBenchGroup {
     type Affine: Send + Sync;
 
-    /// Subgroup label used in benchmark group names, e.g. "G1" or "G2".
-    const SUBGROUP: &'static str;
-    /// Display name for benchmark JSON output, e.g. "MSM_BLS12_446_G1".
-    /// GPU benchmarks append "_CUDA" automatically.
-    const DISPLAY_NAME: &'static str;
+    const MSM_ID: MsmBench;
 
     fn generate_points(rng: &mut StdRng, n: usize) -> Vec<Self::Affine>;
     fn cpu_msm(bases: &[Self::Affine], scalars: &[Zp]);
@@ -76,8 +73,7 @@ struct G1Bench;
 impl MsmBenchGroup for G1Bench {
     type Affine = G1Affine;
 
-    const SUBGROUP: &'static str = "G1";
-    const DISPLAY_NAME: &'static str = "MSM_BLS12_446_G1";
+    const MSM_ID: MsmBench = MsmBench::G1(MsmFlavor::Bls12_446);
 
     fn generate_points(rng: &mut StdRng, n: usize) -> Vec<G1Affine> {
         (0..n)
@@ -107,8 +103,7 @@ struct G2Bench;
 impl MsmBenchGroup for G2Bench {
     type Affine = G2Affine;
 
-    const SUBGROUP: &'static str = "G2";
-    const DISPLAY_NAME: &'static str = "MSM_BLS12_446_G2";
+    const MSM_ID: MsmBench = MsmBench::G2(MsmFlavor::Bls12_446);
 
     fn generate_points(rng: &mut StdRng, n: usize) -> Vec<G2Affine> {
         (0..n)
@@ -138,17 +133,17 @@ impl MsmBenchGroup for G2Bench {
 // =============================================================================
 
 fn bench_cpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
-    let curve_name = "bls12_446";
-    let bench_name = format!("zk::msm::{curve_name}::{}", T::SUBGROUP);
-    let bench_shortname = format!("zk::msm::bls12_446::{}", T::SUBGROUP.to_lowercase());
-
-    let mut group = c.benchmark_group(&bench_name);
+    let group_name =
+        BenchmarkSpec::<str>::new_zk_msm(T::MSM_ID, Backend::Cpu, *get_bench_type(), None);
+    let mut group = c.benchmark_group(&group_name.to_string());
     group.sample_size(10);
     group.measurement_time(Duration::from_secs(30));
 
     for size in MSM_SIZES.iter() {
         let n = *size;
-        let bench_id;
+        let bench_id =
+            BenchmarkSpec::<str>::new_zk_msm(T::MSM_ID, Backend::Cpu, *get_bench_type(), Some(n));
+        let bench_id_string = bench_id.to_string();
 
         match get_bench_type() {
             BenchmarkType::Latency => {
@@ -156,8 +151,7 @@ fn bench_cpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
                 let bases = T::generate_points(&mut rng, n);
                 let scalars = generate_scalars(&mut rng, n);
 
-                bench_id = format!("{bench_name}::{n}");
-                group.bench_with_input(&bench_id, &n, |b, _| {
+                group.bench_with_input(&bench_id_string, &n, |b, _| {
                     b.iter(|| T::cpu_msm(&bases, &scalars));
                 });
             }
@@ -165,8 +159,7 @@ fn bench_cpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
                 let elements = msm_throughput_elements(n);
                 group.throughput(Throughput::Elements(elements));
 
-                bench_id = format!("{bench_name}::throughput::{n}");
-                group.bench_with_input(&bench_id, &n, |b, _| {
+                group.bench_with_input(&bench_id_string, &n, |b, _| {
                     // Setup generates test data in parallel, excluded from measurement
                     let setup = || {
                         (0..elements)
@@ -193,10 +186,9 @@ fn bench_cpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
             }
         }
 
-        write_to_json_unchecked(
+        write_to_json(
             &bench_id,
-            T::DISPLAY_NAME,
-            &bench_shortname,
+            T::MSM_ID.display_name(),
             &OperatorType::Atomic,
             64,     // bit_size for curve scalar operations
             vec![], // decomposition_basis not applicable for MSM
@@ -209,11 +201,9 @@ fn bench_cpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
 fn bench_gpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
     use tfhe_zk_pok::gpu::select_gpu_for_msm;
 
-    let curve_name = "bls12_446";
-    let bench_name = format!("zk::cuda::msm::{curve_name}::{}", T::SUBGROUP);
-    let bench_shortname = format!("zk::cuda::msm::bls12_446::{}", T::SUBGROUP.to_lowercase());
-
-    let mut group = c.benchmark_group(&bench_name);
+    let group_name =
+        BenchmarkSpec::<str>::new_zk_msm(T::MSM_ID, Backend::Cuda, *get_bench_type(), None);
+    let mut group = c.benchmark_group(&group_name.to_string());
     group.sample_size(10);
     group.measurement_time(Duration::from_secs(30));
 
@@ -222,7 +212,9 @@ fn bench_gpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
 
     for size in MSM_SIZES.iter() {
         let n = *size;
-        let bench_id;
+        let bench_id =
+            BenchmarkSpec::<str>::new_zk_msm(T::MSM_ID, Backend::Cuda, *get_bench_type(), Some(n));
+        let bench_id_string = bench_id.to_string();
 
         match get_bench_type() {
             BenchmarkType::Latency => {
@@ -230,8 +222,7 @@ fn bench_gpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
                 let bases = T::generate_points(&mut rng, n);
                 let scalars = generate_scalars(&mut rng, n);
 
-                bench_id = format!("{bench_name}::{n}");
-                group.bench_with_input(&bench_id, &n, |b, _| {
+                group.bench_with_input(&bench_id_string, &n, |b, _| {
                     b.iter(|| T::gpu_msm(&bases, &scalars, gpu_index));
                 });
             }
@@ -239,8 +230,7 @@ fn bench_gpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
                 let elements = msm_throughput_elements(n);
                 group.throughput(Throughput::Elements(elements));
 
-                bench_id = format!("{bench_name}::throughput::{n}");
-                group.bench_with_input(&bench_id, &n, |b, _| {
+                group.bench_with_input(&bench_id_string, &n, |b, _| {
                     let setup = || {
                         (0..elements)
                             .into_par_iter()
@@ -266,10 +256,9 @@ fn bench_gpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
             }
         }
 
-        write_to_json_unchecked(
+        write_to_json(
             &bench_id,
-            format!("{}_CUDA", T::DISPLAY_NAME),
-            &bench_shortname,
+            format!("{}_CUDA", T::MSM_ID.display_name()),
             &OperatorType::Atomic,
             64,     // bit_size for curve scalar operations
             vec![], // decomposition_basis not applicable for MSM
