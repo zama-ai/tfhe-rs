@@ -1,0 +1,19 @@
+[package]
+name = "compat_1_7_0"
+version = "0.1.0"
+edition = "2024"
+license = "BSD-3-Clause-Clear"
+
+# Own workspace so its tfhe pin is resolved independently of compat_15.
+[workspace]
+
+[dependencies]
+tfhe = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.7.0", features = [
+    "shortint",
+    "integer",
+    "zk-pok",
+] }
+tfhe-csprng = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.7.0" }
+tfhe-versionable = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.7.0" }
+tfhe-zk-pok = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.7.0" }
+forward-common = { path = "../forward-common" }
