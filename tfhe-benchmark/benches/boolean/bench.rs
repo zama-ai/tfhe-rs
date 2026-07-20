@@ -1,4 +1,5 @@
-use benchmark::utilities::{write_to_json_unchecked, OperatorType};
+use benchmark::utilities::{write_to_json, OperatorType};
+use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, BooleanBench};
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::hint::black_box;
 use tfhe::boolean::client_key::ClientKey;
@@ -22,19 +23,8 @@ criterion_group!(
 criterion_main!(gates_benches);
 
 /// Helper function to write boolean benchmarks parameters to disk in JSON format.
-pub fn write_to_json_boolean(
-    bench_id: &str,
-    params_alias: impl Into<String>,
-    display_name: impl Into<String>,
-) {
-    write_to_json_unchecked(
-        bench_id,
-        params_alias,
-        display_name,
-        &OperatorType::Atomic,
-        1,
-        vec![1],
-    );
+pub fn write_to_json_boolean(spec: &BenchmarkSpec<str>, display_name: impl Into<String>) {
+    write_to_json(spec, display_name, &OperatorType::Atomic, 1, vec![1]);
 }
 
 // Put all `bench_function` in one place
@@ -49,33 +39,68 @@ fn benches(c: &mut Criterion, params: BooleanParameters, parameter_name: &str) {
     let ct2 = cks.encrypt(false);
     let ct3 = cks.encrypt(true);
 
-    let id = format!("AND::{parameter_name}");
+    let spec = BenchmarkSpec::<str>::new_boolean(
+        BooleanBench::And,
+        parameter_name,
+        BenchmarkMetric::Latency,
+    );
+    let id = spec.to_string();
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.and(&ct1, &ct2))));
-    write_to_json_boolean(&id, parameter_name, "and");
+    write_to_json_boolean(&spec, "and");
 
-    let id = format!("NAND::{parameter_name}");
+    let spec = BenchmarkSpec::<str>::new_boolean(
+        BooleanBench::Nand,
+        parameter_name,
+        BenchmarkMetric::Latency,
+    );
+    let id = spec.to_string();
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.nand(&ct1, &ct2))));
-    write_to_json_boolean(&id, parameter_name, "nand");
+    write_to_json_boolean(&spec, "nand");
 
-    let id = format!("OR::{parameter_name}");
+    let spec = BenchmarkSpec::<str>::new_boolean(
+        BooleanBench::Or,
+        parameter_name,
+        BenchmarkMetric::Latency,
+    );
+    let id = spec.to_string();
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.or(&ct1, &ct2))));
-    write_to_json_boolean(&id, parameter_name, "or");
+    write_to_json_boolean(&spec, "or");
 
-    let id = format!("XOR::{parameter_name}");
+    let spec = BenchmarkSpec::<str>::new_boolean(
+        BooleanBench::Xor,
+        parameter_name,
+        BenchmarkMetric::Latency,
+    );
+    let id = spec.to_string();
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.xor(&ct1, &ct2))));
-    write_to_json_boolean(&id, parameter_name, "xor");
+    write_to_json_boolean(&spec, "xor");
 
-    let id = format!("XNOR::{parameter_name}");
+    let spec = BenchmarkSpec::<str>::new_boolean(
+        BooleanBench::Xnor,
+        parameter_name,
+        BenchmarkMetric::Latency,
+    );
+    let id = spec.to_string();
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.xnor(&ct1, &ct2))));
-    write_to_json_boolean(&id, parameter_name, "xnor");
+    write_to_json_boolean(&spec, "xnor");
 
-    let id = format!("NOT::{parameter_name}");
+    let spec = BenchmarkSpec::<str>::new_boolean(
+        BooleanBench::Not,
+        parameter_name,
+        BenchmarkMetric::Latency,
+    );
+    let id = spec.to_string();
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.not(&ct1))));
-    write_to_json_boolean(&id, parameter_name, "not");
+    write_to_json_boolean(&spec, "not");
 
-    let id = format!("MUX::{parameter_name}");
+    let spec = BenchmarkSpec::<str>::new_boolean(
+        BooleanBench::Mux,
+        parameter_name,
+        BenchmarkMetric::Latency,
+    );
+    let id = spec.to_string();
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.mux(&ct1, &ct2, &ct3))));
-    write_to_json_boolean(&id, parameter_name, "mux");
+    write_to_json_boolean(&spec, "mux");
 }
 
 fn bench_default_parameters(c: &mut Criterion) {
