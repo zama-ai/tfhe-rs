@@ -84,8 +84,6 @@ jobs:
           - os: ubuntu-22.04
             cuda: "12.2"
             gcc: 9
-    env:
-      CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -100,13 +98,10 @@ jobs:
           toolchain: stable
 
       - name: Export CUDA variables
+        shell: bash
         run: |
-          echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
-          {
-            echo "CUDA_PATH=$CUDA_PATH";
-            echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH";
-            echo "CUDACXX=/usr/local/cuda-${CUDA_VERSION}/bin/nvcc";
-          } >> "${GITHUB_ENV}"
+          read -ra CUDA_VERSIONS_LIST <<< "${CUDA_VERSION}"
+          bash ci/export_cuda_vars.sh "${GITHUB_ENV}" "${GITHUB_PATH}" "${CUDA_VERSIONS_LIST[@]}" >&2
         env:
           CUDA_VERSION: ${{ matrix.cuda }}
 
@@ -165,22 +160,26 @@ jobs:
           - os: ubuntu-22.04
             cuda: "12.2"
             gcc: 9
-    env:
-      CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
     steps:
+      # Checkout must run before exporting CUDA variables: ci/export_cuda_vars.sh
+      # and ci/detect_cuda.sh live in the repo.
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: "false"
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
           toolchain: stable
 
       - name: Export CUDA variables
+        shell: bash
         run: |
-          echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
-          {
-            echo "CUDA_PATH=$CUDA_PATH";
-            echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH";
-            echo "CUDACXX=/usr/local/cuda-${CUDA_VERSION}/bin/nvcc";
-          } >> "${GITHUB_ENV}"
+          read -ra CUDA_VERSIONS_LIST <<< "${CUDA_VERSION}"
+          bash ci/export_cuda_vars.sh "${GITHUB_ENV}" "${GITHUB_PATH}" "${CUDA_VERSIONS_LIST[@]}" >&2
         env:
           CUDA_VERSION: ${{ matrix.cuda }}
 
@@ -195,13 +194,6 @@ jobs:
           } >> "${GITHUB_ENV}"
         env:
           GCC_VERSION: ${{ matrix.gcc }}
-
-      - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          fetch-depth: 0
-          persist-credentials: "false"
-          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Download artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
