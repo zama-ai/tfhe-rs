@@ -104,6 +104,7 @@ where
     }
     fn dst(&self) -> Vec<arg::Arg>;
     fn src(&self) -> Vec<arg::Arg>;
+    fn opcode(&self) -> Opcode;
 }
 
 #[enum_dispatch]
@@ -194,6 +195,9 @@ impl ToAsm for PeArithInsn {
         }
         src
     }
+    fn opcode(&self) -> Opcode {
+        self.opcode
+    }
 }
 
 impl FromAsm for field::PeArithMsgInsn {
@@ -245,6 +249,9 @@ impl ToAsm for PeArithMsgInsn {
     }
     fn src(&self) -> Vec<arg::Arg> {
         vec![arg::Arg::Reg(self.src_rid), arg::Arg::Imm(self.msg_cst)]
+    }
+    fn opcode(&self) -> Opcode {
+        self.opcode
     }
 }
 
@@ -331,6 +338,9 @@ impl ToAsm for PeMemInsn {
             panic!("Unsupported opcode for PeMemInsn")
         }
     }
+    fn opcode(&self) -> Opcode {
+        self.opcode
+    }
 }
 
 impl FromAsm for field::PeSyncInsn {
@@ -396,6 +406,9 @@ impl ToAsm for PeSyncInsn {
         }
         src
     }
+    fn opcode(&self) -> Opcode {
+        self.opcode
+    }
 }
 
 impl FromAsm for field::PePbsInsn {
@@ -450,6 +463,9 @@ impl ToAsm for PePbsInsn {
             Arg::Reg(self.src_rid),
             Arg::Pbs(Pbs::from_hex(self.gid).unwrap()),
         ]
+    }
+    fn opcode(&self) -> Opcode {
+        self.opcode
     }
 }
 
@@ -549,6 +565,9 @@ impl ToAsm for PeUcoreInsn {
                 vec![Arg::UcoreFlag(self.flag), Arg::Mem(self.slot)]
             }
         }
+    }
+    fn opcode(&self) -> Opcode {
+        self.opcode
     }
 }
 

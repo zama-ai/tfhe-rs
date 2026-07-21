@@ -18,6 +18,10 @@ pub use super::interface::{
 /// Load parser utility
 pub use super::isc_trace;
 
+#[cfg(feature = "utils")]
+/// Load parser utility
+pub use super::insn_trace;
+
 #[cfg(feature = "io-dump")]
 /// Expose io_dump init function
 pub use super::interface::io_dump::set_hpu_io_dump;
