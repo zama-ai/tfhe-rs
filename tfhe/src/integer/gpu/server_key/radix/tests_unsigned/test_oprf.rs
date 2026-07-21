@@ -212,7 +212,7 @@ impl OprfReRandTestRunner for GpuOprfReRandTestRunner {
         excluded_upper_bound: NonZeroU64,
         num_blocks_output: u64,
         prf_re_randomization_context: &PrfReRandomizationContext,
-    ) -> Option<(RadixCiphertext, RadixCiphertext)> {
+    ) -> (RadixCiphertext, RadixCiphertext) {
         let state = self.state();
         let rerand_key = state.rerand_key();
 
@@ -243,10 +243,10 @@ impl OprfReRandTestRunner for GpuOprfReRandTestRunner {
             )
             .unwrap();
 
-        Some((
+        (
             prf_not_rerand.to_radix_ciphertext(&state.streams),
             prf_rerand.to_radix_ciphertext(&state.streams),
-        ))
+        )
     }
 
     fn signed_full(

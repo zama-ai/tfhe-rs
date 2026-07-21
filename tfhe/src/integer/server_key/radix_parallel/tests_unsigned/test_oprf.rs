@@ -340,8 +340,6 @@ pub(crate) trait OprfReRandTestRunner {
         prf_re_randomization_context: &PrfReRandomizationContext,
     ) -> (RadixCiphertext, RadixCiphertext);
 
-    // TODO: make this function return the tuple directly once GPU supports the custom_range
-    // generation with rerand
     /// Re-randomizing custom-range generation.
     ///
     /// Returns `None` on backends that do not expose a re-randomizing custom-range primitive yet
@@ -353,7 +351,7 @@ pub(crate) trait OprfReRandTestRunner {
         excluded_upper_bound: NonZeroU64,
         num_blocks_output: u64,
         prf_re_randomization_context: &PrfReRandomizationContext,
-    ) -> Option<(RadixCiphertext, RadixCiphertext)>;
+    ) -> (RadixCiphertext, RadixCiphertext);
 
     /// Return the prf output once without and once with re-randomization.
     fn signed_full(
@@ -499,7 +497,7 @@ impl OprfReRandTestRunner for CpuOprfReRandTestRunner {
         excluded_upper_bound: NonZeroU64,
         num_blocks_output: u64,
         prf_re_randomization_context: &PrfReRandomizationContext,
-    ) -> Option<(RadixCiphertext, RadixCiphertext)> {
+    ) -> (RadixCiphertext, RadixCiphertext) {
         let state = self.state();
         let rerand_key = state.rerand_key();
 
@@ -528,7 +526,7 @@ impl OprfReRandTestRunner for CpuOprfReRandTestRunner {
             )
             .unwrap();
 
-        Some((prf_not_rerand, prf_rerand))
+        (prf_not_rerand, prf_rerand)
     }
 
     fn signed_full(
@@ -822,17 +820,13 @@ fn subtest_unsigned_integer_custom_range<TestRunner: OprfReRandTestRunner>(
     let excluded_upper_bound_ceil_log2 = excluded_upper_bound_log2 + 1;
     let random_block_count = excluded_upper_bound_ceil_log2.div_ceil(message_bits);
 
-    let Some((prf_not_rerand, prf_rerand)) = test_runner.unsigned_custom_range(
+    let (prf_not_rerand, prf_rerand) = test_runner.unsigned_custom_range(
         prf_seed,
         INPUT_RANDOM_BIT_COUNT,
         excluded_upper_bound,
         output_num_blocks,
         prf_re_randomization_context,
-    ) else {
-        // Underlying executor does not have the custom_range support
-        // TODO: remove when GPU has support
-        return;
-    };
+    );
 
     assert_eq!(prf_not_rerand.blocks.len() as u64, output_num_blocks);
     assert_eq!(prf_rerand.blocks.len() as u64, output_num_blocks);
