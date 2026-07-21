@@ -11,6 +11,7 @@ readme = "README.md"
 keywords = ["encryption", "fhe", "cryptography", "hardware", "fpga"]
 
 [features]
+default = ["utils"]
 hw-v80 = ["bincode"]
 io-dump = ["num-traits"]
 rtl_graph = ["dot2"]
@@ -83,6 +84,12 @@ required-features = ["utils"]
 [[bin]]
 name = "iop_fmt"
 path = "src/utils/iop_fmt.rs"
+required-features = ["utils"]
+
+# Binary for trace manipulation
+[[bin]]
+name = "trace_fmt"
+path = "src/utils/trace_fmt.rs"
 required-features = ["utils"]
 
 # Firmware generation

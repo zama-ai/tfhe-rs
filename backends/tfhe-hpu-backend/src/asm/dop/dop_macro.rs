@@ -42,6 +42,9 @@ macro_rules! impl_dop_parser {
                 fn src(&self) -> Vec<arg::Arg> {
                     self.0.src()
                 }
+                fn opcode(&self) -> Opcode {
+                    self.0.opcode
+                }
             }
 
             impl ToHex for [<DOp $asm:camel>] {
