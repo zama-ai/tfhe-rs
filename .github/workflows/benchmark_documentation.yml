@@ -29,6 +29,12 @@ on:
         description: "Generate SVG tables"
         type: boolean
         default: true
+      hpu_number:
+        description: "number of hpu used"
+        default: 4
+      hpu_runner:
+        description: "machine used for bench"
+        default: v80-marais
 
 permissions: {}
 
@@ -138,8 +144,8 @@ jobs:
       op_flavor: default
       bench_type: both
       precisions_set: documentation
-      hpu_number: 4
-      runner_target: v80-marais
+      hpu_number: ${{ inputs.hpu_number }}
+      runner_target: ${{ inputs.hpu_runner }}
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
