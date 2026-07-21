@@ -43,6 +43,13 @@ impl From<u8> for Opcode {
     }
 }
 
+/// Implement getter
+impl Opcode {
+    pub fn optype(&self) -> DOpType {
+        self.optype
+    }
+}
+
 /// Implement helper function to create Arith DOp
 impl Opcode {
     #[allow(non_snake_case)]

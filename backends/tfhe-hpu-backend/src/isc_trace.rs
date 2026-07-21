@@ -27,7 +27,7 @@ pub struct IscPoolState {
     pub sync_id: u8,
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 #[repr(u8)]
 pub enum IscCommand {
     None = 0,
@@ -165,6 +165,11 @@ impl IscTraceStream {
             }
         }
         Ok(IscTraceStream(trace_vec))
+    }
+
+    /// Return a view on internal part
+    pub fn as_view(&self) -> &[IscTrace] {
+        &self.0
     }
 }
 
