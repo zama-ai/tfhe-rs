@@ -4,13 +4,17 @@ This guide explains how to update your existing program to leverage HPU accelera
 
 **TFHE-rs** now supports a HPU backend based on FPGA implementation, enabling integer arithmetic operations on encrypted data.
 
+Starting from TFHE-rs version 1.7.0, the HPU backend now supports execution of operations on a HPU cluster composed of up to 8 HPU nodes.
+
 ## Prerequisites
 
-* An [AMD/Xilinx V80 board](https://www.amd.com/en/products/accelerators/alveo/v80.html) installed on a server running Linux with kernel 5.15.0-\*
-* A HPU bitstream that you can find (or build) in [HPU fpga repository](https://github.com/zama-ai/hpu_fpga) and load in V80 flash and FPGA using its [README](https://github.com/zama-ai/hpu_fpga/blob/main/README.md)
+* An [AMD/Xilinx V80 board](https://www.amd.com/en/products/accelerators/alveo/v80.html) installed on a server running Linux with kernel 5.14.0-\* or 5.15.0-\*
+* A HPU bitstream is provided in [TFHE-rs HPU backend](https://github.com/zama-ai/tfhe-rs/blob/main/backends/tfhe-hpu-backend/config_store/v80_archives/psi64.hpu) but you can build your own using [HPU FPGA repository](https://github.com/zama-ai/hpu_fpga#bring-up)
 * AMI linux device driver version from this [fork](https://github.com/zama-ai/AVED)
 * QDMA linux device driver version from this [fork](https://github.com/zama-ai/dma_ip_drivers)
 * Rust version - check this [page](../rust-configuration.md)
+* The server hosting the FPGA boards needs to be configured as described in [HPU bring-up](https://github.com/zama-ai/hpu_fpga#bring-up)
+* In a cluster, each HPU needs a 25Gb Ethernet connection to synchronize with the other HPU as described in [HPU Cluster setup](https://github.com/zama-ai/hpu_fpga#hpu-cluster-setup)
 
 ## Importing to your project
 
@@ -133,11 +137,13 @@ The HPU backend includes the following operations for unsigned encrypted integer
 
 | name                                                                                                                              | symbol          | `Enc`/`Enc`          | `Enc`/ `Int`               |
 |-----------------------------------------------------------------------------------------------------------------------------------|-----------------|----------------------|----------------------------|
+| [Neg](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.neg-1)                                                           | `-`             | :heavy\_check\_mark: | N/A                        |
 | [Add](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.add-1)                                                           | `+`             | :heavy\_check\_mark: | :heavy\_check\_mark:       |
 | [Sub](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.sub-1)                                                           | `-`             | :heavy\_check\_mark: | :heavy\_check\_mark:       |
 | [Mul](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.mul-1)                                                           | `*`             | :heavy\_check\_mark: | :heavy\_check\_mark:       |
 | [Div](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.div-1)                                                           | `/`             | :heavy\_check\_mark: | :heavy\_check\_mark:       |
 | [Rem](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.rem-1)                                                           | `%`             | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| [Not](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.not-1)                                                           | `!`             | :heavy\_check\_mark: | N/A                        |
 | [BitAnd](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.bitand-1)                                                     | `&`             | :heavy\_check\_mark: | :heavy\_check\_mark:       |
 | [BitOr](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.bitor-1)                                                       | `\|`            | :heavy\_check\_mark: | :heavy\_check\_mark:       |
 | [BitXor](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.bitxor-1)                                                     | `^`             | :heavy\_check\_mark: | :heavy\_check\_mark:       |
