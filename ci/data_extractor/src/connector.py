@@ -189,12 +189,12 @@ class PostgreConnector:
         name_suffix = f"\\{name_suffix}"
         match backend:
             case Backend.CPU:
-                filters.append(f"test.name LIKE '{layer}::%{name_suffix}'")
+                filters.append(f"test.name LIKE '%{layer}::%{name_suffix}'")
             case Backend.GPU:
-                filters.append(f"test.name LIKE '{layer}::cuda::%{name_suffix}'")
+                filters.append(f"test.name LIKE '%{layer}::%cuda::%{name_suffix}'")
             case Backend.HPU:
                 name_suffix = f"_mean"
-                filters.append(f"test.name LIKE '{layer}::hpu::%{name_suffix}'")
+                filters.append(f"test.name LIKE '%{layer}::%hpu::%{name_suffix}'")
 
         if version:
             filters.append(f"pv.name = '{version}'")
