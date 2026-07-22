@@ -12,3 +12,8 @@ Please report any vulnerability privately using the [GitHub security advisory re
 ## Recognition
 
 We appreciate and acknowledge responsible reporters publicly (unless requested otherwise) in our security advisories and contributors list.
+
+## Bug Bounty
+
+Eligible security vulnerabilities may qualify for Zama's bug bounty program.
+See https://www.zama.org/security for scope, rewards, and the submission process.
