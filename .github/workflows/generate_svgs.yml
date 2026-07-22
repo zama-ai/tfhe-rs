@@ -16,6 +16,9 @@ on:
       generate-hpu-svgs:
         type: boolean
         default: true
+      hpu_number:
+        type: string
+        default: "1"
     secrets:
       DATA_EXTRACTOR_DATABASE_USER:
         required: true
@@ -109,12 +112,12 @@ jobs:
     if: inputs.generate-hpu-svgs
     with:
       backend: hpu
-      hardware_name: hpu_x1
+      hardware_name: hpu_x${{ inputs.hpu_number }}
       layer: integer
       pbs_kind: classical
       bench_type: latency
       time_span_days: ${{ inputs.time_span_days }}
-      output_filename: hpu-integer-benchmark-hpux1-tuniform-2m128-latency
+      output_filename: hpu-integer-benchmark-hpux${{ inputs.hpu_number }}-tuniform-2m128-latency
     secrets:
       DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
       DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
@@ -126,12 +129,12 @@ jobs:
     if: inputs.generate-hpu-svgs
     with:
       backend: hpu
-      hardware_name: hpu_x1
+      hardware_name: hpu_x${{ inputs.hpu_number }}
       layer: integer
       pbs_kind: classical
       bench_type: throughput
       time_span_days: ${{ inputs.time_span_days }}
-      output_filename: hpu-integer-benchmark-hpux1-tuniform-2m128-throughput
+      output_filename: hpu-integer-benchmark-hpux${{ inputs.hpu_number }}-tuniform-2m128-throughput
     secrets:
       DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
       DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
