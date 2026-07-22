@@ -7,4 +7,5 @@ The whitepaper version of the ERC7984 is the same implementation than on CPU or 
 The hpu_simd version is a different measure which uses another HPU IOp called ERC7984_SIMD (for Single Instruction Multiple Data). This ERC7984_SIMD takes an input of 12 triplets (from, to, amount) and returns 12 pairs (new_from, new_to) and is particulartly efficient when having many independent transfers to execute.
 
 The throughput shown here is the maximum that can be achieved with TFHE-rs on a single FPGA node running the HPU, in an ideal scenario where all transactions are independent.
-In a blockchain protocol, the throughput would be limited by the latency of the network and the necessity to apply other operations (compression, decompression, rerandomization). The measures of throughput on 8x HPU cluster are not yet available in TFHE-rs HLAPI benchmarks.
+In a blockchain protocol, the throughput would be limited by the latency of the network and the necessity to apply other operations (compression, decompression, rerandomization).
+Throughput measurments on 8x HPU cluster are not yet available in TFHE-rs HLAPI benchmarks.

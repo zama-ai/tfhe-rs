@@ -4,12 +4,12 @@ This guide explains how to update your existing program to leverage HPU accelera
 
 **TFHE-rs** now supports a HPU backend based on FPGA implementation, enabling integer arithmetic operations on encrypted data.
 
-Starting from TFHE-rs version 1.7.0, HPU backend now supports execution of operations on a HPU cluster composed of up to 8 HPU nodes.
+Starting from TFHE-rs version 1.7.0, the HPU backend now supports execution of operations on a HPU cluster composed of up to 8 HPU nodes.
 
 ## Prerequisites
 
 * An [AMD/Xilinx V80 board](https://www.amd.com/en/products/accelerators/alveo/v80.html) installed on a server running Linux with kernel 5.14.0-\* or 5.15.0-\*
-* A HPU bitstream is provided in [TFHE-rs HPU backend](https://github.com/zama-ai/tfhe-rs/commits/main/backends/tfhe-hpu-backend/config_store/v80_archives/psi64.hpu) but you can build your own using [HPU FPGA repository](https://github.com/zama-ai/hpu_fpga#bring-up)
+* A HPU bitstream is provided in [TFHE-rs HPU backend](https://github.com/zama-ai/tfhe-rs/blob/main/backends/tfhe-hpu-backend/config_store/v80_archives/psi64.hpu) but you can build your own using [HPU FPGA repository](https://github.com/zama-ai/hpu_fpga#bring-up)
 * AMI linux device driver version from this [fork](https://github.com/zama-ai/AVED)
 * QDMA linux device driver version from this [fork](https://github.com/zama-ai/dma_ip_drivers)
 * Rust version - check this [page](../rust-configuration.md)
