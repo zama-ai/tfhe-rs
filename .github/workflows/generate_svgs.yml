@@ -297,13 +297,13 @@ jobs:
     if: inputs.generate-hpu-svgs
     with:
       backend: hpu
-      hardware_name: hpu_x1
+      hardware_name: hpu_x${{ inputs.hpu_number }}
       layer: hlapi
       bench_subset: erc7984
       pbs_kind: classical
       bench_type: both
       time_span_days: ${{ inputs.time_span_days }}
-      output_filename: hpu-hlapi-erc7984-benchmark-hpux1-latency-throughput.svg
+      output_filename: hpu-hlapi-erc7984-benchmark-hpux${{ inputs.hpu_number }}-latency-throughput.svg
     secrets:
       DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
       DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
