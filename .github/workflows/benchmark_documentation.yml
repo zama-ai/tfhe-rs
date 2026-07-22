@@ -235,6 +235,7 @@ jobs:
       generate-cpu-svgs: ${{ inputs.run-cpu-benchmarks }}
       generate-gpu-svgs: ${{ inputs.run-gpu-integer-benchmarks || inputs.run-gpu-core-crypto-benchmarks || inputs.run-gpu-zk-benchmarks }}
       generate-hpu-svgs: ${{ inputs.run-hpu-benchmarks }}
+      hpu_number: ${{ inputs.hpu_number }}
     secrets:
       DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
       DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
