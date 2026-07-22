@@ -652,11 +652,13 @@ TEST(CpuGpuFFT16x4x16, forward_matches_cpu_bitwise) {
     for (size_t f = 0; f < half; f++) {
       size_t idx = (size_t)p * half + f;
       ASSERT_EQ(as_bits(h_gpu[idx].x), as_bits(h_cpu[idx].x))
-          << "scalar sample " << p << " frequency " << f << " (real): gpu "
-          << h_gpu[idx].x << " vs cpu " << h_cpu[idx].x;
+          << "scalar sample " << p << " frequency " << f << " (real): gpu 0x"
+          << std::hex << as_bits(h_gpu[idx].x) << " vs cpu 0x"
+          << as_bits(h_cpu[idx].x) << std::dec;
       ASSERT_EQ(as_bits(h_gpu[idx].y), as_bits(h_cpu[idx].y))
-          << "scalar sample " << p << " frequency " << f << " (imag): gpu "
-          << h_gpu[idx].y << " vs cpu " << h_cpu[idx].y;
+          << "scalar sample " << p << " frequency " << f << " (imag): gpu 0x"
+          << std::hex << as_bits(h_gpu[idx].y) << " vs cpu 0x"
+          << as_bits(h_cpu[idx].y) << std::dec;
     }
   }
 
@@ -676,11 +678,13 @@ TEST(CpuGpuFFT16x4x16, forward_matches_cpu_bitwise) {
       for (size_t f = 0; f < half; f++) {
         size_t idx = (size_t)p * half + f;
         ASSERT_EQ(as_bits(h_gpu[idx].x), as_bits(h_avx[idx].x))
-            << "avx512 sample " << p << " frequency " << f << " (real): gpu "
-            << h_gpu[idx].x << " vs avx " << h_avx[idx].x;
+            << "avx512 sample " << p << " frequency " << f << " (real): gpu 0x"
+            << std::hex << as_bits(h_gpu[idx].x) << " vs avx 0x"
+            << as_bits(h_avx[idx].x) << std::dec;
         ASSERT_EQ(as_bits(h_gpu[idx].y), as_bits(h_avx[idx].y))
-            << "avx512 sample " << p << " frequency " << f << " (imag): gpu "
-            << h_gpu[idx].y << " vs avx " << h_avx[idx].y;
+            << "avx512 sample " << p << " frequency " << f << " (imag): gpu 0x"
+            << std::hex << as_bits(h_gpu[idx].y) << " vs avx 0x"
+            << as_bits(h_avx[idx].y) << std::dec;
       }
     }
     std::cout << "[ INFO     ] AVX-512 path compared bit-for-bit vs GPU ("

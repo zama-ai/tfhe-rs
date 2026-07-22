@@ -13,6 +13,7 @@ mod lwe_programmable_bootstrapping_128;
 mod modulus_switch;
 mod noise_distribution;
 mod params;
+mod pbs_golden;
 
 pub struct CudaPackingKeySwitchKeys<Scalar: UnsignedInteger> {
     pub lwe_sk: LweSecretKey<Vec<Scalar>>,
