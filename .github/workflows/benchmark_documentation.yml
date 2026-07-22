@@ -248,6 +248,7 @@ jobs:
     uses: ./.github/workflows/generate_svgs.yml
     with:
       time_span_days: 60
+      hpu_number: ${{ inputs.hpu_number }}
     secrets:
       DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
       DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
