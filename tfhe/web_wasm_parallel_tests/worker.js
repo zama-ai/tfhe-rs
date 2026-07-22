@@ -1,7 +1,6 @@
 import * as Comlink from "comlink";
 import { threads } from "wasm-feature-detect";
 import init, {
-  initThreadPool,
   init_panic_hook,
   set_server_key,
   shortint_params_name,
@@ -734,6 +733,7 @@ async function main() {
   await init();
   let supportsThreads = await threads();
   if (supportsThreads) {
+    const { initThreadPool } = await import("./pkg/tfhe.js");
     await initThreadPool(navigator.hardwareConcurrency);
   } else {
     console.warn(
