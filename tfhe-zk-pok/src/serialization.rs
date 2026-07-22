@@ -14,7 +14,7 @@ use crate::backward_compatibility::{
 use ark_ec::short_weierstrass::{Affine, Projective, SWCurveConfig};
 use ark_ec::AffineRepr;
 use ark_ff::{
-    BigInt, Field, Fp, Fp2, Fp6, Fp6Config, FpConfig, PrimeField, QuadExtConfig, QuadExtField,
+    BigInt, Field, Fp, Fp2, Fp6, Fp6Config, FpConfig, PrimeField, QuadExtConfig, QuadExtField, Zero,
 };
 use serde::{Deserialize, Serialize};
 use tfhe_safe_serialize::Named;
@@ -124,6 +124,7 @@ impl<P: FpConfig<N>, const N: usize> TryFrom<SerializableFp> for Fp<P, N> {
 pub enum InvalidSerializedAffineError {
     InvalidFp(InvalidFpError),
     InvalidCompressedXCoordinate,
+    InvalidInfinityRepresentation,
 }
 
 impl Display for InvalidSerializedAffineError {
@@ -138,6 +139,10 @@ impl Display for InvalidSerializedAffineError {
                     "Cannot uncompress affine: X coordinate does not belong to the curve"
                 )
             }
+            InvalidSerializedAffineError::InvalidInfinityRepresentation => write!(
+                f,
+                "Infinity was represented as a (0, 0) point, should use SerializableAffine::Infinity"
+            ),
         }
     }
 }
@@ -147,6 +152,7 @@ impl Error for InvalidSerializedAffineError {
         match self {
             InvalidSerializedAffineError::InvalidFp(fp_error) => Some(fp_error),
             InvalidSerializedAffineError::InvalidCompressedXCoordinate => None,
+            InvalidSerializedAffineError::InvalidInfinityRepresentation => None,
         }
     }
 }
@@ -197,7 +203,7 @@ impl<F> SerializableAffine<F> {
     }
 }
 
-impl<F, C: SWCurveConfig> TryFrom<SerializableAffine<F>> for Affine<C>
+impl<F, C: SWCurveConfig<ZeroFlag = ()>> TryFrom<SerializableAffine<F>> for Affine<C>
 where
     F: TryInto<C::BaseField, Error = InvalidFpError>,
 {
@@ -211,7 +217,18 @@ where
                     .ok_or(InvalidSerializedAffineError::InvalidCompressedXCoordinate)
             }
             SerializableAffine::Uncompressed { x, y } => {
-                Ok(Self::new_unchecked(x.try_into()?, y.try_into()?))
+                let x = x.try_into()?;
+                let y = y.try_into()?;
+
+                // Arkworks now uses (0, 0) to represent the point at infinity when possible,
+                // instead of a flag. In our case, the point at infinity should
+                // always be serialized as `SerializableAffine::Infinity`,
+                // It means that no legit code path can serialize a point as (0, 0), so we
+                // defensively return an error.
+                if x.is_zero() && y.is_zero() {
+                    return Err(InvalidSerializedAffineError::InvalidInfinityRepresentation);
+                }
+                Ok(Self::new_unchecked(x, y))
             }
         }
     }

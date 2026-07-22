@@ -101,7 +101,7 @@ pub fn compute_window(
                     bases[idx]
                 };
 
-                if !bucket.infinity {
+                if !bucket.is_zero() {
                     let a = value.x - bucket.x;
                     if a != BaseField::ZERO {
                         d[k + 1] = d[k] * a;
@@ -130,7 +130,7 @@ pub fn compute_window(
                     bases[idx]
                 };
 
-                if !bucket.infinity {
+                if !bucket.is_zero() {
                     let a = value.x - bucket.x;
                     if a != BaseField::ZERO {
                         e[k] = e[k + 1] * a;
@@ -163,7 +163,7 @@ pub fn compute_window(
                     bases[idx]
                 };
 
-                if !bucket.infinity {
+                if !bucket.is_zero() {
                     let x1: BaseField = bucket.x;
                     let x2 = value.x;
                     let y1 = bucket.y;
@@ -172,7 +172,7 @@ pub fn compute_window(
                     let eq_x = x1 == x2;
 
                     if eq_x && y1 != y2 {
-                        bucket.infinity = true;
+                        *bucket = Affine::ZERO;
                     } else {
                         let r = d * e;
                         let m = if eq_x {
