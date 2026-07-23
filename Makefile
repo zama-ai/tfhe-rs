@@ -212,15 +212,18 @@ install_cargo_deny:
 
 .PHONY: install_taplo # Check Cargo.toml format
 install_taplo:
-	@./scripts/install_taplo.sh --taplo-version $(TAPLO_VERSION)
+	@taplo --version | grep -q -F "$(TAPLO_VERSION)" || \
+	cargo install --locked taplo-cli@$(TAPLO_VERSION)
 
 .PHONY: install_typos_checker # Install typos checker
 install_typos_checker:
-	@./scripts/install_typos.sh --typos-version $(TYPOS_VERSION)
+	@typos --version | grep -q -F "$(TYPOS_VERSION)" || \
+	cargo install --locked typos-cli@$(TYPOS_VERSION)
 
 .PHONY: install_zizmor # Install zizmor workflow security checker
 install_zizmor:
-	@./scripts/install_zizmor.sh --zizmor-version $(ZIZMOR_VERSION)
+	@zizmor --version | grep -q -F "$(ZIZMOR_VERSION)" || \
+	cargo install --locked zizmor@$(ZIZMOR_VERSION)
 
 .PHONY: zizmor_version # Return zizmor version that will be installed
 zizmor_version:
