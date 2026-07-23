@@ -4,9 +4,12 @@ use std::time::{Duration, Instant};
 struct MeasureConfig {
     pub target_ratio: f64,
     pub long_target_ratio: f64,
+    pub min_improvement_ratio: f64,
     pub starting_batch_size: usize,
     pub minimum_time_per_batch: Duration,
     pub duration_threshold_for_long_test: Duration,
+    pub max_time_per_batch: Duration,
+    pub max_time_overshoot_ratio: f64,
 }
 
 impl MeasureConfig {
@@ -14,9 +17,12 @@ impl MeasureConfig {
         Self {
             target_ratio: 0.95,
             long_target_ratio: 0.80,
+            min_improvement_ratio: 0.02,
             starting_batch_size: 1,
             minimum_time_per_batch: Duration::from_secs(3),
             duration_threshold_for_long_test: Duration::from_secs(30),
+            max_time_per_batch: Duration::from_secs(200),
+            max_time_overshoot_ratio: 1.3,
         }
     }
 }
@@ -63,7 +69,7 @@ where
     let target = cores * measure_config.target_ratio;
     let long_target = cores * measure_config.long_target_ratio;
 
-    let mut low;
+    let mut low = measure_config.starting_batch_size;
     let mut high = measure_config.starting_batch_size;
     let mut last_usage = 0.0;
 
@@ -86,12 +92,23 @@ where
             return high;
         }
 
+        if duration >= measure_config.max_time_per_batch {
+            if duration
+                <= measure_config
+                    .max_time_per_batch
+                    .mul_f64(measure_config.max_time_overshoot_ratio)
+            {
+                return high;
+            }
+            return low;
+        }
+
         let improvement = (usage - last_usage).abs() / last_usage;
-        if improvement < 0.05
+        if improvement < measure_config.min_improvement_ratio
             && duration >= measure_config.duration_threshold_for_long_test
             && last_usage > long_target
         {
-            return high;
+            return low;
         }
 
         low = high;
