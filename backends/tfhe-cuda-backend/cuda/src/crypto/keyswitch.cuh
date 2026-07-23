@@ -77,114 +77,6 @@ host_cuda_closest_representable(cudaStream_t stream, uint32_t gpu_index,
                                                       level_count);
 }
 
-// Initialize decomposition by performing rounding
-// and decomposing one level of an array of Torus LWEs. Only
-// decomposes the mask elements of the incoming LWEs.
-template <typename Torus, typename KSTorus>
-__global__ void decompose_vectorize_init(Torus const *lwe_in, Torus *lwe_out,
-                                         uint32_t lwe_dimension,
-                                         uint32_t num_lwe, uint32_t base_log,
-                                         uint32_t level_count) {
-
-  // index of this LWE ct in the buffer
-  auto lwe_idx = blockIdx.x * blockDim.x + threadIdx.x;
-  // index of the LWE sample in the LWE ct
-  auto lwe_sample_idx = blockIdx.y * blockDim.y + threadIdx.y;
-
-  if (lwe_idx >= num_lwe || lwe_sample_idx >= lwe_dimension)
-    return;
-
-  // Input LWE array is [mask_0, .., mask_lwe_dim, message] and
-  // we only decompose the mask. Thus the stride for reading
-  // is lwe_dimension + 1, while for writing it is lwe_dimension
-  auto read_val_idx = lwe_idx * (lwe_dimension + 1) + lwe_sample_idx;
-  auto write_val_idx = lwe_idx * lwe_dimension + lwe_sample_idx;
-  auto write_state_idx =
-      num_lwe * lwe_dimension + lwe_idx * lwe_dimension + lwe_sample_idx;
-
-  Torus a_i = lwe_in[read_val_idx];
-
-  Torus state = init_decomposer_state(a_i, base_log, level_count);
-
-  Torus mod_b_mask = (1ll << base_log) - 1ll;
-  KSTorus *kst_ptr_lwe_out = (KSTorus *)lwe_out;
-  kst_ptr_lwe_out[write_val_idx] =
-      decompose_one<Torus>(state, mod_b_mask, base_log);
-  __syncthreads();
-  lwe_out[write_state_idx] = state;
-}
-
-// Decompose an array of LWEs with indirection through lwe_input_indices
-// The LWE array can contain total_lwe LWEs where total_lwe can be different
-// from num_lwe. The maximum index should be <= total_lwe. num_lwe is the number
-// of LWEs to decompose The output buffer should have space for num_lwe LWEs.
-// These will be sorted according to the input indices.
-template <typename Torus, typename KSTorus>
-__global__ void decompose_vectorize_init_with_indices(
-    Torus const *lwe_in, const Torus *__restrict__ lwe_input_indices,
-    Torus *lwe_out, uint32_t lwe_dimension, uint32_t num_lwe, uint32_t base_log,
-    uint32_t level_count) {
-
-  // index of this LWE ct in the buffer
-  auto lwe_idx = blockIdx.x * blockDim.x + threadIdx.x;
-  // index of the LWE sample in the LWE ct
-  auto lwe_sample_idx = blockIdx.y * blockDim.y + threadIdx.y;
-
-  if (lwe_idx >= num_lwe || lwe_sample_idx >= lwe_dimension)
-    return;
-
-  // Input LWE array is [mask_0, .., mask_lwe_dim, message] and
-  // we only decompose the mask. Thus the stride for reading
-  // is lwe_dimension + 1, while for writing it is lwe_dimension
-  auto read_val_idx =
-      lwe_input_indices[lwe_idx] * (lwe_dimension + 1) + lwe_sample_idx;
-  auto write_val_idx = lwe_idx * lwe_dimension + lwe_sample_idx;
-  auto write_state_idx =
-      num_lwe * lwe_dimension + lwe_idx * lwe_dimension + lwe_sample_idx;
-
-  Torus a_i = lwe_in[read_val_idx];
-
-  Torus state = init_decomposer_state(a_i, base_log, level_count);
-
-  Torus mod_b_mask = (1ll << base_log) - 1ll;
-  KSTorus *kst_ptr_lwe_out = (KSTorus *)lwe_out;
-  kst_ptr_lwe_out[write_val_idx] =
-      decompose_one<Torus>(state, mod_b_mask, base_log);
-  __syncthreads();
-  lwe_out[write_state_idx] = state;
-}
-
-// Continue decomposition of an array of Torus elements in place. Supposes
-// that the array contains already decomposed elements and
-// computes the new decomposed level in place.
-template <typename Torus, typename KSTorus>
-__global__ void
-decompose_vectorize_step_inplace(Torus *buffer_in, uint32_t lwe_dimension,
-                                 uint32_t num_lwe, uint32_t base_log,
-                                 uint32_t level_count) {
-
-  // index of this LWE ct in the buffer
-  auto lwe_idx = blockIdx.x * blockDim.x + threadIdx.x;
-  // index of the LWE sample in the LWE ct
-  auto lwe_sample_idx = blockIdx.y * blockDim.y + threadIdx.y;
-
-  if (lwe_idx >= num_lwe || lwe_sample_idx >= lwe_dimension)
-    return;
-
-  auto val_idx = lwe_idx * lwe_dimension + lwe_sample_idx;
-  auto state_idx = num_lwe * lwe_dimension + val_idx;
-
-  Torus state = buffer_in[state_idx];
-  __syncthreads();
-
-  Torus mod_b_mask = (1ll << base_log) - 1ll;
-
-  KSTorus *kst_ptr_lwe_out = (KSTorus *)buffer_in;
-  kst_ptr_lwe_out[val_idx] = decompose_one<Torus>(state, mod_b_mask, base_log);
-  __syncthreads();
-  buffer_in[state_idx] = state;
-}
-
 /* LWEs inputs to the keyswitch function are stored as a_0,...,a_{lwe_dim},b,
  * where a_i are mask elements and b is the message. We initialize
  * the output keyswitched LWEs to 0, ..., 0, -b. The GEMM keyswitch is computed
@@ -600,9 +492,9 @@ __host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
 
   // Fused decompose + all-level tgemm: reads raw LWE input directly, computes
   // all level decompositions in registers, and accumulates all levels into the
-  // output in a single kernel launch. This replaces the previous loop of:
-  //   decompose_vectorize_init + (level_count-1) x (decompose_step + tgemm) +
-  //   tgemm
+  // output in a single kernel launch. This replaces the previous loop of one
+  // decomposition kernel per level, each followed by a tgemm over the
+  // decomposed masks staged in global memory.
   // Dispatch is templated on LevelCount for compile-time register array sizing
   // and full loop unrolling.
 
@@ -719,11 +611,11 @@ __host__ uint64_t scratch_packing_keyswitch_lwe_list_to_glwe(
 
   int glwe_accumulator_size = (glwe_dimension + 1) * polynomial_size;
 
-  // allocate at least LWE-mask times two: to keep both decomposition state and
-  // decomposed intermediate value
-  uint64_t memory_unit = glwe_accumulator_size > lwe_dimension * 2
-                             ? glwe_accumulator_size
-                             : lwe_dimension * 2;
+  // One GLWE per input LWE for each of the two halves of the buffer: the
+  // keyswitched GLWEs and the rotated ones. The fused decompose + GEMM keeps
+  // the decomposition in registers, so no extra room is needed for it.
+  // Keep in sync with host_packing_keyswitch_lwe_list_to_glwe.
+  uint64_t memory_unit = glwe_accumulator_size;
 
   uint64_t size_tracker = 0;
   uint64_t buffer_size =
