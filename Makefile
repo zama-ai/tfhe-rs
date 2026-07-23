@@ -37,7 +37,7 @@ WASM_BINDGEN_VERSION:=$(shell cargo tree --target wasm32-unknown-unknown -e all 
 WEB_RUNNER_DIR=web-test-runner
 WEB_SERVER_DIR=tfhe/web_wasm_parallel_tests
 TAPLO_VERSION=0.10.0
-TYPOS_VERSION=1.46.0
+TYPOS_VERSION=1.48.0
 ZIZMOR_VERSION=1.22.0
 CARGO_SEMVER_CHECKS_VERSION=0.47.0
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
@@ -212,15 +212,18 @@ install_cargo_deny:
 
 .PHONY: install_taplo # Check Cargo.toml format
 install_taplo:
-	@./scripts/install_taplo.sh --taplo-version $(TAPLO_VERSION)
+	@taplo --version | grep -q -F "$(TAPLO_VERSION)" || \
+	cargo install --locked taplo-cli@$(TAPLO_VERSION)
 
 .PHONY: install_typos_checker # Install typos checker
 install_typos_checker:
-	@./scripts/install_typos.sh --typos-version $(TYPOS_VERSION)
+	@typos --version | grep -q -F "$(TYPOS_VERSION)" || \
+	cargo install --locked typos-cli@$(TYPOS_VERSION)
 
 .PHONY: install_zizmor # Install zizmor workflow security checker
 install_zizmor:
-	@./scripts/install_zizmor.sh --zizmor-version $(ZIZMOR_VERSION)
+	@zizmor --version | grep -q -F "$(ZIZMOR_VERSION)" || \
+	cargo install --locked zizmor@$(ZIZMOR_VERSION)
 
 .PHONY: zizmor_version # Return zizmor version that will be installed
 zizmor_version:
