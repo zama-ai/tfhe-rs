@@ -303,7 +303,7 @@ jobs:
       pbs_kind: classical
       bench_type: both
       time_span_days: ${{ inputs.time_span_days }}
-      output_filename: hpu-hlapi-erc7984-benchmark-hpux${{ inputs.hpu_number }}-latency-throughput.svg
+      output_filename: hpu-hlapi-erc7984-benchmark-hpux${{ inputs.hpu_number }}-latency-throughput
     secrets:
       DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
       DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
