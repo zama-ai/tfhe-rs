@@ -80,6 +80,13 @@ impl MaskRandomGeneratorForkConfig {
     pub fn mask_byte_count_per_child(&self) -> EncryptionMaskByteCount {
         self.mask_byte_count_per_child
     }
+
+    pub(crate) fn byte_count(&self) -> EncryptionMaskByteCount {
+        self.children_count
+            .checked_mul(self.mask_byte_count_per_child.0)
+            .map(EncryptionMaskByteCount)
+            .expect("mask byte count overflow")
+    }
 }
 
 /// Generator dedicated to filling masks.
@@ -167,6 +174,14 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
             fork_config.children_count,
             fork_config.mask_byte_count_per_child,
         )
+    }
+
+    /// Advance the generator past `mask_bytes` worth of mask bytes, producing nothing.
+    pub(crate) fn skip(&mut self, mask_bytes: EncryptionMaskByteCount) {
+        // Forking advances the parent eagerly, so the lazy children are dropped unconsumed.
+        let _ = self
+            .try_fork(1, mask_bytes)
+            .expect("infallible: unbounded mask gen with non-zero sized child");
     }
 }
 
