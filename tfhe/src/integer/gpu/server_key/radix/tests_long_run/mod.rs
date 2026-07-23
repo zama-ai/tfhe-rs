@@ -36,7 +36,7 @@ fn make_random_gpu_set(datagen: &mut DeterministicSeeder<DefaultRandomGenerator>
 
     #[cfg(not(feature = "gpu-debug-fake-multi-gpu"))]
     let num_gpus_to_use = if num_gpus > 1 {
-        (1 + datagen.seed().0 as u32 % (num_gpus - 1)) as usize
+        (1 + datagen.seed().0 as u32 % num_gpus) as usize
     } else {
         1usize
     };
