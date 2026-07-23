@@ -17,12 +17,11 @@
 //! ```
 
 use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-use benchmark::utilities::OperatorType;
+use benchmark::utilities::bench_and_record;
 use benchmark_spec::tfhe::transciphering::aes::AesFlavor;
 use benchmark_spec::tfhe::transciphering::TranscipheringBench;
-use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, TypeName};
-use criterion::measurement::WallTime;
-use criterion::{criterion_group, Bencher, BenchmarkGroup, Criterion};
+use benchmark_spec::{BenchmarkMetric, BenchmarkSpec};
+use criterion::{criterion_group, Criterion};
 use rand::{Rng, SeedableRng};
 use std::hint::black_box;
 use tfhe::keycache::NamedParam;
@@ -32,36 +31,10 @@ use tfhe::transciphering::ciphers::aes::{
     AesFheRoundKeys, AesFheState, AesPlainKey, AesPlainState,
 };
 use tfhe::transciphering::{StreamCipher, Transcipherer};
-use tfhe_benchmark_parser::write_to_json;
 
 const N_BLOCKS: usize = 16;
 const BLOCK_BITS: usize = 128;
 const BLOCK_BYTES: usize = 16;
-
-fn bench_and_record<F, T: TypeName + ?Sized>(
-    group: &mut BenchmarkGroup<'_, WallTime>,
-    benchmark_spec: &BenchmarkSpec<T>,
-    display_name: &str,
-    bit_size: u32,
-    decomposition_basis: Vec<u32>,
-    mut routine: F,
-) where
-    F: FnMut(&mut Bencher<'_, WallTime>),
-{
-    let recorded = std::sync::Once::new();
-    group.bench_function(benchmark_spec.to_string(), |b| {
-        routine(b);
-        recorded.call_once(|| {
-            write_to_json(
-                benchmark_spec,
-                display_name,
-                &OperatorType::Atomic,
-                bit_size,
-                decomposition_basis.clone(),
-            );
-        });
-    });
-}
 
 pub fn cpu_aes_transciphering(c: &mut Criterion) {
     let bench_name = "transciphering::cpu::aes";
