@@ -1,7 +1,7 @@
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::tests_long_run::{
     clear_shared_gpu_context_for_setup, install_shared_gpu_context_for_setup,
-    OpSequenceGpuMultiDeviceFunctionExecutor,
+    OpSequenceGpuMultiDeviceFunctionExecutor, OpSequenceGpuOprfReRandExecutor,
 };
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
 use crate::integer::gpu::{CudaOprfServerKey, CudaServerKey};
@@ -831,20 +831,51 @@ where
         &CudaOprfServerKey::par_generate_oblivious_pseudo_random_unsigned_custom_range,
     );
 
-    let mut oprf_ops: Vec<(OprfExecutor, String)> = vec![(
-        Box::new(oprf_executor),
-        "par_generate_oblivious_pseudo_random_unsigned_integer".to_string(),
-    )];
+    // OPRF + re-randomization Executors
+    let oprf_rerand_executor = OpSequenceGpuOprfReRandExecutor::new(
+        &CudaOprfServerKey::par_generate_oblivious_pseudo_random_unsigned_integer_and_re_randomize,
+    );
+    let oprf_bounded_rerand_executor = OpSequenceGpuOprfReRandExecutor::new(
+        &CudaOprfServerKey::par_generate_oblivious_pseudo_random_unsigned_integer_bounded_and_re_randomize,
+    );
+    let oprf_custom_range_rerand_executor = OpSequenceGpuOprfReRandExecutor::new(
+        &CudaOprfServerKey::par_generate_oblivious_pseudo_random_unsigned_custom_range_and_re_randomize,
+    );
 
-    let mut oprf_bounded_ops: Vec<(OprfBoundedExecutor, String)> = vec![(
-        Box::new(oprf_bounded_executor),
-        "par_generate_oblivious_pseudo_random_unsigned_integer_bounded".to_string(),
-    )];
+    let mut oprf_ops: Vec<(OprfExecutor, String)> = vec![
+        (
+            Box::new(oprf_executor),
+            "par_generate_oblivious_pseudo_random_unsigned_integer".to_string(),
+        ),
+        (
+            Box::new(oprf_rerand_executor),
+            "par_generate_oblivious_pseudo_random_unsigned_integer_and_re_randomize".to_string(),
+        ),
+    ];
 
-    let mut oprf_custom_range_ops: Vec<(OprfCustomRangeExecutor, String)> = vec![(
-        Box::new(oprf_custom_range_executor),
-        "par_generate_oblivious_pseudo_random_unsigned_custom_range".to_string(),
-    )];
+    let mut oprf_bounded_ops: Vec<(OprfBoundedExecutor, String)> = vec![
+        (
+            Box::new(oprf_bounded_executor),
+            "par_generate_oblivious_pseudo_random_unsigned_integer_bounded".to_string(),
+        ),
+        (
+            Box::new(oprf_bounded_rerand_executor),
+            "par_generate_oblivious_pseudo_random_unsigned_integer_bounded_and_re_randomize"
+                .to_string(),
+        ),
+    ];
+
+    let mut oprf_custom_range_ops: Vec<(OprfCustomRangeExecutor, String)> = vec![
+        (
+            Box::new(oprf_custom_range_executor),
+            "par_generate_oblivious_pseudo_random_unsigned_custom_range".to_string(),
+        ),
+        (
+            Box::new(oprf_custom_range_rerand_executor),
+            "par_generate_oblivious_pseudo_random_unsigned_custom_range_and_re_randomize"
+                .to_string(),
+        ),
+    ];
 
     let (cks, sks, mut datagen) = random_op_sequence_test_init_gpu(
         param,

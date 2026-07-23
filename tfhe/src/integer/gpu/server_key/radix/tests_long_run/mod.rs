@@ -1,11 +1,16 @@
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
+use crate::integer::ciphertext::PrfReRandomizationContext;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+use crate::integer::gpu::ciphertext::re_randomization::CudaReRandomizationKey;
 use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::radix::tests_unsigned::GpuContext;
 use crate::integer::gpu::{CudaOprfServerKey, CudaServerKey};
 use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
-use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, SignedRadixCiphertext, U256};
+use crate::integer::{
+    BooleanBlock, CompactPrivateKey, CompactPublicKey, RadixCiphertext, RadixClientKey,
+    SignedRadixCiphertext, U256,
+};
 use crate::{CompressedServerKey, CudaGpuChoice, CustomMultiGpuIndexes, GpuIndex, MatchValues};
 use std::cell::RefCell;
 use std::num::NonZeroU64;
@@ -1796,6 +1801,281 @@ where
             &context.sks,
             &context.streams,
         );
+
+        gpu_result.to_signed_radix_ciphertext(&context.streams)
+    }
+}
+
+/// OPRF executor for the `*_and_re_randomize` variants: also holds a rerand CPK derived from the
+/// compute secret key
+pub(crate) struct OpSequenceGpuOprfReRandExecutor<F> {
+    inner: OpSequenceGpuMultiDeviceFunctionExecutor<F>,
+    rerand_cpk: Option<CompactPublicKey>,
+}
+
+impl<F> OpSequenceGpuOprfReRandExecutor<F> {
+    pub(crate) fn new(func: F) -> Self {
+        Self {
+            inner: OpSequenceGpuMultiDeviceFunctionExecutor::new(func),
+            rerand_cpk: None,
+        }
+    }
+
+    fn setup_keys(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        // Rerand compact public key derived from the compute secret key
+        let compact_private_key: CompactPrivateKey<&[u64]> = cks
+            .as_ref()
+            .try_into()
+            .expect("failed to derive a compact private key from the client key");
+        self.rerand_cpk = Some(CompactPublicKey::new(&compact_private_key));
+
+        self.inner.setup_from_gpu_keys(cks, sks, seeder);
+    }
+
+    fn context(&self) -> &GpuContext {
+        self.inner
+            .context
+            .as_ref()
+            .expect("setup was not properly called")
+    }
+
+    fn rerand_key(&self) -> CudaReRandomizationKey<'_> {
+        CudaReRandomizationKey::DerivedCPKWithoutKeySwitch {
+            cpk: self.rerand_cpk.as_ref().expect("rerand CPK not set"),
+        }
+    }
+}
+
+/// For OPRF + rerand functions
+impl<F> OpSequenceFunctionExecutor<(Seed, u64), RadixCiphertext>
+    for OpSequenceGpuOprfReRandExecutor<F>
+where
+    F: Fn(
+        &CudaOprfServerKey,
+        Seed,
+        u64,
+        &CudaServerKey,
+        &CudaReRandomizationKey<'_>,
+        &PrfReRandomizationContext,
+        &CudaStreams,
+    ) -> crate::Result<CudaUnsignedRadixCiphertext>,
+{
+    fn setup(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_keys(cks, sks, seeder);
+    }
+
+    fn execute(&mut self, input: (Seed, u64)) -> RadixCiphertext {
+        let context = self.context();
+        let oprf_key = context.oprf_key.as_ref().expect("OPRF key not set");
+        let rerand_key = self.rerand_key();
+        let rerand_context = PrfReRandomizationContext::default();
+
+        let gpu_result = (self.inner.func)(
+            oprf_key,
+            input.0,
+            input.1,
+            &context.sks,
+            &rerand_key,
+            &rerand_context,
+            &context.streams,
+        )
+        .expect("OPRF re-randomization failed");
+
+        gpu_result.to_radix_ciphertext(&context.streams)
+    }
+}
+
+/// For bounded OPRF + rerand functions
+impl<F> OpSequenceFunctionExecutor<(Seed, u64, u64), RadixCiphertext>
+    for OpSequenceGpuOprfReRandExecutor<F>
+where
+    F: Fn(
+        &CudaOprfServerKey,
+        Seed,
+        u64,
+        u64,
+        &CudaServerKey,
+        &CudaReRandomizationKey<'_>,
+        &PrfReRandomizationContext,
+        &CudaStreams,
+    ) -> crate::Result<CudaUnsignedRadixCiphertext>,
+{
+    fn setup(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_keys(cks, sks, seeder);
+    }
+
+    fn execute(&mut self, input: (Seed, u64, u64)) -> RadixCiphertext {
+        let context = self.context();
+        let oprf_key = context.oprf_key.as_ref().expect("OPRF key not set");
+        let rerand_key = self.rerand_key();
+        let rerand_context = PrfReRandomizationContext::default();
+
+        let gpu_result = (self.inner.func)(
+            oprf_key,
+            input.0,
+            input.1,
+            input.2,
+            &context.sks,
+            &rerand_key,
+            &rerand_context,
+            &context.streams,
+        )
+        .expect("OPRF re-randomization failed");
+
+        gpu_result.to_radix_ciphertext(&context.streams)
+    }
+}
+
+/// For custom range OPRF + rerand functions
+impl<F> OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>
+    for OpSequenceGpuOprfReRandExecutor<F>
+where
+    F: Fn(
+        &CudaOprfServerKey,
+        Seed,
+        u64,
+        NonZeroU64,
+        u64,
+        &CudaServerKey,
+        &CudaReRandomizationKey<'_>,
+        &PrfReRandomizationContext,
+        &CudaStreams,
+    ) -> crate::Result<CudaUnsignedRadixCiphertext>,
+{
+    fn setup(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_keys(cks, sks, seeder);
+    }
+
+    fn execute(&mut self, input: (Seed, u64, u64, u64)) -> RadixCiphertext {
+        let context = self.context();
+        let oprf_key = context.oprf_key.as_ref().expect("OPRF key not set");
+        let rerand_key = self.rerand_key();
+        let rerand_context = PrfReRandomizationContext::default();
+
+        let excluded_upper_bound =
+            NonZeroU64::new(input.2).expect("excluded_upper_bound must be non-zero");
+        let gpu_result = (self.inner.func)(
+            oprf_key,
+            input.0,
+            input.1,
+            excluded_upper_bound,
+            input.3,
+            &context.sks,
+            &rerand_key,
+            &rerand_context,
+            &context.streams,
+        )
+        .expect("OPRF re-randomization failed");
+
+        gpu_result.to_radix_ciphertext(&context.streams)
+    }
+}
+
+/// For Signed OPRF + rerand functions
+impl<F> OpSequenceFunctionExecutor<(Seed, u64), SignedRadixCiphertext>
+    for OpSequenceGpuOprfReRandExecutor<F>
+where
+    F: Fn(
+        &CudaOprfServerKey,
+        Seed,
+        u64,
+        &CudaServerKey,
+        &CudaReRandomizationKey<'_>,
+        &PrfReRandomizationContext,
+        &CudaStreams,
+    ) -> crate::Result<CudaSignedRadixCiphertext>,
+{
+    fn setup(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_keys(cks, sks, seeder);
+    }
+
+    fn execute(&mut self, input: (Seed, u64)) -> SignedRadixCiphertext {
+        let context = self.context();
+        let oprf_key = context.oprf_key.as_ref().expect("OPRF key not set");
+        let rerand_key = self.rerand_key();
+        let rerand_context = PrfReRandomizationContext::default();
+
+        let gpu_result = (self.inner.func)(
+            oprf_key,
+            input.0,
+            input.1,
+            &context.sks,
+            &rerand_key,
+            &rerand_context,
+            &context.streams,
+        )
+        .expect("OPRF re-randomization failed");
+
+        gpu_result.to_signed_radix_ciphertext(&context.streams)
+    }
+}
+
+/// For Bounded Signed OPRF + rerand functions
+impl<F> OpSequenceFunctionExecutor<(Seed, u64, u64), SignedRadixCiphertext>
+    for OpSequenceGpuOprfReRandExecutor<F>
+where
+    F: Fn(
+        &CudaOprfServerKey,
+        Seed,
+        u64,
+        u64,
+        &CudaServerKey,
+        &CudaReRandomizationKey<'_>,
+        &PrfReRandomizationContext,
+        &CudaStreams,
+    ) -> crate::Result<CudaSignedRadixCiphertext>,
+{
+    fn setup(
+        &mut self,
+        cks: &RadixClientKey,
+        sks: &CompressedServerKey,
+        seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
+    ) {
+        self.setup_keys(cks, sks, seeder);
+    }
+
+    fn execute(&mut self, input: (Seed, u64, u64)) -> SignedRadixCiphertext {
+        let context = self.context();
+        let oprf_key = context.oprf_key.as_ref().expect("OPRF key not set");
+        let rerand_key = self.rerand_key();
+        let rerand_context = PrfReRandomizationContext::default();
+
+        let gpu_result = (self.inner.func)(
+            oprf_key,
+            input.0,
+            input.1,
+            input.2,
+            &context.sks,
+            &rerand_key,
+            &rerand_context,
+            &context.streams,
+        )
+        .expect("OPRF re-randomization failed");
 
         gpu_result.to_signed_radix_ciphertext(&context.streams)
     }
