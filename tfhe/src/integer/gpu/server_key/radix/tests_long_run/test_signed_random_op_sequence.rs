@@ -1,6 +1,6 @@
 use crate::integer::gpu::server_key::radix::tests_long_run::{
     clear_shared_gpu_context_for_setup, install_shared_gpu_context_for_setup,
-    OpSequenceGpuMultiDeviceFunctionExecutor,
+    OpSequenceGpuMultiDeviceFunctionExecutor, OpSequenceGpuOprfReRandExecutor,
 };
 use crate::integer::gpu::server_key::radix::tests_unsigned::create_gpu_parameterized_test;
 use crate::integer::gpu::{CudaOprfServerKey, CudaServerKey};
@@ -637,15 +637,36 @@ where
         &CudaOprfServerKey::par_generate_oblivious_pseudo_random_signed_integer_bounded,
     );
 
-    let mut signed_oprf_ops: Vec<(SignedOprfExecutor, String)> = vec![(
-        Box::new(signed_oprf_executor),
-        "par_generate_oblivious_pseudo_random_signed_integer".to_string(),
-    )];
+    // OPRF + re-randomization Executors
+    let signed_oprf_rerand_executor = OpSequenceGpuOprfReRandExecutor::new(
+        &CudaOprfServerKey::par_generate_oblivious_pseudo_random_signed_integer_and_re_randomize,
+    );
+    let signed_oprf_bounded_rerand_executor = OpSequenceGpuOprfReRandExecutor::new(
+        &CudaOprfServerKey::par_generate_oblivious_pseudo_random_signed_integer_bounded_and_re_randomize,
+    );
 
-    let mut signed_oprf_bounded_ops: Vec<(SignedOprfBoundedExecutor, String)> = vec![(
-        Box::new(signed_oprf_bounded_executor),
-        "par_generate_oblivious_pseudo_random_signed_integer_bounded".to_string(),
-    )];
+    let mut signed_oprf_ops: Vec<(SignedOprfExecutor, String)> = vec![
+        (
+            Box::new(signed_oprf_executor),
+            "par_generate_oblivious_pseudo_random_signed_integer".to_string(),
+        ),
+        (
+            Box::new(signed_oprf_rerand_executor),
+            "par_generate_oblivious_pseudo_random_signed_integer_and_re_randomize".to_string(),
+        ),
+    ];
+
+    let mut signed_oprf_bounded_ops: Vec<(SignedOprfBoundedExecutor, String)> = vec![
+        (
+            Box::new(signed_oprf_bounded_executor),
+            "par_generate_oblivious_pseudo_random_signed_integer_bounded".to_string(),
+        ),
+        (
+            Box::new(signed_oprf_bounded_rerand_executor),
+            "par_generate_oblivious_pseudo_random_signed_integer_bounded_and_re_randomize"
+                .to_string(),
+        ),
+    ];
 
     let (cks, sks, mut datagen) = signed_random_op_sequence_test_init_gpu(
         param,
