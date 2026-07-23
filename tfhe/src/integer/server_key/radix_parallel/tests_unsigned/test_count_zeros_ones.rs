@@ -1,7 +1,8 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_smaller_for_params, CpuFunctionExecutor, MAX_NB_CTXT, NB_CTXT,
+    nb_tests_smaller_for_params, panic_if_radix_is_not_clean, CpuFunctionExecutor, MAX_NB_CTXT,
+    NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
@@ -71,6 +72,7 @@ pub(crate) fn default_count_zeros_ones_test<P, E1, E2>(
             let a: RadixCiphertext = cks.encrypt_radix(clear_a, num_blocks);
 
             let encrypted = count_ones_executor.execute(&a);
+            panic_if_radix_is_not_clean(&encrypted, &cks);
             let decrypted: u32 = cks.decrypt_radix(&encrypted);
             assert_eq!(
                 decrypted,
@@ -84,6 +86,7 @@ pub(crate) fn default_count_zeros_ones_test<P, E1, E2>(
             let mask = u128::MAX.wrapping_mul(modulus);
             let clear_a = mask | clear_a;
             let encrypted = count_zeros_executor.execute(&a);
+            panic_if_radix_is_not_clean(&encrypted, &cks);
             let decrypted: u32 = cks.decrypt_radix(&encrypted);
             assert_eq!(
                 decrypted,
@@ -128,6 +131,7 @@ pub(crate) fn extensive_trivial_default_count_zeros_ones_test<P, E1, E2>(
             let a: RadixCiphertext = sks.create_trivial_radix(clear_a, num_blocks as usize);
 
             let encrypted = count_ones_executor.execute(&a);
+            panic_if_radix_is_not_clean(&encrypted, &cks);
             let decrypted: u32 = cks.decrypt_radix(&encrypted);
             assert_eq!(
                 decrypted,
@@ -141,6 +145,7 @@ pub(crate) fn extensive_trivial_default_count_zeros_ones_test<P, E1, E2>(
             let mask = u128::MAX.wrapping_mul(modulus);
             let clear_a = mask | clear_a;
             let encrypted = count_zeros_executor.execute(&a);
+            panic_if_radix_is_not_clean(&encrypted, &cks);
             let decrypted: u32 = cks.decrypt_radix(&encrypted);
             assert_eq!(
                 decrypted,

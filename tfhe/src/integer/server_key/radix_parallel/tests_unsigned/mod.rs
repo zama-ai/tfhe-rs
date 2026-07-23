@@ -44,7 +44,10 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::oprf::OprfServerKey;
 use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::{
+    BooleanBlock, IntegerKeyKind, IntegerRadixCiphertext, RadixCiphertext, RadixClientKey,
+    ServerKey,
+};
 use crate::shortint::ciphertext::MaxDegree;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -310,44 +313,42 @@ where
     }
 }
 
+/// Panics if any block in the slice either has:
+/// * noise_level > max_noise_level
+/// * degree > max_degree
+/// * decrypted(block) > degree
 #[track_caller]
-fn panic_if_any_block_info_exceeds_max_degree_or_noise(
-    ct: &RadixCiphertext,
+fn panic_if_any_block_exceeds_max_degree_or_noise<C>(
+    blocks: &[crate::shortint::Ciphertext],
     max_degree: MaxDegree,
     max_noise_level: MaxNoiseLevel,
-) {
-    if ct.blocks.is_empty() {
+    cks: &C,
+) where
+    C: AsRef<crate::integer::ClientKey>,
+{
+    if blocks.is_empty() {
         return;
     }
 
-    // The max degree is made such that a block is able to receive the carry from
-    // its predecessor when using the sequential propagation algorithm.
-    //
-    // However, as the first block does not have a predecessor, its max degree is actually
-    // bigger
-    let first_block = &ct.blocks[0];
-    let first_block_max_degree =
-        MaxDegree::from_msg_carry_modulus(first_block.message_modulus, first_block.carry_modulus);
-    assert!(
-        first_block_max_degree.validate(first_block.degree).is_ok(),
-        "Block at index 0 has a degree {:?} that exceeds max degree ({first_block_max_degree:?})",
-        first_block.degree
-    );
-    assert!(
-        max_noise_level.validate(first_block.noise_level()).is_ok(),
-        "Block at index 0 has a noise level {:?} that exceeds max noise level ({max_noise_level:?})",
-        first_block.degree
-    );
+    let cks = cks.as_ref();
+    let last_block_index = blocks.len() - 1;
 
-    for (i, block) in ct.blocks.iter().enumerate().skip(1) {
+    for (i, block) in blocks.iter().enumerate() {
         assert!(
             max_degree.validate(block.degree).is_ok(),
-            "Block at index {i} has a degree {:?} that exceeds max degree ({max_degree:?})",
+            "Block at index {i} / {last_block_index} has a degree {:?} that exceeds max degree ({max_degree:?})",
             block.degree
         );
         assert!(
             max_noise_level.validate(block.noise_level()).is_ok(),
-            "Block at index {i} has a noise level {:?} that exceeds max noise level ({max_noise_level:?})",
+            "Block at index {i} / {last_block_index} has a noise level {:?} that exceeds max noise level ({max_noise_level:?})",
+            block.noise_level()
+        );
+
+        let block_value = cks.key.decrypt_message_and_carry(block);
+        assert!(
+            block_value <= block.degree.get(),
+            "Block at index {i} / {last_block_index} has a value {block_value} that exceeds its degree ({:?})",
             block.degree
         );
     }
@@ -355,81 +356,90 @@ fn panic_if_any_block_info_exceeds_max_degree_or_noise(
 
 /// In radix context, a block is considered clean if:
 /// - Its degree is <= message_modulus - 1
+/// - Its noise level is <= nominal
 /// - Its decrypted_value is <= its degree
-/// - Its noise level is nominal
+///
+///
+/// All output of default operation should pass these checks
 #[track_caller]
-pub(crate) fn panic_if_any_block_is_not_clean<T, C>(ct: &T, cks: &C)
+pub(crate) fn panic_if_radix_is_not_clean<T, C>(ct: &T, cks: &C)
 where
-    T: crate::integer::IntegerRadixCiphertext,
+    T: IntegerRadixCiphertext,
     C: AsRef<crate::integer::ClientKey>,
 {
-    let cks = cks.as_ref();
-
-    let max_degree_acceptable = cks.key.parameters().message_modulus().0 - 1;
-    let blocks = ct.blocks();
-    let num_blocks = blocks.len();
-
-    for (i, block) in blocks.iter().enumerate() {
-        assert_eq!(
-            block.noise_level(),
-            NoiseLevel::NOMINAL,
-            "Block at index {i} / {num_blocks} has a non nominal noise level: {:?}",
-            block.noise_level()
-        );
-
-        assert!(
-            block.degree.get() <= max_degree_acceptable,
-            "Block at index {i} / {num_blocks} has a degree {:?} that exceeds the maximum ({}) for a clean block",
-            block.degree,
-            max_degree_acceptable
-        );
-
-        let block_value = cks.key.decrypt_message_and_carry(block);
-        assert!(
-            block_value <= block.degree.get(),
-            "Block at index {i} has a value {block_value} that exceeds its degree ({:?})",
-            block.degree
-        );
-    }
+    let max_degree_acceptable =
+        MaxDegree::new(cks.as_ref().key.parameters().message_modulus().0 - 1);
+    let max_noise_level = MaxNoiseLevel::new(NoiseLevel::NOMINAL.get());
+    panic_if_any_block_exceeds_max_degree_or_noise(
+        ct.blocks(),
+        max_degree_acceptable,
+        max_noise_level,
+        cks,
+    );
 }
 
-/// Panics if a block is not either a clean block (see [panic_if_any_block_is_not_clean])
-/// or if it not trivial
+/// A boolean block is considered clean if:
+/// - Its degree is <= 1
+/// - Its noise level is <= nominal
+/// - Its decrypted value is 0 or 1 (i.e. <= its degree)
+///
+/// All output of default operation returning a BooleanBlock should pass this check.
 #[track_caller]
-pub(crate) fn panic_if_any_block_is_not_clean_or_trivial<T, C>(ct: &T, cks: &C)
+pub(crate) fn panic_if_boolean_block_is_not_clean<C>(bb: &BooleanBlock, cks: &C)
 where
-    T: crate::integer::IntegerRadixCiphertext,
     C: AsRef<crate::integer::ClientKey>,
 {
-    let cks = cks.as_ref();
+    let max_degree = MaxDegree::new(1);
+    let max_noise_level = MaxNoiseLevel::new(NoiseLevel::NOMINAL.get());
+    panic_if_any_block_exceeds_max_degree_or_noise(
+        std::slice::from_ref(&bb.0),
+        max_degree,
+        max_noise_level,
+        cks,
+    );
+}
 
-    let max_degree_acceptable = cks.key.parameters().message_modulus().0 - 1;
-
-    for (i, block) in ct.blocks().iter().enumerate() {
-        if block.is_trivial() {
-            continue;
-        }
-        assert_eq!(
-            block.noise_level(),
-            NoiseLevel::NOMINAL,
-            "Block at index {i} has a non nominal noise level: {:?}",
-            block.noise_level()
-        );
-
-        assert!(
-            block.degree.get() <= max_degree_acceptable,
-            "Block at index {i} has a degree {:?} that exceeds the maximum ({}) for a clean block",
-            block.degree,
-            max_degree_acceptable
-        );
-
-        let block_value = cks.key.decrypt_message_and_carry(block);
-        assert!(
-            block_value <= block.degree.get(),
-            "Block at index {i} has a value {block_value} that exceeds its degree ({:?})",
-            block.degree
-        );
+/// Panics if the output of a smart op does not respect the bounds a smart op is expected to keep.
+///
+/// Smart ops guarantee that a sequential carry propagation can still be run on their output. For
+/// that:
+/// - the first (least significant) block may have degree up to `message_modulus * carry_modulus -
+///   1` (no lower block can send it a carry)
+/// - the following blocks must have degree <= `tail_max_degree` (typically `sks.key.max_degree`),
+///   to leave room for the carry propagated from the block below
+///
+/// Noise level of every block must be <= `max_noise_level`, and decrypted(block) <= degree.
+#[track_caller]
+pub(crate) fn panic_if_smart_op_bounds_exceeded<T, C>(
+    ct: &T,
+    tail_max_degree: MaxDegree,
+    max_noise_level: MaxNoiseLevel,
+    cks: &C,
+) where
+    T: IntegerRadixCiphertext,
+    C: AsRef<crate::integer::ClientKey>,
+{
+    let blocks = ct.blocks();
+    if blocks.is_empty() {
+        return;
     }
+
+    let params = cks.as_ref().key.parameters();
+    let head_max_degree =
+        MaxDegree::from_msg_carry_modulus(params.message_modulus(), params.carry_modulus());
+
+    panic_if_any_block_exceeds_max_degree_or_noise(
+        &blocks[..1],
+        head_max_degree,
+        max_noise_level,
+        cks,
+    );
+    panic_if_any_block_exceeds_max_degree_or_noise(
+        &blocks[1..],
+        tail_max_degree,
+        max_noise_level,
+        cks,
+    );
 }
 
 /// Little struct meant to reduce test boilerplate and increase readability
