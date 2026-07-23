@@ -160,6 +160,7 @@ mod errors;
 mod global_state;
 mod integers;
 pub(crate) mod keys;
+pub mod nist_submission;
 mod re_randomization;
 #[cfg(feature = "strings")]
 mod strings;
@@ -171,7 +172,7 @@ mod gpu_utils;
 
 pub mod array;
 pub mod backward_compatibility;
-mod compact_list;
+pub(crate) mod compact_list;
 mod kv_store;
 mod tag;
 
