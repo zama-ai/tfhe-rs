@@ -147,12 +147,19 @@ pub fn throughput_num_threads(num_block: usize, op_pbs_count: u64) -> u64 {
     }
 }
 
+/// Like [`will_this_bench_id_run`], but takes a group and id hierarchy
+pub fn will_this_bench_run(bench_group: &str, bench_id: &str) -> bool {
+    // Criterion matches the filter against the full `group/function` id, which is
+    // exactly what a top-level bench of `"{bench_group}/{bench_id}"` reproduces.
+    will_this_bench_id_run(&format!("{bench_group}/{bench_id}"))
+}
+
 /// This function aims to prevent the setup function from running.
 /// `Gag` is used here to suppress the temporary output noise from Criterion.
 /// We use a minimal Criterion configuration to retrieve information about the current filter setup.
 /// The function returns a boolean indicating whether the current `bench_id` should be executed or
 /// not.
-pub fn will_this_bench_run(bench_group: &str, bench_id: &str) -> bool {
+pub fn will_this_bench_id_run(bench_id: &str) -> bool {
     let mut c = Criterion::default()
         .configure_from_args()
         .sample_size(10)
@@ -165,12 +172,13 @@ pub fn will_this_bench_run(bench_group: &str, bench_id: &str) -> bool {
         use gag::Gag;
         let _print_gag = Gag::stdout().unwrap();
         let _err_gag = Gag::stderr().unwrap();
-        c.benchmark_group(bench_group)
-            .bench_function(bench_id, |b| {
-                b.iter(|| {
-                    will_run = true;
-                });
+        // Top-level `bench_function` registers with no function part, so the
+        // filter is matched against `bench_id` verbatim.
+        c.bench_function(bench_id, |b| {
+            b.iter(|| {
+                will_run = true;
             });
+        });
     }
     will_run
 }
