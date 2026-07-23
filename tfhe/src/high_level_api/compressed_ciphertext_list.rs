@@ -1144,6 +1144,64 @@ mod tests {
         }
     }
 
+    //Extra gpu test to swap lists with random size.
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn test_compressed_ct_list_gpu_many_sizes() {
+        use rand::{thread_rng, Rng};
+
+        let mut rng = thread_rng();
+        let mut sizes: Vec<usize> = (0..10).map(|_| rng.gen_range(1..=512)).collect();
+
+        // Add some fixed sizes.
+        sizes.extend([32, 64, 128, 256]);
+        // Printed so a CI failure can be reproduced.
+        println!("compressed list sizes under test: {sizes:?}");
+
+        for (flavor, params, comp_params) in [
+            (
+                "multi-bit",
+                PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
+            (
+                "classical",
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
+        ] {
+            let config =
+                crate::ConfigBuilder::with_custom_parameters::<AtomicPatternParameters>(params)
+                    .enable_compression(comp_params)
+                    .build();
+
+            let ck = ClientKey::generate(config);
+            let sk = crate::CompressedServerKey::new(&ck);
+            // Compress and decompress on the GPU.
+            set_server_key(sk.decompress_to_gpu());
+
+            // A FheUint2 is one block under MESSAGE_2_CARRY_2, so the list length is
+            // the block count.
+            for &num_blocks in &sizes {
+                let mut builder = CompressedCiphertextListBuilder::new();
+                for i in 0..num_blocks {
+                    builder.push(FheUint2::encrypt((i % 4) as u8, &ck));
+                }
+                let compressed_list = builder.build().unwrap();
+
+                for i in 0..num_blocks {
+                    let ct: FheUint2 = compressed_list.get(i).unwrap().unwrap();
+                    let decrypted: u8 = ct.decrypt(&ck);
+                    assert_eq!(
+                        decrypted,
+                        (i % 4) as u8,
+                        "wrong value at index {i} of a {num_blocks}-block list ({flavor} PBS)"
+                    );
+                }
+            }
+        }
+    }
+
     #[cfg(feature = "strings")]
     #[test]
     fn test_compressed_strings_cpu() {

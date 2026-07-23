@@ -188,6 +188,131 @@ __global__ void tgemm(uint M, uint N, uint K, const Torus *A, const Torus *B,
   }
 }
 
+// Fused-decomposition variant of tgemm used by the packing keyswitch. Like
+// tgemm_all_levels_split_k it embeds the gadget decomposition inside the GEMM
+// kernel so the decomposed masks never round-trip through global memory and the
+// whole packing keyswitch matmul becomes a single kernel launch, instead of the
+// previous decompose + tgemm loop over every decomposition level.
+//
+// Unlike the split-K variant it keeps one thread block per output tile (no
+// blockIdx.z partitioning and no atomics), so it writes each output element
+// exactly once with a direct store. This keeps it valid for any Torus width,
+// including 128-bit, for which atomicAdd is not available, and means the caller
+// does not need to pre-zero the output buffer.
+//
+// A is the raw LWE input, row-major with num_lwes x (K + 1) elements (the
+// trailing body column is skipped). B is the functional packing KSK, laid out
+// level-major within each K row: stride_B spans all levels and level li starts
+// at offset li * N. C is the num_lwes x N output. LevelCount is a compile-time
+// constant so the decomposition register array is sized and the level loop is
+// fully unrolled, mirroring the regular keyswitch.
+//
+// The tile is parameterized as BM x BN with a BK-deep k-step and TM outputs per
+// thread (BM == BN square tile, BN == BK * TM). A small tile (e.g. 32x32) keeps
+// occupancy high and avoids wasting rows when the batch (num_lwes = M) is
+// small, which matters because the packing keyswitch typically runs on modest
+// batches.
+template <typename Torus, int BM, int BN, int BK, int TM, int LevelCount>
+__global__ void tgemm_all_levels(uint M, uint N, uint K,
+                                 const Torus *__restrict__ A,
+                                 const Torus *__restrict__ B, uint stride_B,
+                                 Torus *C, uint stride_C, uint32_t base_log) {
+
+  static_assert(BN == BK * TM, "tgemm tile constraint: BN must equal BK * TM");
+  static_assert(BN == BM,
+                "tgemm tile constraint: BN must equal BM (square tile)");
+  static_assert(BM % TM == 0,
+                "tgemm tile constraint: BM must be divisible by TM");
+
+  const uint cRow = blockIdx.y;
+  const uint cCol = blockIdx.x;
+
+  const int threadCol = threadIdx.x % BN;
+  const int threadRow = threadIdx.x / BN;
+
+  __shared__ Torus A_decomp_s[BM * BK];
+  __shared__ Torus Bs[BK * BN];
+
+  const uint innerColA = threadIdx.x % BK;
+  const uint innerRowA = threadIdx.x / BK;
+  const uint innerColB = threadIdx.x % BN;
+  const uint innerRowB = threadIdx.x / BN;
+
+  // allocate thread-local cache for results in registerfile
+  Torus threadResults[TM] = {0};
+
+  const Torus mod_b_mask = (Torus(1) << base_log) - Torus(1);
+  const uint row_A = cRow * BM + innerRowA;
+
+  // Embedding the decomposition within the kernel to avoid global memory
+  // transfers of the decomposed masks.
+  for (uint bkIdx = 0; bkIdx < K; bkIdx += BK) {
+    const uint col_A = bkIdx + innerColA;
+
+    Torus raw_val = 0;
+    if (row_A < M && col_A < K) {
+      // The LWE input has (K + 1) elements per row; only the mask is
+      // decomposed so the trailing body column is skipped by rounding K.
+      raw_val = A[row_A * (K + 1) + col_A];
+    }
+
+    Torus state =
+        init_decomposer_state(raw_val, base_log, (uint32_t)LevelCount);
+
+    // We use registers as cache to store all decomposition levels
+    Torus decomposed_vals[LevelCount];
+#pragma unroll
+    for (int li = 0; li < LevelCount; li++) {
+      decomposed_vals[li] = decompose_one<Torus>(state, mod_b_mask, base_log);
+    }
+
+#pragma unroll
+    for (int li = 0; li < LevelCount; li++) {
+      // Each level we load our decomposition from the registers cache
+      A_decomp_s[innerRowA * BK + innerColA] = decomposed_vals[li];
+      // We load the corresponding ksk level
+      int global_row_b = (int)bkIdx + (int)innerRowB;
+      int global_col_b = (int)(cCol * BN) + (int)innerColB;
+      Bs[innerRowB * BN + innerColB] =
+          (global_col_b < (int)N && global_row_b < (int)K)
+              ? B[global_row_b * stride_B + li * N + global_col_b]
+              : Torus(0);
+
+      __syncthreads();
+
+      // calculate per-thread results
+#pragma unroll
+      for (uint dotIdx = 0; dotIdx < BK; ++dotIdx) {
+        // we make the dotproduct loop the outside loop, which facilitates
+        // reuse of the Bs entry, which we can cache in a tmp var.
+        Torus tmp = Bs[dotIdx * BN + threadCol];
+#pragma unroll
+        for (uint resIdx = 0; resIdx < TM; ++resIdx) {
+          threadResults[resIdx] +=
+              A_decomp_s[(threadRow * TM + resIdx) * BK + dotIdx] * tmp;
+        }
+      }
+      __syncthreads();
+    }
+  }
+
+  // Initialize the pointer to the output block and write the results. One block
+  // fully owns the K reduction for its tile, so a direct store is correct.
+  C += cRow * BM * stride_C + cCol * BN;
+#pragma unroll
+  for (uint resIdx = 0; resIdx < TM; ++resIdx) {
+    int outRow = cRow * BM + threadRow * TM + resIdx;
+    int outCol = cCol * BN + threadCol;
+
+    if (outRow >= M)
+      continue;
+    if (outCol >= N)
+      continue;
+
+    C[(threadRow * TM + resIdx) * stride_C + threadCol] = threadResults[resIdx];
+  }
+}
+
 // Tgemm version that fuses gadget decomposition on all levels like the regular
 // keyswitch. By doing the decomposition within the kernel, we avoid allocating
 // an intermediate array and save moving it from global to the kernel back and
