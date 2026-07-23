@@ -224,7 +224,7 @@ fn lwe_encrypt_fast_ks_decrypt_custom_mod<
     );
 
     // To Fourier
-    let mut fourier_ggsw = PseudoFourierGgswCiphertext::new(
+    let mut fourier_ggsw = FourierPseudoGgswCiphertext::new(
         ks_in_glwe_dimension.to_glwe_size(),
         ks_out_glwe_dimension.to_glwe_size(),
         ks1_polynomial_size,
