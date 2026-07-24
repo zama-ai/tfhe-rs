@@ -1445,12 +1445,11 @@ pub(crate) mod test {
             .next()
             .unwrap();
 
-        let plain_prf_input = match &oprf_ck.0 {
-            AtomicPatternOprfPrivateKey::Standard(sk) => gen_prf_input(&sk.as_view(), seed, params),
-            AtomicPatternOprfPrivateKey::KeySwitch32(sk) => {
-                gen_prf_input(&sk.as_view(), seed, params)
-            }
-        };
+        let plain_prf_input = gen_prf_inputs(oprf_ck, seed, params, &[random_bits_count])
+            .into_iter()
+            .next()
+            .unwrap()
+            .0;
 
         // includes padding bit
         let output_modulus = 2 * params.message_modulus().0 * params.carry_modulus().0;
@@ -1480,12 +1479,30 @@ pub(crate) mod test {
         }
     }
 
-    /// Returns the value used as input of the pbs for the prf with the provided seed
-    fn gen_prf_input<Scalar>(
+    /// Returns the `(plain_prf_input, random_bits_in_block)` pairs feeding the pbs of the prf for
+    /// the provided seed, one per output block, matching the layout requested by `bit_chunks`.
+    pub(crate) fn gen_prf_inputs(
+        oprf_ck: &OprfPrivateKey,
+        seed: Seed,
+        params: ShortintParameterSet,
+        bit_chunks: &[u64],
+    ) -> Vec<(u64, u64)> {
+        match &oprf_ck.0 {
+            AtomicPatternOprfPrivateKey::Standard(sk) => {
+                gen_prf_inputs_impl(&sk.as_view(), seed, params, bit_chunks)
+            }
+            AtomicPatternOprfPrivateKey::KeySwitch32(sk) => {
+                gen_prf_inputs_impl(&sk.as_view(), seed, params, bit_chunks)
+            }
+        }
+    }
+
+    fn gen_prf_inputs_impl<Scalar>(
         sk: &LweSecretKeyView<Scalar>,
         seed: Seed,
         params: ShortintParameterSet,
-    ) -> u64
+        bit_chunks: &[u64],
+    ) -> Vec<(u64, u64)>
     where
         Scalar: UnsignedInteger + CastFrom<usize> + CastInto<u64> + CastInto<usize>,
     {
@@ -1502,25 +1519,27 @@ pub(crate) mod test {
             seed,
             lwe_size,
             params.polynomial_size(),
-            &[message_bits],
+            bit_chunks,
             message_bits,
             bits_per_block,
         );
 
-        assert_eq!(seeded_chunks.len(), 1);
+        seeded_chunks
+            .iter()
+            .map(|(seeded, block_bits)| {
+                assert!(seeded.mask.iter().all(|v| *v < input_p as usize));
 
-        let seeded = &seeded_chunks[0].0;
+                let ct = raw_seeded_msed_to_lwe(seeded, ciphertext_modulus);
 
-        assert!(seeded.mask.iter().all(|v| *v < input_p as usize));
-
-        let ct = raw_seeded_msed_to_lwe(seeded, ciphertext_modulus);
-
-        CastInto::<u64>::cast_into(
-            decrypt_lwe_ciphertext(sk, &ct)
-                .0
-                .wrapping_add(Scalar::ONE << (Scalar::BITS - log_input_p - 1))
-                >> (Scalar::BITS - log_input_p),
-        )
+                let plain_input = CastInto::<u64>::cast_into(
+                    decrypt_lwe_ciphertext(sk, &ct)
+                        .0
+                        .wrapping_add(Scalar::ONE << (Scalar::BITS - log_input_p - 1))
+                        >> (Scalar::BITS - log_input_p),
+                );
+                (plain_input, *block_bits)
+            })
+            .collect()
     }
 
     #[test]

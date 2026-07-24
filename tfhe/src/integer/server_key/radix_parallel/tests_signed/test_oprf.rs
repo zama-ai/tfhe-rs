@@ -1,11 +1,15 @@
 use crate::integer::oprf::OprfServerKey;
 use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_oprf::{
-    internal_test_uniformity, setup_oprf_test,
+    internal_test_uniformity, oprf_compare_plain_test, setup_oprf_test,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuOprfExecutor;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{ServerKey, SignedRadixCiphertext};
+use crate::shortint::parameters::test_params::{
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+};
 use crate::shortint::parameters::*;
 use tfhe_csprng::seeders::Seed;
 
@@ -15,6 +19,11 @@ create_parameterized_test!(oprf_signed_uniformity_bounded {
 
 create_parameterized_test!(oprf_signed_uniformity_unbounded {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+});
+
+create_parameterized_test!(oprf_compare_plain_signed {
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128
 });
 
 fn oprf_signed_uniformity_bounded<P>(param: P)
@@ -51,12 +60,28 @@ where
     oprf_uniformity_unbounded_test(param, executor);
 }
 
+fn oprf_compare_plain_signed<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let executor =
+        CpuOprfExecutor::new(&|oprf_key: &OprfServerKey,
+                               seed: Seed,
+                               num_blocks: u64,
+                               sk: &ServerKey| {
+            oprf_key.par_generate_oblivious_pseudo_random_signed_integer(seed, num_blocks, sk)
+        });
+    oprf_compare_plain_test(param, executor, |cks, img| {
+        cks.decrypt_signed::<i64>(img) as i128
+    });
+}
+
 pub fn oprf_uniformity_bounded_test<P, E>(param: P, mut executor: E)
 where
     P: Into<TestParameters>,
     E: OpSequenceFunctionExecutor<(Seed, u64, u64), SignedRadixCiphertext>,
 {
-    let cks = setup_oprf_test(param, &mut executor);
+    let (cks, _oprf_priv_key) = setup_oprf_test(param, &mut executor);
 
     let sample_count: usize = 10_000;
     let p_value_limit: f64 = 0.000_01;
@@ -78,7 +103,7 @@ where
     P: Into<TestParameters>,
     E: OpSequenceFunctionExecutor<(Seed, u64), SignedRadixCiphertext>,
 {
-    let cks = setup_oprf_test(param, &mut executor);
+    let (cks, _oprf_priv_key) = setup_oprf_test(param, &mut executor);
 
     let sample_count: usize = 10_000;
     let p_value_limit: f64 = 0.000_01;

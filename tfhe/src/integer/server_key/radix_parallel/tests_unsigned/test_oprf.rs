@@ -3,8 +3,8 @@ use crate::core_crypto::commons::math::random::tests::{
     cumulate, dkw_alpha_from_epsilon, sup_diff,
 };
 use crate::integer::ciphertext::{
-    PrfReRandomizationContext, RadixCiphertext, ReRandomizationHashAlgo, ReRandomizationKey,
-    ReRandomizationSeedHasher, SignedRadixCiphertext,
+    IntegerRadixCiphertext, PrfReRandomizationContext, RadixCiphertext, ReRandomizationHashAlgo,
+    ReRandomizationKey, ReRandomizationSeedHasher, SignedRadixCiphertext,
 };
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::oprf::{OprfPrivateKey, OprfServerKey};
@@ -15,6 +15,8 @@ use crate::integer::{
     gen_keys, ClientKey, CompactPrivateKey, CompactPublicKey, IntegerKeyKind, RadixClientKey,
     ServerKey,
 };
+use crate::shortint::oprf::test::gen_prf_inputs;
+use crate::shortint::oprf::test_utils::cleartext_prf;
 use crate::shortint::parameters::test_params::{
     TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -42,6 +44,11 @@ create_parameterized_test!(oprf_almost_uniformity_unsigned {
 
 create_parameterized_test!(pseudo_random_integer_and_rerand {
     TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128
+});
+
+create_parameterized_test!(oprf_compare_plain_unsigned {
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128
 });
@@ -110,6 +117,20 @@ where
     oprf_almost_uniformity_test(param, executor);
 }
 
+fn oprf_compare_plain_unsigned<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let executor =
+        CpuOprfExecutor::new(&|oprf_key: &OprfServerKey,
+                               seed: Seed,
+                               num_blocks: u64,
+                               sk: &ServerKey| {
+            oprf_key.par_generate_oblivious_pseudo_random_unsigned_integer(seed, num_blocks, sk)
+        });
+    oprf_compare_plain_test(param, executor, |cks, img| cks.decrypt::<u64>(img) as i128);
+}
+
 pub(crate) fn square(a: f64) -> f64 {
     a * a
 }
@@ -154,7 +175,7 @@ pub(crate) fn internal_test_uniformity<F>(
 pub(crate) fn setup_oprf_test<I, O, E>(
     param: impl Into<TestParameters>,
     executor: &mut E,
-) -> RadixClientKey
+) -> (RadixClientKey, OprfPrivateKey)
 where
     E: OpSequenceFunctionExecutor<I, O>,
 {
@@ -173,13 +194,13 @@ where
         None,
         None,
         None,
-        Some(oprf_priv_key),
+        Some(oprf_priv_key.clone()),
         Tag::default(),
     );
     let comp_sks = crate::CompressedServerKey::new(&temp_cks);
     let cks = RadixClientKey::from((cks, 1));
     executor.setup(&cks, &comp_sks, &mut deterministic_seeder);
-    cks
+    (cks, oprf_priv_key)
 }
 
 pub(crate) fn oprf_uniformity_test<P, E>(param: P, mut executor: E)
@@ -187,7 +208,7 @@ where
     P: Into<TestParameters>,
     E: OpSequenceFunctionExecutor<(Seed, u64, u64), RadixCiphertext>,
 {
-    let cks = setup_oprf_test(param, &mut executor);
+    let (cks, _oprf_priv_key) = setup_oprf_test(param, &mut executor);
 
     let sample_count: usize = 10_000;
     let p_value_limit: f64 = 0.000_01;
@@ -207,7 +228,7 @@ where
     P: Into<TestParameters>,
     E: OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>,
 {
-    let cks = setup_oprf_test(param, &mut executor);
+    let (cks, _oprf_priv_key) = setup_oprf_test(param, &mut executor);
 
     let num_loops = 100;
 
@@ -239,7 +260,7 @@ where
     P: Into<TestParameters>,
     E: OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>,
 {
-    let cks = setup_oprf_test(param, &mut executor);
+    let (cks, _oprf_priv_key) = setup_oprf_test(param, &mut executor);
 
     let sample_count: usize = 10_000;
     let p_value_limit: f64 = 0.001;
@@ -266,6 +287,69 @@ where
     );
 
     assert!(p_value_limit < p_value_upper_bound);
+}
+
+/// Predicts the full-precision PRF output from the seed in the clear and checks it against
+/// the decrypted FHE result, block by block.
+///
+/// The prediction re-derives the seeded modulus-switched PRF inputs from the seed, decrypts them
+/// under the OPRF private key, and applies the clear LUT model ([`cleartext_prf`]).
+pub(crate) fn oprf_compare_plain_test<P, E, T>(
+    param: P,
+    mut executor: E,
+    // Lets the caller pick the decryption matching `T` (`decrypt` vs `decrypt_signed`).
+    decrypt_whole: impl Fn(&RadixClientKey, &T) -> i128,
+) where
+    P: Into<TestParameters>,
+    T: IntegerRadixCiphertext,
+    E: for<'a> OpSequenceFunctionExecutor<(Seed, u64), T>,
+{
+    let (cks, oprf_priv_key) = setup_oprf_test(param, &mut executor);
+    let shortint_oprf_ck = oprf_priv_key.into_raw_parts();
+    let params: ShortintParameterSet = cks.parameters().into();
+    let message_bits: u64 = params.message_modulus().0.ilog2().into();
+    // includes padding bit (same as shortint oprf_compare_plain_from_seed)
+    let output_modulus = 2 * params.message_modulus().0 * params.carry_modulus().0;
+    let polynomial_size = params.polynomial_size().0 as u64;
+    let num_blocks: u64 = 4;
+    let total_bits = num_blocks * message_bits;
+
+    for s in 0..100u128 {
+        let seed = Seed(s);
+        let img: T = executor.execute((seed, num_blocks));
+        assert_eq!(img.blocks().len() as u64, num_blocks);
+
+        let plain_prf_inputs = gen_prf_inputs(&shortint_oprf_ck, seed, params, &[total_bits]);
+        assert_eq!(plain_prf_inputs.len(), img.blocks().len());
+
+        let mut expected_value = 0u64;
+        for (i, (block, (plain_input, block_bits))) in
+            img.blocks().iter().zip(plain_prf_inputs).enumerate()
+        {
+            let expected_block =
+                cleartext_prf(plain_input, block_bits, output_modulus, polynomial_size);
+            let decrypted_block = cks.as_ref().key.decrypt_message_and_carry(block);
+            assert!(
+                decrypted_block < (1 << block_bits),
+                "seed {s}: block {i} out of range: got {decrypted_block}, block_bits {block_bits}"
+            );
+            assert_eq!(
+                decrypted_block, expected_block,
+                "seed {s}: block {i}: got {decrypted_block}, expected {expected_block}"
+            );
+            expected_value |= expected_block << (i as u64 * message_bits);
+        }
+
+        // For signed outputs the assembled bits are interpreted as two's complement over
+        // `total_bits`, so a set top bit means a negative value.
+        let expected_whole = if T::IS_SIGNED && expected_value & (1u64 << (total_bits - 1)) != 0 {
+            expected_value as i128 - (1i128 << total_bits)
+        } else {
+            expected_value as i128
+        };
+        let decrypted = decrypt_whole(&cks, &img);
+        assert_eq!(decrypted, expected_whole, "seed {s}");
+    }
 }
 
 pub(crate) fn p_value_upper_bound_oprf_almost_uniformity_from_values(
