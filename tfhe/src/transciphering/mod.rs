@@ -67,6 +67,8 @@ use tfhe_versionable::Versionize;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::utils::ZipChecked;
 use crate::core_crypto::prelude::Container;
+use crate::shortint::ciphertext::CompressedCiphertextList;
+use crate::shortint::list_compression::CompressionKey;
 use crate::shortint::oprf::GenericOprfServerKey;
 use crate::shortint::{Ciphertext, OprfSeed, ServerKey};
 use crate::transciphering::backward_compatibility::{
@@ -296,21 +298,22 @@ pub trait Transcipherer {
         sks: &ServerKey,
         input: &StreamCiphertext,
     ) -> Result<Vec<Ciphertext>, TranscipherError> {
-        if input.kind != self.kind() {
-            return Err(TranscipherError::KindMismatch {
-                session_kind: self.kind(),
-                ciphertext_kind: input.kind,
-            });
-        }
-        if input.encryption_counter != self.current_counter() {
-            return Err(TranscipherError::CounterMismatch {
-                session_counter: self.current_counter(),
-                ciphertext_counter: input.encryption_counter,
-            });
-        }
+        check_transcipher_input(self, &input)?;
 
         let keystream = self.next_keystream_bits(sks, input.n_bits);
         Ok(apply_keystream(sks, &keystream, input))
+    }
+
+    fn transcipher_and_compress(
+        &mut self,
+        sks: &ServerKey,
+        comp_key: &CompressionKey,
+        input: &StreamCiphertext,
+    ) -> Result<CompressedCiphertextList, TranscipherError> {
+        check_transcipher_input(self, &input)?;
+
+        let keystream = self.next_keystream_bits(sks, input.n_bits);
+        Ok(comp_key.compress_ciphertexts_into_list(&apply_keystream(sks, &keystream, input)))
     }
 
     /// Set the keystream bit position to `target_counter`. Backward-seek is supported
@@ -403,6 +406,26 @@ impl<'a> IntoIterator for &'a FheKeyStream {
 /// LSB-first bit `i` of `bytes` (i.e. `bytes[i / 8] >> (i % 8) & 1`).
 fn bit_at(bytes: &[u8], i: usize) -> u8 {
     (bytes[i / 8] >> (i % 8)) & 1
+}
+
+fn check_transcipher_input<T: Transcipherer + ?Sized>(
+    transcipherer: &T,
+    input: &StreamCiphertext,
+) -> Result<(), TranscipherError> {
+    if input.kind != transcipherer.kind() {
+        return Err(TranscipherError::KindMismatch {
+            session_kind: transcipherer.kind(),
+            ciphertext_kind: input.kind,
+        });
+    }
+    if input.encryption_counter != transcipherer.current_counter() {
+        return Err(TranscipherError::CounterMismatch {
+            session_counter: transcipherer.current_counter(),
+            ciphertext_counter: input.encryption_counter,
+        });
+    }
+
+    Ok(())
 }
 
 /// Xor an FHE keystream with a clear [`StreamCiphertext`].
