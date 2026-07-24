@@ -119,7 +119,7 @@ jobs:
     if: inputs.run-gpu-integer-benchmarks
     with:
       backend: terraform
-      profile: multi-h100-sxm5
+      profile: scaleway-multi-h100-sxm5
       cloud_provider: scaleway
       hardware_name: H100-SXM-8-80G
       command: integer_multi_bit,hlapi_erc7984
@@ -182,7 +182,7 @@ jobs:
     if: inputs.run-gpu-core-crypto-benchmarks
     with:
       backend: terraform
-      profile: multi-h100-sxm5
+      profile: scaleway-multi-h100-sxm5
       cloud_provider: scaleway
       hardware_name: H100-SXM-8-80G
       command: pbs, ks_pbs
@@ -204,7 +204,7 @@ jobs:
     if: inputs.run-gpu-zk-benchmarks
     with:
       backend: terraform
-      profile: multi-h100-sxm5
+      profile: scaleway-multi-h100-sxm5
       cloud_provider: scaleway
       hardware_name: H100-SXM-8-80G
       command: integer_zk
