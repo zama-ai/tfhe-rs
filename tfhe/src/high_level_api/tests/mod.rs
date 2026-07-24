@@ -37,6 +37,11 @@ pub(crate) fn setup_default_cpu() -> ClientKey {
     setup_cpu(Option::<ClassicPBSParameters>::None)
 }
 
+#[cfg(feature = "gpu")]
+pub(crate) fn is_sanitizer_run() -> bool {
+    std::env::var("TFHE_RS_COMPUTE_SANITIZER").is_ok_and(|v| v == "1")
+}
+
 fn assert_that_public_key_encryption_is_decrypted_by_client_key<FheType, ClearType>(
     clear: ClearType,
     pks: &PublicKey,
