@@ -35,6 +35,10 @@ use tfhe::transciphering::{StreamCipher, Transcipherer};
 const KEY_BITS: usize = 128;
 const KEYSTREAM_BITS: usize = 64;
 const KEYSTREAM_BYTES: usize = KEYSTREAM_BITS / 8;
+// 512 bits = 256 output ciphertexts, enough `apply_keystream_2_2` pairs to exercise its
+// parallelism (the 64-bit case has too few pairs for scheduling to matter).
+const KEYSTREAM_BITS_LARGE: usize = 512;
+const KEYSTREAM_BYTES_LARGE: usize = KEYSTREAM_BITS_LARGE / 8;
 
 pub fn cpu_kreyvium_transciphering(c: &mut Criterion) {
     let bench_name = "transciphering::cpu::kreyvium";
@@ -137,6 +141,38 @@ pub fn cpu_kreyvium_transciphering(c: &mut Criterion) {
                 || warm_state.clone(),
                 |mut stream| {
                     black_box(stream.transcipher(&sks, &sym_cipher).unwrap());
+                },
+                BatchSize::SmallInput,
+            )
+        },
+    );
+
+    // ---- transcipher_512bits ----
+    let message_large = vec![0u8; KEYSTREAM_BYTES_LARGE];
+    let sym_cipher_large = {
+        let mut plain_stream = KreyviumPlainState::new(
+            KreyviumPlainKey::from(key_bytes),
+            KreyviumIV::from(iv_bytes),
+        );
+        plain_stream.encrypt(&message_large)
+    };
+
+    let benchmark_spec = BenchmarkSpec::<str>::new_transciphering(
+        TranscipheringBench::Kreyvium(KreyviumFlavor::Transcipher512Bits),
+        &param_name,
+        BenchmarkMetric::Latency,
+    );
+    bench_and_record(
+        &mut group,
+        &benchmark_spec,
+        &format!("kreyvium_transcipher_{KEYSTREAM_BITS_LARGE}bits"),
+        KEYSTREAM_BITS_LARGE as u32,
+        vec![log2_msg; KEYSTREAM_BITS_LARGE],
+        |b| {
+            b.iter_batched(
+                || warm_state.clone(),
+                |mut stream| {
+                    black_box(stream.transcipher(&sks, &sym_cipher_large).unwrap());
                 },
                 BatchSize::SmallInput,
             )

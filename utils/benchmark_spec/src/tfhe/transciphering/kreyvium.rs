@@ -10,6 +10,8 @@ pub enum KreyviumFlavor {
     Keystream64Bits,
     #[strum(serialize = "transcipher_64bits")]
     Transcipher64Bits,
+    #[strum(serialize = "transcipher_512bits")]
+    Transcipher512Bits,
 }
 
 impl SpecLeafNode for KreyviumFlavor {}
