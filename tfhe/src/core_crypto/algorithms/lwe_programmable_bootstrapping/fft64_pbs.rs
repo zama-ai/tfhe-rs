@@ -351,6 +351,7 @@ pub fn add_external_product_assign<Scalar, OutputGlweCont, InputGlweCont, GgswCo
 ///
 /// encrypt_constant_ggsw_ciphertext(
 ///     &glwe_secret_key,
+///     &glwe_secret_key,
 ///     &mut ggsw,
 ///     msg_ggsw,
 ///     glwe_noise_distribution,
@@ -583,6 +584,7 @@ pub fn cmux_assign<Scalar, Cont0, Cont1, GgswCont>(
 ///
 /// encrypt_constant_ggsw_ciphertext(
 ///     &glwe_secret_key,
+///     &glwe_secret_key,
 ///     &mut ggsw_0,
 ///     msg_ggsw_0,
 ///     glwe_noise_distribution,
@@ -603,6 +605,7 @@ pub fn cmux_assign<Scalar, Cont0, Cont1, GgswCont>(
 /// );
 ///
 /// encrypt_constant_ggsw_ciphertext(
+///     &glwe_secret_key,
 ///     &glwe_secret_key,
 ///     &mut ggsw_1,
 ///     msg_ggsw_1,

@@ -1,6 +1,7 @@
 use super::super::math::decomposition::TensorSignedDecompositionLendingIter;
 use super::super::math::fft::{FftView, FourierPolynomialList};
 use super::super::math::polynomial::FourierPolynomialMutView;
+use crate::core_crypto::algorithms::polynomial_algorithms::convert_standard_polynomial_list_to_fourier_mem_optimized;
 use crate::core_crypto::backward_compatibility::fft_impl::FourierGgswCiphertextVersions;
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
@@ -15,6 +16,7 @@ use crate::core_crypto::entities::ggsw_ciphertext::{
     fourier_ggsw_level_matrix_size, GgswCiphertextView,
 };
 use crate::core_crypto::entities::glwe_ciphertext::{GlweCiphertextMutView, GlweCiphertextView};
+use crate::core_crypto::prelude::ContainerMut;
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use dyn_stack::{PodStack, StackReq};
 use tfhe_fft::c64;
@@ -131,6 +133,12 @@ impl<C: Container<Element = c64>> FourierGgswCiphertext<C> {
             decomposition_base_log: self.decomposition_base_log,
             decomposition_level_count: self.decomposition_level_count,
         }
+    }
+}
+
+impl<C: ContainerMut<Element = c64>> FourierGgswCiphertext<C> {
+    pub fn as_mut_polynomial_list(&mut self) -> &mut FourierPolynomialList<C> {
+        &mut self.fourier
     }
 }
 
@@ -257,24 +265,17 @@ impl FourierGgswCiphertextMutView<'_> {
     /// Fill a GGSW ciphertext with the Fourier transform of a GGSW ciphertext in the standard
     /// domain.
     pub fn fill_with_forward_fourier<Scalar: UnsignedTorus>(
-        self,
+        mut self,
         coef_ggsw: GgswCiphertextView<'_, Scalar>,
         fft: FftView<'_>,
         stack: &mut PodStack,
     ) {
-        debug_assert_eq!(coef_ggsw.polynomial_size(), self.polynomial_size());
-        let fourier_poly_size = coef_ggsw.polynomial_size().to_fourier_polynomial_size().0;
-
-        for (fourier_poly, coef_poly) in izip_eq!(
-            self.data().into_chunks(fourier_poly_size),
-            coef_ggsw.as_polynomial_list().iter()
-        ) {
-            fft.forward_as_torus(
-                FourierPolynomialMutView { data: fourier_poly },
-                coef_poly,
-                stack,
-            );
-        }
+        convert_standard_polynomial_list_to_fourier_mem_optimized(
+            &coef_ggsw.as_polynomial_list(),
+            self.as_mut_polynomial_list(),
+            fft,
+            stack,
+        );
     }
 }
 

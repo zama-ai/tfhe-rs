@@ -1,6 +1,10 @@
 //! Module containing primitives pertaining to [`GGSW ciphertext
 //! encryption`](`GgswCiphertext#ggsw-encryption`).
 
+use super::polynomial_algorithms::{
+    polynomial_wrapping_monic_monomial_mul_assign,
+    polynomial_wrapping_monic_monomial_mul_assign_custom_mod,
+};
 use crate::core_crypto::algorithms::misc::divide_round;
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
@@ -10,7 +14,9 @@ use crate::core_crypto::commons::math::decomposition::{
     DecompositionLevel, DecompositionTerm, DecompositionTermNonNative, SignedDecomposer,
 };
 use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, Distribution, Uniform};
-use crate::core_crypto::commons::parameters::{DecompositionBaseLog, PlaintextCount};
+use crate::core_crypto::commons::parameters::{
+    DecompositionBaseLog, MonomialDegree, PlaintextCount,
+};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use rayon::prelude::*;
@@ -43,7 +49,32 @@ pub fn ggsw_encryption_multiplicative_factor<Scalar: UnsignedInteger>(
     }
 }
 
-/// Encrypt a plaintext in a [`GGSW ciphertext`](`GgswCiphertext`) in the constant coefficient.
+pub fn encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
+    in_glwe_secret_key: &GlweSecretKey<KeyCont>,
+    out_glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output: &mut GgswCiphertext<OutputCont>,
+    cleartext: Cleartext<Scalar>,
+    noise_distribution: NoiseDistribution,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
+    KeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    encrypt_monomial_ggsw_ciphertext(
+        in_glwe_secret_key,
+        out_glwe_secret_key,
+        output,
+        cleartext,
+        0,
+        noise_distribution,
+        generator,
+    )
+}
+
+/// Encrypt a cleartext in a [`GGSW ciphertext`](`GgswCiphertext`) in the coefficient `power`.
 ///
 /// See the [`GGSW ciphertext formal definition`](`GgswCiphertext#ggsw-encryption`) for the
 /// definition of the encryption algorithm.
@@ -89,10 +120,12 @@ pub fn ggsw_encryption_multiplicative_factor<Scalar: UnsignedInteger>(
 ///     ciphertext_modulus,
 /// );
 ///
-/// encrypt_constant_ggsw_ciphertext(
+/// encrypt_monomial_ggsw_ciphertext(
+///     &glwe_secret_key,
 ///     &glwe_secret_key,
 ///     &mut ggsw,
 ///     cleartext,
+///     0,
 ///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
@@ -100,10 +133,12 @@ pub fn ggsw_encryption_multiplicative_factor<Scalar: UnsignedInteger>(
 /// let decrypted = decrypt_constant_ggsw_ciphertext(&glwe_secret_key, &ggsw);
 /// assert_eq!(decrypted, cleartext);
 /// ```
-pub fn encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
-    glwe_secret_key: &GlweSecretKey<KeyCont>,
+pub fn encrypt_monomial_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
+    in_glwe_secret_key: &GlweSecretKey<KeyCont>,
+    out_glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut GgswCiphertext<OutputCont>,
     cleartext: Cleartext<Scalar>,
+    power: usize,
     noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -114,19 +149,35 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, Outp
     Gen: ByteRandomGenerator,
 {
     assert!(
-        output.polynomial_size() == glwe_secret_key.polynomial_size(),
+        output.polynomial_size() == out_glwe_secret_key.polynomial_size(),
         "Mismatch between polynomial sizes of output ciphertexts and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output.polynomial_size(),
-        glwe_secret_key.polynomial_size()
+        out_glwe_secret_key.polynomial_size()
     );
 
     assert!(
-        output.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
+        output.glwe_size().to_glwe_dimension() == out_glwe_secret_key.glwe_dimension(),
         "Mismatch between GlweDimension of output ciphertexts and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output.glwe_size().to_glwe_dimension(),
-        glwe_secret_key.glwe_dimension()
+        out_glwe_secret_key.glwe_dimension()
+    );
+
+    assert!(
+        in_glwe_secret_key.glwe_dimension() == out_glwe_secret_key.glwe_dimension(),
+        "Mismatch between GlweDimension of input and output secret keys. \
+        Got {:?} in input, and {:?} in output.",
+        in_glwe_secret_key.glwe_dimension(),
+        out_glwe_secret_key.glwe_dimension()
+    );
+
+    assert!(
+        in_glwe_secret_key.polynomial_size() == out_glwe_secret_key.polynomial_size(),
+        "Mismatch between PolynomialSize of input and output secret keys. \
+        Got {:?} in input, and {:?} in output.",
+        in_glwe_secret_key.polynomial_size(),
+        out_glwe_secret_key.polynomial_size()
     );
 
     // Generators used to have same sequential and parallel key generation
@@ -149,17 +200,44 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, Outp
             cleartext,
         );
 
-        encrypt_constant_ggsw_level_matrix(
-            glwe_secret_key,
+        encrypt_monomial_ggsw_level_matrix(
+            in_glwe_secret_key,
+            out_glwe_secret_key,
             &mut level_matrix,
             factor,
+            power,
             noise_distribution,
             &mut generator,
         );
     }
 }
 
-/// Parallel variant of [`encrypt_constant_ggsw_ciphertext`].
+pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
+    in_glwe_secret_key: &GlweSecretKey<KeyCont>,
+    out_glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output: &mut GgswCiphertext<OutputCont>,
+    cleartext: Cleartext<Scalar>,
+    noise_distribution: NoiseDistribution,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
+    NoiseDistribution: Distribution + Sync,
+    KeyCont: Container<Element = Scalar> + Sync,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ParallelByteRandomGenerator,
+{
+    par_encrypt_monomial_ggsw_ciphertext(
+        in_glwe_secret_key,
+        out_glwe_secret_key,
+        output,
+        cleartext,
+        0,
+        noise_distribution,
+        generator,
+    )
+}
+
+/// Parallel variant of [`encrypt_monomial_ggsw_ciphertext`].
 ///
 /// See the [`formal definition`](`GgswCiphertext#ggsw-encryption`) for the definition of the
 /// encryption algorithm.
@@ -207,10 +285,12 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, Outp
 ///     ciphertext_modulus,
 /// );
 ///
-/// par_encrypt_constant_ggsw_ciphertext(
+/// par_encrypt_monomial_ggsw_ciphertext(
+///     &glwe_secret_key,
 ///     &glwe_secret_key,
 ///     &mut ggsw,
 ///     cleartext,
+///     0,
 ///     glwe_noise_distribution,
 ///     &mut encryption_generator,
 /// );
@@ -218,10 +298,12 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, Outp
 /// let decrypted = decrypt_constant_ggsw_ciphertext(&glwe_secret_key, &ggsw);
 /// assert_eq!(decrypted, cleartext);
 /// ```
-pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
-    glwe_secret_key: &GlweSecretKey<KeyCont>,
+pub fn par_encrypt_monomial_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
+    in_glwe_secret_key: &GlweSecretKey<KeyCont>,
+    out_glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut GgswCiphertext<OutputCont>,
     cleartext: Cleartext<Scalar>,
+    power: usize,
     noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -232,19 +314,35 @@ pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, 
     Gen: ParallelByteRandomGenerator,
 {
     assert!(
-        output.polynomial_size() == glwe_secret_key.polynomial_size(),
+        output.polynomial_size() == out_glwe_secret_key.polynomial_size(),
         "Mismatch between polynomial sizes of output ciphertexts and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output.polynomial_size(),
-        glwe_secret_key.polynomial_size()
+        out_glwe_secret_key.polynomial_size()
     );
 
     assert!(
-        output.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
+        output.glwe_size().to_glwe_dimension() == out_glwe_secret_key.glwe_dimension(),
         "Mismatch between GlweDimension of output ciphertexts and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output.glwe_size().to_glwe_dimension(),
-        glwe_secret_key.glwe_dimension()
+        out_glwe_secret_key.glwe_dimension()
+    );
+
+    assert!(
+        in_glwe_secret_key.glwe_dimension() == out_glwe_secret_key.glwe_dimension(),
+        "Mismatch between GlweDimension of input and output secret keys. \
+        Got {:?} in input, and {:?} in output.",
+        in_glwe_secret_key.glwe_dimension(),
+        out_glwe_secret_key.glwe_dimension()
+    );
+
+    assert!(
+        in_glwe_secret_key.polynomial_size() == out_glwe_secret_key.polynomial_size(),
+        "Mismatch between PolynomialSize of input and output secret keys. \
+        Got {:?} in input, and {:?} in output.",
+        in_glwe_secret_key.polynomial_size(),
+        out_glwe_secret_key.polynomial_size()
     );
 
     // Generators used to have same sequential and parallel key generation
@@ -266,10 +364,12 @@ pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, 
                 cleartext,
             );
 
-            par_encrypt_constant_ggsw_level_matrix(
-                glwe_secret_key,
+            par_encrypt_monomial_ggsw_level_matrix(
+                in_glwe_secret_key,
+                out_glwe_secret_key,
                 &mut level_matrix,
                 factor,
+                power,
                 noise_distribution,
                 &mut generator,
             );
@@ -277,10 +377,12 @@ pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, NoiseDistribution, KeyCont, 
     );
 }
 
-pub fn encrypt_constant_ggsw_level_matrix<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
-    glwe_secret_key: &GlweSecretKey<KeyCont>,
+pub fn encrypt_monomial_ggsw_level_matrix<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
+    in_glwe_secret_key: &GlweSecretKey<KeyCont>,
+    out_glwe_secret_key: &GlweSecretKey<KeyCont>,
     level_matrix: &mut GgswLevelMatrix<OutputCont>,
     factor: Scalar,
+    power: usize,
     noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -303,10 +405,12 @@ pub fn encrypt_constant_ggsw_level_matrix<Scalar, NoiseDistribution, KeyCont, Ou
         .enumerate()
         .zip(gen_iter)
     {
-        encrypt_constant_ggsw_level_matrix_row(
-            glwe_secret_key,
+        encrypt_monomial_ggsw_level_matrix_row(
+            in_glwe_secret_key,
+            out_glwe_secret_key,
             (row_index, last_row_index),
             factor,
+            power,
             &mut row_as_glwe,
             noise_distribution,
             &mut generator,
@@ -315,10 +419,12 @@ pub fn encrypt_constant_ggsw_level_matrix<Scalar, NoiseDistribution, KeyCont, Ou
 }
 
 /// Parallel variant of [`encrypt_constant_ggsw_level_matrix`].
-fn par_encrypt_constant_ggsw_level_matrix<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
-    glwe_secret_key: &GlweSecretKey<KeyCont>,
+fn par_encrypt_monomial_ggsw_level_matrix<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
+    in_glwe_secret_key: &GlweSecretKey<KeyCont>,
+    out_glwe_secret_key: &GlweSecretKey<KeyCont>,
     level_matrix: &mut GgswLevelMatrix<OutputCont>,
     factor: Scalar,
+    power: usize,
     noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -341,10 +447,12 @@ fn par_encrypt_constant_ggsw_level_matrix<Scalar, NoiseDistribution, KeyCont, Ou
         .enumerate()
         .zip(gen_iter)
         .for_each(|((row_index, mut row_as_glwe), mut generator)| {
-            encrypt_constant_ggsw_level_matrix_row(
-                glwe_secret_key,
+            encrypt_monomial_ggsw_level_matrix_row(
+                in_glwe_secret_key,
+                out_glwe_secret_key,
                 (row_index, last_row_index),
                 factor,
+                power,
                 &mut row_as_glwe,
                 noise_distribution,
                 &mut generator,
@@ -353,15 +461,18 @@ fn par_encrypt_constant_ggsw_level_matrix<Scalar, NoiseDistribution, KeyCont, Ou
 }
 
 /// Convenience function to encrypt a row of a [`GgswLevelMatrix`] irrespective of the current row
-/// being encrypted. Allows to share code between sequential ([`encrypt_constant_ggsw_ciphertext`])
-/// and parallel ([`par_encrypt_constant_ggsw_ciphertext`]) variants of the GGSW ciphertext
+/// being encrypted. Allows to share code between sequential ([`encrypt_monomial_ggsw_ciphertext`])
+/// and parallel ([`par_encrypt_monomial_ggsw_ciphertext`]) variants of the GGSW ciphertext
 /// encryption.
 ///
 /// You probably don't want to use this function directly.
-fn encrypt_constant_ggsw_level_matrix_row<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
-    glwe_secret_key: &GlweSecretKey<KeyCont>,
+#[allow(clippy::too_many_arguments)]
+fn encrypt_monomial_ggsw_level_matrix_row<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
+    in_glwe_secret_key: &GlweSecretKey<KeyCont>,
+    out_glwe_secret_key: &GlweSecretKey<KeyCont>,
     (row_index, last_row_index): (usize, usize),
     factor: Scalar,
+    power: usize,
     row_as_glwe: &mut GlweCiphertext<OutputCont>,
     noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
@@ -376,7 +487,7 @@ fn encrypt_constant_ggsw_level_matrix_row<Scalar, NoiseDistribution, KeyCont, Ou
 
     if row_index < last_row_index {
         // Not the last row
-        let sk_poly_list = glwe_secret_key.as_polynomial_list();
+        let sk_poly_list = in_glwe_secret_key.as_polynomial_list();
         let sk_poly = sk_poly_list.get(row_index);
 
         // Copy the key polynomial to the output body, to avoid allocating a temporary buffer
@@ -385,13 +496,21 @@ fn encrypt_constant_ggsw_level_matrix_row<Scalar, NoiseDistribution, KeyCont, Ou
         let ciphertext_modulus = body.ciphertext_modulus();
 
         match ciphertext_modulus.kind() {
-            CiphertextModulusKind::Other => slice_wrapping_scalar_mul_assign_custom_mod(
-                body.as_mut(),
-                factor,
-                ciphertext_modulus.get_custom_modulus().cast_into(),
-            ),
+            CiphertextModulusKind::Other => {
+                let custom_modulus: Scalar = ciphertext_modulus.get_custom_modulus().cast_into();
+                slice_wrapping_scalar_mul_assign_custom_mod(body.as_mut(), factor, custom_modulus);
+                polynomial_wrapping_monic_monomial_mul_assign_custom_mod(
+                    &mut body.as_mut_polynomial(),
+                    MonomialDegree(power),
+                    custom_modulus,
+                );
+            }
             CiphertextModulusKind::Native | CiphertextModulusKind::NonNativePowerOfTwo => {
-                slice_wrapping_scalar_mul_assign(body.as_mut(), factor)
+                slice_wrapping_scalar_mul_assign(body.as_mut(), factor);
+                polynomial_wrapping_monic_monomial_mul_assign(
+                    &mut body.as_mut_polynomial(),
+                    MonomialDegree(power),
+                );
             }
         }
     } else {
@@ -407,9 +526,14 @@ fn encrypt_constant_ggsw_level_matrix_row<Scalar, NoiseDistribution, KeyCont, Ou
                 factor.wrapping_neg()
             }
         };
-        body.as_mut()[0] = encoded;
+        body.as_mut()[power] = encoded;
     }
-    encrypt_glwe_ciphertext_assign(glwe_secret_key, row_as_glwe, noise_distribution, generator);
+    encrypt_glwe_ciphertext_assign(
+        out_glwe_secret_key,
+        row_as_glwe,
+        noise_distribution,
+        generator,
+    );
 }
 
 /// Convenience function to share the core logic of the seeded GGSW encryption between all
@@ -888,6 +1012,7 @@ fn encrypt_constant_seeded_ggsw_level_matrix_row<
 /// );
 ///
 /// par_encrypt_constant_ggsw_ciphertext(
+///     &glwe_secret_key,
 ///     &glwe_secret_key,
 ///     &mut ggsw,
 ///     cleartext,
