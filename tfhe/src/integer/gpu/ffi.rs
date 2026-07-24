@@ -111,6 +111,22 @@ fn resolve_ms_noise_reduction_config(
     )
 }
 
+/// The backend dereferences every input's device pointer on
+/// `streams.gpu_indexes[0]`, so a ciphertext uploaded to another GPU would be
+/// an illegal cross-device access.
+fn assert_all_inputs_are_on_same_gpu<C: CudaIntegerRadixCiphertext>(
+    streams: &CudaStreams,
+    inputs: &[C],
+) {
+    for input in inputs {
+        assert_eq!(
+            streams.gpu_indexes[0],
+            input.as_ref().d_blocks.0.d_vec.gpu_index(0),
+            "GPU error: all data should reside on the same GPU."
+        );
+    }
+}
+
 pub(crate) fn prepare_default_scalar_divisor() -> CudaScalarDivisorFFI {
     CudaScalarDivisorFFI {
         decomposed_chosen_multiplier: std::ptr::null(),
@@ -8602,6 +8618,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains<
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], value.d_blocks.0.d_vec.gpu_index(0));
+    assert_all_inputs_are_on_same_gpu(streams, inputs);
 
     let num_inputs = u32::try_from(inputs.len()).unwrap();
     let num_blocks = u32::try_from(value.d_blocks.lwe_ciphertext_count().0).unwrap();
@@ -8710,12 +8727,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
     let bsk_params = bsk.params_ffi();
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
-    if !inputs.is_empty() {
-        assert_eq!(
-            streams.gpu_indexes[0],
-            inputs[0].as_ref().d_blocks.0.d_vec.gpu_index(0)
-        );
-    }
+    assert_all_inputs_are_on_same_gpu(streams, inputs);
 
     let num_inputs = u32::try_from(inputs.len()).unwrap();
     let num_blocks = u32::try_from(inputs[0].as_ref().d_blocks.lwe_ciphertext_count().0).unwrap();
@@ -9161,6 +9173,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
     let bsk_params = bsk.params_ffi();
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
+    assert_all_inputs_are_on_same_gpu(streams, inputs);
 
     let num_inputs = u32::try_from(inputs.len()).unwrap();
     let num_blocks = u32::try_from(inputs[0].as_ref().d_blocks.lwe_ciphertext_count().0).unwrap();
@@ -9291,6 +9304,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], value.d_blocks.0.d_vec.gpu_index(0));
+    assert_all_inputs_are_on_same_gpu(streams, inputs);
 
     let num_inputs = u32::try_from(inputs.len()).unwrap();
     let num_blocks = u32::try_from(value.d_blocks.lwe_ciphertext_count().0).unwrap();
@@ -9420,6 +9434,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of<
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], value.d_blocks.0.d_vec.gpu_index(0));
+    assert_all_inputs_are_on_same_gpu(streams, inputs);
 
     let num_inputs = u32::try_from(inputs.len()).unwrap();
     let num_blocks = u32::try_from(value.d_blocks.lwe_ciphertext_count().0).unwrap();
@@ -9549,6 +9564,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
     let bsk_params = bsk.params_ffi();
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
+    assert_all_inputs_are_on_same_gpu(streams, inputs);
 
     let num_inputs = u32::try_from(inputs.len()).unwrap();
     let num_blocks_in_ct =
@@ -9684,6 +9700,8 @@ pub(crate) unsafe fn cuda_backend_unchecked_all_eq_slices<
     let bsk_params = bsk.params_ffi();
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
+    assert_all_inputs_are_on_same_gpu(streams, lhs);
+    assert_all_inputs_are_on_same_gpu(streams, rhs);
 
     let num_inputs = u32::try_from(lhs.len()).unwrap();
     let num_blocks = u32::try_from(lhs[0].as_ref().d_blocks.lwe_ciphertext_count().0).unwrap();
@@ -9815,6 +9833,8 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_sub_slice<
     let bsk_params = bsk.params_ffi();
     assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
+    assert_all_inputs_are_on_same_gpu(streams, lhs);
+    assert_all_inputs_are_on_same_gpu(streams, rhs);
 
     let num_inputs_lhs = u32::try_from(lhs.len()).unwrap();
     let num_inputs_rhs = u32::try_from(rhs.len()).unwrap();

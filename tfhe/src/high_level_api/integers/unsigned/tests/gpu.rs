@@ -463,6 +463,18 @@ fn test_ilog2_multibit() {
 }
 
 #[test]
+fn test_ilog2_one_block_gpu() {
+    let client_key = setup_classical_gpu();
+    super::test_case_ilog2_one_block(&client_key);
+}
+
+#[test]
+fn test_ilog2_one_block_gpu_multibit() {
+    let client_key = setup_multibit_gpu();
+    super::test_case_ilog2_one_block(&client_key);
+}
+
+#[test]
 fn test_min_max() {
     let client_key = setup_classical_gpu();
     super::test_case_min_max(&client_key);
