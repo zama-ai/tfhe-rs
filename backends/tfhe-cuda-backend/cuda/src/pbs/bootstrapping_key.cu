@@ -475,6 +475,47 @@ void cuda_forward_fft16x4x16_async(void *stream_v, uint32_t gpu_index,
   check_cuda_error(cudaGetLastError());
 }
 
+// Test-only entry point: inverse-only negacyclic FFT driven by the
+// throughput-oriented FFT16x4x16 core (the inverse transform used by the
+// specialized 2_2_params PBS). Hardcoded to polynomial_size == 2048 and
+// requires sm_90 (H100); callers must gate accordingly. The clean inverse of
+// cuda_forward_fft16x4x16_async: it consumes natural-order input and writes the
+// time-domain result in NATURAL order — see batch_backward_fft16x4x16.
+void cuda_backward_fft16x4x16_async(void *stream_v, uint32_t gpu_index,
+                                    void const *_input, void *_output,
+                                    uint32_t polynomial_size,
+                                    uint32_t total_polynomials) {
+
+  if (polynomial_size != 2048)
+    PANIC("cuda_backward_fft16x4x16_async only supports polynomial_size == "
+          "2048");
+
+  auto stream = static_cast<cudaStream_t>(stream_v);
+  cuda_set_device(gpu_index);
+  auto input = (const double2 *)_input;
+  auto output = (double2 *)_output;
+
+  using params = AccumulatorDegree<2048>;
+  size_t shared_memory_size = FFT16x4x16_DUAL_SMEM_BYTES;
+
+  int gridSize = total_polynomials;
+  int blockSize = polynomial_size / params::opt; // 64
+
+  check_cuda_error(cudaFuncSetAttribute(
+      batch_backward_fft16x4x16<params>,
+      cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
+  check_cuda_error(
+      cudaFuncSetAttribute(batch_backward_fft16x4x16<params>,
+                           cudaFuncAttributePreferredSharedMemoryCarveout,
+                           cudaSharedmemCarveoutMaxShared));
+  check_cuda_error(cudaFuncSetCacheConfig(batch_backward_fft16x4x16<params>,
+                                          cudaFuncCachePreferShared));
+
+  batch_backward_fft16x4x16<params>
+      <<<gridSize, blockSize, shared_memory_size, stream>>>(input, output);
+  check_cuda_error(cudaGetLastError());
+}
+
 bool cuda_fft16x4x16_is_supported_async(uint32_t gpu_index) {
   cudaDeviceProp prop;
   cudaError_t err = cudaGetDeviceProperties(&prop, gpu_index);
