@@ -441,36 +441,42 @@ fn apply_keystream_2_2(
         })
     });
 
-    let pairs = keystream.par_chunks_exact(2);
-    // 0 or 1 trailing keystream ct when `keystream.len()` is odd.
-    let trailing = pairs.remainder();
+    let n = keystream.len();
+    let n_pairs = n / 2;
 
+    // Pairing an even prefix with `par_chunks` parallelizes far better than
+    // `par_chunks_exact(...).chain(trailing)`: the chained parallel iterators split
+    // ~10x worse on high-core machines, leaving most cores idle. The odd trailing
+    // ciphertext (when `n` is odd) is handled separately below.
+    //
     // Pair `i` consumes input bits 2i and 2i+1 (LSB-first across bytes), and
     // produces one 2-bit XOR'd ciphertext via a single bivariate PBS.
     // Example:
     // keystream (2 lwe 2_2 encoded): 0000a 0000b
     // user input bits (plaintext)  :     x     y
     // output (1 lwe 2_2 encoded)   : 000(b^y)(a^x)
-    let pairs_iter = pairs.enumerate().map(|(i, keystream)| {
-        let lo_idx = 2 * i;
-        let hi_idx = 2 * i + 1;
-        let i_lo = bit_at(input_stream, lo_idx);
-        let i_hi = bit_at(input_stream, hi_idx);
-        let s = (i_lo | (i_hi << 1)) as usize;
-        sks.unchecked_apply_lookup_table_bivariate(&keystream[0], &keystream[1], &luts[s])
-    });
+    let mut out: Vec<Ciphertext> = keystream[..2 * n_pairs]
+        .par_chunks(2)
+        .enumerate()
+        .map(|(i, pair)| {
+            let i_lo = bit_at(input_stream, 2 * i);
+            let i_hi = bit_at(input_stream, 2 * i + 1);
+            let s = (i_lo | (i_hi << 1)) as usize;
+            sks.unchecked_apply_lookup_table_bivariate(&pair[0], &pair[1], &luts[s])
+        })
+        .collect();
 
-    // Odd keystream length: one PBS for the trailing bit
-    let trailing_iter = trailing.par_iter().map(|last_keystream| {
-        let last_idx = keystream.len() - 1;
+    // Odd keystream length: one PBS for the trailing bit.
+    if n % 2 == 1 {
+        let last_idx = n - 1;
         let s = bit_at(input_stream, last_idx) as u64;
         let trailing_lut = sks.generate_lookup_table(move |t| (t & 1) ^ s);
-        let mut last = last_keystream.clone();
+        let mut last = keystream[last_idx].clone();
         sks.apply_lookup_table_assign(&mut last, &trailing_lut);
-        last
-    });
+        out.push(last);
+    }
 
-    pairs_iter.chain(trailing_iter).collect()
+    out
 }
 
 /// Generic param-agnostic transcipher, usable as a fallback for any
