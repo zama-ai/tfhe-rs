@@ -44,7 +44,7 @@ impl AesBlockCipher for ArmAesBlockCipher {
         ) -> [u8; BYTES_PER_BATCH] {
             let mut output = [0u8; BYTES_PER_BATCH];
             // We want 128 bytes of output, the ctr gives 128 bit message (16 bytes)
-            for (input, out) in data.iter().copied().zip(output.chunks_exact_mut(16)) {
+            for (input, out) in data.iter().copied().zip(output.as_chunks_mut::<16>().0) {
                 // Safe because we prevent the user from creating the Generator
                 // on non-supported hardware
                 let encrypted = encrypt(input, &this.round_keys);
