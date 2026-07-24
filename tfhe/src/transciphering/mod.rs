@@ -49,6 +49,9 @@
 pub mod backward_compatibility;
 pub mod ciphers;
 
+#[cfg(test)]
+mod fast_compress_spike;
+
 pub use ciphers::aes::{
     AesFheKey, AesFheRoundKeys, AesFheState, AesIv, AesPlainKey, AesPlainState,
 };
