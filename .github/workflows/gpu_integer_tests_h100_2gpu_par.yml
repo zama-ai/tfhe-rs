@@ -1,5 +1,5 @@
-# Compile and test tfhe-cuda-backend on an H100 VM on hyperstack
-name: gpu_hlapi_h100_tests
+# Run signed and unsigned integer GPU tests in parallel on a 2xH100 machine
+name: gpu_integer_tests_h100_2gpu_par
 
 env:
   CARGO_TERM_COLOR: always
@@ -15,12 +15,13 @@ env:
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
   PULL_REQUEST_MD_LINK: ""
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
-  # Secrets will be available only to zama-ai organization members
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
   EXTERNAL_CONTRIBUTION_RUNNER: "gpu_ubuntu-22.04"
 
 on:
   workflow_dispatch:
+  pull_request:
+    types: [ labeled, opened, synchronize ]
 
 permissions:
   contents: read
@@ -29,10 +30,10 @@ permissions:
 
 jobs:
   should-run:
-    name: gpu_hlapi_h100_tests/should-run
+    name: gpu_integer_tests_h100_2gpu_par/should-run
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read  # Needed to check for file change
+      pull-requests: read
     outputs:
       gpu_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.gpu_any_changed }}
       core_crypto_changed: ${{ steps.changed-files.outputs.core_crypto_any_changed }}
@@ -54,22 +55,22 @@ jobs:
               - tfhe/build.rs
               - backends/tfhe-cuda-backend/**
               - tfhe/src/core_crypto/gpu/**
-              - tfhe/src/integer/gpu/**
               - tfhe/src/integer/server_key/radix_parallel/tests_unsigned/**
               - tfhe/src/integer/server_key/radix_parallel/tests_signed/**
               - tfhe/src/integer/server_key/radix_parallel/tests_cases_unsigned.rs
+              - tfhe/src/integer/gpu/**
               - tfhe/src/shortint/parameters/**
               - tfhe/src/high_level_api/**
               - tfhe/src/c_api/**
-              - 'tfhe/docs/**/**.md'
-              - '.github/workflows/gpu_hlapi_h100_tests.yml'
+              - '.github/workflows/gpu_integer_tests_h100_2gpu_par.yml'
+              - scripts/integer-tests.sh
               - '.github/actions/gpu_setup/action.yml'
               - ci/slab.toml
             core_crypto:
               - tfhe/src/core_crypto/gpu/**
 
   setup-instance:
-    name: gpu_hlapi_h100_tests/setup-instance
+    name: gpu_integer_tests_h100_2gpu_par/setup-instance
     needs: should-run
     if: github.event_name != 'pull_request' ||
       (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true') ||
@@ -89,9 +90,8 @@ jobs:
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: terraform
-          profile: scaleway-single-h100-tests
+          profile: scaleway-2-h100-sxm5-tests
 
-      # This instance will be spawned especially for pull-request from forked repository
       - name: Start GitHub instance
         id: start-github-instance
         if: env.SECRETS_AVAILABLE == 'false'
@@ -102,7 +102,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   cuda-tests-linux:
-    name: gpu_hlapi_h100_tests/cuda-tests-linux
+    name: gpu_integer_tests_h100_2gpu_par/cuda-tests-linux
     needs: [ should-run, setup-instance ]
     if: github.event_name != 'pull_request' ||
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
@@ -112,12 +112,11 @@ jobs:
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
       fail-fast: false
-      # explicit include-based build matrix, of known valid options
       matrix:
         include:
           - os: ubuntu-22.04
             cuda: "12.8 12.2"
-            gcc: 12 
+            gcc: 12
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -136,24 +135,32 @@ jobs:
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
           toolchain: stable
+
       - name: Enable nvidia multi-process service
         run: |
           nvidia-cuda-mps-control -d
-      
-      - name: Run user docs tests
-        run: |
-          BIG_TESTS_INSTANCE=TRUE make test_user_doc_gpu
 
-      - name: Test C API
-        run: |
-          BIG_TESTS_INSTANCE=TRUE make test_c_api_gpu
+      - name: Install cargo-nextest
+        run: make install_cargo_nextest
 
-      - name: Run High Level API Tests
+      - name: Run signed and unsigned integer multi-bit tests in parallel
         run: |
-          BIG_TESTS_INSTANCE=TRUE make test_high_level_api_gpu
+          CUDA_VISIBLE_DEVICES=0 BIG_TESTS_INSTANCE=TRUE make test_signed_integer_multi_bit_gpu_ci \
+            > /tmp/gpu0.log 2>&1 &
+          PID0=$!
+          CUDA_VISIBLE_DEVICES=1 BIG_TESTS_INSTANCE=TRUE make test_unsigned_integer_multi_bit_gpu_ci \
+            > /tmp/gpu1.log 2>&1 &
+          PID1=$!
+          wait $PID0; RC0=$?
+          wait $PID1; RC1=$?
+          echo "=== GPU 0: signed integer ==="
+          cat /tmp/gpu0.log
+          echo "=== GPU 1: unsigned integer ==="
+          cat /tmp/gpu1.log
+          [ $RC0 -eq 0 ] && [ $RC1 -eq 0 ]
 
   slack-notify:
-    name: gpu_hlapi_h100_tests/slack-notify
+    name: gpu_integer_tests_h100_2gpu_par/slack-notify
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
     if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' && failure() }}
@@ -172,10 +179,10 @@ jobs:
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
           SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
-          SLACK_MESSAGE: "HL API H100 tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
+          SLACK_MESSAGE: "Integer GPU H100 2-GPU parallel tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: gpu_hlapi_h100_tests/teardown-instance
+    name: gpu_integer_tests_h100_2gpu_par/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
@@ -196,4 +203,4 @@ jobs:
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cuda-h100-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (gpu_integer_tests_h100_2gpu_par) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
