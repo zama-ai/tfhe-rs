@@ -212,8 +212,6 @@ instance_type = "H100-1-80G"
 user = "ubuntu"
 fallbacks = [
     "hyperstack.single-h100",
-    "terraform.scaleway-2-h100-sxm5",
-    "terraform.scaleway-4-h100-sxm5",
 ]
 
 [backend.terraform.scaleway-4-l40]
