@@ -15,6 +15,12 @@ members = [
     "tfhe-ntt",
     "tfhe-zk-pok",
     "utils/benchmark_spec",
+    "utils/fuzz/corpusgen",
+    "utils/fuzz/fuzz-stats",
+    "utils/fuzz/fuzz-utils",
+    "utils/fuzz/harness-compute",
+    "utils/fuzz/harness-deser",
+    "utils/fuzz/harness-verify",
     "utils/param_dedup",
     "utils/tfhe-benchmark-parser",
     "utils/tfhe-backward-compat-checker",
@@ -50,6 +56,7 @@ pulp = { version = "0.22", default-features = false }
 rand = "0.8"
 rayon = "1.11"
 serde = { version = "1.0", default-features = false }
+serde_json = "1.0.150"
 wasm-bindgen = { version = "0.2.114" }
 wasm-bindgen-futures = { version = "0.4.56" }
 # js-sys (at this point in time) automatically enables the unsafe-eval feature which we do not want

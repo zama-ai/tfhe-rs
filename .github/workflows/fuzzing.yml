@@ -1,0 +1,132 @@
+# Weekly AFL++ fuzzing campaign for ProvenCompactCiphertextList.
+# Runs on the internal mirror only, the public repo skips every job.
+name: fuzzing
+
+env:
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration-seconds:
+        # Fuzzing time only, not total wall-time.
+        description: 'Campaign duration in seconds'
+        default: '14400'
+        required: false
+  schedule:
+    # Saturday 01:00 UTC.
+    - cron: '0 1 * * 6'
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow_ref }}
+  # Don't kill a running campaign when a new one is queued.
+  cancel-in-progress: false
+
+jobs:
+  setup-instance:
+    name: fuzzing/setup-instance
+    # Skip on the public repo so fuzz logs are not exposed publicly.
+    if: github.repository != 'zama-ai/tfhe-rs'
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+    steps:
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@86c9d2378700ca356455e36ebb97b61e958ea47b # v1.6.2
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: aws
+          profile: bench
+
+  fuzz:
+    name: fuzzing/run-campaign
+    needs: setup-instance
+    if: needs.setup-instance.result == 'success'
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    # 8h: covers a 4h campaign + build (~30m) + postcampaign (~30m) with headroom.
+    timeout-minutes: 480
+    env:
+      FUZZ_DURATION_SECONDS: ${{ inputs['duration-seconds'] }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        with:
+          toolchain: stable
+
+      - name: Install cargo-afl
+        run: make install_cargo_afl
+
+      - name: Configure AFL kernel settings
+        run: make fuzz_system_config
+
+      - name: Build harnesses and seed corpus
+        run: make fuzz_precampaign
+
+      - name: Run campaign
+        run: make fuzz_run
+
+      - name: Run postcampaign processing
+        run: make fuzz_postcampaign
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-results-${{ github.run_id }}
+          path: |
+            utils/fuzz/stored_crashes/
+            utils/fuzz/aux_data/
+            utils/fuzz/summary.md
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Build Slack message
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./ci/build_fuzz_slack_message.sh
+
+      - name: Slack notification
+        # Report after every campaign.
+        if: always()
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2.4.0
+
+  teardown-instance:
+    name: fuzzing/teardown-instance
+    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    needs: [setup-instance, fuzz]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@86c9d2378700ca356455e36ebb97b61e958ea47b # v1.6.2
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack notification
+        if: ${{ failure() }}
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2.4.0
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "fuzzing teardown finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
