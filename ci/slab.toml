@@ -220,6 +220,7 @@ fallbacks = [
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
 instance_type = "L40S-4-48G"
 user = "ubuntu"
+fallbacks = [ "hyperstack.4-l40", "aws.4-l40" ]
 
 [backend.terraform.scaleway-2-l4]
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
