@@ -4,7 +4,7 @@ This document explains the `serialization` and `deserialization` features that a
 
 ## Safe serialization/deserialization
 
-When dealing with sensitive types, it's important to implement safe serialization and safe deserialization functions to prevent runtime errors and enhance security. **TFHE-rs** provide easy to use functions for this purpose, such as `safe_serialize`, `safe_deserialize` and `safe_deserialize_conformant`.
+When dealing with sensitive types, it's important to implement safe serialization and safe deserialization functions to prevent runtime errors and enhance security. **TFHE-rs** provides easy to use functions for this purpose, such as `safe_serialize`, `safe_deserialize` and `safe_deserialize_conformant`.
 
 Here is a basic example on how to use it:
 

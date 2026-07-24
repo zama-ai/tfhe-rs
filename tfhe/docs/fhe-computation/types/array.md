@@ -2,7 +2,7 @@
 
 This document describes the array types provided by the High-level API.
 
-This new encrypted types allow you to easily perform array and tensor operations on encrypted data, taking care of the iteration and shape logic for you.
+These new encrypted types allow you to easily perform array and tensor operations on encrypted data, taking care of the iteration and shape logic for you.
 
 It also implements efficient algorithms in some cases, like summing elements of an array.
 

@@ -4,7 +4,7 @@ This document describes how to use trivial encryption in **TFHE-rs** to initiali
 
 Sometimes, the server side needs to initialize a value. For example, when computing the sum of a list of ciphertexts, you typically initialize the `sum` variable to `0`.
 
-Instead of asking the client to send an actual encrypted zero, the server can use a trivial encryption. A trivial encryption creates a ciphertext that contains the desired value but isn't securely encrypted - essentially anyone, any key can decrypt it.
+Instead of asking the client to send an actual encrypted zero, the server can use a trivial encryption. A trivial encryption creates a ciphertext that contains the desired value but isn't securely encrypted - essentially anyone with any key can decrypt it.
 
 ```rust
 use tfhe::prelude::*;

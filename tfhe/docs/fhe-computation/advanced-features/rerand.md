@@ -1,8 +1,6 @@
 # Ciphertext Re-Randomization
 
-In the paper [Drifting Towards Better Error Probabilities in Fully Homomorphic Encryption Schemes](https://eprint.iacr.org/2024/1718), Bernard et al. introduced the sIND-CPA^D security model (`s` stands for strong here).
-
-This document explains the ciphertext re-randomization feature in TFHE-rs, designed to protect FHE computations against attacks under the sIND-CPA^D security model.
+This document explains the ciphertext re-randomization feature in TFHE-rs, designed to protect FHE computations against attacks under the sIND-CPA^D security model (`s` stands for strong), described in the paper [Drifting Towards Better Error Probabilities in Fully Homomorphic Encryption Schemes](https://eprint.iacr.org/2024/1718).
 
 To be secure under that model, **TFHE-rs** provides a re-randomization primitive that allows users to re-randomize ciphertexts before they are used as inputs to a predefined FHE program `F`. In this context, `F` should be understood as any FHE computation that must remain secure under the sIND-CPA^D model. All encrypted inputs to `F` must be re-randomized prior to execution.
 
