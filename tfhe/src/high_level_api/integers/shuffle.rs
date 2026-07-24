@@ -144,9 +144,7 @@ mod test {
     use std::fmt::Debug;
 
     #[cfg(feature = "gpu")]
-    fn is_sanitizer_run() -> bool {
-        std::env::var("TFHE_RS_COMPUTE_SANITIZER").is_ok_and(|v| v == "1")
-    }
+    use crate::high_level_api::tests::is_sanitizer_run;
 
     #[test]
     fn test_bitonic_shuffle_fheuint() {

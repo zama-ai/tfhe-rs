@@ -626,6 +626,8 @@ impl CompressedSquashedNoiseCiphertextListBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "gpu")]
+    use crate::high_level_api::tests::is_sanitizer_run;
     use crate::prelude::*;
     use crate::safe_serialization::{safe_deserialize, safe_serialize};
     use crate::shortint::parameters::current_params::*;
@@ -754,6 +756,10 @@ mod tests {
     #[test]
     #[cfg(feature = "gpu")]
     fn test_gpu_compressed_squashed_noise_ciphertext_list_multibit() {
+        if is_sanitizer_run() {
+            return;
+        }
+
         let params = V1_7_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let noise_squashing_params =
             V1_7_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;

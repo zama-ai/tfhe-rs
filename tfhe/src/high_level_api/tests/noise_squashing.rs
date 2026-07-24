@@ -1,3 +1,5 @@
+#[cfg(feature = "gpu")]
+use super::is_sanitizer_run;
 use crate::high_level_api::prelude::*;
 use crate::high_level_api::{
     generate_keys, ConfigBuilder, FheBool, FheInt10, FheInt8, FheUint256, FheUint32,
@@ -81,10 +83,14 @@ fn test_noise_squashing() {
 #[cfg(feature = "gpu")]
 #[test]
 fn test_gpu_noise_squashing() {
-    let noise_squashing_params = [
-        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    ];
+    let noise_squashing_params = if is_sanitizer_run() {
+        vec![NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128]
+    } else {
+        vec![
+            NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ]
+    };
 
     for noise_squashing_param in noise_squashing_params {
         let config = ConfigBuilder::with_custom_parameters(
@@ -97,15 +103,16 @@ fn test_gpu_noise_squashing() {
 
         let mut rng = thread_rng();
 
-        // Non native type for clear
-        let clear: U256 = rng.gen();
-        let enc = FheUint256::encrypt(clear, &cks);
-        let bitand = &enc & &enc;
+        if !is_sanitizer_run() {
+            let clear: U256 = rng.gen();
+            let enc = FheUint256::encrypt(clear, &cks);
+            let bitand = &enc & &enc;
 
-        let squashed = bitand.squash_noise().unwrap();
+            let squashed = bitand.squash_noise().unwrap();
 
-        let recovered: U256 = squashed.decrypt(&cks);
-        assert_eq!(clear, recovered);
+            let recovered: U256 = squashed.decrypt(&cks);
+            assert_eq!(clear, recovered);
+        }
 
         // Native unsigned
         let clear: u32 = rng.gen();
