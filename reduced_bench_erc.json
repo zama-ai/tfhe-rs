@@ -1,0 +1,322 @@
+[
+  {
+    "value": 8051031023.0,
+    "test": "tfhe::hlapi::erc7984::transfer::safe::cuda::throughput::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128::FheUint64::800_elements_mean_avx512",
+    "name": "erc7984-transfer",
+    "class": "evaluate",
+    "type": "Latency",
+    "operator": "Atomic",
+    "params": {
+      "bit_size": 64,
+      "crypto_parameters_alias": "PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+      "decomposition_basis": [],
+      "execution_type": "Sequential",
+      "integer_representation": "Radix",
+      "key_set_type": "Single",
+      "operand_type": "CipherText",
+      "pbs_algorithm": null,
+      "polynomial_multiplication": "Fft"
+    },
+    "backend": "cuda"
+  },
+  {
+    "value": 18013223648.1,
+    "test": "tfhe::hlapi::erc7984::transfer::safe::cuda::throughput::V1_7_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128::FheUint64::800_elements_mean_avx512",
+    "name": "erc7984-transfer",
+    "class": "evaluate",
+    "type": "Latency",
+    "operator": "Atomic",
+    "params": {
+      "bit_size": 64,
+      "crypto_parameters_alias": "V1_7_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+      "decomposition_basis": [],
+      "execution_type": "Sequential",
+      "integer_representation": "Radix",
+      "key_set_type": "Single",
+      "operand_type": "CipherText",
+      "pbs_algorithm": null,
+      "polynomial_multiplication": "Fft"
+    },
+    "backend": "cuda"
+  },
+  {
+    "value": 25168626.18840278,
+    "test": "tfhe::hlapi::erc7984::transfer::safe::cuda::V1_7_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128::FheUint64_mean_avx512",
+    "name": "erc7984-transfer",
+    "class": "evaluate",
+    "type": "Latency",
+    "operator": "Atomic",
+    "params": {
+      "bit_size": 64,
+      "crypto_parameters_alias": "V1_7_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+      "decomposition_basis": [],
+      "execution_type": "Sequential",
+      "integer_representation": "Radix",
+      "key_set_type": "Single",
+      "operand_type": "CipherText",
+      "pbs_algorithm": null,
+      "polynomial_multiplication": "Fft"
+    },
+    "backend": "cuda"
+  },
+  {
+    "value": 14959040909.4,
+    "test": "tfhe::hlapi::erc7984::transfer::overflow::cuda::throughput::V1_7_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128::FheUint64::800_elements_mean_avx512",
+    "name": "erc7984-transfer",
+    "class": "evaluate",
+    "type": "Latency",
+    "operator": "Atomic",
+    "params": {
+      "bit_size": 64,
+      "crypto_parameters_alias": "V1_7_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+      "decomposition_basis": [],
+      "execution_type": "Sequential",
+      "integer_representation": "Radix",
+      "key_set_type": "Single",
+      "operand_type": "CipherText",
+      "pbs_algorithm": null,
+      "polynomial_multiplication": "Fft"
+    },
+    "backend": "cuda"
+  },
+  {
+    "value": 51494213.631071426,
+    "test": "tfhe::hlapi::erc7984::transfer::no_cmux::cuda::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128::FheUint64_mean_avx512",
+    "name": "erc7984-transfer",
+    "class": "evaluate",
+    "type": "Latency",
+    "operator": "Atomic",
+    "params": {
+      "bit_size": 64,
+      "crypto_parameters_alias": "PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+      "decomposition_basis": [],
+      "execution_type": "Sequential",
+      "integer_representation": "Radix",
+      "key_set_type": "Single",
+      "operand_type": "CipherText",
+      "pbs_algorithm": null,
+      "polynomial_multiplication": "Fft"
+    },
+    "backend": "cuda"
+  },
+  {
+    "value": 51214500.334841266,
+    "test": "tfhe::hlapi::erc7984::transfer::overflow::cuda::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128::FheUint64_mean_avx512",
+    "name": "erc7984-transfer",
+    "class": "evaluate",
+    "type": "Latency",
+    "operator": "Atomic",
+    "params": {
+      "bit_size": 64,
+      "crypto_parameters_alias": "PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+      "decomposition_basis": [],
+      "execution_type": "Sequential",
+      "integer_representation": "Radix",
+      "key_set_type": "Single",
+      "operand_type": "CipherText",
+      "pbs_algorithm": null,
+      "polynomial_multiplication": "Fft"
+    },
+    "backend": "cuda"
+  },
+  {
+    "value": 13110057433.8,
+    "test": "tfhe::hlapi::erc7984::transfer::no_cmux::cuda::throughput::V1_7_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128::FheUint64::800_elements_mean_avx512",
+    "name": "erc7984-transfer",
+    "class": "evaluate",
+    "type": "Latency",
+    "operator": "Atomic",
+    "params": {
+      "bit_size": 64,
+      "crypto_parameters_alias": "V1_7_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+      "decomposition_basis": [],
+      "execution_type": "Sequential",
+      "integer_representation": "Radix",
+      "key_set_type": "Single",
+      "operand_type": "CipherText",
+      "pbs_algorithm": null,
+      "polynomial_multiplication": "Fft"
+    },
+    "backend": "cuda"
+  },
+  {
+    "value": 6717586727.0,
+    "test": "tfhe::hlapi::erc7984::transfer::overflow::cuda::throughput::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128::FheUint64::800_elements_mean_avx512",
+    "name": "erc7984-transfer",
+    "class": "evaluate",
+    "type": "Latency",
+    "operator": "Atomic",
+    "params": {
+      "bit_size": 64,
+      "crypto_parameters_alias": "PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+      "decomposition_basis": [],
+      "execution_type": "Sequential",
+      "integer_representation": "Radix",
+      "key_set_type": "Single",
+      "operand_type": "CipherText",
+      "pbs_algorithm": null,
+      "polynomial_multiplication": "Fft"
+    },
+    "backend": "cuda"
+  },
+  {
+    "value": 6161380372.6,
+    "test": "tfhe::hlapi::erc7984::transfer::no_cmux::cuda::throughput::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128::FheUint64::800_elements_mean_avx512",
+    "name": "erc7984-transfer",
+    "class": "evaluate",
+    "type": "Latency",
+    "operator": "Atomic",
+    "params": {
+      "bit_size": 64,
+      "crypto_parameters_alias": "PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+      "decomposition_basis": [],
+      "execution_type": "Sequential",
+      "integer_representation": "Radix",
+      "key_set_type": "Single",
+      "operand_type": "CipherText",
+      "pbs_algorithm": null,
+      "polynomial_multiplication": "Fft"
+    },
+    "backend": "cuda"
+  },
+  {
+    "value": 58201762.22450397,
+    "test": "tfhe::hlapi::erc7984::transfer::whitepaper::cuda::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128::FheUint64_mean_avx512",
+    "name": "erc7984-transfer",
+    "class": "evaluate",
+    "type": "Latency",
+    "operator": "Atomic",
+    "params": {
+      "bit_size": 64,
+      "crypto_parameters_alias": "PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+      "decomposition_basis": [],
+      "execution_type": "Sequential",
+      "integer_representation": "Radix",
+      "key_set_type": "Single",
+      "operand_type": "CipherText",
+      "pbs_algorithm": null,
+      "polynomial_multiplication": "Fft"
+    },
+    "backend": "cuda"
+  },
+  {
+    "value": 26534990.630644847,
+    "test": "tfhe::hlapi::erc7984::transfer::overflow::cuda::V1_7_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128::FheUint64_mean_avx512",
+    "name": "erc7984-transfer",
+    "class": "evaluate",
+    "type": "Latency",
+    "operator": "Atomic",
+    "params": {
+      "bit_size": 64,
+      "crypto_parameters_alias": "V1_7_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+      "decomposition_basis": [],
+      "execution_type": "Sequential",
+      "integer_representation": "Radix",
+      "key_set_type": "Single",
+      "operand_type": "CipherText",
+      "pbs_algorithm": null,
+      "polynomial_multiplication": "Fft"
+    },
+    "backend": "cuda"
+  },
+  {
+    "value": 30555012.04875661,
+    "test": "tfhe::hlapi::erc7984::transfer::whitepaper::cuda::V1_7_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128::FheUint64_mean_avx512",
+    "name": "erc7984-transfer",
+    "class": "evaluate",
+    "type": "Latency",
+    "operator": "Atomic",
+    "params": {
+      "bit_size": 64,
+      "crypto_parameters_alias": "V1_7_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+      "decomposition_basis": [],
+      "execution_type": "Sequential",
+      "integer_representation": "Radix",
+      "key_set_type": "Single",
+      "operand_type": "CipherText",
+      "pbs_algorithm": null,
+      "polynomial_multiplication": "Fft"
+    },
+    "backend": "cuda"
+  },
+  {
+    "value": 25936516.560873013,
+    "test": "tfhe::hlapi::erc7984::transfer::no_cmux::cuda::V1_7_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128::FheUint64_mean_avx512",
+    "name": "erc7984-transfer",
+    "class": "evaluate",
+    "type": "Latency",
+    "operator": "Atomic",
+    "params": {
+      "bit_size": 64,
+      "crypto_parameters_alias": "V1_7_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+      "decomposition_basis": [],
+      "execution_type": "Sequential",
+      "integer_representation": "Radix",
+      "key_set_type": "Single",
+      "operand_type": "CipherText",
+      "pbs_algorithm": null,
+      "polynomial_multiplication": "Fft"
+    },
+    "backend": "cuda"
+  },
+  {
+    "value": 40983973.544034384,
+    "test": "tfhe::hlapi::erc7984::transfer::safe::cuda::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128::FheUint64_mean_avx512",
+    "name": "erc7984-transfer",
+    "class": "evaluate",
+    "type": "Latency",
+    "operator": "Atomic",
+    "params": {
+      "bit_size": 64,
+      "crypto_parameters_alias": "PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+      "decomposition_basis": [],
+      "execution_type": "Sequential",
+      "integer_representation": "Radix",
+      "key_set_type": "Single",
+      "operand_type": "CipherText",
+      "pbs_algorithm": null,
+      "polynomial_multiplication": "Fft"
+    },
+    "backend": "cuda"
+  },
+  {
+    "value": 7235667370.1,
+    "test": "tfhe::hlapi::erc7984::transfer::whitepaper::cuda::throughput::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128::FheUint64::800_elements_mean_avx512",
+    "name": "erc7984-transfer",
+    "class": "evaluate",
+    "type": "Latency",
+    "operator": "Atomic",
+    "params": {
+      "bit_size": 64,
+      "crypto_parameters_alias": "PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+      "decomposition_basis": [],
+      "execution_type": "Sequential",
+      "integer_representation": "Radix",
+      "key_set_type": "Single",
+      "operand_type": "CipherText",
+      "pbs_algorithm": null,
+      "polynomial_multiplication": "Fft"
+    },
+    "backend": "cuda"
+  },
+  {
+    "value": 15807346967.3,
+    "test": "tfhe::hlapi::erc7984::transfer::whitepaper::cuda::throughput::V1_7_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128::FheUint64::800_elements_mean_avx512",
+    "name": "erc7984-transfer",
+    "class": "evaluate",
+    "type": "Latency",
+    "operator": "Atomic",
+    "params": {
+      "bit_size": 64,
+      "crypto_parameters_alias": "V1_7_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+      "decomposition_basis": [],
+      "execution_type": "Sequential",
+      "integer_representation": "Radix",
+      "key_set_type": "Single",
+      "operand_type": "CipherText",
+      "pbs_algorithm": null,
+      "polynomial_multiplication": "Fft"
+    },
+    "backend": "cuda"
+  }
+]
