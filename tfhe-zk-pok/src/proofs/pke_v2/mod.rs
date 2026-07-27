@@ -658,7 +658,7 @@ impl CompactPkeV2ProofConformanceParams {
         }
     }
 
-    /// Forbid proofs coming with the provided [`ZkComputeLoad`]
+    /// Forbid proofs coming with the provided [`ComputeLoad`]
     pub fn forbid_compute_load(self, forbidden_compute_load: ComputeLoad) -> Self {
         let mut accepted_compute_load = self.accepted_compute_load;
         accepted_compute_load.remove(forbidden_compute_load);
@@ -669,7 +669,7 @@ impl CompactPkeV2ProofConformanceParams {
         }
     }
 
-    /// Forbid proofs coming with the provided [`ZkPkeV2SupportedHashConfig`]
+    /// Forbid proofs coming with the provided [`PkeV2SupportedHashConfig`]
     pub fn forbid_hash_config(self, forbidden_hash_config: PkeV2SupportedHashConfig) -> Self {
         let mut accepted_hash_config = self.accepted_hash_config;
         accepted_hash_config.remove(forbidden_hash_config);

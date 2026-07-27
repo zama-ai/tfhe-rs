@@ -1571,6 +1571,17 @@ lint_doc: install_rs_check_toolchain
 .PHONY: lint_docs # Build rust doc with linting enabled alias for lint_doc
 lint_docs: lint_doc
 
+.PHONY: lint_doc_zk_pok # Build rust doc for tfhe-zk-pok with linting enabled
+lint_doc_zk_pok: install_rs_check_toolchain
+	@# Even though we are not in docs.rs, this allows to "just" build the doc
+	DOCS_RS=1 \
+	RUSTDOCFLAGS="--html-in-header katex-header.html -Dwarnings" \
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
+		--all-features --no-deps -p tfhe-zk-pok
+
+.PHONY: lint_docs_zk_pok # Build rust doc for tfhe-zk-pok with linting enabled, alias for lint_doc_zk_pok
+lint_docs_zk_pok: lint_doc_zk_pok
+
 .PHONY: format_doc_latex # Format the documentation latex equations to avoid broken rendering.
 format_doc_latex:
 	RUSTFLAGS="" cargo xtask format-latex-doc
@@ -2560,6 +2571,7 @@ pcc_batch_6:
 	$(call run_recipe_with_details,clippy_tfhe_csprng)
 	$(call run_recipe_with_details,clippy_zk_pok)
 	$(call run_recipe_with_details,clippy_zk_pok_wasm)
+	$(call run_recipe_with_details,lint_doc_zk_pok)
 	$(call run_recipe_with_details,clippy_trivium)
 	$(call run_recipe_with_details,clippy_forward_compat)
 	$(call run_recipe_with_details,clippy_versionable)
