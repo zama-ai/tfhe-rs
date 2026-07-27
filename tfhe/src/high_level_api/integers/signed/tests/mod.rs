@@ -1,5 +1,8 @@
 use crate::prelude::*;
-use crate::{ClientKey, FheBool, FheInt16, FheInt32, FheInt64, FheInt8, FheUint64, FheUint8};
+use crate::{
+    ClientKey, FheBool, FheInt16, FheInt32, FheInt64, FheInt8, FheUint16, FheUint32, FheUint64,
+    FheUint8,
+};
 use rand::prelude::*;
 
 mod cpu;
@@ -586,4 +589,145 @@ fn test_case_int16_fused_mul_div(cks: &ClientKey) {
             assert_eq!(decrypted, expected);
         }
     }
+}
+
+pub(super) fn test_case_div_compare_multiwidth(cks: &ClientKey) {
+    macro_rules! run_for_type {
+        ($FheT:ty, $clear:ty, $wide:ty, $scalar:ty) => {{
+            let mut rng = rand::thread_rng();
+
+            let clear_a: $clear = rng.gen();
+            let clear_b: $clear = loop {
+                let v: $clear = rng.gen();
+                if v != 0 {
+                    break v;
+                }
+            };
+            let clear_c: $scalar = loop {
+                let v: $scalar = rng.gen();
+                if v != 0 {
+                    break v;
+                }
+            };
+
+            let a = <$FheT>::try_encrypt(clear_a, cks).unwrap();
+            let b = <$FheT>::try_encrypt(clear_b, cks).unwrap();
+
+            let type_name = stringify!($FheT);
+            println!("{type_name}: a={clear_a:?}, b={clear_b:?}, c={clear_c:?}");
+
+            {
+                let c = &a / &b;
+                let decrypted: $clear = c.decrypt(cks);
+                assert_eq!(decrypted, clear_a.wrapping_div(clear_b), "{type_name} enc div");
+                println!("  enc {clear_a:?} / {clear_b:?} = {decrypted:?}");
+
+                let c = &a % &b;
+                let decrypted: $clear = c.decrypt(cks);
+                assert_eq!(decrypted, clear_a.wrapping_rem(clear_b), "{type_name} enc rem");
+                println!("  enc {clear_a:?} % {clear_b:?} = {decrypted:?}");
+            }
+
+            {
+                let c = &a / clear_b;
+                let decrypted: $clear = c.decrypt(cks);
+                assert_eq!(decrypted, clear_a.wrapping_div(clear_b), "{type_name} scalar div");
+                println!("  scalar {clear_a:?} / {clear_b:?} = {decrypted:?}");
+
+                let c = &a % clear_b;
+                let decrypted: $clear = c.decrypt(cks);
+                assert_eq!(decrypted, clear_a.wrapping_rem(clear_b), "{type_name} scalar rem");
+                println!("  scalar {clear_a:?} % {clear_b:?} = {decrypted:?}");
+            }
+
+            {
+                let result = &a.eq(&b);
+                let decrypted = result.decrypt(cks);
+                assert_eq!(decrypted, clear_a == clear_b, "{type_name} enc eq");
+                println!("  enc {clear_a:?} == {clear_b:?} = {decrypted:?}");
+
+                let result = &a.ne(&b);
+                let decrypted = result.decrypt(cks);
+                assert_eq!(decrypted, clear_a != clear_b, "{type_name} enc ne");
+                println!("  enc {clear_a:?} != {clear_b:?} = {decrypted:?}");
+
+                let result = &a.lt(&b);
+                let decrypted = result.decrypt(cks);
+                assert_eq!(decrypted, clear_a < clear_b, "{type_name} enc lt");
+                println!("  enc {clear_a:?} < {clear_b:?} = {decrypted:?}");
+
+                let result = &a.le(&b);
+                let decrypted = result.decrypt(cks);
+                assert_eq!(decrypted, clear_a <= clear_b, "{type_name} enc le");
+                println!("  enc {clear_a:?} <= {clear_b:?} = {decrypted:?}");
+
+                let result = &a.gt(&b);
+                let decrypted = result.decrypt(cks);
+                assert_eq!(decrypted, clear_a > clear_b, "{type_name} enc gt");
+                println!("  enc {clear_a:?} > {clear_b:?} = {decrypted:?}");
+
+                let result = &a.ge(&b);
+                let decrypted = result.decrypt(cks);
+                assert_eq!(decrypted, clear_a >= clear_b, "{type_name} enc ge");
+                println!("  enc {clear_a:?} >= {clear_b:?} = {decrypted:?}");
+            }
+
+            {
+                let result = &a.eq(clear_b);
+                let decrypted = result.decrypt(cks);
+                assert_eq!(decrypted, clear_a == clear_b, "{type_name} scalar eq");
+                println!("  scalar {clear_a:?} == {clear_b:?} = {decrypted:?}");
+
+                let result = &a.ne(clear_b);
+                let decrypted = result.decrypt(cks);
+                assert_eq!(decrypted, clear_a != clear_b, "{type_name} scalar ne");
+                println!("  scalar {clear_a:?} != {clear_b:?} = {decrypted:?}");
+
+                let result = &a.lt(clear_b);
+                let decrypted = result.decrypt(cks);
+                assert_eq!(decrypted, clear_a < clear_b, "{type_name} scalar lt");
+                println!("  scalar {clear_a:?} < {clear_b:?} = {decrypted:?}");
+
+                let result = &a.le(clear_b);
+                let decrypted = result.decrypt(cks);
+                assert_eq!(decrypted, clear_a <= clear_b, "{type_name} scalar le");
+                println!("  scalar {clear_a:?} <= {clear_b:?} = {decrypted:?}");
+
+                let result = &a.gt(clear_b);
+                let decrypted = result.decrypt(cks);
+                assert_eq!(decrypted, clear_a > clear_b, "{type_name} scalar gt");
+                println!("  scalar {clear_a:?} > {clear_b:?} = {decrypted:?}");
+
+                let result = &a.ge(clear_b);
+                let decrypted = result.decrypt(cks);
+                assert_eq!(decrypted, clear_a >= clear_b, "{type_name} scalar ge");
+                println!("  scalar {clear_a:?} >= {clear_b:?} = {decrypted:?}");
+            }
+
+            {
+                let expected = (<$wide>::from(clear_a)
+                    .wrapping_mul(<$wide>::from(clear_b))
+                    .wrapping_div(<$wide>::from(clear_c))) as $clear;
+
+                let result = (&a).fused_mul_scalar_div(&b, clear_c);
+                let decrypted: $clear = result.decrypt(cks);
+                assert_eq!(decrypted, expected, "{type_name} fused_mul_scalar_div");
+                println!("  fused_mul_scalar_div ({clear_a:?} * {clear_b:?}) / {clear_c:?} = {decrypted:?}");
+
+                let result = (&a).fused_scalar_mul_scalar_div(clear_b as $scalar, clear_c);
+                let decrypted: $clear = result.decrypt(cks);
+                assert_eq!(decrypted, expected, "{type_name} fused_scalar_mul_scalar_div");
+                println!("  fused_scalar_mul_scalar_div ({clear_a:?} * {clear_b:?}) / {clear_c:?} = {decrypted:?}");
+            }
+        }};
+    }
+
+    run_for_type!(FheInt8, i8, i16, i8);
+    run_for_type!(FheInt16, i16, i32, i16);
+    run_for_type!(FheInt32, i32, i64, i32);
+    run_for_type!(FheInt64, i64, i128, i64);
+    run_for_type!(FheUint8, u8, u16, u8);
+    run_for_type!(FheUint16, u16, u32, u16);
+    run_for_type!(FheUint32, u32, u64, u32);
+    run_for_type!(FheUint64, u64, u128, u64);
 }
