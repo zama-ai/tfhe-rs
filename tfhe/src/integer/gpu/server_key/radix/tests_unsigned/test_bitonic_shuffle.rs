@@ -91,6 +91,89 @@ where
     bitonic_shuffle_with_keys_invalid_block_counts_test(param, executor);
 }
 
+/// A CPK of the wrong dimension must be rejected, the backend would read out of bounds.
+#[test]
+fn bitonic_shuffle_rerand_rejects_incompatible_cpk() {
+    use crate::core_crypto::gpu::CudaStreams;
+    use crate::core_crypto::prelude::LweDimension;
+    use crate::integer::ciphertext::PrfReRandomizationContext;
+    use crate::integer::gpu::ciphertext::re_randomization::CudaReRandomizationKey;
+    use crate::integer::gpu::CudaOprfServerKey;
+    use crate::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey};
+    use crate::integer::server_key::radix_parallel::bitonic_shuffle::BitonicShuffleKeySize;
+    use crate::integer::{ClientKey, CompactPrivateKey, CompactPublicKey, RadixClientKey};
+    use crate::shortint::parameters::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    use tfhe_csprng::seeders::Seed;
+
+    const NUM_DATA_BLOCKS: usize = 4;
+
+    let cks = ClientKey::new(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+    let radix_cks = RadixClientKey::from((cks.clone(), NUM_DATA_BLOCKS));
+
+    let streams = CudaStreams::new_multi_gpu();
+    let sks = CudaServerKey::new(&cks, &streams);
+
+    let oprf_priv = OprfPrivateKey::new(&cks);
+    let compressed_oprf = CompressedOprfServerKey::new(&oprf_priv, &cks).unwrap();
+    let oprf_sks = CudaOprfServerKey::decompress_from_cpu(&compressed_oprf, &streams);
+
+    // Derived compact public key, re-using the compute secret key
+    let matching_privk: CompactPrivateKey<&[u64]> = (&cks).try_into().unwrap();
+    let matching_cpk = CompactPublicKey::new(&matching_privk);
+
+    let mut smaller_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    smaller_params.encryption_lwe_dimension = LweDimension(1024);
+    let mismatched_cpk = CompactPublicKey::new(&CompactPrivateKey::new(smaller_params));
+    assert_ne!(
+        mismatched_cpk.key.key.lwe_dimension(),
+        matching_cpk.key.key.lwe_dimension(),
+        "this test needs a compact public key whose dimension differs from the compute key one"
+    );
+
+    let prf_rerand_context = PrfReRandomizationContext::default();
+    let key_size = BitonicShuffleKeySize::num_bits(32);
+
+    let data = || -> Vec<CudaUnsignedRadixCiphertext> {
+        (1..=4u64)
+            .map(|v| {
+                CudaUnsignedRadixCiphertext::from_radix_ciphertext(&radix_cks.encrypt(v), &streams)
+            })
+            .collect()
+    };
+
+    let result = sks.bitonic_shuffle_and_re_randomize(
+        &oprf_sks,
+        data(),
+        key_size,
+        Seed(0x5EEDED),
+        &CudaReRandomizationKey::DerivedCPKWithoutKeySwitch {
+            cpk: &mismatched_cpk,
+        },
+        &prf_rerand_context,
+        &streams,
+    );
+    match result {
+        Ok(_) => panic!("an incompatible compact public key must be rejected"),
+        Err(err) => assert!(
+            err.to_string().contains("Mismatched LweSize"),
+            "unexpected error: {err}"
+        ),
+    }
+
+    // The matching key must still go through
+    if let Err(err) = sks.bitonic_shuffle_and_re_randomize(
+        &oprf_sks,
+        data(),
+        key_size,
+        Seed(0x5EEDED),
+        &CudaReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk: &matching_cpk },
+        &prf_rerand_context,
+        &streams,
+    ) {
+        panic!("a matching compact public key must be accepted: {err}");
+    }
+}
+
 #[test]
 fn bitonic_shuffle_cpu_gpu_same_permutation() {
     use crate::core_crypto::gpu::CudaStreams;
