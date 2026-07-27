@@ -38,6 +38,8 @@ SANITIZER_TEST_EXCLUDES_CPU="${SANITIZER_TEST_EXCLUDES_CPU:-test_uniformity|arra
 SANITIZER_TEST_FILTER_GPU="${SANITIZER_TEST_FILTER_GPU:-high_level_api::.*gpu.*|core_crypto::.*gpu.*}"
 SANITIZER_TEST_EXCLUDES_GPU="${SANITIZER_TEST_EXCLUDES_GPU:-array|modulus_switch|3_3|noise_distribution|flip|test_uniformity}"
 SANITIZER_TEST_EXE_GLOB="${SANITIZER_TEST_EXE_GLOB:-tfhe-*}"
+SANITIZER_TEST_TIMEOUT="${SANITIZER_TEST_TIMEOUT:-1800}"
+SANITIZER_LAUNCH_TIMEOUT="${SANITIZER_LAUNCH_TIMEOUT:-600}"
 
 # Array to collect error messages for final summary
 ERROR_MESSAGES=()
@@ -112,10 +114,21 @@ if [[ "${RUN_COMPUTE_SANITIZER}" == "1" ]]; then
         [ -z "$t" ] && continue
         echo "Running compute-sanitizer on: $t"
         CS_EXIT=0
-        compute-sanitizer --tool memcheck --leak-check=full \
-            --error-exitcode=1 --target-processes=all \
-            "$EXECUTABLE" -- "$t" || CS_EXIT=$?
-        if [[ $CS_EXIT -ne 0 ]]; then
+        WEDGED=0
+        timeout -k 30 "${SANITIZER_TEST_TIMEOUT}" \
+            compute-sanitizer --tool memcheck --leak-check=full \
+            --error-exitcode=1 --launch-timeout "${SANITIZER_LAUNCH_TIMEOUT}" \
+            --target-processes=all \
+            "$EXECUTABLE" --exact "$t" > /tmp/sanitizer_output.log 2>&1 || CS_EXIT=$?
+        cat /tmp/sanitizer_output.log
+        if [[ $CS_EXIT -eq 124 || $CS_EXIT -eq 137 ]] \
+            || grep -q "No attachable process found" /tmp/sanitizer_output.log; then
+            WEDGED=1
+        fi
+        if [[ $WEDGED -ne 0 ]]; then
+            ERROR_MESSAGES+=("Compute-sanitizer timed out or lost attach on test: $t")
+            RESULT=1
+        elif [[ $CS_EXIT -ne 0 ]]; then
             ERROR_MESSAGES+=("Compute-sanitizer detected error for test: $t")
             RESULT=1
         fi
