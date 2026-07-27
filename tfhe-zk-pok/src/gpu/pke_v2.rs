@@ -1,6 +1,6 @@
 //! GPU-accelerated prove/verify for PKE v2.
 //!
-//! `prove` duplicates the logic of [`crate::proofs::pke_v2::prove_impl`] but replaces every
+//! `prove` duplicates the logic of `crate::proofs::pke_v2::prove_impl` but replaces every
 //! `multi_mul_scalar` call with the GPU-accelerated [`super::g1_msm_gpu`]
 //! / [`super::g2_msm_gpu`].  `verify` duplicates [`crate::proofs::pke_v2::verify_impl`]
 //! and the two pairing-check helpers (`pairing_check_two_steps`,
