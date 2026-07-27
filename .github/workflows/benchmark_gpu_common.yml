@@ -148,7 +148,7 @@ jobs:
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
       - name: Checkout tfhe-rs repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
           persist-credentials: 'false'
@@ -176,7 +176,7 @@ jobs:
         params_type: ${{ fromJSON(needs.prepare-matrix.outputs.params_type) }}
     steps:
       - name: Checkout tfhe-rs repo with tags
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
           persist-credentials: 'false'
@@ -271,7 +271,7 @@ jobs:
             gpu_info.txt
 
       - name: Checkout Slab repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: zama-ai/slab
           path: slab

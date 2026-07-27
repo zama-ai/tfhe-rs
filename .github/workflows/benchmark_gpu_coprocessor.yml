@@ -65,7 +65,7 @@ jobs:
       cloud_provider: ${{ steps.parse_profile.outputs.cloud_provider }}
     steps:
       - name: Checkout tfhe-rs repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
@@ -130,7 +130,7 @@ jobs:
           git lfs install
 
       - name: Checkout tfhe-rs
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -140,7 +140,7 @@ jobs:
           ls
 
       - name: Checkout fhevm
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: zama-ai/fhevm
           persist-credentials: 'false'
@@ -166,7 +166,7 @@ jobs:
           cloud-provider: ${{ needs.parse-inputs.outputs.cloud_provider }}
 
       - name: Checkout tfhe-rs in fhevm coprocessor
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: fhevm/coprocessor/tfhe-rs
           persist-credentials: false
@@ -313,7 +313,7 @@ jobs:
           path: fhevm/coprocessor/tfhe-rs/${{ env.RESULTS_FILENAME }}
 
       - name: Checkout Slab repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: zama-ai/slab
           path: slab
