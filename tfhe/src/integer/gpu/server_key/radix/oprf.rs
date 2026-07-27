@@ -27,7 +27,6 @@ use crate::integer::gpu::{
     cuda_backend_get_grouped_oprf_size_on_gpu, cuda_backend_grouped_oprf,
     cuda_backend_grouped_oprf_custom_range,
 };
-use crate::shortint::PBSOrder;
 
 pub struct GenericCudaOprfServerKey<K> {
     bootstrapping_key: K,
@@ -570,19 +569,15 @@ where
         let message_bits_count = target_sks.message_modulus.0.ilog2() as u64;
         let num_active_blocks = random_bits_count.div_ceil(message_bits_count);
 
-        // We need the PRF + ReRand to be applied only on the num_active_blocks and later extend
-        // with trivial 0s (so that the padding is not re-randed)
-        //
-        // The multiblocks primitive applies the rerand to all the blocks (there is no
-        // "active blocks" rerand primitive currently)
-        let mut result = target_sks.create_trivial_zero_radix(num_active_blocks as usize, streams);
+        let mut result: T =
+            target_sks.create_trivial_zero_radix(num_active_blocks as usize, streams);
 
         assert!(
             num_blocks >= num_active_blocks,
             "Cuda error: num_blocks should be greater than num_blocks_to_process"
         );
         if num_active_blocks == 0 {
-            return Ok(result);
+            return Ok(target_sks.create_trivial_zero_radix(num_blocks as usize, streams));
         }
 
         self.generate_multiblocks_oblivious_pseudo_random_and_re_randomize(
@@ -819,49 +814,8 @@ where
              computing_ks_key,
              prf_seed,
              rle_info| {
-                let radix_block_lwe_size = result.d_blocks.lwe_dimension().to_lwe_size();
-                let (compact_public_key, rerand_keyswitch_key) = match *re_randomization_key {
-                    CudaReRandomizationKey::LegacyDedicatedCPK { cpk, ksk } => {
-                        let lwe_keyswitch_key = &ksk.lwe_keyswitch_key;
-                        if lwe_keyswitch_key.output_key_lwe_size() != radix_block_lwe_size {
-                            return Err(crate::error!(
-                                "Mismatched LweSize between the ciphertext being re-randomized \
-                                and the provided re-randomization keyswitch key output."
-                            ));
-                        }
-                        if lwe_keyswitch_key.input_key_lwe_size()
-                            != cpk.parameters().encryption_lwe_dimension.to_lwe_size()
-                        {
-                            return Err(crate::error!(
-                                "Mismatched LweDimension between the provided CompactPublicKey \
-                                and the re-randomization keyswitch key input."
-                            ));
-                        }
-                        if ksk.destination_key.into_pbs_order() != PBSOrder::KeyswitchBootstrap {
-                            return Err(crate::error!(
-                                "Tried to re-randomize with a re-randomization keyswitch key \
-                                whose destination key uses an unsupported PBSOrder. Required \
-                                PBSOrder::KeyswitchBootstrap."
-                            ));
-                        }
-                        if ksk.cast_rshift != 0 {
-                            return Err(crate::error!(
-                                "Tried to re-randomize with a re-randomization keyswitch key that \
-                                has a non-zero cast_rshift, this is unsupported."
-                            ));
-                        }
-                        (cpk, Some(lwe_keyswitch_key))
-                    }
-                    CudaReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk } => {
-                        if cpk.key.key.lwe_dimension().to_lwe_size() != radix_block_lwe_size {
-                            return Err(crate::error!(
-                                "Mismatched LweSize between the ciphertext being re-randomized \
-                                and the provided CompactPublicKey."
-                            ));
-                        }
-                        (cpk, None)
-                    }
-                };
+                let (compact_public_key, rerand_keyswitch_key) = re_randomization_key
+                    .checked_cpk_and_rerand_ksk(result.d_blocks.lwe_dimension().to_lwe_size())?;
 
                 let num_random_input_blocks = (shift as u64).div_ceil(message_bits_count);
                 let rerand_seed = ReRandomizationSeed::new_prf_rerand_seed(
@@ -947,6 +901,10 @@ where
             "num_blocks_output(={num_blocks_output}) is too small to hold an integer \
             up to excluded_upper_bound(={excluded_upper_bound})"
         );
+
+        if num_input_random_bits == 0 {
+            return Ok(target_sks.create_trivial_zero_radix(num_blocks_output as usize, streams));
+        }
 
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &target_sks.key_switching_key
         else {
