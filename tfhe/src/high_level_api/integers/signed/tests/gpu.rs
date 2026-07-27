@@ -411,6 +411,362 @@ fn test_signed_div_compare_multiwidth_gpu() {
 }
 
 #[test]
+fn test_gpu_parallel_op_groups() {
+    use crate::high_level_api::integers::unsigned::tests::gpu::setup_multibit_gpu;
+    use crate::prelude::*;
+    use crate::shortint::parameters::v1_6::meta::gpu::V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+    use crate::{FheInt64, FheUint16, FheUint64, FheUint8};
+
+    const ITERS: usize = 1000;
+
+    fn setup_gpu_with_rerand() -> crate::ClientKey {
+        let mut params =
+            V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+        params.noise_squashing_parameters = None;
+        let cks = crate::ClientKey::generate(params);
+        let sks = cks.generate_compressed_server_key();
+        crate::set_server_key(sks.decompress_to_gpu());
+        cks
+    }
+
+    // Group 1: div/rem + fused_mul_div — 4 threads (one per bitwidth)
+    // Group 2: comparisons            — 4 threads (one per bitwidth)
+    // Group 3: oprf without/with rerand — 4 threads (one per bitwidth)
+    // Total: 12 threads running simultaneously.
+
+    let mut handles: Vec<std::thread::JoinHandle<()>> = Vec::new();
+
+    macro_rules! spawn_group1 {
+        ($FheI:ty, $FheU:ty, $i:ty, $u:ty, $iw:ty, $uw:ty) => {{
+            handles.push(std::thread::spawn(move || {
+                let cks = setup_multibit_gpu();
+                let mut rng = rand::thread_rng();
+
+                macro_rules! signed_degrees {
+                    ($ct:expr) => {
+                        match &$ct.ciphertext {
+                            crate::high_level_api::integers::signed::inner::SignedRadixCiphertext::Cpu(c) => {
+                                c.blocks.iter().map(|bl| bl.degree.get()).collect::<Vec<_>>()
+                            }
+                            #[cfg(feature = "gpu")]
+                            crate::high_level_api::integers::signed::inner::SignedRadixCiphertext::Cuda(c) => {
+                                c.ciphertext.info.blocks.iter().map(|bl| bl.degree.get()).collect::<Vec<_>>()
+                            }
+                        }
+                    };
+                }
+                macro_rules! unsigned_degrees {
+                    ($ct:expr) => {
+                        match &$ct.ciphertext {
+                            crate::high_level_api::integers::unsigned::RadixCiphertext::Cpu(c) => {
+                                c.blocks.iter().map(|bl| bl.degree.get()).collect::<Vec<_>>()
+                            }
+                            #[cfg(feature = "gpu")]
+                            crate::high_level_api::integers::unsigned::RadixCiphertext::Cuda(c) => {
+                                c.ciphertext.info.blocks.iter().map(|bl| bl.degree.get()).collect::<Vec<_>>()
+                            }
+                            _ => vec![],
+                        }
+                    };
+                }
+                macro_rules! fail {
+                    ($label:expr, $expected:expr, $got:expr, $extra:expr, $rerun:expr) => {{
+                        println!("============================================================");
+                        println!("ERROR: {} FAILED", $label);
+                        println!("  expected : {:?}", $expected);
+                        println!("  got      : {:?}", $got);
+                        $extra;
+                        let rerun_res = $rerun;
+                        println!("  re-run   : {:?}", rerun_res);
+                        println!("============================================================");
+                        panic!("ERROR: {} FAILED", $label);
+                    }};
+                }
+
+                for iter in 0..ITERS {
+                    let a: $i = rng.gen();
+                    let b: $i = loop { let v: $i = rng.gen(); if v != 0 { break v; } };
+                    let c: $i = loop { let v: $i = rng.gen(); if v != 0 { break v; } };
+                    let fa = <$FheI>::try_encrypt(a, &cks).unwrap();
+                    let fb = <$FheI>::try_encrypt(b, &cks).unwrap();
+                    let type_i = stringify!($FheI);
+
+                    let div_ct = &fa / &fb;
+                    let res: $i = div_ct.decrypt(&cks);
+                    println!("  [{type_i} iter {iter}] {a:?} / {b:?} = {res:?}");
+                    if res != a.wrapping_div(b) {
+                        fail!(
+                            format!("{type_i} enc div iter {iter}"),
+                            a.wrapping_div(b), res,
+                            {
+                                println!("  a={a:?}  b={b:?}");
+                                println!("  fa degrees    : {:?}", signed_degrees!(fa));
+                                println!("  fb degrees    : {:?}", signed_degrees!(fb));
+                                println!("  result degrees: {:?}", signed_degrees!(div_ct));
+                            },
+                            { let r: $i = (&fa / &fb).decrypt(&cks); r }
+                        );
+                    }
+
+                    let rem_ct = &fa % &fb;
+                    let res: $i = rem_ct.decrypt(&cks);
+                    println!("  [{type_i} iter {iter}] {a:?} % {b:?} = {res:?}");
+                    if res != a.wrapping_rem(b) {
+                        fail!(
+                            format!("{type_i} enc rem iter {iter}"),
+                            a.wrapping_rem(b), res,
+                            {
+                                println!("  a={a:?}  b={b:?}");
+                                println!("  fa degrees    : {:?}", signed_degrees!(fa));
+                                println!("  fb degrees    : {:?}", signed_degrees!(fb));
+                                println!("  result degrees: {:?}", signed_degrees!(rem_ct));
+                            },
+                            { let r: $i = (&fa % &fb).decrypt(&cks); r }
+                        );
+                    }
+
+                    let expected = (<$iw>::from(a).wrapping_mul(<$iw>::from(b)).wrapping_div(<$iw>::from(c))) as $i;
+                    let fused_ct = (&fa).fused_mul_scalar_div(&fb, c);
+                    let res: $i = fused_ct.decrypt(&cks);
+                    println!("  [{type_i} iter {iter}] fused ({a:?} * {b:?}) / {c:?} = {res:?}");
+                    if res != expected {
+                        fail!(
+                            format!("{type_i} fused_mul_scalar_div iter {iter}"),
+                            expected, res,
+                            {
+                                println!("  a={a:?}  b={b:?}  c={c:?}");
+                                println!("  fa degrees    : {:?}", signed_degrees!(fa));
+                                println!("  fb degrees    : {:?}", signed_degrees!(fb));
+                                println!("  result degrees: {:?}", signed_degrees!(fused_ct));
+                            },
+                            { let r: $i = (&fa).fused_mul_scalar_div(&fb, c).decrypt(&cks); r }
+                        );
+                    }
+
+                    let au: $u = rng.gen();
+                    let bu: $u = loop { let v: $u = rng.gen(); if v != 0 { break v; } };
+                    let cu: $u = loop { let v: $u = rng.gen(); if v != 0 { break v; } };
+                    let fau = <$FheU>::try_encrypt(au, &cks).unwrap();
+                    let fbu = <$FheU>::try_encrypt(bu, &cks).unwrap();
+                    let type_u = stringify!($FheU);
+
+                    let div_ct = &fau / &fbu;
+                    let res: $u = div_ct.decrypt(&cks);
+                    println!("  [{type_u} iter {iter}] {au:?} / {bu:?} = {res:?}");
+                    if res != au.wrapping_div(bu) {
+                        fail!(
+                            format!("{type_u} enc div iter {iter}"),
+                            au.wrapping_div(bu), res,
+                            {
+                                println!("  a={au:?}  b={bu:?}");
+                                println!("  fa degrees    : {:?}", unsigned_degrees!(fau));
+                                println!("  fb degrees    : {:?}", unsigned_degrees!(fbu));
+                                println!("  result degrees: {:?}", unsigned_degrees!(div_ct));
+                            },
+                            { let r: $u = (&fau / &fbu).decrypt(&cks); r }
+                        );
+                    }
+
+                    let rem_ct = &fau % &fbu;
+                    let res: $u = rem_ct.decrypt(&cks);
+                    println!("  [{type_u} iter {iter}] {au:?} % {bu:?} = {res:?}");
+                    if res != au.wrapping_rem(bu) {
+                        fail!(
+                            format!("{type_u} enc rem iter {iter}"),
+                            au.wrapping_rem(bu), res,
+                            {
+                                println!("  a={au:?}  b={bu:?}");
+                                println!("  fa degrees    : {:?}", unsigned_degrees!(fau));
+                                println!("  fb degrees    : {:?}", unsigned_degrees!(fbu));
+                                println!("  result degrees: {:?}", unsigned_degrees!(rem_ct));
+                            },
+                            { let r: $u = (&fau % &fbu).decrypt(&cks); r }
+                        );
+                    }
+
+                    let expected = (<$uw>::from(au).wrapping_mul(<$uw>::from(bu)).wrapping_div(<$uw>::from(cu))) as $u;
+                    let fused_ct = (&fau).fused_mul_scalar_div(&fbu, cu);
+                    let res: $u = fused_ct.decrypt(&cks);
+                    println!("  [{type_u} iter {iter}] fused ({au:?} * {bu:?}) / {cu:?} = {res:?}");
+                    if res != expected {
+                        fail!(
+                            format!("{type_u} fused_mul_scalar_div iter {iter}"),
+                            expected, res,
+                            {
+                                println!("  a={au:?}  b={bu:?}  c={cu:?}");
+                                println!("  fa degrees    : {:?}", unsigned_degrees!(fau));
+                                println!("  fb degrees    : {:?}", unsigned_degrees!(fbu));
+                                println!("  result degrees: {:?}", unsigned_degrees!(fused_ct));
+                            },
+                            { let r: $u = (&fau).fused_mul_scalar_div(&fbu, cu).decrypt(&cks); r }
+                        );
+                    }
+                }
+            }));
+        }};
+    }
+
+    macro_rules! spawn_group2 {
+        ($FheI:ty, $FheU:ty, $i:ty, $u:ty) => {{
+            handles.push(std::thread::spawn(move || {
+                let cks = setup_multibit_gpu();
+                let mut rng = rand::thread_rng();
+
+                macro_rules! signed_degrees {
+                    ($ct:expr) => {
+                        match &$ct.ciphertext {
+                            crate::high_level_api::integers::signed::inner::SignedRadixCiphertext::Cpu(c) => {
+                                c.blocks.iter().map(|bl| bl.degree.get()).collect::<Vec<_>>()
+                            }
+                            #[cfg(feature = "gpu")]
+                            crate::high_level_api::integers::signed::inner::SignedRadixCiphertext::Cuda(c) => {
+                                c.ciphertext.info.blocks.iter().map(|bl| bl.degree.get()).collect::<Vec<_>>()
+                            }
+                        }
+                    };
+                }
+                macro_rules! unsigned_degrees {
+                    ($ct:expr) => {
+                        match &$ct.ciphertext {
+                            crate::high_level_api::integers::unsigned::RadixCiphertext::Cpu(c) => {
+                                c.blocks.iter().map(|bl| bl.degree.get()).collect::<Vec<_>>()
+                            }
+                            #[cfg(feature = "gpu")]
+                            crate::high_level_api::integers::unsigned::RadixCiphertext::Cuda(c) => {
+                                c.ciphertext.info.blocks.iter().map(|bl| bl.degree.get()).collect::<Vec<_>>()
+                            }
+                            _ => vec![],
+                        }
+                    };
+                }
+
+                macro_rules! cmp_check {
+                    ($op:tt, $method:ident, $fhe:expr, $rhs:expr, $cl:expr, $cr:expr, $kind:literal, $ty:expr, $iter:expr, $get_degrees:expr) => {{
+                        let result_ct = $fhe.$method($rhs);
+                        let res = result_ct.decrypt(&cks);
+                        println!("  [{} iter {}] {} {:?} {} {:?} = {:?}", $ty, $iter, $kind, $cl, stringify!($op), $cr, res);
+                        if res != ($cl $op $cr) {
+                            println!("============================================================");
+                            println!("ERROR: {} {} {} FAILED iter {}", $ty, $kind, stringify!($method), $iter);
+                            println!("  lhs={:?}  rhs={:?}", $cl, $cr);
+                            println!("  expected : {:?}", $cl $op $cr);
+                            println!("  got      : {:?}", res);
+                            $get_degrees;
+                            let rerun = $fhe.$method($rhs).decrypt(&cks);
+                            println!("  re-run   : {:?}", rerun);
+                            println!("============================================================");
+                            panic!("ERROR: {} {} {} FAILED", $ty, $kind, stringify!($method));
+                        }
+                    }};
+                }
+
+                for iter in 0..ITERS {
+                    let a: $i = rng.gen();
+                    let b: $i = rng.gen();
+                    let fa = <$FheI>::try_encrypt(a, &cks).unwrap();
+                    let fb = <$FheI>::try_encrypt(b, &cks).unwrap();
+                    let type_i = stringify!($FheI);
+                    let ideg = || {
+                        println!("  fa degrees: {:?}", signed_degrees!(fa));
+                        println!("  fb degrees: {:?}", signed_degrees!(fb));
+                    };
+
+                    cmp_check!(==, eq, fa, &fb, a, b, "enc",    type_i, iter, ideg());
+                    cmp_check!(!=, ne, fa, &fb, a, b, "enc",    type_i, iter, ideg());
+                    cmp_check!(<,  lt, fa, &fb, a, b, "enc",    type_i, iter, ideg());
+                    cmp_check!(<=, le, fa, &fb, a, b, "enc",    type_i, iter, ideg());
+                    cmp_check!(>,  gt, fa, &fb, a, b, "enc",    type_i, iter, ideg());
+                    cmp_check!(>=, ge, fa, &fb, a, b, "enc",    type_i, iter, ideg());
+                    cmp_check!(==, eq, fa,  b,  a, b, "scalar", type_i, iter, ideg());
+                    cmp_check!(!=, ne, fa,  b,  a, b, "scalar", type_i, iter, ideg());
+                    cmp_check!(<,  lt, fa,  b,  a, b, "scalar", type_i, iter, ideg());
+                    cmp_check!(<=, le, fa,  b,  a, b, "scalar", type_i, iter, ideg());
+                    cmp_check!(>,  gt, fa,  b,  a, b, "scalar", type_i, iter, ideg());
+                    cmp_check!(>=, ge, fa,  b,  a, b, "scalar", type_i, iter, ideg());
+
+                    let au: $u = rng.gen();
+                    let bu: $u = rng.gen();
+                    let fau = <$FheU>::try_encrypt(au, &cks).unwrap();
+                    let fbu = <$FheU>::try_encrypt(bu, &cks).unwrap();
+                    let type_u = stringify!($FheU);
+                    let udeg = || {
+                        println!("  fau degrees: {:?}", unsigned_degrees!(fau));
+                        println!("  fbu degrees: {:?}", unsigned_degrees!(fbu));
+                    };
+
+                    cmp_check!(==, eq, fau, &fbu, au, bu, "enc",    type_u, iter, udeg());
+                    cmp_check!(!=, ne, fau, &fbu, au, bu, "enc",    type_u, iter, udeg());
+                    cmp_check!(<,  lt, fau, &fbu, au, bu, "enc",    type_u, iter, udeg());
+                    cmp_check!(<=, le, fau, &fbu, au, bu, "enc",    type_u, iter, udeg());
+                    cmp_check!(>,  gt, fau, &fbu, au, bu, "enc",    type_u, iter, udeg());
+                    cmp_check!(>=, ge, fau, &fbu, au, bu, "enc",    type_u, iter, udeg());
+                    cmp_check!(==, eq, fau,  bu,  au, bu, "scalar", type_u, iter, udeg());
+                    cmp_check!(!=, ne, fau,  bu,  au, bu, "scalar", type_u, iter, udeg());
+                    cmp_check!(<,  lt, fau,  bu,  au, bu, "scalar", type_u, iter, udeg());
+                    cmp_check!(<=, le, fau,  bu,  au, bu, "scalar", type_u, iter, udeg());
+                    cmp_check!(>,  gt, fau,  bu,  au, bu, "scalar", type_u, iter, udeg());
+                    cmp_check!(>=, ge, fau,  bu,  au, bu, "scalar", type_u, iter, udeg());
+                }
+            }));
+        }};
+    }
+
+    #[allow(unused_macros)]
+    macro_rules! spawn_group3 {
+        ($FheI:ty, $FheU:ty, $i:ty, $u:ty) => {{
+            handles.push(std::thread::spawn(move || {
+                let cks = setup_gpu_with_rerand();
+                let prf_ctx = PrfReRandomizationContext::new(*b"PRF_RRND", *b"TFHE_Enc");
+                let mut rng = rand::thread_rng();
+                for iter in 0..ITERS {
+                    let seed = Seed(rng.gen());
+
+                    let plain: $FheI = <$FheI>::generate_oblivious_pseudo_random(seed);
+                    let plain_rerand: $FheI = <$FheI>::generate_oblivious_pseudo_random_and_re_randomize(
+                        seed, ReRandomizationMode::UseAvailableMode, &prf_ctx,
+                    ).unwrap();
+                    let dec: $i = plain.decrypt(&cks);
+                    let dec_rerand: $i = plain_rerand.decrypt(&cks);
+                    assert_eq!(dec, dec_rerand, "{} oprf seed mismatch iter {iter}", stringify!($FheI));
+
+                    let plain: $FheU = <$FheU>::generate_oblivious_pseudo_random(seed);
+                    let plain_rerand: $FheU = <$FheU>::generate_oblivious_pseudo_random_and_re_randomize(
+                        seed, ReRandomizationMode::UseAvailableMode, &prf_ctx,
+                    ).unwrap();
+                    let dec: $u = plain.decrypt(&cks);
+                    let dec_rerand: $u = plain_rerand.decrypt(&cks);
+                    assert_eq!(dec, dec_rerand, "{} oprf seed mismatch iter {iter}", stringify!($FheU));
+
+                    if iter % 100 == 0 {
+                        println!("group3 {}/{} iter {iter}", stringify!($FheI), stringify!($FheU));
+                    }
+                }
+            }));
+        }};
+    }
+
+    spawn_group1!(FheInt8,  FheUint8,  i8,  u8,  i16, u16);
+    spawn_group1!(FheInt16, FheUint16, i16, u16, i32, u32);
+    spawn_group1!(FheInt32, FheUint32, i32, u32, i64, u64);
+    spawn_group1!(FheInt64, FheUint64, i64, u64, i128, u128);
+
+    spawn_group2!(FheInt8,  FheUint8,  i8,  u8);
+    spawn_group2!(FheInt16, FheUint16, i16, u16);
+    spawn_group2!(FheInt32, FheUint32, i32, u32);
+    spawn_group2!(FheInt64, FheUint64, i64, u64);
+
+    // spawn_group3!(FheInt8,  FheUint8,  i8,  u8);
+    // spawn_group3!(FheInt16, FheUint16, i16, u16);
+    // spawn_group3!(FheInt32, FheUint32, i32, u32);
+    // spawn_group3!(FheInt64, FheUint64, i64, u64);
+
+    println!("Spawned {} threads", handles.len());
+    for h in handles {
+        h.join().unwrap();
+    }
+}
+
+#[test]
 fn test_gpu_get_rerand_size_on_gpu() {
     use crate::high_level_api::re_randomization::ReRandomizationMode;
     for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
