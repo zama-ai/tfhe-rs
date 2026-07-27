@@ -221,6 +221,10 @@ impl CudaServerKey {
             ));
         }
 
+        let (cpk, rerand_ksk) = re_randomization_key.checked_cpk_and_rerand_ksk(
+            self.bootstrapping_key.output_lwe_dimension().to_lwe_size(),
+        )?;
+
         for v in data.iter_mut() {
             let needs_propagate = v
                 .as_ref()
@@ -279,13 +283,6 @@ impl CudaServerKey {
 
         let total_key_blocks = data.len() * key_num_blocks as usize;
         let mut value_refs: Vec<_> = data.iter_mut().map(|v| v.as_mut()).collect();
-
-        let (cpk, rerand_ksk) = match re_randomization_key {
-            CudaReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk } => (cpk, None),
-            CudaReRandomizationKey::LegacyDedicatedCPK { cpk, ksk } => {
-                (cpk, Some(&ksk.lwe_keyswitch_key))
-            }
-        };
 
         let encryption_of_zero = cpk
             .key

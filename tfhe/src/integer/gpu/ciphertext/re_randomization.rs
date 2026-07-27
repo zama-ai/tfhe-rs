@@ -1,5 +1,7 @@
 use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCiphertextList;
+use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::LweSize;
 use crate::integer::ciphertext::ReRandomizationSeed;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
@@ -26,6 +28,61 @@ pub enum CudaReRandomizationKey<'key> {
     DerivedCPKWithoutKeySwitch {
         cpk: &'key CompactPublicKey,
     },
+}
+
+impl<'key> CudaReRandomizationKey<'key> {
+    /// Checks the keys can re-randomize blocks of `radix_block_lwe_size` and returns them.
+    /// The backend expands the zeros at that dimension, a mismatch reads out of bounds.
+    pub(crate) fn checked_cpk_and_rerand_ksk(
+        self,
+        radix_block_lwe_size: LweSize,
+    ) -> crate::Result<(
+        &'key CompactPublicKey,
+        Option<&'key CudaLweKeyswitchKey<u64>>,
+    )> {
+        match self {
+            Self::LegacyDedicatedCPK { cpk, ksk } => {
+                let lwe_keyswitch_key = &ksk.lwe_keyswitch_key;
+                if lwe_keyswitch_key.output_key_lwe_size() != radix_block_lwe_size {
+                    return Err(crate::error!(
+                        "Mismatched LweSize between the ciphertext being re-randomized \
+                        and the provided re-randomization keyswitch key output."
+                    ));
+                }
+                if lwe_keyswitch_key.input_key_lwe_size()
+                    != cpk.parameters().encryption_lwe_dimension.to_lwe_size()
+                {
+                    return Err(crate::error!(
+                        "Mismatched LweDimension between the provided CompactPublicKey \
+                        and the re-randomization keyswitch key input."
+                    ));
+                }
+                if ksk.destination_key.into_pbs_order() != PBSOrder::KeyswitchBootstrap {
+                    return Err(crate::error!(
+                        "Tried to re-randomize with a re-randomization keyswitch key \
+                        whose destination key uses an unsupported PBSOrder. Required \
+                        PBSOrder::KeyswitchBootstrap."
+                    ));
+                }
+                if ksk.cast_rshift != 0 {
+                    return Err(crate::error!(
+                        "Tried to re-randomize with a re-randomization keyswitch key that \
+                        has a non-zero cast_rshift, this is unsupported."
+                    ));
+                }
+                Ok((cpk, Some(lwe_keyswitch_key)))
+            }
+            Self::DerivedCPKWithoutKeySwitch { cpk } => {
+                if cpk.key.key.lwe_dimension().to_lwe_size() != radix_block_lwe_size {
+                    return Err(crate::error!(
+                        "Mismatched LweSize between the ciphertext being re-randomized \
+                        and the provided CompactPublicKey."
+                    ));
+                }
+                Ok((cpk, None))
+            }
+        }
+    }
 }
 
 impl CudaUnsignedRadixCiphertext {

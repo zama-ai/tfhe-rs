@@ -39,6 +39,9 @@ create_parameterized_test!(oprf_any_range_unsigned {
 create_parameterized_test!(oprf_almost_uniformity_unsigned {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128
 });
+create_parameterized_test!(oprf_zero_input_bits_unsigned {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128
+});
 
 create_parameterized_test!(pseudo_random_integer_and_rerand {
     TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
@@ -86,6 +89,28 @@ where
             )
         });
     oprf_any_range_test(param, executor);
+}
+
+fn oprf_zero_input_bits_unsigned<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let executor =
+        CpuOprfExecutor::new(&|oprf_key: &OprfServerKey,
+                               seed: Seed,
+                               num_input_random_bits: u64,
+                               excluded_upper_bound: u64,
+                               num_blocks_output: u64,
+                               sk: &ServerKey| {
+            oprf_key.par_generate_oblivious_pseudo_random_unsigned_custom_range(
+                seed,
+                num_input_random_bits,
+                NonZeroU64::new(excluded_upper_bound).unwrap(),
+                num_blocks_output,
+                sk,
+            )
+        });
+    oprf_zero_input_bits_test(param, executor);
 }
 
 fn oprf_almost_uniformity_unsigned<P>(param: P)
@@ -231,6 +256,25 @@ where
                 assert!(decrypted < excluded_upper_bound);
             }
         }
+    }
+}
+
+/// 0 input bits is deterministic, but the requested width must be honored.
+pub(crate) fn oprf_zero_input_bits_test<P, E>(param: P, mut executor: E)
+where
+    P: Into<TestParameters>,
+    E: OpSequenceFunctionExecutor<(Seed, u64, u64, u64), RadixCiphertext>,
+{
+    let cks = setup_oprf_test(param, &mut executor);
+
+    for (excluded_upper_bound, num_blocks_output) in [(3, 1), (3, 32), ((1 << 32) + 1, 64)] {
+        let img = executor.execute((Seed(0), 0, excluded_upper_bound, num_blocks_output as u64));
+
+        assert_eq!(img.blocks.len(), num_blocks_output);
+        assert!(img.blocks.iter().all(|ct| ct.is_trivial()));
+
+        let decrypted: u64 = cks.decrypt(&img);
+        assert_eq!(decrypted, 0);
     }
 }
 
@@ -718,6 +762,38 @@ fn subtest_unsigned_integer_bounded<TestRunner: OprfReRandTestRunner>(
     );
 }
 
+/// 0 random bits must still yield the requested block count.
+fn subtest_integer_bounded_zero_random_bits<TestRunner: OprfReRandTestRunner>(
+    prf_seed: impl OprfSeed,
+    cks: &ClientKey,
+    test_runner: &mut TestRunner,
+    prf_re_randomization_context: &PrfReRandomizationContext,
+) {
+    const OUTPUT_BIT_COUNT: u64 = 16;
+
+    let prf_seed = prf_seed.into_bytes();
+    let prf_seed = prf_seed.as_ref();
+
+    let message_bits: u64 = cks.parameters().message_modulus().0.ilog2().into();
+    let num_blocks = OUTPUT_BIT_COUNT.div_ceil(message_bits);
+
+    let (prf_not_rerand, prf_rerand) =
+        test_runner.unsigned_bounded(prf_seed, 0, num_blocks, prf_re_randomization_context);
+
+    assert_eq!(prf_not_rerand.blocks.len() as u64, num_blocks);
+    assert_eq!(prf_rerand.blocks.len() as u64, num_blocks);
+    let decrypted = check_unsigned_value_and_re_rand_are_ok(&prf_not_rerand, &prf_rerand, cks, 0);
+    assert_eq!(decrypted, 0);
+
+    let (prf_not_rerand, prf_rerand) =
+        test_runner.signed_bounded(prf_seed, 0, num_blocks, prf_re_randomization_context);
+
+    assert_eq!(prf_not_rerand.blocks.len() as u64, num_blocks);
+    assert_eq!(prf_rerand.blocks.len() as u64, num_blocks);
+    let decrypted = check_signed_value_and_re_rand_are_ok(&prf_not_rerand, &prf_rerand, cks, 0);
+    assert_eq!(decrypted, 0);
+}
+
 fn subtest_integer_bounded_padding_stays_trivial<TestRunner: OprfReRandTestRunner>(
     prf_seed: impl OprfSeed,
     cks: &ClientKey,
@@ -996,6 +1072,13 @@ where
         );
 
         subtest_integer_bounded_padding_stays_trivial(
+            prf_seed,
+            &cks,
+            &mut test_runner,
+            &prf_rerand_context,
+        );
+
+        subtest_integer_bounded_zero_random_bits(
             prf_seed,
             &cks,
             &mut test_runner,
