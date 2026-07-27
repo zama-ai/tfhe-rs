@@ -43,8 +43,16 @@ pub mod shortint_params_aliases {
         v1_6::V1_6_PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M128;
 
     // KS PBS TUniform
-    pub const BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
-        v1_6::V1_6_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64;
+    pub const BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters = {
+        // GPU has a better optimized parameter set for 2^-128 which also happens to be faster than
+        // 2^-64, so we alias the parameter for the GPU in that case, mostly used in core crypto
+        // benchmarks, this is ok since 2^-128 is better than 2^-64 in terms of pfail
+        if cfg!(feature = "gpu") {
+            V1_7_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128
+        } else {
+            v1_6::V1_6_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64
+        }
+    };
     pub const BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
         v1_6::V1_6_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     pub const BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
@@ -73,19 +81,19 @@ pub mod shortint_params_aliases {
         // Gaussian 2^-64
         (
             &BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-            "BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,",
+            "BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64",
         ),
         (
             &BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            "BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,",
+            "BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64",
         ),
         (
             &BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            "BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,",
+            "BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64",
         ),
         (
             &BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-            "BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,",
+            "BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64",
         ),
         // Gaussian 2^-128
         (
@@ -275,8 +283,11 @@ pub mod shortint_params_aliases {
 
     // --- Grouping factor 4
     pub const BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64:
-        MultiBitPBSParameters =
-        v1_6::V1_6_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64;
+        MultiBitPBSParameters = if cfg!(feature = "gpu") {
+        V1_7_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128
+    } else {
+        v1_6::V1_6_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64
+    };
     pub const BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64:
         MultiBitPBSParameters =
         v1_6::V1_6_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
