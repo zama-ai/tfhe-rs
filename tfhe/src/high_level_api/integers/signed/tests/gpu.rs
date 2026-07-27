@@ -9,8 +9,8 @@ use crate::prelude::{
     RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SubSizeOnGpu,
 };
 use crate::{
-    CompactCiphertextList, CompactPublicKey, CompressedFheInt16, FheBool, FheInt32, FheInt8,
-    FheUint32, GpuIndex,
+    CompactCiphertextList, CompactPublicKey, CompressedFheInt16, FheBool, FheInt16, FheInt32,
+    FheInt64, FheInt8, FheUint32, GpuIndex,
 };
 use rand::{thread_rng, Rng};
 
@@ -379,6 +379,141 @@ fn test_int16_fused_mul_div_gpu() {
     for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
         let client_key = setup_fn();
         super::test_case_int16_fused_mul_div(&client_key);
+    }
+}
+
+#[test]
+fn test_signed_div_compare_multiwidth_gpu() {
+    use crate::prelude::{FusedMulScalarDiv, FusedScalarMulScalarDiv};
+    use std::sync::Arc;
+
+    // Tests div, fused mul/div, comparisons and scalar comparisons for i8/i16/i32/i64
+    // in parallel threads. Arguments: (FheType, clear_t, wide_clear_t, fused_scalar_t).
+    macro_rules! run_for_type {
+        ($FheT:ty, $clear:ty, $wide:ty, $scalar:ty, $cks:expr) => {{
+            let cks = $cks;
+            let mut rng = rand::thread_rng();
+
+            let clear_a: $clear = rng.gen();
+            let clear_b: $clear = loop {
+                let v: $clear = rng.gen();
+                if v != 0 {
+                    break v;
+                }
+            };
+            let clear_c: $scalar = loop {
+                let v: $scalar = rng.gen();
+                if v != 0 {
+                    break v;
+                }
+            };
+
+            let a = <$FheT>::try_encrypt(clear_a, cks).unwrap();
+            let b = <$FheT>::try_encrypt(clear_b, cks).unwrap();
+
+            // encrypted div / rem
+            {
+                let c = &a / &b;
+                let decrypted: $clear = c.decrypt(cks);
+                assert_eq!(decrypted, clear_a / clear_b, "{} enc div", stringify!($FheT));
+
+                let c = &a % &b;
+                let decrypted: $clear = c.decrypt(cks);
+                assert_eq!(decrypted, clear_a % clear_b, "{} enc rem", stringify!($FheT));
+            }
+
+            // scalar div / rem
+            {
+                let c = &a / clear_b;
+                let decrypted: $clear = c.decrypt(cks);
+                assert_eq!(decrypted, clear_a / clear_b, "{} scalar div", stringify!($FheT));
+
+                let c = &a % clear_b;
+                let decrypted: $clear = c.decrypt(cks);
+                assert_eq!(decrypted, clear_a % clear_b, "{} scalar rem", stringify!($FheT));
+            }
+
+            // encrypted comparisons
+            {
+                let result = &a.eq(&b);
+                assert_eq!(result.decrypt(cks), clear_a == clear_b, "{} enc eq", stringify!($FheT));
+                let result = &a.ne(&b);
+                assert_eq!(result.decrypt(cks), clear_a != clear_b, "{} enc ne", stringify!($FheT));
+                let result = &a.lt(&b);
+                assert_eq!(result.decrypt(cks), clear_a < clear_b, "{} enc lt", stringify!($FheT));
+                let result = &a.le(&b);
+                assert_eq!(result.decrypt(cks), clear_a <= clear_b, "{} enc le", stringify!($FheT));
+                let result = &a.gt(&b);
+                assert_eq!(result.decrypt(cks), clear_a > clear_b, "{} enc gt", stringify!($FheT));
+                let result = &a.ge(&b);
+                assert_eq!(result.decrypt(cks), clear_a >= clear_b, "{} enc ge", stringify!($FheT));
+            }
+
+            // scalar comparisons
+            {
+                let result = &a.eq(clear_b);
+                assert_eq!(result.decrypt(cks), clear_a == clear_b, "{} scalar eq", stringify!($FheT));
+                let result = &a.ne(clear_b);
+                assert_eq!(result.decrypt(cks), clear_a != clear_b, "{} scalar ne", stringify!($FheT));
+                let result = &a.lt(clear_b);
+                assert_eq!(result.decrypt(cks), clear_a < clear_b, "{} scalar lt", stringify!($FheT));
+                let result = &a.le(clear_b);
+                assert_eq!(result.decrypt(cks), clear_a <= clear_b, "{} scalar le", stringify!($FheT));
+                let result = &a.gt(clear_b);
+                assert_eq!(result.decrypt(cks), clear_a > clear_b, "{} scalar gt", stringify!($FheT));
+                let result = &a.ge(clear_b);
+                assert_eq!(result.decrypt(cks), clear_a >= clear_b, "{} scalar ge", stringify!($FheT));
+            }
+
+            // fused mul / div: (a * b) / c using widening arithmetic
+            {
+                let expected = (<$wide>::from(clear_a) * <$wide>::from(clear_b)
+                    / <$wide>::from(clear_c)) as $clear;
+
+                let result = (&a).fused_mul_scalar_div(&b, clear_c);
+                let decrypted: $clear = result.decrypt(cks);
+                assert_eq!(
+                    decrypted, expected,
+                    "{} fused_mul_scalar_div",
+                    stringify!($FheT)
+                );
+
+                let result = (&a).fused_scalar_mul_scalar_div(clear_b as $scalar, clear_c);
+                let decrypted: $clear = result.decrypt(cks);
+                assert_eq!(
+                    decrypted, expected,
+                    "{} fused_scalar_mul_scalar_div",
+                    stringify!($FheT)
+                );
+            }
+        }};
+    }
+
+    for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+        let cks = Arc::new(setup_fn());
+
+        let handles = [
+            {
+                let c = cks.clone();
+                std::thread::spawn(move || run_for_type!(FheInt8, i8, i16, i8, &*c))
+            },
+            {
+                let c = cks.clone();
+                std::thread::spawn(move || run_for_type!(FheInt16, i16, i32, i16, &*c))
+            },
+            {
+                let c = cks.clone();
+                std::thread::spawn(move || run_for_type!(FheInt32, i32, i64, i32, &*c))
+            },
+            {
+                let c = cks.clone();
+                std::thread::spawn(move || run_for_type!(FheInt64, i64, i128, i64, &*c))
+            },
+        ];
+
+        for h in handles {
+            h.join().unwrap();
+        }
     }
 }
 
