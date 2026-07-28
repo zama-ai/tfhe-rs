@@ -97,6 +97,28 @@ fn glwe_encrypt_sample_extract_decrypt_custom_mod<Scalar: UnsignedTorus + Send +
         let gpu_output_lwe_ciphertext_list =
             output_cuda_lwe_ciphertext_list.to_lwe_ciphertext_list(&streams);
 
+        // Determinism check
+        let mut output_cuda_lwe_ciphertext_list_bis = CudaLweCiphertextList::new(
+            equivalent_lwe_sk.lwe_dimension(),
+            LweCiphertextCount(msgs.len() * lwe_per_glwe),
+            ciphertext_modulus,
+            &streams,
+        );
+        cuda_extract_lwe_samples_from_glwe_ciphertext_list(
+            &input_cuda_glwe_list,
+            &mut output_cuda_lwe_ciphertext_list_bis,
+            nths.as_slice(),
+            lwe_per_glwe as u32,
+            &streams,
+        );
+        assert_gpu_determinism(
+            gpu_output_lwe_ciphertext_list.as_ref(),
+            output_cuda_lwe_ciphertext_list_bis
+                .to_lwe_ciphertext_list(&streams)
+                .as_ref(),
+            "cuda_extract_lwe_samples_from_glwe_ciphertext_list",
+        );
+
         let mut output_plaintext_list = PlaintextList::new(
             Scalar::ZERO,
             PlaintextCount(gpu_output_lwe_ciphertext_list.lwe_ciphertext_count().0),

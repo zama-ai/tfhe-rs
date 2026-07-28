@@ -166,6 +166,31 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
                 ciphertext_modulus
             ));
 
+            // Determinism check
+            if should_check_determinism(message_modulus_log) {
+                let mut d_out_pbs_ct_bis = CudaLweCiphertextList::new(
+                    output_lwe_dimension,
+                    LweCiphertextCount(1),
+                    ciphertext_modulus,
+                    &stream,
+                );
+                cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(
+                    &d_lwe_ciphertext_in,
+                    &mut d_out_pbs_ct_bis,
+                    &d_accumulator,
+                    &d_test_vector_indexes,
+                    &d_output_indexes,
+                    &d_input_indexes,
+                    &d_bsk,
+                    &stream,
+                );
+                assert_gpu_determinism(
+                    out_pbs_ct.as_ref(),
+                    d_out_pbs_ct_bis.into_lwe_ciphertext(&stream).as_ref(),
+                    "cuda_multi_bit_programmable_bootstrap_lwe_ciphertext",
+                );
+            }
+
             let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &out_pbs_ct);
 
             let decoded = round_decode(decrypted.0, delta) % msg_modulus;
@@ -175,4 +200,12 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
     }
 }
 
-create_gpu_multi_bit_parameterized_test!(lwe_encrypt_multi_bit_pbs_decrypt_custom_mod);
+// The default parameter list does not have a grouping factor of 4, which only the GPU backend
+// implements, so the parameter sets are spelled out here to cover it.
+create_gpu_multi_bit_parameterized_test!(lwe_encrypt_multi_bit_pbs_decrypt_custom_mod {
+    MULTI_BIT_2_2_2_PARAMS,
+    MULTI_BIT_2_2_3_PARAMS,
+    MULTI_BIT_2_2_4_PARAMS,
+    MULTI_BIT_3_3_2_PARAMS,
+    MULTI_BIT_3_3_3_PARAMS
+});

@@ -1,4 +1,5 @@
 use super::super::test::TestResources;
+use super::assert_gpu_determinism;
 use crate::core_crypto::commons::test_tools::check_both_ratio_under;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::{CudaStreams, GpuIndex};
@@ -272,6 +273,29 @@ fn compare_cpu_and_gpu_centered_modulus_switch() {
     }
 
     let converted_gpu_ct = d_lwe_output.into_lwe_ciphertext(&streams);
+
+    // Determinism check
+    let mut d_lwe_output_bis = CudaLweCiphertextList::new(
+        lwe_dimension,
+        LweCiphertextCount(1),
+        ciphertext_modulus,
+        &streams,
+    );
+    unsafe {
+        cuda_centered_modulus_switch_64_async(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            d_lwe_output_bis.0.d_vec.as_mut_c_ptr(0),
+            d_lwe_input.0.d_vec.as_c_ptr(0),
+            d_lwe_input.lwe_dimension().0 as u32,
+            log_modulus.0 as u32,
+        );
+    }
+    assert_gpu_determinism(
+        converted_gpu_ct.as_ref(),
+        d_lwe_output_bis.into_lwe_ciphertext(&streams).as_ref(),
+        "cuda_centered_modulus_switch_64",
+    );
 
     assert_eq!(msed_container, converted_gpu_ct.into_container());
 }

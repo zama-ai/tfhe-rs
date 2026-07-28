@@ -175,6 +175,29 @@ fn execute_multibit_bootstrap_u128(
                     ciphertext_modulus
                 ));
 
+                // Determinism check
+                let mut d_out_pbs_ct_bis = CudaLweCiphertextList::new(
+                    output_lwe_dimension,
+                    d_lwe_ciphertext_in.lwe_ciphertext_count(),
+                    ciphertext_modulus,
+                    &stream,
+                );
+                cuda_multi_bit_programmable_bootstrap_128_lwe_ciphertext(
+                    &d_lwe_ciphertext_in,
+                    &mut d_out_pbs_ct_bis,
+                    &d_accumulator,
+                    &d_test_vector_indexes,
+                    &d_output_indexes,
+                    &d_input_indexes,
+                    &d_bsk,
+                    &stream,
+                );
+                assert_gpu_determinism(
+                    out_pbs_ct_list.as_ref(),
+                    d_out_pbs_ct_bis.to_lwe_ciphertext_list(&stream).as_ref(),
+                    "cuda_multi_bit_programmable_bootstrap_128_lwe_ciphertext",
+                );
+
                 let mut output_plaintext_list =
                     PlaintextList::from_container(vec![0u128; number_of_messages]);
                 decrypt_lwe_ciphertext_list(
