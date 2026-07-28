@@ -115,7 +115,7 @@ fn sanity_check_encrypt_br_dp_packing_ks_ms(meta_params: MetaParameters, filenam
     let lwe_per_glwe = compression_key.lwe_per_glwe;
     // The multiplication done in the compression is made to move the message up at the top of the
     // carry space, multiplying by the carry modulus achieves that
-    let dp_scalar = params.carry_modulus().0;
+    let dp_scalar = 12;
     let br_input_modulus_log = sks.br_input_modulus_log();
     let storage_modulus_log = compression_key.storage_log_modulus;
 
@@ -237,7 +237,7 @@ fn encrypt_br_dp_packing_ks_ms_inner_helper(
 
     let id_lut = sks.generate_lookup_table(|x| x);
     let mut side_resources = vec![(); input_zeros.len()];
-    let dp_scalar = params.carry_modulus().0;
+    let dp_scalar = 12;
     let storage_modulus_log = compression_key.storage_log_modulus;
 
     let (before_packing, after_packing, after_ms) = br_dp_packing_ks_ms(
@@ -414,7 +414,7 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_noise(
 
     // The multiplication done in the compression is made to move the message up at the top of the
     // carry space, multiplying by the carry modulus achieves that
-    let dp_scalar = params.carry_modulus().0;
+    let dp_scalar = 12;
 
     let noise_simulation_accumulator = NoiseSimulationGlwe::new(
         noise_simulation_bsk.output_glwe_size().to_glwe_dimension(),
@@ -559,7 +559,7 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_pfail(
 
         // The multiplication done in the compression is made to move the message up at the top of
         // the carry space, multiplying by the carry modulus achieves that
-        let dp_scalar = params.carry_modulus().0;
+        let dp_scalar = 12;
 
         let noise_simulation_accumulator = NoiseSimulationGlwe::new(
             noise_simulation_bsk.output_glwe_size().to_glwe_dimension(),
