@@ -782,7 +782,7 @@ impl HpuNode {
     }
 }
 
-pub fn new_config(params: &HpuParameters) -> HpuConfig {
+pub fn new_zhc_config(params: &HpuParameters) -> HpuConfig {
     // TODO: Add register to depicts the number of computation units (NB: Currently fixed to 1)
     let total_pbs_nb = params.ntt_params.total_pbs_nb;
 
@@ -956,7 +956,7 @@ impl HpuNode {
                     let translation_table = match iop.format().unwrap().name.as_str().parse::<Iop>()
                     {
                         Ok(iop) => iop.get_translation_table(
-                            &new_config(&self.params),
+                            &new_zhc_config(&self.params),
                             CiphertextSpec::new(*integer_w as u16, 2, 2),
                         ),
                         Err(()) => {
@@ -980,7 +980,7 @@ impl HpuNode {
                         .unwrap_or_else(|_| panic!("Invalid Custom Iop name {name}"));
                     let opcode = iop.opcode();
                     let mut used_vid = 0;
-                    if (USER_RANGE_LB < opcode.0) || (opcode.0 > USER_RANGE_UB) {
+                    if !(USER_RANGE_LB..=USER_RANGE_UB).contains(&opcode.0) {
                         panic!("Custom Iop [{integer_w}::{}] outside of USER_RANGE [{USER_RANGE_LB}; {USER_RANGE_UB}]", opcode.0);
                     }
 
@@ -1083,18 +1083,16 @@ impl HpuNode {
         }
     }
 
-    #[tracing::instrument(skip(self, builder))]
+    #[tracing::instrument(skip(self, stream))]
     pub(crate) fn fw_dyn(
         &mut self,
-        builder: zhc::builder::Builder,
-    ) -> Result<asm::IOpId, cache::CacheError> {
-        // From builder generate associated stream
-        let stream = cache::ZhcStream {
-            metadata: todo!(),
-            streams: todo!(),
-        };
-
-        self.zhc_cache.get_or_insert(stream).map(|entry| entry.id())
+        hash: ZhcStreamHash,
+        stream: ZhcStream,
+        proto: asm::IOpProto,
+    ) -> Result<asm::IOpcode, cache::CacheError> {
+        self.zhc_cache
+            .get_or_insert(hash, stream, proto)
+            .map(|entry| entry.iop())
     }
 }
 

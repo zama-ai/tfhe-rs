@@ -110,19 +110,26 @@ impl std::ops::Deref for HpuRadixCiphertext {
 impl HpuRadixCiphertext {
     pub fn exec(
         proto: &IOpProto,
+        fw_mode: FwMode,
         opcode: IOpcode,
         rhs_ct: &[Self],
         rhs_imm: &[HpuImm],
         dst_pos: Option<hpu_asm::PhysId>,
     ) -> Vec<Self> {
         let rhs_var = rhs_ct.iter().map(|x| x.0.clone()).collect::<Vec<_>>();
-        let res_var = HpuCmd::exec(proto, opcode, &rhs_var, rhs_imm, dst_pos);
+        let res_var = HpuCmd::exec(proto, fw_mode, opcode, &rhs_var, rhs_imm, dst_pos);
         res_var.into_iter().map(Self::new).collect::<Vec<Self>>()
     }
 
-    pub fn exec_assign(proto: &IOpProto, opcode: IOpcode, rhs_ct: &[Self], rhs_imm: &[HpuImm]) {
+    pub fn exec_assign(
+        proto: &IOpProto,
+        fw_mode: FwMode,
+        opcode: IOpcode,
+        rhs_ct: &[Self],
+        rhs_imm: &[HpuImm],
+    ) {
         let rhs_var = rhs_ct.iter().map(|x| x.0.clone()).collect::<Vec<_>>();
-        HpuCmd::exec_assign(proto, opcode, &rhs_var, rhs_imm)
+        HpuCmd::exec_assign(proto, fw_mode, opcode, &rhs_var, rhs_imm)
     }
 }
 
@@ -139,7 +146,7 @@ macro_rules! map_ct_ct {
                     let opcode = $hpu_op.opcode();
                     let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
 
-                    let res = HpuCmd::exec(proto, opcode, &[self.0, rhs.0], &[], None);
+                    let res = HpuCmd::exec(proto, FwMode::Static, opcode, &[self.0, rhs.0], &[], None);
                     Self::Output::new(res[0].clone())
                 }
             }
@@ -151,7 +158,7 @@ macro_rules! map_ct_ct {
                     let opcode = $hpu_op.opcode();
                     let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
 
-                    let res = HpuCmd::exec(proto, opcode, &[self.0.clone(), rhs.0.clone()], &[], None);
+                    let res = HpuCmd::exec(proto, FwMode::Static, opcode, &[self.0.clone(), rhs.0.clone()], &[], None);
                     Self::Output::new(res[0].clone())
                     }
             }
@@ -162,7 +169,7 @@ macro_rules! map_ct_ct {
                     let opcode = $hpu_op.opcode();
                     let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
 
-                    HpuCmd::exec_assign(proto, opcode, &[self.0.clone(), rhs.0], &[])
+                    HpuCmd::exec_assign(proto, FwMode::Static, opcode, &[self.0.clone(), rhs.0], &[])
                 }
             }
 
@@ -171,7 +178,7 @@ macro_rules! map_ct_ct {
                     let opcode = $hpu_op.opcode();
                     let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
 
-                    HpuCmd::exec_assign(proto, opcode, &[self.0.clone(), rhs.0.clone()], &[])
+                    HpuCmd::exec_assign(proto, FwMode::Static, opcode, &[self.0.clone(), rhs.0.clone()], &[])
                 }
             }
         }
@@ -187,7 +194,7 @@ macro_rules! map_ct_scalar {
                     let opcode = $hpu_op.opcode();
                     let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
 
-                    let res = HpuCmd::exec(proto, opcode, &[self.0], &[rhs], None);
+                    let res = HpuCmd::exec(proto, FwMode::Static, opcode, &[self.0], &[rhs], None);
                     Self::Output::new(res[0].clone())
                 }
             }
@@ -199,7 +206,7 @@ macro_rules! map_ct_scalar {
                     let opcode = $hpu_op.opcode();
                     let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
 
-                    let res = HpuCmd::exec(proto, opcode, std::slice::from_ref(&self.0), &[rhs], None);
+                    let res = HpuCmd::exec(proto, FwMode::Static, opcode, std::slice::from_ref(&self.0), &[rhs], None);
                     Self::Output::new(res[0].clone())
                 }
             }
@@ -209,7 +216,7 @@ macro_rules! map_ct_scalar {
                     let opcode = $hpu_op.opcode();
                     let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
 
-                    HpuCmd::exec_assign(proto, opcode, std::slice::from_ref(&self.0), &[rhs])
+                    HpuCmd::exec_assign(proto, FwMode::Static, opcode, std::slice::from_ref(&self.0), &[rhs])
                 }
             }
         }
@@ -226,7 +233,7 @@ macro_rules! map_scalar_ct {
                     let opcode = $hpu_op.opcode();
                     let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
 
-                    let res = HpuCmd::exec(proto, opcode, &[rhs.0], &[self], None);
+                    let res = HpuCmd::exec(proto, FwMode::Static, opcode, &[rhs.0], &[self], None);
                     Self::Output::new(res[0].clone())
                 }
             }
@@ -256,7 +263,7 @@ impl std::ops::Not for HpuRadixCiphertext {
             .expect("Bind to std::ops a unspecified IOP")
             .proto;
 
-        let res = HpuCmd::exec(proto, opcode, &[self.0], &[], None);
+        let res = HpuCmd::exec(proto, FwMode::Static, opcode, &[self.0], &[], None);
         Self::Output::new(res[0].clone())
     }
 }
@@ -271,7 +278,14 @@ impl std::ops::Not for &HpuRadixCiphertext {
             .expect("Bind to std::ops a unspecified IOP")
             .proto;
 
-        let res = HpuCmd::exec(proto, opcode, std::slice::from_ref(&self.0), &[], None);
+        let res = HpuCmd::exec(
+            proto,
+            FwMode::Static,
+            opcode,
+            std::slice::from_ref(&self.0),
+            &[],
+            None,
+        );
         Self::Output::new(res[0].clone())
     }
 }

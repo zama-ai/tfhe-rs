@@ -7,7 +7,7 @@
 //! Fw memory is view a set of SLOT_SIZE_WORDS u32 slot to ease memory management and reduce fragmentation.
 
 use crate::{
-    asm::{self, dop::MAX_HPU_IN_CLUSTER, IOpId},
+    asm::{self, dop::MAX_HPU_IN_CLUSTER, IOpProto},
     ffi,
     interface::{memory, IOP_NUMBER},
 };
@@ -25,11 +25,11 @@ const SLOT_SIZE_WORDS: usize = 1024;
 pub struct ZhcCache {
     // Kept two cache entry indexing for fast bidir lookup
     hash_entries: HashMap<ZhcStreamHash, Arc<ZhcCacheEntry>>,
-    id_entries: HashMap<IOpId, Arc<ZhcCacheEntry>>,
+    id_entries: HashMap<asm::IOpcode, Arc<ZhcCacheEntry>>,
 
     // Management of underlyng storage
     fw_pool: FwPool,
-    id_pool: VecDeque<IOpId>,
+    iop_pool: VecDeque<asm::IOpcode>,
 }
 
 impl ZhcCache {
@@ -39,26 +39,32 @@ impl ZhcCache {
             cut_coefs: pool_size,
         };
 
-        let id_pool = (0..IOP_NUMBER).map(|i| IOpId(i as u8)).collect::<_>();
+        let id_pool = (0..IOP_NUMBER)
+            .map(|i| asm::IOpcode(i as u8))
+            .collect::<_>();
 
         Self {
             hash_entries: HashMap::new(),
             id_entries: HashMap::new(),
             fw_pool: FwPool::new(ffi_hw, mem_props, SLOT_SIZE_WORDS),
-            id_pool,
+            iop_pool: id_pool,
         }
     }
 
-    pub fn get_by_stream(&self, stream: &ZhcStream) -> Option<Arc<ZhcCacheEntry>> {
-        let stream_hash = ZhcStreamHash::from(stream);
-        self.hash_entries.get(&stream_hash).cloned()
+    pub fn get_by_hash(&self, hash: &ZhcStreamHash) -> Option<Arc<ZhcCacheEntry>> {
+        self.hash_entries.get(hash).cloned()
     }
-    pub fn get_by_id(&self, id: &IOpId) -> Option<Arc<ZhcCacheEntry>> {
-        self.id_entries.get(id).cloned()
+    pub fn get_by_iop(&self, iop: &asm::IOpcode) -> Option<Arc<ZhcCacheEntry>> {
+        self.id_entries.get(iop).cloned()
     }
 
-    pub fn get_or_insert(&mut self, stream: ZhcStream) -> Result<Arc<ZhcCacheEntry>, CacheError> {
-        if let Some(e) = self.get_by_stream(&stream) {
+    pub fn get_or_insert(
+        &mut self,
+        hash: ZhcStreamHash,
+        stream: ZhcStream,
+        proto: IOpProto,
+    ) -> Result<Arc<ZhcCacheEntry>, CacheError> {
+        if let Some(e) = self.get_by_hash(&hash) {
             return Ok(e);
         }
 
@@ -75,12 +81,13 @@ impl ZhcCache {
         // TODO
 
         // Allocate id
-        let id = self.id_pool.pop_front().ok_or(CacheError::CacheFull)?;
+        let id = self.iop_pool.pop_front().ok_or(CacheError::CacheFull)?;
         let hash = ZhcStreamHash::from(&stream);
 
         // Insert entry in cache
         let entry = Arc::new(ZhcCacheEntry {
-            id: id.clone(),
+            iop: id.clone(),
+            proto,
             slots,
             stream,
         });
@@ -90,8 +97,8 @@ impl ZhcCache {
         Ok(entry)
     }
 
-    pub fn flush_by_id(&mut self, id: &IOpId) -> Result<usize, CacheError> {
-        if let Some(entry) = self.id_entries.remove(id) {
+    pub fn flush_by_iop(&mut self, iop: &asm::IOpcode) -> Result<usize, CacheError> {
+        if let Some(entry) = self.id_entries.remove(iop) {
             // Release  associated slot
             let released_slots = entry
                 .slots
@@ -108,7 +115,7 @@ impl ZhcCache {
                 .ok_or(CacheError::UnsyncView)?;
             Ok(released_slots)
         } else {
-            Err(CacheError::IdNotFound(id.clone()))
+            Err(CacheError::IOpNotFound(iop.clone()))
         }
     }
 
@@ -125,7 +132,7 @@ impl ZhcCache {
                 .sum();
             // Remove associated entry in id view
             self.id_entries
-                .remove(&entry.id)
+                .remove(&entry.iop)
                 .ok_or(CacheError::UnsyncView)?;
             Ok(released_slots)
         } else {
@@ -141,7 +148,7 @@ impl ZhcCache {
             .collect::<Vec<_>>();
 
         for id in ids.iter() {
-            self.flush_by_id(id)?;
+            self.flush_by_iop(id)?;
         }
 
         if !self.hash_entries.is_empty() {
@@ -170,8 +177,8 @@ impl ZhcCache {
 pub enum CacheError {
     #[error("Cache is full")]
     CacheFull,
-    #[error("{0} is not currently in use")]
-    IdNotFound(asm::IOpId),
+    #[error("{0:?} is not currently in use")]
+    IOpNotFound(asm::IOpcode),
     #[error("{0:?} is not currently in use")]
     HashNotFound(ZhcStreamHash),
     #[error("Unsync view between hash/id _entries")]
@@ -179,15 +186,16 @@ pub enum CacheError {
 }
 
 pub struct ZhcCacheEntry {
-    id: asm::IOpId,
+    iop: asm::IOpcode,
+    proto: asm::IOpProto,
     slots: [Vec<FwSlotId>; MAX_HPU_IN_CLUSTER],
     // Kept associated stream for debug purpose
     stream: ZhcStream,
 }
 
 impl ZhcCacheEntry {
-    pub fn id(&self) -> asm::IOpId {
-        self.id.clone()
+    pub fn iop(&self) -> asm::IOpcode {
+        self.iop.clone()
     }
     pub fn stream(&self) -> &ZhcStream {
         &self.stream
@@ -206,23 +214,23 @@ pub struct ZhcMetadata {
 /// A cache entry content a set of DOp Stream with associated metadata
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct ZhcStream {
-    pub metadata: ZhcMetadata,
+    pub metadata: Option<ZhcMetadata>,
     pub streams: [Vec<u32>; MAX_HPU_IN_CLUSTER],
 }
 
 impl ZhcStream {
-    pub fn new(metadata: ZhcMetadata, streams: &[&[u32]]) -> Self {
+    pub fn new(metadata: Option<ZhcMetadata>, streams: Vec<Vec<u32>>) -> Self {
         assert!(
             streams.len() <= MAX_HPU_IN_CLUSTER,
             "Error ZhcStream must contain at most {MAX_HPU_IN_CLUSTER} streams [{} given]",
             streams.len()
         );
 
-        // Copy stream locally
+        // Enforce correct number of stream
         let mut owned_streams: [Vec<u32>; MAX_HPU_IN_CLUSTER] =
             std::array::from_fn(|_i| Vec::new());
-        for (o, i) in std::iter::zip(owned_streams.iter_mut(), streams.iter()) {
-            o.extend_from_slice(i);
+        for (o, i) in std::iter::zip(owned_streams.iter_mut(), streams.into_iter()) {
+            *o = i;
         }
 
         Self {

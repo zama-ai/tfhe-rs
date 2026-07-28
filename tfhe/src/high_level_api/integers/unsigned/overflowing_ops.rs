@@ -100,6 +100,7 @@ where
                 // These clones are cheap are they are just Arc
                 let mut hpu_result = HpuRadixCiphertext::exec(
                     proto,
+                                hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
@@ -250,6 +251,7 @@ where
                 };
                 let mut hpu_result = HpuRadixCiphertext::exec(
                     proto,
+                                hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_lhs),
                     &[imm_rhs],
@@ -438,6 +440,7 @@ where
                 // These clones are cheap are they are just Arc
                 let mut hpu_result = HpuRadixCiphertext::exec(
                     proto,
+                                hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
@@ -571,6 +574,7 @@ where
                 };
                 let mut hpu_result = HpuRadixCiphertext::exec(
                     proto,
+                                hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_lhs),
                     &[imm_rhs],
@@ -701,6 +705,7 @@ where
                 // These clones are cheap are they are just Arc
                 let mut hpu_result = HpuRadixCiphertext::exec(
                     proto,
+                                hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],

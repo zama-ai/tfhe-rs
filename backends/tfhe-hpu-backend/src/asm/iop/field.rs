@@ -500,6 +500,7 @@ use std::collections::VecDeque;
 /// Used to construct IOp from Backend HpuVar
 impl IOp {
     pub fn new(
+        fw_mode: FwMode,
         opcode: IOpcode,
         map: IOpMapping,
         dst: Vec<Operand>,
@@ -515,7 +516,7 @@ impl IOp {
             dst_align,
             opcode,
             has_imm,
-            fw_mode: FwMode::Static,
+            fw_mode,
         };
         Self {
             header,
