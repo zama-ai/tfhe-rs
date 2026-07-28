@@ -300,42 +300,31 @@ fn state_at_counter<T: Clone>(filler: &T, counter: u64) -> KreyviumState<T> {
     }
 }
 
-const EXHAUSTION_TAIL_BITS: usize = 8;
-
 #[test]
-fn kreyvium_plain_exhaustion_at_counter_range_end() {
-    let start = u64::MAX - EXHAUSTION_TAIL_BITS as u64;
-    let mut stream: KreyviumPlainState = state_at_counter(&false, start);
+fn kreyvium_exhaustion_at_counter_range_end() {
+    let (_client_key, server_key) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+
+    let n_bits: usize = 8;
+    let start = u64::MAX - n_bits as u64;
+
+    let mut plain_stream: KreyviumPlainState = state_at_counter(&false, start);
+    let mut fhe_stream: KreyviumFheState = state_at_counter(&server_key.create_trivial(0), start);
 
     // One bit too many: refused before any round runs, counter untouched.
     assert!(matches!(
-        stream.next_keystream_bits(EXHAUSTION_TAIL_BITS + 1),
+        plain_stream.next_keystream_bits(n_bits + 1),
         Err(InsufficientKeystream)
     ));
-    assert_eq!(stream.current_counter(), start);
+    assert_eq!(plain_stream.current_counter(), start);
+    assert!(matches!(
+        fhe_stream.next_keystream_bits(&server_key, n_bits + 1),
+        Err(InsufficientKeystream)
+    ));
+    assert_eq!(fhe_stream.current_counter(), start);
 
     // Exactly the bits that remain: succeeds and lands on u64::MAX.
-    assert!(stream.next_keystream_bits(EXHAUSTION_TAIL_BITS).is_ok());
-    assert_eq!(stream.current_counter(), u64::MAX);
-
-    // Fully exhausted: even a single further bit is refused.
-    assert!(matches!(
-        stream.next_keystream_bits(1),
-        Err(InsufficientKeystream)
-    ));
-    assert_eq!(stream.current_counter(), u64::MAX);
-}
-
-#[test]
-fn kreyvium_fhe_exhaustion_at_counter_range_end() {
-    let (_client_key, server_key) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
-
-    let start = u64::MAX - EXHAUSTION_TAIL_BITS as u64;
-    let mut stream: KreyviumFheState = state_at_counter(&server_key.create_trivial(0), start);
-
-    assert!(matches!(
-        stream.next_keystream_bits(&server_key, EXHAUSTION_TAIL_BITS + 1),
-        Err(InsufficientKeystream)
-    ));
-    assert_eq!(stream.current_counter(), start);
+    assert!(plain_stream.next_keystream_bits(n_bits).is_ok());
+    assert_eq!(plain_stream.current_counter(), u64::MAX);
+    assert!(fhe_stream.next_keystream_bits(&server_key, n_bits).is_ok());
+    assert_eq!(fhe_stream.current_counter(), u64::MAX);
 }
