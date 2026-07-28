@@ -1,3 +1,10 @@
+//! [Kreyvium](https://eprint.iacr.org/2023/980.pdf) is a lightweight, FHE-friendly stream cipher.
+//!
+//! Its initialization runs a heavy one-time warmup before any keystream is produced. Once warmed,
+//! drawing keystream is comparatively lightweight per bit, so Kreyvium suits workloads where a
+//! warmed state is reused to transcipher a large volume of data, amortizing the warmup across many
+//! keystream bits.
+
 mod fhe;
 mod plain;
 #[cfg(test)]

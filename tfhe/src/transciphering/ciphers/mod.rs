@@ -1,3 +1,5 @@
+//! Implementation of the supported stream ciphers
+
 mod shift_register;
 
 pub mod aes;
