@@ -1,6 +1,6 @@
 use crate::shortint::{Ciphertext, ServerKey};
 use crate::transciphering::ciphers::aes::AesIv;
-use crate::transciphering::{FheKeyStream, StreamCipherKind, Transcipherer};
+use crate::transciphering::{FheKeyStream, InsufficientKeystream, StreamCipherKind, Transcipherer};
 use rayon::prelude::*;
 
 use super::encrypt::encrypt_block;
@@ -35,7 +35,11 @@ impl Transcipherer for AesFheState {
         StreamCipherKind::Aes
     }
 
-    fn next_keystream_bits(&mut self, sks: &ServerKey, n_bits: usize) -> FheKeyStream {
+    fn next_keystream_bits(
+        &mut self,
+        sks: &ServerKey,
+        n_bits: usize,
+    ) -> Result<FheKeyStream, InsufficientKeystream> {
         //  counter
         //     │
         //     ▼
@@ -51,20 +55,23 @@ impl Transcipherer for AesFheState {
         //  a non-block-aligned call wastes the head + tail. The byte-aligned
         //  transciphering path requests the whole message in one call to avoid
         //  this.
+        let end_counter = self
+            .counter
+            .checked_add(n_bits as u64)
+            .ok_or(InsufficientKeystream)?;
+
         let skip_head = (self.counter % 128) as usize;
         let start_block = self.counter / 128;
-        let n_blocks = (skip_head + n_bits).div_ceil(128);
+        let n_blocks = end_counter.div_ceil(128) - start_block;
 
-        let blocks: Vec<[Ciphertext; 128]> = (0..n_blocks as u64)
+        let blocks: Vec<[Ciphertext; 128]> = (0..n_blocks)
             .into_par_iter()
             .map(|i| self.keystream_block(sks, (start_block + i) as u128))
             .collect();
 
-        self.counter = self
-            .counter
-            .checked_add(n_bits as u64)
-            .expect("AesFheStream: keystream bit counter overflowed u64");
+        self.counter = end_counter;
 
+        // TODO: partial block could be cached to avoid generating it twice (issue #1503)
         let flat: Vec<Ciphertext> = blocks
             .into_iter()
             .flatten()
@@ -72,7 +79,7 @@ impl Transcipherer for AesFheState {
             .take(n_bits)
             .collect();
 
-        FheKeyStream::from_raw_parts(flat)
+        Ok(FheKeyStream::from_raw_parts(flat))
     }
 
     fn seek(&mut self, _sks: &ServerKey, target_counter: u64) {

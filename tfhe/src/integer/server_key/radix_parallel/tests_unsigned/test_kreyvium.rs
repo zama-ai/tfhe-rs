@@ -120,7 +120,7 @@ where
         let key_bool: [bool; 128] = std::array::from_fn(|i| key_bits[i] == 1);
         let iv_bool: [bool; 128] = std::array::from_fn(|i| iv_bits[i] == 1);
         let mut ref_kreyvium = KreyviumPlainState::new(key_bool, iv_bool);
-        let ref_bytes = ref_kreyvium.next_keystream_bits(num_steps);
+        let ref_bytes = ref_kreyvium.next_keystream_bits(num_steps).unwrap();
         let cpu_output = ref_bytes
             .iter()
             .flat_map(|&b| (0..8).map(move |i| (b >> i) & 1))
@@ -170,7 +170,7 @@ where
     let key_bool: [bool; 128] = std::array::from_fn(|i| key_bits[i] == 1);
     let iv_bool: [bool; 128] = std::array::from_fn(|i| iv_bits[i] == 1);
     let mut ref_kreyvium = KreyviumPlainState::new(key_bool, iv_bool);
-    let ref_bytes = ref_kreyvium.next_keystream_bits(total_steps);
+    let ref_bytes = ref_kreyvium.next_keystream_bits(total_steps).unwrap();
     let cpu_output = ref_bytes
         .iter()
         .flat_map(|&b| (0..8).map(move |i| (b >> i) & 1))

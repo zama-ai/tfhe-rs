@@ -2,7 +2,7 @@ use tfhe_csprng::generators::aes_ctr::{AesBlockCipher, AesKey};
 use tfhe_csprng::generators::default::AesDefaultBlockCipher;
 
 use crate::transciphering::ciphers::aes::{AesIv, AesPlainKey};
-use crate::transciphering::{StreamCipher, StreamCipherKind};
+use crate::transciphering::{InsufficientKeystream, StreamCipher, StreamCipherKind};
 
 /// Client-side AES-128 in CTR mode, in clear. Mirrors [`super::fhe::AesFheState`].
 pub struct AesPlainState {
@@ -26,14 +26,19 @@ impl StreamCipher for AesPlainState {
         StreamCipherKind::Aes
     }
 
-    fn next_keystream_bits(&mut self, n_bits: usize) -> Vec<u8> {
+    fn next_keystream_bits(&mut self, n_bits: usize) -> Result<Vec<u8>, InsufficientKeystream> {
+        let end_counter = self
+            .counter
+            .checked_add(n_bits as u64)
+            .ok_or(InsufficientKeystream)?;
+
         let skip_head = (self.counter % 128) as usize;
         let start_block = self.counter / 128;
-        let n_blocks = (skip_head + n_bits).div_ceil(128);
+        let n_blocks = end_counter.div_ceil(128) - start_block;
 
         // `generate_next` outputs 16 bytes in NIST order, LSB-first within each
         // byte, matching the trait convention.
-        let mut keystream_bytes: Vec<u8> = Vec::with_capacity(n_blocks * 16);
+        let mut keystream_bytes: Vec<u8> = Vec::with_capacity(n_blocks as usize * 16);
         for i in 0..n_blocks as u128 {
             let counter_value = self.iv.to_u128().wrapping_add(start_block as u128 + i);
             let counter_csprng = u128::from_ne_bytes(counter_value.to_be_bytes());
@@ -41,10 +46,7 @@ impl StreamCipher for AesPlainState {
             keystream_bytes.extend_from_slice(&block);
         }
 
-        self.counter = self
-            .counter
-            .checked_add(n_bits as u64)
-            .expect("AesPlainStream: keystream bit counter overflowed u64");
+        self.counter = end_counter;
 
         let mut result = vec![0u8; n_bits.div_ceil(8)];
         for out_idx in 0..n_bits {
@@ -52,7 +54,7 @@ impl StreamCipher for AesPlainState {
             let bit = (keystream_bytes[src_idx / 8] >> (src_idx % 8)) & 1;
             result[out_idx / 8] |= bit << (out_idx % 8);
         }
-        result
+        Ok(result)
     }
 
     fn seek(&mut self, target_counter: u64) {

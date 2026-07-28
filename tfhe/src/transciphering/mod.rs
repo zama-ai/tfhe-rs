@@ -31,7 +31,7 @@
 //! let input_bytes = input.to_le_bytes();
 //!
 //! let mut sym = KreyviumPlainState::new(key_bits, iv_bits);
-//! let sym_cipher = sym.encrypt(&input_bytes);
+//! let sym_cipher = sym.encrypt(&input_bytes).unwrap();
 //!
 //! // Client → server: ship the FHE-encrypted Kreyvium key (one-time setup).
 //! let enc_key = KreyviumPlainKey::from(key_bits).encrypt(&client_key);
@@ -61,8 +61,8 @@ use crate::shortint::{Ciphertext, ServerKey};
 use crate::transciphering::backward_compatibility::{
     StreamCipherKindVersions, StreamCiphertextVersions,
 };
-use crate::transciphering::ciphers::aes::AesFheState;
-use crate::transciphering::ciphers::kreyvium::KreyviumFheState;
+use ciphers::aes::AesFheState;
+use ciphers::kreyvium::KreyviumFheState;
 
 /// Identifier for a concrete stream-cipher family.
 ///
@@ -151,6 +151,8 @@ pub enum TranscipherError {
         session_counter: u64,
         ciphertext_counter: u64,
     },
+
+    InsufficientKeystream,
 }
 
 impl std::fmt::Display for TranscipherError {
@@ -162,7 +164,7 @@ impl std::fmt::Display for TranscipherError {
             } => write!(
                 f,
                 "stream ciphertext cipher kind mismatch: session kind {session_kind:?}, \
-                ciphertext kond {ciphertext_kind:?}"
+                ciphertext kind {ciphertext_kind:?}"
             ),
             Self::CounterMismatch {
                 session_counter,
@@ -175,11 +177,34 @@ impl std::fmt::Display for TranscipherError {
                     Call `seek({ciphertext_counter})` to align",
                 )
             }
+            Self::InsufficientKeystream => InsufficientKeystream.fmt(f),
         }
     }
 }
 
 impl std::error::Error for TranscipherError {}
+
+/// Returned when a stream cipher state cannot generate enough keystream to satisfy the request.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InsufficientKeystream;
+
+impl std::fmt::Display for InsufficientKeystream {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Cannot generate enoug keystream from the current cipher state. \
+            A new fresh state should be generated"
+        )
+    }
+}
+
+impl std::error::Error for InsufficientKeystream {}
+
+impl From<InsufficientKeystream> for TranscipherError {
+    fn from(_value: InsufficientKeystream) -> Self {
+        Self::InsufficientKeystream
+    }
+}
 
 /// Client-side: a stateful symmetric-cipher session, no FHE.
 pub trait StreamCipher {
@@ -191,7 +216,7 @@ pub trait StreamCipher {
     /// Produce the next `n_bits` of keystream and advance the internal counter.
     /// Bits are packed LSB-first into bytes; in the standard byte-aligned
     /// transciphering use case `n_bits` is a multiple of 8.
-    fn next_keystream_bits(&mut self, n_bits: usize) -> Vec<u8>;
+    fn next_keystream_bits(&mut self, n_bits: usize) -> Result<Vec<u8>, InsufficientKeystream>;
 
     /// XOR the first `n_bits` of `input` with `n_bits` keystream bits.
     ///
@@ -199,7 +224,11 @@ pub trait StreamCipher {
     /// multiple of 8, the trailing bits of the last input byte are passed
     /// through unchanged (the keystream has zero bits in that range, so the
     /// XOR is a no-op there).
-    fn encrypt_bits(&mut self, input: &[u8], n_bits: usize) -> StreamCiphertext {
+    fn encrypt_bits(
+        &mut self,
+        input: &[u8],
+        n_bits: usize,
+    ) -> Result<StreamCiphertext, InsufficientKeystream> {
         assert_eq!(
             input.len(),
             n_bits.div_ceil(8),
@@ -209,20 +238,20 @@ pub trait StreamCipher {
         );
 
         let encryption_counter = self.current_counter();
-        let mask = self.next_keystream_bits(n_bits);
+        let mask = self.next_keystream_bits(n_bits)?;
         let bytes: Vec<u8> = input.iter().zip_checked(mask).map(|(i, m)| i ^ m).collect();
 
-        StreamCiphertext {
+        Ok(StreamCiphertext {
             kind: self.kind(),
             encryption_counter,
             n_bits,
             bytes,
-        }
+        })
     }
 
     /// XOR `input` with the next `8 * input.len()` keystream bits. Advances
     /// the counter.
-    fn encrypt(&mut self, input: &[u8]) -> StreamCiphertext {
+    fn encrypt(&mut self, input: &[u8]) -> Result<StreamCiphertext, InsufficientKeystream> {
         self.encrypt_bits(input, 8 * input.len())
     }
 
@@ -245,7 +274,7 @@ pub trait StreamCipher {
             });
         }
 
-        let mask = self.next_keystream_bits(encrypted.n_bits);
+        let mask = self.next_keystream_bits(encrypted.n_bits)?;
         Ok(encrypted
             .bytes
             .iter()
@@ -273,7 +302,11 @@ pub trait Transcipherer {
     /// Produce the next `n_bits` of FHE-encrypted keystream and advance the
     /// internal counter. One `shortint::Ciphertext` per bit, each a clean
     /// single-bit ciphertext (degree 1, value in {0, 1}).
-    fn next_keystream_bits(&mut self, sks: &ServerKey, n_bits: usize) -> FheKeyStream;
+    fn next_keystream_bits(
+        &mut self,
+        sks: &ServerKey,
+        n_bits: usize,
+    ) -> Result<FheKeyStream, InsufficientKeystream>;
 
     /// Transcipher `input` against `input.n_bits()` bits of keystream from
     /// this session, advancing the internal counter.
@@ -295,7 +328,7 @@ pub trait Transcipherer {
             });
         }
 
-        let keystream = self.next_keystream_bits(sks, input.n_bits);
+        let keystream = self.next_keystream_bits(sks, input.n_bits)?;
         Ok(apply_keystream(sks, &keystream, input))
     }
 
@@ -324,7 +357,11 @@ impl Transcipherer for TranscipherSession {
         }
     }
 
-    fn next_keystream_bits(&mut self, sks: &ServerKey, n_bits: usize) -> FheKeyStream {
+    fn next_keystream_bits(
+        &mut self,
+        sks: &ServerKey,
+        n_bits: usize,
+    ) -> Result<FheKeyStream, InsufficientKeystream> {
         match self {
             Self::Dynamic(t) => t.next_keystream_bits(sks, n_bits),
             Self::Kreyvium(t) => t.next_keystream_bits(sks, n_bits),

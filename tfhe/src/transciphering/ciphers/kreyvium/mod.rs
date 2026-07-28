@@ -149,7 +149,8 @@ impl<T> KreyviumState<T> {
         self.k.n_shifts(n_rounds);
         self.iv.n_shifts(n_rounds);
 
-        // Panic explicitly if counter overflows
+        // Panic explicitly if counter overflows. Should never be reached because of the check
+        // in next_keystream_bits.
         self.counter = self.counter.checked_add(n_rounds as u64).unwrap();
     }
 
