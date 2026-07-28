@@ -1,5 +1,5 @@
-# Test HPU backend HLAPI layer
-name: hpu_hlapi_tests
+# Test HPU backend layer
+name: hpu_tests
 
 on:
   workflow_dispatch:
@@ -23,7 +23,7 @@ permissions: {}
 
 jobs:
   should-run:
-    name: hpu_hlapi_tests/should-run
+    name: hpu_tests/should-run
     if: github.event_name != 'push' ||
       (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs')
     runs-on: ubuntu-latest
@@ -50,7 +50,7 @@ jobs:
               - backends/tfhe-hpu-backend/**
 
   cargo-tests-hpu:
-    name: hpu_hlapi_tests/cargo-tests-hpu (bpr)
+    name: hpu_tests/cargo-tests-hpu (bpr)
     needs: should-run
     if:
       needs.should-run.outputs.hpu_test == 'true' &&
@@ -68,7 +68,8 @@ jobs:
           toolchain: stable
           override: true
 
-      - name: Test HLAPI HPU
+      - name: Test HPU
         run: |
-          make HPU_CONFIG=sim test_high_level_api_hpu
+          make HPU_CONFIG=sim test_integer_hpu_sim_ci_fast
+          make HPU_CONFIG=sim test_multi_hpu_sim_ci_fast
           make HPU_CONFIG=sim test_user_doc_hpu
