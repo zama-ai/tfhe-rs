@@ -1,6 +1,8 @@
 //! Server-side homomorphic conversion of a symmetric-cipher ciphertext into
 //! an FHE ciphertext.
 //!
+//! It is a way for a client to provide inputs to the server without having to run the FHE
+//! encryption, resulting in smaller inputs and removing the need for a zk proof of encryption.
 //! The client encrypts data with a lightweight symmetric stream cipher, using
 //! a key it generates locally, and ships an FHE encryption of that key to the
 //! server once. The server, holding only the encrypted key, applies a
