@@ -172,7 +172,9 @@ flavor_name = "n3-L40x8"
 user = "ubuntu"
 
 [backend.terraform.scaleway-multi-h100-sxm5]
-script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+# Due to a bug that can't be figured out on SXM-8 on scaleway, we need to use a dedicated script
+# for now to get the instance to register a github actions runner
+script_path = "ci/terraform_scripts/scaleway/terraform_sxm_x8.tf"
 instance_type = "H100-SXM-8-80G"
 user = "ubuntu"
 
