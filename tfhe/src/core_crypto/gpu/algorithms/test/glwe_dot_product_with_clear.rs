@@ -244,6 +244,29 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
 
     let output_lwe_list = d_output_lwe.to_lwe_ciphertext_list(&streams);
 
+    // Determinism check
+    let mut d_output_lwe_bis = CudaLweCiphertextList::<Scalar>::new(
+        LweDimension(poly_size),
+        LweCiphertextCount(n_polys_rhs),
+        ciphertext_modulus,
+        &streams,
+    );
+    unsafe {
+        let clear_gpu = CudaVec::from_cpu_async(clear_polys.as_ref(), &streams, 0);
+
+        cuda_glwe_dot_product_with_clear_one_to_many(
+            &d_input_glwe,
+            &clear_gpu,
+            &mut d_output_lwe_bis,
+            &streams,
+        );
+    }
+    assert_gpu_determinism(
+        output_lwe_list.as_ref(),
+        d_output_lwe_bis.to_lwe_ciphertext_list(&streams).as_ref(),
+        "cuda_glwe_dot_product_with_clear_one_to_many",
+    );
+
     let result_lwe = output_lwe_list.get(0);
 
     let glwe_secret_key_as_lwe_secret_key = glwe_secret_key.as_lwe_secret_key();
@@ -336,6 +359,33 @@ fn poly_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
         clear_result_gpu.copy_to_cpu_async(cpu_results.as_mut(), &streams, 0);
         streams.synchronize();
     }
+
+    // Determinism check
+    let mut second_run = PolynomialList::new(
+        Scalar::ZERO,
+        polynomial_size,
+        poly_list_rhs.polynomial_count(),
+    );
+    unsafe {
+        let clear_gpu_lhs = CudaVec::from_cpu_async(poly_lhs.as_ref(), &streams, 0);
+        let clear_gpu_rhs = CudaVec::from_cpu_async(poly_list_rhs.as_ref(), &streams, 0);
+        let mut clear_result_gpu = CudaVec::new(result_reference_cpu.as_ref().len(), &streams, 0);
+
+        cuda_wrapping_polynomial_mul_one_to_many(
+            &clear_gpu_lhs,
+            &clear_gpu_rhs,
+            &mut clear_result_gpu,
+            &streams,
+        );
+
+        clear_result_gpu.copy_to_cpu_async(second_run.as_mut(), &streams, 0);
+        streams.synchronize();
+    }
+    assert_gpu_determinism(
+        cpu_results.as_ref(),
+        second_run.as_ref(),
+        "cuda_wrapping_polynomial_mul_one_to_many",
+    );
 
     assert_eq!(
         cpu_results.polynomial_count().0,
