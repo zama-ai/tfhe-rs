@@ -1,6 +1,6 @@
 use crate::shortint::{Ciphertext, ServerKey};
 use crate::transciphering::ciphers::aes::AesIv;
-use crate::transciphering::{FheKeyStream, StreamCipherKind, Transcipherer};
+use crate::transciphering::{FheKeyStream, KeystreamExhausted, StreamCipherKind, Transcipherer};
 use rayon::prelude::*;
 
 use super::encrypt::encrypt_block;
@@ -35,7 +35,11 @@ impl Transcipherer for AesFheState {
         StreamCipherKind::Aes
     }
 
-    fn next_keystream_bits(&mut self, sks: &ServerKey, n_bits: usize) -> FheKeyStream {
+    fn next_keystream_bits(
+        &mut self,
+        sks: &ServerKey,
+        n_bits: usize,
+    ) -> Result<FheKeyStream, KeystreamExhausted> {
         //  counter
         //     │
         //     ▼
@@ -63,7 +67,7 @@ impl Transcipherer for AesFheState {
         self.counter = self
             .counter
             .checked_add(n_bits as u64)
-            .expect("AesFheStream: keystream bit counter overflowed u64");
+            .ok_or(KeystreamExhausted)?;
 
         let flat: Vec<Ciphertext> = blocks
             .into_iter()
@@ -72,7 +76,7 @@ impl Transcipherer for AesFheState {
             .take(n_bits)
             .collect();
 
-        FheKeyStream::from_raw_parts(flat)
+        Ok(FheKeyStream::from_raw_parts(flat))
     }
 
     fn seek(&mut self, _sks: &ServerKey, target_counter: u64) {

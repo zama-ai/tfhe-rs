@@ -2,7 +2,7 @@ use tfhe_csprng::generators::aes_ctr::{AesBlockCipher, AesKey};
 use tfhe_csprng::generators::default::AesDefaultBlockCipher;
 
 use crate::transciphering::ciphers::aes::{AesIv, AesPlainKey};
-use crate::transciphering::{StreamCipher, StreamCipherKind};
+use crate::transciphering::{KeystreamExhausted, StreamCipher, StreamCipherKind};
 
 /// Client-side AES-128 in CTR mode, in clear. Mirrors [`super::fhe::AesFheState`].
 pub struct AesPlainState {
@@ -26,7 +26,7 @@ impl StreamCipher for AesPlainState {
         StreamCipherKind::Aes
     }
 
-    fn next_keystream_bits(&mut self, n_bits: usize) -> Vec<u8> {
+    fn next_keystream_bits(&mut self, n_bits: usize) -> Result<Vec<u8>, KeystreamExhausted> {
         let skip_head = (self.counter % 128) as usize;
         let start_block = self.counter / 128;
         let n_blocks = (skip_head + n_bits).div_ceil(128);
@@ -44,7 +44,7 @@ impl StreamCipher for AesPlainState {
         self.counter = self
             .counter
             .checked_add(n_bits as u64)
-            .expect("AesPlainStream: keystream bit counter overflowed u64");
+            .ok_or(KeystreamExhausted)?;
 
         let mut result = vec![0u8; n_bits.div_ceil(8)];
         for out_idx in 0..n_bits {
@@ -52,7 +52,7 @@ impl StreamCipher for AesPlainState {
             let bit = (keystream_bytes[src_idx / 8] >> (src_idx % 8)) & 1;
             result[out_idx / 8] |= bit << (out_idx % 8);
         }
-        result
+        Ok(result)
     }
 
     fn seek(&mut self, target_counter: u64) {

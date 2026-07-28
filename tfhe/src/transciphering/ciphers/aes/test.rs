@@ -33,7 +33,7 @@ fn decrypt_u128(cks: &ClientKey, bits: &[Ciphertext; 128]) -> u128 {
 
 fn plain_aes_ctr_keystream(key: u128, iv: u128, n_blocks: usize) -> Vec<u128> {
     let mut stream = AesPlainState::new(key, iv);
-    let bytes = stream.next_keystream_bits(128 * n_blocks);
+    let bytes = stream.next_keystream_bits(128 * n_blocks).unwrap();
     (0..n_blocks)
         .map(|i| {
             let block_bytes: [u8; 16] = bytes[16 * i..16 * (i + 1)]
@@ -206,7 +206,7 @@ fn aes_fhe_known_answer() {
     let fhe_key = AesFheRoundKeys::new(&sks, &enc_key);
     let mut stream = AesFheState::new(fhe_key, IV);
 
-    let keystream = stream.next_keystream_bits(&sks, 128);
+    let keystream = stream.next_keystream_bits(&sks, 128).unwrap();
     let got = decrypt_block(&cks, &keystream.into_raw_parts());
 
     assert_eq!(
@@ -226,7 +226,7 @@ fn aes_fhe_ctr_byte_order_nist() {
     let mut stream = AesFheState::new(fhe_key, CTR_IV);
 
     let n_blocks = CTR_KEYSTREAM.len();
-    let keystream = stream.next_keystream_bits(&sks, 128 * n_blocks);
+    let keystream = stream.next_keystream_bits(&sks, 128 * n_blocks).unwrap();
     let bits = keystream.into_raw_parts();
 
     for (i, expected) in CTR_KEYSTREAM.iter().enumerate() {
@@ -251,7 +251,7 @@ fn aes_fhe_matches_plain_random() {
     let fhe_key = AesFheRoundKeys::new(&sks, &enc_key);
     let mut stream = AesFheState::new(fhe_key, iv);
 
-    let keystream = stream.next_keystream_bits(&sks, 128 * n_blocks);
+    let keystream = stream.next_keystream_bits(&sks, 128 * n_blocks).unwrap();
     let bits = keystream.into_raw_parts();
 
     for (i, expected) in plain.iter().enumerate() {
@@ -271,7 +271,7 @@ fn aes_transcipher_round_trip() {
     let message: [u8; 16] = *b"Hello world!1234";
 
     let mut plain_stream = AesPlainState::new(key, iv);
-    let sym_cipher = plain_stream.encrypt(&message);
+    let sym_cipher = plain_stream.encrypt(&message).unwrap();
 
     let enc_key = AesPlainKey::from(key).encrypt(&cks);
     let fhe_key = AesFheRoundKeys::new(&sks, &enc_key);
@@ -339,8 +339,9 @@ fn aes_fhe_seek() {
     let n_bits = 192;
     let fhe_bits = fhe_stream
         .next_keystream_bits(&sks, n_bits)
+        .unwrap()
         .into_raw_parts();
-    let plain_bytes = plain_stream.next_keystream_bits(n_bits);
+    let plain_bytes = plain_stream.next_keystream_bits(n_bits).unwrap();
     assert_keystream_matches(&cks, &fhe_bits, &plain_bytes, n_bits);
     assert_eq!(fhe_stream.current_counter(), 64 + n_bits as u64);
 }
@@ -360,8 +361,9 @@ fn aes_fhe_non_byte_aligned_n_bits() {
     let n_bits = 100;
     let fhe_bits = fhe_stream
         .next_keystream_bits(&sks, n_bits)
+        .unwrap()
         .into_raw_parts();
-    let plain_bytes = plain_stream.next_keystream_bits(n_bits);
+    let plain_bytes = plain_stream.next_keystream_bits(n_bits).unwrap();
     assert_keystream_matches(&cks, &fhe_bits, &plain_bytes, n_bits);
     assert_eq!(fhe_stream.current_counter(), n_bits as u64);
 }
