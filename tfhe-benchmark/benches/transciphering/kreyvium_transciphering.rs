@@ -104,7 +104,7 @@ pub fn cpu_kreyvium_transciphering(c: &mut Criterion) {
             b.iter_batched(
                 || warm_state.clone(),
                 |mut stream| {
-                    black_box(stream.next_keystream_bits(&sks, KEYSTREAM_BITS));
+                    black_box(stream.next_keystream_bits(&sks, KEYSTREAM_BITS).unwrap());
                 },
                 BatchSize::SmallInput,
             )
@@ -118,7 +118,7 @@ pub fn cpu_kreyvium_transciphering(c: &mut Criterion) {
             KreyviumPlainKey::from(key_bytes),
             KreyviumIV::from(iv_bytes),
         );
-        plain_stream.encrypt(&message)
+        plain_stream.encrypt(&message).unwrap()
     };
 
     let benchmark_spec = BenchmarkSpec::<str>::new_transciphering(

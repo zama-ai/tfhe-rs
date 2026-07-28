@@ -3,7 +3,7 @@
 use crate::shortint::ClientKey;
 use crate::transciphering::ciphers::shift_register::ShiftRegister;
 use crate::transciphering::ciphers::{pack_bits_lsb_first, unpack_bits_lsb_first};
-use crate::transciphering::{StreamCipher, StreamCipherKind};
+use crate::transciphering::{InsufficientKeystream, StreamCipher, StreamCipherKind};
 
 use super::{
     KreyviumBackwardRoundOutput, KreyviumFheKey, KreyviumRound, KreyviumRoundInput,
@@ -131,11 +131,15 @@ impl StreamCipher for KreyviumPlainState {
         StreamCipherKind::Kreyvium
     }
 
-    fn next_keystream_bits(&mut self, n_bits: usize) -> Vec<u8> {
+    fn next_keystream_bits(&mut self, n_bits: usize) -> Result<Vec<u8>, InsufficientKeystream> {
+        self.current_counter()
+            .checked_add(n_bits as u64)
+            .ok_or(InsufficientKeystream)?;
+
         let bits = self.next_n(&(), n_bits);
         let mut result = vec![0u8; n_bits.div_ceil(8)];
         pack_bits_lsb_first(&bits, &mut result);
-        result
+        Ok(result)
     }
 
     fn seek(&mut self, target_counter: u64) {
