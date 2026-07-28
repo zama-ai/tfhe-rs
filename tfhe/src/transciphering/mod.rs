@@ -63,6 +63,7 @@ use crate::transciphering::backward_compatibility::{
 };
 use ciphers::aes::AesFheState;
 use ciphers::kreyvium::KreyviumFheState;
+use ciphers::one_time_pad::OneTimePadFheState;
 
 /// Identifier for a concrete stream-cipher family.
 ///
@@ -78,6 +79,7 @@ pub enum StreamCipherKind {
     Dynamic,
     Kreyvium,
     Aes,
+    OneTimePad,
 }
 
 /// Output of [`StreamCipher::encrypt`] / [`StreamCipher::encrypt_bits`]: a
@@ -346,6 +348,7 @@ pub enum TranscipherSession {
     Dynamic(Box<dyn Transcipherer + Send + Sync>),
     Kreyvium(KreyviumFheState),
     Aes(Box<AesFheState>),
+    OneTimePad(OneTimePadFheState),
 }
 
 impl Transcipherer for TranscipherSession {
@@ -354,6 +357,7 @@ impl Transcipherer for TranscipherSession {
             Self::Dynamic(t) => t.kind(),
             Self::Kreyvium(t) => t.kind(),
             Self::Aes(t) => t.kind(),
+            Self::OneTimePad(t) => t.kind(),
         }
     }
 
@@ -366,6 +370,7 @@ impl Transcipherer for TranscipherSession {
             Self::Dynamic(t) => t.next_keystream_bits(sks, n_bits),
             Self::Kreyvium(t) => t.next_keystream_bits(sks, n_bits),
             Self::Aes(t) => t.next_keystream_bits(sks, n_bits),
+            Self::OneTimePad(t) => t.next_keystream_bits(sks, n_bits),
         }
     }
 
@@ -378,6 +383,7 @@ impl Transcipherer for TranscipherSession {
             Self::Dynamic(t) => t.transcipher(sks, input),
             Self::Kreyvium(t) => t.transcipher(sks, input),
             Self::Aes(t) => t.transcipher(sks, input),
+            Self::OneTimePad(t) => t.transcipher(sks, input),
         }
     }
 
@@ -386,6 +392,7 @@ impl Transcipherer for TranscipherSession {
             Self::Dynamic(t) => t.seek(sks, target_counter),
             Self::Kreyvium(t) => t.seek(sks, target_counter),
             Self::Aes(t) => t.seek(sks, target_counter),
+            Self::OneTimePad(t) => t.seek(sks, target_counter),
         }
     }
 
@@ -394,6 +401,7 @@ impl Transcipherer for TranscipherSession {
             Self::Dynamic(t) => t.current_counter(),
             Self::Kreyvium(t) => t.current_counter(),
             Self::Aes(t) => t.current_counter(),
+            Self::OneTimePad(t) => t.current_counter(),
         }
     }
 }
