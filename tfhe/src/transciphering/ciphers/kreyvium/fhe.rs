@@ -3,7 +3,7 @@
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::{Ciphertext, ServerKey};
 use crate::transciphering::ciphers::shift_register::ShiftRegister;
-use crate::transciphering::{FheKeyStream, StreamCipherKind, Transcipherer};
+use crate::transciphering::{FheKeyStream, InsufficientKeystream, StreamCipherKind, Transcipherer};
 
 use super::{
     collect_boxed_array, KreyviumBackwardRoundOutput, KreyviumIV, KreyviumRound,
@@ -96,8 +96,16 @@ impl Transcipherer for KreyviumFheState {
         StreamCipherKind::Kreyvium
     }
 
-    fn next_keystream_bits(&mut self, sks: &ServerKey, n_bits: usize) -> FheKeyStream {
-        FheKeyStream(self.next_n(sks, n_bits))
+    fn next_keystream_bits(
+        &mut self,
+        sks: &ServerKey,
+        n_bits: usize,
+    ) -> Result<FheKeyStream, InsufficientKeystream> {
+        self.current_counter()
+            .checked_add(n_bits as u64)
+            .ok_or(InsufficientKeystream)?;
+
+        Ok(FheKeyStream(self.next_n(sks, n_bits)))
     }
 
     fn seek(&mut self, sks: &ServerKey, target_counter: u64) {

@@ -7,10 +7,13 @@ use crate::shortint::parameters::test_params::{
 };
 use crate::shortint::prelude::*;
 use crate::transciphering::ciphers::kreyvium::{
-    KreyviumFheState, KreyviumPlainKey, KreyviumPlainState,
+    KreyviumFheState, KreyviumPlainKey, KreyviumPlainState, KreyviumState,
 };
 use crate::transciphering::ciphers::pack_bits_lsb_first;
-use crate::transciphering::{apply_keystream, FheKeyStream, StreamCipher, Transcipherer};
+use crate::transciphering::ciphers::shift_register::ShiftRegister;
+use crate::transciphering::{
+    apply_keystream, FheKeyStream, InsufficientKeystream, StreamCipher, Transcipherer,
+};
 
 fn get_hexadecimal_string_from_bytes(bytes: &[u8]) -> String {
     let mut hexadecimal = String::new();
@@ -79,7 +82,7 @@ fn kreyvium_test_plain() {
         let iv_bytes = hex_to_bytes_16(iv);
 
         let mut kreyvium = KreyviumPlainState::new(key_bytes, iv_bytes);
-        let vec = kreyvium.next_keystream_bits(64);
+        let vec = kreyvium.next_keystream_bits(64).unwrap();
 
         let hexadecimal = get_hexadecimal_string_from_bytes(&vec);
         assert_eq!(hexadecimal, expected, "key={key} iv={iv}");
@@ -100,7 +103,7 @@ fn kreyvium_plain_encrypt_decrypt_round_trip() {
     let message: Vec<u8> = (0..37).map(|_| rng.gen()).collect();
 
     let mut enc_stream = KreyviumPlainState::new(key, iv);
-    let encrypted = enc_stream.encrypt(&message);
+    let encrypted = enc_stream.encrypt(&message).unwrap();
     assert_eq!(encrypted.bytes().len(), message.len());
 
     let mut dec_stream = KreyviumPlainState::new(key, iv);
@@ -120,7 +123,7 @@ fn kreyvium_fhe_keystream_known_answer(params: ClassicPBSParameters) {
 
     let mut kreyvium = KreyviumFheState::new(cipher_key, iv_bytes, &server_key);
 
-    let cts = kreyvium.next_keystream_bits(&server_key, 64);
+    let cts = kreyvium.next_keystream_bits(&server_key, 64).unwrap();
 
     let bytes = decrypt_keystream_to_bytes(&cts, &client_key);
 
@@ -169,13 +172,13 @@ fn kreyvium_test_round_trip() {
         // Symmetric Kreyvium encrypt: plain keystream XOR input bytes
         // (LSB-first within each byte, matching `to_le_bytes`).
         let mut sym_stream = KreyviumPlainState::new(key_bits, iv_bits);
-        let sym_cipher = sym_stream.encrypt(&input.to_le_bytes());
+        let sym_cipher = sym_stream.encrypt(&input.to_le_bytes()).unwrap();
 
         // FHE side: encrypt the same key bits, run FHE stream, transcipher.
         let cipher_key = KreyviumPlainKey::from(key_bits).encrypt(&client_key);
 
         let mut fhe_stream = KreyviumFheState::new(cipher_key, iv_bits, &server_key);
-        let keystream = fhe_stream.next_keystream_bits(&server_key, 64);
+        let keystream = fhe_stream.next_keystream_bits(&server_key, 64).unwrap();
 
         let chunks = apply_keystream(&server_key, &keystream, &sym_cipher);
 
@@ -207,9 +210,9 @@ fn kreyvium_seek_plain() {
     // Snapshot states at counters 0 and 64 from a fresh stream.
     let state_at_0 = KreyviumPlainState::new(key, iv);
     let mut state_at_64 = state_at_0.clone();
-    let head_keystream = state_at_64.next_keystream_bits(64);
+    let head_keystream = state_at_64.next_keystream_bits(64).unwrap();
     assert_eq!(state_at_64.current_counter(), 64);
-    let mid_keystream = state_at_64.clone().next_keystream_bits(64);
+    let mid_keystream = state_at_64.clone().next_keystream_bits(64).unwrap();
 
     // Forward seek
     let mut s = KreyviumPlainState::new(key, iv);
@@ -218,21 +221,21 @@ fn kreyvium_seek_plain() {
     assert_eq!(s, state_at_64, "forward-seek state mismatch");
 
     // Backward seek
-    s.next_keystream_bits(128); // counter = 192
+    s.next_keystream_bits(128).unwrap(); // counter = 192
     assert_eq!(s.current_counter(), 192);
     s.seek(64);
     assert_eq!(s.current_counter(), 64);
     assert_eq!(s, state_at_64, "backward-seek state mismatch");
 
     // Re-emit from the rewound state and check keystream matches.
-    let mid_again = s.next_keystream_bits(64);
+    let mid_again = s.next_keystream_bits(64).unwrap();
     assert_eq!(mid_again, mid_keystream);
 
     // Seek all the way back to 0
     s.seek(0);
     assert_eq!(s.current_counter(), 0);
     assert_eq!(s, state_at_0, "seek-to-0 state mismatch");
-    let head_again = s.next_keystream_bits(64);
+    let head_again = s.next_keystream_bits(64).unwrap();
     assert_eq!(head_again, head_keystream);
 }
 
@@ -252,7 +255,7 @@ fn kreyvium_seek_fhe() {
 
     // Reference plain keystream.
     let mut ref_stream = KreyviumPlainState::new(key_bits, iv_bits);
-    let ref_keystream = ref_stream.next_keystream_bits(192);
+    let ref_keystream = ref_stream.next_keystream_bits(192).unwrap();
 
     let cipher_key = KreyviumPlainKey::from(key_bits).encrypt(&client_key);
     let mut k = KreyviumFheState::new(cipher_key, iv_bits, &server_key);
@@ -262,7 +265,7 @@ fn kreyvium_seek_fhe() {
     k.seek(&server_key, 64);
     assert_eq!(k.current_counter(), 64);
 
-    let mid = k.next_keystream_bits(&server_key, 64);
+    let mid = k.next_keystream_bits(&server_key, 64).unwrap();
     assert_eq!(k.current_counter(), 128);
     assert_eq!(
         decrypt_keystream_to_bytes(&mid, &client_key),
@@ -272,10 +275,67 @@ fn kreyvium_seek_fhe() {
     // Backward seek to an earlier counter and re-emit
     k.seek(&server_key, 64);
     assert_eq!(k.current_counter(), 64);
-    let mid_again = k.next_keystream_bits(&server_key, 64);
+    let mid_again = k.next_keystream_bits(&server_key, 64).unwrap();
     assert_eq!(k.current_counter(), 128);
     assert_eq!(
         decrypt_keystream_to_bytes(&mid_again, &client_key),
         ref_keystream[8..16]
     );
+}
+
+fn filled_register<const N: usize, T: Clone>(filler: &T) -> ShiftRegister<N, T> {
+    ShiftRegister::new(Box::new(std::array::from_fn(|_| filler.clone())))
+}
+
+/// Build a stream already sitting at `counter`, with `filler` in every register
+/// slot. This avoids having to run a full warmup for a quick test
+fn state_at_counter<T: Clone>(filler: &T, counter: u64) -> KreyviumState<T> {
+    KreyviumState {
+        a: filled_register(filler),
+        b: filled_register(filler),
+        c: filled_register(filler),
+        k: filled_register(filler),
+        iv: filled_register(filler),
+        counter,
+    }
+}
+
+const EXHAUSTION_TAIL_BITS: usize = 8;
+
+#[test]
+fn kreyvium_plain_exhaustion_at_counter_range_end() {
+    let start = u64::MAX - EXHAUSTION_TAIL_BITS as u64;
+    let mut stream: KreyviumPlainState = state_at_counter(&false, start);
+
+    // One bit too many: refused before any round runs, counter untouched.
+    assert!(matches!(
+        stream.next_keystream_bits(EXHAUSTION_TAIL_BITS + 1),
+        Err(InsufficientKeystream)
+    ));
+    assert_eq!(stream.current_counter(), start);
+
+    // Exactly the bits that remain: succeeds and lands on u64::MAX.
+    assert!(stream.next_keystream_bits(EXHAUSTION_TAIL_BITS).is_ok());
+    assert_eq!(stream.current_counter(), u64::MAX);
+
+    // Fully exhausted: even a single further bit is refused.
+    assert!(matches!(
+        stream.next_keystream_bits(1),
+        Err(InsufficientKeystream)
+    ));
+    assert_eq!(stream.current_counter(), u64::MAX);
+}
+
+#[test]
+fn kreyvium_fhe_exhaustion_at_counter_range_end() {
+    let (_client_key, server_key) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+
+    let start = u64::MAX - EXHAUSTION_TAIL_BITS as u64;
+    let mut stream: KreyviumFheState = state_at_counter(&server_key.create_trivial(0), start);
+
+    assert!(matches!(
+        stream.next_keystream_bits(&server_key, EXHAUSTION_TAIL_BITS + 1),
+        Err(InsufficientKeystream)
+    ));
+    assert_eq!(stream.current_counter(), start);
 }

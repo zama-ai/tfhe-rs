@@ -96,7 +96,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
             b.iter(|| {
                 let fhe_key = AesFheRoundKeys::new(&sks, &enc_key);
                 let mut stream = AesFheState::new(fhe_key, iv);
-                black_box(stream.next_keystream_bits(&sks, BLOCK_BITS));
+                black_box(stream.next_keystream_bits(&sks, BLOCK_BITS).unwrap());
             })
         },
     );
@@ -121,7 +121,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
         |b| {
             b.iter(|| {
                 stream.seek(&sks, 0);
-                black_box(stream.next_keystream_bits(&sks, BLOCK_BITS));
+                black_box(stream.next_keystream_bits(&sks, BLOCK_BITS).unwrap());
             })
         },
     );
@@ -143,7 +143,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
         |b| {
             b.iter(|| {
                 stream.seek(&sks, 0);
-                black_box(stream.next_keystream_bits(&sks, total_bits));
+                black_box(stream.next_keystream_bits(&sks, total_bits).unwrap());
             })
         },
     );
@@ -154,7 +154,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
     // `seek(&sks, 0)` reset below.
     let total_bytes = BLOCK_BYTES * N_BLOCKS;
     let message = vec![0u8; total_bytes];
-    let sym_cipher = AesPlainState::new(key, iv).encrypt(&message);
+    let sym_cipher = AesPlainState::new(key, iv).encrypt(&message).unwrap();
 
     let benchmark_spec = BenchmarkSpec::<str>::new_transciphering(
         TranscipheringBench::Aes(AesFlavor::Transcipher16Blocks),
