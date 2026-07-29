@@ -292,8 +292,9 @@ impl FwPool {
     ) -> Self {
         let slot_nb = props.cut_coefs.div_ceil(coef_per_slot);
         let mem = memory::HugeMemory::alloc(ffi_hw, props);
-        // NB: slot 0 is used for table_lookup
-        let pool = (1..slot_nb).map(|i| FwSlotId(i)).collect::<VecDeque<_>>();
+        // NB: Firsts slots are used for table_lookup
+        let reserved_slot = (IOP_NUMBER*MAX_HPU_IN_CLUSTER * std::mem::size_of::<u32>()).div_ceil(coef_per_slot);
+        let pool = (reserved_slot..slot_nb).map(|i| FwSlotId(i)).collect::<VecDeque<_>>();
 
         Self {
             mem,
