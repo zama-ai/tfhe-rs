@@ -66,6 +66,18 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn cuda_centered_modulus_switch_cooperative_64_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_out: *mut ffi::c_void,
+        lwe_in: *const ffi::c_void,
+        lwe_dimension: u32,
+        log_modulus: u32,
+        block_dim_x: u32,
+        block_dim_y: u32,
+    );
+}
+unsafe extern "C" {
     pub fn cuda_glwe_sample_extract_128_async(
         stream: *mut ffi::c_void,
         gpu_index: u32,
