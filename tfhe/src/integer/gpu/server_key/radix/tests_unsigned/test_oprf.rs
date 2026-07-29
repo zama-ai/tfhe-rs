@@ -11,28 +11,37 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::test_oprf::{
     oprf_almost_uniformity_test, oprf_any_range_test, oprf_uniformity_test,
     oprf_zero_input_bits_test, pseudo_random_integer_and_rerand_test, OprfReRandTestRunner,
 };
-use crate::integer::{ClientKey, CompactPrivateKey, CompactPublicKey};
+use crate::integer::{ClientKey, CompactPrivateKey, CompactPublicKey, ServerKey};
 use crate::shortint::oprf::OprfSeed;
 use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use crate::shortint::parameters::{
     TestParameters, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 use core::num::NonZeroU64;
+use tfhe_csprng::seeders::Seed;
 
 create_gpu_parameterized_test!(oprf_uniformity_unsigned {
-    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 create_gpu_parameterized_test!(oprf_any_range_unsigned {
-    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 create_gpu_parameterized_test!(oprf_almost_uniformity_unsigned {
-    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 create_gpu_parameterized_test!(oprf_zero_input_bits_unsigned {
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 
 create_gpu_parameterized_test!(pseudo_random_integer_and_rerand {
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
+
+create_gpu_parameterized_test!(oprf_cpu_gpu_equivalence {
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 });
@@ -347,4 +356,48 @@ where
     P: Into<TestParameters>,
 {
     pseudo_random_integer_and_rerand_test(param, GpuOprfReRandTestRunner::new());
+}
+
+fn oprf_cpu_gpu_equivalence<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let cks = ClientKey::new(param.into());
+    let streams = CudaStreams::new_multi_gpu();
+
+    let oprf_pk = OprfPrivateKey::new(&cks);
+    let compressed_oprf_sk = CompressedOprfServerKey::new(&oprf_pk, &cks).unwrap();
+    let cpu_oprf_sks = compressed_oprf_sk.expand().to_fourier();
+    let gpu_oprf_sks = CudaOprfServerKey::decompress_from_cpu(&compressed_oprf_sk, &streams);
+
+    let cpu_sks = ServerKey::new_radix_server_key(&cks);
+    let gpu_sks = CudaServerKey::new(&cks, &streams);
+
+    for num_blocks in [4u64, 38, 39, 64, 134, 135, 260] {
+        for raw_seed in [0u128, 1, 0x0123_4567_89ab_cdef, u128::MAX] {
+            let seed = Seed(raw_seed);
+
+            let cpu_ct = cpu_oprf_sks
+                .par_generate_oblivious_pseudo_random_unsigned_integer(seed, num_blocks, &cpu_sks);
+            let gpu_ct = gpu_oprf_sks
+                .par_generate_oblivious_pseudo_random_unsigned_integer(
+                    seed, num_blocks, &gpu_sks, &streams,
+                )
+                .to_radix_ciphertext(&streams);
+
+            assert_eq!(cpu_ct.blocks.len() as u64, num_blocks);
+            assert_eq!(gpu_ct.blocks.len() as u64, num_blocks);
+
+            for (i, (cpu_block, gpu_block)) in
+                cpu_ct.blocks.iter().zip(gpu_ct.blocks.iter()).enumerate()
+            {
+                assert_eq!(
+                    cks.decrypt_one_block(cpu_block),
+                    cks.decrypt_one_block(gpu_block),
+                    "CPU and GPU PRF differ on block #{i} \
+                     (num_blocks={num_blocks}, seed={raw_seed})",
+                );
+            }
+        }
+    }
 }
