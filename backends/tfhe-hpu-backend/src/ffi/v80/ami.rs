@@ -18,7 +18,7 @@ const AMI_VERSION_FILE: &str = "/sys/module/ami/version";
 const AMI_VERSION_PATTERN: &str = r"3\.1\.\d+-zama";
 
 const AMI_ID_FILE: &str = "/sys/bus/pci/drivers/ami/devices";
-const AMI_ID_PATTERN: &str = r"(?<bus>[[:xdigit:]]{2}):(?<dev>[[:xdigit:]]{2})\.(?<func>[[:xdigit:]])\s(?<devn>\d+)\s(?<hwmon>\d+)";
+const AMI_ID_PATTERN: &str = r"(?<bus>[[:xdigit:]]{2}):(?<dev>[[:xdigit:]]{2})\.(?<func>[[:xdigit:]])\s(?<devn>\d+)\s(?<hwmon>-?\d+)";
 
 fn his_version_file(pcie_id: &str) -> String {
     format!("/sys/bus/pci/devices/0000:{pcie_id}:00.0/amc_version")
@@ -40,7 +40,7 @@ pub struct AmiInfo {
     dev_id: usize,
     func_id: usize,
     devn: usize,
-    hwmon: usize,
+    hwmon: Option<usize>,
 }
 
 /// Set of discovery function
@@ -75,7 +75,18 @@ impl AmiInfo {
         let dev_id = usize::from_str_radix(&caps["dev"], 16)?;
         let func_id = usize::from_str_radix(&caps["func"], 16)?;
         let devn = caps["devn"].parse::<usize>()?;
-        let hwmon = caps["hwmon"].parse::<usize>()?;
+        let hwmon = caps["hwmon"].parse::<isize>().ok().and_then(|v| {
+            if v >= 0 {
+                Some(v as usize)
+            } else {
+                None
+            }
+        });
+        if hwmon.is_none() {
+            tracing::warn!(
+                "AMI: hwmon unavailable (EEPROM/I2C issue?), sensor data will be missing, continuing without it"
+            );
+        }
         Ok(Self {
             bus_id,
             dev_id,
