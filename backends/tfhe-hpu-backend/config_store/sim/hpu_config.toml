@@ -35,7 +35,7 @@
   fw_pc = {Ddr= {offset= 0x3900_0000}} # NB: Allocation must take place in the Discrete DDR
 
   zhc_size= 16777216 # i.e. 16 MiB
-  zhc_pc = {Ddr= {offset= 0x4900_0000}} # NB: Allocation must take place in the Discrete DDR
+  zhc_pc = {Ddr= {offset= 0x3B00_0000}} # NB: Allocation must take place in the Discrete DDR
 
   bsk_pc = [
     {Hbm={pc=8}},

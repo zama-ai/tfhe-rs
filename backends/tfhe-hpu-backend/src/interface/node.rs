@@ -38,15 +38,24 @@ pub struct UcoreConfig {
     pub user_size: u16,
     pub b2b_size: u16,
     _padding: [u8; 2],
+    pub zhc_cache_addr: u32,
+    pub zhc_cache_size: u32,
     // NB: modification in this file must match the one in amc.c
-    _reserved_word: [u32; 61],
+    _reserved_word: [u32; 59],
 }
 // SAFETY: UcoreConfig is repr(C) with only Zeroable/Pod types
 unsafe impl Zeroable for UcoreConfig {}
 unsafe impl Pod for UcoreConfig {}
 
 impl UcoreConfig {
-    pub fn new(node_id: u8, node_mask: u8, user_size: u16, b2b_size: u16) -> Self {
+    pub fn new(
+        node_id: u8,
+        node_mask: u8,
+        user_size: u16,
+        b2b_size: u16,
+        zhc_cache_addr: u32,
+        zhc_cache_size: u32,
+    ) -> Self {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards!")
@@ -59,7 +68,9 @@ impl UcoreConfig {
             user_size,
             b2b_size,
             _padding: [0; 2],
-            _reserved_word: [u32::MAX; 61],
+            zhc_cache_addr,
+            zhc_cache_size,
+            _reserved_word: [u32::MAX; 59],
         }
     }
 }
@@ -863,13 +874,22 @@ impl HpuNode {
         // |      DOp stream [Size_in_word] [Dop stream]
         // |--->
 
+        // Extract zhc_cache_addr
+        let zhc_cache_addr = if let ffi::MemKind::Ddr { offset } = config.board.zhc_pc {
+            offset
+        } else {
+            panic!("ZhcCachePc must be in DDR");
+        };
+
         // Write runtime configuration
-        // FW cut is view as u32 array, cost UcoreConfig accordingly
+        // FW cut is view as u32 array, cast UcoreConfig accordingly
         let fw_cfg = UcoreConfig::new(
             self.hid,
             self.node_mask,
             config.board.user_size as u16,
             config.board.b2b_size as u16,
+            zhc_cache_addr as u32,
+            config.board.zhc_size as u32,
         );
         let fw_cfg_raw_u8 = bytemuck::bytes_of(&fw_cfg);
         let fw_cfg_raw_u32 = bytemuck::cast_slice::<u8, u32>(fw_cfg_raw_u8);
