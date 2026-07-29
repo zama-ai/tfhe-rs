@@ -401,6 +401,69 @@ __host__ void host_centered_modulus_switch_inplace(
   check_cuda_error(cudaGetLastError());
 }
 
+// Same as centered_modulus_switch, but with the block-cooperative body
+// correction, the one the PBS kernels use. Launch it with the block shape of
+// the kernel you want to mimic, the reduction linearizes the thread indexes.
+template <typename Torus, int num_warps>
+__global__ void centered_modulus_switch_cooperative(Torus *output,
+                                                    const Torus *input,
+                                                    uint32_t lwe_dimension,
+                                                    uint32_t log_modulus) {
+  constexpr int block_size = num_warps * 32;
+  // Two values per warp
+  __shared__ Torus smem_scratch[2 * num_warps];
+
+  // Every thread must call it, they all get the same value
+  auto correction =
+      centered_binary_modulus_switch_body_correction_to_add_cooperative<
+          Torus, num_warps>(input, lwe_dimension, log_modulus, smem_scratch);
+
+  const int linear_tid = threadIdx.x + threadIdx.y * blockDim.x +
+                         threadIdx.z * blockDim.x * blockDim.y;
+
+  if (linear_tid == 0) {
+    auto body = input[lwe_dimension];
+    output[lwe_dimension] = modulus_switch(body + correction, log_modulus);
+  }
+
+  for (uint32_t i = static_cast<uint32_t>(linear_tid); i < lwe_dimension;
+       i += block_size) {
+    output[i] = modulus_switch(input[i], log_modulus);
+  }
+}
+
+// Applies the centered modulus switch on a single LWE with the cooperative body
+// correction, in a block of shape (block_dim_x, block_dim_y, 1)
+template <typename Torus>
+__host__ void host_centered_modulus_switch_cooperative(
+    cudaStream_t stream, uint32_t gpu_index, Torus *output, const Torus *input,
+    uint32_t lwe_dimension, uint32_t log_modulus, uint32_t block_dim_x,
+    uint32_t block_dim_y) {
+  cuda_set_device(gpu_index);
+  if (input == output)
+    PANIC("Input and Output arrays should be different")
+
+  const uint32_t block_size = block_dim_x * block_dim_y;
+  dim3 grid(1, 1, 1);
+  dim3 block(block_dim_x, block_dim_y, 1);
+
+  switch (block_size) {
+  // (64, 2, 1) block of the specialized 2_2 throughput PBS
+  case 128:
+    centered_modulus_switch_cooperative<Torus, 4>
+        <<<grid, block, 0, stream>>>(output, input, lwe_dimension, log_modulus);
+    break;
+  case 512:
+    centered_modulus_switch_cooperative<Torus, 16>
+        <<<grid, block, 0, stream>>>(output, input, lwe_dimension, log_modulus);
+    break;
+  default:
+    PANIC("Unsupported block size for the cooperative centered modulus switch, "
+          "supported sizes are 128 and 512 threads per block")
+  }
+  check_cuda_error(cudaGetLastError());
+}
+
 template <typename T>
 __device__ __forceinline__ double round_error_double(T input,
                                                      uint32_t log_modulus) {
