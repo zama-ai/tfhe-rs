@@ -77,12 +77,32 @@ impl ZhcCache {
                 Ok(slots)
             },
         )?;
-        // Write stream in associated slots
-        // TODO
-
         // Allocate id
         let id = self.iop_pool.pop_front().ok_or(CacheError::CacheFull)?;
         let hash = ZhcStreamHash::from(&stream);
+
+        // Write stream in associated slots
+        let vid_bytes_ofst = std::iter::zip(stream.streams.iter(), slots.iter())
+            .map(|(dops, slot)| {
+                if let Some(sid) = slot.get(0) {
+                    // used vid
+                    // Write dop stream
+                    let words_ofst = sid.0 * SLOT_SIZE_WORDS;
+                    self.fw_pool.mem.write_cut_at(0, words_ofst, dops);
+                    (words_ofst * std::mem::size_of::<u32>()) as u32
+                } else {
+                    // Current vid isn't used return 0
+                    // => This first entry point on itself and  is reserved for errror
+                    0
+                }
+            })
+            .collect::<Vec<_>>();
+
+        // Update lookup-table
+        // Write all vid lut addr at once
+        self.fw_pool
+            .mem
+            .write_cut_at(0, 1 + (id.0 as usize * MAX_HPU_IN_CLUSTER), &vid_bytes_ofst);
 
         // Insert entry in cache
         let entry = Arc::new(ZhcCacheEntry {
@@ -272,7 +292,8 @@ impl FwPool {
     ) -> Self {
         let slot_nb = props.cut_coefs.div_ceil(coef_per_slot);
         let mem = memory::HugeMemory::alloc(ffi_hw, props);
-        let pool = (0..slot_nb).map(|i| FwSlotId(i)).collect::<VecDeque<_>>();
+        // NB: slot 0 is used for table_lookup
+        let pool = (1..slot_nb).map(|i| FwSlotId(i)).collect::<VecDeque<_>>();
 
         Self {
             mem,
