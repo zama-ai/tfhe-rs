@@ -103,6 +103,18 @@ void cuda_centered_modulus_switch_64_async(void *stream, uint32_t gpu_index,
       lwe_dimension, log_modulus);
 }
 
+void cuda_centered_modulus_switch_cooperative_64_async(
+    void *stream, uint32_t gpu_index, void *lwe_out, const void *lwe_in,
+    uint32_t lwe_dimension, uint32_t log_modulus, uint32_t block_dim_x,
+    uint32_t block_dim_y) {
+  PANIC_IF_FALSE(lwe_out != lwe_in, "Output and input pointers must be "
+                                    "different for out-of-place operations");
+  host_centered_modulus_switch_cooperative<uint64_t>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      static_cast<uint64_t *>(lwe_out), static_cast<const uint64_t *>(lwe_in),
+      lwe_dimension, log_modulus, block_dim_x, block_dim_y);
+}
+
 void cuda_glwe_sample_extract_128_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *glwe_array_in, uint32_t const *nth_array, uint32_t num_nths,

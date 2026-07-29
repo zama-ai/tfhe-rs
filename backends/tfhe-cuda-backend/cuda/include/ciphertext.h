@@ -31,6 +31,11 @@ void cuda_centered_modulus_switch_64_async(void *stream, uint32_t gpu_index,
                                            uint32_t lwe_dimension,
                                            uint32_t log_modulus);
 
+void cuda_centered_modulus_switch_cooperative_64_async(
+    void *stream, uint32_t gpu_index, void *lwe_out, const void *lwe_in,
+    uint32_t lwe_dimension, uint32_t log_modulus, uint32_t block_dim_x,
+    uint32_t block_dim_y);
+
 void cuda_glwe_sample_extract_128_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *glwe_array_in, uint32_t const *nth_array, uint32_t num_nths,
