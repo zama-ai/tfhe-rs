@@ -17,7 +17,9 @@ use itertools::Itertools;
 use tfhe::shortint::parameters::KeySwitch32PBSParameters;
 use tfhe::*;
 
-use zhc::{builder::CiphertextSpec, prelude::Dumpable, sim::hpu::HpuConfig};
+use zhc::builder::CiphertextSpec;
+use zhc::prelude::Dumpable;
+use zhc::sim::hpu::HpuConfig;
 
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -43,15 +45,15 @@ pub struct Args {
     pub zhc_ops: Vec<ZhcDynOp>,
 
     /// Select integer width to tests on
-    #[arg(long)]
-    pub integer_w: usize,
+    #[arg(long, required=true, num_args = 1..)]
+    pub integer_w: Vec<usize>,
 
     /// Seed used for some rngs
     #[arg(long)]
     pub seed: Option<u128>,
 
     /// Number of iteration for each IOp
-    #[arg(long, default_value_t = 1)]
+    #[arg(long, default_value_t = 2)]
     pub iter: usize,
 
     /// Force ct input values
@@ -120,6 +122,20 @@ impl std::fmt::Display for ZhcDynOp {
     }
 }
 
+#[derive(Debug)]
+pub struct Throughput(f64);
+
+impl Throughput {
+    pub fn new(op: usize, dur: Duration) -> Self {
+        Self(op as f64 / dur.as_secs_f64())
+    }
+}
+impl std::fmt::Display for Throughput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{} Op/s", self.0)
+    }
+}
+
 pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     // Register tracing subscriber that use env-filter
     // Select verbosity with env_var: e.g. `RUST_LOG=Alu=trace`
@@ -171,26 +187,27 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     println!("   Upload keys-material and default fw on HPU...");
     tfhe::integer::hpu::init_device(&hpu_device, sks_compressed).expect("Invalid key");
 
-    // Define associated config and spec for Zhc
-    let zhc_config = new_zhc_config(&hpu_device.params());
-    let zhc_spec = zhc::builder::CiphertextSpec::new(args.integer_w as u16, 2, 2);
+    for width in args.integer_w {
+        // Define associated config and spec for Zhc
+        let zhc_config = new_zhc_config(&hpu_device.params());
+        let zhc_spec = zhc::builder::CiphertextSpec::new(width as u16, 2, 2);
 
-    for zhc_op in args.zhc_ops.iter() {
-        // Build custom IOp Ir ----------------------------------------------------
-        let (hash, stream, proto) = match zhc_op {
-            ZhcDynOp::MhMul(mh_factor) => gen_mh_mul_stream(*mh_factor, &zhc_config, zhc_spec),
-            // ZhcDynOp::MhDiv(mh_factor) => gen_mh_div_stream(mh_factor),
-            // ZhcDynOp::ShAdd => gen_add_stream(),
-            _ => unimplemented!("Current op not defined"),
-        };
+        for zhc_op in args.zhc_ops.iter() {
+            // Build custom IOp Ir ----------------------------------------------------
+            println!("FwDyn_{width}b:: Start fw generation for {zhc_op} ...");
+            let (hash, stream, proto) = match zhc_op {
+                ZhcDynOp::MhMul(mh_factor) => gen_mh_mul_stream(*mh_factor, &zhc_config, zhc_spec),
+                // ZhcDynOp::MhDiv(mh_factor) => gen_mh_div_stream(mh_factor),
+                // ZhcDynOp::ShAdd => gen_add_stream(),
+                _ => unimplemented!("Current op not defined"),
+            };
 
-        // Register fw on Hpu -----------------------------------------------------
-        let iopcode = hpu_device.fw_dyn(hash, stream, proto.clone())?;
+            // Register fw on Hpu -----------------------------------------------------
+            let iopcode = hpu_device.fw_dyn(hash, stream, proto.clone())?;
 
-        // Execution ROI ----------------------------------------------------------
-        let width = args.integer_w;
-        let num_block = width / hpu_device.params().pbs_params.message_width;
-        for iter in 0..args.iter {
+            // Execution ROI ----------------------------------------------------------
+            let num_block = width / hpu_device.params().pbs_params.message_width;
+
             // Generate inputs
             let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
                 .src
@@ -227,28 +244,44 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 })
                 .collect::<Vec<_>>();
 
-            // Start computation
-            let res_hpu = HpuRadixCiphertext::exec(
-                &proto,
-                hpu_asm::FwMode::Dynamic,
-                iopcode,
-                &srcs_enc,
-                &imms,
-                None,
-            );
+            println!("FwDyn_{width}b:: Start test loop for {zhc_op} ...");
+            let roi_start = Instant::now();
 
-            // Decrypt and display results
+            let res_hpu = (0..args.iter)
+                .filter_map(|i| {
+                    let res = HpuRadixCiphertext::exec(
+                        &proto,
+                        hpu_asm::FwMode::Dynamic,
+                        iopcode,
+                        &srcs_enc,
+                        &imms,
+                        None,
+                    );
+                    if i == (args.iter - 1) {
+                        Some(res)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+
             let res_fhe = res_hpu
+                .iter()
+                .last()
+                .expect("Iteration must be greater than 0")
                 .iter()
                 .map(|x| x.to_radix_ciphertext())
                 .collect::<Vec<_>>();
+
+            let roi_duration = roi_start.elapsed();
+            let op_duration = roi_duration / (args.iter as u32);
+            let op_tput = Throughput::new(args.iter * res_fhe.len(), roi_duration);
+
             let res = res_fhe
                 .iter()
                 .map(|x| cks.decrypt_radix(x))
                 .collect::<Vec<u128>>();
-
             println!("FwDyn_{width}b:: Execution report: {zhc_op}");
-            println!("-------------------------------------------------------------------");
             println!(
                 "Behavior         : {res:?}  <- {zhc_op} <{:?}> <{:?}> {{{}}}",
                 srcs_clear, imms, args.iter
@@ -257,6 +290,10 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 "Behavior (in hex): {res:x?}  <- {zhc_op} <{:x?}> <{:x?}> {{{}}}",
                 srcs_clear, imms, args.iter
             );
+            println!("-------------------------------------------------------------------");
+            println!("Performance {zhc_op}: [{roi_duration:?}]");
+            println!(" -> Latency    {op_duration:?}");
+            println!(" -> Throughput {op_tput}");
             println!("-------------------------------------------------------------------");
         }
     }
@@ -270,17 +307,13 @@ fn gen_mh_mul_stream(
     hpu_config: &HpuConfig,
     ct_spec: CiphertextSpec,
 ) -> (ZhcStreamHash, ZhcStream, hpu_asm::IOpProto) {
-    use zhc::{
-        builder::Type,
-        ir::Signature,
-        pipeline::{
-            allocator::allocate_registers,
-            scheduler::{one_step_mh, SchedPolicy},
-            translation::lower_iop_to_multi_hpu,
-            translation_table::generate_translation_table,
-        },
-        sim::hpu::MultiHpuConfig,
-    };
+    use zhc::builder::Type;
+    use zhc::ir::Signature;
+    use zhc::pipeline::allocator::allocate_registers;
+    use zhc::pipeline::scheduler::{one_step_mh, SchedPolicy};
+    use zhc::pipeline::translation::lower_iop_to_multi_hpu;
+    use zhc::pipeline::translation_table::generate_translation_table;
+    use zhc::sim::hpu::MultiHpuConfig;
     let native_w = ct_spec.int_size();
     let half_w = native_w / 2;
 
@@ -304,11 +337,16 @@ fn gen_mh_mul_stream(
                     None
                 }
             })
-            .map(|spec| match spec.int_size() {
-                native_w => hpu_asm::iop::VarMode::Native,
-                half_w => hpu_asm::iop::VarMode::Half,
-                1 => hpu_asm::iop::VarMode::Bool,
-                _ => panic!("Unexpected Ciphertext Type"),
+            .map(|spec| {
+                if spec.int_size() == native_w {
+                    hpu_asm::iop::VarMode::Native
+                } else if spec.int_size() == half_w {
+                    hpu_asm::iop::VarMode::Half
+                } else if spec.int_size() == 1 {
+                    hpu_asm::iop::VarMode::Bool
+                } else {
+                    panic!("Unexpected Ciphertext Type");
+                }
             })
             .collect::<Vec<_>>();
         let src_mode = sig_src
@@ -320,11 +358,16 @@ fn gen_mh_mul_stream(
                     None
                 }
             })
-            .map(|spec| match spec.int_size() {
-                native_w => hpu_asm::iop::VarMode::Native,
-                half_w => hpu_asm::iop::VarMode::Half,
-                1 => hpu_asm::iop::VarMode::Bool,
-                _ => panic!("Unexpected Ciphertext Type"),
+            .map(|spec| {
+                if spec.int_size() == native_w {
+                    hpu_asm::iop::VarMode::Native
+                } else if spec.int_size() == half_w {
+                    hpu_asm::iop::VarMode::Half
+                } else if spec.int_size() == 1 {
+                    hpu_asm::iop::VarMode::Bool
+                } else {
+                    panic!("Unexpected Ciphertext Type");
+                }
             })
             .collect::<Vec<_>>();
         let imm = sig_src
