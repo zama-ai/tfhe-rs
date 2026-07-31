@@ -464,7 +464,6 @@ pub mod pke_v2;
 pub(crate) mod test {
     #![allow(non_snake_case)]
     use std::fmt::Display;
-    use std::num::Wrapping;
     use std::ops::Sub;
 
     use ark_ec::{short_weierstrass, CurveConfig};
@@ -511,17 +510,36 @@ pub(crate) mod test {
         }
     }
 
-    pub(super) fn polymul_rev(a: &[i64], b: &[i64]) -> Vec<i64> {
+    /// Reduce `x` to its centered representative modulo the ciphertext modulus `q`
+    pub(super) fn center_mod_q(x: i128, q: u64) -> i64 {
+        let ret = if q == 0 {
+            x
+        } else {
+            let q = q as i128;
+            let r = x.rem_euclid(q);
+            if 2 * r >= q {
+                r - q
+            } else {
+                r
+            }
+        };
+
+        ret as i64
+    }
+
+    /// Negacyclic product of `a` and `b`. Caller is expected to reduce the coefficients modulo `q`
+    /// afterwards
+    pub(super) fn polymul_rev(a: &[i64], b: &[i64]) -> Vec<i128> {
         assert_eq!(a.len(), b.len());
         let d = a.len();
-        let mut c = vec![0i64; d];
+        let mut c = vec![0i128; d];
 
         for i in 0..d {
             for j in 0..d {
                 if i + j < d {
-                    c[i + j] = c[i + j].wrapping_add(a[i].wrapping_mul(b[d - j - 1]));
+                    c[i + j] += a[i] as i128 * b[d - j - 1] as i128;
                 } else {
-                    c[i + j - d] = c[i + j - d].wrapping_sub(a[i].wrapping_mul(b[d - j - 1]));
+                    c[i + j - d] -= a[i] as i128 * b[d - j - 1] as i128;
                 }
             }
         }
@@ -576,14 +594,16 @@ pub(crate) mod test {
                 d,
                 k,
                 B,
-                q: _q,
+                q,
                 t,
                 msbs_zero_padding_bit_count,
             } = params;
 
             let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
 
-            let a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
+            let a = (0..d)
+                .map(|_| center_mod_q(rng.gen_range(0..decode_q(q)) as i128, q))
+                .collect::<Vec<_>>();
 
             let s = (0..d)
                 .map(|_| (rng.gen::<u64>() % 2) as i64)
@@ -608,7 +628,7 @@ pub(crate) mod test {
             let b = polymul_rev(&a, &s)
                 .into_iter()
                 .zip(e.iter())
-                .map(|(x, e)| x.wrapping_add(*e))
+                .map(|(x, &e)| center_mod_q(x + e as i128, q))
                 .collect::<Vec<_>>();
 
             let mut metadata = [0u8; METADATA_LEN];
@@ -635,22 +655,24 @@ pub(crate) mod test {
                 d,
                 k: _,
                 B,
-                q: _,
+                q,
                 t: _,
                 msbs_zero_padding_bit_count: _msbs_zero_padding_bit_count,
             } = params;
 
             let e = (rng.gen::<u64>() % (2 * B)) as i64 - B as i64;
 
-            let mut a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
+            let mut a = (0..d)
+                .map(|_| center_mod_q(rng.gen_range(0..decode_q(q)) as i128, q))
+                .collect::<Vec<_>>();
 
-            let b = a
+            let dot = a
                 .iter()
                 .zip(&self.s)
-                .map(|(ai, si)| Wrapping(ai * si))
-                .sum::<Wrapping<i64>>()
-                .0
-                + e;
+                .map(|(&ai, &si)| ai as i128 * si as i128)
+                .sum::<i128>();
+
+            let b = center_mod_q(dot + e as i128, q);
 
             a.push(b);
             a
@@ -729,26 +751,27 @@ pub(crate) mod test {
             let c1 = polymul_rev(&self.a, &self.r)
                 .into_iter()
                 .zip(self.e1.iter())
-                .map(|(x, e1)| x.wrapping_add(*e1))
+                .map(|(x, &e1)| center_mod_q(x + e1 as i128, q))
                 .collect::<Vec<_>>();
 
             let mut c2 = vec![0i64; k];
 
             for (i, c2) in c2.iter_mut().enumerate() {
-                let mut dot = 0i64;
+                let mut dot = 0i128;
                 for j in 0..d {
                     let b = if i + j < d {
-                        self.b[d - j - i - 1]
+                        self.b[d - j - i - 1] as i128
                     } else {
-                        self.b[2 * d - j - i - 1].wrapping_neg()
+                        -(self.b[2 * d - j - i - 1] as i128)
                     };
 
-                    dot = dot.wrapping_add(self.r[d - j - 1].wrapping_mul(b));
+                    dot += self.r[d - j - 1] as i128 * b;
                 }
 
-                *c2 = dot
-                    .wrapping_add(self.e2[i])
-                    .wrapping_add((delta * self.m[i] as u64) as i64);
+                *c2 = center_mod_q(
+                    dot + self.e2[i] as i128 + delta as i128 * self.m[i] as i128,
+                    q,
+                );
             }
 
             PkeTestCiphertext { c1, c2 }

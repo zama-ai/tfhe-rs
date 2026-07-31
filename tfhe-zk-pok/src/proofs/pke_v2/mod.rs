@@ -1187,7 +1187,7 @@ fn prove_impl<G: Curve>(
         )
         .collect::<Box<[_]>>();
 
-    let v = four_squares(B_squared - e_sqr_norm, sanity_check_mode).map(|v| v as i64);
+    let v = four_squares(B_squared.wrapping_sub(e_sqr_norm), sanity_check_mode).map(|v| v as i64);
 
     let e1_zp = &*e1
         .iter()
@@ -2938,6 +2938,18 @@ pub(crate) mod tests {
         msbs_zero_padding_bit_count: 1,
     };
 
+    /// Compact key params used with pkev2 and a non-native, power of 2 ciphertext modulus.
+    ///
+    /// `B` is also scaled down so that cts decrypt correctly
+    pub(super) const PKEV2_TEST_PARAMS_NON_NATIVE_Q: PkeTestParameters = PkeTestParameters {
+        d: 2048,
+        k: 320,
+        B: 1024, // 2**10
+        q: 1 << 32,
+        t: 32, // 2b msg, 2b carry, 1b padding
+        msbs_zero_padding_bit_count: 1,
+    };
+
     /// Compact key params used with pkve2 to encrypt a single message
     pub(super) const PKEV2_TEST_PARAMS_SINGLE: PkeTestParameters = PkeTestParameters {
         d: 2048,
@@ -3567,6 +3579,80 @@ pub(crate) mod tests {
                 PkeV2SupportedHashConfig::default(),
                 ProofSanityCheckMode::Ignore,
                 expected_result,
+            );
+        }
+    }
+
+    /// Test proof/verify with a non-native, power of 2 ciphertext modulus
+    #[test]
+    fn test_pke_non_native_modulus() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS_NON_NATIVE_Q;
+
+        let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
+
+        let seed = thread_rng().gen();
+        println!("pkev2_non_native_modulus seed: {seed:x}");
+        let rng = &mut StdRng::seed_from_u64(seed);
+
+        let testcase = PkeTestcase::gen(rng, PKEV2_TEST_PARAMS_NON_NATIVE_Q);
+        let ct = testcase.encrypt(PKEV2_TEST_PARAMS_NON_NATIVE_Q);
+
+        let crs = crs_gen::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng);
+
+        assert_prove_and_verify(
+            &testcase,
+            &ct,
+            "testcase_non_native_q",
+            &crs,
+            &seed.to_le_bytes(),
+            PkeV2SupportedHashConfig::default(),
+            ProofSanityCheckMode::Panic,
+            VerificationResult::Accept,
+        );
+
+        // Check that invalid encryptions are rejected
+        let mut testcase_fake_r = testcase.clone();
+        testcase_fake_r.r = (0..d)
+            .map(|_| (rng.gen::<u64>() % 2) as i64)
+            .collect::<Vec<_>>();
+
+        let mut testcase_fake_e1 = testcase.clone();
+        testcase_fake_e1.e1 = (0..d)
+            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+            .collect::<Vec<_>>();
+
+        let mut testcase_fake_e2 = testcase.clone();
+        testcase_fake_e2.e2 = (0..k)
+            .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+            .collect::<Vec<_>>();
+
+        let mut testcase_fake_m = testcase;
+        testcase_fake_m.m = (0..k)
+            .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64)
+            .collect::<Vec<_>>();
+
+        for (testcase, name) in [
+            (testcase_fake_r, stringify!(testcase_fake_r)),
+            (testcase_fake_e1, stringify!(testcase_fake_e1)),
+            (testcase_fake_e2, stringify!(testcase_fake_e2)),
+            (testcase_fake_m, stringify!(testcase_fake_m)),
+        ] {
+            assert_prove_and_verify(
+                &testcase,
+                &ct,
+                name,
+                &crs,
+                &seed.to_le_bytes(),
+                PkeV2SupportedHashConfig::default(),
+                ProofSanityCheckMode::Panic,
+                VerificationResult::Reject,
             );
         }
     }
