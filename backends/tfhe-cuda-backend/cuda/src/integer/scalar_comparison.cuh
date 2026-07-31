@@ -72,14 +72,14 @@ __host__ void scalar_compare_radix_blocks(
       streams, lwe_array_out, subtracted_blocks, bsks, ksks, sign_lut,
       num_radix_blocks);
 
-  // FIXME: without this sync signed scalar eq tests fail, I don't understand
-  // the reason
-  cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   // Add one
   // Here Lhs can have the following values: (-1) % (message modulus * carry
   // modulus), 0, 1 So the output values after the addition will be: 0, 1, 2
-  host_add_scalar_one_inplace<Torus>(streams, lwe_array_out, message_modulus,
-                                     carry_modulus);
+  CudaRadixCiphertextFFI lwe_array_out_view;
+  as_radix_ciphertext_slice<Torus>(&lwe_array_out_view, lwe_array_out, 0,
+                                   num_radix_blocks);
+  host_add_scalar_one_inplace<Torus>(streams, &lwe_array_out_view,
+                                     message_modulus, carry_modulus);
 }
 
 template <typename Torus, typename KSTorus>
@@ -147,7 +147,8 @@ __host__ void integer_radix_unsigned_scalar_difference_check(
         true, {mem_ptr->diff_buffer->tree_buffer->preallocated_h_lut});
 
     integer_radix_apply_univariate_lookup_table<Torus>(
-        streams, lwe_array_out, mem_ptr->tmp_lwe_array_out, bsks, ksks, lut, 1);
+        active_streams, lwe_array_out, mem_ptr->tmp_lwe_array_out, bsks, ksks,
+        lut, 1);
 
   } else if (num_scalar_blocks < num_radix_blocks) {
     // We have to handle both part of the work described above
@@ -181,11 +182,11 @@ __host__ void integer_radix_unsigned_scalar_difference_check(
     as_radix_ciphertext_slice<Torus>(&rhs, lhs, num_radix_blocks / 2,
                                      lhs->num_radix_blocks);
 
-    pack_blocks<Torus>(lsb_streams.stream(0), streams.gpu_index(0), lhs,
+    pack_blocks<Torus>(lsb_streams.stream(0), lsb_streams.gpu_index(0), lhs,
                        lwe_array_in, num_lsb_radix_blocks, message_modulus,
                        message_modulus, carry_modulus);
-    scalar_pack_blocks<Torus>(lsb_streams.stream(0), streams.gpu_index(0), &rhs,
-                              scalar_blocks, num_scalar_blocks,
+    scalar_pack_blocks<Torus>(lsb_streams.stream(0), lsb_streams.gpu_index(0),
+                              &rhs, scalar_blocks, num_scalar_blocks,
                               message_modulus);
 
     // From this point we have half number of blocks
@@ -637,6 +638,12 @@ __host__ void host_scalar_difference_check(
   if (lwe_array_in->num_radix_blocks < num_radix_blocks)
     PANIC("Cuda error: input num radix blocks should not be lower "
           "than the number of blocks to operate on")
+  GPU_ASSERT(lwe_array_out->num_radix_blocks >= 1,
+             "Cuda error: output must have at least one radix block");
+  GPU_ASSERT(num_radix_blocks >= 1,
+             "Cuda error: num_radix_blocks must be at least 1");
+  GPU_ASSERT(num_scalar_blocks <= num_radix_blocks,
+             "Cuda error: num_scalar_blocks must not exceed num_radix_blocks");
 
   if (mem_ptr->is_signed) {
     // is signed and scalar is positive

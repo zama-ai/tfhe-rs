@@ -82,6 +82,11 @@ __host__ void host_integer_scalar_mul_radix(
   size_t j = 0;
   for (size_t i = 0; i < std::min(num_scalars, num_ciphertext_bits); i++) {
     if (decomposed_scalar[i] == 1) {
+      GPU_ASSERT(
+          (j + 1) * num_radix_blocks <= all_shifted_buffer->num_radix_blocks,
+          "Cuda error: all_shifted_buffer overflow: slot %zu needs %zu blocks, "
+          "capacity is %u",
+          j, (j + 1) * num_radix_blocks, all_shifted_buffer->num_radix_blocks);
       // Perform a block shift
       CudaRadixCiphertextFFI preshifted_radix_ct;
       as_radix_ciphertext_slice<T>(&preshifted_radix_ct, preshifted_buffer,
@@ -113,6 +118,10 @@ __host__ void host_integer_scalar_mul_radix(
                                              streams.gpu_index(0), lwe_array, 0,
                                              num_radix_blocks);
   } else {
+    GPU_ASSERT(j <= mem->num_ciphertext_bits,
+               "Cuda error: j=%zu exceeds sum_ciphertexts_vec_mem "
+               "max_num_radix_in_vec=%u",
+               j, mem->num_ciphertext_bits);
     host_integer_partial_sum_ciphertexts_vec<T>(
         streams, lwe_array, all_shifted_buffer, bsks, ksks,
         mem->sum_ciphertexts_vec_mem, num_radix_blocks, j);
