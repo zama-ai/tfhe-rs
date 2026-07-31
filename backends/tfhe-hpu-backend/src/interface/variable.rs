@@ -210,4 +210,17 @@ impl HpuVarWrapped {
     pub fn is_boolean(&self) -> bool {
         self.mode == VarMode::Bool
     }
+
+    /// Number of radix blocks held by this variable
+    pub fn blk_width(&self) -> usize {
+        self.width
+    }
+
+    /// Width in bits of the integer held by this variable
+    ///
+    /// NB: this is `blk_width` scaled by the message width, matching the `integer_w` notion used
+    /// by the firmware configuration.
+    pub fn int_width(&self) -> usize {
+        self.width * self.params.pbs_params.message_width
+    }
 }

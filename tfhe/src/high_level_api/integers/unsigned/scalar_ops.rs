@@ -2101,8 +2101,11 @@ macro_rules! define_scalar_ops {
                                 RadixCiphertext::Cuda(result)
                         }
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(_device) => {
-                            panic!("Hpu does not support this operation yet.")
+                        InternalServerKey::Hpu(device) => {
+                            let rhs = rhs.ciphertext.on_hpu(device);
+                            let lhs = u128::try_from(lhs).unwrap();
+
+                            RadixCiphertext::Hpu(lhs - HpuRadixCiphertext::clone(&rhs))
                         }
                     })
                 }

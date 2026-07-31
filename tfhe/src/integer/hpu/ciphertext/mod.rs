@@ -278,7 +278,65 @@ impl std::ops::Not for &HpuRadixCiphertext {
 
 map_ct_scalar!(IOP_ADDS -> "Add");
 map_scalar_ct!(IOP_ADDS -> "Add");
-map_ct_scalar!(IOP_SUBS -> "Sub");
 map_scalar_ct!(IOP_SSUB -> "Sub");
 map_ct_scalar!(IOP_MULS -> "Mul");
 map_scalar_ct!(IOP_MULS -> "Mul");
+
+/// Two's complement of `imm` over `width` bits, i.e. `!imm + 1`.
+///
+/// Lets `ct - imm` be evaluated as `ct + (-imm)` with a plain `ADDS`: the immediate is clear on
+/// the host, so the complement costs nothing and the hardware runs the exact same integer
+/// addition it would for `ADDS`.
+///
+/// Masking to `width` is required, not cosmetic: `Immediate::from_cst` derives the number of
+/// advertised digits from the *value*, so an unmasked `-1` would claim 64 digits and push a
+/// needlessly long IOp stream for, say, an 8-bit operand.
+fn neg_imm(width: usize, imm: HpuImm) -> HpuImm {
+    let mask = if width >= HpuImm::BITS as usize {
+        HpuImm::MAX
+    } else {
+        (1 << width) - 1
+    };
+    imm.wrapping_neg() & mask
+}
+
+/// `ct - imm`, lowered to `ADDS` with a negated immediate (see [`neg_imm`]).
+///
+/// Mirrors what `map_ct_scalar!(IOP_SUBS -> "Sub")` used to generate, but targets `IOP_ADDS`.
+/// `IOP_SUBS` itself is untouched and still available for direct IOp submission.
+impl std::ops::Sub<HpuImm> for HpuRadixCiphertext {
+    type Output = Self;
+
+    fn sub(self, rhs: HpuImm) -> Self::Output {
+        &self - rhs
+    }
+}
+
+impl std::ops::Sub<HpuImm> for &HpuRadixCiphertext {
+    type Output = HpuRadixCiphertext;
+
+    fn sub(self, rhs: HpuImm) -> Self::Output {
+        let opcode = IOP_ADDS.opcode();
+        let proto = &IOP_ADDS
+            .format()
+            .expect("Bind to std::ops a unspecified IOP")
+            .proto;
+
+        let rhs = neg_imm(self.0.int_width(), rhs);
+        let res = HpuCmd::exec(proto, opcode, std::slice::from_ref(&self.0), &[rhs], None);
+        HpuRadixCiphertext::new(res[0].clone())
+    }
+}
+
+impl std::ops::SubAssign<HpuImm> for HpuRadixCiphertext {
+    fn sub_assign(&mut self, rhs: HpuImm) {
+        let opcode = IOP_ADDS.opcode();
+        let proto = &IOP_ADDS
+            .format()
+            .expect("Bind to std::ops a unspecified IOP")
+            .proto;
+
+        let rhs = neg_imm(self.0.int_width(), rhs);
+        HpuCmd::exec_assign(proto, opcode, std::slice::from_ref(&self.0), &[rhs])
+    }
+}
