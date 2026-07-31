@@ -2204,6 +2204,10 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
   // needed for the division to update the lut indexes
   void update_lut_indexes(CudaStreams streams, Torus *new_lut_indexes,
                           Torus *new_scalars, uint32_t new_num_blocks) {
+    GPU_ASSERT(new_num_blocks <= propagation_cum_sums->num_radix_blocks,
+               "Cuda error: update_lut_indexes new_num_blocks=%u exceeds "
+               "h_scalar_array_cum_sum/scalar_array_cum_sum allocation=%u",
+               new_num_blocks, propagation_cum_sums->num_radix_blocks);
     auto new_active_streams = streams.active_gpu_subset(
         new_num_blocks, luts_array_second_step->params.pbs_type);
     luts_array_second_step->set_lut_indexes_and_broadcast_from_gpu(
