@@ -45,7 +45,7 @@ rug = "1.30.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
-fftw-sys = { version = "0.6", default-features = false, features = ["system"] }
+fftw-sys = { version = "0.8", default-features = false, features = ["system"] }
 
 [[bench]]
 name = "fft"
