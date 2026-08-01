@@ -779,8 +779,8 @@ pub struct Testcase {
 }
 
 impl Testcase {
-    pub fn is_valid_for_version(&self, version: &str) -> bool {
-        let mut tfhe_version = Version::parse(version).unwrap();
+    pub fn is_valid_for_version(&self, version: &Version) -> bool {
+        let mut tfhe_version = version.clone();
 
         // Removes the pre-release tag because matches will always return
         tfhe_version.pre = Prerelease::EMPTY;

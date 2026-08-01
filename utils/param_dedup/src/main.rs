@@ -20,7 +20,7 @@ fn is_at_least_1_0(version: &Version) -> bool {
     min_version.matches(&version)
 }
 
-fn is_at_most(version: &Version, maximum_version_inclusive: &str) -> bool {
+fn is_at_most(version: &Version, maximum_version_inclusive: &Version) -> bool {
     let mut version = version.clone();
 
     // Removes the pre-release tag because matches will always return
