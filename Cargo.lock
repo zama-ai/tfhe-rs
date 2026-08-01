@@ -1121,12 +1121,12 @@ checksum = "9f1f227452a390804cdb637b74a86990f2a7d7ba4b7d5693aac9b4dd6defd8d6"
 
 [[package]]
 name = "fftw-sys"
-version = "0.6.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8e3951d695cc2f17610cd041e87ebc15078d1af5eb8c6be77921381fc98b3fd"
+checksum = "a3303f4a5566afea7d8ec5a2cbec044d61c2573995f1c607902113e974f1c28d"
 dependencies = [
  "libc",
- "num-complex 0.3.1",
+ "num-complex",
 ]
 
 [[package]]
@@ -1829,7 +1829,7 @@ checksum = "9d43ddcacf343185dfd6de2ee786d9e8b1c2301622afab66b6c73baf9882abfd"
 dependencies = [
  "approx",
  "matrixmultiply",
- "num-complex 0.4.6",
+ "num-complex",
  "num-rational",
  "num-traits",
  "rand 0.8.6",
@@ -1885,15 +1885,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a5e44f723f1133c9deac646763579fdb3ac745e418f2a7af9cd0c431da1f20b9"
 dependencies = [
  "num-integer",
- "num-traits",
-]
-
-[[package]]
-name = "num-complex"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "747d632c0c558b87dbabbe6a82f3b4ae03720d0646ac5b7b4dae89394be5f2c5"
-dependencies = [
  "num-traits",
 ]
 
@@ -2222,7 +2213,7 @@ dependencies = [
  "bytemuck",
  "cfg-if",
  "libm",
- "num-complex 0.4.6",
+ "num-complex",
  "paste",
  "pulp-wasm-simd-flag",
  "raw-cpuid",
@@ -2486,7 +2477,7 @@ version = "6.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21db5f9893e91f41798c88680037dba611ca6674703c1a18601b01a72c8adb89"
 dependencies = [
- "num-complex 0.4.6",
+ "num-complex",
  "num-integer",
  "num-traits",
  "primal-check",
@@ -2718,7 +2709,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c99284beb21666094ba2b75bbceda012e610f5479dfcc2d6e2426f53197ffd95"
 dependencies = [
  "approx",
- "num-complex 0.4.6",
+ "num-complex",
  "num-traits",
  "paste",
  "wide",
@@ -3134,7 +3125,7 @@ dependencies = [
  "getrandom 0.2.17",
  "js-sys",
  "more-asserts",
- "num-complex 0.4.6",
+ "num-complex",
  "pulp",
  "rand 0.8.6",
  "rug",
@@ -3222,7 +3213,7 @@ dependencies = [
  "aligned-vec",
  "bincode",
  "ciborium",
- "num-complex 0.4.6",
+ "num-complex",
  "rmp-serde",
  "serde",
  "serde_json",
