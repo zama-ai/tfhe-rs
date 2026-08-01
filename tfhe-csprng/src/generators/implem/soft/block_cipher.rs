@@ -1,7 +1,7 @@
 use crate::generators::aes_ctr::{
     AesBlockCipher, AesKey, AES_CALLS_PER_BATCH, BYTES_PER_AES_CALL, BYTES_PER_BATCH,
 };
-use aes::cipher::{BlockEncrypt, KeyInit};
+use aes::cipher::{BlockCipherEncrypt, KeyInit};
 use aes::{Aes128, Block};
 
 #[derive(Clone)]
