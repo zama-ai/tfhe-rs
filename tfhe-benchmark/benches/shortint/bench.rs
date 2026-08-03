@@ -3,7 +3,7 @@ use benchmark::params::{
     SHORTINT_MULTI_BIT_BENCH_PARAMS,
 };
 use benchmark::utilities::{write_to_json, OperatorType};
-use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, ShortintBench};
+use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, ShortintBench, ShortintOp};
 use criterion::{criterion_group, Criterion};
 use rand::Rng;
 use std::env;
@@ -410,250 +410,250 @@ macro_rules! define_custom_bench_fn (
 define_server_key_unary_bench_fn!(
     method_name: unchecked_neg,
     display_name: negation,
-    shortint_bench: ShortintBench::UncheckedNeg
+    shortint_bench: ShortintBench::Ops(ShortintOp::UncheckedNeg)
 );
 define_server_key_bench_fn!(
     method_name: unchecked_add,
     display_name: add,
-    shortint_bench: ShortintBench::UncheckedAdd
+    shortint_bench: ShortintBench::Ops(ShortintOp::UncheckedAdd)
 );
 define_server_key_bench_fn!(
     method_name: unchecked_sub,
     display_name: sub,
-    shortint_bench: ShortintBench::UncheckedSub
+    shortint_bench: ShortintBench::Ops(ShortintOp::UncheckedSub)
 );
 define_server_key_bench_fn!(
     method_name: unchecked_mul_lsb,
     display_name: mul,
-    shortint_bench: ShortintBench::UncheckedMulLsb
+    shortint_bench: ShortintBench::Ops(ShortintOp::UncheckedMulLsb)
 );
 define_server_key_bench_fn!(
     method_name: unchecked_mul_msb,
     display_name: mul,
-    shortint_bench: ShortintBench::UncheckedMulMsb
+    shortint_bench: ShortintBench::Ops(ShortintOp::UncheckedMulMsb)
 );
 define_server_key_bench_fn!(
     method_name: unchecked_div,
     display_name: div,
-    shortint_bench: ShortintBench::UncheckedDiv
+    shortint_bench: ShortintBench::Ops(ShortintOp::UncheckedDiv)
 );
 define_server_key_bench_fn!(
     method_name: smart_bitand,
     display_name: bitand,
-    shortint_bench: ShortintBench::SmartBitand
+    shortint_bench: ShortintBench::Ops(ShortintOp::SmartBitand)
 );
 define_server_key_bench_fn!(
     method_name: smart_bitor,
     display_name: bitor,
-    shortint_bench: ShortintBench::SmartBitor
+    shortint_bench: ShortintBench::Ops(ShortintOp::SmartBitor)
 );
 define_server_key_bench_fn!(
     method_name: smart_bitxor,
     display_name: bitxor,
-    shortint_bench: ShortintBench::SmartBitxor
+    shortint_bench: ShortintBench::Ops(ShortintOp::SmartBitxor)
 );
 define_server_key_bench_fn!(
     method_name: smart_add,
     display_name: add,
-    shortint_bench: ShortintBench::SmartAdd
+    shortint_bench: ShortintBench::Ops(ShortintOp::SmartAdd)
 );
 define_server_key_bench_fn!(
     method_name: smart_sub,
     display_name: sub,
-    shortint_bench: ShortintBench::SmartSub
+    shortint_bench: ShortintBench::Ops(ShortintOp::SmartSub)
 );
 define_server_key_bench_fn!(
     method_name: smart_mul_lsb,
     display_name: mul,
-    shortint_bench: ShortintBench::SmartMulLsb
+    shortint_bench: ShortintBench::Ops(ShortintOp::SmartMulLsb)
 );
 define_server_key_bench_fn!(
     method_name: bitand,
     display_name: bitand,
-    shortint_bench: ShortintBench::Bitand
+    shortint_bench: ShortintBench::Ops(ShortintOp::Bitand)
 );
 define_server_key_bench_fn!(
     method_name: bitor,
     display_name: bitor,
-    shortint_bench: ShortintBench::Bitor
+    shortint_bench: ShortintBench::Ops(ShortintOp::Bitor)
 );
 define_server_key_bench_fn!(
     method_name: bitxor,
     display_name: bitxor,
-    shortint_bench: ShortintBench::Bitxor
+    shortint_bench: ShortintBench::Ops(ShortintOp::Bitxor)
 );
 define_server_key_bench_fn!(
     method_name: add,
     display_name: add,
-    shortint_bench: ShortintBench::Add
+    shortint_bench: ShortintBench::Ops(ShortintOp::Add)
 );
 define_server_key_bench_fn!(
     method_name: sub,
     display_name: sub,
-    shortint_bench: ShortintBench::Sub
+    shortint_bench: ShortintBench::Ops(ShortintOp::Sub)
 );
 define_server_key_bench_fn!(
     method_name: mul,
     display_name: mul,
-    shortint_bench: ShortintBench::Mul
+    shortint_bench: ShortintBench::Ops(ShortintOp::Mul)
 );
 define_server_key_bench_fn!(
     method_name: div,
     display_name: div,
-    shortint_bench: ShortintBench::Div
+    shortint_bench: ShortintBench::Ops(ShortintOp::Div)
 );
 define_server_key_bench_fn!(
     method_name: greater,
     display_name: greater_than,
-    shortint_bench: ShortintBench::Greater
+    shortint_bench: ShortintBench::Ops(ShortintOp::Greater)
 );
 define_server_key_bench_fn!(
     method_name: greater_or_equal,
     display_name: greater_or_equal,
-    shortint_bench: ShortintBench::GreaterOrEqual
+    shortint_bench: ShortintBench::Ops(ShortintOp::GreaterOrEqual)
 );
 define_server_key_bench_fn!(
     method_name: less,
     display_name: less_than,
-    shortint_bench: ShortintBench::Less
+    shortint_bench: ShortintBench::Ops(ShortintOp::Less)
 );
 define_server_key_bench_fn!(
     method_name: less_or_equal,
     display_name: less_or_equal,
-    shortint_bench: ShortintBench::LessOrEqual
+    shortint_bench: ShortintBench::Ops(ShortintOp::LessOrEqual)
 );
 define_server_key_bench_fn!(
     method_name: equal,
     display_name: equal,
-    shortint_bench: ShortintBench::Equal
+    shortint_bench: ShortintBench::Ops(ShortintOp::Equal)
 );
 define_server_key_bench_fn!(
     method_name: not_equal,
     display_name: not_equal,
-    shortint_bench: ShortintBench::NotEqual
+    shortint_bench: ShortintBench::Ops(ShortintOp::NotEqual)
 );
 define_server_key_unary_bench_fn!(
     method_name: neg,
     display_name: negation,
-    shortint_bench: ShortintBench::Neg
+    shortint_bench: ShortintBench::Ops(ShortintOp::Neg)
 );
 define_server_key_bench_fn!(
     method_name: unchecked_greater,
     display_name: greater_than,
-    shortint_bench: ShortintBench::UncheckedGreater
+    shortint_bench: ShortintBench::Ops(ShortintOp::UncheckedGreater)
 );
 define_server_key_bench_fn!(
     method_name: unchecked_less,
     display_name: less_than,
-    shortint_bench: ShortintBench::UncheckedLess
+    shortint_bench: ShortintBench::Ops(ShortintOp::UncheckedLess)
 );
 define_server_key_bench_fn!(
     method_name: unchecked_equal,
     display_name: equal,
-    shortint_bench: ShortintBench::UncheckedEqual
+    shortint_bench: ShortintBench::Ops(ShortintOp::UncheckedEqual)
 );
 
 define_server_key_scalar_bench_fn!(
     method_name: unchecked_scalar_add,
     display_name: add,
-    shortint_bench: ShortintBench::UncheckedScalarAdd
+    shortint_bench: ShortintBench::Ops(ShortintOp::UncheckedScalarAdd)
 );
 define_server_key_scalar_bench_fn!(
     method_name: unchecked_scalar_sub,
     display_name: sub,
-    shortint_bench: ShortintBench::UncheckedScalarSub
+    shortint_bench: ShortintBench::Ops(ShortintOp::UncheckedScalarSub)
 );
 define_server_key_scalar_bench_fn!(
     method_name: unchecked_scalar_mul,
     display_name: mul,
-    shortint_bench: ShortintBench::UncheckedScalarMul
+    shortint_bench: ShortintBench::Ops(ShortintOp::UncheckedScalarMul)
 );
 define_server_key_scalar_bench_fn!(
     method_name: unchecked_scalar_left_shift,
     display_name: left_shift,
-    shortint_bench: ShortintBench::UncheckedScalarLeftShift
+    shortint_bench: ShortintBench::Ops(ShortintOp::UncheckedScalarLeftShift)
 );
 define_server_key_scalar_bench_fn!(
     method_name: unchecked_scalar_right_shift,
     display_name: right_shift,
-    shortint_bench: ShortintBench::UncheckedScalarRightShift
+    shortint_bench: ShortintBench::Ops(ShortintOp::UncheckedScalarRightShift)
 );
 
 define_server_key_scalar_div_bench_fn!(
     method_name: unchecked_scalar_div,
     display_name: div,
-    shortint_bench: ShortintBench::UncheckedScalarDiv
+    shortint_bench: ShortintBench::Ops(ShortintOp::UncheckedScalarDiv)
 );
 define_server_key_scalar_div_bench_fn!(
     method_name: unchecked_scalar_mod,
     display_name: modulo,
-    shortint_bench: ShortintBench::UncheckedScalarMod
+    shortint_bench: ShortintBench::Ops(ShortintOp::UncheckedScalarMod)
 );
 define_server_key_scalar_bench_fn!(
     method_name: scalar_add,
     display_name: add,
-    shortint_bench: ShortintBench::ScalarAdd
+    shortint_bench: ShortintBench::Ops(ShortintOp::ScalarAdd)
 );
 define_server_key_scalar_bench_fn!(
     method_name: scalar_sub,
     display_name: sub,
-    shortint_bench: ShortintBench::ScalarSub
+    shortint_bench: ShortintBench::Ops(ShortintOp::ScalarSub)
 );
 define_server_key_scalar_bench_fn!(
     method_name: scalar_mul,
     display_name: mul,
-    shortint_bench: ShortintBench::ScalarMul
+    shortint_bench: ShortintBench::Ops(ShortintOp::ScalarMul)
 );
 define_server_key_scalar_bench_fn!(
     method_name: scalar_left_shift,
     display_name: left_shift,
-    shortint_bench: ShortintBench::ScalarLeftShift
+    shortint_bench: ShortintBench::Ops(ShortintOp::ScalarLeftShift)
 );
 define_server_key_scalar_bench_fn!(
     method_name: scalar_right_shift,
     display_name: right_shift,
-    shortint_bench: ShortintBench::ScalarRightShift
+    shortint_bench: ShortintBench::Ops(ShortintOp::ScalarRightShift)
 );
 
 define_server_key_scalar_div_bench_fn!(
     method_name: scalar_div,
     display_name: div,
-    shortint_bench: ShortintBench::ScalarDiv
+    shortint_bench: ShortintBench::Ops(ShortintOp::ScalarDiv)
 );
 define_server_key_scalar_div_bench_fn!(
     method_name: scalar_mod,
     display_name: modulo,
-    shortint_bench: ShortintBench::ScalarMod
+    shortint_bench: ShortintBench::Ops(ShortintOp::ScalarMod)
 );
 define_server_key_scalar_bench_fn!(
     method_name: scalar_greater,
     display_name: greater_than,
-    shortint_bench: ShortintBench::ScalarGreater
+    shortint_bench: ShortintBench::Ops(ShortintOp::ScalarGreater)
 );
 define_server_key_scalar_bench_fn!(
     method_name: scalar_greater_or_equal,
     display_name: greater_or_equal,
-    shortint_bench: ShortintBench::ScalarGreaterOrEqual
+    shortint_bench: ShortintBench::Ops(ShortintOp::ScalarGreaterOrEqual)
 );
 define_server_key_scalar_bench_fn!(
     method_name: scalar_less,
     display_name: less_than,
-    shortint_bench: ShortintBench::ScalarLess
+    shortint_bench: ShortintBench::Ops(ShortintOp::ScalarLess)
 );
 define_server_key_scalar_bench_fn!(
     method_name: scalar_less_or_equal,
     display_name: less_or_equal,
-    shortint_bench: ShortintBench::ScalarLessOrEqual
+    shortint_bench: ShortintBench::Ops(ShortintOp::ScalarLessOrEqual)
 );
 define_server_key_scalar_div_bench_fn!(
     method_name: scalar_equal,
     display_name: equal,
-    shortint_bench: ShortintBench::ScalarEqual
+    shortint_bench: ShortintBench::Ops(ShortintOp::ScalarEqual)
 );
 define_server_key_scalar_div_bench_fn!(
     method_name: scalar_not_equal,
     display_name: not_equal,
-    shortint_bench: ShortintBench::ScalarNotEqual
+    shortint_bench: ShortintBench::Ops(ShortintOp::ScalarNotEqual)
 );
 
 define_custom_bench_fn!(function_name: carry_extract);

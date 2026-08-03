@@ -15,7 +15,8 @@ use std::{env, fmt};
 pub use tfhe::hlapi::HlapiBench;
 pub use tfhe::{
     BooleanBench, CoreCryptoBench, HlIntegerOp, IntegerBench, IntegerOp, IntegerOpBySign,
-    ShortintBench, TfheLayer,
+    IntegerOprf, IntegerPackingOp, IntegerRerandMode, ShortintBench, ShortintCastingOp, ShortintOp,
+    ShortintPackingOp, TfheLayer,
 };
 
 use crate::tfhe::TranscipheringBench;
@@ -276,6 +277,24 @@ impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
     ) -> Self {
         Self {
             bench_crate: BenchCrate::Tfhe(TfheLayer::Integer(IntegerBench::Ops(ops))),
+            backend: bench_backend_from_cfg(),
+            param_name,
+            operand_type: OperandType::CipherText,
+            type_name,
+            bench_type: bench_type.into(),
+            num_elements,
+        }
+    }
+
+    pub fn new_integer(
+        integer_bench: IntegerBench,
+        param_name: &'a str,
+        type_name: Option<&'a T>,
+        bench_type: impl Into<BenchmarkMetric>,
+        num_elements: Option<usize>,
+    ) -> Self {
+        Self {
+            bench_crate: BenchCrate::Tfhe(TfheLayer::Integer(integer_bench)),
             backend: bench_backend_from_cfg(),
             param_name,
             operand_type: OperandType::CipherText,
