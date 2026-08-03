@@ -53,8 +53,8 @@ jobs:
     needs: setup-instance
     if: needs.setup-instance.result == 'success'
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
-    # 8h: covers a 4h campaign + build (~30m) + postcampaign (~30m) with headroom.
-    timeout-minutes: 480
+    # 28h: covers a 24h campaign + build (~30m) + postcampaign (~30m) with headroom.
+    timeout-minutes: 1680
     env:
       FUZZ_DURATION_SECONDS: ${{ inputs['duration-seconds'] }}
     steps:
