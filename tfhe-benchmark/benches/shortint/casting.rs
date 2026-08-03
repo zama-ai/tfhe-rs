@@ -1,13 +1,13 @@
 use benchmark::params_aliases::*;
 use benchmark::utilities::{write_to_json, OperatorType};
-use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, ShortintBench};
+use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, ShortintBench, ShortintCastingOp};
 use criterion::Criterion;
 use rayon::prelude::*;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::prelude::*;
 
 pub fn pack_cast_64(c: &mut Criterion) {
-    let shortint_bench = ShortintBench::PackCast64;
+    let shortint_bench = ShortintBench::Casting(ShortintCastingOp::PackCast64);
     let mut bench_group = c.benchmark_group(shortint_bench.to_string());
 
     let (client_key_1, server_key_1): (ClientKey, ServerKey) =
@@ -61,7 +61,7 @@ pub fn pack_cast_64(c: &mut Criterion) {
 }
 
 pub fn pack_cast(c: &mut Criterion) {
-    let shortint_bench = ShortintBench::PackCast;
+    let shortint_bench = ShortintBench::Casting(ShortintCastingOp::PackCast);
     let mut bench_group = c.benchmark_group(shortint_bench.to_string());
 
     let (client_key_1, server_key_1): (ClientKey, ServerKey) =
@@ -105,7 +105,7 @@ pub fn pack_cast(c: &mut Criterion) {
 }
 
 pub fn cast(c: &mut Criterion) {
-    let shortint_bench = ShortintBench::Cast;
+    let shortint_bench = ShortintBench::Casting(ShortintCastingOp::Cast);
     let mut bench_group = c.benchmark_group(shortint_bench.to_string());
 
     let (client_key_1, server_key_1): (ClientKey, ServerKey) =
