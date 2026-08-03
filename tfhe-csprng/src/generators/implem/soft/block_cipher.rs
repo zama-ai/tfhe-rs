@@ -13,8 +13,7 @@ pub struct SoftwareBlockCipher {
 impl AesBlockCipher for SoftwareBlockCipher {
     fn new(key: AesKey) -> SoftwareBlockCipher {
         let key: [u8; BYTES_PER_AES_CALL] = key.0.to_ne_bytes();
-        #[allow(deprecated, reason = "aes 0.9 is not out yet and we can't update")]
-        let key = Block::clone_from_slice(&key[..]);
+        let key = Block::from(key);
         let aes = Aes128::new(&key);
         SoftwareBlockCipher { aes }
     }
@@ -31,8 +30,7 @@ impl AesBlockCipher for SoftwareBlockCipher {
 }
 
 fn aes_encrypt_one(message: u128, cipher: &Aes128) -> [u8; BYTES_PER_AES_CALL] {
-    #[allow(deprecated, reason = "aes 0.9 is not out yet and we can't update")]
-    let mut b1 = Block::clone_from_slice(&message.to_ne_bytes()[..]);
+    let mut b1 = Block::from(message.to_ne_bytes());
 
     cipher.encrypt_block(&mut b1);
 
@@ -42,7 +40,6 @@ fn aes_encrypt_one(message: u128, cipher: &Aes128) -> [u8; BYTES_PER_AES_CALL] {
 // Uses aes to encrypt many values at once. This allows a substantial speedup (around 30%)
 // compared to the naive approach.
 #[allow(clippy::too_many_arguments)]
-#[allow(deprecated, reason = "aes 0.9 is not out yet and we can't update")]
 fn aes_encrypt_many(
     message_1: u128,
     message_2: u128,
@@ -54,14 +51,14 @@ fn aes_encrypt_many(
     message_8: u128,
     cipher: &Aes128,
 ) -> [u8; BYTES_PER_BATCH] {
-    let mut b1 = Block::clone_from_slice(&message_1.to_ne_bytes()[..]);
-    let mut b2 = Block::clone_from_slice(&message_2.to_ne_bytes()[..]);
-    let mut b3 = Block::clone_from_slice(&message_3.to_ne_bytes()[..]);
-    let mut b4 = Block::clone_from_slice(&message_4.to_ne_bytes()[..]);
-    let mut b5 = Block::clone_from_slice(&message_5.to_ne_bytes()[..]);
-    let mut b6 = Block::clone_from_slice(&message_6.to_ne_bytes()[..]);
-    let mut b7 = Block::clone_from_slice(&message_7.to_ne_bytes()[..]);
-    let mut b8 = Block::clone_from_slice(&message_8.to_ne_bytes()[..]);
+    let mut b1 = Block::from(message_1.to_ne_bytes());
+    let mut b2 = Block::from(message_2.to_ne_bytes());
+    let mut b3 = Block::from(message_3.to_ne_bytes());
+    let mut b4 = Block::from(message_4.to_ne_bytes());
+    let mut b5 = Block::from(message_5.to_ne_bytes());
+    let mut b6 = Block::from(message_6.to_ne_bytes());
+    let mut b7 = Block::from(message_7.to_ne_bytes());
+    let mut b8 = Block::from(message_8.to_ne_bytes());
 
     cipher.encrypt_block(&mut b1);
     cipher.encrypt_block(&mut b2);
