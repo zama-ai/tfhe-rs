@@ -15,8 +15,11 @@ pub use core_crypto::CoreCryptoBench;
 pub use hl_integer_op::HlIntegerOp;
 pub use hlapi::HlapiBench;
 pub use integer::ops::IntegerOp;
-pub use integer::{IntegerBench, IntegerOpBySign};
-pub use shortint::ShortintBench;
+pub use integer::{
+    IntegerBench, IntegerOpBySign, IntegerOprf, IntegerPackingOp, IntegerRerandMode,
+};
+pub use shortint::ops::ShortintOp;
+pub use shortint::{ShortintBench, ShortintCastingOp, ShortintPackingOp};
 pub use transciphering::TranscipheringBench;
 
 /// Layers of the `tfhe` crate.

@@ -1,8 +1,8 @@
 use benchmark::params::ParamsAndNumBlocksIter;
 #[cfg(any(feature = "gpu", feature = "hpu"))]
 use benchmark::utilities::throughput_num_threads;
-use benchmark::utilities::{write_to_json_unchecked, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark::utilities::{write_to_json, OperatorType};
+use benchmark_spec::{get_bench_type, BenchmarkSpec, BenchmarkType, IntegerBench, IntegerOprf};
 use criterion::{Criterion, Throughput};
 use rayon::prelude::*;
 #[cfg(any(feature = "gpu", feature = "hpu"))]
@@ -26,16 +26,28 @@ pub fn unsigned_oprf(c: &mut Criterion) {
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
+        let bits = format!("{bit_size}_bits");
+        let bench_type = get_bench_type();
 
-        let bench_id_oprf;
-        let bench_id_oprf_bounded;
+        let oprf_spec = BenchmarkSpec::<str>::new_integer(
+            IntegerBench::Oprf(IntegerOprf::Unsigned),
+            &param_name,
+            Some(&bits),
+            bench_type,
+            None,
+        );
+        let oprf_bounded_spec = BenchmarkSpec::<str>::new_integer(
+            IntegerBench::Oprf(IntegerOprf::UnsignedBounded),
+            &param_name,
+            Some(&bits),
+            bench_type,
+            None,
+        );
+        let bench_id_oprf = oprf_spec.to_string();
+        let bench_id_oprf_bounded = oprf_bounded_spec.to_string();
 
-        match get_bench_type() {
+        match bench_type {
             BenchmarkType::Latency => {
-                bench_id_oprf = format!("{bench_name}::{param_name}::{bit_size}_bits");
-                bench_id_oprf_bounded =
-                    format!("{bench_name}_bounded::{param_name}::{bit_size}_bits");
-
                 bench_group.bench_function(&bench_id_oprf, |b| {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                     let oprf_pk = OprfPrivateKey::new(&cks);
@@ -73,10 +85,6 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                 let oprf_pk = OprfPrivateKey::new(&cks);
                 let oprf_sk = OprfServerKey::new(&oprf_pk, &cks).unwrap();
-
-                bench_id_oprf = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                bench_id_oprf_bounded =
-                    format!("{bench_name}_bounded::throughput::{param_name}::{bit_size}_bits");
 
                 let elements = {
                     #[cfg(any(feature = "gpu", feature = "hpu"))]
@@ -139,13 +147,9 @@ pub fn unsigned_oprf(c: &mut Criterion) {
             }
         }
 
-        for (bench_id, display_name) in [
-            (bench_id_oprf, "oprf"),
-            (bench_id_oprf_bounded, "oprf_bounded"),
-        ] {
-            write_to_json_unchecked(
-                &bench_id,
-                param.name(),
+        for (spec, display_name) in [(&oprf_spec, "oprf"), (&oprf_bounded_spec, "oprf_bounded")] {
+            write_to_json(
+                spec,
                 display_name,
                 &OperatorType::Atomic,
                 bit_size as u32,
@@ -179,17 +183,29 @@ pub mod cuda {
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
+            let bits = format!("{bit_size}_bits");
+            let bench_type = get_bench_type();
 
-            let bench_id_oprf;
-            let bench_id_oprf_bounded;
+            let oprf_spec = BenchmarkSpec::<str>::new_integer(
+                IntegerBench::Oprf(IntegerOprf::Unsigned),
+                &param_name,
+                Some(&bits),
+                bench_type,
+                None,
+            );
+            let oprf_bounded_spec = BenchmarkSpec::<str>::new_integer(
+                IntegerBench::Oprf(IntegerOprf::UnsignedBounded),
+                &param_name,
+                Some(&bits),
+                bench_type,
+                None,
+            );
+            let bench_id_oprf = oprf_spec.to_string();
+            let bench_id_oprf_bounded = oprf_bounded_spec.to_string();
 
-            match get_bench_type() {
+            match bench_type {
                 BenchmarkType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
-
-                    bench_id_oprf = format!("{bench_name}::{param_name}::{bit_size}_bits");
-                    bench_id_oprf_bounded =
-                        format!("{bench_name}_bounded::{param_name}::{bit_size}_bits");
 
                     bench_group.bench_function(&bench_id_oprf, |b| {
                         let (cks, _cpu_sks) =
@@ -262,10 +278,6 @@ pub mod cuda {
                     );
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
-                    bench_id_oprf =
-                        format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                    bench_id_oprf_bounded =
-                        format!("{bench_name}_bounded::throughput::{param_name}::{bit_size}_bits");
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
 
@@ -304,13 +316,10 @@ pub mod cuda {
                 }
             }
 
-            for (bench_id, display_name) in [
-                (bench_id_oprf, "oprf"),
-                (bench_id_oprf_bounded, "oprf_bounded"),
-            ] {
-                write_to_json_unchecked(
-                    &bench_id,
-                    param.name(),
+            for (spec, display_name) in [(&oprf_spec, "oprf"), (&oprf_bounded_spec, "oprf_bounded")]
+            {
+                write_to_json(
+                    spec,
                     display_name,
                     &OperatorType::Atomic,
                     bit_size as u32,
