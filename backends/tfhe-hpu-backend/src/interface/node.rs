@@ -15,9 +15,9 @@ use std::str::FromStr;
 use std::sync::{atomic, Arc, Mutex};
 use strum::VariantNames;
 use zhc::builder::CiphertextSpec;
+use zhc::config::hpu::HpuConfig;
 use zhc::pipeline::compat::Iop;
-use zhc::sim::hpu::HpuConfig;
-use zhc::sim::{Cycle, MHz};
+use zhc::utils::units::{Cycle, MHz};
 
 use tracing::{debug, info, trace};
 

@@ -135,6 +135,31 @@ mod hpu_test {
         (std::sync::Mutex::new(hpu_device), cks, key_seed)
     }
 
+    /// Encodes a clear shift/rotate amount into the control word the scalar shift/rotate IOps
+    /// expect, mirroring `shiftrot_ctrl_imm` of the integer API: one digit per amount bit, plus a
+    /// `keep` digit that nulls the result of an overshifting *shift*. Immediates of every other IOp
+    /// go through untouched.
+    fn shiftrot_ctrl_imm(iop_name: &str, width: usize, msg_w: usize, imm: u128) -> u128 {
+        let is_shift = match iop_name {
+            "SHIFTS_R" | "SHIFTS_L" => true,
+            "ROTS_R" | "ROTS_L" => false,
+            _ => return imm,
+        };
+        assert!(
+            width.is_power_of_two(),
+            "Scalar shift/rotate needs a power of two width, got {width}"
+        );
+        let log_w = width.ilog2();
+        let mut ctrl = 0_u128;
+        for i in 0..log_w {
+            ctrl |= ((imm >> i) & 1) << (i as usize * msg_w);
+        }
+        if !is_shift || imm < width as u128 {
+            ctrl |= 1 << (log_w as usize * msg_w);
+        }
+        ctrl
+    }
+
     fn hpu_check_iop_proto<T, F>(
         iop: hpu_asm::AsmIOpcode,
         proto: hpu_asm::IOpProto,
@@ -168,9 +193,14 @@ mod hpu_test {
             _ => (false, None),
         };
 
+        let iop_name = iop
+            .format()
+            .map(|format| format.name.clone())
+            .unwrap_or_default();
         let width = T::BITS;
         let max_val: u128 = T::MAX.cast_into();
-        let num_block = width / device.params().pbs_params.message_width;
+        let msg_w = device.params().pbs_params.message_width;
+        let num_block = width / msg_w;
         // NB: To support both mono-hpu IOp and multi-hpu IOp,
         // input are generated only on the first node.
         // If you want to select a specific node for test, use `HPU_SELECTED_NODE` env variable
@@ -212,10 +242,17 @@ mod hpu_test {
                     .iter()
                     .map(|v| T::cast_from(*v))
                     .collect::<Vec<_>>();
+                // The scalar shift/rotate IOps read a control word rather than the amount itself,
+                // see `shiftrot_ctrl_imm`: the behaviour closures keep working on `imms_typed`,
+                // only what is handed to the hardware is encoded.
+                let imms_hw = imms_u128
+                    .iter()
+                    .map(|v| shiftrot_ctrl_imm(&iop_name, width, msg_w, *v))
+                    .collect::<Vec<_>>();
 
                 // execute on Hpu
                 let res_hpu =
-                    HpuRadixCiphertext::exec(&proto, iop.opcode(), &srcs_enc, &imms_u128, None);
+                    HpuRadixCiphertext::exec(&proto, iop.opcode(), &srcs_enc, &imms_hw, None);
                 let res_fhe = res_hpu
                     .iter()
                     .map(|x| x.to_radix_ciphertext())
@@ -437,9 +474,9 @@ mod hpu_test {
 
     // Shift/Rotation with Scalar IOp
     hpu_testcase!("SHIFTS_R" => [u8, u16, u32, u64, u128]
-    |ct, imm| [ct[0].wrapping_shr(imm[0] as u32)] );
+    |ct, imm| [ct[0].checked_shr(imm[0] as u32).unwrap_or(0)] );
     hpu_testcase!("SHIFTS_L" => [u8, u16, u32, u64, u128]
-    |ct, imm| [ct[0].wrapping_shl(imm[0] as u32)] );
+    |ct, imm| [ct[0].checked_shl(imm[0] as u32).unwrap_or(0)] );
     hpu_testcase!("ROTS_R" => [u8, u16, u32, u64, u128]
     |ct, imm| [ct[0].rotate_right(imm[0] as u32)] );
     hpu_testcase!("ROTS_L" => [u8, u16, u32, u64, u128]
@@ -582,18 +619,16 @@ mod hpu_test {
         "ovf_ssub",
         "ovf_muls"
     ]);
-    // NB: Currently disable shift/rot with scalar.
-    // This is a known limitation, associated IOps aren't implemented
-    // #[cfg(feature = "hpu")]
-    // hpu_testbundle!("rots"::[8,16,32,64,128] => [
-    //     "rots_r",
-    //     "rots_l"
-    // ]);
-    // #[cfg(feature = "hpu")]
-    // hpu_testbundle!("shifts"::[8,16,32,64,128] => [
-    //     "shifts_r",
-    //     "shifts_l"
-    // ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("rots"::[8,16,32,64,128] => [
+        "rots_r",
+        "rots_l"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("shifts"::[8,16,32,64,128] => [
+        "shifts_r",
+        "shifts_l"
+    ]);
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alu"::[8,16,32,64,128] => [
         "add",

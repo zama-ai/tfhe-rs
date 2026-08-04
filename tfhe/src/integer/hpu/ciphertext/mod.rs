@@ -340,3 +340,189 @@ impl std::ops::SubAssign<HpuImm> for HpuRadixCiphertext {
         HpuCmd::exec_assign(proto, opcode, std::slice::from_ref(&self.0), &[rhs])
     }
 }
+
+/// Whether vacated positions are zero-filled rather than wrapped around.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ShiftRotKind {
+    ShiftRight,
+    ShiftLeft,
+    RotateRight,
+    RotateLeft,
+}
+
+impl ShiftRotKind {
+    fn is_shift(self) -> bool {
+        matches!(self, Self::ShiftRight | Self::ShiftLeft)
+    }
+
+    /// The IOp evaluating this operation with a clear amount.
+    fn iop(self) -> &'static hpu_asm::AsmIOpcode {
+        match self {
+            Self::ShiftRight => &IOP_SHIFTS_R,
+            Self::ShiftLeft => &IOP_SHIFTS_L,
+            Self::RotateRight => &IOP_ROTS_R,
+            Self::RotateLeft => &IOP_ROTS_L,
+        }
+    }
+}
+
+/// Encodes a clear shift/rotate amount into the control word the scalar shift/rotate IOps expect.
+///
+/// Those IOps select with plaintext multiplications, which need one *digit* per control bit, and
+/// the IOp language cannot slice a digit out of a packed immediate — so the amount is advertised
+/// bit per bit, which costs the host nothing since it holds it in the clear:
+///
+/// ```text
+///  digit i        = bit i of (amount % width)   for i < log2(width)
+///  digit log2(w)  = keep = 1 if amount < width, else 0
+/// ```
+///
+/// `keep` is what makes an overflowing *shift* return zero at no hardware cost; rotations ignore it
+/// and always set it, `amount % width` being the whole story for them.
+///
+/// This mirrors `shiftrot_ctrl_word` of the compiler that emits these IOps — one digit per control
+/// bit, *not* the `amount[stg / msg_w]` packing that the encrypted-amount datapath reads.
+///
+/// # Panics
+///
+/// Panics if `width` is not a power of two, which the control word cannot express.
+fn shiftrot_ctrl_imm(width: usize, msg_w: usize, kind: ShiftRotKind, imm: HpuImm) -> HpuImm {
+    assert!(
+        width.is_power_of_two(),
+        "Scalar shift/rotate needs a power of two width, got {width}"
+    );
+    let log_w = width.ilog2();
+    let mut ctrl = 0 as HpuImm;
+    // Only the low log2(width) bits matter, which is exactly `imm % width`.
+    for i in 0..log_w {
+        ctrl |= ((imm >> i) & 1) << (i as usize * msg_w);
+    }
+    if !kind.is_shift() || imm < width as HpuImm {
+        ctrl |= 1 << (log_w as usize * msg_w);
+    }
+    ctrl
+}
+
+/// Submits a scalar shift/rotate, encoding `imm` on the way (see [`shiftrot_ctrl_imm`]).
+fn shiftrot_scalar(ct: &HpuVarWrapped, kind: ShiftRotKind, imm: HpuImm) -> HpuVarWrapped {
+    let iop = kind.iop();
+    let proto = &iop
+        .format()
+        .expect("Bind to std::ops a unspecified IOP")
+        .proto;
+    let ctrl = shiftrot_ctrl_imm(ct.int_width(), msg_width(ct), kind, imm);
+    let res = HpuCmd::exec(proto, iop.opcode(), std::slice::from_ref(ct), &[ctrl], None);
+    res[0].clone()
+}
+
+/// In-place flavor of [`shiftrot_scalar`].
+fn shiftrot_scalar_assign(ct: &HpuVarWrapped, kind: ShiftRotKind, imm: HpuImm) {
+    let iop = kind.iop();
+    let proto = &iop
+        .format()
+        .expect("Bind to std::ops a unspecified IOP")
+        .proto;
+    let ctrl = shiftrot_ctrl_imm(ct.int_width(), msg_width(ct), kind, imm);
+    HpuCmd::exec_assign(proto, iop.opcode(), std::slice::from_ref(ct), &[ctrl])
+}
+
+/// Message width of a block, which the ciphertext only exposes indirectly.
+fn msg_width(ct: &HpuVarWrapped) -> usize {
+    ct.int_width() / ct.blk_width()
+}
+
+/// `ct >> imm` and `ct << imm`, with a clear amount: shifting by the operand width or more yields
+/// zero, as the `keep` digit of the control word nulls every block.
+impl std::ops::Shr<HpuImm> for HpuRadixCiphertext {
+    type Output = Self;
+
+    fn shr(self, rhs: HpuImm) -> Self::Output {
+        &self >> rhs
+    }
+}
+
+impl std::ops::Shr<HpuImm> for &HpuRadixCiphertext {
+    type Output = HpuRadixCiphertext;
+
+    fn shr(self, rhs: HpuImm) -> Self::Output {
+        HpuRadixCiphertext::new(shiftrot_scalar(&self.0, ShiftRotKind::ShiftRight, rhs))
+    }
+}
+
+impl std::ops::ShrAssign<HpuImm> for HpuRadixCiphertext {
+    fn shr_assign(&mut self, rhs: HpuImm) {
+        shiftrot_scalar_assign(&self.0, ShiftRotKind::ShiftRight, rhs)
+    }
+}
+
+impl std::ops::Shl<HpuImm> for HpuRadixCiphertext {
+    type Output = Self;
+
+    fn shl(self, rhs: HpuImm) -> Self::Output {
+        &self << rhs
+    }
+}
+
+impl std::ops::Shl<HpuImm> for &HpuRadixCiphertext {
+    type Output = HpuRadixCiphertext;
+
+    fn shl(self, rhs: HpuImm) -> Self::Output {
+        HpuRadixCiphertext::new(shiftrot_scalar(&self.0, ShiftRotKind::ShiftLeft, rhs))
+    }
+}
+
+impl std::ops::ShlAssign<HpuImm> for HpuRadixCiphertext {
+    fn shl_assign(&mut self, rhs: HpuImm) {
+        shiftrot_scalar_assign(&self.0, ShiftRotKind::ShiftLeft, rhs)
+    }
+}
+
+/// Rotations by a clear amount. There is no `std::ops` trait for those, hence named methods; the
+/// amount is taken modulo the operand width, so no amount is out of range.
+impl HpuRadixCiphertext {
+    pub fn rotate_right(&self, amount: HpuImm) -> Self {
+        Self::new(shiftrot_scalar(&self.0, ShiftRotKind::RotateRight, amount))
+    }
+
+    pub fn rotate_right_assign(&mut self, amount: HpuImm) {
+        shiftrot_scalar_assign(&self.0, ShiftRotKind::RotateRight, amount)
+    }
+
+    pub fn rotate_left(&self, amount: HpuImm) -> Self {
+        Self::new(shiftrot_scalar(&self.0, ShiftRotKind::RotateLeft, amount))
+    }
+
+    pub fn rotate_left_assign(&mut self, amount: HpuImm) {
+        shiftrot_scalar_assign(&self.0, ShiftRotKind::RotateLeft, amount)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    /// The control word is a cross-repository contract: these are the very values the compiler
+    /// emitting the scalar shift/rotate IOps asserts on its side, so any drift breaks here first.
+    #[test]
+    fn test_shiftrot_ctrl_imm() {
+        let (width, msg_w) = (64, 2);
+        let shl = |imm| shiftrot_ctrl_imm(width, msg_w, ShiftRotKind::ShiftLeft, imm);
+        let rol = |imm| shiftrot_ctrl_imm(width, msg_w, ShiftRotKind::RotateLeft, imm);
+
+        // 7 == 0b000111 -> digits [1, 1, 1, 0, 0, 0 | keep = 1]
+        assert_eq!(shl(7), 0x1015);
+        // 70 >= 64 -> keep = 0, the result is null whatever the digits say
+        assert_eq!(shl(70), 0x0014);
+        // A rotation has no overshift: 70 rotates like 70 % 64 == 6, keep stays set.
+        assert_eq!(rol(70), 0x1014);
+        assert_eq!(rol(6), shl(6));
+
+        assert_eq!(shl(0), 0x1000, "keep alone");
+        assert_eq!(shl(63), 0x1555, "every amount bit set");
+        assert_eq!(shl(64), 0x0000, "shifting everything out");
+
+        // The digit layout must not depend on the block width beyond the digit stride.
+        assert_eq!(shiftrot_ctrl_imm(8, 2, ShiftRotKind::ShiftLeft, 3), 0x45);
+        assert_eq!(shiftrot_ctrl_imm(8, 4, ShiftRotKind::ShiftLeft, 3), 0x1011);
+    }
+}

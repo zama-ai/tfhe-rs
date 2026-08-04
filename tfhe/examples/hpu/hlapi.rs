@@ -94,6 +94,33 @@ macro_rules! impl_hlapi_showcase {
 
             assert_eq!(dec_cmp_gte_ab, clear_cmp_gte_ab,
                  "Error with >= operation get {}, expect {}",dec_cmp_gte_ab, clear_cmp_gte_ab);
+
+            // SHIFTS_L / SHIFTS_R --------------------------------------------
+            // Shift and rotate by a *clear* amount: the amount is turned into a control word by
+            // the backend, and shifting by the operand width or more yields 0.
+            let in_a = rng.gen_range(0..$user_type::MAX);
+            let width = <$user_type>::BITS;
+            for amount in [0, 1, width / 2, width - 1, width, width + 3] {
+                let clear_shl = in_a.checked_shl(amount).unwrap_or(0);
+                let clear_shr = in_a.checked_shr(amount).unwrap_or(0);
+                let clear_rol = in_a.rotate_left(amount % width);
+                let clear_ror = in_a.rotate_right(amount % width);
+
+                let fhe_a = $fhe_type::encrypt(in_a, cks);
+                let dec_shl: $user_type = (&fhe_a << amount).decrypt(cks);
+                let dec_shr: $user_type = (&fhe_a >> amount).decrypt(cks);
+                let dec_rol: $user_type = fhe_a.clone().rotate_left(amount).decrypt(cks);
+                let dec_ror: $user_type = fhe_a.rotate_right(amount).decrypt(cks);
+
+                println!(" {} <<>> {} = fhe({}, {}, rol {}, ror {}), clear({}, {}, rol {}, ror {})",
+                    in_a, amount, dec_shl, dec_shr, dec_rol, dec_ror,
+                    clear_shl, clear_shr, clear_rol, clear_ror);
+
+                assert_eq!(dec_shl, clear_shl, "Error with << {amount}");
+                assert_eq!(dec_shr, clear_shr, "Error with >> {amount}");
+                assert_eq!(dec_rol, clear_rol, "Error with rotate_left {amount}");
+                assert_eq!(dec_ror, clear_ror, "Error with rotate_right {amount}");
+            }
         }
         };
     };
