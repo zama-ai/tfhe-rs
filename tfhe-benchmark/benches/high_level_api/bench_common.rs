@@ -40,7 +40,7 @@ pub fn bench_fhe_type_op<FheType, Op>(
         &param_name,
         operand_type,
         Some(type_name),
-        *bench_type,
+        bench_type,
     );
     let bench_id = benchmark_spec.to_string();
 

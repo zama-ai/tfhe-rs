@@ -141,7 +141,7 @@ fn bench_server_key_binary_function_clean_inputs<F>(
             IntegerOpBySign::Unsigned(integer_op),
             &param_name,
             Some(bits.as_str()),
-            *get_bench_type(),
+            get_bench_type(),
             None,
         );
         let bench_id = benchmark_spec.to_string();
@@ -332,7 +332,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
             IntegerOpBySign::Unsigned(integer_op),
             &param_name,
             Some(bits.as_str()),
-            *get_bench_type(),
+            get_bench_type(),
             None,
         );
         let bench_id = benchmark_spec.to_string();
@@ -526,7 +526,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
             IntegerOpBySign::Unsigned(integer_op),
             &param_name,
             Some(bits.as_str()),
-            *get_bench_type(),
+            get_bench_type(),
             None,
         );
         let bench_id = benchmark_spec.to_string();
@@ -670,7 +670,7 @@ fn if_then_else_parallelized(c: &mut Criterion) {
             IntegerOpBySign::Unsigned(integer_op),
             &param_name,
             Some(bits.as_str()),
-            *get_bench_type(),
+            get_bench_type(),
             None,
         );
         let bench_id = benchmark_spec.to_string();
@@ -784,7 +784,7 @@ fn flip_parallelized(c: &mut Criterion) {
             IntegerOpBySign::Unsigned(integer_op),
             &param_name,
             Some(bits.as_str()),
-            *get_bench_type(),
+            get_bench_type(),
             None,
         );
         let bench_id = benchmark_spec.to_string();
@@ -900,7 +900,7 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
                 IntegerOpBySign::Unsigned(integer_op),
                 &param_name,
                 Some(bits.as_str()),
-                *get_bench_type(),
+                get_bench_type(),
                 Some(len),
             );
             let bench_id = benchmark_spec.to_string();
@@ -1642,7 +1642,7 @@ mod cuda {
                 IntegerOpBySign::Unsigned(integer_op),
                 &param_name,
                 Some(bits.as_str()),
-                *get_bench_type(),
+                get_bench_type(),
                 None,
             );
             let bench_id = benchmark_spec.to_string();
@@ -1764,7 +1764,7 @@ mod cuda {
                 IntegerOpBySign::Unsigned(integer_op),
                 &param_name,
                 Some(bits.as_str()),
-                *get_bench_type(),
+                get_bench_type(),
                 None,
             );
             let bench_id = benchmark_spec.to_string();
@@ -1912,7 +1912,7 @@ mod cuda {
                 IntegerOpBySign::Unsigned(integer_op),
                 &param_name,
                 Some(bits.as_str()),
-                *get_bench_type(),
+                get_bench_type(),
                 None,
             );
             let bench_id = benchmark_spec.to_string();
@@ -2043,7 +2043,7 @@ mod cuda {
                 IntegerOpBySign::Unsigned(integer_op),
                 &param_name,
                 Some(bits.as_str()),
-                *get_bench_type(),
+                get_bench_type(),
                 None,
             );
             let bench_id = benchmark_spec.to_string();
@@ -3119,7 +3119,7 @@ mod hpu {
                 IntegerOpBySign::Unsigned(integer_op),
                 &param_name,
                 Some(bits.as_str()),
-                *get_bench_type(),
+                get_bench_type(),
                 None,
             );
             let bench_id = benchmark_spec.to_string();
