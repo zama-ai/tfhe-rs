@@ -1,3 +1,4 @@
+use benchmark::high_level_api::type_display::TypeDisplayer;
 use benchmark::utilities::{write_to_json, BitSizesSet, EnvConfig, OperatorType};
 use benchmark_spec::tfhe::hlapi::vector_find::VectorFindOp;
 use benchmark_spec::tfhe::hlapi::HlapiBench;
@@ -11,7 +12,7 @@ use tfhe::shortint::AtomicPatternParameters;
 use tfhe::{ClientKey, ConfigBuilder, FheUint64, FheUint8, MatchValues};
 
 fn write_metadata(
-    spec: &BenchmarkSpec<str>,
+    spec: &BenchmarkSpec,
     display_name: &str,
     params: AtomicPatternParameters,
     num_bits: usize,
@@ -27,7 +28,7 @@ fn write_metadata(
 
 fn bench_latency_or_throughput<F>(
     group: &mut criterion::BenchmarkGroup<'_, criterion::measurement::WallTime>,
-    spec: &BenchmarkSpec<str>,
+    spec: &BenchmarkSpec,
     operand_bits: usize,
     client_key: &ClientKey,
     run_once: F,
@@ -77,11 +78,11 @@ fn bench_contains_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_elem
 
     let params = client_key.computation_parameters();
     let params_name = params.name();
-    let spec = BenchmarkSpec::<str>::new_hlapi(
+    let spec = BenchmarkSpec::new_hlapi(
         HlapiBench::VectorFind(VectorFindOp::Contains),
         &params_name,
         OperandType::CipherText,
-        Some("FheUint64"),
+        Some(&TypeDisplayer::<FheUint64>::default()),
         get_bench_type(),
         Some(num_elements),
     );
@@ -104,11 +105,11 @@ fn bench_contains_fhe_uint8(c: &mut Criterion, client_key: &ClientKey, num_eleme
 
     let params = client_key.computation_parameters();
     let params_name = params.name();
-    let spec = BenchmarkSpec::<str>::new_hlapi(
+    let spec = BenchmarkSpec::new_hlapi(
         HlapiBench::VectorFind(VectorFindOp::Contains),
         &params_name,
         OperandType::CipherText,
-        Some("FheUint8"),
+        Some(&TypeDisplayer::<FheUint8>::default()),
         get_bench_type(),
         Some(num_elements),
     );
@@ -131,11 +132,11 @@ fn bench_match_value_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_e
 
     let params = client_key.computation_parameters();
     let params_name = params.name();
-    let spec = BenchmarkSpec::<str>::new_hlapi(
+    let spec = BenchmarkSpec::new_hlapi(
         HlapiBench::VectorFind(VectorFindOp::MatchValue),
         &params_name,
         OperandType::CipherText,
-        Some("FheUint64"),
+        Some(&TypeDisplayer::<FheUint64>::default()),
         get_bench_type(),
         Some(num_elements),
     );
@@ -157,11 +158,11 @@ fn bench_match_value_fhe_uint8(c: &mut Criterion, client_key: &ClientKey, num_el
 
     let params = client_key.computation_parameters();
     let params_name = params.name();
-    let spec = BenchmarkSpec::<str>::new_hlapi(
+    let spec = BenchmarkSpec::new_hlapi(
         HlapiBench::VectorFind(VectorFindOp::MatchValue),
         &params_name,
         OperandType::CipherText,
-        Some("FheUint8"),
+        Some(&TypeDisplayer::<FheUint8>::default()),
         get_bench_type(),
         Some(num_elements),
     );

@@ -1,4 +1,4 @@
-use benchmark_spec::{BenchmarkSpec, TypeName};
+use benchmark_spec::BenchmarkSpec;
 use criterion::measurement::WallTime;
 use criterion::{Bencher, BenchmarkGroup, Criterion};
 use std::env;
@@ -9,9 +9,9 @@ use tfhe::core_crypto::gpu::{get_number_of_gpus, get_number_of_sms};
 pub use tfhe_benchmark_parser::{write_to_json, write_to_json_unchecked, OperatorType};
 
 /// Run a criterion routine and record its metadata via `write_to_json`.
-pub fn bench_and_record<F, T: TypeName + ?Sized>(
+pub fn bench_and_record<F>(
     group: &mut BenchmarkGroup<'_, WallTime>,
-    benchmark_spec: &BenchmarkSpec<T>,
+    benchmark_spec: &BenchmarkSpec,
     display_name: &str,
     bit_size: u32,
     decomposition_basis: Vec<u32>,

@@ -22,7 +22,7 @@ criterion_group!(
 
 criterion_main!(gates_benches);
 
-fn write_to_json_boolean(spec: BenchmarkSpec<str>, display_name: &str) {
+fn write_to_json_boolean(spec: BenchmarkSpec, display_name: &str) {
     write_to_json(&spec, display_name, &OperatorType::Atomic, 1, vec![1]);
 }
 
@@ -38,65 +38,44 @@ fn benches(c: &mut Criterion, params: BooleanParameters, parameter_name: &str) {
     let ct2 = cks.encrypt(false);
     let ct3 = cks.encrypt(true);
 
-    let spec = BenchmarkSpec::<str>::new_boolean(
-        BooleanBench::And,
-        parameter_name,
-        BenchmarkMetric::Latency,
-    );
+    let spec =
+        BenchmarkSpec::new_boolean(BooleanBench::And, parameter_name, BenchmarkMetric::Latency);
     let id = spec.to_string();
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.and(&ct1, &ct2))));
     write_to_json_boolean(spec, "and");
 
-    let spec = BenchmarkSpec::<str>::new_boolean(
-        BooleanBench::Nand,
-        parameter_name,
-        BenchmarkMetric::Latency,
-    );
+    let spec =
+        BenchmarkSpec::new_boolean(BooleanBench::Nand, parameter_name, BenchmarkMetric::Latency);
     let id = spec.to_string();
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.nand(&ct1, &ct2))));
     write_to_json_boolean(spec, "nand");
 
-    let spec = BenchmarkSpec::<str>::new_boolean(
-        BooleanBench::Or,
-        parameter_name,
-        BenchmarkMetric::Latency,
-    );
+    let spec =
+        BenchmarkSpec::new_boolean(BooleanBench::Or, parameter_name, BenchmarkMetric::Latency);
     let id = spec.to_string();
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.or(&ct1, &ct2))));
     write_to_json_boolean(spec, "or");
 
-    let spec = BenchmarkSpec::<str>::new_boolean(
-        BooleanBench::Xor,
-        parameter_name,
-        BenchmarkMetric::Latency,
-    );
+    let spec =
+        BenchmarkSpec::new_boolean(BooleanBench::Xor, parameter_name, BenchmarkMetric::Latency);
     let id = spec.to_string();
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.xor(&ct1, &ct2))));
     write_to_json_boolean(spec, "xor");
 
-    let spec = BenchmarkSpec::<str>::new_boolean(
-        BooleanBench::Xnor,
-        parameter_name,
-        BenchmarkMetric::Latency,
-    );
+    let spec =
+        BenchmarkSpec::new_boolean(BooleanBench::Xnor, parameter_name, BenchmarkMetric::Latency);
     let id = spec.to_string();
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.xnor(&ct1, &ct2))));
     write_to_json_boolean(spec, "xnor");
 
-    let spec = BenchmarkSpec::<str>::new_boolean(
-        BooleanBench::Not,
-        parameter_name,
-        BenchmarkMetric::Latency,
-    );
+    let spec =
+        BenchmarkSpec::new_boolean(BooleanBench::Not, parameter_name, BenchmarkMetric::Latency);
     let id = spec.to_string();
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.not(&ct1))));
     write_to_json_boolean(spec, "not");
 
-    let spec = BenchmarkSpec::<str>::new_boolean(
-        BooleanBench::Mux,
-        parameter_name,
-        BenchmarkMetric::Latency,
-    );
+    let spec =
+        BenchmarkSpec::new_boolean(BooleanBench::Mux, parameter_name, BenchmarkMetric::Latency);
     let id = spec.to_string();
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.mux(&ct1, &ct2, &ct3))));
     write_to_json_boolean(spec, "mux");

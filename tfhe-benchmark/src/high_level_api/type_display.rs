@@ -1,4 +1,6 @@
 use std::marker::PhantomData;
+
+use benchmark_spec::TypeName;
 use tfhe::named::Named;
 use tfhe::{FheIntegerType, FheUintId, IntegerId};
 
@@ -45,6 +47,12 @@ impl<T: TypeDisplay> Default for TypeDisplayer<T> {
 impl<T: TypeDisplay> std::fmt::Display for TypeDisplayer<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         T::fmt(f)
+    }
+}
+
+impl<T: TypeDisplay> TypeName for TypeDisplayer<T> {
+    fn type_name(&self) -> String {
+        self.to_string()
     }
 }
 

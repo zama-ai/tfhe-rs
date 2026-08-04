@@ -56,7 +56,7 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
             &mut encryption_generator,
         );
 
-        let benchmark_spec = BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, bench_type);
+        let benchmark_spec = BenchmarkSpec::new_core_crypto(cc_bench, name, bench_type);
         let bench_id = benchmark_spec.to_string();
 
         match bench_type {
@@ -210,7 +210,7 @@ fn packing_keyswitch<Scalar, F>(
             &mut encryption_generator,
         );
 
-        let benchmark_spec = BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, bench_type);
+        let benchmark_spec = BenchmarkSpec::new_core_crypto(cc_bench, name, bench_type);
         let bench_id = benchmark_spec.to_string();
 
         match bench_type {
@@ -699,7 +699,7 @@ mod cuda {
 
             let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new().packing_keyswitch_key(pksk).build();
 
-            let benchmark_spec = BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, bench_type);
+            let benchmark_spec = BenchmarkSpec::new_core_crypto(cc_bench, name, bench_type);
             let bench_id = benchmark_spec.to_string();
             match bench_type {
                 BenchmarkType::Latency => {

@@ -28,6 +28,12 @@ pub trait TypeName {
     fn type_name(&self) -> String;
 }
 
+impl fmt::Display for dyn TypeName + '_ {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.type_name())
+    }
+}
+
 #[derive(Debug)]
 pub struct TypedKeyValue<'a> {
     key: &'a str,
@@ -46,9 +52,23 @@ impl TypeName for TypedKeyValue<'_> {
     }
 }
 
-impl TypeName for str {
+#[derive(Debug, Clone, Copy)]
+pub enum PrecisionTag {
+    /// `{n}_bits`
+    Bits(usize),
+    /// `{n}_bits_scalar_{n}`
+    BitsScalar(usize),
+    /// `{from}_to_{to}`
+    Conversion { from: usize, to: usize },
+}
+
+impl TypeName for PrecisionTag {
     fn type_name(&self) -> String {
-        self.to_string()
+        match *self {
+            Self::Bits(n) => format!("{n}_bits"),
+            Self::BitsScalar(n) => format!("{n}_bits_scalar_{n}"),
+            Self::Conversion { from, to } => format!("{from}_to_{to}"),
+        }
     }
 }
 
@@ -200,37 +220,37 @@ pub fn get_bench_type() -> BenchmarkType {
 /// ```text
 /// {crate}::{layer}::{bench}::{op}(::{backend})?(::{benchmark_type})?::{param}(::scalar)?(::{type})?(::{num_elements}_elements)?
 /// ```
-///
-/// `param_name` is kept as `&str` because it comes from `NamedParam::name()`
-/// at runtime. `type_name` is generic over `T: TypeName` so it can be either
-/// a `&str` (from `stringify!()` in bench macros) or a structured type like
-/// [`TypedKeyValue`].
-pub struct BenchmarkSpec<'a, T: TypeName + ?Sized> {
-    pub bench_crate: BenchCrate,
-    pub backend: Backend,
-    pub param_name: &'a str,
-    pub operand_type: OperandType,
-    pub type_name: Option<&'a T>,
-    pub bench_type: BenchmarkMetric,
-    pub num_elements: Option<usize>,
+pub struct BenchmarkSpec {
+    bench_crate: BenchCrate,
+    backend: Backend,
+    param_name: String,
+    operand_type: OperandType,
+    type_name: Option<String>,
+    bench_type: BenchmarkMetric,
+    num_elements: Option<usize>,
 }
 
-impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
+impl BenchmarkSpec {
+    /// The parameter set name (from `NamedParam::name()`).
+    pub fn param_name(&self) -> &str {
+        &self.param_name
+    }
+
     pub fn new(
         bench_crate: BenchCrate,
         backend: Backend,
-        param_name: &'a str,
+        param_name: &str,
         operand_type: OperandType,
-        type_name: Option<&'a T>,
+        type_name: Option<&dyn TypeName>,
         bench_type: impl Into<BenchmarkMetric>,
         num_elements: Option<usize>,
     ) -> Self {
         Self {
             bench_crate,
             backend,
-            param_name,
+            param_name: param_name.to_string(),
             operand_type,
-            type_name,
+            type_name: type_name.map(|t| t.type_name()),
             bench_type: bench_type.into(),
             num_elements,
         }
@@ -238,17 +258,17 @@ impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
 
     pub fn new_hlapi_ops(
         hlapi_op: HlIntegerOp,
-        param_name: &'a str,
+        param_name: &str,
         operand_type: OperandType,
-        type_name: Option<&'a T>,
+        type_name: Option<&dyn TypeName>,
         bench_type: impl Into<BenchmarkMetric>,
     ) -> Self {
         Self {
             bench_crate: BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Ops(hlapi_op))),
             backend: bench_backend_from_cfg(),
-            param_name,
+            param_name: param_name.to_string(),
             operand_type,
-            type_name,
+            type_name: type_name.map(|t| t.type_name()),
             bench_type: bench_type.into(),
             num_elements: None,
         }
@@ -256,18 +276,18 @@ impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
 
     pub fn new_hlapi(
         hlapi_bench: HlapiBench,
-        param_name: &'a str,
+        param_name: &str,
         operand_type: OperandType,
-        type_name: Option<&'a T>,
+        type_name: Option<&dyn TypeName>,
         bench_type: impl Into<BenchmarkMetric>,
         num_elements: Option<usize>,
     ) -> Self {
         Self {
             bench_crate: BenchCrate::Tfhe(TfheLayer::Hlapi(hlapi_bench)),
             backend: bench_backend_from_cfg(),
-            param_name,
+            param_name: param_name.to_string(),
             operand_type,
-            type_name,
+            type_name: type_name.map(|t| t.type_name()),
             bench_type: bench_type.into(),
             num_elements,
         }
@@ -275,17 +295,17 @@ impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
 
     pub fn new_integer_ops(
         ops: IntegerOpBySign,
-        param_name: &'a str,
-        type_name: Option<&'a T>,
+        param_name: &str,
+        type_name: Option<&dyn TypeName>,
         bench_type: impl Into<BenchmarkMetric>,
         num_elements: Option<usize>,
     ) -> Self {
         Self {
             bench_crate: BenchCrate::Tfhe(TfheLayer::Integer(IntegerBench::Ops(ops))),
             backend: bench_backend_from_cfg(),
-            param_name,
+            param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
-            type_name,
+            type_name: type_name.map(|t| t.type_name()),
             bench_type: bench_type.into(),
             num_elements,
         }
@@ -293,17 +313,17 @@ impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
 
     pub fn new_integer(
         integer_bench: IntegerBench,
-        param_name: &'a str,
-        type_name: Option<&'a T>,
+        param_name: &str,
+        type_name: Option<&dyn TypeName>,
         bench_type: impl Into<BenchmarkMetric>,
         num_elements: Option<usize>,
     ) -> Self {
         Self {
             bench_crate: BenchCrate::Tfhe(TfheLayer::Integer(integer_bench)),
             backend: bench_backend_from_cfg(),
-            param_name,
+            param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
-            type_name,
+            type_name: type_name.map(|t| t.type_name()),
             bench_type: bench_type.into(),
             num_elements,
         }
@@ -311,13 +331,13 @@ impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
 
     pub fn new_shortint(
         shortint_bench: ShortintBench,
-        param_name: &'a str,
+        param_name: &str,
         bench_type: impl Into<BenchmarkMetric>,
     ) -> Self {
         Self {
             bench_crate: BenchCrate::Tfhe(TfheLayer::Shortint(shortint_bench)),
             backend: bench_backend_from_cfg(),
-            param_name,
+            param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
             type_name: None,
             bench_type: bench_type.into(),
@@ -327,13 +347,13 @@ impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
 
     pub fn new_boolean(
         boolean_bench: BooleanBench,
-        param_name: &'a str,
+        param_name: &str,
         bench_type: impl Into<BenchmarkMetric>,
     ) -> Self {
         Self {
             bench_crate: BenchCrate::Tfhe(TfheLayer::Boolean(boolean_bench)),
             backend: bench_backend_from_cfg(),
-            param_name,
+            param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
             type_name: None,
             bench_type: bench_type.into(),
@@ -343,13 +363,13 @@ impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
 
     pub fn new_core_crypto(
         core_crypto_bench: CoreCryptoBench,
-        param_name: &'a str,
+        param_name: &str,
         bench_type: impl Into<BenchmarkMetric>,
     ) -> Self {
         Self {
             bench_crate: BenchCrate::Tfhe(TfheLayer::CoreCrypto(core_crypto_bench)),
             backend: bench_backend_from_cfg(),
-            param_name,
+            param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
             type_name: None,
             bench_type: bench_type.into(),
@@ -359,16 +379,16 @@ impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
 
     pub fn new_cuda_core_crypto(
         core_crypto_bench: CoreCryptoBench,
-        param_name: &'a str,
-        type_name: Option<&'a T>,
+        param_name: &str,
+        type_name: Option<&dyn TypeName>,
         bench_type: impl Into<BenchmarkMetric>,
     ) -> Self {
         Self {
             bench_crate: BenchCrate::Tfhe(TfheLayer::CoreCrypto(core_crypto_bench)),
             backend: bench_backend_from_cfg(),
-            param_name,
+            param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
-            type_name,
+            type_name: type_name.map(|t| t.type_name()),
             bench_type: bench_type.into(),
             num_elements: None,
         }
@@ -376,13 +396,13 @@ impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
 
     pub fn new_transciphering(
         transcipher_bench: TranscipheringBench,
-        param_name: &'a str,
+        param_name: &str,
         bench_type: impl Into<BenchmarkMetric>,
     ) -> Self {
         Self {
             bench_crate: BenchCrate::Tfhe(TfheLayer::Transciphering(transcipher_bench)),
             backend: bench_backend_from_cfg(),
-            param_name,
+            param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
             type_name: None,
             bench_type: bench_type.into(),
@@ -399,7 +419,7 @@ impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
         Self {
             bench_crate: BenchCrate::Zk(ZkLayer::Msm(zk_bench)),
             backend,
-            param_name: "",
+            param_name: String::new(),
             operand_type: OperandType::CipherText,
             type_name: None,
             bench_type: bench_type.into(),
@@ -408,7 +428,7 @@ impl<'a, T: TypeName + ?Sized> BenchmarkSpec<'a, T> {
     }
 }
 
-impl<T: TypeName + ?Sized> fmt::Display for BenchmarkSpec<'_, T> {
+impl fmt::Display for BenchmarkSpec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.bench_crate.fmt_crate(f)?;
         if !matches!(self.backend, Backend::Cpu) {
@@ -426,8 +446,8 @@ impl<T: TypeName + ?Sized> fmt::Display for BenchmarkSpec<'_, T> {
         if self.operand_type.is_scalar() {
             write!(f, "::scalar")?;
         }
-        if let Some(type_name) = self.type_name {
-            write!(f, "::{}", type_name.type_name())?;
+        if let Some(type_name) = &self.type_name {
+            write!(f, "::{type_name}")?;
         }
         if let Some(num_elements) = self.num_elements {
             write!(f, "::{num_elements}_elements")?;
@@ -443,13 +463,21 @@ mod tests {
 
     use super::*;
 
+    struct Ty(&'static str);
+
+    impl TypeName for Ty {
+        fn type_name(&self) -> String {
+            self.0.to_string()
+        }
+    }
+
     #[test]
     fn hlapi_cpu_latency() {
         let spec = BenchmarkSpec::new_hlapi_ops(
             HlIntegerOp::Add,
             "PARAM_MESSAGE_2_CARRY_2",
             OperandType::CipherText,
-            Some("FheUint64"),
+            Some(&Ty("FheUint64")),
             BenchmarkMetric::Latency,
         );
         assert_eq!(
@@ -465,7 +493,7 @@ mod tests {
             Backend::Cuda,
             "PARAM_MESSAGE_2_CARRY_2",
             OperandType::CipherText,
-            Some("FheUint128"),
+            Some(&Ty("FheUint128")),
             BenchmarkMetric::Latency,
             None,
         );
@@ -482,7 +510,7 @@ mod tests {
             Backend::Hpu,
             "PARAM_MESSAGE_2_CARRY_2",
             OperandType::CipherText,
-            Some("FheUint64"),
+            Some(&Ty("FheUint64")),
             BenchmarkMetric::Throughput,
             None,
         );
@@ -498,7 +526,7 @@ mod tests {
             HlIntegerOp::LeftShift,
             "PARAM_MESSAGE_2_CARRY_2",
             OperandType::PlainText,
-            Some("FheUint64"),
+            Some(&Ty("FheUint64")),
             BenchmarkMetric::Latency,
         );
         assert_eq!(
@@ -509,7 +537,7 @@ mod tests {
 
     #[test]
     fn hlapi_no_type_name() {
-        let spec = BenchmarkSpec::<str>::new_hlapi_ops(
+        let spec = BenchmarkSpec::new_hlapi_ops(
             HlIntegerOp::Neg,
             "PARAM_MESSAGE_2_CARRY_2",
             OperandType::CipherText,
@@ -524,10 +552,10 @@ mod tests {
 
     #[test]
     fn integer_ops_latency() {
-        let spec = BenchmarkSpec::<str>::new_integer_ops(
+        let spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Unsigned(IntegerOp::AddParallelized),
             "PARAM_MESSAGE_2_CARRY_2",
-            Some("64_bits"),
+            Some(&Ty("64_bits")),
             BenchmarkMetric::Latency,
             None,
         );
@@ -539,10 +567,10 @@ mod tests {
 
     #[test]
     fn integer_ops_signed() {
-        let spec = BenchmarkSpec::<str>::new_integer_ops(
+        let spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Signed(IntegerOp::MulParallelized),
             "PARAM_MESSAGE_2_CARRY_2",
-            Some("64_bits"),
+            Some(&Ty("64_bits")),
             BenchmarkMetric::Latency,
             None,
         );
@@ -554,10 +582,10 @@ mod tests {
 
     #[test]
     fn integer_ops_throughput_with_num_elements() {
-        let spec = BenchmarkSpec::<str>::new_integer_ops(
+        let spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Unsigned(IntegerOp::SumCiphertextsParallelized),
             "PARAM_MESSAGE_2_CARRY_2",
-            Some("64_bits"),
+            Some(&Ty("64_bits")),
             BenchmarkMetric::Throughput,
             Some(5),
         );
@@ -569,10 +597,10 @@ mod tests {
 
     #[test]
     fn integer_ops_ilog2_serialization() {
-        let spec = BenchmarkSpec::<str>::new_integer_ops(
+        let spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Unsigned(IntegerOp::CheckedIlog2Parallelized),
             "PARAM_MESSAGE_2_CARRY_2",
-            Some("8_bits"),
+            Some(&Ty("8_bits")),
             BenchmarkMetric::Latency,
             None,
         );
@@ -586,7 +614,7 @@ mod tests {
     fn hlapi_erc7984_with_num_elements() {
         use crate::tfhe::hlapi::erc7984::{Erc7984, TransferFlavor};
 
-        let spec = BenchmarkSpec::<str>::new_hlapi(
+        let spec = BenchmarkSpec::new_hlapi(
             HlapiBench::Erc7984(Erc7984::Transfer(TransferFlavor::Whitepaper)),
             "PARAM_MESSAGE_2_CARRY_2",
             OperandType::CipherText,
@@ -604,7 +632,7 @@ mod tests {
     fn hlapi_erc7984_without_num_elements() {
         use crate::tfhe::hlapi::erc7984::{Erc7984, TransferFlavor};
 
-        let spec = BenchmarkSpec::<str>::new_hlapi(
+        let spec = BenchmarkSpec::new_hlapi(
             HlapiBench::Erc7984(Erc7984::Transfer(TransferFlavor::NoCmux)),
             "PARAM_MESSAGE_2_CARRY_2",
             OperandType::CipherText,
@@ -622,7 +650,7 @@ mod tests {
     fn hlapi_erc7984_num_elements_with_backend() {
         use crate::tfhe::hlapi::erc7984::TransferFlavor;
 
-        let spec = BenchmarkSpec::<str>::new(
+        let spec = BenchmarkSpec::new(
             BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Erc7984(Erc7984::Transfer(
                 TransferFlavor::Overflow,
             )))),
@@ -643,7 +671,7 @@ mod tests {
     fn hlapi_erc7984_num_elements_with_throughput() {
         use crate::tfhe::hlapi::erc7984::{Erc7984, TransferFlavor};
 
-        let spec = BenchmarkSpec::<str>::new_hlapi(
+        let spec = BenchmarkSpec::new_hlapi(
             HlapiBench::Erc7984(Erc7984::Transfer(TransferFlavor::Safe)),
             "PARAM_MESSAGE_2_CARRY_2",
             OperandType::CipherText,
@@ -661,7 +689,7 @@ mod tests {
     fn hlapi_erc7984_with_pbs_count() {
         use crate::tfhe::hlapi::erc7984::{Erc7984, TransferFlavor};
 
-        let spec = BenchmarkSpec::<str>::new_hlapi(
+        let spec = BenchmarkSpec::new_hlapi(
             HlapiBench::Erc7984(Erc7984::Transfer(TransferFlavor::Safe)),
             "PARAM_MESSAGE_2_CARRY_2",
             OperandType::CipherText,
@@ -683,7 +711,7 @@ mod tests {
             HlapiBench::Dex(Dex::SwapRequest(DexFlavor::Whitepaper)),
             "PARAM_MESSAGE_2_CARRY_2",
             OperandType::CipherText,
-            Some("FheUint64"),
+            Some(&Ty("FheUint64")),
             BenchmarkMetric::Latency,
             None,
         );
@@ -704,7 +732,7 @@ mod tests {
             Backend::Cuda,
             "PARAM_MESSAGE_2_CARRY_2",
             OperandType::CipherText,
-            Some("FheUint64"),
+            Some(&Ty("FheUint64")),
             BenchmarkMetric::Throughput,
             Some(10),
         );
@@ -722,7 +750,7 @@ mod tests {
             HlapiBench::Dex(Dex::SwapRequest(DexFlavor::Finalize)),
             "PARAM_MESSAGE_2_CARRY_2",
             OperandType::CipherText,
-            Some("FheUint64"),
+            Some(&Ty("FheUint64")),
             BenchmarkMetric::PbsCount,
             None,
         );
