@@ -23,7 +23,7 @@ fn oprf(c: &mut Criterion) {
     let oprf_sk = OprfServerKey::new(&oprf_pk, cks).unwrap();
 
     let benchmark_spec =
-        BenchmarkSpec::<str>::new_shortint(shortint_bench, &param_name, BenchmarkMetric::Latency);
+        BenchmarkSpec::new_shortint(shortint_bench, &param_name, BenchmarkMetric::Latency);
     let bench_id = benchmark_spec.to_string();
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {

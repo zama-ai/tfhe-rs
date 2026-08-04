@@ -7,8 +7,8 @@ use std::hint::black_box;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::prelude::*;
 
-fn spec(packing_op: ShortintPackingOp, param_name: &str) -> BenchmarkSpec<'_, str> {
-    BenchmarkSpec::<str>::new_shortint(
+fn spec(packing_op: ShortintPackingOp, param_name: &str) -> BenchmarkSpec {
+    BenchmarkSpec::new_shortint(
         ShortintBench::PackingCompression(packing_op),
         param_name,
         BenchmarkMetric::Latency,

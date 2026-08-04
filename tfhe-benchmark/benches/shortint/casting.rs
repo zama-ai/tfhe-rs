@@ -26,11 +26,8 @@ pub fn pack_cast_64(c: &mut Criterion) {
 
     let vec_ct = vec![client_key_1.encrypt(1); 64];
 
-    let benchmark_spec = BenchmarkSpec::<str>::new_shortint(
-        shortint_bench,
-        &ks_param_name,
-        BenchmarkMetric::Latency,
-    );
+    let benchmark_spec =
+        BenchmarkSpec::new_shortint(shortint_bench, &ks_param_name, BenchmarkMetric::Latency);
     let bench_id = benchmark_spec.to_string();
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
@@ -81,11 +78,8 @@ pub fn pack_cast(c: &mut Criterion) {
     let ct_1 = client_key_1.encrypt(1);
     let ct_2 = client_key_1.encrypt(1);
 
-    let benchmark_spec = BenchmarkSpec::<str>::new_shortint(
-        shortint_bench,
-        &ks_param_name,
-        BenchmarkMetric::Latency,
-    );
+    let benchmark_spec =
+        BenchmarkSpec::new_shortint(shortint_bench, &ks_param_name, BenchmarkMetric::Latency);
     let bench_id = benchmark_spec.to_string();
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
@@ -124,11 +118,8 @@ pub fn cast(c: &mut Criterion) {
 
     let ct = client_key_1.encrypt(1);
 
-    let benchmark_spec = BenchmarkSpec::<str>::new_shortint(
-        shortint_bench,
-        &ks_param_name,
-        BenchmarkMetric::Latency,
-    );
+    let benchmark_spec =
+        BenchmarkSpec::new_shortint(shortint_bench, &ks_param_name, BenchmarkMetric::Latency);
     let bench_id = benchmark_spec.to_string();
     bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {

@@ -33,11 +33,8 @@ fn bench_server_key_unary_function<F>(
 
         let mut ct = cks.encrypt(clear_text);
 
-        let benchmark_spec = BenchmarkSpec::<str>::new_shortint(
-            shortint_bench,
-            &param_name,
-            BenchmarkMetric::Latency,
-        );
+        let benchmark_spec =
+            BenchmarkSpec::new_shortint(shortint_bench, &param_name, BenchmarkMetric::Latency);
         let bench_id = benchmark_spec.to_string();
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
@@ -81,11 +78,8 @@ fn bench_server_key_binary_function<F>(
         let mut ct_0 = cks.encrypt(clear_0);
         let mut ct_1 = cks.encrypt(clear_1);
 
-        let benchmark_spec = BenchmarkSpec::<str>::new_shortint(
-            shortint_bench,
-            &param_name,
-            BenchmarkMetric::Latency,
-        );
+        let benchmark_spec =
+            BenchmarkSpec::new_shortint(shortint_bench, &param_name, BenchmarkMetric::Latency);
         let bench_id = benchmark_spec.to_string();
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
@@ -128,11 +122,8 @@ fn bench_server_key_binary_scalar_function<F>(
 
         let mut ct_0 = cks.encrypt(clear_0);
 
-        let benchmark_spec = BenchmarkSpec::<str>::new_shortint(
-            shortint_bench,
-            &param_name,
-            BenchmarkMetric::Latency,
-        );
+        let benchmark_spec =
+            BenchmarkSpec::new_shortint(shortint_bench, &param_name, BenchmarkMetric::Latency);
         let bench_id = benchmark_spec.to_string();
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
@@ -179,11 +170,8 @@ fn bench_server_key_binary_scalar_division_function<F>(
 
         let mut ct_0 = cks.encrypt(clear_0);
 
-        let benchmark_spec = BenchmarkSpec::<str>::new_shortint(
-            shortint_bench,
-            &param_name,
-            BenchmarkMetric::Latency,
-        );
+        let benchmark_spec =
+            BenchmarkSpec::new_shortint(shortint_bench, &param_name, BenchmarkMetric::Latency);
         let bench_id = benchmark_spec.to_string();
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
@@ -219,11 +207,8 @@ fn carry_extract_bench(c: &mut Criterion) {
 
         let ct_0 = cks.encrypt(clear_0);
 
-        let benchmark_spec = BenchmarkSpec::<str>::new_shortint(
-            shortint_bench,
-            &param_name,
-            BenchmarkMetric::Latency,
-        );
+        let benchmark_spec =
+            BenchmarkSpec::new_shortint(shortint_bench, &param_name, BenchmarkMetric::Latency);
         let bench_id = benchmark_spec.to_string();
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
@@ -261,11 +246,8 @@ fn programmable_bootstrapping_bench(c: &mut Criterion) {
 
         let ctxt = cks.encrypt(clear_0);
 
-        let benchmark_spec = BenchmarkSpec::<str>::new_shortint(
-            shortint_bench,
-            &param_name,
-            BenchmarkMetric::Latency,
-        );
+        let benchmark_spec =
+            BenchmarkSpec::new_shortint(shortint_bench, &param_name, BenchmarkMetric::Latency);
         let bench_id = benchmark_spec.to_string();
 
         bench_group.bench_function(&bench_id, |b| {
@@ -308,11 +290,8 @@ fn server_key_from_compressed_key(c: &mut Criterion) {
         let keys = KEY_CACHE.get_from_param(*param);
         let sks_compressed = CompressedServerKey::new(keys.client_key());
 
-        let benchmark_spec = BenchmarkSpec::<str>::new_shortint(
-            shortint_bench,
-            param_name,
-            BenchmarkMetric::Latency,
-        );
+        let benchmark_spec =
+            BenchmarkSpec::new_shortint(shortint_bench, param_name, BenchmarkMetric::Latency);
         let bench_id = benchmark_spec.to_string();
 
         bench_group.bench_function(&bench_id, |b| {
