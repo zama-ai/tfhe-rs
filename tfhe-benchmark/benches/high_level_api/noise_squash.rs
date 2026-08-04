@@ -84,7 +84,7 @@ fn bench_sns_only_fhe_type<FheType>(
         &noise_param_name,
         OperandType::CipherText,
         Some(type_name),
-        *bench_type,
+        bench_type,
         None,
     );
     let bench_id = bench_spec.to_string();
@@ -254,7 +254,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
         &noise_param_name,
         OperandType::CipherText,
         Some(type_name),
-        *bench_type,
+        bench_type,
         None,
     );
     let bench_id = bench_spec.to_string();

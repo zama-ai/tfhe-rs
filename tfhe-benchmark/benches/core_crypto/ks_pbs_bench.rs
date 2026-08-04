@@ -63,7 +63,7 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
             params.pbs_level,
         );
 
-        let benchmark_spec = BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, *bench_type);
+        let benchmark_spec = BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, bench_type);
         let bench_id = benchmark_spec.to_string();
 
         match bench_type {
@@ -344,7 +344,7 @@ fn multi_bit_ks_pbs<
         )
         .unwrap() as usize;
 
-        let benchmark_spec = BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, *bench_type);
+        let benchmark_spec = BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, bench_type);
         let bench_id = benchmark_spec.to_string();
 
         match bench_type {
@@ -596,7 +596,7 @@ mod cuda {
                 .bootstrap_key(bsk)
                 .build();
 
-            let benchmark_spec = BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, *bench_type);
+            let benchmark_spec = BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, bench_type);
             let bench_id = benchmark_spec.to_string();
 
             match bench_type {
@@ -906,7 +906,7 @@ mod cuda {
                 .multi_bit_bootstrap_key(multi_bit_bsk)
                 .build();
 
-            let benchmark_spec = BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, *bench_type);
+            let benchmark_spec = BenchmarkSpec::<str>::new_core_crypto(cc_bench, name, bench_type);
             let bench_id = benchmark_spec.to_string();
 
             match bench_type {
