@@ -1,9 +1,12 @@
+use benchmark::high_level_api::type_display::TypeDisplayer;
 #[cfg(feature = "gpu")]
 use benchmark::utilities::{configure_gpu, get_param_type, ParamType};
 use benchmark::utilities::{write_to_json, OperatorType};
 use benchmark_spec::tfhe::hlapi::erc7984::{Erc7984, TransferFlavor};
 use benchmark_spec::tfhe::hlapi::HlapiBench;
-use benchmark_spec::{get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, OperandType};
+use benchmark_spec::{
+    get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, OperandType, TypeName,
+};
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
 use rand::thread_rng;
@@ -294,7 +297,7 @@ mod pbs_stats {
 
     pub fn print_transfer_pbs_counts<FheType, F>(
         client_key: &ClientKey,
-        type_name: &str,
+        type_name: &dyn TypeName,
         erc7984_bench_spec: Erc7984,
         transfer_func: F,
     ) where
@@ -339,7 +342,7 @@ mod pbs_stats {
 fn bench_transfer_latency<FheType, F>(
     c: &mut Criterion,
     client_key: &ClientKey,
-    type_name: &str,
+    type_name: &dyn TypeName,
     erc7984_bench_spec: Erc7984,
     transfer_func: F,
 ) where
@@ -353,7 +356,7 @@ fn bench_transfer_latency<FheType, F>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
-    let mut c = c.benchmark_group(type_name);
+    let mut c = c.benchmark_group(type_name.to_string());
 
     let bench_spec = BenchmarkSpec::new_hlapi(
         HlapiBench::Erc7984(erc7984_bench_spec),
@@ -393,7 +396,7 @@ fn bench_transfer_latency<FheType, F>(
 fn bench_transfer_latency_simd<FheType, F>(
     c: &mut Criterion,
     client_key: &ClientKey,
-    type_name: &str,
+    type_name: &dyn TypeName,
     erc7984_bench_spec: Erc7984,
     transfer_func: F,
 ) where
@@ -412,7 +415,7 @@ fn bench_transfer_latency_simd<FheType, F>(
 
     let params = client_key.computation_parameters();
     let params_name = params.name();
-    let mut c = c.benchmark_group(type_name);
+    let mut c = c.benchmark_group(type_name.to_string());
 
     let bench_spec = BenchmarkSpec::new_hlapi(
         HlapiBench::Erc7984(erc7984_bench_spec),
@@ -459,7 +462,7 @@ fn bench_transfer_latency_simd<FheType, F>(
 fn bench_transfer_throughput<FheType, F>(
     c: &mut Criterion,
     client_key: &ClientKey,
-    type_name: &str,
+    type_name: &dyn TypeName,
     erc7984_bench_spec: Erc7984,
     transfer_func: F,
 ) where
@@ -471,7 +474,7 @@ fn bench_transfer_throughput<FheType, F>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
-    let mut group = c.benchmark_group(type_name);
+    let mut group = c.benchmark_group(type_name.to_string());
 
     for num_elems in [10, 100, 500] {
         group.throughput(Throughput::Elements(num_elems));
@@ -519,7 +522,7 @@ fn bench_transfer_throughput<FheType, F>(
 fn cuda_bench_transfer_throughput<FheType, F>(
     c: &mut Criterion,
     client_key: &ClientKey,
-    type_name: &str,
+    type_name: &dyn TypeName,
     erc7984_bench_spec: Erc7984,
     transfer_func: F,
 ) where
@@ -541,7 +544,7 @@ fn cuda_bench_transfer_throughput<FheType, F>(
     // and is a multiple of the number of streams per GPU to avoid a bigger batch on one stream
     let num_elems = 800 * num_gpus;
 
-    let mut group = c.benchmark_group(type_name);
+    let mut group = c.benchmark_group(type_name.to_string());
     group.throughput(Throughput::Elements(num_elems));
 
     let bench_spec = BenchmarkSpec::new_hlapi(
@@ -612,7 +615,7 @@ fn cuda_bench_transfer_throughput<FheType, F>(
 fn hpu_bench_transfer_throughput<FheType, F>(
     group: &mut Criterion,
     client_key: &ClientKey,
-    type_name: &str,
+    type_name: &dyn TypeName,
     erc7984_bench_spec: Erc7984,
     transfer_func: F,
 ) where
@@ -625,7 +628,7 @@ fn hpu_bench_transfer_throughput<FheType, F>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
-    let mut group = group.benchmark_group(type_name);
+    let mut group = group.benchmark_group(type_name.to_string());
     for num_elems in [10, 100] {
         group.throughput(Throughput::Elements(num_elems));
         let bench_spec = BenchmarkSpec::new_hlapi(
@@ -680,7 +683,7 @@ fn hpu_bench_transfer_throughput<FheType, F>(
 fn hpu_bench_transfer_throughput_simd<FheType, F>(
     group: &mut Criterion,
     client_key: &ClientKey,
-    type_name: &str,
+    type_name: &dyn TypeName,
     erc7984_bench_spec: Erc7984,
     transfer_func: F,
 ) where
@@ -701,7 +704,7 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
-    let mut group = group.benchmark_group(type_name);
+    let mut group = group.benchmark_group(type_name.to_string());
     for num_elems in [2, 8] {
         let real_num_elems = num_elems * (hpu_simd_n as u64);
         group.throughput(Throughput::Elements(real_num_elems));
@@ -788,25 +791,25 @@ fn main() {
         use crate::pbs_stats::print_transfer_pbs_counts;
         print_transfer_pbs_counts(
             &cks,
-            "FheUint64",
+            &TypeDisplayer::<FheUint64>::default(),
             Erc7984::Transfer(TransferFlavor::Whitepaper),
             par_transfer_whitepaper::<FheUint64>,
         );
         print_transfer_pbs_counts(
             &cks,
-            "FheUint64",
+            &TypeDisplayer::<FheUint64>::default(),
             Erc7984::Transfer(TransferFlavor::NoCmux),
             par_transfer_no_cmux::<FheUint64>,
         );
         print_transfer_pbs_counts(
             &cks,
-            "FheUint64",
+            &TypeDisplayer::<FheUint64>::default(),
             Erc7984::Transfer(TransferFlavor::Overflow),
             par_transfer_overflow::<FheUint64>,
         );
         print_transfer_pbs_counts(
             &cks,
-            "FheUint64",
+            &TypeDisplayer::<FheUint64>::default(),
             Erc7984::Transfer(TransferFlavor::Safe),
             par_transfer_safe::<FheUint64>,
         );
@@ -817,28 +820,28 @@ fn main() {
             bench_transfer_latency(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::Whitepaper),
                 par_transfer_whitepaper::<FheUint64>,
             );
             bench_transfer_latency(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::NoCmux),
                 par_transfer_no_cmux::<FheUint64>,
             );
             bench_transfer_latency(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::Overflow),
                 par_transfer_overflow::<FheUint64>,
             );
             bench_transfer_latency(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::Safe),
                 par_transfer_safe::<FheUint64>,
             );
@@ -848,28 +851,28 @@ fn main() {
             bench_transfer_throughput(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::Whitepaper),
                 par_transfer_whitepaper::<FheUint64>,
             );
             bench_transfer_throughput(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::NoCmux),
                 par_transfer_no_cmux::<FheUint64>,
             );
             bench_transfer_throughput(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::Overflow),
                 par_transfer_overflow::<FheUint64>,
             );
             bench_transfer_throughput(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::Safe),
                 par_transfer_safe::<FheUint64>,
             );
@@ -904,25 +907,25 @@ fn main() {
         use crate::pbs_stats::print_transfer_pbs_counts;
         print_transfer_pbs_counts(
             &cks,
-            "FheUint64",
+            &TypeDisplayer::<FheUint64>::default(),
             Erc7984::Transfer(TransferFlavor::Whitepaper),
             par_transfer_whitepaper::<FheUint64>,
         );
         print_transfer_pbs_counts(
             &cks,
-            "FheUint64",
+            &TypeDisplayer::<FheUint64>::default(),
             Erc7984::Transfer(TransferFlavor::NoCmux),
             par_transfer_no_cmux::<FheUint64>,
         );
         print_transfer_pbs_counts(
             &cks,
-            "FheUint64",
+            &TypeDisplayer::<FheUint64>::default(),
             Erc7984::Transfer(TransferFlavor::Overflow),
             par_transfer_overflow::<FheUint64>,
         );
         print_transfer_pbs_counts(
             &cks,
-            "FheUint64",
+            &TypeDisplayer::<FheUint64>::default(),
             Erc7984::Transfer(TransferFlavor::Safe),
             par_transfer_safe::<FheUint64>,
         );
@@ -933,28 +936,28 @@ fn main() {
             bench_transfer_latency(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::Whitepaper),
                 par_transfer_whitepaper::<FheUint64>,
             );
             bench_transfer_latency(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::NoCmux),
                 par_transfer_no_cmux::<FheUint64>,
             );
             bench_transfer_latency(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::Overflow),
                 par_transfer_overflow::<FheUint64>,
             );
             bench_transfer_latency(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::Safe),
                 par_transfer_safe::<FheUint64>,
             );
@@ -964,28 +967,28 @@ fn main() {
             cuda_bench_transfer_throughput(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::Whitepaper),
                 transfer_whitepaper::<FheUint64>,
             );
             cuda_bench_transfer_throughput(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::NoCmux),
                 transfer_no_cmux::<FheUint64>,
             );
             cuda_bench_transfer_throughput(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::Overflow),
                 transfer_overflow::<FheUint64>,
             );
             cuda_bench_transfer_throughput(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::Safe),
                 transfer_safe::<FheUint64>,
             );
@@ -1024,7 +1027,7 @@ fn main() {
             bench_transfer_latency(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::Whitepaper),
                 transfer_whitepaper::<FheUint64>,
             );
@@ -1032,7 +1035,7 @@ fn main() {
             bench_transfer_latency(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::HpuOptim),
                 transfer_hpu::<FheUint64>,
             );
@@ -1040,7 +1043,7 @@ fn main() {
             bench_transfer_latency_simd(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::HpuSimd),
                 transfer_hpu_simd::<FheUint64>,
             );
@@ -1050,7 +1053,7 @@ fn main() {
             hpu_bench_transfer_throughput(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::Whitepaper),
                 transfer_whitepaper::<FheUint64>,
             );
@@ -1058,7 +1061,7 @@ fn main() {
             hpu_bench_transfer_throughput(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::HpuOptim),
                 transfer_hpu::<FheUint64>,
             );
@@ -1066,7 +1069,7 @@ fn main() {
             hpu_bench_transfer_throughput_simd(
                 &mut c,
                 &cks,
-                "FheUint64",
+                &TypeDisplayer::<FheUint64>::default(),
                 Erc7984::Transfer(TransferFlavor::HpuSimd),
                 transfer_hpu_simd::<FheUint64>,
             );
