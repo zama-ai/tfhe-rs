@@ -3,13 +3,13 @@ use crate::model::record::{
     BenchmarkParametersRecord, ExecutionType, IntegerRepresentation, KeySetType,
     PolynomialMultiplication,
 };
-use benchmark_spec::{BenchmarkSpec, OperandType, TypeName};
+use benchmark_spec::{BenchmarkSpec, OperandType};
 use std::fs;
 use std::path::PathBuf;
 
 /// Writes benchmark parameters to disk in JSON format, enforcing the benchmark name spec.
-pub fn write_to_json<T: TypeName + ?Sized>(
-    benchmark_spec: &BenchmarkSpec<T>,
+pub fn write_to_json(
+    benchmark_spec: &BenchmarkSpec,
     display_name: impl Into<String>,
     operator_type: &OperatorType,
     bit_size: u32,
@@ -17,7 +17,7 @@ pub fn write_to_json<T: TypeName + ?Sized>(
 ) {
     write_to_json_unchecked(
         &benchmark_spec.to_string(),
-        benchmark_spec.param_name,
+        benchmark_spec.param_name().to_string(),
         display_name,
         operator_type,
         bit_size,

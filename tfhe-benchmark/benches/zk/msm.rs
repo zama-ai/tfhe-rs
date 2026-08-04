@@ -133,8 +133,7 @@ impl MsmBenchGroup for G2Bench {
 // =============================================================================
 
 fn bench_cpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
-    let group_name =
-        BenchmarkSpec::<str>::new_zk_msm(T::MSM_ID, Backend::Cpu, get_bench_type(), None);
+    let group_name = BenchmarkSpec::new_zk_msm(T::MSM_ID, Backend::Cpu, get_bench_type(), None);
     let mut group = c.benchmark_group(group_name.to_string());
     group.sample_size(10);
     group.measurement_time(Duration::from_secs(30));
@@ -142,7 +141,7 @@ fn bench_cpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
     for size in MSM_SIZES.iter() {
         let n = *size;
         let bench_id =
-            BenchmarkSpec::<str>::new_zk_msm(T::MSM_ID, Backend::Cpu, get_bench_type(), Some(n));
+            BenchmarkSpec::new_zk_msm(T::MSM_ID, Backend::Cpu, get_bench_type(), Some(n));
         let bench_id_string = bench_id.to_string();
 
         match get_bench_type() {
@@ -201,8 +200,7 @@ fn bench_cpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
 fn bench_gpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
     use tfhe_zk_pok::gpu::select_gpu_for_msm;
 
-    let group_name =
-        BenchmarkSpec::<str>::new_zk_msm(T::MSM_ID, Backend::Cuda, get_bench_type(), None);
+    let group_name = BenchmarkSpec::new_zk_msm(T::MSM_ID, Backend::Cuda, *get_bench_type(), None);
     let mut group = c.benchmark_group(&group_name.to_string());
     group.sample_size(10);
     group.measurement_time(Duration::from_secs(30));
@@ -213,7 +211,7 @@ fn bench_gpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
     for size in MSM_SIZES.iter() {
         let n = *size;
         let bench_id =
-            BenchmarkSpec::<str>::new_zk_msm(T::MSM_ID, Backend::Cuda, get_bench_type(), Some(n));
+            BenchmarkSpec::new_zk_msm(T::MSM_ID, Backend::Cuda, *get_bench_type(), Some(n));
         let bench_id_string = bench_id.to_string();
 
         match get_bench_type() {

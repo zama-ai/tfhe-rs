@@ -2,7 +2,9 @@ use benchmark::params::ParamsAndNumBlocksIter;
 #[cfg(any(feature = "gpu", feature = "hpu"))]
 use benchmark::utilities::throughput_num_threads;
 use benchmark::utilities::{write_to_json, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkSpec, BenchmarkType, IntegerBench, IntegerOprf};
+use benchmark_spec::{
+    get_bench_type, BenchmarkSpec, BenchmarkType, IntegerBench, IntegerOprf, PrecisionTag,
+};
 use criterion::{Criterion, Throughput};
 use rayon::prelude::*;
 #[cfg(any(feature = "gpu", feature = "hpu"))]
@@ -26,17 +28,17 @@ pub fn unsigned_oprf(c: &mut Criterion) {
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
-        let bits = format!("{bit_size}_bits");
+        let bits = PrecisionTag::Bits(bit_size);
         let bench_type = get_bench_type();
 
-        let oprf_spec = BenchmarkSpec::<str>::new_integer(
+        let oprf_spec = BenchmarkSpec::new_integer(
             IntegerBench::Oprf(IntegerOprf::Unsigned),
             &param_name,
             Some(&bits),
             bench_type,
             None,
         );
-        let oprf_bounded_spec = BenchmarkSpec::<str>::new_integer(
+        let oprf_bounded_spec = BenchmarkSpec::new_integer(
             IntegerBench::Oprf(IntegerOprf::UnsignedBounded),
             &param_name,
             Some(&bits),
@@ -183,17 +185,17 @@ pub mod cuda {
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
-            let bits = format!("{bit_size}_bits");
+            let bits = PrecisionTag::Bits(bit_size);
             let bench_type = get_bench_type();
 
-            let oprf_spec = BenchmarkSpec::<str>::new_integer(
+            let oprf_spec = BenchmarkSpec::new_integer(
                 IntegerBench::Oprf(IntegerOprf::Unsigned),
                 &param_name,
                 Some(&bits),
                 bench_type,
                 None,
             );
-            let oprf_bounded_spec = BenchmarkSpec::<str>::new_integer(
+            let oprf_bounded_spec = BenchmarkSpec::new_integer(
                 IntegerBench::Oprf(IntegerOprf::UnsignedBounded),
                 &param_name,
                 Some(&bits),
