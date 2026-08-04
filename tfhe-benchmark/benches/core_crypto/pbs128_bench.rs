@@ -125,7 +125,7 @@ fn pbs_128(c: &mut Criterion) {
     let param_name = noise_params.name();
 
     let benchmark_spec =
-        BenchmarkSpec::<str>::new_core_crypto(cc_bench, &param_name, BenchmarkMetric::Latency);
+        BenchmarkSpec::new_core_crypto(cc_bench, &param_name, BenchmarkMetric::Latency);
     let id = benchmark_spec.to_string();
     bench_group.bench_function(&id, |b| {
         b.iter(|| {
@@ -250,8 +250,7 @@ mod cuda {
         let delta: u64 = (1 << (u64::BITS - 1)) / message_modulus;
         let plaintext = Plaintext(input_message * delta);
 
-        let benchmark_spec =
-            BenchmarkSpec::<str>::new_core_crypto(cc_bench, params_name, bench_type);
+        let benchmark_spec = BenchmarkSpec::new_core_crypto(cc_bench, params_name, bench_type);
         let bench_id = benchmark_spec.to_string();
 
         match bench_type {
@@ -481,8 +480,7 @@ mod cuda {
         let delta: u64 = (1 << (u64::BITS - 1)) / message_modulus;
         let plaintext = Plaintext(input_message * delta);
 
-        let benchmark_spec =
-            BenchmarkSpec::<str>::new_core_crypto(cc_bench, params_name, bench_type);
+        let benchmark_spec = BenchmarkSpec::new_core_crypto(cc_bench, params_name, bench_type);
         let bench_id = benchmark_spec.to_string();
 
         match bench_type {

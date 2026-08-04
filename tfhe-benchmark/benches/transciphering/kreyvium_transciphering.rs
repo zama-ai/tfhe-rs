@@ -60,7 +60,7 @@ pub fn cpu_kreyvium_transciphering(c: &mut Criterion) {
     let plain_key = KreyviumPlainKey::from(key_bytes);
 
     // ---- warmup ----
-    let benchmark_spec = BenchmarkSpec::<str>::new_transciphering(
+    let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Kreyvium(KreyviumFlavor::Warmup),
         &param_name,
         BenchmarkMetric::Latency,
@@ -89,7 +89,7 @@ pub fn cpu_kreyvium_transciphering(c: &mut Criterion) {
     };
 
     // ---- keystream_64bits ----
-    let benchmark_spec = BenchmarkSpec::<str>::new_transciphering(
+    let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Kreyvium(KreyviumFlavor::Keystream64Bits),
         &param_name,
         BenchmarkMetric::Latency,
@@ -121,7 +121,7 @@ pub fn cpu_kreyvium_transciphering(c: &mut Criterion) {
         plain_stream.encrypt(&message).unwrap()
     };
 
-    let benchmark_spec = BenchmarkSpec::<str>::new_transciphering(
+    let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Kreyvium(KreyviumFlavor::Transcipher64Bits),
         &param_name,
         BenchmarkMetric::Latency,
