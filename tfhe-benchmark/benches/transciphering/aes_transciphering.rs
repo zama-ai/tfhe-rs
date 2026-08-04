@@ -60,7 +60,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
     let enc_key = AesPlainKey::from(key).encrypt(&cks);
 
     // ---- key_expansion ----
-    let benchmark_spec = BenchmarkSpec::<str>::new_transciphering(
+    let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Aes(AesFlavor::KeyExpansion),
         &param_name,
         BenchmarkMetric::Latency,
@@ -81,7 +81,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
     // ---- key_expansion_plus_1_block ----
     // Cold-start cost: fresh key schedule + one CTR block keystream per iter.
 
-    let benchmark_spec = BenchmarkSpec::<str>::new_transciphering(
+    let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Aes(AesFlavor::KeyExpansionPlus1Block),
         &param_name,
         BenchmarkMetric::Latency,
@@ -107,7 +107,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
 
     // ---- keystream_1_block ----
 
-    let benchmark_spec = BenchmarkSpec::<str>::new_transciphering(
+    let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Aes(AesFlavor::Keystream1Block),
         &param_name,
         BenchmarkMetric::Latency,
@@ -129,7 +129,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
     // ---- keystream_16_blocks ----
     let total_bits = BLOCK_BITS * N_BLOCKS;
 
-    let benchmark_spec = BenchmarkSpec::<str>::new_transciphering(
+    let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Aes(AesFlavor::Keystream16Blocks),
         &param_name,
         BenchmarkMetric::Latency,
@@ -156,7 +156,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
     let message = vec![0u8; total_bytes];
     let sym_cipher = AesPlainState::new(key, iv).encrypt(&message).unwrap();
 
-    let benchmark_spec = BenchmarkSpec::<str>::new_transciphering(
+    let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Aes(AesFlavor::Transcipher16Blocks),
         &param_name,
         BenchmarkMetric::Latency,

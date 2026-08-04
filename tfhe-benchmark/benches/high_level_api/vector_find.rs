@@ -1,5 +1,6 @@
 #[cfg(not(any(feature = "gpu", feature = "hpu")))]
 use benchmark::find_optimal_batch::find_optimal_batch;
+use benchmark::high_level_api::type_display::TypeDisplayer;
 #[cfg(feature = "gpu")]
 use benchmark::params_aliases::{
     BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -8,7 +9,7 @@ use benchmark::params_aliases::{
 #[cfg(feature = "gpu")]
 use benchmark::utilities::{configure_gpu, get_param_type, ParamType};
 use benchmark::utilities::{write_to_json_unchecked, BitSizesSet, EnvConfig, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark_spec::{get_bench_type, BenchmarkType, TypeName};
 use criterion::{Criterion, Throughput};
 use rayon::prelude::*;
 use std::hint::black_box;
@@ -23,7 +24,7 @@ use tfhe::{ClientKey, ConfigBuilder, FheUint64, FheUint8, MatchValues};
 fn bench_latency_or_throughput<F>(
     group: &mut criterion::BenchmarkGroup<'_, criterion::measurement::WallTime>,
     bench_name: &str,
-    type_name: &str,
+    type_name: &dyn TypeName,
     num_elements: usize,
     client_key: &ClientKey,
     operand_bits: usize,
@@ -90,7 +91,7 @@ fn bench_contains_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_elem
     let bench_id = bench_latency_or_throughput(
         &mut group,
         bench_name,
-        "FheUint64",
+        &TypeDisplayer::<FheUint64>::default(),
         num_elements,
         client_key,
         num_elements * 64,
@@ -125,7 +126,7 @@ fn bench_contains_fhe_uint8(c: &mut Criterion, client_key: &ClientKey, num_eleme
     let bench_id = bench_latency_or_throughput(
         &mut group,
         bench_name,
-        "FheUint8",
+        &TypeDisplayer::<FheUint8>::default(),
         num_elements,
         client_key,
         num_elements * 8,
@@ -159,7 +160,7 @@ fn bench_match_value_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_e
     let bench_id = bench_latency_or_throughput(
         &mut group,
         bench_name,
-        "FheUint64",
+        &TypeDisplayer::<FheUint64>::default(),
         num_elements,
         client_key,
         num_elements * 64,
@@ -196,7 +197,7 @@ fn bench_match_value_fhe_uint8(c: &mut Criterion, client_key: &ClientKey, num_el
     let bench_id = bench_latency_or_throughput(
         &mut group,
         bench_name,
-        "FheUint8",
+        &TypeDisplayer::<FheUint8>::default(),
         num_elements,
         client_key,
         limit * 8,

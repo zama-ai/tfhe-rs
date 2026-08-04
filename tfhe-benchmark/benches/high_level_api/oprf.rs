@@ -4,12 +4,21 @@ use benchmark::params_aliases::BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_K
 
 use benchmark::utilities::{write_to_json, OperatorType};
 use benchmark_spec::tfhe::hlapi::oprf::OprfKind;
-use benchmark_spec::{BenchmarkSpec, BenchmarkType, HlapiBench, OperandType};
+use benchmark_spec::{BenchmarkSpec, BenchmarkType, HlapiBench, OperandType, TypeName};
 use criterion::{criterion_group, Criterion};
 use std::hint::black_box;
 use std::num::NonZeroU64;
 use tfhe::keycache::NamedParam;
 use tfhe::{set_server_key, ClientKey, ConfigBuilder, FheUint64, RangeForRandom, Seed, ServerKey};
+
+/// The `type` slot for OPRF benches: the excluded upper bound of the range.
+struct OprfBound(u64);
+
+impl TypeName for OprfBound {
+    fn type_name(&self) -> String {
+        format!("bound_{}", self.0)
+    }
+}
 
 fn oprf_any_range_bench(c: &mut Criterion, cks: &ClientKey) {
     let mut bench_group = c.benchmark_group("oprf");
@@ -22,12 +31,11 @@ fn oprf_any_range_bench(c: &mut Criterion, cks: &ClientKey) {
     let param_name = param.name();
 
     for excluded_upper_bound in [3, 52] {
-        let bound_type = format!("bound_{excluded_upper_bound}",);
         let benchmark_spec = BenchmarkSpec::new_hlapi(
             hlapi_op,
             &param_name,
             OperandType::CipherText,
-            Some(bound_type.as_str()),
+            Some(&OprfBound(excluded_upper_bound)),
             BenchmarkType::Latency,
             None,
         );

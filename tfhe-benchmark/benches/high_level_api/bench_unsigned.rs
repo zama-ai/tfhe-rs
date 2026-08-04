@@ -2,6 +2,7 @@ use crate::bench_common::bench_fhe_type_op;
 use crate::oprf::oprf_any_range2;
 use benchmark::high_level_api::benchmark_op::*;
 use benchmark::high_level_api::random_generator::{random_non_zero, random_not_power_of_two};
+use benchmark::high_level_api::type_display::TypeDisplayer;
 use benchmark::utilities::{BitSizesSet, EnvConfig};
 use benchmark_spec::{HlIntegerOp, OperandType};
 use criterion::Criterion;
