@@ -15,6 +15,7 @@ use crate::integer::{
     gen_keys, ClientKey, CompactPrivateKey, CompactPublicKey, IntegerKeyKind, RadixClientKey,
     ServerKey,
 };
+use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::test_params::{
     TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -185,12 +186,20 @@ where
 {
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
-    let oprf_priv_key = OprfPrivateKey::new(&cks);
 
     let mut rng = rand::thread_rng();
     let seed: u128 = rng.gen();
     println!("seed: {seed:?}");
     let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(seed));
+
+    // Install a deterministic ShortintEngine on this thread so that OPRF private key
+    // generation and CompressedServerKey::new below are reproducible across runs.
+    let shortint_engine = ShortintEngine::new_from_seeder(&mut deterministic_seeder);
+    ShortintEngine::with_thread_local_mut(|local_engine| {
+        let _ = std::mem::replace(local_engine, shortint_engine);
+    });
+
+    let oprf_priv_key = OprfPrivateKey::new(&cks);
     let temp_cks = crate::ClientKey::from_raw_parts(
         cks.clone(),
         None,
