@@ -251,7 +251,7 @@ mod cuda {
         let plaintext = Plaintext(input_message * delta);
 
         let benchmark_spec =
-            BenchmarkSpec::<str>::new_core_crypto(cc_bench, params_name, *bench_type);
+            BenchmarkSpec::<str>::new_core_crypto(cc_bench, params_name, bench_type);
         let bench_id = benchmark_spec.to_string();
 
         match bench_type {
@@ -482,7 +482,7 @@ mod cuda {
         let plaintext = Plaintext(input_message * delta);
 
         let benchmark_spec =
-            BenchmarkSpec::<str>::new_core_crypto(cc_bench, params_name, *bench_type);
+            BenchmarkSpec::<str>::new_core_crypto(cc_bench, params_name, bench_type);
         let bench_id = benchmark_spec.to_string();
 
         match bench_type {

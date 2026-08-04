@@ -11,6 +11,7 @@ use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 use std::str::FromStr;
+use std::sync::OnceLock;
 use std::{env, fmt};
 pub use tfhe::hlapi::HlapiBench;
 pub use tfhe::{
@@ -168,25 +169,29 @@ impl FromStr for BenchmarkMetric {
     }
 }
 
-impl BenchmarkType {
-    /// Retrieves the benchmark type from the environment variable `__TFHE_RS_BENCH_TYPE`.
-    fn from_env() -> Result<Self, String> {
-        let raw_value = env::var("__TFHE_RS_BENCH_TYPE").unwrap_or("latency".to_string());
-        match raw_value.to_lowercase().as_str() {
-            "latency" => Ok(BenchmarkType::Latency),
-            "throughput" => Ok(BenchmarkType::Throughput),
-            _ => Err(format!("benchmark type '{raw_value}' is not supported")),
+impl FromStr for BenchmarkType {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "latency" => Ok(Self::Latency),
+            "throughput" => Ok(Self::Throughput),
+            _ => Err(format!("benchmark type '{s}' is not supported")),
         }
     }
 }
 
+static BENCH_TYPE: OnceLock<BenchmarkType> = OnceLock::new();
+
 /// Retrieves the benchmark type from the environment variable `__TFHE_RS_BENCH_TYPE`.
-///
-/// Returns only `Latency` or `Throughput` — never `PbsCount`.
-pub fn get_bench_type() -> &'static BenchmarkType {
-    use std::sync::OnceLock;
-    static BENCH_TYPE: OnceLock<BenchmarkType> = OnceLock::new();
-    BENCH_TYPE.get_or_init(|| BenchmarkType::from_env().unwrap())
+/// Panics if the variable is set to anything other than `latency` or `throughput`.
+pub fn get_bench_type() -> BenchmarkType {
+    *BENCH_TYPE.get_or_init(|| {
+        env::var("__TFHE_RS_BENCH_TYPE")
+            .as_deref()
+            .unwrap_or("latency")
+            .parse()
+            .unwrap()
+    })
 }
 
 /// Enforces the naming convention for benchmark IDs.

@@ -53,7 +53,7 @@ where
             &param_name,
             OperandType::CipherText,
             Some(&tkv),
-            *bench_type,
+            bench_type,
             Some(num_elements),
         )
     };
