@@ -525,7 +525,7 @@ mod tests {
     #[test]
     fn integer_ops_latency() {
         let spec = BenchmarkSpec::<str>::new_integer_ops(
-            IntegerOpBySign::Unsigned(IntegerOp::SmartAddParallelized),
+            IntegerOpBySign::Unsigned(IntegerOp::AddParallelized),
             "PARAM_MESSAGE_2_CARRY_2",
             Some("64_bits"),
             BenchmarkMetric::Latency,
@@ -533,7 +533,7 @@ mod tests {
         );
         assert_eq!(
             spec.to_string(),
-            "tfhe::integer::ops::unsigned::smart_add_parallelized::PARAM_MESSAGE_2_CARRY_2::64_bits"
+            "tfhe::integer::ops::unsigned::add_parallelized::PARAM_MESSAGE_2_CARRY_2::64_bits"
         );
     }
 

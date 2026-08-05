@@ -44,7 +44,6 @@ on:
         options:
           - default
           - fast_default
-          - smart
           - unchecked
           - misc
       precisions_set:
