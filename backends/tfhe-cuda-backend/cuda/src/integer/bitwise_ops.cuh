@@ -102,8 +102,8 @@ __host__ void host_boolean_bitop(CudaStreams streams,
     return false;
   };
 
-  CudaRadixCiphertextFFI lwe_array_left;
-  CudaRadixCiphertextFFI lwe_array_right;
+  CudaRadixCiphertext lwe_array_left;
+  CudaRadixCiphertext lwe_array_right;
 
   if (needs_noise_reduction(lwe_array_1)) {
     copy_radix_ciphertext_slice_async<Torus>(

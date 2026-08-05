@@ -7,7 +7,7 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
 
   SHIFT_OR_ROTATE_TYPE shift_type;
 
-  CudaRadixCiphertextFFI *tmp_rotated;
+  CudaRadixCiphertext *tmp_rotated;
 
   bool reuse_memory = false;
   bool gpu_memory_allocated;
@@ -24,7 +24,7 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
 
     uint32_t max_amount_of_pbs = num_radix_blocks;
 
-    tmp_rotated = new CudaRadixCiphertextFFI;
+    tmp_rotated = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_rotated,
         max_amount_of_pbs + 2, params.big_lwe_dimension, size_tracker,
@@ -100,7 +100,7 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
                                   int_radix_params params,
                                   uint32_t num_radix_blocks,
                                   bool allocate_gpu_memory,
-                                  CudaRadixCiphertextFFI *pre_allocated_buffer,
+                                  CudaRadixCiphertext *pre_allocated_buffer,
                                   uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->shift_type = shift_type;
@@ -198,7 +198,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
 
   SHIFT_OR_ROTATE_TYPE shift_type;
 
-  CudaRadixCiphertextFFI *tmp_rotated;
+  CudaRadixCiphertext *tmp_rotated;
 
   CudaStreams local_streams_1;
   CudaStreams local_streams_2;
@@ -221,7 +221,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
     this->shift_type = shift_type;
     this->params = params;
 
-    tmp_rotated = new CudaRadixCiphertextFFI;
+    tmp_rotated = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_rotated,
         num_radix_blocks + 3, params.big_lwe_dimension, size_tracker,

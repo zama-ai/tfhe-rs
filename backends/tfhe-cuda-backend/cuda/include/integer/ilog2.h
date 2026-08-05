@@ -10,7 +10,7 @@ template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
   Direction direction;
   BitValue bit_value;
 
-  CudaRadixCiphertextFFI *tmp_ct;
+  CudaRadixCiphertext *tmp_ct;
 
   int_prepare_count_of_consecutive_bits_buffer(
       CudaStreams streams, const int_radix_params params,
@@ -68,7 +68,7 @@ template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
     biv_lut_mem->generate_and_broadcast_bivariate_lut(
         active_streams, {0}, {generate_bi_lut_lambda}, LUT_0_FOR_ALL_BLOCKS);
 
-    this->tmp_ct = new CudaRadixCiphertextFFI;
+    this->tmp_ct = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_ct, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
@@ -94,11 +94,11 @@ template <typename Torus> struct int_count_of_consecutive_bits_buffer {
   uint32_t counter_num_blocks;
 
   int_prepare_count_of_consecutive_bits_buffer<Torus> *prepare_mem = nullptr;
-  CudaRadixCiphertextFFI *ct_prepared = nullptr;
+  CudaRadixCiphertext *ct_prepared = nullptr;
 
   int_sum_ciphertexts_vec_memory<Torus> *sum_mem = nullptr;
   int_sc_prop_memory<Torus> *propagate_mem = nullptr;
-  CudaRadixCiphertextFFI *cts = nullptr;
+  CudaRadixCiphertext *cts = nullptr;
 
   int_count_of_consecutive_bits_buffer(CudaStreams streams,
                                        const int_radix_params params,
@@ -112,7 +112,7 @@ template <typename Torus> struct int_count_of_consecutive_bits_buffer {
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->counter_num_blocks = counter_num_blocks;
 
-    this->ct_prepared = new CudaRadixCiphertextFFI;
+    this->ct_prepared = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), ct_prepared, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
@@ -121,7 +121,7 @@ template <typename Torus> struct int_count_of_consecutive_bits_buffer {
         streams, params, num_radix_blocks, direction, bit_value,
         allocate_gpu_memory, size_tracker);
 
-    this->cts = new CudaRadixCiphertextFFI;
+    this->cts = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), cts,
         counter_num_blocks * num_radix_blocks, params.big_lwe_dimension,
@@ -173,12 +173,12 @@ template <typename Torus> struct int_ilog2_buffer {
   int_sum_ciphertexts_vec_memory<Torus> *sum_mem;
   int_fullprop_buffer<Torus> *final_propagate_mem;
 
-  CudaRadixCiphertextFFI *ct_in_buffer;
-  CudaRadixCiphertextFFI *sum_input_cts;
-  CudaRadixCiphertextFFI *sum_output_not_propagated;
-  CudaRadixCiphertextFFI *message_blocks_not;
-  CudaRadixCiphertextFFI *carry_blocks_not;
-  CudaRadixCiphertextFFI *rotated_carry_blocks;
+  CudaRadixCiphertext *ct_in_buffer;
+  CudaRadixCiphertext *sum_input_cts;
+  CudaRadixCiphertext *sum_output_not_propagated;
+  CudaRadixCiphertext *message_blocks_not;
+  CudaRadixCiphertext *carry_blocks_not;
+  CudaRadixCiphertext *rotated_carry_blocks;
 
   int_radix_lut<Torus> *lut_message_not;
   int_radix_lut<Torus> *lut_carry_not;
@@ -194,7 +194,7 @@ template <typename Torus> struct int_ilog2_buffer {
     this->counter_num_blocks = counter_num_blocks;
     this->num_bits_in_ciphertext = num_bits_in_ciphertext;
 
-    this->ct_in_buffer = new CudaRadixCiphertextFFI;
+    this->ct_in_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->ct_in_buffer,
         input_num_blocks, params.big_lwe_dimension, size_tracker,
@@ -209,7 +209,7 @@ template <typename Torus> struct int_ilog2_buffer {
     // hold at least 3 of them even for single-block inputs.
     const uint32_t max_num_radix_in_vec = std::max(input_num_blocks + 1, 3u);
     uint32_t sum_input_total_blocks = max_num_radix_in_vec * counter_num_blocks;
-    this->sum_input_cts = new CudaRadixCiphertextFFI;
+    this->sum_input_cts = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->sum_input_cts,
         sum_input_total_blocks, params.big_lwe_dimension, size_tracker,
@@ -219,7 +219,7 @@ template <typename Torus> struct int_ilog2_buffer {
         streams, params, counter_num_blocks, max_num_radix_in_vec, false,
         allocate_gpu_memory, size_tracker);
 
-    this->sum_output_not_propagated = new CudaRadixCiphertextFFI;
+    this->sum_output_not_propagated = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0),
         this->sum_output_not_propagated, counter_num_blocks,
@@ -250,19 +250,19 @@ template <typename Torus> struct int_ilog2_buffer {
     lut_carry_not->generate_and_broadcast_lut(
         active_streams, {0}, {lut_carry_lambda}, LUT_0_FOR_ALL_BLOCKS);
 
-    this->message_blocks_not = new CudaRadixCiphertextFFI;
+    this->message_blocks_not = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->message_blocks_not,
         counter_num_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    this->carry_blocks_not = new CudaRadixCiphertextFFI;
+    this->carry_blocks_not = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->carry_blocks_not,
         counter_num_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    this->rotated_carry_blocks = new CudaRadixCiphertextFFI;
+    this->rotated_carry_blocks = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->rotated_carry_blocks,
         counter_num_blocks, params.big_lwe_dimension, size_tracker,

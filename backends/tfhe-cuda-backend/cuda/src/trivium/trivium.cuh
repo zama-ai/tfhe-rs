@@ -83,7 +83,7 @@ __host__ void trivium_compute_64_steps(
   auto params = buffer->params;
 
   // Extract register taps for A (93-bit register)
-  CudaRadixCiphertextFFI a65_slice, a92_slice, a91_slice, a90_slice, a68_slice;
+  CudaRadixCiphertext a65_slice, a92_slice, a91_slice, a90_slice, a68_slice;
   slice_reg_batch<Torus>(&a65_slice, a_reg, 2, BATCH, N);
   slice_reg_batch<Torus>(&a92_slice, a_reg, 29, BATCH, N);
   slice_reg_batch<Torus>(&a91_slice, a_reg, 28, BATCH, N);
@@ -91,7 +91,7 @@ __host__ void trivium_compute_64_steps(
   slice_reg_batch<Torus>(&a68_slice, a_reg, 5, BATCH, N);
 
   // Extract register taps for B (84-bit register)
-  CudaRadixCiphertextFFI b68_slice, b83_slice, b82_slice, b81_slice, b77_slice;
+  CudaRadixCiphertext b68_slice, b83_slice, b82_slice, b81_slice, b77_slice;
   slice_reg_batch<Torus>(&b68_slice, b_reg, 5, BATCH, N);
   slice_reg_batch<Torus>(&b83_slice, b_reg, 20, BATCH, N);
   slice_reg_batch<Torus>(&b82_slice, b_reg, 19, BATCH, N);
@@ -99,8 +99,7 @@ __host__ void trivium_compute_64_steps(
   slice_reg_batch<Torus>(&b77_slice, b_reg, 14, BATCH, N);
 
   // Extract register taps for C (111-bit register)
-  CudaRadixCiphertextFFI c65_slice, c110_slice, c109_slice, c108_slice,
-      c86_slice;
+  CudaRadixCiphertext c65_slice, c110_slice, c109_slice, c108_slice, c86_slice;
   slice_reg_batch<Torus>(&c65_slice, c_reg, 2, BATCH, N);
   slice_reg_batch<Torus>(&c110_slice, c_reg, 47, BATCH, N);
   slice_reg_batch<Torus>(&c109_slice, c_reg, 46, BATCH, N);
@@ -165,7 +164,7 @@ __host__ void trivium_compute_64_steps(
 
   // Unpack AND results: and_res_a = c109 & c108, and_res_b = a91 & a90,
   // and_res_c = b82 & b81
-  CudaRadixCiphertextFFI and_res_a, and_res_b, and_res_c;
+  CudaRadixCiphertext and_res_a, and_res_b, and_res_c;
   as_radix_ciphertext_slice<Torus>(&and_res_a, ws->packed_pbs_out, 0,
                                    batch_size_blocks);
   as_radix_ciphertext_slice<Torus>(&and_res_b, ws->packed_pbs_out,
@@ -243,7 +242,7 @@ __host__ void trivium_compute_64_steps(
       buffer->luts->flush_lut, total_flush_blocks);
 
   // Unpack flushed results
-  CudaRadixCiphertextFFI flushed_a, flushed_b, flushed_c;
+  CudaRadixCiphertext flushed_a, flushed_b, flushed_c;
   as_radix_ciphertext_slice<Torus>(&flushed_a, ws->packed_flush_out, 0,
                                    batch_size_blocks);
   as_radix_ciphertext_slice<Torus>(&flushed_b, ws->packed_flush_out,
@@ -261,7 +260,7 @@ __host__ void trivium_compute_64_steps(
                                 TRIVIUM_REGISTER_C_BITS, N);
 
   if (output_dest != nullptr) {
-    CudaRadixCiphertextFFI flushed_out;
+    CudaRadixCiphertext flushed_out;
     as_radix_ciphertext_slice<Torus>(&flushed_out, ws->packed_flush_out,
                                      3 * batch_size_blocks,
                                      4 * batch_size_blocks);
@@ -290,10 +289,10 @@ host_trivium_init(CudaStreams streams, int_trivium_buffer<Torus> *buffer,
   auto ws = buffer->ws;
   auto params = buffer->params;
 
-  CudaRadixCiphertextFFI src_key_slice;
+  CudaRadixCiphertext src_key_slice;
   slice_reg_batch<Torus>(&src_key_slice, key_bitsliced, 0, TRIVIUM_KEY_BITS, N);
 
-  CudaRadixCiphertextFFI dest_a_slice;
+  CudaRadixCiphertext dest_a_slice;
   slice_reg_batch<Torus>(&dest_a_slice, a_reg, 0, TRIVIUM_KEY_BITS, N);
 
   copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
@@ -302,10 +301,10 @@ host_trivium_init(CudaStreams streams, int_trivium_buffer<Torus> *buffer,
   reverse_bitsliced_radix_inplace<Torus>(streams, ws->shift_workspace, a_reg,
                                          TRIVIUM_KEY_BITS, N);
 
-  CudaRadixCiphertextFFI src_iv_slice;
+  CudaRadixCiphertext src_iv_slice;
   slice_reg_batch<Torus>(&src_iv_slice, iv_bitsliced, 0, TRIVIUM_IV_BITS, N);
 
-  CudaRadixCiphertextFFI dest_b_slice;
+  CudaRadixCiphertext dest_b_slice;
   slice_reg_batch<Torus>(&dest_b_slice, b_reg, 0, TRIVIUM_IV_BITS, N);
 
   copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
@@ -314,7 +313,7 @@ host_trivium_init(CudaStreams streams, int_trivium_buffer<Torus> *buffer,
   reverse_bitsliced_radix_inplace<Torus>(streams, ws->shift_workspace, b_reg,
                                          TRIVIUM_IV_BITS, N);
 
-  CudaRadixCiphertextFFI dest_c_ones;
+  CudaRadixCiphertext dest_c_ones;
   slice_reg_batch<Torus>(&dest_c_ones, c_reg, TRIVIUM_REGISTER_C_BITS - 3, 3,
                          N);
 
@@ -344,7 +343,7 @@ host_trivium_step(CudaStreams streams, CudaRadixCiphertextFFI *keystream_output,
 
   uint32_t num_batches = num_steps / TRIVIUM_BATCH_SIZE;
   for (uint32_t i = 0; i < num_batches; i++) {
-    CudaRadixCiphertextFFI batch_out_slice;
+    CudaRadixCiphertext batch_out_slice;
     slice_reg_batch<Torus>(&batch_out_slice, keystream_output,
                            i * TRIVIUM_BATCH_SIZE, TRIVIUM_BATCH_SIZE,
                            buffer->num_inputs);

@@ -10,7 +10,7 @@ template <typename Torus> struct int_abs_buffer {
   int_sc_prop_memory<Torus> *scp_mem;
   int_bitop_buffer<Torus> *bitxor_mem;
 
-  CudaRadixCiphertextFFI *mask;
+  CudaRadixCiphertext *mask;
   bool allocate_gpu_memory;
 
   int_abs_buffer(CudaStreams streams, int_radix_params params,
@@ -29,7 +29,7 @@ template <typename Torus> struct int_abs_buffer {
                                              params, num_radix_blocks,
                                              allocate_gpu_memory, size_tracker);
 
-    mask = new CudaRadixCiphertextFFI;
+    mask = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), mask, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);

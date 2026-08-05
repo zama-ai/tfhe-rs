@@ -5,7 +5,7 @@ template <typename Torus> struct int_zero_out_if_buffer {
 
   int_radix_params params;
 
-  CudaRadixCiphertextFFI *tmp;
+  CudaRadixCiphertext *tmp;
 
   bool gpu_memory_allocated;
 
@@ -17,7 +17,7 @@ template <typename Torus> struct int_zero_out_if_buffer {
     auto active_streams =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
 
-    tmp = new CudaRadixCiphertextFFI;
+    tmp = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
@@ -40,7 +40,7 @@ template <typename Torus> struct int_zero_out_if_batch_buffer {
   int_radix_params params;
 
   /// Packed bivariate input for the predicate PBS
-  CudaRadixCiphertextFFI *tmp;
+  CudaRadixCiphertext *tmp;
 
   bool gpu_memory_allocated;
 
@@ -58,7 +58,7 @@ template <typename Torus> struct int_zero_out_if_batch_buffer {
     uint32_t total_num_blocks =
         static_cast<uint32_t>(safe_mul((size_t)num_entries, num_blocks_per_ct));
 
-    tmp = new CudaRadixCiphertextFFI;
+    tmp = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp, total_num_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
@@ -77,9 +77,9 @@ template <typename Torus> struct int_cmux_buffer {
   /// Univariate LUT for message extraction after addition
   int_radix_lut<Torus> *message_extract_lut;
 
-  CudaRadixCiphertextFFI *buffer_in;
-  CudaRadixCiphertextFFI *buffer_out;
-  CudaRadixCiphertextFFI *condition_array;
+  CudaRadixCiphertext *buffer_in;
+  CudaRadixCiphertext *buffer_out;
+  CudaRadixCiphertext *condition_array;
 
   int_radix_params params;
   bool allocate_gpu_memory;
@@ -93,9 +93,9 @@ template <typename Torus> struct int_cmux_buffer {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
 
-    buffer_in = new CudaRadixCiphertextFFI;
-    buffer_out = new CudaRadixCiphertextFFI;
-    condition_array = new CudaRadixCiphertextFFI;
+    buffer_in = new CudaRadixCiphertext;
+    buffer_out = new CudaRadixCiphertext;
+    condition_array = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), buffer_in,
         2 * num_radix_blocks, params.big_lwe_dimension, size_tracker,
@@ -183,9 +183,9 @@ template <typename Torus> struct int_cmux_batch_buffer {
   int_radix_lut<Torus> *message_extract_lut;
 
   /// Packed bivariate input (true + false regions)
-  CudaRadixCiphertextFFI *tmp_packed;
+  CudaRadixCiphertext *tmp_packed;
   /// PBS output for both branches before addition
-  CudaRadixCiphertextFFI *buffer_out;
+  CudaRadixCiphertext *buffer_out;
 
   int_radix_params params;
   bool allocate_gpu_memory;
@@ -211,13 +211,13 @@ template <typename Torus> struct int_cmux_batch_buffer {
         static_cast<uint32_t>(safe_mul(static_cast<size_t>(num_entries),
                                        static_cast<size_t>(num_blocks_per_ct)));
 
-    tmp_packed = new CudaRadixCiphertextFFI;
+    tmp_packed = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_packed,
         2 * total_num_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    buffer_out = new CudaRadixCiphertextFFI;
+    buffer_out = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), buffer_out,
         2 * total_num_blocks, params.big_lwe_dimension, size_tracker,

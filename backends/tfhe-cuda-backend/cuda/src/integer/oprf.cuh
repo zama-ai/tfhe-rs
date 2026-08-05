@@ -133,7 +133,7 @@ void host_integer_grouped_oprf_custom_range(
     int_grouped_oprf_custom_range_memory<Torus> *mem_ptr, void *const *bsks,
     void *const *compute_bsks, Torus *const *ksks, Torus *const *rerand_ksks) {
 
-  CudaRadixCiphertextFFI *computation_buffer = mem_ptr->tmp_oprf_output;
+  CudaRadixCiphertext *computation_buffer = mem_ptr->tmp_oprf_output;
   set_zero_radix_ciphertext_slice_async<Torus>(
       streams.stream(0), streams.gpu_index(0), computation_buffer, 0,
       num_blocks_intermediate);

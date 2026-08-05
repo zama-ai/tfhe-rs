@@ -156,8 +156,8 @@ __host__ void host_cmux(CudaStreams streams,
   // If the condition was true, true_ct will have kept its value and false_ct
   // will be 0 If the condition was false, true_ct will be 0 and false_ct will
   // have kept its value
-  CudaRadixCiphertextFFI mem_true;
-  CudaRadixCiphertextFFI mem_false;
+  CudaRadixCiphertext mem_true;
+  CudaRadixCiphertext mem_false;
   as_radix_ciphertext_slice<Torus>(&mem_true, mem_ptr->buffer_out, 0,
                                    num_radix_blocks);
   as_radix_ciphertext_slice<Torus>(&mem_false, mem_ptr->buffer_out,
@@ -234,7 +234,7 @@ host_cmux_batch(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
       mem_ptr->predicate_lut, 2 * total_num_blocks);
 
   // Step 3: combine branches (exactly one is non-zero, so addition = select).
-  CudaRadixCiphertextFFI true_out, false_out;
+  CudaRadixCiphertext true_out, false_out;
   as_radix_ciphertext_slice<Torus>(&true_out, mem_ptr->buffer_out, 0,
                                    total_num_blocks);
   as_radix_ciphertext_slice<Torus>(&false_out, mem_ptr->buffer_out,

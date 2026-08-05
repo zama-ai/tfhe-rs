@@ -18,12 +18,16 @@ to_lwe_ciphertext_list(CudaRadixCiphertextFFI *radix) {
 template <typename Torus>
 void create_zero_radix_ciphertext_async(cudaStream_t const stream,
                                         uint32_t const gpu_index,
-                                        CudaRadixCiphertextFFI *radix,
+                                        CudaRadixCiphertext *radix,
                                         const uint32_t num_radix_blocks,
                                         const uint32_t lwe_dimension,
                                         uint64_t &size_tracker,
                                         bool allocate_gpu_memory) {
   PUSH_RANGE("create zero radix ct");
+  PANIC_IF_FALSE(!radix->_owns_gpu_memory &&
+                     !radix->_owns_degrees_and_noise_levels,
+                 "create_zero_radix_ciphertext_async called on a "
+                 "CudaRadixCiphertext that already owns memory");
   radix->lwe_dimension = lwe_dimension;
   radix->num_radix_blocks = num_radix_blocks;
   radix->max_num_radix_blocks = num_radix_blocks;
@@ -41,6 +45,8 @@ void create_zero_radix_ciphertext_async(cudaStream_t const stream,
   if (radix->degrees == NULL || radix->noise_levels == NULL) {
     PANIC("Cuda error: degrees / noise levels not allocated correctly")
   }
+  radix->_owns_gpu_memory = true;
+  radix->_owns_degrees_and_noise_levels = true;
   POP_RANGE();
 }
 

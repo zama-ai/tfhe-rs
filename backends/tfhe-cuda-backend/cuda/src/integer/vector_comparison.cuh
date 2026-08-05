@@ -48,7 +48,7 @@ __host__ void host_unchecked_all_eq_slices(
     CudaRadixCiphertextFFI const *input_lhs = &lhs[i];
     CudaRadixCiphertextFFI const *input_rhs = &rhs[i];
 
-    CudaRadixCiphertextFFI current_result_dest;
+    CudaRadixCiphertext current_result_dest;
     as_radix_ciphertext_slice<Torus>(&current_result_dest,
                                      mem_ptr->packed_results, i, i + 1);
 
@@ -110,7 +110,7 @@ __host__ void host_unchecked_contains_sub_slice(
   for (uint32_t w = 0; w < num_windows; w++) {
     CudaRadixCiphertextFFI const *lhs_window = &lhs[w];
 
-    CudaRadixCiphertextFFI current_result_dest;
+    CudaRadixCiphertext current_result_dest;
     as_radix_ciphertext_slice<Torus>(&current_result_dest,
                                      mem_ptr->packed_results, w, w + 1);
 

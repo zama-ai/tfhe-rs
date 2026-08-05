@@ -58,7 +58,7 @@ __host__ void host_integer_unsigned_scalar_div_radix(
       PANIC("shift_post should be > 0");
     }
 
-    CudaRadixCiphertextFFI *numerator_copy = mem_ptr->tmp_ffi;
+    CudaRadixCiphertext *numerator_copy = mem_ptr->tmp_ffi;
 
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                        numerator_copy, numerator_ct);
@@ -127,7 +127,7 @@ __host__ void host_integer_signed_scalar_div_radix(
 
   if (scalar_divisor_ffi->is_abs_divisor_one) {
     if (scalar_divisor_ffi->is_divisor_negative) {
-      CudaRadixCiphertextFFI *tmp = mem_ptr->tmp_ffi;
+      CudaRadixCiphertext *tmp = mem_ptr->tmp_ffi;
 
       host_negation_with_correcting_term<Torus>(
           streams, tmp, numerator_ct, mem_ptr->params.message_modulus,
@@ -146,7 +146,7 @@ __host__ void host_integer_signed_scalar_div_radix(
     return;
   }
 
-  CudaRadixCiphertextFFI *tmp = mem_ptr->tmp_ffi;
+  CudaRadixCiphertext *tmp = mem_ptr->tmp_ffi;
 
   if (scalar_divisor_ffi->is_divisor_pow2) {
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
@@ -181,7 +181,7 @@ __host__ void host_integer_signed_scalar_div_radix(
         streams, tmp, scalar_divisor_ffi->shift_post,
         mem_ptr->arithmetic_scalar_shift_mem, bsks, ksks);
 
-    CudaRadixCiphertextFFI *xsign = mem_ptr->xsign_ffi;
+    CudaRadixCiphertext *xsign = mem_ptr->xsign_ffi;
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                        xsign, numerator_ct);
 
@@ -210,7 +210,7 @@ __host__ void host_integer_signed_scalar_div_radix(
         streams, tmp, scalar_divisor_ffi->shift_post,
         mem_ptr->arithmetic_scalar_shift_mem, bsks, ksks);
 
-    CudaRadixCiphertextFFI *xsign = mem_ptr->xsign_ffi;
+    CudaRadixCiphertext *xsign = mem_ptr->xsign_ffi;
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                        xsign, numerator_ct);
 

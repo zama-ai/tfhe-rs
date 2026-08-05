@@ -13,7 +13,7 @@ template <typename Torus> struct int_grouped_oprf_memory {
   bool allocate_gpu_memory;
 
   int_radix_lut<Torus> *luts;
-  CudaRadixCiphertextFFI *plaintext_corrections;
+  CudaRadixCiphertext *plaintext_corrections;
   Torus *h_lut_indexes;
 
   int_grouped_oprf_memory(CudaStreams streams, int_radix_params params,
@@ -40,7 +40,7 @@ template <typename Torus> struct int_grouped_oprf_memory {
         streams, params, message_bits_per_block, num_blocks_to_process,
         allocate_gpu_memory, size_tracker);
 
-    this->plaintext_corrections = new CudaRadixCiphertextFFI;
+    this->plaintext_corrections = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->plaintext_corrections,
         num_blocks_to_process, params.big_lwe_dimension, size_tracker,
@@ -180,7 +180,7 @@ template <typename Torus> struct int_grouped_oprf_custom_range_memory {
   int_grouped_oprf_memory<Torus> *grouped_oprf_memory;
   int_scalar_mul_buffer<Torus> *scalar_mul_buffer;
   int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_buffer;
-  CudaRadixCiphertextFFI *tmp_oprf_output;
+  CudaRadixCiphertext *tmp_oprf_output;
   uint32_t num_random_input_blocks;
   /// @brief Optional scratch for re-randomizing the fresh random blocks
   /// (nullptr when re-randomization is not requested).
@@ -227,7 +227,7 @@ template <typename Torus> struct int_grouped_oprf_custom_range_memory {
             streams, RIGHT_SHIFT, params, num_blocks_intermediate,
             allocate_gpu_memory, size_tracker);
 
-    this->tmp_oprf_output = new CudaRadixCiphertextFFI;
+    this->tmp_oprf_output = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->tmp_oprf_output,
         num_blocks_intermediate, params.big_lwe_dimension, size_tracker,

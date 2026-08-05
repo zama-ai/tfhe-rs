@@ -169,7 +169,7 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
                      CudaRadixCiphertextFFI *comparison_blocks,
                      CudaRadixCiphertextFFI *d,
                      int_comparison_buffer<Torus> *comparison_buffer) {
-      CudaRadixCiphertextFFI d_msb;
+      CudaRadixCiphertext d_msb;
       uint32_t slice_start = num_blocks - block_index;
       uint32_t slice_end = d->num_radix_blocks;
       as_radix_ciphertext_slice<Torus>(&d_msb, d, slice_start, slice_end);
@@ -598,7 +598,7 @@ __host__ void host_unsigned_integer_div_rem(
       // Shift the mask so that we will only keep bits we should
       uint32_t shifted_mask = full_message_mask >> shift_amount;
 
-      CudaRadixCiphertextFFI last_interesting_divisor_block;
+      CudaRadixCiphertext last_interesting_divisor_block;
       as_radix_ciphertext_slice<Torus>(
           &last_interesting_divisor_block, interesting_divisor,
           interesting_divisor->num_radix_blocks - 1,
@@ -851,7 +851,7 @@ __host__ void host_unsigned_integer_div_rem(
           mem_ptr->merge_overflow_flags_luts[pos_in_block]
               ->params.message_modulus);
 
-      CudaRadixCiphertextFFI quotient_block;
+      CudaRadixCiphertext quotient_block;
       as_radix_ciphertext_slice<Torus>(&quotient_block, quotient, block_of_bit,
                                        block_of_bit + 1);
       host_addition<Torus>(
@@ -955,10 +955,10 @@ __host__ void host_integer_div_rem(
         int_mem_ptr->sub_streams_1, quotient, remainder, positive_numerator,
         positive_divisor, bsks, ksks, int_mem_ptr->unsigned_mem);
 
-    CudaRadixCiphertextFFI numerator_sign;
+    CudaRadixCiphertext numerator_sign;
     as_radix_ciphertext_slice<Torus>(&numerator_sign, numerator, num_blocks - 1,
                                      num_blocks);
-    CudaRadixCiphertextFFI divisor_sign;
+    CudaRadixCiphertext divisor_sign;
     as_radix_ciphertext_slice<Torus>(&divisor_sign, divisor, num_blocks - 1,
                                      num_blocks);
     integer_radix_apply_bivariate_lookup_table<Torus>(

@@ -1762,7 +1762,7 @@ void host_resolve_group_carries_sequentially(
 
       // Apply the lut
       auto luts_sequential = mem->lut_sequential_algorithm;
-      CudaRadixCiphertextFFI shifted_group_resolved_carries;
+      CudaRadixCiphertext shifted_group_resolved_carries;
       as_radix_ciphertext_slice<Torus>(&shifted_group_resolved_carries,
                                        group_resolved_carries, 1,
                                        blocks_to_solve + 1);
@@ -1797,7 +1797,7 @@ void host_compute_prefix_sum_hillis_steele(
       streams.stream(0), streams.gpu_index(0), step_output, 0, num_radix_blocks,
       generates_or_propagates, 0, num_radix_blocks);
 
-  CudaRadixCiphertextFFI cur_blocks;
+  CudaRadixCiphertext cur_blocks;
   for (int step = 0; step < num_steps; step++) {
     if (space > num_radix_blocks - 1)
       PANIC("Cuda error: step output is going out of bounds in Hillis Steele "
@@ -1872,7 +1872,7 @@ void host_compute_propagation_simulators_and_group_carries(
   } else {
     // Resolve group carries with hillis steele
     auto luts_carry_propagation_sum = mem->hs_group_prop_mem->lut_hillis_steele;
-    CudaRadixCiphertextFFI shifted_resolved_carries;
+    CudaRadixCiphertext shifted_resolved_carries;
     as_radix_ciphertext_slice<Torus>(&shifted_resolved_carries,
                                      resolved_carries, 1, num_groups);
     host_compute_prefix_sum_hillis_steele<Torus>(
@@ -1932,7 +1932,7 @@ void host_full_propagate_inplace(CudaStreams streams,
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
   for (int i = 0; i < num_blocks; i++) {
-    CudaRadixCiphertextFFI cur_input_block;
+    CudaRadixCiphertext cur_input_block;
     as_radix_ciphertext_slice<Torus>(&cur_input_block, input_blocks, i, i + 1);
 
     /// Since the keyswitch is done on one input only, use only 1 GPU
@@ -1967,10 +1967,10 @@ void host_full_propagate_inplace(CudaStreams streams,
                       params.carry_modulus);
 
     if (i < num_blocks - 1) {
-      CudaRadixCiphertextFFI next_input_block;
+      CudaRadixCiphertext next_input_block;
       as_radix_ciphertext_slice<Torus>(&next_input_block, input_blocks, i + 1,
                                        i + 2);
-      CudaRadixCiphertextFFI second_input;
+      CudaRadixCiphertext second_input;
       as_radix_ciphertext_slice<Torus>(&second_input,
                                        mem_ptr->tmp_big_lwe_vector, 1, 2);
 
@@ -2362,7 +2362,7 @@ void host_propagate_single_carry(CudaStreams streams,
   auto params = mem->params;
   auto lut_stride = mem->lut_stride;
   auto num_many_lut = mem->num_many_lut;
-  CudaRadixCiphertextFFI output_flag;
+  CudaRadixCiphertext output_flag;
   as_radix_ciphertext_slice<Torus>(&output_flag, mem->output_flag,
                                    num_radix_blocks, num_radix_blocks + 1);
   if (requested_flag == outputFlag::FLAG_OVERFLOW)
@@ -2404,7 +2404,7 @@ void host_propagate_single_carry(CudaStreams streams,
 
   if (requested_flag == outputFlag::FLAG_OVERFLOW ||
       requested_flag == outputFlag::FLAG_CARRY) {
-    CudaRadixCiphertextFFI shifted_simulators;
+    CudaRadixCiphertext shifted_simulators;
     as_radix_ciphertext_slice<Torus>(
         &shifted_simulators, mem->prop_simu_group_carries_mem->simulators,
         num_radix_blocks - 1, num_radix_blocks);
@@ -2418,7 +2418,7 @@ void host_propagate_single_carry(CudaStreams streams,
       mem->prop_simu_group_carries_mem->resolved_carries, num_radix_blocks,
       group_size);
   if (requested_flag == outputFlag::FLAG_CARRY) {
-    CudaRadixCiphertextFFI shifted_resolved_carries;
+    CudaRadixCiphertext shifted_resolved_carries;
     as_radix_ciphertext_slice<Torus>(
         &shifted_resolved_carries,
         mem->prop_simu_group_carries_mem->resolved_carries, mem->num_groups - 1,
@@ -2486,7 +2486,7 @@ void host_add_and_propagate_single_carry(
   auto params = mem->params;
   auto lut_stride = mem->lut_stride;
   auto num_many_lut = mem->num_many_lut;
-  CudaRadixCiphertextFFI output_flag;
+  CudaRadixCiphertext output_flag;
   as_radix_ciphertext_slice<Torus>(&output_flag, mem->output_flag,
                                    num_radix_blocks, num_radix_blocks + 1);
 
@@ -2540,7 +2540,7 @@ void host_add_and_propagate_single_carry(
 
   if (requested_flag == outputFlag::FLAG_OVERFLOW ||
       requested_flag == outputFlag::FLAG_CARRY) {
-    CudaRadixCiphertextFFI shifted_simulators;
+    CudaRadixCiphertext shifted_simulators;
     as_radix_ciphertext_slice<Torus>(
         &shifted_simulators, mem->prop_simu_group_carries_mem->simulators,
         num_radix_blocks - 1, num_radix_blocks);
@@ -2565,7 +2565,7 @@ void host_add_and_propagate_single_carry(
                            params.message_modulus, params.carry_modulus);
 
     } else {
-      CudaRadixCiphertextFFI shifted_resolved_carries;
+      CudaRadixCiphertext shifted_resolved_carries;
       as_radix_ciphertext_slice<Torus>(
           &shifted_resolved_carries,
           mem->prop_simu_group_carries_mem->resolved_carries,
@@ -2714,7 +2714,7 @@ void host_single_borrow_propagate(CudaStreams streams,
                                      carry_modulus);
 
   if (compute_overflow == outputFlag::FLAG_OVERFLOW) {
-    CudaRadixCiphertextFFI shifted_simulators;
+    CudaRadixCiphertext shifted_simulators;
     as_radix_ciphertext_slice<Torus>(
         &shifted_simulators, mem->prop_simu_group_carries_mem->simulators,
         num_radix_blocks - 1, num_radix_blocks);
@@ -2723,7 +2723,7 @@ void host_single_borrow_propagate(CudaStreams streams,
                          &shifted_simulators, 1, params.message_modulus,
                          params.carry_modulus);
   }
-  CudaRadixCiphertextFFI resolved_borrows;
+  CudaRadixCiphertext resolved_borrows;
   as_radix_ciphertext_slice<Torus>(
       &resolved_borrows, mem->prop_simu_group_carries_mem->resolved_carries,
       num_groups - 1, num_groups);
@@ -3184,7 +3184,7 @@ __host__ void host_binary_tree_fold_sum(
 
     if (remaining > 1) {
       uint32_t total_surviving_blocks = remaining * num_blocks;
-      CudaRadixCiphertextFFI survivors_slice;
+      CudaRadixCiphertext survivors_slice;
       as_radix_ciphertext_slice<Torus>(&survivors_slice, input, 0,
                                        total_surviving_blocks);
 
@@ -3194,7 +3194,7 @@ __host__ void host_binary_tree_fold_sum(
     }
   }
 
-  CudaRadixCiphertextFFI final_slice;
+  CudaRadixCiphertext final_slice;
   as_radix_ciphertext_slice<Torus>(&final_slice, input, 0, num_blocks);
   integer_radix_apply_univariate_lookup_table<Torus>(
       streams, output, &final_slice, bsks, ksks, identity_lut, num_blocks);

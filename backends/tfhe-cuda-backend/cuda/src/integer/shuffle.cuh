@@ -294,7 +294,7 @@ __host__ void bitonic_sort_compare_phase_batched(
 
   // Pair-pack each key's blocks_per_key blocks into packed_blocks_per_key =
   // ceil(blocks_per_key/2) blocks: lsb + message_modulus * msb.
-  CudaRadixCiphertextFFI lhs_packed_view, rhs_packed_view;
+  CudaRadixCiphertext lhs_packed_view, rhs_packed_view;
   as_radix_ciphertext_slice<Torus>(&lhs_packed_view, batched_buf->tmp_packed, 0,
                                    num_pairs * packed_blocks_per_key);
   as_radix_ciphertext_slice<Torus>(&rhs_packed_view, batched_buf->tmp_packed,
@@ -312,7 +312,7 @@ __host__ void bitonic_sort_compare_phase_batched(
       params.carry_modulus);
 
   // Refresh noise on all packed blocks via identity PBS before subtraction.
-  CudaRadixCiphertextFFI tmp_packed_view;
+  CudaRadixCiphertext tmp_packed_view;
   as_radix_ciphertext_slice<Torus>(&tmp_packed_view, batched_buf->tmp_packed, 0,
                                    2 * num_pairs * packed_blocks_per_key);
   integer_radix_apply_univariate_lookup_table<Torus>(
@@ -326,7 +326,7 @@ __host__ void bitonic_sort_compare_phase_batched(
                           &rhs_packed_view, num_pairs * packed_blocks_per_key,
                           params.message_modulus, params.carry_modulus);
 
-  CudaRadixCiphertextFFI comparisons_view;
+  CudaRadixCiphertext comparisons_view;
   as_radix_ciphertext_slice<Torus>(&comparisons_view, batched_buf->comparisons,
                                    0, num_pairs * packed_blocks_per_key);
   // Map each diff block to 0 (equal) or 1 (different) via is_non_zero PBS.
@@ -353,7 +353,7 @@ __host__ void bitonic_sort_compare_phase_batched(
   uint32_t remaining_packed_blocks = packed_blocks_per_key;
   while (remaining_packed_blocks > 2) {
     uint32_t next_remaining_packed_blocks = (remaining_packed_blocks + 1u) / 2u;
-    CudaRadixCiphertextFFI tx_view, ty_view;
+    CudaRadixCiphertext tx_view, ty_view;
     as_radix_ciphertext_slice<Torus>(&tx_view, batched_buf->tree_x, 0,
                                      num_pairs * remaining_packed_blocks);
     as_radix_ciphertext_slice<Torus>(&ty_view, batched_buf->tree_y, 0,
@@ -365,7 +365,7 @@ __host__ void bitonic_sort_compare_phase_batched(
         remaining_packed_blocks, message_modulus,
         /*orphan_factor=*/message_modulus, /*orphan_clear_value=*/IS_EQUAL,
         params.message_modulus, params.carry_modulus);
-    CudaRadixCiphertextFFI tx_next_view;
+    CudaRadixCiphertext tx_next_view;
     as_radix_ciphertext_slice<Torus>(&tx_next_view, batched_buf->tree_x, 0,
                                      num_pairs * next_remaining_packed_blocks);
     // PBS: propagate IS_SUPERIOR or IS_INFERIOR if any block in the pair was
@@ -381,7 +381,7 @@ __host__ void bitonic_sort_compare_phase_batched(
   // a univariate PBS equivalent to is_any_not_equal_lut operating on the
   // pre-packed value — to produce one final EQ or IS_SUPERIOR verdict per pair,
   // written to comparison_results.
-  CudaRadixCiphertextFFI tx_final, ty_final;
+  CudaRadixCiphertext tx_final, ty_final;
   as_radix_ciphertext_slice<Torus>(&tx_final, batched_buf->tree_x, 0,
                                    num_pairs * 2);
   as_radix_ciphertext_slice<Torus>(&ty_final, batched_buf->tree_y, 0,
@@ -578,7 +578,7 @@ apply_cmux_batched(CudaStreams streams, CudaRadixCiphertextFFI **keys,
 
   // Add the two halves: exactly one is non-zero per block, so the sum is the
   // result.
-  CudaRadixCiphertextFFI is_superior_half, is_equal_half;
+  CudaRadixCiphertext is_superior_half, is_equal_half;
   as_radix_ciphertext_slice<Torus>(
       &is_superior_half, fused_buf->batch_buffer_out, 0, blocks_per_branch);
   as_radix_ciphertext_slice<Torus>(&is_equal_half, fused_buf->batch_buffer_out,
@@ -593,7 +593,7 @@ apply_cmux_batched(CudaStreams streams, CudaRadixCiphertextFFI **keys,
   // PBS can refresh it, so the addition noise must be cleaned here to stay
   // within budget. For the final substep, this ensures the outputs are clean
   // for the caller.
-  CudaRadixCiphertextFFI extract_out;
+  CudaRadixCiphertext extract_out;
   as_radix_ciphertext_slice<Torus>(&extract_out, fused_buf->batch_buffer_out, 0,
                                    blocks_per_branch);
   integer_radix_apply_univariate_lookup_table<Torus>(

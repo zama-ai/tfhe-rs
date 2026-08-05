@@ -136,7 +136,7 @@ __host__ void are_all_comparisons_block_true(
       uint32_t chunk_length =
           std::min(max_value, begin_remaining_blocks - i * max_value);
       chunk_lengths[i] = chunk_length;
-      CudaRadixCiphertextFFI acc_slice, inp_slice;
+      CudaRadixCiphertext acc_slice, inp_slice;
       as_radix_ciphertext_slice<Torus>(
           &acc_slice, are_all_block_true_buffer->tmp_block_accumulated,
           acc_offset, acc_offset + 1);
@@ -263,7 +263,7 @@ __host__ void is_at_least_one_comparisons_block_true(
       uint32_t chunk_length =
           std::min(max_value, begin_remaining_blocks - i * max_value);
       chunk_lengths[i] = chunk_length;
-      CudaRadixCiphertextFFI acc_slice, inp_slice;
+      CudaRadixCiphertext acc_slice, inp_slice;
       as_radix_ciphertext_slice<Torus>(&acc_slice,
                                        buffer->tmp_block_accumulated,
                                        acc_offset, acc_offset + 1);
@@ -348,7 +348,7 @@ __host__ void host_compare_blocks_with_zero(
     while (remainder_blocks > 1) {
       uint32_t chunk_size =
           std::min(remainder_blocks, num_elements_to_fill_carry);
-      CudaRadixCiphertextFFI sum_slice, inp_slice;
+      CudaRadixCiphertext sum_slice, inp_slice;
       as_radix_ciphertext_slice<Torus>(&sum_slice, sum, sum_offset,
                                        sum_offset + 1);
       as_radix_ciphertext_slice<Torus>(&inp_slice, lwe_array_in, inp_offset,
@@ -562,10 +562,10 @@ __host__ void host_difference_check(
   auto carry_modulus = params.carry_modulus;
 
   uint32_t packed_num_radix_blocks = num_radix_blocks;
-  CudaRadixCiphertextFFI lhs;
+  CudaRadixCiphertext lhs;
   as_radix_ciphertext_slice<Torus>(&lhs, diff_buffer->tmp_packed, 0,
                                    num_radix_blocks / 2);
-  CudaRadixCiphertextFFI rhs;
+  CudaRadixCiphertext rhs;
   as_radix_ciphertext_slice<Torus>(&rhs, diff_buffer->tmp_packed,
                                    num_radix_blocks / 2, num_radix_blocks);
   if (carry_modulus >= message_modulus) {
@@ -642,11 +642,11 @@ __host__ void host_difference_check(
 
       // Compare the last block before the sign block separately
       auto identity_lut = mem_ptr->identity_lut;
-      CudaRadixCiphertextFFI last_left_block_before_sign_block;
+      CudaRadixCiphertext last_left_block_before_sign_block;
       as_radix_ciphertext_slice<Torus>(
           &last_left_block_before_sign_block, diff_buffer->tmp_packed,
           packed_num_radix_blocks, packed_num_radix_blocks + 1);
-      CudaRadixCiphertextFFI shifted_lwe_array_left;
+      CudaRadixCiphertext shifted_lwe_array_left;
       as_radix_ciphertext_slice<Torus>(&shifted_lwe_array_left, lwe_array_left,
                                        num_radix_blocks - 2,
                                        num_radix_blocks - 1);
@@ -654,12 +654,12 @@ __host__ void host_difference_check(
           streams, &last_left_block_before_sign_block, &shifted_lwe_array_left,
           bsks, ksks, identity_lut, 1);
 
-      CudaRadixCiphertextFFI last_right_block_before_sign_block;
+      CudaRadixCiphertext last_right_block_before_sign_block;
       as_radix_ciphertext_slice<Torus>(
           &last_right_block_before_sign_block, diff_buffer->tmp_packed,
           num_radix_blocks / 2 + packed_num_radix_blocks,
           num_radix_blocks / 2 + packed_num_radix_blocks + 1);
-      CudaRadixCiphertextFFI shifted_lwe_array_right;
+      CudaRadixCiphertext shifted_lwe_array_right;
       as_radix_ciphertext_slice<Torus>(&shifted_lwe_array_right,
                                        lwe_array_right, num_radix_blocks - 2,
                                        num_radix_blocks - 1);
@@ -667,7 +667,7 @@ __host__ void host_difference_check(
           streams, &last_right_block_before_sign_block,
           &shifted_lwe_array_right, bsks, ksks, identity_lut, 1);
 
-      CudaRadixCiphertextFFI shifted_comparisons;
+      CudaRadixCiphertext shifted_comparisons;
       as_radix_ciphertext_slice<Torus>(&shifted_comparisons, comparisons,
                                        packed_num_radix_blocks,
                                        packed_num_radix_blocks + 1);
@@ -679,10 +679,10 @@ __host__ void host_difference_check(
       as_radix_ciphertext_slice<Torus>(&shifted_comparisons, comparisons,
                                        packed_num_radix_blocks + 1,
                                        packed_num_radix_blocks + 2);
-      CudaRadixCiphertextFFI last_left_block;
+      CudaRadixCiphertext last_left_block;
       as_radix_ciphertext_slice<Torus>(&last_left_block, lwe_array_left,
                                        num_radix_blocks - 1, num_radix_blocks);
-      CudaRadixCiphertextFFI last_right_block;
+      CudaRadixCiphertext last_right_block;
       as_radix_ciphertext_slice<Torus>(&last_right_block, lwe_array_right,
                                        num_radix_blocks - 1, num_radix_blocks);
       integer_radix_apply_bivariate_lookup_table<Torus>(
@@ -696,13 +696,13 @@ __host__ void host_difference_check(
                                   lwe_array_right, mem_ptr, bsks, ksks,
                                   num_radix_blocks - 1);
       // Compare the sign block separately
-      CudaRadixCiphertextFFI shifted_comparisons;
+      CudaRadixCiphertext shifted_comparisons;
       as_radix_ciphertext_slice<Torus>(&shifted_comparisons, comparisons,
                                        num_radix_blocks - 1, num_radix_blocks);
-      CudaRadixCiphertextFFI last_left_block;
+      CudaRadixCiphertext last_left_block;
       as_radix_ciphertext_slice<Torus>(&last_left_block, lwe_array_left,
                                        num_radix_blocks - 1, num_radix_blocks);
-      CudaRadixCiphertextFFI last_right_block;
+      CudaRadixCiphertext last_right_block;
       as_radix_ciphertext_slice<Torus>(&last_right_block, lwe_array_right,
                                        num_radix_blocks - 1, num_radix_blocks);
       integer_radix_apply_bivariate_lookup_table<Torus>(
@@ -796,7 +796,7 @@ __host__ void host_compute_reduced_pgns_and_carries_for_comparison(
         mem->seq_group_prop_mem, bsks, ksks, num_groups);
   } else {
     auto luts_carry_propagation_sum = mem->hs_group_prop_mem->lut_hillis_steele;
-    CudaRadixCiphertextFFI shifted_resolved_carries;
+    CudaRadixCiphertext shifted_resolved_carries;
     as_radix_ciphertext_slice<Torus>(&shifted_resolved_carries,
                                      resolved_carries, 1, num_groups);
     host_compute_prefix_sum_hillis_steele<Torus>(
@@ -869,7 +869,7 @@ __host__ void host_difference_check_via_borrow(
 
   // Combine into the overflow (borrow-out) block, mirroring the overflow branch
   // of host_single_borrow_propagate.
-  CudaRadixCiphertextFFI shifted_simulators;
+  CudaRadixCiphertext shifted_simulators;
   as_radix_ciphertext_slice<Torus>(&shifted_simulators,
                                    mem->prop_simu_group_carries_mem->simulators,
                                    num_radix_blocks - 1, num_radix_blocks);
@@ -877,7 +877,7 @@ __host__ void host_difference_check_via_borrow(
                        mem->overflow_block, mem->overflow_block,
                        &shifted_simulators, 1, message_modulus, carry_modulus);
 
-  CudaRadixCiphertextFFI resolved_borrows;
+  CudaRadixCiphertext resolved_borrows;
   as_radix_ciphertext_slice<Torus>(
       &resolved_borrows, mem->prop_simu_group_carries_mem->resolved_carries,
       num_groups - 1, num_groups);

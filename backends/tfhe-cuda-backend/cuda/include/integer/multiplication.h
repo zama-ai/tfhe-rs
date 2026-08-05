@@ -3,9 +3,9 @@
 #include "integer_utilities.h"
 
 template <typename Torus> struct int_mul_memory {
-  CudaRadixCiphertextFFI *vector_result_sb;
-  CudaRadixCiphertextFFI *block_mul_res;
-  CudaRadixCiphertextFFI *small_lwe_vector;
+  CudaRadixCiphertext *vector_result_sb;
+  CudaRadixCiphertext *block_mul_res;
+  CudaRadixCiphertext *small_lwe_vector;
 
   int_radix_lut<Torus> *luts_array; // lsb msb
   int_radix_lut<Torus> *zero_out_predicate_lut;
@@ -67,17 +67,17 @@ template <typename Torus> struct int_mul_memory {
                "MSB and LSB vector block counts don't match");
 
     // allocate memory for intermediate buffers
-    vector_result_sb = new CudaRadixCiphertextFFI;
+    vector_result_sb = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), vector_result_sb,
         2 * total_block_count, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
-    block_mul_res = new CudaRadixCiphertextFFI;
+    block_mul_res = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), block_mul_res,
         2 * total_block_count, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
-    small_lwe_vector = new CudaRadixCiphertextFFI;
+    small_lwe_vector = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), small_lwe_vector,
         2 * total_block_count, params.small_lwe_dimension, size_tracker,
