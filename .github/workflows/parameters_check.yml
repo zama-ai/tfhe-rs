@@ -58,7 +58,6 @@ jobs:
         with:
           path: /tmp/sagemath_image
           key: sagemath-image-${{ env.SAGEMATH_VERSION }}
-          restore-keys: sagemath-image-
 
       - name: Load cached Docker sagemath image
         if: steps.docker-cache.outputs.cache-hit == 'true'
