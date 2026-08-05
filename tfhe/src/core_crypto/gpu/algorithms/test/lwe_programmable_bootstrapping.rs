@@ -165,6 +165,31 @@ fn lwe_encrypt_pbs_decrypt<
                 ciphertext_modulus
             ));
 
+            // Determinism check
+            if should_check_determinism(message_modulus_log) {
+                let mut d_out_pbs_ct_bis = CudaLweCiphertextList::new(
+                    output_lwe_dimension,
+                    LweCiphertextCount(1),
+                    ciphertext_modulus,
+                    &stream,
+                );
+                cuda_programmable_bootstrap_lwe_ciphertext(
+                    &d_lwe_ciphertext_in,
+                    &mut d_out_pbs_ct_bis,
+                    &d_accumulator,
+                    &d_test_vector_indexes,
+                    &d_output_indexes,
+                    &d_input_indexes,
+                    &d_bsk,
+                    &stream,
+                );
+                assert_gpu_determinism(
+                    out_pbs_ct.as_ref(),
+                    d_out_pbs_ct_bis.into_lwe_ciphertext(&stream).as_ref(),
+                    "cuda_programmable_bootstrap_lwe_ciphertext",
+                );
+            }
+
             let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &out_pbs_ct);
 
             let decoded = round_decode(decrypted.0, delta) % msg_modulus;
@@ -318,6 +343,31 @@ fn lwe_encrypt_centered_ms_pbs_decrypt<
                 &out_pbs_ct,
                 ciphertext_modulus
             ));
+
+            // Determinism check
+            if should_check_determinism(message_modulus_log) {
+                let mut d_out_pbs_ct_bis = CudaLweCiphertextList::new(
+                    output_lwe_dimension,
+                    LweCiphertextCount(1),
+                    ciphertext_modulus,
+                    &stream,
+                );
+                cuda_programmable_bootstrap_lwe_ciphertext(
+                    &d_lwe_ciphertext_in,
+                    &mut d_out_pbs_ct_bis,
+                    &d_accumulator,
+                    &d_test_vector_indexes,
+                    &d_output_indexes,
+                    &d_input_indexes,
+                    &d_bsk,
+                    &stream,
+                );
+                assert_gpu_determinism(
+                    out_pbs_ct.as_ref(),
+                    d_out_pbs_ct_bis.into_lwe_ciphertext(&stream).as_ref(),
+                    "cuda_programmable_bootstrap_lwe_ciphertext (centered modulus switch)",
+                );
+            }
 
             let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &out_pbs_ct);
 

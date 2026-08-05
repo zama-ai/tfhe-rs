@@ -1,5 +1,6 @@
 use super::super::test::TestResources;
-use crate::core_crypto::commons::test_tools::check_both_ratio_under;
+use super::assert_gpu_determinism;
+use crate::core_crypto::commons::test_tools::{check_both_ratio_under, new_random_generator};
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::{CudaStreams, GpuIndex};
 use crate::core_crypto::prelude::*;
@@ -7,7 +8,8 @@ use itertools::Itertools;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::cell::RefCell;
 use tfhe_cuda_backend::bindings::{
-    cuda_centered_modulus_switch_64_async, cuda_modulus_switch_64_async,
+    cuda_centered_modulus_switch_64_async, cuda_centered_modulus_switch_cooperative_64_async,
+    cuda_modulus_switch_64_async,
 };
 
 thread_local! {
@@ -52,9 +54,76 @@ where
     body.wrapping_sub(mask_key_dot_product) % (Scalar::ONE << log_modulus.0)
 }
 
+// The cooperative correction splits the mask over every thread of the block, so
+// its result depends on the block shape it is called in
+#[derive(Clone, Copy, Debug)]
+pub struct CooperativeBlockShape {
+    dim_x: u32,
+    dim_y: u32,
+}
+
+// The block of the specialized 2_2 throughput PBS
+const THROUGHPUT_PBS_BLOCK_SHAPE: CooperativeBlockShape = CooperativeBlockShape {
+    dim_x: 64,
+    dim_y: 2,
+};
+
+// A plain 1D block, as pbs128 launches (polynomial_size / opt, 1, 1), so 512
+// threads for N = 2048
+const GENERIC_BLOCK_SHAPE: CooperativeBlockShape = CooperativeBlockShape {
+    dim_x: 512,
+    dim_y: 1,
+};
+
 pub enum ModulusSwitchAlgorithm {
     Regular,
     Centered,
+    // Centered, with the body correction computed by the block-cooperative
+    // reduction instead of a single thread
+    CenteredCooperative(CooperativeBlockShape),
+}
+
+fn cuda_apply_modulus_switch(
+    ms: &ModulusSwitchAlgorithm,
+    d_lwe_output: &mut CudaLweCiphertextList<u64>,
+    d_lwe_input: &CudaLweCiphertextList<u64>,
+    log_modulus: CiphertextModulusLog,
+    stream: &CudaStreams,
+) {
+    let lwe_dimension = d_lwe_input.lwe_dimension();
+
+    unsafe {
+        match ms {
+            ModulusSwitchAlgorithm::Regular => cuda_modulus_switch_64_async(
+                stream.ptr[0],
+                stream.gpu_indexes[0].get(),
+                d_lwe_output.0.d_vec.as_mut_c_ptr(0),
+                d_lwe_input.0.d_vec.as_c_ptr(0),
+                lwe_dimension.to_lwe_size().0 as u32,
+                log_modulus.0 as u32,
+            ),
+            ModulusSwitchAlgorithm::Centered => cuda_centered_modulus_switch_64_async(
+                stream.ptr[0],
+                stream.gpu_indexes[0].get(),
+                d_lwe_output.0.d_vec.as_mut_c_ptr(0),
+                d_lwe_input.0.d_vec.as_c_ptr(0),
+                lwe_dimension.0 as u32,
+                log_modulus.0 as u32,
+            ),
+            ModulusSwitchAlgorithm::CenteredCooperative(block_shape) => {
+                cuda_centered_modulus_switch_cooperative_64_async(
+                    stream.ptr[0],
+                    stream.gpu_indexes[0].get(),
+                    d_lwe_output.0.d_vec.as_mut_c_ptr(0),
+                    d_lwe_input.0.d_vec.as_c_ptr(0),
+                    lwe_dimension.0 as u32,
+                    log_modulus.0 as u32,
+                    block_shape.dim_x,
+                    block_shape.dim_y,
+                )
+            }
+        }
+    }
 }
 
 #[test]
@@ -142,26 +211,13 @@ fn check_cuda_modulus_switch_is_centered(
 
                 let d_lwe_input =
                     CudaLweCiphertextList::from_lwe_ciphertext(&input_lwe, &local_stream);
-                unsafe {
-                    match ms {
-                        ModulusSwitchAlgorithm::Regular => cuda_modulus_switch_64_async(
-                            local_stream.ptr[0],
-                            local_stream.gpu_indexes[0].get(),
-                            d_lwe_output.0.d_vec.as_mut_c_ptr(0),
-                            d_lwe_input.0.d_vec.as_c_ptr(0),
-                            d_lwe_input.lwe_dimension().to_lwe_size().0 as u32,
-                            log_modulus.0 as u32,
-                        ),
-                        ModulusSwitchAlgorithm::Centered => cuda_centered_modulus_switch_64_async(
-                            local_stream.ptr[0],
-                            local_stream.gpu_indexes[0].get(),
-                            d_lwe_output.0.d_vec.as_mut_c_ptr(0),
-                            d_lwe_input.0.d_vec.as_c_ptr(0),
-                            d_lwe_input.lwe_dimension().0 as u32,
-                            log_modulus.0 as u32,
-                        ),
-                    }
-                }
+                cuda_apply_modulus_switch(
+                    ms,
+                    &mut d_lwe_output,
+                    &d_lwe_input,
+                    log_modulus,
+                    &local_stream,
+                );
                 let lut_index = decrypt_cuda_modulus_switched_lwe_ciphertext(
                     &sk,
                     &d_lwe_output,
@@ -273,5 +329,160 @@ fn compare_cpu_and_gpu_centered_modulus_switch() {
 
     let converted_gpu_ct = d_lwe_output.into_lwe_ciphertext(&streams);
 
+    // Determinism check
+    let mut d_lwe_output_bis = CudaLweCiphertextList::new(
+        lwe_dimension,
+        LweCiphertextCount(1),
+        ciphertext_modulus,
+        &streams,
+    );
+    unsafe {
+        cuda_centered_modulus_switch_64_async(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            d_lwe_output_bis.0.d_vec.as_mut_c_ptr(0),
+            d_lwe_input.0.d_vec.as_c_ptr(0),
+            d_lwe_input.lwe_dimension().0 as u32,
+            log_modulus.0 as u32,
+        );
+    }
+    assert_gpu_determinism(
+        converted_gpu_ct.as_ref(),
+        d_lwe_output_bis.into_lwe_ciphertext(&streams).as_ref(),
+        "cuda_centered_modulus_switch_64",
+    );
+
     assert_eq!(msed_container, converted_gpu_ct.into_container());
+}
+
+// Relative to the 128 and 512 threads blocks: smaller than both, exact multiple
+// of both, then two multiples of neither. All below 1023, the sequential kernel
+// we compare against launches lwe_dimension + 1 threads in a single block
+const COOPERATIVE_TEST_LWE_DIMENSIONS: [usize; 4] = [100, 512, 742, 800];
+
+fn cuda_centered_modulus_switch(
+    ms: &ModulusSwitchAlgorithm,
+    lwe: &LweCiphertextOwned<u64>,
+    log_modulus: CiphertextModulusLog,
+    streams: &CudaStreams,
+) -> Vec<u64> {
+    let d_lwe_input = CudaLweCiphertextList::from_lwe_ciphertext(lwe, streams);
+    let mut d_lwe_output = CudaLweCiphertextList::new(
+        lwe.lwe_size().to_lwe_dimension(),
+        LweCiphertextCount(1),
+        lwe.ciphertext_modulus(),
+        streams,
+    );
+
+    cuda_apply_modulus_switch(ms, &mut d_lwe_output, &d_lwe_input, log_modulus, streams);
+
+    d_lwe_output.into_lwe_ciphertext(streams).into_container()
+}
+
+// The cooperative correction is a second implementation of the centered modulus
+// switch, the one the PBS runs, and a wrong correction there is hidden by the
+// decoding of the PBS output. So we check it on its own, against the CPU and
+// against the sequential GPU kernel.
+fn check_cuda_cooperative_centered_modulus_switch(
+    block_shape: CooperativeBlockShape,
+    lwe_dimension: LweDimension,
+) {
+    const NB_TESTS: usize = 10;
+
+    let lwe_noise_distribution: DynamicDistribution<u64> =
+        DynamicDistribution::new_gaussian_from_std_dev(StandardDev(0.000007069849454709433));
+
+    let ciphertext_modulus = CiphertextModulus::new_native();
+
+    let log_modulus = CiphertextModulusLog(12);
+
+    let streams = CudaStreams::new_single_gpu(GpuIndex::new(0));
+
+    let sk = TEST_RESOURCES.with(|rsc| {
+        allocate_and_generate_new_binary_lwe_secret_key(
+            lwe_dimension,
+            &mut rsc.borrow_mut().secret_random_generator,
+        )
+    });
+
+    let mut random_generator = new_random_generator();
+
+    let cooperative = ModulusSwitchAlgorithm::CenteredCooperative(block_shape);
+
+    for _ in 0..NB_TESTS {
+        // The correction depends on the mask and the body only, vary both
+        let plaintext = Plaintext(random_generator.random_uniform::<u64>());
+
+        let lwe = TEST_RESOURCES.with(|rsc| {
+            allocate_and_encrypt_new_lwe_ciphertext(
+                &sk,
+                plaintext,
+                lwe_noise_distribution,
+                ciphertext_modulus,
+                &mut rsc.borrow_mut().encryption_random_generator,
+            )
+        });
+
+        // CPU reference
+        let msed_lwe: LazyStandardModulusSwitchedLweCiphertext<u64, u64, &[u64]> =
+            lwe_ciphertext_centered_binary_modulus_switch(lwe.as_view(), log_modulus);
+        let mut cpu_container = msed_lwe.mask().collect_vec();
+        cpu_container.push(msed_lwe.body());
+
+        // GPU, single thread correction
+        let sequential_container = cuda_centered_modulus_switch(
+            &ModulusSwitchAlgorithm::Centered,
+            &lwe,
+            log_modulus,
+            &streams,
+        );
+
+        // GPU, block-cooperative correction
+        let cooperative_container =
+            cuda_centered_modulus_switch(&cooperative, &lwe, log_modulus, &streams);
+
+        // Determinism check
+        let cooperative_container_bis =
+            cuda_centered_modulus_switch(&cooperative, &lwe, log_modulus, &streams);
+
+        assert_gpu_determinism(
+            &cooperative_container,
+            &cooperative_container_bis,
+            "cuda_centered_modulus_switch_cooperative_64",
+        );
+
+        assert_eq!(
+            cpu_container, cooperative_container,
+            "cooperative centered modulus switch in a ({}, {}, 1) block differs from the CPU \
+            implementation for lwe_dimension={}",
+            block_shape.dim_x, block_shape.dim_y, lwe_dimension.0,
+        );
+
+        assert_eq!(
+            sequential_container, cooperative_container,
+            "cooperative centered modulus switch in a ({}, {}, 1) block differs from the \
+            sequential GPU implementation for lwe_dimension={}",
+            block_shape.dim_x, block_shape.dim_y, lwe_dimension.0,
+        );
+    }
+}
+
+#[test]
+fn compare_cpu_and_gpu_cooperative_centered_modulus_switch_throughput_pbs_block() {
+    for lwe_dimension in COOPERATIVE_TEST_LWE_DIMENSIONS {
+        check_cuda_cooperative_centered_modulus_switch(
+            THROUGHPUT_PBS_BLOCK_SHAPE,
+            LweDimension(lwe_dimension),
+        );
+    }
+}
+
+#[test]
+fn compare_cpu_and_gpu_cooperative_centered_modulus_switch_generic_block() {
+    for lwe_dimension in COOPERATIVE_TEST_LWE_DIMENSIONS {
+        check_cuda_cooperative_centered_modulus_switch(
+            GENERIC_BLOCK_SHAPE,
+            LweDimension(lwe_dimension),
+        );
+    }
 }

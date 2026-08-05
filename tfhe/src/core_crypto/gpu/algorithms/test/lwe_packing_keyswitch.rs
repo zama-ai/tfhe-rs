@@ -111,6 +111,27 @@ where
                 &stream,
             );
             let output_glwe_list = d_output_glwe.to_glwe_ciphertext_list(&stream);
+
+            // Determinism check
+            let mut d_output_glwe_bis = CudaGlweCiphertextList::new(
+                glwe_sk.glwe_dimension(),
+                glwe_sk.polynomial_size(),
+                GlweCiphertextCount(1),
+                ciphertext_modulus,
+                &stream,
+            );
+            cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64(
+                &pksk,
+                &d_input_lwe,
+                &mut d_output_glwe_bis,
+                &stream,
+            );
+            assert_gpu_determinism(
+                output_glwe_list.as_ref(),
+                d_output_glwe_bis.to_glwe_ciphertext_list(&stream).as_ref(),
+                "cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64",
+            );
+
             let mut decrypted_plaintext_list = PlaintextList::new(
                 Scalar::ZERO,
                 PlaintextCount(output_glwe_list.polynomial_size().0),
@@ -203,6 +224,26 @@ where
             );
 
             let output_glwe_list = d_output_glwe.to_glwe_ciphertext_list(&stream);
+
+            // Determinism check
+            let mut d_output_glwe_bis = CudaGlweCiphertextList::new(
+                glwe_sk.glwe_dimension(),
+                glwe_sk.polynomial_size(),
+                GlweCiphertextCount(1),
+                ciphertext_modulus,
+                &stream,
+            );
+            cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64(
+                &pksk,
+                &d_input_lwe_list,
+                &mut d_output_glwe_bis,
+                &stream,
+            );
+            assert_gpu_determinism(
+                output_glwe_list.as_ref(),
+                d_output_glwe_bis.to_glwe_ciphertext_list(&stream).as_ref(),
+                "cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64 (list input)",
+            );
 
             let mut decrypted_plaintext_list = PlaintextList::new(
                 Scalar::ZERO,

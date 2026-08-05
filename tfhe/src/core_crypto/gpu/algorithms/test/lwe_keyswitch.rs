@@ -225,6 +225,39 @@ fn base_lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + CastFrom<usize
                 true,
             );
 
+            // Determinism check, on both the classical and the GEMM variant
+            for use_gemm in [false, true] {
+                let mut output_ct_list_gpu_bis =
+                    CudaLweCiphertextList::from_lwe_ciphertext_list(&output_ct_list, &stream);
+                cuda_keyswitch_lwe_ciphertext(
+                    &d_ksk_big_to_small,
+                    &input_ct_list_gpu,
+                    &mut output_ct_list_gpu_bis,
+                    &d_input_indexes,
+                    &d_output_indexes,
+                    use_trivial_indexes,
+                    &stream,
+                    use_gemm,
+                );
+
+                let first_run = if use_gemm {
+                    &output_ct_list_gpu_gemm
+                } else {
+                    &output_ct_list_gpu
+                };
+                assert_gpu_determinism(
+                    first_run.to_lwe_ciphertext_list(&stream).as_ref(),
+                    output_ct_list_gpu_bis
+                        .to_lwe_ciphertext_list(&stream)
+                        .as_ref(),
+                    if use_gemm {
+                        "cuda_keyswitch_lwe_ciphertext (GEMM)"
+                    } else {
+                        "cuda_keyswitch_lwe_ciphertext"
+                    },
+                );
+            }
+
             // Fill in the expected output: only the LWEs corresponding to output indices
             // will be non-zero. The test checks that the others remain 0
             let mut ref_vec = vec![Scalar::ZERO; num_blocks];
