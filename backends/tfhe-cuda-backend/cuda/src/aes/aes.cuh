@@ -722,15 +722,13 @@ __host__ void vectorized_mix_columns(CudaStreams streams,
     CudaRadixCiphertextFFI *col_copy_buffer =
         mem->round_workspaces->mix_columns_col_copy_buffer;
     for (uint32_t i = 0; i < BITS_PER_COLUMN; ++i) {
-      CudaRadixCiphertextFFI dest_slice, src_slice;
+      CudaRadixCiphertextFFI dest_slice;
       as_radix_ciphertext_slice<Torus>(&dest_slice, col_copy_buffer,
                                        i * num_aes_inputs,
                                        (i + 1) * num_aes_inputs);
-      as_radix_ciphertext_slice<Torus>(
-          &src_slice, s_bits, (col * BITS_PER_COLUMN + i) * num_aes_inputs,
-          (col * BITS_PER_COLUMN + i + 1) * num_aes_inputs);
-      copy_radix_ciphertext_async<Torus>(
-          streams.stream(0), streams.gpu_index(0), &dest_slice, &src_slice);
+      copy_radix_ciphertext_async<Torus>(streams.stream(0),
+                                         streams.gpu_index(0), &dest_slice,
+                                         &s_bits[col * BITS_PER_COLUMN + i]);
     }
 
     CudaRadixCiphertextFFI b_orig[BYTES_PER_COLUMN][BITS_PER_BYTE];
