@@ -23,6 +23,8 @@ def merge_multi_group_results(input_files, output_file, bench_type):
             metadata = {k: v for k, v in data.items() if k != "points"}
         for point in data["points"]:
             test = point["test"]
+            if "_std_dev" in test:
+                continue
             if not test.startswith(ACCEPTED_TEST_PREFIX):
                 print(
                     f"Error: unexpected test '{test}' in {path}: this script only "
