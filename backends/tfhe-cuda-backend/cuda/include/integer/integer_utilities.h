@@ -494,7 +494,7 @@ struct int_radix_lut_custom_input_output {
   InputTorus *lwe_trivial_indexes = nullptr;
 
   // buffer to store packed message bits of a radix ciphertext
-  CudaRadixCiphertextFFI *tmp_lwe_before_ks = nullptr;
+  CudaRadixCiphertext *tmp_lwe_before_ks = nullptr;
 
   /// For multi GPU execution we create vectors of pointers for inputs and
   /// outputs
@@ -583,7 +583,7 @@ struct int_radix_lut_custom_input_output {
 
     // This buffer is created with num_input_blocks since it
     // stores the ciphertext before KS or packing.
-    tmp_lwe_before_ks = new CudaRadixCiphertextFFI;
+    tmp_lwe_before_ks = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<InputTorus>(
         active_streams.stream(0), active_streams.gpu_index(0),
         tmp_lwe_before_ks, num_input_blocks, input_big_lwe_dimension,
@@ -1405,8 +1405,8 @@ template <typename Torus> struct int_fullprop_buffer {
 
   int_radix_lut<Torus> *lut;
 
-  CudaRadixCiphertextFFI *tmp_small_lwe_vector;
-  CudaRadixCiphertextFFI *tmp_big_lwe_vector;
+  CudaRadixCiphertext *tmp_small_lwe_vector;
+  CudaRadixCiphertext *tmp_big_lwe_vector;
   bool gpu_memory_allocated;
 
   int_fullprop_buffer(CudaStreams streams, int_radix_params params,
@@ -1440,11 +1440,11 @@ template <typename Torus> struct int_fullprop_buffer {
                                     {lut_f_message, lut_f_carry},
                                     lut_index_generator);
 
-    tmp_small_lwe_vector = new CudaRadixCiphertextFFI;
+    tmp_small_lwe_vector = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_small_lwe_vector, 2,
         params.small_lwe_dimension, size_tracker, allocate_gpu_memory);
-    tmp_big_lwe_vector = new CudaRadixCiphertextFFI;
+    tmp_big_lwe_vector = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_big_lwe_vector, 2,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
@@ -1475,8 +1475,8 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   bool reduce_degrees_for_single_carry_propagation;
 
   // temporary buffers
-  CudaRadixCiphertextFFI *current_blocks;
-  CudaRadixCiphertextFFI *small_lwe_vector;
+  CudaRadixCiphertext *current_blocks;
+  CudaRadixCiphertext *small_lwe_vector;
 
   uint32_t *d_columns_data;
   uint32_t *d_columns_counter;
@@ -1622,12 +1622,12 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     }
 
     // create and allocate intermediate buffers
-    current_blocks = new CudaRadixCiphertextFFI;
+    current_blocks = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), current_blocks,
         max_total_blocks_in_vec, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
-    small_lwe_vector = new CudaRadixCiphertextFFI;
+    small_lwe_vector = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), small_lwe_vector,
         max_total_blocks_in_vec, params.small_lwe_dimension, size_tracker,
@@ -1637,9 +1637,8 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   int_sum_ciphertexts_vec_memory(
       CudaStreams streams, int_radix_params params,
       uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
-      CudaRadixCiphertextFFI *current_blocks,
-      CudaRadixCiphertextFFI *small_lwe_vector,
-      int_radix_lut<Torus> *reused_lut,
+      CudaRadixCiphertext *current_blocks,
+      CudaRadixCiphertext *small_lwe_vector, int_radix_lut<Torus> *reused_lut,
       bool reduce_degrees_for_single_carry_propagation,
       bool allocate_gpu_memory, uint64_t &size_tracker) {
     this->mem_reuse = true;
@@ -1713,7 +1712,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
 // For sequential algorithm in group propagation
 template <typename Torus> struct int_seq_group_prop_memory {
 
-  CudaRadixCiphertextFFI *group_resolved_carries;
+  CudaRadixCiphertext *group_resolved_carries;
   int_radix_lut<Torus> *lut_sequential_algorithm;
   uint32_t grouping_size;
   bool gpu_memory_allocated;
@@ -1723,7 +1722,7 @@ template <typename Torus> struct int_seq_group_prop_memory {
                             bool allocate_gpu_memory, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     grouping_size = group_size;
-    group_resolved_carries = new CudaRadixCiphertextFFI;
+    group_resolved_carries = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), group_resolved_carries,
         grouping_size, params.big_lwe_dimension, size_tracker,
@@ -1814,9 +1813,9 @@ template <typename Torus> struct int_hs_group_prop_memory {
 
 // compute_shifted_blocks_and_block_states
 template <typename Torus> struct int_shifted_blocks_and_states_memory {
-  CudaRadixCiphertextFFI *shifted_blocks_and_states;
-  CudaRadixCiphertextFFI *shifted_blocks;
-  CudaRadixCiphertextFFI *block_states;
+  CudaRadixCiphertext *shifted_blocks_and_states;
+  CudaRadixCiphertext *shifted_blocks;
+  CudaRadixCiphertext *block_states;
 
   int_radix_lut<Torus> *luts_array_first_step;
   bool gpu_memory_allocated;
@@ -1829,17 +1828,17 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
     gpu_memory_allocated = allocate_gpu_memory;
     auto message_modulus = params.message_modulus;
 
-    shifted_blocks_and_states = new CudaRadixCiphertextFFI;
+    shifted_blocks_and_states = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), shifted_blocks_and_states,
         num_many_lut * num_radix_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
-    shifted_blocks = new CudaRadixCiphertextFFI;
+    shifted_blocks = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), shifted_blocks,
         num_radix_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
-    block_states = new CudaRadixCiphertextFFI;
+    block_states = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), block_states, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
@@ -1977,11 +1976,11 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
 
 // compute_propagation simulator and group carries
 template <typename Torus> struct int_prop_simu_group_carries_memory {
-  CudaRadixCiphertextFFI *propagation_cum_sums;
-  CudaRadixCiphertextFFI *simulators;
-  CudaRadixCiphertextFFI *prepared_blocks;
-  CudaRadixCiphertextFFI *grouping_pgns;
-  CudaRadixCiphertextFFI *resolved_carries;
+  CudaRadixCiphertext *propagation_cum_sums;
+  CudaRadixCiphertext *simulators;
+  CudaRadixCiphertext *prepared_blocks;
+  CudaRadixCiphertext *grouping_pgns;
+  CudaRadixCiphertext *resolved_carries;
 
   Torus *scalar_array_cum_sum;
   Torus *h_scalar_array_cum_sum;
@@ -2013,26 +2012,26 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
 
     group_size = grouping_size;
 
-    propagation_cum_sums = new CudaRadixCiphertextFFI;
+    propagation_cum_sums = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), propagation_cum_sums,
         num_radix_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
-    simulators = new CudaRadixCiphertextFFI;
+    simulators = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), simulators, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    prepared_blocks = new CudaRadixCiphertextFFI;
+    prepared_blocks = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), prepared_blocks,
         num_radix_blocks + 1, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
-    resolved_carries = new CudaRadixCiphertextFFI;
+    resolved_carries = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), resolved_carries,
         num_groups + 1, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
-    grouping_pgns = new CudaRadixCiphertextFFI;
+    grouping_pgns = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), grouping_pgns, num_groups,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
@@ -2281,9 +2280,9 @@ template <typename Torus> struct int_sc_prop_memory {
   uint32_t lut_stride;
 
   uint32_t num_groups;
-  CudaRadixCiphertextFFI *output_flag;
-  CudaRadixCiphertextFFI *last_lhs;
-  CudaRadixCiphertextFFI *last_rhs;
+  CudaRadixCiphertext *output_flag;
+  CudaRadixCiphertext *last_lhs;
+  CudaRadixCiphertext *last_rhs;
   int_radix_lut<Torus> *lut_message_extract;
 
   int_radix_lut<Torus> *lut_overflow_flag_prep;
@@ -2324,15 +2323,15 @@ template <typename Torus> struct int_sc_prop_memory {
 
     // This store a single block that with be used to store the overflow or
     // carry results
-    output_flag = new CudaRadixCiphertextFFI;
+    output_flag = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), output_flag,
         num_radix_blocks + 1, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
     if (requested_flag == outputFlag::FLAG_OVERFLOW) {
-      last_lhs = new CudaRadixCiphertextFFI;
-      last_rhs = new CudaRadixCiphertextFFI;
+      last_lhs = new CudaRadixCiphertext;
+      last_rhs = new CudaRadixCiphertext;
       create_zero_radix_ciphertext_async<Torus>(
           streams.stream(0), streams.gpu_index(0), last_lhs, 1,
           params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
@@ -2485,9 +2484,9 @@ template <typename Torus> struct int_sc_prop_memory {
 };
 
 template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
-  CudaRadixCiphertextFFI *shifted_blocks_and_borrow_states;
-  CudaRadixCiphertextFFI *shifted_blocks;
-  CudaRadixCiphertextFFI *borrow_states;
+  CudaRadixCiphertext *shifted_blocks_and_borrow_states;
+  CudaRadixCiphertext *shifted_blocks;
+  CudaRadixCiphertext *borrow_states;
 
   int_radix_lut<Torus> *luts_array_first_step;
   bool gpu_memory_allocated;
@@ -2500,17 +2499,17 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
     gpu_memory_allocated = allocate_gpu_memory;
     auto message_modulus = params.message_modulus;
 
-    shifted_blocks_and_borrow_states = new CudaRadixCiphertextFFI;
+    shifted_blocks_and_borrow_states = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0),
         shifted_blocks_and_borrow_states, num_radix_blocks * num_many_lut,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    shifted_blocks = new CudaRadixCiphertextFFI;
+    shifted_blocks = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), shifted_blocks,
         num_radix_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
-    borrow_states = new CudaRadixCiphertextFFI;
+    borrow_states = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), borrow_states,
         num_radix_blocks, params.big_lwe_dimension, size_tracker,
@@ -2661,7 +2660,7 @@ template <typename Torus> struct int_borrow_prop_memory {
 
   uint32_t group_size;
   uint32_t num_groups;
-  CudaRadixCiphertextFFI *overflow_block;
+  CudaRadixCiphertext *overflow_block;
 
   int_radix_lut<Torus> *lut_message_extract;
   int_radix_lut<Torus> *lut_borrow_flag;
@@ -2707,7 +2706,7 @@ template <typename Torus> struct int_borrow_prop_memory {
         streams, params, num_radix_blocks, grouping_size, num_groups,
         allocate_gpu_memory, size_tracker);
 
-    overflow_block = new CudaRadixCiphertextFFI;
+    overflow_block = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), overflow_block, 1,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);

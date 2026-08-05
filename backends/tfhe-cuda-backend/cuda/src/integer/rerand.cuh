@@ -71,9 +71,9 @@ void host_rerand_inplace(
 
   // Add ks output to ct
   // Check sizes
-  CudaRadixCiphertextFFI lwes_ffi;
+  CudaRadixCiphertext lwes_ffi;
   into_radix_ciphertext(&lwes_ffi, lwe_array, num_lwes, output_dimension);
-  CudaRadixCiphertextFFI ksed_zero_lwes_ffi;
+  CudaRadixCiphertext ksed_zero_lwes_ffi;
   into_radix_ciphertext(&ksed_zero_lwes_ffi, lwes_to_be_added, num_lwes,
                         output_dimension);
   host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &lwes_ffi,

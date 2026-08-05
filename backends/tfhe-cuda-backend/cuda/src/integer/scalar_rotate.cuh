@@ -23,8 +23,8 @@ __host__ uint64_t scratch_cuda_scalar_rotate(
 
 template <typename Torus, typename KSTorus>
 __host__ void
-host_scalar_rotate_inplace(CudaStreams streams,
-                           CudaRadixCiphertextFFI *lwe_array, uint32_t n,
+host_scalar_rotate_inplace(CudaStreams streams, CudaRadixCiphertext *lwe_array,
+                           uint32_t n,
                            int_logical_scalar_shift_buffer<Torus> *mem,
                            void *const *bsks, KSTorus *const *ksks) {
 

@@ -169,9 +169,9 @@ __host__ void host_expand_without_verification(
                       safe_mul_sizeof<Torus>((size_t)(lwe_dimension + 1),
                                              (size_t)num_lwes, (size_t)2),
                       streams.stream(0), streams.gpu_index(0));
-    CudaRadixCiphertextFFI output;
+    CudaRadixCiphertext output;
     into_radix_ciphertext(&output, lwe_array_out, 2 * num_lwes, lwe_dimension);
-    CudaRadixCiphertextFFI input;
+    CudaRadixCiphertext input;
     into_radix_ciphertext(&input, lwe_array_input, 2 * num_lwes, lwe_dimension);
     // This is a special case only for our noise sanity checks
     // If we are doing a SANITY_CHECK expand, we just apply the identity LUT

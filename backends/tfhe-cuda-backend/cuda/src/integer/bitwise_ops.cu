@@ -1,9 +1,14 @@
 #include "integer/bitwise_ops.cuh"
 
 void cuda_boolean_bitop_inplace_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_inout,
-    CudaRadixCiphertextFFI const *lwe_array_2, int8_t *mem_ptr,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_inout_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_2_ffi, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks) {
+  CudaRadixCiphertext lwe_array_inout_local(*lwe_array_inout_ffi);
+  CudaRadixCiphertext *lwe_array_inout = &lwe_array_inout_local;
+  const CudaRadixCiphertext lwe_array_2_local(*lwe_array_2_ffi);
+  const CudaRadixCiphertext *lwe_array_2 = &lwe_array_2_local;
+
   // In-place variant: lwe_array_inout op= lwe_array_2, no aliasing check needed
   host_boolean_bitop<uint64_t>(
       CudaStreams(streams), lwe_array_inout, lwe_array_inout, lwe_array_2,
@@ -50,9 +55,12 @@ uint64_t scratch_cuda_boolean_bitnot_64_async(
 }
 
 void cuda_boolean_bitnot_64_async(CudaStreamsFFI streams,
-                                  CudaRadixCiphertextFFI *lwe_array,
+                                  CudaRadixCiphertextFFI *lwe_array_ffi,
                                   int8_t *mem_ptr, void *const *bsks,
                                   void *const *ksks) {
+  CudaRadixCiphertext lwe_array_local(*lwe_array_ffi);
+  CudaRadixCiphertext *lwe_array = &lwe_array_local;
+
   host_boolean_bitnot<uint64_t>(CudaStreams(streams), lwe_array,
                                 (boolean_bitnot_buffer<uint64_t> *)mem_ptr,
                                 bsks, (uint64_t **)(ksks));
@@ -97,10 +105,13 @@ uint64_t scratch_cuda_integer_scalar_bitop_inplace_64_async(
 }
 
 void cuda_bitnot_ciphertext_64(CudaStreamsFFI streams,
-                               CudaRadixCiphertextFFI *radix_ciphertext,
+                               CudaRadixCiphertextFFI *radix_ciphertext_ffi,
                                uint32_t ct_message_modulus,
                                uint32_t param_message_modulus,
                                uint32_t param_carry_modulus) {
+  CudaRadixCiphertext radix_ciphertext_local(*radix_ciphertext_ffi);
+  CudaRadixCiphertext *radix_ciphertext = &radix_ciphertext_local;
+
   auto cuda_streams = CudaStreams(streams);
   host_bitnot<uint64_t>(cuda_streams, radix_ciphertext, ct_message_modulus,
                         param_message_modulus, param_carry_modulus);
@@ -108,9 +119,14 @@ void cuda_bitnot_ciphertext_64(CudaStreamsFFI streams,
 }
 
 void cuda_integer_bitop_inplace_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_inout,
-    CudaRadixCiphertextFFI const *lwe_array_2, int8_t *mem_ptr,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_inout_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_2_ffi, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks) {
+  CudaRadixCiphertext lwe_array_inout_local(*lwe_array_inout_ffi);
+  CudaRadixCiphertext *lwe_array_inout = &lwe_array_inout_local;
+  const CudaRadixCiphertext lwe_array_2_local(*lwe_array_2_ffi);
+  const CudaRadixCiphertext *lwe_array_2 = &lwe_array_2_local;
+
   // In-place variant: lwe_array_inout op= lwe_array_2, no aliasing check needed
   host_bitop<uint64_t>(CudaStreams(streams), lwe_array_inout, lwe_array_inout,
                        lwe_array_2, (int_bitop_buffer<uint64_t> *)mem_ptr, bsks,

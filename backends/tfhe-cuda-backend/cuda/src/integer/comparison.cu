@@ -70,16 +70,22 @@ uint64_t scratch_cuda_integer_scalar_comparison_64_async(
   return size_tracker;
 }
 
-void cuda_integer_comparison_64_async(CudaStreamsFFI streams,
-                                      CudaRadixCiphertextFFI *lwe_array_out,
-                                      CudaRadixCiphertextFFI const *lwe_array_1,
-                                      CudaRadixCiphertextFFI const *lwe_array_2,
-                                      int8_t *mem_ptr, void *const *bsks,
-                                      void *const *ksks) {
-  PANIC_IF_FALSE(lwe_array_out != lwe_array_1,
+void cuda_integer_comparison_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_1_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_2_ffi, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks) {
+  CudaRadixCiphertext lwe_array_out_local(*lwe_array_out_ffi);
+  CudaRadixCiphertext *lwe_array_out = &lwe_array_out_local;
+  const CudaRadixCiphertext lwe_array_1_local(*lwe_array_1_ffi);
+  const CudaRadixCiphertext *lwe_array_1 = &lwe_array_1_local;
+  const CudaRadixCiphertext lwe_array_2_local(*lwe_array_2_ffi);
+  const CudaRadixCiphertext *lwe_array_2 = &lwe_array_2_local;
+
+  PANIC_IF_FALSE(lwe_array_out_ffi != lwe_array_1_ffi,
                  "Output and first input pointers must be different for "
                  "out-of-place operations");
-  PANIC_IF_FALSE(lwe_array_out != lwe_array_2,
+  PANIC_IF_FALSE(lwe_array_out_ffi != lwe_array_2_ffi,
                  "Output and second input pointers must be different for "
                  "out-of-place operations");
   PUSH_RANGE("comparison")
@@ -174,10 +180,15 @@ uint64_t scratch_cuda_integer_are_all_comparisons_block_true_64_async(
 }
 
 void cuda_integer_are_all_comparisons_block_true_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_in, int8_t *mem_ptr,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_in_ffi, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks, uint32_t num_radix_blocks) {
-  PANIC_IF_FALSE(lwe_array_out != lwe_array_in,
+  CudaRadixCiphertext lwe_array_out_local(*lwe_array_out_ffi);
+  CudaRadixCiphertext *lwe_array_out = &lwe_array_out_local;
+  const CudaRadixCiphertext lwe_array_in_local(*lwe_array_in_ffi);
+  const CudaRadixCiphertext *lwe_array_in = &lwe_array_in_local;
+
+  PANIC_IF_FALSE(lwe_array_out_ffi != lwe_array_in_ffi,
                  "Output and input pointers must be different for out-of-place "
                  "operations");
 
@@ -214,10 +225,15 @@ uint64_t scratch_cuda_integer_is_at_least_one_comparisons_block_true_64_async(
 }
 
 void cuda_integer_is_at_least_one_comparisons_block_true_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_in, int8_t *mem_ptr,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_in_ffi, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks, uint32_t num_radix_blocks) {
-  PANIC_IF_FALSE(lwe_array_out != lwe_array_in,
+  CudaRadixCiphertext lwe_array_out_local(*lwe_array_out_ffi);
+  CudaRadixCiphertext *lwe_array_out = &lwe_array_out_local;
+  const CudaRadixCiphertext lwe_array_in_local(*lwe_array_in_ffi);
+  const CudaRadixCiphertext *lwe_array_in = &lwe_array_in_local;
+
+  PANIC_IF_FALSE(lwe_array_out_ffi != lwe_array_in_ffi,
                  "Output and input pointers must be different for out-of-place "
                  "operations");
 

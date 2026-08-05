@@ -6,8 +6,8 @@
 // Creates a view (slice) of specific bits in a register.
 // Used to access specific taps like a[65], k[127], etc.
 template <typename Torus>
-__host__ void slice_reg_batch_impl(CudaRadixCiphertextFFI *slice,
-                                   const CudaRadixCiphertextFFI *reg,
+__host__ void slice_reg_batch_impl(const CudaRadixCiphertext *slice,
+                                   const CudaRadixCiphertext *reg,
                                    uint32_t start_bit_idx, uint32_t num_bits,
                                    uint32_t num_inputs) {
   as_radix_ciphertext_slice<Torus>(slice, reg, start_bit_idx * num_inputs,

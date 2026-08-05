@@ -15,9 +15,11 @@ uint64_t scratch_cuda_integer_abs_inplace_64_async(
 }
 
 void cuda_integer_abs_inplace_64_async(CudaStreamsFFI streams,
-                                       CudaRadixCiphertextFFI *ct,
+                                       CudaRadixCiphertextFFI *ct_ffi,
                                        int8_t *mem_ptr, bool is_signed,
                                        void *const *bsks, void *const *ksks) {
+  CudaRadixCiphertext ct_local(*ct_ffi);
+  CudaRadixCiphertext *ct = &ct_local;
 
   auto mem = (int_abs_buffer<uint64_t> *)mem_ptr;
 

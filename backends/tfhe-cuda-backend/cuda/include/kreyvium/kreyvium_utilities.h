@@ -104,58 +104,58 @@ template <typename Torus> struct int_kreyvium_lut_buffers {
 // caller (the persistent state) and passed in to each call.
 //
 template <typename Torus> struct int_kreyvium_workspaces {
-  CudaRadixCiphertextFFI *shift_workspace;
-  CudaRadixCiphertextFFI *temp_a;
-  CudaRadixCiphertextFFI *temp_b;
-  CudaRadixCiphertextFFI *temp_c;
-  CudaRadixCiphertextFFI *packed_and_lhs;
-  CudaRadixCiphertextFFI *packed_and_rhs;
-  CudaRadixCiphertextFFI *packed_and_out;
-  CudaRadixCiphertextFFI *packed_flush_in;
-  CudaRadixCiphertextFFI *packed_flush_out;
+  CudaRadixCiphertext *shift_workspace;
+  CudaRadixCiphertext *temp_a;
+  CudaRadixCiphertext *temp_b;
+  CudaRadixCiphertext *temp_c;
+  CudaRadixCiphertext *packed_and_lhs;
+  CudaRadixCiphertext *packed_and_rhs;
+  CudaRadixCiphertext *packed_and_out;
+  CudaRadixCiphertext *packed_flush_in;
+  CudaRadixCiphertext *packed_flush_out;
 
   int_kreyvium_workspaces(CudaStreams streams, const int_radix_params &params,
                           bool allocate_gpu_memory, uint32_t num_inputs,
                           uint64_t &size_tracker) {
     uint32_t batch_blocks = KREYVIUM_BATCH_SIZE * num_inputs;
-    this->shift_workspace = new CudaRadixCiphertextFFI;
+    this->shift_workspace = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->shift_workspace,
         KREYVIUM_KEY_BITS * num_inputs, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
-    this->temp_a = new CudaRadixCiphertextFFI;
+    this->temp_a = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->temp_a, batch_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    this->temp_b = new CudaRadixCiphertextFFI;
+    this->temp_b = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->temp_b, batch_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    this->temp_c = new CudaRadixCiphertextFFI;
+    this->temp_c = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->temp_c, batch_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    this->packed_and_lhs = new CudaRadixCiphertextFFI;
+    this->packed_and_lhs = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_and_lhs,
         KREYVIUM_NUM_AND_GATES * batch_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
-    this->packed_and_rhs = new CudaRadixCiphertextFFI;
+    this->packed_and_rhs = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_and_rhs,
         KREYVIUM_NUM_AND_GATES * batch_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
-    this->packed_and_out = new CudaRadixCiphertextFFI;
+    this->packed_and_out = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_and_out,
         KREYVIUM_NUM_AND_GATES * batch_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
-    this->packed_flush_in = new CudaRadixCiphertextFFI;
+    this->packed_flush_in = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_flush_in,
         KREYVIUM_NUM_FLUSH_PATHS * batch_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
-    this->packed_flush_out = new CudaRadixCiphertextFFI;
+    this->packed_flush_out = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_flush_out,
         KREYVIUM_NUM_FLUSH_PATHS * batch_blocks, params.big_lwe_dimension,

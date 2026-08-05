@@ -24,7 +24,7 @@ __host__ uint64_t scratch_cuda_logical_scalar_shift(
 
 template <typename Torus, typename KSTorus>
 __host__ void host_logical_scalar_shift_inplace(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
+    CudaStreams streams, CudaRadixCiphertext *lwe_array, uint32_t shift,
     int_logical_scalar_shift_buffer<Torus> *mem, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_blocks) {
 
@@ -51,8 +51,8 @@ __host__ void host_logical_scalar_shift_inplace(
   size_t rotations = std::min(shift / num_bits_in_block, (size_t)num_blocks);
   size_t shift_within_block = shift % num_bits_in_block;
 
-  CudaRadixCiphertextFFI *full_rotated_buffer = mem->tmp_rotated;
-  CudaRadixCiphertextFFI rotated_buffer;
+  CudaRadixCiphertext *full_rotated_buffer = mem->tmp_rotated;
+  CudaRadixCiphertext rotated_buffer;
   as_radix_ciphertext_slice<Torus>(&rotated_buffer, full_rotated_buffer, 1,
                                    full_rotated_buffer->num_radix_blocks);
 
@@ -73,10 +73,10 @@ __host__ void host_logical_scalar_shift_inplace(
     }
 
     auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
-    CudaRadixCiphertextFFI partial_current_blocks;
+    CudaRadixCiphertext partial_current_blocks;
     as_radix_ciphertext_slice<Torus>(&partial_current_blocks, lwe_array,
                                      rotations, lwe_array->num_radix_blocks);
-    CudaRadixCiphertextFFI partial_previous_blocks;
+    CudaRadixCiphertext partial_previous_blocks;
     as_radix_ciphertext_slice<Torus>(&partial_previous_blocks,
                                      full_rotated_buffer, rotations,
                                      full_rotated_buffer->num_radix_blocks);
@@ -107,7 +107,7 @@ __host__ void host_logical_scalar_shift_inplace(
     }
 
     auto partial_current_blocks = lwe_array;
-    CudaRadixCiphertextFFI partial_next_blocks;
+    CudaRadixCiphertext partial_next_blocks;
     as_radix_ciphertext_slice<Torus>(&partial_next_blocks, &rotated_buffer, 1,
                                      rotated_buffer.num_radix_blocks);
     auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
@@ -146,14 +146,14 @@ __host__ uint64_t scratch_cuda_arithmetic_scalar_shift(
  */
 template <typename Torus, typename KSTorus>
 __host__ void host_arithmetic_scalar_shift_overshift(
-    CudaStreams streams, CudaRadixCiphertextFFI *shifted_ct,
+    CudaStreams streams, CudaRadixCiphertext *shifted_ct,
     int_arithmetic_scalar_shift_buffer<Torus> *mem, void *const *bsks,
     KSTorus *const *ksks, size_t num_bits_in_block) {
   auto num_blocks = shifted_ct->num_radix_blocks;
-  CudaRadixCiphertextFFI sign_block;
+  CudaRadixCiphertext sign_block;
   as_radix_ciphertext_slice<Torus>(&sign_block, mem->tmp_rotated,
                                    num_blocks + 1, num_blocks + 2);
-  CudaRadixCiphertextFFI last_block;
+  CudaRadixCiphertext last_block;
   as_radix_ciphertext_slice<Torus>(&last_block, shifted_ct, num_blocks - 1,
                                    num_blocks);
 
@@ -179,7 +179,7 @@ __host__ void host_arithmetic_scalar_shift_overshift(
 
 template <typename Torus, typename KSTorus>
 __host__ void host_arithmetic_scalar_shift_inplace(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
+    CudaStreams streams, CudaRadixCiphertext *lwe_array, uint32_t shift,
     int_arithmetic_scalar_shift_buffer<Torus> *mem, void *const *bsks,
     KSTorus *const *ksks) {
 
@@ -208,10 +208,10 @@ __host__ void host_arithmetic_scalar_shift_inplace(
   size_t rotations = std::min(shift / num_bits_in_block, (size_t)num_blocks);
   size_t shift_within_block = shift % num_bits_in_block;
 
-  CudaRadixCiphertextFFI padding_block;
+  CudaRadixCiphertext padding_block;
   as_radix_ciphertext_slice<Torus>(&padding_block, mem->tmp_rotated,
                                    num_blocks + 1, num_blocks + 2);
-  CudaRadixCiphertextFFI last_block_copy;
+  CudaRadixCiphertext last_block_copy;
   as_radix_ciphertext_slice<Torus>(&last_block_copy, mem->tmp_rotated,
                                    num_blocks + 2, num_blocks + 3);
 
@@ -244,7 +244,7 @@ __host__ void host_arithmetic_scalar_shift_inplace(
       // bit. This creates the need for a different shifting lut than in the
       // logical shift case. We also need another PBS to create the padding
       // block.
-      CudaRadixCiphertextFFI last_block;
+      CudaRadixCiphertext last_block;
       as_radix_ciphertext_slice<Torus>(&last_block, lwe_array,
                                        num_blocks - rotations - 1,
                                        num_blocks - rotations);
@@ -253,7 +253,7 @@ __host__ void host_arithmetic_scalar_shift_inplace(
           mem->tmp_rotated, num_blocks - rotations - 1, num_blocks - rotations);
       if (shift_within_block != 0) {
         auto partial_current_blocks = lwe_array;
-        CudaRadixCiphertextFFI partial_next_blocks;
+        CudaRadixCiphertext partial_next_blocks;
         as_radix_ciphertext_slice<Torus>(&partial_next_blocks, mem->tmp_rotated,
                                          1, mem->tmp_rotated->num_radix_blocks);
         size_t partial_block_count = num_blocks - rotations;

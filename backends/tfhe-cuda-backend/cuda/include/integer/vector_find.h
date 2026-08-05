@@ -32,11 +32,11 @@ template <typename Torus> struct int_eq_selectors_ct_vs_clears_buffer {
   /// Many-LUT turning each input block into its equality profile.
   int_radix_lut<Torus> *comparison_luts;
   /// Raw equality profiles straight from the many-LUT, before gathering.
-  CudaRadixCiphertextFFI tmp_many_luts_output;
+  CudaRadixCiphertext tmp_many_luts_output;
   /// Equality cells regrouped one column per candidate, ready to AND.
-  CudaRadixCiphertextFFI tmp_batched_comparisons;
+  CudaRadixCiphertext tmp_batched_comparisons;
   /// Collects the surviving boolean per candidate after the AND.
-  CudaRadixCiphertextFFI packed_accumulator;
+  CudaRadixCiphertext packed_accumulator;
 
   /// Gather map on device, fed straight to the align kernel.
   Torus *d_map;
@@ -168,11 +168,11 @@ template <typename Torus> struct int_eq_selectors_cts_vs_ct_buffer {
   int_radix_lut<Torus> *equality_lut;
 
   /// Collects the surviving boolean per input after the AND.
-  CudaRadixCiphertextFFI packed_accumulator;
+  CudaRadixCiphertext packed_accumulator;
   /// Holds the list blocks of the current chunk, first PBS operand.
-  CudaRadixCiphertextFFI packed_current_block;
+  CudaRadixCiphertext packed_current_block;
   /// Holds the target blocks duplicated per input, second PBS operand.
-  CudaRadixCiphertextFFI packed_value_block;
+  CudaRadixCiphertext packed_value_block;
 
   /// Per-degree LUTs that AND a packed sum of block-matches.
   std::vector<int_radix_lut<Torus> *> luts_eq;
@@ -296,9 +296,9 @@ template <typename Torus> struct int_possible_results_buffer {
   int_radix_lut<Torus> *batched_accumulators_lut;
 
   /// The selector mask broadcast once per accumulator pass, PBS input.
-  CudaRadixCiphertextFFI tmp_batched_selectors;
+  CudaRadixCiphertext tmp_batched_selectors;
   /// Materialized values fresh out of the many-LUT, awaiting the scatter.
-  CudaRadixCiphertextFFI tmp_many_luts_output;
+  CudaRadixCiphertext tmp_many_luts_output;
 
   /// Device pointers telling the scatter where each value must land.
   Torus *d_dst_ptrs;
@@ -447,14 +447,14 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
   int_radix_lut<Torus> *carry_extract_lut;
 
   /// Holds one tree level's partial sums, source of the next level.
-  CudaRadixCiphertextFFI packed_partial_temp_vectors;
+  CudaRadixCiphertext packed_partial_temp_vectors;
   /// Holds the next tree level's sums, swapped with the source each round.
-  CudaRadixCiphertextFFI tree_reduction_buf;
+  CudaRadixCiphertext tree_reduction_buf;
 
   /// Low digits after unpacking, interleaved into the final result.
-  CudaRadixCiphertextFFI message_ct;
+  CudaRadixCiphertext message_ct;
   /// High digits after unpacking, interleaved into the final result.
-  CudaRadixCiphertextFFI carry_ct;
+  CudaRadixCiphertext carry_ct;
 
   /// Host list of pointers to each candidate, gathered before the copy.
   Torus **h_input_ptrs;
@@ -594,9 +594,9 @@ template <typename Torus> struct int_unchecked_match_buffer {
   int_comparison_buffer<Torus> *at_least_one_true_buffer;
 
   /// The one-hot mask, one boolean per case packed together.
-  CudaRadixCiphertextFFI packed_selectors_ct;
+  CudaRadixCiphertext packed_selectors_ct;
   /// Each case's output value, masked, awaiting the aggregation sum.
-  std::vector<CudaRadixCiphertextFFI> possible_results_list;
+  std::vector<CudaRadixCiphertext> possible_results_list;
 
   int_unchecked_match_buffer(CudaStreams streams, int_radix_params params,
                              uint32_t num_matches, uint32_t num_input_blocks,
@@ -699,11 +699,11 @@ template <typename Torus> struct int_unchecked_match_value_or_buffer {
   int_cmux_buffer<Torus> *cmux_buffer;
 
   /// The looked-up value, one CMUX input.
-  CudaRadixCiphertextFFI tmp_match_result;
+  CudaRadixCiphertext tmp_match_result;
   /// The match flag steering the CMUX.
-  CudaRadixCiphertextFFI tmp_match_bool;
+  CudaRadixCiphertext tmp_match_bool;
   /// The clear fallback re-encrypted trivially, the other CMUX input.
-  CudaRadixCiphertextFFI tmp_or_value;
+  CudaRadixCiphertext tmp_or_value;
 
   /// Device copy of the fallback digits before trivial encryption.
   Torus *d_or_value;
@@ -787,9 +787,9 @@ template <typename Torus> struct int_unchecked_contains_buffer {
   int_comparison_buffer<Torus> *reduction_buffer;
 
   /// The one-hot mask, one boolean per list element packed together.
-  CudaRadixCiphertextFFI packed_selectors;
+  CudaRadixCiphertext packed_selectors;
   /// Per-element single-block views into the packed mask.
-  std::vector<CudaRadixCiphertextFFI> unpacked_selectors;
+  std::vector<CudaRadixCiphertext> unpacked_selectors;
 
   int_unchecked_contains_buffer(CudaStreams streams, int_radix_params params,
                                 uint32_t num_inputs, uint32_t num_blocks,
@@ -850,11 +850,11 @@ template <typename Torus> struct int_unchecked_contains_clear_buffer {
   int_comparison_buffer<Torus> *reduction_buffer;
 
   /// The one-hot mask, one boolean per list element packed together.
-  CudaRadixCiphertextFFI packed_selectors;
+  CudaRadixCiphertext packed_selectors;
   /// Per-element single-block views into the packed mask.
-  std::vector<CudaRadixCiphertextFFI> unpacked_selectors;
+  std::vector<CudaRadixCiphertext> unpacked_selectors;
   /// The clear needle re-encrypted trivially so it can feed the PBS.
-  CudaRadixCiphertextFFI tmp_clear_val;
+  CudaRadixCiphertext tmp_clear_val;
   /// Device copy of the clear needle digits before trivial encryption.
   Torus *d_clear_val;
 
@@ -932,7 +932,7 @@ template <typename Torus> struct int_unchecked_is_in_clears_buffer {
   int_comparison_buffer<Torus> *reduction_buffer;
 
   /// The one-hot mask, one boolean per clear value packed together.
-  CudaRadixCiphertextFFI packed_selectors;
+  CudaRadixCiphertext packed_selectors;
 
   int_unchecked_is_in_clears_buffer(CudaStreams streams,
                                     int_radix_params params,
@@ -990,11 +990,11 @@ template <typename Torus> struct int_final_index_from_selectors_buffer {
   int_comparison_buffer<Torus> *reduction_buf;
 
   /// The one-hot mask, one boolean per slot packed together.
-  CudaRadixCiphertextFFI packed_selectors;
+  CudaRadixCiphertext packed_selectors;
   /// Per-slot single-block views into the packed mask.
-  std::vector<CudaRadixCiphertextFFI> unpacked_selectors;
+  std::vector<CudaRadixCiphertext> unpacked_selectors;
   /// One materialized index per slot, masked, before the aggregation.
-  std::vector<CudaRadixCiphertextFFI> possible_results_ct_list;
+  std::vector<CudaRadixCiphertext> possible_results_ct_list;
 
   /// Clear index per slot, multiplied in so a match becomes a position.
   uint64_t *h_indices;
@@ -1146,9 +1146,9 @@ template <typename Torus> struct int_unchecked_first_index_in_clears_buffer {
   int_comparison_buffer<Torus> *reduction_buf;
 
   /// The one-hot mask, one boolean per clear value packed together.
-  CudaRadixCiphertextFFI packed_selectors;
+  CudaRadixCiphertext packed_selectors;
   /// One materialized index per value, masked, before the aggregation.
-  std::vector<CudaRadixCiphertextFFI> possible_results_ct_list;
+  std::vector<CudaRadixCiphertext> possible_results_ct_list;
 
   int_unchecked_first_index_in_clears_buffer(
       CudaStreams streams, int_radix_params params, uint32_t num_unique,
@@ -1236,13 +1236,13 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
   int_comparison_buffer<Torus> *reduction_buf;
 
   /// The one-hot mask, later trimmed to keep only the first match.
-  CudaRadixCiphertextFFI packed_selectors;
+  CudaRadixCiphertext packed_selectors;
   /// Per-element single-block views into the packed mask.
-  std::vector<CudaRadixCiphertextFFI> unpacked_selectors;
+  std::vector<CudaRadixCiphertext> unpacked_selectors;
   /// One materialized index per element, masked, before the aggregation.
-  std::vector<CudaRadixCiphertextFFI> possible_results_ct_list;
+  std::vector<CudaRadixCiphertext> possible_results_ct_list;
   /// The clear needle re-encrypted trivially so it can feed the PBS.
-  CudaRadixCiphertextFFI tmp_clear_val;
+  CudaRadixCiphertext tmp_clear_val;
   /// Device copy of the clear needle digits before trivial encryption.
   Torus *d_clear_val;
   /// Clear index per element, multiplied in so a match becomes a position.
@@ -1411,11 +1411,11 @@ template <typename Torus> struct int_unchecked_first_index_of_buffer {
   int_comparison_buffer<Torus> *reduction_buf;
 
   /// The one-hot mask, later trimmed to keep only the first match.
-  CudaRadixCiphertextFFI packed_selectors;
+  CudaRadixCiphertext packed_selectors;
   /// Per-element single-block views into the packed mask.
-  std::vector<CudaRadixCiphertextFFI> unpacked_selectors;
+  std::vector<CudaRadixCiphertext> unpacked_selectors;
   /// One materialized index per element, masked, before the aggregation.
-  std::vector<CudaRadixCiphertextFFI> possible_results_ct_list;
+  std::vector<CudaRadixCiphertext> possible_results_ct_list;
   /// Clear index per element, multiplied in so a match becomes a position.
   uint64_t *h_indices;
 
@@ -1611,7 +1611,7 @@ template <typename Torus> struct int_unchecked_index_of_clear_buffer {
   int_final_index_from_selectors_buffer<Torus> *final_index_buf;
 
   /// The clear needle re-encrypted trivially so it can feed the PBS.
-  CudaRadixCiphertextFFI tmp_clear_val;
+  CudaRadixCiphertext tmp_clear_val;
   /// Device copy of the clear needle digits before trivial encryption.
   Torus *d_clear_val;
 

@@ -19,12 +19,13 @@ uint64_t scratch_cuda_unchecked_all_eq_slices(
 }
 
 template <typename Torus>
-__host__ void host_unchecked_all_eq_slices(
-    CudaStreams streams, CudaRadixCiphertextFFI *match_ct,
-    CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
-    uint32_t num_inputs, uint32_t num_blocks,
-    int_unchecked_all_eq_slices_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks) {
+__host__ void
+host_unchecked_all_eq_slices(CudaStreams streams, CudaRadixCiphertext *match_ct,
+                             CudaRadixCiphertext const *lhs,
+                             CudaRadixCiphertext const *rhs,
+                             uint32_t num_inputs, uint32_t num_blocks,
+                             int_unchecked_all_eq_slices_buffer<Torus> *mem_ptr,
+                             void *const *bsks, Torus *const *ksks) {
 
   // sync_from(streams)
   //
@@ -45,10 +46,10 @@ __host__ void host_unchecked_all_eq_slices(
     uint32_t stream_idx = i % num_streams;
     CudaStreams current_stream = mem_ptr->sub_streams[stream_idx];
 
-    CudaRadixCiphertextFFI const *input_lhs = &lhs[i];
-    CudaRadixCiphertextFFI const *input_rhs = &rhs[i];
+    CudaRadixCiphertext const *input_lhs = &lhs[i];
+    CudaRadixCiphertext const *input_rhs = &rhs[i];
 
-    CudaRadixCiphertextFFI current_result_dest;
+    CudaRadixCiphertext current_result_dest;
     as_radix_ciphertext_slice<Torus>(&current_result_dest,
                                      mem_ptr->packed_results, i, i + 1);
 
@@ -99,8 +100,8 @@ uint64_t scratch_cuda_unchecked_contains_sub_slice(
 
 template <typename Torus>
 __host__ void host_unchecked_contains_sub_slice(
-    CudaStreams streams, CudaRadixCiphertextFFI *match_ct,
-    CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
+    CudaStreams streams, CudaRadixCiphertext *match_ct,
+    CudaRadixCiphertext const *lhs, CudaRadixCiphertext const *rhs,
     uint32_t num_rhs, uint32_t num_blocks,
     int_unchecked_contains_sub_slice_buffer<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks) {
@@ -108,9 +109,9 @@ __host__ void host_unchecked_contains_sub_slice(
   uint32_t num_windows = mem_ptr->num_windows;
 
   for (uint32_t w = 0; w < num_windows; w++) {
-    CudaRadixCiphertextFFI const *lhs_window = &lhs[w];
+    CudaRadixCiphertext const *lhs_window = &lhs[w];
 
-    CudaRadixCiphertextFFI current_result_dest;
+    CudaRadixCiphertext current_result_dest;
     as_radix_ciphertext_slice<Torus>(&current_result_dest,
                                      mem_ptr->packed_results, w, w + 1);
 

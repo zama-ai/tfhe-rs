@@ -83,9 +83,9 @@ template <typename Torus> struct int_aes_lut_buffers {
  * avoiding overwriting data that is still needed in the same round.
  */
 template <typename Torus> struct int_aes_round_workspaces {
-  CudaRadixCiphertextFFI *mix_columns_col_copy_buffer;
-  CudaRadixCiphertextFFI *mix_columns_mul_workspace_buffer;
-  CudaRadixCiphertextFFI *vec_tmp_bit_buffer;
+  CudaRadixCiphertext *mix_columns_col_copy_buffer;
+  CudaRadixCiphertext *mix_columns_mul_workspace_buffer;
+  CudaRadixCiphertext *vec_tmp_bit_buffer;
 
   int_aes_round_workspaces(CudaStreams streams, const int_radix_params &params,
                            bool allocate_gpu_memory, uint32_t num_aes_inputs,
@@ -96,20 +96,20 @@ template <typename Torus> struct int_aes_round_workspaces {
     constexpr uint32_t BITS_PER_COLUMN = BITS_PER_BYTE * BYTES_PER_COLUMN;
     constexpr uint32_t MIX_COLUMNS_MUL_WORKSPACE_BYTES = BYTES_PER_COLUMN + 1;
 
-    this->mix_columns_col_copy_buffer = new CudaRadixCiphertextFFI;
+    this->mix_columns_col_copy_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0),
         this->mix_columns_col_copy_buffer, BITS_PER_COLUMN * num_aes_inputs,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->mix_columns_mul_workspace_buffer = new CudaRadixCiphertextFFI;
+    this->mix_columns_mul_workspace_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0),
         this->mix_columns_mul_workspace_buffer,
         MIX_COLUMNS_MUL_WORKSPACE_BYTES * BITS_PER_BYTE * num_aes_inputs,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->vec_tmp_bit_buffer = new CudaRadixCiphertextFFI;
+    this->vec_tmp_bit_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->vec_tmp_bit_buffer,
         num_aes_inputs, params.big_lwe_dimension, size_tracker,
@@ -145,9 +145,9 @@ template <typename Torus> struct int_aes_round_workspaces {
  * (`vec_tmp_carry_buffer`) across the addition chain.
  */
 template <typename Torus> struct int_aes_counter_workspaces {
-  CudaRadixCiphertextFFI *vec_tmp_carry_buffer;
-  CudaRadixCiphertextFFI *vec_tmp_sum_buffer;
-  CudaRadixCiphertextFFI *vec_trivial_b_bits_buffer;
+  CudaRadixCiphertext *vec_tmp_carry_buffer;
+  CudaRadixCiphertext *vec_tmp_sum_buffer;
+  CudaRadixCiphertext *vec_trivial_b_bits_buffer;
   Torus *h_counter_bits_buffer;
   Torus *d_counter_bits_buffer;
 
@@ -156,19 +156,19 @@ template <typename Torus> struct int_aes_counter_workspaces {
                              bool allocate_gpu_memory, uint32_t num_aes_inputs,
                              uint64_t &size_tracker) {
 
-    this->vec_tmp_carry_buffer = new CudaRadixCiphertextFFI;
+    this->vec_tmp_carry_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->vec_tmp_carry_buffer,
         num_aes_inputs, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    this->vec_tmp_sum_buffer = new CudaRadixCiphertextFFI;
+    this->vec_tmp_sum_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->vec_tmp_sum_buffer,
         num_aes_inputs, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    this->vec_trivial_b_bits_buffer = new CudaRadixCiphertextFFI;
+    this->vec_trivial_b_bits_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0),
         this->vec_trivial_b_bits_buffer, num_aes_inputs,
@@ -221,11 +221,11 @@ template <typename Torus> struct int_aes_counter_workspaces {
  * for batching small operations into larger, more efficient launches.
  */
 template <typename Torus> struct int_aes_main_workspaces {
-  CudaRadixCiphertextFFI *sbox_internal_workspace;
-  CudaRadixCiphertextFFI *initial_states_and_jit_key_workspace;
-  CudaRadixCiphertextFFI *main_bitsliced_states_buffer;
-  CudaRadixCiphertextFFI *tmp_tiled_key_buffer;
-  CudaRadixCiphertextFFI *batch_processing_buffer;
+  CudaRadixCiphertext *sbox_internal_workspace;
+  CudaRadixCiphertext *initial_states_and_jit_key_workspace;
+  CudaRadixCiphertext *main_bitsliced_states_buffer;
+  CudaRadixCiphertext *tmp_tiled_key_buffer;
+  CudaRadixCiphertext *batch_processing_buffer;
 
   int_aes_main_workspaces(CudaStreams streams, const int_radix_params &params,
                           bool allocate_gpu_memory, uint32_t num_aes_inputs,
@@ -235,32 +235,32 @@ template <typename Torus> struct int_aes_main_workspaces {
     constexpr uint32_t SBOX_MAX_AND_GATES = 18;
     constexpr uint32_t BATCH_BUFFER_OPERANDS = 3;
 
-    this->sbox_internal_workspace = new CudaRadixCiphertextFFI;
+    this->sbox_internal_workspace = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->sbox_internal_workspace,
         num_aes_inputs * AES_STATE_BITS * sbox_parallelism,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->initial_states_and_jit_key_workspace = new CudaRadixCiphertextFFI;
+    this->initial_states_and_jit_key_workspace = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0),
         this->initial_states_and_jit_key_workspace,
         num_aes_inputs * AES_STATE_BITS, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    this->main_bitsliced_states_buffer = new CudaRadixCiphertextFFI;
+    this->main_bitsliced_states_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0),
         this->main_bitsliced_states_buffer, num_aes_inputs * AES_STATE_BITS,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->tmp_tiled_key_buffer = new CudaRadixCiphertextFFI;
+    this->tmp_tiled_key_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->tmp_tiled_key_buffer,
         num_aes_inputs * AES_STATE_BITS, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    this->batch_processing_buffer = new CudaRadixCiphertextFFI;
+    this->batch_processing_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->batch_processing_buffer,
         num_aes_inputs * SBOX_MAX_AND_GATES * BATCH_BUFFER_OPERANDS *
@@ -378,10 +378,10 @@ template <typename Torus> struct int_key_expansion_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
 
-  CudaRadixCiphertextFFI *words_buffer;
+  CudaRadixCiphertext *words_buffer;
 
-  CudaRadixCiphertextFFI *tmp_word_buffer;
-  CudaRadixCiphertextFFI *tmp_rotated_word_buffer;
+  CudaRadixCiphertext *tmp_word_buffer;
+  CudaRadixCiphertext *tmp_rotated_word_buffer;
 
   int_aes_encrypt_buffer<Torus> *aes_encrypt_buffer;
 
@@ -394,18 +394,18 @@ template <typename Torus> struct int_key_expansion_buffer {
     constexpr uint32_t BITS_PER_WORD = 32;
     constexpr uint32_t TOTAL_BITS = TOTAL_WORDS * BITS_PER_WORD;
 
-    this->words_buffer = new CudaRadixCiphertextFFI;
+    this->words_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->words_buffer, TOTAL_BITS,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->tmp_word_buffer = new CudaRadixCiphertextFFI;
+    this->tmp_word_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->tmp_word_buffer,
         BITS_PER_WORD, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    this->tmp_rotated_word_buffer = new CudaRadixCiphertextFFI;
+    this->tmp_rotated_word_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->tmp_rotated_word_buffer,
         BITS_PER_WORD, params.big_lwe_dimension, size_tracker,
@@ -439,10 +439,10 @@ template <typename Torus> struct int_key_expansion_256_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
 
-  CudaRadixCiphertextFFI *words_buffer;
+  CudaRadixCiphertext *words_buffer;
 
-  CudaRadixCiphertextFFI *tmp_word_buffer;
-  CudaRadixCiphertextFFI *tmp_rotated_word_buffer;
+  CudaRadixCiphertext *tmp_word_buffer;
+  CudaRadixCiphertext *tmp_rotated_word_buffer;
 
   int_aes_encrypt_buffer<Torus> *aes_encrypt_buffer;
 
@@ -457,18 +457,18 @@ template <typename Torus> struct int_key_expansion_256_buffer {
     constexpr uint32_t BITS_PER_WORD = 32;
     constexpr uint32_t TOTAL_BITS = TOTAL_WORDS * BITS_PER_WORD;
 
-    this->words_buffer = new CudaRadixCiphertextFFI;
+    this->words_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->words_buffer, TOTAL_BITS,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->tmp_word_buffer = new CudaRadixCiphertextFFI;
+    this->tmp_word_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->tmp_word_buffer,
         BITS_PER_WORD, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    this->tmp_rotated_word_buffer = new CudaRadixCiphertextFFI;
+    this->tmp_rotated_word_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->tmp_rotated_word_buffer,
         BITS_PER_WORD, params.big_lwe_dimension, size_tracker,

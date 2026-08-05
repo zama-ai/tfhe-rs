@@ -25,24 +25,24 @@ template <typename Torus> struct int_batched_compare_buffer {
   /// @brief Contiguous buffer of all K lhs keys (keys[i], the lower-index
   /// element
   ///        of each pair): K * key_num_blocks blocks.
-  CudaRadixCiphertextFFI *lhs_data;
+  CudaRadixCiphertext *lhs_data;
   /// @brief Contiguous buffer of all K rhs keys (keys[i ^
   /// bitonic_subsequence_stride],
   ///        the higher-index element of each pair): K * key_num_blocks blocks.
-  CudaRadixCiphertextFFI *rhs_data;
+  CudaRadixCiphertext *rhs_data;
 
   /// @brief Temporary buffer for pair-packed lhs and rhs blocks: 2 * K *
   /// packed_per_pair blocks.
-  CudaRadixCiphertextFFI *tmp_packed;
+  CudaRadixCiphertext *tmp_packed;
   /// @brief Per-block comparison verdicts after is_non_zero PBS: K *
   /// packed_per_pair blocks.
-  CudaRadixCiphertextFFI *comparisons;
+  CudaRadixCiphertext *comparisons;
   /// @brief Tree reduction working buffer, current level.
-  CudaRadixCiphertextFFI *tree_x;
+  CudaRadixCiphertext *tree_x;
   /// @brief Tree reduction working buffer, next level.
-  CudaRadixCiphertextFFI *tree_y;
+  CudaRadixCiphertext *tree_y;
   /// @brief Final EQ or IS_SUPERIOR verdict per pair: K blocks.
-  CudaRadixCiphertextFFI *comparison_results;
+  CudaRadixCiphertext *comparison_results;
 
   /// @brief Identity LUT used to refresh noise on packed blocks before
   /// subtraction.
@@ -74,33 +74,33 @@ template <typename Torus> struct int_batched_compare_buffer {
     uint32_t K = max_num_pairs;
     uint32_t tree_first_blocks = K * ((M + 1u) / 2u);
 
-    lhs_data = new CudaRadixCiphertextFFI;
+    lhs_data = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), lhs_data, K * key_num_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    rhs_data = new CudaRadixCiphertextFFI;
+    rhs_data = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), rhs_data, K * key_num_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    tmp_packed = new CudaRadixCiphertextFFI;
+    tmp_packed = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_packed, 2 * K * M,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    comparisons = new CudaRadixCiphertextFFI;
+    comparisons = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), comparisons, K * M,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    tree_x = new CudaRadixCiphertextFFI;
+    tree_x = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tree_x, K * M,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    tree_y = new CudaRadixCiphertextFFI;
+    tree_y = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tree_y, K * M,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    comparison_results = new CudaRadixCiphertextFFI;
+    comparison_results = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), comparison_results, K,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
@@ -200,13 +200,13 @@ template <typename Torus> struct int_fused_cmux_buffer {
   /// @brief Input buffer holding both branches in layout
   ///        [ keys_is_superior | data_is_superior | keys_is_equal |
   ///        data_is_equal ].
-  CudaRadixCiphertextFFI *batch_buffer_in;
+  CudaRadixCiphertext *batch_buffer_in;
   /// @brief Output buffer after the bivariate predicate PBS; same layout as
   /// batch_buffer_in.
-  CudaRadixCiphertextFFI *batch_buffer_out;
+  CudaRadixCiphertext *batch_buffer_out;
   /// @brief Comparison result (EQ or IS_SUPERIOR) broadcast across all blocks
   /// of each pair.
-  CudaRadixCiphertextFFI *batch_condition;
+  CudaRadixCiphertext *batch_condition;
 
   /// @brief Bivariate LUT that zeros the losing branch per block: passes b if
   ///        cond == IS_SUPERIOR (is_superior half) or cond != IS_SUPERIOR
@@ -231,19 +231,19 @@ template <typename Torus> struct int_fused_cmux_buffer {
     uint32_t per_branch_blocks = 2 * K * (key_num_blocks + data_num_blocks);
     uint32_t total_bivariate = 2 * per_branch_blocks;
 
-    batch_buffer_in = new CudaRadixCiphertextFFI;
+    batch_buffer_in = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), batch_buffer_in,
         total_bivariate, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    batch_buffer_out = new CudaRadixCiphertextFFI;
+    batch_buffer_out = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), batch_buffer_out,
         total_bivariate, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    batch_condition = new CudaRadixCiphertextFFI;
+    batch_condition = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), batch_condition,
         total_bivariate, params.big_lwe_dimension, size_tracker,
@@ -321,20 +321,20 @@ template <typename Torus> struct int_bitonic_shuffle_buffer {
 
   /// @brief Flat storage for all padded keys: padded_num_values *
   /// key_num_blocks_padded blocks.
-  CudaRadixCiphertextFFI *padded_keys_storage;
+  CudaRadixCiphertext *padded_keys_storage;
   /// @brief Per-element views into padded_keys_storage.
-  CudaRadixCiphertextFFI *padded_keys_views;
+  CudaRadixCiphertext *padded_keys_views;
   /// @brief Pointer array into padded_keys_views passed to the sort.
-  CudaRadixCiphertextFFI **padded_keys_ptrs;
+  CudaRadixCiphertext **padded_keys_ptrs;
 
   /// @brief Flat storage for sentinel (zero) data elements filling the padding
   /// slots.
-  CudaRadixCiphertextFFI *sentinel_data_storage;
+  CudaRadixCiphertext *sentinel_data_storage;
   /// @brief Per-element views into sentinel_data_storage.
-  CudaRadixCiphertextFFI *sentinel_data_views;
+  CudaRadixCiphertext *sentinel_data_views;
   /// @brief Unified data pointer array combining real data and sentinel
   /// pointers.
-  CudaRadixCiphertextFFI **padded_data_ptrs;
+  CudaRadixCiphertext **padded_data_ptrs;
 
   /// @brief Host-side maximum key scalar used to initialise sentinel keys.
   Torus *h_max_scalar;
@@ -388,14 +388,14 @@ template <typename Torus> struct int_bitonic_shuffle_buffer {
       return;
     }
 
-    padded_keys_storage = new CudaRadixCiphertextFFI;
+    padded_keys_storage = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), padded_keys_storage,
         padded_num_values * key_num_blocks_padded, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    padded_keys_views = new CudaRadixCiphertextFFI[padded_num_values];
-    padded_keys_ptrs = new CudaRadixCiphertextFFI *[padded_num_values];
+    padded_keys_views = new CudaRadixCiphertext[padded_num_values];
+    padded_keys_ptrs = new CudaRadixCiphertext *[padded_num_values];
     for (uint32_t i = 0; i < padded_num_values; i++) {
       as_radix_ciphertext_slice<Torus>(
           &padded_keys_views[i], padded_keys_storage, i * key_num_blocks_padded,
@@ -405,13 +405,13 @@ template <typename Torus> struct int_bitonic_shuffle_buffer {
 
     uint32_t num_sentinels = padded_num_values - real_num_values;
     if (num_sentinels > 0) {
-      sentinel_data_storage = new CudaRadixCiphertextFFI;
+      sentinel_data_storage = new CudaRadixCiphertext;
       create_zero_radix_ciphertext_async<Torus>(
           streams.stream(0), streams.gpu_index(0), sentinel_data_storage,
           num_sentinels * data_num_blocks, params.big_lwe_dimension,
           size_tracker, allocate_gpu_memory);
 
-      sentinel_data_views = new CudaRadixCiphertextFFI[num_sentinels];
+      sentinel_data_views = new CudaRadixCiphertext[num_sentinels];
       for (uint32_t i = 0; i < num_sentinels; i++) {
         as_radix_ciphertext_slice<Torus>(
             &sentinel_data_views[i], sentinel_data_storage, i * data_num_blocks,
@@ -422,7 +422,7 @@ template <typename Torus> struct int_bitonic_shuffle_buffer {
       sentinel_data_views = nullptr;
     }
 
-    padded_data_ptrs = new CudaRadixCiphertextFFI *[padded_num_values];
+    padded_data_ptrs = new CudaRadixCiphertext *[padded_num_values];
     for (uint32_t i = 0; i < num_sentinels; i++) {
       padded_data_ptrs[real_num_values + i] = &sentinel_data_views[i];
     }
@@ -495,12 +495,12 @@ template <typename Torus> struct int_oprf_bitonic_shuffle_buffer {
 
   /// @brief Flat storage for all num_values OPRF-generated keys: num_values *
   /// key_num_blocks blocks.
-  CudaRadixCiphertextFFI *keys_storage;
+  CudaRadixCiphertext *keys_storage;
   /// @brief Per-element views into keys_storage.
-  CudaRadixCiphertextFFI *keys_views;
+  CudaRadixCiphertext *keys_views;
   /// @brief Pointer array into keys_views passed to host_bitonic_shuffle as the
   /// key array.
-  CudaRadixCiphertextFFI **keys_ptrs;
+  CudaRadixCiphertext **keys_ptrs;
 
   bool gpu_memory_allocated;
 
@@ -531,14 +531,14 @@ template <typename Torus> struct int_oprf_bitonic_shuffle_buffer {
         streams, params, key_num_blocks, data_num_blocks, num_values,
         allocate_gpu_memory, size_tracker);
 
-    this->keys_storage = new CudaRadixCiphertextFFI;
+    this->keys_storage = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->keys_storage,
         num_values * key_num_blocks, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    this->keys_views = new CudaRadixCiphertextFFI[num_values];
-    this->keys_ptrs = new CudaRadixCiphertextFFI *[num_values];
+    this->keys_views = new CudaRadixCiphertext[num_values];
+    this->keys_ptrs = new CudaRadixCiphertext *[num_values];
     for (uint32_t i = 0; i < num_values; i++) {
       as_radix_ciphertext_slice<Torus>(&this->keys_views[i], this->keys_storage,
                                        i * key_num_blocks,

@@ -8,7 +8,7 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
   int_radix_params params;
   bool allocate_gpu_memory;
 
-  CudaRadixCiphertextFFI *tmp_ffi = nullptr;
+  CudaRadixCiphertext *tmp_ffi = nullptr;
 
   int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem = nullptr;
   int_scalar_mul_high_buffer<Torus> *scalar_mul_high_mem = nullptr;
@@ -34,7 +34,7 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
 
       } else if (scalar_divisor_ffi->divisor_has_more_bits_than_numerator) {
 
-        tmp_ffi = new CudaRadixCiphertextFFI;
+        tmp_ffi = new CudaRadixCiphertext;
         create_zero_radix_ciphertext_async<Torus>(
             streams.stream(0), streams.gpu_index(0), tmp_ffi, num_radix_blocks,
             params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
@@ -54,7 +54,7 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
         sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
             streams, params, num_radix_blocks, FLAG_NONE, allocate_gpu_memory,
             size_tracker);
-        tmp_ffi = new CudaRadixCiphertextFFI;
+        tmp_ffi = new CudaRadixCiphertext;
         create_zero_radix_ciphertext_async<Torus>(
             streams.stream(0), streams.gpu_index(0), tmp_ffi, num_radix_blocks,
             params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
@@ -102,8 +102,8 @@ template <typename Torus> struct int_signed_scalar_div_mem {
   int_radix_params params;
   bool allocate_gpu_memory;
 
-  CudaRadixCiphertextFFI *tmp_ffi = nullptr;
-  CudaRadixCiphertextFFI *xsign_ffi = nullptr;
+  CudaRadixCiphertext *tmp_ffi = nullptr;
+  CudaRadixCiphertext *xsign_ffi = nullptr;
 
   int_arithmetic_scalar_shift_buffer<Torus> *arithmetic_scalar_shift_mem =
       nullptr;
@@ -125,7 +125,7 @@ template <typename Torus> struct int_signed_scalar_div_mem {
 
       if (scalar_divisor_ffi->is_abs_divisor_one &&
           scalar_divisor_ffi->is_divisor_negative) {
-        tmp_ffi = new CudaRadixCiphertextFFI;
+        tmp_ffi = new CudaRadixCiphertext;
 
         create_zero_radix_ciphertext_async<Torus>(
             streams.stream(0), streams.gpu_index(0), tmp_ffi, num_radix_blocks,
@@ -133,7 +133,7 @@ template <typename Torus> struct int_signed_scalar_div_mem {
 
       } else if (!scalar_divisor_ffi->is_abs_divisor_one) {
 
-        tmp_ffi = new CudaRadixCiphertextFFI;
+        tmp_ffi = new CudaRadixCiphertext;
         create_zero_radix_ciphertext_async<Torus>(
             streams.stream(0), streams.gpu_index(0), tmp_ffi, num_radix_blocks,
             params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
@@ -154,7 +154,7 @@ template <typename Torus> struct int_signed_scalar_div_mem {
 
         } else {
 
-          xsign_ffi = new CudaRadixCiphertextFFI;
+          xsign_ffi = new CudaRadixCiphertext;
           create_zero_radix_ciphertext_async<Torus>(
               streams.stream(0), streams.gpu_index(0), xsign_ffi,
               num_radix_blocks, params.big_lwe_dimension, size_tracker,
@@ -219,7 +219,7 @@ template <typename Torus> struct int_unsigned_scalar_div_rem_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
 
-  CudaRadixCiphertextFFI *numerator_ct;
+  CudaRadixCiphertext *numerator_ct;
 
   int_unsigned_scalar_div_mem<Torus> *unsigned_div_mem;
   int_bitop_buffer<Torus> *bitop_mem = nullptr;
@@ -235,7 +235,7 @@ template <typename Torus> struct int_unsigned_scalar_div_rem_buffer {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
 
-    this->numerator_ct = new CudaRadixCiphertextFFI;
+    this->numerator_ct = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), numerator_ct, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
@@ -290,7 +290,7 @@ template <typename Torus> struct int_signed_scalar_div_rem_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
 
-  CudaRadixCiphertextFFI *numerator_ct;
+  CudaRadixCiphertext *numerator_ct;
 
   int_signed_scalar_div_mem<Torus> *signed_div_mem;
   int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem = nullptr;
@@ -307,7 +307,7 @@ template <typename Torus> struct int_signed_scalar_div_rem_buffer {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
 
-    this->numerator_ct = new CudaRadixCiphertextFFI;
+    this->numerator_ct = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), numerator_ct, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);

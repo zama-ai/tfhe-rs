@@ -284,8 +284,8 @@ __host__ uint64_t scratch_cuda_integer_partial_sum_ciphertexts_vec(
 
 template <typename Torus>
 __host__ void host_integer_partial_sum_ciphertexts_vec(
-    CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
-    CudaRadixCiphertextFFI *terms, void *const *bsks, uint64_t *const *ksks,
+    CudaStreams streams, CudaRadixCiphertext *radix_lwe_out,
+    CudaRadixCiphertext *terms, void *const *bsks, uint64_t *const *ksks,
     int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
     uint32_t num_radix_blocks, uint32_t num_radix_in_vec) {
   auto big_lwe_dimension = mem_ptr->params.big_lwe_dimension;
@@ -332,7 +332,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
   }
 
   if (num_radix_in_vec == 2) {
-    CudaRadixCiphertextFFI terms_slice;
+    CudaRadixCiphertext terms_slice;
     as_radix_ciphertext_slice<Torus>(&terms_slice, terms, num_radix_blocks,
                                      2 * num_radix_blocks);
     host_addition<Torus>(streams.stream(0), streams.gpu_index(0), radix_lwe_out,
@@ -473,7 +473,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
                             num_radix_blocks, num_radix_in_vec, chunk_size,
                             mem_ptr->params.message_modulus);
     cuda_set_device(streams.gpu_index(0));
-    CudaRadixCiphertextFFI current_blocks_slice;
+    CudaRadixCiphertext current_blocks_slice;
     as_radix_ciphertext_slice<Torus>(&current_blocks_slice, current_blocks,
                                      num_radix_blocks, 2 * num_radix_blocks);
 
@@ -486,9 +486,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
 
 template <typename Torus, class params>
 __host__ void host_integer_mult_radix(
-    CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
-    CudaRadixCiphertextFFI const *radix_lwe_left, bool const is_bool_left,
-    CudaRadixCiphertextFFI const *radix_lwe_right, bool const is_bool_right,
+    CudaStreams streams, CudaRadixCiphertext *radix_lwe_out,
+    CudaRadixCiphertext const *radix_lwe_left, bool const is_bool_left,
+    CudaRadixCiphertext const *radix_lwe_right, bool const is_bool_right,
     void *const *bsks, uint64_t *const *ksks, int_mul_memory<Torus> *mem_ptr,
     uint32_t num_blocks) {
 
@@ -561,13 +561,13 @@ __host__ void host_integer_mult_radix(
   auto luts_array = mem_ptr->luts_array;
 
   auto vector_result_lsb = vector_result_sb;
-  CudaRadixCiphertextFFI vector_result_msb;
+  CudaRadixCiphertext vector_result_msb;
   as_radix_ciphertext_slice<Torus>(&vector_result_msb, vector_result_lsb,
                                    lsb_vector_block_count,
                                    vector_result_lsb->num_radix_blocks);
 
   auto vector_lsb_rhs = block_mul_res;
-  CudaRadixCiphertextFFI vector_msb_rhs;
+  CudaRadixCiphertext vector_msb_rhs;
   as_radix_ciphertext_slice<Torus>(&vector_msb_rhs, block_mul_res,
                                    lsb_vector_block_count,
                                    block_mul_res->num_radix_blocks);
