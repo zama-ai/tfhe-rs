@@ -41,82 +41,6 @@ fn gen_random_u256(rng: &mut ThreadRng) -> U256 {
     tfhe::integer::U256::from((clearlow, clearhigh))
 }
 
-/// Base function to bench a server key function that is a binary operation, input ciphertexts will
-/// contain non zero carries
-fn bench_server_key_binary_function_dirty_inputs<F>(
-    c: &mut Criterion,
-    integer_op: IntegerOp,
-    display_name: &str,
-    binary_op: F,
-) where
-    F: Fn(&ServerKey, &mut RadixCiphertext, &mut RadixCiphertext),
-{
-    let mut bench_group = c.benchmark_group(integer_op.to_string());
-    bench_group
-        .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
-
-    for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
-        let param_name = param.name();
-
-        let keys = LazyCell::new(move || KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix));
-
-        let bits = format!("{bit_size}_bits");
-        let benchmark_spec = BenchmarkSpec::<str>::new_integer_ops(
-            IntegerOpBySign::Unsigned(integer_op),
-            &param_name,
-            Some(bits.as_str()),
-            BenchmarkMetric::Latency,
-            None,
-        );
-        let bench_id = benchmark_spec.to_string();
-        bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = (&keys.0, &keys.1);
-
-            let encrypt_two_values = || {
-                let clear_0 = gen_random_u256(&mut rng);
-                let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
-
-                let clear_1 = gen_random_u256(&mut rng);
-                let mut ct_1 = cks.encrypt_radix(clear_1, num_block);
-
-                // Raise the degree, so as to ensure worst case path in operations
-                let mut carry_mod = param.carry_modulus().0;
-                while carry_mod > 0 {
-                    // Raise the degree, so as to ensure worst case path in operations
-                    let clear_2 = gen_random_u256(&mut rng);
-                    let ct_2 = cks.encrypt_radix(clear_2, num_block);
-                    sks.unchecked_add_assign(&mut ct_0, &ct_2);
-                    sks.unchecked_add_assign(&mut ct_1, &ct_2);
-
-                    carry_mod -= 1;
-                }
-
-                (ct_0, ct_1)
-            };
-
-            b.iter_batched(
-                encrypt_two_values,
-                |(mut ct_0, mut ct_1)| {
-                    binary_op(sks, &mut ct_0, &mut ct_1);
-                },
-                criterion::BatchSize::SmallInput,
-            )
-        });
-
-        write_to_json(
-            &benchmark_spec,
-            display_name,
-            &OperatorType::Atomic,
-            bit_size as u32,
-            vec![param.message_modulus().0.ilog2(); num_block],
-        );
-    }
-
-    bench_group.finish()
-}
-
 /// Base function to bench a server key function that is a binary operation, input ciphertext will
 /// contain only zero carries
 fn bench_server_key_binary_function_clean_inputs<F>(
@@ -401,84 +325,6 @@ fn bench_server_key_unary_function_clean_inputs<F>(
                 });
             }
         }
-
-        write_to_json(
-            &benchmark_spec,
-            display_name,
-            &OperatorType::Atomic,
-            bit_size as u32,
-            vec![param.message_modulus().0.ilog2(); num_block],
-        );
-    }
-
-    bench_group.finish()
-}
-
-fn bench_server_key_binary_scalar_function_dirty_inputs<F, G>(
-    c: &mut Criterion,
-    integer_op: IntegerOp,
-    display_name: &str,
-    binary_op: F,
-    rng_func: G,
-) where
-    F: Fn(&ServerKey, &mut RadixCiphertext, ScalarType),
-    G: Fn(&mut ThreadRng, usize) -> ScalarType,
-{
-    let mut bench_group = c.benchmark_group(integer_op.to_string());
-    bench_group
-        .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
-
-    for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
-        let param_name = param.name();
-
-        let max_value_for_bit_size = ScalarType::MAX >> (ScalarType::BITS as usize - bit_size);
-
-        let keys = LazyCell::new(move || KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix));
-
-        let bits = format!("{bit_size}_bits");
-        let benchmark_spec = BenchmarkSpec::<str>::new_integer_ops(
-            IntegerOpBySign::Unsigned(integer_op),
-            &param_name,
-            Some(bits.as_str()),
-            BenchmarkMetric::Latency,
-            None,
-        );
-        let bench_id = benchmark_spec.to_string();
-        bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = (&keys.0, &keys.1);
-
-            let encrypt_one_value = || {
-                let clear_0 = gen_random_u256(&mut rng);
-                let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
-
-                // Raise the degree, so as to ensure worst case path in operations
-                let mut carry_mod = param.carry_modulus().0;
-                while carry_mod > 0 {
-                    // Raise the degree, so as to ensure worst case path in operations
-                    let clearlow = rng.gen::<u128>();
-                    let clearhigh = rng.gen::<u128>();
-                    let clear_2 = tfhe::integer::U256::from((clearlow, clearhigh));
-                    let ct_2 = cks.encrypt_radix(clear_2, num_block);
-                    sks.unchecked_add_assign(&mut ct_0, &ct_2);
-
-                    carry_mod -= 1;
-                }
-
-                let clear_1 = rng_func(&mut rng, bit_size) & max_value_for_bit_size;
-
-                (ct_0, clear_1)
-            };
-
-            b.iter_batched(
-                encrypt_one_value,
-                |(mut ct_0, clear_1)| {
-                    binary_op(sks, &mut ct_0, clear_1);
-                },
-                criterion::BatchSize::SmallInput,
-            )
-        });
 
         write_to_json(
             &benchmark_spec,
@@ -1039,23 +885,6 @@ macro_rules! define_server_key_bench_unary_default_fn (
     }
 );
 
-macro_rules! define_server_key_bench_fn (
-    (method_name: $server_key_method:ident, display_name:$name:ident) => {
-        ::paste::paste! {
-            fn $server_key_method(c: &mut Criterion) {
-                bench_server_key_binary_function_dirty_inputs(
-                    c,
-                    IntegerOp::[<$server_key_method:camel>],
-                    stringify!($name),
-                    |server_key, lhs, rhs| {
-                        server_key.$server_key_method(lhs, rhs);
-                    }
-                )
-            }
-        }
-    }
-);
-
 macro_rules! define_server_key_bench_default_fn (
     (method_name: $server_key_method:ident, display_name:$name:ident) => {
         ::paste::paste! {
@@ -1067,24 +896,6 @@ macro_rules! define_server_key_bench_default_fn (
                     |server_key, lhs, rhs| {
                         server_key.$server_key_method(lhs, rhs);
                 })
-            }
-        }
-    }
-);
-
-macro_rules! define_server_key_bench_scalar_fn (
-    (method_name: $server_key_method:ident, display_name:$name:ident, rng_func:$($rng_fn:tt)*) => {
-        ::paste::paste! {
-            fn $server_key_method(c: &mut Criterion) {
-                bench_server_key_binary_scalar_function_dirty_inputs(
-                    c,
-                    IntegerOp::[<$server_key_method:camel>],
-                    stringify!($name),
-                    |server_key, lhs, rhs| {
-                        server_key.$server_key_method(lhs, rhs);
-                    },
-                    $($rng_fn)*
-                )
             }
         }
     }
@@ -1107,27 +918,6 @@ macro_rules! define_server_key_bench_scalar_default_fn (
         }
     }
 );
-
-define_server_key_bench_fn!(method_name: smart_add, display_name: add);
-define_server_key_bench_fn!(method_name: smart_sub, display_name: sub);
-define_server_key_bench_fn!(method_name: smart_mul, display_name: mul);
-define_server_key_bench_fn!(method_name: smart_bitand, display_name: bitand);
-define_server_key_bench_fn!(method_name: smart_bitor, display_name: bitor);
-define_server_key_bench_fn!(method_name: smart_bitxor, display_name: bitxor);
-
-define_server_key_bench_fn!(method_name: smart_add_parallelized, display_name: add);
-define_server_key_bench_fn!(method_name: smart_sub_parallelized, display_name: sub);
-define_server_key_bench_fn!(method_name: smart_mul_parallelized, display_name: mul);
-define_server_key_bench_fn!(method_name: smart_div_parallelized, display_name: div);
-define_server_key_bench_fn!(method_name: smart_div_rem_parallelized, display_name: div_mod);
-define_server_key_bench_fn!(method_name: smart_rem_parallelized, display_name: rem);
-define_server_key_bench_fn!(method_name: smart_bitand_parallelized, display_name: bitand);
-define_server_key_bench_fn!(method_name: smart_bitxor_parallelized, display_name: bitxor);
-define_server_key_bench_fn!(method_name: smart_bitor_parallelized, display_name: bitor);
-define_server_key_bench_fn!(method_name: smart_rotate_right_parallelized, display_name: rotate_right);
-define_server_key_bench_fn!(method_name: smart_rotate_left_parallelized, display_name: rotate_left);
-define_server_key_bench_fn!(method_name: smart_right_shift_parallelized, display_name: right_shift);
-define_server_key_bench_fn!(method_name: smart_left_shift_parallelized, display_name: left_shift);
 
 define_server_key_bench_default_fn!(method_name: add_parallelized, display_name: add);
 define_server_key_bench_default_fn!(method_name: unsigned_overflowing_add_parallelized, display_name: overflowing_add);
@@ -1198,78 +988,6 @@ define_server_key_bench_scalar_default_fn!(
     method_name: unchecked_scalar_bitxor_parallelized,
     display_name: bitxor,
     rng_func: default_scalar
-);
-
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_add,
-    display_name: add,
-    rng_func: default_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_sub,
-    display_name: sub,
-    rng_func: default_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_mul,
-    display_name: mul,
-    rng_func: mul_scalar
-);
-
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_add_parallelized,
-    display_name: add,
-    rng_func: default_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_sub_parallelized,
-    display_name: sub,
-    rng_func: default_scalar,
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_mul_parallelized,
-    display_name: mul,
-    rng_func: mul_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_div_parallelized,
-    display_name: div,
-    rng_func: div_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_rem_parallelized,
-    display_name: modulo,
-    rng_func: div_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_div_rem_parallelized,
-    display_name: div_mod,
-    rng_func: div_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_bitand_parallelized,
-    display_name: bitand,
-    rng_func: default_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_bitor_parallelized,
-    display_name: bitor,
-    rng_func: default_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_bitxor_parallelized,
-    display_name: bitxor,
-    rng_func: default_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_rotate_left_parallelized,
-    display_name: rotate_left,
-    rng_func: shift_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_rotate_right_parallelized,
-    display_name: rotate_right,
-    rng_func: shift_scalar
 );
 
 define_server_key_bench_scalar_default_fn!(
@@ -1389,47 +1107,6 @@ define_server_key_bench_scalar_default_fn!(
     rng_func: default_scalar
 );
 
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_eq_parallelized,
-    display_name: equal,
-    rng_func: default_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_ne_parallelized,
-    display_name: not_equal,
-    rng_func: default_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_le_parallelized,
-    display_name: less_or_equal,
-    rng_func: default_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_lt_parallelized,
-    display_name: less_than,
-    rng_func: default_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_ge_parallelized,
-    display_name: greater_or_equal,
-    rng_func: default_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_gt_parallelized,
-    display_name: greater_than,
-    rng_func: default_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_max_parallelized,
-    display_name: max,
-    rng_func: default_scalar
-);
-define_server_key_bench_scalar_fn!(
-    method_name: smart_scalar_min_parallelized,
-    display_name: min,
-    rng_func: default_scalar
-);
-
 define_server_key_bench_scalar_default_fn!(
     method_name: unchecked_scalar_add,
     display_name: add,
@@ -1480,10 +1157,6 @@ define_server_key_bench_scalar_default_fn!(
     display_name: left_shift,
     rng_func: shift_scalar
 );
-
-define_server_key_bench_unary_fn!(method_name: smart_neg, display_name: negation);
-define_server_key_bench_unary_fn!(method_name: smart_neg_parallelized, display_name: negation);
-define_server_key_bench_unary_fn!(method_name: smart_abs_parallelized, display_name: abs);
 
 define_server_key_bench_unary_default_fn!(method_name: neg_parallelized, display_name: negation);
 define_server_key_bench_unary_default_fn!(method_name: abs_parallelized, display_name: abs);
@@ -1551,33 +1224,6 @@ define_server_key_bench_scalar_default_fn!(
     method_name: unchecked_scalar_ge_parallelized,
     display_name: greater_or_equal,
     rng_func: default_scalar
-);
-
-define_server_key_bench_fn!(method_name: smart_max, display_name: max);
-define_server_key_bench_fn!(method_name: smart_min, display_name: min);
-define_server_key_bench_fn!(method_name: smart_eq, display_name: equal);
-define_server_key_bench_fn!(method_name: smart_ne, display_name: not_equal);
-define_server_key_bench_fn!(method_name: smart_lt, display_name: less_than);
-define_server_key_bench_fn!(method_name: smart_le, display_name: less_or_equal);
-define_server_key_bench_fn!(method_name: smart_gt, display_name: greater_than);
-define_server_key_bench_fn!(method_name: smart_ge, display_name: greater_or_equal);
-
-define_server_key_bench_fn!(method_name: smart_max_parallelized, display_name: max);
-define_server_key_bench_fn!(method_name: smart_min_parallelized, display_name: min);
-define_server_key_bench_fn!(method_name: smart_eq_parallelized, display_name: equal);
-define_server_key_bench_fn!(method_name: smart_ne_parallelized, display_name: not_equal);
-define_server_key_bench_fn!(method_name: smart_lt_parallelized, display_name: less_than);
-define_server_key_bench_fn!(
-    method_name: smart_le_parallelized,
-    display_name: less_or_equal
-);
-define_server_key_bench_fn!(
-    method_name: smart_gt_parallelized,
-    display_name: greater_than
-);
-define_server_key_bench_fn!(
-    method_name: smart_ge_parallelized,
-    display_name: greater_or_equal
 );
 
 define_server_key_bench_default_fn!(method_name: max_parallelized, display_name: max);
@@ -3563,59 +3209,6 @@ mod hpu {
 }
 
 criterion_group!(
-    smart_ops,
-    smart_neg,
-    smart_add,
-    smart_mul,
-    smart_bitand,
-    smart_bitor,
-    smart_bitxor,
-);
-
-criterion_group!(
-    smart_ops_comp,
-    smart_max,
-    smart_min,
-    smart_eq,
-    smart_ne,
-    smart_lt,
-    smart_le,
-    smart_gt,
-    smart_ge,
-);
-
-criterion_group!(
-    smart_parallelized_ops,
-    smart_neg_parallelized,
-    smart_abs_parallelized,
-    smart_add_parallelized,
-    smart_sub_parallelized,
-    smart_mul_parallelized,
-    // smart_div_parallelized,
-    // smart_rem_parallelized,
-    smart_div_rem_parallelized, // For ciphertext div == rem == div_rem
-    smart_bitand_parallelized,
-    smart_bitor_parallelized,
-    smart_bitxor_parallelized,
-    smart_rotate_right_parallelized,
-    smart_rotate_left_parallelized,
-    smart_right_shift_parallelized,
-    smart_left_shift_parallelized,
-);
-
-criterion_group!(
-    smart_parallelized_ops_comp,
-    smart_max_parallelized,
-    smart_min_parallelized,
-    smart_eq_parallelized,
-    smart_ne_parallelized,
-    smart_lt_parallelized,
-    smart_le_parallelized,
-    smart_gt_parallelized,
-    smart_ge_parallelized,
-);
-
-criterion_group!(
     default_parallelized_ops,
     neg_parallelized,
     abs_parallelized,
@@ -3688,40 +3281,6 @@ criterion_group!(
     scalar_max_parallelized,
     scalar_eq_parallelized,
     scalar_gt_parallelized,
-);
-
-criterion_group!(
-    smart_scalar_ops,
-    smart_scalar_add,
-    smart_scalar_sub,
-    smart_scalar_mul,
-);
-
-criterion_group!(
-    smart_scalar_parallelized_ops,
-    smart_scalar_add_parallelized,
-    smart_scalar_sub_parallelized,
-    smart_scalar_mul_parallelized,
-    smart_scalar_div_parallelized,
-    smart_scalar_rem_parallelized, // For scalar rem == div_rem
-    // smart_scalar_div_rem_parallelized,
-    smart_scalar_bitand_parallelized,
-    smart_scalar_bitor_parallelized,
-    smart_scalar_bitxor_parallelized,
-    smart_scalar_rotate_right_parallelized,
-    smart_scalar_rotate_left_parallelized,
-);
-
-criterion_group!(
-    smart_scalar_parallelized_ops_comp,
-    smart_scalar_max_parallelized,
-    smart_scalar_min_parallelized,
-    smart_scalar_eq_parallelized,
-    smart_scalar_ne_parallelized,
-    smart_scalar_lt_parallelized,
-    smart_scalar_le_parallelized,
-    smart_scalar_gt_parallelized,
-    smart_scalar_ge_parallelized,
 );
 
 criterion_group!(
@@ -3987,15 +3546,6 @@ fn go_through_cpu_bench_groups(val: &str) {
         "fast_default" => {
             default_dedup_ops();
             vector_find();
-        }
-        "smart" => {
-            smart_ops();
-            smart_ops_comp();
-            smart_scalar_ops();
-            smart_parallelized_ops();
-            smart_parallelized_ops_comp();
-            smart_scalar_parallelized_ops();
-            smart_scalar_parallelized_ops_comp()
         }
         "unchecked" => {
             unchecked_ops();

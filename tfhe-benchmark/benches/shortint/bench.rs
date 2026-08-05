@@ -438,36 +438,6 @@ define_server_key_bench_fn!(
     shortint_bench: ShortintBench::Ops(ShortintOp::UncheckedDiv)
 );
 define_server_key_bench_fn!(
-    method_name: smart_bitand,
-    display_name: bitand,
-    shortint_bench: ShortintBench::Ops(ShortintOp::SmartBitand)
-);
-define_server_key_bench_fn!(
-    method_name: smart_bitor,
-    display_name: bitor,
-    shortint_bench: ShortintBench::Ops(ShortintOp::SmartBitor)
-);
-define_server_key_bench_fn!(
-    method_name: smart_bitxor,
-    display_name: bitxor,
-    shortint_bench: ShortintBench::Ops(ShortintOp::SmartBitxor)
-);
-define_server_key_bench_fn!(
-    method_name: smart_add,
-    display_name: add,
-    shortint_bench: ShortintBench::Ops(ShortintOp::SmartAdd)
-);
-define_server_key_bench_fn!(
-    method_name: smart_sub,
-    display_name: sub,
-    shortint_bench: ShortintBench::Ops(ShortintOp::SmartSub)
-);
-define_server_key_bench_fn!(
-    method_name: smart_mul_lsb,
-    display_name: mul,
-    shortint_bench: ShortintBench::Ops(ShortintOp::SmartMulLsb)
-);
-define_server_key_bench_fn!(
     method_name: bitand,
     display_name: bitand,
     shortint_bench: ShortintBench::Ops(ShortintOp::Bitand)
@@ -663,16 +633,6 @@ define_custom_bench_fn!(
 );
 
 criterion_group!(
-    smart_ops,
-    smart_bitand,
-    smart_bitor,
-    smart_bitxor,
-    smart_add,
-    smart_sub,
-    smart_mul_lsb
-);
-
-criterion_group!(
     unchecked_ops,
     unchecked_neg,
     unchecked_add,
@@ -755,7 +715,6 @@ fn main() {
         Ok(val) => {
             match val.to_lowercase().as_str() {
                 "default" => default_bench(),
-                "smart" => smart_ops(),
                 "unchecked" => {
                     unchecked_ops();
                     unchecked_scalar_ops();
