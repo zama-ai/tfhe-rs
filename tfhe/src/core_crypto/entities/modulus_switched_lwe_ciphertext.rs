@@ -260,7 +260,16 @@ mod test {
             let compressed_modswitched = modswitched.compress::<u64>();
             let extracted = compressed_modswitched.extract();
 
-            let lwe_ms: LweCiphertext<Vec<_>> = extracted.into();
+            let lwe_ms_usize: LweCiphertext<Vec<usize>> = extracted.into();
+
+            let lwe_ms = LweCiphertext::from_container(
+                lwe_ms_usize
+                    .as_ref()
+                    .iter()
+                    .map(|&a| a as u64)
+                    .collect::<Vec<_>>(),
+                lwe_ms_usize.ciphertext_modulus().try_to().unwrap(),
+            );
 
             let decrypted_plaintext = decrypt_lwe_ciphertext(&key, &lwe_ms);
 
