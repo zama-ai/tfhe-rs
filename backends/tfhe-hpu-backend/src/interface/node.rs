@@ -3,17 +3,13 @@ use super::*;
 use crate::asm::dop::MAX_HPU_IN_CLUSTER;
 use crate::asm::PbsLut;
 use crate::entities::*;
-use crate::fw::isc_sim::PeConfigStore;
-use crate::fw::{Fw, FwParameters};
 use crate::{asm, ffi};
 use bytemuck::{Pod, Zeroable};
 use rtl::FromRtl;
 
-use itertools::Itertools;
 use std::collections::VecDeque;
 use std::str::FromStr;
 use std::sync::{atomic, Arc, Mutex};
-use strum::VariantNames;
 use zhc::builder::CiphertextSpec;
 use zhc::config::hpu::HpuConfig;
 use zhc::pipeline::compat::Iop;
@@ -865,46 +861,16 @@ impl HpuNode {
         self.fw_mem.write_cut_at(0, 0, fw_cfg_raw_u32);
         tracing::debug!("[N{}] {fw_cfg}", self.hid);
 
-        // Create Asm architecture properties and Fw instantiation
-        let pe_cfg = PeConfigStore::from((&*self.params, config));
-        let fw_name =
-            crate::fw::FwName::from_str(&config.firmware.implementation).unwrap_or_else(|_| {
-                panic!(
-                    "Unknown firmware name {}, list of possible firmware names: {}",
-                    config.firmware.implementation,
-                    crate::fw::AvlblFw::VARIANTS.iter().join(",")
-                );
-            });
-        let fw = crate::fw::AvlblFw::new(&fw_name);
-
-        // TODO Add RTL register for the nu value
-        let mut fw_params = FwParameters {
-            register: self.params.regf_params.reg_nb,
-            isc_depth: self.params.isc_params.depth,
-            heap_size: config.board.heap_size,
-            min_iop_size: self.params.isc_params.min_iop_size,
-            min_pbs_batch_w: self
-                .params
-                .ntt_params
-                .min_pbs_nb
-                .unwrap_or(self.params.ntt_params.batch_pbs_nb),
-            pbs_batch_w: self.params.ntt_params.batch_pbs_nb,
-            total_pbs_nb: self.params.ntt_params.total_pbs_nb,
-            msg_w: self.params.pbs_params.message_width,
-            carry_w: self.params.pbs_params.carry_width,
-            nu: 5,
-            integer_w: 0,
-            use_ipip: !config.rtl.bpip_use,
-            kogge_cfg: config.firmware.kogge_cfg.expand(),
-            op_cfg: config.firmware.op_cfg.clone(),
-            cur_op_cfg: config.firmware.op_cfg.default(),
-            pe_cfg,
-            op_name: None,
-        };
+        // Asm architecture properties
+        // NB: DOp streams are entirely produced by ZHC. The in-backend Ilp/Llt firmware
+        // generators (`crate::fw::fw_impl`) are not used at runtime anymore, they are only
+        // reachable through the `fw` utility binary.
+        let msg_w = self.params.pbs_params.message_width;
+        let zhc_config = new_config(&self.params);
 
         // Check that required number of integer_w don't overflow the lookup table space
         let integer_w_max = config.firmware.integer_w.iter().max().unwrap_or(&0);
-        let blk_w_max = integer_w_max / fw_params.msg_w;
+        let blk_w_max = integer_w_max / msg_w;
         assert!(
             blk_w_max < FW_TABLE_ENTRY,
             "ERROR: requested {} fw configuration but current implementation only support {} entries",
@@ -927,32 +893,29 @@ impl HpuNode {
         tr_table_ofst += error_value.len();
 
         for integer_w in config.firmware.integer_w.iter() {
-            // Update fw parameters with concrete integer_width
             assert_eq!(
-                integer_w % fw_params.msg_w,
+                integer_w % msg_w,
                 0,
-                "ERROR: requested integer_w {integer_w} isn't compliant with MSG_W {}",
-                fw_params.msg_w
+                "ERROR: requested integer_w {integer_w} isn't compliant with MSG_W {msg_w}"
             );
-            let blk_w = integer_w / fw_params.msg_w;
-            fw_params.integer_w = *integer_w;
+            let blk_w = integer_w / msg_w;
 
-            // Generate Fw for standard operation
+            // Retrieve Fw for standard operation from ZHC
             // -> All operation with an associated alias
             let mut id_fw = asm::iop::IOP_LIST
                 .par_iter()
                 .map(|iop| {
-                    let translation_table = match iop.format().unwrap().name.as_str().parse::<Iop>()
-                    {
-                        Ok(iop) => iop.get_translation_table(
-                            &new_config(&self.params),
-                            CiphertextSpec::new(*integer_w as u16, 2, 2),
-                        ),
-                        Err(()) => {
-                            let prog = fw.expand(&fw_params, iop);
-                            prog.tr_table()
-                        }
-                    };
+                    let name = &iop.format().unwrap().name;
+                    let zhc_iop = name.as_str().parse::<Iop>().unwrap_or_else(|()| {
+                        panic!(
+                            "IOp {name} has no ZHC implementation. DOp firmwares are now only \
+                             provided by ZHC, cf. zhc::pipeline::compat::Iop"
+                        )
+                    });
+                    let translation_table = zhc_iop.get_translation_table(
+                        &zhc_config,
+                        CiphertextSpec::new(*integer_w as u16, 2, 2),
+                    );
 
                     ((iop.opcode().0 as usize, 0), translation_table)
                 })

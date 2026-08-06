@@ -14,7 +14,12 @@ keywords = ["encryption", "fhe", "cryptography", "hardware", "fpga"]
 hw-v80 = ["bincode"]
 io-dump = ["num-traits"]
 rtl_graph = ["dot2"]
-utils = ["io-dump", "clap", "clap-num", "serde_json", "bincode"]
+# In-backend DOp firmware generators (Ilp/Llt/Demo).
+# They are NOT used at runtime anymore: the DOp streams loaded in the translation table
+# are produced by ZHC (cf. `zhc::pipeline::compat::Iop::get_translation_table`).
+# Kept behind a feature for the `fw` utility binary and offline inspection/comparison.
+fw-gen = []
+utils = ["io-dump", "clap", "clap-num", "serde_json", "bincode", "fw-gen"]
 
 [dependencies]
 hw_regmap = "0.2.2"
@@ -40,7 +45,7 @@ lru = "0.16.3"
 bitfield-struct = "0.13.0"
 crossbeam = { version = "0.8.4", features = ["crossbeam-queue"] }
 rayon = { workspace = true }
-zhc = { version = "0.9.0", path = "../../../zhc/zhc" }
+zhc = { version = "0.8.3", path = "../../../zhc/zhc" }
 
 # Dependencies used for Sim feature
 ra2m_ffi = "1.0"

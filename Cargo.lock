@@ -4287,7 +4287,7 @@ dependencies = [
 
 [[package]]
 name = "zhc"
-version = "0.9.0"
+version = "0.8.3"
 dependencies = [
  "zhc_builder",
  "zhc_config",
@@ -4301,7 +4301,7 @@ dependencies = [
 
 [[package]]
 name = "zhc_builder"
-version = "0.9.0"
+version = "0.8.3"
 dependencies = [
  "zhc_crypto",
  "zhc_ir",
@@ -4311,7 +4311,7 @@ dependencies = [
 
 [[package]]
 name = "zhc_config"
-version = "0.9.0"
+version = "0.8.3"
 dependencies = [
  "serde",
  "serde_json",
@@ -4321,7 +4321,7 @@ dependencies = [
 
 [[package]]
 name = "zhc_crypto"
-version = "0.9.0"
+version = "0.8.3"
 dependencies = [
  "paste",
  "rand 0.10.1",
@@ -4330,7 +4330,7 @@ dependencies = [
 
 [[package]]
 name = "zhc_ir"
-version = "0.9.0"
+version = "0.8.3"
 dependencies = [
  "serde",
  "zhc_utils",
@@ -4339,7 +4339,7 @@ dependencies = [
 
 [[package]]
 name = "zhc_langs"
-version = "0.9.0"
+version = "0.8.3"
 dependencies = [
  "serde",
  "zhc_crypto",
@@ -4349,7 +4349,7 @@ dependencies = [
 
 [[package]]
 name = "zhc_pipeline"
-version = "0.9.0"
+version = "0.8.3"
 dependencies = [
  "bitfield-struct 0.10.1",
  "rand 0.10.1",
@@ -4365,7 +4365,7 @@ dependencies = [
 
 [[package]]
 name = "zhc_sim"
-version = "0.9.0"
+version = "0.8.3"
 dependencies = [
  "serde",
  "serde_json",
@@ -4377,8 +4377,9 @@ dependencies = [
 
 [[package]]
 name = "zhc_utils"
-version = "0.9.0"
+version = "0.8.3"
 dependencies = [
+ "libc",
  "paste",
  "rand 0.10.1",
  "serde",
@@ -4388,7 +4389,7 @@ dependencies = [
 
 [[package]]
 name = "zhc_utils_macro"
-version = "0.9.0"
+version = "0.8.3"
 dependencies = [
  "proc-macro2",
  "quote",
