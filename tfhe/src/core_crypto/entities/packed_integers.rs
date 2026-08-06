@@ -4,6 +4,12 @@ use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::packed_integers::PackedIntegersVersions;
 use crate::core_crypto::prelude::*;
 
+/// A list of integers modulo a non-native power of two packed contiguously, stored into scalars of
+/// a greater size. Integers are stored without padding and may span over two consecutive scalars.
+///
+/// # Example
+/// Given a list of 4 integers mod 2^12: [aaa, bbb, ccc, ddd].
+/// We can pack them using only 3 u16: [baaa, ccbb, dddc]
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(PackedIntegersVersions)]
 pub struct PackedIntegers<Scalar: UnsignedInteger> {
@@ -36,6 +42,10 @@ impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {
         }
     }
 
+    /// Pack the input slice, assuming its values are reduced mod `2**log_modulus`.
+    ///
+    /// # Panics
+    /// Panics if `log_modulus.0 > InputScalar::BITS` or `Scalar::BITS`
     pub fn pack<InputScalar: UnsignedInteger + CastInto<Scalar>>(
         slice: &[InputScalar],
         log_modulus: CiphertextModulusLog,
@@ -46,8 +56,6 @@ impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {
         let log_modulus = log_modulus.0;
 
         let in_len = slice.len();
-
-        assert!(log_modulus <= Scalar::BITS);
 
         let number_bits_to_pack = in_len * log_modulus;
 
@@ -129,6 +137,10 @@ impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {
         }
     }
 
+    /// Unpack the list
+    ///
+    /// # Panics
+    /// Panics if `log_modulus.0 > OutputScalar::BITS` or `Scalar::BITS`
     pub fn unpack<OutputScalar>(&self) -> impl Iterator<Item = OutputScalar> + '_
     where
         Scalar: CastInto<OutputScalar>,
@@ -234,21 +246,38 @@ impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {
     }
 }
 
-impl<Scalar: UnsignedInteger> ParameterSetConformant for PackedIntegers<Scalar> {
-    type ParameterSet = usize;
+#[derive(Copy, Clone, Debug)]
+pub struct PackedIntegersConformanceParams {
+    initial_len: usize,
+    output_scalar_bits: usize,
+}
 
-    fn is_conformant(&self, len: &usize) -> bool {
+impl PackedIntegersConformanceParams {
+    /// `OutputScalar` must be the scalar [`PackedIntegers::unpack`] will be called with: a
+    /// `log_modulus` wider than that scalar makes `unpack` panic.
+    pub fn new<OutputScalar: UnsignedInteger>(initial_len: usize) -> Self {
+        Self {
+            initial_len,
+            output_scalar_bits: OutputScalar::BITS,
+        }
+    }
+}
+
+impl<Scalar: UnsignedInteger> ParameterSetConformant for PackedIntegers<Scalar> {
+    type ParameterSet = PackedIntegersConformanceParams;
+
+    fn is_conformant(&self, params: &PackedIntegersConformanceParams) -> bool {
         let Self {
             packed_coeffs,
             log_modulus,
             initial_len,
         } = self;
 
-        let number_packed_bits = *len * log_modulus.0;
+        let max_log_modulus = Scalar::BITS.min(params.output_scalar_bits);
 
-        let packed_len = number_packed_bits.div_ceil(Scalar::BITS);
-
-        *len == *initial_len && packed_coeffs.len() == packed_len
+        (1..=max_log_modulus).contains(&log_modulus.0)
+            && *initial_len == params.initial_len
+            && packed_coeffs.len() == (params.initial_len * log_modulus.0).div_ceil(Scalar::BITS)
     }
 }
 
@@ -259,31 +288,108 @@ mod test {
 
     #[test]
     fn pack_unpack() {
-        pack_unpack_single::<u64>(32, 700);
-        pack_unpack_single::<u64>(27, 700);
-        pack_unpack_single::<u64>(64, 700);
-        pack_unpack_single::<u128>(64, 700);
-        pack_unpack_single::<u128>(79, 700);
-        pack_unpack_single::<u128>(128, 700);
+        pack_unpack_single::<u64, u64, u64>(32, 700);
+        pack_unpack_single::<u64, u64, u64>(27, 700);
+        pack_unpack_single::<u64, u64, u64>(64, 700);
+        pack_unpack_single::<u128, u128, u128>(64, 700);
+        pack_unpack_single::<u128, u128, u128>(79, 700);
+        pack_unpack_single::<u128, u128, u128>(128, 700);
+
+        // Unpacking into a scalar narrower than the packing scalar
+        pack_unpack_single::<u32, u64, u32>(12, 700);
+        pack_unpack_single::<u32, u64, u32>(31, 700);
+        pack_unpack_single::<u32, u64, u32>(32, 700);
+        pack_unpack_single::<u64, u64, u32>(17, 700);
+        pack_unpack_single::<u64, u64, usize>(12, 700);
+        pack_unpack_single::<u32, u64, u64>(12, 700);
     }
 
-    fn pack_unpack_single<Scalar>(log_modulus: usize, len: usize)
+    fn pack_unpack_single<InputScalar, PackingScalar, OutputScalar>(log_modulus: usize, len: usize)
     where
-        [Scalar]: Fill,
-        Scalar: UnsignedInteger + CastFrom<usize>,
+        [InputScalar]: Fill,
+        InputScalar: UnsignedInteger + CastInto<PackingScalar> + CastInto<OutputScalar>,
+        PackingScalar: UnsignedInteger + CastInto<OutputScalar>,
+        OutputScalar: UnsignedInteger,
     {
-        let mut cont = vec![Scalar::ZERO; len];
+        assert!(
+            log_modulus
+                <= InputScalar::BITS
+                    .min(PackingScalar::BITS)
+                    .min(OutputScalar::BITS)
+        );
+
+        let mut cont = vec![InputScalar::ZERO; len];
 
         rand::thread_rng().fill(cont.as_mut_slice());
 
+        let mask = if log_modulus == InputScalar::BITS {
+            InputScalar::MAX
+        } else {
+            (InputScalar::ONE << log_modulus) - InputScalar::ONE
+        };
+
         for val in cont.iter_mut() {
-            *val %= log_modulus.cast_into();
+            *val &= mask;
         }
 
-        let packed = PackedIntegers::<Scalar>::pack(&cont, CiphertextModulusLog(log_modulus));
+        let packed =
+            PackedIntegers::<PackingScalar>::pack(&cont, CiphertextModulusLog(log_modulus));
 
-        let unpacked: Vec<Scalar> = packed.unpack().collect();
+        assert!(packed.is_conformant(&PackedIntegersConformanceParams::new::<OutputScalar>(len)));
 
-        assert_eq!(cont, unpacked);
+        let unpacked: Vec<OutputScalar> = packed.unpack().collect();
+
+        let expected: Vec<OutputScalar> = cont.iter().copied().map(CastInto::cast_into).collect();
+
+        assert_eq!(expected, unpacked);
+    }
+
+    /// Build a list whose `packed_coeffs` length is consistent with `log_modulus` and
+    /// `initial_len`, as a deserialized list would be, without checking that `log_modulus`
+    /// itself is usable.
+    fn packed_with_log_modulus(log_modulus: usize, initial_len: usize) -> PackedIntegers<u64> {
+        let packed_len = (initial_len * log_modulus).div_ceil(u64::BITS as usize);
+
+        PackedIntegers::from_raw_parts(
+            vec![0u64; packed_len],
+            CiphertextModulusLog(log_modulus),
+            initial_len,
+        )
+    }
+
+    #[test]
+    fn test_not_conformant() {
+        let len = 700;
+
+        assert!(packed_with_log_modulus(12, len)
+            .is_conformant(&PackedIntegersConformanceParams::new::<u64>(len)));
+
+        assert!(!packed_with_log_modulus(12, len)
+            .is_conformant(&PackedIntegersConformanceParams::new::<u64>(len + 1)));
+
+        // `unpack` computes `end - 1` with `end == 0`, which underflows
+        assert!(!packed_with_log_modulus(0, len)
+            .is_conformant(&PackedIntegersConformanceParams::new::<u64>(len)));
+
+        // `unpack` shifts by `log_modulus`, which overflows `Scalar`
+        assert!(!packed_with_log_modulus(65, len)
+            .is_conformant(&PackedIntegersConformanceParams::new::<u64>(len)));
+
+        // Fits in the packing scalar, but `unpack` into a narrower scalar would panic
+        let packed = packed_with_log_modulus(40, len);
+        assert!(packed.is_conformant(&PackedIntegersConformanceParams::new::<u64>(len)));
+        assert!(!packed.is_conformant(&PackedIntegersConformanceParams::new::<u32>(len)));
+    }
+
+    #[test]
+    #[should_panic(expected = "attempt to subtract with overflow")]
+    fn unpack_panics_on_zero_log_modulus() {
+        let _: Vec<u64> = packed_with_log_modulus(0, 700).unpack().collect();
+    }
+
+    #[test]
+    #[should_panic(expected = "assertion failed")]
+    fn unpack_panics_on_too_narrow_output_scalar() {
+        let _: Vec<u32> = packed_with_log_modulus(40, 700).unpack().collect();
     }
 }
