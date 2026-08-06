@@ -91,7 +91,7 @@ impl ParameterSetConformant for CompressedCiphertextList {
 
         let last_body_count = modulus_switched_glwe_ciphertext_list
             .last()
-            .unwrap()
+            .expect("len is not zero")
             .bodies_count()
             .0;
 
@@ -100,7 +100,17 @@ impl ParameterSetConformant for CompressedCiphertextList {
             .all(|a| a.bodies_count() == params.lwe_per_glwe)
             && last_body_count <= params.lwe_per_glwe.0;
 
+        let first_log_modulus = modulus_switched_glwe_ciphertext_list
+            .first()
+            .expect("len is not zero")
+            .packed_integers()
+            .log_modulus();
+        let log_modulus_is_ok = modulus_switched_glwe_ciphertext_list[1..]
+            .iter()
+            .all(|a| a.packed_integers().log_modulus() == first_log_modulus);
+
         count_is_ok
+            && log_modulus_is_ok
             && modulus_switched_glwe_ciphertext_list
                 .iter()
                 .all(|glwe| glwe.is_conformant(&params.ct_params))
@@ -148,14 +158,27 @@ impl ParameterSetConformant for CompressedSquashedNoiseCiphertextList {
             return false;
         };
 
-        let last_body_count = glwe_ciphertext_list.last().unwrap().bodies_count().0;
+        let last_body_count = glwe_ciphertext_list
+            .last()
+            .expect("len is not zero")
+            .bodies_count()
+            .0;
 
         let count_is_ok = glwe_ciphertext_list[..len - 1]
             .iter()
             .all(|a| a.bodies_count() == params.lwe_per_glwe)
             && last_body_count <= params.lwe_per_glwe.0;
+        let first_log_modulus = glwe_ciphertext_list
+            .first()
+            .expect("len is not zero")
+            .packed_integers()
+            .log_modulus();
+        let log_modulus_is_ok = glwe_ciphertext_list[1..]
+            .iter()
+            .all(|a| a.packed_integers().log_modulus() == first_log_modulus);
 
         count_is_ok
+            && log_modulus_is_ok
             && glwe_ciphertext_list
                 .iter()
                 .all(|glwe| glwe.is_conformant(&params.ct_params))
