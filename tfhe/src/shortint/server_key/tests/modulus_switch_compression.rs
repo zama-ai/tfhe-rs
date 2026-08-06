@@ -4,6 +4,7 @@ use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::NoiseLevel;
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 use rand::Rng;
+use tfhe_safe_serialize::ParameterSetConformant;
 
 create_parameterized_test!(shortint_modulus_switch_compression);
 
@@ -55,5 +56,20 @@ where
             assert_eq!(ctxt.carry_modulus, decompressed_ct.carry_modulus);
             assert_eq!(ctxt.atomic_pattern, decompressed_ct.atomic_pattern);
         }
+    }
+
+    {
+        // Check conformance with cleanly encrypted ct
+        let ctxt = cks.encrypt(rng.gen::<u64>() % modulus);
+
+        let compressed_ct = sks.switch_modulus_and_compress(&ctxt);
+
+        assert!(compressed_ct.is_conformant(&sks.compressed_modswitched_conformance_params()));
+        assert!(compressed_ct.is_conformant(
+            &cks.parameters()
+                .ap_parameters()
+                .unwrap()
+                .to_compressed_modswitched_conformance_param()
+        ));
     }
 }

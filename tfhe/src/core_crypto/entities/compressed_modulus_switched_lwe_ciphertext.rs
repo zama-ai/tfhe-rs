@@ -3,6 +3,7 @@ use tfhe_versionable::Versionize;
 use self::packed_integers::PackedIntegers;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertextVersions;
+use crate::core_crypto::prelude::packed_integers::PackedIntegersConformanceParams;
 use crate::core_crypto::prelude::*;
 
 /// An object to store a ciphertext using less memory
@@ -137,8 +138,15 @@ impl<PackingScalar: UnsignedInteger> CompressedModulusSwitchedLweCiphertext<Pack
 
 #[derive(Copy, Clone)]
 pub enum MsDecompressionType {
-    ClassicPbs,
-    MultiBitPbs(LweBskGroupingFactor),
+    ClassicPbs {
+        br_input_modulus_log: CiphertextModulusLog,
+        br_input_lwe_dim: LweDimension,
+    },
+    MultiBitPbs {
+        br_input_modulus_log: CiphertextModulusLog,
+        br_input_lwe_dim: LweDimension,
+        grouping_factor: LweBskGroupingFactor,
+    },
 }
 
 #[derive(Copy, Clone)]
@@ -170,20 +178,29 @@ impl<Scalar: UnsignedInteger> ParameterSetConformant
         } = compressed_ct_parameters;
 
         let LweCiphertextConformanceParams {
-            lwe_dim: params_lwe_dim,
+            // The compressed mod switched ct use the lwe dim before the br, this one is kept to
+            // build the params of the decompressed ct, in
+            // `CompressedModulusSwitchedCiphertextConformanceParams`. This could be improved,
+            // see #1513
+            lwe_dim: _,
             ct_modulus,
         } = ct_params;
 
+        let MsDecompressionType::ClassicPbs {
+            br_input_modulus_log,
+            br_input_lwe_dim,
+        } = ms_decompression_type
+        else {
+            return false;
+        };
+
         let lwe_size = lwe_dimension.to_lwe_size().0;
 
-        let number_bits_to_pack = lwe_size * packed_integers.log_modulus().0;
-
-        let len = number_bits_to_pack.div_ceil(Scalar::BITS);
-
-        packed_integers.packed_coeffs().len() == len
-            && lwe_dimension == params_lwe_dim
+        packed_integers.log_modulus() == *br_input_modulus_log
+            && packed_integers
+                .is_conformant(&PackedIntegersConformanceParams::new::<usize>(lwe_size))
+            && lwe_dimension == br_input_lwe_dim
             && ct_modulus.is_power_of_two()
-            && matches!(ms_decompression_type, MsDecompressionType::ClassicPbs)
     }
 }
 
@@ -303,5 +320,60 @@ mod test {
 
             assert_eq!(*output, msed)
         }
+    }
+
+    #[test]
+    fn test_not_conformant() {
+        let br_input_lwe_dim = LweDimension(750);
+        let encryption_lwe_dim = LweDimension(2048);
+        let br_input_modulus_log = CiphertextModulusLog(12);
+
+        let lwe_size = br_input_lwe_dim.to_lwe_size().0;
+
+        let packed_integers = PackedIntegers::from_raw_parts(
+            vec![0u64; (lwe_size * br_input_modulus_log.0).div_ceil(u64::BITS as usize)],
+            br_input_modulus_log,
+            lwe_size,
+        );
+
+        let ct = CompressedModulusSwitchedLweCiphertext::from_raw_parts(
+            packed_integers,
+            br_input_lwe_dim,
+        );
+
+        let valid_conf_params = CompressedModulusSwitchedLweCiphertextConformanceParams {
+            ct_params: LweCiphertextConformanceParams {
+                lwe_dim: br_input_lwe_dim,
+                ct_modulus: CiphertextModulus::new_native(),
+            },
+            ms_decompression_type: MsDecompressionType::ClassicPbs {
+                br_input_modulus_log,
+                br_input_lwe_dim,
+            },
+        };
+
+        assert!(ct.is_conformant(&valid_conf_params));
+
+        let mut params = valid_conf_params;
+        params.ms_decompression_type = MsDecompressionType::ClassicPbs {
+            br_input_modulus_log: CiphertextModulusLog(11),
+            br_input_lwe_dim,
+        };
+        assert!(!ct.is_conformant(&params));
+
+        let mut params = valid_conf_params;
+        params.ms_decompression_type = MsDecompressionType::ClassicPbs {
+            br_input_modulus_log,
+            br_input_lwe_dim: encryption_lwe_dim,
+        };
+        assert!(!ct.is_conformant(&params));
+
+        let mut params = valid_conf_params;
+        params.ms_decompression_type = MsDecompressionType::MultiBitPbs {
+            br_input_modulus_log,
+            br_input_lwe_dim,
+            grouping_factor: LweBskGroupingFactor(2),
+        };
+        assert!(!ct.is_conformant(&params));
     }
 }
