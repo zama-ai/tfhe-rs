@@ -7,6 +7,8 @@ use entities::compressed_modulus_switched_multi_bit_lwe_ciphertext::*;
 use itertools::Itertools;
 use tfhe_versionable::Versionize;
 
+use super::packed_integers::PackedIntegersConformanceParams;
+
 /// An object to store a ciphertext using less memory
 /// The ciphertext is applied a modulus switch as done in the multi bit PBS.
 /// It is then stored in a compact way.
@@ -211,13 +213,8 @@ impl<PackingScalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>>
                 equivalent_multi_bit_lwe_dimension(lwe_dimension, grouping_factor)
                     .unwrap()
                     .0;
-            let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element().0;
-
-            // In the diff list creation, we skip every power of two, so we have to remove them from
-            // the total count
-            let num_powers_of_2 = ggsw_per_multi_bit_element.ceil_ilog2() as usize;
             let expected_diffs_len =
-                (ggsw_per_multi_bit_element - 1 - num_powers_of_2) * multi_bit_elements;
+                grouping_factor.diffs_per_multi_bit_element() * multi_bit_elements;
             assert_eq!(
                 diffs.initial_len(),
                 expected_diffs_len,
@@ -318,12 +315,19 @@ impl<PackingScalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>>
             .map(|a| modulus_switch(*a, log_modulus).cast_into())
             .collect();
 
-        let mut diffs = vec![];
+        let expected_diffs_len = (input_lwe_mask.as_ref().len() / grouping_factor.0)
+            * grouping_factor.diffs_per_multi_bit_element();
+
+        let mut diffs = Vec::with_capacity(expected_diffs_len);
 
         for lwe_mask_elements in input_lwe_mask.as_ref().chunks_exact(grouping_factor.0) {
             for ggsw_idx in 1..grouping_factor.ggsw_per_multi_bit_element().0 {
                 // We need to store the diff sums of more than one element as we store the
                 // individual modulus_switched elements
+                //
+                // the bits in ggsw_idx indicates which mask elements to select.
+                // In the case of a power of two, only one bit is set, so only one mask element will
+                // be selected, thus the diff will be zero.
                 if ggsw_idx.is_power_of_two() {
                     continue;
                 }
@@ -358,6 +362,8 @@ impl<PackingScalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>>
                 diffs.push(diff);
             }
         }
+
+        assert_eq!(diffs.len(), expected_diffs_len);
 
         let packed_mask = PackedIntegers::pack::<PackingScalar>(&modulus_switched, log_modulus);
 
@@ -535,23 +541,38 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>> ParameterSetCo
         } = compressed_ct_parameters;
 
         let LweCiphertextConformanceParams {
-            lwe_dim: params_lwe_dim,
+            // The compressed mod switched ct use the lwe dim before the br, this one is kept to
+            // build the params of the decompressed ct, in
+            // `CompressedModulusSwitchedCiphertextConformanceParams`. This could be improved,
+            // see #1513
+            lwe_dim: _,
             ct_modulus,
         } = ct_params;
 
-        *body >> packed_mask.log_modulus().0 == Scalar::ZERO
-            && packed_mask.is_conformant(&lwe_dimension.0)
-            && packed_diffs
-                .as_ref()
-                .is_none_or(|packed_diffs| packed_diffs.is_conformant(&lwe_dimension.0))
-            && lwe_dimension == params_lwe_dim
+        let MsDecompressionType::MultiBitPbs {
+            br_input_modulus_log,
+            br_input_lwe_dim,
+            grouping_factor: expected_grouping_factor,
+        } = ms_decompression_type
+        else {
+            return false;
+        };
+
+        packed_mask.log_modulus() == *br_input_modulus_log
+            && lwe_dimension == br_input_lwe_dim
+            && expected_grouping_factor.0 == grouping_factor.0
+            && packed_mask.is_conformant(&PackedIntegersConformanceParams::new::<usize>(
+                lwe_dimension.0,
+            ))
+            && *body >> packed_mask.log_modulus().0 == Scalar::ZERO
+            && packed_diffs.as_ref().is_none_or(|packed_diffs| {
+                packed_diffs.log_modulus().0 <= packed_mask.log_modulus().0 + 1
+                    && packed_diffs.is_conformant(&PackedIntegersConformanceParams::new::<usize>(
+                        (lwe_dimension.0 / grouping_factor.0)
+                            * grouping_factor.diffs_per_multi_bit_element(),
+                    ))
+            })
             && ct_modulus.is_power_of_two()
-            && match ms_decompression_type {
-                MsDecompressionType::ClassicPbs => false,
-                MsDecompressionType::MultiBitPbs(expected_grouping_factor) => {
-                    expected_grouping_factor.0 == grouping_factor.0
-                }
-            }
             && uncompressed_ciphertext_modulus == ct_modulus
     }
 }
@@ -601,5 +622,162 @@ mod test {
         );
 
         let _ = rebuilt.extract();
+    }
+
+    fn packed_zeros(log_modulus: CiphertextModulusLog, initial_len: usize) -> PackedIntegers<u64> {
+        PackedIntegers::from_raw_parts(
+            vec![0u64; (initial_len * log_modulus.0).div_ceil(u64::BITS as usize)],
+            log_modulus,
+            initial_len,
+        )
+    }
+
+    fn dummy_comp_ct(
+        packed_mask: PackedIntegers<u64>,
+        packed_diffs: Option<PackedIntegers<u64>>,
+        lwe_dimension: LweDimension,
+        grouping_factor: LweBskGroupingFactor,
+        body: u64,
+    ) -> CompressedModulusSwitchedMultiBitLweCiphertext<u64> {
+        CompressedModulusSwitchedMultiBitLweCiphertext {
+            body,
+            packed_mask,
+            packed_diffs,
+            lwe_dimension,
+            uncompressed_ciphertext_modulus: CiphertextModulus::new_native(),
+            grouping_factor,
+        }
+    }
+
+    #[test]
+    fn test_not_conformant() {
+        let br_input_lwe_dim = LweDimension(694);
+        let encryption_lwe_dim = LweDimension(2048);
+        let br_input_modulus_log = CiphertextModulusLog(12);
+        let grouping_factor = LweBskGroupingFactor(2);
+
+        let diffs_len = (br_input_lwe_dim.0 / grouping_factor.0)
+            * grouping_factor.diffs_per_multi_bit_element();
+
+        let valid_conf_params = CompressedModulusSwitchedLweCiphertextConformanceParams {
+            ct_params: LweCiphertextConformanceParams {
+                lwe_dim: br_input_lwe_dim,
+                ct_modulus: CiphertextModulus::new_native(),
+            },
+            ms_decompression_type: MsDecompressionType::MultiBitPbs {
+                br_input_modulus_log,
+                br_input_lwe_dim,
+                grouping_factor,
+            },
+        };
+
+        let mask = packed_zeros(br_input_modulus_log, br_input_lwe_dim.0);
+        let diffs = packed_zeros(br_input_modulus_log, diffs_len);
+
+        assert!(dummy_comp_ct(
+            mask.clone(),
+            Some(diffs.clone()),
+            br_input_lwe_dim,
+            grouping_factor,
+            0
+        )
+        .is_conformant(&valid_conf_params));
+        assert!(
+            dummy_comp_ct(mask.clone(), None, br_input_lwe_dim, grouping_factor, 0)
+                .is_conformant(&valid_conf_params)
+        );
+
+        // The mask holds one modulus switched value per mask element
+        assert!(!dummy_comp_ct(
+            packed_zeros(br_input_modulus_log, br_input_lwe_dim.0 - 1),
+            None,
+            br_input_lwe_dim,
+            grouping_factor,
+            0
+        )
+        .is_conformant(&valid_conf_params));
+
+        // A body holding bits above log_modulus is not a modulus switched value
+        assert!(!dummy_comp_ct(
+            mask.clone(),
+            None,
+            br_input_lwe_dim,
+            grouping_factor,
+            1 << br_input_modulus_log.0
+        )
+        .is_conformant(&valid_conf_params));
+
+        // `extract` indexes the diff list by a counter driven by the mask length, so a shorter
+        // list is an out of bounds read
+        assert!(!dummy_comp_ct(
+            mask.clone(),
+            Some(packed_zeros(br_input_modulus_log, diffs_len - 1)),
+            br_input_lwe_dim,
+            grouping_factor,
+            0
+        )
+        .is_conformant(&valid_conf_params));
+
+        // Diffs are stored on at most one more bit than the mask, and `extract` computes
+        // `1 << used_space_log`
+        assert!(dummy_comp_ct(
+            mask.clone(),
+            Some(packed_zeros(
+                CiphertextModulusLog(br_input_modulus_log.0 + 1),
+                diffs_len
+            )),
+            br_input_lwe_dim,
+            grouping_factor,
+            0
+        )
+        .is_conformant(&valid_conf_params));
+        assert!(!dummy_comp_ct(
+            mask.clone(),
+            Some(packed_zeros(
+                CiphertextModulusLog(br_input_modulus_log.0 + 2),
+                diffs_len
+            )),
+            br_input_lwe_dim,
+            grouping_factor,
+            0
+        )
+        .is_conformant(&valid_conf_params));
+
+        let valid_ct = dummy_comp_ct(mask, Some(diffs), br_input_lwe_dim, grouping_factor, 0);
+
+        // A log_modulus that does not match the blind rotation input modulus is silently wrong,
+        // the multi bit blind rotation has no way to notice
+        let mut params = valid_conf_params;
+        params.ms_decompression_type = MsDecompressionType::MultiBitPbs {
+            br_input_modulus_log: CiphertextModulusLog(11),
+            br_input_lwe_dim,
+            grouping_factor,
+        };
+        assert!(!valid_ct.is_conformant(&params));
+
+        let mut params = valid_conf_params;
+        params.ms_decompression_type = MsDecompressionType::MultiBitPbs {
+            br_input_modulus_log,
+            br_input_lwe_dim: encryption_lwe_dim,
+            grouping_factor,
+        };
+        assert!(!valid_ct.is_conformant(&params));
+
+        let mut params = valid_conf_params;
+        params.ms_decompression_type = MsDecompressionType::MultiBitPbs {
+            br_input_modulus_log,
+            br_input_lwe_dim,
+            grouping_factor: LweBskGroupingFactor(3),
+        };
+        assert!(!valid_ct.is_conformant(&params));
+
+        // A ciphertext compressed for a classic blind rotation cannot be decompressed by a multi
+        // bit one
+        let mut params = valid_conf_params;
+        params.ms_decompression_type = MsDecompressionType::ClassicPbs {
+            br_input_modulus_log,
+            br_input_lwe_dim,
+        };
+        assert!(!valid_ct.is_conformant(&params));
     }
 }
