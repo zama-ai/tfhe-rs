@@ -279,6 +279,15 @@ impl LweBskGroupingFactor {
     pub fn ggsw_per_multi_bit_element(&self) -> GgswPerLweMultiBitBskElement {
         GgswPerLweMultiBitBskElement(1 << self.0)
     }
+
+    pub(in crate::core_crypto) fn diffs_per_multi_bit_element(self) -> usize {
+        // We diff starting from ggsw #1 and we skip power of 2 indexes.
+        //
+        // See CompressedModulusSwitchedMultiBitLweCiphertext::compress in
+        // core_crypto/entities/compressed_modulus_switched_multi_bit_lwe_ciphertext.rs
+        // for more details
+        self.ggsw_per_multi_bit_element().0 - 1 - self.0
+    }
 }
 
 /// The number of GGSW ciphertexts required per multi_bit BSK element
