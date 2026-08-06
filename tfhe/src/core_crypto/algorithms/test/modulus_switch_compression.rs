@@ -7,11 +7,11 @@ const NB_TESTS: usize = 10;
 #[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
 
-fn encryption_ms_decryption<Scalar: UnsignedTorus + Sync + Send + CastInto<u64> + CastFrom<u64>>(
+fn encryption_ms_decryption<
+    Scalar: UnsignedTorus + Sync + Send + CastInto<u64> + CastFrom<usize>,
+>(
     params: ClassicTestParams<Scalar>,
-) where
-    usize: CastFrom<Scalar>,
-{
+) {
     let ClassicTestParams {
         lwe_noise_distribution,
         message_modulus_log,
@@ -53,7 +53,7 @@ fn encryption_ms_decryption<Scalar: UnsignedTorus + Sync + Send + CastInto<u64> 
             let compressed = lwe.compress::<u64>();
 
             let container: Vec<Scalar> = compressed
-                .extract::<u64>()
+                .extract()
                 .container()
                 .iter()
                 .map(|i| (*i).cast_into())
@@ -77,18 +77,18 @@ fn encryption_ms_decryption<Scalar: UnsignedTorus + Sync + Send + CastInto<u64> 
 
 fn assert_ms_compression<Scalar>(ct: &LweCiphertext<Vec<Scalar>>, log_modulus: CiphertextModulusLog)
 where
-    Scalar: UnsignedTorus + CastInto<u64>,
+    Scalar: UnsignedTorus + CastInto<u64> + CastInto<usize>,
     u64: CastInto<Scalar>,
 {
     let msed_ct = lwe_ciphertext_modulus_switch::<_, u64, _>(ct.as_view(), log_modulus);
 
     let a = msed_ct.compress::<u64>();
 
-    let b = a.extract::<u64>();
+    let b = a.extract();
     let b = b.container();
 
     for (i, j) in ct.as_ref().iter().zip_eq(b.iter()) {
-        let i_ms: u64 = modulus_switch(*i, log_modulus).cast_into();
+        let i_ms: usize = modulus_switch(*i, log_modulus).cast_into();
 
         assert_eq!(i_ms, *j);
     }
