@@ -52,7 +52,8 @@ impl Seeder for AppleSecureEnclaveSeeder {
     fn seed(&mut self) -> Seed {
         let mut bytes = [0u8; std::mem::size_of::<u128>() / std::mem::size_of::<u8>()];
         secure_enclave::generate_random_bytes(&mut bytes)
-            .expect("Failure while using Apple secure enclave: {err:?}");
+            .map_err(|err| format!("Failure while using Apple secure enclave: {err:?}"))
+            .unwrap();
 
         Seed(u128::from_le_bytes(bytes))
     }
