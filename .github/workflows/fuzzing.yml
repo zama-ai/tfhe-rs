@@ -18,8 +18,8 @@ on:
         default: '86400' # 24h
         required: false
   schedule:
-    # Saturday 01:00 UTC.
-    - cron: '0 1 * * 6'
+    # Friday 05:00 UTC.
+    - cron: '0 5 * * 5'
 
 permissions: {}
 
