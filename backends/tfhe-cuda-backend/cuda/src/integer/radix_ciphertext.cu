@@ -1,5 +1,18 @@
 #include "radix_ciphertext.cuh"
 
+CudaRadixCiphertext::~CudaRadixCiphertext() {
+  PANIC_IF_FALSE(!_owns_gpu_memory || ptr == nullptr,
+                 "release_radix_ciphertext_async was not called on an owning "
+                 "CudaRadixCiphertext (this=%p, ptr=%p)",
+                 this, ptr);
+  PANIC_IF_FALSE(!_owns_degrees_and_noise_levels ||
+                     (degrees == nullptr && noise_levels == nullptr),
+                 "release_(cpu_)radix_ciphertext_async was not called on an "
+                 "owning CudaRadixCiphertext (this=%p, degrees=%p, "
+                 "noise_levels=%p)",
+                 this, degrees, noise_levels);
+}
+
 void release_radix_ciphertext_async(cudaStream_t const stream,
                                     uint32_t const gpu_index,
                                     CudaRadixCiphertext *data,
@@ -31,7 +44,7 @@ void release_cpu_radix_ciphertext_async(CudaRadixCiphertext *data) {
   data->degrees = nullptr;
   data->noise_levels = nullptr;
 }
-void reset_radix_ciphertext_blocks(CudaRadixCiphertextFFI *data,
+void reset_radix_ciphertext_blocks(CudaRadixCiphertext *data,
                                    uint32_t new_num_blocks) {
   if (new_num_blocks > data->max_num_radix_blocks)
     PANIC("Cuda error: new num blocks should be lower or equal than the "

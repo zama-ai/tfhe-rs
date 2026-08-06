@@ -9,8 +9,8 @@
 
 // Creates a slice of specific bits in a register without copying data.
 template <typename Torus>
-__host__ void slice_reg_batch(CudaRadixCiphertextFFI *slice,
-                              const CudaRadixCiphertextFFI *reg,
+__host__ void slice_reg_batch(CudaRadixCiphertext *slice,
+                              const CudaRadixCiphertext *reg,
                               uint32_t start_bit_idx, uint32_t num_bits,
                               uint32_t num_inputs) {
   as_radix_ciphertext_slice<Torus>(slice, reg, start_bit_idx * num_inputs,
@@ -21,8 +21,8 @@ __host__ void slice_reg_batch(CudaRadixCiphertextFFI *slice,
 // Used to align the input Key/IV with the internal state format if needed.
 template <typename Torus>
 void reverse_bitsliced_radix_inplace(CudaStreams streams,
-                                     CudaRadixCiphertextFFI *shift_workspace,
-                                     CudaRadixCiphertextFFI *radix,
+                                     CudaRadixCiphertext *shift_workspace,
+                                     CudaRadixCiphertext *radix,
                                      uint32_t num_bits_in_reg,
                                      uint32_t num_inputs) {
   uint32_t N = num_inputs;
@@ -46,9 +46,9 @@ void reverse_bitsliced_radix_inplace(CudaStreams streams,
 // and inserts the newly computed bits at the beginning.
 template <typename Torus>
 __host__ void shift_and_insert_batch(CudaStreams streams,
-                                     CudaRadixCiphertextFFI *shift_workspace,
-                                     CudaRadixCiphertextFFI *reg,
-                                     CudaRadixCiphertextFFI *new_bits,
+                                     CudaRadixCiphertext *shift_workspace,
+                                     CudaRadixCiphertext *reg,
+                                     CudaRadixCiphertext *new_bits,
                                      uint32_t reg_size, uint32_t num_inputs) {
   constexpr uint32_t BATCH = TRIVIUM_BATCH_SIZE;
   uint32_t num_blocks_to_keep = (reg_size - BATCH) * num_inputs;
@@ -70,11 +70,12 @@ __host__ void shift_and_insert_batch(CudaStreams streams,
 // registers. Performs the XORs (additions) and the AND gates (Bivariate PBS),
 // updates the registers in place, and writes to output if requested.
 template <typename Torus>
-__host__ void trivium_compute_64_steps(
-    CudaStreams streams, int_trivium_buffer<Torus> *buffer,
-    CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
-    CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *output_dest,
-    void *const *bsks, uint64_t *const *ksks) {
+__host__ void
+trivium_compute_64_steps(CudaStreams streams, int_trivium_buffer<Torus> *buffer,
+                         CudaRadixCiphertext *a_reg, CudaRadixCiphertext *b_reg,
+                         CudaRadixCiphertext *c_reg,
+                         CudaRadixCiphertext *output_dest, void *const *bsks,
+                         uint64_t *const *ksks) {
 
   uint32_t N = buffer->num_inputs;
   constexpr uint32_t BATCH = TRIVIUM_BATCH_SIZE;
@@ -279,10 +280,10 @@ __host__ void trivium_compute_64_steps(
 template <typename Torus>
 __host__ void
 host_trivium_init(CudaStreams streams, int_trivium_buffer<Torus> *buffer,
-                  CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
-                  CudaRadixCiphertextFFI *c_reg,
-                  const CudaRadixCiphertextFFI *key_bitsliced,
-                  const CudaRadixCiphertextFFI *iv_bitsliced, void *const *bsks,
+                  CudaRadixCiphertext *a_reg, CudaRadixCiphertext *b_reg,
+                  CudaRadixCiphertext *c_reg,
+                  const CudaRadixCiphertext *key_bitsliced,
+                  const CudaRadixCiphertext *iv_bitsliced, void *const *bsks,
                   uint64_t *const *ksks) {
 
   uint32_t N = buffer->num_inputs;
@@ -331,9 +332,9 @@ host_trivium_init(CudaStreams streams, int_trivium_buffer<Torus> *buffer,
 
 template <typename Torus>
 __host__ void
-host_trivium_step(CudaStreams streams, CudaRadixCiphertextFFI *keystream_output,
-                  CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
-                  CudaRadixCiphertextFFI *c_reg, uint32_t num_steps,
+host_trivium_step(CudaStreams streams, CudaRadixCiphertext *keystream_output,
+                  CudaRadixCiphertext *a_reg, CudaRadixCiphertext *b_reg,
+                  CudaRadixCiphertext *c_reg, uint32_t num_steps,
                   int_trivium_buffer<Torus> *buffer, void *const *bsks,
                   uint64_t *const *ksks) {
 

@@ -8683,12 +8683,12 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains<
         noise_reduction_type as u32,
     );
 
+    let ffi_inputs_vec = VecCudaRadixCiphertextFFI::from_ciphertexts(&ffi_inputs);
     cuda_unchecked_contains_64_async(
         streams.ffi(),
         &raw mut ffi_output,
-        ffi_inputs.as_ptr(),
+        &raw const ffi_inputs_vec,
         &raw const ffi_value,
-        num_inputs,
         num_blocks,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
@@ -8793,12 +8793,12 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
         noise_reduction_type as u32,
     );
 
+    let ffi_inputs_vec = VecCudaRadixCiphertextFFI::from_ciphertexts(&ffi_inputs);
     cuda_unchecked_contains_clear_64_async(
         streams.ffi(),
         &raw mut ffi_output,
-        ffi_inputs.as_ptr(),
+        &raw const ffi_inputs_vec,
         h_clear_blocks.as_ptr(),
-        num_inputs,
         num_blocks,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
@@ -9256,13 +9256,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
         noise_reduction_type as u32,
     );
 
+    let ffi_inputs_vec = VecCudaRadixCiphertextFFI::from_ciphertexts(&ffi_inputs);
     cuda_unchecked_first_index_of_clear_64_async(
         streams.ffi(),
         &raw mut ffi_index,
         &raw mut ffi_match,
-        ffi_inputs.as_ptr(),
+        &raw const ffi_inputs_vec,
         h_clear_blocks.as_ptr(),
-        num_inputs,
         num_blocks,
         num_blocks_index,
         mem_ptr,
@@ -9386,13 +9386,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
         noise_reduction_type as u32,
     );
 
+    let ffi_inputs_vec = VecCudaRadixCiphertextFFI::from_ciphertexts(&ffi_inputs);
     cuda_unchecked_first_index_of_64_async(
         streams.ffi(),
         &raw mut ffi_index,
         &raw mut ffi_match,
-        ffi_inputs.as_ptr(),
+        &raw const ffi_inputs_vec,
         &raw const ffi_value,
-        num_inputs,
         num_blocks,
         num_blocks_index,
         mem_ptr,
@@ -9516,13 +9516,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of<
         noise_reduction_type as u32,
     );
 
+    let ffi_inputs_vec = VecCudaRadixCiphertextFFI::from_ciphertexts(&ffi_inputs);
     cuda_unchecked_index_of_64_async(
         streams.ffi(),
         &raw mut ffi_index,
         &raw mut ffi_match,
-        ffi_inputs.as_ptr(),
+        &raw const ffi_inputs_vec,
         &raw const ffi_value,
-        num_inputs,
         num_blocks,
         num_blocks_index,
         mem_ptr,
@@ -9653,14 +9653,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
         noise_reduction_type as u32,
     );
 
+    let ffi_inputs_vec = VecCudaRadixCiphertextFFI::from_ciphertexts(&ffi_inputs);
     cuda_unchecked_index_of_clear_64_async(
         streams.ffi(),
         &raw mut ffi_index,
         &raw mut ffi_match,
-        ffi_inputs.as_ptr(),
+        &raw const ffi_inputs_vec,
         scalar_blocks.as_ptr(),
         is_scalar_obviously_bigger,
-        num_inputs,
         num_blocks_in_ct,
         num_blocks_index,
         mem_ptr,

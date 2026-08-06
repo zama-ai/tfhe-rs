@@ -11,9 +11,9 @@
 // via bivariate packing, then evaluated through the predicate LUT.
 template <typename Torus, typename KSTorus>
 __host__ void zero_out_if(CudaStreams streams,
-                          CudaRadixCiphertextFFI *lwe_array_out,
-                          CudaRadixCiphertextFFI const *lwe_array_input,
-                          CudaRadixCiphertextFFI const *lwe_condition,
+                          CudaRadixCiphertext *lwe_array_out,
+                          CudaRadixCiphertext const *lwe_array_input,
+                          CudaRadixCiphertext const *lwe_condition,
                           int_zero_out_if_buffer<Torus> *mem_ptr,
                           int_radix_lut<Torus> *predicate, void *const *bsks,
                           KSTorus *const *ksks, uint32_t num_radix_blocks) {
@@ -62,13 +62,14 @@ __host__ void zero_out_if(CudaStreams streams,
 /// @param num_entries        Number of ciphertexts to process
 /// @param num_blocks_per_ct  Number of radix blocks per ciphertext
 template <typename Torus, typename KSTorus>
-__host__ void host_zero_out_if_batch(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_input,
-    CudaRadixCiphertextFFI const *lwe_conditions,
-    int_zero_out_if_batch_buffer<Torus> *mem_ptr,
-    int_radix_lut<Torus> *predicate, void *const *bsks, KSTorus *const *ksks,
-    uint32_t num_entries, uint32_t num_blocks_per_ct) {
+__host__ void
+host_zero_out_if_batch(CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+                       CudaRadixCiphertext const *lwe_array_input,
+                       CudaRadixCiphertext const *lwe_conditions,
+                       int_zero_out_if_batch_buffer<Torus> *mem_ptr,
+                       int_radix_lut<Torus> *predicate, void *const *bsks,
+                       KSTorus *const *ksks, uint32_t num_entries,
+                       uint32_t num_blocks_per_ct) {
 
   uint32_t total_num_blocks =
       static_cast<uint32_t>(safe_mul((size_t)num_entries, num_blocks_per_ct));
@@ -120,11 +121,10 @@ __host__ uint64_t scratch_cuda_zero_out_if_batch(
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void host_cmux(CudaStreams streams,
-                        CudaRadixCiphertextFFI *lwe_array_out,
-                        CudaRadixCiphertextFFI const *lwe_condition,
-                        CudaRadixCiphertextFFI const *lwe_array_true,
-                        CudaRadixCiphertextFFI const *lwe_array_false,
+__host__ void host_cmux(CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+                        CudaRadixCiphertext const *lwe_condition,
+                        CudaRadixCiphertext const *lwe_array_true,
+                        CudaRadixCiphertext const *lwe_array_false,
                         int_cmux_buffer<Torus> *mem_ptr, void *const *bsks,
                         KSTorus *const *ksks) {
 
@@ -207,10 +207,10 @@ __host__ uint64_t scratch_cuda_cmux(CudaStreams streams,
 /// all entries
 template <typename Torus, typename KSTorus>
 __host__ void
-host_cmux_batch(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-                CudaRadixCiphertextFFI const *lwe_array_true,
-                CudaRadixCiphertextFFI const *lwe_array_false,
-                CudaRadixCiphertextFFI const *lwe_conditions,
+host_cmux_batch(CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+                CudaRadixCiphertext const *lwe_array_true,
+                CudaRadixCiphertext const *lwe_array_false,
+                CudaRadixCiphertext const *lwe_conditions,
                 int_cmux_batch_buffer<Torus> *mem_ptr, void *const *bsks,
                 KSTorus *const *ksks, uint32_t num_entries,
                 uint32_t num_blocks_per_ct, bool replicate_true = false) {

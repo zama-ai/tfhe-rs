@@ -26,7 +26,7 @@ __host__ uint64_t scratch_integer_unsigned_scalar_div_radix(
 
 template <typename Torus, typename KSTorus>
 __host__ void host_integer_unsigned_scalar_div_radix(
-    CudaStreams streams, CudaRadixCiphertextFFI *numerator_ct,
+    CudaStreams streams, CudaRadixCiphertext *numerator_ct,
     int_unsigned_scalar_div_mem<Torus> *mem_ptr, void *const *bsks,
     KSTorus *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi) {
 
@@ -120,7 +120,7 @@ __host__ uint64_t scratch_integer_signed_scalar_div_radix(
 
 template <typename Torus, typename KSTorus>
 __host__ void host_integer_signed_scalar_div_radix(
-    CudaStreams streams, CudaRadixCiphertextFFI *numerator_ct,
+    CudaStreams streams, CudaRadixCiphertext *numerator_ct,
     int_signed_scalar_div_mem<Torus> *mem_ptr, void *const *bsks,
     KSTorus *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint32_t numerator_bits) {
@@ -249,8 +249,8 @@ __host__ uint64_t scratch_integer_unsigned_scalar_div_rem_radix(
 
 template <typename Torus, typename KSTorus>
 __host__ void host_integer_unsigned_scalar_div_rem_radix(
-    CudaStreams streams, CudaRadixCiphertextFFI *quotient_ct,
-    CudaRadixCiphertextFFI *remainder_ct,
+    CudaStreams streams, CudaRadixCiphertext *quotient_ct,
+    CudaRadixCiphertext *remainder_ct,
     int_unsigned_scalar_div_rem_buffer<Torus> *mem_ptr, void *const *bsks,
     KSTorus *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint64_t const *divisor_has_at_least_one_set,
@@ -316,8 +316,8 @@ __host__ uint64_t scratch_integer_signed_scalar_div_rem_radix(
 
 template <typename Torus, typename KSTorus>
 __host__ void host_integer_signed_scalar_div_rem_radix(
-    CudaStreams streams, CudaRadixCiphertextFFI *quotient_ct,
-    CudaRadixCiphertextFFI *remainder_ct,
+    CudaStreams streams, CudaRadixCiphertext *quotient_ct,
+    CudaRadixCiphertext *remainder_ct,
     int_signed_scalar_div_rem_buffer<Torus> *mem_ptr, void *const *bsks,
     KSTorus *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint64_t const *divisor_has_at_least_one_set,

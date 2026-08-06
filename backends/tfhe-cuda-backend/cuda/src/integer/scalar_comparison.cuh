@@ -26,8 +26,8 @@ Torus is_x_less_than_y_given_input_borrow(Torus last_x_block,
 
 template <typename Torus, typename KSTorus>
 __host__ void scalar_compare_radix_blocks(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI *lwe_array_in, Torus *scalar_blocks,
+    CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+    CudaRadixCiphertext *lwe_array_in, Torus *scalar_blocks,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_radix_blocks) {
 
@@ -84,8 +84,8 @@ __host__ void scalar_compare_radix_blocks(
 
 template <typename Torus, typename KSTorus>
 __host__ void integer_radix_unsigned_scalar_difference_check(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
+    CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+    CudaRadixCiphertext const *lwe_array_in, Torus const *scalar_blocks,
     Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
     std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_radix_blocks,
@@ -315,8 +315,8 @@ __host__ void integer_radix_unsigned_scalar_difference_check(
 
 template <typename Torus, typename KSTorus>
 __host__ void integer_radix_signed_scalar_difference_check(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
+    CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+    CudaRadixCiphertext const *lwe_array_in, Torus const *scalar_blocks,
     Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
     std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_radix_blocks,
@@ -625,8 +625,8 @@ __host__ void integer_radix_signed_scalar_difference_check(
 
 template <typename Torus, typename KSTorus>
 __host__ void host_scalar_difference_check(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
+    CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+    CudaRadixCiphertext const *lwe_array_in, Torus const *scalar_blocks,
     Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
     std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_radix_blocks,
@@ -654,8 +654,8 @@ __host__ void host_scalar_difference_check(
 
 template <typename Torus, typename KSTorus>
 __host__ void
-host_scalar_maxmin(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-                   CudaRadixCiphertextFFI const *lwe_array_in,
+host_scalar_maxmin(CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+                   CudaRadixCiphertext const *lwe_array_in,
                    Torus const *scalar_blocks, Torus const *h_scalar_blocks,
                    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
                    KSTorus *const *ksks, uint32_t num_radix_blocks,
@@ -698,8 +698,8 @@ host_scalar_maxmin(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
 
 template <typename Torus, typename KSTorus>
 __host__ void host_scalar_equality_check(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
+    CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+    CudaRadixCiphertext const *lwe_array_in, Torus const *scalar_blocks,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_radix_blocks,
     uint32_t num_scalar_blocks) {

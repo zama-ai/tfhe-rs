@@ -9,7 +9,7 @@
 #include "utils/helper.cuh"
 
 inline CudaLweCiphertextListFFI
-to_lwe_ciphertext_list(CudaRadixCiphertextFFI *radix) {
+to_lwe_ciphertext_list(CudaRadixCiphertext *radix) {
   return {.ptr = radix->ptr,
           .num_radix_blocks = radix->num_radix_blocks,
           .lwe_dimension = radix->lwe_dimension};
@@ -66,8 +66,8 @@ device_create_trivial_radix(Torus *lwe_array, Torus const *scalar_input,
 
 // end_input_lwe_index is exclusive
 template <typename Torus>
-void as_radix_ciphertext_slice(CudaRadixCiphertextFFI *output_radix,
-                               const CudaRadixCiphertextFFI *input_radix,
+void as_radix_ciphertext_slice(CudaRadixCiphertext *output_radix,
+                               const CudaRadixCiphertext *input_radix,
                                const uint32_t start_input_lwe_index,
                                const uint32_t end_input_lwe_index) {
   if (input_radix->num_radix_blocks <
@@ -92,9 +92,8 @@ void as_radix_ciphertext_slice(CudaRadixCiphertextFFI *output_radix,
 template <typename Torus>
 void copy_radix_ciphertext_slice_async(
     cudaStream_t const stream, uint32_t const gpu_index,
-    CudaRadixCiphertextFFI *output_radix, const uint32_t output_start_lwe_index,
-    const uint32_t output_end_lwe_index,
-    const CudaRadixCiphertextFFI *input_radix,
+    CudaRadixCiphertext *output_radix, const uint32_t output_start_lwe_index,
+    const uint32_t output_end_lwe_index, const CudaRadixCiphertext *input_radix,
     const uint32_t input_start_lwe_index, const uint32_t input_end_lwe_index) {
   PUSH_RANGE("copy radix slice");
   if (output_radix->lwe_dimension != input_radix->lwe_dimension)
@@ -146,8 +145,8 @@ void copy_radix_ciphertext_slice_async(
 template <typename Torus>
 void copy_radix_ciphertext_async(cudaStream_t const stream,
                                  uint32_t const gpu_index,
-                                 CudaRadixCiphertextFFI *output_radix,
-                                 const CudaRadixCiphertextFFI *input_radix) {
+                                 CudaRadixCiphertext *output_radix,
+                                 const CudaRadixCiphertext *input_radix) {
   copy_radix_ciphertext_slice_async<Torus>(
       stream, gpu_index, output_radix, 0, output_radix->num_radix_blocks,
       input_radix, 0, input_radix->num_radix_blocks);
@@ -157,7 +156,7 @@ void copy_radix_ciphertext_async(cudaStream_t const stream,
 template <typename Torus>
 void set_zero_radix_ciphertext_slice_async(cudaStream_t const stream,
                                            uint32_t const gpu_index,
-                                           CudaRadixCiphertextFFI *radix,
+                                           CudaRadixCiphertext *radix,
                                            const uint32_t start_lwe_index,
                                            const uint32_t end_lwe_index) {
   if (radix->num_radix_blocks < end_lwe_index - start_lwe_index)
@@ -180,10 +179,9 @@ void set_zero_radix_ciphertext_slice_async(cudaStream_t const stream,
 
 template <typename Torus>
 __host__ void set_trivial_radix_ciphertext_async(
-    cudaStream_t stream, uint32_t gpu_index,
-    CudaRadixCiphertextFFI *lwe_array_out, Torus const *scalar_array,
-    Torus const *h_scalar_array, uint32_t num_scalar_blocks,
-    Torus message_modulus, Torus carry_modulus) {
+    cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertext *lwe_array_out,
+    Torus const *scalar_array, Torus const *h_scalar_array,
+    uint32_t num_scalar_blocks, Torus message_modulus, Torus carry_modulus) {
 
   if (num_scalar_blocks > lwe_array_out->num_radix_blocks)
     PANIC("Cuda error: num scalar blocks should be lower or equal to the "
@@ -219,9 +217,8 @@ __host__ void set_trivial_radix_ciphertext_async(
 // set single trivial value for a radix ciphertext
 template <typename Torus>
 __host__ void set_single_scalar_trivial_radix_ciphertext_async(
-    cudaStream_t stream, uint32_t gpu_index,
-    CudaRadixCiphertextFFI *lwe_array_out, Torus const scalar,
-    Torus message_modulus, Torus carry_modulus) {
+    cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertext *lwe_array_out,
+    Torus const scalar, Torus message_modulus, Torus carry_modulus) {
 
   set_zero_radix_ciphertext_slice_async<Torus>(
       stream, gpu_index, lwe_array_out, 0, lwe_array_out->num_radix_blocks);
@@ -247,8 +244,8 @@ __host__ void set_single_scalar_trivial_radix_ciphertext_async(
 // decrease radix_in num_radix_blocks by 1
 template <typename Torus>
 void pop_radix_ciphertext_block_async(cudaStream_t stream, uint32_t gpu_index,
-                                      CudaRadixCiphertextFFI *block,
-                                      CudaRadixCiphertextFFI *radix_in) {
+                                      CudaRadixCiphertext *block,
+                                      CudaRadixCiphertext *radix_in) {
   copy_radix_ciphertext_slice_async<Torus>(
       stream, gpu_index, block, 0, 1, radix_in, radix_in->num_radix_blocks - 1,
       radix_in->num_radix_blocks);
@@ -260,8 +257,8 @@ void pop_radix_ciphertext_block_async(cudaStream_t stream, uint32_t gpu_index,
 template <typename Torus>
 void insert_block_in_radix_ciphertext_async(cudaStream_t stream,
                                             uint32_t gpu_index,
-                                            CudaRadixCiphertextFFI *block,
-                                            CudaRadixCiphertextFFI *radix_out,
+                                            CudaRadixCiphertext *block,
+                                            CudaRadixCiphertext *radix_out,
                                             int index) {
   reset_radix_ciphertext_blocks(radix_out, radix_out->num_radix_blocks + 1);
   for (int j = radix_out->num_radix_blocks - 2; j >= index; j--) {
@@ -277,8 +274,8 @@ void insert_block_in_radix_ciphertext_async(cudaStream_t stream,
 template <typename Torus>
 void push_block_to_radix_ciphertext_async(cudaStream_t stream,
                                           uint32_t gpu_index,
-                                          CudaRadixCiphertextFFI *block,
-                                          CudaRadixCiphertextFFI *radix_out) {
+                                          CudaRadixCiphertext *block,
+                                          CudaRadixCiphertext *radix_out) {
   reset_radix_ciphertext_blocks(radix_out, radix_out->num_radix_blocks + 1);
   copy_radix_ciphertext_slice_async<Torus>(
       stream, gpu_index, radix_out, radix_out->num_radix_blocks - 1,

@@ -35,15 +35,15 @@ __host__ uint64_t scratch_cuda_shift_and_rotate(
 template <typename Torus, typename KSTorus>
 __host__ void
 host_compute_overshift_condition(CudaStreams streams,
-                                 CudaRadixCiphertextFFI const *lwe_shift,
-                                 CudaRadixCiphertextFFI const *last_bit,
+                                 CudaRadixCiphertext const *lwe_shift,
+                                 CudaRadixCiphertext const *last_bit,
                                  int_shift_and_rotate_buffer<Torus> *mem,
                                  void *const *bsks, KSTorus *const *ksks) {
   auto message_modulus = mem->params.message_modulus;
   auto carry_modulus = mem->params.carry_modulus;
 
   auto num_radix_blocks = lwe_shift->num_radix_blocks;
-  CudaRadixCiphertextFFI const *compare_in;
+  CudaRadixCiphertext const *compare_in;
   if (mem->tmp_padded_shift != nullptr) {
     // Pad the shift amount to an even number of blocks (high block is 0).
     set_zero_radix_ciphertext_slice_async<Torus>(
@@ -89,7 +89,7 @@ host_compute_overshift_condition(CudaStreams streams,
 template <typename Torus, typename KSTorus>
 __host__ void
 host_apply_overshift_cleanup(CudaStreams streams,
-                             CudaRadixCiphertextFFI *shifted_ct,
+                             CudaRadixCiphertext *shifted_ct,
                              int_shift_and_rotate_buffer<Torus> *mem,
                              void *const *bsks, KSTorus *const *ksks) {
   auto num_radix_blocks = shifted_ct->num_radix_blocks;
@@ -105,8 +105,8 @@ host_apply_overshift_cleanup(CudaStreams streams,
 template <typename Torus, typename KSTorus>
 __host__ void
 host_shift_and_rotate_inplace(CudaStreams streams,
-                              CudaRadixCiphertextFFI *lwe_array,
-                              CudaRadixCiphertextFFI const *lwe_shift,
+                              CudaRadixCiphertext *lwe_array,
+                              CudaRadixCiphertext const *lwe_shift,
                               int_shift_and_rotate_buffer<Torus> *mem,
                               void *const *bsks, KSTorus *const *ksks) {
   cuda_set_device(streams.gpu_index(0));

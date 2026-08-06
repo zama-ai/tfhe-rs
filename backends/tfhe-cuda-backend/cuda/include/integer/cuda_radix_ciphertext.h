@@ -1,44 +1,51 @@
 #ifndef CUDA_INTEGER_CUDA_RADIX_CIPHERTEXT_H
 #define CUDA_INTEGER_CUDA_RADIX_CIPHERTEXT_H
 
-#include "device.h"
-#include "integer/integer.h"
+#include "integer.h"
 
-struct CudaRadixCiphertext : public CudaRadixCiphertextFFI {
+struct CudaRadixCiphertext {
+  void *ptr;
+  uint64_t *degrees;
+  uint64_t *noise_levels;
+  uint32_t num_radix_blocks;
+  uint32_t max_num_radix_blocks;
+  uint32_t lwe_dimension;
+
   bool _owns_gpu_memory;
   bool _owns_degrees_and_noise_levels;
 
   CudaRadixCiphertext()
-      : CudaRadixCiphertextFFI{nullptr, nullptr, nullptr, 0, 0, 0},
+      : ptr(nullptr), degrees(nullptr), noise_levels(nullptr),
+        num_radix_blocks(0), max_num_radix_blocks(0), lwe_dimension(0),
         _owns_gpu_memory(false), _owns_degrees_and_noise_levels(false) {}
 
   explicit CudaRadixCiphertext(const CudaRadixCiphertextFFI &ffi)
-      : CudaRadixCiphertextFFI(ffi), _owns_gpu_memory(false),
+      : ptr(ffi.ptr), degrees(ffi.degrees), noise_levels(ffi.noise_levels),
+        num_radix_blocks(ffi.num_radix_blocks),
+        max_num_radix_blocks(ffi.max_num_radix_blocks),
+        lwe_dimension(ffi.lwe_dimension), _owns_gpu_memory(false),
         _owns_degrees_and_noise_levels(false) {}
 
   CudaRadixCiphertext(const CudaRadixCiphertext &src)
-      : CudaRadixCiphertextFFI(src), _owns_gpu_memory(false),
+      : ptr(src.ptr), degrees(src.degrees), noise_levels(src.noise_levels),
+        num_radix_blocks(src.num_radix_blocks),
+        max_num_radix_blocks(src.max_num_radix_blocks),
+        lwe_dimension(src.lwe_dimension), _owns_gpu_memory(false),
         _owns_degrees_and_noise_levels(false) {}
 
   CudaRadixCiphertext &operator=(const CudaRadixCiphertext &src) {
-    static_cast<CudaRadixCiphertextFFI &>(*this) = src;
+    ptr = src.ptr;
+    degrees = src.degrees;
+    noise_levels = src.noise_levels;
+    num_radix_blocks = src.num_radix_blocks;
+    max_num_radix_blocks = src.max_num_radix_blocks;
+    lwe_dimension = src.lwe_dimension;
     _owns_gpu_memory = false;
     _owns_degrees_and_noise_levels = false;
     return *this;
   }
 
-  ~CudaRadixCiphertext() {
-    PANIC_IF_FALSE(!_owns_gpu_memory || ptr == nullptr,
-                   "release_radix_ciphertext_async was not called on an owning "
-                   "CudaRadixCiphertext (this=%p, ptr=%p)",
-                   this, ptr);
-    PANIC_IF_FALSE(!_owns_degrees_and_noise_levels ||
-                       (degrees == nullptr && noise_levels == nullptr),
-                   "release_(cpu_)radix_ciphertext_async was not called on an "
-                   "owning CudaRadixCiphertext (this=%p, degrees=%p, "
-                   "noise_levels=%p)",
-                   this, degrees, noise_levels);
-  }
+  ~CudaRadixCiphertext();
 };
 
 #endif

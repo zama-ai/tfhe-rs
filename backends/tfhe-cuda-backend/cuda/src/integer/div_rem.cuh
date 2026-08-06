@@ -27,9 +27,9 @@ __host__ uint64_t scratch_cuda_integer_div_rem(
 
 template <typename Torus>
 __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
-    CudaStreams streams, CudaRadixCiphertextFFI *quotient,
-    CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
-    CudaRadixCiphertextFFI const *divisor, void *const *bsks,
+    CudaStreams streams, CudaRadixCiphertext *quotient,
+    CudaRadixCiphertext *remainder, CudaRadixCiphertext const *numerator,
+    CudaRadixCiphertext const *divisor, void *const *bsks,
     uint64_t *const *ksks, unsigned_int_div_rem_2_2_memory<uint64_t> *mem_ptr) {
 
   if (streams.count() < 4) {
@@ -120,21 +120,21 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
 
     uint32_t slice_len = num_blocks - block_index;
 
-    auto init_low_rem_f =
-        [&](CudaRadixCiphertextFFI *low, CudaRadixCiphertextFFI *xd,
-            CudaRadixCiphertextFFI *rem, CudaRadixCiphertextFFI *cur_remainder,
-            size_t gpu_index, bool init_low) {
-          rem->num_radix_blocks = slice_len;
-          if (init_low) {
-            low->num_radix_blocks = slice_len;
-            copy_radix_ciphertext_slice_async<Torus>(
-                streams.stream(gpu_index), streams.gpu_index(gpu_index), low, 0,
-                slice_len, xd, 0, slice_len);
-          }
-          copy_radix_ciphertext_slice_async<Torus>(
-              streams.stream(gpu_index), streams.gpu_index(gpu_index), rem, 0,
-              slice_len, cur_remainder, block_index, num_blocks);
-        };
+    auto init_low_rem_f = [&](CudaRadixCiphertext *low, CudaRadixCiphertext *xd,
+                              CudaRadixCiphertext *rem,
+                              CudaRadixCiphertext *cur_remainder,
+                              size_t gpu_index, bool init_low) {
+      rem->num_radix_blocks = slice_len;
+      if (init_low) {
+        low->num_radix_blocks = slice_len;
+        copy_radix_ciphertext_slice_async<Torus>(
+            streams.stream(gpu_index), streams.gpu_index(gpu_index), low, 0,
+            slice_len, xd, 0, slice_len);
+      }
+      copy_radix_ciphertext_slice_async<Torus>(
+          streams.stream(gpu_index), streams.gpu_index(gpu_index), rem, 0,
+          slice_len, cur_remainder, block_index, num_blocks);
+    };
 
     init_low_rem_f(nullptr, nullptr, mem_ptr->rem0, remainder_gpu_3, 3, false);
     init_low_rem_f(mem_ptr->low1, mem_ptr->d1, mem_ptr->rem1, remainder_gpu_2,
@@ -145,12 +145,12 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
                    0, true);
 
     auto sub_result_f = [&](CudaStreams streams, size_t gpu_index,
-                            CudaRadixCiphertextFFI *sub_result,
-                            CudaRadixCiphertextFFI *sub_overflowed,
+                            CudaRadixCiphertext *sub_result,
+                            CudaRadixCiphertext *sub_overflowed,
                             int_borrow_prop_memory<Torus> *overflow_sub_mem,
-                            CudaRadixCiphertextFFI *low,
-                            CudaRadixCiphertextFFI *rem, Torus *first_indexes,
-                            Torus *second_indexes, Torus *scalar_indexes) {
+                            CudaRadixCiphertext *low, CudaRadixCiphertext *rem,
+                            Torus *first_indexes, Torus *second_indexes,
+                            Torus *scalar_indexes) {
       uint32_t compute_overflow = 1;
       uint32_t uses_input_borrow = 0;
       sub_result->num_radix_blocks = low->num_radix_blocks;
@@ -159,15 +159,15 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
           scalar_indexes, rem->num_radix_blocks);
       host_integer_overflowing_sub<uint64_t>(
           streams.get_ith(gpu_index), sub_result, rem, low, sub_overflowed,
-          (const CudaRadixCiphertextFFI *)nullptr, overflow_sub_mem,
+          (const CudaRadixCiphertext *)nullptr, overflow_sub_mem,
           &bsks[gpu_index], &ksks[gpu_index], compute_overflow,
           uses_input_borrow);
     };
 
     auto cmp_f = [&](CudaStreams streams, size_t gpu_index,
-                     CudaRadixCiphertextFFI *out_boolean_block,
-                     CudaRadixCiphertextFFI *comparison_blocks,
-                     CudaRadixCiphertextFFI *d,
+                     CudaRadixCiphertext *out_boolean_block,
+                     CudaRadixCiphertext *comparison_blocks,
+                     CudaRadixCiphertext *d,
                      int_comparison_buffer<Torus> *comparison_buffer) {
       CudaRadixCiphertext d_msb;
       uint32_t slice_start = num_blocks - block_index;
@@ -344,8 +344,8 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
                                              0, 1, o1_gpu_3, 0, 1);
 
     auto conditional_update = [&](CudaStreams streams, size_t gpu_index,
-                                  CudaRadixCiphertextFFI *cx,
-                                  CudaRadixCiphertextFFI *rx,
+                                  CudaRadixCiphertext *cx,
+                                  CudaRadixCiphertext *rx,
                                   int_radix_lut<Torus> *lut, Torus factor) {
       host_cleartext_multiplication<Torus>(
           streams.stream(gpu_index), streams.gpu_index(gpu_index), rx, rx,
@@ -486,9 +486,9 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
 
 template <typename Torus>
 __host__ void host_unsigned_integer_div_rem(
-    CudaStreams streams, CudaRadixCiphertextFFI *quotient,
-    CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
-    CudaRadixCiphertextFFI const *divisor, void *const *bsks,
+    CudaStreams streams, CudaRadixCiphertext *quotient,
+    CudaRadixCiphertext *remainder, CudaRadixCiphertext const *numerator,
+    CudaRadixCiphertext const *divisor, void *const *bsks,
     uint64_t *const *ksks, unsigned_int_div_rem_memory<uint64_t> *mem_ptr) {
 
   if (remainder->num_radix_blocks != numerator->num_radix_blocks ||
@@ -755,8 +755,8 @@ __host__ void host_unsigned_integer_div_rem(
       host_integer_overflowing_sub<uint64_t>(
           streams, new_remainder, merged_interesting_remainder,
           interesting_divisor, subtraction_overflowed,
-          (const CudaRadixCiphertextFFI *)nullptr, mem_ptr->overflow_sub_mem,
-          bsks, ksks, compute_borrow, uses_input_borrow);
+          (const CudaRadixCiphertext *)nullptr, mem_ptr->overflow_sub_mem, bsks,
+          ksks, compute_borrow, uses_input_borrow);
     };
 
     // fills:
@@ -916,9 +916,9 @@ __host__ void host_unsigned_integer_div_rem(
 
 template <typename Torus>
 __host__ void host_integer_div_rem(
-    CudaStreams streams, CudaRadixCiphertextFFI *quotient,
-    CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
-    CudaRadixCiphertextFFI const *divisor, bool is_signed, void *const *bsks,
+    CudaStreams streams, CudaRadixCiphertext *quotient,
+    CudaRadixCiphertext *remainder, CudaRadixCiphertext const *numerator,
+    CudaRadixCiphertext const *divisor, bool is_signed, void *const *bsks,
     uint64_t *const *ksks, int_div_rem_memory<uint64_t> *int_mem_ptr) {
   if (remainder->num_radix_blocks != numerator->num_radix_blocks ||
       remainder->num_radix_blocks != divisor->num_radix_blocks ||

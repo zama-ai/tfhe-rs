@@ -62,10 +62,15 @@ void generate_ids_update_degrees(uint64_t *terms_degree, size_t *h_lwe_idx_in,
   total_count = message_count + carry_count;
 }
 void cuda_integer_mult_inplace_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_inout,
-    bool const is_bool_left, CudaRadixCiphertextFFI const *radix_lwe_right,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_inout_ffi,
+    bool const is_bool_left, CudaRadixCiphertextFFI const *radix_lwe_right_ffi,
     bool const is_bool_right, void *const *bsks, void *const *ksks,
     int8_t *mem_ptr, uint32_t polynomial_size, uint32_t num_blocks) {
+  CudaRadixCiphertext radix_lwe_inout_local(*radix_lwe_inout_ffi);
+  CudaRadixCiphertext *radix_lwe_inout = &radix_lwe_inout_local;
+  const CudaRadixCiphertext radix_lwe_right_local(*radix_lwe_right_ffi);
+  const CudaRadixCiphertext *radix_lwe_right = &radix_lwe_right_local;
+
   // In-place variant: radix_lwe_inout *= radix_lwe_right, no aliasing check
   // needed
   PUSH_RANGE("mul_inplace")
@@ -176,10 +181,15 @@ uint64_t scratch_cuda_partial_sum_ciphertexts_vec_64_async(
 }
 
 void cuda_partial_sum_ciphertexts_vec_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_out,
-    CudaRadixCiphertextFFI *radix_lwe_vec, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks) {
-  PANIC_IF_FALSE(radix_lwe_out != radix_lwe_vec,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_out_ffi,
+    CudaRadixCiphertextFFI *radix_lwe_vec_ffi, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks) {
+  CudaRadixCiphertext radix_lwe_out_local(*radix_lwe_out_ffi);
+  CudaRadixCiphertext *radix_lwe_out = &radix_lwe_out_local;
+  CudaRadixCiphertext radix_lwe_vec_local(*radix_lwe_vec_ffi);
+  CudaRadixCiphertext *radix_lwe_vec = &radix_lwe_vec_local;
+
+  PANIC_IF_FALSE(radix_lwe_out_ffi != radix_lwe_vec_ffi,
                  "Output and input pointers must be different for out-of-place "
                  "operations");
 

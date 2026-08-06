@@ -361,6 +361,23 @@ const _: () = {
 };
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct VecCudaRadixCiphertextFFI {
+    pub ptr: *mut CudaRadixCiphertextFFI,
+    pub num_ciphertexts: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of VecCudaRadixCiphertextFFI"]
+        [::std::mem::size_of::<VecCudaRadixCiphertextFFI>() - 16usize];
+    ["Alignment of VecCudaRadixCiphertextFFI"]
+        [::std::mem::align_of::<VecCudaRadixCiphertextFFI>() - 8usize];
+    ["Offset of field: VecCudaRadixCiphertextFFI::ptr"]
+        [::std::mem::offset_of!(VecCudaRadixCiphertextFFI, ptr) - 0usize];
+    ["Offset of field: VecCudaRadixCiphertextFFI::num_ciphertexts"]
+        [::std::mem::offset_of!(VecCudaRadixCiphertextFFI, num_ciphertexts) - 8usize];
+};
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct CudaScalarDivisorFFI {
     pub chosen_multiplier_has_at_least_one_set: *const u64,
     pub decomposed_chosen_multiplier: *const u64,
@@ -1773,9 +1790,8 @@ unsafe extern "C" {
     pub fn cuda_unchecked_contains_64_async(
         streams: CudaStreamsFFI,
         output: *mut CudaRadixCiphertextFFI,
-        inputs: *const CudaRadixCiphertextFFI,
+        inputs: *const VecCudaRadixCiphertextFFI,
         value: *const CudaRadixCiphertextFFI,
-        num_inputs: u32,
         num_blocks: u32,
         mem: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -1803,9 +1819,8 @@ unsafe extern "C" {
     pub fn cuda_unchecked_contains_clear_64_async(
         streams: CudaStreamsFFI,
         output: *mut CudaRadixCiphertextFFI,
-        inputs: *const CudaRadixCiphertextFFI,
+        inputs: *const VecCudaRadixCiphertextFFI,
         h_clear_val: *const u64,
-        num_inputs: u32,
         num_blocks: u32,
         mem: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -1953,9 +1968,8 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         index_ct: *mut CudaRadixCiphertextFFI,
         match_ct: *mut CudaRadixCiphertextFFI,
-        inputs: *const CudaRadixCiphertextFFI,
+        inputs: *const VecCudaRadixCiphertextFFI,
         h_clear_val: *const u64,
-        num_inputs: u32,
         num_blocks: u32,
         num_blocks_index: u32,
         mem: *mut i8,
@@ -1989,9 +2003,8 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         index_ct: *mut CudaRadixCiphertextFFI,
         match_ct: *mut CudaRadixCiphertextFFI,
-        inputs: *const CudaRadixCiphertextFFI,
+        inputs: *const VecCudaRadixCiphertextFFI,
         value: *const CudaRadixCiphertextFFI,
-        num_inputs: u32,
         num_blocks: u32,
         num_blocks_index: u32,
         mem: *mut i8,
@@ -2025,9 +2038,8 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         index_ct: *mut CudaRadixCiphertextFFI,
         match_ct: *mut CudaRadixCiphertextFFI,
-        inputs: *const CudaRadixCiphertextFFI,
+        inputs: *const VecCudaRadixCiphertextFFI,
         value: *const CudaRadixCiphertextFFI,
-        num_inputs: u32,
         num_blocks: u32,
         num_blocks_index: u32,
         mem: *mut i8,
@@ -2058,10 +2070,9 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         index_ct: *mut CudaRadixCiphertextFFI,
         match_ct: *mut CudaRadixCiphertextFFI,
-        inputs: *const CudaRadixCiphertextFFI,
+        inputs: *const VecCudaRadixCiphertextFFI,
         h_clear_val: *const u64,
         is_scalar_obviously_bigger: bool,
-        num_inputs: u32,
         num_blocks: u32,
         num_blocks_index: u32,
         mem: *mut i8,
@@ -2240,6 +2251,49 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,
     );
+}
+#[repr(C)]
+#[derive(Debug)]
+pub struct CudaRadixCiphertext {
+    pub ptr: *mut ffi::c_void,
+    pub degrees: *mut u64,
+    pub noise_levels: *mut u64,
+    pub num_radix_blocks: u32,
+    pub max_num_radix_blocks: u32,
+    pub lwe_dimension: u32,
+    pub _owns_gpu_memory: bool,
+    pub _owns_degrees_and_noise_levels: bool,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaRadixCiphertext"][::std::mem::size_of::<CudaRadixCiphertext>() - 40usize];
+    ["Alignment of CudaRadixCiphertext"][::std::mem::align_of::<CudaRadixCiphertext>() - 8usize];
+    ["Offset of field: CudaRadixCiphertext::ptr"]
+        [::std::mem::offset_of!(CudaRadixCiphertext, ptr) - 0usize];
+    ["Offset of field: CudaRadixCiphertext::degrees"]
+        [::std::mem::offset_of!(CudaRadixCiphertext, degrees) - 8usize];
+    ["Offset of field: CudaRadixCiphertext::noise_levels"]
+        [::std::mem::offset_of!(CudaRadixCiphertext, noise_levels) - 16usize];
+    ["Offset of field: CudaRadixCiphertext::num_radix_blocks"]
+        [::std::mem::offset_of!(CudaRadixCiphertext, num_radix_blocks) - 24usize];
+    ["Offset of field: CudaRadixCiphertext::max_num_radix_blocks"]
+        [::std::mem::offset_of!(CudaRadixCiphertext, max_num_radix_blocks) - 28usize];
+    ["Offset of field: CudaRadixCiphertext::lwe_dimension"]
+        [::std::mem::offset_of!(CudaRadixCiphertext, lwe_dimension) - 32usize];
+    ["Offset of field: CudaRadixCiphertext::_owns_gpu_memory"]
+        [::std::mem::offset_of!(CudaRadixCiphertext, _owns_gpu_memory) - 36usize];
+    ["Offset of field: CudaRadixCiphertext::_owns_degrees_and_noise_levels"]
+        [::std::mem::offset_of!(CudaRadixCiphertext, _owns_degrees_and_noise_levels) - 37usize];
+};
+unsafe extern "C" {
+    #[link_name = "\u{1}_ZN19CudaRadixCiphertextD1Ev"]
+    pub fn CudaRadixCiphertext_CudaRadixCiphertext_destructor(this: *mut CudaRadixCiphertext);
+}
+impl CudaRadixCiphertext {
+    #[inline]
+    pub unsafe fn destruct(&mut self) {
+        CudaRadixCiphertext_CudaRadixCiphertext_destructor(self)
+    }
 }
 unsafe extern "C" {
     pub fn scratch_cuda_integer_compress_radix_ciphertext_64_async(

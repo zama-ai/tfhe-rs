@@ -325,7 +325,7 @@ template <typename Torus> struct int_bitonic_shuffle_buffer {
   /// @brief Per-element views into padded_keys_storage.
   CudaRadixCiphertext *padded_keys_views;
   /// @brief Pointer array into padded_keys_views passed to the sort.
-  CudaRadixCiphertextFFI **padded_keys_ptrs;
+  CudaRadixCiphertext **padded_keys_ptrs;
 
   /// @brief Flat storage for sentinel (zero) data elements filling the padding
   /// slots.
@@ -334,7 +334,7 @@ template <typename Torus> struct int_bitonic_shuffle_buffer {
   CudaRadixCiphertext *sentinel_data_views;
   /// @brief Unified data pointer array combining real data and sentinel
   /// pointers.
-  CudaRadixCiphertextFFI **padded_data_ptrs;
+  CudaRadixCiphertext **padded_data_ptrs;
 
   /// @brief Host-side maximum key scalar used to initialise sentinel keys.
   Torus *h_max_scalar;
@@ -395,7 +395,7 @@ template <typename Torus> struct int_bitonic_shuffle_buffer {
         size_tracker, allocate_gpu_memory);
 
     padded_keys_views = new CudaRadixCiphertext[padded_num_values];
-    padded_keys_ptrs = new CudaRadixCiphertextFFI *[padded_num_values];
+    padded_keys_ptrs = new CudaRadixCiphertext *[padded_num_values];
     for (uint32_t i = 0; i < padded_num_values; i++) {
       as_radix_ciphertext_slice<Torus>(
           &padded_keys_views[i], padded_keys_storage, i * key_num_blocks_padded,
@@ -422,7 +422,7 @@ template <typename Torus> struct int_bitonic_shuffle_buffer {
       sentinel_data_views = nullptr;
     }
 
-    padded_data_ptrs = new CudaRadixCiphertextFFI *[padded_num_values];
+    padded_data_ptrs = new CudaRadixCiphertext *[padded_num_values];
     for (uint32_t i = 0; i < num_sentinels; i++) {
       padded_data_ptrs[real_num_values + i] = &sentinel_data_views[i];
     }
@@ -500,7 +500,7 @@ template <typename Torus> struct int_oprf_bitonic_shuffle_buffer {
   CudaRadixCiphertext *keys_views;
   /// @brief Pointer array into keys_views passed to host_bitonic_shuffle as the
   /// key array.
-  CudaRadixCiphertextFFI **keys_ptrs;
+  CudaRadixCiphertext **keys_ptrs;
 
   bool gpu_memory_allocated;
 
@@ -538,7 +538,7 @@ template <typename Torus> struct int_oprf_bitonic_shuffle_buffer {
         allocate_gpu_memory);
 
     this->keys_views = new CudaRadixCiphertext[num_values];
-    this->keys_ptrs = new CudaRadixCiphertextFFI *[num_values];
+    this->keys_ptrs = new CudaRadixCiphertext *[num_values];
     for (uint32_t i = 0; i < num_values; i++) {
       as_radix_ciphertext_slice<Torus>(&this->keys_views[i], this->keys_storage,
                                        i * key_num_blocks,

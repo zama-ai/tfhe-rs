@@ -1,11 +1,16 @@
 #include "integer/negation.cuh"
 
 void cuda_negate_ciphertext_64(CudaStreamsFFI streams,
-                               CudaRadixCiphertextFFI *lwe_array_out,
-                               CudaRadixCiphertextFFI const *lwe_array_in,
+                               CudaRadixCiphertextFFI *lwe_array_out_ffi,
+                               CudaRadixCiphertextFFI const *lwe_array_in_ffi,
                                uint32_t message_modulus, uint32_t carry_modulus,
                                uint32_t num_radix_blocks) {
-  PANIC_IF_FALSE(lwe_array_out != lwe_array_in,
+  CudaRadixCiphertext lwe_array_out_local(*lwe_array_out_ffi);
+  CudaRadixCiphertext *lwe_array_out = &lwe_array_out_local;
+  const CudaRadixCiphertext lwe_array_in_local(*lwe_array_in_ffi);
+  const CudaRadixCiphertext *lwe_array_in = &lwe_array_in_local;
+
+  PANIC_IF_FALSE(lwe_array_out_ffi != lwe_array_in_ffi,
                  "Output and input pointers must be different for out-of-place "
                  "operations");
 

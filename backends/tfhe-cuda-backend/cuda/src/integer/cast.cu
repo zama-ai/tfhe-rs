@@ -1,32 +1,50 @@
 #include "cast.cuh"
 
 void extend_radix_with_trivial_zero_blocks_msb_64(
-    CudaRadixCiphertextFFI *output, CudaRadixCiphertextFFI const *input,
+    CudaRadixCiphertextFFI *output_ffi, CudaRadixCiphertextFFI const *input_ffi,
     CudaStreamsFFI streams) {
-  PANIC_IF_FALSE(output != input, "Output and input pointers must be different "
-                                  "for out-of-place operations");
+  CudaRadixCiphertext output_local(*output_ffi);
+  CudaRadixCiphertext *output = &output_local;
+  const CudaRadixCiphertext input_local(*input_ffi);
+  const CudaRadixCiphertext *input = &input_local;
+
+  PANIC_IF_FALSE(output_ffi != input_ffi,
+                 "Output and input pointers must be different "
+                 "for out-of-place operations");
   auto cuda_streams = CudaStreams(streams);
   host_extend_radix_with_trivial_zero_blocks_msb<uint64_t>(output, input,
                                                            cuda_streams);
   cuda_synchronize_stream(cuda_streams.stream(0), cuda_streams.gpu_index(0));
 }
 
-void trim_radix_blocks_lsb_64(CudaRadixCiphertextFFI *output,
-                              CudaRadixCiphertextFFI const *input,
+void trim_radix_blocks_lsb_64(CudaRadixCiphertextFFI *output_ffi,
+                              CudaRadixCiphertextFFI const *input_ffi,
                               CudaStreamsFFI streams) {
-  PANIC_IF_FALSE(output != input, "Output and input pointers must be different "
-                                  "for out-of-place operations");
+  CudaRadixCiphertext output_local(*output_ffi);
+  CudaRadixCiphertext *output = &output_local;
+  const CudaRadixCiphertext input_local(*input_ffi);
+  const CudaRadixCiphertext *input = &input_local;
+
+  PANIC_IF_FALSE(output_ffi != input_ffi,
+                 "Output and input pointers must be different "
+                 "for out-of-place operations");
 
   auto cuda_streams = CudaStreams(streams);
   host_trim_radix_blocks_lsb<uint64_t>(output, input, cuda_streams);
   cuda_synchronize_stream(cuda_streams.stream(0), cuda_streams.gpu_index(0));
 }
 
-void trim_radix_blocks_msb_64(CudaRadixCiphertextFFI *output,
-                              CudaRadixCiphertextFFI const *input,
+void trim_radix_blocks_msb_64(CudaRadixCiphertextFFI *output_ffi,
+                              CudaRadixCiphertextFFI const *input_ffi,
                               CudaStreamsFFI streams) {
-  PANIC_IF_FALSE(output != input, "Output and input pointers must be different "
-                                  "for out-of-place operations");
+  CudaRadixCiphertext output_local(*output_ffi);
+  CudaRadixCiphertext *output = &output_local;
+  const CudaRadixCiphertext input_local(*input_ffi);
+  const CudaRadixCiphertext *input = &input_local;
+
+  PANIC_IF_FALSE(output_ffi != input_ffi,
+                 "Output and input pointers must be different "
+                 "for out-of-place operations");
 
   auto cuda_streams = CudaStreams(streams);
   host_trim_radix_blocks_msb<uint64_t>(output, input, cuda_streams);
@@ -51,13 +69,19 @@ uint64_t scratch_cuda_cast_to_unsigned_64_async(
 }
 
 void cuda_cast_to_unsigned_64_async(CudaStreamsFFI streams,
-                                    CudaRadixCiphertextFFI *output,
-                                    CudaRadixCiphertextFFI *input,
+                                    CudaRadixCiphertextFFI *output_ffi,
+                                    CudaRadixCiphertextFFI *input_ffi,
                                     int8_t *mem_ptr, uint32_t target_num_blocks,
                                     bool input_is_signed, void *const *bsks,
                                     void *const *ksks) {
-  PANIC_IF_FALSE(output != input, "Output and input pointers must be different "
-                                  "for out-of-place operations");
+  CudaRadixCiphertext output_local(*output_ffi);
+  CudaRadixCiphertext *output = &output_local;
+  CudaRadixCiphertext input_local(*input_ffi);
+  CudaRadixCiphertext *input = &input_local;
+
+  PANIC_IF_FALSE(output_ffi != input_ffi,
+                 "Output and input pointers must be different "
+                 "for out-of-place operations");
 
   host_cast_to_unsigned<uint64_t>(
       CudaStreams(streams), output, input,
@@ -92,12 +116,18 @@ uint64_t scratch_cuda_cast_to_signed_64_async(
 }
 
 void cuda_cast_to_signed_64_async(CudaStreamsFFI streams,
-                                  CudaRadixCiphertextFFI *output,
-                                  CudaRadixCiphertextFFI const *input,
+                                  CudaRadixCiphertextFFI *output_ffi,
+                                  CudaRadixCiphertextFFI const *input_ffi,
                                   int8_t *mem, bool input_is_signed,
                                   void *const *bsks, void *const *ksks) {
-  PANIC_IF_FALSE(output != input, "Output and input pointers must be different "
-                                  "for out-of-place operations");
+  CudaRadixCiphertext output_local(*output_ffi);
+  CudaRadixCiphertext *output = &output_local;
+  const CudaRadixCiphertext input_local(*input_ffi);
+  const CudaRadixCiphertext *input = &input_local;
+
+  PANIC_IF_FALSE(output_ffi != input_ffi,
+                 "Output and input pointers must be different "
+                 "for out-of-place operations");
 
   host_cast_to_signed<uint64_t>(CudaStreams(streams), output, input,
                                 (int_cast_to_signed_buffer<uint64_t> *)mem,

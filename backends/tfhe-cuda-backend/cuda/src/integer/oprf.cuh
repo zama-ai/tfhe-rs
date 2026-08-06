@@ -23,7 +23,7 @@ uint64_t scratch_cuda_integer_grouped_oprf_async(
 
 template <typename Torus>
 void host_integer_grouped_oprf(CudaStreams streams,
-                               CudaRadixCiphertextFFI *radix_lwe_out,
+                               CudaRadixCiphertext *radix_lwe_out,
                                const Torus *seeded_lwe_input,
                                uint32_t num_blocks_to_process,
                                int_grouped_oprf_memory<Torus> *mem_ptr,
@@ -125,7 +125,7 @@ uint64_t scratch_cuda_integer_grouped_oprf_custom_range_async(
 
 template <typename Torus>
 void host_integer_grouped_oprf_custom_range(
-    CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
+    CudaStreams streams, CudaRadixCiphertext *radix_lwe_out,
     uint32_t num_blocks_intermediate, const Torus *seeded_lwe_input,
     const Torus *decomposed_scalar, const Torus *has_at_least_one_set,
     uint32_t num_scalars, uint32_t shift,

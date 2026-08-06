@@ -10,8 +10,8 @@
 // Creates a view (slice) of specific bits in a register.
 // Used to access specific taps like a[65], k[127], etc.
 template <typename Torus>
-__host__ void slice_reg_batch_kreyvium(CudaRadixCiphertextFFI *slice,
-                                       const CudaRadixCiphertextFFI *reg,
+__host__ void slice_reg_batch_kreyvium(CudaRadixCiphertext *slice,
+                                       const CudaRadixCiphertext *reg,
                                        uint32_t start_bit_idx,
                                        uint32_t num_bits, uint32_t num_inputs) {
   as_radix_ciphertext_slice<Torus>(slice, reg, start_bit_idx * num_inputs,
@@ -22,9 +22,9 @@ __host__ void slice_reg_batch_kreyvium(CudaRadixCiphertextFFI *slice,
 // Shifts the register and inserts new bits at the start.
 template <typename Torus>
 __host__ void shift_and_insert_batch_kreyvium(
-    CudaStreams streams, CudaRadixCiphertextFFI *shift_workspace,
-    CudaRadixCiphertextFFI *reg, CudaRadixCiphertextFFI *new_bits,
-    uint32_t reg_size, uint32_t num_inputs) {
+    CudaStreams streams, CudaRadixCiphertext *shift_workspace,
+    CudaRadixCiphertext *reg, CudaRadixCiphertext *new_bits, uint32_t reg_size,
+    uint32_t num_inputs) {
   constexpr uint32_t BATCH = KREYVIUM_BATCH_SIZE;
   uint32_t num_blocks_to_keep = (reg_size - BATCH) * num_inputs;
   copy_radix_ciphertext_slice_async<Torus>(
@@ -43,9 +43,8 @@ __host__ void shift_and_insert_batch_kreyvium(
 // Essential for aligning Key/IV bit ordering.
 template <typename Torus>
 void reverse_bitsliced_radix_inplace_kreyvium(
-    CudaStreams streams, CudaRadixCiphertextFFI *shift_workspace,
-    CudaRadixCiphertextFFI *radix, uint32_t num_bits_in_reg,
-    uint32_t num_inputs) {
+    CudaStreams streams, CudaRadixCiphertext *shift_workspace,
+    CudaRadixCiphertext *radix, uint32_t num_bits_in_reg, uint32_t num_inputs) {
   for (uint32_t i = 0; i < num_bits_in_reg; i++) {
     uint32_t src_start = i * num_inputs;
     uint32_t src_end = (i + 1) * num_inputs;
@@ -67,10 +66,10 @@ void reverse_bitsliced_radix_inplace_kreyvium(
 template <typename Torus>
 __host__ void kreyvium_compute_64_steps(
     CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
-    CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
-    CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *k_reg,
-    CudaRadixCiphertextFFI *iv_reg, uint32_t *k_offset, uint32_t *iv_offset,
-    CudaRadixCiphertextFFI *output_dest, void *const *bsks,
+    CudaRadixCiphertext *a_reg, CudaRadixCiphertext *b_reg,
+    CudaRadixCiphertext *c_reg, CudaRadixCiphertext *k_reg,
+    CudaRadixCiphertext *iv_reg, uint32_t *k_offset, uint32_t *iv_offset,
+    CudaRadixCiphertext *output_dest, void *const *bsks,
     uint64_t *const *ksks) {
 
   uint32_t N = mem->num_inputs;
@@ -247,13 +246,13 @@ __host__ void kreyvium_compute_64_steps(
 template <typename Torus>
 __host__ void
 host_kreyvium_init(CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
-                   CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
-                   CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *k_reg,
-                   CudaRadixCiphertextFFI *iv_reg, uint32_t *k_offset,
+                   CudaRadixCiphertext *a_reg, CudaRadixCiphertext *b_reg,
+                   CudaRadixCiphertext *c_reg, CudaRadixCiphertext *k_reg,
+                   CudaRadixCiphertext *iv_reg, uint32_t *k_offset,
                    uint32_t *iv_offset,
-                   CudaRadixCiphertextFFI const *key_bitsliced,
-                   CudaRadixCiphertextFFI const *iv_bitsliced,
-                   void *const *bsks, uint64_t *const *ksks) {
+                   CudaRadixCiphertext const *key_bitsliced,
+                   CudaRadixCiphertext const *iv_bitsliced, void *const *bsks,
+                   uint64_t *const *ksks) {
 
   uint32_t N = mem->num_inputs;
   *k_offset = 0;
@@ -344,13 +343,14 @@ host_kreyvium_init(CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
 // existing state and updates the internal registers in place.
 //
 template <typename Torus>
-__host__ void host_kreyvium_step(
-    CudaStreams streams, CudaRadixCiphertextFFI *keystream_output,
-    CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
-    CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *k_reg,
-    CudaRadixCiphertextFFI *iv_reg, uint32_t *k_offset, uint32_t *iv_offset,
-    uint32_t num_inputs, uint32_t num_steps, int_kreyvium_buffer<Torus> *mem,
-    void *const *bsks, uint64_t *const *ksks) {
+__host__ void
+host_kreyvium_step(CudaStreams streams, CudaRadixCiphertext *keystream_output,
+                   CudaRadixCiphertext *a_reg, CudaRadixCiphertext *b_reg,
+                   CudaRadixCiphertext *c_reg, CudaRadixCiphertext *k_reg,
+                   CudaRadixCiphertext *iv_reg, uint32_t *k_offset,
+                   uint32_t *iv_offset, uint32_t num_inputs, uint32_t num_steps,
+                   int_kreyvium_buffer<Torus> *mem, void *const *bsks,
+                   uint64_t *const *ksks) {
 
   PANIC_IF_FALSE(num_steps % KREYVIUM_BATCH_SIZE == 0,
                  "Kreyvium Error: num_steps must be a multiple of 64.\n");
