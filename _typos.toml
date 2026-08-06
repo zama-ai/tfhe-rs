@@ -14,4 +14,6 @@ extend-ignore-identifiers-re = [
     "C9217BA0D762ACA1",
     "0x[0-9a-fA-F]+",
     "xrt_coreutil",
+    "hom_aut_key",
+    "HomAut",
 ]

@@ -18,10 +18,10 @@ use serde::Serialize;
 #[cfg(not(tarpaulin))]
 // Tests take about 2-3 seconds on a laptop with this number
 const NB_TESTS: usize = 32;
-#[cfg(not(tarpaulin))]
-const NB_TESTS_LIGHT: usize = 10;
 #[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
+#[cfg(not(tarpaulin))]
+const NB_TESTS_LIGHT: usize = 10;
 #[cfg(tarpaulin)]
 const NB_TESTS_LIGHT: usize = 1;
 
@@ -530,6 +530,7 @@ pub fn test_cmux_tree() {
                 ciphertext_modulus,
             );
             encrypt_constant_ggsw_ciphertext(
+                &glwe_sk,
                 &glwe_sk,
                 &mut ggsw,
                 single_bit_msg,
