@@ -48,13 +48,13 @@ use crate::core_crypto::prelude::*;
 /// // Can be stored using much less space than the standard lwe ciphertexts
 /// let compressed = lwe_msed_before.compress::<u64>();
 ///
-/// let lwe_msed_after = compressed.extract::<u64>();
+/// let lwe_msed_after = compressed.extract();
 ///
 /// for (i, j) in lwe_msed_before.mask().zip_eq(lwe_msed_after.mask()) {
-///     assert_eq!(i, j);
+///     assert_eq!(i, j as u64);
 /// }
 ///
-/// assert!(lwe_msed_before.body() == lwe_msed_after.body());
+/// assert!(lwe_msed_before.body() == lwe_msed_after.body() as u64);
 /// ```
 #[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressedModulusSwitchedLweCiphertextVersions)]
@@ -118,10 +118,9 @@ impl<PackingScalar: UnsignedInteger> CompressedModulusSwitchedLweCiphertext<Pack
         (packed_integers, lwe_dimension)
     }
 
-    pub fn extract<Scalar>(&self) -> StandardModulusSwitchedLweCiphertext<Scalar>
+    pub fn extract(&self) -> StandardModulusSwitchedLweCiphertext<usize>
     where
-        PackingScalar: CastInto<Scalar>,
-        Scalar: UnsignedInteger,
+        PackingScalar: CastInto<usize>,
     {
         let lwe_size = self.lwe_dimension.to_lwe_size().0;
 
@@ -225,17 +224,17 @@ mod test {
         ms_compression::<u64, u64, u64>(53, 37);
         ms_compression::<u64, u64, u64>(63, 63);
 
-        ms_compression::<u128, u128, u128>(127, 127);
+        ms_compression::<u128, u128, u128>(63, 127);
 
         ms_compression::<u32, u32, u64>(1, 100);
         ms_compression::<u32, u32, u64>(10, 64);
         ms_compression::<u32, u32, u64>(11, 700);
         ms_compression::<u32, u32, u64>(12, 751);
 
-        ms_compression::<u32, u32, u64>(1, 100);
-        ms_compression::<u32, u32, u64>(10, 64);
-        ms_compression::<u32, u32, u64>(11, 700);
-        ms_compression::<u32, u32, u64>(12, 751);
+        ms_compression::<u32, u64, u64>(1, 100);
+        ms_compression::<u32, u64, u64>(10, 64);
+        ms_compression::<u32, u64, u64>(11, 700);
+        ms_compression::<u32, u64, u64>(12, 751);
 
         ms_compression::<u64, u64, u128>(1, 100);
         ms_compression::<u64, u64, u128>(10, 64);
@@ -248,13 +247,14 @@ mod test {
 
     fn ms_compression<
         Scalar: UnsignedTorus + CastInto<SwitchedScalar>,
-        SwitchedScalar: UnsignedTorus + CastFrom<PackingScalar>,
+        SwitchedScalar: UnsignedTorus,
         PackingScalar: UnsignedTorus + CastFrom<SwitchedScalar>,
     >(
         log_modulus: usize,
         len: usize,
     ) where
         [Scalar]: Fill,
+        usize: CastFrom<PackingScalar> + CastFrom<Scalar>,
     {
         let ciphertext_modulus = CiphertextModulus::new_native();
 
@@ -270,34 +270,32 @@ mod test {
 
         let compressed = lwe_msed_before_packing.compress::<PackingScalar>();
 
-        let lwe_msed_after_packing = compressed.extract::<SwitchedScalar>();
+        let lwe_msed_after_packing = compressed.extract();
 
         let lwe = lwe.into_container();
 
         for (i, output) in lwe_msed_after_packing.container().iter().enumerate() {
-            assert!(*output < SwitchedScalar::ONE << log_modulus);
+            assert!(*output < 1 << log_modulus);
 
-            let msed: Scalar = modulus_switch(lwe[i], CiphertextModulusLog(log_modulus));
+            let msed: usize = modulus_switch(lwe[i], CiphertextModulusLog(log_modulus)).cast_into();
 
-            assert_eq!(*output, msed.cast_into());
+            assert_eq!(*output, msed);
         }
     }
 
     #[test]
     fn test_from_raw_parts() {
-        type Scalar = u64;
-
         let len = 751;
         let log_modulus = 12;
 
         let ciphertext_modulus = CiphertextModulus::new_native();
 
-        let mut lwe = LweCiphertext::new(Scalar::ZERO, LweSize(len), ciphertext_modulus);
+        let mut lwe = LweCiphertext::new(0, LweSize(len), ciphertext_modulus);
 
         // We don't care about the exact content here
         rand::thread_rng().fill(lwe.as_mut());
 
-        let msed = lwe_ciphertext_modulus_switch::<_, Scalar, _>(
+        let msed = lwe_ciphertext_modulus_switch::<_, usize, _>(
             lwe.as_view(),
             CiphertextModulusLog(log_modulus),
         );
@@ -307,7 +305,7 @@ mod test {
         let rebuilt =
             CompressedModulusSwitchedLweCiphertext::from_raw_parts(packed_integers, lwe_dimension);
 
-        let lwe_ms_ed = rebuilt.extract::<Scalar>();
+        let lwe_ms_ed = rebuilt.extract();
 
         let lwe_ms_ed = lwe_ms_ed.container();
 
