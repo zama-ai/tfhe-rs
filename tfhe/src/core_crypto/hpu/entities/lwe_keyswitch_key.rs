@@ -1,9 +1,7 @@
 //! Module containing the definition of the HpuGlweCiphertext.
 
-use tfhe_hpu_backend::prelude::*;
-
-use super::algorithms::order;
 use crate::core_crypto::prelude::*;
+use tfhe_hpu_backend::prelude::*;
 
 impl<Scalar> CreateFrom<LweKeyswitchKeyView<'_, Scalar>> for HpuLweKeyswitchKeyOwned<u64>
 where
@@ -12,9 +10,6 @@ where
     type Metadata = HpuParameters;
     fn create_from(cpu_ksk: LweKeyswitchKeyView<'_, Scalar>, meta: Self::Metadata) -> Self {
         let mut hpu_ksk = Self::new(0, meta.clone());
-
-        // Allocate radix_basis converter
-        let rb_conv = order::RadixBasis::new(meta.ntt_params.radix, meta.ntt_params.stg_nb);
 
         // Extract params inner values for ease of writing
         let pbs_p = &meta.pbs_params;
@@ -47,40 +42,19 @@ where
             for inner_x in 0..ks_p.lbx {
                 // -> Iterate over Slices
                 let raw_x = outer_x + inner_x;
-                let abs_x = if raw_x < (lwe_k + 1) {
-                    Some(raw_x)
-                } else {
-                    None
-                };
+                let abs_x = (raw_x < lwe_k + 1).then_some(raw_x);
 
                 for outer_y in (0..(glwe_k * glwe_n)).step_by(ks_p.lby) {
                     for outer_z in (0..pbs_p.ks_level).step_by(ks_p.lbz) {
                         // -> Iterate over rectangles lby*lbz
                         for inner_y in 0..ks_p.lby {
                             let raw_y = outer_y + inner_y;
-                            let abs_y = if raw_y < (glwe_k * glwe_n) {
-                                // Hw-order expect y-dim to be in bitreverse
-                                // Compute it inflight
-                                // NB: raw_y represent the index over Y in [0; glwe_k*glwe_n] and
-                                // the bitreverse must be only
-                                // applied over glwe_n
-                                // -> split raw_y in poly_y, coef_y and bitreverse only the coef_y
-                                let poly_y = raw_y / glwe_n;
-                                let coef_y = raw_y % glwe_n;
-                                let brev_coef_y = rb_conv.idx_rev(coef_y);
-                                let abs_y = poly_y * glwe_n + brev_coef_y;
-                                Some(abs_y)
-                            } else {
-                                None
-                            };
+                            let abs_y = (raw_y < glwe_k * glwe_n).then_some(raw_y);
 
                             let pack_z: u64 = (0..ks_p.lbz).fold(0, |acc, inner_z| {
                                 let raw_z = outer_z + inner_z;
-                                let abs_z = if raw_z < pbs_p.ks_level {
-                                    Some(raw_z)
-                                } else {
-                                    None
-                                };
+                                let abs_z = (raw_z < pbs_p.ks_level).then_some(raw_z);
+
                                 let cur_coef = match (abs_x, abs_y, abs_z) {
                                     (Some(x), Some(y), Some(z)) => {
                                         *KskIndex { x, y, z }.coef_view(&cpu_ksk)
@@ -183,13 +157,8 @@ where
             CiphertextModulus::new(1_u128 << ks_p.width),
         );
 
-        // Unshuffle Keyswitch key from Hw order to Cpu order
-
-        // Allocate radix_basis converter
-        let params = hpu_ksk.params();
-        let rb_conv = order::RadixBasis::new(params.ntt_params.radix, params.ntt_params.stg_nb);
-
         // Extract params inner values for ease of writing
+        let params = hpu_ksk.params();
         let pbs_p = &params.pbs_params;
         let lwe_k = pbs_p.lwe_dimension;
         let glwe_k = pbs_p.glwe_dimension;
@@ -202,41 +171,19 @@ where
             for inner_x in 0..ks_p.lbx {
                 // -> Iterate over Slices
                 let raw_x = outer_x + inner_x;
-                let abs_x = if raw_x < (lwe_k + 1) {
-                    Some(raw_x)
-                } else {
-                    None
-                };
+                let abs_x = (raw_x < lwe_k + 1).then_some(raw_x);
 
                 for outer_y in (0..(glwe_k * glwe_n)).step_by(ks_p.lby) {
                     for outer_z in (0..pbs_p.ks_level).step_by(ks_p.lbz) {
                         // -> Iterate over rectangles lby*lbz
                         for inner_y in 0..ks_p.lby {
                             let raw_y = outer_y + inner_y;
-                            let abs_y = if raw_y < (glwe_k * glwe_n) {
-                                // Hw-order expect y-dim to be in bitreverse
-                                // Compute it inflight
-                                // NB: raw_y represent the index over Y in [0; glwe_k*glwe_n] and
-                                // the bitreverse must be only
-                                // applied over glwe_n
-                                // -> split raw_y in poly_y, coef_y and bitreverse only the coef_y
-                                let poly_y = raw_y / glwe_n;
-                                let coef_y = raw_y % glwe_n;
-                                let brev_coef_y = rb_conv.idx_rev(coef_y);
-                                let abs_y = poly_y * glwe_n + brev_coef_y;
-                                Some(abs_y)
-                            } else {
-                                None
-                            };
+                            let abs_y = (raw_y < glwe_k * glwe_n).then_some(raw_y);
 
                             // Unpack over Z dimension
                             (0..ks_p.lbz).for_each(|inner_z| {
                                 let raw_z = outer_z + inner_z;
-                                let abs_z = if raw_z < pbs_p.ks_level {
-                                    Some(raw_z)
-                                } else {
-                                    None
-                                };
+                                let abs_z = (raw_z < pbs_p.ks_level).then_some(raw_z);
 
                                 if let (Some(x), Some(y), Some(z)) = (abs_x, abs_y, abs_z) {
                                     let mut cpu_ksk_view = cpu_ksk.as_mut_view();
