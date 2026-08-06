@@ -6,6 +6,8 @@ use crate::core_crypto::backward_compatibility::entities::compressed_modulus_swi
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::*;
 
+use super::packed_integers::PackedIntegersConformanceParams;
+
 /// An object to store a ciphertext using less memory
 /// The modulus of the ciphertext is decreased by rounding and the result is stored in a compact way
 /// The uncompacted result can be used as the input of a blind rotation to recover a low noise lwe
@@ -261,7 +263,7 @@ impl<Scalar: UnsignedInteger> ParameterSetConformant
 {
     type ParameterSet = GlweCiphertextConformanceParams<Scalar>;
 
-    fn is_conformant(&self, lwe_ct_parameters: &GlweCiphertextConformanceParams<Scalar>) -> bool {
+    fn is_conformant(&self, params: &GlweCiphertextConformanceParams<Scalar>) -> bool {
         let Self {
             packed_integers,
             glwe_dimension,
@@ -269,18 +271,14 @@ impl<Scalar: UnsignedInteger> ParameterSetConformant
             bodies_count,
             uncompressed_ciphertext_modulus,
         } = self;
-        let log_modulus = packed_integers.log_modulus().0;
-
-        let number_bits_to_unpack =
-            (glwe_dimension.0 * polynomial_size.0 + bodies_count.0) * log_modulus;
-
-        let len = number_bits_to_unpack.div_ceil(Scalar::BITS);
-
-        packed_integers.packed_coeffs().len() == len
-            && *glwe_dimension == lwe_ct_parameters.glwe_dim
-            && *polynomial_size == lwe_ct_parameters.polynomial_size
-            && lwe_ct_parameters.ct_modulus.is_power_of_two()
-            && *uncompressed_ciphertext_modulus == lwe_ct_parameters.ct_modulus
+        bodies_count.0 <= polynomial_size.0
+            && packed_integers.is_conformant(&PackedIntegersConformanceParams::new::<Scalar>(
+                glwe_dimension.0 * polynomial_size.0 + bodies_count.0,
+            ))
+            && *glwe_dimension == params.glwe_dim
+            && *polynomial_size == params.polynomial_size
+            && params.ct_modulus.is_power_of_two()
+            && *uncompressed_ciphertext_modulus == params.ct_modulus
     }
 }
 
@@ -412,5 +410,46 @@ mod test {
                 modulus_switch(glwe[i], CiphertextModulusLog(log_modulus))
             )
         }
+    }
+
+    #[test]
+    fn test_not_conformant() {
+        let glwe_dimension = GlweDimension(1);
+        let polynomial_size = PolynomialSize(512);
+        let log_modulus = CiphertextModulusLog(12);
+        let ciphertext_modulus = CiphertextModulus::<u64>::new_native();
+
+        // Built field by field, as a deserialized ciphertext would be, to reach states the
+        // constructor rejects
+        let ct = |log_modulus: CiphertextModulusLog, bodies_count: LweCiphertextCount| {
+            let initial_len = glwe_dimension.0 * polynomial_size.0 + bodies_count.0;
+
+            CompressedModulusSwitchedGlweCiphertext {
+                packed_integers: PackedIntegers::from_raw_parts(
+                    vec![0u64; (initial_len * log_modulus.0).div_ceil(u64::BITS as usize)],
+                    log_modulus,
+                    initial_len,
+                ),
+                glwe_dimension,
+                polynomial_size,
+                bodies_count,
+                uncompressed_ciphertext_modulus: ciphertext_modulus,
+            }
+        };
+
+        let params = GlweCiphertextConformanceParams {
+            glwe_dim: glwe_dimension,
+            polynomial_size,
+            ct_modulus: ciphertext_modulus,
+        };
+
+        assert!(ct(log_modulus, LweCiphertextCount(polynomial_size.0)).is_conformant(&params));
+
+        // `extract` pads the bodies up to the polynomial size, which underflows
+        assert!(!ct(log_modulus, LweCiphertextCount(polynomial_size.0 + 1)).is_conformant(&params));
+
+        // `extract` scales by `Scalar::BITS - log_modulus`, which overflows
+        assert!(!ct(CiphertextModulusLog(0), LweCiphertextCount(1)).is_conformant(&params));
+        assert!(!ct(CiphertextModulusLog(65), LweCiphertextCount(1)).is_conformant(&params));
     }
 }
