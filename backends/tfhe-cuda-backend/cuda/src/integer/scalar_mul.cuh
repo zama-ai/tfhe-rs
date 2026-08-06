@@ -46,7 +46,7 @@ __host__ uint64_t scratch_cuda_scalar_mul(CudaStreams streams,
 
 template <typename T, typename KSTorus>
 __host__ void host_integer_scalar_mul_radix(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array,
+    CudaStreams streams, CudaRadixCiphertext *lwe_array,
     T const *decomposed_scalar, T const *has_at_least_one_set,
     int_scalar_mul_buffer<T> *mem, void *const *bsks, KSTorus *const *ksks,
     uint32_t message_modulus, uint32_t num_scalars) {
@@ -61,7 +61,7 @@ __host__ void host_integer_scalar_mul_radix(
   auto all_shifted_buffer = mem->all_shifted_buffer;
 
   for (size_t shift_amount = 0; shift_amount < msg_bits; shift_amount++) {
-    CudaRadixCiphertextFFI shift_input;
+    CudaRadixCiphertext shift_input;
     as_radix_ciphertext_slice<T>(&shift_input, preshifted_buffer,
                                  shift_amount * num_radix_blocks,
                                  preshifted_buffer->num_radix_blocks);
@@ -83,11 +83,11 @@ __host__ void host_integer_scalar_mul_radix(
   for (size_t i = 0; i < std::min(num_scalars, num_ciphertext_bits); i++) {
     if (decomposed_scalar[i] == 1) {
       // Perform a block shift
-      CudaRadixCiphertextFFI preshifted_radix_ct;
+      CudaRadixCiphertext preshifted_radix_ct;
       as_radix_ciphertext_slice<T>(&preshifted_radix_ct, preshifted_buffer,
                                    (i % msg_bits) * num_radix_blocks,
                                    preshifted_buffer->num_radix_blocks);
-      CudaRadixCiphertextFFI block_shift_buffer;
+      CudaRadixCiphertext block_shift_buffer;
       as_radix_ciphertext_slice<T>(&block_shift_buffer, all_shifted_buffer,
                                    j * num_radix_blocks,
                                    all_shifted_buffer->num_radix_blocks);
@@ -129,8 +129,8 @@ __host__ void host_integer_scalar_mul_radix(
 // Small scalar_mul is used in shift/rotate
 template <typename T>
 __host__ void host_integer_small_scalar_mul_radix(
-    CudaStreams streams, CudaRadixCiphertextFFI *output_lwe_array,
-    CudaRadixCiphertextFFI *input_lwe_array, T scalar,
+    CudaStreams streams, CudaRadixCiphertext *output_lwe_array,
+    CudaRadixCiphertext *input_lwe_array, T scalar,
     const uint32_t message_modulus, const uint32_t carry_modulus) {
 
   if (output_lwe_array->num_radix_blocks != input_lwe_array->num_radix_blocks)
@@ -169,7 +169,7 @@ __host__ void host_integer_small_scalar_mul_radix(
 
 template <typename Torus, typename KSTorus>
 __host__ void
-host_scalar_mul_high(CudaStreams streams, CudaRadixCiphertextFFI *ct,
+host_scalar_mul_high(CudaStreams streams, CudaRadixCiphertext *ct,
                      int_scalar_mul_high_buffer<Torus> *mem_ptr,
                      KSTorus *const *ksks, void *const *bsks,
                      const CudaScalarDivisorFFI *scalar_divisor_ffi) {
@@ -180,7 +180,7 @@ host_scalar_mul_high(CudaStreams streams, CudaRadixCiphertextFFI *ct,
     return;
   }
 
-  CudaRadixCiphertextFFI *tmp_ffi = mem_ptr->tmp;
+  CudaRadixCiphertext *tmp_ffi = mem_ptr->tmp;
 
   host_extend_radix_with_trivial_zero_blocks_msb<Torus>(tmp_ffi, ct, streams);
 
@@ -209,7 +209,7 @@ host_scalar_mul_high(CudaStreams streams, CudaRadixCiphertextFFI *ct,
 
 template <typename Torus, typename KSTorus>
 __host__ void host_signed_scalar_mul_high(
-    CudaStreams streams, CudaRadixCiphertextFFI *ct,
+    CudaStreams streams, CudaRadixCiphertext *ct,
     int_signed_scalar_mul_high_buffer<Torus> *mem_ptr, KSTorus *const *ksks,
     const CudaScalarDivisorFFI *scalar_divisor_ffi, void *const *bsks) {
 
@@ -219,7 +219,7 @@ __host__ void host_signed_scalar_mul_high(
     return;
   }
 
-  CudaRadixCiphertextFFI *tmp_ffi = mem_ptr->tmp;
+  CudaRadixCiphertext *tmp_ffi = mem_ptr->tmp;
 
   host_extend_radix_with_sign_msb<Torus>(
       streams, tmp_ffi, ct, mem_ptr->extend_radix_mem, ct->num_radix_blocks,

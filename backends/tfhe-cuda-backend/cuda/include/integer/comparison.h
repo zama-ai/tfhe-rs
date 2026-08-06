@@ -7,8 +7,8 @@ template <typename Torus> struct int_are_all_block_true_buffer {
   COMPARISON_TYPE op;
   int_radix_params params;
 
-  CudaRadixCiphertextFFI *tmp_out;
-  CudaRadixCiphertextFFI *tmp_block_accumulated;
+  CudaRadixCiphertext *tmp_out;
+  CudaRadixCiphertext *tmp_block_accumulated;
 
   // This map store LUTs that checks the equality between some input and values
   // of interest in are_all_block_true(), as with max_value (the maximum message
@@ -30,11 +30,11 @@ template <typename Torus> struct int_are_all_block_true_buffer {
     uint32_t max_value = (total_modulus - 1) / (params.message_modulus - 1);
 
     int max_chunks = CEIL_DIV(num_radix_blocks, max_value);
-    tmp_out = new CudaRadixCiphertextFFI;
+    tmp_out = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_out, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    tmp_block_accumulated = new CudaRadixCiphertextFFI;
+    tmp_block_accumulated = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_block_accumulated,
         max_chunks, params.big_lwe_dimension, size_tracker,
@@ -185,8 +185,8 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
   int_radix_lut<Torus> *tree_last_leaf_scalar_lut;
 
   Torus *preallocated_h_lut;
-  CudaRadixCiphertextFFI *tmp_x;
-  CudaRadixCiphertextFFI *tmp_y;
+  CudaRadixCiphertext *tmp_x;
+  CudaRadixCiphertext *tmp_y;
   bool gpu_memory_allocated;
 
   int_tree_sign_reduction_buffer(CudaStreams streams,
@@ -205,11 +205,11 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
         return msb;
     };
 
-    tmp_x = new CudaRadixCiphertextFFI;
+    tmp_x = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_x, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    tmp_y = new CudaRadixCiphertextFFI;
+    tmp_y = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_y, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
@@ -257,14 +257,14 @@ template <typename Torus> struct int_comparison_diff_buffer {
   int_radix_params params;
   COMPARISON_TYPE op;
 
-  CudaRadixCiphertextFFI *tmp_packed;
+  CudaRadixCiphertext *tmp_packed;
 
   std::function<Torus(Torus)> operator_f;
 
   int_tree_sign_reduction_buffer<Torus> *tree_buffer;
 
-  CudaRadixCiphertextFFI *tmp_signs_a;
-  CudaRadixCiphertextFFI *tmp_signs_b;
+  CudaRadixCiphertext *tmp_signs_a;
+  CudaRadixCiphertext *tmp_signs_b;
   int_radix_lut<Torus> *reduce_signs_lut;
   bool gpu_memory_allocated;
   Torus *preallocated_h_lut1;
@@ -291,7 +291,7 @@ template <typename Torus> struct int_comparison_diff_buffer {
       }
     };
 
-    tmp_packed = new CudaRadixCiphertextFFI;
+    tmp_packed = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_packed, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
@@ -299,11 +299,11 @@ template <typename Torus> struct int_comparison_diff_buffer {
     tree_buffer = new int_tree_sign_reduction_buffer<Torus>(
         streams, operator_f, params, num_radix_blocks, allocate_gpu_memory,
         size_tracker);
-    tmp_signs_a = new CudaRadixCiphertextFFI;
+    tmp_signs_a = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_signs_a, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    tmp_signs_b = new CudaRadixCiphertextFFI;
+    tmp_signs_b = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_signs_b, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
@@ -363,12 +363,12 @@ template <typename Torus> struct int_comparison_buffer {
   ///   f(block) = ((block >> 2) & 1) ^ invert
   int_radix_lut<Torus> *lut_borrow_flag_cmp;
 
-  CudaRadixCiphertextFFI *tmp_block_comparisons;
-  CudaRadixCiphertextFFI *tmp_lwe_array_out;
-  CudaRadixCiphertextFFI *tmp_trivial_sign_block;
+  CudaRadixCiphertext *tmp_block_comparisons;
+  CudaRadixCiphertext *tmp_lwe_array_out;
+  CudaRadixCiphertext *tmp_trivial_sign_block;
 
   // Scalar EQ / NE
-  CudaRadixCiphertextFFI *tmp_packed_input;
+  CudaRadixCiphertext *tmp_packed_input;
 
   // Max Min
   int_cmux_buffer<Torus> *cmux_buffer;
@@ -423,7 +423,7 @@ template <typename Torus> struct int_comparison_buffer {
     // Block comparisons buffer. Allocated for both paths: the sign-tree path
     // stores the per-block comparison results here, the borrow-propagation fast
     // path stores the subtraction blocks here.
-    tmp_block_comparisons = new CudaRadixCiphertextFFI;
+    tmp_block_comparisons = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_block_comparisons,
         num_radix_blocks, params.big_lwe_dimension, size_tracker,
@@ -432,13 +432,13 @@ template <typename Torus> struct int_comparison_buffer {
     // We use the tree reduction old algorithm.
     if (!use_borrow_fast_path) {
       // +1 to have space for signed comparison
-      tmp_lwe_array_out = new CudaRadixCiphertextFFI;
+      tmp_lwe_array_out = new CudaRadixCiphertext;
       create_zero_radix_ciphertext_async<Torus>(
           streams.stream(0), streams.gpu_index(0), tmp_lwe_array_out,
           num_radix_blocks + 1, params.big_lwe_dimension, size_tracker,
           allocate_gpu_memory);
 
-      tmp_packed_input = new CudaRadixCiphertextFFI;
+      tmp_packed_input = new CudaRadixCiphertext;
       create_zero_radix_ciphertext_async<Torus>(
           streams.stream(0), streams.gpu_index(0), tmp_packed_input,
           2 * num_radix_blocks, params.big_lwe_dimension, size_tracker,
@@ -496,7 +496,7 @@ template <typename Torus> struct int_comparison_buffer {
 
     if (is_signed) {
 
-      tmp_trivial_sign_block = new CudaRadixCiphertextFFI;
+      tmp_trivial_sign_block = new CudaRadixCiphertext;
       create_zero_radix_ciphertext_async<Torus>(
           streams.stream(0), streams.gpu_index(0), tmp_trivial_sign_block, 1,
           params.big_lwe_dimension, size_tracker, allocate_gpu_memory);

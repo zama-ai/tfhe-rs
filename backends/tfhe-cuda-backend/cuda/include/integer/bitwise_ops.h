@@ -7,8 +7,8 @@ template <typename Torus> struct boolean_bitop_buffer {
   int_radix_lut<Torus> *lut;
   int_radix_lut<Torus> *message_extract_lut;
 
-  CudaRadixCiphertextFFI *tmp_lwe_left;
-  CudaRadixCiphertextFFI *tmp_lwe_right;
+  CudaRadixCiphertext *tmp_lwe_left;
+  CudaRadixCiphertext *tmp_lwe_right;
 
   BITOP_TYPE op;
   bool unchecked;
@@ -65,12 +65,12 @@ template <typename Torus> struct boolean_bitop_buffer {
       message_extract_lut->generate_and_broadcast_lut(
           active_streams, {0}, {lut_f_message_extract}, LUT_0_FOR_ALL_BLOCKS);
     }
-    tmp_lwe_left = new CudaRadixCiphertextFFI;
+    tmp_lwe_left = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_lwe_left,
         lwe_ciphertext_count, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
-    tmp_lwe_right = new CudaRadixCiphertextFFI;
+    tmp_lwe_right = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_lwe_right,
         lwe_ciphertext_count, params.big_lwe_dimension, size_tracker,

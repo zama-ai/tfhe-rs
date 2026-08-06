@@ -25,7 +25,7 @@ __host__ uint64_t scratch_cuda_integer_abs(CudaStreams streams,
 }
 
 template <typename Torus>
-__host__ void host_integer_abs(CudaStreams streams, CudaRadixCiphertextFFI *ct,
+__host__ void host_integer_abs(CudaStreams streams, CudaRadixCiphertext *ct,
                                void *const *bsks, uint64_t *const *ksks,
                                int_abs_buffer<uint64_t> *mem_ptr,
                                bool is_signed) {

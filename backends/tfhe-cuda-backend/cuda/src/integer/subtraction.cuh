@@ -31,11 +31,11 @@ uint64_t scratch_cuda_sub_and_propagate_single_carry(
 
 template <typename Torus, typename KSTorus>
 void host_sub_and_propagate_single_carry(
-    CudaStreams streams, CudaRadixCiphertextFFI *lhs_array,
-    const CudaRadixCiphertextFFI *rhs_array, CudaRadixCiphertextFFI *carry_out,
-    const CudaRadixCiphertextFFI *input_carries,
-    int_sub_and_propagate<Torus> *mem, void *const *bsks, KSTorus *const *ksks,
-    uint32_t requested_flag, uint32_t uses_carry) {
+    CudaStreams streams, CudaRadixCiphertext *lhs_array,
+    const CudaRadixCiphertext *rhs_array, CudaRadixCiphertext *carry_out,
+    const CudaRadixCiphertext *input_carries, int_sub_and_propagate<Torus> *mem,
+    void *const *bsks, KSTorus *const *ksks, uint32_t requested_flag,
+    uint32_t uses_carry) {
 
   host_negation_with_correcting_term<Torus>(
       streams, mem->neg_rhs_array, rhs_array, mem->params.message_modulus,
@@ -57,9 +57,9 @@ void host_sub_and_propagate_single_carry(
  */
 template <typename Torus>
 __host__ void host_subtraction_with_correcting_term(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_in_1,
-    CudaRadixCiphertextFFI const *lwe_array_in_2, uint32_t message_modulus,
+    CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+    CudaRadixCiphertext const *lwe_array_in_1,
+    CudaRadixCiphertext const *lwe_array_in_2, uint32_t message_modulus,
     uint32_t carry_modulus, uint32_t num_radix_blocks) {
   cuda_set_device(streams.gpu_index(0));
 
@@ -99,11 +99,10 @@ __host__ uint64_t scratch_cuda_integer_overflowing_sub(
 
 template <typename Torus>
 __host__ void host_integer_overflowing_sub(
-    CudaStreams streams, CudaRadixCiphertextFFI *output,
-    CudaRadixCiphertextFFI *input_left,
-    const CudaRadixCiphertextFFI *input_right,
-    CudaRadixCiphertextFFI *overflow_block,
-    const CudaRadixCiphertextFFI *input_borrow,
+    CudaStreams streams, CudaRadixCiphertext *output,
+    CudaRadixCiphertext *input_left, const CudaRadixCiphertext *input_right,
+    CudaRadixCiphertext *overflow_block,
+    const CudaRadixCiphertext *input_borrow,
     int_borrow_prop_memory<uint64_t> *mem_ptr, void *const *bsks,
     Torus *const *ksks, uint32_t compute_overflow, uint32_t uses_input_borrow) {
   PUSH_RANGE("overflowing sub")

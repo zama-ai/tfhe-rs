@@ -23,23 +23,36 @@ uint64_t scratch_cuda_kv_store_get_64_async(
 }
 
 void cuda_kv_store_get_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_result,
-    CudaRadixCiphertextFFI *lwe_array_out_boolean,
-    CudaRadixCiphertextFFI *lwe_array_out_selectors,
-    CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
-    CudaRadixCiphertextFFI const *lwe_array_in_values,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_result_ffi,
+    CudaRadixCiphertextFFI *lwe_array_out_boolean_ffi,
+    CudaRadixCiphertextFFI *lwe_array_out_selectors_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_in_values_ffi,
     const uint64_t *h_decomposed_clear_keys, int8_t *mem, void *const *bsks,
     void *const *ksks) {
+  CudaRadixCiphertext lwe_array_out_result_local(*lwe_array_out_result_ffi);
+  CudaRadixCiphertext *lwe_array_out_result = &lwe_array_out_result_local;
+  CudaRadixCiphertext lwe_array_out_boolean_local(*lwe_array_out_boolean_ffi);
+  CudaRadixCiphertext *lwe_array_out_boolean = &lwe_array_out_boolean_local;
+  CudaRadixCiphertext lwe_array_out_selectors_local(
+      *lwe_array_out_selectors_ffi);
+  CudaRadixCiphertext *lwe_array_out_selectors = &lwe_array_out_selectors_local;
+  const CudaRadixCiphertext lwe_array_in_encrypted_key_local(
+      *lwe_array_in_encrypted_key_ffi);
+  const CudaRadixCiphertext *lwe_array_in_encrypted_key =
+      &lwe_array_in_encrypted_key_local;
+  const CudaRadixCiphertext lwe_array_in_values_local(*lwe_array_in_values_ffi);
+  const CudaRadixCiphertext *lwe_array_in_values = &lwe_array_in_values_local;
 
   PUSH_RANGE("kv_store_get")
 
-  PANIC_IF_FALSE(lwe_array_out_result != lwe_array_in_encrypted_key,
+  PANIC_IF_FALSE(lwe_array_out_result_ffi != lwe_array_in_encrypted_key_ffi,
                  "Output result and encrypted key pointers must be different "
                  "for out-of-place operations");
-  PANIC_IF_FALSE(lwe_array_out_boolean != lwe_array_in_encrypted_key,
+  PANIC_IF_FALSE(lwe_array_out_boolean_ffi != lwe_array_in_encrypted_key_ffi,
                  "Output boolean and encrypted key pointers must be different "
                  "for out-of-place operations");
-  PANIC_IF_FALSE(lwe_array_out_result != lwe_array_out_boolean,
+  PANIC_IF_FALSE(lwe_array_out_result_ffi != lwe_array_out_boolean_ffi,
                  "Result and boolean output pointers must be different for "
                  "out-of-place operations");
 
@@ -90,20 +103,32 @@ uint64_t scratch_cuda_kv_store_update_64_async(
 }
 
 void cuda_kv_store_update_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_check_out_block,
-    CudaRadixCiphertextFFI *lwe_array_out_values,
-    CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
-    CudaRadixCiphertextFFI const *lwe_array_in_values,
-    CudaRadixCiphertextFFI const *lwe_in_new_value,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_check_out_block_ffi,
+    CudaRadixCiphertextFFI *lwe_array_out_values_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_in_values_ffi,
+    CudaRadixCiphertextFFI const *lwe_in_new_value_ffi,
     const uint64_t *h_decomposed_clear_keys, int8_t *mem_ptr, void *const *bsks,
     void *const *ksks) {
+  CudaRadixCiphertext lwe_check_out_block_local(*lwe_check_out_block_ffi);
+  CudaRadixCiphertext *lwe_check_out_block = &lwe_check_out_block_local;
+  CudaRadixCiphertext lwe_array_out_values_local(*lwe_array_out_values_ffi);
+  CudaRadixCiphertext *lwe_array_out_values = &lwe_array_out_values_local;
+  const CudaRadixCiphertext lwe_array_in_encrypted_key_local(
+      *lwe_array_in_encrypted_key_ffi);
+  const CudaRadixCiphertext *lwe_array_in_encrypted_key =
+      &lwe_array_in_encrypted_key_local;
+  const CudaRadixCiphertext lwe_array_in_values_local(*lwe_array_in_values_ffi);
+  const CudaRadixCiphertext *lwe_array_in_values = &lwe_array_in_values_local;
+  const CudaRadixCiphertext lwe_in_new_value_local(*lwe_in_new_value_ffi);
+  const CudaRadixCiphertext *lwe_in_new_value = &lwe_in_new_value_local;
 
   PUSH_RANGE("kv_store_update")
 
-  PANIC_IF_FALSE(lwe_array_out_values != lwe_array_in_values,
+  PANIC_IF_FALSE(lwe_array_out_values_ffi != lwe_array_in_values_ffi,
                  "Output and input values pointers must be different for "
                  "out-of-place operations");
-  PANIC_IF_FALSE(lwe_check_out_block != lwe_in_new_value,
+  PANIC_IF_FALSE(lwe_check_out_block_ffi != lwe_in_new_value_ffi,
                  "Output and new value pointers must be different for "
                  "out-of-place operations");
 
@@ -152,24 +177,36 @@ uint64_t scratch_cuda_kv_store_map_64_async(
 }
 
 void cuda_kv_store_map_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_check_out_block,
-    CudaRadixCiphertextFFI *lwe_array_out_values,
-    CudaRadixCiphertextFFI const *lwe_array_in_values,
-    CudaRadixCiphertextFFI const *lwe_in_new_value,
-    CudaRadixCiphertextFFI const *lwe_array_in_selectors, int8_t *mem_ptr,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_check_out_block_ffi,
+    CudaRadixCiphertextFFI *lwe_array_out_values_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_in_values_ffi,
+    CudaRadixCiphertextFFI const *lwe_in_new_value_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_in_selectors_ffi, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks) {
+  CudaRadixCiphertext lwe_check_out_block_local(*lwe_check_out_block_ffi);
+  CudaRadixCiphertext *lwe_check_out_block = &lwe_check_out_block_local;
+  CudaRadixCiphertext lwe_array_out_values_local(*lwe_array_out_values_ffi);
+  CudaRadixCiphertext *lwe_array_out_values = &lwe_array_out_values_local;
+  const CudaRadixCiphertext lwe_array_in_values_local(*lwe_array_in_values_ffi);
+  const CudaRadixCiphertext *lwe_array_in_values = &lwe_array_in_values_local;
+  const CudaRadixCiphertext lwe_in_new_value_local(*lwe_in_new_value_ffi);
+  const CudaRadixCiphertext *lwe_in_new_value = &lwe_in_new_value_local;
+  const CudaRadixCiphertext lwe_array_in_selectors_local(
+      *lwe_array_in_selectors_ffi);
+  const CudaRadixCiphertext *lwe_array_in_selectors =
+      &lwe_array_in_selectors_local;
 
   PUSH_RANGE("kv_store_map")
 
-  PANIC_IF_FALSE(lwe_array_out_values != lwe_array_in_values,
+  PANIC_IF_FALSE(lwe_array_out_values_ffi != lwe_array_in_values_ffi,
                  "Output and input values pointers must be different for "
                  "out-of-place operations");
 
-  PANIC_IF_FALSE(lwe_check_out_block != lwe_in_new_value,
+  PANIC_IF_FALSE(lwe_check_out_block_ffi != lwe_in_new_value_ffi,
                  "Output and new value pointers must be different for "
                  "out-of-place operations");
 
-  PANIC_IF_FALSE(lwe_check_out_block != lwe_array_in_selectors,
+  PANIC_IF_FALSE(lwe_check_out_block_ffi != lwe_array_in_selectors_ffi,
                  "Check output and selectors pointers must be different for "
                  "out-of-place operations");
 
@@ -219,14 +256,20 @@ uint64_t scratch_cuda_kv_store_contains_key_64_async(
 }
 
 void cuda_kv_store_contains_key_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_boolean,
-    CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_boolean_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key_ffi,
     const uint64_t *h_decomposed_clear_keys, int8_t *mem_ptr, void *const *bsks,
     void *const *ksks) {
+  CudaRadixCiphertext lwe_array_out_boolean_local(*lwe_array_out_boolean_ffi);
+  CudaRadixCiphertext *lwe_array_out_boolean = &lwe_array_out_boolean_local;
+  const CudaRadixCiphertext lwe_array_in_encrypted_key_local(
+      *lwe_array_in_encrypted_key_ffi);
+  const CudaRadixCiphertext *lwe_array_in_encrypted_key =
+      &lwe_array_in_encrypted_key_local;
 
   PUSH_RANGE("kv_store_contains_key")
 
-  PANIC_IF_FALSE(lwe_array_out_boolean != lwe_array_in_encrypted_key,
+  PANIC_IF_FALSE(lwe_array_out_boolean_ffi != lwe_array_in_encrypted_key_ffi,
                  "Output boolean and encrypted key pointers must be different "
                  "for out-of-place operations");
 

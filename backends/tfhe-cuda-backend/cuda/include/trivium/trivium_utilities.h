@@ -79,30 +79,30 @@ template <typename Torus> struct int_trivium_lut_buffers {
 /// execution of the Trivium cipher. Registers a/b/c are owned by the caller
 /// (the persistent state) and passed in to each call.
 template <typename Torus> struct int_trivium_workspaces {
-  CudaRadixCiphertextFFI *shift_workspace;
+  CudaRadixCiphertext *shift_workspace;
 
   // Temporary Update Buffers:
   // Intermediate buffers for the trivium update logic (t1, t2, t3)
-  CudaRadixCiphertextFFI *temp_t1;
-  CudaRadixCiphertextFFI *temp_t2;
-  CudaRadixCiphertextFFI *temp_t3;
+  CudaRadixCiphertext *temp_t1;
+  CudaRadixCiphertext *temp_t2;
+  CudaRadixCiphertext *temp_t3;
 
   // Buffers to hold the new values for the registers after an update step
-  CudaRadixCiphertextFFI *new_a;
-  CudaRadixCiphertextFFI *new_b;
-  CudaRadixCiphertextFFI *new_c;
+  CudaRadixCiphertext *new_a;
+  CudaRadixCiphertext *new_b;
+  CudaRadixCiphertext *new_c;
 
   // PBS Packing Buffers:
   // Buffers for packing inputs into the bivariate lookup table (AND gate)
-  CudaRadixCiphertextFFI *packed_pbs_lhs;
-  CudaRadixCiphertextFFI *packed_pbs_rhs;
+  CudaRadixCiphertext *packed_pbs_lhs;
+  CudaRadixCiphertext *packed_pbs_rhs;
   // Buffer for the output of the bivariate PBS
-  CudaRadixCiphertextFFI *packed_pbs_out;
+  CudaRadixCiphertext *packed_pbs_out;
 
   // Flush/Cleanup Packing Buffers:
   // Buffers for the "flush" LUT which cleans up noise after additions
-  CudaRadixCiphertextFFI *packed_flush_in;
-  CudaRadixCiphertextFFI *packed_flush_out;
+  CudaRadixCiphertext *packed_flush_in;
+  CudaRadixCiphertext *packed_flush_out;
 
   int_trivium_workspaces(CudaStreams streams, const int_radix_params &params,
                          bool allocate_gpu_memory, uint32_t num_inputs,
@@ -110,67 +110,67 @@ template <typename Torus> struct int_trivium_workspaces {
 
     uint32_t batch_blocks = TRIVIUM_BATCH_SIZE * num_inputs;
 
-    this->shift_workspace = new CudaRadixCiphertextFFI;
+    this->shift_workspace = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->shift_workspace,
         TRIVIUM_REGISTER_C_BITS * num_inputs, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    this->temp_t1 = new CudaRadixCiphertextFFI;
+    this->temp_t1 = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->temp_t1, batch_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->temp_t2 = new CudaRadixCiphertextFFI;
+    this->temp_t2 = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->temp_t2, batch_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->temp_t3 = new CudaRadixCiphertextFFI;
+    this->temp_t3 = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->temp_t3, batch_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->new_a = new CudaRadixCiphertextFFI;
+    this->new_a = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->new_a, batch_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->new_b = new CudaRadixCiphertextFFI;
+    this->new_b = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->new_b, batch_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->new_c = new CudaRadixCiphertextFFI;
+    this->new_c = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->new_c, batch_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    this->packed_pbs_lhs = new CudaRadixCiphertextFFI;
+    this->packed_pbs_lhs = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_pbs_lhs,
         TRIVIUM_NUM_AND_GATES * batch_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    this->packed_pbs_rhs = new CudaRadixCiphertextFFI;
+    this->packed_pbs_rhs = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_pbs_rhs,
         TRIVIUM_NUM_AND_GATES * batch_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    this->packed_pbs_out = new CudaRadixCiphertextFFI;
+    this->packed_pbs_out = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_pbs_out,
         TRIVIUM_NUM_AND_GATES * batch_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    this->packed_flush_in = new CudaRadixCiphertextFFI;
+    this->packed_flush_in = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_flush_in,
         TRIVIUM_NUM_FLUSH_PATHS * batch_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    this->packed_flush_out = new CudaRadixCiphertextFFI;
+    this->packed_flush_out = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_flush_out,
         TRIVIUM_NUM_FLUSH_PATHS * batch_blocks, params.big_lwe_dimension,

@@ -1,10 +1,13 @@
 #include "integer/scalar_bitops.cuh"
 
 void cuda_integer_scalar_bitop_inplace_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_inout,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_inout_ffi,
     void const *clear_blocks, void const *h_clear_blocks,
     uint32_t num_clear_blocks, int8_t *mem_ptr, void *const *bsks,
     void *const *ksks) {
+  CudaRadixCiphertext lwe_array_inout_local(*lwe_array_inout_ffi);
+  CudaRadixCiphertext *lwe_array_inout = &lwe_array_inout_local;
+
   // In-place variant: lwe_array_inout op= scalar, no aliasing check needed
   host_scalar_bitop<uint64_t>(
       CudaStreams(streams), lwe_array_inout, lwe_array_inout,

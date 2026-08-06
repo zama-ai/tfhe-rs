@@ -64,6 +64,15 @@ typedef struct {
   uint32_t lwe_dimension;
 } CudaRadixCiphertextFFI;
 
+// Bundled pointer + length for an array of ciphertexts at the boundary.
+// Encodes "this parameter is a batch" in the type system, so single-wrap
+// mistakes (which caused a stride-mismatch UB in vector_find) become
+// impossible: the C++ boundary body must loop over num_ciphertexts.
+typedef struct {
+  CudaRadixCiphertextFFI *ptr;
+  uint32_t num_ciphertexts;
+} VecCudaRadixCiphertextFFI;
+
 typedef struct {
   uint64_t const *chosen_multiplier_has_at_least_one_set;
   uint64_t const *decomposed_chosen_multiplier;
@@ -783,11 +792,10 @@ uint64_t scratch_cuda_unchecked_contains_64_async(
 
 void cuda_unchecked_contains_64_async(CudaStreamsFFI streams,
                                       CudaRadixCiphertextFFI *output,
-                                      CudaRadixCiphertextFFI const *inputs,
+                                      VecCudaRadixCiphertextFFI const *inputs,
                                       CudaRadixCiphertextFFI const *value,
-                                      uint32_t num_inputs, uint32_t num_blocks,
-                                      int8_t *mem, void *const *bsks,
-                                      void *const *ksks);
+                                      uint32_t num_blocks, int8_t *mem,
+                                      void *const *bsks, void *const *ksks);
 
 void cleanup_cuda_unchecked_contains_64(CudaStreamsFFI streams,
                                         int8_t **mem_ptr_void);
@@ -801,9 +809,8 @@ uint64_t scratch_cuda_unchecked_contains_clear_64_async(
 
 void cuda_unchecked_contains_clear_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output,
-    CudaRadixCiphertextFFI const *inputs, const uint64_t *h_clear_val,
-    uint32_t num_inputs, uint32_t num_blocks, int8_t *mem, void *const *bsks,
-    void *const *ksks);
+    VecCudaRadixCiphertextFFI const *inputs, const uint64_t *h_clear_val,
+    uint32_t num_blocks, int8_t *mem, void *const *bsks, void *const *ksks);
 
 void cleanup_cuda_unchecked_contains_clear_64(CudaStreamsFFI streams,
                                               int8_t **mem_ptr_void);
@@ -876,10 +883,9 @@ uint64_t scratch_cuda_unchecked_first_index_of_clear_64_async(
 
 void cuda_unchecked_first_index_of_clear_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct,
-    CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
-    const uint64_t *h_clear_val, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t num_blocks_index, int8_t *mem, void *const *bsks,
-    void *const *ksks);
+    CudaRadixCiphertextFFI *match_ct, VecCudaRadixCiphertextFFI const *inputs,
+    const uint64_t *h_clear_val, uint32_t num_blocks, uint32_t num_blocks_index,
+    int8_t *mem, void *const *bsks, void *const *ksks);
 
 void cleanup_cuda_unchecked_first_index_of_clear_64(CudaStreamsFFI streams,
                                                     int8_t **mem_ptr_void);
@@ -894,10 +900,10 @@ uint64_t scratch_cuda_unchecked_first_index_of_64_async(
 
 void cuda_unchecked_first_index_of_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct,
-    CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
-    CudaRadixCiphertextFFI const *value, uint32_t num_inputs,
-    uint32_t num_blocks, uint32_t num_blocks_index, int8_t *mem,
-    void *const *bsks, void *const *ksks);
+    CudaRadixCiphertextFFI *match_ct, VecCudaRadixCiphertextFFI const *inputs,
+    CudaRadixCiphertextFFI const *value, uint32_t num_blocks,
+    uint32_t num_blocks_index, int8_t *mem, void *const *bsks,
+    void *const *ksks);
 
 void cleanup_cuda_unchecked_first_index_of_64(CudaStreamsFFI streams,
                                               int8_t **mem_ptr_void);
@@ -913,9 +919,9 @@ uint64_t scratch_cuda_unchecked_index_of_64_async(
 void cuda_unchecked_index_of_64_async(CudaStreamsFFI streams,
                                       CudaRadixCiphertextFFI *index_ct,
                                       CudaRadixCiphertextFFI *match_ct,
-                                      CudaRadixCiphertextFFI const *inputs,
+                                      VecCudaRadixCiphertextFFI const *inputs,
                                       CudaRadixCiphertextFFI const *value,
-                                      uint32_t num_inputs, uint32_t num_blocks,
+                                      uint32_t num_blocks,
                                       uint32_t num_blocks_index, int8_t *mem,
                                       void *const *bsks, void *const *ksks);
 
@@ -932,10 +938,10 @@ uint64_t scratch_cuda_unchecked_index_of_clear_64_async(
 
 void cuda_unchecked_index_of_clear_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct,
-    CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
+    CudaRadixCiphertextFFI *match_ct, VecCudaRadixCiphertextFFI const *inputs,
     const uint64_t *h_clear_val, bool is_scalar_obviously_bigger,
-    uint32_t num_inputs, uint32_t num_blocks, uint32_t num_blocks_index,
-    int8_t *mem, void *const *bsks, void *const *ksks);
+    uint32_t num_blocks, uint32_t num_blocks_index, int8_t *mem,
+    void *const *bsks, void *const *ksks);
 
 void cleanup_cuda_unchecked_index_of_clear_64(CudaStreamsFFI streams,
                                               int8_t **mem_ptr_void);
@@ -1026,5 +1032,7 @@ void cuda_integer_oprf_bitonic_shuffle_64_async(
 void cleanup_cuda_integer_oprf_bitonic_shuffle_64(CudaStreamsFFI streams,
                                                   int8_t **mem_ptr_void);
 } // extern C
+
+#include "cuda_radix_ciphertext.h"
 
 #endif // CUDA_INTEGER_H

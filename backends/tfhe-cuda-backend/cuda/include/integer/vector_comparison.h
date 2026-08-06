@@ -14,7 +14,7 @@ template <typename Torus> struct int_unchecked_all_eq_slices_buffer {
   int_comparison_buffer<Torus> **eq_buffers;
   int_comparison_buffer<Torus> *reduction_buffer;
 
-  CudaRadixCiphertextFFI *packed_results;
+  CudaRadixCiphertext *packed_results;
 
   CudaStreams active_streams;
 
@@ -80,7 +80,7 @@ template <typename Torus> struct int_unchecked_all_eq_slices_buffer {
         new int_comparison_buffer<Torus>(streams, EQ, params, num_inputs, false,
                                          allocate_gpu_memory, size_tracker);
 
-    this->packed_results = new CudaRadixCiphertextFFI;
+    this->packed_results = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_results,
         num_inputs, params.big_lwe_dimension, size_tracker,
@@ -140,7 +140,7 @@ template <typename Torus> struct int_unchecked_contains_sub_slice_buffer {
   uint32_t num_windows;
 
   int_unchecked_all_eq_slices_buffer<Torus> *all_eq_buffer;
-  CudaRadixCiphertextFFI *packed_results;
+  CudaRadixCiphertext *packed_results;
   int_comparison_buffer<Torus> *final_reduction_buffer;
 
   int_unchecked_contains_sub_slice_buffer(CudaStreams streams,
@@ -157,7 +157,7 @@ template <typename Torus> struct int_unchecked_contains_sub_slice_buffer {
         streams, params, num_rhs, num_blocks, allocate_gpu_memory,
         size_tracker);
 
-    this->packed_results = new CudaRadixCiphertextFFI;
+    this->packed_results = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_results,
         this->num_windows, params.big_lwe_dimension, size_tracker,
