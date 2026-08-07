@@ -57,7 +57,7 @@ __global__ void device_negation(Torus *output, Torus const *input,
  */
 template <typename T>
 __host__ void host_negation(cudaStream_t stream, uint32_t gpu_index,
-                            CudaRadixCiphertext *output,
+                            const CudaRadixCiphertext *output,
                             CudaRadixCiphertext const *input,
                             uint32_t num_radix_blocks, uint32_t message_modulus,
                             uint32_t carry_modulus) {
@@ -99,7 +99,7 @@ __host__ void host_negation(cudaStream_t stream, uint32_t gpu_index,
  */
 template <typename Torus>
 __host__ void host_negation_with_correcting_term(
-    CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+    CudaStreams streams, const CudaRadixCiphertext *lwe_array_out,
     CudaRadixCiphertext const *lwe_array_in, uint32_t message_modulus,
     uint32_t carry_modulus, uint32_t num_radix_blocks) {
   cuda_set_device(streams.gpu_index(0));

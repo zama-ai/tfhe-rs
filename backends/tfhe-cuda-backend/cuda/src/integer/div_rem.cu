@@ -17,16 +17,16 @@ uint64_t scratch_cuda_integer_div_rem_64_async(
 }
 
 void cuda_integer_div_rem_64_async(CudaStreamsFFI streams,
-                                   CudaRadixCiphertextFFI *quotient_ffi,
-                                   CudaRadixCiphertextFFI *remainder_ffi,
+                                   CudaRadixCiphertextFFI const *quotient_ffi,
+                                   CudaRadixCiphertextFFI const *remainder_ffi,
                                    CudaRadixCiphertextFFI const *numerator_ffi,
                                    CudaRadixCiphertextFFI const *divisor_ffi,
                                    bool is_signed, int8_t *mem_ptr,
                                    void *const *bsks, void *const *ksks) {
   CudaRadixCiphertext quotient_local(*quotient_ffi);
-  CudaRadixCiphertext *quotient = &quotient_local;
+  const CudaRadixCiphertext *quotient = &quotient_local;
   CudaRadixCiphertext remainder_local(*remainder_ffi);
-  CudaRadixCiphertext *remainder = &remainder_local;
+  const CudaRadixCiphertext *remainder = &remainder_local;
   const CudaRadixCiphertext numerator_local(*numerator_ffi);
   const CudaRadixCiphertext *numerator = &numerator_local;
   const CudaRadixCiphertext divisor_local(*divisor_ffi);

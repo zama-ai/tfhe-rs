@@ -1491,8 +1491,9 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   // lookup table for extracting message and carry
   int_radix_lut<Torus> *luts_message_carry;
 
-  bool mem_reuse = false;
   bool allocated_luts_message_carry;
+
+  bool owns_memory() const { return current_blocks->_owns_gpu_memory; }
 
   void setup_index_buffers(CudaStreams streams, uint64_t &size_tracker) {
 
@@ -1552,7 +1553,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     current_columns.next_accumulation(total_ciphertexts, total_messages,
                                       _needs_processing);
     uint32_t pbs_count = std::max(total_ciphertexts, 2 * num_blocks_in_radix);
-    if (!mem_reuse) {
+    if (owns_memory()) {
       if (total_ciphertexts > 0 ||
           reduce_degrees_for_single_carry_propagation) {
         uint64_t size_tracker = 0;
@@ -1598,7 +1599,6 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       bool reduce_degrees_for_single_carry_propagation,
       bool allocate_gpu_memory, uint64_t &size_tracker) {
     this->params = params;
-    this->mem_reuse = false;
     this->max_total_blocks_in_vec = num_blocks_in_radix * max_num_radix_in_vec;
     this->num_blocks_in_radix = num_blocks_in_radix;
     this->max_num_radix_in_vec = max_num_radix_in_vec;
@@ -1637,23 +1637,23 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   int_sum_ciphertexts_vec_memory(
       CudaStreams streams, int_radix_params params,
       uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
-      CudaRadixCiphertext *current_blocks,
-      CudaRadixCiphertext *small_lwe_vector, int_radix_lut<Torus> *reused_lut,
+      const CudaRadixCiphertext *current_blocks,
+      const CudaRadixCiphertext *small_lwe_vector,
+      int_radix_lut<Torus> *reused_lut,
       bool reduce_degrees_for_single_carry_propagation,
       bool allocate_gpu_memory, uint64_t &size_tracker) {
-    this->mem_reuse = true;
     this->params = params;
     this->max_total_blocks_in_vec = num_blocks_in_radix * max_num_radix_in_vec;
     this->num_blocks_in_radix = num_blocks_in_radix;
     this->max_num_radix_in_vec = max_num_radix_in_vec;
     this->gpu_memory_allocated = allocate_gpu_memory;
     this->chunk_size = params.max_degree();
-    this->allocated_luts_message_carry = true;
+    this->allocated_luts_message_carry = false;
     this->reduce_degrees_for_single_carry_propagation =
         reduce_degrees_for_single_carry_propagation;
 
-    this->current_blocks = current_blocks;
-    this->small_lwe_vector = small_lwe_vector;
+    this->current_blocks = new CudaRadixCiphertext(*current_blocks);
+    this->small_lwe_vector = new CudaRadixCiphertext(*small_lwe_vector);
     this->luts_message_carry = reused_lut;
 
     uint64_t message_modulus_bits = (uint64_t)std::log2(params.message_modulus);
@@ -1693,17 +1693,19 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
                                        streams.gpu_index(0),
                                        gpu_memory_allocated);
 
-    if (!mem_reuse) {
+    if (owns_memory())
       release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                      current_blocks, gpu_memory_allocated);
+    delete current_blocks;
+
+    if (owns_memory())
       release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                      small_lwe_vector, gpu_memory_allocated);
-      if (allocated_luts_message_carry) {
-        luts_message_carry->release(streams);
-        delete luts_message_carry;
-      }
-      delete current_blocks;
-      delete small_lwe_vector;
+    delete small_lwe_vector;
+
+    if (allocated_luts_message_carry) {
+      luts_message_carry->release(streams);
+      delete luts_message_carry;
     }
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }

@@ -19,13 +19,12 @@ uint64_t scratch_cuda_unchecked_all_eq_slices(
 }
 
 template <typename Torus>
-__host__ void
-host_unchecked_all_eq_slices(CudaStreams streams, CudaRadixCiphertext *match_ct,
-                             CudaRadixCiphertext const *lhs,
-                             CudaRadixCiphertext const *rhs,
-                             uint32_t num_inputs, uint32_t num_blocks,
-                             int_unchecked_all_eq_slices_buffer<Torus> *mem_ptr,
-                             void *const *bsks, Torus *const *ksks) {
+__host__ void host_unchecked_all_eq_slices(
+    CudaStreams streams, CudaRadixCiphertext const *match_ct,
+    CudaRadixCiphertext const *lhs, CudaRadixCiphertext const *rhs,
+    uint32_t num_inputs, uint32_t num_blocks,
+    int_unchecked_all_eq_slices_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks) {
 
   // sync_from(streams)
   //
@@ -100,7 +99,7 @@ uint64_t scratch_cuda_unchecked_contains_sub_slice(
 
 template <typename Torus>
 __host__ void host_unchecked_contains_sub_slice(
-    CudaStreams streams, CudaRadixCiphertext *match_ct,
+    CudaStreams streams, const CudaRadixCiphertext *match_ct,
     CudaRadixCiphertext const *lhs, CudaRadixCiphertext const *rhs,
     uint32_t num_rhs, uint32_t num_blocks,
     int_unchecked_contains_sub_slice_buffer<Torus> *mem_ptr, void *const *bsks,

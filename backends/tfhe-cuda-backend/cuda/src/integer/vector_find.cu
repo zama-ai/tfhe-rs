@@ -27,15 +27,17 @@ uint64_t scratch_cuda_unchecked_match_value_64_async(
 }
 
 void cuda_unchecked_match_value_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_result_ffi,
-    CudaRadixCiphertextFFI *lwe_array_out_boolean_ffi,
+    CudaStreamsFFI streams,
+    CudaRadixCiphertextFFI const *lwe_array_out_result_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_out_boolean_ffi,
     CudaRadixCiphertextFFI const *lwe_array_in_ct_ffi,
     const uint64_t *h_match_inputs, const uint64_t *h_match_outputs,
     int8_t *mem, void *const *bsks, void *const *ksks) {
   CudaRadixCiphertext lwe_array_out_result_local(*lwe_array_out_result_ffi);
-  CudaRadixCiphertext *lwe_array_out_result = &lwe_array_out_result_local;
+  const CudaRadixCiphertext *lwe_array_out_result = &lwe_array_out_result_local;
   CudaRadixCiphertext lwe_array_out_boolean_local(*lwe_array_out_boolean_ffi);
-  CudaRadixCiphertext *lwe_array_out_boolean = &lwe_array_out_boolean_local;
+  const CudaRadixCiphertext *lwe_array_out_boolean =
+      &lwe_array_out_boolean_local;
   const CudaRadixCiphertext lwe_array_in_ct_local(*lwe_array_in_ct_ffi);
   const CudaRadixCiphertext *lwe_array_in_ct = &lwe_array_in_ct_local;
 
@@ -86,13 +88,13 @@ uint64_t scratch_cuda_unchecked_match_value_or_64_async(
 }
 
 void cuda_unchecked_match_value_or_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lwe_array_out_ffi,
     CudaRadixCiphertextFFI const *lwe_array_in_ct_ffi,
     const uint64_t *h_match_inputs, const uint64_t *h_match_outputs,
     const uint64_t *h_or_value, int8_t *mem, void *const *bsks,
     void *const *ksks) {
   CudaRadixCiphertext lwe_array_out_local(*lwe_array_out_ffi);
-  CudaRadixCiphertext *lwe_array_out = &lwe_array_out_local;
+  const CudaRadixCiphertext *lwe_array_out = &lwe_array_out_local;
   const CudaRadixCiphertext lwe_array_in_ct_local(*lwe_array_in_ct_ffi);
   const CudaRadixCiphertext *lwe_array_in_ct = &lwe_array_in_ct_local;
 
@@ -133,12 +135,12 @@ uint64_t scratch_cuda_unchecked_contains_64_async(
 }
 
 void cuda_unchecked_contains_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *output_ffi,
     VecCudaRadixCiphertextFFI const *inputs_ffi,
     CudaRadixCiphertextFFI const *value_ffi, uint32_t num_blocks, int8_t *mem,
     void *const *bsks, void *const *ksks) {
   CudaRadixCiphertext output_local(*output_ffi);
-  CudaRadixCiphertext *output = &output_local;
+  const CudaRadixCiphertext *output = &output_local;
   std::vector<CudaRadixCiphertext> inputs_storage;
   inputs_storage.reserve(inputs_ffi->num_ciphertexts);
   for (uint32_t i = 0; i < inputs_ffi->num_ciphertexts; i++) {
@@ -187,11 +189,11 @@ uint64_t scratch_cuda_unchecked_contains_clear_64_async(
 }
 
 void cuda_unchecked_contains_clear_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *output_ffi,
     VecCudaRadixCiphertextFFI const *inputs_ffi, const uint64_t *h_clear_val,
     uint32_t num_blocks, int8_t *mem, void *const *bsks, void *const *ksks) {
   CudaRadixCiphertext output_local(*output_ffi);
-  CudaRadixCiphertext *output = &output_local;
+  const CudaRadixCiphertext *output = &output_local;
   std::vector<CudaRadixCiphertext> inputs_storage;
   inputs_storage.reserve(inputs_ffi->num_ciphertexts);
   for (uint32_t i = 0; i < inputs_ffi->num_ciphertexts; i++) {
@@ -236,12 +238,12 @@ uint64_t scratch_cuda_unchecked_is_in_clears_64_async(
 }
 
 void cuda_unchecked_is_in_clears_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *output_ffi,
     CudaRadixCiphertextFFI const *input_ffi, const uint64_t *h_cleartexts,
     uint32_t num_clears, uint32_t num_blocks, int8_t *mem, void *const *bsks,
     void *const *ksks) {
   CudaRadixCiphertext output_local(*output_ffi);
-  CudaRadixCiphertext *output = &output_local;
+  const CudaRadixCiphertext *output = &output_local;
   const CudaRadixCiphertext input_local(*input_ffi);
   const CudaRadixCiphertext *input = &input_local;
 
@@ -283,15 +285,15 @@ uint64_t scratch_cuda_unchecked_index_in_clears_64_async(
 }
 
 void cuda_unchecked_index_in_clears_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct_ffi,
-    CudaRadixCiphertextFFI *match_ct_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *index_ct_ffi,
+    CudaRadixCiphertextFFI const *match_ct_ffi,
     CudaRadixCiphertextFFI const *input_ffi, const uint64_t *h_cleartexts,
     uint32_t num_clears, uint32_t num_blocks, uint32_t num_blocks_index,
     int8_t *mem, void *const *bsks, void *const *ksks) {
   CudaRadixCiphertext index_ct_local(*index_ct_ffi);
-  CudaRadixCiphertext *index_ct = &index_ct_local;
+  const CudaRadixCiphertext *index_ct = &index_ct_local;
   CudaRadixCiphertext match_ct_local(*match_ct_ffi);
-  CudaRadixCiphertext *match_ct = &match_ct_local;
+  const CudaRadixCiphertext *match_ct = &match_ct_local;
   const CudaRadixCiphertext input_local(*input_ffi);
   const CudaRadixCiphertext *input = &input_local;
 
@@ -340,16 +342,16 @@ uint64_t scratch_cuda_unchecked_first_index_in_clears_64_async(
 }
 
 void cuda_unchecked_first_index_in_clears_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct_ffi,
-    CudaRadixCiphertextFFI *match_ct_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *index_ct_ffi,
+    CudaRadixCiphertextFFI const *match_ct_ffi,
     CudaRadixCiphertextFFI const *input_ffi, const uint64_t *h_unique_values,
     const uint64_t *h_unique_indices, uint32_t num_unique, uint32_t num_blocks,
     uint32_t num_blocks_index, int8_t *mem, void *const *bsks,
     void *const *ksks) {
   CudaRadixCiphertext index_ct_local(*index_ct_ffi);
-  CudaRadixCiphertext *index_ct = &index_ct_local;
+  const CudaRadixCiphertext *index_ct = &index_ct_local;
   CudaRadixCiphertext match_ct_local(*match_ct_ffi);
-  CudaRadixCiphertext *match_ct = &match_ct_local;
+  const CudaRadixCiphertext *match_ct = &match_ct_local;
   const CudaRadixCiphertext input_local(*input_ffi);
   const CudaRadixCiphertext *input = &input_local;
 
@@ -398,15 +400,15 @@ uint64_t scratch_cuda_unchecked_first_index_of_clear_64_async(
 }
 
 void cuda_unchecked_first_index_of_clear_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct_ffi,
-    CudaRadixCiphertextFFI *match_ct_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *index_ct_ffi,
+    CudaRadixCiphertextFFI const *match_ct_ffi,
     VecCudaRadixCiphertextFFI const *inputs_ffi, const uint64_t *h_clear_val,
     uint32_t num_blocks, uint32_t num_blocks_index, int8_t *mem,
     void *const *bsks, void *const *ksks) {
   CudaRadixCiphertext index_ct_local(*index_ct_ffi);
-  CudaRadixCiphertext *index_ct = &index_ct_local;
+  const CudaRadixCiphertext *index_ct = &index_ct_local;
   CudaRadixCiphertext match_ct_local(*match_ct_ffi);
-  CudaRadixCiphertext *match_ct = &match_ct_local;
+  const CudaRadixCiphertext *match_ct = &match_ct_local;
   std::vector<CudaRadixCiphertext> inputs_storage;
   inputs_storage.reserve(inputs_ffi->num_ciphertexts);
   for (uint32_t i = 0; i < inputs_ffi->num_ciphertexts; i++) {
@@ -457,16 +459,16 @@ uint64_t scratch_cuda_unchecked_first_index_of_64_async(
 }
 
 void cuda_unchecked_first_index_of_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct_ffi,
-    CudaRadixCiphertextFFI *match_ct_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *index_ct_ffi,
+    CudaRadixCiphertextFFI const *match_ct_ffi,
     VecCudaRadixCiphertextFFI const *inputs_ffi,
     CudaRadixCiphertextFFI const *value_ffi, uint32_t num_blocks,
     uint32_t num_blocks_index, int8_t *mem, void *const *bsks,
     void *const *ksks) {
   CudaRadixCiphertext index_ct_local(*index_ct_ffi);
-  CudaRadixCiphertext *index_ct = &index_ct_local;
+  const CudaRadixCiphertext *index_ct = &index_ct_local;
   CudaRadixCiphertext match_ct_local(*match_ct_ffi);
-  CudaRadixCiphertext *match_ct = &match_ct_local;
+  const CudaRadixCiphertext *match_ct = &match_ct_local;
   std::vector<CudaRadixCiphertext> inputs_storage;
   inputs_storage.reserve(inputs_ffi->num_ciphertexts);
   for (uint32_t i = 0; i < inputs_ffi->num_ciphertexts; i++) {
@@ -518,16 +520,16 @@ uint64_t scratch_cuda_unchecked_index_of_64_async(
 }
 
 void cuda_unchecked_index_of_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct_ffi,
-    CudaRadixCiphertextFFI *match_ct_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *index_ct_ffi,
+    CudaRadixCiphertextFFI const *match_ct_ffi,
     VecCudaRadixCiphertextFFI const *inputs_ffi,
     CudaRadixCiphertextFFI const *value_ffi, uint32_t num_blocks,
     uint32_t num_blocks_index, int8_t *mem, void *const *bsks,
     void *const *ksks) {
   CudaRadixCiphertext index_ct_local(*index_ct_ffi);
-  CudaRadixCiphertext *index_ct = &index_ct_local;
+  const CudaRadixCiphertext *index_ct = &index_ct_local;
   CudaRadixCiphertext match_ct_local(*match_ct_ffi);
-  CudaRadixCiphertext *match_ct = &match_ct_local;
+  const CudaRadixCiphertext *match_ct = &match_ct_local;
   std::vector<CudaRadixCiphertext> inputs_storage;
   inputs_storage.reserve(inputs_ffi->num_ciphertexts);
   for (uint32_t i = 0; i < inputs_ffi->num_ciphertexts; i++) {
@@ -580,16 +582,16 @@ uint64_t scratch_cuda_unchecked_index_of_clear_64_async(
 }
 
 void cuda_unchecked_index_of_clear_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct_ffi,
-    CudaRadixCiphertextFFI *match_ct_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *index_ct_ffi,
+    CudaRadixCiphertextFFI const *match_ct_ffi,
     VecCudaRadixCiphertextFFI const *inputs_ffi, const uint64_t *h_clear_val,
     bool is_scalar_obviously_bigger, uint32_t num_blocks,
     uint32_t num_blocks_index, int8_t *mem, void *const *bsks,
     void *const *ksks) {
   CudaRadixCiphertext index_ct_local(*index_ct_ffi);
-  CudaRadixCiphertext *index_ct = &index_ct_local;
+  const CudaRadixCiphertext *index_ct = &index_ct_local;
   CudaRadixCiphertext match_ct_local(*match_ct_ffi);
-  CudaRadixCiphertext *match_ct = &match_ct_local;
+  const CudaRadixCiphertext *match_ct = &match_ct_local;
   std::vector<CudaRadixCiphertext> inputs_storage;
   inputs_storage.reserve(inputs_ffi->num_ciphertexts);
   for (uint32_t i = 0; i < inputs_ffi->num_ciphertexts; i++) {

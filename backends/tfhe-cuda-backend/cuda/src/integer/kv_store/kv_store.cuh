@@ -65,7 +65,7 @@ __global__ void device_accumulate_all_blocks_batched(
 /// @param carry_modulus         Carry modulus for noise-level validation
 template <typename Torus>
 __host__ void host_accumulate_all_blocks_batched(
-    cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertext *output,
+    cudaStream_t stream, uint32_t gpu_index, const CudaRadixCiphertext *output,
     CudaRadixCiphertext const *input, uint32_t blocks_per_entry,
     uint32_t max_value, uint32_t num_entries, uint32_t num_chunks_per_entry,
     uint32_t message_modulus, uint32_t carry_modulus) {
@@ -148,7 +148,7 @@ __host__ void host_accumulate_all_blocks_batched(
 ///                                   and tree buffers
 template <typename Torus>
 __host__ void host_kv_store_compute_eq_selectors_small_map(
-    CudaStreams streams, CudaRadixCiphertext *lwe_array_out_packed,
+    CudaStreams streams, const CudaRadixCiphertext *lwe_array_out_packed,
     CudaRadixCiphertext const *lwe_array_in, uint32_t num_blocks,
     const uint64_t *h_decomposed_cleartexts,
     int_kv_store_eq_selectors_small_map_buffer<Torus> *mem_ptr,
@@ -263,7 +263,7 @@ __host__ void host_kv_store_compute_eq_selectors_small_map(
 ///                                   algorithm
 template <typename Torus>
 __host__ void host_kv_store_compute_eq_selectors(
-    CudaStreams streams, CudaRadixCiphertext *lwe_array_out_packed,
+    CudaStreams streams, const CudaRadixCiphertext *lwe_array_out_packed,
     CudaRadixCiphertext const *lwe_array_in, uint32_t num_blocks,
     const uint64_t *h_decomposed_cleartexts,
     int_kv_store_eq_selectors_wrapper_buffer<Torus> *mem_ptr, void *const *bsks,
@@ -300,9 +300,9 @@ __host__ void host_kv_store_compute_eq_selectors(
 template <typename Torus>
 __host__ void
 host_kv_store_get(CudaStreams streams,
-                  CudaRadixCiphertext *lwe_array_out_result,
-                  CudaRadixCiphertext *lwe_array_out_boolean,
-                  CudaRadixCiphertext *lwe_array_out_selectors,
+                  const CudaRadixCiphertext *lwe_array_out_result,
+                  const CudaRadixCiphertext *lwe_array_out_boolean,
+                  const CudaRadixCiphertext *lwe_array_out_selectors,
                   CudaRadixCiphertext const *lwe_array_in_encrypted_key,
                   CudaRadixCiphertext const *lwe_array_in_values,
                   const uint64_t *h_decomposed_clear_keys,
@@ -395,8 +395,8 @@ uint64_t scratch_cuda_kv_store_get(
 template <typename Torus, typename KSTorus>
 __host__ void
 host_kv_store_update(CudaStreams streams,
-                     CudaRadixCiphertext *lwe_check_out_block,
-                     CudaRadixCiphertext *lwe_array_out_values,
+                     const CudaRadixCiphertext *lwe_check_out_block,
+                     const CudaRadixCiphertext *lwe_array_out_values,
                      CudaRadixCiphertext const *lwe_array_in_encrypted_key,
                      CudaRadixCiphertext const *lwe_array_in_values,
                      CudaRadixCiphertext const *lwe_in_new_value,
@@ -488,8 +488,9 @@ uint64_t scratch_cuda_kv_store_update(
 ///                                  scratch_cuda_kv_store_map
 template <typename Torus, typename KSTorus>
 __host__ void
-host_kv_store_map(CudaStreams streams, CudaRadixCiphertext *lwe_check_out_block,
-                  CudaRadixCiphertext *lwe_array_out_values,
+host_kv_store_map(CudaStreams streams,
+                  CudaRadixCiphertext const *lwe_check_out_block,
+                  const CudaRadixCiphertext *lwe_array_out_values,
                   CudaRadixCiphertext const *lwe_array_in_values,
                   CudaRadixCiphertext const *lwe_in_new_value,
                   CudaRadixCiphertext const *lwe_array_in_selectors,
@@ -567,7 +568,7 @@ scratch_cuda_kv_store_map(CudaStreams streams,
 ///                                   scratch_cuda_kv_store_contains_key
 template <typename Torus, typename KSTorus>
 __host__ void host_kv_store_contains_key(
-    CudaStreams streams, CudaRadixCiphertext *lwe_array_out_boolean,
+    CudaStreams streams, const CudaRadixCiphertext *lwe_array_out_boolean,
     CudaRadixCiphertext const *lwe_array_in_encrypted_key,
     const uint64_t *h_decomposed_clear_keys,
     int_kv_store_contains_key_buffer<Torus> *mem_ptr, void *const *bsks,

@@ -71,7 +71,7 @@ uint64_t scratch_cuda_integer_scalar_comparison_64_async(
 }
 
 void cuda_integer_comparison_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lwe_array_out_ffi,
     CudaRadixCiphertextFFI const *lwe_array_1_ffi,
     CudaRadixCiphertextFFI const *lwe_array_2_ffi, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks) {
@@ -180,7 +180,7 @@ uint64_t scratch_cuda_integer_are_all_comparisons_block_true_64_async(
 }
 
 void cuda_integer_are_all_comparisons_block_true_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lwe_array_out_ffi,
     CudaRadixCiphertextFFI const *lwe_array_in_ffi, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks, uint32_t num_radix_blocks) {
   CudaRadixCiphertext lwe_array_out_local(*lwe_array_out_ffi);
@@ -225,11 +225,11 @@ uint64_t scratch_cuda_integer_is_at_least_one_comparisons_block_true_64_async(
 }
 
 void cuda_integer_is_at_least_one_comparisons_block_true_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lwe_array_out_ffi,
     CudaRadixCiphertextFFI const *lwe_array_in_ffi, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks, uint32_t num_radix_blocks) {
   CudaRadixCiphertext lwe_array_out_local(*lwe_array_out_ffi);
-  CudaRadixCiphertext *lwe_array_out = &lwe_array_out_local;
+  const CudaRadixCiphertext *lwe_array_out = &lwe_array_out_local;
   const CudaRadixCiphertext lwe_array_in_local(*lwe_array_in_ffi);
   const CudaRadixCiphertext *lwe_array_in = &lwe_array_in_local;
 

@@ -8,7 +8,7 @@
 
 template <typename Torus, typename KSTorus>
 __host__ void host_integer_prepare_count_of_consecutive_bits(
-    CudaStreams streams, CudaRadixCiphertext *ciphertext,
+    CudaStreams streams, const CudaRadixCiphertext *ciphertext,
     int_prepare_count_of_consecutive_bits_buffer<Torus> *mem_ptr,
     void *const *bsks, KSTorus *const *ksks) {
 
@@ -44,7 +44,7 @@ __host__ uint64_t scratch_integer_count_of_consecutive_bits(
 
 template <typename Torus, typename KSTorus>
 __host__ void host_integer_count_of_consecutive_bits(
-    CudaStreams streams, CudaRadixCiphertext *output_ct,
+    CudaStreams streams, const CudaRadixCiphertext *output_ct,
     CudaRadixCiphertext const *input_ct,
     int_count_of_consecutive_bits_buffer<Torus> *mem_ptr, void *const *bsks,
     KSTorus *const *ksks) {
@@ -100,7 +100,7 @@ __host__ uint64_t scratch_integer_ilog2(CudaStreams streams,
 
 template <typename Torus, typename KSTorus>
 __host__ void
-host_integer_ilog2(CudaStreams streams, CudaRadixCiphertext *output_ct,
+host_integer_ilog2(CudaStreams streams, CudaRadixCiphertext const *output_ct,
                    CudaRadixCiphertext const *input_ct,
                    CudaRadixCiphertext const *trivial_ct_neg_n,
                    CudaRadixCiphertext const *trivial_ct_2,

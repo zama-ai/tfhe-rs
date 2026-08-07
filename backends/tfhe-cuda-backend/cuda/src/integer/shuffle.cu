@@ -47,8 +47,8 @@ void cuda_integer_bitonic_shuffle_64_async(CudaStreamsFFI streams,
     keys_storage.emplace_back(*keys_ffi[i]);
     values_storage.emplace_back(*values_ffi[i]);
   }
-  std::vector<CudaRadixCiphertext *> keys(num_values);
-  std::vector<CudaRadixCiphertext *> values(num_values);
+  std::vector<const CudaRadixCiphertext *> keys(num_values);
+  std::vector<const CudaRadixCiphertext *> values(num_values);
   for (uint32_t i = 0; i < num_values; i++) {
     keys[i] = &keys_storage[i];
     values[i] = &values_storage[i];
@@ -125,7 +125,7 @@ void cuda_integer_oprf_bitonic_shuffle_64_async(
   for (uint32_t i = 0; i < num_values; i++) {
     values_storage.emplace_back(*values_ffi[i]);
   }
-  std::vector<CudaRadixCiphertext *> values(num_values);
+  std::vector<const CudaRadixCiphertext *> values(num_values);
   for (uint32_t i = 0; i < num_values; i++) {
     values[i] = &values_storage[i];
   }

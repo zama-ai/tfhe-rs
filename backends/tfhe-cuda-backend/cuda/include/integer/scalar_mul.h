@@ -27,8 +27,8 @@ template <typename Torus> struct int_scalar_mul_buffer {
     //// Contains all shifted values of lhs for shift in range (0..msg_bits)
     //// The idea is that with these we can create all other shift that are
     /// in / range (0..total_bits) for free (block rotation)
-    preshifted_buffer = new CudaRadixCiphertext;
     uint64_t anticipated_drop_mem = 0;
+    preshifted_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), preshifted_buffer,
         msg_bits * num_radix_blocks, params.big_lwe_dimension,

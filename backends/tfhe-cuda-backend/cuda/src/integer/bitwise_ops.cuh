@@ -24,7 +24,7 @@ __host__ uint64_t scratch_cuda_boolean_bitop(
 
 template <typename Torus, typename KSTorus>
 __host__ void host_boolean_bitop(CudaStreams streams,
-                                 CudaRadixCiphertext *lwe_array_out,
+                                 const CudaRadixCiphertext *lwe_array_out,
                                  CudaRadixCiphertext const *lwe_array_1,
                                  CudaRadixCiphertext const *lwe_array_2,
                                  boolean_bitop_buffer<Torus> *mem_ptr,
@@ -164,7 +164,7 @@ __host__ void host_boolean_bitop(CudaStreams streams,
 // updates degrees based on `ct_message_modulus`
 template <typename Torus>
 __host__ void
-host_bitnot(CudaStreams streams, CudaRadixCiphertext *radix_ciphertext,
+host_bitnot(CudaStreams streams, CudaRadixCiphertext const *radix_ciphertext,
             uint32_t ct_message_modulus, uint32_t param_message_modulus,
             uint32_t param_carry_modulus) {
 
@@ -206,7 +206,7 @@ __host__ uint64_t scratch_cuda_boolean_bitnot(
 
 template <typename Torus, typename KSTorus>
 __host__ void host_boolean_bitnot(CudaStreams streams,
-                                  CudaRadixCiphertext *lwe_array,
+                                  const CudaRadixCiphertext *lwe_array,
                                   boolean_bitnot_buffer<Torus> *mem_ptr,
                                   void *const *bsks, KSTorus *const *ksks) {
   bool carries_empty = true;
@@ -231,7 +231,7 @@ __host__ void host_boolean_bitnot(CudaStreams streams,
 
 template <typename Torus, typename KSTorus>
 __host__ void host_bitop(CudaStreams streams,
-                         CudaRadixCiphertext *lwe_array_out,
+                         const CudaRadixCiphertext *lwe_array_out,
                          CudaRadixCiphertext const *lwe_array_1,
                          CudaRadixCiphertext const *lwe_array_2,
                          int_bitop_buffer<Torus> *mem_ptr, void *const *bsks,

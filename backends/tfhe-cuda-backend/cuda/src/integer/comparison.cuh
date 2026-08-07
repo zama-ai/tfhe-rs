@@ -44,7 +44,7 @@ device_accumulate_all_blocks(Torus *output, Torus const *input_block,
 template <typename Torus>
 __host__ void
 accumulate_all_blocks(cudaStream_t stream, uint32_t gpu_index,
-                      CudaRadixCiphertext *output,
+                      const CudaRadixCiphertext *output,
                       CudaRadixCiphertext const *input, uint32_t lwe_dimension,
                       uint32_t num_radix_blocks, uint32_t message_modulus,
                       uint32_t carry_modulus) {
@@ -77,11 +77,14 @@ accumulate_all_blocks(cudaStream_t stream, uint32_t gpu_index,
  */
 template <typename Torus, typename KSTorus>
 __host__ void are_all_comparisons_block_true(
-    CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+    CudaStreams streams, const CudaRadixCiphertext *lwe_array_out,
     CudaRadixCiphertext const *lwe_array_in,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_radix_blocks) {
 
+  if (lwe_array_out->num_radix_blocks != 1)
+    PANIC("Cuda error: output of are_all_comparisons_block_true must be a "
+          "single boolean block")
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input and output lwe dimensions must be the same")
   if (lwe_array_in->num_radix_blocks < num_radix_blocks)
@@ -200,7 +203,6 @@ __host__ void are_all_comparisons_block_true(
       is_max_value_lut->set_lut_indexes_and_broadcast_constant(
           active_gpu_count_is_max, 0);
 
-      reset_radix_ciphertext_blocks(lwe_array_out, 1);
       return;
     } else {
       integer_radix_apply_univariate_lookup_table<Torus>(
@@ -217,7 +219,7 @@ __host__ void are_all_comparisons_block_true(
  */
 template <typename Torus, typename KSTorus>
 __host__ void is_at_least_one_comparisons_block_true(
-    CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+    CudaStreams streams, const CudaRadixCiphertext *lwe_array_out,
     CudaRadixCiphertext const *lwe_array_in,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_radix_blocks) {
@@ -296,9 +298,21 @@ __host__ void is_at_least_one_comparisons_block_true(
   }
 }
 
+template <typename Torus>
+uint32_t compute_compare_blocks_with_zero_num_sum_blocks(
+    int_comparison_buffer<Torus> *mem_ptr, uint32_t num_radix_blocks) {
+  if (num_radix_blocks <= 1)
+    return 1;
+  auto params = mem_ptr->params;
+  uint32_t total_modulus = params.message_modulus * params.carry_modulus;
+  uint32_t message_max = params.message_modulus - 1;
+  uint32_t num_elements_to_fill_carry = (total_modulus - 1) / message_max;
+  return CEIL_DIV(num_radix_blocks - 1, num_elements_to_fill_carry - 1);
+}
+
 template <typename Torus, typename KSTorus>
 __host__ void host_compare_blocks_with_zero(
-    CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+    CudaStreams streams, const CudaRadixCiphertext *lwe_array_out,
     CudaRadixCiphertext const *lwe_array_in,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
     KSTorus *const *ksks, int32_t num_radix_blocks,
@@ -369,16 +383,63 @@ __host__ void host_compare_blocks_with_zero(
   integer_radix_apply_univariate_lookup_table<Torus>(
       streams, lwe_array_out, sum, bsks, ksks, zero_comparison, num_sum_blocks);
 
-  reset_radix_ciphertext_blocks(lwe_array_out, num_sum_blocks);
+  if (lwe_array_out->num_radix_blocks != (uint32_t)num_sum_blocks)
+    PANIC("Cuda error: host_compare_blocks_with_zero: output scratch view "
+          "num_radix_blocks does not match the expected num_sum_blocks; "
+          "use host_compare_blocks_with_zero_all_true or "
+          "host_compare_blocks_with_zero_at_least_one_true instead")
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void
-host_equality_check(CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
-                    CudaRadixCiphertext const *lwe_array_1,
-                    CudaRadixCiphertext const *lwe_array_2,
-                    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-                    KSTorus *const *ksks, uint32_t num_radix_blocks) {
+__host__ void host_compare_blocks_with_zero_all_true(
+    CudaStreams streams, const CudaRadixCiphertext *out_boolean,
+    const CudaRadixCiphertext *comparison_scratch,
+    const CudaRadixCiphertext *lwe_array_in,
+    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
+    KSTorus *const *ksks, int32_t num_radix_blocks,
+    int_radix_lut<Torus> *zero_comparison) {
+  uint32_t num_sum_blocks =
+      compute_compare_blocks_with_zero_num_sum_blocks<Torus>(
+          mem_ptr, (uint32_t)num_radix_blocks);
+  CudaRadixCiphertext scratch_view;
+  as_radix_ciphertext_slice<Torus>(&scratch_view, comparison_scratch, 0,
+                                   num_sum_blocks);
+  host_compare_blocks_with_zero<Torus>(streams, &scratch_view, lwe_array_in,
+                                       mem_ptr, bsks, ksks, num_radix_blocks,
+                                       zero_comparison);
+  are_all_comparisons_block_true<Torus>(streams, out_boolean, &scratch_view,
+                                        mem_ptr, bsks, ksks, num_sum_blocks);
+}
+
+template <typename Torus, typename KSTorus>
+__host__ void host_compare_blocks_with_zero_at_least_one_true(
+    CudaStreams streams, const CudaRadixCiphertext *out_boolean,
+    const CudaRadixCiphertext *comparison_scratch,
+    const CudaRadixCiphertext *lwe_array_in,
+    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
+    KSTorus *const *ksks, int32_t num_radix_blocks,
+    int_radix_lut<Torus> *zero_comparison) {
+  uint32_t num_sum_blocks =
+      compute_compare_blocks_with_zero_num_sum_blocks<Torus>(
+          mem_ptr, (uint32_t)num_radix_blocks);
+  CudaRadixCiphertext scratch_view;
+  as_radix_ciphertext_slice<Torus>(&scratch_view, comparison_scratch, 0,
+                                   num_sum_blocks);
+  host_compare_blocks_with_zero<Torus>(streams, &scratch_view, lwe_array_in,
+                                       mem_ptr, bsks, ksks, num_radix_blocks,
+                                       zero_comparison);
+  is_at_least_one_comparisons_block_true<Torus>(
+      streams, out_boolean, &scratch_view, mem_ptr, bsks, ksks, num_sum_blocks);
+}
+
+template <typename Torus, typename KSTorus>
+__host__ void host_equality_check(CudaStreams streams,
+                                  const CudaRadixCiphertext *lwe_array_out,
+                                  CudaRadixCiphertext const *lwe_array_1,
+                                  CudaRadixCiphertext const *lwe_array_2,
+                                  int_comparison_buffer<Torus> *mem_ptr,
+                                  void *const *bsks, KSTorus *const *ksks,
+                                  uint32_t num_radix_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_1->lwe_dimension ||
       lwe_array_out->lwe_dimension != lwe_array_2->lwe_dimension)
@@ -401,12 +462,13 @@ host_equality_check(CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void
-compare_radix_blocks(CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
-                     CudaRadixCiphertext const *lwe_array_left,
-                     CudaRadixCiphertext const *lwe_array_right,
-                     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-                     KSTorus *const *ksks, uint32_t num_radix_blocks) {
+__host__ void compare_radix_blocks(CudaStreams streams,
+                                   CudaRadixCiphertext const *lwe_array_out,
+                                   CudaRadixCiphertext const *lwe_array_left,
+                                   CudaRadixCiphertext const *lwe_array_right,
+                                   int_comparison_buffer<Torus> *mem_ptr,
+                                   void *const *bsks, KSTorus *const *ksks,
+                                   uint32_t num_radix_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_left->lwe_dimension ||
       lwe_array_out->lwe_dimension != lwe_array_right->lwe_dimension)
@@ -458,13 +520,12 @@ compare_radix_blocks(CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
 // (inferior, equal, superior) to one single shortint block containing the
 // final sign
 template <typename Torus, typename KSTorus>
-__host__ void
-tree_sign_reduction(CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
-                    CudaRadixCiphertext *lwe_block_comparisons,
-                    int_tree_sign_reduction_buffer<Torus> *tree_buffer,
-                    std::function<Torus(Torus)> sign_handler_f,
-                    void *const *bsks, KSTorus *const *ksks,
-                    uint32_t num_radix_blocks) {
+__host__ void tree_sign_reduction(
+    CudaStreams streams, CudaRadixCiphertext const *lwe_array_out,
+    const CudaRadixCiphertext *lwe_block_comparisons,
+    int_tree_sign_reduction_buffer<Torus> *tree_buffer,
+    std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
+    KSTorus *const *ksks, uint32_t num_radix_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_block_comparisons->lwe_dimension)
     PANIC("Cuda error: input lwe dimensions must be the same")
@@ -547,7 +608,7 @@ tree_sign_reduction(CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
 
 template <typename Torus, typename KSTorus>
 __host__ void host_difference_check(CudaStreams streams,
-                                    CudaRadixCiphertext *lwe_array_out,
+                                    const CudaRadixCiphertext *lwe_array_out,
                                     CudaRadixCiphertext const *lwe_array_left,
                                     CudaRadixCiphertext const *lwe_array_right,
                                     int_comparison_buffer<Torus> *mem_ptr,
@@ -741,7 +802,7 @@ __host__ void host_difference_check(CudaStreams streams,
 /// @param num_groups number of block groups (the bootstrap batch width)
 template <typename Torus, typename KSTorus>
 __host__ void host_compute_reduced_pgns_and_carries_for_comparison(
-    CudaStreams streams, CudaRadixCiphertext *block_states,
+    CudaStreams streams, const CudaRadixCiphertext *block_states,
     int_radix_params params, int_prop_simu_group_carries_memory<Torus> *mem,
     void *const *bsks, KSTorus *const *ksks, uint32_t num_radix_blocks,
     uint32_t num_groups) {
@@ -825,7 +886,7 @@ __host__ void host_compute_reduced_pgns_and_carries_for_comparison(
 /// @param num_radix_blocks number of radix blocks in the operands
 template <typename Torus, typename KSTorus>
 __host__ void host_difference_check_via_borrow(
-    CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+    CudaStreams streams, const CudaRadixCiphertext *lwe_array_out,
     CudaRadixCiphertext const *lwe_array_left,
     CudaRadixCiphertext const *lwe_array_right,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
@@ -911,7 +972,7 @@ __host__ uint64_t scratch_cuda_comparison_check(
 
 template <typename Torus, typename KSTorus>
 __host__ void
-host_maxmin(CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+host_maxmin(CudaStreams streams, CudaRadixCiphertext const *lwe_array_out,
             CudaRadixCiphertext const *lwe_array_left,
             CudaRadixCiphertext const *lwe_array_right,
             int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
@@ -939,7 +1000,7 @@ host_maxmin(CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
 
 template <typename Torus, typename KSTorus>
 __host__ void host_integer_are_all_comparisons_block_true(
-    CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+    CudaStreams streams, const CudaRadixCiphertext *lwe_array_out,
     CudaRadixCiphertext const *lwe_array_in,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_radix_blocks) {
@@ -952,7 +1013,7 @@ __host__ void host_integer_are_all_comparisons_block_true(
 
 template <typename Torus, typename KSTorus>
 __host__ void host_integer_is_at_least_one_comparisons_block_true(
-    CudaStreams streams, CudaRadixCiphertext *lwe_array_out,
+    CudaStreams streams, const CudaRadixCiphertext *lwe_array_out,
     CudaRadixCiphertext const *lwe_array_in,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_radix_blocks) {

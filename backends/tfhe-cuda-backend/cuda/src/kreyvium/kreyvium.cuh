@@ -14,10 +14,10 @@
 template <typename Torus>
 __host__ void kreyvium_compute_64_steps(
     CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
-    CudaRadixCiphertext *a_reg, CudaRadixCiphertext *b_reg,
-    CudaRadixCiphertext *c_reg, CudaRadixCiphertext *k_reg,
-    CudaRadixCiphertext *iv_reg, uint32_t *k_offset, uint32_t *iv_offset,
-    CudaRadixCiphertext *output_dest, void *const *bsks,
+    const CudaRadixCiphertext *a_reg, const CudaRadixCiphertext *b_reg,
+    const CudaRadixCiphertext *c_reg, const CudaRadixCiphertext *k_reg,
+    const CudaRadixCiphertext *iv_reg, uint32_t *k_offset, uint32_t *iv_offset,
+    const CudaRadixCiphertext *output_dest, void *const *bsks,
     uint64_t *const *ksks) {
 
   uint32_t N = mem->num_inputs;
@@ -84,8 +84,8 @@ __host__ void kreyvium_compute_64_steps(
       ws->temp_c->num_radix_blocks);
 
   // Pack AND gate inputs: (c109 & c108), (a91 & a90), (b82 & b81)
-  CudaRadixCiphertext *lhs_ptrs[] = {&c109, &a91, &b82};
-  CudaRadixCiphertext *rhs_ptrs[] = {&c108, &a90, &b81};
+  const CudaRadixCiphertext *lhs_ptrs[] = {&c109, &a91, &b82};
+  const CudaRadixCiphertext *rhs_ptrs[] = {&c108, &a90, &b81};
   for (uint32_t i = 0; i < KREYVIUM_NUM_AND_GATES; i++) {
     copy_radix_ciphertext_slice_async<Torus>(
         streams.stream(0), streams.gpu_index(0), ws->packed_and_lhs,
@@ -193,15 +193,14 @@ __host__ void kreyvium_compute_64_steps(
 // and executing the standard 1152-cycle warmup phase.
 //
 template <typename Torus>
-__host__ void
-host_kreyvium_init(CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
-                   CudaRadixCiphertext *a_reg, CudaRadixCiphertext *b_reg,
-                   CudaRadixCiphertext *c_reg, CudaRadixCiphertext *k_reg,
-                   CudaRadixCiphertext *iv_reg, uint32_t *k_offset,
-                   uint32_t *iv_offset,
-                   CudaRadixCiphertext const *key_bitsliced,
-                   CudaRadixCiphertext const *iv_bitsliced, void *const *bsks,
-                   uint64_t *const *ksks) {
+__host__ void host_kreyvium_init(
+    CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
+    const CudaRadixCiphertext *a_reg, const CudaRadixCiphertext *b_reg,
+    const CudaRadixCiphertext *c_reg, const CudaRadixCiphertext *k_reg,
+    const CudaRadixCiphertext *iv_reg, uint32_t *k_offset, uint32_t *iv_offset,
+    CudaRadixCiphertext const *key_bitsliced,
+    CudaRadixCiphertext const *iv_bitsliced, void *const *bsks,
+    uint64_t *const *ksks) {
 
   uint32_t N = mem->num_inputs;
   *k_offset = 0;
@@ -292,14 +291,13 @@ host_kreyvium_init(CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
 // existing state and updates the internal registers in place.
 //
 template <typename Torus>
-__host__ void
-host_kreyvium_step(CudaStreams streams, CudaRadixCiphertext *keystream_output,
-                   CudaRadixCiphertext *a_reg, CudaRadixCiphertext *b_reg,
-                   CudaRadixCiphertext *c_reg, CudaRadixCiphertext *k_reg,
-                   CudaRadixCiphertext *iv_reg, uint32_t *k_offset,
-                   uint32_t *iv_offset, uint32_t num_inputs, uint32_t num_steps,
-                   int_kreyvium_buffer<Torus> *mem, void *const *bsks,
-                   uint64_t *const *ksks) {
+__host__ void host_kreyvium_step(
+    CudaStreams streams, CudaRadixCiphertext const *keystream_output,
+    const CudaRadixCiphertext *a_reg, const CudaRadixCiphertext *b_reg,
+    const CudaRadixCiphertext *c_reg, const CudaRadixCiphertext *k_reg,
+    const CudaRadixCiphertext *iv_reg, uint32_t *k_offset, uint32_t *iv_offset,
+    uint32_t num_inputs, uint32_t num_steps, int_kreyvium_buffer<Torus> *mem,
+    void *const *bsks, uint64_t *const *ksks) {
 
   PANIC_IF_FALSE(num_steps % KREYVIUM_BATCH_SIZE == 0,
                  "Kreyvium Error: num_steps must be a multiple of 64.\n");

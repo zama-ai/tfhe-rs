@@ -22,11 +22,11 @@ uint64_t scratch_cuda_integer_count_of_consecutive_bits_64_async(
 // stored in the output ciphertext.
 //
 void cuda_integer_count_of_consecutive_bits_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_ct_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *output_ct_ffi,
     CudaRadixCiphertextFFI const *input_ct_ffi, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks) {
   CudaRadixCiphertext output_ct_local(*output_ct_ffi);
-  CudaRadixCiphertext *output_ct = &output_ct_local;
+  const CudaRadixCiphertext *output_ct = &output_ct_local;
   const CudaRadixCiphertext input_ct_local(*input_ct_ffi);
   const CudaRadixCiphertext *input_ct = &input_ct_local;
 
@@ -73,14 +73,14 @@ uint64_t scratch_cuda_integer_ilog2_64_async(
 // The result is stored in the output ciphertext.
 //
 void cuda_integer_ilog2_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_ct_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *output_ct_ffi,
     CudaRadixCiphertextFFI const *input_ct_ffi,
     CudaRadixCiphertextFFI const *trivial_ct_neg_n_ffi,
     CudaRadixCiphertextFFI const *trivial_ct_2_ffi,
     CudaRadixCiphertextFFI const *trivial_ct_m_minus_1_block_ffi,
     int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
   CudaRadixCiphertext output_ct_local(*output_ct_ffi);
-  CudaRadixCiphertext *output_ct = &output_ct_local;
+  const CudaRadixCiphertext *output_ct = &output_ct_local;
   const CudaRadixCiphertext input_ct_local(*input_ct_ffi);
   const CudaRadixCiphertext *input_ct = &input_ct_local;
   const CudaRadixCiphertext trivial_ct_neg_n_local(*trivial_ct_neg_n_ffi);

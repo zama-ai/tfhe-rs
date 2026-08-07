@@ -46,7 +46,7 @@ __host__ uint64_t scratch_cuda_scalar_mul(CudaStreams streams,
 
 template <typename T, typename KSTorus>
 __host__ void host_integer_scalar_mul_radix(
-    CudaStreams streams, CudaRadixCiphertext *lwe_array,
+    CudaStreams streams, const CudaRadixCiphertext *lwe_array,
     T const *decomposed_scalar, T const *has_at_least_one_set,
     int_scalar_mul_buffer<T> *mem, void *const *bsks, KSTorus *const *ksks,
     uint32_t message_modulus, uint32_t num_scalars) {
@@ -138,8 +138,8 @@ __host__ void host_integer_scalar_mul_radix(
 // Small scalar_mul is used in shift/rotate
 template <typename T>
 __host__ void host_integer_small_scalar_mul_radix(
-    CudaStreams streams, CudaRadixCiphertext *output_lwe_array,
-    CudaRadixCiphertext *input_lwe_array, T scalar,
+    CudaStreams streams, const CudaRadixCiphertext *output_lwe_array,
+    const CudaRadixCiphertext *input_lwe_array, T scalar,
     const uint32_t message_modulus, const uint32_t carry_modulus) {
 
   if (output_lwe_array->num_radix_blocks != input_lwe_array->num_radix_blocks)
@@ -178,7 +178,7 @@ __host__ void host_integer_small_scalar_mul_radix(
 
 template <typename Torus, typename KSTorus>
 __host__ void
-host_scalar_mul_high(CudaStreams streams, CudaRadixCiphertext *ct,
+host_scalar_mul_high(CudaStreams streams, CudaRadixCiphertext const *ct,
                      int_scalar_mul_high_buffer<Torus> *mem_ptr,
                      KSTorus *const *ksks, void *const *bsks,
                      const CudaScalarDivisorFFI *scalar_divisor_ffi) {
@@ -189,7 +189,7 @@ host_scalar_mul_high(CudaStreams streams, CudaRadixCiphertext *ct,
     return;
   }
 
-  CudaRadixCiphertext *tmp_ffi = mem_ptr->tmp;
+  const CudaRadixCiphertext *tmp_ffi = mem_ptr->tmp;
 
   host_extend_radix_with_trivial_zero_blocks_msb<Torus>(tmp_ffi, ct, streams);
 
@@ -218,7 +218,7 @@ host_scalar_mul_high(CudaStreams streams, CudaRadixCiphertext *ct,
 
 template <typename Torus, typename KSTorus>
 __host__ void host_signed_scalar_mul_high(
-    CudaStreams streams, CudaRadixCiphertext *ct,
+    CudaStreams streams, const CudaRadixCiphertext *ct,
     int_signed_scalar_mul_high_buffer<Torus> *mem_ptr, KSTorus *const *ksks,
     const CudaScalarDivisorFFI *scalar_divisor_ffi, void *const *bsks) {
 
@@ -228,7 +228,7 @@ __host__ void host_signed_scalar_mul_high(
     return;
   }
 
-  CudaRadixCiphertext *tmp_ffi = mem_ptr->tmp;
+  const CudaRadixCiphertext *tmp_ffi = mem_ptr->tmp;
 
   host_extend_radix_with_sign_msb<Torus>(
       streams, tmp_ffi, ct, mem_ptr->extend_radix_mem, ct->num_radix_blocks,

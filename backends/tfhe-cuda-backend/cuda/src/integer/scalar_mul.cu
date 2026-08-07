@@ -15,12 +15,12 @@ uint64_t scratch_cuda_integer_scalar_mul_64_async(
 }
 
 void cuda_integer_scalar_mul_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lwe_array_ffi,
     uint64_t const *decomposed_scalar, uint64_t const *has_at_least_one_set,
     int8_t *mem, void *const *bsks, void *const *ksks, uint32_t polynomial_size,
     uint32_t message_modulus, uint32_t num_scalars) {
   CudaRadixCiphertext lwe_array_local(*lwe_array_ffi);
-  CudaRadixCiphertext *lwe_array = &lwe_array_local;
+  const CudaRadixCiphertext *lwe_array = &lwe_array_local;
 
   host_integer_scalar_mul_radix<uint64_t>(
       CudaStreams(streams), lwe_array, decomposed_scalar, has_at_least_one_set,
@@ -40,11 +40,11 @@ void cleanup_cuda_integer_scalar_mul_64(CudaStreamsFFI streams,
 }
 
 void cuda_small_scalar_multiplication_integer_64_inplace_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lwe_array_ffi,
     uint64_t scalar, const uint32_t message_modulus,
     const uint32_t carry_modulus) {
   CudaRadixCiphertext lwe_array_local(*lwe_array_ffi);
-  CudaRadixCiphertext *lwe_array = &lwe_array_local;
+  const CudaRadixCiphertext *lwe_array = &lwe_array_local;
 
   host_integer_small_scalar_mul_radix<uint64_t>(CudaStreams(streams), lwe_array,
                                                 lwe_array, scalar,

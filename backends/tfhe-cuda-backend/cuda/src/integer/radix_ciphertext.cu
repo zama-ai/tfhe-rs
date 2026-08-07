@@ -13,10 +13,11 @@ CudaRadixCiphertext::~CudaRadixCiphertext() {
                  this, degrees, noise_levels);
 }
 
-void release_radix_ciphertext_async(cudaStream_t const stream,
-                                    uint32_t const gpu_index,
-                                    CudaRadixCiphertext *data,
-                                    const bool gpu_memory_allocated) {
+void release_radix_ciphertext_async(
+    cudaStream_t const
+        stream, // nosemgrep: cuda-radix-ciphertext-non-const-param
+    uint32_t const gpu_index, CudaRadixCiphertext *data,
+    const bool gpu_memory_allocated) {
   PANIC_IF_FALSE(
       data->_owns_gpu_memory,
       "release_radix_ciphertext_async called on a CudaRadixCiphertext "
@@ -34,7 +35,9 @@ void release_radix_ciphertext_async(cudaStream_t const stream,
   data->noise_levels = nullptr;
 }
 
-void release_cpu_radix_ciphertext_async(CudaRadixCiphertext *data) {
+void release_cpu_radix_ciphertext_async(
+    CudaRadixCiphertext
+        *data) { // nosemgrep: cuda-radix-ciphertext-non-const-param
   PANIC_IF_FALSE(data->_owns_degrees_and_noise_levels,
                  "release_cpu_radix_ciphertext_async called on a "
                  "CudaRadixCiphertext that does not own its degrees / "
@@ -44,17 +47,10 @@ void release_cpu_radix_ciphertext_async(CudaRadixCiphertext *data) {
   data->degrees = nullptr;
   data->noise_levels = nullptr;
 }
-void reset_radix_ciphertext_blocks(CudaRadixCiphertext *data,
-                                   uint32_t new_num_blocks) {
-  if (new_num_blocks > data->max_num_radix_blocks)
-    PANIC("Cuda error: new num blocks should be lower or equal than the "
-          "radix' maximum number of blocks")
-  data->num_radix_blocks = new_num_blocks;
-}
-
-void into_radix_ciphertext(CudaRadixCiphertext *radix, void *lwe_array,
-                           const uint32_t num_radix_blocks,
-                           const uint32_t lwe_dimension) {
+void into_radix_ciphertext(
+    CudaRadixCiphertext *radix,
+    void *lwe_array, // nosemgrep: cuda-radix-ciphertext-non-const-param
+    const uint32_t num_radix_blocks, const uint32_t lwe_dimension) {
   PANIC_IF_FALSE(!radix->_owns_gpu_memory &&
                      !radix->_owns_degrees_and_noise_levels,
                  "into_radix_ciphertext called on a CudaRadixCiphertext that "

@@ -23,20 +23,23 @@ uint64_t scratch_cuda_kv_store_get_64_async(
 }
 
 void cuda_kv_store_get_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_result_ffi,
-    CudaRadixCiphertextFFI *lwe_array_out_boolean_ffi,
-    CudaRadixCiphertextFFI *lwe_array_out_selectors_ffi,
+    CudaStreamsFFI streams,
+    CudaRadixCiphertextFFI const *lwe_array_out_result_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_out_boolean_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_out_selectors_ffi,
     CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key_ffi,
     CudaRadixCiphertextFFI const *lwe_array_in_values_ffi,
     const uint64_t *h_decomposed_clear_keys, int8_t *mem, void *const *bsks,
     void *const *ksks) {
   CudaRadixCiphertext lwe_array_out_result_local(*lwe_array_out_result_ffi);
-  CudaRadixCiphertext *lwe_array_out_result = &lwe_array_out_result_local;
+  const CudaRadixCiphertext *lwe_array_out_result = &lwe_array_out_result_local;
   CudaRadixCiphertext lwe_array_out_boolean_local(*lwe_array_out_boolean_ffi);
-  CudaRadixCiphertext *lwe_array_out_boolean = &lwe_array_out_boolean_local;
+  const CudaRadixCiphertext *lwe_array_out_boolean =
+      &lwe_array_out_boolean_local;
   CudaRadixCiphertext lwe_array_out_selectors_local(
       *lwe_array_out_selectors_ffi);
-  CudaRadixCiphertext *lwe_array_out_selectors = &lwe_array_out_selectors_local;
+  const CudaRadixCiphertext *lwe_array_out_selectors =
+      &lwe_array_out_selectors_local;
   const CudaRadixCiphertext lwe_array_in_encrypted_key_local(
       *lwe_array_in_encrypted_key_ffi);
   const CudaRadixCiphertext *lwe_array_in_encrypted_key =
@@ -103,17 +106,18 @@ uint64_t scratch_cuda_kv_store_update_64_async(
 }
 
 void cuda_kv_store_update_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_check_out_block_ffi,
-    CudaRadixCiphertextFFI *lwe_array_out_values_ffi,
+    CudaStreamsFFI streams,
+    CudaRadixCiphertextFFI const *lwe_check_out_block_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_out_values_ffi,
     CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key_ffi,
     CudaRadixCiphertextFFI const *lwe_array_in_values_ffi,
     CudaRadixCiphertextFFI const *lwe_in_new_value_ffi,
     const uint64_t *h_decomposed_clear_keys, int8_t *mem_ptr, void *const *bsks,
     void *const *ksks) {
   CudaRadixCiphertext lwe_check_out_block_local(*lwe_check_out_block_ffi);
-  CudaRadixCiphertext *lwe_check_out_block = &lwe_check_out_block_local;
+  const CudaRadixCiphertext *lwe_check_out_block = &lwe_check_out_block_local;
   CudaRadixCiphertext lwe_array_out_values_local(*lwe_array_out_values_ffi);
-  CudaRadixCiphertext *lwe_array_out_values = &lwe_array_out_values_local;
+  const CudaRadixCiphertext *lwe_array_out_values = &lwe_array_out_values_local;
   const CudaRadixCiphertext lwe_array_in_encrypted_key_local(
       *lwe_array_in_encrypted_key_ffi);
   const CudaRadixCiphertext *lwe_array_in_encrypted_key =
@@ -177,16 +181,17 @@ uint64_t scratch_cuda_kv_store_map_64_async(
 }
 
 void cuda_kv_store_map_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_check_out_block_ffi,
-    CudaRadixCiphertextFFI *lwe_array_out_values_ffi,
+    CudaStreamsFFI streams,
+    CudaRadixCiphertextFFI const *lwe_check_out_block_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_out_values_ffi,
     CudaRadixCiphertextFFI const *lwe_array_in_values_ffi,
     CudaRadixCiphertextFFI const *lwe_in_new_value_ffi,
     CudaRadixCiphertextFFI const *lwe_array_in_selectors_ffi, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks) {
   CudaRadixCiphertext lwe_check_out_block_local(*lwe_check_out_block_ffi);
-  CudaRadixCiphertext *lwe_check_out_block = &lwe_check_out_block_local;
+  const CudaRadixCiphertext *lwe_check_out_block = &lwe_check_out_block_local;
   CudaRadixCiphertext lwe_array_out_values_local(*lwe_array_out_values_ffi);
-  CudaRadixCiphertext *lwe_array_out_values = &lwe_array_out_values_local;
+  const CudaRadixCiphertext *lwe_array_out_values = &lwe_array_out_values_local;
   const CudaRadixCiphertext lwe_array_in_values_local(*lwe_array_in_values_ffi);
   const CudaRadixCiphertext *lwe_array_in_values = &lwe_array_in_values_local;
   const CudaRadixCiphertext lwe_in_new_value_local(*lwe_in_new_value_ffi);
@@ -256,12 +261,14 @@ uint64_t scratch_cuda_kv_store_contains_key_64_async(
 }
 
 void cuda_kv_store_contains_key_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_boolean_ffi,
+    CudaStreamsFFI streams,
+    CudaRadixCiphertextFFI const *lwe_array_out_boolean_ffi,
     CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key_ffi,
     const uint64_t *h_decomposed_clear_keys, int8_t *mem_ptr, void *const *bsks,
     void *const *ksks) {
   CudaRadixCiphertext lwe_array_out_boolean_local(*lwe_array_out_boolean_ffi);
-  CudaRadixCiphertext *lwe_array_out_boolean = &lwe_array_out_boolean_local;
+  const CudaRadixCiphertext *lwe_array_out_boolean =
+      &lwe_array_out_boolean_local;
   const CudaRadixCiphertext lwe_array_in_encrypted_key_local(
       *lwe_array_in_encrypted_key_ffi);
   const CudaRadixCiphertext *lwe_array_in_encrypted_key =

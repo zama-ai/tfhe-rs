@@ -5,7 +5,7 @@
 
 template <typename Torus, typename KSTorus>
 __host__ void
-host_scalar_bitop(CudaStreams streams, CudaRadixCiphertext *output,
+host_scalar_bitop(CudaStreams streams, CudaRadixCiphertext const *output,
                   CudaRadixCiphertext const *input, Torus const *clear_blocks,
                   Torus const *h_clear_blocks, uint32_t num_clear_blocks,
                   int_bitop_buffer<Torus> *mem_ptr, void *const *bsks,

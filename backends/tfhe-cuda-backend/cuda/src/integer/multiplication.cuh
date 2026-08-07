@@ -284,8 +284,8 @@ __host__ uint64_t scratch_cuda_integer_partial_sum_ciphertexts_vec(
 
 template <typename Torus>
 __host__ void host_integer_partial_sum_ciphertexts_vec(
-    CudaStreams streams, CudaRadixCiphertext *radix_lwe_out,
-    CudaRadixCiphertext *terms, void *const *bsks, uint64_t *const *ksks,
+    CudaStreams streams, const CudaRadixCiphertext *radix_lwe_out,
+    const CudaRadixCiphertext *terms, void *const *bsks, uint64_t *const *ksks,
     int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
     uint32_t num_radix_blocks, uint32_t num_radix_in_vec) {
   auto big_lwe_dimension = mem_ptr->params.big_lwe_dimension;
@@ -486,7 +486,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
 
 template <typename Torus, class params>
 __host__ void host_integer_mult_radix(
-    CudaStreams streams, CudaRadixCiphertext *radix_lwe_out,
+    CudaStreams streams, const CudaRadixCiphertext *radix_lwe_out,
     CudaRadixCiphertext const *radix_lwe_left, bool const is_bool_left,
     CudaRadixCiphertext const *radix_lwe_right, bool const is_bool_right,
     void *const *bsks, uint64_t *const *ksks, int_mul_memory<Torus> *mem_ptr,

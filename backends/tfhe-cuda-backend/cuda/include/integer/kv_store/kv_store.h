@@ -46,9 +46,9 @@ uint64_t scratch_cuda_kv_store_get_64_async(
 /// scratch_cuda_kv_store_get_64_async
 /// @param ksks                       Key-switching keys (one per GPU)
 void cuda_kv_store_get_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_result,
-    CudaRadixCiphertextFFI *lwe_array_out_boolean,
-    CudaRadixCiphertextFFI *lwe_array_out_selectors,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lwe_array_out_result,
+    CudaRadixCiphertextFFI const *lwe_array_out_boolean,
+    CudaRadixCiphertextFFI const *lwe_array_out_selectors,
     CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
     CudaRadixCiphertextFFI const *lwe_array_in_values,
     const uint64_t *h_decomposed_clear_keys, int8_t *mem, void *const *bsks,
@@ -101,8 +101,8 @@ uint64_t scratch_cuda_kv_store_update_64_async(
 /// scratch_cuda_kv_store_update_64_async
 /// @param ksks                         Key-switching keys (one per GPU)
 void cuda_kv_store_update_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_check_out_block,
-    CudaRadixCiphertextFFI *lwe_array_out_values,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lwe_check_out_block,
+    CudaRadixCiphertextFFI const *lwe_array_out_values,
     CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
     CudaRadixCiphertextFFI const *lwe_array_in_values,
     CudaRadixCiphertextFFI const *lwe_in_new_value,
@@ -154,8 +154,8 @@ uint64_t scratch_cuda_kv_store_map_64_async(
 /// scratch_cuda_kv_store_map_64_async
 /// @param ksks                      Key-switching keys (one per GPU)
 void cuda_kv_store_map_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_check_out_block,
-    CudaRadixCiphertextFFI *lwe_array_out_values,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lwe_check_out_block,
+    CudaRadixCiphertextFFI const *lwe_array_out_values,
     CudaRadixCiphertextFFI const *lwe_array_in_values,
     CudaRadixCiphertextFFI const *lwe_in_new_value,
     CudaRadixCiphertextFFI const *lwe_array_in_selectors, int8_t *mem_ptr,
@@ -201,7 +201,7 @@ uint64_t scratch_cuda_kv_store_contains_key_64_async(
 /// scratch_cuda_kv_store_contains_key_64_async
 /// @param ksks                       Key-switching keys (one per GPU)
 void cuda_kv_store_contains_key_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_boolean,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lwe_array_out_boolean,
     CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
     const uint64_t *h_decomposed_clear_keys, int8_t *mem_ptr, void *const *bsks,
     void *const *ksks);

@@ -31,7 +31,7 @@
  */
 template <typename Torus>
 __host__ void vectorized_aes_256_encrypt_inplace(
-    CudaStreams streams, CudaRadixCiphertext *all_states_bitsliced,
+    CudaStreams streams, const CudaRadixCiphertext *all_states_bitsliced,
     CudaRadixCiphertext const *round_keys, uint32_t num_aes_inputs,
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks) {
 
@@ -40,12 +40,13 @@ __host__ void vectorized_aes_256_encrypt_inplace(
   constexpr uint32_t STATE_BITS = STATE_BYTES * BITS_PER_BYTE;
   constexpr uint32_t ROUNDS = 14;
 
-  CudaRadixCiphertext *jit_transposed_key =
+  const CudaRadixCiphertext *jit_transposed_key =
       mem->main_workspaces->initial_states_and_jit_key_workspace;
 
   CudaRadixCiphertext round_0_key_slice;
-  as_radix_ciphertext_slice<Torus>(
-      &round_0_key_slice, (CudaRadixCiphertext *)round_keys, 0, STATE_BITS);
+  as_radix_ciphertext_slice<Torus>(&round_0_key_slice,
+                                   (const CudaRadixCiphertext *)round_keys, 0,
+                                   STATE_BITS);
   for (uint32_t block = 0; block < num_aes_inputs; ++block) {
     CudaRadixCiphertext tile_slice;
     as_radix_ciphertext_slice<Torus>(
@@ -137,8 +138,8 @@ __host__ void vectorized_aes_256_encrypt_inplace(
 
     CudaRadixCiphertext round_key_slice;
     as_radix_ciphertext_slice<Torus>(
-        &round_key_slice, (CudaRadixCiphertext *)round_keys, round * STATE_BITS,
-        (round + 1) * STATE_BITS);
+        &round_key_slice, (const CudaRadixCiphertext *)round_keys,
+        round * STATE_BITS, (round + 1) * STATE_BITS);
     for (uint32_t block = 0; block < num_aes_inputs; ++block) {
       CudaRadixCiphertext tile_slice;
       as_radix_ciphertext_slice<Torus>(
@@ -181,14 +182,14 @@ __host__ void vectorized_aes_256_encrypt_inplace(
  */
 template <typename Torus>
 __host__ void host_integer_aes_ctr_256_encrypt(
-    CudaStreams streams, CudaRadixCiphertext *output,
+    CudaStreams streams, const CudaRadixCiphertext *output,
     CudaRadixCiphertext const *iv, CudaRadixCiphertext const *round_keys,
     const Torus *counter_bits_le_all_blocks, uint32_t num_aes_inputs,
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks) {
 
   constexpr uint32_t NUM_BITS = 128;
 
-  CudaRadixCiphertext *initial_states =
+  const CudaRadixCiphertext *initial_states =
       mem->main_workspaces->initial_states_and_jit_key_workspace;
 
   for (uint32_t block = 0; block < num_aes_inputs; ++block) {
@@ -199,7 +200,7 @@ __host__ void host_integer_aes_ctr_256_encrypt(
                                        &output_slice, iv);
   }
 
-  CudaRadixCiphertext *transposed_states =
+  const CudaRadixCiphertext *transposed_states =
       mem->main_workspaces->main_bitsliced_states_buffer;
   transpose_blocks_to_bitsliced<Torus>(streams.stream(0), streams.gpu_index(0),
                                        transposed_states, initial_states,
@@ -240,7 +241,7 @@ uint64_t scratch_cuda_integer_key_expansion_256(
  */
 template <typename Torus>
 __host__ void host_integer_key_expansion_256(
-    CudaStreams streams, CudaRadixCiphertext *expanded_keys,
+    CudaStreams streams, const CudaRadixCiphertext *expanded_keys,
     CudaRadixCiphertext const *key, int_key_expansion_256_buffer<Torus> *mem,
     void *const *bsks, Torus *const *ksks) {
 
@@ -253,7 +254,7 @@ __host__ void host_integer_key_expansion_256(
   const Torus rcon[] = {0x01, 0x02, 0x04, 0x08, 0x10,
                         0x20, 0x40, 0x80, 0x1b, 0x36};
 
-  CudaRadixCiphertext *words = mem->words_buffer;
+  const CudaRadixCiphertext *words = mem->words_buffer;
 
   CudaRadixCiphertext initial_key_dest_slice;
   as_radix_ciphertext_slice<Torus>(&initial_key_dest_slice, words, 0,

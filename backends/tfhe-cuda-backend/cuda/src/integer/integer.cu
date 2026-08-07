@@ -9,10 +9,10 @@
  */
 void cuda_add_lwe_ciphertext_vector_inplace_64(
     void *stream, uint32_t gpu_index,
-    CudaRadixCiphertextFFI *lwe_array_inout_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_inout_ffi,
     CudaRadixCiphertextFFI const *input_2_ffi) {
   CudaRadixCiphertext lwe_array_inout_local(*lwe_array_inout_ffi);
-  CudaRadixCiphertext *lwe_array_inout = &lwe_array_inout_local;
+  const CudaRadixCiphertext *lwe_array_inout = &lwe_array_inout_local;
   const CudaRadixCiphertext input_2_local(*input_2_ffi);
   const CudaRadixCiphertext *input_2 = &input_2_local;
 
@@ -25,11 +25,11 @@ void cuda_add_lwe_ciphertext_vector_inplace_64(
 }
 
 void cuda_full_propagation_64_inplace_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *input_blocks_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *input_blocks_ffi,
     int8_t *mem_ptr, void *const *ksks, void *const *bsks,
     uint32_t num_blocks) {
   CudaRadixCiphertext input_blocks_local(*input_blocks_ffi);
-  CudaRadixCiphertext *input_blocks = &input_blocks_local;
+  const CudaRadixCiphertext *input_blocks = &input_blocks_local;
 
   int_fullprop_buffer<uint64_t> *buffer =
       (int_fullprop_buffer<uint64_t> *)mem_ptr;
@@ -107,15 +107,15 @@ uint64_t scratch_cuda_integer_overflowing_sub_64_inplace_async(
 }
 
 void cuda_propagate_single_carry_64_inplace_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_ffi,
-    CudaRadixCiphertextFFI *carry_out_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lwe_array_ffi,
+    CudaRadixCiphertextFFI const *carry_out_ffi,
     const CudaRadixCiphertextFFI *carry_in_ffi, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks, uint32_t requested_flag,
     uint32_t uses_carry) {
   CudaRadixCiphertext lwe_array_local(*lwe_array_ffi);
-  CudaRadixCiphertext *lwe_array = &lwe_array_local;
+  const CudaRadixCiphertext *lwe_array = &lwe_array_local;
   CudaRadixCiphertext carry_out_local(*carry_out_ffi);
-  CudaRadixCiphertext *carry_out = &carry_out_local;
+  const CudaRadixCiphertext *carry_out = &carry_out_local;
   const CudaRadixCiphertext carry_in_local(*carry_in_ffi);
   const CudaRadixCiphertext *carry_in = &carry_in_local;
 
@@ -126,18 +126,18 @@ void cuda_propagate_single_carry_64_inplace_async(
 }
 
 void cuda_add_and_propagate_single_carry_64_inplace_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lhs_array_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lhs_array_ffi,
     const CudaRadixCiphertextFFI *rhs_array_ffi,
-    CudaRadixCiphertextFFI *carry_out_ffi,
+    CudaRadixCiphertextFFI const *carry_out_ffi,
     const CudaRadixCiphertextFFI *carry_in_ffi, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks, uint32_t requested_flag,
     uint32_t uses_carry) {
   CudaRadixCiphertext lhs_array_local(*lhs_array_ffi);
-  CudaRadixCiphertext *lhs_array = &lhs_array_local;
+  const CudaRadixCiphertext *lhs_array = &lhs_array_local;
   const CudaRadixCiphertext rhs_array_local(*rhs_array_ffi);
   const CudaRadixCiphertext *rhs_array = &rhs_array_local;
   CudaRadixCiphertext carry_out_local(*carry_out_ffi);
-  CudaRadixCiphertext *carry_out = &carry_out_local;
+  const CudaRadixCiphertext *carry_out = &carry_out_local;
   const CudaRadixCiphertext carry_in_local(*carry_in_ffi);
   const CudaRadixCiphertext *carry_in = &carry_in_local;
 
@@ -148,18 +148,18 @@ void cuda_add_and_propagate_single_carry_64_inplace_async(
 }
 
 void cuda_integer_overflowing_sub_64_inplace_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lhs_array_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lhs_array_ffi,
     const CudaRadixCiphertextFFI *rhs_array_ffi,
-    CudaRadixCiphertextFFI *overflow_block_ffi,
+    CudaRadixCiphertextFFI const *overflow_block_ffi,
     const CudaRadixCiphertextFFI *input_borrow_ffi, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks, uint32_t compute_overflow,
     uint32_t uses_input_borrow) {
   CudaRadixCiphertext lhs_array_local(*lhs_array_ffi);
-  CudaRadixCiphertext *lhs_array = &lhs_array_local;
+  const CudaRadixCiphertext *lhs_array = &lhs_array_local;
   const CudaRadixCiphertext rhs_array_local(*rhs_array_ffi);
   const CudaRadixCiphertext *rhs_array = &rhs_array_local;
   CudaRadixCiphertext overflow_block_local(*overflow_block_ffi);
-  CudaRadixCiphertext *overflow_block = &overflow_block_local;
+  const CudaRadixCiphertext *overflow_block = &overflow_block_local;
   const CudaRadixCiphertext input_borrow_local(*input_borrow_ffi);
   const CudaRadixCiphertext *input_borrow = &input_borrow_local;
 
@@ -235,11 +235,11 @@ uint64_t scratch_cuda_apply_many_univariate_lut_64_async(
 }
 
 void cuda_apply_univariate_lut_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *output_radix_lwe_ffi,
     CudaRadixCiphertextFFI const *input_radix_lwe_ffi, int8_t *mem_ptr,
     void *const *ksks, void *const *bsks) {
   CudaRadixCiphertext output_radix_lwe_local(*output_radix_lwe_ffi);
-  CudaRadixCiphertext *output_radix_lwe = &output_radix_lwe_local;
+  const CudaRadixCiphertext *output_radix_lwe = &output_radix_lwe_local;
   const CudaRadixCiphertext input_radix_lwe_local(*input_radix_lwe_ffi);
   const CudaRadixCiphertext *input_radix_lwe = &input_radix_lwe_local;
 
@@ -273,12 +273,12 @@ void cleanup_cuda_apply_many_univariate_lut_64(CudaStreamsFFI streams,
 }
 
 void cuda_apply_many_univariate_lut_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *output_radix_lwe_ffi,
     CudaRadixCiphertextFFI const *input_radix_lwe_ffi, int8_t *mem_ptr,
     void *const *ksks, void *const *bsks, uint32_t num_many_lut,
     uint32_t lut_stride) {
   CudaRadixCiphertext output_radix_lwe_local(*output_radix_lwe_ffi);
-  CudaRadixCiphertext *output_radix_lwe = &output_radix_lwe_local;
+  const CudaRadixCiphertext *output_radix_lwe = &output_radix_lwe_local;
   const CudaRadixCiphertext input_radix_lwe_local(*input_radix_lwe_ffi);
   const CudaRadixCiphertext *input_radix_lwe = &input_radix_lwe_local;
 
@@ -293,9 +293,9 @@ void cuda_apply_many_univariate_lut_64_async(
 }
 
 void cuda_integer_reverse_blocks_64_inplace_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_ffi) {
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lwe_array_ffi) {
   CudaRadixCiphertext lwe_array_local(*lwe_array_ffi);
-  CudaRadixCiphertext *lwe_array = &lwe_array_local;
+  const CudaRadixCiphertext *lwe_array = &lwe_array_local;
 
   host_radix_blocks_reverse_inplace<uint64_t>(CudaStreams(streams), lwe_array);
 }
@@ -348,11 +348,11 @@ uint64_t scratch_cuda_apply_noise_squashing_async(
 }
 
 void cuda_apply_noise_squashing_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *output_radix_lwe_ffi,
     CudaRadixCiphertextFFI const *input_radix_lwe_ffi, int8_t *mem_ptr,
     void *const *ksks, void *const *bsks) {
   CudaRadixCiphertext output_radix_lwe_local(*output_radix_lwe_ffi);
-  CudaRadixCiphertext *output_radix_lwe = &output_radix_lwe_local;
+  const CudaRadixCiphertext *output_radix_lwe = &output_radix_lwe_local;
   const CudaRadixCiphertext input_radix_lwe_local(*input_radix_lwe_ffi);
   const CudaRadixCiphertext *input_radix_lwe = &input_radix_lwe_local;
 

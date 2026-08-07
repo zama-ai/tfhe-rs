@@ -1,10 +1,10 @@
 #include "cast.cuh"
 
 void extend_radix_with_trivial_zero_blocks_msb_64(
-    CudaRadixCiphertextFFI *output_ffi, CudaRadixCiphertextFFI const *input_ffi,
-    CudaStreamsFFI streams) {
+    CudaRadixCiphertextFFI const *output_ffi,
+    CudaRadixCiphertextFFI const *input_ffi, CudaStreamsFFI streams) {
   CudaRadixCiphertext output_local(*output_ffi);
-  CudaRadixCiphertext *output = &output_local;
+  const CudaRadixCiphertext *output = &output_local;
   const CudaRadixCiphertext input_local(*input_ffi);
   const CudaRadixCiphertext *input = &input_local;
 
@@ -17,11 +17,11 @@ void extend_radix_with_trivial_zero_blocks_msb_64(
   cuda_synchronize_stream(cuda_streams.stream(0), cuda_streams.gpu_index(0));
 }
 
-void trim_radix_blocks_lsb_64(CudaRadixCiphertextFFI *output_ffi,
+void trim_radix_blocks_lsb_64(CudaRadixCiphertextFFI const *output_ffi,
                               CudaRadixCiphertextFFI const *input_ffi,
                               CudaStreamsFFI streams) {
   CudaRadixCiphertext output_local(*output_ffi);
-  CudaRadixCiphertext *output = &output_local;
+  const CudaRadixCiphertext *output = &output_local;
   const CudaRadixCiphertext input_local(*input_ffi);
   const CudaRadixCiphertext *input = &input_local;
 
@@ -34,11 +34,11 @@ void trim_radix_blocks_lsb_64(CudaRadixCiphertextFFI *output_ffi,
   cuda_synchronize_stream(cuda_streams.stream(0), cuda_streams.gpu_index(0));
 }
 
-void trim_radix_blocks_msb_64(CudaRadixCiphertextFFI *output_ffi,
+void trim_radix_blocks_msb_64(CudaRadixCiphertextFFI const *output_ffi,
                               CudaRadixCiphertextFFI const *input_ffi,
                               CudaStreamsFFI streams) {
   CudaRadixCiphertext output_local(*output_ffi);
-  CudaRadixCiphertext *output = &output_local;
+  const CudaRadixCiphertext *output = &output_local;
   const CudaRadixCiphertext input_local(*input_ffi);
   const CudaRadixCiphertext *input = &input_local;
 
@@ -69,15 +69,15 @@ uint64_t scratch_cuda_cast_to_unsigned_64_async(
 }
 
 void cuda_cast_to_unsigned_64_async(CudaStreamsFFI streams,
-                                    CudaRadixCiphertextFFI *output_ffi,
-                                    CudaRadixCiphertextFFI *input_ffi,
+                                    CudaRadixCiphertextFFI const *output_ffi,
+                                    CudaRadixCiphertextFFI const *input_ffi,
                                     int8_t *mem_ptr, uint32_t target_num_blocks,
                                     bool input_is_signed, void *const *bsks,
                                     void *const *ksks) {
   CudaRadixCiphertext output_local(*output_ffi);
-  CudaRadixCiphertext *output = &output_local;
+  const CudaRadixCiphertext *output = &output_local;
   CudaRadixCiphertext input_local(*input_ffi);
-  CudaRadixCiphertext *input = &input_local;
+  const CudaRadixCiphertext *input = &input_local;
 
   PANIC_IF_FALSE(output_ffi != input_ffi,
                  "Output and input pointers must be different "
@@ -116,12 +116,12 @@ uint64_t scratch_cuda_cast_to_signed_64_async(
 }
 
 void cuda_cast_to_signed_64_async(CudaStreamsFFI streams,
-                                  CudaRadixCiphertextFFI *output_ffi,
+                                  CudaRadixCiphertextFFI const *output_ffi,
                                   CudaRadixCiphertextFFI const *input_ffi,
                                   int8_t *mem, bool input_is_signed,
                                   void *const *bsks, void *const *ksks) {
   CudaRadixCiphertext output_local(*output_ffi);
-  CudaRadixCiphertext *output = &output_local;
+  const CudaRadixCiphertext *output = &output_local;
   const CudaRadixCiphertext input_local(*input_ffi);
   const CudaRadixCiphertext *input = &input_local;
 

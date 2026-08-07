@@ -15,18 +15,18 @@ uint64_t scratch_cuda_sub_and_propagate_single_carry_64_inplace_async(
 }
 
 void cuda_sub_and_propagate_single_carry_64_inplace_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lhs_array_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lhs_array_ffi,
     const CudaRadixCiphertextFFI *rhs_array_ffi,
-    CudaRadixCiphertextFFI *carry_out_ffi,
+    CudaRadixCiphertextFFI const *carry_out_ffi,
     const CudaRadixCiphertextFFI *carry_in_ffi, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks, uint32_t requested_flag,
     uint32_t uses_carry) {
   CudaRadixCiphertext lhs_array_local(*lhs_array_ffi);
-  CudaRadixCiphertext *lhs_array = &lhs_array_local;
+  const CudaRadixCiphertext *lhs_array = &lhs_array_local;
   const CudaRadixCiphertext rhs_array_local(*rhs_array_ffi);
   const CudaRadixCiphertext *rhs_array = &rhs_array_local;
   CudaRadixCiphertext carry_out_local(*carry_out_ffi);
-  CudaRadixCiphertext *carry_out = &carry_out_local;
+  const CudaRadixCiphertext *carry_out = &carry_out_local;
   const CudaRadixCiphertext carry_in_local(*carry_in_ffi);
   const CudaRadixCiphertext *carry_in = &carry_in_local;
 

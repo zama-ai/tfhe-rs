@@ -89,7 +89,7 @@ host_compute_overshift_condition(CudaStreams streams,
 template <typename Torus, typename KSTorus>
 __host__ void
 host_apply_overshift_cleanup(CudaStreams streams,
-                             CudaRadixCiphertext *shifted_ct,
+                             const CudaRadixCiphertext *shifted_ct,
                              int_shift_and_rotate_buffer<Torus> *mem,
                              void *const *bsks, KSTorus *const *ksks) {
   auto num_radix_blocks = shifted_ct->num_radix_blocks;
@@ -105,7 +105,7 @@ host_apply_overshift_cleanup(CudaStreams streams,
 template <typename Torus, typename KSTorus>
 __host__ void
 host_shift_and_rotate_inplace(CudaStreams streams,
-                              CudaRadixCiphertext *lwe_array,
+                              const CudaRadixCiphertext *lwe_array,
                               CudaRadixCiphertext const *lwe_shift,
                               int_shift_and_rotate_buffer<Torus> *mem,
                               void *const *bsks, KSTorus *const *ksks) {

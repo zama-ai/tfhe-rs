@@ -24,7 +24,7 @@ __host__ uint64_t scratch_cuda_logical_scalar_shift(
 
 template <typename Torus, typename KSTorus>
 __host__ void host_logical_scalar_shift_inplace(
-    CudaStreams streams, CudaRadixCiphertext *lwe_array, uint32_t shift,
+    CudaStreams streams, const CudaRadixCiphertext *lwe_array, uint32_t shift,
     int_logical_scalar_shift_buffer<Torus> *mem, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_blocks) {
 
@@ -51,7 +51,7 @@ __host__ void host_logical_scalar_shift_inplace(
   size_t rotations = std::min(shift / num_bits_in_block, (size_t)num_blocks);
   size_t shift_within_block = shift % num_bits_in_block;
 
-  CudaRadixCiphertext *full_rotated_buffer = mem->tmp_rotated;
+  const CudaRadixCiphertext *full_rotated_buffer = mem->tmp_rotated;
   CudaRadixCiphertext rotated_buffer;
   as_radix_ciphertext_slice<Torus>(&rotated_buffer, full_rotated_buffer, 1,
                                    full_rotated_buffer->num_radix_blocks);
@@ -146,7 +146,7 @@ __host__ uint64_t scratch_cuda_arithmetic_scalar_shift(
  */
 template <typename Torus, typename KSTorus>
 __host__ void host_arithmetic_scalar_shift_overshift(
-    CudaStreams streams, CudaRadixCiphertext *shifted_ct,
+    CudaStreams streams, const CudaRadixCiphertext *shifted_ct,
     int_arithmetic_scalar_shift_buffer<Torus> *mem, void *const *bsks,
     KSTorus *const *ksks, size_t num_bits_in_block) {
   auto num_blocks = shifted_ct->num_radix_blocks;
@@ -179,7 +179,7 @@ __host__ void host_arithmetic_scalar_shift_overshift(
 
 template <typename Torus, typename KSTorus>
 __host__ void host_arithmetic_scalar_shift_inplace(
-    CudaStreams streams, CudaRadixCiphertext *lwe_array, uint32_t shift,
+    CudaStreams streams, const CudaRadixCiphertext *lwe_array, uint32_t shift,
     int_arithmetic_scalar_shift_buffer<Torus> *mem, void *const *bsks,
     KSTorus *const *ksks) {
 

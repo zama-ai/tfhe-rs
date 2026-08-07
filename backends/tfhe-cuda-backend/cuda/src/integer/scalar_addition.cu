@@ -1,11 +1,11 @@
 #include "integer/scalar_addition.cuh"
 
 void cuda_scalar_addition_ciphertext_64_inplace(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lwe_array_ffi,
     void const *scalar_input, void const *h_scalar_input, uint32_t num_scalars,
     uint32_t message_modulus, uint32_t carry_modulus) {
   CudaRadixCiphertext lwe_array_local(*lwe_array_ffi);
-  CudaRadixCiphertext *lwe_array = &lwe_array_local;
+  const CudaRadixCiphertext *lwe_array = &lwe_array_local;
 
   auto cuda_streams = CudaStreams(streams);
   host_scalar_addition_inplace<uint64_t>(
