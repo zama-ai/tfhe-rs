@@ -39,6 +39,12 @@ template <typename Torus> struct int_scalar_mul_buffer {
         streams.stream(0), streams.gpu_index(0), all_shifted_buffer,
         num_ciphertext_bits * num_radix_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
+    GPU_ASSERT(all_shifted_buffer->num_radix_blocks ==
+                   num_ciphertext_bits * num_radix_blocks,
+               "Cuda error: all_shifted_buffer->num_radix_blocks=%u != "
+               "num_ciphertext_bits=%u * num_radix_blocks=%u",
+               all_shifted_buffer->num_radix_blocks, num_ciphertext_bits,
+               num_radix_blocks);
 
     if (num_ciphertext_bits * num_radix_blocks >= num_radix_blocks + 2)
       logical_scalar_shift_buffer = new int_logical_scalar_shift_buffer<Torus>(

@@ -49,7 +49,6 @@ __host__ void host_integer_unsigned_scalar_div_radix(
   }
 
   if (scalar_divisor_ffi->is_chosen_multiplier_geq_two_pow_numerator) {
-
     if (scalar_divisor_ffi->shift_pre != (uint64_t)0) {
       PANIC("shift_pre should be == 0");
     }
@@ -282,6 +281,9 @@ __host__ void host_integer_unsigned_scalar_div_rem_radix(
       if (!scalar_divisor_ffi->is_abs_divisor_one &&
           remainder_ct->num_radix_blocks != 0) {
 
+        GPU_ASSERT(mem_ptr->scalar_mul_mem != nullptr,
+                   "Cuda error: scalar_mul_mem is null for non-trivial "
+                   "unsigned divisor multiplication");
         host_integer_scalar_mul_radix<Torus>(
             streams, remainder_ct, decomposed_divisor,
             divisor_has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks, ksks,
@@ -354,6 +356,9 @@ __host__ void host_integer_signed_scalar_div_rem_radix(
                           !scalar_divisor_ffi->is_divisor_negative;
 
     if (!is_divisor_one && remainder_ct->num_radix_blocks != 0) {
+      GPU_ASSERT(mem_ptr->scalar_mul_mem != nullptr,
+                 "Cuda error: scalar_mul_mem is null for non-trivial "
+                 "signed divisor multiplication");
       host_integer_scalar_mul_radix<Torus>(
           streams, remainder_ct, decomposed_divisor,
           divisor_has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks, ksks,

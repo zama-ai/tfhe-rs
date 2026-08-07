@@ -70,6 +70,8 @@ void as_radix_ciphertext_slice(CudaRadixCiphertextFFI *output_radix,
           "range")
   if (start_input_lwe_index > end_input_lwe_index)
     PANIC("Cuda error: slice range should be positive")
+  GPU_ASSERT(end_input_lwe_index <= input_radix->num_radix_blocks,
+             "Cuda error: slice end index exceeds num_radix_blocks");
 
   auto lwe_size = input_radix->lwe_dimension + 1;
   output_radix->num_radix_blocks = end_input_lwe_index - start_input_lwe_index;
@@ -117,6 +119,10 @@ void copy_radix_ciphertext_slice_async(
   if (input_start_lwe_index > input_radix->num_radix_blocks)
     PANIC("Cuda error: input start index should be smaller than the number "
           "of blocks")
+  GPU_ASSERT(output_end_lwe_index <= output_radix->num_radix_blocks,
+             "Cuda error: output end index exceeds num_radix_blocks");
+  GPU_ASSERT(input_end_lwe_index <= input_radix->num_radix_blocks,
+             "Cuda error: input end index exceeds num_radix_blocks");
 
   auto lwe_size = input_radix->lwe_dimension + 1;
   Torus *out_ptr = (Torus *)output_radix->ptr;
@@ -154,11 +160,12 @@ void set_zero_radix_ciphertext_slice_async(cudaStream_t const stream,
                                            CudaRadixCiphertextFFI *radix,
                                            const uint32_t start_lwe_index,
                                            const uint32_t end_lwe_index) {
-  if (radix->num_radix_blocks < end_lwe_index - start_lwe_index)
-    PANIC("Cuda error: input radix should have more blocks than the specified "
-          "range")
   if (start_lwe_index > end_lwe_index)
     PANIC("Cuda error: slice range should be positive")
+  GPU_ASSERT(end_lwe_index <= radix->num_radix_blocks,
+             "Cuda error: set_zero end_lwe_index exceeds num_radix_blocks");
+  GPU_ASSERT(start_lwe_index <= radix->num_radix_blocks,
+             "Cuda error: set_zero start_lwe_index exceeds num_radix_blocks");
 
   auto lwe_size = radix->lwe_dimension + 1;
   auto num_blocks_to_set = end_lwe_index - start_lwe_index;
@@ -243,6 +250,16 @@ template <typename Torus>
 void pop_radix_ciphertext_block_async(cudaStream_t stream, uint32_t gpu_index,
                                       CudaRadixCiphertextFFI *block,
                                       CudaRadixCiphertextFFI *radix_in) {
+  GPU_ASSERT(radix_in->num_radix_blocks != 0,
+             "Cuda error: cannot pop a block from an empty radix ciphertext");
+  GPU_ASSERT(block->max_num_radix_blocks >= 1,
+             "Cuda error: pop destination block has max_num_radix_blocks < 1");
+  GPU_ASSERT(block->lwe_dimension == radix_in->lwe_dimension,
+             "Cuda error: pop source and destination lwe_dimension mismatch");
+  GPU_ASSERT(
+      radix_in->num_radix_blocks <= radix_in->max_num_radix_blocks,
+      "Cuda error: pop source num_radix_blocks exceeds max_num_radix_blocks");
+  block->num_radix_blocks = 1;
   copy_radix_ciphertext_slice_async<Torus>(
       stream, gpu_index, block, 0, 1, radix_in, radix_in->num_radix_blocks - 1,
       radix_in->num_radix_blocks);
@@ -273,6 +290,12 @@ void push_block_to_radix_ciphertext_async(cudaStream_t stream,
                                           uint32_t gpu_index,
                                           CudaRadixCiphertextFFI *block,
                                           CudaRadixCiphertextFFI *radix_out) {
+  GPU_ASSERT(block->num_radix_blocks >= 1,
+             "Cuda error: push source block has num_radix_blocks < 1");
+  GPU_ASSERT(block->lwe_dimension == radix_out->lwe_dimension,
+             "Cuda error: push source and destination lwe_dimension mismatch");
+  GPU_ASSERT(radix_out->num_radix_blocks + 1 <= radix_out->max_num_radix_blocks,
+             "Cuda error: push would exceed radix_out max_num_radix_blocks");
   reset_radix_ciphertext_blocks(radix_out, radix_out->num_radix_blocks + 1);
   copy_radix_ciphertext_slice_async<Torus>(
       stream, gpu_index, radix_out, radix_out->num_radix_blocks - 1,
