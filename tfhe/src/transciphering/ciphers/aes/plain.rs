@@ -1,12 +1,12 @@
-use tfhe_csprng::generators::aes_ctr::{AesBlockCipher, AesKey};
-use tfhe_csprng::generators::default::AesDefaultBlockCipher;
+use tfhe_csprng::generators::aes_ctr::{Aes128Key, AesBlockCipher};
+use tfhe_csprng::generators::default::DefaultAes128BlockCipher;
 
 use crate::transciphering::ciphers::aes::{AesIv, AesPlainKey};
 use crate::transciphering::{InsufficientKeystream, StreamCipher, StreamCipherKind};
 
 /// Client-side AES-128 in CTR mode, in clear. Mirrors [`super::fhe::AesFheState`].
 pub struct AesPlainState {
-    cipher: AesDefaultBlockCipher,
+    cipher: DefaultAes128BlockCipher,
     iv: AesIv,
     counter: u64,
 }
@@ -14,7 +14,7 @@ pub struct AesPlainState {
 impl AesPlainState {
     pub fn new(key: impl Into<AesPlainKey>, iv: impl Into<AesIv>) -> Self {
         Self {
-            cipher: AesDefaultBlockCipher::new(AesKey::new(key.into().to_csprng_key_u128())),
+            cipher: DefaultAes128BlockCipher::new(Aes128Key::new(key.into().to_csprng_key_u128())),
             iv: iv.into(),
             counter: 0,
         }
