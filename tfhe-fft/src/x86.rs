@@ -56,6 +56,7 @@ impl FftSimd<c64x2> for V3 {
         let bb = cast(self.avx._mm256_unpackhi_pd(ab, ab));
         cast(self.mul_subadd_f64x4(aa, xy, self.mul_f64x4(bb, yx)))
     }
+
     #[inline(always)]
     fn catlo(self, a: c64x2, b: c64x2) -> c64x2 {
         cast(

@@ -2944,6 +2944,11 @@ test_fft_serde:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release -p tfhe-fft \
 		--features=serde,fft128
 
+.PHONY: test_fft_experimental_reference
+test_fft_experimental_reference:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release -p tfhe-fft \
+		--features=serde,fft128,experimental-reference-fft64
+
 .PHONY: test_fft_avx512
 test_fft_avx512:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release -p tfhe-fft \

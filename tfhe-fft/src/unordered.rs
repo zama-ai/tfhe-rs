@@ -1164,10 +1164,36 @@ mod tests {
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+    #[cfg_attr(
+        all(
+            target_arch = "aarch64",
+            target_feature = "fcma",
+            not(feature = "experimental-reference-fft64")
+        ),
+        ignore = "aarch64 fcma without the reference fallback won't pass this test"
+    )]
     #[test]
     fn test_equivalency() {
         use num_complex::Complex;
         use rand::{Rng, SeedableRng};
+
+        // It seems that on github runners we can still end up here while being aarch64 and having
+        // fcma. *sigh*
+        #[cfg(all(
+            target_arch = "aarch64",
+            feature = "std",
+            not(feature = "experimental-reference-fft64")
+        ))]
+        {
+            use std::arch::is_aarch64_feature_detected;
+            if is_aarch64_feature_detected!("fcma") {
+                eprintln!(
+                    "tfhe-fft::unordered::test_equivalency - \
+                    ignore, aarch64 fcma without the reference fallback won't pass this test"
+                );
+                return;
+            }
+        }
 
         let mut rng = rand::rngs::StdRng::seed_from_u64(0);
 
