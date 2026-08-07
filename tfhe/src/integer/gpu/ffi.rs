@@ -3024,10 +3024,20 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
+    let mut remainder_degrees = remainder.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut remainder_noise_levels = remainder
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
     let mut cuda_ffi_quotient =
         prepare_cuda_radix_ffi(quotient, &mut quotient_degrees, &mut quotient_noise_levels);
-    let mut cuda_ffi_remainder =
-        prepare_cuda_radix_ffi(remainder, &mut quotient_degrees, &mut quotient_noise_levels);
+    let mut cuda_ffi_remainder = prepare_cuda_radix_ffi(
+        remainder,
+        &mut remainder_degrees,
+        &mut remainder_noise_levels,
+    );
 
     let num_scalars_divisor = u32::try_from(decomposed_divisor.len()).unwrap();
     let active_bits_divisor = u32::try_from(
@@ -3196,10 +3206,21 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_rem_assign<
         .map(|b| b.noise_level.0)
         .collect();
 
+    let mut remainder_degrees = remainder.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut remainder_noise_levels = remainder
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+
     let mut cuda_ffi_quotient =
         prepare_cuda_radix_ffi(quotient, &mut quotient_degrees, &mut quotient_noise_levels);
-    let mut cuda_ffi_remainder =
-        prepare_cuda_radix_ffi(remainder, &mut quotient_degrees, &mut quotient_noise_levels);
+    let mut cuda_ffi_remainder = prepare_cuda_radix_ffi(
+        remainder,
+        &mut remainder_degrees,
+        &mut remainder_noise_levels,
+    );
 
     let num_scalars_divisor = u32::try_from(decomposed_divisor.len()).unwrap();
     let active_bits_divisor = u32::try_from(
