@@ -1,7 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionExecutor, NB_CTXT};
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params, panic_if_any_block_is_not_clean_or_trivial,
+    nb_tests_for_params, nb_tests_smaller_for_params, panic_if_radix_is_not_clean,
     CpuFunctionExecutor, MAX_NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
@@ -187,7 +187,7 @@ where
                         println!("{i}: {:?}", b.noise_level());
                     }
                 }
-                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
+                panic_if_radix_is_not_clean(&encrypted_result, &cks);
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
                 assert_eq!((clear << clear_shift) % modulus, decrypted_result);
             }
@@ -198,7 +198,7 @@ where
                 let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
 
                 let encrypted_result = executor.execute((&ct, &shift));
-                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
+                panic_if_radix_is_not_clean(&encrypted_result, &cks);
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
                 // A shift >= nb_bits is an overshift and must return 0
                 assert_eq!(0, decrypted_result);
@@ -240,7 +240,7 @@ where
                 let clear_shift = clear_shift % nb_bits;
                 let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
                 let encrypted_result = executor.execute((&ct, &shift));
-                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
+                panic_if_radix_is_not_clean(&encrypted_result, &cks);
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
                 assert_eq!((clear >> clear_shift) % modulus, decrypted_result);
             }
@@ -250,7 +250,7 @@ where
                 let clear_shift = rng.gen_range(nb_bits..modulus as u32);
                 let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
                 let encrypted_result = executor.execute((&ct, &shift));
-                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
+                panic_if_radix_is_not_clean(&encrypted_result, &cks);
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
                 // A shift >= nb_bits is an overshift and must return 0
                 assert_eq!(0, decrypted_result, "Invalid result for {clear} << {clear_shift}, expected 0, got {decrypted_result}");

@@ -1,7 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_smaller_for_params, CpuFunctionExecutor, NB_CTXT,
+    nb_tests_smaller_for_params, panic_if_radix_is_not_clean, CpuFunctionExecutor, NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
@@ -240,6 +240,8 @@ where
         let ctxt_1 = cks.encrypt(0u64);
 
         let (q_res, r_res) = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&q_res, &cks);
+        panic_if_radix_is_not_clean(&r_res, &cks);
         let q: u64 = cks.decrypt(&q_res);
         let r: u64 = cks.decrypt(&r_res);
 
@@ -261,6 +263,8 @@ where
         clear_0 %= modulus;
 
         let (q_res, r_res) = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&q_res, &cks);
+        panic_if_radix_is_not_clean(&r_res, &cks);
         let q: u64 = cks.decrypt(&q_res);
         let r: u64 = cks.decrypt(&r_res);
 
@@ -270,6 +274,8 @@ where
         assert_eq!(clear_0 % clear_1, r);
 
         let (q2, r2) = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&q2, &cks);
+        panic_if_radix_is_not_clean(&r2, &cks);
         assert_eq!(q2, q_res, "Operation was not deterministic");
         assert_eq!(r2, r_res, "Operation was not deterministic");
     }
@@ -309,6 +315,7 @@ where
         clear_0 %= modulus;
 
         let q_res = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&q_res, &cks);
         let q: u64 = cks.decrypt(&q_res);
 
         assert!(q_res.block_carries_are_empty());
@@ -316,6 +323,7 @@ where
 
         // Determinism checks
         let q2 = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&q2, &cks);
         assert_eq!(q2, q_res, "Operation was not deterministic, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nctxt0: {ctxt_0:?}, \n\n\nctxt1: {ctxt_1:?}\n\n\n");
     }
 }
@@ -410,6 +418,7 @@ where
         clear_0 %= modulus;
 
         let r_res = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&r_res, &cks);
         let r: u64 = cks.decrypt(&r_res);
 
         assert!(r_res.block_carries_are_empty());
@@ -417,6 +426,7 @@ where
 
         // Determinism checks
         let r2 = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&r2, &cks);
         assert_eq!(r2, r_res, "Operation was not deterministic, \n\n\n msg0: {clear_0}, msg1: {clear_1}, \n\n\nctxt0: {ctxt_0:?}, \n\n\nctxt1: {ctxt_1:?}\n\n\n");
     }
 }
