@@ -1,14 +1,15 @@
 use crate::generators::aes_ctr::{AesCtrGenerator, AesCtrParams, ChildrenIterator, TableIndex};
-use crate::generators::implem::aesni::block_cipher::AesniBlockCipher;
-use crate::generators::{ByteCount, BytesPerChild, ChildrenCount, ForkError, RandomGenerator};
+use crate::generators::{
+    Aesni, AnyAesBlockCipher, ByteCount, BytesPerChild, ChildrenCount, ForkError, RandomGenerator,
+};
 
 /// A random number generator using the `aesni` instructions.
-pub struct AesniRandomGenerator(pub(super) AesCtrGenerator<AesniBlockCipher>);
+pub struct AesniRandomGenerator(pub(super) AesCtrGenerator<AnyAesBlockCipher<Aesni>>);
 
 /// The children iterator used by [`AesniRandomGenerator`].
 ///
 /// Outputs children generators one by one.
-pub struct AesniChildrenIterator(ChildrenIterator<AesniBlockCipher>);
+pub struct AesniChildrenIterator(ChildrenIterator<AnyAesBlockCipher<Aesni>>);
 
 impl Iterator for AesniChildrenIterator {
     type Item = AesniRandomGenerator;
@@ -52,52 +53,52 @@ impl Iterator for AesniRandomGenerator {
 #[cfg(test)]
 mod test {
     use crate::generators::aes_ctr::aes_ctr_generic_test;
-    use crate::generators::implem::aesni::block_cipher::AesniBlockCipher;
+    use crate::generators::implem::aesni::block_cipher::Aesni128BlockCipher;
     use crate::generators::{generator_generic_test, AesniRandomGenerator};
 
     #[test]
     fn prop_fork_first_state_table_index() {
-        aes_ctr_generic_test::prop_fork_first_state_table_index::<AesniBlockCipher>();
+        aes_ctr_generic_test::prop_fork_first_state_table_index::<Aesni128BlockCipher>();
     }
 
     #[test]
     fn prop_fork_last_bound_table_index() {
-        aes_ctr_generic_test::prop_fork_last_bound_table_index::<AesniBlockCipher>();
+        aes_ctr_generic_test::prop_fork_last_bound_table_index::<Aesni128BlockCipher>();
     }
 
     #[test]
     fn prop_fork_parent_bound_table_index() {
-        aes_ctr_generic_test::prop_fork_parent_bound_table_index::<AesniBlockCipher>();
+        aes_ctr_generic_test::prop_fork_parent_bound_table_index::<Aesni128BlockCipher>();
     }
 
     #[test]
     fn prop_fork_parent_state_table_index() {
-        aes_ctr_generic_test::prop_fork_parent_state_table_index::<AesniBlockCipher>();
+        aes_ctr_generic_test::prop_fork_parent_state_table_index::<Aesni128BlockCipher>();
     }
 
     #[test]
     fn prop_fork() {
-        aes_ctr_generic_test::prop_fork::<AesniBlockCipher>();
+        aes_ctr_generic_test::prop_fork::<Aesni128BlockCipher>();
     }
 
     #[test]
     fn prop_fork_with_parent_continuation() {
-        aes_ctr_generic_test::prop_fork_with_parent_continuation::<AesniBlockCipher>();
+        aes_ctr_generic_test::prop_fork_with_parent_continuation::<Aesni128BlockCipher>();
     }
 
     #[test]
     fn prop_fork_children_remaining_bytes() {
-        aes_ctr_generic_test::prop_fork_children_remaining_bytes::<AesniBlockCipher>();
+        aes_ctr_generic_test::prop_fork_children_remaining_bytes::<Aesni128BlockCipher>();
     }
 
     #[test]
     fn prop_fork_parent_remaining_bytes() {
-        aes_ctr_generic_test::prop_fork_parent_remaining_bytes::<AesniBlockCipher>();
+        aes_ctr_generic_test::prop_fork_parent_remaining_bytes::<Aesni128BlockCipher>();
     }
 
     #[test]
     fn prop_different_offset_means_different_output() {
-        aes_ctr_generic_test::prop_different_offset_means_different_output::<AesniBlockCipher>();
+        aes_ctr_generic_test::prop_different_offset_means_different_output::<Aesni128BlockCipher>();
     }
 
     #[test]
@@ -107,12 +108,12 @@ mod test {
 
     #[test]
     fn test_conformance_with_ctr_crate() {
-        aes_ctr_generic_test::test_conformance_with_ctr_crate::<AesniBlockCipher>();
+        aes_ctr_generic_test::test_conformance_with_ctr_crate::<Aesni128BlockCipher>();
     }
 
     #[test]
     fn test_forking_conformance_with_ctr_crate() {
-        aes_ctr_generic_test::test_forking_conformance_with_ctr_crate::<AesniBlockCipher>();
+        aes_ctr_generic_test::test_forking_conformance_with_ctr_crate::<Aesni128BlockCipher>();
     }
 
     #[test]

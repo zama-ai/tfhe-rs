@@ -1,5 +1,6 @@
 use crate::generators::aes_ctr::{
-    AesBlockCipher, AesKey, AES_CALLS_PER_BATCH, BYTES_PER_AES_CALL, BYTES_PER_BATCH,
+    Aes128Key, Aes256Key, AesBlockCipher, AES_128_NUM_ROUND_KEYS, AES_256_NUM_ROUND_KEYS,
+    AES_CALLS_PER_BATCH, BYTES_PER_AES_CALL, BYTES_PER_BATCH,
 };
 use core::arch::aarch64::{
     uint8x16_t, vaeseq_u8, vaesmcq_u8, vdupq_n_u32, vdupq_n_u8, veorq_u8, vgetq_lane_u32,
@@ -8,56 +9,114 @@ use core::arch::aarch64::{
 use std::arch::is_aarch64_feature_detected;
 use std::mem::transmute;
 
-const RCONS: [u32; 10] = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36];
-const NUM_WORDS_IN_KEY: usize = 4;
-const NUM_ROUNDS: usize = 10;
-const NUM_ROUND_KEYS: usize = NUM_ROUNDS + 1;
+#[derive(Copy, Clone)]
+pub struct Arm;
 
-/// An aes block cipher implementation which uses `neon` and `aes` instructions.
-#[derive(Clone)]
-pub struct ArmAesBlockCipher {
-    round_keys: [uint8x16_t; NUM_ROUND_KEYS],
+impl crate::generators::AesBackend for Arm {
+    type Aes128BlockCipher = ArmAes128BlockCipher;
+
+    type Aes256BlockCipher = ArmAes256BlockCipher;
 }
 
-impl AesBlockCipher for ArmAesBlockCipher {
-    fn new(key: AesKey) -> ArmAesBlockCipher {
+trait ArmKey: Sized {
+    type Array;
+
+    fn generate_round_keys(self) -> Self::Array {
         let aes_detected = is_aarch64_feature_detected!("aes");
         let neon_detected = is_aarch64_feature_detected!("neon");
 
         if !(aes_detected && neon_detected) {
             panic!(
-                "The ArmAesBlockCipher requires both aes and neon aarch64 CPU features.\n\
+                "The arm64 based block cipher requires both aes and neon aarch64 CPU features.\n\
                 aes feature available: {aes_detected}\nneon feature available: {neon_detected}\n\
                 Please consider enabling the SoftwareRandomGenerator with the `software-prng` feature",
             )
         }
 
-        let round_keys = unsafe { generate_round_keys(key) };
-        ArmAesBlockCipher { round_keys }
+        // SAFETY: we checked for aes and sse2 availability
+        unsafe { self.unchecked_generate_round_keys() }
+    }
+
+    unsafe fn unchecked_generate_round_keys(self) -> Self::Array;
+}
+
+impl ArmKey for Aes128Key {
+    type Array = [uint8x16_t; AES_128_NUM_ROUND_KEYS];
+
+    unsafe fn unchecked_generate_round_keys(self) -> Self::Array {
+        aes_key_schedule(self.0.to_ne_bytes())
+    }
+}
+
+impl ArmKey for Aes256Key {
+    type Array = [uint8x16_t; AES_256_NUM_ROUND_KEYS];
+
+    unsafe fn unchecked_generate_round_keys(self) -> Self::Array {
+        aes_key_schedule(self.0)
+    }
+}
+
+/// An aes block cipher implementation which uses `neon` and `aes` instructions.
+///
+/// Not re-exported: only the [`ArmAes128BlockCipher`] and [`ArmAes256BlockCipher`] so that
+/// users cannot potentially use this type with a bad `N`.
+#[derive(Clone)]
+pub struct ArmAesBlockCipher<const N: usize> {
+    round_keys: [uint8x16_t; N],
+}
+
+/// The aarch64 Aes-128 block cipher.
+pub type ArmAes128BlockCipher = ArmAesBlockCipher<AES_128_NUM_ROUND_KEYS>;
+
+/// The aarch64 Aes-256 block cipher.
+pub type ArmAes256BlockCipher = ArmAesBlockCipher<AES_256_NUM_ROUND_KEYS>;
+
+// Shared by both `AesBlockCipher` impls below, which otherwise differ only in their `Key`.
+impl<const N: usize> ArmAesBlockCipher<N> {
+    fn encrypt_batch(&self, data: [u128; AES_CALLS_PER_BATCH]) -> [u8; BYTES_PER_BATCH] {
+        // SAFETY: we checked for aes and neon availability in `Self::new`
+        unsafe { generate_batch(data, &self.round_keys) }
+    }
+
+    fn encrypt_next(&self, data: u128) -> [u8; BYTES_PER_AES_CALL] {
+        // SAFETY: we checked for aes and neon availability in `Self::new`
+        unsafe { generate_next(data, &self.round_keys) }
+    }
+}
+
+impl AesBlockCipher for ArmAes128BlockCipher {
+    type Key = Aes128Key;
+
+    fn new(key: Self::Key) -> Self {
+        Self {
+            round_keys: key.generate_round_keys(),
+        }
     }
 
     fn generate_batch(&mut self, data: [u128; AES_CALLS_PER_BATCH]) -> [u8; BYTES_PER_BATCH] {
-        #[target_feature(enable = "aes,neon")]
-        unsafe fn implementation(
-            this: &ArmAesBlockCipher,
-            data: [u128; AES_CALLS_PER_BATCH],
-        ) -> [u8; BYTES_PER_BATCH] {
-            let mut output = [0u8; BYTES_PER_BATCH];
-            // We want 128 bytes of output, the ctr gives 128 bit message (16 bytes)
-            for (input, out) in data.iter().copied().zip(output.as_chunks_mut::<16>().0) {
-                // Safe because we prevent the user from creating the Generator
-                // on non-supported hardware
-                let encrypted = encrypt(input, &this.round_keys);
-                out.copy_from_slice(&encrypted.to_ne_bytes());
-            }
-            output
-        }
-        // SAFETY: we checked for aes and neon availability in `Self::new`
-        unsafe { implementation(self, data) }
+        self.encrypt_batch(data)
     }
 
     fn generate_next(&mut self, data: u128) -> [u8; BYTES_PER_AES_CALL] {
-        unsafe { encrypt(data, &self.round_keys) }.to_ne_bytes()
+        self.encrypt_next(data)
+    }
+}
+
+impl AesBlockCipher for ArmAes256BlockCipher {
+    type Key = Aes256Key;
+
+    fn new(key: Self::Key) -> Self {
+        Self {
+            round_keys: key.generate_round_keys(),
+        }
+    }
+
+    fn generate_batch(&mut self, data: [u128; AES_CALLS_PER_BATCH]) -> [u8; BYTES_PER_BATCH] {
+        self.encrypt_batch(data)
+    }
+
+    fn generate_next(&mut self, data: u128) -> [u8; BYTES_PER_AES_CALL] {
+        self.encrypt_next(data)
     }
 }
 
@@ -92,31 +151,88 @@ fn u128_to_uint8x16_t(input: u128) -> uint8x16_t {
 }
 
 #[target_feature(enable = "aes,neon")]
-unsafe fn generate_round_keys(key: AesKey) -> [uint8x16_t; NUM_ROUND_KEYS] {
-    let mut round_keys: [uint8x16_t; NUM_ROUND_KEYS] = std::mem::zeroed();
-    round_keys[0] = u128_to_uint8x16_t(key.0);
+unsafe fn aes_key_schedule<const S: usize, const R: usize>(
+    aes_key_bytes: [u8; S],
+) -> [uint8x16_t; R] {
+    const {
+        assert!(
+            (S == 16 && R == AES_128_NUM_ROUND_KEYS) || (S == 32 && R == AES_256_NUM_ROUND_KEYS),
+            "AES key length and round key count must match"
+        )
+    };
+    const RCONS: [u32; 10] = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36];
 
+    // 'words' are 32 bit, since we have bytes: 32/8=4
+    let num_words_in_key = S / 4;
+    // Whatever the key size, a round key is always 128 bits, that is 4 words
+    const NUM_WORDS_IN_ROUND_KEY: usize = 4;
+
+    let mut round_keys: [uint8x16_t; R] = std::mem::zeroed();
     let words = std::slice::from_raw_parts_mut(
         round_keys.as_mut_ptr() as *mut u32,
-        NUM_ROUND_KEYS * NUM_WORDS_IN_KEY,
+        R * NUM_WORDS_IN_ROUND_KEY,
     );
 
-    debug_assert_eq!(words.len(), 44);
-
+    for i in 0..num_words_in_key {
+        let bytes = [
+            aes_key_bytes[(i * 4) + 0],
+            aes_key_bytes[(i * 4) + 1],
+            aes_key_bytes[(i * 4) + 2],
+            aes_key_bytes[(i * 4) + 3],
+        ];
+        words[i] = u32::from_ne_bytes(bytes)
+    }
     // Skip the words of the first key, its already done
-    for i in NUM_WORDS_IN_KEY..words.len() {
-        if (i % NUM_WORDS_IN_KEY) == 0 {
-            words[i] = words[i - NUM_WORDS_IN_KEY]
+    for i in num_words_in_key..words.len() {
+        if (i % num_words_in_key) == 0 {
+            words[i] = words[i - num_words_in_key]
                 ^ sub_word(words[i - 1]).rotate_right(8)
-                ^ RCONS[(i / NUM_WORDS_IN_KEY) - 1];
+                ^ RCONS[(i / num_words_in_key) - 1];
+        } else if num_words_in_key > 6 && (i % num_words_in_key) == 4 {
+            words[i] = words[i - num_words_in_key] ^ sub_word(words[i - 1]);
         } else {
-            words[i] = words[i - NUM_WORDS_IN_KEY] ^ words[i - 1];
+            words[i] = words[i - num_words_in_key] ^ words[i - 1];
         }
-        // Note: there is also a special thing to do when
-        // i mod SElf::NUM_WORDS_IN_KEY == 4 but it cannot happen on 128 bits keys
     }
 
     round_keys
+}
+
+/// Encrypts a batch of  128-bit message
+///
+/// # SAFETY
+///
+/// You must make sure the CPU's arch is`aarch64` and has
+/// `neon` and `aes` features.
+#[target_feature(enable = "aes,neon")]
+unsafe fn generate_batch<const N: usize>(
+    messages: [u128; AES_CALLS_PER_BATCH],
+    round_keys: &[uint8x16_t; N],
+) -> [u8; BYTES_PER_BATCH] {
+    let mut output = [0u8; BYTES_PER_BATCH];
+    // We want 128 bytes of output, the ctr gives 128 bit message (16 bytes)
+    for (message, out) in messages.iter().copied().zip(output.as_chunks_mut::<16>().0) {
+        let encrypted = encrypt(message, round_keys);
+        out.copy_from_slice(&encrypted.to_ne_bytes());
+    }
+    output
+}
+
+/// Encrypts a single 128-bit message
+///
+/// We have this, so that we call the encrypt function in a context where target_features are
+/// enabled
+///
+/// # SAFETY
+///
+/// You must make sure the CPU's arch is`aarch64` and has
+/// `neon` and `aes` features.
+#[target_feature(enable = "aes,neon")]
+unsafe fn generate_next<const N: usize>(
+    message: u128,
+    round_keys: &[uint8x16_t; N],
+) -> [u8; BYTES_PER_AES_CALL] {
+    encrypt(message, round_keys).to_ne_bytes()
 }
 
 /// Encrypts a 128-bit message
@@ -126,22 +242,22 @@ unsafe fn generate_round_keys(key: AesKey) -> [uint8x16_t; NUM_ROUND_KEYS] {
 /// You must make sure the CPU's arch is`aarch64` and has
 /// `neon` and `aes` features.
 #[inline(always)]
-unsafe fn encrypt(message: u128, keys: &[uint8x16_t; NUM_ROUND_KEYS]) -> u128 {
+unsafe fn encrypt<const N: usize>(message: u128, keys: &[uint8x16_t; N]) -> u128 {
     // Notes:
     // According the [ARM Manual](https://developer.arm.com/documentation/ddi0487/gb/):
     // `vaeseq_u8` is the following AES operations:
     //      1. AddRoundKey (XOR)
-    //      2. ShiftRows
-    //      3. SubBytes
+    //      2. SubBytes
+    //      3. ShiftRows
     // `vaesmcq_u8` is MixColumns
     let mut data: uint8x16_t = u128_to_uint8x16_t(message);
 
-    for &key in keys.iter().take(NUM_ROUNDS - 1) {
+    for &key in keys.iter().take(N - 2) {
         data = vaesmcq_u8(vaeseq_u8(data, key));
     }
 
-    data = vaeseq_u8(data, keys[NUM_ROUNDS - 1]);
-    data = veorq_u8(data, keys[NUM_ROUND_KEYS - 1]);
+    data = vaeseq_u8(data, keys[N - 2]);
+    data = veorq_u8(data, keys[N - 1]);
 
     uint8x16_t_to_u128(data)
 }
@@ -149,42 +265,62 @@ unsafe fn encrypt(message: u128, keys: &[uint8x16_t; NUM_ROUND_KEYS]) -> u128 {
 #[cfg(test)]
 mod test {
     use super::*;
-
-    // Test vector for aes128, from the FIPS publication 197
-    const CIPHER_KEY: u128 = u128::from_be(0x000102030405060708090a0b0c0d0e0f);
-    const KEY_SCHEDULE: [u128; 11] = [
-        u128::from_be(0x000102030405060708090a0b0c0d0e0f),
-        u128::from_be(0xd6aa74fdd2af72fadaa678f1d6ab76fe),
-        u128::from_be(0xb692cf0b643dbdf1be9bc5006830b3fe),
-        u128::from_be(0xb6ff744ed2c2c9bf6c590cbf0469bf41),
-        u128::from_be(0x47f7f7bc95353e03f96c32bcfd058dfd),
-        u128::from_be(0x3caaa3e8a99f9deb50f3af57adf622aa),
-        u128::from_be(0x5e390f7df7a69296a7553dc10aa31f6b),
-        u128::from_be(0x14f9701ae35fe28c440adf4d4ea9c026),
-        u128::from_be(0x47438735a41c65b9e016baf4aebf7ad2),
-        u128::from_be(0x549932d1f08557681093ed9cbe2c974e),
-        u128::from_be(0x13111d7fe3944a17f307a78b4d2b30c5),
-    ];
-    const PLAINTEXT: u128 = u128::from_be(0x00112233445566778899aabbccddeeff);
-    const CIPHERTEXT: u128 = u128::from_be(0x69c4e0d86a7b0430d8cdb78070b4c55a);
+    use crate::generators::aes_ctr::block_cipher_generic_test;
 
     #[test]
     fn test_generate_key_schedule() {
-        // Checks that the round keys are correctly generated from the sample key from FIPS
-        let key = AesKey(CIPHER_KEY);
-        let keys = unsafe { generate_round_keys(key) };
-        for (expected, actual) in KEY_SCHEDULE.iter().zip(keys.iter()) {
-            assert_eq!(*expected, uint8x16_t_to_u128(*actual));
-        }
+        block_cipher_generic_test::test_key_schedule_128(|key| {
+            key.generate_round_keys().map(uint8x16_t_to_u128)
+        });
     }
 
     #[test]
-    fn test_encrypt_message() {
-        // Checks that encrypting many plaintext at the same time gives the correct output.
-        let message = PLAINTEXT;
-        let key = AesKey(CIPHER_KEY);
-        let keys = unsafe { generate_round_keys(key) };
-        let ciphertext = unsafe { encrypt(message, &keys) };
-        assert_eq!(CIPHERTEXT, ciphertext);
+    fn test_generate_key_schedule_256() {
+        block_cipher_generic_test::test_key_schedule_256(|key| {
+            key.generate_round_keys().map(uint8x16_t_to_u128)
+        });
+    }
+
+    #[test]
+    fn test_encrypt_one_message() {
+        block_cipher_generic_test::test_fips197_c1_single_block::<ArmAes128BlockCipher>();
+    }
+
+    #[test]
+    fn test_encrypt_many_messages() {
+        block_cipher_generic_test::test_fips197_c1_batch::<ArmAes128BlockCipher>();
+    }
+
+    #[test]
+    fn test_encrypt_one_message_256() {
+        block_cipher_generic_test::test_fips197_c3_single_block::<ArmAes256BlockCipher>();
+    }
+
+    #[test]
+    fn test_encrypt_many_messages_256() {
+        block_cipher_generic_test::test_fips197_c3_batch::<ArmAes256BlockCipher>();
+    }
+
+    #[test]
+    fn test_nist_vectors_256() {
+        block_cipher_generic_test::test_nist_ecb_aes256_single_blocks::<ArmAes256BlockCipher>();
+    }
+
+    #[test]
+    fn test_nist_vectors_256_batch() {
+        block_cipher_generic_test::test_nist_ecb_aes256_batch::<ArmAes256BlockCipher>();
+    }
+
+    #[test]
+    fn test_encrypt_many_matches_encrypt_one_256() {
+        block_cipher_generic_test::test_batch_matches_single_aes256::<ArmAes256BlockCipher>();
+    }
+
+    #[test]
+    fn test_aes128_and_aes256_differ() {
+        block_cipher_generic_test::test_aes128_and_aes256_differ::<
+            ArmAes128BlockCipher,
+            ArmAes256BlockCipher,
+        >();
     }
 }

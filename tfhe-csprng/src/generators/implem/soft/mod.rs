@@ -1,7 +1,7 @@
 //! A module using a software fallback implementation of random number generator.
 
 mod block_cipher;
-pub use block_cipher::SoftwareBlockCipher;
+pub use block_cipher::{Software, SoftwareAes128BlockCipher, SoftwareAes256BlockCipher};
 
 mod generator;
 pub use generator::*;
