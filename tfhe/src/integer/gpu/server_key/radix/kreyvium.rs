@@ -1,9 +1,13 @@
 use crate::core_crypto::gpu::CudaStreams;
-use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::ciphertext::{
+    CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
+};
 use crate::integer::gpu::server_key::{
     CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
 };
+use crate::integer::gpu::transciphering::{CudaFheKeyStream, CudaIntegerTranscipherer};
 use crate::integer::gpu::{cuda_backend_kreyvium_init, cuda_backend_kreyvium_step};
+use crate::transciphering::StreamCipherKind;
 
 const KREYVIUM_KEY_BITS: usize = 128;
 const KREYVIUM_IV_BITS: usize = 128;
@@ -182,5 +186,58 @@ impl CudaServerKey {
             }
         }
         Ok(keystream)
+    }
+}
+
+/// Stateful FHE-side Kreyvium session on GPU, implementing
+/// [`CudaIntegerTranscipherer`].
+pub struct CudaKreyviumStream {
+    state: CudaKreyviumState,
+    counter: u64,
+}
+
+impl CudaKreyviumStream {
+    pub fn new(
+        key: &CudaUnsignedRadixCiphertext,
+        iv: &CudaUnsignedRadixCiphertext,
+        sks: &CudaServerKey,
+        streams: &CudaStreams,
+    ) -> crate::Result<Self> {
+        let state = sks.kreyvium_init(key, iv, streams)?;
+        Ok(Self { state, counter: 0 })
+    }
+}
+
+impl CudaIntegerTranscipherer for CudaKreyviumStream {
+    fn kind(&self) -> StreamCipherKind {
+        StreamCipherKind::Kreyvium
+    }
+
+    fn next_keystream_bits(
+        &mut self,
+        sks: &CudaServerKey,
+        n_bits: usize,
+        streams: &CudaStreams,
+    ) -> CudaFheKeyStream {
+        assert!(
+            n_bits.is_multiple_of(BATCH_SIZE),
+            "GPU Kreyvium requires n_bits to be a multiple of {BATCH_SIZE} (got {n_bits})"
+        );
+        let keystream = sks.kreyvium_next(&mut self.state, n_bits, streams).unwrap();
+        self.counter += n_bits as u64;
+        CudaFheKeyStream::from_raw_parts(keystream)
+    }
+
+    fn skip(&mut self, sks: &CudaServerKey, n_bits: usize, streams: &CudaStreams) {
+        assert!(
+            n_bits.is_multiple_of(BATCH_SIZE),
+            "GPU Kreyvium requires n_bits to be a multiple of {BATCH_SIZE} (got {n_bits})"
+        );
+        let _ = sks.kreyvium_next(&mut self.state, n_bits, streams).unwrap();
+        self.counter += n_bits as u64;
+    }
+
+    fn current_counter(&self) -> u64 {
+        self.counter
     }
 }

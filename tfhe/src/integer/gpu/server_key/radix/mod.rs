@@ -28,6 +28,7 @@ use crate::shortint::server_key::{
     generate_lookup_table, LookupTableOwned, LookupTableSize, ManyLookupTableOwned,
 };
 use crate::shortint::{PBSOrder, PaddingBit, ShortintEncoding};
+pub use kreyvium::{CudaKreyviumState, CudaKreyviumStream};
 pub use oprf::{CudaOprfServerKey, CudaOprfServerKeyView, GenericCudaOprfServerKey};
 pub use shuffle::{BitonicShuffleKeySize, CollisionProbability};
 
