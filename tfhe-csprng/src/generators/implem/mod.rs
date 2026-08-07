@@ -10,3 +10,6 @@ pub use aarch64::*;
 
 mod soft;
 pub use soft::*;
+
+pub mod dynamic;
+pub use dynamic::*;

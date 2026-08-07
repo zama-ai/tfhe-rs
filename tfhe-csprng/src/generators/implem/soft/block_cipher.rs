@@ -1,21 +1,33 @@
 use crate::generators::aes_ctr::{
-    AesBlockCipher, AesKey, AES_CALLS_PER_BATCH, BYTES_PER_AES_CALL, BYTES_PER_BATCH,
+    Aes128Key, Aes256Key, AesBlockCipher, AES_CALLS_PER_BATCH, BYTES_PER_AES_CALL, BYTES_PER_BATCH,
 };
+use aes::cipher::consts::U16;
 use aes::cipher::{BlockCipherEncrypt, KeyInit};
-use aes::{Aes128, Block};
+use aes::{Aes128, Aes256, Block};
+
+#[derive(Copy, Clone)]
+pub struct Software;
+
+impl crate::generators::implem::AesBackend for Software {
+    type Aes128BlockCipher = SoftwareAes128BlockCipher;
+
+    type Aes256BlockCipher = SoftwareAes256BlockCipher;
+}
 
 #[derive(Clone)]
-pub struct SoftwareBlockCipher {
+pub struct SoftwareAes128BlockCipher {
     // Aes structure
     aes: Aes128,
 }
 
-impl AesBlockCipher for SoftwareBlockCipher {
-    fn new(key: AesKey) -> SoftwareBlockCipher {
+impl AesBlockCipher for SoftwareAes128BlockCipher {
+    type Key = Aes128Key;
+
+    fn new(key: Self::Key) -> SoftwareAes128BlockCipher {
         let key: [u8; BYTES_PER_AES_CALL] = key.0.to_ne_bytes();
         let key = Block::from(key);
         let aes = Aes128::new(&key);
-        SoftwareBlockCipher { aes }
+        SoftwareAes128BlockCipher { aes }
     }
 
     fn generate_batch(&mut self, data: [u128; AES_CALLS_PER_BATCH]) -> [u8; BYTES_PER_BATCH] {
@@ -29,7 +41,35 @@ impl AesBlockCipher for SoftwareBlockCipher {
     }
 }
 
-fn aes_encrypt_one(message: u128, cipher: &Aes128) -> [u8; BYTES_PER_AES_CALL] {
+#[derive(Clone)]
+pub struct SoftwareAes256BlockCipher {
+    // Aes structure
+    aes: Aes256,
+}
+
+impl AesBlockCipher for SoftwareAes256BlockCipher {
+    type Key = Aes256Key;
+
+    fn new(key: Self::Key) -> Self {
+        let aes = Aes256::new(&key.0.into());
+        SoftwareAes256BlockCipher { aes }
+    }
+
+    fn generate_batch(&mut self, data: [u128; AES_CALLS_PER_BATCH]) -> [u8; BYTES_PER_BATCH] {
+        aes_encrypt_many(
+            data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], &self.aes,
+        )
+    }
+
+    fn generate_next(&mut self, data: u128) -> [u8; BYTES_PER_AES_CALL] {
+        aes_encrypt_one(data, &self.aes)
+    }
+}
+
+fn aes_encrypt_one<G>(message: u128, cipher: &G) -> [u8; BYTES_PER_AES_CALL]
+where
+    G: BlockCipherEncrypt<BlockSize = U16>,
+{
     let mut b1 = Block::from(message.to_ne_bytes());
 
     cipher.encrypt_block(&mut b1);
@@ -40,7 +80,7 @@ fn aes_encrypt_one(message: u128, cipher: &Aes128) -> [u8; BYTES_PER_AES_CALL] {
 // Uses aes to encrypt many values at once. This allows a substantial speedup (around 30%)
 // compared to the naive approach.
 #[allow(clippy::too_many_arguments)]
-fn aes_encrypt_many(
+fn aes_encrypt_many<G>(
     message_1: u128,
     message_2: u128,
     message_3: u128,
@@ -49,8 +89,11 @@ fn aes_encrypt_many(
     message_6: u128,
     message_7: u128,
     message_8: u128,
-    cipher: &Aes128,
-) -> [u8; BYTES_PER_BATCH] {
+    cipher: &G,
+) -> [u8; BYTES_PER_BATCH]
+where
+    G: BlockCipherEncrypt<BlockSize = U16>,
+{
     let mut b1 = Block::from(message_1.to_ne_bytes());
     let mut b2 = Block::from(message_2.to_ne_bytes());
     let mut b3 = Block::from(message_3.to_ne_bytes());
@@ -86,39 +129,49 @@ fn aes_encrypt_many(
 #[cfg(test)]
 mod test {
     use super::*;
-
-    // Test vector for aes128, from the FIPS publication 197
-    const CIPHER_KEY: u128 = u128::from_be(0x000102030405060708090a0b0c0d0e0f);
-    const PLAINTEXT: u128 = u128::from_be(0x00112233445566778899aabbccddeeff);
-    const CIPHERTEXT: u128 = u128::from_be(0x69c4e0d86a7b0430d8cdb78070b4c55a);
-
-    #[test]
-    fn test_encrypt_many_messages() {
-        // Checks that encrypting many plaintext at the same time gives the correct output.
-        let key: [u8; BYTES_PER_AES_CALL] = CIPHER_KEY.to_ne_bytes();
-        let aes = Aes128::new(&Block::from(key));
-        let ciphertexts = aes_encrypt_many(
-            PLAINTEXT, PLAINTEXT, PLAINTEXT, PLAINTEXT, PLAINTEXT, PLAINTEXT, PLAINTEXT, PLAINTEXT,
-            &aes,
-        );
-        let ciphertexts: [u8; BYTES_PER_BATCH] = ciphertexts[..].try_into().unwrap();
-        for i in 0..8 {
-            assert_eq!(
-                u128::from_ne_bytes(
-                    ciphertexts[BYTES_PER_AES_CALL * i..BYTES_PER_AES_CALL * (i + 1)]
-                        .try_into()
-                        .unwrap()
-                ),
-                CIPHERTEXT
-            );
-        }
-    }
+    use crate::generators::aes_ctr::block_cipher_generic_test;
 
     #[test]
     fn test_encrypt_one_message() {
-        let key: [u8; BYTES_PER_AES_CALL] = CIPHER_KEY.to_ne_bytes();
-        let aes = Aes128::new(&Block::from(key));
-        let ciphertext = aes_encrypt_one(PLAINTEXT, &aes);
-        assert_eq!(u128::from_ne_bytes(ciphertext), CIPHERTEXT);
+        block_cipher_generic_test::test_fips197_c1_single_block::<SoftwareAes128BlockCipher>();
+    }
+
+    #[test]
+    fn test_encrypt_many_messages() {
+        block_cipher_generic_test::test_fips197_c1_batch::<SoftwareAes128BlockCipher>();
+    }
+
+    #[test]
+    fn test_encrypt_one_message_256() {
+        block_cipher_generic_test::test_fips197_c3_single_block::<SoftwareAes256BlockCipher>();
+    }
+
+    #[test]
+    fn test_encrypt_many_messages_256() {
+        block_cipher_generic_test::test_fips197_c3_batch::<SoftwareAes256BlockCipher>();
+    }
+
+    #[test]
+    fn test_nist_vectors_256() {
+        block_cipher_generic_test::test_nist_ecb_aes256_single_blocks::<SoftwareAes256BlockCipher>(
+        );
+    }
+
+    #[test]
+    fn test_nist_vectors_256_batch() {
+        block_cipher_generic_test::test_nist_ecb_aes256_batch::<SoftwareAes256BlockCipher>();
+    }
+
+    #[test]
+    fn test_encrypt_many_matches_encrypt_one_256() {
+        block_cipher_generic_test::test_batch_matches_single_aes256::<SoftwareAes256BlockCipher>();
+    }
+
+    #[test]
+    fn test_aes128_and_aes256_differ() {
+        block_cipher_generic_test::test_aes128_and_aes256_differ::<
+            SoftwareAes128BlockCipher,
+            SoftwareAes256BlockCipher,
+        >();
     }
 }

@@ -92,7 +92,7 @@ pub mod aes_ctr_parallel_generic_tests {
         any_key, any_valid_fork, assert_generator_matches_cipher, make_ctr_pair,
     };
     use crate::generators::aes_ctr::index::AesIndex;
-    use crate::generators::aes_ctr::{AesKey, BYTES_PER_AES_CALL};
+    use crate::generators::aes_ctr::{Aes128BlockCipher, Aes128Key, BYTES_PER_AES_CALL};
     use rand::prelude::*;
     use rand::rngs::ThreadRng;
     use rand::thread_rng;
@@ -103,7 +103,7 @@ pub mod aes_ctr_parallel_generic_tests {
     /// Check the property:
     ///     On a valid fork, the table index of the first child is the same as the table index of
     ///     the parent before the fork.
-    pub fn prop_fork_first_state_table_index<G: AesBlockCipher>() {
+    pub fn prop_fork_first_state_table_index<G: Aes128BlockCipher>() {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
@@ -131,7 +131,7 @@ pub mod aes_ctr_parallel_generic_tests {
     /// Check the property:
     ///     On a valid fork, the table index of the first byte outputted by the parent after the
     ///     fork, is the bound of the last child of the fork.
-    pub fn prop_fork_last_bound_table_index<G: AesBlockCipher>() {
+    pub fn prop_fork_last_bound_table_index<G: Aes128BlockCipher>() {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
@@ -160,7 +160,7 @@ pub mod aes_ctr_parallel_generic_tests {
 
     /// Check the property:
     ///     On a valid fork, the bound of the parent does not change.
-    pub fn prop_fork_parent_bound_table_index<G: AesBlockCipher>() {
+    pub fn prop_fork_parent_bound_table_index<G: Aes128BlockCipher>() {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
@@ -188,7 +188,7 @@ pub mod aes_ctr_parallel_generic_tests {
     /// Check the property:
     ///     On a valid fork, the parent table index is increased of the number of children
     ///     multiplied by the number of bytes per child.
-    pub fn prop_fork_parent_state_table_index<G: AesBlockCipher>() {
+    pub fn prop_fork_parent_state_table_index<G: Aes128BlockCipher>() {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
@@ -216,7 +216,7 @@ pub mod aes_ctr_parallel_generic_tests {
     /// Check the property:
     ///     On a valid fork, the bytes outputted by the children in the fork order form the same
     ///     sequence the parent would have had outputted no fork had happened.
-    pub fn prop_fork<G: AesBlockCipher>() {
+    pub fn prop_fork<G: Aes128BlockCipher>() {
         for _ in 0..1000 {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
@@ -247,7 +247,7 @@ pub mod aes_ctr_parallel_generic_tests {
     /// Check the property:
     ///     On a valid fork, all children got a number of remaining bytes equals to the number of
     ///     bytes per child given as fork input.
-    pub fn prop_fork_children_remaining_bytes<G: AesBlockCipher>() {
+    pub fn prop_fork_children_remaining_bytes<G: Aes128BlockCipher>() {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
@@ -272,7 +272,7 @@ pub mod aes_ctr_parallel_generic_tests {
     ///     On a valid fork, the bytes consumed before the fork, the bytes outputted by the
     ///     children (collected into a Vec and iterated sequentially), and the bytes consumed
     ///     after the fork from the parent, all match the expected non-forked sequence.
-    pub fn prop_fork_with_parent_continuation<G: AesBlockCipher>() {
+    pub fn prop_fork_with_parent_continuation<G: Aes128BlockCipher>() {
         for _ in 0..10_000 {
             let (t, nc, nb, num_extra_bytes) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
@@ -321,7 +321,7 @@ pub mod aes_ctr_parallel_generic_tests {
     /// Check the property:
     ///     On a valid fork, the number of remaining bytes of the parent is reduced by the
     ///     number of children multiplied by the number of bytes per child.
-    pub fn prop_fork_parent_remaining_bytes<G: AesBlockCipher>() {
+    pub fn prop_fork_parent_remaining_bytes<G: Aes128BlockCipher>() {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
@@ -347,7 +347,7 @@ pub mod aes_ctr_parallel_generic_tests {
     /// Check that our AesCtrGenerator produces the same keystream as `Ctr128LE<Aes128>` from
     /// the RustCrypto `ctr` crate. CTR mode XORs plaintext with AES keystream, so encrypting
     /// zeros gives the raw keystream for comparison.
-    pub fn test_forking_conformance_with_ctr_crate<G: AesBlockCipher>() {
+    pub fn test_forking_conformance_with_ctr_crate<G: Aes128BlockCipher>() {
         let mut rng = thread_rng();
 
         fn random_tuple_that_equals(rng: &mut ThreadRng, x: u64) -> (u64, u64) {
@@ -361,7 +361,7 @@ pub mod aes_ctr_parallel_generic_tests {
         }
 
         for _ in 0..1_000 {
-            let key = AesKey(rng.gen());
+            let key = Aes128Key(rng.gen());
             let aes_idx: u128 = rng.gen_range(0..u128::MAX);
             let offset: u128 = rng.gen();
 

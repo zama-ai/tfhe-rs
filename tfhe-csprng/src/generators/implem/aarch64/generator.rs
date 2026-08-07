@@ -1,14 +1,15 @@
 use crate::generators::aes_ctr::{AesCtrGenerator, AesCtrParams, ChildrenIterator, TableIndex};
-use crate::generators::implem::aarch64::block_cipher::ArmAesBlockCipher;
-use crate::generators::{ByteCount, BytesPerChild, ChildrenCount, ForkError, RandomGenerator};
+use crate::generators::{
+    AnyAesBlockCipher, Arm, ByteCount, BytesPerChild, ChildrenCount, ForkError, RandomGenerator,
+};
 
 /// A random number generator using the arm `neon` instructions.
-pub struct NeonAesRandomGenerator(pub(super) AesCtrGenerator<ArmAesBlockCipher>);
+pub struct NeonAesRandomGenerator(pub(super) AesCtrGenerator<AnyAesBlockCipher<Arm>>);
 
 /// The children iterator used by [`NeonAesRandomGenerator`].
 ///
 /// Outputs children generators one by one.
-pub struct ArmAesChildrenIterator(ChildrenIterator<ArmAesBlockCipher>);
+pub struct ArmAesChildrenIterator(ChildrenIterator<AnyAesBlockCipher<Arm>>);
 
 impl Iterator for ArmAesChildrenIterator {
     type Item = NeonAesRandomGenerator;
@@ -52,52 +53,53 @@ impl Iterator for NeonAesRandomGenerator {
 #[cfg(test)]
 mod test {
     use crate::generators::aes_ctr::aes_ctr_generic_test;
-    use crate::generators::implem::aarch64::block_cipher::ArmAesBlockCipher;
+    use crate::generators::implem::aarch64::block_cipher::ArmAes128BlockCipher;
     use crate::generators::{generator_generic_test, NeonAesRandomGenerator};
 
     #[test]
     fn prop_fork_first_state_table_index() {
-        aes_ctr_generic_test::prop_fork_first_state_table_index::<ArmAesBlockCipher>();
+        aes_ctr_generic_test::prop_fork_first_state_table_index::<ArmAes128BlockCipher>();
     }
 
     #[test]
     fn prop_fork_last_bound_table_index() {
-        aes_ctr_generic_test::prop_fork_last_bound_table_index::<ArmAesBlockCipher>();
+        aes_ctr_generic_test::prop_fork_last_bound_table_index::<ArmAes128BlockCipher>();
     }
 
     #[test]
     fn prop_fork_parent_bound_table_index() {
-        aes_ctr_generic_test::prop_fork_parent_bound_table_index::<ArmAesBlockCipher>();
+        aes_ctr_generic_test::prop_fork_parent_bound_table_index::<ArmAes128BlockCipher>();
     }
 
     #[test]
     fn prop_fork_parent_state_table_index() {
-        aes_ctr_generic_test::prop_fork_parent_state_table_index::<ArmAesBlockCipher>();
+        aes_ctr_generic_test::prop_fork_parent_state_table_index::<ArmAes128BlockCipher>();
     }
 
     #[test]
     fn prop_fork() {
-        aes_ctr_generic_test::prop_fork::<ArmAesBlockCipher>();
+        aes_ctr_generic_test::prop_fork::<ArmAes128BlockCipher>();
     }
 
     #[test]
     fn prop_fork_with_parent_continuation() {
-        aes_ctr_generic_test::prop_fork_with_parent_continuation::<ArmAesBlockCipher>();
+        aes_ctr_generic_test::prop_fork_with_parent_continuation::<ArmAes128BlockCipher>();
     }
 
     #[test]
     fn prop_fork_children_remaining_bytes() {
-        aes_ctr_generic_test::prop_fork_children_remaining_bytes::<ArmAesBlockCipher>();
+        aes_ctr_generic_test::prop_fork_children_remaining_bytes::<ArmAes128BlockCipher>();
     }
 
     #[test]
     fn prop_fork_parent_remaining_bytes() {
-        aes_ctr_generic_test::prop_fork_parent_remaining_bytes::<ArmAesBlockCipher>();
+        aes_ctr_generic_test::prop_fork_parent_remaining_bytes::<ArmAes128BlockCipher>();
     }
 
     #[test]
     fn prop_different_offset_means_different_output() {
-        aes_ctr_generic_test::prop_different_offset_means_different_output::<ArmAesBlockCipher>();
+        aes_ctr_generic_test::prop_different_offset_means_different_output::<ArmAes128BlockCipher>(
+        );
     }
 
     #[test]
@@ -107,12 +109,12 @@ mod test {
 
     #[test]
     fn test_conformance_with_ctr_crate() {
-        aes_ctr_generic_test::test_conformance_with_ctr_crate::<ArmAesBlockCipher>();
+        aes_ctr_generic_test::test_conformance_with_ctr_crate::<ArmAes128BlockCipher>();
     }
 
     #[test]
     fn test_forking_conformance_with_ctr_crate() {
-        aes_ctr_generic_test::test_forking_conformance_with_ctr_crate::<ArmAesBlockCipher>();
+        aes_ctr_generic_test::test_forking_conformance_with_ctr_crate::<ArmAes128BlockCipher>();
     }
 
     #[test]
