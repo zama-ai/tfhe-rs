@@ -1,6 +1,6 @@
 [package]
 name = "tfhe-fft"
-version = "0.10.1"
+version = "0.10.2"
 edition = "2021"
 description = "tfhe-fft is a pure Rust high performance fast Fourier transform library."
 readme = "README.md"
@@ -26,6 +26,9 @@ fft128 = []
 avx512 = ["pulp/x86-v4"]
 std = ["pulp/std", "dyn-stack/std", "dyn-stack/alloc"]
 serde = ["dep:serde", "num-complex/serde"]
+# Best effort to fallback to a reference scalar/x86 implementation whose result is tested
+# TODO: today only the dif4 algorithm has a bit check test
+experimental-reference-fft64 = []
 
 [dev-dependencies]
 rustfft = "6.0"

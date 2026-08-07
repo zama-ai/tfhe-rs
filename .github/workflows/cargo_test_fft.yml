@@ -107,6 +107,10 @@ jobs:
       - name: Test serialization
         run: make test_fft_serde
 
+      - name: Test with reference fft
+        run: |
+          make test_fft_experimental_reference
+
       - name: Test no-std
         run: |
           make test_fft_no_std

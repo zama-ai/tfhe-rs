@@ -197,6 +197,15 @@ impl Fft {
     }
 }
 
+/// This function does not have x86 variants because it's not on the hot path for computations, it
+/// is essentially done as an offline phase to send the bootstrapping key into the fourier domain.
+///
+/// As such it does not use fused mul_add ops and is therefore somewhat lower precision than what it
+/// could be compared to functions like the convert_forward_integer x86 impls. This MUST STAY THAT
+/// WAY until we decide to break bit accuracy of TFHE-rs with versions preceding the change.
+///
+/// A possibility (which is not exactly great) if we decide to update anyways to use mul_add is to
+/// have a feature to keep the old behavior in the lib.
 #[cfg_attr(feature = "__profiling", inline(never))]
 fn convert_forward_torus<Scalar: UnsignedTorus>(
     out: &mut [c64],
@@ -221,6 +230,8 @@ fn convert_forward_torus<Scalar: UnsignedTorus>(
     );
 }
 
+/// x86 avx512 impl has become the de-facto reference we want to match
+/// for bit accuracy see x86::convert_forward_integer_u64_v4
 fn convert_forward_integer_scalar<Scalar: UnsignedTorus>(
     out: &mut [c64],
     in_re: &[Scalar],
@@ -231,13 +242,9 @@ fn convert_forward_integer_scalar<Scalar: UnsignedTorus>(
         |(out, in_re, in_im, w_re, w_im)| {
             let in_re: f64 = in_re.into_signed().cast_into();
             let in_im: f64 = in_im.into_signed().cast_into();
-            *out = c64 {
-                re: in_re,
-                im: in_im,
-            } * c64 {
-                re: *w_re,
-                im: *w_im,
-            };
+
+            out.re = f64::mul_add(in_re, *w_re, -(in_im * w_im));
+            out.im = f64::mul_add(in_re, *w_im, in_im * w_re);
         },
     );
 }
@@ -286,6 +293,8 @@ fn convert_backward_torus<Scalar: UnsignedTorus>(
     );
 }
 
+/// x86 avx512 impl has become the de-facto reference we want to match
+/// for bit accuracy see x86::{prologue_convert_torus_v4, convert_add_backward_torus_u64_v4}
 fn convert_add_backward_torus_scalar<Scalar: UnsignedTorus>(
     out_re: &mut [Scalar],
     out_im: &mut [Scalar],
@@ -295,14 +304,16 @@ fn convert_add_backward_torus_scalar<Scalar: UnsignedTorus>(
     let normalization = 1.0 / inp.len() as f64;
     izip_eq!(out_re, out_im, inp, twisties.re, twisties.im).for_each(
         |(out_re, out_im, inp, w_re, w_im)| {
-            let tmp = inp
-                * (c64 {
-                    re: *w_re,
-                    im: -*w_im,
-                } * normalization);
+            let c64 {
+                re: in_re,
+                im: in_im,
+            } = inp * normalization;
 
-            *out_re = Scalar::wrapping_add(*out_re, Scalar::from_torus(tmp.re));
-            *out_im = Scalar::wrapping_add(*out_im, Scalar::from_torus(tmp.im));
+            let tmp_re = f64::mul_add(in_re, *w_re, in_im * w_im);
+            let tmp_im = f64::mul_add(in_re, -*w_im, in_im * w_re);
+
+            *out_re = Scalar::wrapping_add(*out_re, Scalar::from_torus(tmp_re));
+            *out_im = Scalar::wrapping_add(*out_im, Scalar::from_torus(tmp_im));
         },
     );
 }

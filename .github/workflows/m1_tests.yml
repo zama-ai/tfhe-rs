@@ -71,6 +71,7 @@ jobs:
         run: |
           make test_fft
           make test_fft_serde
+          make test_fft_experimental_reference
           make test_fft_no_std
           # we don't run the js stuff here as it's causing issues with the M1 config
 

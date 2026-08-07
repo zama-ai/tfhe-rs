@@ -458,5 +458,14 @@ mod tests {
                 test_fft_simd(simd);
             }
         }
+        #[cfg(target_arch = "aarch64")]
+        {
+            if let Some(simd) = pulp::aarch64::NeonFcma::try_new() {
+                test_fft_simd(simd);
+            }
+            if let Some(simd) = pulp::aarch64::Neon::try_new() {
+                test_fft_simd(simd);
+            }
+        }
     }
 }
