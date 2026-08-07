@@ -1,8 +1,15 @@
+use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
+
+use crate::named::Named;
 use crate::shortint::client_key::ClientKey;
+use crate::transciphering::backward_compatibility::OneTimePadPlainSecretMaskVersions;
 use crate::transciphering::ciphers::one_time_pad::fhe::OneTimePadFheSecretMask;
 use crate::transciphering::ciphers::unpack_bits_lsb_first;
 use crate::transciphering::{InsufficientKeystream, StreamCipher, StreamCipherKind};
 
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(OneTimePadPlainSecretMaskVersions)]
 pub struct OneTimePadPlainSecretMask {
     /// Collection of random u8, from which one can pull secret bits to hide sensitive values by
     /// XOR-ing them together.
@@ -43,6 +50,10 @@ impl OneTimePadPlainSecretMask {
 
         OneTimePadFheSecretMask::new(secret_mask)
     }
+}
+
+impl Named for OneTimePadPlainSecretMask {
+    const NAME: &'static str = "transciphering::OneTimePadPlainSecretMask";
 }
 
 pub struct OneTimePadPlainState {

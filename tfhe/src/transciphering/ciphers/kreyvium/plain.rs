@@ -1,9 +1,13 @@
 //! Plaintext implementation of the Kreyvium Algorithm
 
+use crate::named::Named;
 use crate::shortint::ClientKey;
+use crate::transciphering::backward_compatibility::KreyviumIVVersions;
 use crate::transciphering::ciphers::shift_register::ShiftRegister;
 use crate::transciphering::ciphers::{pack_bits_lsb_first, unpack_bits_lsb_first};
 use crate::transciphering::{InsufficientKeystream, StreamCipher, StreamCipherKind};
+use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 use super::{
     KreyviumBackwardRoundOutput, KreyviumFheKey, KreyviumRound, KreyviumRoundInput,
@@ -16,6 +20,7 @@ fn unpack_key_bits(bytes: &[u8; 16]) -> [bool; 128] {
     out
 }
 
+#[derive(Clone, Copy)]
 pub struct KreyviumPlainKey {
     bits: [u8; 16],
 }
@@ -57,6 +62,8 @@ impl From<[bool; 128]> for KreyviumPlainKey {
     }
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize, Versionize)]
+#[versionize(KreyviumIVVersions)]
 pub struct KreyviumIV {
     bits: [u8; 16],
 }
@@ -200,4 +207,8 @@ impl KreyviumRound for KreyviumPlainRoundInput<'_> {
 
         KreyviumBackwardRoundOutput { a, b, c }
     }
+}
+
+impl Named for KreyviumIV {
+    const NAME: &'static str = "transciphering::KreyviumIV";
 }

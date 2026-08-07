@@ -128,6 +128,26 @@ fn aes_plain_key_conversions_are_homogeneous() {
     }
 }
 
+/// `AesFheKey::decrypt` must be the exact inverse of `AesPlainKey::encrypt`,
+/// including the byte and bit order they agree on
+#[test]
+fn aes_fhe_key_encrypt_decrypt_round_trip() {
+    let (cks, _sks) = gen_keys(PARAM);
+
+    // An asymmetric value plus both extremes, so a reversed byte or bit order
+    // does not round-trip by accident.
+    for v in [KEY, 0u128, u128::MAX, 0x0123456789abcdeffedcba9876543210] {
+        let plain = AesPlainKey::from(v);
+        let recovered = plain.encrypt(&cks).decrypt(&cks);
+
+        assert_eq!(
+            recovered.to_csprng_key_u128(),
+            plain.to_csprng_key_u128(),
+            "AES key did not survive the encrypt/decrypt round trip for 0x{v:032x}"
+        );
+    }
+}
+
 /// Anchor the plain side to the NIST SP 800-38A AES-128 vector. The other
 /// tests use `AesPlainStream` as oracle.
 #[test]

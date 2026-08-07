@@ -12,7 +12,7 @@ mod test;
 
 use super::shift_register::ShiftRegister;
 
-pub use fhe::{KreyviumFheKey, KreyviumFheState};
+pub use fhe::{KreyviumFheKey, KreyviumFheState, SerializableKreyviumFheKey};
 pub use plain::{KreyviumIV, KreyviumPlainKey, KreyviumPlainState};
 use rayon::prelude::*;
 
