@@ -51,6 +51,7 @@ pub mod parameters_wopbs_only;
 pub mod re_randomization;
 #[cfg(test)]
 pub mod test_params;
+pub mod transciphering;
 pub mod v0_10;
 pub mod v0_11;
 pub mod v1_0;
@@ -73,6 +74,7 @@ use super::server_key::PBSConformanceParams;
 pub use super::PBSOrder;
 use crate::shortint::ciphertext::MaxDegree;
 pub use crate::shortint::parameters::list_compression::CompressionParameters;
+pub use crate::shortint::parameters::transciphering::TranscipheringParameters;
 pub use classic::ClassicPBSParameters;
 pub use compact_public_key_only::{
     CastingFunctionsOwned, CastingFunctionsView, CompactCiphertextListExpansionKind,

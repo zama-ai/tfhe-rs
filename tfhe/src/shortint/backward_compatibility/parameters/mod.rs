@@ -4,6 +4,7 @@ pub mod list_compression;
 pub mod modulus_switch_noise_reduction;
 pub mod noise_squashing;
 pub mod re_randomization;
+pub mod transciphering;
 
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,

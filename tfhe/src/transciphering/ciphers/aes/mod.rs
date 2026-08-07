@@ -12,8 +12,14 @@ pub use fhe::AesFheState;
 pub use key::AesFheRoundKeys;
 pub use plain::AesPlainState;
 
-use crate::shortint::{Ciphertext, ClientKey};
+use crate::named::Named;
+use crate::shortint::oprf::OprfSeed;
+use crate::shortint::{Ciphertext, ClientKey, ServerKey};
+use crate::transciphering::backward_compatibility::{AesIvVersions, SerializableAesFheKeyVersions};
 use crate::transciphering::ciphers::*;
+use crate::transciphering::TranscipheringServerKey;
+use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// Big endian byte order.
 ///
@@ -73,8 +79,69 @@ impl From<[bool; 128]> for AesPlainKey {
     }
 }
 
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[serde(into = "SerializableAesFheKey", try_from = "SerializableAesFheKey")]
+#[versionize(into = "SerializableAesFheKey", try_from = "SerializableAesFheKey")]
 pub struct AesFheKey {
     key: [Ciphertext; 128],
+}
+
+impl AesFheKey {
+    pub fn ciphertexts(&self) -> &[Ciphertext; 128] {
+        &self.key
+    }
+
+    pub fn random(
+        seed: impl OprfSeed,
+        transciphering_key: &TranscipheringServerKey,
+        sks: &ServerKey,
+    ) -> Self {
+        let encrypted_bits = transciphering_key
+            .oprf_key()
+            .generate_random_boolean_sequence(seed, 128, sks);
+        // Unwrap should not happen because the vec has 128 elements
+        let key: [Ciphertext; 128] = encrypted_bits.try_into().unwrap();
+
+        Self { key }
+    }
+
+    /// Decrypt the key bits
+    pub fn decrypt(&self, client_key: &ClientKey) -> AesPlainKey {
+        let mut decrypted_bits = [false; 128];
+        for (ct, out) in self.key.iter().zip(decrypted_bits.iter_mut()) {
+            *out = client_key.decrypt(ct) != 0;
+        }
+        AesPlainKey::from(decrypted_bits)
+    }
+}
+
+/// Serialization form of [`AesFheKey`]. The 128 key ciphertexts are stored in a
+/// `Vec` because serde/versionize don't support arrays longer than 32; the
+/// fixed-size array is restored on deserialization.
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(SerializableAesFheKeyVersions)]
+pub struct SerializableAesFheKey {
+    key: Vec<Ciphertext>,
+}
+
+impl From<AesFheKey> for SerializableAesFheKey {
+    fn from(value: AesFheKey) -> Self {
+        Self {
+            key: value.key.into(),
+        }
+    }
+}
+
+impl TryFrom<SerializableAesFheKey> for AesFheKey {
+    type Error = crate::Error;
+
+    fn try_from(value: SerializableAesFheKey) -> Result<Self, Self::Error> {
+        let len = value.key.len();
+        let key: [Ciphertext; 128] = value.key.try_into().map_err(|_| {
+            crate::error!("an AES key must hold exactly 128 ciphertexts, got {len}")
+        })?;
+        Ok(Self { key })
+    }
 }
 
 /// AES-128 IV / initial CTR counter, as a plain 128-bit integer.
@@ -82,7 +149,8 @@ pub struct AesFheKey {
 /// The counter is incremented directly (`iv + block_index`), the big-endian
 /// (NIST) convention only applies when bytes are involved, i.e. at the
 /// `[u8; 16]` / `[bool; 128]` construction boundaries.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize, Versionize)]
+#[versionize(AesIvVersions)]
 pub struct AesIv(u128);
 
 impl AesIv {
@@ -109,4 +177,8 @@ impl From<[bool; 128]> for AesIv {
         pack_bits_lsb_first(&value, &mut bits);
         bits.into()
     }
+}
+
+impl Named for AesIv {
+    const NAME: &'static str = "transciphering::AesIv";
 }

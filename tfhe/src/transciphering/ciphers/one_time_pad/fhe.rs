@@ -1,7 +1,19 @@
-use crate::shortint::ciphertext::{Ciphertext, NoiseLevel};
-use crate::shortint::server_key::ServerKey;
-use crate::transciphering::{FheKeyStream, InsufficientKeystream, StreamCipherKind, Transcipherer};
+use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
+use crate::shortint::ciphertext::{Ciphertext, NoiseLevel};
+use crate::shortint::client_key::ClientKey;
+use crate::shortint::oprf::OprfSeed;
+use crate::shortint::server_key::ServerKey;
+use crate::transciphering::backward_compatibility::OneTimePadFheSecretMaskVersions;
+use crate::transciphering::ciphers::one_time_pad::plain::OneTimePadPlainSecretMask;
+use crate::transciphering::ciphers::pack_bits_lsb_first;
+use crate::transciphering::{
+    FheKeyStream, InsufficientKeystream, StreamCipherKind, Transcipherer, TranscipheringServerKey,
+};
+
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(OneTimePadFheSecretMaskVersions)]
 pub struct OneTimePadFheSecretMask {
     /// Collection of encrypted random bits, from which one can pull secret bits to hide sensitive
     /// values by XOR-ing them together.
@@ -33,9 +45,45 @@ impl OneTimePadFheSecretMask {
         Self::try_new(secret_mask).unwrap()
     }
 
+    pub fn random(
+        seed: impl OprfSeed,
+        transciphering_key: &TranscipheringServerKey,
+        sks: &ServerKey,
+        n_bits: u64,
+    ) -> Self {
+        let encrypted_bits = transciphering_key
+            .oprf_key()
+            .generate_random_boolean_sequence(seed, n_bits, sks);
+
+        Self::new(encrypted_bits)
+    }
+
     /// Single bit per [`Ciphertext`].
     fn bit_count(&self) -> usize {
         self.secret_mask.len()
+    }
+
+    /// Borrow the pad bits, one single-bit shortint ciphertext per bit.
+    pub fn ciphertexts(&self) -> &[Ciphertext] {
+        &self.secret_mask
+    }
+
+    /// Decrypt the pad bits. Inverse of [`OneTimePadPlainSecretMask::encrypt`],
+    /// so the recovered mask drives a [`OneTimePadPlainState`] that stays in
+    /// step with the [`OneTimePadFheState`] built from `self`.
+    ///
+    /// [`OneTimePadPlainState`]: super::OneTimePadPlainState
+    pub fn decrypt(&self, client_key: &ClientKey) -> OneTimePadPlainSecretMask {
+        let bits: Vec<bool> = self
+            .secret_mask
+            .iter()
+            .map(|ct| client_key.decrypt(ct) != 0)
+            .collect();
+
+        let mut bytes = vec![0u8; bits.len().div_ceil(8)];
+        pack_bits_lsb_first(&bits, &mut bytes);
+
+        OneTimePadPlainSecretMask::new(bytes, bits.len())
     }
 }
 
@@ -51,6 +99,20 @@ impl OneTimePadFheState {
             secret_mask,
             current_counter: 0,
         }
+    }
+
+    pub fn random(
+        seed: impl OprfSeed,
+        transciphering_key: &TranscipheringServerKey,
+        sks: &ServerKey,
+        n_bits: u64,
+    ) -> Self {
+        Self::new(OneTimePadFheSecretMask::random(
+            seed,
+            transciphering_key,
+            sks,
+            n_bits,
+        ))
     }
 
     pub fn remaining_bits(&self) -> u64 {

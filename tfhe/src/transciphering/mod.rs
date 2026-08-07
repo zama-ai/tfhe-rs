@@ -15,9 +15,8 @@
 //! use rand::Rng;
 //! use tfhe::shortint::prelude::*;
 //! use tfhe::shortint::parameters::current_params::V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-//! use tfhe::transciphering::{StreamCipher, Transcipherer};
-//! use tfhe::transciphering::ciphers::kreyvium::{
-//!     KreyviumFheState, KreyviumPlainKey, KreyviumPlainState,
+//! use tfhe::transciphering::{
+//!     KreyviumFheState, KreyviumPlainKey, KreyviumPlainState, StreamCipher, Transcipherer,
 //! };
 //!
 //! let (client_key, server_key) =
@@ -51,6 +50,24 @@
 
 pub mod backward_compatibility;
 pub mod ciphers;
+mod keys;
+
+pub use keys::{
+    CompressedTranscipheringServerKey, ExpandedTranscipheringServerKey, TranscipheringPrivateKey,
+    TranscipheringServerKey,
+};
+
+pub use ciphers::aes::{
+    AesFheKey, AesFheRoundKeys, AesFheState, AesIv, AesPlainKey, AesPlainState,
+    SerializableAesFheKey,
+};
+pub use ciphers::kreyvium::{
+    KreyviumFheKey, KreyviumFheState, KreyviumIV, KreyviumPlainKey, KreyviumPlainState,
+    SerializableKreyviumFheKey,
+};
+pub use ciphers::one_time_pad::{
+    OneTimePadFheSecretMask, OneTimePadFheState, OneTimePadPlainSecretMask, OneTimePadPlainState,
+};
 
 use rayon::prelude::*;
 use tfhe_versionable::Versionize;
@@ -61,9 +78,6 @@ use crate::shortint::{Ciphertext, ServerKey};
 use crate::transciphering::backward_compatibility::{
     StreamCipherKindVersions, StreamCiphertextVersions,
 };
-use ciphers::aes::AesFheState;
-use ciphers::kreyvium::KreyviumFheState;
-use ciphers::one_time_pad::OneTimePadFheState;
 
 /// Identifier for a concrete stream-cipher family.
 ///
@@ -317,18 +331,7 @@ pub trait Transcipherer {
         sks: &ServerKey,
         input: &StreamCiphertext,
     ) -> Result<Vec<Ciphertext>, TranscipherError> {
-        if input.kind != self.kind() {
-            return Err(TranscipherError::KindMismatch {
-                session_kind: self.kind(),
-                ciphertext_kind: input.kind,
-            });
-        }
-        if input.encryption_counter != self.current_counter() {
-            return Err(TranscipherError::CounterMismatch {
-                session_counter: self.current_counter(),
-                ciphertext_counter: input.encryption_counter,
-            });
-        }
+        check_transcipher_input(self, input)?;
 
         let keystream = self.next_keystream_bits(sks, input.n_bits)?;
         Ok(apply_keystream(sks, &keystream, input))
@@ -434,6 +437,26 @@ impl<'a> IntoIterator for &'a FheKeyStream {
 /// LSB-first bit `i` of `bytes` (i.e. `bytes[i / 8] >> (i % 8) & 1`).
 fn bit_at(bytes: &[u8], i: usize) -> u8 {
     (bytes[i / 8] >> (i % 8)) & 1
+}
+
+fn check_transcipher_input<T: Transcipherer + ?Sized>(
+    transcipherer: &T,
+    input: &StreamCiphertext,
+) -> Result<(), TranscipherError> {
+    if input.kind != transcipherer.kind() {
+        return Err(TranscipherError::KindMismatch {
+            session_kind: transcipherer.kind(),
+            ciphertext_kind: input.kind,
+        });
+    }
+    if input.encryption_counter != transcipherer.current_counter() {
+        return Err(TranscipherError::CounterMismatch {
+            session_counter: transcipherer.current_counter(),
+            ciphertext_counter: input.encryption_counter,
+        });
+    }
+
+    Ok(())
 }
 
 /// Xor an FHE keystream with a clear [`StreamCiphertext`].

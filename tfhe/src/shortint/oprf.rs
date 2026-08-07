@@ -678,6 +678,31 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
                 prf_re_randomization_context,
             )
     }
+
+    /// Uniformly generates a sequence of encrypted random bits from a single seed in one call.
+    ///
+    /// Returns `num_blocks` blocks, each ciphertext encrypting a value in `[0, 2[`, i.e. a single
+    /// random bit whatever the message modulus of `target_sks`.
+    ///
+    /// # Panics
+    ///
+    /// * Panics if `self` is not compatible with `target_sks`
+    pub fn generate_random_boolean_sequence(
+        &self,
+        seed: impl OprfSeed,
+        num_blocks: u64,
+        target_sks: &ServerKey,
+    ) -> Vec<Ciphertext> {
+        self.inner
+            .generate_pseudo_random_bits_chunks(
+                seed,
+                &[num_blocks],
+                1, // Each ciphertext is a boolean
+                target_sks,
+            )
+            .pop()
+            .unwrap()
+    }
 }
 
 // Owned-only methods.

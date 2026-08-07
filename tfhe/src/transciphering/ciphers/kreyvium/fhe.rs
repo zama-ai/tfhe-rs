@@ -1,16 +1,31 @@
 //! TFHE implementation of the Kreyvium Algorithm
 
 use crate::shortint::ciphertext::NoiseLevel;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::oprf::OprfSeed;
+use crate::shortint::{Ciphertext, ClientKey, ServerKey};
+use crate::transciphering::backward_compatibility::SerializableKreyviumFheKeyVersions;
 use crate::transciphering::ciphers::shift_register::ShiftRegister;
-use crate::transciphering::{FheKeyStream, InsufficientKeystream, StreamCipherKind, Transcipherer};
+use crate::transciphering::{
+    FheKeyStream, InsufficientKeystream, StreamCipherKind, Transcipherer, TranscipheringServerKey,
+};
+use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 use super::{
-    collect_boxed_array, KreyviumBackwardRoundOutput, KreyviumIV, KreyviumRound,
+    collect_boxed_array, KreyviumBackwardRoundOutput, KreyviumIV, KreyviumPlainKey, KreyviumRound,
     KreyviumRoundInput, KreyviumRoundOutput, KreyviumState,
 };
 
 /// A kreyvium key encrypted in LWE, one ciphertext per bit
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[serde(
+    into = "SerializableKreyviumFheKey",
+    try_from = "SerializableKreyviumFheKey"
+)]
+#[versionize(
+    into = "SerializableKreyviumFheKey",
+    try_from = "SerializableKreyviumFheKey"
+)]
 pub struct KreyviumFheKey {
     cts: Box<[Ciphertext; 128]>,
 }
@@ -32,8 +47,68 @@ impl KreyviumFheKey {
         Self { cts }
     }
 
+    pub fn random(
+        seed: impl OprfSeed,
+        transciphering_key: &TranscipheringServerKey,
+        sks: &ServerKey,
+    ) -> Self {
+        let encrypted_bits = transciphering_key
+            .oprf_key()
+            .generate_random_boolean_sequence(seed, 128, sks);
+        // Unwrap should not happen because the vec has 128 elements
+        let boxed: Box<[Ciphertext; 128]> = encrypted_bits.into_boxed_slice().try_into().unwrap();
+
+        Self::new(boxed)
+    }
+
     pub fn init_state(self, iv: KreyviumIV, sk: &ServerKey) -> KreyviumFheState {
         KreyviumFheState::new(self, iv, sk)
+    }
+
+    /// Decrypt the key bits
+    pub fn decrypt(&self, client_key: &ClientKey) -> KreyviumPlainKey {
+        let mut decrypted_bits = [false; 128];
+        for (ct, out) in self.cts.iter().zip(decrypted_bits.iter_mut()) {
+            *out = client_key.decrypt(ct) != 0;
+        }
+        KreyviumPlainKey::from(decrypted_bits)
+    }
+
+    /// Borrow the underlying 128 single-bit shortint ciphertexts, MSB-first
+    /// within each byte of the packed key (see [`super::KreyviumPlainKey`]).
+    pub fn ciphertexts(&self) -> &[Ciphertext; 128] {
+        &self.cts
+    }
+}
+
+/// Serialization form of [`KreyviumFheKey`]. The 128 key ciphertexts are stored
+/// in a `Vec` because serde/versionize don't support arrays longer than 32; the
+/// fixed-size array is restored on deserialization.
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(SerializableKreyviumFheKeyVersions)]
+pub struct SerializableKreyviumFheKey {
+    cts: Vec<Ciphertext>,
+}
+
+impl From<KreyviumFheKey> for SerializableKreyviumFheKey {
+    fn from(value: KreyviumFheKey) -> Self {
+        let cts: Box<[Ciphertext]> = value.cts;
+        Self {
+            cts: cts.into_vec(),
+        }
+    }
+}
+
+impl TryFrom<SerializableKreyviumFheKey> for KreyviumFheKey {
+    type Error = crate::Error;
+
+    fn try_from(value: SerializableKreyviumFheKey) -> Result<Self, Self::Error> {
+        let len = value.cts.len();
+        let cts: Box<[Ciphertext; 128]> =
+            value.cts.into_boxed_slice().try_into().map_err(|_| {
+                crate::error!("a kreyvium key must hold exactly 128 ciphertexts, got {len}")
+            })?;
+        Ok(Self { cts })
     }
 }
 
