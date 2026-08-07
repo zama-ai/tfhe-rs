@@ -440,6 +440,8 @@ impl Program {
     /// Bulk reserve
     /// Evict value from cache in a bulk manner. This enable to prevent false dependency of bulk
     /// operations when cache is almost full Enforce that at least bulk_size register is `free`
+    /// NB: only used by the `fw-gen` firmware implementations
+    #[cfg_attr(not(feature = "fw-gen"), allow(dead_code))]
     pub(crate) fn reg_bulk_reserve(&self, bulk_size: usize) {
         // Iter from Lru -> MRu and take bulk_size regs
         let to_evict = self

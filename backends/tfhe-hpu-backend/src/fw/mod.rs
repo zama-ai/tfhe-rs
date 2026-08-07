@@ -4,7 +4,13 @@
 //! Provide two concrete implementation of those traits
 //! * DigitOperations (DOp)
 //! * IntegerOperations (IOp)
+//!
+//! WARN: The IOp -> DOp expansion implemented here is no longer used by the runtime.
+//! `HpuNode::fw_init` fills the translation table with the DOp streams produced by ZHC.
+//! The generators below are only built with the `fw-gen` feature (implied by `utils`),
+//! and are reachable through the `fw` utility binary only.
 
+#[cfg(feature = "fw-gen")]
 pub mod fw_impl;
 pub mod isc_sim;
 pub mod metavar;
@@ -12,7 +18,9 @@ pub mod program;
 pub mod rtl;
 
 use crate::asm;
+#[cfg(feature = "fw-gen")]
 use enum_dispatch::enum_dispatch;
+#[cfg(feature = "fw-gen")]
 use strum_macros::{EnumDiscriminants, EnumIter, EnumString, VariantNames};
 
 /// Parameters that reflect the targeted architecture
@@ -73,6 +81,7 @@ impl From<FwParameters> for asm::DigitParameters {
 
 /// Fw trait abstraction
 /// Use to handle Fw implementation in an abstract way
+#[cfg(feature = "fw-gen")]
 #[enum_dispatch]
 pub trait Fw {
     /// Expand a program of IOp into a program of DOp
@@ -80,6 +89,7 @@ pub trait Fw {
 }
 
 /// Gather available Fw in a enum for selection at runtime by user
+#[cfg(feature = "fw-gen")]
 #[enum_dispatch(Fw)]
 #[derive(EnumDiscriminants, VariantNames)]
 #[strum_discriminants(name(FwName))]
@@ -91,6 +101,7 @@ pub enum AvlblFw {
     Demo(fw_impl::demo::Demo),
 }
 
+#[cfg(feature = "fw-gen")]
 impl AvlblFw {
     pub fn new(kind: &FwName) -> Self {
         match kind {
