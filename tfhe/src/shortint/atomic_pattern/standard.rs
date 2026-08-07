@@ -143,9 +143,18 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
 
     fn ciphertext_decompression_method(&self) -> MsDecompressionType {
         match &self.bootstrapping_key {
-            ShortintBootstrappingKey::Classic { .. } => MsDecompressionType::ClassicPbs,
+            ShortintBootstrappingKey::Classic { bsk, .. } => MsDecompressionType::ClassicPbs {
+                br_input_modulus_log: bsk.polynomial_size().to_blind_rotation_input_modulus_log(),
+                br_input_lwe_dim: bsk.input_lwe_dimension(),
+            },
             ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
-                MsDecompressionType::MultiBitPbs(fourier_bsk.grouping_factor())
+                MsDecompressionType::MultiBitPbs {
+                    br_input_modulus_log: fourier_bsk
+                        .polynomial_size()
+                        .to_blind_rotation_input_modulus_log(),
+                    grouping_factor: fourier_bsk.grouping_factor(),
+                    br_input_lwe_dim: fourier_bsk.input_lwe_dimension(),
+                }
             }
         }
     }

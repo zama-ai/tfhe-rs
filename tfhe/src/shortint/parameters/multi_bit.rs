@@ -120,7 +120,11 @@ impl MultiBitPBSParameters {
 
         let compressed_ct_params = CompressedModulusSwitchedLweCiphertextConformanceParams {
             ct_params,
-            ms_decompression_type: MsDecompressionType::MultiBitPbs(self.grouping_factor),
+            ms_decompression_type: MsDecompressionType::MultiBitPbs {
+                br_input_modulus_log: self.polynomial_size.to_blind_rotation_input_modulus_log(),
+                grouping_factor: self.grouping_factor,
+                br_input_lwe_dim: self.lwe_dimension,
+            },
         };
 
         CompressedModulusSwitchedCiphertextConformanceParams {
