@@ -152,6 +152,21 @@ impl ServerKey {
         self.key.pbs_key()
     }
 
+    /// Returns the transciphering key, which the ciphers draw their key material from.
+    ///
+    /// Unlike [`Self::oprf_key`] this does not fall back to another key: transciphering key
+    /// material must not derive from the compute key nor from the general purpose OPRF key.
+    pub(in crate::high_level_api) fn transciphering_key(
+        &self,
+    ) -> crate::Result<&TranscipheringServerKey> {
+        self.key.transciphering_key.as_ref().ok_or_else(|| {
+            crate::error!(
+                "no transciphering key in this server key, \
+                the config it was built from needs `enable_transciphering`"
+            )
+        })
+    }
+
     /// Returns an OPRF key reference for pseudo-random generation.
     ///
     /// If a dedicated OPRF key was generated, it is used.

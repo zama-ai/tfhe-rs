@@ -1,0 +1,56 @@
+use crate::{core_crypto::prelude::Numeric, transciphering::StreamCiphertext};
+
+/// Message-modulus-agnostic description of a transciphered value's shape.
+///
+/// Similar to [`DataKind`](crate::integer::ciphertext::DataKind), but does not depend on
+/// FHE parameters.
+pub enum TranscipheredDataKind {
+    // We need to store the number of bits for data sizes that are not a multiple of 8
+    // Use u32 since this enum might be sent on the wire
+    Unsigned { bits: u32 },
+    Signed { bits: u32 },
+    Boolean,
+    // TODO: strings, need specific handling to obfuscate size?
+}
+
+/// A ciphertext encrypted using a stream cipher, that can be used in FHE after a transciphering round
+pub struct TranscipherInput {
+    /// The input bytes encrypted using the chosen stream cipher
+    ct: StreamCiphertext,
+    /// The high level representation of the value
+    data_kind: TranscipheredDataKind,
+}
+
+pub trait Transcipherable {
+    fn data_kind() -> TranscipheredDataKind;
+}
+
+impl Transcipherable for bool {
+    fn data_kind() -> TranscipheredDataKind {
+        TranscipheredDataKind::Boolean
+    }
+}
+
+impl<T> Transcipherable for T
+where
+    T: Numeric + std::ops::Shl<usize, Output = T>,
+{
+    fn data_kind() -> TranscipheredDataKind {
+        let is_signed = (T::ONE << (T::BITS - 1)) < T::ZERO;
+        if is_signed {
+            TranscipheredDataKind::Signed {
+                bits: T::BITS as u32,
+            }
+        } else {
+            TranscipheredDataKind::Unsigned {
+                bits: T::BITS as u32,
+            }
+        }
+    }
+}
+
+impl TranscipherInput {
+    pub fn encrypt<T: Transcipherable>(data: T) -> Self {}
+
+    pub fn encrypt_with_bits<T: Numeric>(data: T, num_bits: usize) -> Self {}
+}

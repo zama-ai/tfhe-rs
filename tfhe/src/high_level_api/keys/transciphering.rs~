@@ -1,0 +1,11 @@
+use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
+
+use crate::backward_compatibility::keys::TranscipheringKeysVersions;
+use crate::integer::oprf::OprfServerKey;
+
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(TranscipheringKeysVersions)]
+pub struct TranscipheringKeys {
+    oprf_key: OprfServerKey,
+}
