@@ -345,5 +345,18 @@ pub fn fft_impl_dispatch(n: usize) -> [fn(&mut [c64], &mut [c64], &[c64], &[c64]
             }
         }
     }
+    #[cfg(target_arch = "aarch64")]
+    {
+        if let Some(simd) = pulp::aarch64::NeonFcma::try_new() {
+            if n >= 4 * simd.lane_count() {
+                return fft_impl(simd).make_fn_ptr(n);
+            }
+        }
+        if let Some(simd) = pulp::aarch64::Neon::try_new() {
+            if n >= 4 * simd.lane_count() {
+                return fft_impl(simd).make_fn_ptr(n);
+            }
+        }
+    }
     fft_impl(crate::fft_simd::Scalar).make_fn_ptr(n)
 }
