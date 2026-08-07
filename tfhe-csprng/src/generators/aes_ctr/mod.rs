@@ -200,6 +200,16 @@ pub const AES_CALLS_PER_BATCH: usize = 8;
 pub const BYTES_PER_AES_CALL: usize = 128 / 8;
 pub const BYTES_PER_BATCH: usize = BYTES_PER_AES_CALL * AES_CALLS_PER_BATCH;
 
+/// The number of rounds and round keys of the AES variants.
+///
+/// A round key is consumed by the initial AddRoundKey step on top of one per round, hence the
+/// `+ 1`.
+pub(crate) const AES_128_NUM_ROUNDS: usize = 10;
+pub(crate) const AES_128_NUM_ROUND_KEYS: usize = AES_128_NUM_ROUNDS + 1;
+
+pub(crate) const AES_256_NUM_ROUNDS: usize = 14;
+pub(crate) const AES_256_NUM_ROUND_KEYS: usize = AES_256_NUM_ROUNDS + 1;
+
 #[derive(
     Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, tfhe_versionable::Versionize,
 )]
@@ -255,9 +265,9 @@ use crate::seeders::{Seed, SeedKind, XofSeed};
 #[cfg(feature = "parallel")]
 pub use parallel::*;
 
-pub(crate) fn xof_init(seed: XofSeed) -> (AesKey, AesIndex) {
-    let init_key = AesKey(0);
-    let mut aes = crate::generators::default::DefaultBlockCipher::new(init_key);
+pub(crate) fn xof_init_128(seed: XofSeed) -> (Aes128Key, AesIndex) {
+    let init_key = Aes128Key(0);
+    let mut aes = crate::generators::default::DefaultAes128BlockCipher::new(init_key);
 
     let blocks = seed
         .iter_u128_blocks()
@@ -271,7 +281,7 @@ pub(crate) fn xof_init(seed: XofSeed) -> (AesKey, AesIndex) {
     }
 
     let init = AesIndex(prev_c.to_le());
-    let key = AesKey(c);
+    let key = Aes128Key(c);
 
     (key, init)
 }

@@ -1,14 +1,16 @@
 use crate::generators::aes_ctr::{AesCtrGenerator, AesCtrParams, ChildrenIterator, TableIndex};
-use crate::generators::implem::soft::block_cipher::SoftwareBlockCipher;
-use crate::generators::{ByteCount, BytesPerChild, ChildrenCount, ForkError, RandomGenerator};
+use crate::generators::{
+    AnyAesBlockCipher, ByteCount, BytesPerChild, ChildrenCount, ForkError, RandomGenerator,
+    Software,
+};
 
 /// A random number generator using a software implementation.
-pub struct SoftwareRandomGenerator(pub(super) AesCtrGenerator<SoftwareBlockCipher>);
+pub struct SoftwareRandomGenerator(pub(super) AesCtrGenerator<AnyAesBlockCipher<Software>>);
 
 /// The children iterator used by [`SoftwareRandomGenerator`].
 ///
 /// Outputs children generators one by one.
-pub struct SoftwareChildrenIterator(ChildrenIterator<SoftwareBlockCipher>);
+pub struct SoftwareChildrenIterator(ChildrenIterator<AnyAesBlockCipher<Software>>);
 
 impl Iterator for SoftwareChildrenIterator {
     type Item = SoftwareRandomGenerator;
@@ -53,59 +55,62 @@ impl Iterator for SoftwareRandomGenerator {
 mod test {
     use super::*;
     use crate::generators::aes_ctr::aes_ctr_generic_test;
-    use crate::generators::generator_generic_test;
+    use crate::generators::{generator_generic_test, SoftwareAes128BlockCipher};
 
     // We use powerpc64 as the target to test behavior on big-endian
     // However, we run these tests using an emulator. Thus, these get really slow
     // so we skip them
     #[cfg(not(target_arch = "powerpc64"))]
     mod fork_tests {
+        use crate::generators::SoftwareAes128BlockCipher;
+
         use super::*;
 
         #[test]
         fn prop_fork_first_state_table_index() {
-            aes_ctr_generic_test::prop_fork_first_state_table_index::<SoftwareBlockCipher>();
+            aes_ctr_generic_test::prop_fork_first_state_table_index::<SoftwareAes128BlockCipher>();
         }
 
         #[test]
         fn prop_fork_last_bound_table_index() {
-            aes_ctr_generic_test::prop_fork_last_bound_table_index::<SoftwareBlockCipher>();
+            aes_ctr_generic_test::prop_fork_last_bound_table_index::<SoftwareAes128BlockCipher>();
         }
 
         #[test]
         fn prop_fork_parent_bound_table_index() {
-            aes_ctr_generic_test::prop_fork_parent_bound_table_index::<SoftwareBlockCipher>();
+            aes_ctr_generic_test::prop_fork_parent_bound_table_index::<SoftwareAes128BlockCipher>();
         }
 
         #[test]
         fn prop_fork_parent_state_table_index() {
-            aes_ctr_generic_test::prop_fork_parent_state_table_index::<SoftwareBlockCipher>();
+            aes_ctr_generic_test::prop_fork_parent_state_table_index::<SoftwareAes128BlockCipher>();
         }
 
         #[test]
         fn prop_fork() {
-            aes_ctr_generic_test::prop_fork::<SoftwareBlockCipher>();
+            aes_ctr_generic_test::prop_fork::<SoftwareAes128BlockCipher>();
         }
 
         #[test]
         fn prop_fork_with_parent_continuation() {
-            aes_ctr_generic_test::prop_fork_with_parent_continuation::<SoftwareBlockCipher>();
+            aes_ctr_generic_test::prop_fork_with_parent_continuation::<SoftwareAes128BlockCipher>();
         }
 
         #[test]
         fn prop_fork_children_remaining_bytes() {
-            aes_ctr_generic_test::prop_fork_children_remaining_bytes::<SoftwareBlockCipher>();
+            aes_ctr_generic_test::prop_fork_children_remaining_bytes::<SoftwareAes128BlockCipher>();
         }
 
         #[test]
         fn prop_fork_parent_remaining_bytes() {
-            aes_ctr_generic_test::prop_fork_parent_remaining_bytes::<SoftwareBlockCipher>();
+            aes_ctr_generic_test::prop_fork_parent_remaining_bytes::<SoftwareAes128BlockCipher>();
         }
 
         #[test]
         fn prop_different_offset_means_different_output() {
-            aes_ctr_generic_test::prop_different_offset_means_different_output::<SoftwareBlockCipher>(
-            );
+            aes_ctr_generic_test::prop_different_offset_means_different_output::<
+                SoftwareAes128BlockCipher,
+            >();
         }
 
         #[test]
@@ -121,12 +126,13 @@ mod test {
 
     #[test]
     fn test_conformance_with_ctr_crate() {
-        aes_ctr_generic_test::test_conformance_with_ctr_crate::<SoftwareBlockCipher>();
+        aes_ctr_generic_test::test_conformance_with_ctr_crate::<SoftwareAes128BlockCipher>();
     }
 
     #[test]
     fn test_forking_conformance_with_ctr_crate() {
-        aes_ctr_generic_test::test_forking_conformance_with_ctr_crate::<SoftwareBlockCipher>();
+        aes_ctr_generic_test::test_forking_conformance_with_ctr_crate::<SoftwareAes128BlockCipher>(
+        );
     }
 
     #[test]

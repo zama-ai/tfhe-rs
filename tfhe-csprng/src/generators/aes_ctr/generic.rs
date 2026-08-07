@@ -1,10 +1,12 @@
 use std::ops::Bound;
 
-use crate::generators::aes_ctr::block_cipher::{AesBlockCipher, AesKey};
+use crate::generators::aes_ctr::block_cipher::{Aes128Key, AesBlockCipher};
 use crate::generators::aes_ctr::index::TableIndex;
 use crate::generators::aes_ctr::states::{BufferPointer, ShiftAction, State};
 use crate::generators::aes_ctr::{AesIndex, BYTES_PER_BATCH};
-use crate::generators::{widening_mul, ByteCount, BytesPerChild, ChildrenCount, ForkError};
+use crate::generators::{
+    widening_mul, AnyAesKey, ByteCount, BytesPerChild, ChildrenCount, ForkError,
+};
 
 // Usually, to work with iterators and parallel iterators, we would use opaque types such as
 // `impl Iterator<..>`. Unfortunately, it is not yet possible to return existential types in
@@ -49,7 +51,7 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
     /// - `Bound::Included(x)` — bytes up to and including `x`
     /// - `Bound::Unbounded` — all bytes up to and including `TableIndex::LAST`
     pub(crate) fn new(
-        key: AesKey,
+        key: BlockCipher::Key,
         start_index: TableIndex,
         end: Bound<TableIndex>,
         offset: AesIndex,
@@ -80,17 +82,26 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
         }
     }
 
-    pub(crate) fn from_params(params: impl Into<super::AesCtrParams>) -> Self {
+    pub(crate) fn from_params(params: impl Into<super::AesCtrParams>) -> Self
+    where
+        BlockCipher: AesBlockCipher<Key = crate::generators::AnyAesKey>,
+    {
         use crate::seeders::SeedKind;
         let params = params.into();
         let (key, offset) = match &params.seed {
-            // AesKey has an unspoken requirement to have bytes in an order independent of
+            // Aes128Key has an unspoken requirement to have bytes in an order independent of
             // platform endianness, problem is the Seed(u128) has an endianness, meaning
             // 1u128 == [1, 0, ..., 0] for little endian
             // but
             // 1u128 == [0, ..., 0, 1] for big endian
-            SeedKind::Ctr(s) => (AesKey(u128::from_le(s.0)), AesIndex(0)),
-            SeedKind::Xof(xof) => super::xof_init(xof.clone()),
+            SeedKind::Ctr(s) => (
+                AnyAesKey::Aes128(Aes128Key(u128::from_le(s.0))),
+                AesIndex(0),
+            ),
+            SeedKind::Xof(xof) => {
+                let (key, index) = super::xof_init_128(xof.clone());
+                (AnyAesKey::Aes128(key), index)
+            }
         };
         Self::new(key, params.first_index, Bound::Unbounded, offset)
     }
@@ -221,8 +232,8 @@ pub mod aes_ctr_generic_test {
         std::iter::repeat_with(|| BytesPerChild(thread_rng().gen::<u64>() % 2048 + 1))
     }
 
-    pub fn any_key() -> impl Iterator<Item = AesKey> {
-        std::iter::repeat_with(|| AesKey(thread_rng().gen()))
+    pub fn any_key() -> impl Iterator<Item = Aes128Key> {
+        std::iter::repeat_with(|| Aes128Key(thread_rng().gen()))
     }
 
     /// Output a valid fork:
@@ -250,7 +261,7 @@ pub mod aes_ctr_generic_test {
     /// Check the property:
     ///     On a valid fork, the table index of the first child is the same as the table index of
     ///     the parent before the fork.
-    pub fn prop_fork_first_state_table_index<G: AesBlockCipher>() {
+    pub fn prop_fork_first_state_table_index<G: AesBlockCipher<Key = Aes128Key>>() {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
@@ -274,7 +285,7 @@ pub mod aes_ctr_generic_test {
     /// Check the property:
     ///     On a valid fork, the table index of the first byte outputted by the parent after the
     ///     fork, is the bound of the last child of the fork.
-    pub fn prop_fork_last_bound_table_index<G: AesBlockCipher>() {
+    pub fn prop_fork_last_bound_table_index<G: AesBlockCipher<Key = Aes128Key>>() {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
@@ -299,7 +310,7 @@ pub mod aes_ctr_generic_test {
 
     /// Check the property:
     ///     On a valid fork, the bound of the parent does not change.
-    pub fn prop_fork_parent_bound_table_index<G: AesBlockCipher>() {
+    pub fn prop_fork_parent_bound_table_index<G: AesBlockCipher<Key = Aes128Key>>() {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
@@ -323,7 +334,7 @@ pub mod aes_ctr_generic_test {
     /// Check the property:
     ///     On a valid fork, the parent table index is increased of the number of children
     ///     multiplied by the number of bytes per child.
-    pub fn prop_fork_parent_state_table_index<G: AesBlockCipher>() {
+    pub fn prop_fork_parent_state_table_index<G: AesBlockCipher<Key = Aes128Key>>() {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
@@ -347,7 +358,7 @@ pub mod aes_ctr_generic_test {
     /// Check the property:
     ///     On a valid fork, the bytes outputted by the children in the fork order form the same
     ///     sequence the parent would have had yielded no fork had happened.
-    pub fn prop_fork<G: AesBlockCipher>() {
+    pub fn prop_fork<G: AesBlockCipher<Key = Aes128Key>>() {
         for _ in 0..1000 {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let offset = AesIndex(rand::random());
@@ -378,7 +389,7 @@ pub mod aes_ctr_generic_test {
     /// Check the property:
     ///     On a valid fork, all children got a number of remaining bytes equals to the number of
     ///     bytes per child given as fork input.
-    pub fn prop_fork_children_remaining_bytes<G: AesBlockCipher>() {
+    pub fn prop_fork_children_remaining_bytes<G: AesBlockCipher<Key = Aes128Key>>() {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
@@ -402,7 +413,7 @@ pub mod aes_ctr_generic_test {
     /// Check the property:
     ///     On a valid fork, the number of remaining bybtes of the parent is reduced by the number
     ///     of children multiplied by the number of bytes per child.
-    pub fn prop_fork_parent_remaining_bytes<G: AesBlockCipher>() {
+    pub fn prop_fork_parent_remaining_bytes<G: AesBlockCipher<Key = Aes128Key>>() {
         for _ in 0..REPEATS {
             let (t, nc, nb, i) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
@@ -463,8 +474,8 @@ pub mod aes_ctr_generic_test {
 
     // Builds an AesCtrGenerator and a Ctr128LE using parameters
     // such that they should produce same outputs
-    pub(crate) fn make_ctr_pair<G: AesBlockCipher>(
-        key: AesKey,
+    pub(crate) fn make_ctr_pair<G: AesBlockCipher<Key = Aes128Key>>(
+        key: Aes128Key,
         aes_idx: u128,
         byte_idx: usize,
         offset: u128,
@@ -484,11 +495,11 @@ pub mod aes_ctr_generic_test {
     /// Check that our AesCtrGenerator produces the same keystream as `Ctr128LE<Aes128>` from
     /// the RustCrypto `ctr` crate. CTR mode XORs plaintext with AES keystream, so encrypting
     /// zeros gives the raw keystream for comparison.
-    pub fn test_conformance_with_ctr_crate<G: AesBlockCipher>() {
+    pub fn test_conformance_with_ctr_crate<G: AesBlockCipher<Key = Aes128Key>>() {
         let mut rng = thread_rng();
 
         for _ in 0..1_000 {
-            let key = AesKey(rng.gen());
+            let key = Aes128Key(rng.gen());
             let aes_idx: u128 = rng.gen();
             let offset: u128 = rng.gen();
 
@@ -507,7 +518,7 @@ pub mod aes_ctr_generic_test {
     /// Check that our AesCtrGenerator produces the same keystream as `Ctr128LE<Aes128>` from
     /// the RustCrypto `ctr` crate. CTR mode XORs plaintext with AES keystream, so encrypting
     /// zeros gives the raw keystream for comparison.
-    pub fn test_forking_conformance_with_ctr_crate<G: AesBlockCipher>() {
+    pub fn test_forking_conformance_with_ctr_crate<G: AesBlockCipher<Key = Aes128Key>>() {
         let mut rng = thread_rng();
 
         fn random_tuple_less_or_equal_than(rng: &mut ThreadRng, x: u64) -> (u64, u64) {
@@ -529,7 +540,7 @@ pub mod aes_ctr_generic_test {
         }
 
         for _ in 0..1_000 {
-            let key = AesKey(rng.gen());
+            let key = Aes128Key(rng.gen());
             let aes_idx: u128 = rng.gen_range(0..u128::MAX);
             let offset: u128 = rng.gen();
 
@@ -572,7 +583,7 @@ pub mod aes_ctr_generic_test {
     ///     On a valid fork, the bytes outputted by the children in fork order, followed by the
     ///     remaining parent bytes, form the same sequence the parent would have yielded had no
     ///     fork happened.
-    pub fn prop_fork_with_parent_continuation<G: AesBlockCipher>() {
+    pub fn prop_fork_with_parent_continuation<G: AesBlockCipher<Key = Aes128Key>>() {
         for _ in 0..10_000 {
             let (t, nc, nb, num_extra_bytes) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
@@ -626,7 +637,7 @@ pub mod aes_ctr_generic_test {
         }
     }
 
-    pub fn prop_different_offset_means_different_output<G: AesBlockCipher>() {
+    pub fn prop_different_offset_means_different_output<G: AesBlockCipher<Key = Aes128Key>>() {
         for _ in 0..10_000 {
             let (t, nc, nb, num_extra_bytes) = any_valid_fork().next().unwrap();
             let k = any_key().next().unwrap();
