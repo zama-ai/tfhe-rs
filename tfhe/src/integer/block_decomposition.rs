@@ -416,6 +416,7 @@ where
         if T::BITS <= unsigned_integer_size as usize {
             recomposer.value()
         } else {
+            // dbg! does not work for unsigned_integer_size == T::BITS - 1 if T is signed
             let mask = (T::ONE << unsigned_integer_size) - T::ONE;
             recomposer.value() & mask
         }
