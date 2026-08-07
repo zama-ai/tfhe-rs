@@ -255,9 +255,9 @@ use crate::seeders::{Seed, SeedKind, XofSeed};
 #[cfg(feature = "parallel")]
 pub use parallel::*;
 
-pub(crate) fn xof_init(seed: XofSeed) -> (AesKey, AesIndex) {
-    let init_key = AesKey(0);
-    let mut aes = crate::generators::default::DefaultBlockCipher::new(init_key);
+pub(crate) fn xof_init_128(seed: XofSeed) -> (Aes128Key, AesIndex) {
+    let init_key = Aes128Key(0);
+    let mut aes = crate::generators::default::DefaultBlockCipher128::new(init_key);
 
     let blocks = seed
         .iter_u128_blocks()
@@ -271,7 +271,7 @@ pub(crate) fn xof_init(seed: XofSeed) -> (AesKey, AesIndex) {
     }
 
     let init = AesIndex(prev_c.to_le());
-    let key = AesKey(c);
+    let key = Aes128Key(c);
 
     (key, init)
 }

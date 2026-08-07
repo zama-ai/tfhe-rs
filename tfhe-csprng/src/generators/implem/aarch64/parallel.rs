@@ -1,7 +1,8 @@
 use super::*;
 use crate::generators::aes_ctr::{AesCtrGenerator, ParallelChildrenIterator};
-use crate::generators::implem::aarch64::block_cipher::ArmAesBlockCipher;
-use crate::generators::{BytesPerChild, ChildrenCount, ForkError, ParallelRandomGenerator};
+use crate::generators::{
+    AnyAesBlockCipher, BytesPerChild, ChildrenCount, ForkError, ParallelRandomGenerator,
+};
 use rayon::iter::plumbing::{Consumer, ProducerCallback, UnindexedConsumer};
 use rayon::prelude::*;
 
@@ -11,8 +12,8 @@ use rayon::prelude::*;
 #[allow(clippy::type_complexity)]
 pub struct ParallelArmAesChildrenIterator(
     rayon::iter::Map<
-        ParallelChildrenIterator<ArmAesBlockCipher>,
-        fn(AesCtrGenerator<ArmAesBlockCipher>) -> NeonAesRandomGenerator,
+        ParallelChildrenIterator<AnyAesBlockCipher<Arm>>,
+        fn(AesCtrGenerator<AnyAesBlockCipher<Arm>>) -> NeonAesRandomGenerator,
     >,
 );
 
@@ -55,51 +56,56 @@ impl ParallelRandomGenerator for NeonAesRandomGenerator {
 #[cfg(test)]
 mod test {
     use crate::generators::aes_ctr::aes_ctr_parallel_generic_tests;
-    use crate::generators::implem::aarch64::block_cipher::ArmAesBlockCipher;
+    use crate::generators::implem::aarch64::block_cipher::ArmAes128BlockCipher;
 
     #[test]
     fn prop_fork_first_state_table_index() {
-        aes_ctr_parallel_generic_tests::prop_fork_first_state_table_index::<ArmAesBlockCipher>();
+        aes_ctr_parallel_generic_tests::prop_fork_first_state_table_index::<ArmAes128BlockCipher>();
     }
 
     #[test]
     fn prop_fork_last_bound_table_index() {
-        aes_ctr_parallel_generic_tests::prop_fork_last_bound_table_index::<ArmAesBlockCipher>();
+        aes_ctr_parallel_generic_tests::prop_fork_last_bound_table_index::<ArmAes128BlockCipher>();
     }
 
     #[test]
     fn prop_fork_parent_bound_table_index() {
-        aes_ctr_parallel_generic_tests::prop_fork_parent_bound_table_index::<ArmAesBlockCipher>();
+        aes_ctr_parallel_generic_tests::prop_fork_parent_bound_table_index::<ArmAes128BlockCipher>(
+        );
     }
 
     #[test]
     fn prop_fork_parent_state_table_index() {
-        aes_ctr_parallel_generic_tests::prop_fork_parent_state_table_index::<ArmAesBlockCipher>();
+        aes_ctr_parallel_generic_tests::prop_fork_parent_state_table_index::<ArmAes128BlockCipher>(
+        );
     }
 
     #[test]
     fn prop_fork_ttt() {
-        aes_ctr_parallel_generic_tests::prop_fork::<ArmAesBlockCipher>();
+        aes_ctr_parallel_generic_tests::prop_fork::<ArmAes128BlockCipher>();
     }
 
     #[test]
     fn prop_fork_children_remaining_bytes() {
-        aes_ctr_parallel_generic_tests::prop_fork_children_remaining_bytes::<ArmAesBlockCipher>();
+        aes_ctr_parallel_generic_tests::prop_fork_children_remaining_bytes::<ArmAes128BlockCipher>(
+        );
     }
 
     #[test]
     fn prop_fork_parent_remaining_bytes() {
-        aes_ctr_parallel_generic_tests::prop_fork_parent_remaining_bytes::<ArmAesBlockCipher>();
+        aes_ctr_parallel_generic_tests::prop_fork_parent_remaining_bytes::<ArmAes128BlockCipher>();
     }
 
     #[test]
     fn prop_fork_with_parent_continuation() {
-        aes_ctr_parallel_generic_tests::prop_fork_with_parent_continuation::<ArmAesBlockCipher>();
+        aes_ctr_parallel_generic_tests::prop_fork_with_parent_continuation::<ArmAes128BlockCipher>(
+        );
     }
 
     #[test]
     fn test_forking_conformance_with_ctr_crate() {
-        aes_ctr_parallel_generic_tests::test_forking_conformance_with_ctr_crate::<ArmAesBlockCipher>(
-        );
+        aes_ctr_parallel_generic_tests::test_forking_conformance_with_ctr_crate::<
+            ArmAes128BlockCipher,
+        >();
     }
 }
