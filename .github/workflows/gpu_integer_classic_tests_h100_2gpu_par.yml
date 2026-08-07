@@ -1,5 +1,5 @@
-# Test unsigned integers on an RTXA6000 VM on hyperstack with the classical PBS
-name: gpu_unsigned_integer_classic_tests
+# Run signed and unsigned integer GPU classic tests in parallel on a 2xH100 machine
+name: gpu_integer_classic_tests_h100_2gpu_par
 
 env:
   CARGO_TERM_COLOR: always
@@ -15,14 +15,13 @@ env:
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
   PULL_REQUEST_MD_LINK: ""
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
-  # Secrets will be available only to zama-ai organization members
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
   EXTERNAL_CONTRIBUTION_RUNNER: "gpu_ubuntu-22.04"
 
 on:
-  # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   pull_request:
+    types: [ labeled ]
 
 permissions:
   contents: read
@@ -31,7 +30,7 @@ permissions:
 
 jobs:
   should-run:
-    name: gpu_unsigned_integer_classic_tests/should-run
+    name: gpu_integer_classic_tests_h100_2gpu_par/should-run
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read  # Needed to check for file change
@@ -39,7 +38,7 @@ jobs:
       gpu_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.gpu_any_changed }}
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           fetch-depth: 0
           persist-credentials: 'false'
@@ -62,16 +61,16 @@ jobs:
               - tfhe/src/shortint/parameters/**
               - tfhe/src/high_level_api/**
               - tfhe/src/c_api/**
-              - '.github/workflows/gpu_unsigned_integer_classic_tests.yml'
+              - '.github/workflows/gpu_integer_classic_tests_h100_2gpu_par.yml'
               - scripts/integer-tests.sh
               - '.github/actions/gpu_setup/action.yml'
               - ci/slab.toml
 
   setup-instance:
-    name: gpu_unsigned_integer_classic_tests/setup-instance
+    name: gpu_integer_classic_tests_h100_2gpu_par/setup-instance
     needs: should-run
-    if: github.event_name == 'workflow_dispatch' ||
-      needs.should-run.outputs.gpu_test == 'true'
+    if: github.event_name != 'pull_request' ||
+      (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true')
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
@@ -86,10 +85,9 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: hyperstack
-          profile: gpu-test
+          backend: terraform
+          profile: scaleway-2-h100-sxm5-tests
 
-      # This instance will be spawned especially for pull-request from forked repository
       - name: Start GitHub instance
         id: start-github-instance
         if: env.SECRETS_AVAILABLE == 'false'
@@ -100,7 +98,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   cuda-tests-linux:
-    name: gpu_unsigned_integer_classic_tests/cuda-tests-linux
+    name: gpu_integer_classic_tests_h100_2gpu_par/cuda-tests-linux
     needs: [ should-run, setup-instance ]
     if: github.event_name != 'pull_request' ||
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
@@ -110,15 +108,14 @@ jobs:
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
       fail-fast: false
-      # explicit include-based build matrix, of known valid options
       matrix:
         include:
           - os: ubuntu-22.04
             cuda: "12.8 12.2"
-            gcc: 12 
+            gcc: 12
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
@@ -134,15 +131,54 @@ jobs:
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
           toolchain: stable
+
+      - name: Check GPU count
+        run: |
+          GPU_COUNT=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
+          echo "Found ${GPU_COUNT} GPU(s)"
+          [ "${GPU_COUNT}" -ge 2 ] || { echo "Error: at least 2 GPUs required"; exit 1; }
+
       - name: Enable nvidia multi-process service
         run: |
           nvidia-cuda-mps-control -d
-      - name: Run unsigned integer tests
+
+      - name: Install cargo-nextest
+        run: make install_cargo_nextest
+
+      - name: Run signed and unsigned integer classic tests in parallel
         run: |
-          BIG_TESTS_INSTANCE=TRUE make test_unsigned_integer_gpu_ci
+          run_signed() {
+            local rc=0
+            CUDA_VISIBLE_DEVICES=0 BIG_TESTS_INSTANCE=TRUE make test_signed_integer_gpu_ci || rc=$?
+            echo "${rc}" > /tmp/signed.rc
+          }
+          run_unsigned() {
+            local rc=0
+            CUDA_VISIBLE_DEVICES=1 BIG_TESTS_INSTANCE=TRUE make test_unsigned_integer_gpu_ci || rc=$?
+            echo "${rc}" > /tmp/unsigned.rc
+          }
+          run_signed 2>&1 | sed -u 's/^/[signed]   /' &
+          PID0=$!
+          run_unsigned 2>&1 | sed -u 's/^/[unsigned] /' &
+          PID1=$!
+          wait "${PID0}" || true
+          wait "${PID1}" || true
+
+          STATUS=0
+          for lane in signed unsigned; do
+            rc="$(cat "/tmp/${lane}.rc" 2>/dev/null || true)"
+            rc="${rc:-1}"
+            if [ "${rc}" -eq 0 ]; then
+              echo "${lane} integer tests passed"
+            else
+              echo "::error title=${lane} integer GPU tests::exited with code ${rc}, see the lines prefixed with [${lane}] above"
+              STATUS=1
+            fi
+          done
+          exit "${STATUS}"
 
   slack-notify:
-    name: gpu_unsigned_integer_classic_tests/slack-notify
+    name: gpu_integer_classic_tests_h100_2gpu_par/slack-notify
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
     if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' && failure() }}
@@ -161,10 +197,10 @@ jobs:
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
           SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
-          SLACK_MESSAGE: "Unsigned integer GPU classic tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
+          SLACK_MESSAGE: "Integer GPU H100 2-GPU parallel classic tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: gpu_unsigned_integer_classic_tests/teardown-instance
+    name: gpu_integer_classic_tests_h100_2gpu_par/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
@@ -185,4 +221,4 @@ jobs:
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cuda-unsigned-classic-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (gpu_integer_classic_tests_h100_2gpu_par) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
