@@ -461,9 +461,7 @@ fn check_transcipher_input<T: Transcipherer + ?Sized>(
 
 /// Xor an FHE keystream with a clear [`StreamCiphertext`].
 ///
-/// Validates that `input` was produced by a cipher in the same family as the
-/// `keystream` (which the caller asserts implicitly by pairing them). The
-/// number of keystream bits consumed is `input.n_bits()`.
+/// The number of keystream bits consumed is `input.n_bits()`.
 pub fn apply_keystream(
     sks: &ServerKey,
     keystream: &FheKeyStream,
