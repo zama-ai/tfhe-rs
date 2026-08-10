@@ -5,7 +5,7 @@ import argparse
 import json
 import sys
 
-ACCEPTED_TEST_PREFIX = "tfhe::hlapi::erc7984::transfer"
+ACCEPTED_TEST_PREFIX = "tfhe::"
 
 
 # Looks at the Slab JSON benchmark results and aggregates the "value" field.
@@ -51,8 +51,14 @@ def merge_multi_group_results(input_files, output_file, bench_type):
         for test in accumulated:
             accumulated[test]["value"] /= counts[test]
 
+    num_groups = len(input_files)
     for test, point in accumulated.items():
-        print(f"merged {bench_type} over {counts[test]} groups: {test} = {point['value']:.1f}")
+        if counts[test] != num_groups:
+            print(
+                f"Warning: test '{test}' was only found in {counts[test]}/{num_groups} groups",
+                file=sys.stderr,
+            )
+        print(f"{test} = {point['value']:.1f}")
 
     result = dict(metadata)
     result["points"] = list(accumulated.values())

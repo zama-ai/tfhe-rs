@@ -30,6 +30,8 @@ on:
         default: integer
         options:
           - integer
+          - integer_multi_group
+          - signed_integer_multi_group
           - integer_compression
           - pbs
           - pbs128

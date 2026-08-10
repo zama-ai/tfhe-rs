@@ -1562,6 +1562,7 @@ mod cuda {
     use super::*;
     use benchmark::params::ParamsAndNumBlocksIter;
     use benchmark::utilities::cuda_integer_utils::{cuda_local_keys, cuda_local_streams};
+    use benchmark::utilities::sync_bench_gpu_processes;
     use criterion::criterion_group;
     use rayon::iter::IntoParallelRefIterator;
     use std::cmp::max;
@@ -1661,6 +1662,7 @@ mod cuda {
 
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
+                    sync_bench_gpu_processes();
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
                             let local_streams = cuda_local_streams(num_block, elements as usize);
@@ -1822,6 +1824,7 @@ mod cuda {
 
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
+                    sync_bench_gpu_processes();
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
                             let local_streams = cuda_local_streams(num_block, elements as usize);
@@ -1975,6 +1978,7 @@ mod cuda {
 
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
+                    sync_bench_gpu_processes();
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
                             let local_streams = cuda_local_streams(num_block, elements as usize);
@@ -2145,6 +2149,7 @@ mod cuda {
 
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
+                    sync_bench_gpu_processes();
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
                             let local_streams = cuda_local_streams(num_block, elements as usize);
@@ -2312,6 +2317,7 @@ mod cuda {
 
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
+                    sync_bench_gpu_processes();
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
                             let local_streams = cuda_local_streams(num_block, elements as usize);

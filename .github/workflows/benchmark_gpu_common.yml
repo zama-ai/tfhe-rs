@@ -220,6 +220,11 @@ jobs:
         with:
           toolchain: nightly
 
+      - name: Resolve GPU hardware name
+        uses: ./.github/actions/resolve_gpu_hardware
+        with:
+          requested-hardware-name: ${{ inputs.hardware_name }}
+
       - name: Run benchmarks
         run: |
           make BIT_SIZES_SET="${PRECISIONS_SET}" BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" BENCH_PARAM_TYPE="${BENCH_PARAMS_TYPE}" bench_"${BENCH_COMMAND}"_gpu
@@ -231,15 +236,12 @@ jobs:
           PRECISIONS_SET: ${{ inputs.precisions_set }}
           __TFHE_RS_BENCH_ERC7984_FILTER: ${{ inputs.erc7984_filter }}
 
-      - name: Collect GPU information
-        run: nvidia-smi --query-gpu=name --format=csv,noheader | tee gpu_info.txt
-
       - name: Parse results
-        if: ${{ inputs.command != 'hlapi_erc7984_multi_group' }}
+        if: ${{ !endsWith(inputs.command, '_multi_group') }}
         run: |
           cargo run --release -p tfhe-benchmark-parser -- -i target/criterion -o "${RESULTS_FILENAME}" \
           --database tfhe_rs \
-          --hardware "${INPUTS_HARDWARE_NAME}" \
+          --hardware "${HARDWARE_NAME}" \
           --backend cuda \
           --project-version "${COMMIT_HASH}" \
           --branch "${REF_NAME}" \
@@ -249,21 +251,19 @@ jobs:
           --name-suffix avx512 \
           --bench-type "${BENCH_TYPE}"
         env:
-          INPUTS_HARDWARE_NAME: ${{ inputs.hardware_name }}
           REF_NAME: ${{ github.ref_name }}
           BENCH_TYPE: ${{ matrix.bench_type }}
 
-      - name: Parse and merge erc7984_multi_group results
-        if: ${{ inputs.command == 'hlapi_erc7984_multi_group' }}
+      - name: Parse and merge multi_group results
+        if: ${{ endsWith(inputs.command, '_multi_group') }}
         run: |
-          # The bench runs one process per gpu, so there are as many result dirs as gpus
-          NUM_GROUPS=$(wc -l < gpu_info.txt)
+          echo "Merging results from ${NUM_GROUPS} groups"
           group_results=()
           for i in $(seq 0 $((NUM_GROUPS - 1))); do
             group_result="parsed_benchmark_results_p${i}_${GITHUB_SHA}.json"
             cargo run --release -p tfhe-benchmark-parser -- -i "tfhe-benchmark/target_p${i}/criterion" -o "${group_result}" \
             --database tfhe_rs \
-            --hardware "${INPUTS_HARDWARE_NAME}" \
+            --hardware "${HARDWARE_NAME}" \
             --backend cuda \
             --project-version "${COMMIT_HASH}" \
             --branch "${REF_NAME}" \
@@ -275,7 +275,6 @@ jobs:
           done
           python3 ./ci/merge_multi_group_results.py --bench-type "${BENCH_TYPE}" --output "${RESULTS_FILENAME}" "${group_results[@]}"
         env:
-          INPUTS_HARDWARE_NAME: ${{ inputs.hardware_name }}
           REF_NAME: ${{ github.ref_name }}
           BENCH_TYPE: ${{ matrix.bench_type }}
 

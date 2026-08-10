@@ -1,0 +1,28 @@
+name: Resolve GPU hardware name
+description: >
+  Rename the requested hardware profile after the GPUs nvidia-smi reports, since Slab silently falls
+  back to another machine when the requested one is unavailable. Writes the GPU list to gpu_info.txt
+  and exports HARDWARE_NAME and NUM_GROUPS (one group per GPU) to GITHUB_ENV.
+
+inputs:
+  requested-hardware-name:
+    description: Hardware name of the profile requested to Slab
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Collect GPU information
+      shell: bash
+      run: |
+        nvidia-smi --query-gpu=name --format=csv,noheader | tee gpu_info.txt
+
+    - name: Resolve GPU hardware name
+      shell: bash
+      env:
+        REQUESTED_HARDWARE_NAME: ${{ inputs.requested-hardware-name }}
+      run: |
+        python3 ci/resolve_gpu_hardware.py \
+        --requested "${REQUESTED_HARDWARE_NAME}" \
+        --gpu-info gpu_info.txt \
+        --output "${GITHUB_ENV}"
