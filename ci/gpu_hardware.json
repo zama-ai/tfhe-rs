@@ -1,0 +1,30 @@
+{
+  "aws": {
+    "p5.4xlarge": { "count": 1, "model": "H100 80GB HBM3" },
+    "g6e.24xlarge": { "count": 4, "model": "L40S" },
+    "g6.2xlarge": { "count": 1, "model": "NVIDIA L4" }
+  },
+  "hyperstack": {
+    "n3-L40x1": { "count": 1, "model": "NVIDIA L40" },
+    "n3-L40x4": { "count": 4, "model": "NVIDIA L40" },
+    "n3-L40x8": { "count": 8, "model": "NVIDIA L40" },
+    "n3-RTX-A6000x1": { "count": 1, "model": "RTX A6000" },
+    "n3-RTX-A4000x4": { "count": 4, "model": "RTX A4000" },
+    "n3-H100x1": { "count": 1, "model": "H100 PCIe" },
+    "n3-H100x2": { "count": 2, "model": "H100 PCIe" },
+    "n3-H100x4": { "count": 4, "model": "H100 PCIe" },
+    "n3-H100x8": { "count": 8, "model": "H100 PCIe" },
+    "n3-H100x8-NVLink": { "count": 8 },
+    "n3-H100-SXM5x8": { "count": 8, "model": "H100 80GB HBM3" },
+    "n3-A100x8-NVLink": { "count": 8, "model": "A100" }
+  },
+  "scaleway": {
+    "H100-SXM-8-80G": { "count": 8, "model": "H100 80GB HBM3" },
+    "H100-SXM-4-80G": { "count": 4, "model": "H100 80GB HBM3" },
+    "H100-SXM-2-80G": { "count": 2, "model": "H100 80GB HBM3" },
+    "H100-1-80G": { "count": 1, "model": "H100 PCIe" },
+    "L40S-4-48G": { "count": 4, "model": "L40S" },
+    "L40S-1-48G": { "count": 1, "model": "L40S" },
+    "L4-2-24G": { "count": 2, "model": "NVIDIA L4" }
+  }
+}
