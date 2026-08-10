@@ -117,9 +117,6 @@ jobs:
           - os: ubuntu-22.04
             cuda: "12.8 12.2"
             gcc: 12
-    env:
-      HW_NAME: "${{ needs.parse-inputs.outputs.hardware_name }}"
-
     steps:
       - name: Install git LFS
         run: |
@@ -164,6 +161,16 @@ jobs:
           cuda-version: ${{ matrix.cuda }}
           gcc-version: ${{ matrix.gcc }}
           cloud-provider: ${{ needs.parse-inputs.outputs.cloud_provider }}
+
+      - name: Resolve GPU hardware name
+        run: |
+          nvidia-smi --query-gpu=name --format=csv,noheader | tee gpu_info.txt
+          python3 ci/resolve_gpu_hardware.py \
+          --requested "${INPUTS_HARDWARE_NAME}" \
+          --gpu-info gpu_info.txt \
+          --output "${GITHUB_ENV}"
+        env:
+          INPUTS_HARDWARE_NAME: ${{ needs.parse-inputs.outputs.hardware_name }}
 
       - name: Checkout tfhe-rs in fhevm coprocessor
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -295,7 +302,7 @@ jobs:
         run: |
           cargo run --release -p tfhe-benchmark-parser -- -i "${GITHUB_WORKSPACE}/fhevm/coprocessor/fhevm-engine/target/criterion" -o "${RESULTS_FILENAME}" \
           --database coprocessor \
-          --hardware "${HW_NAME}" \
+          --hardware "${HARDWARE_NAME}" \
           --backend cuda \
           --project-version "${COMMIT_HASH}" \
           --branch "${BRANCH_NAME}" \

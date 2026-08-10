@@ -145,10 +145,21 @@ pub fn get_bench_gpu_instances() -> Option<usize> {
     })
 }
 
+/// Waits for the other processes when benchmarking one process per GPU, no-op otherwise.
+///
+/// Deadlocks unless every process reaches it the same number of times, in the same order:
+/// call it at registration, right before `bench_function`.
+pub fn sync_bench_gpu_processes() {
+    #[cfg(target_os = "linux")]
+    if let Some(num_instances) = get_bench_gpu_instances() {
+        bench_sync_barrier(num_instances);
+    }
+}
+
 /// Multi-process barrier that ensures num_instances processes
 /// start at the same time
 #[cfg(target_os = "linux")]
-pub fn bench_sync_barrier(num_instances: usize) {
+fn bench_sync_barrier(num_instances: usize) {
     use std::ffi::CString;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
