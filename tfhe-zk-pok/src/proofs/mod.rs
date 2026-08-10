@@ -449,12 +449,32 @@ where
 }
 
 #[cfg(feature = "experimental")]
+#[deprecated(
+    since = "0.9.0",
+    note = "experimental proof, it will be removed in a future release. \
+            The maintained proof systems are `proofs::pke` and `proofs::pke_v2`"
+)]
 pub mod binary;
 #[cfg(feature = "experimental")]
+#[deprecated(
+    since = "0.9.0",
+    note = "experimental proof, it will be removed in a future release. \
+            The maintained proof systems are `proofs::pke` and `proofs::pke_v2`"
+)]
 pub mod index;
 #[cfg(feature = "experimental")]
+#[deprecated(
+    since = "0.9.0",
+    note = "experimental proof, it will be removed in a future release. \
+            The maintained proof systems are `proofs::pke` and `proofs::pke_v2`"
+)]
 pub mod range;
 #[cfg(feature = "experimental")]
+#[deprecated(
+    since = "0.9.0",
+    note = "experimental proof, it will be removed in a future release. \
+            The maintained proof systems are `proofs::pke` and `proofs::pke_v2`"
+)]
 pub mod rlwe;
 
 pub mod pke;
