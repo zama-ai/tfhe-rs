@@ -62,7 +62,7 @@ user = "ubuntu"
 [backend.aws.4-l40]
 region = "us-east-1"
 image_id = "ami-0250f541bc1358116"
-instance_type = "g6.24xlarge"
+instance_type = "g6e.24xlarge"
 user = "ubuntu"
 fallbacks = [ "hyperstack.4-l40", "terraform.scaleway-4-l40" ]
 
