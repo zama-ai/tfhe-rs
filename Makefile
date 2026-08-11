@@ -727,9 +727,10 @@ fuzz_precampaign: install_cargo_afl
 fuzz_build: install_cargo_afl
 	cd utils/fuzz && ./build.sh
 
-.PHONY: fuzz_run # Run an AFL fuzzing campaign (override length with FUZZ_DURATION_SECONDS)
+.PHONY: fuzz_run # Run an AFL fuzzing campaign (override length with FUZZ_DURATION_SECONDS, per-instance logs with FUZZ_LOG_MODE)
 fuzz_run: install_cargo_afl check_fuzz_system_config
-	cd utils/fuzz && ./run.sh $(if $(FUZZ_DURATION_SECONDS),--duration-seconds $(FUZZ_DURATION_SECONDS))
+	cd utils/fuzz && ./run.sh $(if $(FUZZ_DURATION_SECONDS),--duration-seconds $(FUZZ_DURATION_SECONDS)) \
+		$(if $(FUZZ_LOG_MODE),--logs $(FUZZ_LOG_MODE))
 
 .PHONY: fuzz_postcampaign # Postprocess a finished campaign: save crashes, minimize corpus, write summary.md
 fuzz_postcampaign: install_cargo_afl
