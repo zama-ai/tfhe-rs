@@ -1,9 +1,9 @@
-use strum::Display;
+use strum::{Display, EnumString};
 
 use crate::traits::SpecLeafNode;
 
 /// Shortint server-key operations (unary, binary and scalar variants).
-#[derive(Debug, Clone, Copy, Display)]
+#[derive(Debug, Clone, Copy, Display, EnumString, enum_iterator::Sequence)]
 #[strum(serialize_all = "snake_case")]
 pub enum ShortintOp {
     // Unary ops
