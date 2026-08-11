@@ -1,7 +1,7 @@
 use super::ParseOutcome;
 use super::parameters::get_parameters;
 use anyhow::{Context, Result};
-use benchmark_spec::{Backend, BenchmarkMetric};
+use benchmark_spec::{Backend, BenchmarkMetric, Statistic, measured_name};
 use serde::de::DeserializeOwned;
 use serde_json::Number;
 use std::fs;
@@ -148,8 +148,8 @@ fn process_leaf(
     };
 
     for (raw_value, stat) in [
-        (mean_value, "mean"),
-        (estimates.std_dev.point_estimate, "std_dev"),
+        (mean_value, Statistic::Mean),
+        (estimates.std_dev.point_estimate, Statistic::StdDev),
     ] {
         let Some(number) = Number::from_f64(raw_value) else {
             failures.push(ParsingFailure {
@@ -160,7 +160,7 @@ fn process_leaf(
         };
         points.push(Point {
             value: number,
-            test: join_test_name_parts(&[&test_name, stat, name_suffix]),
+            test: measured_name(&test_name, stat, Some(name_suffix)),
             name: display_name.clone(),
             class: PointClass::Evaluate,
             point_type: bench_type,
@@ -186,13 +186,4 @@ fn read_json<T: DeserializeOwned>(directory: &Path, filename: &str) -> Result<T>
     let parsed =
         serde_json::from_str(&content).with_context(|| format!("parsing {}", path.display()))?;
     Ok(parsed)
-}
-
-fn join_test_name_parts(parts: &[&str]) -> String {
-    parts
-        .iter()
-        .filter(|s| !s.is_empty())
-        .copied()
-        .collect::<Vec<_>>()
-        .join("_")
 }
