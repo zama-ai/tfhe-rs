@@ -111,6 +111,7 @@ noise) for two reasons:
 | `--corpus-dir DIR`      | `utils/fuzz/corpus`   | Initial corpus directory                            |
 | `--sync-dir DIR`        | `utils/fuzz/sync_dir` | AFL output / sync directory                         |
 | `--duration-seconds N`  | 86400 (24h)           | How long to run before stopping                     |
+| `--logs MODE`           | `masters`             | Per-instance logs: `all`, `masters` or `none`       |
 | `--total-cores N`       | `nproc`               | Override the auto-detected core count               |
 | `--deser-weight N`      | 1                     | Weight of `harness-deser` in the secondary split    |
 | `--verify-weight N`     | 3                     | Weight of `harness-verify` in the secondary split   |
@@ -122,6 +123,18 @@ noise) for two reasons:
 This launches one master (`-M`) per harness plus the derived secondaries (`-S`),
 all writing to the same `--sync-dir`. Press `Ctrl-C` to stop early; the script
 sends `SIGINT` to all instances on exit.
+
+### Per-instance logs
+
+`AFL_NO_UI=1` makes every instance print its full status screen on an interval,
+which can become very verbose and consume huge quantities of disk space in big
+campaigns.
+
+`--logs` therefore defaults to `masters`, keeping only the three master logs.
+That is worth it locally, because a startup failure (missing instrumentation,
+forkserver handshake, shared memory) aborts every instance of a harness identically
+and the master's log says why. Use `--logs all` to debug one specific secondary, and
+`--logs none` to discard everything.
 
 ### Sizing
 

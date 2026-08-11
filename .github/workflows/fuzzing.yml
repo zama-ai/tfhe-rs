@@ -57,6 +57,8 @@ jobs:
     timeout-minutes: 1680
     env:
       FUZZ_DURATION_SECONDS: ${{ inputs['duration-seconds'] }}
+      # Logs are too verbose on long-running campaigns, so discard them to reduce disk usage
+      FUZZ_LOG_MODE: none
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

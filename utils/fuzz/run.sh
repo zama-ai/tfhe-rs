@@ -27,6 +27,12 @@ CORPUS_DIR="$SCRIPT_DIR/corpus"
 SYNC_DIR="$SCRIPT_DIR/sync_dir"
 # Also set in .github/workflows/fuzzing.yml and utils/fuzzing/README.md
 DURATION_SECONDS=86400  # 24 hours
+# Which instances keep a per-instance log: all | masters | none.
+#
+# 'masters' can be used to debug a deterministic issue that will affect all the instances identically.
+# Use 'all' to debug an intermittent issue. But beware that it may consume a lot of disk space in
+# real-life campaigns.
+LOG_MODE=masters
 TOTAL_CORES=""  # empty = auto-detect via nproc
 DESER_WEIGHT=1
 VERIFY_WEIGHT=3
@@ -53,6 +59,8 @@ usage() {
     echo "  --corpus-dir DIR         Initial corpus directory (default: $SCRIPT_DIR/corpus)"
     echo "  --sync-dir DIR           AFL sync/output directory (default: $SCRIPT_DIR/sync_dir)"
     echo "  --duration-seconds N     Campaign duration in seconds (default: $DURATION_SECONDS)"
+    echo "  --logs MODE              Per-instance logs: all|masters|none (default: $LOG_MODE)"
+    echo "                           'all' costs ~8 G/h of AFL status text at 192 instances"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -60,6 +68,7 @@ while [[ $# -gt 0 ]]; do
         --corpus-dir)        CORPUS_DIR="$2"; shift 2 ;;
         --sync-dir)          SYNC_DIR="$2"; shift 2 ;;
         --duration-seconds)  DURATION_SECONDS="$2"; shift 2 ;;
+        --logs)              LOG_MODE="$2"; shift 2 ;;
         --total-cores)       TOTAL_CORES="$2"; shift 2 ;;
         --deser-weight)      DESER_WEIGHT="$2"; shift 2 ;;
         --verify-weight)     VERIFY_WEIGHT="$2"; shift 2 ;;
@@ -78,6 +87,10 @@ if (( TOTAL_CORES < 3 )); then
     echo "ERROR: need at least 3 cores (one master per harness); got $TOTAL_CORES" >&2
     exit 1
 fi
+case "$LOG_MODE" in
+    all|masters|none) ;;
+    *) echo "ERROR: --logs must be one of all|masters|none; got '$LOG_MODE'" >&2; exit 1 ;;
+esac
 sum_weights=$((DESER_WEIGHT + VERIFY_WEIGHT + COMPUTE_WEIGHT))
 if (( sum_weights <= 0 )); then
     echo "ERROR: sum of --*-weight must be > 0; got $sum_weights" >&2
@@ -119,12 +132,26 @@ TOTAL=$((3 + DESER_SECONDARY + VERIFY_SECONDARY + COMPUTE_SECONDARY))
 # Cleaned along with sync_dir by `make fuzz_clean`.
 LOGS_DIR="$SYNC_DIR/_logs"
 mkdir -p "$LOGS_DIR"
+
+# Destination for an instance's stdout+stderr, honouring $LOG_MODE. Masters are
+# the instances whose name ends in _m.
+instance_log() {
+    if [[ "$LOG_MODE" == all ]] || [[ "$LOG_MODE" == masters && "$1" == *_m ]]; then
+        echo "$LOGS_DIR/$1.log"
+    else
+        echo /dev/null
+    fi
+}
 echo "==> Launching $TOTAL AFL instances (duration: ${DURATION_SECONDS}s)"
 echo "    deser:   1 master + $DESER_SECONDARY secondary"
 echo "    verify:  1 master + $VERIFY_SECONDARY secondary"
 echo "    compute: 1 master + $COMPUTE_SECONDARY secondary"
 echo "    sync_dir: $SYNC_DIR"
-echo "    per-instance logs: $LOGS_DIR/<instance>.log"
+case "$LOG_MODE" in
+    all)     echo "    per-instance logs: $LOGS_DIR/<instance>.log (all $TOTAL instances)" ;;
+    masters) echo "    per-instance logs: $LOGS_DIR/<harness>_m.log (masters only, secondaries discarded)" ;;
+    none)    echo "    per-instance logs: discarded (--logs none)" ;;
+esac
 echo ""
 
 # ── Environment ────────────────────────────────────────────────────────────
@@ -166,19 +193,19 @@ cleanup() {
 trap cleanup EXIT
 
 # Each instance runs under `setsid`, so that we can easily clean any spawned subprocess.
-# Each instance's stdout+stderr goes to its own log under $LOGS_DIR.
+# Each instance's stdout+stderr goes where instance_log says, per $LOG_MODE.
 #
 # ── Master instances ──────────────────────────────────────────────────────
 setsid cargo afl fuzz -M deser_m   -i "$CORPUS_DIR" -o "$SYNC_DIR" "$DESER_BIN" \
-    > "$LOGS_DIR/deser_m.log" 2>&1 &
+    > "$(instance_log deser_m)" 2>&1 &
 PIDS+=($!)
 
 setsid cargo afl fuzz -M verify_m  -i "$CORPUS_DIR" -o "$SYNC_DIR" "$VERIFY_BIN" \
-    > "$LOGS_DIR/verify_m.log" 2>&1 &
+    > "$(instance_log verify_m)" 2>&1 &
 PIDS+=($!)
 
 setsid cargo afl fuzz -M compute_m -i "$CORPUS_DIR" -o "$SYNC_DIR" "$COMPUTE_BIN" \
-    > "$LOGS_DIR/compute_m.log" 2>&1 &
+    > "$(instance_log compute_m)" 2>&1 &
 PIDS+=($!)
 
 # ── Secondaries ───────────────────────────────────────────────────────────
@@ -186,19 +213,19 @@ PIDS+=($!)
 # for cmplog anyway but it is harmless and would be necessary if we enable it later.
 for i in $(seq 1 "$DESER_SECONDARY"); do
     setsid cargo afl fuzz -S "deser_s$i" -c - -i "$CORPUS_DIR" -o "$SYNC_DIR" "$DESER_BIN" \
-        > "$LOGS_DIR/deser_s$i.log" 2>&1 &
+        > "$(instance_log "deser_s$i")" 2>&1 &
     PIDS+=($!)
 done
 
 for i in $(seq 1 "$VERIFY_SECONDARY"); do
     setsid cargo afl fuzz -S "verify_s$i" -c - -i "$CORPUS_DIR" -o "$SYNC_DIR" "$VERIFY_BIN" \
-        > "$LOGS_DIR/verify_s$i.log" 2>&1 &
+        > "$(instance_log "verify_s$i")" 2>&1 &
     PIDS+=($!)
 done
 
 for i in $(seq 1 "$COMPUTE_SECONDARY"); do
     setsid cargo afl fuzz -S "compute_s$i" -c - -i "$CORPUS_DIR" -o "$SYNC_DIR" "$COMPUTE_BIN" \
-        > "$LOGS_DIR/compute_s$i.log" 2>&1 &
+        > "$(instance_log "compute_s$i")" 2>&1 &
     PIDS+=($!)
 done
 
