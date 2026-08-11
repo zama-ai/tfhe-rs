@@ -1,12 +1,15 @@
 pub mod ops;
 
-use ops::ShortintOp;
-use strum::Display;
+use std::str::FromStr;
 
+use ops::ShortintOp;
+use strum::{Display, EnumDiscriminants, EnumString};
+
+use crate::error::SpecParseError;
 use crate::traits::{SpecLeafNode, SpecNode};
 
 /// Casting operations between shortint parameter sets.
-#[derive(Debug, Clone, Copy, Display)]
+#[derive(Debug, Clone, Copy, Display, EnumString, enum_iterator::Sequence)]
 #[strum(serialize_all = "snake_case")]
 pub enum ShortintCastingOp {
     Cast,
@@ -17,7 +20,7 @@ pub enum ShortintCastingOp {
 impl SpecLeafNode for ShortintCastingOp {}
 
 /// GLWE packing-compression operations.
-#[derive(Debug, Clone, Copy, Display)]
+#[derive(Debug, Clone, Copy, Display, EnumString, enum_iterator::Sequence)]
 #[strum(serialize_all = "snake_case")]
 pub enum ShortintPackingOp {
     Pack,
@@ -30,12 +33,15 @@ pub enum ShortintPackingOp {
 
 impl SpecLeafNode for ShortintPackingOp {}
 
-/// Benchmarks of the `shortint` layer.
-///
-/// Mixed node: `Ops`/`Casting`/`PackingCompression` carry an inner leaf (a
-/// child in the spec tree), while the remaining variants are leaves themselves.
-#[derive(Debug, Clone, Copy, Display)]
+/// Benchmarks of the `shortint` layer. Mixed node: `Ops`, `Casting` and
+/// `PackingCompression` carry a child, the other variants are leaves.
+#[derive(Debug, Clone, Copy, Display, EnumDiscriminants, enum_iterator::Sequence)]
 #[strum(serialize_all = "snake_case")]
+#[strum_discriminants(
+    name(ShortintBenchKind),
+    derive(EnumString, Display),
+    strum(serialize_all = "snake_case")
+)]
 pub enum ShortintBench {
     Ops(ShortintOp),
     Casting(ShortintCastingOp),
@@ -59,6 +65,31 @@ impl SpecNode for ShortintBench {
             | ShortintBench::ProgrammableBootstrap
             | ShortintBench::UncompressKey
             | ShortintBench::DecompNoiseSquashComp => None,
+        }
+    }
+}
+
+impl FromStr for ShortintBench {
+    type Err = SpecParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (head, rest) = s.split_once("::").unwrap_or((s, ""));
+        let kind = ShortintBenchKind::from_str(head)
+            .map_err(|_| SpecParseError::Unknown(format!("unknown shortint bench: {head}")))?;
+        match kind {
+            ShortintBenchKind::Ops => Ok(Self::Ops(rest.parse()?)),
+            ShortintBenchKind::Casting => Ok(Self::Casting(rest.parse()?)),
+            ShortintBenchKind::PackingCompression => Ok(Self::PackingCompression(rest.parse()?)),
+            // Leaf variants close the bench path: what follows belongs to the
+            // trailing part of the id, not to this node.
+            _ if !rest.is_empty() => Err(SpecParseError::Unknown(format!(
+                "unexpected {rest:?} after shortint bench {head}"
+            ))),
+            ShortintBenchKind::Oprf => Ok(Self::Oprf),
+            ShortintBenchKind::CarryExtract => Ok(Self::CarryExtract),
+            ShortintBenchKind::ProgrammableBootstrap => Ok(Self::ProgrammableBootstrap),
+            ShortintBenchKind::UncompressKey => Ok(Self::UncompressKey),
+            ShortintBenchKind::DecompNoiseSquashComp => Ok(Self::DecompNoiseSquashComp),
         }
     }
 }
