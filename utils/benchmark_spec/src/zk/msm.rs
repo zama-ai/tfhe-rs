@@ -1,9 +1,17 @@
-use strum::Display;
+use std::str::FromStr;
 
+use strum::{Display, EnumDiscriminants, EnumString};
+
+use crate::error::SpecParseError;
 use crate::traits::{SpecLeafNode, SpecNode};
 
-#[derive(Debug, Clone, Copy, Display)]
+#[derive(Debug, Clone, Copy, Display, EnumDiscriminants, enum_iterator::Sequence)]
 #[strum(serialize_all = "snake_case")]
+#[strum_discriminants(
+    name(MsmBenchKind),
+    derive(EnumString, Display),
+    strum(serialize_all = "snake_case")
+)]
 pub enum MsmBench {
     G1(MsmFlavor),
     G2(MsmFlavor),
@@ -18,6 +26,20 @@ impl SpecNode for MsmBench {
     }
 }
 
+impl FromStr for MsmBench {
+    type Err = SpecParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (head, rest) = s.split_once("::").unwrap_or((s, ""));
+        match MsmBenchKind::from_str(head)
+            .map_err(|_| SpecParseError::Unknown(format!("unknown msm bench: {head}")))?
+        {
+            MsmBenchKind::G1 => Ok(Self::G1(rest.parse()?)),
+            MsmBenchKind::G2 => Ok(Self::G2(rest.parse()?)),
+        }
+    }
+}
+
 impl MsmBench {
     pub fn display_name(&self) -> String {
         match self {
@@ -27,7 +49,7 @@ impl MsmBench {
     }
 }
 
-#[derive(Debug, Clone, Copy, Display)]
+#[derive(Debug, Clone, Copy, Display, EnumString, enum_iterator::Sequence)]
 #[strum(serialize_all = "snake_case")]
 pub enum MsmFlavor {
     Bls12_446,
