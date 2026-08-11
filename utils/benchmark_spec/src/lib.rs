@@ -1,11 +1,16 @@
 mod backend;
 mod bench_crate;
+mod error;
+mod measured;
+mod parse;
 pub mod tfhe;
 mod traits;
 pub mod zk;
 
 pub use backend::{Backend, bench_backend_from_cfg};
-pub use bench_crate::BenchCrate;
+pub use bench_crate::{BenchCrate, BenchCrateKind};
+pub use error::SpecParseError;
+pub use measured::{MeasuredId, Statistic, measured_name};
 use serde::{Deserialize, Serialize};
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -160,7 +165,7 @@ pub enum BenchmarkType {
 }
 
 /// The metric being recorded by a benchmark, used in [`BenchmarkSpec`].
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BenchmarkMetric {
     Latency,
     Throughput,
@@ -220,20 +225,49 @@ pub fn get_bench_type() -> BenchmarkType {
 /// ```text
 /// {crate}::{layer}::{bench}::{op}(::{backend})?(::{benchmark_type})?::{param}(::scalar)?(::{type})?(::{num_elements}_elements)?
 /// ```
+#[derive(Debug)]
 pub struct BenchmarkSpec {
     bench_crate: BenchCrate,
     backend: Backend,
     param_name: String,
     operand_type: OperandType,
     type_name: Option<String>,
-    bench_type: BenchmarkMetric,
+    metric: BenchmarkMetric,
     num_elements: Option<usize>,
 }
 
 impl BenchmarkSpec {
+    /// The benchmarked operation, as a path (`tfhe::hlapi::ops::add`).
+    pub fn bench_crate(&self) -> BenchCrate {
+        self.bench_crate
+    }
+
     /// The parameter set name (from `NamedParam::name()`).
     pub fn param_name(&self) -> &str {
         &self.param_name
+    }
+
+    /// What the recorded value is: a duration, a rate, a count or a byte size.
+    pub fn metric(&self) -> BenchmarkMetric {
+        self.metric
+    }
+
+    /// Whether the second operand is a plaintext (a `scalar` benchmark).
+    pub fn operand_type(&self) -> OperandType {
+        self.operand_type
+    }
+
+    /// The type tag, rendered. Still a flat string: it carries a Rust type, a
+    /// precision, a key/value pair or a keyswitch config depending on the
+    /// benchmark, so callers have to interpret it.
+    pub fn type_name(&self) -> Option<&str> {
+        self.type_name.as_deref()
+    }
+
+    /// `Some` when the id ends with an `<n>_elements` segment: batch size for a
+    /// throughput benchmark, store size for a KV-store one.
+    pub fn num_elements(&self) -> Option<usize> {
+        self.num_elements
     }
 
     pub fn new(
@@ -251,7 +285,7 @@ impl BenchmarkSpec {
             param_name: param_name.to_string(),
             operand_type,
             type_name: type_name.map(|t| t.type_name()),
-            bench_type: bench_type.into(),
+            metric: bench_type.into(),
             num_elements,
         }
     }
@@ -269,7 +303,7 @@ impl BenchmarkSpec {
             param_name: param_name.to_string(),
             operand_type,
             type_name: type_name.map(|t| t.type_name()),
-            bench_type: bench_type.into(),
+            metric: bench_type.into(),
             num_elements: None,
         }
     }
@@ -288,7 +322,7 @@ impl BenchmarkSpec {
             param_name: param_name.to_string(),
             operand_type,
             type_name: type_name.map(|t| t.type_name()),
-            bench_type: bench_type.into(),
+            metric: bench_type.into(),
             num_elements,
         }
     }
@@ -306,7 +340,7 @@ impl BenchmarkSpec {
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
             type_name: type_name.map(|t| t.type_name()),
-            bench_type: bench_type.into(),
+            metric: bench_type.into(),
             num_elements,
         }
     }
@@ -324,7 +358,7 @@ impl BenchmarkSpec {
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
             type_name: type_name.map(|t| t.type_name()),
-            bench_type: bench_type.into(),
+            metric: bench_type.into(),
             num_elements,
         }
     }
@@ -340,7 +374,7 @@ impl BenchmarkSpec {
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
             type_name: None,
-            bench_type: bench_type.into(),
+            metric: bench_type.into(),
             num_elements: None,
         }
     }
@@ -356,7 +390,7 @@ impl BenchmarkSpec {
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
             type_name: None,
-            bench_type: bench_type.into(),
+            metric: bench_type.into(),
             num_elements: None,
         }
     }
@@ -372,7 +406,7 @@ impl BenchmarkSpec {
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
             type_name: None,
-            bench_type: bench_type.into(),
+            metric: bench_type.into(),
             num_elements: None,
         }
     }
@@ -389,7 +423,7 @@ impl BenchmarkSpec {
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
             type_name: type_name.map(|t| t.type_name()),
-            bench_type: bench_type.into(),
+            metric: bench_type.into(),
             num_elements: None,
         }
     }
@@ -405,7 +439,7 @@ impl BenchmarkSpec {
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
             type_name: None,
-            bench_type: bench_type.into(),
+            metric: bench_type.into(),
             num_elements: None,
         }
     }
@@ -422,7 +456,7 @@ impl BenchmarkSpec {
             param_name: String::new(),
             operand_type: OperandType::CipherText,
             type_name: None,
-            bench_type: bench_type.into(),
+            metric: bench_type.into(),
             num_elements,
         }
     }
@@ -430,11 +464,11 @@ impl BenchmarkSpec {
 
 impl fmt::Display for BenchmarkSpec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.bench_crate.fmt_crate(f)?;
+        write!(f, "{}", self.bench_crate)?;
         if !matches!(self.backend, Backend::Cpu) {
             write!(f, "::{}", self.backend)?;
         }
-        match self.bench_type {
+        match self.metric {
             BenchmarkMetric::Throughput => write!(f, "::throughput")?,
             BenchmarkMetric::PbsCount => write!(f, "::pbs_count")?,
             BenchmarkMetric::KeySize => write!(f, "::key_size")?,
