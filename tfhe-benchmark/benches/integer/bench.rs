@@ -65,7 +65,7 @@ fn bench_server_key_binary_function_clean_inputs<F>(
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Unsigned(integer_op),
             &param_name,
-            Some(&bits),
+            Some(bits.into()),
             get_bench_type(),
             None,
         );
@@ -185,7 +185,7 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Unsigned(integer_op),
             &param_name,
-            Some(&bits),
+            Some(bits.into()),
             BenchmarkMetric::Latency,
             None,
         );
@@ -256,7 +256,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Unsigned(integer_op),
             &param_name,
-            Some(&bits),
+            Some(bits.into()),
             get_bench_type(),
             None,
         );
@@ -372,7 +372,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Unsigned(integer_op),
             &param_name,
-            Some(&bits),
+            Some(bits.into()),
             get_bench_type(),
             None,
         );
@@ -516,7 +516,7 @@ fn if_then_else_parallelized(c: &mut Criterion) {
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Unsigned(integer_op),
             &param_name,
-            Some(&bits),
+            Some(bits.into()),
             get_bench_type(),
             None,
         );
@@ -630,7 +630,7 @@ fn flip_parallelized(c: &mut Criterion) {
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Unsigned(integer_op),
             &param_name,
-            Some(&bits),
+            Some(bits.into()),
             get_bench_type(),
             None,
         );
@@ -746,7 +746,7 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Unsigned(integer_op),
                 &param_name,
-                Some(&bits),
+                Some(bits.into()),
                 get_bench_type(),
                 Some(len),
             );
@@ -1289,7 +1289,7 @@ mod cuda {
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Unsigned(integer_op),
                 &param_name,
-                Some(&bits),
+                Some(bits.into()),
                 get_bench_type(),
                 None,
             );
@@ -1412,7 +1412,7 @@ mod cuda {
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Unsigned(integer_op),
                 &param_name,
-                Some(&bits),
+                Some(bits.into()),
                 get_bench_type(),
                 None,
             );
@@ -1561,7 +1561,7 @@ mod cuda {
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Unsigned(integer_op),
                 &param_name,
-                Some(&bits),
+                Some(bits.into()),
                 get_bench_type(),
                 None,
             );
@@ -1693,7 +1693,7 @@ mod cuda {
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Unsigned(integer_op),
                 &param_name,
-                Some(&bits),
+                Some(bits.into()),
                 get_bench_type(),
                 None,
             );
@@ -2672,7 +2672,7 @@ mod cuda {
                 let benchmark_spec = BenchmarkSpec::new_integer_ops(
                     IntegerOpBySign::Unsigned(integer_op),
                     &param_name,
-                    Some(&conversion),
+                    Some(conversion.into()),
                     BenchmarkMetric::Latency,
                     None,
                 );
@@ -2773,7 +2773,7 @@ mod hpu {
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Unsigned(integer_op),
                 &param_name,
-                Some(&bits),
+                Some(bits.into()),
                 get_bench_type(),
                 None,
             );
@@ -3442,7 +3442,7 @@ fn bench_server_key_cast_function<F>(
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Unsigned(integer_op),
                 &param_name,
-                Some(&conversion),
+                Some(conversion.into()),
                 BenchmarkMetric::Latency,
                 None,
             );
