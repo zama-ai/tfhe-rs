@@ -1,5 +1,5 @@
 mod backend;
-mod bench_crate;
+mod bench_path;
 mod error;
 mod measured;
 mod parse;
@@ -8,7 +8,7 @@ mod traits;
 pub mod zk;
 
 pub use backend::{Backend, bench_backend_from_cfg};
-pub use bench_crate::{BenchCrate, BenchCrateKind};
+pub use bench_path::{BenchPathKind, BenchPath};
 pub use error::SpecParseError;
 pub use measured::{MeasuredId, Statistic, measured_name};
 use serde::{Deserialize, Serialize};
@@ -227,7 +227,7 @@ pub fn get_bench_type() -> BenchmarkType {
 /// ```
 #[derive(Debug)]
 pub struct BenchmarkSpec {
-    bench_crate: BenchCrate,
+    bench_crate: BenchPath,
     backend: Backend,
     param_name: String,
     operand_type: OperandType,
@@ -238,7 +238,7 @@ pub struct BenchmarkSpec {
 
 impl BenchmarkSpec {
     /// The benchmarked operation, as a path (`tfhe::hlapi::ops::add`).
-    pub fn bench_crate(&self) -> BenchCrate {
+    pub fn bench_crate(&self) -> BenchPath {
         self.bench_crate
     }
 
@@ -271,7 +271,7 @@ impl BenchmarkSpec {
     }
 
     pub fn new(
-        bench_crate: BenchCrate,
+        bench_crate: BenchPath,
         backend: Backend,
         param_name: &str,
         operand_type: OperandType,
@@ -298,7 +298,7 @@ impl BenchmarkSpec {
         bench_type: impl Into<BenchmarkMetric>,
     ) -> Self {
         Self {
-            bench_crate: BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Ops(hlapi_op))),
+            bench_crate: BenchPath::Tfhe(TfheLayer::Hlapi(HlapiBench::Ops(hlapi_op))),
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type,
@@ -317,7 +317,7 @@ impl BenchmarkSpec {
         num_elements: Option<usize>,
     ) -> Self {
         Self {
-            bench_crate: BenchCrate::Tfhe(TfheLayer::Hlapi(hlapi_bench)),
+            bench_crate: BenchPath::Tfhe(TfheLayer::Hlapi(hlapi_bench)),
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type,
@@ -335,7 +335,7 @@ impl BenchmarkSpec {
         num_elements: Option<usize>,
     ) -> Self {
         Self {
-            bench_crate: BenchCrate::Tfhe(TfheLayer::Integer(IntegerBench::Ops(ops))),
+            bench_crate: BenchPath::Tfhe(TfheLayer::Integer(IntegerBench::Ops(ops))),
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
@@ -353,7 +353,7 @@ impl BenchmarkSpec {
         num_elements: Option<usize>,
     ) -> Self {
         Self {
-            bench_crate: BenchCrate::Tfhe(TfheLayer::Integer(integer_bench)),
+            bench_crate: BenchPath::Tfhe(TfheLayer::Integer(integer_bench)),
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
@@ -369,7 +369,7 @@ impl BenchmarkSpec {
         bench_type: impl Into<BenchmarkMetric>,
     ) -> Self {
         Self {
-            bench_crate: BenchCrate::Tfhe(TfheLayer::Shortint(shortint_bench)),
+            bench_crate: BenchPath::Tfhe(TfheLayer::Shortint(shortint_bench)),
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
@@ -385,7 +385,7 @@ impl BenchmarkSpec {
         bench_type: impl Into<BenchmarkMetric>,
     ) -> Self {
         Self {
-            bench_crate: BenchCrate::Tfhe(TfheLayer::Boolean(boolean_bench)),
+            bench_crate: BenchPath::Tfhe(TfheLayer::Boolean(boolean_bench)),
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
@@ -401,7 +401,7 @@ impl BenchmarkSpec {
         bench_type: impl Into<BenchmarkMetric>,
     ) -> Self {
         Self {
-            bench_crate: BenchCrate::Tfhe(TfheLayer::CoreCrypto(core_crypto_bench)),
+            bench_crate: BenchPath::Tfhe(TfheLayer::CoreCrypto(core_crypto_bench)),
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
@@ -418,7 +418,7 @@ impl BenchmarkSpec {
         bench_type: impl Into<BenchmarkMetric>,
     ) -> Self {
         Self {
-            bench_crate: BenchCrate::Tfhe(TfheLayer::CoreCrypto(core_crypto_bench)),
+            bench_crate: BenchPath::Tfhe(TfheLayer::CoreCrypto(core_crypto_bench)),
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
@@ -434,7 +434,7 @@ impl BenchmarkSpec {
         bench_type: impl Into<BenchmarkMetric>,
     ) -> Self {
         Self {
-            bench_crate: BenchCrate::Tfhe(TfheLayer::Transciphering(transcipher_bench)),
+            bench_crate: BenchPath::Tfhe(TfheLayer::Transciphering(transcipher_bench)),
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
@@ -451,7 +451,7 @@ impl BenchmarkSpec {
         num_elements: Option<usize>,
     ) -> Self {
         Self {
-            bench_crate: BenchCrate::Zk(ZkLayer::Msm(zk_bench)),
+            bench_crate: BenchPath::Zk(ZkLayer::Msm(zk_bench)),
             backend,
             param_name: String::new(),
             operand_type: OperandType::CipherText,
@@ -523,7 +523,7 @@ mod tests {
     #[test]
     fn hlapi_cuda_latency() {
         let spec = BenchmarkSpec::new(
-            BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Ops(HlIntegerOp::Mul))),
+            BenchPath::Tfhe(TfheLayer::Hlapi(HlapiBench::Ops(HlIntegerOp::Mul))),
             Backend::Cuda,
             "PARAM_MESSAGE_2_CARRY_2",
             OperandType::CipherText,
@@ -540,7 +540,7 @@ mod tests {
     #[test]
     fn hlapi_hpu_throughput() {
         let spec = BenchmarkSpec::new(
-            BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Ops(HlIntegerOp::Add))),
+            BenchPath::Tfhe(TfheLayer::Hlapi(HlapiBench::Ops(HlIntegerOp::Add))),
             Backend::Hpu,
             "PARAM_MESSAGE_2_CARRY_2",
             OperandType::CipherText,
@@ -685,7 +685,7 @@ mod tests {
         use crate::tfhe::hlapi::erc7984::TransferFlavor;
 
         let spec = BenchmarkSpec::new(
-            BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Erc7984(Erc7984::Transfer(
+            BenchPath::Tfhe(TfheLayer::Hlapi(HlapiBench::Erc7984(Erc7984::Transfer(
                 TransferFlavor::Overflow,
             )))),
             Backend::Cuda,
@@ -760,7 +760,7 @@ mod tests {
         use crate::tfhe::hlapi::dex::DexFlavor;
 
         let spec = BenchmarkSpec::new(
-            BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::Dex(Dex::SwapClaim(
+            BenchPath::Tfhe(TfheLayer::Hlapi(HlapiBench::Dex(Dex::SwapClaim(
                 DexFlavor::NoCmux,
             )))),
             Backend::Cuda,
