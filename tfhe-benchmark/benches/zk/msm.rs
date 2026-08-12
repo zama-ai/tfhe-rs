@@ -32,11 +32,11 @@ use std::time::Duration;
 use tfhe_zk_pok::curve_api::bls12_446::{G1Affine, G2Affine, Zp, G1, G2};
 use tfhe_zk_pok::curve_api::CurveGroupOps;
 
-const MSM_SIZES: &[usize] = &[100, 1000, 2048, 4096, 10000];
+const MSM_SIZES: &[u32] = &[100, 1000, 2048, 4096, 10000];
 
 /// Compute the number of parallel elements for MSM throughput benchmarks.
 /// Uses aggressive values to maximize throughput testing while keeping setup time reasonable.
-fn msm_throughput_elements(input_size: usize) -> u64 {
+fn msm_throughput_elements(input_size: u32) -> u64 {
     match input_size {
         n if n <= 1000 => 64,
         n if n <= 4096 => 32,
@@ -44,7 +44,7 @@ fn msm_throughput_elements(input_size: usize) -> u64 {
     }
 }
 
-fn generate_scalars(rng: &mut StdRng, n: usize) -> Vec<Zp> {
+fn generate_scalars(rng: &mut StdRng, n: u32) -> Vec<Zp> {
     (0..n).map(|_| Zp::rand(rng)).collect()
 }
 
@@ -62,7 +62,7 @@ trait MsmBenchGroup {
 
     const MSM_ID: MsmBench;
 
-    fn generate_points(rng: &mut StdRng, n: usize) -> Vec<Self::Affine>;
+    fn generate_points(rng: &mut StdRng, n: u32) -> Vec<Self::Affine>;
     fn cpu_msm(bases: &[Self::Affine], scalars: &[Zp]);
     #[cfg(feature = "gpu-zk")]
     fn gpu_msm(bases: &[Self::Affine], scalars: &[Zp], gpu_index: u32);
@@ -75,7 +75,7 @@ impl MsmBenchGroup for G1Bench {
 
     const MSM_ID: MsmBench = MsmBench::G1(MsmFlavor::Bls12_446);
 
-    fn generate_points(rng: &mut StdRng, n: usize) -> Vec<G1Affine> {
+    fn generate_points(rng: &mut StdRng, n: u32) -> Vec<G1Affine> {
         (0..n)
             .map(|_| {
                 let point = G1::GENERATOR.mul_scalar(Zp::rand(rng));
@@ -105,7 +105,7 @@ impl MsmBenchGroup for G2Bench {
 
     const MSM_ID: MsmBench = MsmBench::G2(MsmFlavor::Bls12_446);
 
-    fn generate_points(rng: &mut StdRng, n: usize) -> Vec<G2Affine> {
+    fn generate_points(rng: &mut StdRng, n: u32) -> Vec<G2Affine> {
         (0..n)
             .map(|_| {
                 let point = G2::GENERATOR.mul_scalar(Zp::rand(rng));
@@ -139,7 +139,7 @@ fn bench_cpu_msm<T: MsmBenchGroup>(c: &mut Criterion) {
     group.measurement_time(Duration::from_secs(30));
 
     for size in MSM_SIZES.iter() {
-        let n = *size;
+        let n: u32 = *size;
         let bench_id =
             BenchmarkSpec::new_zk_msm(T::MSM_ID, Backend::Cpu, get_bench_type(), Some(n));
         let bench_id_string = bench_id.to_string();
