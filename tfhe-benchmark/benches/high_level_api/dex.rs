@@ -266,7 +266,7 @@ mod pbs_stats {
         );
 
         let mut benchmark_test_result =
-            CsvResultWriter::new("dex_swap_request_update_dex_balance_pbs_count.csv");
+            CsvResultWriter::from_path("dex_swap_request_update_dex_balance_pbs_count.csv");
 
         benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
@@ -309,7 +309,7 @@ mod pbs_stats {
         );
 
         let mut benchmark_test_result =
-            CsvResultWriter::new("dex_swap_request_finalize_pbs_count.csv");
+            CsvResultWriter::from_path("dex_swap_request_finalize_pbs_count.csv");
 
         benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
@@ -362,7 +362,7 @@ mod pbs_stats {
         );
 
         let mut benchmark_test_result =
-            CsvResultWriter::new("dex_swap_claim_prepare_pbs_count.csv");
+            CsvResultWriter::from_path("dex_swap_claim_prepare_pbs_count.csv");
 
         benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
@@ -411,7 +411,7 @@ mod pbs_stats {
         );
 
         let mut benchmark_test_result =
-            CsvResultWriter::new("dex_swap_claim_update_dex_balance_pbs_count.csv");
+            CsvResultWriter::from_path("dex_swap_claim_update_dex_balance_pbs_count.csv");
 
         benchmark_test_result.write_result(&test_name.to_string(), count as usize);
 
