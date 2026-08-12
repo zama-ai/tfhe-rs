@@ -1040,10 +1040,9 @@ pub(crate) fn create_random_from_seed_modulus_switched(
 }
 
 // ============================================================================
-// raw_seeded_msed_to_lwe (test + gpu)
+// raw_seeded_msed_to_lwe (test_utils + gpu)
 // ============================================================================
 
-#[cfg(any(test, feature = "gpu"))]
 pub(crate) fn raw_seeded_msed_to_lwe<Scalar: UnsignedInteger + CastFrom<usize>>(
     seeded: &PrfSeededModulusSwitched,
     ciphertext_modulus: CiphertextModulus<Scalar>,
@@ -1319,6 +1318,101 @@ impl<C: Container<Element = c64> + Sync> OprfBootstrappingKey<C> {
 
 // Made public to help KMS check their results and avoid code duplication
 pub mod test_utils {
+    use super::*;
+    use crate::core_crypto::prelude::{decrypt_lwe_ciphertext, CastInto, LweSecretKeyView};
+    use crate::shortint::ShortintParameterSet;
+
+    /// Returns the `(plain_prf_input, random_bits_in_block)` pairs feeding the pbs of the prf for
+    /// the provided seed, one per output block, matching the layout requested by `bit_chunks`.
+    pub fn gen_prf_inputs(
+        oprf_ck: &OprfPrivateKey,
+        seed: impl OprfSeed,
+        params: ShortintParameterSet,
+        bit_chunks: &[u64],
+    ) -> Vec<(u64, u64)> {
+        match &oprf_ck.0 {
+            AtomicPatternOprfPrivateKey::Standard(sk) => {
+                gen_prf_inputs_impl(&sk.as_view(), seed, params, bit_chunks)
+            }
+            AtomicPatternOprfPrivateKey::KeySwitch32(sk) => {
+                gen_prf_inputs_impl(&sk.as_view(), seed, params, bit_chunks)
+            }
+        }
+    }
+
+    fn gen_prf_inputs_impl<Scalar>(
+        sk: &LweSecretKeyView<Scalar>,
+        seed: impl OprfSeed,
+        params: ShortintParameterSet,
+        bit_chunks: &[u64],
+    ) -> Vec<(u64, u64)>
+    where
+        Scalar: UnsignedInteger + CastFrom<usize> + CastInto<u64> + CastInto<usize>,
+    {
+        let lwe_size = params.lwe_dimension().to_lwe_size();
+        let input_p = 2 * params.polynomial_size().0 as u64;
+        let log_input_p = input_p.ilog2() as usize;
+
+        let ciphertext_modulus = CiphertextModulus::new_native();
+        let message_bits: u64 = params.message_modulus().0.ilog2().into();
+        let carry_bits: u64 = params.carry_modulus().0.ilog2().into();
+        let bits_per_block = message_bits + carry_bits + 1;
+
+        let (seeded_chunks, _rle_info) = create_random_from_seed_modulus_switched(
+            seed,
+            lwe_size,
+            params.polynomial_size(),
+            bit_chunks,
+            message_bits,
+            bits_per_block,
+        );
+
+        seeded_chunks
+            .iter()
+            .map(|(seeded, block_bits)| {
+                assert!(seeded.mask.iter().all(|v| *v < input_p as usize));
+
+                let ct = raw_seeded_msed_to_lwe(seeded, ciphertext_modulus);
+
+                let plain_input = CastInto::<u64>::cast_into(
+                    decrypt_lwe_ciphertext(sk, &ct)
+                        .0
+                        .wrapping_add(Scalar::ONE << (Scalar::BITS - log_input_p - 1))
+                        >> (Scalar::BITS - log_input_p),
+                );
+                (plain_input, *block_bits)
+            })
+            .collect()
+    }
+
+    /// Returns the cleartexts that [`generate_oblivious_pseudo_random_bits_chunks`] is expected to
+    /// encrypt for the provided seed, one per output block, matching the layout requested by
+    /// `bit_chunks`. Blocks can be compared one by one with the output of
+    /// `ClientKey::decrypt_message_and_carry`.
+    ///
+    /// This only needs the [`OprfPrivateKey`], not the [`OprfServerKey`] derived from it, and can
+    /// therefore be used to check that a given [`OprfServerKey`] was correctly generated.
+    ///
+    /// [`generate_oblivious_pseudo_random_bits_chunks`]:
+    /// GenericOprfServerKey::generate_oblivious_pseudo_random_bits_chunks
+    pub fn expected_prf_output_cleartexts(
+        oprf_ck: &OprfPrivateKey,
+        seed: impl OprfSeed,
+        params: ShortintParameterSet,
+        bit_chunks: &[u64],
+    ) -> Vec<u64> {
+        // includes padding bit
+        let output_modulus = 2 * params.message_modulus().0 * params.carry_modulus().0;
+        let polynomial_size = params.polynomial_size().0 as u64;
+
+        gen_prf_inputs(oprf_ck, seed, params, bit_chunks)
+            .into_iter()
+            .map(|(plain_input, block_bits)| {
+                cleartext_prf(plain_input, block_bits, output_modulus, polynomial_size)
+            })
+            .collect()
+    }
+
     /// Takes as input a cleartext (for tests you should decrypt the PRF input to get the cleartext
     /// that would be fed into the encrypted PRF) and returns the expected PRF result for it.
     ///
@@ -1361,12 +1455,10 @@ pub mod test_utils {
 
 #[cfg(test)]
 pub(crate) mod test {
-    use super::test_utils::cleartext_prf;
+    use super::test_utils::expected_prf_output_cleartexts;
     use super::*;
     use crate::core_crypto::commons::math::random::Seed;
-    use crate::core_crypto::prelude::{
-        decrypt_lwe_ciphertext, new_seeder, CastInto, LweSecretKeyView,
-    };
+    use crate::core_crypto::prelude::new_seeder;
     use crate::shortint::ciphertext::{ReRandomizationHashAlgo, ReRandomizationSeedHasher};
     use crate::shortint::oprf::create_random_from_seed_modulus_switched;
     use crate::shortint::parameters::test_params::{
@@ -1445,20 +1537,9 @@ pub(crate) mod test {
             .next()
             .unwrap();
 
-        let plain_prf_input = gen_prf_inputs(oprf_ck, seed, params, &[random_bits_count])
-            .into_iter()
-            .next()
-            .unwrap()
-            .0;
+        let expected_output =
+            expected_prf_output_cleartexts(oprf_ck, seed, params, &[random_bits_count])[0];
 
-        // includes padding bit
-        let output_modulus = 2 * params.message_modulus().0 * params.carry_modulus().0;
-        let expected_output = cleartext_prf(
-            plain_prf_input,
-            random_bits_count,
-            output_modulus,
-            params.polynomial_size().0 as u64,
-        );
         let output = ck.decrypt_message_and_carry(&img);
 
         let output_random_value_modulus = 1 << random_bits_count;
@@ -1477,69 +1558,6 @@ pub(crate) mod test {
                 expected_output,
             })
         }
-    }
-
-    /// Returns the `(plain_prf_input, random_bits_in_block)` pairs feeding the pbs of the prf for
-    /// the provided seed, one per output block, matching the layout requested by `bit_chunks`.
-    pub(crate) fn gen_prf_inputs(
-        oprf_ck: &OprfPrivateKey,
-        seed: Seed,
-        params: ShortintParameterSet,
-        bit_chunks: &[u64],
-    ) -> Vec<(u64, u64)> {
-        match &oprf_ck.0 {
-            AtomicPatternOprfPrivateKey::Standard(sk) => {
-                gen_prf_inputs_impl(&sk.as_view(), seed, params, bit_chunks)
-            }
-            AtomicPatternOprfPrivateKey::KeySwitch32(sk) => {
-                gen_prf_inputs_impl(&sk.as_view(), seed, params, bit_chunks)
-            }
-        }
-    }
-
-    fn gen_prf_inputs_impl<Scalar>(
-        sk: &LweSecretKeyView<Scalar>,
-        seed: Seed,
-        params: ShortintParameterSet,
-        bit_chunks: &[u64],
-    ) -> Vec<(u64, u64)>
-    where
-        Scalar: UnsignedInteger + CastFrom<usize> + CastInto<u64> + CastInto<usize>,
-    {
-        let lwe_size = params.lwe_dimension().to_lwe_size();
-        let input_p = 2 * params.polynomial_size().0 as u64;
-        let log_input_p = input_p.ilog2() as usize;
-
-        let ciphertext_modulus = CiphertextModulus::new_native();
-        let message_bits: u64 = params.message_modulus().0.ilog2().into();
-        let carry_bits: u64 = params.carry_modulus().0.ilog2().into();
-        let bits_per_block = message_bits + carry_bits + 1;
-
-        let (seeded_chunks, _rle_info) = create_random_from_seed_modulus_switched(
-            seed,
-            lwe_size,
-            params.polynomial_size(),
-            bit_chunks,
-            message_bits,
-            bits_per_block,
-        );
-
-        seeded_chunks
-            .iter()
-            .map(|(seeded, block_bits)| {
-                assert!(seeded.mask.iter().all(|v| *v < input_p as usize));
-
-                let ct = raw_seeded_msed_to_lwe(seeded, ciphertext_modulus);
-
-                let plain_input = CastInto::<u64>::cast_into(
-                    decrypt_lwe_ciphertext(sk, &ct)
-                        .0
-                        .wrapping_add(Scalar::ONE << (Scalar::BITS - log_input_p - 1))
-                        >> (Scalar::BITS - log_input_p),
-                );
-                (plain_input, *block_bits)
-            })
-            .collect()
     }
 
     #[test]
@@ -1815,6 +1833,19 @@ pub(crate) mod test {
                 prf_seed.as_ref(),
                 &bit_chunks,
                 &sks,
+            );
+
+            // The re-randomized outputs are checked against these ones further down
+            let decrypted: Vec<_> = prf_not_rerand_chunks
+                .iter()
+                .flatten()
+                .map(|ct| cks.decrypt_message_and_carry(ct))
+                .collect();
+
+            assert_eq!(
+                decrypted,
+                expected_prf_output_cleartexts(&oprf_cks, prf_seed.as_ref(), params, &bit_chunks),
+                "PRF output differs from the expected cleartext PRF"
             );
 
             for rerand_hash_algo in [
