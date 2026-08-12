@@ -24,7 +24,7 @@ use tfhe::{
     KVStore,
 };
 
-fn bench_kv_store<Key, FheKey, Value>(c: &mut Criterion, cks: &ClientKey, num_elements: usize)
+fn bench_kv_store<Key, FheKey, Value>(c: &mut Criterion, cks: &ClientKey, num_elements: u32)
 where
     rand::distributions::Standard: Distribution<Key>,
     Key: Numeric + DecomposableInto<u64> + Ord + CastInto<usize> + TypeDisplay,
@@ -67,7 +67,7 @@ where
 
     match get_bench_type() {
         BenchmarkType::Latency => {
-            while kv_store.len() != num_elements {
+            while kv_store.len() != num_elements as usize {
                 let key = rng.gen::<Key>();
                 let value = rng.gen::<u128>();
 
@@ -118,7 +118,7 @@ where
             });
         }
         BenchmarkType::Throughput => {
-            while kv_store.len() != num_elements {
+            while kv_store.len() != num_elements as usize {
                 let key = rng.gen::<Key>();
                 let value = rng.gen::<u128>();
 
@@ -138,8 +138,8 @@ where
                     use benchmark::utilities::throughput_num_threads;
                     use tfhe::IntegerId;
                     let value_blocks = Value::Id::num_blocks(param.message_modulus());
-                    let factor =
-                        throughput_num_threads(num_elements * value_blocks, 1).max(1) as usize;
+                    let factor = throughput_num_threads(num_elements as usize * value_blocks, 1)
+                        .max(1) as usize;
 
                     let mut kv_stores = Vec::with_capacity(factor);
                     for _ in 0..factor {
