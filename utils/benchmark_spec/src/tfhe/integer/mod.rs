@@ -1,11 +1,18 @@
+pub mod oprf;
 pub mod ops;
+pub mod packing;
+pub mod rerand;
 
 use std::str::FromStr;
 
 use crate::error::SpecParseError;
-use crate::traits::{SpecLeafNode, SpecNode};
+use crate::traits::SpecNode;
 use ops::IntegerOp;
 use strum::{Display, EnumDiscriminants, EnumString};
+
+pub use oprf::IntegerOprf;
+pub use packing::IntegerPackingOp;
+pub use rerand::IntegerRerandMode;
 
 #[derive(Debug, Clone, Copy, Display, EnumDiscriminants, enum_iterator::Sequence)]
 #[strum(serialize_all = "snake_case")]
@@ -26,36 +33,6 @@ impl SpecNode for IntegerOpBySign {
         })
     }
 }
-
-/// GLWE packing-compression operations (integer layer).
-#[derive(Debug, Clone, Copy, Display, EnumString, enum_iterator::Sequence)]
-#[strum(serialize_all = "snake_case")]
-pub enum IntegerPackingOp {
-    Pack,
-    Unpack,
-}
-
-impl SpecLeafNode for IntegerPackingOp {}
-
-/// Oblivious PRF flavors (integer layer).
-#[derive(Debug, Clone, Copy, Display, EnumString, enum_iterator::Sequence)]
-#[strum(serialize_all = "snake_case")]
-pub enum IntegerOprf {
-    Unsigned,
-    UnsignedBounded,
-}
-
-impl SpecLeafNode for IntegerOprf {}
-
-/// Re-randomization modes.
-#[derive(Debug, Clone, Copy, Display, EnumString, enum_iterator::Sequence)]
-#[strum(serialize_all = "snake_case")]
-pub enum IntegerRerandMode {
-    LegacyKeyswitch,
-    NoKeyswitch,
-}
-
-impl SpecLeafNode for IntegerRerandMode {}
 
 impl FromStr for IntegerOpBySign {
     type Err = SpecParseError;
