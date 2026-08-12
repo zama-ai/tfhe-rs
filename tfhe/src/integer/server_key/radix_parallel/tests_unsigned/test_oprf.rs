@@ -16,8 +16,7 @@ use crate::integer::{
     ServerKey,
 };
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::oprf::test::gen_prf_inputs;
-use crate::shortint::oprf::test_utils::cleartext_prf;
+use crate::shortint::oprf::test_utils::{cleartext_prf, gen_prf_inputs};
 use crate::shortint::parameters::test_params::{
     TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
