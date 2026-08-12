@@ -1,7 +1,6 @@
 use benchmark_spec::{Backend, BenchmarkMetric};
 use clap::Parser;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -82,7 +81,9 @@ pub struct Cli {
 }
 
 fn parse_cli_bench_metric(s: &str) -> Result<BenchmarkMetric, String> {
-    let m = BenchmarkMetric::from_str(s)?;
+    let m: BenchmarkMetric = s
+        .parse()
+        .map_err(|_| format!("unknown benchmark type: {s}"))?;
     match m {
         BenchmarkMetric::Latency | BenchmarkMetric::Throughput => Ok(m),
         _ => Err(format!("--bench-type does not support {m:?}")),
@@ -90,5 +91,5 @@ fn parse_cli_bench_metric(s: &str) -> Result<BenchmarkMetric, String> {
 }
 
 fn parse_cli_backend(s: &str) -> Result<Backend, String> {
-    Backend::from_str(s)
+    s.parse().map_err(|_| format!("unknown backend: {s}"))
 }
