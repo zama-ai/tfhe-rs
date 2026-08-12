@@ -183,7 +183,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
             comp_param.name(),
             "pack",
             &OperatorType::Atomic,
-            bit_size as u32,
+            bit_size as u64,
             vec![param.message_modulus.0.ilog2(); num_blocks],
         );
 
@@ -192,7 +192,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
             comp_param.name(),
             "unpack",
             &OperatorType::Atomic,
-            bit_size as u32,
+            bit_size as u64,
             vec![param.message_modulus.0.ilog2(); num_blocks],
         );
     }
@@ -337,7 +337,7 @@ mod cuda {
             comp_param.name(),
             "pack",
             &OperatorType::Atomic,
-            bit_size as u32,
+            bit_size as u64,
             vec![param.message_modulus().0.ilog2(); num_blocks],
         );
 
@@ -499,7 +499,7 @@ mod cuda {
             comp_param.name(),
             "unpack",
             &OperatorType::Atomic,
-            bit_size as u32,
+            bit_size as u64,
             vec![param.message_modulus().0.ilog2(); num_blocks],
         );
 

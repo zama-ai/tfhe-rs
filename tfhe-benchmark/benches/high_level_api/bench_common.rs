@@ -32,7 +32,7 @@ pub fn bench_fhe_type_op<FheType, Op>(
 
     let param = client_key.computation_parameters();
     let param_name = param.name();
-    let bit_size = bit_size as u32;
+    let bit_size = bit_size as u64;
 
     let inputs = op.setup_inputs(client_key, &mut rng);
 

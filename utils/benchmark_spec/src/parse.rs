@@ -3,7 +3,8 @@
 use std::str::FromStr;
 
 use crate::error::SpecParseError;
-use crate::{Backend, BenchCrate, BenchmarkMetric, BenchmarkSpec, OperandType};
+use crate::segment::next_segment;
+use crate::{Backend, BenchPath, BenchmarkMetric, BenchmarkSpec, OperandType};
 
 /// Parses a full benchmark id back into a [`BenchmarkSpec`], following the
 /// grammar produced by its `Display`:
@@ -17,42 +18,27 @@ impl FromStr for BenchmarkSpec {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // The bench path is the longest `::`-prefix that parses; everything after
         // is the positional trailing (backend / metric / param / …).
-        let (bench_crate, trailing) = split_bench_path(s)
+        let (bench_path, trailing) = split_bench_path(s)
             .ok_or_else(|| SpecParseError::Unknown(format!("no known bench path in {s:?}")))?;
 
-        let mut it = trailing.split("::").filter(|t| !t.is_empty()).peekable();
-
-        let backend = match it.peek().copied() {
-            Some("cuda") => {
-                it.next();
-                Backend::Cuda
-            }
-            Some("hpu") => {
-                it.next();
-                Backend::Hpu
-            }
-            _ => Backend::Cpu,
+        let tokens: Vec<&str> = if trailing.is_empty() {
+            Vec::new()
+        } else {
+            trailing.split("::").collect()
         };
+        if tokens.iter().any(|t| t.is_empty()) {
+            return Err(SpecParseError::Unknown(format!("empty segment in {s:?}")));
+        }
 
-        let metric = match it.peek().copied() {
-            Some("throughput") => {
-                it.next();
-                BenchmarkMetric::Throughput
-            }
-            Some("pbs_count") => {
-                it.next();
-                BenchmarkMetric::PbsCount
-            }
-            Some("key_size") => {
-                it.next();
-                BenchmarkMetric::KeySize
-            }
-            _ => BenchmarkMetric::Latency,
-        };
+        let mut it = tokens.into_iter().peekable();
+
+        let backend = next_segment(&mut it).unwrap_or(Backend::Cpu);
+
+        let metric = next_segment(&mut it).unwrap_or(BenchmarkMetric::Latency);
 
         // `zk` benches carry no parameter set: `Display` skips the segment
         // altogether, so there is nothing to consume here.
-        let param_name = if matches!(bench_crate, BenchCrate::Zk(_)) {
+        let param_name = if matches!(bench_path, BenchPath::Zk(_)) {
             String::new()
         } else {
             it.next()
@@ -60,12 +46,7 @@ impl FromStr for BenchmarkSpec {
                 .to_string()
         };
 
-        let operand_type = if it.peek().copied() == Some("scalar") {
-            it.next();
-            OperandType::PlainText
-        } else {
-            OperandType::CipherText
-        };
+        let operand_type = next_segment(&mut it).unwrap_or(OperandType::CipherText);
 
         // Remaining tokens: the optional `<n>_elements` marker is always last;
         // anything before it is the type name (which may itself span several
@@ -78,7 +59,7 @@ impl FromStr for BenchmarkSpec {
         let type_name = (!type_toks.is_empty()).then(|| type_toks.join("::"));
 
         Ok(BenchmarkSpec {
-            bench_crate,
+            bench_path,
             backend,
             param_name,
             operand_type,
@@ -90,17 +71,17 @@ impl FromStr for BenchmarkSpec {
 }
 
 /// `<n>_elements` -> `n`.
-fn parse_elements(tok: &str) -> Option<usize> {
+fn parse_elements(tok: &str) -> Option<u64> {
     tok.strip_suffix("_elements")?.parse().ok()
 }
 
-/// Longest `::`-prefix of `s` that parses as a [`BenchCrate`], plus the rest.
-fn split_bench_path(s: &str) -> Option<(BenchCrate, &str)> {
+/// Longest `::`-prefix of `s` that parses as a [`BenchPath`], plus the rest.
+fn split_bench_path(s: &str) -> Option<(BenchPath, &str)> {
     let mut end = s.len();
     loop {
         let prefix = &s[..end];
-        if let Ok(bc) = prefix.parse::<BenchCrate>() {
-            return Some((bc, s[end..].trim_start_matches("::")));
+        if let Ok(bc) = prefix.parse::<BenchPath>() {
+            return Some((bc, s[end..].strip_prefix("::").unwrap_or("")));
         }
         end = prefix.rfind("::")?;
     }
@@ -141,11 +122,136 @@ mod tests {
             // trailing `_elements` marker belongs to the type name.
             "tfhe::hlapi::kv_store::get::PARAM_MESSAGE_2_CARRY_2::key_FheUint32::value_FheUint64",
             "tfhe::core_crypto::keyswitch::cuda::PARAM_MESSAGE_2_CARRY_2::64b::gemm::trivial_indices",
+            "tfhe::shortint::oprf::PARAM_MESSAGE_2_CARRY_2_KS_PBS",
         ];
         for id in ids {
             let spec: BenchmarkSpec = id.parse().unwrap_or_else(|e| panic!("parse {id:?}: {e:?}"));
             assert_eq!(spec.to_string(), id, "round-trip mismatch");
         }
+    }
+
+    /// A round-trip on the string cannot see a segment landing in the wrong
+    /// field: `Display` re-emits it at the same position, so the id comes back
+    /// byte-identical while the spec holds the wrong values. These cases pin
+    /// every field instead.
+    ///
+    /// Mismatches are collected rather than asserted one at a time, so a single
+    /// run reports every field that is off.
+    #[test]
+    fn parses_every_field() {
+        struct Case {
+            id: &'static str,
+            backend: Backend,
+            operand_type: OperandType,
+            metric: BenchmarkMetric,
+            param_name: &'static str,
+            type_name: Option<&'static str>,
+            num_elements: Option<usize>,
+        }
+
+        let cases = [
+            Case {
+                id: "tfhe::shortint::ops::add::PARAM_MESSAGE_2_CARRY_2_KS_PBS",
+                backend: Backend::Cpu,
+                operand_type: OperandType::CipherText,
+                metric: BenchmarkMetric::Latency,
+                param_name: "PARAM_MESSAGE_2_CARRY_2_KS_PBS",
+                type_name: None,
+                num_elements: None,
+            },
+            // `scalar` comes after the param, not before the metric.
+            Case {
+                id: "tfhe::hlapi::ops::left_shift::PARAM_MESSAGE_2_CARRY_2::scalar::FheUint64",
+                backend: Backend::Cpu,
+                operand_type: OperandType::PlainText,
+                metric: BenchmarkMetric::Latency,
+                param_name: "PARAM_MESSAGE_2_CARRY_2",
+                type_name: Some("FheUint64"),
+                num_elements: None,
+            },
+            // Every optional segment at once, `scalar` included.
+            Case {
+                id: "tfhe::hlapi::ops::left_shift::hpu::throughput::PARAM_MESSAGE_2_CARRY_2::scalar::FheUint64::10_elements",
+                backend: Backend::Hpu,
+                operand_type: OperandType::PlainText,
+                metric: BenchmarkMetric::Throughput,
+                param_name: "PARAM_MESSAGE_2_CARRY_2",
+                type_name: Some("FheUint64"),
+                num_elements: Some(10),
+            },
+            // Metric segments are spelled the way `Display` writes them:
+            // snake_case, underscore included.
+            Case {
+                id: "tfhe::hlapi::erc7984::transfer::safe::pbs_count::PARAM_MESSAGE_2_CARRY_2",
+                backend: Backend::Cpu,
+                operand_type: OperandType::CipherText,
+                metric: BenchmarkMetric::PbsCount,
+                param_name: "PARAM_MESSAGE_2_CARRY_2",
+                type_name: None,
+                num_elements: None,
+            },
+            // Synthetic pairing: the metric is orthogonal to the bench path, so
+            // any path exercises the segment.
+            Case {
+                id: "tfhe::shortint::ops::add::key_size::PARAM_MESSAGE_2_CARRY_2_KS_PBS",
+                backend: Backend::Cpu,
+                operand_type: OperandType::CipherText,
+                metric: BenchmarkMetric::KeySize,
+                param_name: "PARAM_MESSAGE_2_CARRY_2_KS_PBS",
+                type_name: None,
+                num_elements: None,
+            },
+        ];
+
+        let mut failures = Vec::new();
+        for case in cases {
+            let spec: BenchmarkSpec = match case.id.parse() {
+                Ok(spec) => spec,
+                Err(e) => {
+                    failures.push(format!("{}\n    does not parse: {e:?}", case.id));
+                    continue;
+                }
+            };
+            let mut check = |field: &str, got: String, want: String| {
+                if got != want {
+                    failures.push(format!(
+                        "{}\n    {field}: got {got}, expected {want}",
+                        case.id
+                    ));
+                }
+            };
+            check(
+                "backend",
+                format!("{:?}", spec.backend),
+                format!("{:?}", case.backend),
+            );
+            check(
+                "operand_type",
+                format!("{:?}", spec.operand_type()),
+                format!("{:?}", case.operand_type),
+            );
+            check(
+                "metric",
+                format!("{:?}", spec.metric()),
+                format!("{:?}", case.metric),
+            );
+            check(
+                "param_name",
+                format!("{:?}", spec.param_name()),
+                format!("{:?}", case.param_name),
+            );
+            check(
+                "type_name",
+                format!("{:?}", spec.type_name()),
+                format!("{:?}", case.type_name),
+            );
+            check(
+                "num_elements",
+                format!("{:?}", spec.num_elements()),
+                format!("{:?}", case.num_elements),
+            );
+        }
+        assert!(failures.is_empty(), "\n{}", failures.join("\n"));
     }
 
     #[test]
@@ -156,5 +262,45 @@ mod tests {
                 .parse::<BenchmarkSpec>()
                 .is_err()
         );
+    }
+
+    /// Ids no `Display` could ever have produced. Each one trips a different
+    /// guard, so a regression in any single one of them surfaces here.
+    #[test]
+    fn malformed_ids_are_rejected() {
+        let ids = [
+            // Nothing in there resolves to a bench path.
+            "",
+            "tfhe",
+            "zk",
+            "tfhe::shortint",
+            "tfhe::not_a_layer::add::PARAM_MESSAGE_2_CARRY_2",
+            "tfhe::shortint::ops::not_an_op::PARAM_MESSAGE_2_CARRY_2",
+            "zk::not_a_layer::G1_bls12_446",
+            // Tokens are snake_case, and matched exactly.
+            "TFHE::shortint::ops::add::PARAM_MESSAGE_2_CARRY_2",
+            "tfhe::Shortint::ops::add::PARAM_MESSAGE_2_CARRY_2",
+            // `::` is the only separator, and it never doubles up.
+            "::tfhe::shortint::ops::add::PARAM_MESSAGE_2_CARRY_2",
+            "tfhe::shortint::ops::add::PARAM_MESSAGE_2_CARRY_2::",
+            "tfhe::shortint::ops::add::::PARAM_MESSAGE_2_CARRY_2",
+            "tfhe::shortint::ops::add::PARAM_MESSAGE_2_CARRY_2::::FheUint64",
+            "tfhe:shortint:ops:add:PARAM_MESSAGE_2_CARRY_2",
+            "tfhe/shortint/ops/add/PARAM_MESSAGE_2_CARRY_2",
+            // Surrounding whitespace is not trimmed anywhere.
+            " tfhe::shortint::ops::add::PARAM_MESSAGE_2_CARRY_2",
+            "tfhe::shortint::ops::add ::PARAM_MESSAGE_2_CARRY_2",
+            // A bench path on its own is not an id: the parameter set is
+            // mandatory for everything but `zk`, and the id stops too early.
+            "tfhe::shortint::ops::add",
+            "tfhe::hlapi::ops::mul::cuda",
+            "tfhe::hlapi::ops::add::hpu::throughput",
+        ];
+        for id in ids {
+            assert!(
+                id.parse::<BenchmarkSpec>().is_err(),
+                "{id:?} parsed but should not have"
+            );
+        }
     }
 }

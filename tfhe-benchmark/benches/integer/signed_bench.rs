@@ -128,7 +128,7 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
             &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
-            bit_size as u32,
+            bit_size as u64,
             vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
@@ -233,7 +233,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
             &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
-            bit_size as u32,
+            bit_size as u64,
             vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
@@ -323,7 +323,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
             &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
-            bit_size as u32,
+            bit_size as u64,
             vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
@@ -424,7 +424,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
             &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
-            bit_size as u32,
+            bit_size as u64,
             vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
@@ -979,7 +979,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
             &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
-            bit_size as u32,
+            bit_size as u64,
             vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
@@ -1161,7 +1161,7 @@ fn signed_flip_parallelized(c: &mut Criterion) {
             &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
-            bit_size as u32,
+            bit_size as u64,
             vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
@@ -1527,7 +1527,7 @@ fn bench_server_key_signed_cast_function<F>(
                 &benchmark_spec,
                 display_name,
                 &OperatorType::Atomic,
-                bit_size as u32,
+                bit_size as u64,
                 vec![param.message_modulus().0.ilog2(); num_blocks],
             );
         }
@@ -1723,7 +1723,7 @@ mod cuda {
                 &benchmark_spec,
                 display_name,
                 &OperatorType::Atomic,
-                bit_size as u32,
+                bit_size as u64,
                 vec![param.message_modulus().0.ilog2(); num_block],
             );
         }
@@ -1865,7 +1865,7 @@ mod cuda {
                 &benchmark_spec,
                 display_name,
                 &OperatorType::Atomic,
-                bit_size as u32,
+                bit_size as u64,
                 vec![param.message_modulus().0.ilog2(); num_block],
             );
         }
@@ -2029,7 +2029,7 @@ mod cuda {
                 &benchmark_spec,
                 display_name,
                 &OperatorType::Atomic,
-                bit_size as u32,
+                bit_size as u64,
                 vec![param.message_modulus().0.ilog2(); num_block],
             );
         }
@@ -2210,7 +2210,7 @@ mod cuda {
                 &benchmark_spec,
                 display_name,
                 &OperatorType::Atomic,
-                bit_size as u32,
+                bit_size as u64,
                 vec![param.message_modulus().0.ilog2(); num_block],
             );
         }
@@ -2384,7 +2384,7 @@ mod cuda {
                 &benchmark_spec,
                 "if_then_else",
                 &OperatorType::Atomic,
-                bit_size as u32,
+                bit_size as u64,
                 vec![param.message_modulus().0.ilog2(); num_block],
             );
         }
@@ -3165,7 +3165,7 @@ mod cuda {
                     &benchmark_spec,
                     display_name,
                     &OperatorType::Atomic,
-                    bit_size as u32,
+                    bit_size as u64,
                     vec![param.message_modulus().0.ilog2(); num_blocks],
                 );
             }
