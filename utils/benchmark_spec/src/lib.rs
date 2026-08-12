@@ -7,7 +7,7 @@ mod metric;
 mod parse;
 pub mod tfhe;
 mod traits;
-mod type_name;
+mod type_tag;
 pub mod zk;
 
 #[cfg(test)]
@@ -25,7 +25,7 @@ pub use tfhe::{
     IntegerOprf, IntegerPackingOp, IntegerRerandMode, ShortintBench, ShortintCastingOp, ShortintOp,
     ShortintPackingOp, TfheLayer,
 };
-pub use type_name::{CudaKeyswitchConfig, PrecisionTag, TypeName, TypedKeyValue};
+pub use type_tag::{CudaKeyswitchConfig, FheType, PrecisionTag, TypeTag};
 
 use crate::tfhe::TranscipheringBench;
 use crate::zk::ZkLayer;
@@ -43,7 +43,7 @@ pub struct BenchmarkSpec {
     backend: Backend,
     param_name: String,
     operand_type: OperandType,
-    type_name: Option<String>,
+    type_tag: Option<TypeTag>,
     metric: BenchmarkMetric,
     num_elements: Option<usize>,
 }
@@ -69,11 +69,9 @@ impl BenchmarkSpec {
         self.operand_type
     }
 
-    /// The type tag, rendered. Still a flat string: it carries a Rust type, a
-    /// precision, a key/value pair or a keyswitch config depending on the
-    /// benchmark, so callers have to interpret it.
-    pub fn type_name(&self) -> Option<&str> {
-        self.type_name.as_deref()
+    /// The type tag, when the benchmark carries one.
+    pub fn type_tag(&self) -> Option<TypeTag> {
+        self.type_tag
     }
 
     /// `Some` when the id ends with an `<n>_elements` segment: batch size for a
@@ -87,7 +85,7 @@ impl BenchmarkSpec {
         backend: Backend,
         param_name: &str,
         operand_type: OperandType,
-        type_name: Option<&dyn TypeName>,
+        type_tag: Option<TypeTag>,
         bench_type: impl Into<BenchmarkMetric>,
         num_elements: Option<usize>,
     ) -> Self {
@@ -96,7 +94,7 @@ impl BenchmarkSpec {
             backend,
             param_name: param_name.to_string(),
             operand_type,
-            type_name: type_name.map(|t| t.type_name()),
+            type_tag,
             metric: bench_type.into(),
             num_elements,
         }
@@ -106,7 +104,7 @@ impl BenchmarkSpec {
         hlapi_op: HlIntegerOp,
         param_name: &str,
         operand_type: OperandType,
-        type_name: Option<&dyn TypeName>,
+        type_tag: Option<TypeTag>,
         bench_type: impl Into<BenchmarkMetric>,
     ) -> Self {
         Self {
@@ -114,7 +112,7 @@ impl BenchmarkSpec {
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type,
-            type_name: type_name.map(|t| t.type_name()),
+            type_tag,
             metric: bench_type.into(),
             num_elements: None,
         }
@@ -124,7 +122,7 @@ impl BenchmarkSpec {
         hlapi_bench: HlapiBench,
         param_name: &str,
         operand_type: OperandType,
-        type_name: Option<&dyn TypeName>,
+        type_tag: Option<TypeTag>,
         bench_type: impl Into<BenchmarkMetric>,
         num_elements: Option<usize>,
     ) -> Self {
@@ -133,7 +131,7 @@ impl BenchmarkSpec {
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type,
-            type_name: type_name.map(|t| t.type_name()),
+            type_tag,
             metric: bench_type.into(),
             num_elements,
         }
@@ -142,7 +140,7 @@ impl BenchmarkSpec {
     pub fn new_integer_ops(
         ops: IntegerOpBySign,
         param_name: &str,
-        type_name: Option<&dyn TypeName>,
+        type_tag: Option<TypeTag>,
         bench_type: impl Into<BenchmarkMetric>,
         num_elements: Option<usize>,
     ) -> Self {
@@ -151,7 +149,7 @@ impl BenchmarkSpec {
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
-            type_name: type_name.map(|t| t.type_name()),
+            type_tag,
             metric: bench_type.into(),
             num_elements,
         }
@@ -160,7 +158,7 @@ impl BenchmarkSpec {
     pub fn new_integer(
         integer_bench: IntegerBench,
         param_name: &str,
-        type_name: Option<&dyn TypeName>,
+        type_tag: Option<TypeTag>,
         bench_type: impl Into<BenchmarkMetric>,
         num_elements: Option<usize>,
     ) -> Self {
@@ -169,7 +167,7 @@ impl BenchmarkSpec {
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
-            type_name: type_name.map(|t| t.type_name()),
+            type_tag,
             metric: bench_type.into(),
             num_elements,
         }
@@ -185,7 +183,7 @@ impl BenchmarkSpec {
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
-            type_name: None,
+            type_tag: None,
             metric: bench_type.into(),
             num_elements: None,
         }
@@ -201,7 +199,7 @@ impl BenchmarkSpec {
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
-            type_name: None,
+            type_tag: None,
             metric: bench_type.into(),
             num_elements: None,
         }
@@ -217,7 +215,7 @@ impl BenchmarkSpec {
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
-            type_name: None,
+            type_tag: None,
             metric: bench_type.into(),
             num_elements: None,
         }
@@ -226,7 +224,7 @@ impl BenchmarkSpec {
     pub fn new_cuda_core_crypto(
         core_crypto_bench: CoreCryptoBench,
         param_name: &str,
-        type_name: Option<&dyn TypeName>,
+        type_tag: Option<TypeTag>,
         bench_type: impl Into<BenchmarkMetric>,
     ) -> Self {
         Self {
@@ -234,7 +232,7 @@ impl BenchmarkSpec {
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
-            type_name: type_name.map(|t| t.type_name()),
+            type_tag,
             metric: bench_type.into(),
             num_elements: None,
         }
@@ -250,7 +248,7 @@ impl BenchmarkSpec {
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
-            type_name: None,
+            type_tag: None,
             metric: bench_type.into(),
             num_elements: None,
         }
@@ -267,7 +265,7 @@ impl BenchmarkSpec {
             backend,
             param_name: String::new(),
             operand_type: OperandType::CipherText,
-            type_name: None,
+            type_tag: None,
             metric: bench_type.into(),
             num_elements,
         }
@@ -292,8 +290,8 @@ impl fmt::Display for BenchmarkSpec {
         if self.operand_type.is_scalar() {
             write!(f, "::scalar")?;
         }
-        if let Some(type_name) = &self.type_name {
-            write!(f, "::{type_name}")?;
+        if let Some(type_tag) = &self.type_tag {
+            write!(f, "::{type_tag}")?;
         }
         if let Some(num_elements) = self.num_elements {
             write!(f, "::{num_elements}_elements")?;
