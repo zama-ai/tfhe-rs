@@ -1,4 +1,6 @@
+pub mod casting;
 pub mod ops;
+pub mod packing;
 
 use std::str::FromStr;
 
@@ -6,32 +8,10 @@ use ops::ShortintOp;
 use strum::{Display, EnumDiscriminants, EnumString};
 
 use crate::error::SpecParseError;
-use crate::traits::{SpecLeafNode, SpecNode};
+use crate::traits::SpecNode;
 
-/// Casting operations between shortint parameter sets.
-#[derive(Debug, Clone, Copy, Display, EnumString, enum_iterator::Sequence)]
-#[strum(serialize_all = "snake_case")]
-pub enum ShortintCastingOp {
-    Cast,
-    PackCast,
-    PackCast64,
-}
-
-impl SpecLeafNode for ShortintCastingOp {}
-
-/// GLWE packing-compression operations.
-#[derive(Debug, Clone, Copy, Display, EnumString, enum_iterator::Sequence)]
-#[strum(serialize_all = "snake_case")]
-pub enum ShortintPackingOp {
-    Pack,
-    UnpackAll,
-    UnpackOneLwe,
-    #[strum(serialize = "unpack_64b")]
-    Unpack64b,
-    PackUnpack,
-}
-
-impl SpecLeafNode for ShortintPackingOp {}
+pub use casting::ShortintCastingOp;
+pub use packing::ShortintPackingOp;
 
 /// Benchmarks of the `shortint` layer. Mixed node: `Ops`, `Casting` and
 /// `PackingCompression` carry a child, the other variants are leaves.
