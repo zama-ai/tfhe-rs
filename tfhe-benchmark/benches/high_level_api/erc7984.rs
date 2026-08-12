@@ -333,7 +333,7 @@ mod pbs_stats {
             None,
         );
 
-        let mut benchmark_result = CsvResultWriter::new("erc7984_pbs_count.csv");
+        let mut benchmark_result = CsvResultWriter::from_path("erc7984_pbs_count.csv");
 
         benchmark_result.write_result(&test_name.to_string(), count as usize);
 
