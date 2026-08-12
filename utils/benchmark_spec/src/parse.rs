@@ -68,21 +68,24 @@ impl FromStr for BenchmarkSpec {
         };
 
         // Remaining tokens: the optional `<n>_elements` marker is always last;
-        // anything before it is the type name (which may itself span several
-        // `::` segments, e.g. `key_x::value_y`).
+        // anything before it is the type tag, which may itself span several
+        // `::` segments, as `key_x::value_y` does.
         let rest: Vec<&str> = it.collect();
         let (type_toks, num_elements) = match rest.last().and_then(|t| parse_elements(t)) {
             Some(n) => (&rest[..rest.len() - 1], Some(n)),
             None => (&rest[..], None),
         };
-        let type_name = (!type_toks.is_empty()).then(|| type_toks.join("::"));
+        let type_tag = match type_toks.is_empty() {
+            true => None,
+            false => Some(type_toks.join("::").parse()?),
+        };
 
         Ok(BenchmarkSpec {
             bench_crate,
             backend,
             param_name,
             operand_type,
-            type_name,
+            type_tag,
             metric,
             num_elements,
         })

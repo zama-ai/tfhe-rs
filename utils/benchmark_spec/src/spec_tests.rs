@@ -6,21 +6,13 @@ use crate::tfhe::hlapi::erc7984::Erc7984;
 
 use super::*;
 
-struct Ty(&'static str);
-
-impl TypeName for Ty {
-    fn type_name(&self) -> String {
-        self.0.to_string()
-    }
-}
-
 #[test]
 fn hlapi_cpu_latency() {
     let spec = BenchmarkSpec::new_hlapi_ops(
         HlIntegerOp::Add,
         "PARAM_MESSAGE_2_CARRY_2",
         OperandType::CipherText,
-        Some(&Ty("FheUint64")),
+        Some(FheType::Uint(64).into()),
         BenchmarkMetric::Latency,
     );
     assert_eq!(
@@ -36,7 +28,7 @@ fn hlapi_cuda_latency() {
         Backend::Cuda,
         "PARAM_MESSAGE_2_CARRY_2",
         OperandType::CipherText,
-        Some(&Ty("FheUint128")),
+        Some(FheType::Uint(128).into()),
         BenchmarkMetric::Latency,
         None,
     );
@@ -53,7 +45,7 @@ fn hlapi_hpu_throughput() {
         Backend::Hpu,
         "PARAM_MESSAGE_2_CARRY_2",
         OperandType::CipherText,
-        Some(&Ty("FheUint64")),
+        Some(FheType::Uint(64).into()),
         BenchmarkMetric::Throughput,
         None,
     );
@@ -69,7 +61,7 @@ fn hlapi_scalar() {
         HlIntegerOp::LeftShift,
         "PARAM_MESSAGE_2_CARRY_2",
         OperandType::PlainText,
-        Some(&Ty("FheUint64")),
+        Some(FheType::Uint(64).into()),
         BenchmarkMetric::Latency,
     );
     assert_eq!(
@@ -79,7 +71,7 @@ fn hlapi_scalar() {
 }
 
 #[test]
-fn hlapi_no_type_name() {
+fn hlapi_no_type_tag() {
     let spec = BenchmarkSpec::new_hlapi_ops(
         HlIntegerOp::Neg,
         "PARAM_MESSAGE_2_CARRY_2",
@@ -98,7 +90,7 @@ fn integer_ops_latency() {
     let spec = BenchmarkSpec::new_integer_ops(
         IntegerOpBySign::Unsigned(IntegerOp::AddParallelized),
         "PARAM_MESSAGE_2_CARRY_2",
-        Some(&Ty("64_bits")),
+        Some(PrecisionTag::Bits(64).into()),
         BenchmarkMetric::Latency,
         None,
     );
@@ -113,7 +105,7 @@ fn integer_ops_signed() {
     let spec = BenchmarkSpec::new_integer_ops(
         IntegerOpBySign::Signed(IntegerOp::MulParallelized),
         "PARAM_MESSAGE_2_CARRY_2",
-        Some(&Ty("64_bits")),
+        Some(PrecisionTag::Bits(64).into()),
         BenchmarkMetric::Latency,
         None,
     );
@@ -128,7 +120,7 @@ fn integer_ops_throughput_with_num_elements() {
     let spec = BenchmarkSpec::new_integer_ops(
         IntegerOpBySign::Unsigned(IntegerOp::SumCiphertextsParallelized),
         "PARAM_MESSAGE_2_CARRY_2",
-        Some(&Ty("64_bits")),
+        Some(PrecisionTag::Bits(64).into()),
         BenchmarkMetric::Throughput,
         Some(5),
     );
@@ -143,7 +135,7 @@ fn integer_ops_ilog2_serialization() {
     let spec = BenchmarkSpec::new_integer_ops(
         IntegerOpBySign::Unsigned(IntegerOp::CheckedIlog2Parallelized),
         "PARAM_MESSAGE_2_CARRY_2",
-        Some(&Ty("8_bits")),
+        Some(PrecisionTag::Bits(8).into()),
         BenchmarkMetric::Latency,
         None,
     );
@@ -254,7 +246,7 @@ fn hlapi_dex_swap_request_latency() {
         HlapiBench::Dex(Dex::SwapRequest(DexFlavor::Whitepaper)),
         "PARAM_MESSAGE_2_CARRY_2",
         OperandType::CipherText,
-        Some(&Ty("FheUint64")),
+        Some(FheType::Uint(64).into()),
         BenchmarkMetric::Latency,
         None,
     );
@@ -275,7 +267,7 @@ fn hlapi_dex_swap_claim_throughput_with_elements() {
         Backend::Cuda,
         "PARAM_MESSAGE_2_CARRY_2",
         OperandType::CipherText,
-        Some(&Ty("FheUint64")),
+        Some(FheType::Uint(64).into()),
         BenchmarkMetric::Throughput,
         Some(10),
     );
@@ -293,7 +285,7 @@ fn hlapi_dex_with_pbs_count() {
         HlapiBench::Dex(Dex::SwapRequest(DexFlavor::Finalize)),
         "PARAM_MESSAGE_2_CARRY_2",
         OperandType::CipherText,
-        Some(&Ty("FheUint64")),
+        Some(FheType::Uint(64).into()),
         BenchmarkMetric::PbsCount,
         None,
     );
@@ -301,4 +293,58 @@ fn hlapi_dex_with_pbs_count() {
         spec.to_string(),
         "tfhe::hlapi::dex::swap_request::finalize::pbs_count::PARAM_MESSAGE_2_CARRY_2::FheUint64"
     );
+}
+
+/// `Display` writes the trailing segments in a fixed order and `FromStr`
+/// consumes them in the same one, with nothing tying the two together.
+#[test]
+fn trailing_segments_round_trip_in_every_combination() {
+    let bench_crate = BenchCrate::Tfhe(TfheLayer::Integer(IntegerBench::Ops(
+        IntegerOpBySign::Unsigned(IntegerOp::AddParallelized),
+    )));
+
+    // One plain tag, one spanning several `::` segments, one that could be
+    // mistaken for the trailing `_elements` marker.
+    let tags = [
+        None,
+        Some(TypeTag::Type(FheType::Uint(64))),
+        Some(TypeTag::KeyValue {
+            key: FheType::Uint(32),
+            value: FheType::Uint(64),
+        }),
+        Some(TypeTag::CudaKeyswitch(CudaKeyswitchConfig::new(
+            32, None, None,
+        ))),
+    ];
+
+    for backend in [Backend::Cpu, Backend::Cuda, Backend::Hpu] {
+        for metric in [
+            BenchmarkMetric::Latency,
+            BenchmarkMetric::Throughput,
+            BenchmarkMetric::PbsCount,
+            BenchmarkMetric::KeySize,
+        ] {
+            for operand_type in [OperandType::CipherText, OperandType::PlainText] {
+                for tag in &tags {
+                    for num_elements in [None, Some(4)] {
+                        let spec = BenchmarkSpec::new(
+                            bench_crate,
+                            backend,
+                            "PARAM_MESSAGE_2_CARRY_2_KS_PBS",
+                            operand_type,
+                            *tag,
+                            metric,
+                            num_elements,
+                        );
+
+                        let id = spec.to_string();
+                        let reparsed: BenchmarkSpec = id
+                            .parse()
+                            .unwrap_or_else(|e| panic!("parsing back {id:?}: {e:?}"));
+                        assert_eq!(reparsed.to_string(), id, "round-trip mismatch");
+                    }
+                }
+            }
+        }
+    }
 }
