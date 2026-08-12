@@ -283,7 +283,7 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
             &benchmark_spec,
             "ks-pbs",
             &OperatorType::Atomic,
-            bit_size,
+            bit_size as u64,
             vec![bit_size],
         );
     }
@@ -530,7 +530,7 @@ fn multi_bit_ks_pbs<
             &benchmark_spec,
             "ks-pbs",
             &OperatorType::Atomic,
-            bit_size,
+            bit_size as u64,
             vec![bit_size],
         );
     }
@@ -858,7 +858,7 @@ mod cuda {
                 &benchmark_spec,
                 "ks-pbs",
                 &OperatorType::Atomic,
-                bit_size,
+                bit_size as u64,
                 vec![bit_size],
             );
         }
@@ -1165,7 +1165,7 @@ mod cuda {
                 &benchmark_spec,
                 "ks-pbs",
                 &OperatorType::Atomic,
-                bit_size,
+                bit_size as u64,
                 vec![bit_size],
             );
         }

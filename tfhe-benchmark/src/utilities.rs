@@ -13,7 +13,7 @@ pub fn bench_and_record<F>(
     group: &mut BenchmarkGroup<'_, WallTime>,
     benchmark_spec: &BenchmarkSpec,
     display_name: &str,
-    bit_size: u32,
+    bit_size: u64,
     decomposition_basis: Vec<u32>,
     mut routine: F,
 ) where

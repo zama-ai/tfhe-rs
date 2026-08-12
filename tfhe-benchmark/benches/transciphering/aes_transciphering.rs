@@ -69,7 +69,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
         &mut group,
         &benchmark_spec,
         "aes_key_expansion",
-        BLOCK_BITS as u32,
+        BLOCK_BITS as u64,
         vec![log2_msg; BLOCK_BITS],
         |b| {
             b.iter(|| {
@@ -90,7 +90,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
         &mut group,
         &benchmark_spec,
         "aes_key_expansion_plus_1_block",
-        BLOCK_BITS as u32,
+        BLOCK_BITS as u64,
         vec![log2_msg; BLOCK_BITS],
         |b| {
             b.iter(|| {
@@ -116,7 +116,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
         &mut group,
         &benchmark_spec,
         "aes_keystream_1_block",
-        BLOCK_BITS as u32,
+        BLOCK_BITS as u64,
         vec![log2_msg; BLOCK_BITS],
         |b| {
             b.iter(|| {
@@ -138,7 +138,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
         &mut group,
         &benchmark_spec,
         "aes_keystream_16_blocks",
-        total_bits as u32,
+        total_bits as u64,
         vec![log2_msg; total_bits],
         |b| {
             b.iter(|| {
@@ -165,7 +165,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
         &mut group,
         &benchmark_spec,
         "aes_transcipher_16_blocks",
-        total_bits as u32,
+        total_bits as u64,
         vec![log2_msg; total_bits],
         |b| {
             b.iter(|| {

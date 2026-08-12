@@ -45,7 +45,7 @@ pub fn match_value(c: &mut Criterion) {
             param.name(),
             "match_value",
             &OperatorType::Atomic,
-            bits as u32,
+            bits as u64,
             vec![atomic_param.message_modulus().0.ilog2(); bits],
         );
     }
@@ -97,7 +97,7 @@ pub mod cuda {
                 param.name(),
                 "match_value",
                 &OperatorType::Atomic,
-                bits as u32,
+                bits as u64,
                 vec![atomic_param.message_modulus().0.ilog2(); bits],
             );
         }

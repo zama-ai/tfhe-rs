@@ -152,7 +152,7 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
             &benchmark_spec,
             "ks",
             &OperatorType::Atomic,
-            bit_size,
+            bit_size as u64,
             vec![bit_size],
         );
     }
@@ -332,7 +332,7 @@ fn packing_keyswitch<Scalar, F>(
             &benchmark_spec,
             "packing_ks",
             &OperatorType::Atomic,
-            1u32,
+            1u64,
             vec![1u32],
         );
     }
@@ -505,7 +505,7 @@ mod cuda {
                         &benchmark_spec,
                         "ks",
                         &OperatorType::Atomic,
-                        bit_size,
+                        bit_size as u64,
                         vec![bit_size],
                     );
                 }
@@ -639,7 +639,7 @@ mod cuda {
                                 &benchmark_spec,
                                 "ks",
                                 &OperatorType::Atomic,
-                                bit_size,
+                                bit_size as u64,
                                 vec![bit_size],
                             );
                         }
@@ -879,7 +879,7 @@ mod cuda {
                 &benchmark_spec,
                 "packing_ks",
                 &OperatorType::Atomic,
-                bit_size,
+                bit_size as u64,
                 vec![bit_size],
             );
         }
