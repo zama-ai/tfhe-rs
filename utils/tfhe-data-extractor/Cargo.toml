@@ -1,0 +1,21 @@
+[package]
+name = "tfhe-data-extractor"
+version = "0.1.0"
+edition = "2024"
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+clap = { workspace = true }
+benchmark_spec = { path = "../benchmark_spec" }
+sqlx = { version = "0.8.6", default-features = false, features = [
+    "runtime-tokio",
+    "tls-rustls",
+    "postgres",
+    "macros",
+] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+anyhow = "1"
+chrono = { version = "0.4", default-features = false, features = ["std"] }

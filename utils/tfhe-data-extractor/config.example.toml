@@ -1,0 +1,14 @@
+# Copy this file to `config.toml` and fill in the credentials, then pass it with
+# `--config-file config.toml`.
+#
+# Environment variables OVERRIDE any value below:
+#   DATA_EXTRACTOR_DATABASE_HOST
+#   DATA_EXTRACTOR_DATABASE_USER
+#   DATA_EXTRACTOR_DATABASE_PASSWORD
+#
+# The database name comes from the `--database` CLI flag (default: tfhe_rs).
+
+[database]
+host = ""
+user = ""
+password = ""
