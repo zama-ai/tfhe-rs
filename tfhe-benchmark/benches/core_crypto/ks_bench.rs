@@ -477,7 +477,7 @@ mod cuda {
                     let benchmark_spec = BenchmarkSpec::new_cuda_core_crypto(
                         cc_bench,
                         name,
-                        Some(&ks_config),
+                        Some(ks_config.into()),
                         bench_type,
                     );
                     let bench_id = benchmark_spec.to_string();
@@ -523,7 +523,7 @@ mod cuda {
                             let benchmark_spec = BenchmarkSpec::new_cuda_core_crypto(
                                 cc_bench,
                                 name,
-                                Some(&ks_config),
+                                Some(ks_config.into()),
                                 bench_type,
                             );
                             let bench_id = benchmark_spec.to_string();

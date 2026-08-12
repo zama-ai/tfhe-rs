@@ -1,7 +1,7 @@
 #[cfg(not(feature = "hpu"))]
 use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-use benchmark::high_level_api::type_display::TypeDisplayer;
+use benchmark::high_level_api::type_display::TypeTagExt;
 use benchmark::params_aliases::{
     BENCH_COMP_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -20,7 +20,7 @@ use benchmark::utilities::{
 };
 use benchmark_spec::tfhe::hlapi::noise_squash::NoiseSquashingKind;
 use benchmark_spec::{
-    get_bench_type, BenchmarkSpec, BenchmarkType, HlapiBench, OperandType, TypeName,
+    get_bench_type, BenchmarkSpec, BenchmarkType, HlapiBench, OperandType, TypeTag,
 };
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
@@ -52,7 +52,7 @@ fn bench_sns_only_fhe_type<FheType>(
         NoiseSquashingCompressionParameters,
         CompressionParameters,
     ),
-    type_name: &dyn TypeName,
+    tag: TypeTag,
     num_bits: usize,
 ) where
     FheType: FheEncrypt<u128, ClientKey> + Send + Sync + SquashNoise,
@@ -76,7 +76,7 @@ fn bench_sns_only_fhe_type<FheType>(
         set_server_key(decompressed_sks);
     }
 
-    let mut bench_group = c.benchmark_group(type_name.to_string());
+    let mut bench_group = c.benchmark_group(tag.to_string());
     let noise_param_name = noise_param.name();
 
     let mut rng = thread_rng();
@@ -86,7 +86,7 @@ fn bench_sns_only_fhe_type<FheType>(
         HlapiBench::NoiseSquashing(NoiseSquashingKind::NoiseSquash),
         &noise_param_name,
         OperandType::CipherText,
-        Some(type_name),
+        Some(tag),
         bench_type,
         None,
     );
@@ -106,7 +106,7 @@ fn bench_sns_only_fhe_type<FheType>(
             });
         }
         BenchmarkType::Throughput => {
-            let elements = if will_this_bench_run(&type_name.to_string(), &bench_id) {
+            let elements = if will_this_bench_run(&tag.to_string(), &bench_id) {
                 #[cfg(feature = "gpu")]
                 {
                     use benchmark::utilities::throughput_num_threads;
@@ -218,7 +218,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
         NoiseSquashingCompressionParameters,
         CompressionParameters,
     ),
-    type_name: &dyn TypeName,
+    tag: TypeTag,
     num_bits: usize,
 ) where
     FheType: FheEncrypt<u128, ClientKey> + Send + Sync,
@@ -246,7 +246,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
         set_server_key(decompressed_sks);
     }
 
-    let mut bench_group = c.benchmark_group(type_name.to_string());
+    let mut bench_group = c.benchmark_group(tag.to_string());
     let noise_param_name = noise_param.name();
 
     let mut rng = thread_rng();
@@ -256,7 +256,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
         HlapiBench::NoiseSquashing(NoiseSquashingKind::DecompNoiseSquashComp),
         &noise_param_name,
         OperandType::CipherText,
-        Some(type_name),
+        Some(tag),
         bench_type,
         None,
     );
@@ -284,7 +284,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
             });
         }
         BenchmarkType::Throughput => {
-            let elements = if will_this_bench_run(&type_name.to_string(), &bench_id) {
+            let elements = if will_this_bench_run(&tag.to_string(), &bench_id) {
                 #[cfg(feature = "gpu")]
                 {
                     use benchmark::utilities::throughput_num_threads;
@@ -419,7 +419,7 @@ macro_rules! bench_sns_only_type {
         ::paste::paste! {
             fn [<bench_sns_only_ $fhe_type:snake>](c: &mut Criterion, params: &[(PBSParameters, NoiseSquashingParameters, NoiseSquashingCompressionParameters, CompressionParameters)]) {
                 for param in params {
-                    bench_sns_only_fhe_type::<$fhe_type>(c, *param, &TypeDisplayer::<$fhe_type>::default(), $fhe_type::num_bits());
+                    bench_sns_only_fhe_type::<$fhe_type>(c, *param, $fhe_type::type_tag(), $fhe_type::num_bits());
                 }
             }
         }
@@ -431,7 +431,7 @@ macro_rules! bench_decomp_sns_comp_type {
         ::paste::paste! {
             fn [<bench_decomp_sns_comp_ $fhe_type:snake>](c: &mut Criterion, params: &[(PBSParameters, NoiseSquashingParameters, NoiseSquashingCompressionParameters, CompressionParameters)]) {
                 for param in params {
-                bench_decomp_sns_comp_fhe_type::<$fhe_type>(c, *param, &TypeDisplayer::<$fhe_type>::default(), $fhe_type::num_bits());
+                bench_decomp_sns_comp_fhe_type::<$fhe_type>(c, *param, $fhe_type::type_tag(), $fhe_type::num_bits());
     }
             }
         }

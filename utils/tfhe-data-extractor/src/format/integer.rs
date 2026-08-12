@@ -103,7 +103,10 @@ pub fn table(measured: &[Measured], operand: OperandType) -> Table {
                 .iter()
                 .map(|(label, op)| (label.to_string(), *op))
                 .collect(),
-            columns: COLUMNS,
+            columns: COLUMNS
+                .iter()
+                .map(|(name, key)| (name.to_string(), *key))
+                .collect(),
             // An operation with no result at all is left out: the row list is a
             // catalogue, and benchmarking a subset of it is routine.
             drop_empty_rows: true,
