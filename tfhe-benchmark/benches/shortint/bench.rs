@@ -46,7 +46,7 @@ fn bench_server_key_unary_function<F>(
             &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
-            param.message_modulus().0.ilog2(),
+            param.message_modulus().0.ilog2() as u64,
             vec![param.message_modulus().0.ilog2()],
         );
     }
@@ -91,7 +91,7 @@ fn bench_server_key_binary_function<F>(
             &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
-            param.message_modulus().0.ilog2(),
+            param.message_modulus().0.ilog2() as u64,
             vec![param.message_modulus().0.ilog2()],
         );
     }
@@ -135,7 +135,7 @@ fn bench_server_key_binary_scalar_function<F>(
             &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
-            param.message_modulus().0.ilog2(),
+            param.message_modulus().0.ilog2() as u64,
             vec![param.message_modulus().0.ilog2()],
         );
     }
@@ -183,7 +183,7 @@ fn bench_server_key_binary_scalar_division_function<F>(
             &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
-            param.message_modulus().0.ilog2(),
+            param.message_modulus().0.ilog2() as u64,
             vec![param.message_modulus().0.ilog2()],
         );
     }
@@ -220,7 +220,7 @@ fn carry_extract_bench(c: &mut Criterion) {
             &benchmark_spec,
             "carry_extract",
             &OperatorType::Atomic,
-            param.message_modulus().0.ilog2(),
+            param.message_modulus().0.ilog2() as u64,
             vec![param.message_modulus().0.ilog2()],
         );
     }
@@ -260,7 +260,7 @@ fn programmable_bootstrapping_bench(c: &mut Criterion) {
             &benchmark_spec,
             "pbs",
             &OperatorType::Atomic,
-            param.message_modulus().0.ilog2(),
+            param.message_modulus().0.ilog2() as u64,
             vec![param.message_modulus().0.ilog2()],
         );
     }
@@ -310,7 +310,7 @@ fn server_key_from_compressed_key(c: &mut Criterion) {
             &benchmark_spec,
             "uncompress_key",
             &OperatorType::Atomic,
-            param.message_modulus().0.ilog2(),
+            param.message_modulus().0.ilog2() as u64,
             vec![param.message_modulus().0.ilog2()],
         );
     }

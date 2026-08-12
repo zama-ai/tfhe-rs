@@ -12,7 +12,7 @@ pub fn write_to_json(
     benchmark_spec: &BenchmarkSpec,
     display_name: impl Into<String>,
     operator_type: &OperatorType,
-    bit_size: u32,
+    bit_size: u64,
     decomposition_basis: Vec<u32>,
 ) {
     write_to_json_unchecked(
@@ -32,7 +32,7 @@ pub fn write_to_json_unchecked(
     params_alias: impl Into<String>,
     display_name: impl Into<String>,
     operator_type: &OperatorType,
-    bit_size: u32,
+    bit_size: u64,
     decomposition_basis: Vec<u32>,
 ) {
     let execution_type = match bench_id.contains("parallelized") {

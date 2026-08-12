@@ -223,7 +223,7 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
             &benchmark_spec,
             "pbs",
             &OperatorType::Atomic,
-            bit_size,
+            bit_size as u64,
             vec![bit_size],
         );
     }
@@ -461,7 +461,7 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
             &benchmark_spec,
             "pbs",
             &OperatorType::Atomic,
-            bit_size,
+            bit_size as u64,
             vec![bit_size],
         );
     }
@@ -654,7 +654,7 @@ fn multi_bit_pbs<
             &benchmark_spec,
             "pbs",
             &OperatorType::Atomic,
-            bit_size,
+            bit_size as u64,
             vec![bit_size],
         );
     }
@@ -911,7 +911,7 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
             &benchmark_spec,
             "pbs",
             &OperatorType::Atomic,
-            bit_size,
+            bit_size as u64,
             vec![bit_size],
         );
     }

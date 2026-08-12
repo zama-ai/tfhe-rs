@@ -35,7 +35,7 @@ fn oprf(c: &mut Criterion) {
         &benchmark_spec,
         "oprf",
         &OperatorType::Atomic,
-        param.message_modulus.0.ilog2(),
+        param.message_modulus.0.ilog2() as u64,
         vec![param.message_modulus.0.ilog2()],
     );
 }

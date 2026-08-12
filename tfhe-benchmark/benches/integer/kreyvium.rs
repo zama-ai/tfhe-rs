@@ -118,7 +118,7 @@ pub mod cuda {
             param_name.clone(),
             format!("{method_label}_init"),
             &OperatorType::Atomic,
-            u32::try_from(KREYVIUM_KEY_BITS).unwrap(),
+            u64::try_from(KREYVIUM_KEY_BITS).unwrap(),
             vec![atomic_param.message_modulus().0.ilog2(); KREYVIUM_KEY_BITS],
         );
 
@@ -139,7 +139,7 @@ pub mod cuda {
                 param_name.clone(),
                 format!("{method_label}_next_{num_steps}_bits"),
                 &OperatorType::Atomic,
-                u32::try_from(KREYVIUM_KEY_BITS).unwrap(),
+                u64::try_from(KREYVIUM_KEY_BITS).unwrap(),
                 vec![atomic_param.message_modulus().0.ilog2(); KREYVIUM_KEY_BITS],
             );
 
@@ -157,7 +157,7 @@ pub mod cuda {
                 param_name.clone(),
                 format!("{method_label}_generation_{num_steps}_bits"),
                 &OperatorType::Atomic,
-                u32::try_from(KREYVIUM_KEY_BITS).unwrap(),
+                u64::try_from(KREYVIUM_KEY_BITS).unwrap(),
                 vec![atomic_param.message_modulus().0.ilog2(); KREYVIUM_KEY_BITS],
             );
         }
@@ -238,7 +238,7 @@ pub mod cuda {
             param_name.clone(),
             format!("{method_label}_throughput_init"),
             &OperatorType::Atomic,
-            u32::try_from(KREYVIUM_KEY_BITS).unwrap(),
+            u64::try_from(KREYVIUM_KEY_BITS).unwrap(),
             vec![atomic_param.message_modulus().0.ilog2(); KREYVIUM_KEY_BITS],
         );
 
@@ -259,7 +259,7 @@ pub mod cuda {
                 param_name.clone(),
                 format!("{method_label}_throughput_next_{num_steps}"),
                 &OperatorType::Atomic,
-                u32::try_from(KREYVIUM_KEY_BITS).unwrap(),
+                u64::try_from(KREYVIUM_KEY_BITS).unwrap(),
                 vec![atomic_param.message_modulus().0.ilog2(); KREYVIUM_KEY_BITS],
             );
 
@@ -276,7 +276,7 @@ pub mod cuda {
                 param_name.clone(),
                 format!("{method_label}_throughput_generate_{num_steps}"),
                 &OperatorType::Atomic,
-                u32::try_from(KREYVIUM_KEY_BITS).unwrap(),
+                u64::try_from(KREYVIUM_KEY_BITS).unwrap(),
                 vec![atomic_param.message_modulus().0.ilog2(); KREYVIUM_KEY_BITS],
             );
         }

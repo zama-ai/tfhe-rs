@@ -188,7 +188,7 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
                         param_name,
                         "pke_zk_proof",
                         &OperatorType::Atomic,
-                        shortint_params.message_modulus().0 as u32,
+                        shortint_params.message_modulus().0,
                         vec![shortint_params.message_modulus().0.ilog2(); num_block],
                     );
                 }
@@ -435,7 +435,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                         param_name,
                         "pke_zk_verify",
                         &OperatorType::Atomic,
-                        shortint_params.message_modulus().0 as u32,
+                        shortint_params.message_modulus().0,
                         vec![shortint_params.message_modulus().0.ilog2(); num_block],
                     );
 
@@ -444,7 +444,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                         param_name,
                         "pke_zk_verify_and_expand",
                         &OperatorType::Atomic,
-                        shortint_params.message_modulus().0 as u32,
+                        shortint_params.message_modulus().0,
                         vec![shortint_params.message_modulus().0.ilog2(); num_block],
                     );
                 }
@@ -823,7 +823,7 @@ mod cuda {
                             param_name,
                             display_name,
                             &OperatorType::Atomic,
-                            param_fhe.message_modulus().0 as u32,
+                            param_fhe.message_modulus().0,
                             vec![param_fhe.message_modulus().0.ilog2(); num_block],
                         );
                     }
@@ -957,7 +957,7 @@ mod cuda {
                             param_name,
                             "pke_zk_proof",
                             &OperatorType::Atomic,
-                            shortint_params.message_modulus().0 as u32,
+                            shortint_params.message_modulus().0,
                             vec![shortint_params.message_modulus().0.ilog2(); num_block],
                         );
                     }
