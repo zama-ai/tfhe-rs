@@ -31,6 +31,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use tfhe_csprng::generators::aes_ctr::{AesCtrParams, TableIndex};
+use tfhe_csprng::seeders::SeedKind;
 
 use crate::core_crypto::commons::generators::NoiseRandomGenerator;
 use crate::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey;
@@ -63,16 +64,31 @@ use crate::high_level_api::keys::expanded::IntegerExpandedServerKey;
 // 11) SNS Compression Key
 // 12) OPRF Key
 
-/// Holds a [XofSeed] and the byte at which the random generator should start.
-/// This maintains backward compatibility with tfhe-rs=1.5.4 (csprng=0.8.1)
-/// where the generator started at the second byte.
+/// Holds a [XofSeed] and everything needed to rebuild the generator that was seeded with it: the
+/// byte it starts at, and which Aes variant derives the stream.
 ///
-/// Default conversion [From] a [XofSeed] selects the first byte.
+/// Which Aes variant was used has to be recorded: key sets serialized by tfhe-rs 1.6 and earlier
+/// were derived with Aes-128 and must keep decompressing that way, while newly generated ones use
+/// Aes-256.
+///
+/// Default conversion [From] a [XofSeed] selects the first byte and Aes-128, matching the legacy
+/// behaviour; use [`XofSeedStart::new_aes256`] for the current default.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
 #[versionize(XofSeedStartVersions)]
 pub enum XofSeedStart {
+    /// Generator starts at the first byte, stream derived with Aes-128.
     FirstByte(XofSeed),
+    /// Replicates the tfhe-rs=1.5.4 csprng off by one. Aes-128 only.
     SecondByte(XofSeed),
+    /// Generator starts at the first byte, stream derived with Aes-256.
+    FirstByteAes256(XofSeed),
+}
+
+impl XofSeedStart {
+    /// Starts at the first byte, deriving the stream with Aes-256.
+    pub fn new_aes256(seed: XofSeed) -> Self {
+        Self::FirstByteAes256(seed)
+    }
 }
 
 impl From<XofSeed> for XofSeedStart {
@@ -83,14 +99,21 @@ impl From<XofSeed> for XofSeedStart {
 
 impl From<XofSeedStart> for AesCtrParams {
     fn from(val: XofSeedStart) -> Self {
+        // Each arm names its Aes variant explicitly. Do NOT collapse these into `seed.into()`:
+        // that would route through the `From<XofSeed> for SeedKind` default and silently give
+        // every variant the same cipher, making key sets decompress against the wrong schedule.
         match val {
-            XofSeedStart::FirstByte(xof_seed) => Self {
-                seed: xof_seed.into(),
+            XofSeedStart::FirstByte(seed) => Self {
+                seed: SeedKind::xof_aes128(seed),
                 first_index: TableIndex::FIRST,
             },
-            XofSeedStart::SecondByte(xof_seed) => Self {
-                seed: xof_seed.into(),
+            XofSeedStart::SecondByte(seed) => Self {
+                seed: SeedKind::xof_aes128(seed),
                 first_index: TableIndex::SECOND,
+            },
+            XofSeedStart::FirstByteAes256(seed) => Self {
+                seed: SeedKind::xof_aes256(seed),
+                first_index: TableIndex::FIRST,
             },
         }
     }
@@ -156,6 +179,9 @@ impl CompressedXofKeySet {
         if security_bits == 0 {
             return Err(crate::error!("security_bits must be non-zero"));
         }
+        // Relies on the `From<XofSeed>` default, which is Aes-256. Note that the private seed is
+        // never serialized, so regenerating a key set from the same `private_seed_bytes` with a
+        // version that used a different Aes variant yields a different ClientKey.
         let mut private_generator = RandomGenerator::<DefaultRandomGenerator>::new(private_seed);
 
         let mut public_seed_bytes = vec![0u8; security_bits.div_ceil(8) as usize];
@@ -385,7 +411,10 @@ impl CompressedXofKeySet {
         );
 
         Ok(Self {
-            seed: XofSeedStart::FirstByte(pub_seed),
+            // Must match how `pub_seed` was consumed above, i.e. the `From<XofSeed>` default of
+            // Aes-256 at the first byte, otherwise the key set decompresses against a different
+            // stream than the one it was generated with.
+            seed: XofSeedStart::new_aes256(pub_seed),
             compressed_public_key,
             compressed_server_key,
         })

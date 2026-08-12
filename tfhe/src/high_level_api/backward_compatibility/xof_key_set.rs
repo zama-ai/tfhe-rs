@@ -25,7 +25,8 @@ impl Upgrade<CompressedXofKeySet> for CompressedXofKeySetV0 {
         } = self;
 
         Ok(CompressedXofKeySet::from_raw_parts(
-            // Start on second byte to keep backward compatibility with csprng bug
+            // Start on second byte to keep backward compatibility with csprng bug. The variant is
+            // Aes-128 by construction, which is the only derivation this format could produce.
             XofSeedStart::SecondByte(seed),
             compressed_public_key,
             compressed_server_key,
