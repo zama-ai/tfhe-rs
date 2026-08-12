@@ -34,14 +34,14 @@ pub fn unsigned_oprf(c: &mut Criterion) {
         let oprf_spec = BenchmarkSpec::new_integer(
             IntegerBench::Oprf(IntegerOprf::Unsigned),
             &param_name,
-            Some(&bits),
+            Some(bits.into()),
             bench_type,
             None,
         );
         let oprf_bounded_spec = BenchmarkSpec::new_integer(
             IntegerBench::Oprf(IntegerOprf::UnsignedBounded),
             &param_name,
-            Some(&bits),
+            Some(bits.into()),
             bench_type,
             None,
         );
@@ -191,14 +191,14 @@ pub mod cuda {
             let oprf_spec = BenchmarkSpec::new_integer(
                 IntegerBench::Oprf(IntegerOprf::Unsigned),
                 &param_name,
-                Some(&bits),
+                Some(bits.into()),
                 bench_type,
                 None,
             );
             let oprf_bounded_spec = BenchmarkSpec::new_integer(
                 IntegerBench::Oprf(IntegerOprf::UnsignedBounded),
                 &param_name,
-                Some(&bits),
+                Some(bits.into()),
                 bench_type,
                 None,
             );

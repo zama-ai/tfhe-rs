@@ -2,7 +2,7 @@ use benchmark::high_level_api::bench_wait::*;
 use benchmark::high_level_api::benchmark_op::*;
 use benchmark::utilities::{will_this_bench_run, write_to_json, OperatorType};
 use benchmark_spec::{
-    get_bench_type, BenchmarkSpec, BenchmarkType, HlIntegerOp, OperandType, TypeName,
+    get_bench_type, BenchmarkSpec, BenchmarkType, HlIntegerOp, OperandType, TypeTag,
 };
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
@@ -19,14 +19,14 @@ pub fn bench_fhe_type_op<FheType, Op>(
     client_key: &ClientKey,
     hlapi_op: HlIntegerOp,
     operand_type: OperandType,
-    type_name: &dyn TypeName,
+    tag: TypeTag,
     bit_size: usize,
     op: Op,
 ) where
     Op: BenchmarkOp<FheType> + Sync,
     FheType: FheWait + Send + Sync,
 {
-    let mut bench_group = c.benchmark_group(type_name.to_string());
+    let mut bench_group = c.benchmark_group(tag.to_string());
 
     let mut rng = thread_rng();
 
@@ -37,13 +37,8 @@ pub fn bench_fhe_type_op<FheType, Op>(
     let inputs = op.setup_inputs(client_key, &mut rng);
 
     let bench_type = get_bench_type();
-    let benchmark_spec = BenchmarkSpec::new_hlapi_ops(
-        hlapi_op,
-        &param_name,
-        operand_type,
-        Some(type_name),
-        bench_type,
-    );
+    let benchmark_spec =
+        BenchmarkSpec::new_hlapi_ops(hlapi_op, &param_name, operand_type, Some(tag), bench_type);
     let bench_id = benchmark_spec.to_string();
 
     match bench_type {
@@ -64,7 +59,7 @@ pub fn bench_fhe_type_op<FheType, Op>(
                     .collect::<Vec<_>>()
             };
 
-            let elements = if will_this_bench_run(&type_name.to_string(), &bench_id) {
+            let elements = if will_this_bench_run(&tag.to_string(), &bench_id) {
                 #[cfg(any(feature = "gpu", feature = "hpu"))]
                 {
                     use benchmark::utilities::throughput_num_threads;
@@ -143,7 +138,7 @@ macro_rules! bench_type_binary_op {
                     cks,
                     $hlapi_op,
                     OperandType::CipherText,
-                    &TypeDisplayer::<$fhe_type>::default(),
+                    $fhe_type::type_tag(),
                     $fhe_type::num_bits(),
                     BinaryOp {
                         func: |lhs: &$fhe_type, rhs: &$fhe_right_type| lhs.$op(rhs),
@@ -174,7 +169,7 @@ macro_rules! bench_type_binary_scalar_op {
                     cks,
                     $hlapi_op,
                     OperandType::PlainText,
-                    &TypeDisplayer::<$fhe_type>::default(),
+                    $fhe_type::type_tag(),
                     $fhe_type::num_bits(),
                     ScalarBinaryOp {
                         func: |lhs: &$fhe_type, rhs: &$scalar_ty| lhs.$op(*rhs),
@@ -202,7 +197,7 @@ macro_rules! bench_type_unary_op {
                     cks,
                     $hlapi_op,
                     OperandType::CipherText,
-                    &TypeDisplayer::<$fhe_type>::default(),
+                    $fhe_type::type_tag(),
                     $fhe_type::num_bits(),
                     UnaryOp {
                         func: |lhs: &$fhe_type| lhs.$op(),
@@ -229,7 +224,7 @@ macro_rules! bench_type_ternary_op {
                     cks,
                     $hlapi_op,
                     OperandType::CipherText,
-                    &TypeDisplayer::<$fhe_type>::default(),
+                    $fhe_type::type_tag(),
                     $fhe_type::num_bits(),
                     TernaryOp {
                         func: |cond: &FheBool, lhs: &$fhe_type, rhs: &$fhe_type| cond.$op(lhs, rhs),
@@ -256,7 +251,7 @@ macro_rules! bench_type_array_op {
                     cks,
                     $hlapi_op,
                     OperandType::CipherText,
-                    &TypeDisplayer::<$fhe_type>::default(),
+                    $fhe_type::type_tag(),
                     $fhe_type::num_bits(),
                     ArrayOp {
                         func: |iter: std::slice::Iter<'_, $fhe_type>| iter.$op(),

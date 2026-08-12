@@ -10,7 +10,7 @@ use benchmark::utilities::{configure_gpu, get_param_type, ParamType};
 use benchmark::utilities::{write_to_json, BitSizesSet, EnvConfig, OperatorType};
 use benchmark_spec::tfhe::hlapi::kv_store::KvStoreOp;
 use benchmark_spec::{
-    get_bench_type, BenchmarkSpec, BenchmarkType, HlapiBench, OperandType, TypedKeyValue,
+    get_bench_type, BenchmarkSpec, BenchmarkType, HlapiBench, OperandType, TypeTag,
 };
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
@@ -40,9 +40,10 @@ where
     let mut kv_store = KVStore::new();
     let mut rng = rand::thread_rng();
 
-    let key_name = TypeDisplayer::<Key>::default().to_string();
-    let value_name = TypeDisplayer::<Value>::default().to_string();
-    let tkv = TypedKeyValue::new(&key_name, &value_name);
+    let tkv = TypeTag::KeyValue {
+        key: <Key as TypeDisplay>::fhe_type(),
+        value: <Value as TypeDisplay>::fhe_type(),
+    };
 
     let param_name = param.name();
     let bench_type = get_bench_type();
@@ -52,7 +53,7 @@ where
             HlapiBench::KvStore(op),
             &param_name,
             OperandType::CipherText,
-            Some(&tkv),
+            Some(tkv),
             bench_type,
             Some(num_elements),
         )

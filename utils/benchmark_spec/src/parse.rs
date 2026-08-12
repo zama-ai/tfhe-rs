@@ -49,21 +49,24 @@ impl FromStr for BenchmarkSpec {
         let operand_type = next_segment(&mut it).unwrap_or(OperandType::CipherText);
 
         // Remaining tokens: the optional `<n>_elements` marker is always last;
-        // anything before it is the type name (which may itself span several
-        // `::` segments, e.g. `key_x::value_y`).
+        // anything before it is the type tag, which may itself span several
+        // `::` segments, as `key_x::value_y` does.
         let rest: Vec<&str> = it.collect();
         let (type_toks, num_elements) = match rest.last().and_then(|t| parse_elements(t)) {
             Some(n) => (&rest[..rest.len() - 1], Some(n)),
             None => (&rest[..], None),
         };
-        let type_name = (!type_toks.is_empty()).then(|| type_toks.join("::"));
+        let type_tag = match type_toks.is_empty() {
+            true => None,
+            false => Some(type_toks.join("::").parse()?),
+        };
 
         Ok(BenchmarkSpec {
             bench_path,
             backend,
             param_name,
             operand_type,
-            type_name,
+            type_tag,
             metric,
             num_elements,
         })
@@ -139,14 +142,32 @@ mod tests {
     /// run reports every field that is off.
     #[test]
     fn parses_every_field() {
+        use crate::{FheType, TypeTag};
+        use std::fmt::Debug;
+
         struct Case {
             id: &'static str,
             backend: Backend,
             operand_type: OperandType,
             metric: BenchmarkMetric,
             param_name: &'static str,
-            type_name: Option<&'static str>,
-            num_elements: Option<usize>,
+            type_tag: Option<TypeTag>,
+            num_elements: Option<u64>,
+        }
+
+        /// Both sides share one type parameter: a field changing type stops
+        /// compiling here instead of comparing two renderings that happen to
+        /// differ.
+        fn check<T: PartialEq + Debug>(
+            failures: &mut Vec<String>,
+            id: &str,
+            field: &str,
+            got: T,
+            want: T,
+        ) {
+            if got != want {
+                failures.push(format!("{id}\n    {field}: got {got:?}, expected {want:?}"));
+            }
         }
 
         let cases = [
@@ -156,7 +177,7 @@ mod tests {
                 operand_type: OperandType::CipherText,
                 metric: BenchmarkMetric::Latency,
                 param_name: "PARAM_MESSAGE_2_CARRY_2_KS_PBS",
-                type_name: None,
+                type_tag: None,
                 num_elements: None,
             },
             // `scalar` comes after the param, not before the metric.
@@ -166,7 +187,7 @@ mod tests {
                 operand_type: OperandType::PlainText,
                 metric: BenchmarkMetric::Latency,
                 param_name: "PARAM_MESSAGE_2_CARRY_2",
-                type_name: Some("FheUint64"),
+                type_tag: Some(FheType::Uint(64).into()),
                 num_elements: None,
             },
             // Every optional segment at once, `scalar` included.
@@ -176,7 +197,7 @@ mod tests {
                 operand_type: OperandType::PlainText,
                 metric: BenchmarkMetric::Throughput,
                 param_name: "PARAM_MESSAGE_2_CARRY_2",
-                type_name: Some("FheUint64"),
+                type_tag: Some(FheType::Uint(64).into()),
                 num_elements: Some(10),
             },
             // Metric segments are spelled the way `Display` writes them:
@@ -187,7 +208,7 @@ mod tests {
                 operand_type: OperandType::CipherText,
                 metric: BenchmarkMetric::PbsCount,
                 param_name: "PARAM_MESSAGE_2_CARRY_2",
-                type_name: None,
+                type_tag: None,
                 num_elements: None,
             },
             // Synthetic pairing: the metric is orthogonal to the bench path, so
@@ -198,7 +219,7 @@ mod tests {
                 operand_type: OperandType::CipherText,
                 metric: BenchmarkMetric::KeySize,
                 param_name: "PARAM_MESSAGE_2_CARRY_2_KS_PBS",
-                type_name: None,
+                type_tag: None,
                 num_elements: None,
             },
         ];
@@ -212,43 +233,25 @@ mod tests {
                     continue;
                 }
             };
-            let mut check = |field: &str, got: String, want: String| {
-                if got != want {
-                    failures.push(format!(
-                        "{}\n    {field}: got {got}, expected {want}",
-                        case.id
-                    ));
-                }
-            };
+            let id = case.id;
+            let fs = &mut failures;
+            check(fs, id, "backend", spec.backend, case.backend);
             check(
-                "backend",
-                format!("{:?}", spec.backend),
-                format!("{:?}", case.backend),
-            );
-            check(
+                fs,
+                id,
                 "operand_type",
-                format!("{:?}", spec.operand_type()),
-                format!("{:?}", case.operand_type),
+                spec.operand_type(),
+                case.operand_type,
             );
+            check(fs, id, "metric", spec.metric(), case.metric);
+            check(fs, id, "param_name", spec.param_name(), case.param_name);
+            check(fs, id, "type_tag", spec.type_tag(), case.type_tag);
             check(
-                "metric",
-                format!("{:?}", spec.metric()),
-                format!("{:?}", case.metric),
-            );
-            check(
-                "param_name",
-                format!("{:?}", spec.param_name()),
-                format!("{:?}", case.param_name),
-            );
-            check(
-                "type_name",
-                format!("{:?}", spec.type_name()),
-                format!("{:?}", case.type_name),
-            );
-            check(
+                fs,
+                id,
                 "num_elements",
-                format!("{:?}", spec.num_elements()),
-                format!("{:?}", case.num_elements),
+                spec.num_elements(),
+                case.num_elements,
             );
         }
         assert!(failures.is_empty(), "\n{}", failures.join("\n"));
