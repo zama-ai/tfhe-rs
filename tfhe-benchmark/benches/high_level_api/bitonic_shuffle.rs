@@ -224,7 +224,7 @@ fn bench_shuffle_config<T>(
         params_name,
         "bitonic_shuffle",
         &OperatorType::Atomic,
-        value_bits,
+        value_bits as u64,
         vec![],
     );
 }

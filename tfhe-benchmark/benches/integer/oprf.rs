@@ -154,7 +154,7 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                 spec,
                 display_name,
                 &OperatorType::Atomic,
-                bit_size as u32,
+                bit_size as u64,
                 vec![param.message_modulus().0.ilog2(); num_block],
             );
         }
@@ -324,7 +324,7 @@ pub mod cuda {
                     spec,
                     display_name,
                     &OperatorType::Atomic,
-                    bit_size as u32,
+                    bit_size as u64,
                     vec![param.message_modulus().0.ilog2(); num_block],
                 );
             }

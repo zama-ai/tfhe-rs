@@ -486,7 +486,7 @@ fn bench_transfer_throughput<FheType, F>(
             OperandType::CipherText,
             Some(type_name),
             BenchmarkMetric::Throughput,
-            Some(num_elems.try_into().unwrap()),
+            Some(num_elems),
         );
         let bench_id = bench_spec.to_string();
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
@@ -557,7 +557,7 @@ fn cuda_bench_transfer_throughput<FheType, F>(
         OperandType::CipherText,
         Some(type_name),
         BenchmarkMetric::Throughput,
-        Some(reported_num_elems.try_into().unwrap()),
+        Some(reported_num_elems),
     );
     group.bench_with_input(bench_spec.to_string(), &num_elems, |b, &num_elems| {
         let from_amounts = (0..num_elems)

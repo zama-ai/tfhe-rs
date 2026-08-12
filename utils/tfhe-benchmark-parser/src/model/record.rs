@@ -36,7 +36,7 @@ pub enum OperatorType {
 pub(crate) struct BenchmarkParametersRecord {
     pub display_name: String,
     pub crypto_parameters_alias: String,
-    pub bit_size: u32,
+    pub bit_size: u64,
     pub polynomial_multiplication: PolynomialMultiplication,
     pub integer_representation: IntegerRepresentation,
     pub decomposition_basis: Vec<u32>,

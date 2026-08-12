@@ -69,7 +69,7 @@ pub fn cpu_kreyvium_transciphering(c: &mut Criterion) {
         &mut group,
         &benchmark_spec,
         "kreyvium_warmup",
-        KEY_BITS as u32,
+        KEY_BITS as u64,
         vec![log2_msg; KEY_BITS],
         |b| {
             b.iter_batched(
@@ -98,7 +98,7 @@ pub fn cpu_kreyvium_transciphering(c: &mut Criterion) {
         &mut group,
         &benchmark_spec,
         &format!("kreyvium_keystream_{KEYSTREAM_BITS}bits"),
-        KEYSTREAM_BITS as u32,
+        KEYSTREAM_BITS as u64,
         vec![log2_msg; KEYSTREAM_BITS],
         |b| {
             b.iter_batched(
@@ -130,7 +130,7 @@ pub fn cpu_kreyvium_transciphering(c: &mut Criterion) {
         &mut group,
         &benchmark_spec,
         &format!("kreyvium_transcipher_{KEYSTREAM_BITS}bits"),
-        KEYSTREAM_BITS as u32,
+        KEYSTREAM_BITS as u64,
         vec![log2_msg; KEYSTREAM_BITS],
         |b| {
             b.iter_batched(

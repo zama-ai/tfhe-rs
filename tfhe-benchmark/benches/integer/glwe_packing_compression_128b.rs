@@ -174,7 +174,7 @@ mod cuda {
             noise_squashing_compression_parameters.name(),
             "pack",
             &OperatorType::Atomic,
-            bit_size as u32,
+            bit_size as u64,
             vec![param.message_modulus().0.ilog2(); num_blocks],
         );
 
@@ -328,7 +328,7 @@ mod cuda {
             noise_squashing_compression_parameters.name(),
             "unpack",
             &OperatorType::Atomic,
-            bit_size as u32,
+            bit_size as u64,
             vec![param.message_modulus().0.ilog2(); num_blocks],
         );
 
