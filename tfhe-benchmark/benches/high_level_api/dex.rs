@@ -1,4 +1,4 @@
-use benchmark::high_level_api::type_display::TypeDisplayer;
+use benchmark::high_level_api::type_display::TypeTagExt;
 #[cfg(not(feature = "gpu"))]
 use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 #[cfg(feature = "gpu")]
@@ -12,7 +12,7 @@ use benchmark::utilities::{write_to_json, OperatorType};
 use benchmark_spec::tfhe::hlapi::dex::{Dex, DexFlavor};
 use benchmark_spec::tfhe::hlapi::HlapiBench;
 use benchmark_spec::{
-    get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, OperandType, TypeName,
+    get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, OperandType, TypeTag,
 };
 use criterion::{Criterion, Throughput};
 use rand::prelude::*;
@@ -231,7 +231,7 @@ mod pbs_stats {
 
     pub fn print_swap_request_update_dex_balance_pbs_counts<FheType, F>(
         client_key: &ClientKey,
-        type_name: &dyn TypeName,
+        tag: TypeTag,
         dex_bench_spec: Dex,
         swap_request_update_dex_balance_func: F,
     ) where
@@ -251,7 +251,7 @@ mod pbs_stats {
         let _ = swap_request_update_dex_balance_func(&from_balance, &current_dex_balance, &amount);
         let count = tfhe::get_pbs_count() * 2;
 
-        println!("ERC7984 swap request update dex balance/::{type_name}: {count} PBS");
+        println!("ERC7984 swap request update dex balance/::{tag}: {count} PBS");
 
         let params = client_key.computation_parameters();
         let params_name = params.name();
@@ -260,7 +260,7 @@ mod pbs_stats {
             HlapiBench::Dex(dex_bench_spec),
             &params_name,
             OperandType::CipherText,
-            Some(type_name),
+            Some(tag),
             BenchmarkMetric::PbsCount,
             None,
         );
@@ -274,7 +274,7 @@ mod pbs_stats {
     }
     pub fn print_swap_request_finalize_pbs_counts<FheType, F>(
         client_key: &ClientKey,
-        type_name: &dyn TypeName,
+        tag: TypeTag,
         dex_bench_spec: Dex,
         swap_request_finalize_func: F,
     ) where
@@ -294,7 +294,7 @@ mod pbs_stats {
         let (_, _) = swap_request_finalize_func(&to_balance_0, &total_dex_token_0_in, &sent_0);
         let count = tfhe::get_pbs_count() * 2;
 
-        println!("ERC7984 swap request finalize/::{type_name}: {count} PBS");
+        println!("ERC7984 swap request finalize/::{tag}: {count} PBS");
 
         let params = client_key.computation_parameters();
         let params_name = params.name();
@@ -303,7 +303,7 @@ mod pbs_stats {
             HlapiBench::Dex(dex_bench_spec),
             &params_name,
             OperandType::CipherText,
-            Some(type_name),
+            Some(tag),
             BenchmarkMetric::PbsCount,
             None,
         );
@@ -317,7 +317,7 @@ mod pbs_stats {
     }
     pub fn print_swap_claim_prepare_pbs_counts<FheType, F>(
         client_key: &ClientKey,
-        type_name: &dyn TypeName,
+        tag: TypeTag,
         dex_bench_spec: Dex,
         swap_claim_prepare_func: F,
     ) where
@@ -347,7 +347,7 @@ mod pbs_stats {
         );
         let count = tfhe::get_pbs_count();
 
-        println!("ERC7984 swap claim prepare/::{type_name}: {count} PBS");
+        println!("ERC7984 swap claim prepare/::{tag}: {count} PBS");
 
         let params = client_key.computation_parameters();
         let params_name = params.name();
@@ -356,7 +356,7 @@ mod pbs_stats {
             HlapiBench::Dex(dex_bench_spec),
             &params_name,
             OperandType::CipherText,
-            Some(type_name),
+            Some(tag),
             BenchmarkMetric::PbsCount,
             None,
         );
@@ -370,7 +370,7 @@ mod pbs_stats {
     }
     pub fn print_swap_claim_update_dex_balance_pbs_counts<FheType, F>(
         client_key: &ClientKey,
-        type_name: &dyn TypeName,
+        tag: TypeTag,
         dex_bench_spec: Dex,
         swap_claim_update_dex_balance_func: F,
     ) where
@@ -396,7 +396,7 @@ mod pbs_stats {
         );
         let count = tfhe::get_pbs_count() * 2;
 
-        println!("ERC7984 swap claim update dex balance/::{type_name}: {count} PBS");
+        println!("ERC7984 swap claim update dex balance/::{tag}: {count} PBS");
 
         let params = client_key.computation_parameters();
         let params_name = params.name();
@@ -405,7 +405,7 @@ mod pbs_stats {
             HlapiBench::Dex(dex_bench_spec),
             &params_name,
             OperandType::CipherText,
-            Some(type_name),
+            Some(tag),
             BenchmarkMetric::PbsCount,
             None,
         );
@@ -422,7 +422,7 @@ mod pbs_stats {
 fn bench_swap_request_latency<FheType, F1, F2>(
     c: &mut Criterion,
     client_key: &ClientKey,
-    type_name: &dyn TypeName,
+    tag: TypeTag,
     dex_bench_spec: Dex,
     swap_request_update_dex_balance_func: F1,
     swap_request_finalize_func: F2,
@@ -437,13 +437,13 @@ fn bench_swap_request_latency<FheType, F1, F2>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
-    let mut c = c.benchmark_group(type_name.to_string());
+    let mut c = c.benchmark_group(tag.to_string());
 
     let bench_spec = BenchmarkSpec::new_hlapi(
         HlapiBench::Dex(dex_bench_spec),
         &params_name,
         OperandType::CipherText,
-        Some(type_name),
+        Some(tag),
         BenchmarkMetric::Latency,
         None,
     );
@@ -499,7 +499,7 @@ fn bench_swap_request_latency<FheType, F1, F2>(
 fn bench_swap_request_throughput<FheType, F1, F2>(
     c: &mut Criterion,
     client_key: &ClientKey,
-    type_name: &dyn TypeName,
+    tag: TypeTag,
     dex_bench_spec: Dex,
     swap_request_update_dex_balance_func: F1,
     swap_request_finalize_func: F2,
@@ -513,7 +513,7 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
-    let mut group = c.benchmark_group(type_name.to_string());
+    let mut group = c.benchmark_group(tag.to_string());
 
     for num_elems in [10, 50, 100] {
         group.throughput(Throughput::Elements(num_elems));
@@ -522,7 +522,7 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
             HlapiBench::Dex(dex_bench_spec),
             &params_name,
             OperandType::CipherText,
-            Some(type_name),
+            Some(tag),
             BenchmarkMetric::Throughput,
             Some(num_elems.try_into().unwrap()),
         );
@@ -621,7 +621,7 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
 fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
     c: &mut Criterion,
     client_key: &ClientKey,
-    type_name: &dyn TypeName,
+    tag: TypeTag,
     dex_bench_spec: Dex,
     swap_request_update_dex_balance_func: F1,
     swap_request_finalize_func: F2,
@@ -642,7 +642,7 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
-    let mut group = c.benchmark_group(type_name.to_string());
+    let mut group = c.benchmark_group(tag.to_string());
 
     for num_elems in [5 * num_gpus, 10 * num_gpus, 20 * num_gpus] {
         group.throughput(Throughput::Elements(num_elems));
@@ -650,7 +650,7 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
             HlapiBench::Dex(dex_bench_spec),
             &params_name,
             OperandType::CipherText,
-            Some(type_name),
+            Some(tag),
             BenchmarkMetric::Throughput,
             Some(num_elems.try_into().unwrap()),
         );
@@ -837,7 +837,7 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
 fn bench_swap_claim_latency<FheType, F1, F2>(
     c: &mut Criterion,
     client_key: &ClientKey,
-    type_name: &dyn TypeName,
+    tag: TypeTag,
     dex_bench_spec: Dex,
     swap_claim_prepare_func: F1,
     swap_claim_update_dex_balance_func: F2,
@@ -852,13 +852,13 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
-    let mut c = c.benchmark_group(type_name.to_string());
+    let mut c = c.benchmark_group(tag.to_string());
 
     let bench_spec = BenchmarkSpec::new_hlapi(
         HlapiBench::Dex(dex_bench_spec),
         &params_name,
         OperandType::CipherText,
-        Some(type_name),
+        Some(tag),
         BenchmarkMetric::Latency,
         None,
     );
@@ -920,7 +920,7 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
 fn bench_swap_claim_throughput<FheType, F1, F2>(
     c: &mut Criterion,
     client_key: &ClientKey,
-    type_name: &dyn TypeName,
+    tag: TypeTag,
     dex_bench_spec: Dex,
     swap_claim_prepare_func: F1,
     swap_claim_update_dex_balance_func: F2,
@@ -934,7 +934,7 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
-    let mut group = c.benchmark_group(type_name.to_string());
+    let mut group = c.benchmark_group(tag.to_string());
 
     for num_elems in [2, 6, 10] {
         group.throughput(Throughput::Elements(num_elems));
@@ -943,7 +943,7 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
             HlapiBench::Dex(dex_bench_spec),
             &params_name,
             OperandType::CipherText,
-            Some(type_name),
+            Some(tag),
             BenchmarkMetric::Throughput,
             Some(num_elems.try_into().unwrap()),
         );
@@ -1060,7 +1060,7 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
 fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
     c: &mut Criterion,
     client_key: &ClientKey,
-    type_name: &dyn TypeName,
+    tag: TypeTag,
     dex_bench_spec: Dex,
     swap_claim_prepare_func: F1,
     swap_claim_update_dex_balance_func: F2,
@@ -1081,7 +1081,7 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
-    let mut group = c.benchmark_group(type_name.to_string());
+    let mut group = c.benchmark_group(tag.to_string());
 
     for num_elems in [num_gpus, 2 * num_gpus] {
         group.throughput(Throughput::Elements(num_elems));
@@ -1089,7 +1089,7 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
             HlapiBench::Dex(dex_bench_spec),
             &params_name,
             OperandType::CipherText,
-            Some(type_name),
+            Some(tag),
             BenchmarkMetric::Throughput,
             Some(num_elems.try_into().unwrap()),
         );
@@ -1299,37 +1299,37 @@ fn main() {
     {
         print_swap_request_update_dex_balance_pbs_counts(
             &cks,
-            &TypeDisplayer::<FheUint64>::default(),
+            FheUint64::type_tag(),
             Dex::SwapRequest(DexFlavor::Whitepaper),
             swap_request_update_dex_balance_whitepaper::<FheUint64>,
         );
         print_swap_request_update_dex_balance_pbs_counts(
             &cks,
-            &TypeDisplayer::<FheUint64>::default(),
+            FheUint64::type_tag(),
             Dex::SwapRequest(DexFlavor::NoCmux),
             swap_request_update_dex_balance_no_cmux::<FheUint64>,
         );
         print_swap_request_finalize_pbs_counts(
             &cks,
-            &TypeDisplayer::<FheUint64>::default(),
+            FheUint64::type_tag(),
             Dex::SwapRequest(DexFlavor::Finalize),
             swap_request_finalize::<FheUint64>,
         );
         print_swap_claim_prepare_pbs_counts(
             &cks,
-            &TypeDisplayer::<FheUint64>::default(),
+            FheUint64::type_tag(),
             Dex::SwapClaim(DexFlavor::Prepare),
             swap_claim_prepare::<FheUint64, FheUint128>,
         );
         print_swap_claim_update_dex_balance_pbs_counts(
             &cks,
-            &TypeDisplayer::<FheUint64>::default(),
+            FheUint64::type_tag(),
             Dex::SwapClaim(DexFlavor::Whitepaper),
             swap_claim_update_dex_balance_whitepaper::<FheUint64>,
         );
         print_swap_claim_update_dex_balance_pbs_counts(
             &cks,
-            &TypeDisplayer::<FheUint64>::default(),
+            FheUint64::type_tag(),
             Dex::SwapClaim(DexFlavor::NoCmux),
             swap_claim_update_dex_balance_no_cmux::<FheUint64>,
         );
@@ -1340,7 +1340,7 @@ fn main() {
             bench_swap_request_latency(
                 &mut c,
                 &cks,
-                &TypeDisplayer::<FheUint64>::default(),
+                FheUint64::type_tag(),
                 Dex::SwapRequest(DexFlavor::Whitepaper),
                 swap_request_update_dex_balance_whitepaper::<FheUint64>,
                 swap_request_finalize::<FheUint64>,
@@ -1348,7 +1348,7 @@ fn main() {
             bench_swap_request_latency(
                 &mut c,
                 &cks,
-                &TypeDisplayer::<FheUint64>::default(),
+                FheUint64::type_tag(),
                 Dex::SwapRequest(DexFlavor::NoCmux),
                 swap_request_update_dex_balance_no_cmux::<FheUint64>,
                 swap_request_finalize::<FheUint64>,
@@ -1356,7 +1356,7 @@ fn main() {
             bench_swap_claim_latency(
                 &mut c,
                 &cks,
-                &TypeDisplayer::<FheUint64>::default(),
+                FheUint64::type_tag(),
                 Dex::SwapClaim(DexFlavor::Whitepaper),
                 swap_claim_prepare::<FheUint64, FheUint128>,
                 swap_claim_update_dex_balance_whitepaper::<FheUint64>,
@@ -1364,7 +1364,7 @@ fn main() {
             bench_swap_claim_latency(
                 &mut c,
                 &cks,
-                &TypeDisplayer::<FheUint64>::default(),
+                FheUint64::type_tag(),
                 Dex::SwapClaim(DexFlavor::NoCmux),
                 swap_claim_prepare::<FheUint64, FheUint128>,
                 swap_claim_update_dex_balance_no_cmux::<FheUint64>,
@@ -1374,7 +1374,7 @@ fn main() {
             bench_swap_request_throughput(
                 &mut c,
                 &cks,
-                &TypeDisplayer::<FheUint64>::default(),
+                FheUint64::type_tag(),
                 Dex::SwapRequest(DexFlavor::Whitepaper),
                 swap_request_update_dex_balance_whitepaper::<FheUint64>,
                 swap_request_finalize::<FheUint64>,
@@ -1382,7 +1382,7 @@ fn main() {
             bench_swap_request_throughput(
                 &mut c,
                 &cks,
-                &TypeDisplayer::<FheUint64>::default(),
+                FheUint64::type_tag(),
                 Dex::SwapRequest(DexFlavor::NoCmux),
                 swap_request_update_dex_balance_no_cmux::<FheUint64>,
                 swap_request_finalize::<FheUint64>,
@@ -1390,7 +1390,7 @@ fn main() {
             bench_swap_claim_throughput(
                 &mut c,
                 &cks,
-                &TypeDisplayer::<FheUint64>::default(),
+                FheUint64::type_tag(),
                 Dex::SwapClaim(DexFlavor::Whitepaper),
                 swap_claim_prepare::<FheUint64, FheUint128>,
                 swap_claim_update_dex_balance_whitepaper::<FheUint64>,
@@ -1398,7 +1398,7 @@ fn main() {
             bench_swap_claim_throughput(
                 &mut c,
                 &cks,
-                &TypeDisplayer::<FheUint64>::default(),
+                FheUint64::type_tag(),
                 Dex::SwapClaim(DexFlavor::NoCmux),
                 swap_claim_prepare::<FheUint64, FheUint128>,
                 swap_claim_update_dex_balance_no_cmux::<FheUint64>,
@@ -1429,37 +1429,37 @@ fn main() {
     {
         print_swap_request_update_dex_balance_pbs_counts(
             &cks,
-            &TypeDisplayer::<FheUint64>::default(),
+            FheUint64::type_tag(),
             Dex::SwapRequest(DexFlavor::Whitepaper),
             swap_request_update_dex_balance_whitepaper::<FheUint64>,
         );
         print_swap_request_update_dex_balance_pbs_counts(
             &cks,
-            &TypeDisplayer::<FheUint64>::default(),
+            FheUint64::type_tag(),
             Dex::SwapRequest(DexFlavor::NoCmux),
             swap_request_update_dex_balance_no_cmux::<FheUint64>,
         );
         print_swap_request_finalize_pbs_counts(
             &cks,
-            &TypeDisplayer::<FheUint64>::default(),
+            FheUint64::type_tag(),
             Dex::SwapRequest(DexFlavor::Finalize),
             swap_request_finalize::<FheUint64>,
         );
         print_swap_claim_prepare_pbs_counts(
             &cks,
-            &TypeDisplayer::<FheUint64>::default(),
+            FheUint64::type_tag(),
             Dex::SwapClaim(DexFlavor::Prepare),
             swap_claim_prepare::<FheUint64, FheUint128>,
         );
         print_swap_claim_update_dex_balance_pbs_counts(
             &cks,
-            &TypeDisplayer::<FheUint64>::default(),
+            FheUint64::type_tag(),
             Dex::SwapClaim(DexFlavor::Whitepaper),
             swap_claim_update_dex_balance_whitepaper::<FheUint64>,
         );
         print_swap_claim_update_dex_balance_pbs_counts(
             &cks,
-            &TypeDisplayer::<FheUint64>::default(),
+            FheUint64::type_tag(),
             Dex::SwapClaim(DexFlavor::NoCmux),
             swap_claim_update_dex_balance_no_cmux::<FheUint64>,
         );
@@ -1470,7 +1470,7 @@ fn main() {
             bench_swap_request_latency(
                 &mut c,
                 &cks,
-                &TypeDisplayer::<FheUint64>::default(),
+                FheUint64::type_tag(),
                 Dex::SwapRequest(DexFlavor::Whitepaper),
                 swap_request_update_dex_balance_whitepaper::<FheUint64>,
                 swap_request_finalize::<FheUint64>,
@@ -1478,7 +1478,7 @@ fn main() {
             bench_swap_request_latency(
                 &mut c,
                 &cks,
-                &TypeDisplayer::<FheUint64>::default(),
+                FheUint64::type_tag(),
                 Dex::SwapRequest(DexFlavor::NoCmux),
                 swap_request_update_dex_balance_no_cmux::<FheUint64>,
                 swap_request_finalize::<FheUint64>,
@@ -1486,7 +1486,7 @@ fn main() {
             bench_swap_claim_latency(
                 &mut c,
                 &cks,
-                &TypeDisplayer::<FheUint64>::default(),
+                FheUint64::type_tag(),
                 Dex::SwapClaim(DexFlavor::Whitepaper),
                 swap_claim_prepare::<FheUint64, FheUint128>,
                 swap_claim_update_dex_balance_whitepaper::<FheUint64>,
@@ -1494,7 +1494,7 @@ fn main() {
             bench_swap_claim_latency(
                 &mut c,
                 &cks,
-                &TypeDisplayer::<FheUint64>::default(),
+                FheUint64::type_tag(),
                 Dex::SwapClaim(DexFlavor::NoCmux),
                 swap_claim_prepare::<FheUint64, FheUint128>,
                 swap_claim_update_dex_balance_no_cmux::<FheUint64>,
@@ -1505,7 +1505,7 @@ fn main() {
             cuda_bench_swap_request_throughput(
                 &mut c,
                 &cks,
-                &TypeDisplayer::<FheUint64>::default(),
+                FheUint64::type_tag(),
                 Dex::SwapRequest(DexFlavor::Whitepaper),
                 swap_request_update_dex_balance_whitepaper::<FheUint64>,
                 swap_request_finalize::<FheUint64>,
@@ -1513,7 +1513,7 @@ fn main() {
             cuda_bench_swap_request_throughput(
                 &mut c,
                 &cks,
-                &TypeDisplayer::<FheUint64>::default(),
+                FheUint64::type_tag(),
                 Dex::SwapRequest(DexFlavor::NoCmux),
                 swap_request_update_dex_balance_no_cmux::<FheUint64>,
                 swap_request_finalize::<FheUint64>,
@@ -1521,7 +1521,7 @@ fn main() {
             cuda_bench_swap_claim_throughput(
                 &mut c,
                 &cks,
-                &TypeDisplayer::<FheUint64>::default(),
+                FheUint64::type_tag(),
                 Dex::SwapClaim(DexFlavor::Whitepaper),
                 swap_claim_prepare::<FheUint64, FheUint128>,
                 swap_claim_update_dex_balance_whitepaper::<FheUint64>,
@@ -1529,7 +1529,7 @@ fn main() {
             cuda_bench_swap_claim_throughput(
                 &mut c,
                 &cks,
-                &TypeDisplayer::<FheUint64>::default(),
+                FheUint64::type_tag(),
                 Dex::SwapClaim(DexFlavor::NoCmux),
                 swap_claim_prepare::<FheUint64, FheUint128>,
                 swap_claim_update_dex_balance_no_cmux::<FheUint64>,
