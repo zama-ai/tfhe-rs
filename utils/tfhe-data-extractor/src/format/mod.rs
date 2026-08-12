@@ -141,7 +141,7 @@ struct GridSpec<'a, R, C> {
     /// Row label and the key it is looked up by, in publication order.
     rows: Vec<(String, R)>,
     /// Column header and the key it is looked up by, in publication order.
-    columns: &'a [(&'a str, C)],
+    columns: Vec<(String, C)>,
     /// Leave out a row with no result at any column, instead of filling it
     /// with `N/A`.
     drop_empty_rows: bool,
@@ -175,11 +175,7 @@ fn build_grid<R, C>(
 
     let grid = Grid {
         row_header: spec.row_header.to_string(),
-        columns: spec
-            .columns
-            .iter()
-            .map(|(name, _)| name.to_string())
-            .collect(),
+        columns: spec.columns.into_iter().map(|(name, _)| name).collect(),
         rows: grid_rows,
     };
 
