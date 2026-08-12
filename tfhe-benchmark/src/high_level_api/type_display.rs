@@ -1,14 +1,30 @@
-use std::marker::PhantomData;
+use benchmark_spec::{FheType, TypeTag};
+use tfhe::FheUintId;
 
-use benchmark_spec::TypeName;
-use tfhe::named::Named;
-use tfhe::{FheIntegerType, FheUintId, IntegerId};
-
+/// The type a benchmark measures, as the spec names it.
+///
+/// Implementors supply the values only. The spelling belongs to [`FheType`], so
+/// that a bench id is written in one place.
 pub trait TypeDisplay {
-    fn fmt(f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    /// Clear integers are read back from their Rust name, which [`FheType`]
+    /// already parses. Ciphertext types override this: their width comes from
+    /// their id, not from their name.
+    fn fhe_type() -> FheType {
         let name = std::any::type_name::<Self>();
-        let pos = name.rfind(":").map_or(0, |p| p + 1);
-        write!(f, "{}", &name[pos..])
+        let short = &name[name.rfind(':').map_or(0, |p| p + 1)..];
+        short
+            .parse()
+            .unwrap_or_else(|e| panic!("{short:?} is not a type the spec knows: {e:?}"))
+    }
+}
+
+pub trait TypeTagExt: TypeDisplay {
+    fn type_tag() -> TypeTag;
+}
+
+impl<T: TypeDisplay + ?Sized> TypeTagExt for T {
+    fn type_tag() -> TypeTag {
+        Self::fhe_type().into()
     }
 }
 
@@ -25,43 +41,13 @@ impl TypeDisplay for i64 {}
 impl TypeDisplay for i128 {}
 
 impl<Id: FheUintId> TypeDisplay for tfhe::FheUint<Id> {
-    fn fmt(f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write_fhe_type_name::<Self>(f)
+    fn fhe_type() -> FheType {
+        FheType::Uint(Id::num_bits() as u32)
     }
 }
 
 impl<Id: tfhe::FheIntId> TypeDisplay for tfhe::FheInt<Id> {
-    fn fmt(f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write_fhe_type_name::<Self>(f)
+    fn fhe_type() -> FheType {
+        FheType::Int(Id::num_bits() as u32)
     }
-}
-
-pub struct TypeDisplayer<T: TypeDisplay>(PhantomData<T>);
-
-impl<T: TypeDisplay> Default for TypeDisplayer<T> {
-    fn default() -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<T: TypeDisplay> std::fmt::Display for TypeDisplayer<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        T::fmt(f)
-    }
-}
-
-impl<T: TypeDisplay> TypeName for TypeDisplayer<T> {
-    fn type_name(&self) -> String {
-        self.to_string()
-    }
-}
-
-fn write_fhe_type_name<'a, FheType>(f: &mut std::fmt::Formatter<'a>) -> std::fmt::Result
-where
-    FheType: FheIntegerType + Named,
-{
-    let full_name = FheType::NAME;
-    let i = full_name.rfind(":").map_or(0, |p| p + 1);
-
-    write!(f, "{}{}", &full_name[i..], FheType::Id::num_bits())
 }
