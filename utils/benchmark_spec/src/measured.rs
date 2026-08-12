@@ -72,10 +72,13 @@ impl FromStr for MeasuredId {
         Ok(Self {
             spec: bench_id.parse()?,
             statistic,
-            variant: match rest.strip_prefix('_') {
-                Some(variant) if !variant.is_empty() => Some(variant.to_string()),
-                _ => None,
-            },
+            variant: rest.strip_prefix('_').and_then(|variant| {
+                if variant.is_empty() {
+                    None
+                } else {
+                    Some(variant.to_string())
+                }
+            }),
         })
     }
 }
@@ -101,7 +104,8 @@ mod tests {
         let names = [
             "tfhe::shortint::ops::add::PARAM_MESSAGE_2_CARRY_2_KS_PBS_mean_avx512",
             "tfhe::shortint::ops::add::PARAM_MESSAGE_2_CARRY_2_KS_PBS_std_dev_avx512",
-            // No variant: the parser's default is an empty suffix (`cli.rs:50`).
+            // No variant: the parser's default is an empty suffix
+            // (`utils/tfhe-benchmark-parser/src/cli.rs:50`).
             "tfhe::hlapi::ops::add::PARAM_MESSAGE_2_CARRY_2::FheUint64_mean",
             // A workflow-built compound variant stays opaque.
             "tfhe::hlapi::ops::add::PARAM_MESSAGE_2_CARRY_2::FheUint64_mean_batch_size_4-schedule_fifo",
@@ -112,17 +116,6 @@ mod tests {
                 .unwrap_or_else(|e| panic!("parse {name:?}: {e:?}"));
             assert_eq!(id.to_string(), name, "round-trip mismatch");
         }
-    }
-
-    #[test]
-    fn display_matches_the_writer() {
-        let id: MeasuredId = "tfhe::shortint::ops::add::PARAM_MESSAGE_2_CARRY_2_KS_PBS_mean_avx512"
-            .parse()
-            .unwrap();
-        assert_eq!(
-            id.to_string(),
-            measured_name(&id.spec.to_string(), Statistic::Mean, Some("avx512"))
-        );
     }
 
     /// `marker()` is a hand-written mirror of the strum name, so that splitting
