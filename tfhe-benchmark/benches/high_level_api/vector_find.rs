@@ -15,21 +15,21 @@ fn write_metadata(
     spec: &BenchmarkSpec,
     display_name: &str,
     params: AtomicPatternParameters,
-    num_bits: usize,
+    num_bits: u64,
 ) {
     write_to_json(
         spec,
         display_name,
         &OperatorType::Atomic,
-        num_bits as u32,
-        vec![params.message_modulus().0.ilog2(); num_bits],
+        num_bits,
+        vec![params.message_modulus().0.ilog2(); num_bits as usize],
     );
 }
 
 fn bench_latency_or_throughput<F>(
     group: &mut criterion::BenchmarkGroup<'_, criterion::measurement::WallTime>,
     spec: &BenchmarkSpec,
-    operand_bits: usize,
+    operand_bits: u64,
     client_key: &ClientKey,
     run_once: F,
 ) where
@@ -72,7 +72,7 @@ fn bench_latency_or_throughput<F>(
     }
 }
 
-fn bench_contains_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_elements: usize) {
+fn bench_contains_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_elements: u64) {
     let mut group = c.benchmark_group("vector_find");
     group.sample_size(15);
 
@@ -86,7 +86,7 @@ fn bench_contains_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_elem
         get_bench_type(),
         Some(num_elements),
     );
-    let cts: Vec<FheUint64> = (0..num_elements as u64)
+    let cts: Vec<FheUint64> = (0..num_elements)
         .map(|i| FheUint64::encrypt(i, client_key))
         .collect();
     let value = FheUint64::encrypt(1u64, client_key);
@@ -99,7 +99,7 @@ fn bench_contains_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_elem
     group.finish();
 }
 
-fn bench_contains_fhe_uint8(c: &mut Criterion, client_key: &ClientKey, num_elements: usize) {
+fn bench_contains_fhe_uint8(c: &mut Criterion, client_key: &ClientKey, num_elements: u64) {
     let mut group = c.benchmark_group("vector_find");
     group.sample_size(15);
 
@@ -126,7 +126,7 @@ fn bench_contains_fhe_uint8(c: &mut Criterion, client_key: &ClientKey, num_eleme
     group.finish();
 }
 
-fn bench_match_value_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_elements: usize) {
+fn bench_match_value_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_elements: u64) {
     let mut group = c.benchmark_group("vector_find");
     group.sample_size(15);
 
@@ -140,7 +140,7 @@ fn bench_match_value_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_e
         get_bench_type(),
         Some(num_elements),
     );
-    let pairs: Vec<(u64, u64)> = (0..num_elements as u64).map(|i| (i, i + 1)).collect();
+    let pairs: Vec<(u64, u64)> = (0..num_elements).map(|i| (i, i + 1)).collect();
     let match_values = MatchValues::new(pairs).unwrap();
     let ct = FheUint64::encrypt(1u64, client_key);
 
@@ -152,7 +152,7 @@ fn bench_match_value_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_e
     group.finish();
 }
 
-fn bench_match_value_fhe_uint8(c: &mut Criterion, client_key: &ClientKey, num_elements: usize) {
+fn bench_match_value_fhe_uint8(c: &mut Criterion, client_key: &ClientKey, num_elements: u64) {
     let mut group = c.benchmark_group("vector_find");
     group.sample_size(15);
 
@@ -214,7 +214,7 @@ fn main() {
     let mut c = Criterion::default().configure_from_args();
 
     let env_config = EnvConfig::new();
-    let sizes: &[usize] = match env_config.bit_sizes_set {
+    let sizes: &[u64] = match env_config.bit_sizes_set {
         BitSizesSet::Fast => &[50, 1000],
         _ => &[5, 10, 20, 30, 40, 50, 500, 1000],
     };

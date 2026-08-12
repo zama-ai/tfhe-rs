@@ -207,7 +207,7 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize, rerand_mode: Ben
         comp_param.name(),
         "re_randomize",
         &OperatorType::Atomic,
-        bit_size as u32,
+        bit_size as u64,
         vec![param.message_modulus.0.ilog2(); num_blocks],
     );
 
@@ -492,7 +492,7 @@ mod cuda {
             comp_param.name(),
             "re_randomize",
             &OperatorType::Atomic,
-            bit_size as u32,
+            bit_size as u64,
             vec![param.message_modulus.0.ilog2(); num_blocks],
         );
 

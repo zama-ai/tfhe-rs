@@ -524,7 +524,7 @@ fn bench_swap_request_throughput<FheType, F1, F2>(
             OperandType::CipherText,
             Some(type_name),
             BenchmarkMetric::Throughput,
-            Some(num_elems.try_into().unwrap()),
+            Some(num_elems),
         );
 
         group.bench_with_input(bench_spec.to_string(), &num_elems, |b, &num_elems| {
@@ -652,7 +652,7 @@ fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
             OperandType::CipherText,
             Some(type_name),
             BenchmarkMetric::Throughput,
-            Some(num_elems.try_into().unwrap()),
+            Some(num_elems),
         );
         group.bench_with_input(bench_spec.to_string(), &num_elems, |b, &num_elems| {
             let from_balances_0 = (0..num_elems)
@@ -945,7 +945,7 @@ fn bench_swap_claim_throughput<FheType, F1, F2>(
             OperandType::CipherText,
             Some(type_name),
             BenchmarkMetric::Throughput,
-            Some(num_elems.try_into().unwrap()),
+            Some(num_elems),
         );
 
         group.bench_with_input(bench_spec.to_string(), &num_elems, |b, &num_elems| {
@@ -1091,7 +1091,7 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
             OperandType::CipherText,
             Some(type_name),
             BenchmarkMetric::Throughput,
-            Some(num_elems.try_into().unwrap()),
+            Some(num_elems),
         );
         group.bench_with_input(bench_spec.to_string(), &num_elems, |b, &num_elems| {
             let pending_0_in = (0..num_elems)

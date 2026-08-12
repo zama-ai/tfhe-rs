@@ -147,7 +147,7 @@ fn pbs_128(c: &mut Criterion) {
         &benchmark_spec,
         "pbs",
         &OperatorType::Atomic,
-        bit_size,
+        bit_size as u64,
         vec![bit_size],
     );
 }
@@ -414,7 +414,7 @@ mod cuda {
             &benchmark_spec,
             "pbs",
             &OperatorType::Atomic,
-            bit_size,
+            bit_size as u64,
             vec![bit_size],
         );
     }
@@ -665,7 +665,7 @@ mod cuda {
             &benchmark_spec,
             "pbs",
             &OperatorType::Atomic,
-            bit_size,
+            bit_size as u64,
             vec![bit_size],
         );
     }
