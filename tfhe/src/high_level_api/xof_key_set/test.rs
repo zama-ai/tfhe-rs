@@ -21,6 +21,13 @@ fn run_xof_key_set_test(config: Config, tag_str: &str, device: Device, check_exp
     )
     .unwrap();
 
+    // Newly generated key sets must record Aes-256.
+    assert_eq!(
+        compressed_key_set.seed.mode,
+        XofDerivationMode::Aes256,
+        "newly generated key sets must use the Aes-256 derivation"
+    );
+
     assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
     assert_eq!(cks.tag(), &tag);
     assert_eq!(compressed_key_set.tag(), &tag);

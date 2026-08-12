@@ -26,7 +26,7 @@ use core::num::NonZeroU64;
 use itertools::Itertools;
 use rayon::prelude::*;
 use sha3::digest::Digest;
-use tfhe_csprng::seeders::{Seed, XofSeed};
+use tfhe_csprng::seeders::{Seed, SeedKind, XofSeed};
 use tfhe_fft::c64;
 
 /// Types that can be converted into a byte seed for the OPRF functions.
@@ -1027,9 +1027,8 @@ pub(crate) fn create_random_from_seed_modulus_switched(
     hasher.update(&bit_count_rle);
 
     let xof_seed = hasher.finalize();
-    let mut xof = RandomGenerator::<DefaultRandomGenerator>::new(XofSeed::new(
-        xof_seed.to_vec(),
-        TFHE_PRF_XOF_SEED_DOMAIN_SEPARATOR,
+    let mut xof = RandomGenerator::<DefaultRandomGenerator>::new(SeedKind::xof_aes256(
+        XofSeed::new(xof_seed.to_vec(), TFHE_PRF_XOF_SEED_DOMAIN_SEPARATOR),
     ));
 
     for (seeded, _) in &mut seededs {

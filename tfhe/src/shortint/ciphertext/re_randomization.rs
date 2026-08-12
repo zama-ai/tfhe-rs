@@ -19,6 +19,7 @@ use crate::shortint::{Ciphertext, CompactPublicKey, PBSOrder};
 use rayon::prelude::*;
 use sha3::digest::{ExtendableOutput, Update};
 use std::io::Read;
+use tfhe_csprng::seeders::SeedKind;
 
 use super::CompactCiphertextList;
 
@@ -283,7 +284,9 @@ impl CompactPublicKey {
         zero_count: LweCiphertextCount,
     ) -> LweCompactCiphertextList<Vec<u64>> {
         let mut encryption_generator =
-            NoiseRandomGenerator::<DefaultRandomGenerator>::new_from_seed(seed.0);
+            NoiseRandomGenerator::<DefaultRandomGenerator>::new_from_seed(SeedKind::xof_aes256(
+                seed.0,
+            ));
 
         self.prepare_cpk_zero_for_rerand_with_generator(&mut encryption_generator, zero_count)
     }
@@ -470,7 +473,9 @@ impl CompactPublicKey {
     ) -> crate::Result<()> {
         let key_lwe_size = self.key.lwe_dimension().to_lwe_size();
         let mut encryption_generator =
-            NoiseRandomGenerator::<DefaultRandomGenerator>::new_from_seed(seed.0);
+            NoiseRandomGenerator::<DefaultRandomGenerator>::new_from_seed(SeedKind::xof_aes256(
+                seed.0,
+            ));
 
         for list in compact_lists {
             if key_lwe_size != list.ct_list.lwe_size() {
