@@ -3,7 +3,7 @@
 use std::str::FromStr;
 
 use crate::error::SpecParseError;
-use crate::{Backend, BenchCrate, BenchmarkMetric, BenchmarkSpec, OperandType};
+use crate::{Backend, BenchPath, BenchmarkMetric, BenchmarkSpec, OperandType};
 
 /// Parses a full benchmark id back into a [`BenchmarkSpec`], following the
 /// grammar produced by its `Display`:
@@ -20,51 +20,47 @@ impl FromStr for BenchmarkSpec {
         let (bench_crate, trailing) = split_bench_path(s)
             .ok_or_else(|| SpecParseError::Unknown(format!("no known bench path in {s:?}")))?;
 
-        let mut it = trailing.split("::").filter(|t| !t.is_empty()).peekable();
+        let tokens: Vec<&str> = if trailing.is_empty() {
+            Vec::new()
+        } else {
+            trailing.split("::").collect()
+        };
+        if tokens.iter().any(|t| t.is_empty()) {
+            return Err(SpecParseError::Unknown(format!("empty segment in {s:?}")));
+        }
 
-        let backend = match it.peek().copied() {
-            Some("cuda") => {
-                it.next();
-                Backend::Cuda
-            }
-            Some("hpu") => {
-                it.next();
-                Backend::Hpu
-            }
-            _ => Backend::Cpu,
+        let mut it = tokens.into_iter().peekable();
+
+        let backend =
+            it.next_if(|t| matches!(*t, "cuda" | "hpu"))
+                .map_or(Backend::Cpu, |t| match t {
+                    "cuda" => Backend::Cuda,
+                    _ => Backend::Hpu,
+                });
+
+        let operand_type = match it.next_if_eq(&"scalar") {
+            Some(_) => OperandType::PlainText,
+            None => OperandType::CipherText,
         };
 
-        let metric = match it.peek().copied() {
-            Some("throughput") => {
-                it.next();
-                BenchmarkMetric::Throughput
-            }
-            Some("pbs_count") => {
-                it.next();
-                BenchmarkMetric::PbsCount
-            }
-            Some("key_size") => {
-                it.next();
-                BenchmarkMetric::KeySize
-            }
-            _ => BenchmarkMetric::Latency,
+        let metric = if it.next_if_eq(&"throughput").is_some() {
+            BenchmarkMetric::Throughput
+        } else if it.next_if_eq(&"pbs_count").is_some() {
+            BenchmarkMetric::PbsCount
+        } else if it.next_if_eq(&"key_size").is_some() {
+            BenchmarkMetric::KeySize
+        } else {
+            BenchmarkMetric::Latency
         };
 
         // `zk` benches carry no parameter set: `Display` skips the segment
         // altogether, so there is nothing to consume here.
-        let param_name = if matches!(bench_crate, BenchCrate::Zk(_)) {
+        let param_name = if matches!(bench_crate, BenchPath::Zk(_)) {
             String::new()
         } else {
             it.next()
                 .ok_or_else(|| SpecParseError::Unknown(format!("missing param in {s:?}")))?
                 .to_string()
-        };
-
-        let operand_type = if it.peek().copied() == Some("scalar") {
-            it.next();
-            OperandType::PlainText
-        } else {
-            OperandType::CipherText
         };
 
         // Remaining tokens: the optional `<n>_elements` marker is always last;
@@ -94,13 +90,13 @@ fn parse_elements(tok: &str) -> Option<usize> {
     tok.strip_suffix("_elements")?.parse().ok()
 }
 
-/// Longest `::`-prefix of `s` that parses as a [`BenchCrate`], plus the rest.
-fn split_bench_path(s: &str) -> Option<(BenchCrate, &str)> {
+/// Longest `::`-prefix of `s` that parses as a [`BenchPath`], plus the rest.
+fn split_bench_path(s: &str) -> Option<(BenchPath, &str)> {
     let mut end = s.len();
     loop {
         let prefix = &s[..end];
-        if let Ok(bc) = prefix.parse::<BenchCrate>() {
-            return Some((bc, s[end..].trim_start_matches("::")));
+        if let Ok(bc) = prefix.parse::<BenchPath>() {
+            return Some((bc, s[end..].strip_prefix("::").unwrap_or("")));
         }
         end = prefix.rfind("::")?;
     }
@@ -156,5 +152,45 @@ mod tests {
                 .parse::<BenchmarkSpec>()
                 .is_err()
         );
+    }
+
+    /// Ids no `Display` could ever have produced. Each one trips a different
+    /// guard, so a regression in any single one of them surfaces here.
+    #[test]
+    fn malformed_ids_are_rejected() {
+        let ids = [
+            // Nothing in there resolves to a bench path.
+            "",
+            "tfhe",
+            "zk",
+            "tfhe::shortint",
+            "tfhe::not_a_layer::add::PARAM_MESSAGE_2_CARRY_2",
+            "tfhe::shortint::ops::not_an_op::PARAM_MESSAGE_2_CARRY_2",
+            "zk::not_a_layer::G1_bls12_446",
+            // Tokens are snake_case, and matched exactly.
+            "TFHE::shortint::ops::add::PARAM_MESSAGE_2_CARRY_2",
+            "tfhe::Shortint::ops::add::PARAM_MESSAGE_2_CARRY_2",
+            // `::` is the only separator, and it never doubles up.
+            "::tfhe::shortint::ops::add::PARAM_MESSAGE_2_CARRY_2",
+            "tfhe::shortint::ops::add::PARAM_MESSAGE_2_CARRY_2::",
+            "tfhe::shortint::ops::add::::PARAM_MESSAGE_2_CARRY_2",
+            "tfhe::shortint::ops::add::PARAM_MESSAGE_2_CARRY_2::::FheUint64",
+            "tfhe:shortint:ops:add:PARAM_MESSAGE_2_CARRY_2",
+            "tfhe/shortint/ops/add/PARAM_MESSAGE_2_CARRY_2",
+            // Surrounding whitespace is not trimmed anywhere.
+            " tfhe::shortint::ops::add::PARAM_MESSAGE_2_CARRY_2",
+            "tfhe::shortint::ops::add ::PARAM_MESSAGE_2_CARRY_2",
+            // A bench path on its own is not an id: the parameter set is
+            // mandatory for everything but `zk`, and the id stops too early.
+            "tfhe::shortint::ops::add",
+            "tfhe::hlapi::ops::mul::cuda",
+            "tfhe::hlapi::ops::add::hpu::throughput",
+        ];
+        for id in ids {
+            assert!(
+                id.parse::<BenchmarkSpec>().is_err(),
+                "{id:?} parsed but should not have"
+            );
+        }
     }
 }

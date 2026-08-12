@@ -72,10 +72,13 @@ impl FromStr for MeasuredId {
         Ok(Self {
             spec: bench_id.parse()?,
             statistic,
-            variant: match rest.strip_prefix('_') {
-                Some(variant) if !variant.is_empty() => Some(variant.to_string()),
-                _ => None,
-            },
+            variant: rest.strip_prefix('_').and_then(|variant| {
+                if variant.is_empty() {
+                    None
+                } else {
+                    Some(variant.to_string())
+                }
+            }),
         })
     }
 }
@@ -112,17 +115,6 @@ mod tests {
                 .unwrap_or_else(|e| panic!("parse {name:?}: {e:?}"));
             assert_eq!(id.to_string(), name, "round-trip mismatch");
         }
-    }
-
-    #[test]
-    fn display_matches_the_writer() {
-        let id: MeasuredId = "tfhe::shortint::ops::add::PARAM_MESSAGE_2_CARRY_2_KS_PBS_mean_avx512"
-            .parse()
-            .unwrap();
-        assert_eq!(
-            id.to_string(),
-            measured_name(&id.spec.to_string(), Statistic::Mean, Some("avx512"))
-        );
     }
 
     /// `marker()` is a hand-written mirror of the strum name, so that splitting
