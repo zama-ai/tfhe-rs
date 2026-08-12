@@ -54,10 +54,16 @@ pub struct MeasuredId {
 
 impl fmt::Display for MeasuredId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            spec,
+            statistic,
+            variant,
+        } = self;
+
         f.write_str(&measured_name(
-            &self.spec.to_string(),
-            self.statistic,
-            self.variant.as_deref(),
+            &spec.to_string(),
+            *statistic,
+            variant.as_deref(),
         ))
     }
 }

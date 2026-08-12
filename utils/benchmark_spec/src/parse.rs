@@ -49,21 +49,24 @@ impl FromStr for BenchmarkSpec {
         let operand_type = next_segment(&mut it).unwrap_or(OperandType::CipherText);
 
         // Remaining tokens: the optional `<n>_elements` marker is always last;
-        // anything before it is the type name (which may itself span several
-        // `::` segments, e.g. `key_x::value_y`).
+        // anything before it is the type tag, which may itself span several
+        // `::` segments, as `key_x::value_y` does.
         let rest: Vec<&str> = it.collect();
         let (type_toks, num_elements) = match rest.last().and_then(|t| parse_elements(t)) {
             Some(n) => (&rest[..rest.len() - 1], Some(n)),
             None => (&rest[..], None),
         };
-        let type_name = (!type_toks.is_empty()).then(|| type_toks.join("::"));
+        let type_tag = match type_toks.is_empty() {
+            true => None,
+            false => Some(type_toks.join("::").parse()?),
+        };
 
         Ok(BenchmarkSpec {
             bench_path,
             backend,
             param_name,
             operand_type,
-            type_name,
+            type_tag,
             metric,
             num_elements,
         })
@@ -139,14 +142,32 @@ mod tests {
     /// run reports every field that is off.
     #[test]
     fn parses_every_field() {
+        use crate::{FheType, TypeTag};
+        use std::fmt::Debug;
+
         struct Case {
             id: &'static str,
             backend: Backend,
             operand_type: OperandType,
             metric: BenchmarkMetric,
             param_name: &'static str,
-            type_name: Option<&'static str>,
-            num_elements: Option<usize>,
+            type_tag: Option<TypeTag>,
+            num_elements: Option<u64>,
+        }
+
+        /// Both sides share one type parameter: a field changing type stops
+        /// compiling here instead of comparing two renderings that happen to
+        /// differ.
+        fn check<T: PartialEq + Debug>(
+            failures: &mut Vec<String>,
+            id: &str,
+            field: &str,
+            got: T,
+            want: T,
+        ) {
+            if got != want {
+                failures.push(format!("{id}\n    {field}: got {got:?}, expected {want:?}"));
+            }
         }
 
         let cases = [
@@ -156,7 +177,7 @@ mod tests {
                 operand_type: OperandType::CipherText,
                 metric: BenchmarkMetric::Latency,
                 param_name: "PARAM_MESSAGE_2_CARRY_2_KS_PBS",
-                type_name: None,
+                type_tag: None,
                 num_elements: None,
             },
             // `scalar` comes after the param, not before the metric.
@@ -166,7 +187,7 @@ mod tests {
                 operand_type: OperandType::PlainText,
                 metric: BenchmarkMetric::Latency,
                 param_name: "PARAM_MESSAGE_2_CARRY_2",
-                type_name: Some("FheUint64"),
+                type_tag: Some(FheType::Uint(64).into()),
                 num_elements: None,
             },
             // Every optional segment at once, `scalar` included.
@@ -176,7 +197,7 @@ mod tests {
                 operand_type: OperandType::PlainText,
                 metric: BenchmarkMetric::Throughput,
                 param_name: "PARAM_MESSAGE_2_CARRY_2",
-                type_name: Some("FheUint64"),
+                type_tag: Some(FheType::Uint(64).into()),
                 num_elements: Some(10),
             },
             // Metric segments are spelled the way `Display` writes them:
@@ -187,7 +208,7 @@ mod tests {
                 operand_type: OperandType::CipherText,
                 metric: BenchmarkMetric::PbsCount,
                 param_name: "PARAM_MESSAGE_2_CARRY_2",
-                type_name: None,
+                type_tag: None,
                 num_elements: None,
             },
             // Synthetic pairing: the metric is orthogonal to the bench path, so
@@ -198,58 +219,52 @@ mod tests {
                 operand_type: OperandType::CipherText,
                 metric: BenchmarkMetric::KeySize,
                 param_name: "PARAM_MESSAGE_2_CARRY_2_KS_PBS",
-                type_name: None,
+                type_tag: None,
                 num_elements: None,
             },
         ];
 
         let mut failures = Vec::new();
         for case in cases {
-            let spec: BenchmarkSpec = match case.id.parse() {
+            let Case {
+                id,
+                backend: want_backend,
+                operand_type: want_operand_type,
+                metric: want_metric,
+                param_name: want_param_name,
+                type_tag: want_type_tag,
+                num_elements: want_num_elements,
+            } = case;
+
+            let spec: BenchmarkSpec = match id.parse() {
                 Ok(spec) => spec,
                 Err(e) => {
-                    failures.push(format!("{}\n    does not parse: {e:?}", case.id));
+                    failures.push(format!("{id}\n    does not parse: {e:?}"));
                     continue;
                 }
             };
-            let mut check = |field: &str, got: String, want: String| {
-                if got != want {
-                    failures.push(format!(
-                        "{}\n    {field}: got {got}, expected {want}",
-                        case.id
-                    ));
-                }
-            };
+            let BenchmarkSpec {
+                bench_path: _,
+                backend: got_backend,
+                param_name: got_param_name,
+                operand_type: got_operand_type,
+                type_tag: got_type_tag,
+                metric: got_metric,
+                num_elements: got_num_elements,
+            } = spec;
+            let fs = &mut failures;
+            check(fs, id, "backend", got_backend, want_backend);
+            check(fs, id, "operand_type", got_operand_type, want_operand_type);
+            check(fs, id, "metric", got_metric, want_metric);
             check(
-                "backend",
-                format!("{:?}", spec.backend),
-                format!("{:?}", case.backend),
-            );
-            check(
-                "operand_type",
-                format!("{:?}", spec.operand_type()),
-                format!("{:?}", case.operand_type),
-            );
-            check(
-                "metric",
-                format!("{:?}", spec.metric()),
-                format!("{:?}", case.metric),
-            );
-            check(
+                fs,
+                id,
                 "param_name",
-                format!("{:?}", spec.param_name()),
-                format!("{:?}", case.param_name),
+                got_param_name.as_str(),
+                want_param_name,
             );
-            check(
-                "type_name",
-                format!("{:?}", spec.type_name()),
-                format!("{:?}", case.type_name),
-            );
-            check(
-                "num_elements",
-                format!("{:?}", spec.num_elements()),
-                format!("{:?}", case.num_elements),
-            );
+            check(fs, id, "type_tag", got_type_tag, want_type_tag);
+            check(fs, id, "num_elements", got_num_elements, want_num_elements);
         }
         assert!(failures.is_empty(), "\n{}", failures.join("\n"));
     }
