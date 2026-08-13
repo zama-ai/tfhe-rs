@@ -161,3 +161,38 @@ impl Named for TranscipheringServerKey {
 impl Named for CompressedTranscipheringServerKey {
     const NAME: &'static str = "transciphering::CompressedTranscipheringServerKey";
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::shortint::atomic_pattern::AtomicPatternParameters;
+    use crate::shortint::parameters::test_params::{
+        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    };
+    use crate::shortint::prelude::*;
+
+    #[test]
+    fn transciphering_server_key_conformance() {
+        let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let other_params = TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128;
+
+        let (cks, _sks) = gen_keys(params);
+        let private_key =
+            TranscipheringPrivateKey::new(&cks, TranscipheringParameters::SameAsCompute);
+
+        let matching: AtomicPatternParameters = params.into();
+        let mismatched: AtomicPatternParameters = other_params.into();
+
+        let server_key = TranscipheringServerKey::new(&private_key, &cks).unwrap();
+        assert!(server_key.is_conformant(&matching));
+        assert!(!server_key.is_conformant(&mismatched));
+
+        let compressed = CompressedTranscipheringServerKey::new(&private_key, &cks).unwrap();
+        assert!(compressed.is_conformant(&matching));
+        assert!(!compressed.is_conformant(&mismatched));
+
+        // Decompressing must preserve conformance.
+        assert!(compressed.expand().to_fourier().is_conformant(&matching));
+    }
+}
