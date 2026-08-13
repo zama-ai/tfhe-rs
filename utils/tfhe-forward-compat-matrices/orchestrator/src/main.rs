@@ -1,8 +1,18 @@
+mod baseline;
+mod markdown;
+mod matrix;
+
+#[cfg(test)]
+mod test_fixtures;
+
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
 
-use forward_common::{ARTIFACTS, Matrix, Outcome};
+use forward_common::{ARTIFACTS, Outcome};
+
+use crate::baseline::{BASELINE_FILE, Baseline, diff_baseline, parse_baseline, render_baseline};
+use crate::matrix::{Matrix, NIGHTLY};
 
 fn is_version_dir(name: &str) -> bool {
     let parts: Vec<&str> = name.split('.').collect();
@@ -20,7 +30,7 @@ fn retrieve_entries(root: &PathBuf) -> Vec<(String, String)> {
         .filter_map(|e| {
             let dir = e.file_name().to_string_lossy().into_owned();
             let label = dir.strip_prefix("compat_")?.replace('_', ".");
-            if is_version_dir(&label) || &label == "nightly" {
+            if is_version_dir(&label) || label == NIGHTLY {
                 Some((label, dir))
             } else {
                 println!("skipping {} (not a version dir)", dir);
@@ -32,6 +42,10 @@ fn retrieve_entries(root: &PathBuf) -> Vec<(String, String)> {
     println!("Found {} entries: {:?}", entries.len(), entries);
     entries
 }
+
+/// Exit code telling the CI the matrix no longer matches the reviewed baseline,
+/// as opposed to the tool itself having failed.
+const BASELINE_MOVED: i32 = 2;
 
 fn project_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -101,9 +115,36 @@ fn main() {
         rows,
     };
 
-    let markdown = matrix.render_markdown();
+    // Read the reviewed state before overwriting it, so the report can tell what
+    // this branch moved.
+    let baseline_path = root.join(BASELINE_FILE);
+    let reviewed = match std::fs::read_to_string(&baseline_path) {
+        Ok(content) => parse_baseline(&content)
+            .unwrap_or_else(|err| panic!("{BASELINE_FILE} is not a valid baseline: {err}")),
+        // Bootstrap run, or a baseline that never made it into the commit: say
+        // it, every cell is about to be reported as new.
+        Err(err) => {
+            eprintln!(
+                "no baseline to compare against at {}: {err}",
+                baseline_path.display()
+            );
+            Baseline::new()
+        }
+    };
+    let current = matrix.baseline();
+    let diff = diff_baseline(&reviewed, &current);
+    std::fs::write(&baseline_path, render_baseline(&current)).expect("failed to write baseline");
+
+    let markdown = matrix.render_markdown(Some(&diff));
     print!("{markdown}");
     std::fs::write(root.join("matrix.md"), &markdown).expect("failed to write matrix.md");
+
+    if diff.has_status_changes() {
+        eprintln!(
+            "the matrix no longer matches {BASELINE_FILE}, review it and commit the regenerated file"
+        );
+        std::process::exit(BASELINE_MOVED);
+    }
 }
 
 fn produce_all(versions: &[Version]) {
