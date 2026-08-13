@@ -11,7 +11,7 @@ use crate::integer::key_switching_key::{
 };
 use crate::integer::noise_squashing::{CompressedNoiseSquashingKey, NoiseSquashingPrivateKey};
 
-use crate::integer::oprf::{CompressedOprfServerKey, ExpandedOprfServerKey, OprfPrivateKey};
+use crate::integer::oprf::{ExpandedOprfServerKey, OprfPrivateKey};
 use crate::shortint::atomic_pattern::compressed::{
     CompressedAtomicPatternServerKey, CompressedKS32AtomicPatternServerKey,
     CompressedStandardAtomicPatternServerKey,
@@ -24,6 +24,7 @@ use crate::shortint::noise_squashing::CompressedShortint128BootstrappingKey;
 use crate::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, CompressionParameters,
     NoiseSquashingCompressionParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
+    TranscipheringParameters,
 };
 use crate::shortint::server_key::{
     CompressedModulusSwitchConfiguration, CompressedModulusSwitchNoiseReductionKey,
@@ -274,6 +275,30 @@ impl crate::integer::ciphertext::NoiseSquashingCompressionPrivateKey {
     }
 }
 
+impl crate::transciphering::TranscipheringPrivateKey {
+    pub(super) fn generate_with_pre_seeded_generator<G>(
+        transciphering_params: TranscipheringParameters,
+        compute_params: AtomicPatternParameters,
+        max_norm_hwt: NormalizedHammingWeightBound,
+        secret_generator: &mut SecretRandomGenerator<G>,
+    ) -> Self
+    where
+        G: ByteRandomGenerator,
+    {
+        let oprf_key = match transciphering_params {
+            TranscipheringParameters::SameAsCompute => {
+                OprfPrivateKey::generate_with_pre_seeded_generator(
+                    compute_params,
+                    max_norm_hwt,
+                    secret_generator,
+                )
+            }
+        };
+
+        Self::from_raw_parts(oprf_key.0, transciphering_params)
+    }
+}
+
 impl ClientKey {
     pub(super) fn generate_with_pre_seeded_generator<G>(
         config: Config,
@@ -323,6 +348,15 @@ impl ClientKey {
             )
         });
 
+        let transciphering_private_key = config.inner.transciphering_parameters.map(|params| {
+            crate::transciphering::TranscipheringPrivateKey::generate_with_pre_seeded_generator(
+                params,
+                config.inner.block_parameters,
+                max_norm_hwt,
+                secret_generator,
+            )
+        });
+
         Ok(Self {
             key: crate::high_level_api::keys::IntegerClientKey {
                 key: integer_ck,
@@ -336,6 +370,7 @@ impl ClientKey {
                     integer_private_noise_squashing_compression_key,
                 cpk_re_randomization_params: config.inner.cpk_re_randomization_params,
                 dedicated_oprf_private_key,
+                transciphering_private_key,
             },
             tag,
         })
@@ -502,9 +537,15 @@ impl crate::CompressedServerKey {
             .as_ref()
             .map(|ns_comp_key| ns_comp_key.decompress_with_pre_seeded_generator(generator));
 
-        let oprf_key = self
+        let oprf_key = self.integer_key.oprf_key.as_ref().map(|key| {
+            ExpandedOprfServerKey::from_raw_parts(
+                key.0.decompress_with_pre_seeded_generator(generator),
+            )
+        });
+
+        let transciphering_key = self
             .integer_key
-            .oprf_key
+            .transciphering_key
             .as_ref()
             .map(|key| key.decompress_with_pre_seeded_generator(generator));
 
@@ -517,6 +558,7 @@ impl crate::CompressedServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            transciphering_key,
         }
     }
 }
@@ -692,9 +734,9 @@ impl integer::compression_keys::CompressedDecompressionKey {
     }
 }
 
-impl CompressedOprfServerKey {
+impl crate::shortint::oprf::CompressedOprfServerKey {
     pub(super) fn generate_with_pre_seeded_generator<Gen>(
-        private_oprf_key: &OprfPrivateKey,
+        private_oprf_key: &crate::shortint::oprf::OprfPrivateKey,
         client_key: &crate::integer::ClientKey,
         generator: &mut EncryptionRandomGenerator<Gen>,
     ) -> Self
@@ -703,7 +745,7 @@ impl CompressedOprfServerKey {
     {
         use crate::shortint::oprf::CompressedOprfBootstrappingKey;
 
-        let inner = match (&private_oprf_key.0 .0, &client_key.key.atomic_pattern) {
+        let inner = match (&private_oprf_key.0, &client_key.key.atomic_pattern) {
             (
                 crate::shortint::oprf::AtomicPatternOprfPrivateKey::Standard(oprf_lwe_sk),
                 AtomicPatternClientKey::Standard(ck),
@@ -767,19 +809,19 @@ impl CompressedOprfServerKey {
             _ => panic!("Mismatched atomic patterns for oprf key and client key"),
         };
 
-        Self(crate::shortint::oprf::CompressedOprfServerKey { inner })
+        Self { inner }
     }
 
     pub(super) fn decompress_with_pre_seeded_generator<Gen>(
         &self,
         generator: &mut MaskRandomGenerator<Gen>,
-    ) -> ExpandedOprfServerKey
+    ) -> crate::shortint::oprf::ExpandedOprfServerKey
     where
         Gen: ByteRandomGenerator + ParallelByteRandomGenerator,
     {
         use crate::shortint::oprf::{CompressedOprfBootstrappingKey, ExpandedOprfBootstrappingKey};
 
-        let inner = match &self.0.inner {
+        let inner = match &self.inner {
             CompressedOprfBootstrappingKey::Classic { seeded_bsk } => {
                 let bsk = decompress_bootstrap_key_with_pre_seeded_generator(seeded_bsk, generator);
                 ExpandedOprfBootstrappingKey::Classic { bsk }
@@ -808,7 +850,39 @@ impl CompressedOprfServerKey {
                 }
             }
         };
-        ExpandedOprfServerKey::from_raw_parts(crate::shortint::oprf::ExpandedOprfServerKey(inner))
+        crate::shortint::oprf::ExpandedOprfServerKey(inner)
+    }
+}
+
+impl crate::transciphering::CompressedTranscipheringServerKey {
+    pub(super) fn generate_with_pre_seeded_generator<Gen>(
+        private_key: &crate::transciphering::TranscipheringPrivateKey,
+        client_key: &crate::integer::ClientKey,
+        generator: &mut EncryptionRandomGenerator<Gen>,
+    ) -> Self
+    where
+        Gen: ByteRandomGenerator + ParallelByteRandomGenerator,
+    {
+        Self::from_raw_parts(
+            crate::shortint::oprf::CompressedOprfServerKey::generate_with_pre_seeded_generator(
+                private_key.oprf_key(),
+                client_key,
+                generator,
+            ),
+        )
+    }
+
+    pub(super) fn decompress_with_pre_seeded_generator<Gen>(
+        &self,
+        generator: &mut MaskRandomGenerator<Gen>,
+    ) -> crate::transciphering::ExpandedTranscipheringServerKey
+    where
+        Gen: ByteRandomGenerator + ParallelByteRandomGenerator,
+    {
+        crate::transciphering::ExpandedTranscipheringServerKey::from_raw_parts(
+            self.oprf_key()
+                .decompress_with_pre_seeded_generator(generator),
+        )
     }
 }
 
