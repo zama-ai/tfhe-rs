@@ -27,6 +27,7 @@ use crate::integer::public_key::compact::CompactPublicKey;
 use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::MessageModulus;
+use crate::transciphering::{CompressedTranscipheringServerKey, TranscipheringServerKey};
 #[cfg(feature = "gpu")]
 use crate::GpuIndex;
 use crate::{Device, Tag};
@@ -87,6 +88,7 @@ impl ServerKey {
         Option<NoiseSquashingCompressionKey>,
         Option<ReRandomizationKey>,
         Option<OprfServerKey>,
+        Option<TranscipheringServerKey>,
         Tag,
     ) {
         let IntegerServerKey {
@@ -98,6 +100,7 @@ impl ServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            transciphering_key,
         } = Arc::unwrap_or_clone(self.key);
 
         (
@@ -109,6 +112,7 @@ impl ServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            transciphering_key,
             self.tag,
         )
     }
@@ -125,6 +129,7 @@ impl ServerKey {
         noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
         cpk_re_randomization_key: Option<ReRandomizationKey>,
         oprf_key: Option<OprfServerKey>,
+        transciphering_key: Option<TranscipheringServerKey>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -137,6 +142,7 @@ impl ServerKey {
                 noise_squashing_compression_key,
                 cpk_re_randomization_key,
                 oprf_key,
+                transciphering_key,
             }),
             tag,
         }
@@ -326,6 +332,11 @@ impl ServerKey {
         self.key.oprf_key.is_some()
     }
 
+    /// Returns whether a [`TranscipheringServerKey`] is present.
+    pub fn has_transciphering_key(&self) -> bool {
+        self.key.transciphering_key.is_some()
+    }
+
     pub(in crate::high_level_api) fn message_modulus(&self) -> MessageModulus {
         self.key.message_modulus()
     }
@@ -451,10 +462,11 @@ impl CompressedServerKey {
         Option<CompressedNoiseSquashingCompressionKey>,
         Option<CompressedReRandomizationKey>,
         Option<CompressedOprfServerKey>,
+        Option<CompressedTranscipheringServerKey>,
         Tag,
     ) {
-        let (a, b, c, d, e, f, g, h) = self.integer_key.into_raw_parts();
-        (a, b, c, d, e, f, g, h, self.tag)
+        let (a, b, c, d, e, f, g, h, i) = self.integer_key.into_raw_parts();
+        (a, b, c, d, e, f, g, h, i, self.tag)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -469,6 +481,7 @@ impl CompressedServerKey {
         noise_squashing_compression_key: Option<CompressedNoiseSquashingCompressionKey>,
         cpk_re_randomization_key: Option<CompressedReRandomizationKey>,
         oprf_key: Option<CompressedOprfServerKey>,
+        transciphering_key: Option<CompressedTranscipheringServerKey>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -481,6 +494,7 @@ impl CompressedServerKey {
                 noise_squashing_compression_key,
                 cpk_re_randomization_key,
                 oprf_key,
+                transciphering_key,
             ),
             tag,
         }
@@ -520,6 +534,11 @@ impl CompressedServerKey {
     /// Returns whether a dedicated [`CompressedOprfServerKey`] is present.
     pub fn has_oprf_key(&self) -> bool {
         self.integer_key.oprf_key.is_some()
+    }
+
+    /// Returns whether a [`CompressedTranscipheringServerKey`] is present.
+    pub fn has_transciphering_key(&self) -> bool {
+        self.integer_key.transciphering_key.is_some()
     }
 
     pub fn decompress(&self) -> ServerKey {
@@ -821,7 +840,7 @@ mod test {
     use crate::high_level_api::keys::inner::IntegerServerKeyConformanceParams;
     use crate::prelude::ParameterSetConformant;
     use crate::shortint::parameters::{
-        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TranscipheringParameters, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -921,6 +940,7 @@ mod test {
                 .enable_noise_squashing(noise_squashing_params)
                 .enable_noise_squashing_compression(noise_squashing_compression_params)
                 .enable_ciphertext_re_randomization(cpk_re_randomization_ksk_params)
+                .enable_transciphering(TranscipheringParameters::SameAsCompute)
                 .build();
 
             let ck = ClientKey::generate(config);
@@ -965,6 +985,7 @@ mod test {
                     noise_squashing_compression_param: None,
                     cpk_re_randomization_params: None,
                     dedicated_oprf_key: true,
+                    transciphering_parameters: None,
                 };
 
                 assert!(!sk.is_conformant(&conformance_params));
@@ -996,9 +1017,42 @@ mod test {
                 noise_squashing_compression_param: None,
                 cpk_re_randomization_params: None,
                 dedicated_oprf_key: true,
+                transciphering_parameters: None,
             };
 
             assert!(!sk.is_conformant(&conformance_params));
+        }
+        {
+            let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+            let config = ConfigBuilder::with_custom_parameters(params)
+                .enable_transciphering(TranscipheringParameters::SameAsCompute)
+                .build();
+
+            let ck = ClientKey::generate(config);
+            let sk = ServerKey::new(&ck);
+
+            let sk_param = params.into();
+            let mut conformance_params = IntegerServerKeyConformanceParams {
+                sk_param,
+                cpk_param: None,
+                compression_param: None,
+                noise_squashing_param: None,
+                noise_squashing_compression_param: None,
+                cpk_re_randomization_params: None,
+                dedicated_oprf_key: true,
+                transciphering_parameters: None,
+            };
+
+            // Key has transciphering, parameters do not.
+            assert!(!sk.is_conformant(&conformance_params));
+            conformance_params.transciphering_parameters =
+                Some(TranscipheringParameters::SameAsCompute);
+            assert!(sk.is_conformant(&conformance_params));
+
+            // Parameters ask for transciphering, key does not have it.
+            let without = ConfigBuilder::with_custom_parameters(params).build();
+            let sk_without = ServerKey::new(&ClientKey::generate(without));
+            assert!(!sk_without.is_conformant(&conformance_params));
         }
     }
 
@@ -1090,6 +1144,7 @@ mod test {
                 .enable_noise_squashing(noise_squashing_params)
                 .enable_noise_squashing_compression(noise_squashing_compression_params)
                 .enable_ciphertext_re_randomization(cpk_re_randomization_ksk_params)
+                .enable_transciphering(TranscipheringParameters::SameAsCompute)
                 .build();
 
             let ck = ClientKey::generate(config);
@@ -1134,6 +1189,7 @@ mod test {
                     noise_squashing_compression_param: None,
                     cpk_re_randomization_params: None,
                     dedicated_oprf_key: true,
+                    transciphering_parameters: None,
                 };
 
                 assert!(!sk.is_conformant(&conformance_params));
@@ -1165,6 +1221,7 @@ mod test {
                 noise_squashing_compression_param: None,
                 cpk_re_randomization_params: None,
                 dedicated_oprf_key: true,
+                transciphering_parameters: None,
             };
 
             assert!(!sk.is_conformant(&conformance_params));
@@ -1187,11 +1244,42 @@ mod test {
                 noise_squashing_compression_param: None,
                 cpk_re_randomization_params: None,
                 dedicated_oprf_key: true,
+                transciphering_parameters: None,
             };
 
             assert!(!sk.is_conformant(&conformance_params));
             conformance_params.dedicated_oprf_key = false;
             assert!(sk.is_conformant(&conformance_params));
+        }
+        {
+            let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+            let config = ConfigBuilder::with_custom_parameters(params)
+                .enable_transciphering(TranscipheringParameters::SameAsCompute)
+                .build();
+
+            let ck = ClientKey::generate(config);
+            let sk = CompressedServerKey::new(&ck);
+
+            let sk_param = params.into();
+            let mut conformance_params = IntegerServerKeyConformanceParams {
+                sk_param,
+                cpk_param: None,
+                compression_param: None,
+                noise_squashing_param: None,
+                noise_squashing_compression_param: None,
+                cpk_re_randomization_params: None,
+                dedicated_oprf_key: true,
+                transciphering_parameters: None,
+            };
+
+            assert!(!sk.is_conformant(&conformance_params));
+            conformance_params.transciphering_parameters =
+                Some(TranscipheringParameters::SameAsCompute);
+            assert!(sk.is_conformant(&conformance_params));
+
+            let without = ConfigBuilder::with_custom_parameters(params).build();
+            let sk_without = CompressedServerKey::new(&ClientKey::generate(without));
+            assert!(!sk_without.is_conformant(&conformance_params));
         }
     }
 }

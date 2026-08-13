@@ -31,6 +31,7 @@ pub const V1_6_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M40: MetaParameters = MetaPar
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M40: MetaParameters = MetaParameters {
@@ -42,6 +43,7 @@ pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M40: MetaParameters = MetaPar
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_3_3_KS_PBS_GAUSSIAN_2M40: MetaParameters = MetaParameters {
@@ -53,6 +55,7 @@ pub const V1_6_META_PARAM_CPU_3_3_KS_PBS_GAUSSIAN_2M40: MetaParameters = MetaPar
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_4_4_KS_PBS_GAUSSIAN_2M40: MetaParameters = MetaParameters {
@@ -64,6 +67,7 @@ pub const V1_6_META_PARAM_CPU_4_4_KS_PBS_GAUSSIAN_2M40: MetaParameters = MetaPar
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaParameters {
@@ -75,6 +79,7 @@ pub const V1_6_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaPar
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaParameters {
@@ -86,6 +91,7 @@ pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaPar
     compression_parameters: Some(V1_6_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64),
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_3_3_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaParameters {
@@ -97,6 +103,7 @@ pub const V1_6_META_PARAM_CPU_3_3_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaPar
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_4_4_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaParameters {
@@ -108,6 +115,7 @@ pub const V1_6_META_PARAM_CPU_4_4_KS_PBS_GAUSSIAN_2M64: MetaParameters = MetaPar
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M128: MetaParameters = MetaParameters {
@@ -119,6 +127,7 @@ pub const V1_6_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M128: MetaParameters = MetaPa
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128: MetaParameters = MetaParameters {
@@ -130,6 +139,7 @@ pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128: MetaParameters = MetaPa
     compression_parameters: Some(V1_6_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128),
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_3_3_KS_PBS_GAUSSIAN_2M128: MetaParameters = MetaParameters {
@@ -141,6 +151,7 @@ pub const V1_6_META_PARAM_CPU_3_3_KS_PBS_GAUSSIAN_2M128: MetaParameters = MetaPa
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_4_4_KS_PBS_GAUSSIAN_2M128: MetaParameters = MetaParameters {
@@ -152,6 +163,7 @@ pub const V1_6_META_PARAM_CPU_4_4_KS_PBS_GAUSSIAN_2M128: MetaParameters = MetaPa
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_1_1_KS_PBS_TUNIFORM_2M40: MetaParameters = MetaParameters {
@@ -163,6 +175,7 @@ pub const V1_6_META_PARAM_CPU_1_1_KS_PBS_TUNIFORM_2M40: MetaParameters = MetaPar
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_TUNIFORM_2M40: MetaParameters = MetaParameters {
@@ -174,6 +187,7 @@ pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_TUNIFORM_2M40: MetaParameters = MetaPar
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_3_3_KS_PBS_TUNIFORM_2M40: MetaParameters = MetaParameters {
@@ -185,6 +199,7 @@ pub const V1_6_META_PARAM_CPU_3_3_KS_PBS_TUNIFORM_2M40: MetaParameters = MetaPar
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_4_4_KS_PBS_TUNIFORM_2M40: MetaParameters = MetaParameters {
@@ -196,6 +211,7 @@ pub const V1_6_META_PARAM_CPU_4_4_KS_PBS_TUNIFORM_2M40: MetaParameters = MetaPar
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_1_1_KS_PBS_TUNIFORM_2M64: MetaParameters = MetaParameters {
@@ -207,6 +223,7 @@ pub const V1_6_META_PARAM_CPU_1_1_KS_PBS_TUNIFORM_2M64: MetaParameters = MetaPar
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_TUNIFORM_2M64: MetaParameters = MetaParameters {
@@ -218,6 +235,7 @@ pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_TUNIFORM_2M64: MetaParameters = MetaPar
     compression_parameters: Some(V1_6_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64),
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_3_3_KS_PBS_TUNIFORM_2M64: MetaParameters = MetaParameters {
@@ -229,6 +247,7 @@ pub const V1_6_META_PARAM_CPU_3_3_KS_PBS_TUNIFORM_2M64: MetaParameters = MetaPar
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_4_4_KS_PBS_TUNIFORM_2M64: MetaParameters = MetaParameters {
@@ -240,6 +259,7 @@ pub const V1_6_META_PARAM_CPU_4_4_KS_PBS_TUNIFORM_2M64: MetaParameters = MetaPar
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_1_1_KS_PBS_TUNIFORM_2M128: MetaParameters = MetaParameters {
@@ -251,6 +271,7 @@ pub const V1_6_META_PARAM_CPU_1_1_KS_PBS_TUNIFORM_2M128: MetaParameters = MetaPa
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_3_3_KS_PBS_TUNIFORM_2M128: MetaParameters = MetaParameters {
@@ -262,6 +283,7 @@ pub const V1_6_META_PARAM_CPU_3_3_KS_PBS_TUNIFORM_2M128: MetaParameters = MetaPa
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_4_4_KS_PBS_TUNIFORM_2M128: MetaParameters = MetaParameters {
@@ -273,6 +295,7 @@ pub const V1_6_META_PARAM_CPU_4_4_KS_PBS_TUNIFORM_2M128: MetaParameters = MetaPa
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaParameters =
@@ -285,6 +308,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -298,6 +322,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -311,6 +336,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -324,6 +350,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -337,6 +364,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -350,6 +378,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -363,6 +392,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -376,6 +406,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -389,6 +420,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -402,6 +434,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -415,6 +448,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -428,6 +462,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -441,6 +476,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -454,6 +490,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -467,6 +504,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -480,6 +518,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -493,6 +532,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -506,6 +546,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -519,6 +560,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -532,6 +574,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -545,6 +588,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -558,6 +602,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -571,6 +616,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -584,6 +630,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -597,6 +644,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -610,6 +658,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -623,6 +672,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -636,6 +686,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -649,6 +700,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -662,6 +714,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -675,6 +728,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -688,6 +742,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -701,6 +756,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -714,6 +770,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -727,6 +784,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -740,6 +798,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -753,6 +812,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -766,6 +826,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -779,6 +840,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -792,6 +854,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -805,6 +868,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -818,6 +882,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -831,6 +896,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -844,6 +910,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -857,6 +924,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -870,6 +938,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -883,6 +952,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -896,6 +966,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -909,6 +980,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -922,6 +994,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -935,6 +1008,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -948,6 +1022,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -961,6 +1036,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -974,6 +1050,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -987,6 +1064,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1000,6 +1078,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1013,6 +1092,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1026,6 +1106,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1039,6 +1120,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1052,6 +1134,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1065,6 +1148,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1078,6 +1162,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1091,6 +1176,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1104,6 +1190,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1117,6 +1204,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1130,6 +1218,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1143,6 +1232,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1156,6 +1246,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1169,6 +1260,7 @@ pub const V1_6_META_PARAM_CPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1182,6 +1274,7 @@ pub const V1_6_META_PARAM_CPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1195,6 +1288,7 @@ pub const V1_6_META_PARAM_CPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1208,6 +1302,7 @@ pub const V1_6_META_PARAM_CPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1220,6 +1315,7 @@ pub const V1_6_META_PARAM_CPU_2_2_KS32_PBS_TUNIFORM_2M128: MetaParameters = Meta
     compression_parameters: None,
     noise_squashing_parameters: None,
     rerand_configuration: None,
+    transciphering_parameters: None,
 }
 .validate();
 pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128: MetaParameters =
@@ -1244,6 +1340,7 @@ pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128: MetaP
         rerand_configuration: Some(
             ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch,
         ),
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1269,6 +1366,7 @@ pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128: MetaPar
         rerand_configuration: Some(
             ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch,
         ),
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1294,6 +1392,7 @@ pub const V1_6_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128: Met
         rerand_configuration: Some(
             ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch,
         ),
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1319,6 +1418,7 @@ pub const V1_6_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128: MetaP
         rerand_configuration: Some(
             ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch,
         ),
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1344,6 +1444,7 @@ pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV1_TUNIFORM_2M128: MetaP
         rerand_configuration: Some(
             ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch,
         ),
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -1369,5 +1470,6 @@ pub const V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV1_TUNIFORM_2M128: MetaPar
         rerand_configuration: Some(
             ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch,
         ),
+        transciphering_parameters: None,
     }
     .validate();
