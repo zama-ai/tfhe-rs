@@ -5,7 +5,7 @@ use crate::high_level_api::keys::IntegerConfig;
 use crate::shortint::parameters::list_compression::CompressionParameters;
 use crate::shortint::parameters::{
     MetaParameters, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
-    ReRandomizationParameters,
+    ReRandomizationParameters, TranscipheringParameters,
 };
 
 /// The config type
@@ -137,6 +137,11 @@ impl ConfigBuilder {
         self
     }
 
+    pub fn enable_transciphering(mut self, parameters: TranscipheringParameters) -> Self {
+        self.config.inner.enable_transciphering(parameters);
+        self
+    }
+
     pub fn use_custom_parameters<P>(mut self, block_parameters: P) -> Self
     where
         P: Into<crate::shortint::atomic_pattern::AtomicPatternParameters>,
@@ -173,6 +178,7 @@ impl From<MetaParameters> for Config {
                     .and_then(|ns_p| ns_p.compression_parameters),
                 cpk_re_randomization_params: meta_params.rerandomization_parameters(),
                 dedicated_oprf_key: true,
+                transciphering_parameters: meta_params.transciphering_parameters,
             },
         }
     }
