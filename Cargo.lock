@@ -3017,6 +3017,7 @@ dependencies = [
  "combine",
  "console_error_panic_hook",
  "criterion",
+ "crossbeam",
  "csv",
  "doc-comment",
  "dyn-stack",
@@ -3054,6 +3055,8 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-bindgen-rayon",
  "wasm-par-mq",
+ "zhc_ir",
+ "zhc_utils",
 ]
 
 [[package]]

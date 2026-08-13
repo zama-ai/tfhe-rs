@@ -76,7 +76,7 @@ impl ServerKey {
     ///     .unwrap();
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct_res);
+    /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((msg % (1 << end_bit)) >> start_bit, clear);
     /// ```
     pub fn unchecked_scalar_bitslice_parallelized<B, R>(
@@ -174,7 +174,7 @@ impl ServerKey {
     ///     .unwrap();
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct);
+    /// let clear: u64 = cks.decrypt(&ct);
     /// assert_eq!((msg % (1 << end_bit)) >> start_bit, clear);
     /// ```
     pub fn unchecked_scalar_bitslice_assign_parallelized<B, R>(
@@ -218,7 +218,7 @@ impl ServerKey {
     ///     .unwrap();
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct_res);
+    /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((msg % (1 << end_bit)) >> start_bit, clear);
     /// ```
     pub fn scalar_bitslice_parallelized<B, R>(
@@ -266,7 +266,7 @@ impl ServerKey {
     ///     .unwrap();
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct);
+    /// let clear: u64 = cks.decrypt(&ct);
     /// assert_eq!((msg % (1 << end_bit)) >> start_bit, clear);
     /// ```
     pub fn scalar_bitslice_assign_parallelized<B, R>(
@@ -313,7 +313,7 @@ impl ServerKey {
     ///     .unwrap();
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct_res);
+    /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((msg % (1 << end_bit)) >> start_bit, clear);
     /// ```
     pub fn smart_scalar_bitslice_parallelized<B, R>(
@@ -359,7 +359,7 @@ impl ServerKey {
     ///     .unwrap();
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct);
+    /// let clear: u64 = cks.decrypt(&ct);
     /// assert_eq!((msg % (1 << end_bit)) >> start_bit, clear);
     /// ```
     pub fn smart_scalar_bitslice_assign_parallelized<B, R>(
