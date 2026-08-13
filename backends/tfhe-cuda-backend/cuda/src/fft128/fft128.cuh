@@ -840,6 +840,7 @@ __host__ void host_fourier_transform_forward_as_integer_f128(
   cuda_drop_async(d_re1, stream, gpu_index);
   cuda_drop_async(d_im0, stream, gpu_index);
   cuda_drop_async(d_im1, stream, gpu_index);
+  cuda_drop_async(buffer, stream, gpu_index);
 }
 
 template <class params>
@@ -917,6 +918,7 @@ __host__ void host_fourier_transform_forward_as_torus_f128(
   cuda_drop_async(d_re1, stream, gpu_index);
   cuda_drop_async(d_im0, stream, gpu_index);
   cuda_drop_async(d_im1, stream, gpu_index);
+  cuda_drop_async(buffer, stream, gpu_index);
 }
 
 template <class params>
@@ -988,6 +990,7 @@ __host__ void host_fourier_transform_backward_as_torus_f128(
   cuda_drop_async(d_re1, stream, gpu_index);
   cuda_drop_async(d_im0, stream, gpu_index);
   cuda_drop_async(d_im1, stream, gpu_index);
+  cuda_drop_async(buffer, stream, gpu_index);
 }
 
 #undef NEG_TWID
