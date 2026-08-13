@@ -20,7 +20,7 @@ fn retrieve_entries(root: &PathBuf) -> Vec<(String, String)> {
         .filter_map(|e| {
             let dir = e.file_name().to_string_lossy().into_owned();
             let label = dir.strip_prefix("compat_")?.replace('_', ".");
-            if is_version_dir(&label) || &label == "nightly" {
+            if is_version_dir(&label) || label == forward_common::NIGHTLY {
                 Some((label, dir))
             } else {
                 println!("skipping {} (not a version dir)", dir);
@@ -32,6 +32,10 @@ fn retrieve_entries(root: &PathBuf) -> Vec<(String, String)> {
     println!("Found {} entries: {:?}", entries.len(), entries);
     entries
 }
+
+/// Exit code telling the CI the matrix no longer matches the reviewed baseline,
+/// as opposed to the tool itself having failed.
+const BASELINE_MOVED: i32 = 2;
 
 fn project_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -101,9 +105,37 @@ fn main() {
         rows,
     };
 
-    let markdown = matrix.render_markdown();
+    // Read the reviewed state before overwriting it, so the report can tell what
+    // this branch moved. A missing file means everything is new.
+    let baseline_path = root.join(forward_common::BASELINE_FILE);
+    let reviewed = match std::fs::read_to_string(&baseline_path) {
+        Ok(content) => forward_common::parse_baseline(&content),
+        Err(err) => {
+            eprintln!(
+                "no baseline to compare against at {}: {err}",
+                baseline_path.display()
+            );
+            forward_common::Baseline::new()
+        }
+    };
+    let current = matrix.baseline();
+    let diff = forward_common::diff_baseline(&reviewed, &current);
+    std::fs::write(&baseline_path, forward_common::render_baseline(&current))
+        .expect("failed to write baseline");
+
+    let markdown = matrix.render_markdown(Some(&diff));
     print!("{markdown}");
     std::fs::write(root.join("matrix.md"), &markdown).expect("failed to write matrix.md");
+
+    // A reason that moved on its own is not worth anyone's time: only a status
+    // change, a new cell or a lost one means the baseline was not reviewed.
+    if diff.has_status_changes() {
+        eprintln!(
+            "the matrix no longer matches {}, review it and commit the regenerated file",
+            forward_common::BASELINE_FILE
+        );
+        std::process::exit(BASELINE_MOVED);
+    }
 }
 
 fn produce_all(versions: &[Version]) {

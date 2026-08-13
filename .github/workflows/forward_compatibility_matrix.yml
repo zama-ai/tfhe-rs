@@ -1,5 +1,7 @@
-# Manually builds the tfhe forward/backward data-compatibility matrix and
-# surfaces it both as a rendered table in the run summary and as an artifact.
+# Builds the tfhe forward data-compatibility matrix, surfaces it as a rendered
+# table in the run summary, an artifact and a PR comment, and fails only when it
+# no longer matches the committed baseline: a lost forward compatibility is
+# acceptable, an unreviewed one is not.
 name: forward_compatibility_matrix
 
 on:
@@ -10,6 +12,7 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: "full"
   MATRIX_DIR: utils/tfhe-forward-compat-matrices
+  BASELINE_FILE: matrix.baseline.csv
 
 permissions: {}
 
@@ -34,8 +37,25 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Test the report generation
+        run: make test_forward_compat_report
+
+      # The generator rewrites the baseline in place and owns the verdict: it
+      # compares statuses only, so a failure reason drifting on its own (a serde
+      # bump, a variant added to a versioning enum) never turns the CI red.
       - name: Generate the compatibility matrix
-        run: make generate_forward_compat_matrix
+        id: matrix
+        run: |
+          set +e
+          make generate_forward_compat_matrix
+          code="$?"
+          set -e
+          # Reported at the very end, once the report has been posted.
+          if [ "${code}" -eq 2 ]; then
+            echo "moved=true" >> "${GITHUB_OUTPUT}"
+          elif [ "${code}" -ne 0 ]; then
+            exit "${code}"
+          fi
 
       - name: Render matrix in the run summary
         run: |
@@ -57,5 +77,14 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: forward-compat-matrix
-          path: ${{ env.MATRIX_DIR }}/matrix.md
+          path: |
+            ${{ env.MATRIX_DIR }}/matrix.md
+            ${{ env.MATRIX_DIR }}/${{ env.BASELINE_FILE }}
           if-no-files-found: error
+
+      - name: Fail if the baseline is out of date
+        if: steps.matrix.outputs.moved == 'true'
+        run: |
+          echo "::error::The matrix no longer matches ${MATRIX_DIR}/${BASELINE_FILE}, see the PR comment."
+          echo "::error::Run 'make generate_forward_compat_matrix' and commit the updated baseline."
+          exit 1
