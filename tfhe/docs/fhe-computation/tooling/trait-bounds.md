@@ -76,22 +76,14 @@ fn main() {
 
         let a = FheUint32::try_encrypt(clear_a, &client_key).unwrap();
         let b = FheUint32::try_encrypt(clear_b, &client_key).unwrap();
-        assert_eq!(
-            ex1(&clear_a, clear_c),
-            ex1(&a, clear_c).decrypt(&client_key)
-        );
-        assert_eq!(
-            ex2(&clear_a, &clear_b, clear_c),
-            ex2(&a, &b, clear_c).decrypt(&client_key)
-        );
-        assert_eq!(
-            ex3(clear_a, clear_b, clear_c),
-            ex3(a.clone(), b.clone(), clear_c).decrypt(&client_key)
-        );
-        assert_eq!(
-            ex4(clear_a, clear_b, clear_c),
-            ex4(a, b, clear_c).decrypt(&client_key)
-        );
+        let dec_ex1: u32 = ex1(&a, clear_c).decrypt(&client_key);
+        assert_eq!(ex1(&clear_a, clear_c), dec_ex1);
+        let dec_ex2: u32 = ex2(&a, &b, clear_c).decrypt(&client_key);
+        assert_eq!(ex2(&clear_a, &clear_b, clear_c), dec_ex2);
+        let dec_ex3: u32 = ex3(a.clone(), b.clone(), clear_c).decrypt(&client_key);
+        assert_eq!(ex3(clear_a, clear_b, clear_c), dec_ex3);
+        let dec_ex4: u32 = ex4(a, b, clear_c).decrypt(&client_key);
+        assert_eq!(ex4(clear_a, clear_b, clear_c), dec_ex4);
     }
 
     // Use FheUint64
@@ -102,22 +94,14 @@ fn main() {
 
         let a = FheUint64::try_encrypt(clear_a, &client_key).unwrap();
         let b = FheUint64::try_encrypt(clear_b, &client_key).unwrap();
-        assert_eq!(
-            ex1(&clear_a, clear_c),
-            ex1(&a, clear_c).decrypt(&client_key)
-        );
-        assert_eq!(
-            ex2(&clear_a, &clear_b, clear_c),
-            ex2(&a, &b, clear_c).decrypt(&client_key)
-        );
-        assert_eq!(
-            ex3(clear_a, clear_b, clear_c),
-            ex3(a.clone(), b.clone(), clear_c).decrypt(&client_key)
-        );
-        assert_eq!(
-            ex4(clear_a, clear_b, clear_c),
-            ex4(a, b, clear_c).decrypt(&client_key)
-        );
+        let dec_ex1: u64 = ex1(&a, clear_c).decrypt(&client_key);
+        assert_eq!(ex1(&clear_a, clear_c), dec_ex1);
+        let dec_ex2: u64 = ex2(&a, &b, clear_c).decrypt(&client_key);
+        assert_eq!(ex2(&clear_a, &clear_b, clear_c), dec_ex2);
+        let dec_ex3: u64 = ex3(a.clone(), b.clone(), clear_c).decrypt(&client_key);
+        assert_eq!(ex3(clear_a, clear_b, clear_c), dec_ex3);
+        let dec_ex4: u64 = ex4(a, b, clear_c).decrypt(&client_key);
+        assert_eq!(ex4(clear_a, clear_b, clear_c), dec_ex4);
     }
 }
 ```
