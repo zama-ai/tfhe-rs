@@ -794,7 +794,8 @@ __host__ void host_fourier_transform_forward_as_integer_f128(
       (required_shared_memory_size <= cuda_get_max_shared_memory(gpu_index));
   size_t buffer_size =
       full_sm ? 0
-              : safe_mul((size_t)number_of_samples, (size_t)(N / 2), (size_t)4);
+              : safe_mul_sizeof<double>((size_t)number_of_samples,
+                                        (size_t)(N / 2), (size_t)4);
   size_t shared_memory_size = full_sm ? required_shared_memory_size : 0;
   double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index);
 
@@ -874,7 +875,8 @@ __host__ void host_fourier_transform_forward_as_torus_f128(
       (required_shared_memory_size <= cuda_get_max_shared_memory(gpu_index));
   size_t buffer_size =
       full_sm ? 0
-              : safe_mul((size_t)number_of_samples, (size_t)(N / 2), (size_t)4);
+              : safe_mul_sizeof<double>((size_t)number_of_samples,
+                                        (size_t)(N / 2), (size_t)4);
   size_t shared_memory_size = full_sm ? required_shared_memory_size : 0;
   double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index);
 
@@ -958,7 +960,8 @@ __host__ void host_fourier_transform_backward_as_torus_f128(
       (required_shared_memory_size <= cuda_get_max_shared_memory(gpu_index));
   size_t buffer_size =
       full_sm ? 0
-              : safe_mul((size_t)number_of_samples, (size_t)(N / 2), (size_t)4);
+              : safe_mul_sizeof<double>((size_t)number_of_samples,
+                                        (size_t)(N / 2), (size_t)4);
   size_t shared_memory_size = full_sm ? required_shared_memory_size : 0;
   double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index);
 
