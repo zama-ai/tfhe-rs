@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 forward-common = { path = "../forward-common" }
+ron = "0.12"
+serde = { version = "1.0", features = ["derive"] }

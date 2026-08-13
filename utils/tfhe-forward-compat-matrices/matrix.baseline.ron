@@ -1,0 +1,25 @@
+// Reviewed state of the forward compatibility matrix.
+// Regenerate with `make generate_forward_compat_matrix` then commit the changes:
+// a Fail is acceptable but an unreviewed one is not.
+// The reason is documentation only. It moves with serde and with the variant
+// count of the versioning enums, so it never fails the CI on its own.
+{
+    ("CompactPkeCrs", "1.5.5", "1.6.3"): (status: Ok),
+    ("CompactPkeCrs", "1.5.5", "1.7.0"): (status: Ok),
+    ("CompactPkeCrs", "1.5.5", "nightly"): (status: Ok),
+    ("CompactPkeCrs", "1.6.3", "1.7.0"): (status: Ok),
+    ("CompactPkeCrs", "1.6.3", "nightly"): (status: Ok),
+    ("CompactPkeCrs", "1.7.0", "nightly"): (status: Ok),
+    ("CompactPublicKey", "1.5.5", "1.6.3"): (status: Fail, reason: "invalid value: integer `1`, expected variant index 0 <= i < 1"),
+    ("CompactPublicKey", "1.5.5", "1.7.0"): (status: Fail, reason: "invalid value: integer `1`, expected variant index 0 <= i < 1"),
+    ("CompactPublicKey", "1.5.5", "nightly"): (status: Fail, reason: "invalid value: integer `1`, expected variant index 0 <= i < 1"),
+    ("CompactPublicKey", "1.6.3", "1.7.0"): (status: Ok),
+    ("CompactPublicKey", "1.6.3", "nightly"): (status: Ok),
+    ("CompactPublicKey", "1.7.0", "nightly"): (status: Ok),
+    ("ProvenCompactCiphertextList", "1.5.5", "1.6.3"): (status: Fail, reason: "invalid value: integer `1`, expected variant index 0 <= i < 1"),
+    ("ProvenCompactCiphertextList", "1.5.5", "1.7.0"): (status: Fail, reason: "invalid value: integer `1`, expected variant index 0 <= i < 1"),
+    ("ProvenCompactCiphertextList", "1.5.5", "nightly"): (status: Fail, reason: "invalid value: integer `1`, expected variant index 0 <= i < 1"),
+    ("ProvenCompactCiphertextList", "1.6.3", "1.7.0"): (status: Ok),
+    ("ProvenCompactCiphertextList", "1.6.3", "nightly"): (status: Ok),
+    ("ProvenCompactCiphertextList", "1.7.0", "nightly"): (status: Ok),
+}
