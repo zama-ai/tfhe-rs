@@ -102,38 +102,79 @@ static constexpr size_t SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_FIXED_BYTES =
         SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_AHAT_OFFSET_DOUBLES) *
     sizeof(double);
 
-template <typename Torus>
-uint64_t
-get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params_throughput(
-    uint32_t lwe_dimension) {
-  // a_hat table: one uint32 per LWE coefficient, padded to 8 bytes so the
-  // address arithmetic above stays aligned for any subsequent double-typed
-  // region we might add later.
-  uint64_t ahat_bytes =
-      (static_cast<uint64_t>(lwe_dimension) * sizeof(uint32_t) + 7ull) &
-      ~static_cast<uint64_t>(7);
-  return SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_FIXED_BYTES + ahat_bytes;
+// Largest LWE dimension the mixprecision kernel accepts. The 2_2 parameter set
+// it is specialized for uses 918, with some margin left for parameter updates.
+// Bootstraps above it take the generic paths: the a_hat region below is sized
+// from this bound.
+static constexpr uint32_t
+    SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION = 1024;
+
+// a_hat table: one uint32 per LWE coefficient, padded to 8 bytes to keep the
+// region double-aligned. Sized from the maximum dimension and not from the one
+// in use, so this kernel's dynamic shared memory is a compile-time constant:
+// the opt-in is per-function state shared by every thread of the context, so a
+// size that followed lwe_dimension let two concurrent bootstraps of different
+// parameter sets race on it. a_hat is the last region, so over-allocating it
+// moves nothing.
+static constexpr uint64_t SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_AHAT_BYTES =
+    (static_cast<uint64_t>(
+         SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION) *
+         sizeof(uint32_t) +
+     7ull) &
+    ~static_cast<uint64_t>(7);
+
+// The one size this kernel is launched with and opts in to.
+static constexpr uint64_t SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES =
+    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_FIXED_BYTES +
+    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_AHAT_BYTES;
+
+// The launch bounds ask for 2 blocks/SM and the driver reserves 1 KiB per
+// block, so a block gets at most (228 - 2) / 2 KiB on Hopper. Measured on an
+// H100: 115712 B still gives 2 blocks/SM, 115968 B drops to 1.
+static constexpr uint64_t
+    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_RESIDENCY_LIMIT_BYTES = 115712ull;
+static_assert(
+    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES <=
+        SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_RESIDENCY_LIMIT_BYTES,
+    "the mixprecision specialized kernel would drop to 1 block/SM: "
+    "lower SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION");
+
+// Reports which step of the mixprecision launch failed and with what
+// configuration. check_cuda_error cannot: every call of the launch macro
+// expands to the single line the macro is invoked from. `grid`/`block` are zero
+// when the failure happens while configuring, before a launch exists.
+__host__ inline void check_specialized_2_2_mixprecision_error(
+    cudaError_t err, const char *step, uint32_t base_log,
+    uint32_t lwe_dimension, dim3 grid, dim3 block, uint64_t smem,
+    const char *file, int line) {
+  if (err != cudaSuccess) {
+    PANIC("Cuda error (specialized 2_2 mixprecision PBS): %s failed with "
+          "\"%s\" at %s:%d\n"
+          "  base_log=%u lwe_dimension=%u grid=(%u,%u,%u) block=(%u,%u,%u)\n"
+          "  dynamic shared memory=%lu B (fixed size %lu B, max lwe "
+          "dimension %u)",
+          step, cudaGetErrorString(err), file, line, base_log, lwe_dimension,
+          grid.x, grid.y, grid.z, block.x, block.y, block.z,
+          static_cast<unsigned long>(smem),
+          static_cast<unsigned long>(
+              SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES),
+          SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION);
+  }
 }
 
-// Residency budget for the mixprecision specialized kernel: 114 KiB/block keeps
-// 2 blocks/SM on H100 (228 KiB carveout). Promoted from the old launch guard so
-// the applicability predicate and the launch path share one value.
-static constexpr uint64_t
-    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BUDGET_BYTES = 114ull * 1024ull;
-
 // True if the FFT16x4x16 mixprecision specialized kernel is applicable for the
-// given parameters.
+// given parameters. The LWE dimension bound keeps the a_hat region large
+// enough. The launch paths and the bootstrapping key conversion both decide
+// through here, so the key layout and the kernel reading it always agree.
 template <typename Torus>
 __host__ bool specialized_2_2_use_throughput_oriented(
     uint32_t polynomial_size, uint32_t glwe_dimension, uint32_t level_count,
     uint32_t lwe_dimension, uint32_t max_shared_memory) {
-  if (polynomial_size != 2048 || glwe_dimension != 1 || level_count != 1)
-    return false;
-  uint64_t mp_smem =
-      get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params_throughput<
-          Torus>(lwe_dimension);
-  return mp_smem <= SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BUDGET_BYTES &&
-         mp_smem <= static_cast<uint64_t>(max_shared_memory);
+  return polynomial_size == 2048 && glwe_dimension == 1 && level_count == 1 &&
+         lwe_dimension <=
+             SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION &&
+         SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES <=
+             static_cast<uint64_t>(max_shared_memory);
 }
 
 // We validate that the params and shared memory constraints for the specialized
@@ -697,6 +738,48 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
   }
 }
 
+// Applies the kernel's fixed attributes, reporting a failure the same way the
+// launch path does. They do not change between calls, so this could be done
+// once per device instead of once per launch; see
+// docs/gpu_kernel_configuration.md.
+template <typename Torus, class params, uint32_t base_log>
+__host__ void
+configure_specialized_2_2_mixprecision_kernel(uint32_t lwe_dimension,
+                                              const char *file, int line) {
+  // Last line of defence for the bound the selection predicate
+  // (specialized_2_2_use_throughput_oriented) already enforces: the a_hat
+  // region is sized from MAX_LWE_DIMENSION, so a larger dimension reaching
+  // here would have the kernel write past it instead of falling back.
+  PANIC_IF_FALSE(
+      lwe_dimension <= SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION,
+      "Cuda error (specialized 2_2 mixprecision PBS): lwe_dimension=%u "
+      "exceeds SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION=%u; this "
+      "launch path must not be selected for it",
+      lwe_dimension, SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION);
+
+  auto kernel = device_programmable_bootstrap_specialized_2_2_params_throughput<
+      Torus, params, base_log>;
+  auto check_configure_error = [&](cudaError_t err, const char *step) {
+    check_specialized_2_2_mixprecision_error(
+        err, step, base_log, lwe_dimension, dim3(0, 0, 0), dim3(0, 0, 0),
+        SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES, file, line);
+  };
+
+  check_configure_error(
+      cudaFuncSetAttribute(
+          kernel, cudaFuncAttributeMaxDynamicSharedMemorySize,
+          static_cast<int>(SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES)),
+      "cudaFuncSetAttribute(MaxDynamicSharedMemorySize)");
+  check_configure_error(
+      cudaFuncSetAttribute(kernel,
+                           cudaFuncAttributePreferredSharedMemoryCarveout,
+                           cudaSharedmemCarveoutMaxShared),
+      "cudaFuncSetAttribute(PreferredSharedMemoryCarveout)");
+  check_configure_error(
+      cudaFuncSetCacheConfig(kernel, cudaFuncCachePreferShared),
+      "cudaFuncSetCacheConfig");
+}
+
 template <typename Torus, class params, sharedMemDegree SMD, bool first_iter>
 __global__ void __launch_bounds__(params::degree / params::opt)
     device_programmable_bootstrap_step_one(
@@ -1223,35 +1306,30 @@ __host__ void host_programmable_bootstrap_with_mode(
       int mp_thds = polynomial_size / mp_params::opt; // 64
       dim3 mp_grid(input_lwe_ciphertext_count, 1, level_count);
       dim3 mp_block(mp_thds, glwe_dimension + 1, 1); // (64, 2, 1) = 128 threads
-      uint64_t mp_smem =
-          get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params_throughput<
-              Torus>(lwe_dimension);
+      uint64_t mp_smem = SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES;
 
-      // smem is already bounded to the 114 KiB / 2-block-per-SM budget by the
-      // specialized_2_2_use_throughput_oriented predicate above.
+// Names the step that failed, since every call below expands to the line the
+// macro is invoked from.
+#define CHECK_SPECIALIZED_2_2_MIXPRECISION(call, step, BL)                     \
+  check_specialized_2_2_mixprecision_error((call), (step), (BL),               \
+                                           lwe_dimension, mp_grid, mp_block,   \
+                                           mp_smem, __FILE__, __LINE__)
 
+// The launched size and the opt-in are both the compile-time SMEM_BYTES, never
+// a per-call value: see the a_hat comment above.
 #define LAUNCH_SPECIALIZED_2_2_MIXPRECISION(BL)                                \
   do {                                                                         \
-    check_cuda_error(cudaFuncSetAttribute(                                     \
-        device_programmable_bootstrap_specialized_2_2_params_throughput<       \
-            Torus, mp_params, BL>,                                             \
-        cudaFuncAttributeMaxDynamicSharedMemorySize, mp_smem));                \
-    check_cuda_error(cudaFuncSetAttribute(                                     \
-        device_programmable_bootstrap_specialized_2_2_params_throughput<       \
-            Torus, mp_params, BL>,                                             \
-        cudaFuncAttributePreferredSharedMemoryCarveout,                        \
-        cudaSharedmemCarveoutMaxShared));                                      \
-    check_cuda_error(cudaFuncSetCacheConfig(                                   \
-        device_programmable_bootstrap_specialized_2_2_params_throughput<       \
-            Torus, mp_params, BL>,                                             \
-        cudaFuncCachePreferShared));                                           \
-    check_cuda_error(cudaGetLastError());                                      \
+    configure_specialized_2_2_mixprecision_kernel<Torus, mp_params, BL>(       \
+        lwe_dimension, __FILE__, __LINE__);                                    \
+    CHECK_SPECIALIZED_2_2_MIXPRECISION(                                        \
+        cudaGetLastError(), "a CUDA call issued before this launch", BL);      \
     device_programmable_bootstrap_specialized_2_2_params_throughput<           \
         Torus, mp_params, BL><<<mp_grid, mp_block, mp_smem, stream>>>(         \
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,     \
         lwe_array_in, lwe_input_indexes, bootstrapping_key, lwe_dimension,     \
         num_many_lut, lut_stride, noise_reduction_type);                       \
-    check_cuda_error(cudaGetLastError());                                      \
+    CHECK_SPECIALIZED_2_2_MIXPRECISION(cudaGetLastError(),                     \
+                                       "the kernel launch", BL);               \
   } while (0)
 
       switch (base_log) {
@@ -1274,11 +1352,9 @@ __host__ void host_programmable_bootstrap_with_mode(
         PANIC("Unsupported base_log value for specialized 2_2_params "
               "mixprecision kernel");
       }
-      // NOTE: LAUNCH_SPECIALIZED_2_2_MIXPRECISION is intentionally left defined
-      // (not #undef-ed): the TBC entry point in
+      // Both macros are intentionally left defined: the TBC entry point in
       // programmable_bootstrap_tbc_classic.cuh includes this header and reuses
-      // it. It expects a `mp_grid` (and mp_block/mp_smem/mp_params/...) in
-      // scope.
+      // them. They expect mp_grid / mp_block / mp_smem / mp_params in scope.
       return;
     }
 
