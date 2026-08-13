@@ -81,7 +81,13 @@ rules:
       - metavariable-regex:
           metavariable: $FUNC
           regex: "^cuda[A-Z][A-Za-z0-9]*$" # matches cudaMalloc/cudaMemcpy/... (not project helpers like cuda_set_device)
-      - pattern-not-inside: check_cuda_error(...)
+      - pattern-not: cudaGetErrorString(...) # returns a description, not a status: nothing to check
+      - pattern-not-inside: # a checker must panic on any error it is given; extend the list when adding one
+          patterns:
+            - pattern: $CHECK(...)
+            - metavariable-regex:
+                metavariable: $CHECK
+                regex: "^(check_cuda_error|check_configure_error)$"
       - pattern-not-inside: |
           $FUNC(...);
           check_cuda_error(cudaGetLastError());

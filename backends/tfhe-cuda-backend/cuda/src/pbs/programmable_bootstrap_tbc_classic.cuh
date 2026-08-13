@@ -578,14 +578,11 @@ __host__ void host_programmable_bootstrap_tbc_with_mode(
         int mp_thds = polynomial_size / mp_params::opt; // 64
         dim3 mp_grid(input_lwe_ciphertext_count, 1, level_count);
         dim3 mp_block(mp_thds, glwe_dimension + 1, 1); // (64, 2, 1)
-        uint64_t mp_smem =
-            get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params_throughput<
-                Torus>(lwe_dimension);
+        uint64_t mp_smem = SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES;
 
-        // Reuses LAUNCH_SPECIALIZED_2_2_MIXPRECISION defined in
-        // programmable_bootstrap_classic.cuh (included above). It expects
-        // mp_grid / mp_block / mp_smem / mp_params and the kernel arguments in
-        // scope, which are all declared just above.
+        // Reuses LAUNCH_SPECIALIZED_2_2_MIXPRECISION from
+        // programmable_bootstrap_classic.cuh, which expects mp_grid / mp_block
+        // / mp_smem / mp_params and the kernel arguments in scope.
         switch (base_log) {
         case 21:
           LAUNCH_SPECIALIZED_2_2_MIXPRECISION(21);
