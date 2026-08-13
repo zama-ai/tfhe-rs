@@ -36,7 +36,7 @@ use crate::shortint::parameters::Degree;
 ///
 /// let decompressed_ct = sks.decompress_parallelized(&compressed_ct);
 ///
-/// let dec = cks.decrypt(&decompressed_ct);
+/// let dec: u8 = cks.decrypt(&decompressed_ct);
 ///
 /// assert_eq!(clear, dec);
 /// ```
@@ -82,7 +82,7 @@ impl ParameterSetConformant for CompressedModulusSwitchedRadixCiphertext {
 ///
 /// let decompressed_ct = sks.decompress_signed_parallelized(&compressed_ct);
 ///
-/// let dec = cks.decrypt_signed(&decompressed_ct);
+/// let dec: i8 = cks.decrypt_signed(&decompressed_ct);
 ///
 /// assert_eq!(clear, dec);
 /// ```
