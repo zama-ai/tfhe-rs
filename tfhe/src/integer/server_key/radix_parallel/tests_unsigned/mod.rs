@@ -652,7 +652,7 @@ impl<F> OpSequenceCpuFunctionExecutor<F> {
         Self { sks: None, func }
     }
     pub(crate) fn setup_from_cpu_keys(&mut self, sks: &CompressedServerKey) {
-        let (isks, _, _, _, _, _, _, _, _) = sks.decompress().into_raw_parts();
+        let (isks, _, _, _, _, _, _, _, _, _) = sks.decompress().into_raw_parts();
         self.sks = Some(Arc::new(isks));
     }
 }
@@ -671,7 +671,7 @@ where
         sks: &CompressedServerKey,
         _seeder: &mut DeterministicSeeder<DefaultRandomGenerator>,
     ) {
-        let (isks, _, _, _, _, _, _, _, _) = sks.decompress().into_raw_parts();
+        let (isks, _, _, _, _, _, _, _, _, _) = sks.decompress().into_raw_parts();
         self.sks = Some(Arc::new(isks));
     }
 
@@ -754,7 +754,7 @@ impl<F> CpuOprfExecutor<F> {
         Self { sks: None, func }
     }
     pub(crate) fn setup_from_cpu_keys(&mut self, sks: &CompressedServerKey) {
-        let (isks, _, _, _, _, _, _, oprf_key, _) = sks.decompress().into_raw_parts();
+        let (isks, _, _, _, _, _, _, oprf_key, _, _) = sks.decompress().into_raw_parts();
         let oprf_key = oprf_key.expect("OprfServerKey is required for the CpuOprfExecutor");
         self.sks = Some((oprf_key, isks));
     }

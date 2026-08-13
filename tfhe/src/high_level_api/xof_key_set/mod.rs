@@ -372,6 +372,14 @@ impl CompressedXofKeySet {
             )
         });
 
+        let transciphering_key = ck.key.transciphering_private_key.as_ref().map(|sk| {
+            crate::transciphering::CompressedTranscipheringServerKey::generate_with_pre_seeded_generator(
+                sk,
+                &ck.key.key,
+                &mut encryption_rand_gen,
+            )
+        });
+
         let compressed_server_key = CompressedServerKey::from_raw_parts(
             integer_compressed_server_key,
             Some(integer_ksk_material),
@@ -381,6 +389,7 @@ impl CompressedXofKeySet {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            transciphering_key,
             ck.tag.clone(),
         );
 

@@ -27,6 +27,7 @@ pub use crate::shortint::noise_squashing::ExpandedNoiseSquashingKey;
 pub use crate::shortint::server_key::expanded::{
     ShortintExpandedBootstrappingKey, ShortintExpandedServerKey,
 };
+use crate::transciphering::ExpandedTranscipheringServerKey;
 
 #[derive(PartialEq)]
 pub struct ExpandedDecompressionKey {
@@ -45,6 +46,7 @@ pub struct IntegerExpandedServerKey {
     pub noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
     pub cpk_re_randomization_key: Option<ReRandomizationKey>,
     pub oprf_key: Option<ExpandedOprfServerKey>,
+    pub transciphering_key: Option<ExpandedTranscipheringServerKey>,
 }
 
 /// Convert an expanded (standard-domain) compute server key to its CPU (Fourier-domain) form.
@@ -147,6 +149,7 @@ impl IntegerExpandedServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            transciphering_key,
         } = self;
 
         IntegerServerKey {
@@ -158,6 +161,7 @@ impl IntegerExpandedServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key: oprf_key.map(|oprf_key| oprf_key.to_fourier()),
+            transciphering_key: transciphering_key.map(|key| key.to_fourier()),
         }
     }
 }
@@ -188,6 +192,8 @@ impl IntegerExpandedServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            // The GPU has no transciphering support, so this key has nowhere to go
+            transciphering_key: _,
         } = self;
 
         let key = CudaServerKey::from_expanded_server_key(compute_key, streams)?;

@@ -4,6 +4,8 @@
 //! Each call rebuilds a fresh mask generator from the seed and fast-forwards (skips) past every
 //! component preceding the requested one, so calls are independent and order-free.
 
+use strum::{EnumIter, IntoEnumIterator};
+
 use super::CompressedXofKeySet;
 use crate::core_crypto::commons::generators::MaskRandomGenerator;
 use crate::core_crypto::prelude::DefaultRandomGenerator;
@@ -18,10 +20,11 @@ use crate::integer::key_switching_key::KeySwitchingKeyMaterial;
 use crate::integer::noise_squashing::NoiseSquashingKey;
 use crate::integer::oprf::OprfServerKey;
 use crate::prelude::Tagged;
+use crate::transciphering::TranscipheringServerKey;
 use crate::{integer, CompactPublicKey};
 
 /// Position of a component in the XOF mask stream (its generation/decompression order).
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, EnumIter)]
 enum Slot {
     PublicKey,
     Compression,
@@ -32,6 +35,7 @@ enum Slot {
     ReRand,
     NsCompression,
     Oprf,
+    Transciphering,
 }
 
 mod sealed {
@@ -68,17 +72,7 @@ impl CompressedXofKeySet {
         let icsk = &self.compressed_server_key.integer_key;
 
         // Skip each present component, in stream order, until we reach `target`.
-        for slot in [
-            PublicKey,
-            Compression,
-            Decompression,
-            Compute,
-            NoiseSquashing,
-            CpkKsk,
-            ReRand,
-            NsCompression,
-            Oprf,
-        ] {
+        for slot in Slot::iter() {
             if slot >= target {
                 break;
             }
@@ -119,7 +113,16 @@ impl CompressedXofKeySet {
                         k.advance_generator(&mut gen);
                     }
                 }
-                Oprf => break,
+                Oprf => {
+                    if let Some(k) = icsk.oprf_key.as_ref() {
+                        k.advance_generator(&mut gen);
+                    }
+                }
+                Transciphering => {
+                    if let Some(k) = icsk.transciphering_key.as_ref() {
+                        k.advance_generator(&mut gen);
+                    }
+                }
             }
         }
 
@@ -258,6 +261,23 @@ impl XofParts for Option<OprfServerKey> {
     }
 }
 
+impl Sealed for TranscipheringServerKey {}
+impl XofParts for Option<TranscipheringServerKey> {
+    fn decompress_parts(keyset: &CompressedXofKeySet) -> Self {
+        let compressed = keyset
+            .compressed_server_key
+            .integer_key
+            .transciphering_key
+            .as_ref()?;
+        let mut gen = keyset.generator_at(Slot::Transciphering);
+        Some(
+            compressed
+                .decompress_with_pre_seeded_generator(&mut gen)
+                .to_fourier(),
+        )
+    }
+}
+
 impl<K: Sealed> Sealed for Option<K> {}
 
 impl<A: Sealed, B: Sealed> Sealed for (A, B) {}
@@ -300,6 +320,7 @@ mod tests {
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
+    use crate::transciphering::TranscipheringServerKey;
     use crate::{integer, ConfigBuilder, Tag};
 
     fn generate_keyset(config: crate::Config) -> CompressedXofKeySet {
@@ -350,6 +371,7 @@ mod tests {
             ns_compression,
             re_rand,
             oprf,
+            transciphering,
             _tag,
         ) = server_key.into_raw_parts();
 
@@ -386,6 +408,10 @@ mod tests {
             ser(&ks.decompress_parts::<Option<OprfServerKey>>()),
             ser(&oprf),
         );
+        assert_eq!(
+            ser(&ks.decompress_parts::<Option<TranscipheringServerKey>>()),
+            ser(&transciphering),
+        );
     }
 
     #[test]
@@ -421,6 +447,7 @@ mod tests {
             _ns_comp,
             _rerand,
             oprf,
+            _transciphering,
             _tag,
         ) = server_key.into_raw_parts();
 

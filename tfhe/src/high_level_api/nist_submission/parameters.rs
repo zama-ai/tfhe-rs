@@ -85,4 +85,5 @@ pub const NIST_META_PARAMS_2_2: MetaParameters = MetaParameters {
     rerand_configuration: Some(
         ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch,
     ),
+    transciphering_parameters: None,
 };
