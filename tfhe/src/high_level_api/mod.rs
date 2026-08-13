@@ -81,6 +81,11 @@ use strum::FromRepr;
 #[cfg(test)]
 mod tests;
 
+/// Experimental graph API: build an `ExecutionGraph` with `ExecutionGraphBuilder`
+/// and execute it on a backend.
+#[cfg(feature = "experimental-graph")]
+pub mod graph;
+
 pub use crate::high_level_api::booleans::{
     CompressedFheBool, CompressedFheBoolConformanceParams, FheBool, FheBoolConformanceParams,
     SquashedNoiseFheBool,
