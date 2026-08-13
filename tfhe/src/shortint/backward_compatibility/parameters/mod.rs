@@ -297,10 +297,10 @@ pub struct MetaParametersV0 {
     pub noise_squashing_parameters: Option<MetaNoiseSquashingParameters>,
 }
 
-impl Upgrade<MetaParameters> for MetaParametersV0 {
+impl Upgrade<MetaParametersV1> for MetaParametersV0 {
     type Error = crate::Error;
 
-    fn upgrade(self) -> Result<MetaParameters, Self::Error> {
+    fn upgrade(self) -> Result<MetaParametersV1, Self::Error> {
         let Self {
             backend,
             compute_parameters,
@@ -316,6 +316,46 @@ impl Upgrade<MetaParameters> for MetaParametersV0 {
             }
         });
 
+        Ok(MetaParametersV1 {
+            backend,
+            compute_parameters,
+            dedicated_compact_public_key_parameters,
+            compression_parameters,
+            noise_squashing_parameters,
+            rerand_configuration,
+        })
+    }
+}
+
+#[derive(Version)]
+pub struct MetaParametersV1 {
+    pub backend: Backend,
+    /// The parameters used by ciphertext when doing computations
+    pub compute_parameters: AtomicPatternParameters,
+    /// Parameters when using a dedicated compact public key
+    /// (For smaller and more efficient CompactCiphertextList)
+    pub dedicated_compact_public_key_parameters: Option<DedicatedCompactPublicKeyParameters>,
+    /// Parameters for compression CompressedCiphertextList
+    pub compression_parameters: Option<CompressionParameters>,
+    /// Parameters for noise squashing
+    pub noise_squashing_parameters: Option<MetaNoiseSquashingParameters>,
+    /// Configuration to use for re-randomization
+    pub rerand_configuration: Option<ReRandomizationConfiguration>,
+}
+
+impl Upgrade<MetaParameters> for MetaParametersV1 {
+    type Error = crate::Error;
+
+    fn upgrade(self) -> Result<MetaParameters, Self::Error> {
+        let Self {
+            backend,
+            compute_parameters,
+            dedicated_compact_public_key_parameters,
+            compression_parameters,
+            noise_squashing_parameters,
+            rerand_configuration,
+        } = self;
+
         let result = MetaParameters {
             backend,
             compute_parameters,
@@ -323,6 +363,7 @@ impl Upgrade<MetaParameters> for MetaParametersV0 {
             compression_parameters,
             noise_squashing_parameters,
             rerand_configuration,
+            transciphering_parameters: None,
         };
 
         // Check the MetaParameters think they are consistent
@@ -337,7 +378,8 @@ impl Upgrade<MetaParameters> for MetaParametersV0 {
 #[derive(VersionsDispatch)]
 pub enum MetaParametersVersions {
     V0(MetaParametersV0),
-    V1(MetaParameters),
+    V1(MetaParametersV1),
+    V2(MetaParameters),
 }
 
 #[derive(VersionsDispatch)]
