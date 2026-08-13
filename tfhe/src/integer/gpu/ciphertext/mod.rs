@@ -307,7 +307,7 @@ impl CudaUnsignedRadixCiphertext {
     /// // Copy to GPU
     /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
     /// let ct2 = d_ct1.to_radix_ciphertext(&streams);
-    /// let msg2 = cks.decrypt(&ct2);
+    /// let msg2: u32 = cks.decrypt(&ct2);
     ///
     /// assert_eq!(msg1, msg2);
     /// ```
@@ -422,7 +422,7 @@ impl CudaSignedRadixCiphertext {
     /// // Copy to GPU
     /// let d_ct1 = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct1, &streams);
     /// let ct2 = d_ct1.to_signed_radix_ciphertext(&streams);
-    /// let msg2 = cks.decrypt_signed(&ct2);
+    /// let msg2: i32 = cks.decrypt_signed(&ct2);
     ///
     /// assert_eq!(msg1, msg2);
     /// ```
@@ -461,7 +461,7 @@ impl CudaRadixCiphertext {
     /// let d_ct_copied = d_ct.duplicate(&streams);
     ///
     /// let ct_copied = d_ct_copied.to_signed_radix_ciphertext(&streams);
-    /// let msg_copied = cks.decrypt_signed(&ct_copied);
+    /// let msg_copied: i32 = cks.decrypt_signed(&ct_copied);
     ///
     /// assert_eq!(msg, msg_copied);
     /// ```
