@@ -467,6 +467,10 @@ void cuda_drop_with_size_tracking_async(void *ptr, cudaStream_t stream,
 
   if (!gpu_memory_allocated)
     return;
+  // unlike cudaFree, cudaFreeAsync is not documented to accept a null
+  // pointer, so make dropping never-allocated scratch an explicit no-op
+  if (ptr == nullptr)
+    return;
   cuda_set_device(gpu_index);
 #ifndef CUDART_VERSION
 #error CUDART_VERSION Undefined!
