@@ -30,8 +30,12 @@ use crate::shortint::parameters::list_compression::CompressionParameters;
 use crate::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, NoiseSquashingCompressionParameters,
     NoiseSquashingParameters, ReRandomizationParameters, ShortintKeySwitchingParameters,
+    TranscipheringParameters,
 };
 use crate::shortint::{EncryptionKeyChoice, MessageModulus};
+use crate::transciphering::{
+    CompressedTranscipheringServerKey, TranscipheringPrivateKey, TranscipheringServerKey,
+};
 use crate::{Config, Error};
 use serde::{Deserialize, Serialize};
 use tfhe_csprng::seeders::Seed;
@@ -51,6 +55,7 @@ pub(crate) struct IntegerConfig {
     pub(crate) cpk_re_randomization_params: Option<ReRandomizationParameters>,
     // Oprf uses the same parameters as the bootstrap key from the block_parameters
     pub(crate) dedicated_oprf_key: bool,
+    pub(crate) transciphering_parameters: Option<TranscipheringParameters>,
 }
 
 impl IntegerConfig {
@@ -65,6 +70,7 @@ impl IntegerConfig {
             noise_squashing_compression_parameters: None,
             cpk_re_randomization_params: None,
             dedicated_oprf_key: true,
+            transciphering_parameters: None,
         }
     }
 
@@ -74,9 +80,9 @@ impl IntegerConfig {
 
     pub(crate) fn enable_noise_squashing(
         &mut self,
-        compression_parameters: NoiseSquashingParameters,
+        noise_squashing_parameters: NoiseSquashingParameters,
     ) {
-        self.noise_squashing_parameters = Some(compression_parameters);
+        self.noise_squashing_parameters = Some(noise_squashing_parameters);
     }
 
     pub(crate) fn enable_noise_squashing_compression(
@@ -130,6 +136,10 @@ impl IntegerConfig {
         self.dedicated_oprf_key = enabled;
     }
 
+    pub(crate) fn enable_transciphering(&mut self, parameters: TranscipheringParameters) {
+        self.transciphering_parameters = Some(parameters)
+    }
+
     pub(crate) fn public_key_encryption_parameters(
         &self,
     ) -> Result<crate::shortint::parameters::CompactPublicKeyEncryptionParameters, crate::Error>
@@ -151,15 +161,7 @@ impl Default for IntegerConfig {
         let params =
             crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
                 .into();
-        Self {
-            block_parameters: params,
-            dedicated_compact_public_key_parameters: None,
-            compression_parameters: None,
-            noise_squashing_parameters: None,
-            noise_squashing_compression_parameters: None,
-            cpk_re_randomization_params: None,
-            dedicated_oprf_key: true,
-        }
+        Self::new(params)
     }
 }
 
@@ -182,6 +184,7 @@ pub(crate) struct IntegerClientKey {
     // to create the required key switching key.
     pub(crate) cpk_re_randomization_params: Option<ReRandomizationParameters>,
     pub(crate) dedicated_oprf_private_key: Option<OprfPrivateKey>,
+    pub(crate) transciphering_private_key: Option<TranscipheringPrivateKey>,
 }
 
 impl IntegerClientKey {
@@ -227,6 +230,10 @@ impl IntegerClientKey {
         let dedicated_oprf_private_key =
             config.dedicated_oprf_key.then(|| OprfPrivateKey::new(&key));
 
+        let transciphering_private_key = config
+            .transciphering_parameters
+            .map(|params| TranscipheringPrivateKey::new(&key.key, params));
+
         crate::shortint::engine::ShortintEngine::with_thread_local_mut(|local_engine| {
             *local_engine = previous_engine;
         });
@@ -239,6 +246,7 @@ impl IntegerClientKey {
             noise_squashing_compression_private_key,
             cpk_re_randomization_params,
             dedicated_oprf_private_key,
+            transciphering_private_key,
         }
     }
 
@@ -254,6 +262,7 @@ impl IntegerClientKey {
         Option<NoiseSquashingCompressionPrivateKey>,
         Option<ReRandomizationParameters>,
         Option<OprfPrivateKey>,
+        Option<TranscipheringPrivateKey>,
     ) {
         let Self {
             key,
@@ -263,6 +272,7 @@ impl IntegerClientKey {
             noise_squashing_compression_private_key,
             cpk_re_randomization_params,
             dedicated_oprf_private_key,
+            transciphering_private_key,
         } = self;
         (
             key,
@@ -272,6 +282,7 @@ impl IntegerClientKey {
             noise_squashing_compression_private_key,
             cpk_re_randomization_params,
             dedicated_oprf_private_key,
+            transciphering_private_key,
         )
     }
 
@@ -280,6 +291,7 @@ impl IntegerClientKey {
     /// # Panics
     ///
     /// Panics if the provided raw parts are not compatible with the provided parameters.
+    #[allow(clippy::too_many_arguments)]
     pub fn from_raw_parts(
         key: crate::integer::ClientKey,
         dedicated_compact_private_key: Option<CompactPrivateKey>,
@@ -288,6 +300,7 @@ impl IntegerClientKey {
         noise_squashing_compression_private_key: Option<NoiseSquashingCompressionPrivateKey>,
         cpk_re_randomization_params: Option<ReRandomizationParameters>,
         dedicated_oprf_private_key: Option<OprfPrivateKey>,
+        transciphering_private_key: Option<TranscipheringPrivateKey>,
     ) -> Self {
         let shortint_cks: &crate::shortint::ClientKey = key.as_ref();
 
@@ -318,6 +331,7 @@ impl IntegerClientKey {
             noise_squashing_compression_private_key,
             cpk_re_randomization_params,
             dedicated_oprf_private_key,
+            transciphering_private_key,
         }
     }
 
@@ -398,6 +412,10 @@ impl From<IntegerConfig> for IntegerClientKey {
         let dedicated_oprf_private_key =
             config.dedicated_oprf_key.then(|| OprfPrivateKey::new(&key));
 
+        let transciphering_private_key = config
+            .transciphering_parameters
+            .map(|params| TranscipheringPrivateKey::new(&key.key, params));
+
         Self {
             key,
             dedicated_compact_private_key,
@@ -406,6 +424,7 @@ impl From<IntegerConfig> for IntegerClientKey {
             noise_squashing_compression_private_key,
             cpk_re_randomization_params,
             dedicated_oprf_private_key,
+            transciphering_private_key,
         }
     }
 }
@@ -426,6 +445,7 @@ pub struct IntegerServerKey {
     pub(crate) noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
     pub(crate) cpk_re_randomization_key: Option<ReRandomizationKey>,
     pub(crate) oprf_key: Option<OprfServerKey>,
+    pub(crate) transciphering_key: Option<TranscipheringServerKey>,
 }
 
 impl IntegerServerKey {
@@ -515,6 +535,15 @@ impl IntegerServerKey {
             .transpose()
             .expect("Failed to create the server key for the oprf");
 
+        let transciphering_key =
+            client_key
+                .transciphering_private_key
+                .as_ref()
+                .map(|transciphering_private_key| {
+                    TranscipheringServerKey::new(transciphering_private_key, &client_key.key.key)
+                        .expect("Failed to create the server key for transciphering")
+                });
+
         Self {
             key: base_integer_key,
             cpk_key_switching_key_material,
@@ -524,6 +553,7 @@ impl IntegerServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            transciphering_key,
         }
     }
 
@@ -670,6 +700,7 @@ pub struct IntegerCompressedServerKey {
     pub(crate) noise_squashing_compression_key: Option<CompressedNoiseSquashingCompressionKey>,
     pub(crate) cpk_re_randomization_key: Option<CompressedReRandomizationKey>,
     pub(crate) oprf_key: Option<CompressedOprfServerKey>,
+    pub(crate) transciphering_key: Option<CompressedTranscipheringServerKey>,
 }
 
 impl IntegerCompressedServerKey {
@@ -765,6 +796,18 @@ impl IntegerCompressedServerKey {
                     .expect("Failed to create the OPRF key")
             });
 
+        let transciphering_key =
+            client_key
+                .transciphering_private_key
+                .as_ref()
+                .map(|transciphering_private_key| {
+                    CompressedTranscipheringServerKey::new(
+                        transciphering_private_key,
+                        &client_key.key.key,
+                    )
+                    .expect("Failed to create the compressed server key for transciphering")
+                });
+
         Self {
             key,
             cpk_key_switching_key_material,
@@ -774,6 +817,7 @@ impl IntegerCompressedServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            transciphering_key,
         }
     }
 
@@ -789,6 +833,7 @@ impl IntegerCompressedServerKey {
         Option<CompressedNoiseSquashingCompressionKey>,
         Option<CompressedReRandomizationKey>,
         Option<CompressedOprfServerKey>,
+        Option<CompressedTranscipheringServerKey>,
     ) {
         let Self {
             key,
@@ -799,6 +844,7 @@ impl IntegerCompressedServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            transciphering_key,
         } = self;
 
         (
@@ -810,6 +856,7 @@ impl IntegerCompressedServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            transciphering_key,
         )
     }
 
@@ -825,6 +872,7 @@ impl IntegerCompressedServerKey {
         noise_squashing_compression_key: Option<CompressedNoiseSquashingCompressionKey>,
         cpk_re_randomization_key: Option<CompressedReRandomizationKey>,
         oprf_key: Option<CompressedOprfServerKey>,
+        transciphering_key: Option<CompressedTranscipheringServerKey>,
     ) -> Self {
         Self {
             key,
@@ -835,6 +883,7 @@ impl IntegerCompressedServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            transciphering_key,
         }
     }
 
@@ -863,6 +912,7 @@ impl IntegerCompressedServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            transciphering_key,
         } = self;
 
         // Expand the main server key (compute key)
@@ -895,6 +945,8 @@ impl IntegerCompressedServerKey {
 
         let oprf_key = oprf_key.as_ref().map(|k| k.expand());
 
+        let transciphering_key = transciphering_key.as_ref().map(|k| k.expand());
+
         IntegerExpandedServerKey {
             compute_key,
             cpk_key_switching_key_material,
@@ -904,6 +956,7 @@ impl IntegerCompressedServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            transciphering_key,
         }
     }
 }
@@ -995,6 +1048,7 @@ pub struct IntegerServerKeyConformanceParams {
     pub noise_squashing_compression_param: Option<NoiseSquashingCompressionParameters>,
     pub cpk_re_randomization_params: Option<ReRandomizationParameters>,
     pub dedicated_oprf_key: bool,
+    pub transciphering_parameters: Option<TranscipheringParameters>,
 }
 
 impl<C: Into<Config>> From<C> for IntegerServerKeyConformanceParams {
@@ -1008,6 +1062,7 @@ impl<C: Into<Config>> From<C> for IntegerServerKeyConformanceParams {
             noise_squashing_compression_param: config.inner.noise_squashing_compression_parameters,
             cpk_re_randomization_params: config.inner.cpk_re_randomization_params,
             dedicated_oprf_key: config.inner.dedicated_oprf_key,
+            transciphering_parameters: config.inner.transciphering_parameters,
         }
     }
 }
@@ -1074,6 +1129,7 @@ impl ParameterSetConformant for IntegerServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            transciphering_key,
         } = self;
 
         let cpk_key_switching_key_material_is_ok = match (
@@ -1205,6 +1261,22 @@ impl ParameterSetConformant for IntegerServerKey {
             (false, None) => true,
         };
 
+        let transciphering_is_ok = match (
+            parameter_set.transciphering_parameters,
+            transciphering_key.as_ref(),
+        ) {
+            // The key bootstraps into the compute key, so it is checked against the compute
+            // parameters.
+            (Some(TranscipheringParameters::SameAsCompute), Some(key)) => {
+                key.is_conformant(&parameter_set.sk_param)
+            }
+            (Some(_), None) => false,
+            // The config says to not use transciphering but we have a key
+            // while it works, it is not strictly conformant
+            (None, Some(_)) => false,
+            (None, None) => true,
+        };
+
         key.is_conformant(&parameter_set.sk_param)
             && cpk_key_switching_key_material_is_ok
             && compression_is_ok
@@ -1212,6 +1284,7 @@ impl ParameterSetConformant for IntegerServerKey {
             && noise_squashing_compression_key_is_ok
             && re_randomization_keys_are_ok
             && oprf_is_ok
+            && transciphering_is_ok
     }
 }
 
@@ -1228,6 +1301,7 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            transciphering_key,
         } = self;
 
         let cpk_key_switching_key_material_is_ok = match (
@@ -1361,6 +1435,22 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
             (false, None) => true,
         };
 
+        let transciphering_is_ok = match (
+            parameter_set.transciphering_parameters,
+            transciphering_key.as_ref(),
+        ) {
+            // The key bootstraps into the compute key, so it is checked against the compute
+            // parameters.
+            (Some(TranscipheringParameters::SameAsCompute), Some(key)) => {
+                key.is_conformant(&parameter_set.sk_param)
+            }
+            (Some(_), None) => false,
+            // The config says to not use transciphering but we have a key
+            // while it works, it is not strictly conformant
+            (None, Some(_)) => false,
+            (None, None) => true,
+        };
+
         key.is_conformant(&parameter_set.sk_param)
             && cpk_key_switching_key_material_is_ok
             && compression_is_ok
@@ -1368,6 +1458,7 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
             && noise_squashing_compression_key_is_ok
             && re_randomization_keys_are_ok
             && oprf_is_ok
+            && transciphering_is_ok
     }
 }
 

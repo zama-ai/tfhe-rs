@@ -645,6 +645,7 @@ where
         None,
         None,
         Some(oprf_priv_key),
+        None,
         Tag::default(),
     );
     let comp_sks = CompressedServerKey::new(&temp_cks);

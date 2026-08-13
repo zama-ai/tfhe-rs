@@ -228,6 +228,7 @@ where
         None,
         None,
         Some(oprf_priv_key.clone()),
+        None,
         Tag::default(),
     );
     let comp_sks = crate::CompressedServerKey::new(&temp_cks);
