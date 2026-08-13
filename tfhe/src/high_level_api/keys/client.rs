@@ -15,6 +15,7 @@ use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::parameters::ReRandomizationParameters;
 use crate::shortint::MessageModulus;
+use crate::transciphering::TranscipheringPrivateKey;
 use crate::Tag;
 use tfhe_csprng::seeders::Seed;
 use tfhe_versionable::Versionize;
@@ -90,10 +91,11 @@ impl ClientKey {
         Option<NoiseSquashingCompressionPrivateKey>,
         Option<ReRandomizationParameters>,
         Option<OprfPrivateKey>,
+        Option<TranscipheringPrivateKey>,
         Tag,
     ) {
-        let (cks, cpk, cppk, nsk, nscpk, cpkrndp, oprf) = self.key.into_raw_parts();
-        (cks, cpk, cppk, nsk, nscpk, cpkrndp, oprf, self.tag)
+        let (cks, cpk, cppk, nsk, nscpk, cpkrndp, oprf, tk) = self.key.into_raw_parts();
+        (cks, cpk, cppk, nsk, nscpk, cpkrndp, oprf, tk, self.tag)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -108,6 +110,7 @@ impl ClientKey {
         noise_squashing_compression_key: Option<NoiseSquashingCompressionPrivateKey>,
         cpk_re_randomization_params: Option<ReRandomizationParameters>,
         oprf_private_key: Option<OprfPrivateKey>,
+        transciphering_private_key: Option<TranscipheringPrivateKey>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -119,6 +122,7 @@ impl ClientKey {
                 noise_squashing_compression_key,
                 cpk_re_randomization_params,
                 oprf_private_key,
+                transciphering_private_key,
             ),
             tag,
         }

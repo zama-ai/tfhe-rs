@@ -18,6 +18,7 @@ use crate::integer::key_switching_key::KeySwitchingKeyMaterial;
 use crate::integer::noise_squashing::NoiseSquashingKey;
 use crate::integer::oprf::OprfServerKey;
 use crate::prelude::Tagged;
+use crate::transciphering::TranscipheringServerKey;
 use crate::{integer, CompactPublicKey};
 
 /// Position of a component in the XOF mask stream (its generation/decompression order).
@@ -32,6 +33,7 @@ enum Slot {
     ReRand,
     NsCompression,
     Oprf,
+    Transciphering,
 }
 
 mod sealed {
@@ -78,6 +80,7 @@ impl CompressedXofKeySet {
             ReRand,
             NsCompression,
             Oprf,
+            Transciphering,
         ] {
             if slot >= target {
                 break;
@@ -119,7 +122,12 @@ impl CompressedXofKeySet {
                         k.advance_generator(&mut gen);
                     }
                 }
-                Oprf => break,
+                Oprf => {
+                    if let Some(k) = icsk.oprf_key.as_ref() {
+                        k.advance_generator(&mut gen);
+                    }
+                }
+                Transciphering => break,
             }
         }
 
@@ -258,6 +266,23 @@ impl XofParts for Option<OprfServerKey> {
     }
 }
 
+impl Sealed for TranscipheringServerKey {}
+impl XofParts for Option<TranscipheringServerKey> {
+    fn decompress_parts(keyset: &CompressedXofKeySet) -> Self {
+        let compressed = keyset
+            .compressed_server_key
+            .integer_key
+            .transciphering_key
+            .as_ref()?;
+        let mut gen = keyset.generator_at(Slot::Transciphering);
+        Some(
+            compressed
+                .decompress_with_pre_seeded_generator(&mut gen)
+                .to_fourier(),
+        )
+    }
+}
+
 impl<K: Sealed> Sealed for Option<K> {}
 
 impl<A: Sealed, B: Sealed> Sealed for (A, B) {}
@@ -300,6 +325,7 @@ mod tests {
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
+    use crate::transciphering::TranscipheringServerKey;
     use crate::{integer, ConfigBuilder, Tag};
 
     fn generate_keyset(config: crate::Config) -> CompressedXofKeySet {
@@ -350,6 +376,7 @@ mod tests {
             ns_compression,
             re_rand,
             oprf,
+            transciphering,
             _tag,
         ) = server_key.into_raw_parts();
 
@@ -386,6 +413,10 @@ mod tests {
             ser(&ks.decompress_parts::<Option<OprfServerKey>>()),
             ser(&oprf),
         );
+        assert_eq!(
+            ser(&ks.decompress_parts::<Option<TranscipheringServerKey>>()),
+            ser(&transciphering),
+        );
     }
 
     #[test]
@@ -421,6 +452,7 @@ mod tests {
             _ns_comp,
             _rerand,
             oprf,
+            _transciphering,
             _tag,
         ) = server_key.into_raw_parts();
 

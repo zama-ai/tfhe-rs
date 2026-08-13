@@ -27,6 +27,7 @@ use crate::integer::public_key::compact::CompactPublicKey;
 use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::MessageModulus;
+use crate::transciphering::{CompressedTranscipheringServerKey, TranscipheringServerKey};
 #[cfg(feature = "gpu")]
 use crate::GpuIndex;
 use crate::{Device, Tag};
@@ -87,6 +88,7 @@ impl ServerKey {
         Option<NoiseSquashingCompressionKey>,
         Option<ReRandomizationKey>,
         Option<OprfServerKey>,
+        Option<TranscipheringServerKey>,
         Tag,
     ) {
         let IntegerServerKey {
@@ -98,6 +100,7 @@ impl ServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            transciphering_key,
         } = Arc::unwrap_or_clone(self.key);
 
         (
@@ -109,6 +112,7 @@ impl ServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            transciphering_key,
             self.tag,
         )
     }
@@ -125,6 +129,7 @@ impl ServerKey {
         noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
         cpk_re_randomization_key: Option<ReRandomizationKey>,
         oprf_key: Option<OprfServerKey>,
+        transciphering_key: Option<TranscipheringServerKey>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -137,6 +142,7 @@ impl ServerKey {
                 noise_squashing_compression_key,
                 cpk_re_randomization_key,
                 oprf_key,
+                transciphering_key,
             }),
             tag,
         }
@@ -451,10 +457,11 @@ impl CompressedServerKey {
         Option<CompressedNoiseSquashingCompressionKey>,
         Option<CompressedReRandomizationKey>,
         Option<CompressedOprfServerKey>,
+        Option<CompressedTranscipheringServerKey>,
         Tag,
     ) {
-        let (a, b, c, d, e, f, g, h) = self.integer_key.into_raw_parts();
-        (a, b, c, d, e, f, g, h, self.tag)
+        let (a, b, c, d, e, f, g, h, i) = self.integer_key.into_raw_parts();
+        (a, b, c, d, e, f, g, h, i, self.tag)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -469,6 +476,7 @@ impl CompressedServerKey {
         noise_squashing_compression_key: Option<CompressedNoiseSquashingCompressionKey>,
         cpk_re_randomization_key: Option<CompressedReRandomizationKey>,
         oprf_key: Option<CompressedOprfServerKey>,
+        transciphering_key: Option<CompressedTranscipheringServerKey>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -481,6 +489,7 @@ impl CompressedServerKey {
                 noise_squashing_compression_key,
                 cpk_re_randomization_key,
                 oprf_key,
+                transciphering_key,
             ),
             tag,
         }
@@ -965,6 +974,7 @@ mod test {
                     noise_squashing_compression_param: None,
                     cpk_re_randomization_params: None,
                     dedicated_oprf_key: true,
+                    transciphering_parameters: None,
                 };
 
                 assert!(!sk.is_conformant(&conformance_params));
@@ -996,6 +1006,7 @@ mod test {
                 noise_squashing_compression_param: None,
                 cpk_re_randomization_params: None,
                 dedicated_oprf_key: true,
+                transciphering_parameters: None,
             };
 
             assert!(!sk.is_conformant(&conformance_params));
@@ -1134,6 +1145,7 @@ mod test {
                     noise_squashing_compression_param: None,
                     cpk_re_randomization_params: None,
                     dedicated_oprf_key: true,
+                    transciphering_parameters: None,
                 };
 
                 assert!(!sk.is_conformant(&conformance_params));
@@ -1165,6 +1177,7 @@ mod test {
                 noise_squashing_compression_param: None,
                 cpk_re_randomization_params: None,
                 dedicated_oprf_key: true,
+                transciphering_parameters: None,
             };
 
             assert!(!sk.is_conformant(&conformance_params));
@@ -1187,6 +1200,7 @@ mod test {
                 noise_squashing_compression_param: None,
                 cpk_re_randomization_params: None,
                 dedicated_oprf_key: true,
+                transciphering_parameters: None,
             };
 
             assert!(!sk.is_conformant(&conformance_params));

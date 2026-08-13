@@ -19,6 +19,8 @@ use crate::shortint::{
     MultiBitPBSParameters, PBSParameters,
 };
 
+use super::TranscipheringParameters;
+
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(DedicatedCompactPublicKeyParametersVersions)]
 pub struct DedicatedCompactPublicKeyParameters {
@@ -63,6 +65,8 @@ pub struct MetaParameters {
     pub noise_squashing_parameters: Option<MetaNoiseSquashingParameters>,
     /// Configuration to use for re-randomization
     pub rerand_configuration: Option<ReRandomizationConfiguration>,
+    /// Parameters for transciphering
+    pub transciphering_parameters: Option<TranscipheringParameters>,
 }
 
 impl Named for MetaParameters {
