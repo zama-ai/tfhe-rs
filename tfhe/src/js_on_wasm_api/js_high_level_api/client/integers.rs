@@ -122,6 +122,7 @@ impl<const N: usize> From<StaticSignedBigInt<N>> for JsValue {
 }
 
 #[wasm_bindgen]
+#[derive(Clone, Copy)]
 pub enum FheTypes {
     Bool = 0,
 
