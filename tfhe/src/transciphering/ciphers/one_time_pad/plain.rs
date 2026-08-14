@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
+use crate::conformance::ParameterSetConformant;
 use crate::named::Named;
 use crate::shortint::client_key::ClientKey;
 use crate::transciphering::backward_compatibility::OneTimePadPlainSecretMaskVersions;
@@ -49,6 +50,19 @@ impl OneTimePadPlainSecretMask {
             .collect();
 
         OneTimePadFheSecretMask::new(secret_mask)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct OneTimePadPlainSecretMaskConformanceParams {
+    pub n_bits: usize,
+}
+
+impl ParameterSetConformant for OneTimePadPlainSecretMask {
+    type ParameterSet = OneTimePadPlainSecretMaskConformanceParams;
+
+    fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
+        self.bit_count == params.n_bits && self.secret_mask.len() == self.bit_count.div_ceil(8)
     }
 }
 

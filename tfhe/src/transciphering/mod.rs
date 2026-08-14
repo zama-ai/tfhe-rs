@@ -66,7 +66,8 @@ pub use ciphers::kreyvium::{
     SerializableKreyviumFheKey,
 };
 pub use ciphers::one_time_pad::{
-    OneTimePadFheSecretMask, OneTimePadFheState, OneTimePadPlainSecretMask, OneTimePadPlainState,
+    OneTimePadFheSecretMask, OneTimePadFheState, OneTimePadPlainSecretMask,
+    OneTimePadPlainSecretMaskConformanceParams, OneTimePadPlainState,
 };
 
 use rayon::prelude::*;
