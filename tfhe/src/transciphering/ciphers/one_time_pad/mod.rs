@@ -12,4 +12,6 @@ mod plain;
 mod test;
 
 pub use fhe::{OneTimePadFheSecretMask, OneTimePadFheState};
-pub use plain::{OneTimePadPlainSecretMask, OneTimePadPlainState};
+pub use plain::{
+    OneTimePadPlainSecretMask, OneTimePadPlainSecretMaskConformanceParams, OneTimePadPlainState,
+};

@@ -227,3 +227,24 @@ fn test_try_from_single_lwe_encryption_key() {
     let clear_res: u32 = encrypted_res_mul.decrypt(&client_key);
     assert_eq!(clear_res, clear_a + clear_b);
 }
+
+#[test]
+fn fhe_type_shape_matches_variant_names() {
+    use crate::{FheTypeShape, FheTypes};
+    use strum::IntoEnumIterator;
+
+    for fhe_type in FheTypes::iter() {
+        let name = format!("{fhe_type:?}");
+        let shape = FheTypeShape::from(fhe_type);
+
+        let expected = match (name.strip_prefix("Uint"), name.strip_prefix("Int")) {
+            (Some(bits), _) => FheTypeShape::Unsigned(bits.parse().unwrap()),
+            (_, Some(bits)) => FheTypeShape::Signed(bits.parse().unwrap()),
+            _ if name == "Bool" => FheTypeShape::Bool,
+            _ if name == "AsciiString" => FheTypeShape::Variable,
+            _ => panic!("{name} is not covered by this test"),
+        };
+
+        assert_eq!(shape, expected, "wrong shape for {name}");
+    }
+}

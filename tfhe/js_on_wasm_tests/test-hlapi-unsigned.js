@@ -17,6 +17,19 @@ const {
   FheUint256,
   ShortintParameters,
   ShortintParametersName,
+  KreyviumIV,
+  KreyviumPlainKey,
+  KreyviumPlainState,
+  KreyviumFheKey,
+  AesIv,
+  AesPlainKey,
+  AesPlainState,
+  AesFheKey,
+  OneTimePadPlainSecretMask,
+  OneTimePadPlainState,
+  OneTimePadFheSecretMask,
+  StreamCiphertext,
+  FheTypes,
 } = require("../pkg/tfhe.js");
 const { randomBytes } = require("node:crypto");
 
@@ -40,7 +53,14 @@ const SAFE_LARGE_SERIALIZATION_SIZE_LIMIT = BigInt(1000000000);
 init_panic_hook();
 function generateRandomBigInt(bitLength) {
   const bytesNeeded = Math.ceil(bitLength / 8);
-  const randomBytesBuffer = randomBytes(bytesNeeded);
+  const bitsKeptInTopByte = bitLength % 8;
+  let randomBytesBuffer = randomBytes(bytesNeeded);
+  if (bitsKeptInTopByte != 0) {
+    // 255 = all ones, shifted down to keep only the bits the most significant
+    // byte contributes, so the result never exceeds bitLength bits
+    const mask = 255 >> (8 - bitsKeptInTopByte);
+    randomBytesBuffer[0] = randomBytesBuffer[0] & mask;
+  }
 
   // Convert random bytes to BigInt
   return BigInt(`0x${randomBytesBuffer.toString("hex")}`);
@@ -400,4 +420,129 @@ test("hlapi_public_key_encrypt_decrypt_uint256_small", (t) => {
   );
   let deserialized_decrypted = deserialized.decrypt(clientKey);
   assert.deepStrictEqual(deserialized_decrypted, U256_MAX);
+});
+
+test("hlapi_transciphering", (t) => {
+  let config = TfheConfigBuilder.default().build();
+  let clientKey = TfheClientKey.generate(config);
+
+  const kvIv = new KreyviumIV([
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 16,
+  ]);
+  const kvKey = new KreyviumPlainKey([
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+  ]);
+  let kvState = new KreyviumPlainState(kvKey, kvIv);
+
+  let clear_a = generateRandomBigInt(32);
+  let clear_b = generateRandomBigInt(64);
+  let clear_c = generateRandomBigInt(12);
+  let clear_d = -1n;
+
+  let enc_a = kvState.encrypt(clear_a, FheTypes.Uint32);
+  let enc_b = kvState.encrypt(clear_b, FheTypes.Uint64);
+  let enc_c = kvState.encrypt(clear_c, FheTypes.Uint12);
+  let enc_d = kvState.encrypt(clear_d, FheTypes.Int64);
+
+  // Re create the state to be able to decrypt
+  kvState = new KreyviumPlainState(kvKey, kvIv);
+  let dec_a = kvState.decrypt(enc_a);
+  let dec_b = kvState.decrypt(enc_b);
+  let dec_c = kvState.decrypt(enc_c);
+  let dec_d = kvState.decrypt(enc_d);
+
+  assert.deepStrictEqual(dec_a, clear_a);
+  assert.deepStrictEqual(dec_b, clear_b);
+  assert.deepStrictEqual(dec_c, clear_c);
+  assert.deepStrictEqual(dec_d, clear_d);
+
+  let serialized_enc_a = enc_a.safe_serialize(SAFE_SERIALIZATION_SIZE_LIMIT);
+  let deserialized_enc_a = StreamCiphertext.safe_deserialize(
+    serialized_enc_a,
+    SAFE_SERIALIZATION_SIZE_LIMIT,
+  );
+  assert.deepStrictEqual(deserialized_enc_a.n_bits(), enc_a.n_bits());
+  assert.deepStrictEqual(
+    deserialized_enc_a.encryption_counter(),
+    enc_a.encryption_counter(),
+  );
+  assert.deepStrictEqual(deserialized_enc_a.cipher_kind(), enc_a.cipher_kind());
+
+  let kvFheKey = KreyviumFheKey.encrypt(kvKey, clientKey);
+  let serializedKvFheKey = kvFheKey.safe_serialize(
+    SAFE_LARGE_SERIALIZATION_SIZE_LIMIT,
+  );
+  let deserializedKvFheKey = KreyviumFheKey.safe_deserialize(
+    serializedKvFheKey,
+    SAFE_LARGE_SERIALIZATION_SIZE_LIMIT,
+  );
+
+  let recoveredKvKey = deserializedKvFheKey.decrypt(clientKey);
+  let recoveredState = new KreyviumPlainState(recoveredKvKey, kvIv);
+  assert.deepStrictEqual(recoveredState.decrypt(enc_a), clear_a);
+});
+
+test("hlapi_transciphering_aes", (t) => {
+  let config = TfheConfigBuilder.default().build();
+  let clientKey = TfheClientKey.generate(config);
+
+  const aesIv = new AesIv([
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+  ]);
+  const aesKey = new AesPlainKey([
+    16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1,
+  ]);
+  let aesState = new AesPlainState(aesKey, aesIv);
+
+  let clear = generateRandomBigInt(64);
+  let encrypted = aesState.encrypt(clear, FheTypes.Uint64);
+
+  let aesFheKey = AesFheKey.encrypt(aesKey, clientKey);
+  let serialized = aesFheKey.safe_serialize(
+    SAFE_LARGE_SERIALIZATION_SIZE_LIMIT,
+  );
+  let deserialized = AesFheKey.safe_deserialize(
+    serialized,
+    SAFE_LARGE_SERIALIZATION_SIZE_LIMIT,
+  );
+
+  let recoveredKey = deserialized.decrypt(clientKey);
+  let recoveredState = new AesPlainState(recoveredKey, aesIv);
+  assert.deepStrictEqual(recoveredState.decrypt(encrypted), clear);
+});
+
+test("hlapi_transciphering_one_time_pad", (t) => {
+  let config = TfheConfigBuilder.default().build();
+  let clientKey = TfheClientKey.generate(config);
+
+  // 96 bits of pad, enough for a u64 followed by a u32
+  const padBytes = randomBytes(12);
+  const plainMask = new OneTimePadPlainSecretMask(padBytes, 96);
+
+  // The client ships the encrypted pad; in production the server generates it
+  // instead and the client only decrypts it
+  let fheMask = OneTimePadFheSecretMask.encrypt(plainMask, clientKey);
+  let serialized = fheMask.safe_serialize(SAFE_LARGE_SERIALIZATION_SIZE_LIMIT);
+  let deserialized = OneTimePadFheSecretMask.safe_deserialize(
+    serialized,
+    SAFE_LARGE_SERIALIZATION_SIZE_LIMIT,
+  );
+
+  let clear_a = generateRandomBigInt(64);
+  let clear_b = generateRandomBigInt(32);
+
+  let state = new OneTimePadPlainState(plainMask);
+  assert.deepStrictEqual(state.remaining_bits(), 96n);
+  let enc_a = state.encrypt(clear_a, FheTypes.Uint64);
+  let enc_b = state.encrypt(clear_b, FheTypes.Uint32);
+  assert.deepStrictEqual(state.remaining_bits(), 0n);
+
+  // The pad is spent: a further draw must fail rather than reuse bits
+  assert.throws(() => state.encrypt(1n, FheTypes.Uint8));
+
+  // A pad recovered from its FHE form drives an identical keystream
+  let recoveredMask = deserialized.decrypt(clientKey);
+  let recoveredState = new OneTimePadPlainState(recoveredMask);
+  assert.deepStrictEqual(recoveredState.decrypt(enc_a), clear_a);
+  assert.deepStrictEqual(recoveredState.decrypt(enc_b), clear_b);
 });
