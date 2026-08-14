@@ -1568,6 +1568,19 @@ test_zk_wasm_x86_compat: build_node_js_api_client
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		-p tfhe --test zk_wasm_x86_test --features=integer,zk-pok
 
+.PHONY: test_transciphering_wasm_x86_compat_ci
+test_transciphering_wasm_x86_compat_ci: check_nvm_installed
+	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
+	$(MAKE) test_transciphering_wasm_x86_compat
+
+.PHONY: test_transciphering_wasm_x86_compat # Check compatibility between wasm and x86_64 one-time-pad transciphering
+test_transciphering_wasm_x86_compat: build_node_js_api
+	cd tfhe/tests/transciphering_wasm_x86_test && npm install
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		-p tfhe --test transciphering_wasm_x86_test --features=integer
+
 .PHONY: test_versionable # Run tests for tfhe-versionable subcrate
 test_versionable:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
