@@ -26,10 +26,14 @@ use crate::shortint::parameters::ModulusSwitchType;
 use crate::shortint::prelude::PolynomialSize;
 use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
 pub use radix::kv_store::CudaKVStore;
+pub(crate) use radix::CudaKreyviumState;
 pub use radix::{
     BitonicShuffleKeySize, CollisionProbability, CudaOprfServerKey, CudaOprfServerKeyView,
     GenericCudaOprfServerKey,
 };
+
+#[cfg(test)]
+pub(crate) use radix::tests_unsigned;
 
 pub(crate) mod radix;
 

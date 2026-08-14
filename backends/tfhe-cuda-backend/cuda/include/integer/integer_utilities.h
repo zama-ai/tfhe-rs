@@ -121,6 +121,14 @@ public:
       if ((noise_level_expr) > max_noise_level)                                \
         PANIC("Cuda error: noise exceeds maximum authorized value for 1_1 "    \
               "parameters");                                                   \
+    } else if ((msg_mod) == 2 && (carry_mod) == 1) {                           \
+      /* Kreyvium Z_4 bit-extraction parameter set */                          \
+      constexpr int max_noise_level = 14;                                      \
+      const uint64_t nl = (noise_level_expr);                                  \
+      if (nl > max_noise_level)                                                \
+        PANIC("Cuda error: noise %lu exceeds maximum authorized value 14 "     \
+              "for 2_1 parameters",                                            \
+              (unsigned long)nl);                                              \
     } else if ((msg_mod) == 4 && (carry_mod) == 4) {                           \
       constexpr int max_noise_level = 5;                                       \
       if ((noise_level_expr) > max_noise_level)                                \
@@ -147,6 +155,20 @@ public:
   } while (0)
 #endif
 
+/// @brief Rotates the blocks of a radix ciphertext right by a given number of
+/// positions.
+///
+/// Each CUDA block copies one source radix block to the destination position
+/// shifted right by value modulo blocks_count, wrapping around the ends. The
+/// rotation is out of place, so dst and src must not alias.
+///
+/// @param dst           Destination buffer receiving the rotated radix blocks
+/// @param src           Source buffer holding the radix blocks to rotate
+/// @param value         Number of positions to rotate right (taken modulo
+///                      blocks_count)
+/// @param blocks_count  Number of radix blocks to rotate
+/// @param lwe_size      Number of Torus coefficients per block (lwe_dimension
+///                      + 1)
 template <typename Torus>
 __global__ void radix_blocks_rotate_right(Torus *dst, Torus *src,
                                           uint32_t value, uint32_t blocks_count,
