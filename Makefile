@@ -1573,6 +1573,19 @@ test_zk_wasm_x86_compat: build_node_js_api_client
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		-p tfhe --test zk_wasm_x86_test --features=integer,zk-pok
 
+.PHONY: test_transciphering_wasm_x86_compat_ci
+test_transciphering_wasm_x86_compat_ci: check_nvm_installed
+	source ~/.nvm/nvm.sh && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
+	$(MAKE) test_transciphering_wasm_x86_compat
+
+.PHONY: test_transciphering_wasm_x86_compat # Check compatibility between wasm and x86_64 one-time-pad transciphering
+test_transciphering_wasm_x86_compat: build_node_js_api
+	cd tfhe/tests/transciphering_wasm_x86_test && npm install
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		-p tfhe --test transciphering_wasm_x86_test --features=integer
+
 .PHONY: test_versionable # Run tests for tfhe-versionable subcrate
 test_versionable:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
@@ -1726,6 +1739,12 @@ check_compile_tests_benches_gpu:
 		cd "$(TFHECUDA_BUILD)" && \
 		cmake .. -DCMAKE_BUILD_TYPE=Debug -DTFHE_CUDA_BACKEND_BUILD_TESTS=ON -DTFHE_CUDA_BACKEND_BUILD_BENCHMARKS=ON && \
 		"$(MAKE)" -j "$(CPU_COUNT)"
+
+.PHONY: test_rust_wasm_api # Run the Rust unit tests of the js on wasm API
+test_rust_wasm_api:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=boolean-js-wasm-api,integer-js-wasm-api,zk-pok,extended-types -p tfhe \
+		--lib -- js_on_wasm_api::
 
 .PHONY: test_nodejs_wasm_api # Run tests for the nodejs on wasm API
 test_nodejs_wasm_api: build_node_js_api
