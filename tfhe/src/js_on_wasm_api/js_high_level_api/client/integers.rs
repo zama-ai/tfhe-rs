@@ -122,6 +122,7 @@ impl<const N: usize> From<StaticSignedBigInt<N>> for JsValue {
 }
 
 #[wasm_bindgen]
+#[derive(Clone, Copy)]
 pub enum FheTypes {
     Bool = 0,
 
@@ -638,5 +639,24 @@ impl CompactCiphertextListBuilder {
                 .map_err(into_js_error)
                 .map(ProvenCompactCiphertextList)
         })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::FheTypes;
+    use strum::IntoEnumIterator;
+
+    /// The wasm enum duplicates the hlapi one so that wasm-bindgen can export it. Conversions rely
+    /// on both carrying the same discriminants, which this pins.
+    #[test]
+    fn fhe_types_mirror_hlapi() {
+        for hlapi_type in crate::FheTypes::iter() {
+            let wasm_type = FheTypes::from(hlapi_type);
+            assert_eq!(
+                wasm_type as i32, hlapi_type as i32,
+                "discriminant mismatch for {hlapi_type:?}"
+            );
+        }
     }
 }

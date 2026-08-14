@@ -58,9 +58,12 @@ jobs:
                 - tfhe/src/core_crypto/**
                 - tfhe/src/shortint/**
                 - tfhe/src/integer/**
+                - tfhe/src/transciphering/**
                 - tfhe/src/high_level_api/**
                 - tfhe/src/js_on_wasm_api/**
                 - tfhe/js_on_wasm_tests/**
+                - tfhe/tests/zk_wasm_x86_test/**
+                - tfhe/tests/transciphering_wasm_x86_test/**
                 - tfhe/web_wasm_parallel_tests/**
                 - utils/tfhe-versionable/**
                 - utils/tfhe-safe-serialize/**
@@ -135,6 +138,10 @@ jobs:
         run: |
           make check_fmt_js
 
+      - name: Run Rust tests of the js on wasm API
+        run: |
+          make test_rust_wasm_api
+
       - name: Run js on wasm API tests
         run: |
           make test_nodejs_wasm_api_ci
@@ -157,6 +164,10 @@ jobs:
       - name: Run x86_64/wasm zk compatibility tests
         run: |
           make test_zk_wasm_x86_compat_ci
+
+      - name: Run x86_64/wasm transciphering compatibility tests
+        run: |
+          make test_transciphering_wasm_x86_compat_ci
 
       - name: Set pull-request URL
         if: ${{ failure() && github.event_name == 'pull_request' }}
