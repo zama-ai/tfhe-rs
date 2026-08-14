@@ -589,3 +589,34 @@ fn one_time_pad_fhe_mask_encrypt_decrypt_round_trip() {
         }
     }
 }
+
+#[test]
+fn one_time_pad_plain_secret_mask_conformance() {
+    use crate::conformance::ParameterSetConformant;
+    use crate::transciphering::{
+        OneTimePadPlainSecretMask, OneTimePadPlainSecretMaskConformanceParams,
+    };
+
+    let params = |n_bits| OneTimePadPlainSecretMaskConformanceParams { n_bits };
+
+    let mask = OneTimePadPlainSecretMask::new(vec![0xAB; 8], 64);
+    assert!(mask.is_conformant(&params(64)));
+    assert!(!mask.is_conformant(&params(32)));
+
+    // `try_new` rejects the inconsistent mask, so it can only be built through deserialization.
+    assert!(OneTimePadPlainSecretMask::try_new(vec![0xAB; 4], 64).is_err());
+
+    #[derive(serde::Serialize)]
+    struct Tampered {
+        secret_mask: Vec<u8>,
+        bit_count: usize,
+    }
+
+    let tampered = bincode::serialize(&Tampered {
+        secret_mask: vec![0xAB; 4],
+        bit_count: 64,
+    })
+    .unwrap();
+    let tampered: OneTimePadPlainSecretMask = bincode::deserialize(&tampered).unwrap();
+    assert!(!tampered.is_conformant(&params(64)));
+}
