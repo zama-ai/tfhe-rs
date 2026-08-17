@@ -45,7 +45,7 @@ pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_
 #[cfg(feature = "gpu")]
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_aes::{
     aes_dynamic_parallelism_many_inputs_test, aes_fixed_parallelism_1_input_test,
-    aes_fixed_parallelism_2_inputs_test,
+    aes_fixed_parallelism_2_inputs_test, aes_sklansky_counter_carry_test,
 };
 #[cfg(feature = "gpu")]
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_aes256::{
