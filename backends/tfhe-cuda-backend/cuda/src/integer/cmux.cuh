@@ -38,7 +38,7 @@ __host__ void zero_out_if(CudaStreams streams,
   host_pack_bivariate_blocks_with_single_block<Torus>(
       streams, tmp_lwe_array_input, predicate->lwe_indexes_in, lwe_array_input,
       lwe_condition, predicate->lwe_indexes_in, params.message_modulus,
-      num_radix_blocks);
+      num_radix_blocks, params.message_modulus, params.carry_modulus);
 
   integer_radix_apply_univariate_lookup_table<Torus>(
       streams, lwe_array_out, tmp_lwe_array_input, bsks, ksks, predicate,

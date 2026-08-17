@@ -558,8 +558,6 @@ device_pack_bivariate_blocks(Torus *lwe_array_out, Torus const *lwe_indexes_out,
 /* Combine lwe_array_1 and lwe_array_2 so that each block m1 and m2
  *  becomes out = m1 * shift + m2
  */
-/// This function does not update noise level/degree at this stage,
-/// it can be added later
 template <typename Torus>
 __host__ void host_pack_bivariate_blocks(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
@@ -631,7 +629,8 @@ __host__ void host_pack_bivariate_blocks_with_single_block(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     Torus const *lwe_indexes_out, CudaRadixCiphertextFFI const *lwe_array_1,
     CudaRadixCiphertextFFI const *lwe_2, Torus const *lwe_indexes_in,
-    uint32_t shift, uint32_t num_radix_blocks) {
+    uint32_t shift, uint32_t num_radix_blocks, uint32_t const message_modulus,
+    uint32_t const carry_modulus) {
 
   if (lwe_array_out->num_radix_blocks < num_radix_blocks ||
       lwe_array_1->num_radix_blocks < num_radix_blocks)
@@ -653,6 +652,17 @@ __host__ void host_pack_bivariate_blocks_with_single_block(
           (Torus *)lwe_array_1->ptr, (Torus *)lwe_2->ptr, lwe_indexes_in,
           lwe_dimension, shift, num_radix_blocks);
   check_cuda_error(cudaGetLastError());
+
+  // The single operand is broadcast, so every output block takes its degree
+  // and noise from the same block of lwe_2.
+  for (uint i = 0; i < num_radix_blocks; i++) {
+    lwe_array_out->degrees[i] =
+        lwe_array_1->degrees[i] * shift + lwe_2->degrees[0];
+    lwe_array_out->noise_levels[i] =
+        lwe_array_1->noise_levels[i] * shift + lwe_2->noise_levels[0];
+    CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[i], message_modulus,
+                      carry_modulus);
+  }
 }
 
 /// @brief Packs each LWE block with a per-ciphertext single-block condition
