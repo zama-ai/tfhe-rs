@@ -28,6 +28,7 @@ pub trait Recomposable:
     + BitAnd<Self, Output = Self>
     + Shl<u32, Output = Self>
     + Sub<Self, Output = Self>
+    + Not<Output = Self>
 {
     // TODO: need for wrapping arithmetic traits
     // This is a wrapping add but to avoid conflicts with other parts of the code using external
@@ -144,6 +145,30 @@ where
     (unpadded_value << shift) >> shift
 }
 
+/// Builds a mask having its `bits_per_block` low bits set, in the target type `T` itself.
+///
+/// # Panics
+///
+/// Panics if `bits_per_block` is 0, or greater than the number of bits of `T`.
+fn low_bits_mask<T>(bits_per_block: u32) -> T
+where
+    T: Numeric + Not<Output = T> + Shl<u32, Output = T>,
+{
+    assert!(
+        bits_per_block > 0 && bits_per_block <= T::BITS as u32,
+        "bits_per_block must be in 1..=T::BITS"
+    );
+
+    if bits_per_block == T::BITS as u32 {
+        // Shifting by the full width of a type would overflow
+        !T::ZERO
+    } else {
+        // `(T::ONE << bits_per_block) - T::ONE` would overflow near the top of the range for signed
+        // types
+        !(!T::ZERO << bits_per_block)
+    }
+}
+
 #[derive(Copy, Clone)]
 #[repr(u32)]
 pub enum PaddingBitValue {
@@ -179,6 +204,11 @@ where
     /// Creates a block decomposer that will return `block_count` blocks
     ///
     /// * If T is signed, extra block will be sign extended
+    ///
+    /// # Panics
+    ///
+    /// Panics if the total number of bits to decompose, i.e. `block_count * bits_per_block`, does
+    /// not fit in a `u32`.
     pub fn with_block_count(value: T, bits_per_block: u32, block_count: usize) -> Self {
         let mut decomposer = Self::new(value, bits_per_block);
         let block_count: u32 = block_count.try_into().unwrap();
@@ -187,7 +217,9 @@ where
         //
         // If the new number of bits is greater than the actual number of bits, it means
         // the right shift used internally will correctly sign extend for us
-        let num_bits_valid = block_count * bits_per_block;
+        let num_bits_valid = block_count
+            .checked_mul(bits_per_block)
+            .expect("block_count * bits_per_block overflows a u32");
         decomposer.num_bits_valid = num_bits_valid;
         decomposer
     }
@@ -202,12 +234,9 @@ where
         limit: Option<T>,
         padding_bit: Option<PaddingBitValue>,
     ) -> Self {
-        assert!(bits_per_block <= T::BITS as u32);
         let num_bits_valid = T::BITS as u32;
-
         let num_bits_in_mask = bits_per_block;
-        let bit_mask = 1_u32.checked_shl(bits_per_block).unwrap() - 1;
-        let bit_mask = T::cast_from(bit_mask);
+        let bit_mask = low_bits_mask::<T>(bits_per_block);
 
         Self {
             data: value,
@@ -294,14 +323,23 @@ where
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        // In the case self we constructed with an early stop value
-        // the upper bound might be higher than the actual number of iteration.
-        //
-        // The size_hint docs states that it is ok (not best thing
-        // but won't break code)
-        let max_remaining_iter = self.num_bits_valid / self.num_bits_in_mask;
-        let min_remaining_iter = if max_remaining_iter == 0 { 0 } else { 1 };
-        (min_remaining_iter, Some(max_remaining_iter as usize))
+        // Mirror the conditions under which `next` stops returning blocks
+        if self.num_bits_valid == 0 || self.limit.is_some_and(|limit| limit == self.data) {
+            return (0, Some(0));
+        }
+
+        // `next` still produces a last, partial, block when fewer valid bits than the width of a
+        // block remain, so the number of remaining blocks is a ceiling division. `num_bits_in_mask`
+        // is never 0, the constructors reject that.
+        let remaining_iter = self.num_bits_valid.div_ceil(self.num_bits_in_mask) as usize;
+
+        if self.limit.is_some() {
+            // The early stop value may be reached before all of the remaining blocks have been
+            // produced, so only the upper bound is known
+            (1, Some(remaining_iter))
+        } else {
+            (remaining_iter, Some(remaining_iter))
+        }
     }
 }
 
@@ -319,8 +357,7 @@ where
     pub fn new(bits_per_block: u32) -> Self {
         let num_bits_in_block = bits_per_block;
         let bit_pos = 0;
-        let bit_mask = 1_u32.checked_shl(bits_per_block).unwrap() - 1;
-        let bit_mask = T::cast_from(bit_mask);
+        let bit_mask = low_bits_mask::<T>(bits_per_block);
 
         Self {
             data: T::ZERO,
@@ -415,9 +452,10 @@ where
 
         if T::BITS <= unsigned_integer_size as usize {
             recomposer.value()
+        } else if unsigned_integer_size == 0 {
+            T::ZERO
         } else {
-            let mask = (T::ONE << unsigned_integer_size) - T::ONE;
-            recomposer.value() & mask
+            recomposer.value() & low_bits_mask::<T>(unsigned_integer_size)
         }
     }
 
@@ -471,6 +509,7 @@ where
 mod tests {
 
     use super::*;
+    use crate::integer::U256;
 
     #[test]
     fn test_bit_block_decomposer() {
@@ -623,37 +662,41 @@ mod tests {
         assert_eq!(recomposed, u8::MAX.wrapping_add(2) as u16);
     }
 
+    /// Every block width the constructors accept must be usable, the mask used to be built in a
+    /// `u32` which silently capped the usable width to 31 bits
     #[test]
     fn test_bit_block_decomposer_round_trip_unsigned() {
-        for i in 0..u32::BITS {
-            let value = (u16::MAX as u32).rotate_left(i);
-            let bits_per_block = 2;
-            let blocks = BlockDecomposer::new(value, bits_per_block)
-                .iter_as::<u64>()
-                .collect::<Vec<_>>();
+        for bits_per_block in 1..=u32::BITS {
+            for i in 0..u32::BITS {
+                let value = (u16::MAX as u32).rotate_left(i);
+                let blocks = BlockDecomposer::new(value, bits_per_block)
+                    .iter_as::<u64>()
+                    .collect::<Vec<_>>();
 
-            let mut recomposer = BlockRecomposer::new(bits_per_block);
-            for block in blocks {
-                recomposer.add_unmasked(block);
+                let mut recomposer = BlockRecomposer::new(bits_per_block);
+                for block in blocks {
+                    recomposer.add_unmasked(block);
+                }
+                let recomposed: u32 = recomposer.value();
+                assert_eq!(recomposed, value, "bits_per_block: {bits_per_block}");
             }
-            let recomposed: u32 = recomposer.value();
-            assert_eq!(recomposed, value);
         }
     }
 
     #[test]
     fn test_bit_block_decomposer_round_trip_signed() {
-        for i in 0..i32::BITS {
-            let value = (i16::MAX as i32).rotate_left(i);
-            let bits_per_block = 2;
-            let blocks = BlockDecomposer::new(value, bits_per_block).collect::<Vec<_>>();
+        for bits_per_block in 1..=i32::BITS {
+            for i in 0..i32::BITS {
+                let value = (i16::MAX as i32).rotate_left(i);
+                let blocks = BlockDecomposer::new(value, bits_per_block).collect::<Vec<_>>();
 
-            let mut recomposer = BlockRecomposer::new(bits_per_block);
-            for block in blocks {
-                recomposer.add_unmasked(block);
+                let mut recomposer = BlockRecomposer::new(bits_per_block);
+                for block in blocks {
+                    recomposer.add_unmasked(block);
+                }
+                let recomposed: i32 = recomposer.value();
+                assert_eq!(recomposed, value, "bits_per_block: {bits_per_block}");
             }
-            let recomposed: i32 = recomposer.value();
-            assert_eq!(recomposed, value);
         }
     }
 
@@ -675,5 +718,163 @@ mod tests {
             let recomposed: u32 = recomposer.value();
             assert_eq!(recomposed, value);
         }
+    }
+
+    /// A block as wide as the decomposed type yields the whole value in a single block
+    #[test]
+    fn test_bit_block_decomposer_full_width_bits_per_block() {
+        let value = u32::MAX;
+        let blocks = BlockDecomposer::new(value, u32::BITS)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+        let expected_blocks = vec![u32::MAX as u64];
+        assert_eq!(expected_blocks, blocks);
+
+        // For signed types the mask covers the sign bit as well
+        let value = -1i8;
+        let blocks = BlockDecomposer::new(value, i8::BITS).collect::<Vec<_>>();
+        let expected_blocks = vec![-1i8];
+        assert_eq!(expected_blocks, blocks);
+
+        let value = i8::MIN;
+        let blocks = BlockDecomposer::new(value, i8::BITS).collect::<Vec<_>>();
+        let expected_blocks = vec![i8::MIN];
+        assert_eq!(expected_blocks, blocks);
+    }
+
+    /// checks that `size_hint` does not understate its upper bound whenever a partial last
+    /// block is still to be produced
+    #[test]
+    fn test_bit_block_decomposer_size_hint() {
+        for bits_per_block in 1..=u64::BITS {
+            let mut decomposer = BlockDecomposer::new(0x1234_5678_9abc_def0_u64, bits_per_block);
+            let mut remaining = decomposer.clone().count();
+
+            // Without an early stop value the number of remaining blocks is known exactly
+            assert_eq!(
+                decomposer.size_hint(),
+                (remaining, Some(remaining)),
+                "bits_per_block: {bits_per_block}"
+            );
+
+            while decomposer.next().is_some() {
+                remaining -= 1;
+                assert_eq!(
+                    decomposer.size_hint(),
+                    (remaining, Some(remaining)),
+                    "bits_per_block: {bits_per_block}"
+                );
+            }
+            assert_eq!(remaining, 0);
+        }
+    }
+
+    /// checks `size_hint` correctly handle the early stop value
+    #[test]
+    fn test_bit_block_decomposer_size_hint_early_stop_at_zero() {
+        // A value already equal to the early stop value produces no block at all
+        let decomposer = BlockDecomposer::with_early_stop_at_zero(0_u64, 4);
+        assert_eq!(decomposer.size_hint(), (0, Some(0)));
+        assert_eq!(decomposer.count(), 0);
+
+        // Otherwise the bounds must contain the number of blocks that are actually produced
+        for value in [1_u64, 0xff, 0x1234_5678_9abc_def0] {
+            let mut decomposer = BlockDecomposer::with_early_stop_at_zero(value, 4);
+            loop {
+                let (min, max) = decomposer.size_hint();
+                let remaining = decomposer.clone().count();
+                assert!(
+                    min <= remaining,
+                    "lower bound {min} > remaining {remaining}"
+                );
+                assert!(
+                    max.is_none_or(|max| max >= remaining),
+                    "upper bound {max:?} < remaining {remaining}"
+                );
+                if decomposer.next().is_none() {
+                    break;
+                }
+            }
+        }
+    }
+
+    /// Types wider than a `u32` are the ones the capped mask used to break on
+    #[test]
+    fn test_bit_block_decomposer_round_trip_every_bits_per_block_u256() {
+        let value = U256::from((
+            0x1234_5678_9abc_def0u64,
+            0xfedc_ba98_7654_3210u64,
+            0x0f0f_0f0f_0f0f_0f0fu64,
+            0xa5a5_a5a5_a5a5_a5a5u64,
+        ));
+        for bits_per_block in 1..=U256::BITS {
+            let blocks = BlockDecomposer::new(value, bits_per_block).collect::<Vec<_>>();
+
+            let mut recomposer = BlockRecomposer::new(bits_per_block);
+            for block in blocks {
+                recomposer.add_unmasked(block);
+            }
+            let recomposed: U256 = recomposer.value();
+            assert_eq!(recomposed, value, "bits_per_block: {bits_per_block}");
+        }
+    }
+
+    /// A zero width block has no meaningful semantics: it used to make the decomposer iterate
+    /// forever, panic in `size_hint`, and make the recomposer discard all of its input
+    #[test]
+    #[should_panic(expected = "bits_per_block must be in 1..=T::BITS")]
+    fn test_bit_block_decomposer_zero_bits_per_block() {
+        let _ = BlockDecomposer::new(u16::MAX as u32, 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "bits_per_block must be in 1..=T::BITS")]
+    fn test_bit_block_recomposer_zero_bits_per_block() {
+        let _ = BlockRecomposer::<u32>::new(0);
+    }
+
+    #[test]
+    #[should_panic(expected = "bits_per_block must be in 1..=T::BITS")]
+    fn test_bit_block_decomposer_too_many_bits_per_block() {
+        let _ = BlockDecomposer::new(u16::MAX as u32, u32::BITS + 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "bits_per_block must be in 1..=T::BITS")]
+    fn test_bit_block_recomposer_too_many_bits_per_block() {
+        let _ = BlockRecomposer::<u32>::new(u32::BITS + 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "block_count * bits_per_block overflows a u32")]
+    fn test_bit_block_decomposer_with_block_count_overflow() {
+        let _ = BlockDecomposer::with_block_count(u16::MAX as u32, 4, 1usize << 30);
+    }
+
+    /// The truncation mask used to be built as `(T::ONE << size) - T::ONE`, which overflows for a
+    /// signed type when the size is one bit short of the type width
+    #[test]
+    fn test_bit_block_recomposer_with_size_signed() {
+        let bits_per_block = 4;
+        let blocks = [1u64, 2];
+        // 1 in the first block, 2 in the second one
+        let expected = 1i32 + (2i32 << bits_per_block);
+
+        for size in [8u32, 16, 30, 31, 32] {
+            let recomposed = BlockRecomposer::<i32>::recompose_unsigned_with_size(
+                blocks.iter().copied(),
+                bits_per_block,
+                size,
+            );
+            assert_eq!(recomposed, expected, "unsigned_integer_size: {size}");
+        }
+
+        // A size of zero keeps none of the bits
+        let recomposed = BlockRecomposer::<i32>::recompose_unsigned_with_size(
+            blocks.iter().copied(),
+            bits_per_block,
+            0,
+        );
+        assert_eq!(recomposed, 0);
     }
 }
