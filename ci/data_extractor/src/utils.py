@@ -37,6 +37,9 @@ def convert_latency_value_to_readable_text(value: int, max_digits: int = 3) -> s
 
     power_of_10 = math.floor(math.log10(converted_parts[0]))
     rounding_digit = max_digits - (power_of_10 + 1)
+    if rounding_digit <= 0:
+        rounding_digit = None
+
     if converted_parts[0] >= 100.0:
         rounding_digit = None
 
@@ -66,6 +69,9 @@ def convert_throughput_value_to_readable_text(value: int, max_digits: int = 3):
         power_of_10 = math.floor(math.log10(converted_parts[0]))
         rounding_digit = max_digits - (power_of_10 + 1)
     else:
+        rounding_digit = None
+
+    if rounding_digit <= 0:
         rounding_digit = None
 
     if converted_parts[0] >= 100.0:
