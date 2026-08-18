@@ -167,3 +167,8 @@ The HPU backend includes the following operations for unsigned encrypted integer
 {% hint style="info" %}
 All operations follow the same syntax than the one described in [here](../../fhe-computation/operations/README.md).
 {% endhint %}
+
+{% hint style="info" %}
+`Add`, `Sub` and `Mul` also accept a clear operand on the left-hand side (`Int`/`Enc`), for instance
+`10u16 - encrypted_value`.
+{% endhint %}
