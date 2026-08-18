@@ -155,6 +155,11 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> GlweSecretKey<C
         let poly_size = self.polynomial_size;
         PolynomialListMutView::from_container(self.as_mut(), poly_size)
     }
+    /// Interpret the [`GlweSecretKey`] as a [`PolynomialList`].
+    pub fn as_polynomial_list_mut(&mut self) -> PolynomialListMutView<'_, C::Element> {
+        let polynomial_size = self.polynomial_size;
+        PolynomialListMutView::from_container(self.as_mut(), polynomial_size)
+    }
 }
 
 /// A [`GlweSecretKey`] owning the memory for its own storage.
