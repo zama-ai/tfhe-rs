@@ -39,7 +39,7 @@ impl MaxNoiseLevel {
     /// # Panics
     ///
     /// Panics if `msg_modulus` is smaller than 2, as a message space holding less than 2 values is
-    /// degenerate and the norm2 limit is not defined for it.
+    /// degenerate and the norm2 limit is not defined for it, or if `carry_modulus` is 0.
     // This function is valid for current parameters as they guarantee the p-error for a norm2 noise
     // limit equal to the norm2 limit which guarantees a clean padding bit
     //
@@ -52,6 +52,10 @@ impl MaxNoiseLevel {
         assert!(
             msg_modulus.0 >= 2,
             "MessageModulus must be at least 2 to derive a MaxNoiseLevel"
+        );
+        assert!(
+            carry_modulus.0 != 0,
+            "CarryModulus must be non zero to derive a MaxNoiseLevel"
         );
         let level = (carry_modulus.0 * msg_modulus.0 - 1) / (msg_modulus.0 - 1);
         Self(level)
@@ -304,9 +308,21 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "CarryModulus must be non zero")]
+    fn test_max_noise_level_from_zero_carry_modulus_ci_run_filter() {
+        let _ = MaxNoiseLevel::from_msg_carry_modulus(MessageModulus(2), CarryModulus(0));
+    }
+
+    #[test]
     #[should_panic(expected = "must both be non zero")]
     fn test_max_degree_from_zero_msg_modulus_ci_run_filter() {
         let _ = MaxDegree::from_msg_carry_modulus(MessageModulus(0), CarryModulus(2));
+    }
+
+    #[test]
+    #[should_panic(expected = "must both be non zero")]
+    fn test_max_degree_from_zero_carry_modulus_ci_run_filter() {
+        let _ = MaxDegree::from_msg_carry_modulus(MessageModulus(2), CarryModulus(0));
     }
 
     #[test]

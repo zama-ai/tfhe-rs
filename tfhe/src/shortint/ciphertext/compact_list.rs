@@ -202,10 +202,19 @@ impl ParameterSetConformant for ExpandedCiphertextList {
             carry_modulus: params_carry_modulus,
         } = parameter_set;
 
+        if params_message_modulus.0 == 0 {
+            return false;
+        }
+
+        if is_packed && params_carry_modulus.0 < params_message_modulus.0 {
+            // parameters do not support packing
+            return false;
+        }
+
         let expected_degree = if is_packed {
-            Degree::new(message_modulus.0 * message_modulus.0 - 1)
+            Degree::new(params_message_modulus.0 * params_message_modulus.0 - 1)
         } else {
-            Degree::new(message_modulus.0 - 1)
+            Degree::new(params_message_modulus.0 - 1)
         };
 
         ct_list.is_conformant(ct_list_params)
