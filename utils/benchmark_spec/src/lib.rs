@@ -23,7 +23,7 @@ pub use tfhe::hlapi::HlapiBench;
 pub use tfhe::{
     BooleanBench, CoreCryptoBench, HlIntegerOp, IntegerBench, IntegerOp, IntegerOpBySign,
     IntegerOprf, IntegerPackingOp, IntegerRerandMode, ShortintBench, ShortintCastingOp, ShortintOp,
-    ShortintPackingOp, TfheLayer,
+    ShortintPackingOp, TfheLayer, VectorFindOp,
 };
 pub use type_tag::{CudaKeyswitchConfig, FheType, PrecisionTag, TypeTag};
 
