@@ -1,3 +1,4 @@
+#include "polynomial/dispatch.cuh"
 #include "programmable_bootstrap_cg_multibit.cuh"
 #include "programmable_bootstrap_multibit_128.cuh"
 
@@ -8,43 +9,13 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128_async(
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
-  switch (polynomial_size) {
-  case 256:
-    return scratch_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                        Degree<256>>(
-        static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
-        polynomial_size, level_count, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-  case 512:
-    return scratch_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                        Degree<512>>(
-        static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
-        polynomial_size, level_count, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-  case 1024:
-    return scratch_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                        Degree<1024>>(
-        static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
-        polynomial_size, level_count, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-  case 2048:
-    return scratch_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                        Degree<2048>>(
-        static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
-        polynomial_size, level_count, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-  case 4096:
-    // We use AmortizedDegree for 4096 to avoid register exhaustion
-    return scratch_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                        AmortizedDegree<4096>>(
-        static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
-        polynomial_size, level_count, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-  default:
-    PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
-          "N's are powers of two"
-          " in the interval [256..4096].")
-  }
+  // AmortizedDegree for 4096 avoids register exhaustion in 128-bit multibit PBS
+  DISPATCH_POLY_SIZE(
+      polynomial_size, Multibit128DegreePolicy,
+      return scratch_multi_bit_programmable_bootstrap_128<InputTorus, Params>(
+          static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
+          polynomial_size, level_count, input_lwe_ciphertext_count,
+          allocate_gpu_memory));
 }
 
 template <typename InputTorus>
@@ -54,43 +25,14 @@ uint64_t scratch_cuda_cg_multi_bit_programmable_bootstrap_128(
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
-  switch (polynomial_size) {
-  case 256:
-    return scratch_cg_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                           Degree<256>>(
-        static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
-        polynomial_size, level_count, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-  case 512:
-    return scratch_cg_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                           Degree<512>>(
-        static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
-        polynomial_size, level_count, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-  case 1024:
-    return scratch_cg_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                           Degree<1024>>(
-        static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
-        polynomial_size, level_count, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-  case 2048:
-    return scratch_cg_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                           Degree<2048>>(
-        static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
-        polynomial_size, level_count, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-  case 4096:
-    // We use AmortizedDegree for 4096 to avoid register exhaustion
-    return scratch_cg_multi_bit_programmable_bootstrap_128<
-        InputTorus, AmortizedDegree<4096>>(
-        static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
-        polynomial_size, level_count, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-  default:
-    PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
-          "N's are powers of two"
-          " in the interval [256..4096].")
-  }
+  // AmortizedDegree for 4096 avoids register exhaustion in 128-bit multibit PBS
+  DISPATCH_POLY_SIZE(
+      polynomial_size, Multibit128DegreePolicy,
+      return scratch_cg_multi_bit_programmable_bootstrap_128<InputTorus,
+                                                             Params>(
+          static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
+          polynomial_size, level_count, input_lwe_ciphertext_count,
+          allocate_gpu_memory));
 }
 
 uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128_async(
@@ -129,54 +71,15 @@ void cuda_multi_bit_programmable_bootstrap_128_async(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
 
-  switch (polynomial_size) {
-  case 256:
-    host_multi_bit_programmable_bootstrap_128<InputTorus, Degree<256>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
-        lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
-        bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, grouping_factor, base_log, level_count, num_samples,
-        num_many_lut, lut_stride);
-    break;
-  case 512:
-    host_multi_bit_programmable_bootstrap_128<InputTorus, Degree<512>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
-        lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
-        bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, grouping_factor, base_log, level_count, num_samples,
-        num_many_lut, lut_stride);
-    break;
-  case 1024:
-    host_multi_bit_programmable_bootstrap_128<InputTorus, Degree<1024>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
-        lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
-        bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, grouping_factor, base_log, level_count, num_samples,
-        num_many_lut, lut_stride);
-    break;
-  case 2048:
-    host_multi_bit_programmable_bootstrap_128<InputTorus, Degree<2048>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
-        lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
-        bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, grouping_factor, base_log, level_count, num_samples,
-        num_many_lut, lut_stride);
-    break;
-  case 4096:
-    // We use AmortizedDegree for 4096 to avoid register exhaustion
-    host_multi_bit_programmable_bootstrap_128<InputTorus,
-                                              AmortizedDegree<4096>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
-        lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
-        bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, grouping_factor, base_log, level_count, num_samples,
-        num_many_lut, lut_stride);
-    break;
-  default:
-    PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
-          "N's are powers of two"
-          " in the interval [256..4096].")
-  }
+  // AmortizedDegree for 4096 avoids register exhaustion in 128-bit multibit PBS
+  DISPATCH_POLY_SIZE(
+      polynomial_size, Multibit128DegreePolicy,
+      host_multi_bit_programmable_bootstrap_128<InputTorus, Params>(
+          static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+          lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
+          bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
+          polynomial_size, grouping_factor, base_log, level_count, num_samples,
+          num_many_lut, lut_stride));
 }
 
 template <typename InputTorus>
@@ -190,54 +93,15 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
 
-  switch (polynomial_size) {
-  case 256:
-    host_cg_multi_bit_programmable_bootstrap_128<InputTorus, Degree<256>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
-        lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
-        bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, grouping_factor, base_log, level_count, num_samples,
-        num_many_lut, lut_stride);
-    break;
-  case 512:
-    host_cg_multi_bit_programmable_bootstrap_128<InputTorus, Degree<512>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
-        lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
-        bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, grouping_factor, base_log, level_count, num_samples,
-        num_many_lut, lut_stride);
-    break;
-  case 1024:
-    host_cg_multi_bit_programmable_bootstrap_128<InputTorus, Degree<1024>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
-        lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
-        bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, grouping_factor, base_log, level_count, num_samples,
-        num_many_lut, lut_stride);
-    break;
-  case 2048:
-    host_cg_multi_bit_programmable_bootstrap_128<InputTorus, Degree<2048>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
-        lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
-        bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, grouping_factor, base_log, level_count, num_samples,
-        num_many_lut, lut_stride);
-    break;
-  case 4096:
-    // We use AmortizedDegree for 4096 to avoid register exhaustion
-    host_cg_multi_bit_programmable_bootstrap_128<InputTorus,
-                                                 AmortizedDegree<4096>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
-        lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
-        bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, grouping_factor, base_log, level_count, num_samples,
-        num_many_lut, lut_stride);
-    break;
-  default:
-    PANIC("Cuda error (multi-bit PBS): unsupported polynomial size. Supported "
-          "N's are powers of two"
-          " in the interval [256..4096].")
-  }
+  // AmortizedDegree for 4096 avoids register exhaustion in 128-bit multibit PBS
+  DISPATCH_POLY_SIZE(
+      polynomial_size, Multibit128DegreePolicy,
+      host_cg_multi_bit_programmable_bootstrap_128<InputTorus, Params>(
+          static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+          lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
+          bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
+          polynomial_size, grouping_factor, base_log, level_count, num_samples,
+          num_many_lut, lut_stride));
 }
 
 void cuda_multi_bit_programmable_bootstrap_128_async(

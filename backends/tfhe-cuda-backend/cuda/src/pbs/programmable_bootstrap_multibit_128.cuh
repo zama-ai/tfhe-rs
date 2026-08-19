@@ -8,6 +8,7 @@
 
 #include "fft128/fft128.cuh"
 #include "pbs/pbs_multibit_utilities.h"
+#include "polynomial/dispatch.cuh"
 #include "programmable_bootstrap_multibit.cuh"
 #include "utils/helper.cuh"
 
@@ -1263,34 +1264,12 @@ __host__ bool
 supports_cooperative_groups_on_multibit_programmable_bootstrap_128(
     int glwe_dimension, int polynomial_size, int level_count, int num_samples,
     uint32_t max_shared_memory) {
-  switch (polynomial_size) {
-  case 256:
-    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128<
-        Torus, Degree<256>>(glwe_dimension, level_count, num_samples,
-                            max_shared_memory);
-  case 512:
-    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128<
-        Torus, Degree<512>>(glwe_dimension, level_count, num_samples,
-                            max_shared_memory);
-  case 1024:
-    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128<
-        Torus, Degree<1024>>(glwe_dimension, level_count, num_samples,
-                             max_shared_memory);
-  case 2048:
-    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128<
-        Torus, Degree<2048>>(glwe_dimension, level_count, num_samples,
-                             max_shared_memory);
-  case 4096:
-    // We use AmortizedDegree for 4096 to avoid register exhaustion
-    return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128<
-        Torus, AmortizedDegree<4096>>(glwe_dimension, level_count, num_samples,
-                                      max_shared_memory);
-  default:
-    PANIC(
-        "Cuda error (multi-bit PBS128): unsupported polynomial size. Supported "
-        "N's are powers of two"
-        " in the interval [256..4096].")
-  }
+  // AmortizedDegree for 4096 avoids register exhaustion in 128-bit multibit PBS
+  DISPATCH_POLY_SIZE(
+      polynomial_size, Multibit128DegreePolicy,
+      return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128<
+          Torus, Params>(glwe_dimension, level_count, num_samples,
+                         max_shared_memory));
 }
 
 // Noise tests variant: identical to

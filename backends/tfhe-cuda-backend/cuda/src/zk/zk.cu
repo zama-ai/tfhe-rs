@@ -1,3 +1,4 @@
+#include "polynomial/dispatch.cuh"
 #include "zk.cuh"
 
 uint64_t scratch_cuda_expand_without_verification_64_async(
@@ -50,62 +51,13 @@ void cuda_expand_without_verification_64_async(
 
   auto expand_buffer = reinterpret_cast<zk_expand_mem<uint64_t> *>(mem_ptr);
 
-  switch (expand_buffer->casting_params.big_lwe_dimension) {
-  case 256:
-    host_expand_without_verification<uint64_t, AmortizedDegree<256>>(
-        streams, static_cast<uint64_t *>(lwe_array_out),
-        static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
-        expand_buffer, (uint64_t **)casting_keys, bsks,
-        (uint64_t **)(computing_ksks));
-    break;
-  case 512:
-    host_expand_without_verification<uint64_t, AmortizedDegree<512>>(
-        streams, static_cast<uint64_t *>(lwe_array_out),
-        static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
-        expand_buffer, (uint64_t **)casting_keys, bsks,
-        (uint64_t **)(computing_ksks));
-    break;
-  case 1024:
-    host_expand_without_verification<uint64_t, AmortizedDegree<1024>>(
-        streams, static_cast<uint64_t *>(lwe_array_out),
-        static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
-        expand_buffer, (uint64_t **)casting_keys, bsks,
-        (uint64_t **)(computing_ksks));
-    break;
-  case 2048:
-    host_expand_without_verification<uint64_t, AmortizedDegree<2048>>(
-        streams, static_cast<uint64_t *>(lwe_array_out),
-        static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
-        expand_buffer, (uint64_t **)casting_keys, bsks,
-        (uint64_t **)(computing_ksks));
-    break;
-  case 4096:
-    host_expand_without_verification<uint64_t, AmortizedDegree<4096>>(
-        streams, static_cast<uint64_t *>(lwe_array_out),
-        static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
-        expand_buffer, (uint64_t **)casting_keys, bsks,
-        (uint64_t **)(computing_ksks));
-    break;
-  case 8192:
-    host_expand_without_verification<uint64_t, AmortizedDegree<8192>>(
-        streams, static_cast<uint64_t *>(lwe_array_out),
-        static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
-        expand_buffer, (uint64_t **)casting_keys, bsks,
-        (uint64_t **)(computing_ksks));
-    break;
-  case 16384:
-    host_expand_without_verification<uint64_t, AmortizedDegree<16384>>(
-        streams, static_cast<uint64_t *>(lwe_array_out),
-        static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
-        expand_buffer, (uint64_t **)casting_keys, bsks,
-        (uint64_t **)(computing_ksks));
-    break;
-  default:
-    PANIC("CUDA error: lwe_dimension not supported."
-          "Supported n's are powers of two"
-          " in the interval [256..16384].");
-    break;
-  }
+  DISPATCH_POLY_SIZE(
+      expand_buffer->casting_params.big_lwe_dimension, AmortizedDegreePolicy,
+      host_expand_without_verification<uint64_t, Params>(
+          streams, static_cast<uint64_t *>(lwe_array_out),
+          static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
+          expand_buffer, (uint64_t **)casting_keys, bsks,
+          (uint64_t **)(computing_ksks)));
 }
 
 void cleanup_cuda_expand_without_verification_64(CudaStreamsFFI streams,
