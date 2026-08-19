@@ -6,7 +6,6 @@ use crate::integer::ciphertext::{
     IntegerRadixCiphertext, PrfReRandomizationContext, RadixCiphertext, ReRandomizationHashAlgo,
     ReRandomizationKey, ReRandomizationSeedHasher, SignedRadixCiphertext,
 };
-use crate::integer::keycache::KEY_CACHE;
 use crate::integer::oprf::{OprfPrivateKey, OprfServerKey};
 use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuOprfExecutor;
@@ -160,7 +159,14 @@ pub(crate) fn square(a: f64) -> f64 {
     a * a
 }
 
-pub(crate) fn uniformity_p_value<F>(f: F, sample_count: usize, distinct_values: u64) -> f64
+/// Chi-squared p-value of the uniformity of the `sample_count` samples produced by `f` over
+/// `0..distinct_values`, returned together with the per-value counts it is computed from, so
+/// callers can report the observed distribution without recomputing it.
+pub(crate) fn uniformity_p_value<F>(
+    f: F,
+    sample_count: usize,
+    distinct_values: u64,
+) -> (f64, Vec<u64>)
 where
     F: FnMut(usize) -> u64,
 {
@@ -170,16 +176,22 @@ where
         *values_count.entry(i).or_insert(0) += 1;
     }
 
+    let counts: Vec<u64> = (0..distinct_values)
+        .map(|value| *values_count.get(&value).unwrap_or(&0))
+        .collect();
+
     let single_expected_count = sample_count as f64 / distinct_values as f64;
 
-    let distance: f64 = (0..distinct_values)
-        .map(|value| *values_count.get(&value).unwrap_or(&0))
-        .map(|count| square(count as f64 - single_expected_count) / single_expected_count)
+    let distance: f64 = counts
+        .iter()
+        .map(|count| square(*count as f64 - single_expected_count) / single_expected_count)
         .sum();
 
-    statrs::distribution::ChiSquared::new((distinct_values - 1) as f64)
+    let p_value = statrs::distribution::ChiSquared::new((distinct_values - 1) as f64)
         .unwrap()
-        .sf(distance)
+        .sf(distance);
+
+    (p_value, counts)
 }
 
 pub(crate) fn internal_test_uniformity<F>(
@@ -190,10 +202,19 @@ pub(crate) fn internal_test_uniformity<F>(
 ) where
     F: FnMut(usize) -> u64,
 {
-    let p_value = uniformity_p_value(f, sample_count, distinct_values);
+    // The observed counts are reported alongside the p_value: the p_value alone does not tell
+    // which value deviates.
+    let (p_value, counts) = uniformity_p_value(f, sample_count, distinct_values);
+    let out_of_range_count = sample_count as u64 - counts.iter().sum::<u64>();
+
     assert!(
         p_value_limit < p_value,
-        "p_value (={p_value}) expected to be bigger than {p_value_limit}"
+        "p_value (={p_value}) expected to be bigger than {p_value_limit}\n\
+         sample_count: {sample_count}, distinct_values: {distinct_values}, \
+         expected count per value: {expected_count}, \
+         values out of range: {out_of_range_count}\n\
+         observed counts: {counts:?}",
+        expected_count = sample_count as f64 / distinct_values as f64,
     );
 }
 
@@ -204,21 +225,33 @@ pub(crate) fn setup_oprf_test<I, O, E>(
 where
     E: OpSequenceFunctionExecutor<I, O>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    sks.set_deterministic_pbs_execution(true);
-
-    let mut rng = rand::thread_rng();
-    let seed: u128 = rng.gen();
+    // TFHE_OPRF_TEST_SEED forces the seed, to replay a failing run: it is the only source of
+    // randomness of this test, so it is enough to reproduce a failure bit for bit.
+    let seed: u128 = std::env::var("TFHE_OPRF_TEST_SEED").ok().map_or_else(
+        || rand::thread_rng().gen(),
+        |forced| {
+            forced
+                .trim()
+                .parse()
+                .expect("TFHE_OPRF_TEST_SEED must be a u128 written in base 10")
+        },
+    );
     println!("seed: {seed:?}");
+    println!("set TFHE_OPRF_TEST_SEED={seed} to replay this run");
     let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(seed));
 
-    // Install a deterministic ShortintEngine on this thread so that OPRF private key
-    // generation and CompressedServerKey::new below are reproducible across runs.
+    // Install a deterministic ShortintEngine on this thread before generating any key, so that
+    // every key used by the test (client key, OPRF private key and the server keys below) is
+    // derived from the printed seed and the test is fully reproducible from it.
+    //
+    // This is also why the client key is generated here instead of being taken from KEY_CACHE:
+    // cached keys are machine dependent, so they would not be part of the reproducible state.
     let shortint_engine = ShortintEngine::new_from_seeder(&mut deterministic_seeder);
     ShortintEngine::with_thread_local_mut(|local_engine| {
         let _ = std::mem::replace(local_engine, shortint_engine);
     });
 
+    let cks = ClientKey::new(param.into());
     let oprf_priv_key = OprfPrivateKey::new(&cks);
     let temp_cks = crate::ClientKey::from_raw_parts(
         cks.clone(),
