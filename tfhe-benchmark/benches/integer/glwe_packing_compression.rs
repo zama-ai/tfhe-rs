@@ -1,6 +1,8 @@
 use benchmark::params_aliases::*;
-use benchmark::utilities::{write_to_json_unchecked, BitSizesSet, EnvConfig, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark::utilities::{write_to_json, BitSizesSet, EnvConfig, OperatorType};
+use benchmark_spec::{
+    get_bench_type, BenchmarkSpec, BenchmarkType, FheType, IntegerBench, IntegerPackingOp,
+};
 use criterion::{criterion_group, Criterion, Throughput};
 use rayon::prelude::*;
 use std::hint::black_box;
@@ -58,8 +60,25 @@ fn cpu_glwe_packing(c: &mut Criterion) {
         assert_eq!(bit_size % log_message_modulus, 0);
         let num_blocks = bit_size / log_message_modulus;
 
-        let bench_id_pack;
-        let bench_id_unpack;
+        let spec = |op| {
+            BenchmarkSpec::new_integer(
+                IntegerBench::PackingCompression(op),
+                &comp_param.name(),
+                Some(
+                    FheType::Clear {
+                        signed: false,
+                        bits: bit_size as u32,
+                    }
+                    .into(),
+                ),
+                get_bench_type(),
+                None,
+            )
+        };
+        let pack_spec = spec(IntegerPackingOp::Pack);
+        let unpack_spec = spec(IntegerPackingOp::Unpack);
+        let bench_id_pack = pack_spec.to_string();
+        let bench_id_unpack = unpack_spec.to_string();
 
         match get_bench_type() {
             BenchmarkType::Latency => {
@@ -69,7 +88,6 @@ fn cpu_glwe_packing(c: &mut Criterion) {
 
                 builder.push(ct);
 
-                bench_id_pack = format!("{bench_name}::pack_u{bit_size}");
                 bench_group.bench_function(&bench_id_pack, |b| {
                     b.iter(|| {
                         let compressed = builder.build(&compression_key);
@@ -80,7 +98,6 @@ fn cpu_glwe_packing(c: &mut Criterion) {
 
                 let compressed = builder.build(&compression_key);
 
-                bench_id_unpack = format!("{bench_name}::unpack_u{bit_size}");
                 bench_group.bench_function(&bench_id_unpack, |b| {
                     b.iter(|| {
                         let unpacked: RadixCiphertext =
@@ -151,7 +168,6 @@ fn cpu_glwe_packing(c: &mut Criterion) {
                     })
                     .collect::<Vec<_>>();
 
-                bench_id_pack = format!("{bench_name}::throughput::pack_u{bit_size}");
                 bench_group.bench_function(&bench_id_pack, |b| {
                     b.iter(|| {
                         builders.par_iter().for_each(|builder| {
@@ -165,7 +181,6 @@ fn cpu_glwe_packing(c: &mut Criterion) {
                     .map(|builder| builder.build(&compression_key))
                     .collect::<Vec<_>>();
 
-                bench_id_unpack = format!("{bench_name}::throughput::unpack_u{bit_size}");
                 bench_group.bench_function(&bench_id_unpack, |b| {
                     b.iter(|| {
                         compressed.par_iter().for_each(|comp| {
@@ -178,18 +193,16 @@ fn cpu_glwe_packing(c: &mut Criterion) {
             }
         }
 
-        write_to_json_unchecked(
-            &bench_id_pack,
-            comp_param.name(),
+        write_to_json(
+            &pack_spec,
             "pack",
             &OperatorType::Atomic,
             bit_size as u32,
             vec![param.message_modulus.0.ilog2(); num_blocks],
         );
 
-        write_to_json_unchecked(
-            &bench_id_unpack,
-            comp_param.name(),
+        write_to_json(
+            &unpack_spec,
             "unpack",
             &OperatorType::Atomic,
             bit_size as u32,
@@ -249,7 +262,20 @@ mod cuda {
         assert_eq!(bit_size % log_message_modulus, 0);
         let num_blocks = bit_size / log_message_modulus;
 
-        let bench_id_pack;
+        let pack_spec = BenchmarkSpec::new_integer(
+            IntegerBench::PackingCompression(IntegerPackingOp::Pack),
+            &comp_param.name(),
+            Some(
+                FheType::Clear {
+                    signed: false,
+                    bits: bit_size as u32,
+                }
+                .into(),
+            ),
+            get_bench_type(),
+            None,
+        );
+        let bench_id_pack = pack_spec.to_string();
 
         match get_bench_type() {
             BenchmarkType::Latency => {
@@ -269,7 +295,6 @@ mod cuda {
 
                 builder.push(d_ct, &stream);
 
-                bench_id_pack = format!("{bench_name}::pack_u{bit_size}");
                 bench_group.bench_function(&bench_id_pack, |b| {
                     b.iter(|| {
                         let compressed = builder.build(&cuda_compression_key, &stream);
@@ -294,7 +319,6 @@ mod cuda {
                 // Encrypt
                 let local_streams = cuda_local_streams(num_block, elements as usize);
 
-                bench_id_pack = format!("{bench_name}::throughput::pack_u{bit_size}");
                 let cuda_compression_key_vec = (0..get_number_of_gpus())
                     .into_par_iter()
                     .map(|i| {
@@ -332,9 +356,8 @@ mod cuda {
             }
         }
 
-        write_to_json_unchecked(
-            &bench_id_pack,
-            comp_param.name(),
+        write_to_json(
+            &pack_spec,
             "pack",
             &OperatorType::Atomic,
             bit_size as u32,
@@ -366,7 +389,20 @@ mod cuda {
         assert_eq!(bit_size % log_message_modulus, 0);
         let num_blocks = bit_size / log_message_modulus;
 
-        let bench_id_unpack;
+        let unpack_spec = BenchmarkSpec::new_integer(
+            IntegerBench::PackingCompression(IntegerPackingOp::Unpack),
+            &comp_param.name(),
+            Some(
+                FheType::Clear {
+                    signed: false,
+                    bits: bit_size as u32,
+                }
+                .into(),
+            ),
+            get_bench_type(),
+            None,
+        );
+        let bench_id_unpack = unpack_spec.to_string();
 
         match get_bench_type() {
             BenchmarkType::Latency => {
@@ -396,7 +432,6 @@ mod cuda {
 
                 let compressed = builder.build(&cuda_compression_key, &stream);
 
-                bench_id_unpack = format!("{bench_name}::unpack_u{bit_size}");
                 bench_group.bench_function(&bench_id_unpack, |b| {
                     b.iter(|| {
                         let unpacked: CudaUnsignedRadixCiphertext = compressed
@@ -424,7 +459,6 @@ mod cuda {
                 // Encrypt
                 let local_streams = cuda_local_streams(num_block, elements as usize);
 
-                bench_id_unpack = format!("{bench_name}::throughput::unpack_u{bit_size}");
                 let builders = (0..elements)
                     .into_par_iter()
                     .map(|i| {
@@ -494,9 +528,8 @@ mod cuda {
             }
         }
 
-        write_to_json_unchecked(
-            &bench_id_unpack,
-            comp_param.name(),
+        write_to_json(
+            &unpack_spec,
             "unpack",
             &OperatorType::Atomic,
             bit_size as u32,
