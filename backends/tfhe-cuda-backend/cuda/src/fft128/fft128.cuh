@@ -17,6 +17,27 @@ using Index = unsigned;
       f128(__ldg(&neg_twiddles_re_hi[(i)]), __ldg(&neg_twiddles_re_lo[(i)])),  \
       f128(__ldg(&neg_twiddles_im_hi[(i)]), __ldg(&neg_twiddles_im_lo[(i)])))
 
+// Same value as NEG_TWID(i), read from the interleaved table with two 16-byte
+// loads sharing a single base address instead of four 8-byte loads from four
+// base addresses.
+__device__ __forceinline__ f128x2 neg_twid_from_aos(Index i) {
+  const double2 re = __ldg(&neg_twiddles_aos[2 * i]);
+  const double2 im = __ldg(&neg_twiddles_aos[2 * i + 1]);
+  return f128x2(f128(re.x, re.y), f128(im.x, im.y));
+}
+
+// USE_AOS_TWIDDLES is only set by the classical 128-bit PBS step kernels: every
+// other transform caller may run without the host_build_neg_twiddles_aos hook
+// having been executed, so it keeps reading the plane arrays.
+template <bool USE_AOS_TWIDDLES>
+__device__ __forceinline__ f128x2 get_neg_twid(Index i) {
+  if constexpr (USE_AOS_TWIDDLES) {
+    return neg_twid_from_aos(i);
+  } else {
+    return NEG_TWID(i);
+  }
+}
+
 #define F64x4_TO_F128x2(f128x2_reg, ind)                                       \
   f128x2_reg.re.hi = dt_re_hi[ind];                                            \
   f128x2_reg.re.lo = dt_re_lo[ind];                                            \
@@ -29,7 +50,7 @@ using Index = unsigned;
   dt_im_hi[ind] = f128x2_reg.im.hi;                                            \
   dt_im_lo[ind] = f128x2_reg.im.lo
 
-template <class params>
+template <class params, bool USE_AOS_TWIDDLES = false>
 __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
                                             double *dt_im_hi,
                                             double *dt_im_lo) {
@@ -58,9 +79,8 @@ __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
   // it with simpler operations
 #pragma unroll
   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
-    auto ww = NEG_TWID(1);
-    f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, NEG_TWID(1).re,
-                               NEG_TWID(1).im);
+    const f128x2 twid = get_neg_twid<USE_AOS_TWIDDLES>(1);
+    f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, twid.re, twid.im);
     f128::cplx_f128_sub_assign(v[i].re, v[i].im, u[i].re, u[i].im, w.re, w.im);
     f128::cplx_f128_add_assign(u[i].re, u[i].im, u[i].re, u[i].im, w.re, w.im);
   }
@@ -97,7 +117,7 @@ __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
       } else {
         u[i] = w;
       }
-      w = NEG_TWID(tid / lane_mask + twiddle_shift);
+      w = get_neg_twid<USE_AOS_TWIDDLES>(tid / lane_mask + twiddle_shift);
       f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, w.re, w.im);
       f128::cplx_f128_sub_assign(v[i].re, v[i].im, u[i].re, u[i].im, w.re,
                                  w.im);
@@ -119,7 +139,7 @@ __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
   __syncthreads();
 }
 
-template <class params>
+template <class params, bool USE_AOS_TWIDDLES = false>
 __device__ void negacyclic_backward_fft_f128(double *dt_re_hi, double *dt_re_lo,
                                              double *dt_im_hi,
                                              double *dt_im_lo) {
@@ -155,7 +175,9 @@ __device__ void negacyclic_backward_fft_f128(double *dt_re_hi, double *dt_re_lo,
     for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
       w = (u[i] - v[i]);
       u[i] += v[i];
-      v[i] = w * NEG_TWID(tid / lane_mask + twiddle_shift).conjugate();
+      v[i] = w * get_neg_twid<USE_AOS_TWIDDLES>(
+                     static_cast<Index>(tid / lane_mask + twiddle_shift))
+                     .conjugate();
 
       // keep one of the register for next iteration and store another one in sm
       Index rank = tid & thread_mask;
@@ -192,7 +214,7 @@ __device__ void negacyclic_backward_fft_f128(double *dt_re_hi, double *dt_re_lo,
   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
     w = (u[i] - v[i]);
     u[i] = u[i] + v[i];
-    v[i] = w * NEG_TWID(1).conjugate();
+    v[i] = w * get_neg_twid<USE_AOS_TWIDDLES>(1).conjugate();
   }
   __syncthreads();
   // store registers in SM
@@ -210,7 +232,7 @@ __device__ void negacyclic_backward_fft_f128(double *dt_re_hi, double *dt_re_lo,
 // Specialized version of fft-128 for tbc that applies same improvements than in
 // 64-bit one. In theory it can be applied to other flavors, but we want to test
 // it first on tbc
-template <class params>
+template <class params, bool USE_AOS_TWIDDLES = false>
 __device__ void
 negacyclic_forward_fft_f128_tbc(double *dt_re_hi, double *dt_re_lo,
                                 double *dt_im_hi, double *dt_im_lo) {
@@ -239,9 +261,8 @@ negacyclic_forward_fft_f128_tbc(double *dt_re_hi, double *dt_re_lo,
   // it with simpler operations
 #pragma unroll
   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
-    auto ww = NEG_TWID(1);
-    f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, NEG_TWID(1).re,
-                               NEG_TWID(1).im);
+    const f128x2 twid = get_neg_twid<USE_AOS_TWIDDLES>(1);
+    f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, twid.re, twid.im);
     f128::cplx_f128_sub_assign(v[i].re, v[i].im, u[i].re, u[i].im, w.re, w.im);
     f128::cplx_f128_add_assign(u[i].re, u[i].im, u[i].re, u[i].im, w.re, w.im);
   }
@@ -280,7 +301,7 @@ negacyclic_forward_fft_f128_tbc(double *dt_re_hi, double *dt_re_lo,
       } else {
         u[i] = w;
       }
-      w = NEG_TWID(tid / lane_mask + twiddle_shift);
+      w = get_neg_twid<USE_AOS_TWIDDLES>(tid / lane_mask + twiddle_shift);
       f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, w.re, w.im);
       f128::cplx_f128_sub_assign(v[i].re, v[i].im, u[i].re, u[i].im, w.re,
                                  w.im);
@@ -323,7 +344,7 @@ negacyclic_forward_fft_f128_tbc(double *dt_re_hi, double *dt_re_lo,
       } else {
         u[i] = w;
       }
-      w = NEG_TWID(tid / lane_mask + twiddle_shift);
+      w = get_neg_twid<USE_AOS_TWIDDLES>(tid / lane_mask + twiddle_shift);
       f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, w.re, w.im);
       f128::cplx_f128_sub_assign(v[i].re, v[i].im, u[i].re, u[i].im, w.re,
                                  w.im);
