@@ -3,6 +3,8 @@
 
 /** @brief Adds two radix ciphertext vectors in-place, storing the result in
  * lwe_array_inout. This is a fully levelled addition and no PBS is performed.
+ * @param stream CUDA stream for async GPU operations.
+ * @param gpu_index Index of the GPU device to use.
  * @param lwe_array_inout first operand and destination; modified in-place
  * @param input_2 second operand; must have the same number of radix blocks as
  * lwe_array_inout

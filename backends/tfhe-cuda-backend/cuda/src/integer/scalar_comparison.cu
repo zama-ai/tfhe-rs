@@ -1,6 +1,5 @@
 #include "integer/scalar_comparison.cuh"
 
-#include <iostream>
 #include <utility> // for std::pair
 
 std::pair<bool, bool> get_invert_flags(COMPARISON_TYPE compare) {
