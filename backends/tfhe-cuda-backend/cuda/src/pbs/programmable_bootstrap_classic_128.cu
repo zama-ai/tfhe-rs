@@ -1,3 +1,4 @@
+#include "polynomial/dispatch.cuh"
 #include "programmable_bootstrap_classic_128.cuh"
 
 bool has_support_to_cuda_programmable_bootstrap_128_cg(
@@ -56,43 +57,13 @@ void executor_cuda_programmable_bootstrap_128(
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
 
-  switch (polynomial_size) {
-  case 256:
-    host_programmable_bootstrap_128<InputTorus, Degree<256>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
-        lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples);
-    break;
-  case 512:
-    host_programmable_bootstrap_128<InputTorus, Degree<512>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
-        lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples);
-    break;
-  case 1024:
-    host_programmable_bootstrap_128<InputTorus, Degree<1024>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
-        lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples);
-    break;
-  case 2048:
-    host_programmable_bootstrap_128<InputTorus, Degree<2048>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
-        lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples);
-    break;
-  case 4096:
-    // We use AmortizedDegree for 4096 to avoid register exhaustion
-    host_programmable_bootstrap_128<InputTorus, AmortizedDegree<4096>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
-        lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples);
-    break;
-  default:
-    PANIC("Cuda error (classical PBS128): unsupported polynomial size. "
-          "Supported N's are powers of two"
-          " in the interval [256..4096].")
-  }
+  // AmortizedDegree for 4096 avoids register exhaustion in 128-bit classic PBS
+  DISPATCH_POLY_SIZE(
+      polynomial_size, Multibit128DegreePolicy,
+      host_programmable_bootstrap_128<InputTorus, Params>(
+          static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+          lut_vector, lwe_array_in, bootstrapping_key, buffer, glwe_dimension,
+          lwe_dimension, polynomial_size, base_log, level_count, num_samples));
 }
 
 template <typename InputTorus>
@@ -104,43 +75,13 @@ void executor_cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_128(
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
 
-  switch (polynomial_size) {
-  case 256:
-    host_programmable_bootstrap_cg_128<InputTorus, Degree<256>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
-        lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples);
-    break;
-  case 512:
-    host_programmable_bootstrap_cg_128<InputTorus, Degree<512>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
-        lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples);
-    break;
-  case 1024:
-    host_programmable_bootstrap_cg_128<InputTorus, Degree<1024>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
-        lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples);
-    break;
-  case 2048:
-    host_programmable_bootstrap_cg_128<InputTorus, Degree<2048>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
-        lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples);
-    break;
-  case 4096:
-    // We use AmortizedDegree for 4096 to avoid register exhaustion
-    host_programmable_bootstrap_cg_128<InputTorus, AmortizedDegree<4096>>(
-        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
-        lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
-        polynomial_size, base_log, level_count, num_samples);
-    break;
-  default:
-    PANIC("Cuda error (classical PBS128): unsupported polynomial size. "
-          "Supported N's are powers of two"
-          " in the interval [256..4096].")
-  }
+  // AmortizedDegree for 4096 avoids register exhaustion in 128-bit classic PBS
+  DISPATCH_POLY_SIZE(
+      polynomial_size, Multibit128DegreePolicy,
+      host_programmable_bootstrap_cg_128<InputTorus, Params>(
+          static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+          lut_vector, lwe_array_in, bootstrapping_key, buffer, glwe_dimension,
+          lwe_dimension, polynomial_size, base_log, level_count, num_samples));
 }
 
 #if CUDA_ARCH >= 900
@@ -215,7 +156,7 @@ void host_programmable_bootstrap_lwe_ciphertext_vector_128(
  * - `v_stream` is a void pointer to the CUDA stream used in the kernel launch
  * - `gpu_index` is the index of the GPU to be used in the kernel launch
  * - `lwe_array_out`: output batch of `num_samples` bootstrapped ciphertexts
- *   c = (a0, .., a(n−1), b), where n is the LWE dimension
+ *   c = (a0, .., a(n-1), b), where n is the LWE dimension
  * - `lut_vector`: must contain exactly one LUT (of size `polynomial_size`) that
  *   will be applied uniformly to every input ciphertext
  * - `lwe_array_in`: input batch of `num_samples` LWE ciphertexts, each
@@ -249,9 +190,9 @@ void host_programmable_bootstrap_lwe_ciphertext_vector_128(
  *   - `num_samples * level_count * (glwe_dimension + 1)` blocks of threads are
  *     launched, where each thread handles one or more polynomial coefficients
  * at each stage (for a given decomposition level), either for the LUT mask or
- * its body: • Perform the blind rotation • Round the result • Decompose the
- * current level • Switch to the FFT domain • Multiply with the bootstrapping
- * key • Come back to the coefficient representation
+ * its body: * Perform the blind rotation * Round the result * Decompose the
+ * current level * Switch to the FFT domain * Multiply with the bootstrapping
+ * key * Come back to the coefficient representation
  *   - Between stages, some synchronizations happen at block level and between
  * blocks (using cooperative groups).
  *   - If the device has sufficient shared memory, temporary arrays for
