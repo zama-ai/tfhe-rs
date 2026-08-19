@@ -1,7 +1,6 @@
 use benchmark::high_level_api::type_display::TypeTagExt;
 use benchmark::utilities::{write_to_json, BitSizesSet, EnvConfig, OperatorType};
-use benchmark_spec::tfhe::hlapi::vector_find::VectorFindOp;
-use benchmark_spec::tfhe::hlapi::HlapiBench;
+use benchmark_spec::tfhe::hlapi::{HlapiBench, VectorFindOp};
 use benchmark_spec::{get_bench_type, BenchmarkSpec, BenchmarkType, OperandType};
 use criterion::{Criterion, Throughput};
 use rayon::prelude::*;
