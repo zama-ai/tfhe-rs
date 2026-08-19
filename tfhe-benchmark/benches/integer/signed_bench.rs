@@ -43,7 +43,7 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bits = PrecisionTag::Bits(bit_size);
+        let bits = PrecisionTag::Bits(bit_size as u32);
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Signed(integer_op),
             &param_name,
@@ -155,7 +155,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bits = PrecisionTag::Bits(bit_size);
+        let bits = PrecisionTag::Bits(bit_size as u32);
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Signed(integer_op),
             &param_name,
@@ -261,7 +261,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bits = PrecisionTag::Bits(bit_size);
+        let bits = PrecisionTag::Bits(bit_size as u32);
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Signed(integer_op),
             &param_name,
@@ -344,7 +344,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bits = PrecisionTag::Bits(bit_size);
+        let bits = PrecisionTag::Bits(bit_size as u32);
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Signed(integer_op),
             &param_name,
@@ -890,8 +890,8 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
         let range = range_for_signed_bit_size(bit_size);
 
         let bits = match get_bench_type() {
-            BenchmarkType::Latency => PrecisionTag::BitsScalar(bit_size),
-            BenchmarkType::Throughput => PrecisionTag::Bits(bit_size),
+            BenchmarkType::Latency => PrecisionTag::BitsScalar(bit_size as u32),
+            BenchmarkType::Throughput => PrecisionTag::Bits(bit_size as u32),
         };
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Signed(integer_op),
@@ -1070,7 +1070,7 @@ fn signed_flip_parallelized(c: &mut Criterion) {
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bits = PrecisionTag::Bits(bit_size);
+        let bits = PrecisionTag::Bits(bit_size as u32);
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Signed(integer_op),
             &param_name,
@@ -1497,8 +1497,8 @@ fn bench_server_key_signed_cast_function<F>(
         for target_num_blocks in all_num_blocks.iter().copied() {
             let target_bit_size = target_num_blocks * param.message_modulus().0.ilog2() as usize;
             let conversion = PrecisionTag::Conversion {
-                from: bit_size,
-                to: target_bit_size,
+                from: bit_size as u32,
+                to: target_bit_size as u32,
             };
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Signed(integer_op),
@@ -1597,7 +1597,7 @@ mod cuda {
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
 
-            let bits = PrecisionTag::Bits(bit_size);
+            let bits = PrecisionTag::Bits(bit_size as u32);
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Signed(integer_op),
                 &param_name,
@@ -1772,7 +1772,7 @@ mod cuda {
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
 
-            let bits = PrecisionTag::Bits(bit_size);
+            let bits = PrecisionTag::Bits(bit_size as u32);
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Signed(integer_op),
                 &param_name,
@@ -1919,7 +1919,7 @@ mod cuda {
 
             let max_value_for_bit_size = ScalarType::MAX >> (ScalarType::BITS as usize - bit_size);
 
-            let bits = PrecisionTag::BitsScalar(bit_size);
+            let bits = PrecisionTag::BitsScalar(bit_size as u32);
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Signed(integer_op),
                 &param_name,
@@ -2084,7 +2084,7 @@ mod cuda {
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
 
-            let bits = PrecisionTag::Bits(bit_size);
+            let bits = PrecisionTag::Bits(bit_size as u32);
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Signed(integer_op),
                 &param_name,
@@ -2253,7 +2253,7 @@ mod cuda {
 
             let param_name = param.name();
 
-            let bits = PrecisionTag::Bits(bit_size);
+            let bits = PrecisionTag::Bits(bit_size as u32);
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Signed(integer_op),
                 &param_name,
@@ -3132,8 +3132,8 @@ mod cuda {
                 let target_bit_size =
                     target_num_blocks * param.message_modulus().0.ilog2() as usize;
                 let conversion = PrecisionTag::Conversion {
-                    from: bit_size,
-                    to: target_bit_size,
+                    from: bit_size as u32,
+                    to: target_bit_size as u32,
                 };
                 let benchmark_spec = BenchmarkSpec::new_integer_ops(
                     IntegerOpBySign::Signed(integer_op),

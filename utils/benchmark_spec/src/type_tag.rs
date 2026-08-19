@@ -56,11 +56,11 @@ impl FromStr for FheType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PrecisionTag {
     /// `{n}_bits`
-    Bits(usize),
+    Bits(u32),
     /// `{n}_bits_scalar_{n}`
-    BitsScalar(usize),
+    BitsScalar(u32),
     /// `{from}_to_{to}`, a cast between two widths.
-    Conversion { from: usize, to: usize },
+    Conversion { from: u32, to: u32 },
 }
 
 impl fmt::Display for PrecisionTag {
@@ -80,7 +80,7 @@ impl FromStr for PrecisionTag {
         let unknown = || SpecParseError::Unknown(format!("unknown precision: {s:?}"));
 
         if let Some((head, scalar)) = s.split_once("_bits_scalar_") {
-            let bits: usize = head.parse().map_err(|_| unknown())?;
+            let bits: u32 = head.parse().map_err(|_| unknown())?;
             // `Display` writes the same number twice; a mismatch is not this tag.
             if Some(bits) == scalar.parse().ok() {
                 return Ok(Self::BitsScalar(bits));
