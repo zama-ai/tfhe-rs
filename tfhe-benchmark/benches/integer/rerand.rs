@@ -4,8 +4,10 @@ use benchmark::params_aliases::{
     BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     BENCH_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
 };
-use benchmark::utilities::{write_to_json_unchecked, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark::utilities::{write_to_json, OperatorType};
+use benchmark_spec::{
+    get_bench_type, BenchmarkSpec, BenchmarkType, FheType, IntegerBench, IntegerRerandMode,
+};
 use criterion::{criterion_group, BatchSize, Criterion, Throughput};
 #[cfg(feature = "gpu")]
 use cuda::gpu_re_randomize_group;
@@ -19,21 +21,7 @@ use tfhe::integer::key_switching_key::{KeySwitchingKey, KeySwitchingKeyMaterial}
 use tfhe::integer::{gen_keys_radix, CompactPrivateKey, CompactPublicKey, RadixCiphertext};
 use tfhe::keycache::NamedParam;
 
-enum BenchReRandomizeMode {
-    LegacyWithKeyswitch,
-    NoKeyswitch,
-}
-
-impl std::fmt::Display for BenchReRandomizeMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BenchReRandomizeMode::LegacyWithKeyswitch => f.write_str("legacykeyswitch"),
-            BenchReRandomizeMode::NoKeyswitch => f.write_str("nokeyswitch"),
-        }
-    }
-}
-
-fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize, rerand_mode: BenchReRandomizeMode) {
+fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize, rerand_mode: IntegerRerandMode) {
     let bench_name = format!("integer::re_randomize_{rerand_mode}");
     let bench_name = &bench_name;
     let mut bench_group = c.benchmark_group(bench_name);
@@ -61,7 +49,7 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize, rerand_mode: Ben
     let cpk;
     let ksk_material;
     let re_randomization_key = match rerand_mode {
-        BenchReRandomizeMode::LegacyWithKeyswitch => {
+        IntegerRerandMode::LegacyKeyswitch => {
             let compact_private_key = CompactPrivateKey::new(cpk_param);
             cpk = CompactPublicKey::new(&compact_private_key);
 
@@ -75,7 +63,7 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize, rerand_mode: Ben
                 ksk: ksk_material.as_view(),
             }
         }
-        BenchReRandomizeMode::NoKeyswitch => {
+        IntegerRerandMode::NoKeyswitch => {
             let compact_private_key: CompactPrivateKey<&[u64]> = cks.try_into().unwrap();
             cpk = CompactPublicKey::new(&compact_private_key);
             ReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk: &cpk }
@@ -86,7 +74,20 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize, rerand_mode: Ben
     let compact_public_encryption_domain_separator = *b"TFHE_Enc";
     let metadata = b"bench".as_slice();
 
-    let bench_id;
+    let spec = BenchmarkSpec::new_integer(
+        IntegerBench::Rerand(rerand_mode),
+        &comp_param.name(),
+        Some(
+            FheType::Clear {
+                signed: false,
+                bits: bit_size as u32,
+            }
+            .into(),
+        ),
+        get_bench_type(),
+        None,
+    );
+    let bench_id = spec.to_string();
 
     match get_bench_type() {
         BenchmarkType::Latency => {
@@ -102,7 +103,6 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize, rerand_mode: Ben
 
             let mut d_re_randomized = decompressed.clone();
 
-            bench_id = format!("{bench_name}::latency_u{bit_size}");
             bench_group.bench_function(&bench_id, |b| {
                 b.iter_batched(
                     || {
@@ -187,7 +187,6 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize, rerand_mode: Ben
             };
             bench_group.throughput(Throughput::Elements(elements));
 
-            bench_id = format!("{bench_name}::throughput_u{bit_size}");
             bench_group.bench_function(&bench_id, |b| {
                 b.iter_batched(
                     || {
@@ -202,9 +201,8 @@ fn execute_cpu_re_randomize(c: &mut Criterion, bit_size: usize, rerand_mode: Ben
         }
     }
 
-    write_to_json_unchecked(
-        &bench_id,
-        comp_param.name(),
+    write_to_json(
+        &spec,
         "re_randomize",
         &OperatorType::Atomic,
         bit_size as u64,
@@ -218,8 +216,8 @@ fn cpu_re_randomize(c: &mut Criterion) {
     let bit_sizes = [2, 4, 8, 16, 32, 64, 128, 256];
 
     for bit_size in bit_sizes.iter() {
-        execute_cpu_re_randomize(c, *bit_size, BenchReRandomizeMode::LegacyWithKeyswitch);
-        execute_cpu_re_randomize(c, *bit_size, BenchReRandomizeMode::NoKeyswitch);
+        execute_cpu_re_randomize(c, *bit_size, IntegerRerandMode::LegacyKeyswitch);
+        execute_cpu_re_randomize(c, *bit_size, IntegerRerandMode::NoKeyswitch);
     }
 }
 
@@ -234,8 +232,10 @@ mod cuda {
         BENCH_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
     };
     use benchmark::utilities::cuda_integer_utils::cuda_local_streams;
-    use benchmark::utilities::{throughput_num_threads, write_to_json_unchecked, OperatorType};
-    use benchmark_spec::{get_bench_type, BenchmarkType};
+    use benchmark::utilities::{throughput_num_threads, write_to_json, OperatorType};
+    use benchmark_spec::{
+        get_bench_type, BenchmarkSpec, BenchmarkType, FheType, IntegerBench, IntegerRerandMode,
+    };
     use criterion::{criterion_group, BatchSize, Criterion, Throughput};
     use rayon::prelude::*;
     use std::hint::black_box;
@@ -252,7 +252,7 @@ mod cuda {
     fn execute_gpu_re_randomize(
         c: &mut Criterion,
         bit_size: usize,
-        rerand_mode: super::BenchReRandomizeMode,
+        rerand_mode: IntegerRerandMode,
     ) {
         let bench_name = format!("integer::cuda::re_randomize_{rerand_mode}");
         let bench_name = &bench_name;
@@ -286,7 +286,7 @@ mod cuda {
         // the variable must be initialized in all branches so it can be dropped at scope end.
         #[allow(unused_assignments)]
         let re_randomization_key = match rerand_mode {
-            super::BenchReRandomizeMode::LegacyWithKeyswitch => {
+            IntegerRerandMode::LegacyKeyswitch => {
                 let cpk_param = BENCH_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
                 let ks_param =
                     BENCH_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
@@ -307,7 +307,7 @@ mod cuda {
                     ksk: d_ksk_material.as_ref().unwrap(),
                 }
             }
-            super::BenchReRandomizeMode::NoKeyswitch => {
+            IntegerRerandMode::NoKeyswitch => {
                 let compact_private_key: CompactPrivateKey<&[u64]> = cks.try_into().unwrap();
                 cpk = CompactPublicKey::new(&compact_private_key);
                 ksk = None;
@@ -320,7 +320,20 @@ mod cuda {
         let compact_public_encryption_domain_separator = *b"TFHE_Enc";
         let metadata = b"bench".as_slice();
 
-        let bench_id;
+        let spec = BenchmarkSpec::new_integer(
+            IntegerBench::Rerand(rerand_mode),
+            &comp_param.name(),
+            Some(
+                FheType::Clear {
+                    signed: false,
+                    bits: bit_size as u32,
+                }
+                .into(),
+            ),
+            get_bench_type(),
+            None,
+        );
+        let bench_id = spec.to_string();
 
         match get_bench_type() {
             BenchmarkType::Latency => {
@@ -341,7 +354,6 @@ mod cuda {
 
                 let mut d_re_randomized = d_decompressed.duplicate(&streams);
 
-                bench_id = format!("{bench_name}::latency_u{bit_size}");
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter_batched(
                         || {
@@ -421,7 +433,6 @@ mod cuda {
                     })
                     .collect();
 
-                bench_id = format!("{bench_name}::throughput_u{bit_size}");
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter_batched(
                         || {
@@ -487,9 +498,8 @@ mod cuda {
             }
         }
 
-        write_to_json_unchecked(
-            &bench_id,
-            comp_param.name(),
+        write_to_json(
+            &spec,
             "re_randomize",
             &OperatorType::Atomic,
             bit_size as u64,
@@ -500,13 +510,11 @@ mod cuda {
     }
 
     fn gpu_re_randomize(c: &mut Criterion) {
-        use super::BenchReRandomizeMode;
-
         let bit_sizes = [2, 4, 16, 32, 64, 128, 256];
 
         for bit_size in bit_sizes.iter() {
-            execute_gpu_re_randomize(c, *bit_size, BenchReRandomizeMode::LegacyWithKeyswitch);
-            execute_gpu_re_randomize(c, *bit_size, BenchReRandomizeMode::NoKeyswitch);
+            execute_gpu_re_randomize(c, *bit_size, IntegerRerandMode::LegacyKeyswitch);
+            execute_gpu_re_randomize(c, *bit_size, IntegerRerandMode::NoKeyswitch);
         }
     }
 

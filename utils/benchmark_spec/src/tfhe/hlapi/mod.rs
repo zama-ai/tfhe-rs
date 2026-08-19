@@ -3,7 +3,6 @@ pub mod erc7984;
 pub mod kv_store;
 pub mod noise_squash;
 pub mod oprf;
-pub mod vector_find;
 
 use std::str::FromStr;
 
@@ -13,12 +12,12 @@ use kv_store::KvStoreOp;
 use noise_squash::NoiseSquashingKind;
 use oprf::OprfKind;
 use strum::{Display, EnumDiscriminants, EnumString};
-use vector_find::VectorFindOp;
 
 use crate::error::SpecParseError;
 use crate::traits::SpecNode;
 
 pub use super::hl_integer_op::HlIntegerOp;
+pub use super::vector_find::VectorFindOp;
 
 /// Benchmark categories within the HLAPI layer.
 ///
