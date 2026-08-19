@@ -641,14 +641,15 @@ mod integer_params {
     }
 
     impl Iterator for ParamsAndNumBlocksIter {
-        type Item = (AtomicPatternParameters, usize, usize);
+        /// `(parameters, num_block, bit_size)`
+        type Item = (AtomicPatternParameters, usize, u32);
 
         fn next(&mut self) -> Option<Self::Item> {
             let (param, bit_size) = self.params_and_bit_sizes.next()?;
             let num_block =
                 (bit_size as f64 / (param.message_modulus().0 as f64).log(2.0)).ceil() as usize;
 
-            Some((param, num_block, bit_size))
+            Some((param, num_block, bit_size as u32))
         }
     }
 }

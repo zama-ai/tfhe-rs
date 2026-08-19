@@ -128,7 +128,7 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
             &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
-            bit_size as u64,
+            u64::from(bit_size),
             vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
@@ -170,7 +170,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
                 let bench_data = LazyCell::new(|| {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                    let clear_1 = rng.gen_range(0u128..bit_size as u128);
+                    let clear_1 = rng.gen_range(0u128..u128::from(bit_size));
 
                     let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
                     let ct_1 = cks.encrypt_radix(clear_1, num_block);
@@ -190,7 +190,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
                 // Execute the operation once to know its cost.
-                let clear_1 = rng.gen_range(0u128..bit_size as u128);
+                let clear_1 = rng.gen_range(0u128..u128::from(bit_size));
                 let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
                 let ct_1 = cks.encrypt_radix(clear_1, num_block);
 
@@ -207,7 +207,10 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
                             .collect::<Vec<_>>();
                         let cts_1 = (0..elements)
                             .map(|_| {
-                                cks.encrypt_radix(rng.gen_range(0u128..bit_size as u128), num_block)
+                                cks.encrypt_radix(
+                                    rng.gen_range(0u128..u128::from(bit_size)),
+                                    num_block,
+                                )
                             })
                             .collect::<Vec<_>>();
 
@@ -233,7 +236,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
             &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
-            bit_size as u64,
+            u64::from(bit_size),
             vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
@@ -323,7 +326,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
             &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
-            bit_size as u64,
+            u64::from(bit_size),
             vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
@@ -424,7 +427,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
             &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
-            bit_size as u64,
+            u64::from(bit_size),
             vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
@@ -873,7 +876,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
     rng_func: G,
 ) where
     F: Fn(&ServerKey, &mut SignedRadixCiphertext, ScalarType) + Sync,
-    G: Fn(&mut ThreadRng, usize) -> ScalarType,
+    G: Fn(&mut ThreadRng, u32) -> ScalarType,
 {
     let mut bench_group = c.benchmark_group(integer_op.to_string());
     bench_group
@@ -882,7 +885,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
     let mut rng = rand::thread_rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
-        if bit_size > ScalarType::BITS as usize {
+        if bit_size > ScalarType::BITS {
             break;
         }
         let param_name = param.name();
@@ -979,7 +982,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
             &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
-            bit_size as u64,
+            u64::from(bit_size),
             vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
@@ -987,8 +990,8 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
     bench_group.finish()
 }
 
-fn range_for_signed_bit_size(bit_size: usize) -> std::ops::RangeInclusive<ScalarType> {
-    assert!(bit_size <= ScalarType::BITS as usize);
+fn range_for_signed_bit_size(bit_size: u32) -> std::ops::RangeInclusive<ScalarType> {
+    assert!(bit_size <= ScalarType::BITS);
     assert!(bit_size > 0);
     let modulus = ScalarType::ONE << (bit_size - 1);
     // if clear_bit_size == ScalarType::BITS then modulus==T::MIN
@@ -1004,21 +1007,21 @@ fn range_for_signed_bit_size(bit_size: usize) -> std::ops::RangeInclusive<Scalar
 
 /// Creates a bitmask where bit_size bits are 1s, rest are 0s
 /// Only works if ScalarType in signed
-fn positive_bit_mask_for_bit_size(bit_size: usize) -> ScalarType {
-    assert!(bit_size <= ScalarType::BITS as usize);
+fn positive_bit_mask_for_bit_size(bit_size: u32) -> ScalarType {
+    assert!(bit_size <= ScalarType::BITS);
     assert!(bit_size > 0);
     let minus_one = -ScalarType::ONE; // (In two's complement this is full of 1s)
                                       // The last bit of bit_size can only be set for when value is positive
-    let bitmask = (minus_one) >> (ScalarType::BITS as usize - bit_size - 1);
+    let bitmask = (minus_one) >> (ScalarType::BITS - bit_size - 1);
     // flib msb as they would still be one due to '>>' being arithmetic shift
     bitmask ^ ((minus_one) << (bit_size - 1))
 }
 
-fn negative_bit_mask_for_bit_size(bit_size: usize) -> ScalarType {
-    assert!(bit_size <= ScalarType::BITS as usize);
+fn negative_bit_mask_for_bit_size(bit_size: u32) -> ScalarType {
+    assert!(bit_size <= ScalarType::BITS);
     assert!(bit_size > 0);
     let minus_one = -ScalarType::ONE; // (In two's complement this is full of 1s)
-    let bitmask = (minus_one) >> (ScalarType::BITS as usize - bit_size);
+    let bitmask = (minus_one) >> (ScalarType::BITS - bit_size);
     // flib msb as they would still be one due to '>>' being arithmetic shift
     bitmask ^ ((minus_one) << bit_size)
 }
@@ -1029,7 +1032,7 @@ fn negative_bit_mask_for_bit_size(bit_size: usize) -> ScalarType {
 //
 // rand::distributions::Distribution can't be implemented in tfhe sources
 // in a way that it becomes available to the benches, because rand is a dev dependency
-fn gen_random_i256_in_range(rng: &mut ThreadRng, bit_size: usize) -> I256 {
+fn gen_random_i256_in_range(rng: &mut ThreadRng, bit_size: u32) -> I256 {
     let value = gen_random_i256(rng);
     if value >= I256::ZERO {
         value & positive_bit_mask_for_bit_size(bit_size)
@@ -1039,16 +1042,16 @@ fn gen_random_i256_in_range(rng: &mut ThreadRng, bit_size: usize) -> I256 {
 }
 
 // Functions used to apply different way of selecting a scalar based on the context.
-fn default_scalar(rng: &mut ThreadRng, clear_bit_size: usize) -> ScalarType {
+fn default_scalar(rng: &mut ThreadRng, clear_bit_size: u32) -> ScalarType {
     gen_random_i256_in_range(rng, clear_bit_size)
 }
 
-fn shift_scalar(_rng: &mut ThreadRng, _clear_bit_size: usize) -> ScalarType {
+fn shift_scalar(_rng: &mut ThreadRng, _clear_bit_size: u32) -> ScalarType {
     // Shifting by one is the worst case scenario.
     ScalarType::ONE
 }
 
-fn div_scalar(rng: &mut ThreadRng, clear_bit_size: usize) -> ScalarType {
+fn div_scalar(rng: &mut ThreadRng, clear_bit_size: u32) -> ScalarType {
     loop {
         let scalar = gen_random_i256_in_range(rng, clear_bit_size);
         if scalar != ScalarType::ZERO {
@@ -1161,7 +1164,7 @@ fn signed_flip_parallelized(c: &mut Criterion) {
             &benchmark_spec,
             display_name,
             &OperatorType::Atomic,
-            bit_size as u64,
+            u64::from(bit_size),
             vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
@@ -1498,7 +1501,7 @@ fn bench_server_key_signed_cast_function<F>(
             let target_bit_size = target_num_blocks * param.message_modulus().0.ilog2() as usize;
             let conversion = PrecisionTag::Conversion {
                 from: bit_size,
-                to: target_bit_size,
+                to: target_bit_size as u32,
             };
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Signed(integer_op),
@@ -1527,7 +1530,7 @@ fn bench_server_key_signed_cast_function<F>(
                 &benchmark_spec,
                 display_name,
                 &OperatorType::Atomic,
-                bit_size as u64,
+                u64::from(bit_size),
                 vec![param.message_modulus().0.ilog2(); num_blocks],
             );
         }
@@ -1723,7 +1726,7 @@ mod cuda {
                 &benchmark_spec,
                 display_name,
                 &OperatorType::Atomic,
-                bit_size as u64,
+                u64::from(bit_size),
                 vec![param.message_modulus().0.ilog2(); num_block],
             );
         }
@@ -1865,7 +1868,7 @@ mod cuda {
                 &benchmark_spec,
                 display_name,
                 &OperatorType::Atomic,
-                bit_size as u64,
+                u64::from(bit_size),
                 vec![param.message_modulus().0.ilog2(); num_block],
             );
         }
@@ -1903,7 +1906,7 @@ mod cuda {
     ) where
         F: Fn(&CudaServerKey, &mut CudaSignedRadixCiphertext, ScalarType, &CudaStreams) + Sync,
         G: Fn(&ServerKey, &mut SignedRadixCiphertext, ScalarType) + Sync,
-        H: Fn(&mut ThreadRng, usize) -> ScalarType,
+        H: Fn(&mut ThreadRng, u32) -> ScalarType,
     {
         let mut bench_group = c.benchmark_group(integer_op.to_string());
         bench_group
@@ -1912,12 +1915,12 @@ mod cuda {
         let mut rng = rand::thread_rng();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
-            if bit_size > ScalarType::BITS as usize {
+            if bit_size > ScalarType::BITS {
                 break;
             }
             let param_name = param.name();
 
-            let max_value_for_bit_size = ScalarType::MAX >> (ScalarType::BITS as usize - bit_size);
+            let max_value_for_bit_size = ScalarType::MAX >> (ScalarType::BITS - bit_size);
 
             let bits = PrecisionTag::BitsScalar(bit_size);
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
@@ -2029,7 +2032,7 @@ mod cuda {
                 &benchmark_spec,
                 display_name,
                 &OperatorType::Atomic,
-                bit_size as u64,
+                u64::from(bit_size),
                 vec![param.message_modulus().0.ilog2(); num_block],
             );
         }
@@ -2138,7 +2141,7 @@ mod cuda {
                     let gpu_sks_vec = cuda_local_keys(&cks);
 
                     // Execute the operation once to know its cost.
-                    let clear_1 = rng.gen_range(0u128..bit_size as u128);
+                    let clear_1 = rng.gen_range(0u128..u128::from(bit_size));
                     let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
                     let ct_1 = cks.encrypt_radix(clear_1, num_block);
 
@@ -2210,7 +2213,7 @@ mod cuda {
                 &benchmark_spec,
                 display_name,
                 &OperatorType::Atomic,
-                bit_size as u64,
+                u64::from(bit_size),
                 vec![param.message_modulus().0.ilog2(); num_block],
             );
         }
@@ -2247,7 +2250,7 @@ mod cuda {
         let mut rng = rand::thread_rng();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
-            if bit_size > ScalarType::BITS as usize {
+            if bit_size > ScalarType::BITS {
                 break;
             }
 
@@ -2384,7 +2387,7 @@ mod cuda {
                 &benchmark_spec,
                 "if_then_else",
                 &OperatorType::Atomic,
-                bit_size as u64,
+                u64::from(bit_size),
                 vec![param.message_modulus().0.ilog2(); num_block],
             );
         }
@@ -2392,13 +2395,13 @@ mod cuda {
         bench_group.finish()
     }
     // Functions used to apply different way of selecting a scalar based on the context.
-    fn default_signed_scalar(rng: &mut ThreadRng, _clear_bit_size: usize) -> ScalarType {
+    fn default_signed_scalar(rng: &mut ThreadRng, _clear_bit_size: u32) -> ScalarType {
         let clearlow = rng.gen::<u128>();
         let clearhigh = rng.gen::<u128>();
         tfhe::integer::I256::from((clearlow, clearhigh))
     }
 
-    fn mul_signed_scalar(rng: &mut ThreadRng, _clear_bit_size: usize) -> ScalarType {
+    fn mul_signed_scalar(rng: &mut ThreadRng, _clear_bit_size: u32) -> ScalarType {
         loop {
             let clearlow = rng.gen::<u128>();
             let clearhigh = rng.gen::<u128>();
@@ -3133,7 +3136,7 @@ mod cuda {
                     target_num_blocks * param.message_modulus().0.ilog2() as usize;
                 let conversion = PrecisionTag::Conversion {
                     from: bit_size,
-                    to: target_bit_size,
+                    to: target_bit_size as u32,
                 };
                 let benchmark_spec = BenchmarkSpec::new_integer_ops(
                     IntegerOpBySign::Signed(integer_op),
@@ -3165,7 +3168,7 @@ mod cuda {
                     &benchmark_spec,
                     display_name,
                     &OperatorType::Atomic,
-                    bit_size as u64,
+                    u64::from(bit_size),
                     vec![param.message_modulus().0.ilog2(); num_blocks],
                 );
             }

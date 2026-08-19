@@ -75,7 +75,7 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                         _ = black_box(
                             oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                                 Seed(0),
-                                bit_size as u64,
+                                u64::from(bit_size),
                                 num_block as u64,
                                 &sks,
                             ),
@@ -95,7 +95,7 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                         reset_pbs_count();
                         oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                             Seed(0),
-                            bit_size as u64,
+                            u64::from(bit_size),
                             num_block as u64,
                             &sks,
                         );
@@ -111,7 +111,7 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                                 oprf_sk
                                     .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                                         Seed(0),
-                                        bit_size as u64,
+                                        u64::from(bit_size),
                                         num_block as u64,
                                         &sks,
                                     );
@@ -139,7 +139,7 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                         (0..elements).into_par_iter().for_each(|_| {
                             oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                                 Seed(0),
-                                bit_size as u64,
+                                u64::from(bit_size),
                                 num_block as u64,
                                 &sks,
                             );
@@ -154,7 +154,7 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                 spec,
                 display_name,
                 &OperatorType::Atomic,
-                bit_size as u64,
+                u64::from(bit_size),
                 vec![param.message_modulus().0.ilog2(); num_block],
             );
         }
@@ -246,7 +246,7 @@ pub mod cuda {
                                 cuda_oprf_sk
                                     .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                                         Seed(0),
-                                        bit_size as u64,
+                                        u64::from(bit_size),
                                         num_block as u64,
                                         &gpu_sks,
                                         &streams,
@@ -274,7 +274,7 @@ pub mod cuda {
                     reset_pbs_count();
                     cpu_oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                         Seed(0),
-                        bit_size as u64,
+                        u64::from(bit_size),
                         num_block as u64,
                         &cpu_sks,
                     );
@@ -307,7 +307,7 @@ pub mod cuda {
                                 cuda_oprf_sks_vec[gpu_index as usize]
                                     .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                                         Seed(0),
-                                        bit_size as u64,
+                                        u64::from(bit_size),
                                         num_block as u64,
                                         &gpu_sks_vec[gpu_index as usize],
                                         &stream,
@@ -324,7 +324,7 @@ pub mod cuda {
                     spec,
                     display_name,
                     &OperatorType::Atomic,
-                    bit_size as u64,
+                    u64::from(bit_size),
                     vec![param.message_modulus().0.ilog2(); num_block],
                 );
             }

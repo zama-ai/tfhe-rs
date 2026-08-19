@@ -5,6 +5,7 @@ pub mod hlapi;
 pub mod integer;
 pub mod shortint;
 pub mod transciphering;
+pub mod vector_find;
 
 use std::str::FromStr;
 
@@ -24,6 +25,7 @@ pub use integer::{
 pub use shortint::ops::ShortintOp;
 pub use shortint::{ShortintBench, ShortintCastingOp, ShortintPackingOp};
 pub use transciphering::TranscipheringBench;
+pub use vector_find::VectorFindOp;
 
 /// Layers of the `tfhe` crate.
 ///
