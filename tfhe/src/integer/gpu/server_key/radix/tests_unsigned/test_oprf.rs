@@ -34,7 +34,8 @@ create_gpu_parameterized_test!(oprf_almost_uniformity_unsigned {
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 create_gpu_parameterized_test!(oprf_zero_input_bits_unsigned {
-    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 
 create_gpu_parameterized_test!(pseudo_random_integer_and_rerand {
