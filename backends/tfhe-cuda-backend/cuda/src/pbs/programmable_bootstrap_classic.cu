@@ -3,9 +3,8 @@
 #if (CUDA_ARCH >= 900)
 #include "programmable_bootstrap_tbc_classic.cuh"
 #endif
-#include "ciphertext.h"
 
-#include <stdio.h>
+#include <cstdio>
 
 template <typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_cg(uint32_t glwe_dimension,

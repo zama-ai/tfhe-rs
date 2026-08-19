@@ -1,5 +1,5 @@
 #include "helper_profile.cuh"
-#include <stdint.h>
+#include <cstdint>
 
 uint32_t adler32(const unsigned char *data) {
   const uint32_t MOD_ADLER = 65521;
@@ -25,7 +25,7 @@ void cuda_nvtx_label_with_color(const char *name) {
     b = b * 4;
   }
 
-  color_id = 0xff000000 | (r << 16) | (g << 8) | (b);
+  color_id = static_cast<int>(0xff000000 | (r << 16) | (g << 8) | (b));
   nvtxEventAttributes_t eventAttrib = {0};
   eventAttrib.version = NVTX_VERSION;
   eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
