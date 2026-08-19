@@ -17,6 +17,7 @@
 #include "polynomial/polynomial_math.cuh"
 #include "programmable_bootstrap.cuh"
 #include "types/complex/operations.cuh"
+#include <algorithm>
 
 // Launch bounds for the register-based step one specialized on the 2_2 noise
 // squashing parameters (512 threads = degree/opt for N=2048, min 2 blocks per
@@ -28,6 +29,41 @@
 #define SPECIALIZED_STEP_ONE_128_2_2_PARAMS_LAUNCH_BOUNDS                      \
   __launch_bounds__(512, 2)
 #endif
+
+// The step-one and step-two kernels of the classical 128-bit PBS put the sample
+// index on the slowest-varying grid axis, so that the blocks sharing per-sample
+// data (the level siblings reading the same persisted accumulator in step one,
+// the glwe column siblings reading the same join buffer slices in step two) are
+// adjacent in block scheduling order and L2 can serve the repeated reads.
+//
+// The slowest-varying axis is limited to 65535 blocks by CUDA while the number
+// of input ciphertexts is not bounded, so the launchers below split the sample
+// range in chunks of this size.
+constexpr uint32_t max_samples_per_128_step_launch = 65535;
+
+static inline uint32_t
+samples_in_128_step_launch(uint32_t input_lwe_ciphertext_count,
+                           uint32_t sample_offset) {
+  return std::min(input_lwe_ciphertext_count - sample_offset,
+                  max_samples_per_128_step_launch);
+}
+
+// Element offsets of a sample chunk in the buffers shared by both steps. Every
+// buffer indexed by the sample is contiguous in the sample index, so a chunk is
+// expressed by shifting the base pointers.
+static inline size_t join_buffer_sample_offset(uint32_t sample_offset,
+                                               uint32_t glwe_dimension,
+                                               uint32_t polynomial_size,
+                                               uint32_t level_count) {
+  return static_cast<size_t>(sample_offset) * level_count *
+         (glwe_dimension + 1) * (polynomial_size / 2) * 4;
+}
+
+static inline size_t global_accumulator_sample_offset(
+    uint32_t sample_offset, uint32_t glwe_dimension, uint32_t polynomial_size) {
+  return static_cast<size_t>(sample_offset) * (glwe_dimension + 1) *
+         polynomial_size;
+}
 
 template <typename InputTorus, class params, sharedMemDegree SMD,
           bool first_iter>
@@ -52,8 +88,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   if constexpr (SMD == FULLSM) {
     selected_memory = sharedmem;
   } else {
-    int block_index = blockIdx.z + blockIdx.y * gridDim.z +
-                      blockIdx.x * gridDim.z * gridDim.y;
+    int block_index = blockIdx.x + blockIdx.y * gridDim.x +
+                      blockIdx.z * gridDim.x * gridDim.y;
     selected_memory = &device_mem[block_index * device_memory_size_per_block];
   }
 
@@ -68,17 +104,17 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
   const InputTorus *block_lwe_array_in =
-      &lwe_array_in[blockIdx.x * (lwe_dimension + 1)];
+      &lwe_array_in[blockIdx.z * (lwe_dimension + 1)];
 
   const __uint128_t *block_lut_vector = lut_vector;
 
   __uint128_t *global_slice =
       global_accumulator +
-      (blockIdx.y + blockIdx.x * (glwe_dimension + 1)) * params::degree;
+      (blockIdx.y + blockIdx.z * (glwe_dimension + 1)) * params::degree;
 
   double *global_fft_slice =
-      global_join_buffer + (blockIdx.y + blockIdx.z * (glwe_dimension + 1) +
-                            blockIdx.x * level_count * (glwe_dimension + 1)) *
+      global_join_buffer + (blockIdx.y + blockIdx.x * (glwe_dimension + 1) +
+                            blockIdx.z * level_count * (glwe_dimension + 1)) *
                                (polynomial_size / 2) * 4;
 
   constexpr auto log_modulus = params::log2_degree + 1;
@@ -134,7 +170,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   // accumulator decomposed at level 0, 1 at 1, etc.)
   GadgetMatrix<__uint128_t, params> gadget_acc(base_log, level_count,
                                                accumulator);
-  gadget_acc.decompose_and_compress_level_128(accumulator_fft, blockIdx.z);
+  gadget_acc.decompose_and_compress_level_128(accumulator_fft, blockIdx.x);
 
   // Switch to the FFT space
   auto acc_fft_re_hi = accumulator_fft + 0 * params::degree / 2;
@@ -198,8 +234,8 @@ device_programmable_bootstrap_step_one_128_regs(
   if constexpr (SMD == FULLSM) {
     selected_memory = sharedmem;
   } else {
-    int block_index = blockIdx.z + blockIdx.y * gridDim.z +
-                      blockIdx.x * gridDim.z * gridDim.y;
+    int block_index = blockIdx.x + blockIdx.y * gridDim.x +
+                      blockIdx.z * gridDim.x * gridDim.y;
     selected_memory = &device_mem[block_index * device_memory_size_per_block];
   }
 
@@ -214,17 +250,17 @@ device_programmable_bootstrap_step_one_128_regs(
     accumulator_fft = (double *)sharedmem;
 
   const InputTorus *block_lwe_array_in =
-      &lwe_array_in[blockIdx.x * (lwe_dimension + 1)];
+      &lwe_array_in[blockIdx.z * (lwe_dimension + 1)];
 
   const __uint128_t *block_lut_vector = lut_vector;
 
   __uint128_t *global_slice =
       global_accumulator +
-      (blockIdx.y + blockIdx.x * (glwe_dimension + 1)) * params::degree;
+      (blockIdx.y + blockIdx.z * (glwe_dimension + 1)) * params::degree;
 
   double *global_fft_slice =
-      global_join_buffer + (blockIdx.y + blockIdx.z * (glwe_dimension + 1) +
-                            blockIdx.x * level_count * (glwe_dimension + 1)) *
+      global_join_buffer + (blockIdx.y + blockIdx.x * (glwe_dimension + 1) +
+                            blockIdx.z * level_count * (glwe_dimension + 1)) *
                                (polynomial_size / 2) * 4;
 
   constexpr auto log_modulus = params::log2_degree + 1;
@@ -279,10 +315,10 @@ device_programmable_bootstrap_step_one_128_regs(
                                            base_log, level_count>(
       reg_acc_rotated);
 
-  // Decompose the accumulator; this block handles level = blockIdx.z.
+  // Decompose the accumulator; this block handles level = blockIdx.x.
   decompose_and_compress_level_128_tbc<__uint128_t, params, base_log,
                                        level_count>(
-      accumulator_fft, reg_acc_rotated, blockIdx.z);
+      accumulator_fft, reg_acc_rotated, blockIdx.x);
 
   // Switch to the FFT space (register-based / warp-shuffle variant).
   auto acc_fft_re_hi = accumulator_fft + 0 * params::degree / 2;
@@ -322,7 +358,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   // much faster than global memory
   extern __shared__ int8_t sharedmem[];
   int8_t *selected_memory;
-  uint32_t glwe_dimension = gridDim.y - 1;
+  uint32_t glwe_dimension = gridDim.x - 1;
 
   if constexpr (SMD == FULLSM) {
     selected_memory = sharedmem;
@@ -344,7 +380,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 
   for (int level = 0; level < level_count; level++) {
     double *global_fft_slice =
-        global_join_buffer + (level + blockIdx.x * level_count) *
+        global_join_buffer + (level + blockIdx.y * level_count) *
                                  (glwe_dimension + 1) * (params::degree / 2) *
                                  4;
 
@@ -356,7 +392,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
       auto bsk_slice = get_ith_mask_kth_block_128(
           bootstrapping_key, lwe_iteration, j, level, polynomial_size,
           glwe_dimension, level_count);
-      auto bsk_poly = bsk_slice + blockIdx.y * params::degree / 2 * 4;
+      auto bsk_poly = bsk_slice + blockIdx.x * params::degree / 2 * 4;
 
       polynomial_product_accumulate_in_fourier_domain_128<params>(
           accumulator_fft, fft, bsk_poly, !level && !j);
@@ -365,7 +401,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 
   Torus *global_slice =
       global_accumulator +
-      (blockIdx.y + blockIdx.x * (glwe_dimension + 1)) * params::degree;
+      (blockIdx.x + blockIdx.y * (glwe_dimension + 1)) * params::degree;
 
   // Load the persisted accumulator
   int tid = threadIdx.x;
@@ -390,15 +426,15 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   if constexpr (last_iter) {
     // Last iteration
     auto block_lwe_array_out =
-        &lwe_array_out[blockIdx.x * (glwe_dimension * polynomial_size + 1) +
-                       blockIdx.y * polynomial_size];
+        &lwe_array_out[blockIdx.y * (glwe_dimension * polynomial_size + 1) +
+                       blockIdx.x * polynomial_size];
 
-    if (blockIdx.y < glwe_dimension) {
+    if (blockIdx.x < glwe_dimension) {
       // Perform a sample extract. At this point, all blocks have the result,
       // but we do the computation at block 0 to avoid waiting for extra blocks,
       // in case they're not synchronized
       sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
-    } else if (blockIdx.y == glwe_dimension) {
+    } else if (blockIdx.x == glwe_dimension) {
       __syncthreads();
       sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
     }
@@ -1155,31 +1191,54 @@ __host__ void execute_step_one_128(
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
   int thds = polynomial_size / params::opt;
-  dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
 
-  if (max_shared_memory < partial_sm) {
-    device_programmable_bootstrap_step_one_128<InputTorus, params, NOSM,
-                                               first_iter>
-        <<<grid, thds, 0, stream>>>(
-            lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            base_log, level_count, d_mem, full_dm, noise_reduction_type);
-  } else if (max_shared_memory < full_sm) {
-    device_programmable_bootstrap_step_one_128<InputTorus, params, PARTIALSM,
-                                               first_iter>
-        <<<grid, thds, partial_sm, stream>>>(
-            lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            base_log, level_count, d_mem, partial_dm, noise_reduction_type);
-  } else {
-    device_programmable_bootstrap_step_one_128<InputTorus, params, FULLSM,
-                                               first_iter>
-        <<<grid, thds, full_sm, stream>>>(
-            lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            base_log, level_count, d_mem, 0, noise_reduction_type);
+  // The x axis carries the level and the z axis the sample: see the comment on
+  // max_samples_per_128_step_launch for the scheduling rationale and for why
+  // the sample range is launched in chunks.
+  for (uint32_t sample_offset = 0; sample_offset < input_lwe_ciphertext_count;
+       sample_offset += max_samples_per_128_step_launch) {
+    dim3 grid(
+        level_count, glwe_dimension + 1,
+        samples_in_128_step_launch(input_lwe_ciphertext_count, sample_offset));
+
+    auto lwe_array_in_chunk =
+        lwe_array_in + static_cast<size_t>(sample_offset) * (lwe_dimension + 1);
+    auto global_accumulator_chunk =
+        global_accumulator + global_accumulator_sample_offset(sample_offset,
+                                                              glwe_dimension,
+                                                              polynomial_size);
+    auto global_join_buffer_chunk =
+        global_join_buffer +
+        join_buffer_sample_offset(sample_offset, glwe_dimension,
+                                  polynomial_size, level_count);
+
+    if (max_shared_memory < partial_sm) {
+      device_programmable_bootstrap_step_one_128<InputTorus, params, NOSM,
+                                                 first_iter>
+          <<<grid, thds, 0, stream>>>(
+              lut_vector, lwe_array_in_chunk, bootstrapping_key,
+              global_accumulator_chunk, global_join_buffer_chunk, lwe_iteration,
+              lwe_dimension, polynomial_size, base_log, level_count, d_mem,
+              full_dm, noise_reduction_type);
+    } else if (max_shared_memory < full_sm) {
+      device_programmable_bootstrap_step_one_128<InputTorus, params, PARTIALSM,
+                                                 first_iter>
+          <<<grid, thds, partial_sm, stream>>>(
+              lut_vector, lwe_array_in_chunk, bootstrapping_key,
+              global_accumulator_chunk, global_join_buffer_chunk, lwe_iteration,
+              lwe_dimension, polynomial_size, base_log, level_count, d_mem,
+              partial_dm, noise_reduction_type);
+    } else {
+      device_programmable_bootstrap_step_one_128<InputTorus, params, FULLSM,
+                                                 first_iter>
+          <<<grid, thds, full_sm, stream>>>(
+              lut_vector, lwe_array_in_chunk, bootstrapping_key,
+              global_accumulator_chunk, global_join_buffer_chunk, lwe_iteration,
+              lwe_dimension, polynomial_size, base_log, level_count, d_mem, 0,
+              noise_reduction_type);
+    }
+    check_cuda_error(cudaGetLastError());
   }
-  check_cuda_error(cudaGetLastError());
 }
 
 // Launcher for the register-based step one, specialized on compile-time
@@ -1200,31 +1259,51 @@ __host__ void execute_step_one_128_regs(
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
   int thds = polynomial_size / params::opt;
-  dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
 
-  if (max_shared_memory < partial_sm) {
-    device_programmable_bootstrap_step_one_128_regs<
-        InputTorus, params, NOSM, first_iter, base_log, level_count>
-        <<<grid, thds, 0, stream>>>(
-            lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            d_mem, full_dm, noise_reduction_type);
-  } else if (max_shared_memory < full_sm) {
-    device_programmable_bootstrap_step_one_128_regs<
-        InputTorus, params, PARTIALSM, first_iter, base_log, level_count>
-        <<<grid, thds, partial_sm, stream>>>(
-            lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            d_mem, partial_dm, noise_reduction_type);
-  } else {
-    device_programmable_bootstrap_step_one_128_regs<
-        InputTorus, params, FULLSM, first_iter, base_log, level_count>
-        <<<grid, thds, full_sm, stream>>>(
-            lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            d_mem, 0, noise_reduction_type);
+  // Same grid ordering and sample chunking as execute_step_one_128.
+  for (uint32_t sample_offset = 0; sample_offset < input_lwe_ciphertext_count;
+       sample_offset += max_samples_per_128_step_launch) {
+    dim3 grid(
+        level_count, glwe_dimension + 1,
+        samples_in_128_step_launch(input_lwe_ciphertext_count, sample_offset));
+
+    auto lwe_array_in_chunk =
+        lwe_array_in + static_cast<size_t>(sample_offset) * (lwe_dimension + 1);
+    auto global_accumulator_chunk =
+        global_accumulator + global_accumulator_sample_offset(sample_offset,
+                                                              glwe_dimension,
+                                                              polynomial_size);
+    auto global_join_buffer_chunk =
+        global_join_buffer +
+        join_buffer_sample_offset(sample_offset, glwe_dimension,
+                                  polynomial_size, level_count);
+
+    if (max_shared_memory < partial_sm) {
+      device_programmable_bootstrap_step_one_128_regs<
+          InputTorus, params, NOSM, first_iter, base_log, level_count>
+          <<<grid, thds, 0, stream>>>(
+              lut_vector, lwe_array_in_chunk, bootstrapping_key,
+              global_accumulator_chunk, global_join_buffer_chunk, lwe_iteration,
+              lwe_dimension, polynomial_size, d_mem, full_dm,
+              noise_reduction_type);
+    } else if (max_shared_memory < full_sm) {
+      device_programmable_bootstrap_step_one_128_regs<
+          InputTorus, params, PARTIALSM, first_iter, base_log, level_count>
+          <<<grid, thds, partial_sm, stream>>>(
+              lut_vector, lwe_array_in_chunk, bootstrapping_key,
+              global_accumulator_chunk, global_join_buffer_chunk, lwe_iteration,
+              lwe_dimension, polynomial_size, d_mem, partial_dm,
+              noise_reduction_type);
+    } else {
+      device_programmable_bootstrap_step_one_128_regs<
+          InputTorus, params, FULLSM, first_iter, base_log, level_count>
+          <<<grid, thds, full_sm, stream>>>(
+              lut_vector, lwe_array_in_chunk, bootstrapping_key,
+              global_accumulator_chunk, global_join_buffer_chunk, lwe_iteration,
+              lwe_dimension, polynomial_size, d_mem, 0, noise_reduction_type);
+    }
+    check_cuda_error(cudaGetLastError());
   }
-  check_cuda_error(cudaGetLastError());
 }
 
 template <class params, bool last_iter>
@@ -1240,31 +1319,52 @@ __host__ void execute_step_two_128(
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
   int thds = polynomial_size / params::opt;
-  dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1);
 
-  if (max_shared_memory < partial_sm) {
-    device_programmable_bootstrap_step_two_128<__uint128_t, params, NOSM,
-                                               last_iter>
-        <<<grid, thds, 0, stream>>>(
-            lwe_array_out, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            base_log, level_count, d_mem, full_dm);
-  } else if (max_shared_memory < full_sm) {
-    device_programmable_bootstrap_step_two_128<__uint128_t, params, PARTIALSM,
-                                               last_iter>
-        <<<grid, thds, partial_sm, stream>>>(
-            lwe_array_out, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            base_log, level_count, d_mem, partial_dm);
-  } else {
-    device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM,
-                                               last_iter>
-        <<<grid, thds, full_sm, stream>>>(
-            lwe_array_out, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            base_log, level_count, d_mem, 0);
+  // The x axis carries the glwe column and the y axis the sample: see the
+  // comment on max_samples_per_128_step_launch for the scheduling rationale and
+  // for why the sample range is launched in chunks.
+  for (uint32_t sample_offset = 0; sample_offset < input_lwe_ciphertext_count;
+       sample_offset += max_samples_per_128_step_launch) {
+    dim3 grid(
+        glwe_dimension + 1,
+        samples_in_128_step_launch(input_lwe_ciphertext_count, sample_offset));
+
+    auto lwe_array_out_chunk =
+        lwe_array_out + static_cast<size_t>(sample_offset) *
+                            (glwe_dimension * polynomial_size + 1);
+    auto global_accumulator_chunk =
+        global_accumulator + global_accumulator_sample_offset(sample_offset,
+                                                              glwe_dimension,
+                                                              polynomial_size);
+    auto global_join_buffer_chunk =
+        global_join_buffer +
+        join_buffer_sample_offset(sample_offset, glwe_dimension,
+                                  polynomial_size, level_count);
+
+    if (max_shared_memory < partial_sm) {
+      device_programmable_bootstrap_step_two_128<__uint128_t, params, NOSM,
+                                                 last_iter>
+          <<<grid, thds, 0, stream>>>(
+              lwe_array_out_chunk, bootstrapping_key, global_accumulator_chunk,
+              global_join_buffer_chunk, lwe_iteration, lwe_dimension,
+              polynomial_size, base_log, level_count, d_mem, full_dm);
+    } else if (max_shared_memory < full_sm) {
+      device_programmable_bootstrap_step_two_128<__uint128_t, params, PARTIALSM,
+                                                 last_iter>
+          <<<grid, thds, partial_sm, stream>>>(
+              lwe_array_out_chunk, bootstrapping_key, global_accumulator_chunk,
+              global_join_buffer_chunk, lwe_iteration, lwe_dimension,
+              polynomial_size, base_log, level_count, d_mem, partial_dm);
+    } else {
+      device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM,
+                                                 last_iter>
+          <<<grid, thds, full_sm, stream>>>(
+              lwe_array_out_chunk, bootstrapping_key, global_accumulator_chunk,
+              global_join_buffer_chunk, lwe_iteration, lwe_dimension,
+              polynomial_size, base_log, level_count, d_mem, 0);
+    }
+    check_cuda_error(cudaGetLastError());
   }
-  check_cuda_error(cudaGetLastError());
 }
 
 /*
