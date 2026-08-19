@@ -183,8 +183,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   auto global_fft_im_hi = global_fft_slice + 2 * params::degree / 2;
   auto global_fft_im_lo = global_fft_slice + 3 * params::degree / 2;
 
-  negacyclic_forward_fft_f128<HalfDegree<params>>(acc_fft_re_hi, acc_fft_re_lo,
-                                                  acc_fft_im_hi, acc_fft_im_lo);
+  negacyclic_forward_fft_f128<HalfDegree<params>, true>(
+      acc_fft_re_hi, acc_fft_re_lo, acc_fft_im_hi, acc_fft_im_lo);
 
   int tid = threadIdx.x;
   for (int i = 0; i < params::opt / 2; i++) {
@@ -326,7 +326,7 @@ device_programmable_bootstrap_step_one_128_regs(
   auto acc_fft_im_hi = accumulator_fft + 2 * params::degree / 2;
   auto acc_fft_im_lo = accumulator_fft + 3 * params::degree / 2;
 
-  negacyclic_forward_fft_f128_tbc<HalfDegree<params>>(
+  negacyclic_forward_fft_f128_tbc<HalfDegree<params>, true>(
       acc_fft_re_hi, acc_fft_re_lo, acc_fft_im_hi, acc_fft_im_lo);
 
   auto global_fft_re_hi = global_fft_slice + 0 * params::degree / 2;
@@ -417,7 +417,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   auto acc_fft_im_hi = accumulator_fft + 2 * params::degree / 2;
   auto acc_fft_im_lo = accumulator_fft + 3 * params::degree / 2;
 
-  negacyclic_backward_fft_f128<HalfDegree<params>>(
+  negacyclic_backward_fft_f128<HalfDegree<params>, true>(
       acc_fft_re_hi, acc_fft_re_lo, acc_fft_im_hi, acc_fft_im_lo);
 
   add_to_torus_128<Torus, params>(acc_fft_re_hi, acc_fft_re_lo, acc_fft_im_hi,
@@ -1190,6 +1190,9 @@ __host__ void execute_step_one_128(
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
+  // The step one kernels read their twiddles from the interleaved table, so the
+  // table has to exist on this GPU before the first launch.
+  host_build_neg_twiddles_aos(stream, gpu_index);
   int thds = polynomial_size / params::opt;
 
   // The x axis carries the level and the z axis the sample: see the comment on
@@ -1258,6 +1261,9 @@ __host__ void execute_step_one_128_regs(
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
+  // The step one kernels read their twiddles from the interleaved table, so the
+  // table has to exist on this GPU before the first launch.
+  host_build_neg_twiddles_aos(stream, gpu_index);
   int thds = polynomial_size / params::opt;
 
   // Same grid ordering and sample chunking as execute_step_one_128.
@@ -1318,6 +1324,9 @@ __host__ void execute_step_two_128(
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
+  // The step two kernel reads its twiddles from the interleaved table, so the
+  // table has to exist on this GPU before the first launch.
+  host_build_neg_twiddles_aos(stream, gpu_index);
   int thds = polynomial_size / params::opt;
 
   // The x axis carries the glwe column and the y axis the sample: see the
