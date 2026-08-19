@@ -40,11 +40,15 @@ void cleanup_cuda_integer_grouped_oprf_64(CudaStreamsFFI streams,
 /// @brief FFI entry point allocating the scratch buffer for the 64-bit
 /// custom-range grouped OPRF.
 ///
+/// @param streams CUDA stream configuration for async GPU operations.
 /// @param mem_ptr Receives the newly allocated scratch buffer.
 /// @param bsk_params Bootstrapping key parameters for the OPRF.
 /// @param ksk_params Keyswitch key parameters for the OPRF.
 /// @param num_blocks_intermediate Computed on the Rust side; scratch and
 /// execute must pass the same value.
+/// @param message_modulus Plaintext message modulus of each block.
+/// @param carry_modulus Carry modulus of each block.
+/// @param allocate_gpu_memory When true, allocate device memory immediately.
 /// @param num_input_random_bits Number of random bits generated before range
 /// mapping.
 /// @param num_scalar_bits Bit-width of the scalar the intermediate value is
@@ -100,6 +104,7 @@ uint64_t scratch_cuda_integer_grouped_oprf_custom_range_64_async(
 
 /// @brief FFI entry point running the 64-bit custom-range grouped OPRF.
 ///
+/// @param streams CUDA stream configuration for async GPU operations.
 /// @param radix_lwe_out Output radix ciphertext holding the range-mapped
 /// result.
 /// @param num_blocks_intermediate Must match the value passed at scratch
@@ -113,8 +118,10 @@ uint64_t scratch_cuda_integer_grouped_oprf_custom_range_64_async(
 /// encryptions of zero consumed by the re-randomization stage (only read when
 /// rerand was enabled at scratch time).
 /// @param mem Pre-allocated scratch buffer for this operation.
+/// @param bsks Array of bootstrapping key pointers, one per GPU.
 /// @param compute_bsks Array of bootstrapping key pointers for the
 /// scalar-multiply and shift stages.
+/// @param ksks Array of keyswitch key pointers, one per GPU.
 /// @param rerand_ksks Array of keyswitch key pointers for the re-randomization
 /// stage (only read when rerand was enabled at scratch time).
 void cuda_integer_grouped_oprf_custom_range_64_async(
@@ -140,6 +147,7 @@ void cuda_integer_grouped_oprf_custom_range_64_async(
 /// @brief FFI entry point releasing the custom-range grouped OPRF scratch
 /// buffer.
 ///
+/// @param streams CUDA stream configuration for async GPU operations.
 /// @param mem_ptr_void Address of the scratch buffer pointer, set to nullptr
 /// after release.
 void cleanup_cuda_integer_grouped_oprf_custom_range_64(CudaStreamsFFI streams,

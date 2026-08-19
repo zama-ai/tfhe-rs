@@ -2,7 +2,6 @@
 #include "helper.cuh"
 #include "helper_multi_gpu.cuh"
 #include <mutex>
-#include <omp.h>
 
 std::mutex m;
 bool p2p_enabled = false;
@@ -24,7 +23,7 @@ int get_threshold_multi_gpu_classical() {
   static std::once_flag init_flag;
 
   std::call_once(init_flag, []() {
-    cudaDeviceProp deviceProp;
+    cudaDeviceProp deviceProp{};
     check_cuda_error(cudaGetDeviceProperties(&deviceProp, 0));
     int num_sms = deviceProp.multiProcessorCount;
 

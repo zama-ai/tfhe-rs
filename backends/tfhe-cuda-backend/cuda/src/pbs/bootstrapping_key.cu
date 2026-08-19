@@ -422,7 +422,7 @@ void cuda_forward_fft_classic_async(void *stream_v, uint32_t gpu_index,
 
   // NSMFFT_direct returns the spectrum in shared memory; batch_NSMFFT copies it
   // straight to d_output. The device buffer is only used on the NOSM path.
-  double2 *buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
+  auto *buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
   check_cuda_error(cudaFuncSetAttribute(
       batch_NSMFFT<kernel_params, FULLSM>,
       cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
@@ -517,7 +517,7 @@ void cuda_backward_fft16x4x16_async(void *stream_v, uint32_t gpu_index,
 }
 
 bool cuda_fft16x4x16_is_supported_async(uint32_t gpu_index) {
-  cudaDeviceProp prop;
+  cudaDeviceProp prop{};
   cudaError_t err = cudaGetDeviceProperties(&prop, gpu_index);
   // sm_90 (Hopper) or newer: the FFT16x4x16 core needs the named-barrier /
   // mbarrier primitives introduced with compute capability 9.x.
@@ -535,7 +535,7 @@ void cuda_convert_lwe_programmable_bootstrap_key_u128(
   size_t buffer_size = safe_mul_sizeof<double>(
       (size_t)total_polynomials, (size_t)(polynomial_size / 2), (size_t)4);
 
-  __uint128_t *d_standard =
+  auto *d_standard =
       (__uint128_t *)cuda_malloc_async(buffer_size, stream, gpu_index);
 
   cuda_memcpy_async_to_gpu(d_standard, src, buffer_size, stream, gpu_index);

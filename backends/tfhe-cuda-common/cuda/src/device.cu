@@ -9,7 +9,7 @@
 void validate_device_ptr_and_gpu_index(const void *ptr, uint32_t gpu_index) {
   GPU_ASSERT(ptr != nullptr, "Cuda error: null device ptr");
 
-  cudaPointerAttributes attr;
+  cudaPointerAttributes attr{};
   check_cuda_error(cudaPointerGetAttributes(&attr, ptr));
   if (attr.device != gpu_index || attr.type != cudaMemoryTypeDevice) {
     PANIC("Cuda error: invalid device pointer.")
@@ -19,7 +19,7 @@ void validate_device_ptr_and_gpu_index(const void *ptr, uint32_t gpu_index) {
 int validate_device_ptr(const void *ptr) {
   GPU_ASSERT(ptr != nullptr, "Cuda error: null device ptr");
 
-  cudaPointerAttributes attr;
+  cudaPointerAttributes attr{};
   check_cuda_error(cudaPointerGetAttributes(&attr, ptr));
   if (attr.type != cudaMemoryTypeDevice) {
     PANIC("Cuda error: invalid device pointer.")
@@ -67,7 +67,7 @@ void cuda_setup_mempool(uint32_t caller_gpu_index) {
     // calling cudaGetDeviceProperties within the building blocks.
     bool all_sm80 = num_gpus > 0;
     for (uint32_t gpu_index = 0; gpu_index < num_gpus; gpu_index++) {
-      cudaDeviceProp device_prop;
+      cudaDeviceProp device_prop{};
       check_cuda_error(cudaGetDeviceProperties(&device_prop, gpu_index));
       if (device_prop.major < 8) {
         all_sm80 = false;
@@ -343,12 +343,12 @@ void cuda_memcpy_gpu_to_gpu(void *dest, void const *src, uint64_t size,
   GPU_ASSERT(src != nullptr, "Cuda error: null device ptr");
   GPU_ASSERT(dest != nullptr, "Cuda error: null device ptr");
 
-  cudaPointerAttributes attr_dest;
+  cudaPointerAttributes attr_dest{};
   check_cuda_error(cudaPointerGetAttributes(&attr_dest, dest));
   PANIC_IF_FALSE(
       attr_dest.type == cudaMemoryTypeDevice,
       "Cuda error: invalid dest device pointer in copy from GPU to GPU.");
-  cudaPointerAttributes attr_src;
+  cudaPointerAttributes attr_src{};
   check_cuda_error(cudaPointerGetAttributes(&attr_src, src));
   PANIC_IF_FALSE(
       attr_src.type == cudaMemoryTypeDevice,
@@ -390,7 +390,7 @@ void cuda_memset_async(void *dest, uint64_t val, uint64_t size, void *stream,
 
 template <typename Torus>
 __global__ void cuda_set_value_kernel(Torus *array, Torus value, Torus n) {
-  int index = threadIdx.x + blockIdx.x * blockDim.x;
+  auto index = static_cast<int>(threadIdx.x + blockIdx.x * blockDim.x);
   if (index < n)
     array[index] = value;
 }
@@ -399,7 +399,7 @@ template <typename Torus>
 void cuda_set_value_async(cudaStream_t stream, uint32_t gpu_index,
                           Torus *d_array, Torus value, Torus n) {
   if (n > 0) {
-    cudaPointerAttributes attr;
+    cudaPointerAttributes attr{};
     check_cuda_error(cudaPointerGetAttributes(&attr, d_array));
     if (attr.type != cudaMemoryTypeDevice) {
       PANIC("Cuda error: invalid dest device pointer in cuda set value.")
