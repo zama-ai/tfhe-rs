@@ -1,5 +1,6 @@
 use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-use benchmark::utilities::{write_to_json_unchecked, OperatorType};
+use benchmark::utilities::{write_to_json, OperatorType};
+use benchmark_spec::{get_bench_type, BenchmarkSpec, IntegerBench, PrecisionTag, VectorFindOp};
 use criterion::Criterion;
 use std::hint::black_box;
 use tfhe::integer::keycache::KEY_CACHE;
@@ -8,7 +9,7 @@ use tfhe::keycache::NamedParam;
 use tfhe::shortint::AtomicPatternParameters;
 use tfhe::MatchValues;
 
-fn match_value_scenarios() -> Vec<(usize, usize, usize)> {
+fn match_value_scenarios() -> Vec<(u32, u32, usize)> {
     vec![(64, 10, 32), (8, 256, 4)]
 }
 
@@ -24,7 +25,14 @@ pub fn match_value(c: &mut Criterion) {
     let (cpu_cks, cpu_sks) = KEY_CACHE.get_from_params(atomic_param, IntegerKeyKind::Radix);
 
     for (bits, num_elements, num_blocks) in match_value_scenarios() {
-        let bench_id = format!("{bench_name}::{param_name}::{bits}bit_{num_elements}elements");
+        let spec = BenchmarkSpec::new_integer(
+            IntegerBench::VectorFind(VectorFindOp::MatchValue),
+            &param_name,
+            Some(PrecisionTag::Bits(bits).into()),
+            get_bench_type(),
+            Some(num_elements as u64),
+        );
+        let bench_id = spec.to_string();
 
         let cks = RadixClientKey::from((cpu_cks.clone(), num_blocks));
 
@@ -40,13 +48,12 @@ pub fn match_value(c: &mut Criterion) {
             })
         });
 
-        write_to_json_unchecked(
-            &bench_id,
-            param.name(),
+        write_to_json(
+            &spec,
             "match_value",
             &OperatorType::Atomic,
             bits as u64,
-            vec![atomic_param.message_modulus().0.ilog2(); bits],
+            vec![atomic_param.message_modulus().0.ilog2(); bits as usize],
         );
     }
     group.finish();
@@ -74,7 +81,14 @@ pub mod cuda {
         let sks = CudaServerKey::new(&cpu_cks, &streams);
 
         for (bits, num_elements, num_blocks) in match_value_scenarios() {
-            let bench_id = format!("{bench_name}::{param_name}::{bits}bit_{num_elements}elements");
+            let spec = BenchmarkSpec::new_integer(
+                IntegerBench::VectorFind(VectorFindOp::MatchValue),
+                &param_name,
+                Some(PrecisionTag::Bits(bits).into()),
+                get_bench_type(),
+                Some(num_elements as u64),
+            );
+            let bench_id = spec.to_string();
 
             let cks = RadixClientKey::from((cpu_cks.clone(), num_blocks));
 
@@ -92,13 +106,12 @@ pub mod cuda {
                 })
             });
 
-            write_to_json_unchecked(
-                &bench_id,
-                param.name(),
+            write_to_json(
+                &spec,
                 "match_value",
                 &OperatorType::Atomic,
                 bits as u64,
-                vec![atomic_param.message_modulus().0.ilog2(); bits],
+                vec![atomic_param.message_modulus().0.ilog2(); bits as usize],
             );
         }
         group.finish();

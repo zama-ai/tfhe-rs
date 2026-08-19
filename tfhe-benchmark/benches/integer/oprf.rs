@@ -28,7 +28,7 @@ pub fn unsigned_oprf(c: &mut Criterion) {
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
-        let bits = PrecisionTag::Bits(bit_size);
+        let bits = PrecisionTag::Bits(bit_size as u32);
         let bench_type = get_bench_type();
 
         let oprf_spec = BenchmarkSpec::new_integer(
@@ -185,7 +185,7 @@ pub mod cuda {
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
-            let bits = PrecisionTag::Bits(bit_size);
+            let bits = PrecisionTag::Bits(bit_size as u32);
             let bench_type = get_bench_type();
 
             let oprf_spec = BenchmarkSpec::new_integer(
