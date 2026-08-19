@@ -5,6 +5,7 @@ pub mod rerand;
 
 use std::str::FromStr;
 
+use super::vector_find::VectorFindOp;
 use crate::error::SpecParseError;
 use crate::traits::SpecNode;
 use ops::IntegerOp;
@@ -60,6 +61,8 @@ pub enum IntegerBench {
     PackingCompression(IntegerPackingOp),
     Oprf(IntegerOprf),
     Rerand(IntegerRerandMode),
+    VectorFind(VectorFindOp),
+    NoiseSquashingCompression(IntegerPackingOp),
 }
 
 impl SpecNode for IntegerBench {
@@ -69,6 +72,8 @@ impl SpecNode for IntegerBench {
             IntegerBench::PackingCompression(op) => op,
             IntegerBench::Oprf(kind) => kind,
             IntegerBench::Rerand(mode) => mode,
+            IntegerBench::VectorFind(op) => op,
+            IntegerBench::NoiseSquashingCompression(op) => op,
         })
     }
 }
@@ -85,6 +90,10 @@ impl FromStr for IntegerBench {
             IntegerBenchKind::PackingCompression => Ok(Self::PackingCompression(rest.parse()?)),
             IntegerBenchKind::Oprf => Ok(Self::Oprf(rest.parse()?)),
             IntegerBenchKind::Rerand => Ok(Self::Rerand(rest.parse()?)),
+            IntegerBenchKind::VectorFind => Ok(Self::VectorFind(rest.parse()?)),
+            IntegerBenchKind::NoiseSquashingCompression => {
+                Ok(Self::NoiseSquashingCompression(rest.parse()?))
+            }
         }
     }
 }
