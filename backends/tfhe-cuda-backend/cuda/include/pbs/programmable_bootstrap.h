@@ -97,9 +97,9 @@ void cuda_programmable_bootstrap_128_async(
     uint32_t level_count, uint32_t num_samples);
 
 void cleanup_cuda_programmable_bootstrap_64(void *stream, uint32_t gpu_index,
-                                            int8_t **pbs_buffer);
+                                            int8_t **buffer);
 
 void cleanup_cuda_programmable_bootstrap_128(void *stream, uint32_t gpu_index,
-                                             int8_t **pbs_buffer);
+                                             int8_t **buffer);
 }
 #endif // CUDA_BOOTSTRAP_H

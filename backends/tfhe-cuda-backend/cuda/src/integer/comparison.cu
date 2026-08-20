@@ -3,7 +3,7 @@
 uint64_t scratch_cuda_integer_comparison_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
-    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_radix_blocks,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, COMPARISON_TYPE op_type,
     bool is_signed, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type) {
@@ -17,7 +17,8 @@ uint64_t scratch_cuda_integer_comparison_64_async(
   case NE:
     size_tracker += scratch_cuda_comparison_check<uint64_t>(
         CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,
-        num_radix_blocks, params, op_type, false, false, allocate_gpu_memory);
+        lwe_ciphertext_count, params, op_type, false, false,
+        allocate_gpu_memory);
     break;
   case GT:
   case GE:
@@ -27,7 +28,7 @@ uint64_t scratch_cuda_integer_comparison_64_async(
   case MIN:
     size_tracker += scratch_cuda_comparison_check<uint64_t>(
         CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,
-        num_radix_blocks, params, op_type, is_signed, true,
+        lwe_ciphertext_count, params, op_type, is_signed, true,
         allocate_gpu_memory);
     break;
   }
@@ -38,7 +39,7 @@ uint64_t scratch_cuda_integer_comparison_64_async(
 uint64_t scratch_cuda_integer_scalar_comparison_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
-    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_radix_blocks,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, COMPARISON_TYPE op_type,
     bool is_signed, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type) {
@@ -52,7 +53,8 @@ uint64_t scratch_cuda_integer_scalar_comparison_64_async(
   case NE:
     size_tracker += scratch_cuda_comparison_check<uint64_t>(
         CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,
-        num_radix_blocks, params, op_type, false, false, allocate_gpu_memory);
+        lwe_ciphertext_count, params, op_type, false, false,
+        allocate_gpu_memory);
     break;
   case GT:
   case GE:
@@ -62,7 +64,7 @@ uint64_t scratch_cuda_integer_scalar_comparison_64_async(
   case MIN:
     size_tracker += scratch_cuda_comparison_check<uint64_t>(
         CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,
-        num_radix_blocks, params, op_type, is_signed, false,
+        lwe_ciphertext_count, params, op_type, is_signed, false,
         allocate_gpu_memory);
     break;
   }
