@@ -63,7 +63,9 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
     let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Aes(AesFlavor::KeyExpansion),
         &param_name,
+        None,
         BenchmarkMetric::Latency,
+        None,
     );
     bench_and_record(
         &mut group,
@@ -84,7 +86,9 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
     let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Aes(AesFlavor::KeyExpansionPlus1Block),
         &param_name,
+        None,
         BenchmarkMetric::Latency,
+        None,
     );
     bench_and_record(
         &mut group,
@@ -110,7 +114,9 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
     let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Aes(AesFlavor::Keystream1Block),
         &param_name,
+        None,
         BenchmarkMetric::Latency,
+        None,
     );
     bench_and_record(
         &mut group,
@@ -132,7 +138,9 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
     let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Aes(AesFlavor::Keystream16Blocks),
         &param_name,
+        None,
         BenchmarkMetric::Latency,
+        None,
     );
     bench_and_record(
         &mut group,
@@ -159,7 +167,9 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
     let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Aes(AesFlavor::Transcipher16Blocks),
         &param_name,
+        None,
         BenchmarkMetric::Latency,
+        None,
     );
     bench_and_record(
         &mut group,

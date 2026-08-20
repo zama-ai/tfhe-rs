@@ -3,7 +3,9 @@ use criterion::Criterion;
 #[cfg(feature = "gpu")]
 pub mod cuda {
     use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    use benchmark::utilities::{write_to_json_unchecked, OperatorType};
+    use benchmark::utilities::{write_to_json, OperatorType};
+    use benchmark_spec::tfhe::transciphering::aes::AesFlavor;
+    use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, PrecisionTag, TranscipheringBench};
     use criterion::{criterion_group, Criterion};
     use std::hint::black_box;
     use tfhe::core_crypto::gpu::{check_valid_cuda_malloc, CudaStreams};
@@ -28,7 +30,7 @@ pub mod cuda {
 
         let key: u128 = 0x2b7e151628aed2a6abf7158809cf4f3c;
         let iv: u128 = 0xf0f1f2f3f4f5f6f7f8f9fafbfcfdfeff;
-        let aes_op_bit_size = 128;
+        let aes_op_bit_size: u32 = 128;
 
         let param_name = param.name();
 
@@ -46,7 +48,14 @@ pub mod cuda {
         {
             const NUM_AES_INPUTS: usize = 1;
             const SBOX_PARALLELISM: usize = 16;
-            let bench_id = format!("{bench_name}::{param_name}::{NUM_AES_INPUTS}_input_encryption");
+            let spec = BenchmarkSpec::new_transciphering(
+                TranscipheringBench::Aes(AesFlavor::Encryption),
+                &param_name,
+                Some(PrecisionTag::Bits(aes_op_bit_size).into()),
+                BenchmarkMetric::Latency,
+                Some(NUM_AES_INPUTS as u64),
+            );
+            let bench_id = spec.to_string();
 
             let round_keys = sks.key_expansion(&d_key, &streams);
 
@@ -63,30 +72,35 @@ pub mod cuda {
                 })
             });
 
-            write_to_json_unchecked(
-                &bench_id,
-                param.name(),
+            write_to_json(
+                &spec,
                 "aes_encryption",
                 &OperatorType::Atomic,
-                aes_op_bit_size,
+                aes_op_bit_size as u64,
                 vec![atomic_param.message_modulus().0.ilog2(); aes_op_bit_size as usize],
             );
         }
 
         {
-            let bench_id = format!("{bench_name}::{param_name}::key_expansion");
+            let spec = BenchmarkSpec::new_transciphering(
+                TranscipheringBench::Aes(AesFlavor::KeyExpansion),
+                &param_name,
+                Some(PrecisionTag::Bits(aes_op_bit_size).into()),
+                BenchmarkMetric::Latency,
+                None,
+            );
+            let bench_id = spec.to_string();
             bench_group.bench_function(&bench_id, |b| {
                 b.iter(|| {
                     black_box(sks.key_expansion(&d_key, &streams));
                 })
             });
 
-            write_to_json_unchecked(
-                &bench_id,
-                param.name(),
+            write_to_json(
+                &spec,
                 "aes_key_expansion",
                 &OperatorType::Atomic,
-                aes_op_bit_size,
+                aes_op_bit_size as u64,
                 vec![atomic_param.message_modulus().0.ilog2(); aes_op_bit_size as usize],
             );
         }
@@ -94,8 +108,14 @@ pub mod cuda {
         {
             const NUM_AES_INPUTS: usize = 192;
             const SBOX_PARALLELISM: usize = 16;
-            let bench_id =
-                format!("{bench_name}::{param_name}::{NUM_AES_INPUTS}_inputs_encryption");
+            let spec = BenchmarkSpec::new_transciphering(
+                TranscipheringBench::Aes(AesFlavor::Encryption),
+                &param_name,
+                Some(PrecisionTag::Bits(aes_op_bit_size).into()),
+                BenchmarkMetric::Latency,
+                Some(NUM_AES_INPUTS as u64),
+            );
+            let bench_id = spec.to_string();
 
             let streams = CudaStreams::new_multi_gpu();
             let (cpu_cks, _) = KEY_CACHE.get_from_params(atomic_param, IntegerKeyKind::Radix);
@@ -135,12 +155,11 @@ pub mod cuda {
                     })
                 });
 
-                write_to_json_unchecked(
-                    &bench_id,
-                    param.name(),
+                write_to_json(
+                    &spec,
                     "aes_encryption",
                     &OperatorType::Atomic,
-                    aes_op_bit_size,
+                    aes_op_bit_size as u64,
                     vec![atomic_param.message_modulus().0.ilog2(); aes_op_bit_size as usize],
                 );
             } else {

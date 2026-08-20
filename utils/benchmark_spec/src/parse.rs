@@ -126,6 +126,10 @@ mod tests {
             "tfhe::hlapi::kv_store::get::PARAM_MESSAGE_2_CARRY_2::key_FheUint32::value_FheUint64",
             "tfhe::core_crypto::keyswitch::cuda::PARAM_MESSAGE_2_CARRY_2::64b::gemm::trivial_indices",
             "tfhe::shortint::oprf::PARAM_MESSAGE_2_CARRY_2_KS_PBS",
+            // Two stream ciphers sharing one flavour enum: the longest-prefix
+            // split must not read `fast_kreyvium` as `kreyvium`.
+            "tfhe::transciphering::kreyvium::next::cuda::PARAM_MESSAGE_2_CARRY_2::64_bits",
+            "tfhe::transciphering::fast_kreyvium::generate::cuda::throughput::PARAM_MESSAGE_2_CARRY_2::512_bits::512_elements",
         ];
         for id in ids {
             let spec: BenchmarkSpec = id.parse().unwrap_or_else(|e| panic!("parse {id:?}: {e:?}"));

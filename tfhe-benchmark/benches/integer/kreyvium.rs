@@ -8,7 +8,9 @@ pub mod cuda {
         BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
-    use benchmark::utilities::{write_to_json_unchecked, OperatorType};
+    use benchmark::utilities::{write_to_json, OperatorType};
+    use benchmark_spec::tfhe::transciphering::kreyvium::KreyviumFlavor;
+    use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, PrecisionTag, TranscipheringBench};
     use criterion::{criterion_group, BenchmarkGroup, Criterion, Throughput};
     use std::hint::black_box;
     use tfhe::core_crypto::gpu::CudaStreams;
@@ -63,12 +65,13 @@ pub mod cuda {
     }
 
     /// Runs the init / next / generate benchmark cases for one Kreyvium variant on one parameter
-    /// set. `init`, `next` and `generate` are the variant-specific entry points; `method_label`
-    /// (e.g. "kreyvium" or "fast_kreyvium") only affects the JSON metadata key.
+    /// set. `init`, `next` and `generate` are the variant-specific entry points; `bench` is the
+    /// spec node the variant is filed under, which is what tells the two apart in the bench ids;
+    /// `method_label` (e.g. "kreyvium" or "fast_kreyvium") only affects the JSON metadata key.
     #[allow(clippy::too_many_arguments)]
     fn bench_kreyvium_variant<State, Init, Next, Generate>(
         bench_group: &mut BenchmarkGroup<'_, criterion::measurement::WallTime>,
-        bench_name: &str,
+        bench: fn(KreyviumFlavor) -> TranscipheringBench,
         method_label: &str,
         atomic_param: AtomicPatternParameters,
         param_name: String,
@@ -106,16 +109,22 @@ pub mod cuda {
         let d_iv = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_iv, &streams);
 
         // 1. Benchmark: init
-        let init_bench_id = format!("{bench_name}::{param_name}::init");
+        let init_spec = BenchmarkSpec::new_transciphering(
+            bench(KreyviumFlavor::Init),
+            &param_name,
+            None,
+            BenchmarkMetric::Latency,
+            None,
+        );
+        let init_bench_id = init_spec.to_string();
         bench_group.bench_function(&init_bench_id, |b| {
             b.iter(|| {
                 black_box(init(&sks, &d_key, &d_iv, &streams));
             })
         });
 
-        write_to_json_unchecked(
-            &init_bench_id,
-            param_name.clone(),
+        write_to_json(
+            &init_spec,
             format!("{method_label}_init"),
             &OperatorType::Atomic,
             u64::try_from(KREYVIUM_KEY_BITS).unwrap(),
@@ -125,8 +134,19 @@ pub mod cuda {
         let mut state = init(&sks, &d_key, &d_iv, &streams);
 
         for num_steps in [64, 512] {
+            // `num_steps` is a `usize` because that is what the GPU API takes;
+            // the grammar counts bits, so the width is converted once here.
+            let steps = PrecisionTag::Bits(num_steps as u32);
+
             // 2. Benchmark: next
-            let next_bench_id = format!("{bench_name}::{param_name}::next_{num_steps}_bits");
+            let next_spec = BenchmarkSpec::new_transciphering(
+                bench(KreyviumFlavor::Next),
+                &param_name,
+                Some(steps.into()),
+                BenchmarkMetric::Latency,
+                None,
+            );
+            let next_bench_id = next_spec.to_string();
 
             bench_group.bench_function(&next_bench_id, |b| {
                 b.iter(|| {
@@ -134,9 +154,8 @@ pub mod cuda {
                 })
             });
 
-            write_to_json_unchecked(
-                &next_bench_id,
-                param_name.clone(),
+            write_to_json(
+                &next_spec,
                 format!("{method_label}_next_{num_steps}_bits"),
                 &OperatorType::Atomic,
                 u64::try_from(KREYVIUM_KEY_BITS).unwrap(),
@@ -144,7 +163,14 @@ pub mod cuda {
             );
 
             // 3. Benchmark: generate_keystream
-            let gen_bench_id = format!("{bench_name}::{param_name}::generate_{num_steps}_bits");
+            let gen_spec = BenchmarkSpec::new_transciphering(
+                bench(KreyviumFlavor::Generate),
+                &param_name,
+                Some(steps.into()),
+                BenchmarkMetric::Latency,
+                None,
+            );
+            let gen_bench_id = gen_spec.to_string();
 
             bench_group.bench_function(&gen_bench_id, |b| {
                 b.iter(|| {
@@ -152,9 +178,8 @@ pub mod cuda {
                 })
             });
 
-            write_to_json_unchecked(
-                &gen_bench_id,
-                param_name.clone(),
+            write_to_json(
+                &gen_spec,
                 format!("{method_label}_generation_{num_steps}_bits"),
                 &OperatorType::Atomic,
                 u64::try_from(KREYVIUM_KEY_BITS).unwrap(),
@@ -171,22 +196,20 @@ pub mod cuda {
     /// read from `CudaStreams::len`.
     ///
     /// Five cases are measured, mirroring the latency bench:
-    /// - `throughput::{param_tag}::init`: times `init` (the warmup-heavy key/iv load) per call.
-    /// - `throughput::{param_tag}::next_64` / `next_512`: times advancing an already-initialized
-    ///   state. Each iteration continues from where the previous one left off.
-    /// - `throughput::{param_tag}::generate_64` / `generate_512`: times `generate` (init + advance
-    ///   N) as a single timed call.
+    /// - `init`: times `init` (the warmup-heavy key/iv load) per call.
+    /// - `next` at 64 and 512 bits: times advancing an already-initialized state. Each iteration
+    ///   continues from where the previous one left off.
+    /// - `generate` at 64 and 512 bits: times `generate` (init + advance N) as a single timed call.
     ///
-    /// `param_tag` is a short discriminator (e.g. `mbg4`, `classical`) kept in the criterion id so
-    /// it stays under criterion's 64-char directory cap; the full `param_name` is preserved in
-    /// the JSON metadata. The key/iv inputs are bit-sliced across lanes, which for the all-zero
-    /// benchmark inputs is simply `KREYVIUM_KEY_BITS * num_inputs` zero blocks each.
+    /// The lane count rides in the id as the grammar's `{n}_elements` segment, so it is readable
+    /// by the parser instead of being folded into a hand-written name. The key/iv inputs are
+    /// bit-sliced across lanes, which for the all-zero benchmark inputs is simply
+    /// `KREYVIUM_KEY_BITS * num_inputs` zero blocks each.
     #[allow(clippy::too_many_arguments)]
     fn bench_kreyvium_throughput<State, Init, Next, Generate>(
         bench_group: &mut BenchmarkGroup<'_, criterion::measurement::WallTime>,
-        bench_name: &str,
+        bench: fn(KreyviumFlavor) -> TranscipheringBench,
         method_label: &str,
-        param_tag: &str,
         atomic_param: AtomicPatternParameters,
         param_name: String,
         init: Init,
@@ -225,17 +248,25 @@ pub mod cuda {
 
         bench_group.throughput(Throughput::Elements(num_inputs as u64));
 
+        let lanes = u64::try_from(num_inputs).unwrap();
+
         // 1. init throughput
-        let init_bench_id = format!("{bench_name}::throughput::{param_tag}::init");
+        let init_spec = BenchmarkSpec::new_transciphering(
+            bench(KreyviumFlavor::Init),
+            &param_name,
+            None,
+            BenchmarkMetric::Throughput,
+            Some(lanes),
+        );
+        let init_bench_id = init_spec.to_string();
         bench_group.bench_function(&init_bench_id, |b| {
             b.iter(|| {
                 black_box(init(&sks, &d_key, &d_iv, &streams));
             })
         });
 
-        write_to_json_unchecked(
-            &init_bench_id,
-            param_name.clone(),
+        write_to_json(
+            &init_spec,
             format!("{method_label}_throughput_init"),
             &OperatorType::Atomic,
             u64::try_from(KREYVIUM_KEY_BITS).unwrap(),
@@ -247,33 +278,46 @@ pub mod cuda {
         // generate: a full init + advance in a single timed call.
         let mut state = init(&sks, &d_key, &d_iv, &streams);
         for num_steps in [64usize, 512] {
-            let next_bench_id = format!("{bench_name}::throughput::{param_tag}::next_{num_steps}");
+            let steps = PrecisionTag::Bits(num_steps as u32);
+
+            let next_spec = BenchmarkSpec::new_transciphering(
+                bench(KreyviumFlavor::Next),
+                &param_name,
+                Some(steps.into()),
+                BenchmarkMetric::Throughput,
+                Some(lanes),
+            );
+            let next_bench_id = next_spec.to_string();
             bench_group.bench_function(&next_bench_id, |b| {
                 b.iter(|| {
                     black_box(next(&sks, &mut state, num_steps, &streams));
                 })
             });
 
-            write_to_json_unchecked(
-                &next_bench_id,
-                param_name.clone(),
+            write_to_json(
+                &next_spec,
                 format!("{method_label}_throughput_next_{num_steps}"),
                 &OperatorType::Atomic,
                 u64::try_from(KREYVIUM_KEY_BITS).unwrap(),
                 vec![atomic_param.message_modulus().0.ilog2(); KREYVIUM_KEY_BITS],
             );
 
-            let gen_bench_id =
-                format!("{bench_name}::throughput::{param_tag}::generate_{num_steps}");
+            let gen_spec = BenchmarkSpec::new_transciphering(
+                bench(KreyviumFlavor::Generate),
+                &param_name,
+                Some(steps.into()),
+                BenchmarkMetric::Throughput,
+                Some(lanes),
+            );
+            let gen_bench_id = gen_spec.to_string();
             bench_group.bench_function(&gen_bench_id, |b| {
                 b.iter(|| {
                     black_box(generate(&sks, &d_key, &d_iv, num_steps, &streams));
                 })
             });
 
-            write_to_json_unchecked(
-                &gen_bench_id,
-                param_name.clone(),
+            write_to_json(
+                &gen_spec,
                 format!("{method_label}_throughput_generate_{num_steps}"),
                 &OperatorType::Atomic,
                 u64::try_from(KREYVIUM_KEY_BITS).unwrap(),
@@ -302,7 +346,7 @@ pub mod cuda {
 
             bench_kreyvium_variant(
                 &mut bench_group,
-                bench_name,
+                TranscipheringBench::Kreyvium,
                 "kreyvium",
                 atomic_param,
                 param_name,
@@ -338,7 +382,7 @@ pub mod cuda {
 
             bench_kreyvium_variant(
                 &mut bench_group,
-                bench_name,
+                TranscipheringBench::FastKreyvium,
                 "fast_kreyvium",
                 atomic_param,
                 param_name,
@@ -362,23 +406,20 @@ pub mod cuda {
             (
                 BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
                 BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.name(),
-                "mbg4",
             ),
             (
                 BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
                 BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.name(),
-                "classical",
             ),
         ];
 
-        for (atomic_param_val, param_name, param_tag) in params {
+        for (atomic_param_val, param_name) in params {
             let atomic_param: AtomicPatternParameters = atomic_param_val;
 
             bench_kreyvium_throughput(
                 &mut bench_group,
-                bench_name,
+                TranscipheringBench::Kreyvium,
                 "kreyvium",
-                param_tag,
                 atomic_param,
                 param_name,
                 |sks, key, iv, streams| sks.kreyvium_init(key, iv, streams).unwrap(),
@@ -401,23 +442,20 @@ pub mod cuda {
             (
                 BENCH_PARAM_GPU_KREYVIUM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_0_TUNIFORM_2M128.into(),
                 BENCH_PARAM_GPU_KREYVIUM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_0_TUNIFORM_2M128.name(),
-                "mbg4",
             ),
             (
                 BENCH_PARAM_GPU_KREYVIUM_MESSAGE_1_CARRY_0_TUNIFORM_2M128.into(),
                 BENCH_PARAM_GPU_KREYVIUM_MESSAGE_1_CARRY_0_TUNIFORM_2M128.name(),
-                "classical",
             ),
         ];
 
-        for (atomic_param_val, param_name, param_tag) in params {
+        for (atomic_param_val, param_name) in params {
             let atomic_param: AtomicPatternParameters = atomic_param_val;
 
             bench_kreyvium_throughput(
                 &mut bench_group,
-                bench_name,
+                TranscipheringBench::FastKreyvium,
                 "fast_kreyvium",
-                param_tag,
                 atomic_param,
                 param_name,
                 |sks, key, iv, streams| sks.fast_kreyvium_init(key, iv, streams).unwrap(),
