@@ -1,6 +1,10 @@
 #include "radix_ciphertext.cuh"
 
-void release_radix_ciphertext_async(cudaStream_t const stream,
+/// @brief Releases GPU memory and host arrays owned by a radix ciphertext.
+///
+/// @param data Radix ciphertext whose buffers are freed.
+/// @param gpu_memory_allocated When true, the device pointer is freed.
+void release_radix_ciphertext_async(cudaStream_t stream,
                                     uint32_t const gpu_index,
                                     CudaRadixCiphertextFFI *data,
                                     const bool gpu_memory_allocated) {

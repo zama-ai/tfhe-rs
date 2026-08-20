@@ -1,15 +1,16 @@
 #include "programmable_bootstrap.cuh"
 
 template <>
-__device__ int get_this_block_rank(grid_group &group, bool support_dsm) {
-  return blockIdx.y;
+__device__ int get_this_block_rank(grid_group & /*group*/,
+                                   bool /*support_dsm*/) {
+  return static_cast<int>(blockIdx.y);
 }
 
 template <>
 __device__ double2 *
-get_join_buffer_element(int level_id, int glwe_id, grid_group &group,
+get_join_buffer_element(int level_id, int glwe_id, grid_group & /*group*/,
                         double2 *global_memory_buffer, uint32_t polynomial_size,
-                        uint32_t glwe_dimension, bool support_dsm) {
+                        uint32_t glwe_dimension, bool /*support_dsm*/) {
   double2 *buffer_slice =
       global_memory_buffer +
       (glwe_id + level_id * (glwe_dimension + 1)) * polynomial_size / 2;
@@ -17,9 +18,11 @@ get_join_buffer_element(int level_id, int glwe_id, grid_group &group,
 }
 
 template <>
-__device__ double *get_join_buffer_element_128(
-    int level_id, int glwe_id, grid_group &group, double *global_memory_buffer,
-    uint32_t polynomial_size, uint32_t glwe_dimension, bool support_dsm) {
+__device__ double *
+get_join_buffer_element_128(int level_id, int glwe_id, grid_group & /*group*/,
+                            double *global_memory_buffer,
+                            uint32_t polynomial_size, uint32_t glwe_dimension,
+                            bool /*support_dsm*/) {
   double *buffer_slice =
       global_memory_buffer +
       (glwe_id + level_id * (glwe_dimension + 1)) * polynomial_size / 2 * 4;

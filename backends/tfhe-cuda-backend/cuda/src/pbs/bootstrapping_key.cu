@@ -172,16 +172,16 @@ template __device__ const double2 *get_multi_bit_ith_lwe_gth_group_kth_block(
     uint32_t grouping_factor, uint32_t polynomial_size, uint32_t glwe_dimension,
     uint32_t level_count);
 
-void cuda_fourier_polynomial_mul_async(void *stream_v, uint32_t gpu_index,
-                                       void const *_input1, void const *_input2,
-                                       void *_output, uint32_t polynomial_size,
+void cuda_fourier_polynomial_mul_async(void *stream, uint32_t gpu_index,
+                                       void const *input1, void const *input2,
+                                       void *output, uint32_t polynomial_size,
                                        uint32_t total_polynomials) {
 
-  auto stream = static_cast<cudaStream_t>(stream_v);
+  auto s = static_cast<cudaStream_t>(stream);
   cuda_set_device(gpu_index);
-  auto input1 = (double2 *)_input1;
-  auto input2 = (double2 *)_input2;
-  auto output = (double2 *)_output;
+  auto *in1 = (double2 *)input1;
+  auto *in2 = (double2 *)input2;
+  auto *out = (double2 *)output;
 
   size_t shared_memory_size = safe_mul_sizeof<double2>(polynomial_size / 2);
 
@@ -190,11 +190,11 @@ void cuda_fourier_polynomial_mul_async(void *stream_v, uint32_t gpu_index,
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
-  double2 *buffer;
+  double2 *buf;
   switch (polynomial_size) {
   case 256:
     if (shared_memory_size <= max_shared_memory) {
-      buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
+      buf = (double2 *)cuda_malloc_async(0, s, gpu_index);
       check_cuda_error(cudaFuncSetAttribute(
           batch_polynomial_mul<FFTDegree<AmortizedDegree<256>, ForwardFFT>,
                                FULLSM>,
@@ -204,19 +204,18 @@ void cuda_fourier_polynomial_mul_async(void *stream_v, uint32_t gpu_index,
                                FULLSM>,
           cudaFuncCachePreferShared));
       batch_polynomial_mul<FFTDegree<AmortizedDegree<256>, ForwardFFT>, FULLSM>
-          <<<gridSize, blockSize, shared_memory_size, stream>>>(input1, input2,
-                                                                output, buffer);
+          <<<gridSize, blockSize, shared_memory_size, s>>>(in1, in2, out, buf);
     } else {
-      buffer = (double2 *)cuda_malloc_async(
-          safe_mul(shared_memory_size, (size_t)total_polynomials), stream,
+      buf = (double2 *)cuda_malloc_async(
+          safe_mul(shared_memory_size, (size_t)total_polynomials), s,
           gpu_index);
       batch_polynomial_mul<FFTDegree<AmortizedDegree<256>, ForwardFFT>, NOSM>
-          <<<gridSize, blockSize, 0, stream>>>(input1, input2, output, buffer);
+          <<<gridSize, blockSize, 0, s>>>(in1, in2, out, buf);
     }
     break;
   case 512:
     if (shared_memory_size <= max_shared_memory) {
-      buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
+      buf = (double2 *)cuda_malloc_async(0, s, gpu_index);
       check_cuda_error(cudaFuncSetAttribute(
           batch_polynomial_mul<FFTDegree<AmortizedDegree<521>, ForwardFFT>,
                                FULLSM>,
@@ -226,19 +225,18 @@ void cuda_fourier_polynomial_mul_async(void *stream_v, uint32_t gpu_index,
                                FULLSM>,
           cudaFuncCachePreferShared));
       batch_polynomial_mul<FFTDegree<AmortizedDegree<512>, ForwardFFT>, FULLSM>
-          <<<gridSize, blockSize, shared_memory_size, stream>>>(input1, input2,
-                                                                output, buffer);
+          <<<gridSize, blockSize, shared_memory_size, s>>>(in1, in2, out, buf);
     } else {
-      buffer = (double2 *)cuda_malloc_async(
-          safe_mul(shared_memory_size, (size_t)total_polynomials), stream,
+      buf = (double2 *)cuda_malloc_async(
+          safe_mul(shared_memory_size, (size_t)total_polynomials), s,
           gpu_index);
       batch_polynomial_mul<FFTDegree<AmortizedDegree<512>, ForwardFFT>, NOSM>
-          <<<gridSize, blockSize, 0, stream>>>(input1, input2, output, buffer);
+          <<<gridSize, blockSize, 0, s>>>(in1, in2, out, buf);
     }
     break;
   case 1024:
     if (shared_memory_size <= max_shared_memory) {
-      buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
+      buf = (double2 *)cuda_malloc_async(0, s, gpu_index);
       check_cuda_error(cudaFuncSetAttribute(
           batch_polynomial_mul<FFTDegree<AmortizedDegree<1024>, ForwardFFT>,
                                FULLSM>,
@@ -248,19 +246,18 @@ void cuda_fourier_polynomial_mul_async(void *stream_v, uint32_t gpu_index,
                                FULLSM>,
           cudaFuncCachePreferShared));
       batch_polynomial_mul<FFTDegree<AmortizedDegree<1024>, ForwardFFT>, FULLSM>
-          <<<gridSize, blockSize, shared_memory_size, stream>>>(input1, input2,
-                                                                output, buffer);
+          <<<gridSize, blockSize, shared_memory_size, s>>>(in1, in2, out, buf);
     } else {
-      buffer = (double2 *)cuda_malloc_async(
-          safe_mul(shared_memory_size, (size_t)total_polynomials), stream,
+      buf = (double2 *)cuda_malloc_async(
+          safe_mul(shared_memory_size, (size_t)total_polynomials), s,
           gpu_index);
       batch_polynomial_mul<FFTDegree<AmortizedDegree<1024>, ForwardFFT>, NOSM>
-          <<<gridSize, blockSize, 0, stream>>>(input1, input2, output, buffer);
+          <<<gridSize, blockSize, 0, s>>>(in1, in2, out, buf);
     }
     break;
   case 2048:
     if (shared_memory_size <= max_shared_memory) {
-      buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
+      buf = (double2 *)cuda_malloc_async(0, s, gpu_index);
       check_cuda_error(cudaFuncSetAttribute(
           batch_polynomial_mul<FFTDegree<AmortizedDegree<2048>, ForwardFFT>,
                                FULLSM>,
@@ -270,19 +267,18 @@ void cuda_fourier_polynomial_mul_async(void *stream_v, uint32_t gpu_index,
                                FULLSM>,
           cudaFuncCachePreferShared));
       batch_polynomial_mul<FFTDegree<AmortizedDegree<2048>, ForwardFFT>, FULLSM>
-          <<<gridSize, blockSize, shared_memory_size, stream>>>(input1, input2,
-                                                                output, buffer);
+          <<<gridSize, blockSize, shared_memory_size, s>>>(in1, in2, out, buf);
     } else {
-      buffer = (double2 *)cuda_malloc_async(
-          safe_mul(shared_memory_size, (size_t)total_polynomials), stream,
+      buf = (double2 *)cuda_malloc_async(
+          safe_mul(shared_memory_size, (size_t)total_polynomials), s,
           gpu_index);
       batch_polynomial_mul<FFTDegree<AmortizedDegree<2048>, ForwardFFT>, NOSM>
-          <<<gridSize, blockSize, 0, stream>>>(input1, input2, output, buffer);
+          <<<gridSize, blockSize, 0, s>>>(in1, in2, out, buf);
     }
     break;
   case 4096:
     if (shared_memory_size <= max_shared_memory) {
-      buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
+      buf = (double2 *)cuda_malloc_async(0, s, gpu_index);
       check_cuda_error(cudaFuncSetAttribute(
           batch_polynomial_mul<FFTDegree<AmortizedDegree<4096>, ForwardFFT>,
                                FULLSM>,
@@ -292,19 +288,18 @@ void cuda_fourier_polynomial_mul_async(void *stream_v, uint32_t gpu_index,
                                FULLSM>,
           cudaFuncCachePreferShared));
       batch_polynomial_mul<FFTDegree<AmortizedDegree<4096>, ForwardFFT>, FULLSM>
-          <<<gridSize, blockSize, shared_memory_size, stream>>>(input1, input2,
-                                                                output, buffer);
+          <<<gridSize, blockSize, shared_memory_size, s>>>(in1, in2, out, buf);
     } else {
-      buffer = (double2 *)cuda_malloc_async(
-          safe_mul(shared_memory_size, (size_t)total_polynomials), stream,
+      buf = (double2 *)cuda_malloc_async(
+          safe_mul(shared_memory_size, (size_t)total_polynomials), s,
           gpu_index);
       batch_polynomial_mul<FFTDegree<AmortizedDegree<4096>, ForwardFFT>, NOSM>
-          <<<gridSize, blockSize, 0, stream>>>(input1, input2, output, buffer);
+          <<<gridSize, blockSize, 0, s>>>(in1, in2, out, buf);
     }
     break;
   case 8192:
     if (shared_memory_size <= max_shared_memory) {
-      buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
+      buf = (double2 *)cuda_malloc_async(0, s, gpu_index);
       check_cuda_error(cudaFuncSetAttribute(
           batch_polynomial_mul<FFTDegree<AmortizedDegree<8192>, ForwardFFT>,
                                FULLSM>,
@@ -314,19 +309,18 @@ void cuda_fourier_polynomial_mul_async(void *stream_v, uint32_t gpu_index,
                                FULLSM>,
           cudaFuncCachePreferShared));
       batch_polynomial_mul<FFTDegree<AmortizedDegree<8192>, ForwardFFT>, FULLSM>
-          <<<gridSize, blockSize, shared_memory_size, stream>>>(input1, input2,
-                                                                output, buffer);
+          <<<gridSize, blockSize, shared_memory_size, s>>>(in1, in2, out, buf);
     } else {
-      buffer = (double2 *)cuda_malloc_async(
-          safe_mul(shared_memory_size, (size_t)total_polynomials), stream,
+      buf = (double2 *)cuda_malloc_async(
+          safe_mul(shared_memory_size, (size_t)total_polynomials), s,
           gpu_index);
       batch_polynomial_mul<FFTDegree<AmortizedDegree<8192>, ForwardFFT>, NOSM>
-          <<<gridSize, blockSize, 0, stream>>>(input1, input2, output, buffer);
+          <<<gridSize, blockSize, 0, s>>>(in1, in2, out, buf);
     }
     break;
   case 16384:
     if (shared_memory_size <= max_shared_memory) {
-      buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
+      buf = (double2 *)cuda_malloc_async(0, s, gpu_index);
       check_cuda_error(cudaFuncSetAttribute(
           batch_polynomial_mul<FFTDegree<AmortizedDegree<16384>, ForwardFFT>,
                                FULLSM>,
@@ -337,14 +331,13 @@ void cuda_fourier_polynomial_mul_async(void *stream_v, uint32_t gpu_index,
           cudaFuncCachePreferShared));
       batch_polynomial_mul<FFTDegree<AmortizedDegree<16384>, ForwardFFT>,
                            FULLSM>
-          <<<gridSize, blockSize, shared_memory_size, stream>>>(input1, input2,
-                                                                output, buffer);
+          <<<gridSize, blockSize, shared_memory_size, s>>>(in1, in2, out, buf);
     } else {
-      buffer = (double2 *)cuda_malloc_async(
-          safe_mul(shared_memory_size, (size_t)total_polynomials), stream,
+      buf = (double2 *)cuda_malloc_async(
+          safe_mul(shared_memory_size, (size_t)total_polynomials), s,
           gpu_index);
       batch_polynomial_mul<FFTDegree<AmortizedDegree<16384>, ForwardFFT>, NOSM>
-          <<<gridSize, blockSize, 0, stream>>>(input1, input2, output, buffer);
+          <<<gridSize, blockSize, 0, s>>>(in1, in2, out, buf);
     }
     break;
   default:
@@ -352,7 +345,7 @@ void cuda_fourier_polynomial_mul_async(void *stream_v, uint32_t gpu_index,
   }
   check_cuda_error(cudaGetLastError());
 
-  cuda_drop_async(buffer, stream, gpu_index);
+  cuda_drop_async(buf, s, gpu_index);
 }
 
 // Test-only entry point: negacyclic polynomial multiplication driven by the
@@ -360,19 +353,18 @@ void cuda_fourier_polynomial_mul_async(void *stream_v, uint32_t gpu_index,
 // 2_2_params PBS). Hardcoded to polynomial_size == 2048 and requires sm_90
 // (H100); callers must gate accordingly. See batch_polynomial_mul_fft16x4x16.
 void cuda_fourier_polynomial_mul_fft16x4x16_async(
-    void *stream_v, uint32_t gpu_index, void const *_input1,
-    void const *_input2, void *_output, uint32_t polynomial_size,
-    uint32_t total_polynomials) {
+    void *stream, uint32_t gpu_index, void const *input1, void const *input2,
+    void *output, uint32_t polynomial_size, uint32_t total_polynomials) {
 
   if (polynomial_size != 2048)
     PANIC("cuda_fourier_polynomial_mul_fft16x4x16_async only supports "
           "polynomial_size == 2048");
 
-  auto stream = static_cast<cudaStream_t>(stream_v);
+  auto s = static_cast<cudaStream_t>(stream);
   cuda_set_device(gpu_index);
-  auto input1 = static_cast<const double2 *>(_input1);
-  auto input2 = static_cast<const double2 *>(_input2);
-  auto output = static_cast<double2 *>(_output);
+  auto *in1 = static_cast<const double2 *>(input1);
+  auto *in2 = static_cast<const double2 *>(input2);
+  auto *out = static_cast<double2 *>(output);
 
   using params = AccumulatorDegree<2048>;
   size_t shared_memory_size = FFT16x4x16_DUAL_SMEM_BYTES;
@@ -391,8 +383,7 @@ void cuda_fourier_polynomial_mul_fft16x4x16_async(
       batch_polynomial_mul_fft16x4x16<params>, cudaFuncCachePreferShared));
 
   batch_polynomial_mul_fft16x4x16<params>
-      <<<gridSize, blockSize, shared_memory_size, stream>>>(input1, input2,
-                                                            output);
+      <<<gridSize, blockSize, shared_memory_size, s>>>(in1, in2, out);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -400,8 +391,8 @@ void cuda_fourier_polynomial_mul_fft16x4x16_async(
 // NSMFFT_direct core (the "previous" FFT). Hardcoded to polynomial_size == 2048
 // so it can be compared against the FFT16x4x16 forward transform. The output is
 // left in NSMFFT_direct's native (bit-reversed) frequency order.
-void cuda_forward_fft_classic_async(void *stream_v, uint32_t gpu_index,
-                                    void const *_input, void *_output,
+void cuda_forward_fft_classic_async(void *stream, uint32_t gpu_index,
+                                    void const *input, void *output,
                                     uint32_t polynomial_size,
                                     uint32_t total_polynomials) {
 
@@ -409,10 +400,10 @@ void cuda_forward_fft_classic_async(void *stream_v, uint32_t gpu_index,
     PANIC("cuda_forward_fft_classic_async only supports polynomial_size == "
           "2048");
 
-  auto stream = static_cast<cudaStream_t>(stream_v);
+  auto s = static_cast<cudaStream_t>(stream);
   cuda_set_device(gpu_index);
-  auto input = (double2 *)_input;
-  auto output = (double2 *)_output;
+  auto *in = (double2 *)input;
+  auto *out = (double2 *)output;
 
   using kernel_params = FFTDegree<AmortizedDegree<2048>, ForwardFFT>;
   size_t shared_memory_size = safe_mul_sizeof<double2>(polynomial_size / 2);
@@ -422,17 +413,16 @@ void cuda_forward_fft_classic_async(void *stream_v, uint32_t gpu_index,
 
   // NSMFFT_direct returns the spectrum in shared memory; batch_NSMFFT copies it
   // straight to d_output. The device buffer is only used on the NOSM path.
-  double2 *buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
+  auto *buf = (double2 *)cuda_malloc_async(0, s, gpu_index);
   check_cuda_error(cudaFuncSetAttribute(
       batch_NSMFFT<kernel_params, FULLSM>,
       cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
   check_cuda_error(cudaFuncSetCacheConfig(batch_NSMFFT<kernel_params, FULLSM>,
                                           cudaFuncCachePreferShared));
   batch_NSMFFT<kernel_params, FULLSM>
-      <<<gridSize, blockSize, shared_memory_size, stream>>>(input, output,
-                                                            buffer);
+      <<<gridSize, blockSize, shared_memory_size, s>>>(in, out, buf);
   check_cuda_error(cudaGetLastError());
-  cuda_drop_async(buffer, stream, gpu_index);
+  cuda_drop_async(buf, s, gpu_index);
 }
 
 // Test-only entry point: forward-only negacyclic FFT driven by the
@@ -440,8 +430,8 @@ void cuda_forward_fft_classic_async(void *stream_v, uint32_t gpu_index,
 // 2_2_params PBS). Hardcoded to polynomial_size == 2048 and requires sm_90
 // (H100); callers must gate accordingly. The spectrum is written in NATURAL
 // frequency order — see batch_forward_fft16x4x16.
-void cuda_forward_fft16x4x16_async(void *stream_v, uint32_t gpu_index,
-                                   void const *_input, void *_output,
+void cuda_forward_fft16x4x16_async(void *stream, uint32_t gpu_index,
+                                   void const *input, void *output,
                                    uint32_t polynomial_size,
                                    uint32_t total_polynomials) {
 
@@ -449,10 +439,10 @@ void cuda_forward_fft16x4x16_async(void *stream_v, uint32_t gpu_index,
     PANIC("cuda_forward_fft16x4x16_async only supports polynomial_size == "
           "2048");
 
-  auto stream = static_cast<cudaStream_t>(stream_v);
+  auto s = static_cast<cudaStream_t>(stream);
   cuda_set_device(gpu_index);
-  auto input = (const double2 *)_input;
-  auto output = (double2 *)_output;
+  auto *in = (const double2 *)input;
+  auto *out = (double2 *)output;
 
   using params = AccumulatorDegree<2048>;
   size_t shared_memory_size = FFT16x4x16_DUAL_SMEM_BYTES;
@@ -471,7 +461,7 @@ void cuda_forward_fft16x4x16_async(void *stream_v, uint32_t gpu_index,
                                           cudaFuncCachePreferShared));
 
   batch_forward_fft16x4x16<params>
-      <<<gridSize, blockSize, shared_memory_size, stream>>>(input, output);
+      <<<gridSize, blockSize, shared_memory_size, s>>>(in, out);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -517,7 +507,7 @@ void cuda_backward_fft16x4x16_async(void *stream_v, uint32_t gpu_index,
 }
 
 bool cuda_fft16x4x16_is_supported_async(uint32_t gpu_index) {
-  cudaDeviceProp prop;
+  cudaDeviceProp prop{};
   cudaError_t err = cudaGetDeviceProperties(&prop, gpu_index);
   // sm_90 (Hopper) or newer: the FFT16x4x16 core needs the named-barrier /
   // mbarrier primitives introduced with compute capability 9.x.
@@ -535,7 +525,7 @@ void cuda_convert_lwe_programmable_bootstrap_key_u128(
   size_t buffer_size = safe_mul_sizeof<double>(
       (size_t)total_polynomials, (size_t)(polynomial_size / 2), (size_t)4);
 
-  __uint128_t *d_standard =
+  auto *d_standard =
       (__uint128_t *)cuda_malloc_async(buffer_size, stream, gpu_index);
 
   cuda_memcpy_async_to_gpu(d_standard, src, buffer_size, stream, gpu_index);

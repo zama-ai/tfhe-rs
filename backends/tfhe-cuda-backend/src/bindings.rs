@@ -3120,14 +3120,14 @@ unsafe extern "C" {
     pub fn cleanup_cuda_programmable_bootstrap_64(
         stream: *mut ffi::c_void,
         gpu_index: u32,
-        pbs_buffer: *mut *mut i8,
+        buffer: *mut *mut i8,
     );
 }
 unsafe extern "C" {
     pub fn cleanup_cuda_programmable_bootstrap_128(
         stream: *mut ffi::c_void,
         gpu_index: u32,
-        pbs_buffer: *mut *mut i8,
+        buffer: *mut *mut i8,
     );
 }
 unsafe extern "C" {
@@ -3169,7 +3169,7 @@ unsafe extern "C" {
     pub fn scratch_cuda_multi_bit_programmable_bootstrap_64_async(
         stream: *mut ffi::c_void,
         gpu_index: u32,
-        pbs_buffer: *mut *mut i8,
+        buffer: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
         level_count: u32,
@@ -3204,14 +3204,14 @@ unsafe extern "C" {
     pub fn cleanup_cuda_multi_bit_programmable_bootstrap_64(
         stream: *mut ffi::c_void,
         gpu_index: u32,
-        pbs_buffer: *mut *mut i8,
+        buffer: *mut *mut i8,
     );
 }
 unsafe extern "C" {
     pub fn scratch_cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
         stream: *mut ffi::c_void,
         gpu_index: u32,
-        pbs_buffer: *mut *mut i8,
+        buffer: *mut *mut i8,
         glwe_dimension: u32,
         polynomial_size: u32,
         level_count: u32,
@@ -3223,7 +3223,7 @@ unsafe extern "C" {
     pub fn cleanup_cuda_multi_bit_programmable_bootstrap_noise_tests_64(
         stream: *mut ffi::c_void,
         gpu_index: u32,
-        pbs_buffer: *mut *mut i8,
+        buffer: *mut *mut i8,
     );
 }
 unsafe extern "C" {

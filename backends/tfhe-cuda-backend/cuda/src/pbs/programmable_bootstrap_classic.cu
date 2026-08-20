@@ -3,9 +3,8 @@
 #if (CUDA_ARCH >= 900)
 #include "programmable_bootstrap_tbc_classic.cuh"
 #endif
-#include "ciphertext.h"
 
-#include <stdio.h>
+#include <cstdio>
 
 template <typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_cg(uint32_t glwe_dimension,
@@ -626,17 +625,16 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_32_async(
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lut_vector_indexes, void const *lwe_array_in,
     void const *lwe_input_indexes, void const *bootstrapping_key,
-    int8_t *mem_ptr, uint32_t lwe_dimension, uint32_t glwe_dimension,
+    int8_t *buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride) {
 
   if (base_log > 32)
     PANIC("Cuda error (classical PBS): base log should be <= 32")
 
-  pbs_buffer<uint32_t, CLASSICAL> *buffer =
-      (pbs_buffer<uint32_t, CLASSICAL> *)mem_ptr;
+  auto *pbs_buf = (pbs_buffer<uint32_t, CLASSICAL> *)buffer;
 
-  switch (buffer->pbs_variant) {
+  switch (pbs_buf->pbs_variant) {
   case TBC:
 #if CUDA_ARCH >= 900
     cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector<uint32_t>(
@@ -646,7 +644,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_32_async(
         static_cast<const uint32_t *>(lut_vector_indexes),
         static_cast<const uint32_t *>(lwe_array_in),
         static_cast<const uint32_t *>(lwe_input_indexes),
-        static_cast<const double2 *>(bootstrapping_key), buffer, lwe_dimension,
+        static_cast<const double2 *>(bootstrapping_key), pbs_buf, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, num_samples,
         num_many_lut, lut_stride);
     break;
@@ -661,7 +659,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_32_async(
         static_cast<const uint32_t *>(lut_vector_indexes),
         static_cast<const uint32_t *>(lwe_array_in),
         static_cast<const uint32_t *>(lwe_input_indexes),
-        static_cast<const double2 *>(bootstrapping_key), buffer, lwe_dimension,
+        static_cast<const double2 *>(bootstrapping_key), pbs_buf, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, num_samples,
         num_many_lut, lut_stride);
     break;
@@ -673,7 +671,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_32_async(
         static_cast<const uint32_t *>(lut_vector_indexes),
         static_cast<const uint32_t *>(lwe_array_in),
         static_cast<const uint32_t *>(lwe_input_indexes),
-        static_cast<const double2 *>(bootstrapping_key), buffer, lwe_dimension,
+        static_cast<const double2 *>(bootstrapping_key), pbs_buf, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, num_samples,
         num_many_lut, lut_stride);
     break;
@@ -748,18 +746,17 @@ void cuda_programmable_bootstrap_64_async(
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lut_vector_indexes, void const *lwe_array_in,
     void const *lwe_input_indexes, void const *bootstrapping_key,
-    int8_t *mem_ptr, uint32_t lwe_dimension, uint32_t glwe_dimension,
+    int8_t *buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride) {
   if (base_log > 64)
     PANIC("Cuda error (classical PBS): base log should be <= 64")
 
-  pbs_buffer<uint64_t, CLASSICAL> *buffer =
-      (pbs_buffer<uint64_t, CLASSICAL> *)mem_ptr;
+  auto *pbs_buf = (pbs_buffer<uint64_t, CLASSICAL> *)buffer;
 
   check_cuda_error(cudaGetLastError());
 
-  switch (buffer->pbs_variant) {
+  switch (pbs_buf->pbs_variant) {
   case PBS_VARIANT::TBC:
 #if (CUDA_ARCH >= 900)
     cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector<uint64_t>(
@@ -769,7 +766,7 @@ void cuda_programmable_bootstrap_64_async(
         static_cast<const uint64_t *>(lut_vector_indexes),
         static_cast<const uint64_t *>(lwe_array_in),
         static_cast<const uint64_t *>(lwe_input_indexes),
-        static_cast<const double2 *>(bootstrapping_key), buffer, lwe_dimension,
+        static_cast<const double2 *>(bootstrapping_key), pbs_buf, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, num_samples,
         num_many_lut, lut_stride);
     break;
@@ -784,7 +781,7 @@ void cuda_programmable_bootstrap_64_async(
         static_cast<const uint64_t *>(lut_vector_indexes),
         static_cast<const uint64_t *>(lwe_array_in),
         static_cast<const uint64_t *>(lwe_input_indexes),
-        static_cast<const double2 *>(bootstrapping_key), buffer, lwe_dimension,
+        static_cast<const double2 *>(bootstrapping_key), pbs_buf, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, num_samples,
         num_many_lut, lut_stride);
     break;
@@ -796,7 +793,7 @@ void cuda_programmable_bootstrap_64_async(
         static_cast<const uint64_t *>(lut_vector_indexes),
         static_cast<const uint64_t *>(lwe_array_in),
         static_cast<const uint64_t *>(lwe_input_indexes),
-        static_cast<const double2 *>(bootstrapping_key), buffer, lwe_dimension,
+        static_cast<const double2 *>(bootstrapping_key), pbs_buf, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, num_samples,
         num_many_lut, lut_stride);
     break;
@@ -938,9 +935,9 @@ void cuda_programmable_bootstrap_specialized_2_2_64_async(
  */
 void cleanup_cuda_programmable_bootstrap_64(void *stream, uint32_t gpu_index,
                                             int8_t **buffer) {
-  auto x = (pbs_buffer<uint64_t, CLASSICAL> *)(*buffer);
-  x->release(static_cast<cudaStream_t>(stream), gpu_index);
-  delete x;
+  auto *pbs_buf = (pbs_buffer<uint64_t, CLASSICAL> *)(*buffer);
+  pbs_buf->release(static_cast<cudaStream_t>(stream), gpu_index);
+  delete pbs_buf;
   *buffer = nullptr;
 }
 

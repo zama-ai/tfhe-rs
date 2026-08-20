@@ -25,7 +25,7 @@ void cuda_keyswitch_gemm_64_64_async(
     void const *lwe_output_indexes, void const *lwe_array_in,
     void const *lwe_input_indexes, void const *ksk, uint32_t lwe_dimension_in,
     uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, bool uses_trivial_indices) {
+    uint32_t num_samples, bool uses_trivial_indexes) {
 
   host_gemm_keyswitch_lwe_ciphertext_vector<uint64_t, uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
@@ -34,7 +34,7 @@ void cuda_keyswitch_gemm_64_64_async(
       static_cast<const uint64_t *>(lwe_array_in),
       static_cast<const uint64_t *>(lwe_input_indexes),
       static_cast<const uint64_t *>(ksk), lwe_dimension_in, lwe_dimension_out,
-      base_log, level_count, num_samples, uses_trivial_indices);
+      base_log, level_count, num_samples, uses_trivial_indexes);
 }
 
 /* Perform keyswitch on a batch of 64 bits input LWE ciphertexts
@@ -46,7 +46,7 @@ void cuda_keyswitch_gemm_64_32_async(
     void const *lwe_output_indexes, void const *lwe_array_in,
     void const *lwe_input_indexes, void const *ksk, uint32_t lwe_dimension_in,
     uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, bool uses_trivial_indices) {
+    uint32_t num_samples, bool uses_trivial_indexes) {
 
   host_gemm_keyswitch_lwe_ciphertext_vector<uint64_t, uint32_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
@@ -55,7 +55,7 @@ void cuda_keyswitch_gemm_64_32_async(
       static_cast<const uint64_t *>(lwe_array_in),
       static_cast<const uint64_t *>(lwe_input_indexes),
       static_cast<const uint32_t *>(ksk), lwe_dimension_in, lwe_dimension_out,
-      base_log, level_count, num_samples, uses_trivial_indices);
+      base_log, level_count, num_samples, uses_trivial_indexes);
 }
 
 void cuda_keyswitch_lwe_ciphertext_vector_64_64_async(

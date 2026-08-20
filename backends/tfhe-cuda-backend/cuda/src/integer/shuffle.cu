@@ -24,11 +24,14 @@ uint64_t scratch_cuda_integer_bitonic_shuffle_64_async(
  * @brief Performs a bitonic shuffle of encrypted key-value radix-ciphertexts
  * in-place, reordering keys and values according to a bitonic sorting network.
  *
+ * @param streams    CUDA stream configuration for async GPU operations.
  * @param keys       Array of num_values pointers to key radix-ciphertexts.
  * @param values     Array of num_values pointers to data radix-ciphertexts.
  * @param num_values Number of key-value pairs.
  * @param mem_ptr    Scratch buffer cast to
  * int_bitonic_shuffle_buffer<uint64_t>.
+ * @param bsks       Array of bootstrapping key pointers, one per GPU.
+ * @param ksks       Array of keyswitch key pointers, one per GPU.
  */
 void cuda_integer_bitonic_shuffle_64_async(CudaStreamsFFI streams,
                                            CudaRadixCiphertextFFI **keys,
@@ -88,6 +91,7 @@ uint64_t scratch_cuda_integer_oprf_bitonic_shuffle_64_async(
  * @brief Performs a bitonic shuffle of encrypted radix-ciphertexts using
  * OPRF-generated random keys. Values are reordered in-place.
  *
+ * @param streams          CUDA stream configuration for async GPU operations.
  * @param values           Array of num_values pointers to data
  * radix-ciphertexts.
  * @param num_values       Number of values to shuffle.
@@ -96,6 +100,12 @@ uint64_t scratch_cuda_integer_oprf_bitonic_shuffle_64_async(
  *                         int_oprf_bitonic_shuffle_buffer<uint64_t>.
  * @param oprf_bsks        Array of OPRF bootstrapping key pointers, one per
  * GPU.
+ * @param bsks             Array of bootstrapping key pointers, one per GPU.
+ * @param ksks             Array of keyswitch key pointers, one per GPU.
+ * @param lwe_flattened_encryptions_of_zero_compact_array_in Compact array of
+ * encryptions of zero for re-randomization.
+ * @param rerand_ksks      Array of keyswitch key pointers for
+ * re-randomization.
  */
 void cuda_integer_oprf_bitonic_shuffle_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI **values,
