@@ -6,6 +6,7 @@ use crate::traits::SpecLeafNode;
 #[strum(serialize_all = "snake_case")]
 pub enum AesFlavor {
     KeyExpansion,
+    Encryption,
     #[strum(serialize = "key_expansion_plus_1_block")]
     KeyExpansionPlus1Block,
     #[strum(serialize = "keystream_1_block")]

@@ -1,4 +1,4 @@
-use benchmark::utilities::{write_to_json_unchecked, OperatorType};
+use benchmark::utilities::{write_to_json_external_name, OperatorType};
 use benchmark_spec::CsvResultWriter;
 use clap::Parser;
 use std::collections::HashMap;
@@ -55,7 +55,7 @@ pub fn parse_wasm_benchmarks(results_file: &Path, raw_results_file: &Path) {
             benchmark_test_result.write_result(&prefixed_full_name, value_in_ns);
         }
 
-        write_to_json_unchecked(
+        write_to_json_external_name(
             &prefixed_full_name,
             params.name(),
             bench_name,

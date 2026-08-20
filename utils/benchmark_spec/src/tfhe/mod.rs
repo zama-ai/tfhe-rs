@@ -3,6 +3,7 @@ pub mod core_crypto;
 pub mod hl_integer_op;
 pub mod hlapi;
 pub mod integer;
+pub mod key_size;
 pub mod shortint;
 pub mod transciphering;
 pub mod vector_find;
@@ -17,11 +18,12 @@ use crate::traits::SpecNode;
 pub use boolean::BooleanBench;
 pub use core_crypto::CoreCryptoBench;
 pub use hl_integer_op::HlIntegerOp;
-pub use hlapi::HlapiBench;
+pub use hlapi::{CiphertextKind, HlapiBench};
 pub use integer::ops::IntegerOp;
 pub use integer::{
-    IntegerBench, IntegerOpBySign, IntegerOprf, IntegerPackingOp, IntegerRerandMode,
+    IntegerBench, IntegerOpBySign, IntegerOprf, IntegerPackingOp, IntegerRerandMode, ZkPkeBench,
 };
+pub use key_size::KeyKind;
 pub use shortint::ops::ShortintOp;
 pub use shortint::{ShortintBench, ShortintCastingOp, ShortintPackingOp};
 pub use transciphering::TranscipheringBench;
