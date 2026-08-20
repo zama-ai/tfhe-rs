@@ -13,6 +13,7 @@
 #include "pbs/bootstrapping_key.cuh"
 #include "pbs/pbs_utilities.h"
 #include "pbs/programmable_bootstrap.h"
+#include "polynomial/dispatch.cuh"
 #include "polynomial/parameters.cuh"
 #include "polynomial/polynomial_math.cuh"
 #include "programmable_bootstrap.cuh"
@@ -1051,93 +1052,21 @@ uint64_t scratch_cuda_programmable_bootstrap_128_vector(
              has_support_to_cuda_programmable_bootstrap_128_cg(
                  glwe_dimension, polynomial_size, level_count,
                  input_lwe_ciphertext_count, max_shared_memory)) {
-    switch (polynomial_size) {
-    case 256:
-      return scratch_programmable_bootstrap_cg_128<InputTorus, Degree<256>>(
-          static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-          glwe_dimension, polynomial_size, level_count,
-          input_lwe_ciphertext_count, allocate_gpu_memory,
-          noise_reduction_type);
-      break;
-    case 512:
-      return scratch_programmable_bootstrap_cg_128<InputTorus, Degree<512>>(
-          static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-          glwe_dimension, polynomial_size, level_count,
-          input_lwe_ciphertext_count, allocate_gpu_memory,
-          noise_reduction_type);
-      break;
-    case 1024:
-      return scratch_programmable_bootstrap_cg_128<InputTorus, Degree<1024>>(
-          static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-          glwe_dimension, polynomial_size, level_count,
-          input_lwe_ciphertext_count, allocate_gpu_memory,
-          noise_reduction_type);
-      break;
-    case 2048:
-      return scratch_programmable_bootstrap_cg_128<InputTorus, Degree<2048>>(
-          static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-          glwe_dimension, polynomial_size, level_count,
-          input_lwe_ciphertext_count, allocate_gpu_memory,
-          noise_reduction_type);
-      break;
-    case 4096:
-      // We use AmortizedDegree for 4096 to avoid register exhaustion
-      return scratch_programmable_bootstrap_cg_128<InputTorus,
-                                                   AmortizedDegree<4096>>(
-          static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-          glwe_dimension, polynomial_size, level_count,
-          input_lwe_ciphertext_count, allocate_gpu_memory,
-          noise_reduction_type);
-      break;
-    default:
-      PANIC("Cuda error (classical PBS128): unsupported polynomial size. "
-            "Supported N's are powers of two"
-            " in the interval [256..4096].")
-    }
+    DISPATCH_POLY_SIZE(
+        polynomial_size, Multibit128DegreePolicy,
+        return scratch_programmable_bootstrap_cg_128<InputTorus, Params>(
+            static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+            glwe_dimension, polynomial_size, level_count,
+            input_lwe_ciphertext_count, allocate_gpu_memory,
+            noise_reduction_type));
   } else {
-    switch (polynomial_size) {
-    case 256:
-      return scratch_programmable_bootstrap_128<InputTorus, Degree<256>>(
-          static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-          glwe_dimension, polynomial_size, level_count,
-          input_lwe_ciphertext_count, allocate_gpu_memory,
-          noise_reduction_type);
-      break;
-    case 512:
-      return scratch_programmable_bootstrap_128<InputTorus, Degree<512>>(
-          static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-          glwe_dimension, polynomial_size, level_count,
-          input_lwe_ciphertext_count, allocate_gpu_memory,
-          noise_reduction_type);
-      break;
-    case 1024:
-      return scratch_programmable_bootstrap_128<InputTorus, Degree<1024>>(
-          static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-          glwe_dimension, polynomial_size, level_count,
-          input_lwe_ciphertext_count, allocate_gpu_memory,
-          noise_reduction_type);
-      break;
-    case 2048:
-      return scratch_programmable_bootstrap_128<InputTorus, Degree<2048>>(
-          static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-          glwe_dimension, polynomial_size, level_count,
-          input_lwe_ciphertext_count, allocate_gpu_memory,
-          noise_reduction_type);
-      break;
-    case 4096:
-      // We use AmortizedDegree for 4096 to avoid register exhaustion
-      return scratch_programmable_bootstrap_128<InputTorus,
-                                                AmortizedDegree<4096>>(
-          static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-          glwe_dimension, polynomial_size, level_count,
-          input_lwe_ciphertext_count, allocate_gpu_memory,
-          noise_reduction_type);
-      break;
-    default:
-      PANIC("Cuda error (classical PBS): unsupported polynomial size. "
-            "Supported N's are powers of two"
-            " in the interval [256..4096].")
-    }
+    DISPATCH_POLY_SIZE(
+        polynomial_size, Multibit128DegreePolicy,
+        return scratch_programmable_bootstrap_128<InputTorus, Params>(
+            static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+            glwe_dimension, polynomial_size, level_count,
+            input_lwe_ciphertext_count, allocate_gpu_memory,
+            noise_reduction_type));
   }
 }
 
@@ -1570,28 +1499,10 @@ __host__ bool verify_cuda_programmable_bootstrap_128_cg_grid_size(
 __host__ bool supports_cooperative_groups_on_programmable_bootstrap_128(
     int glwe_dimension, int polynomial_size, int level_count, int num_samples,
     uint32_t max_shared_memory) {
-  switch (polynomial_size) {
-  case 256:
-    return verify_cuda_programmable_bootstrap_128_cg_grid_size<Degree<256>>(
-        glwe_dimension, level_count, num_samples, max_shared_memory);
-  case 512:
-    return verify_cuda_programmable_bootstrap_128_cg_grid_size<Degree<512>>(
-        glwe_dimension, level_count, num_samples, max_shared_memory);
-  case 1024:
-    return verify_cuda_programmable_bootstrap_128_cg_grid_size<Degree<1024>>(
-        glwe_dimension, level_count, num_samples, max_shared_memory);
-  case 2048:
-    return verify_cuda_programmable_bootstrap_128_cg_grid_size<Degree<2048>>(
-        glwe_dimension, level_count, num_samples, max_shared_memory);
-  case 4096:
-    // We use AmortizedDegree for 4096 to avoid register exhaustion
-    return verify_cuda_programmable_bootstrap_128_cg_grid_size<
-        AmortizedDegree<4096>>(glwe_dimension, level_count, num_samples,
-                               max_shared_memory);
-  default:
-    PANIC("Cuda error (classical PBS128): unsupported polynomial size. "
-          "Supported N's are powers of two"
-          " in the interval [256..4096].")
-  }
+  // AmortizedDegree for 4096 avoids register exhaustion in 128-bit classic PBS
+  DISPATCH_POLY_SIZE(
+      polynomial_size, Multibit128DegreePolicy,
+      return verify_cuda_programmable_bootstrap_128_cg_grid_size<Params>(
+          glwe_dimension, level_count, num_samples, max_shared_memory));
 }
 #endif // TFHE_RS_BACKENDS_TFHE_CUDA_BACKEND_CUDA_SRC_PBS_PROGRAMMABLE_BOOTSTRAP_CLASSIC_128_CUH_
