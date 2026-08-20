@@ -3,8 +3,11 @@ use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY
 use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 #[cfg(feature = "gpu")]
 use benchmark::utilities::{get_param_type, ParamType};
-use benchmark::utilities::{write_to_json_unchecked, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType};
+use benchmark::utilities::{write_to_json, OperatorType};
+use benchmark_spec::{
+    get_bench_type, Backend, BenchPath, BenchmarkSpec, BenchmarkType, HlapiBench, OperandType,
+    ShuffleConfig, TfheLayer,
+};
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -131,7 +134,7 @@ fn bench_collision_probability(c: &mut Criterion, cks: &ClientKey, bench_name: &
 fn bench_shuffle_config<T>(
     group: &mut criterion::BenchmarkGroup<'_, criterion::measurement::WallTime>,
     cks: &ClientKey,
-    bench_name: &str,
+    backend: Backend,
     value_bits: u32,
     key_bits: u32,
     num_elements: usize,
@@ -142,8 +145,25 @@ fn bench_shuffle_config<T>(
     let key_size = BitonicShuffleKeySize::num_bits(key_bits);
     let params = cks.computation_parameters();
     let params_name = params.name();
-    let stem =
-        format!("{bench_name}::{value_bits}_bits::{num_elements}_elements::key_{key_bits}_bits");
+
+    // The CPU and GPU entry points both run in a GPU build, so the backend is
+    // passed in rather than read from the enabled features.
+    let spec = BenchmarkSpec::new(
+        BenchPath::Tfhe(TfheLayer::Hlapi(HlapiBench::BitonicShuffle)),
+        backend,
+        &params_name,
+        OperandType::CipherText,
+        Some(
+            ShuffleConfig {
+                value_bits,
+                key_bits,
+            }
+            .into(),
+        ),
+        get_bench_type(),
+        Some(num_elements),
+    );
+    let bench_id = spec.to_string();
 
     let encrypt_dataset = |rng: &mut ThreadRng| -> Vec<T> {
         (0..num_elements)
@@ -151,9 +171,8 @@ fn bench_shuffle_config<T>(
             .collect()
     };
 
-    let bench_id = match get_bench_type() {
+    match get_bench_type() {
         BenchmarkType::Latency => {
-            let bench_id = format!("{stem}::{params_name}");
             group.bench_function(&bench_id, |b| {
                 b.iter_batched(
                     || (encrypt_dataset(&mut rng), Seed(rng.gen())),
@@ -165,7 +184,6 @@ fn bench_shuffle_config<T>(
                     criterion::BatchSize::SmallInput,
                 )
             });
-            bench_id
         }
         BenchmarkType::Throughput => {
             let num_ops = {
@@ -196,7 +214,6 @@ fn bench_shuffle_config<T>(
                 }
             };
 
-            let bench_id = format!("{stem}::throughput::{params_name}");
             group.throughput(Throughput::Elements(num_ops as u64));
             group.bench_function(&bench_id, |b| {
                 b.iter_batched(
@@ -215,13 +232,11 @@ fn bench_shuffle_config<T>(
                     criterion::BatchSize::SmallInput,
                 )
             });
-            bench_id
         }
-    };
+    }
 
-    write_to_json_unchecked(
-        &bench_id,
-        params_name,
+    write_to_json(
+        &spec,
         "bitonic_shuffle",
         &OperatorType::Atomic,
         value_bits,
@@ -229,15 +244,15 @@ fn bench_shuffle_config<T>(
     );
 }
 
-fn bench_shuffle_configs(c: &mut Criterion, cks: &ClientKey, bench_name: &str) {
+fn bench_shuffle_configs(c: &mut Criterion, cks: &ClientKey, bench_name: &str, backend: Backend) {
     let mut group = c.benchmark_group(bench_name);
     group
         .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    bench_shuffle_config::<FheUint64>(&mut group, cks, bench_name, 64, 16, 16);
-    bench_shuffle_config::<FheUint64>(&mut group, cks, bench_name, 64, 32, 16);
-    bench_shuffle_config::<FheUint160>(&mut group, cks, bench_name, 160, 16, 16);
+    bench_shuffle_config::<FheUint64>(&mut group, cks, backend, 64, 16, 16);
+    bench_shuffle_config::<FheUint64>(&mut group, cks, backend, 64, 32, 16);
+    bench_shuffle_config::<FheUint160>(&mut group, cks, backend, 160, 16, 16);
 
     group.finish();
 }
@@ -363,7 +378,7 @@ pub fn bitonic_shuffle_cpu(c: &mut Criterion) {
     bench_non_pow2(c, &cks, "hlapi::bitonic_shuffle_cpu::non_pow2");
     bench_key_size_sweep(c, &cks, "hlapi::bitonic_shuffle_cpu::key_size_sweep");
     bench_collision_probability(c, &cks, "hlapi::bitonic_shuffle_cpu::collision_probability");
-    bench_shuffle_configs(c, &cks, "hlapi::bitonic_shuffle_cpu::summary");
+    bench_shuffle_configs(c, &cks, "hlapi::bitonic_shuffle_cpu::summary", Backend::Cpu);
 
     let cpu_cks = tfhe::integer::ClientKey::new(param);
     bench_unchecked_with_keys_cpu_inner(
@@ -392,7 +407,12 @@ pub fn bitonic_shuffle_gpu(c: &mut Criterion) {
     bench_non_pow2(c, &cks, "hlapi::bitonic_shuffle_gpu::non_pow2");
     bench_key_size_sweep(c, &cks, "hlapi::bitonic_shuffle_gpu::key_size_sweep");
     bench_collision_probability(c, &cks, "hlapi::bitonic_shuffle_gpu::collision_probability");
-    bench_shuffle_configs(c, &cks, "hlapi::bitonic_shuffle_gpu::summary");
+    bench_shuffle_configs(
+        c,
+        &cks,
+        "hlapi::bitonic_shuffle_gpu::summary",
+        Backend::Cuda,
+    );
 
     let cpu_cks = tfhe::integer::ClientKey::new(param);
     bench_unchecked_with_keys_gpu_inner(

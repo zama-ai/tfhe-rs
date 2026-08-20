@@ -160,6 +160,40 @@ impl FromStr for CudaKeyswitchConfig {
     }
 }
 
+/// The two widths a shuffle benchmark is measured at: the values being
+/// shuffled, and the keys they are shuffled by.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ShuffleConfig {
+    pub value_bits: u32,
+    pub key_bits: u32,
+}
+
+impl fmt::Display for ShuffleConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}_bits::key_{}_bits", self.value_bits, self.key_bits)
+    }
+}
+
+impl FromStr for ShuffleConfig {
+    type Err = SpecParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let unknown = || SpecParseError::Unknown(format!("unknown shuffle config: {s:?}"));
+
+        let (values, keys) = s.split_once("::").ok_or_else(unknown)?;
+        let value_bits = values.strip_suffix("_bits").ok_or_else(unknown)?;
+        let key_bits = keys
+            .strip_prefix("key_")
+            .and_then(|bits| bits.strip_suffix("_bits"))
+            .ok_or_else(unknown)?;
+
+        Ok(Self {
+            value_bits: value_bits.parse().map_err(|_| unknown())?,
+            key_bits: key_bits.parse().map_err(|_| unknown())?,
+        })
+    }
+}
+
 /// Everything the type slot of a bench id can hold.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TypeTag {
@@ -171,6 +205,8 @@ pub enum TypeTag {
         value: FheType,
     },
     CudaKeyswitch(CudaKeyswitchConfig),
+    /// `{v}_bits::key_{k}_bits`, for the shuffle benches.
+    Shuffle(ShuffleConfig),
     /// `bound_{n}`, the excluded upper bound of an OPRF range.
     Bound(u64),
 }
@@ -182,6 +218,7 @@ impl fmt::Display for TypeTag {
             Self::Type(ty) => ty.fmt(f),
             Self::KeyValue { key, value } => write!(f, "key_{key}::value_{value}"),
             Self::CudaKeyswitch(config) => config.fmt(f),
+            Self::Shuffle(config) => config.fmt(f),
             Self::Bound(n) => write!(f, "bound_{n}"),
         }
     }
@@ -206,6 +243,9 @@ impl FromStr for TypeTag {
                 key: key.parse()?,
                 value: value.parse()?,
             });
+        }
+        if let Ok(config) = s.parse::<ShuffleConfig>() {
+            return Ok(Self::Shuffle(config));
         }
         if let Ok(tag) = s.parse::<PrecisionTag>() {
             return Ok(Self::Precision(tag));
@@ -235,6 +275,12 @@ impl From<CudaKeyswitchConfig> for TypeTag {
     }
 }
 
+impl From<ShuffleConfig> for TypeTag {
+    fn from(config: ShuffleConfig) -> Self {
+        Self::Shuffle(config)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -259,6 +305,10 @@ mod tests {
             TypeTag::CudaKeyswitch(CudaKeyswitchConfig::new(32, None, None)),
             TypeTag::CudaKeyswitch(CudaKeyswitchConfig::new(64, Some(true), Some(false))),
             TypeTag::CudaKeyswitch(CudaKeyswitchConfig::new(64, Some(false), Some(true))),
+            TypeTag::Shuffle(ShuffleConfig {
+                value_bits: 64,
+                key_bits: 16,
+            }),
             TypeTag::Bound(52),
         ];
 
