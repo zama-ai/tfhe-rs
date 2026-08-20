@@ -68,6 +68,28 @@ pub enum BenchSubset {
     KvStore,
 }
 
+impl BenchSubset {
+    /// The bench path segment that follows the layer, so that a subset narrows
+    /// the query instead of being filtered out once every row of the layer has
+    /// been fetched. Already `LIKE`-escaped, and terminated by `::` so it can be
+    /// concatenated straight onto the layer prefix.
+    ///
+    /// ```text
+    /// all -> tfhe::integer::%_mean_avx512
+    /// zk  -> tfhe::integer::zk::%_mean_avx512
+    /// ```
+    fn path_segment(self) -> String {
+        let segment = match self {
+            // No segment: the whole layer is in scope.
+            Self::All => return String::new(),
+            Self::Erc7984 => "erc7984",
+            Self::Zk => "zk",
+            Self::KvStore => "kv_store",
+        };
+        format!("{}::", db::like_escape(segment))
+    }
+}
+
 impl BenchType {
     /// Maps the CLI filter onto the spec metric. `None` means no metric filter
     /// (i.e. both latency and throughput).
@@ -365,9 +387,10 @@ impl Selection {
             }
             (None, None) => (
                 vec![format!(
-                    "{}::{}::%{}",
+                    "{}::{}::{}%{}",
                     BenchPathKind::Tfhe,
                     db::like_escape(&args.layer.layer_kind()?.to_string()),
+                    args.bench_subset.path_segment(),
                     db::like_escape(&args.name_suffix),
                 )],
                 args.param.clone(),
@@ -485,6 +508,11 @@ async fn main() -> anyhow::Result<()> {
             (Layer::HlApi, BenchSubset::Erc7984) => {
                 vec![("-ciphertext".to_string(), format::erc7984::table(&measured))]
             }
+            // One table per compute load, all ciphertext.
+            (Layer::Integer, BenchSubset::Zk) => format::zk::tables(&measured)
+                .into_iter()
+                .map(|(suffix, table)| (format!("-ciphertext{suffix}"), table))
+                .collect(),
             // One table per operation, all ciphertext.
             (Layer::HlApi, BenchSubset::KvStore) => format::kv_store::tables(&measured)
                 .into_iter()

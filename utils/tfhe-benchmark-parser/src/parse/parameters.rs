@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 /// Directories where parameter records can be stored.
 const BENCHMARK_DIRS: [&str; 2] = ["tfhe-benchmark", "tfhe-zk-pok"];
 
-/// Locate and read the `parameters.json` file produced by `write_to_json_unchecked` for a given
+/// Locate and read the `parameters.json` file produced by `write_to_json` for a given
 /// `bench_id`. Tries each candidate in [`BENCHMARK_DIRS`] in turn, then each of `extra_dirs`.
 ///
 /// Returns `(params, display_name, operator_type)` where `params` is the remaining top-level JSON

@@ -329,9 +329,12 @@ class ZKOperation(enum.StrEnum):
     Proof = "Proving"
     Verify = "Verifying"
     VerifyAndExpand = "Verify + expand"
+    OnlyExpand = "Expand only"
 
     @staticmethod
     def from_str(op_name):
+        # Two spellings coexist: the spec names the operation alone (`verify`),
+        # the pre-spec ids prefixed it (`pke_zk_verify`).
         match op_name.lower().rsplit("pke_zk_")[-1]:
             case "proof":
                 return ZKOperation.Proof
@@ -339,6 +342,8 @@ class ZKOperation(enum.StrEnum):
                 return ZKOperation.Verify
             case "verify_and_expand":
                 return ZKOperation.VerifyAndExpand
+            case "only_expand" | "verify_only_expand":
+                return ZKOperation.OnlyExpand
             case _:
                 raise ValueError(f"ZK operation '{op_name}' not supported")
 
@@ -518,6 +523,10 @@ class BenchDetails:
     def __init__(self, layer: Layer, bench_full_name: str, bit_size: int):
         self.layer = layer
 
+        # Kept whole: a tag spanning several `::` segments cannot be recovered
+        # from `case_variation`, which only holds the last one.
+        self.full_name = bench_full_name
+
         self.bench_type = BenchType.Latency
         self.operation_name = None
         self.bit_size = bit_size
@@ -573,6 +582,11 @@ class BenchDetails:
         """
         parts = name.split("::")
 
+        # Ids built from the benchmark spec lead with the crate; the ones that
+        # predate it start straight at the layer.
+        if parts[0] == "tfhe":
+            parts = parts[1:]
+
         if "throughput" in parts:
             self.bench_type = BenchType.Throughput
 
@@ -583,7 +597,11 @@ class BenchDetails:
 
         match self.layer:
             case Layer.Integer:
-                op_name_index = 2 if parts[1] in ["cuda", "hpu", "zk"] else 1
+                # The operation sits at no fixed index: several known segments
+                # can precede it, `integer::cuda::zk::` being the longest.
+                op_name_index = 1
+                while parts[op_name_index] in ["cuda", "hpu", "zk"]:
+                    op_name_index += 1
 
                 if self.params and not parts[-1].startswith(self.params):
                     self.case_variation = parts[-1].partition("_mean")[0]

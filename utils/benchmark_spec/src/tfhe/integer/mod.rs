@@ -2,6 +2,7 @@ pub mod oprf;
 pub mod ops;
 pub mod packing;
 pub mod rerand;
+pub mod zk_pke;
 
 use std::str::FromStr;
 
@@ -14,6 +15,7 @@ use strum::{Display, EnumDiscriminants, EnumString};
 pub use oprf::IntegerOprf;
 pub use packing::IntegerPackingOp;
 pub use rerand::IntegerRerandMode;
+pub use zk_pke::ZkPkeBench;
 
 #[derive(Debug, Clone, Copy, Display, EnumDiscriminants, enum_iterator::Sequence)]
 #[strum(serialize_all = "snake_case")]
@@ -63,6 +65,9 @@ pub enum IntegerBench {
     Rerand(IntegerRerandMode),
     VectorFind(VectorFindOp),
     NoiseSquashingCompression(IntegerPackingOp),
+    /// The proven compact list benches: they exercise `tfhe`, not `tfhe-zk-pok`,
+    /// so they live here and carry a parameter set like their siblings.
+    Zk(ZkPkeBench),
 }
 
 impl SpecNode for IntegerBench {
@@ -74,6 +79,7 @@ impl SpecNode for IntegerBench {
             IntegerBench::Rerand(mode) => mode,
             IntegerBench::VectorFind(op) => op,
             IntegerBench::NoiseSquashingCompression(op) => op,
+            IntegerBench::Zk(bench) => bench,
         })
     }
 }
@@ -94,6 +100,7 @@ impl FromStr for IntegerBench {
             IntegerBenchKind::NoiseSquashingCompression => {
                 Ok(Self::NoiseSquashingCompression(rest.parse()?))
             }
+            IntegerBenchKind::Zk => Ok(Self::Zk(rest.parse()?)),
         }
     }
 }
