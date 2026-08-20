@@ -174,16 +174,17 @@ void cleanup_cuda_integer_overflowing_sub_64_inplace(CudaStreamsFFI streams,
 uint64_t scratch_cuda_apply_univariate_lut_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, void const *input_lut,
     CudaLweBootstrapKeyParamsFFI bsk_params,
-    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_radix_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, uint64_t lut_degree,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    CudaLweKeyswitchKeyParamsFFI ksk_params,
+    uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
+    uint32_t carry_modulus, uint64_t lut_degree, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
 
   return scratch_cuda_apply_univariate_lut<uint64_t>(
       CudaStreams(streams), (int_radix_lut<uint64_t> **)mem_ptr,
-      static_cast<const uint64_t *>(input_lut), num_radix_blocks, params,
-      lut_degree, allocate_gpu_memory);
+      static_cast<const uint64_t *>(input_lut), input_lwe_ciphertext_count,
+      params, lut_degree, allocate_gpu_memory);
 }
 
 uint64_t scratch_cuda_apply_many_univariate_lut_64_async(
@@ -238,7 +239,7 @@ void cleanup_cuda_apply_many_univariate_lut_64(CudaStreamsFFI streams,
 void cuda_apply_many_univariate_lut_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
     CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
-    void *const *ksks, void *const *bsks, uint32_t num_many_lut,
+    void *const *ksks, void *const *bsks, uint32_t num_luts,
     uint32_t lut_stride) {
   PANIC_IF_FALSE(output_radix_lwe != input_radix_lwe,
                  "Output and input pointers must be different for out-of-place "
@@ -246,8 +247,8 @@ void cuda_apply_many_univariate_lut_64_async(
 
   host_apply_many_univariate_lut<uint64_t>(
       CudaStreams(streams), output_radix_lwe, input_radix_lwe,
-      (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks), bsks,
-      num_many_lut, lut_stride);
+      (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks), bsks, num_luts,
+      lut_stride);
 }
 
 void cuda_integer_reverse_blocks_64_inplace_async(
@@ -291,7 +292,7 @@ uint64_t scratch_cuda_apply_noise_squashing_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t input_glwe_dimension,
     uint32_t input_polynomial_size, CudaLweKeyswitchKeyParamsFFI ksk_params,
-    uint32_t num_radix_blocks, uint32_t original_num_blocks,
+    uint32_t num_radix_blocks, uint32_t num_original_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
@@ -300,7 +301,7 @@ uint64_t scratch_cuda_apply_noise_squashing_async(
   return scratch_cuda_apply_noise_squashing_mem(
       streams, params, (int_noise_squashing_lut<uint64_t> **)mem_ptr,
       input_glwe_dimension, input_polynomial_size, num_radix_blocks,
-      original_num_blocks, allocate_gpu_memory);
+      num_original_blocks, allocate_gpu_memory);
 }
 
 void cuda_apply_noise_squashing_async(

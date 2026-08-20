@@ -318,7 +318,7 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lwe_array_in, void const *lwe_input_indexes,
-    void const *bootstrapping_key, int8_t *mem_ptr, uint32_t lwe_dimension,
+    void const *bootstrapping_key, int8_t *buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
@@ -334,9 +334,9 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
                  "size 2048 is supported, got %d.",
                  polynomial_size);
 
-  auto *buffer =
-      reinterpret_cast<pbs_buffer_128<uint64_t, MULTI_BIT> *>(mem_ptr);
-  switch (buffer->pbs_variant) {
+  auto *pbs_buf =
+      reinterpret_cast<pbs_buffer_128<uint64_t, MULTI_BIT> *>(buffer);
+  switch (pbs_buf->pbs_variant) {
   case PBS_VARIANT::CG:
     host_cg_multi_bit_programmable_bootstrap_noise_tests_128<uint64_t,
                                                              Degree<2048>>(
@@ -346,7 +346,7 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
         static_cast<const __uint128_t *>(lut_vector),
         static_cast<const uint64_t *>(lwe_array_in),
         static_cast<const uint64_t *>(lwe_input_indexes),
-        static_cast<const __uint128_t *>(bootstrapping_key), buffer,
+        static_cast<const __uint128_t *>(bootstrapping_key), pbs_buf,
         glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
         base_log, level_count, num_samples, num_many_lut, lut_stride);
     break;
@@ -359,7 +359,7 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
         static_cast<const __uint128_t *>(lut_vector),
         static_cast<const uint64_t *>(lwe_array_in),
         static_cast<const uint64_t *>(lwe_input_indexes),
-        static_cast<const __uint128_t *>(bootstrapping_key), buffer,
+        static_cast<const __uint128_t *>(bootstrapping_key), pbs_buf,
         glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
         base_log, level_count, num_samples, num_many_lut, lut_stride);
     break;
