@@ -10,6 +10,7 @@ use strum::{Display, EnumDiscriminants, EnumString};
 use crate::error::SpecParseError;
 use crate::traits::SpecNode;
 
+pub use super::key_size::KeyKind;
 pub use casting::ShortintCastingOp;
 pub use packing::ShortintPackingOp;
 
@@ -26,6 +27,7 @@ pub enum ShortintBench {
     Ops(ShortintOp),
     Casting(ShortintCastingOp),
     PackingCompression(ShortintPackingOp),
+    Keys(KeyKind),
     Oprf,
     // Special ops kept as top-level leaves.
     CarryExtract,
@@ -40,6 +42,7 @@ impl SpecNode for ShortintBench {
             ShortintBench::Ops(op) => Some(op),
             ShortintBench::Casting(op) => Some(op),
             ShortintBench::PackingCompression(op) => Some(op),
+            ShortintBench::Keys(key) => Some(key),
             ShortintBench::Oprf
             | ShortintBench::CarryExtract
             | ShortintBench::ProgrammableBootstrap
@@ -60,6 +63,7 @@ impl FromStr for ShortintBench {
             ShortintBenchKind::Ops => Ok(Self::Ops(rest.parse()?)),
             ShortintBenchKind::Casting => Ok(Self::Casting(rest.parse()?)),
             ShortintBenchKind::PackingCompression => Ok(Self::PackingCompression(rest.parse()?)),
+            ShortintBenchKind::Keys => Ok(Self::Keys(rest.parse()?)),
             // Leaf variants close the bench path: what follows belongs to the
             // trailing part of the id, not to this node.
             _ if !rest.is_empty() => Err(SpecParseError::Unknown(format!(

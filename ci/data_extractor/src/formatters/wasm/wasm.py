@@ -33,8 +33,10 @@ class ZKFormatter(ZKGenericFormatter):
         )
 
     @staticmethod
-    def _parse_benchmarks_case_variation(case_variation: str):
-        parts = case_variation.split("_")
+    def _parse_benchmarks_case_variation(details):
+        # The wasm ids are still built by the JavaScript harness, so their tag
+        # is one underscore-glued segment and positions hold.
+        parts = details.case_variation.split("_")
         case = {
             "packed_size": int(parts[0]),
             "crs_size": int(parts[3]),

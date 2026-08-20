@@ -1,5 +1,5 @@
-use benchmark::utilities::{write_to_json_unchecked, OperatorType};
-use benchmark_spec::CsvResultWriter;
+use benchmark::utilities::{write_to_json, OperatorType};
+use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, BooleanBench, CsvResultWriter, KeyKind};
 use std::path::Path;
 use tfhe::boolean::parameters::{DEFAULT_PARAMETERS, PARAMETERS_ERROR_PROB_2_POW_MINUS_165};
 use tfhe::boolean::{client_key, server_key};
@@ -26,10 +26,14 @@ fn client_server_key_sizes(results_file: &Path) {
         let cks = client_key::ClientKey::new(params);
         let sks = server_key::ServerKey::new(&cks);
         let ksk_size = sks.key_switching_key_size_bytes();
-        let test_name = format!("boolean_key_sizes_{params_name}_ksk");
+        let spec = BenchmarkSpec::new_boolean(
+            BooleanBench::Keys(KeyKind::Ksk),
+            params_name,
+            BenchmarkMetric::KeySize,
+        );
 
-        benchmark_test_result.write_result(&test_name, ksk_size);
-        write_to_json_unchecked(&test_name, *params_name, "KSK", &operator, 0, vec![]);
+        benchmark_test_result.write_result(&spec.to_string(), ksk_size);
+        write_to_json(&spec, "KSK", &operator, 0, vec![]);
 
         println!(
             "Element in KSK: {}, size in bytes: {}",
@@ -38,10 +42,14 @@ fn client_server_key_sizes(results_file: &Path) {
         );
 
         let bsk_size = sks.bootstrapping_key_size_bytes();
-        let test_name = format!("boolean_key_sizes_{params_name}_bsk");
+        let spec = BenchmarkSpec::new_boolean(
+            BooleanBench::Keys(KeyKind::Bsk),
+            params_name,
+            BenchmarkMetric::KeySize,
+        );
 
-        benchmark_test_result.write_result(&test_name, bsk_size);
-        write_to_json_unchecked(&test_name, *params_name, "BSK", &operator, 0, vec![]);
+        benchmark_test_result.write_result(&spec.to_string(), bsk_size);
+        write_to_json(&spec, "BSK", &operator, 0, vec![]);
 
         println!(
             "Element in BSK: {}, size in bytes: {}",
