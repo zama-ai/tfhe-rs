@@ -1,3 +1,9 @@
+// Included so that the compiler checks these definitions against the
+// NEG_TWIDDLES_COUNT-sized declarations. The bounds stay spelled as the
+// literal 4096: a wider spelling reflows every line of the generated table
+// under clang-format.
+#include "twiddles.cuh"
+
 __device__ double neg_twiddles_re_hi[4096] = {0x0p+0,
                                               0x1.6a09e667f3bcdp-1,
                                               0x1.d906bcf328d46p-1,
