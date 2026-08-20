@@ -18,7 +18,7 @@ user = "ubuntu"
 
 [backend.aws.bench]
 region = "eu-west-1"
-image_id = "ami-0e99a601b5c4c7021"
+image_id = "ami-067f3893108afe8cd"
 instance_type = "hpc7a.96xlarge"
 user = "ubuntu"
 
