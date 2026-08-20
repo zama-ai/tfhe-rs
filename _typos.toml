@@ -14,4 +14,6 @@ extend-ignore-identifiers-re = [
     "C9217BA0D762ACA1",
     "0x[0-9a-fA-F]+",
     "xrt_coreutil",
+    # An identifier in slab.toml
+    "067f3893108afe8cd"
 ]
