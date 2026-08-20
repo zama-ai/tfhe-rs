@@ -1,5 +1,6 @@
 import collections
 import pathlib
+import re
 import xml.dom.minidom
 from collections.abc import Callable
 
@@ -326,9 +327,7 @@ class ZKGenericFormatter(GenericFormatter):
         formatted = self._get_default_dict()
 
         for details, timings in data.items():
-            parsed_case_variation = self._parse_benchmarks_case_variation(
-                details.case_variation
-            )
+            parsed_case_variation = self._parse_benchmarks_case_variation(details)
 
             if not (
                 (parsed_case_variation["crs_size"] == self.DEFAULT_CRS_SIZE)
@@ -348,13 +347,26 @@ class ZKGenericFormatter(GenericFormatter):
             formatted[test_name][ZKOperation.from_str(details.operation_name)] = value
         return formatted
 
+    # One expression for both spellings: the pre-spec ids glued the axes with
+    # `_`, the spec separates them with `::`. Both are in the database for as
+    # long as the queried time span reaches back before the migration.
+    ZK_TAG = re.compile(
+        r"(?P<packed_size>\d+)_bits_packed(?:_|::)"
+        r"(?P<crs_size>\d+)_bits_crs(?:_|::)"
+        r"compute_load_(?P<compute_load>proof|verify)"
+    )
+
     @staticmethod
-    def _parse_benchmarks_case_variation(case_variation: str):
-        parts = case_variation.split("_")
+    def _parse_benchmarks_case_variation(details: BenchDetails):
+        # Read off the whole id: the tag spans several `::` segments, of which
+        # `case_variation` only holds the last.
+        match = ZKGenericFormatter.ZK_TAG.search(details.full_name)
+        if match is None:
+            raise ValueError(f"no zk tag in test name '{details.full_name}'")
         return {
-            "packed_size": int(parts[0]),
-            "crs_size": int(parts[3]),
-            "compute_load": parts[8],
+            "packed_size": int(match["packed_size"]),
+            "crs_size": int(match["crs_size"]),
+            "compute_load": match["compute_load"],
         }
 
     def _generate_arrays(self, data, *args, **kwargs):

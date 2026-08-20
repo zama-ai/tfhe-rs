@@ -6,7 +6,7 @@ use std::sync::OnceLock;
 #[cfg(feature = "gpu")]
 use tfhe::core_crypto::gpu::{get_number_of_gpus, get_number_of_sms};
 
-pub use tfhe_benchmark_parser::{write_to_json, write_to_json_unchecked, OperatorType};
+pub use tfhe_benchmark_parser::{write_to_json, write_to_json_external_name, OperatorType};
 
 /// Run a criterion routine and record its metadata via `write_to_json`.
 pub fn bench_and_record<F>(

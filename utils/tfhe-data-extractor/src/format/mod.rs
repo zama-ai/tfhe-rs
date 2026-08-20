@@ -7,6 +7,7 @@ pub mod erc7984;
 pub mod integer;
 pub mod kv_store;
 pub mod render;
+pub mod zk;
 
 use std::collections::HashMap;
 use std::hash::Hash;
