@@ -21,13 +21,12 @@ pub use measured::{MeasuredId, Statistic, measured_name};
 pub use metric::{BenchmarkMetric, BenchmarkType, OperandType, get_bench_type};
 pub use tfhe::hlapi::HlapiBench;
 pub use tfhe::{
-    BooleanBench, CoreCryptoBench, HlIntegerOp, IntegerBench, IntegerOp, IntegerOpBySign,
-    IntegerOprf, IntegerPackingOp, IntegerRerandMode, ShortintBench, ShortintCastingOp, ShortintOp,
-    ShortintPackingOp, TfheLayer, VectorFindOp,
+    BooleanBench, CiphertextKind, CoreCryptoBench, HlIntegerOp, IntegerBench, IntegerOp,
+    IntegerOpBySign, IntegerOprf, IntegerPackingOp, IntegerRerandMode, KeyKind, ShortintBench,
+    ShortintCastingOp, ShortintOp, ShortintPackingOp, TfheLayer, TranscipheringBench, VectorFindOp,
 };
-pub use type_tag::{CudaKeyswitchConfig, FheType, PrecisionTag, TypeTag};
+pub use type_tag::{CudaKeyswitchConfig, FheType, PrecisionTag, ShuffleConfig, TypeTag};
 
-use crate::tfhe::TranscipheringBench;
 use crate::zk::ZkLayer;
 use crate::zk::msm::MsmBench;
 use std::fmt;
@@ -241,16 +240,18 @@ impl BenchmarkSpec {
     pub fn new_transciphering(
         transcipher_bench: TranscipheringBench,
         param_name: &str,
+        type_tag: Option<TypeTag>,
         bench_type: impl Into<BenchmarkMetric>,
+        num_elements: Option<usize>,
     ) -> Self {
         Self {
             bench_crate: BenchPath::Tfhe(TfheLayer::Transciphering(transcipher_bench)),
             backend: bench_backend_from_cfg(),
             param_name: param_name.to_string(),
             operand_type: OperandType::CipherText,
-            type_tag: None,
+            type_tag,
             metric: bench_type.into(),
-            num_elements: None,
+            num_elements,
         }
     }
 

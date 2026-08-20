@@ -1,7 +1,7 @@
 use benchmark::params::get_classical_tuniform_groups;
 use benchmark::params_aliases::*;
-use benchmark::utilities::{write_to_json_unchecked, OperatorType};
-use benchmark_spec::CsvResultWriter;
+use benchmark::utilities::{write_to_json, OperatorType};
+use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, CsvResultWriter, KeyKind, ShortintBench};
 use std::path::Path;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey;
@@ -16,6 +16,14 @@ use tfhe::shortint::{
     ClientKey, CompactPrivateKey, CompressedCompactPublicKey, CompressedKeySwitchingKey,
     CompressedServerKey, PBSParameters, ServerKey,
 };
+
+fn key_size_spec(key: KeyKind, param_name: &str) -> BenchmarkSpec {
+    BenchmarkSpec::new_shortint(
+        ShortintBench::Keys(key),
+        param_name,
+        BenchmarkMetric::KeySize,
+    )
+}
 
 fn client_server_key_sizes(results_file: &Path) {
     let shortint_params_vec: Vec<PBSParameters> = vec![
@@ -71,11 +79,11 @@ fn client_server_key_sizes(results_file: &Path) {
         let cks = keys.client_key();
         let sks = StandardServerKeyView::try_from(keys.server_key().as_view()).unwrap();
         let ksk_size = sks.key_switching_key_size_bytes();
-        let test_name = format!("shortint_key_sizes_{}_ksk", params.name());
+        let spec = key_size_spec(KeyKind::Ksk, &params.name());
 
-        benchmark_test_result.write_result(&test_name, ksk_size);
+        benchmark_test_result.write_result(&spec.to_string(), ksk_size);
 
-        write_to_json_unchecked(&test_name, params.name(), "KSK", &operator, 0, vec![]);
+        write_to_json(&spec, "KSK", &operator, 0, vec![]);
 
         println!(
             "Element in KSK: {}, size in bytes: {}",
@@ -84,11 +92,11 @@ fn client_server_key_sizes(results_file: &Path) {
         );
 
         let bsk_size = sks.bootstrapping_key_size_bytes();
-        let test_name = format!("shortint_key_sizes_{}_bsk", params.name());
+        let spec = key_size_spec(KeyKind::Bsk, &params.name());
 
-        benchmark_test_result.write_result(&test_name, bsk_size);
+        benchmark_test_result.write_result(&spec.to_string(), bsk_size);
 
-        write_to_json_unchecked(&test_name, params.name(), "BSK", &operator, 0, vec![]);
+        write_to_json(&spec, "BSK", &operator, 0, vec![]);
 
         println!(
             "Element in BSK: {}, size in bytes: {}",
@@ -98,11 +106,11 @@ fn client_server_key_sizes(results_file: &Path) {
 
         let sks_compressed = CompressedServerKey::new(cks);
         let bsk_compressed_size = sks_compressed.bootstrapping_key_size_bytes();
-        let test_name = format!("shortint_key_sizes_{}_bsk_compressed", params.name());
+        let spec = key_size_spec(KeyKind::BskCompressed, &params.name());
 
-        benchmark_test_result.write_result(&test_name, bsk_compressed_size);
+        benchmark_test_result.write_result(&spec.to_string(), bsk_compressed_size);
 
-        write_to_json_unchecked(&test_name, params.name(), "BSK", &operator, 0, vec![]);
+        write_to_json(&spec, "BSK", &operator, 0, vec![]);
 
         println!(
             "Element in BSK compressed: {}, size in bytes: {}",
@@ -118,24 +126,17 @@ fn client_server_key_sizes(results_file: &Path) {
 fn measure_serialized_size<T: serde::Serialize>(
     to_serialize: &T,
     param_name: &str,
-    test_name_suffix: &str,
+    key: KeyKind,
     display_name: &str,
     file: &mut CsvResultWriter,
 ) {
     let serialized = bincode::serialize(to_serialize).unwrap();
     let size = serialized.len();
-    let test_name = format!("shortint_key_sizes_{param_name}_{test_name_suffix}");
-    file.write_result(&test_name, size);
-    write_to_json_unchecked(
-        &test_name,
-        param_name,
-        display_name,
-        &OperatorType::Atomic,
-        0,
-        vec![],
-    );
+    let spec = key_size_spec(key, param_name);
+    file.write_result(&spec.to_string(), size);
+    write_to_json(&spec, display_name, &OperatorType::Atomic, 0, vec![]);
 
-    println!("{test_name_suffix} {param_name} -> size: {size} bytes",);
+    println!("{key} {param_name} -> size: {size} bytes",);
 }
 
 fn tuniform_key_set_sizes(results_file: &Path) {
@@ -160,14 +161,14 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                 measure_serialized_size(
                     &ap.key_switching_key,
                     &param_fhe_name,
-                    "ksk",
+                    KeyKind::Ksk,
                     "KSK",
                     &mut benchmark_test_result,
                 );
                 measure_serialized_size(
                     &ap.bootstrapping_key,
                     &param_fhe_name,
-                    "bsk",
+                    KeyKind::Bsk,
                     "BSK",
                     &mut benchmark_test_result,
                 );
@@ -176,14 +177,14 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                 measure_serialized_size(
                     &ap.key_switching_key,
                     &param_fhe_name,
-                    "ksk",
+                    KeyKind::Ksk,
                     "KSK",
                     &mut benchmark_test_result,
                 );
                 measure_serialized_size(
                     &ap.bootstrapping_key,
                     &param_fhe_name,
-                    "bsk",
+                    KeyKind::Bsk,
                     "BSK",
                     &mut benchmark_test_result,
                 );
@@ -196,14 +197,14 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                 measure_serialized_size(
                     comp_ap.key_switching_key(),
                     &param_fhe_name,
-                    "ksk_compressed",
+                    KeyKind::KskCompressed,
                     "KSK",
                     &mut benchmark_test_result,
                 );
                 measure_serialized_size(
                     &comp_ap.bootstrapping_key(),
                     &param_fhe_name,
-                    "bsk_compressed",
+                    KeyKind::BskCompressed,
                     "BSK",
                     &mut benchmark_test_result,
                 );
@@ -212,14 +213,14 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                 measure_serialized_size(
                     comp_ap.key_switching_key(),
                     &param_fhe_name,
-                    "ksk_compressed",
+                    KeyKind::KskCompressed,
                     "KSK",
                     &mut benchmark_test_result,
                 );
                 measure_serialized_size(
                     &comp_ap.bootstrapping_key(),
                     &param_fhe_name,
-                    "bsk_compressed",
+                    KeyKind::BskCompressed,
                     "BSK",
                     &mut benchmark_test_result,
                 );
@@ -236,14 +237,14 @@ fn tuniform_key_set_sizes(results_file: &Path) {
             measure_serialized_size(
                 &pk,
                 &param_pke_name,
-                "cpk",
+                KeyKind::Cpk,
                 "CPK",
                 &mut benchmark_test_result,
             );
             measure_serialized_size(
                 &compressed_pk,
                 &param_pke_name,
-                "cpk_compressed",
+                KeyKind::CpkCompressed,
                 "CPK",
                 &mut benchmark_test_result,
             );
@@ -260,14 +261,14 @@ fn tuniform_key_set_sizes(results_file: &Path) {
             measure_serialized_size(
                 &casting_key.into_raw_parts().0,
                 &param_casting_name,
-                "casting_key",
+                KeyKind::CastingKey,
                 "CastKey",
                 &mut benchmark_test_result,
             );
             measure_serialized_size(
                 &compressed_casting_key.into_raw_parts().0,
                 &param_casting_name,
-                "casting_key_compressed",
+                KeyKind::CastingKeyCompressed,
                 "CastKey",
                 &mut benchmark_test_result,
             );
@@ -283,14 +284,14 @@ fn tuniform_key_set_sizes(results_file: &Path) {
             measure_serialized_size(
                 &compression_key,
                 &param_compression_name,
-                "compression_key",
+                KeyKind::CompressionKey,
                 "CompressionKey",
                 &mut benchmark_test_result,
             );
             measure_serialized_size(
                 &decompression_key,
                 &param_compression_name,
-                "decompression_key",
+                KeyKind::DecompressionKey,
                 "CompressionKey",
                 &mut benchmark_test_result,
             );
@@ -301,14 +302,14 @@ fn tuniform_key_set_sizes(results_file: &Path) {
             measure_serialized_size(
                 &compressed_compression_key,
                 &param_compression_name,
-                "compressed_compression_key",
+                KeyKind::CompressedCompressionKey,
                 "CompressedCompressionKey",
                 &mut benchmark_test_result,
             );
             measure_serialized_size(
                 &compressed_decompression_key,
                 &param_compression_name,
-                "compressed_decompression_key",
+                KeyKind::CompressedDecompressionKey,
                 "CompressedCompressionKey",
                 &mut benchmark_test_result,
             );
@@ -322,7 +323,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
             measure_serialized_size(
                 &noise_squash_key,
                 &noise_squashing_param.name(),
-                "noise_squashing_key",
+                KeyKind::NoiseSquashingKey,
                 "NoiseSquashingKey",
                 &mut benchmark_test_result,
             );
@@ -339,7 +340,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
                 measure_serialized_size(
                     &noise_squash_comp_key,
                     &noise_squashing_comp_param.name(),
-                    "noise_squashing_compression_key",
+                    KeyKind::NoiseSquashingCompressionKey,
                     "NoiseSquashingCompressionKey",
                     &mut benchmark_test_result,
                 );
