@@ -60,8 +60,9 @@ jobs:
       - name: Prepare package
         env:
           PACKAGE: ${{ inputs.package-name }}
-        run: |
-          cargo package -p "${PACKAGE}"
+        # --locked: fail rather than silently re-resolve if Cargo.lock is out of date, so a
+        # release can never pick up a dependency version that was not already reviewed.
+        run: cargo package --locked -p "${PACKAGE}"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: crate-${{ inputs.package-name }}
@@ -115,11 +116,13 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
           PACKAGE: ${{ inputs.package-name }}
           DRY_RUN: ${{ inputs.dry-run && '--dry-run' || '' }}
+        # DRY_RUN expansion cannot be double quoted when variable contains empty string otherwise cargo publish
+        # would fail. This is safe since DRY_RUN is handled in the env section above.
+        # --locked: see the packaging step. Matters most here, where a dependency build script
+        # would run with CARGO_REGISTRY_TOKEN in the environment.
         run: |
-          # DRY_RUN expansion cannot be double quoted when variable contains empty string otherwise cargo publish
-          # would fail. This is safe since DRY_RUN is handled in the env section above.
           # shellcheck disable=SC2086
-          cargo publish -p "${PACKAGE}" ${DRY_RUN}
+          cargo publish --locked -p "${PACKAGE}" ${DRY_RUN}
 
       - name: Generate hash
         id: published_hash
