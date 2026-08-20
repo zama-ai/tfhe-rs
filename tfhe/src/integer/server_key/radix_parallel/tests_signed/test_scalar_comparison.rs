@@ -3,7 +3,9 @@ use crate::integer::block_decomposition::{DecomposableInto, RecomposableSignedIn
 use crate::integer::ciphertext::SignedRadixCiphertext;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
-use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
+use crate::integer::server_key::radix_parallel::tests_unsigned::{
+    panic_if_boolean_block_is_not_clean, panic_if_radix_is_not_clean, CpuFunctionExecutor,
+};
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, I256};
 #[cfg(tarpaulin)]
@@ -205,6 +207,7 @@ pub(crate) fn test_signed_default_scalar_function<P, T, ClearF, Scalar>(
 
         assert!(!ct_0.block_carries_are_empty());
         let encrypted_result = executor.execute((&ct_0, clear_1));
+        panic_if_boolean_block_is_not_clean(&encrypted_result, &cks);
 
         // Sanity decryption checks
         {
@@ -556,6 +559,7 @@ pub(crate) fn test_signed_default_scalar_minmax<P, T, ClearF, Scalar>(
 
         assert!(!ct_0.block_carries_are_empty());
         let encrypted_result = executor.execute((&ct_0, clear_1));
+        panic_if_radix_is_not_clean(&encrypted_result, &cks);
 
         // Sanity decryption checks
         {
@@ -824,60 +828,72 @@ pub(crate) fn extensive_trivial_signed_default_scalar_comparisons_test<P, E1, E2
 
             {
                 let result = lt_executor.execute((&a, clear_b));
+                panic_if_boolean_block_is_not_clean(&result, &cks);
                 let result = cks.decrypt_bool(&result);
                 assert_eq!(result, clear_a < clear_b, "{clear_a} < {clear_b}");
 
                 let result = lt_executor.execute((&a, clear_a));
+                panic_if_boolean_block_is_not_clean(&result, &cks);
                 let result = cks.decrypt_bool(&result);
                 assert_eq!(result, clear_a < clear_a, "{clear_a} < {clear_a}");
             }
 
             {
                 let result = le_executor.execute((&a, clear_b));
+                panic_if_boolean_block_is_not_clean(&result, &cks);
                 let result = cks.decrypt_bool(&result);
                 assert_eq!(result, clear_a <= clear_b, "{clear_a} <= {clear_b}");
 
                 let result = le_executor.execute((&a, clear_a));
+                panic_if_boolean_block_is_not_clean(&result, &cks);
                 let result = cks.decrypt_bool(&result);
                 assert_eq!(result, clear_a <= clear_a, "{clear_a} <= {clear_a}");
             }
 
             {
                 let result = gt_executor.execute((&a, clear_b));
+                panic_if_boolean_block_is_not_clean(&result, &cks);
                 let result = cks.decrypt_bool(&result);
                 assert_eq!(result, clear_a > clear_b, "{clear_a} > {clear_b}");
 
                 let result = gt_executor.execute((&a, clear_a));
+                panic_if_boolean_block_is_not_clean(&result, &cks);
                 let result = cks.decrypt_bool(&result);
                 assert_eq!(result, clear_a > clear_a, "{clear_a} > {clear_a}");
             }
 
             {
                 let result = ge_executor.execute((&a, clear_b));
+                panic_if_boolean_block_is_not_clean(&result, &cks);
                 let result = cks.decrypt_bool(&result);
                 assert_eq!(result, clear_a >= clear_b, "{clear_a} >= {clear_b}");
 
                 let result = ge_executor.execute((&a, clear_a));
+                panic_if_boolean_block_is_not_clean(&result, &cks);
                 let result = cks.decrypt_bool(&result);
                 assert_eq!(result, clear_a >= clear_a, "{clear_a} >= {clear_a}");
             }
 
             {
                 let result = min_executor.execute((&a, clear_b));
+                panic_if_radix_is_not_clean(&result, &cks);
                 let result: i128 = cks.decrypt_signed(&result);
                 assert_eq!(result, clear_a.min(clear_b), "{clear_a}.min({clear_b})");
 
                 let result = min_executor.execute((&a, clear_a));
+                panic_if_radix_is_not_clean(&result, &cks);
                 let result: i128 = cks.decrypt_signed(&result);
                 assert_eq!(result, clear_a.min(clear_a), "{clear_a}.min({clear_a})");
             }
 
             {
                 let result = max_executor.execute((&a, clear_b));
+                panic_if_radix_is_not_clean(&result, &cks);
                 let result: i128 = cks.decrypt_signed(&result);
                 assert_eq!(result, clear_a.max(clear_b), "{clear_a}.max({clear_b})");
 
                 let result = max_executor.execute((&a, clear_a));
+                panic_if_radix_is_not_clean(&result, &cks);
                 let result: i128 = cks.decrypt_signed(&result);
                 assert_eq!(result, clear_a.max(clear_a), "{clear_a}.max({clear_a})");
             }
