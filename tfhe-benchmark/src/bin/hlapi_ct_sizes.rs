@@ -1,7 +1,10 @@
 use benchmark::params::{get_classical_tuniform_groups, get_multi_bit_tuniform_groups};
 use benchmark::params_aliases::*;
-use benchmark::utilities::{write_to_json_unchecked, OperatorType};
-use benchmark_spec::CsvResultWriter;
+use benchmark::utilities::{write_to_json, OperatorType};
+use benchmark_spec::{
+    BenchmarkMetric, BenchmarkSpec, CiphertextKind, CsvResultWriter, HlapiBench, KeyKind,
+    OperandType, PrecisionTag,
+};
 use rand::Rng;
 use std::path::Path;
 use tfhe::integer::U256;
@@ -71,59 +74,64 @@ pub fn ct_sizes(results_file: &Path) {
         let compressed_sks = CompressedServerKey::new(&client_key);
         set_server_key(compressed_sks.decompress());
 
-        let mut write_and_record_result = |res: usize, test_name: &str, display_name: &str| {
-            benchmark_test_result.write_result(test_name, res);
-            write_to_json_unchecked(
-                test_name,
-                param_fhe.name(),
-                display_name,
-                &operator,
-                0,
-                vec![],
+        // The tag is the width of the measured value, not the type of what is
+        // stored: every form below is derived from the same 64 bit plaintext.
+        let mut write_and_record_result = |res: usize, kind: CiphertextKind, display_name: &str| {
+            let spec = BenchmarkSpec::new_hlapi(
+                HlapiBench::Ciphertexts(kind),
+                &param_fhe.name(),
+                OperandType::CipherText,
+                Some(PrecisionTag::Bits(64).into()),
+                BenchmarkMetric::KeySize,
+                None,
             );
+            benchmark_test_result.write_result(&spec.to_string(), res);
+            write_to_json(&spec, display_name, &operator, 0, vec![]);
         };
 
         let plaintext = rng.gen::<u64>();
 
-        let test_name = format!("hlapi_ct_size::{}", param_fhe.name());
         let regular_ct = FheUint64::encrypt(plaintext, &client_key);
         let regular_ct_size = bincode::serialize(&regular_ct).unwrap().len();
         println!("\t* Regular CT: {regular_ct_size} bytes");
-        write_and_record_result(regular_ct_size, &test_name, "ct-size");
+        write_and_record_result(regular_ct_size, CiphertextKind::Ct, "ct-size");
 
-        let test_name = format!("hlapi_seeded_ct_size::{}", param_fhe.name());
         let seeded_ct = CompressedFheUint64::encrypt(plaintext, &client_key);
         let seeded_ct_size = bincode::serialize(&seeded_ct).unwrap().len();
         println!("\t* Seeded CT: {seeded_ct_size} bytes");
-        write_and_record_result(seeded_ct_size, &test_name, "seeded-ct-size");
+        write_and_record_result(seeded_ct_size, CiphertextKind::SeededCt, "seeded-ct-size");
 
-        let test_name = format!("hlapi_ms_compressed_ct_size::{}", param_fhe.name());
         let ms_compressed_ct = regular_ct.compress();
         let ms_compressed_ct_size = bincode::serialize(&ms_compressed_ct).unwrap().len();
         println!("\t* Compressed with ModSwitch only CT: {ms_compressed_ct_size} bytes");
-        write_and_record_result(ms_compressed_ct_size, &test_name, "ms-compressed-ct-size");
+        write_and_record_result(
+            ms_compressed_ct_size,
+            CiphertextKind::MsCompressedCt,
+            "ms-compressed-ct-size",
+        );
 
         if meta_param.compression_parameters.is_some() {
-            let test_name = format!("hlapi_compressed_ct_size::{}", param_fhe.name());
             let compressed_ct = CompressedCiphertextListBuilder::new()
                 .push(regular_ct.clone())
                 .build()
                 .unwrap();
             let compressed_ct_size = bincode::serialize(&compressed_ct).unwrap().len();
             println!("\t* Compressed CT: {compressed_ct_size} bytes");
-            write_and_record_result(compressed_ct_size, &test_name, "compressed-ct-size");
+            write_and_record_result(
+                compressed_ct_size,
+                CiphertextKind::CompressedCt,
+                "compressed-ct-size",
+            );
         }
 
         if meta_param.noise_squashing_parameters.is_some() {
-            let test_name = format!("hlapi_sns_ct_size::{}", param_fhe.name());
             let sns_ct = regular_ct.squash_noise().unwrap();
             let sns_ct_size = bincode::serialize(&sns_ct).unwrap().len();
             println!("\t* SNS CT: {sns_ct_size} bytes");
-            write_and_record_result(sns_ct_size, &test_name, "sns-ct-size");
+            write_and_record_result(sns_ct_size, CiphertextKind::SnsCt, "sns-ct-size");
 
             if let Some(ns_params) = meta_param.noise_squashing_parameters {
                 if ns_params.compression_parameters.is_some() {
-                    let test_name = format!("hlapi_compressed_sns_ct_size::{}", param_fhe.name());
                     let compressed_sns_ct = CompressedSquashedNoiseCiphertextList::builder()
                         .push(sns_ct)
                         .build()
@@ -133,7 +141,7 @@ pub fn ct_sizes(results_file: &Path) {
                     println!("\t* Compressed SNS CT: {compressed_sns_ct_size} bytes");
                     write_and_record_result(
                         compressed_sns_ct_size,
-                        &test_name,
+                        CiphertextKind::CompressedSnsCt,
                         "compressed-sns-ct-size",
                     );
                 }
@@ -141,20 +149,31 @@ pub fn ct_sizes(results_file: &Path) {
         }
 
         if meta_param.dedicated_compact_public_key_parameters.is_some() {
-            let test_name = format!("hlapi_cpk_ct_size::{}", param_fhe.name());
             let public_key = CompactPublicKey::new(&client_key);
             let cpk_ct = CompactCiphertextList::builder(&public_key)
                 .push(plaintext)
                 .build();
             let cpk_ct_size = bincode::serialize(&cpk_ct).unwrap().len();
             println!("\t* CPK CT: {cpk_ct_size} bytes");
-            write_and_record_result(cpk_ct_size, &test_name, "cpk-ct-size");
+            write_and_record_result(cpk_ct_size, CiphertextKind::CpkCt, "cpk-ct-size");
         }
     }
 }
 
+/// A compact list is sized by how many values it holds and how wide they are.
+fn compact_list_spec(param_name: &str, bits: u32, num_elements: u32) -> BenchmarkSpec {
+    BenchmarkSpec::new_hlapi(
+        HlapiBench::Ciphertexts(CiphertextKind::CompactList),
+        param_name,
+        OperandType::CipherText,
+        Some(PrecisionTag::Bits(bits).into()),
+        BenchmarkMetric::KeySize,
+        Some(num_elements),
+    )
+}
+
 pub fn cpk_and_cctl_sizes(results_file: &Path) {
-    const NB_CTXT: usize = 5;
+    const NB_CTXT: u32 = 5;
 
     let mut rng = rand::thread_rng();
 
@@ -172,7 +191,6 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
             ))
             .build();
         let (client_key, _) = generate_keys(config);
-        let test_name = format!("hlapi_sizes_{}_cpk", params.name());
 
         let params: PBSParameters = params.into();
 
@@ -181,12 +199,20 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
         let public_key = CompactPublicKey::new(&client_key);
 
         let cpk_size = bincode::serialize(&public_key).unwrap().len();
+        let spec = BenchmarkSpec::new_hlapi(
+            HlapiBench::Keys(KeyKind::Cpk),
+            &params.name(),
+            OperandType::CipherText,
+            None,
+            BenchmarkMetric::KeySize,
+            None,
+        );
 
         println!("PK size: {cpk_size} bytes");
-        benchmark_test_result.write_result(&test_name, cpk_size);
-        write_to_json_unchecked(&test_name, params.name(), "CPK", &operator, 0, vec![]);
+        benchmark_test_result.write_result(&spec.to_string(), cpk_size);
+        write_to_json(&spec, "CPK", &operator, 0, vec![]);
 
-        let test_name = format!("hlapi_sizes_{}_cctl_{NB_CTXT}_len_32_bits", params.name());
+        let spec = compact_list_spec(&params.name(), 32, NB_CTXT);
 
         let vec_inputs: Vec<_> = (0..NB_CTXT).map(|_| rng.gen::<u32>()).collect();
 
@@ -197,8 +223,8 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
         println!("Compact CT list for {NB_CTXT} CTs: {cctl_size} bytes");
 
-        benchmark_test_result.write_result(&test_name, cctl_size);
-        write_to_json_unchecked(&test_name, params.name(), "CCTL", &operator, 0, vec![]);
+        benchmark_test_result.write_result(&spec.to_string(), cctl_size);
+        write_to_json(&spec, "CCTL", &operator, 0, vec![]);
     }
 
     // 256 bits
@@ -224,7 +250,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
             bincode::serialize(&public_key).unwrap().len()
         );
 
-        let test_name = format!("hlapi_sizes_{}_cctl_{NB_CTXT}_len_256_bits", params.name());
+        let spec = compact_list_spec(&params.name(), 256, NB_CTXT);
 
         let vec_inputs: Vec<_> = (0..NB_CTXT).map(|_| U256::from(rng.gen::<u32>())).collect();
 
@@ -235,8 +261,8 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
         println!("Compact CT list for {NB_CTXT} CTs: {cctl_size} bytes");
 
-        benchmark_test_result.write_result(&test_name, cctl_size);
-        write_to_json_unchecked(&test_name, params.name(), "CCTL", &operator, 0, vec![]);
+        benchmark_test_result.write_result(&spec.to_string(), cctl_size);
+        write_to_json(&spec, "CCTL", &operator, 0, vec![]);
     }
 }
 

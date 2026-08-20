@@ -6,7 +6,9 @@ pub mod cuda {
         BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
-    use benchmark::utilities::{write_to_json_unchecked, OperatorType};
+    use benchmark::utilities::{write_to_json, OperatorType};
+    use benchmark_spec::tfhe::transciphering::kreyvium::KreyviumFlavor;
+    use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, PrecisionTag, TranscipheringBench};
     use criterion::{criterion_group, Criterion};
     use std::hint::black_box;
     use tfhe::core_crypto::gpu::CudaStreams;
@@ -63,16 +65,22 @@ pub mod cuda {
             let d_iv = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_iv, &streams);
 
             // 1. Benchmark: init
-            let init_bench_id = format!("{bench_name}::{param_name}::init");
+            let init_spec = BenchmarkSpec::new_transciphering(
+                TranscipheringBench::Kreyvium(KreyviumFlavor::Init),
+                &param_name,
+                None,
+                BenchmarkMetric::Latency,
+                None,
+            );
+            let init_bench_id = init_spec.to_string();
             bench_group.bench_function(&init_bench_id, |b| {
                 b.iter(|| {
                     black_box(sks.kreyvium_init(&d_key, &d_iv, &streams).unwrap());
                 })
             });
 
-            write_to_json_unchecked(
-                &init_bench_id,
-                param_name.clone(),
+            write_to_json(
+                &init_spec,
                 "kreyvium_init",
                 &OperatorType::Atomic,
                 128,
@@ -82,8 +90,18 @@ pub mod cuda {
             let mut state = sks.kreyvium_init(&d_key, &d_iv, &streams).unwrap();
 
             for num_steps in [64, 512] {
+                // `num_steps` is a `usize` because that is what the GPU API takes;
+                // the grammar counts bits, so the width is converted once here.
+                let steps = PrecisionTag::Bits(num_steps as u32);
                 // 2. Benchmark: next
-                let next_bench_id = format!("{bench_name}::{param_name}::next_{num_steps}_bits");
+                let next_spec = BenchmarkSpec::new_transciphering(
+                    TranscipheringBench::Kreyvium(KreyviumFlavor::Next),
+                    &param_name,
+                    Some(steps.into()),
+                    BenchmarkMetric::Latency,
+                    None,
+                );
+                let next_bench_id = next_spec.to_string();
 
                 bench_group.bench_function(&next_bench_id, |b| {
                     b.iter(|| {
@@ -91,9 +109,8 @@ pub mod cuda {
                     })
                 });
 
-                write_to_json_unchecked(
-                    &next_bench_id,
-                    param_name.clone(),
+                write_to_json(
+                    &next_spec,
                     format!("kreyvium_next_{}_bits", num_steps),
                     &OperatorType::Atomic,
                     128,
@@ -101,7 +118,14 @@ pub mod cuda {
                 );
 
                 // 3. Benchmark: generate_keystream
-                let gen_bench_id = format!("{bench_name}::{param_name}::generate_{num_steps}_bits");
+                let gen_spec = BenchmarkSpec::new_transciphering(
+                    TranscipheringBench::Kreyvium(KreyviumFlavor::Generate),
+                    &param_name,
+                    Some(steps.into()),
+                    BenchmarkMetric::Latency,
+                    None,
+                );
+                let gen_bench_id = gen_spec.to_string();
 
                 bench_group.bench_function(&gen_bench_id, |b| {
                     b.iter(|| {
@@ -112,9 +136,8 @@ pub mod cuda {
                     })
                 });
 
-                write_to_json_unchecked(
-                    &gen_bench_id,
-                    param_name.clone(),
+                write_to_json(
+                    &gen_spec,
                     format!("kreyvium_generation_{}_bits", num_steps),
                     &OperatorType::Atomic,
                     128,

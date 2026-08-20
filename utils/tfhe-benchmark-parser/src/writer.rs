@@ -15,7 +15,7 @@ pub fn write_to_json(
     bit_size: u32,
     decomposition_basis: Vec<u32>,
 ) {
-    write_to_json_unchecked(
+    write_record(
         &benchmark_spec.to_string(),
         benchmark_spec.param_name().to_string(),
         display_name,
@@ -25,9 +25,30 @@ pub fn write_to_json(
     )
 }
 
-/// Writes benchmark parameters to disk in JSON format.
-/// Prefer `write_to_json` which enforces the benchmark name spec via `BenchmarkSpec`.
-pub fn write_to_json_unchecked(
+/// Writes benchmark parameters for a benchmark whose id was produced outside of
+/// Rust, so that no [`BenchmarkSpec`] can be built for it.
+///
+/// The only such benchmarks are the wasm ones: their names come from the
+/// JavaScript harness. Everything else must go through [`write_to_json`].
+pub fn write_to_json_external_name(
+    bench_id: &str,
+    params_alias: impl Into<String>,
+    display_name: impl Into<String>,
+    operator_type: &OperatorType,
+    bit_size: u32,
+    decomposition_basis: Vec<u32>,
+) {
+    write_record(
+        bench_id,
+        params_alias,
+        display_name,
+        operator_type,
+        bit_size,
+        decomposition_basis,
+    )
+}
+
+fn write_record(
     bench_id: &str,
     params_alias: impl Into<String>,
     display_name: impl Into<String>,

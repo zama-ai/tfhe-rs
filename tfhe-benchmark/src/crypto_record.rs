@@ -3,7 +3,7 @@
 //! These structs collect the subset of crypto parameters each benchmark needs to set up keys, in a
 //! shape that's homogeneous across the various tfhe parameter types (boolean, classic PBS, multi
 //! bit, atomic pattern...). They are *not* serialized — the JSON output is now produced by
-//! `tfhe-benchmark-parser::write_to_json_unchecked` which only needs the benchmark id, alias, and
+//! `tfhe-benchmark-parser::write_to_json` which only needs the benchmark spec and
 //! display name.
 
 use tfhe::core_crypto::prelude::{

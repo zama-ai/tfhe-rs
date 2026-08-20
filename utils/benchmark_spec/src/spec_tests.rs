@@ -295,6 +295,136 @@ fn hlapi_dex_with_pbs_count() {
     );
 }
 
+/// The gates keep their ids now that the boolean layer also carries key sizes.
+#[test]
+fn boolean_gate_and_key_size() {
+    let gate = BenchmarkSpec::new_boolean(
+        BooleanBench::And,
+        "DEFAULT_PARAMETERS",
+        BenchmarkMetric::Latency,
+    );
+    assert_eq!(gate.to_string(), "tfhe::boolean::and::DEFAULT_PARAMETERS");
+
+    let key = BenchmarkSpec::new_boolean(
+        BooleanBench::Keys(KeyKind::Ksk),
+        "DEFAULT_PARAMETERS",
+        BenchmarkMetric::KeySize,
+    );
+    assert_eq!(
+        key.to_string(),
+        "tfhe::boolean::keys::ksk::key_size::DEFAULT_PARAMETERS"
+    );
+}
+
+#[test]
+fn shortint_key_size() {
+    let spec = BenchmarkSpec::new_shortint(
+        ShortintBench::Keys(KeyKind::BskCompressed),
+        "PARAM_MESSAGE_2_CARRY_2",
+        BenchmarkMetric::KeySize,
+    );
+    assert_eq!(
+        spec.to_string(),
+        "tfhe::shortint::keys::bsk_compressed::key_size::PARAM_MESSAGE_2_CARRY_2"
+    );
+}
+
+/// A ciphertext size, sized by how many values the list holds.
+#[test]
+fn hlapi_ciphertext_size() {
+    let spec = BenchmarkSpec::new_hlapi(
+        HlapiBench::Ciphertexts(CiphertextKind::CompactList),
+        "PARAM_MESSAGE_2_CARRY_2",
+        OperandType::CipherText,
+        Some(PrecisionTag::Bits(32).into()),
+        BenchmarkMetric::KeySize,
+        Some(5),
+    );
+    assert_eq!(
+        spec.to_string(),
+        "tfhe::hlapi::ciphertexts::compact_list::key_size::PARAM_MESSAGE_2_CARRY_2::32_bits::5_elements"
+    );
+}
+
+/// A bench with no op enum under it, and a tag spanning two segments.
+#[test]
+fn hlapi_bitonic_shuffle() {
+    let spec = BenchmarkSpec::new(
+        BenchPath::Tfhe(TfheLayer::Hlapi(HlapiBench::BitonicShuffle)),
+        Backend::Cuda,
+        "PARAM_MESSAGE_2_CARRY_2",
+        OperandType::CipherText,
+        Some(
+            ShuffleConfig {
+                value_bits: 64,
+                key_bits: 16,
+            }
+            .into(),
+        ),
+        BenchmarkMetric::Latency,
+        Some(16),
+    );
+    assert_eq!(
+        spec.to_string(),
+        "tfhe::hlapi::bitonic_shuffle::cuda::PARAM_MESSAGE_2_CARRY_2::64_bits::key_16_bits::16_elements"
+    );
+}
+
+/// The proven list benches live under `integer`, not under the `zk` crate: they
+/// exercise `tfhe` and carry a parameter set.
+#[test]
+fn integer_zk_pke_verify() {
+    let spec = BenchmarkSpec::new(
+        BenchPath::Tfhe(TfheLayer::Integer(IntegerBench::Zk(
+            ZkPkeBench::VerifyAndExpand,
+        ))),
+        Backend::Cuda,
+        "PARAM_MESSAGE_2_CARRY_2",
+        OperandType::CipherText,
+        Some(
+            ZkPkeConfig {
+                bits_packed: Some(256),
+                crs_bits: 2048,
+                compute_load: Some(ComputeLoad::Verify),
+                scheme: ZkScheme::V2,
+            }
+            .into(),
+        ),
+        BenchmarkMetric::Latency,
+        None,
+    );
+    assert_eq!(
+        spec.to_string(),
+        "tfhe::integer::zk::verify_and_expand::cuda::PARAM_MESSAGE_2_CARRY_2\
+         ::256_bits_packed::2048_bits_crs::compute_load_verify::zk_v2"
+    );
+}
+
+/// A CRS size depends on the CRS and the scheme, on nothing that is proven with
+/// it, so its tag carries two segments where the operations carry four.
+#[test]
+fn integer_zk_pke_crs_size() {
+    let spec = BenchmarkSpec::new_integer(
+        IntegerBench::Zk(ZkPkeBench::Crs),
+        "PARAM_MESSAGE_2_CARRY_2",
+        Some(
+            ZkPkeConfig {
+                bits_packed: None,
+                crs_bits: 4096,
+                compute_load: None,
+                scheme: ZkScheme::V2,
+            }
+            .into(),
+        ),
+        BenchmarkMetric::KeySize,
+        None,
+    );
+    assert_eq!(
+        spec.to_string(),
+        "tfhe::integer::zk::crs::key_size::PARAM_MESSAGE_2_CARRY_2::4096_bits_crs::zk_v2"
+    );
+}
+
 /// `Display` writes the trailing segments in a fixed order and `FromStr`
 /// consumes them in the same one, with nothing tying the two together.
 #[test]
@@ -315,6 +445,16 @@ fn trailing_segments_round_trip_in_every_combination() {
         Some(TypeTag::CudaKeyswitch(CudaKeyswitchConfig::new(
             32, None, None,
         ))),
+        Some(TypeTag::Shuffle(ShuffleConfig {
+            value_bits: 64,
+            key_bits: 16,
+        })),
+        Some(TypeTag::ZkPke(ZkPkeConfig {
+            bits_packed: Some(2048),
+            crs_bits: 4096,
+            compute_load: Some(ComputeLoad::Proof),
+            scheme: ZkScheme::V2,
+        })),
     ];
 
     for backend in [Backend::Cpu, Backend::Cuda, Backend::Hpu] {
