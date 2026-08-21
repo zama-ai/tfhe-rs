@@ -34,7 +34,7 @@
 //! transforming the state of the counter into a pseudo random value. Essentially, this fₖ
 //! function can be considered as a the following lookup table, containing 2¹²⁸ pseudo-random
 //! values:
-//! ```ascii  
+//! ```ascii
 //!     ╭──────────────┬──────────────┬─────┬──────────────╮
 //!     │       0      │       1      │     │    2¹²⁸ -1   │
 //!     ├──────────────┼──────────────┼─────┼──────────────┤
@@ -146,7 +146,7 @@
 //!     ║│  gₑ(b₀) │║           ║     ║           ║
 //!     ║╰─────────╯║           ║     ║           ║
 //!     ╚═══════════╩═══════════╩═════╩═══════════╝
-//!     
+//!
 //!                   e = fₖ(aₘ)
 //!     ╔═══════════╦═════↧═════╦═════╦═══════════╗
 //!     ║┏━┯━┯━━━┯━┓║┏━┯━┯━━━┯━┓║ ... ║┏━┯━┯━━━┯━┓║
@@ -234,9 +234,10 @@ impl From<Seed> for AesCtrParams {
     }
 }
 
+/// See the note on `impl From<XofSeed> for SeedKind`: this defaults to Aes-256.
 impl From<XofSeed> for AesCtrParams {
     fn from(seed: XofSeed) -> Self {
-        Self::from(SeedKind::Xof(seed))
+        Self::from(SeedKind::from(seed))
     }
 }
 
@@ -284,4 +285,83 @@ pub(crate) fn xof_init_128(seed: XofSeed) -> (Aes128Key, AesIndex) {
     let key = Aes128Key(c);
 
     (key, init)
+}
+
+pub(crate) fn xof_init_256(seed: XofSeed) -> (Aes256Key, AesIndex) {
+    use crate::generators::default::DefaultAes256BlockCipher;
+
+    let k0 = Aes256Key::new([0; 32]);
+    let mut aes_k0 = DefaultAes256BlockCipher::new(k0);
+    let k1 = Aes256Key::new([0x55; 32]); // alternating bits: 01010101..
+    let mut aes_k1 = DefaultAes256BlockCipher::new(k1);
+
+    let blocks = seed
+        .iter_u128_blocks()
+        .chain(std::iter::once(seed.bit_len().to_le()));
+
+    let mut c = 0u128;
+    let mut cprime = u128::from_ne_bytes({
+        let mut bytes = [0u8; BYTES_PER_AES_CALL];
+        bytes[0] = 0xFF;
+        bytes
+    });
+    for m in blocks {
+        c = u128::from_ne_bytes(aes_k0.generate_next(c ^ m));
+        cprime = u128::from_ne_bytes(aes_k1.generate_next(cprime ^ m));
+    }
+
+    let mut key_bytes = [0u8; 32];
+    key_bytes[0..16].copy_from_slice(&c.to_ne_bytes());
+    key_bytes[16..32].copy_from_slice(&cprime.to_ne_bytes());
+
+    (Aes256Key(key_bytes), AesIndex(0))
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::seeders::XofSeed;
+
+    fn test_seed() -> XofSeed {
+        let seed = vec![
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+            24, 25, 26, 27, 28, 29, 30, 31,
+        ];
+        XofSeed::new(seed, *b"abcdefgh")
+    }
+
+    /// Test to check deriviation for xof 256
+    ///
+    /// Used to make sure we don't brake in the future, and test endianness
+    #[test]
+    fn test_xof_init_128_derivation() {
+        const EXPECTED_KEY_128: [u8; 16] = [
+            31, 43, 4, 245, 108, 168, 132, 230, 49, 45, 236, 153, 71, 99, 212, 58,
+        ];
+        const EXPECTED_INDEX_128: AesIndex = AesIndex(305232202111659158002259122110945421086);
+
+        let (key, index) = xof_init_128(test_seed());
+
+        assert_eq!(key.0.to_ne_bytes(), EXPECTED_KEY_128);
+        assert_eq!(index, EXPECTED_INDEX_128);
+    }
+
+    /// Test to check deriviation for xof 256
+    ///
+    /// Used to make sure we don't brake in the future, and test endianness
+    #[test]
+    fn test_xof_init_256_derivation() {
+        const EXPECTED_KEY_256: [u8; 32] = [
+            25, 215, 155, 238, 176, 206, 173, 38, 49, 36, 31, 188, 219, 58, 218, 17, 41, 137, 73,
+            55, 169, 179, 217, 81, 181, 211, 104, 38, 22, 247, 17, 16,
+        ];
+
+        let (key, index) = xof_init_256(test_seed());
+        assert_eq!(key.0, EXPECTED_KEY_256);
+        // Fixed at 0 by the spec, see the comment in `xof_init_256`.
+        assert_eq!(index.0, 0);
+        // The two halves come from differently keyed and differently seeded chains, so they must
+        // not coincide. Guards against both chains accidentally sharing a cipher or an init value.
+        assert_ne!(key.0[..16], key.0[16..]);
+    }
 }

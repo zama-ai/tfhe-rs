@@ -21,6 +21,13 @@ fn run_xof_key_set_test(config: Config, tag_str: &str, device: Device, check_exp
     )
     .unwrap();
 
+    // Newly generated key sets must record Aes-256.
+    assert!(
+        matches!(compressed_key_set.seed, XofSeedStart::FirstByteAes256(_)),
+        "expected a first byte Aes-256 seed, got {:?}",
+        compressed_key_set.seed
+    );
+
     assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
     assert_eq!(cks.tag(), &tag);
     assert_eq!(compressed_key_set.tag(), &tag);

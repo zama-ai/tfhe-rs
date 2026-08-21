@@ -3113,6 +3113,8 @@ name = "tfhe-csprng"
 version = "0.10.0"
 dependencies = [
  "aes",
+ "bincode",
+ "ciborium",
  "clap",
  "criterion",
  "ctr",
