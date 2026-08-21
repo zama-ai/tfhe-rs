@@ -1,15 +1,12 @@
+use crate::core_crypto::algorithms::polynomial_algorithms::convert_standard_polynomial_list_to_fourier_mem_optimized;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, PolynomialSize,
 };
-use crate::core_crypto::commons::traits::{
-    Container, ContiguousEntityContainer, IntoContainerOwned, Split,
-};
-use crate::core_crypto::commons::utils::izip_eq;
+use crate::core_crypto::commons::traits::{Container, IntoContainerOwned, Split};
 use crate::core_crypto::experimental::entities::PseudoGgswCiphertext;
 use crate::core_crypto::fft_impl::fft64::math::decomposition::DecompositionLevel;
 use crate::core_crypto::fft_impl::fft64::math::fft::{FftView, FourierPolynomialList};
-use crate::core_crypto::fft_impl::fft64::math::polynomial::FourierPolynomialMutView;
 use aligned_vec::{avec, ABox};
 use dyn_stack::PodStack;
 use tfhe_fft::c64;
@@ -17,7 +14,7 @@ use tfhe_fft::c64;
 /// A pseudo GGSW ciphertext in the Fourier domain.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(bound(deserialize = "C: IntoContainerOwned"))]
-pub struct PseudoFourierGgswCiphertext<C: Container<Element = c64>> {
+pub struct FourierPseudoGgswCiphertext<C: Container<Element = c64>> {
     fourier: FourierPolynomialList<C>,
     glwe_size_in: GlweSize,
     glwe_size_out: GlweSize,
@@ -27,7 +24,7 @@ pub struct PseudoFourierGgswCiphertext<C: Container<Element = c64>> {
 
 /// A matrix containing a single level of gadget decomposition, in the Fourier domain.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PseudoFourierGgswLevelMatrix<C: Container<Element = c64>> {
+pub struct FourierPseudoGgswLevelMatrix<C: Container<Element = c64>> {
     data: C,
     glwe_size_in: GlweSize,
     glwe_size_out: GlweSize,
@@ -37,21 +34,21 @@ pub struct PseudoFourierGgswLevelMatrix<C: Container<Element = c64>> {
 
 /// A row of a GGSW level matrix, in the Fourier domain.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PseudoFourierGgswLevelRow<C: Container<Element = c64>> {
+pub struct FourierPseudoGgswLevelRow<C: Container<Element = c64>> {
     data: C,
     glwe_size_out: GlweSize,
     polynomial_size: PolynomialSize,
     decomposition_level: DecompositionLevel,
 }
 
-pub type PseudoFourierGgswCiphertextView<'a> = PseudoFourierGgswCiphertext<&'a [c64]>;
-pub type PseudoFourierGgswCiphertextMutView<'a> = PseudoFourierGgswCiphertext<&'a mut [c64]>;
-pub type PseudoFourierGgswLevelMatrixView<'a> = PseudoFourierGgswLevelMatrix<&'a [c64]>;
-pub type PseudoFourierGgswLevelMatrixMutView<'a> = PseudoFourierGgswLevelMatrix<&'a mut [c64]>;
-pub type PseudoFourierGgswLevelRowView<'a> = PseudoFourierGgswLevelRow<&'a [c64]>;
-pub type PseudoFourierGgswLevelRowMutView<'a> = PseudoFourierGgswLevelRow<&'a mut [c64]>;
+pub type FourierPseudoGgswCiphertextView<'a> = FourierPseudoGgswCiphertext<&'a [c64]>;
+pub type FourierPseudoGgswCiphertextMutView<'a> = FourierPseudoGgswCiphertext<&'a mut [c64]>;
+pub type FourierPseudoGgswLevelMatrixView<'a> = FourierPseudoGgswLevelMatrix<&'a [c64]>;
+pub type FourierPseudoGgswLevelMatrixMutView<'a> = FourierPseudoGgswLevelMatrix<&'a mut [c64]>;
+pub type FourierPseudoGgswLevelRowView<'a> = FourierPseudoGgswLevelRow<&'a [c64]>;
+pub type FourierPseudoGgswLevelRowMutView<'a> = FourierPseudoGgswLevelRow<&'a mut [c64]>;
 
-impl<C: Container<Element = c64>> PseudoFourierGgswCiphertext<C> {
+impl<C: Container<Element = c64>> FourierPseudoGgswCiphertext<C> {
     pub fn from_container(
         data: C,
         glwe_size_in: GlweSize,
@@ -103,11 +100,11 @@ impl<C: Container<Element = c64>> PseudoFourierGgswCiphertext<C> {
         self.fourier.data
     }
 
-    pub fn as_view(&self) -> PseudoFourierGgswCiphertextView<'_>
+    pub fn as_view(&self) -> FourierPseudoGgswCiphertextView<'_>
     where
         C: AsRef<[c64]>,
     {
-        PseudoFourierGgswCiphertextView {
+        FourierPseudoGgswCiphertextView {
             fourier: FourierPolynomialList {
                 data: self.fourier.data.as_ref(),
                 polynomial_size: self.fourier.polynomial_size,
@@ -119,11 +116,11 @@ impl<C: Container<Element = c64>> PseudoFourierGgswCiphertext<C> {
         }
     }
 
-    pub fn as_mut_view(&mut self) -> PseudoFourierGgswCiphertextMutView<'_>
+    pub fn as_mut_view(&mut self) -> FourierPseudoGgswCiphertextMutView<'_>
     where
         C: AsMut<[c64]>,
     {
-        PseudoFourierGgswCiphertextMutView {
+        FourierPseudoGgswCiphertextMutView {
             fourier: FourierPolynomialList {
                 data: self.fourier.data.as_mut(),
                 polynomial_size: self.fourier.polynomial_size,
@@ -136,7 +133,7 @@ impl<C: Container<Element = c64>> PseudoFourierGgswCiphertext<C> {
     }
 }
 
-impl<C: Container<Element = c64>> PseudoFourierGgswLevelMatrix<C> {
+impl<C: Container<Element = c64>> FourierPseudoGgswLevelMatrix<C> {
     pub fn new(
         data: C,
         glwe_size_in: GlweSize,
@@ -161,15 +158,15 @@ impl<C: Container<Element = c64>> PseudoFourierGgswLevelMatrix<C> {
     /// Return an iterator over the rows of the level matrices.
     pub fn into_rows(
         self,
-    ) -> impl DoubleEndedIterator<Item = PseudoFourierGgswLevelRow<C>>
-           + ExactSizeIterator<Item = PseudoFourierGgswLevelRow<C>>
+    ) -> impl DoubleEndedIterator<Item = FourierPseudoGgswLevelRow<C>>
+           + ExactSizeIterator<Item = FourierPseudoGgswLevelRow<C>>
     where
         C: Split,
     {
         let row_count = self.row_count();
         self.data
             .split_into(row_count)
-            .map(move |slice| PseudoFourierGgswLevelRow {
+            .map(move |slice| FourierPseudoGgswLevelRow {
                 data: slice,
                 polynomial_size: self.polynomial_size,
                 glwe_size_out: self.glwe_size_out,
@@ -202,7 +199,7 @@ impl<C: Container<Element = c64>> PseudoFourierGgswLevelMatrix<C> {
     }
 }
 
-impl<C: Container<Element = c64>> PseudoFourierGgswLevelRow<C> {
+impl<C: Container<Element = c64>> FourierPseudoGgswLevelRow<C> {
     pub fn new(
         data: C,
         glwe_size_out: GlweSize,
@@ -238,18 +235,18 @@ impl<C: Container<Element = c64>> PseudoFourierGgswLevelRow<C> {
     }
 }
 
-impl<'a> PseudoFourierGgswCiphertextView<'a> {
+impl<'a> FourierPseudoGgswCiphertextView<'a> {
     /// Return an iterator over the level matrices.
     pub fn into_levels(
         self,
-    ) -> impl DoubleEndedIterator<Item = PseudoFourierGgswLevelMatrixView<'a>> {
+    ) -> impl DoubleEndedIterator<Item = FourierPseudoGgswLevelMatrixView<'a>> {
         let decomposition_level_count = self.decomposition_level_count.0;
         self.fourier
             .data
             .split_into(decomposition_level_count)
             .enumerate()
             .map(move |(i, slice)| {
-                PseudoFourierGgswLevelMatrixView::new(
+                FourierPseudoGgswLevelMatrixView::new(
                     slice,
                     self.glwe_size_in,
                     self.glwe_size_out,
@@ -260,38 +257,31 @@ impl<'a> PseudoFourierGgswCiphertextView<'a> {
     }
 }
 
-impl PseudoFourierGgswCiphertextMutView<'_> {
+impl FourierPseudoGgswCiphertextMutView<'_> {
     /// Fill a GGSW ciphertext with the Fourier transform of a GGSW ciphertext in the standard
     /// domain.
     pub fn fill_with_forward_fourier<
         Scalar: UnsignedTorus,
         InputCont: Container<Element = Scalar>,
     >(
-        self,
+        mut self,
         coef_ggsw: &PseudoGgswCiphertext<InputCont>,
         fft: FftView<'_>,
         stack: &mut PodStack,
     ) {
-        debug_assert_eq!(coef_ggsw.polynomial_size(), self.polynomial_size());
-        let fourier_poly_size = coef_ggsw.polynomial_size().to_fourier_polynomial_size().0;
-
-        for (fourier_poly, coef_poly) in izip_eq!(
-            self.data().into_chunks(fourier_poly_size),
-            coef_ggsw.as_polynomial_list().iter()
-        ) {
-            fft.forward_as_torus(
-                FourierPolynomialMutView { data: fourier_poly },
-                coef_poly,
-                stack,
-            );
-        }
+        convert_standard_polynomial_list_to_fourier_mem_optimized(
+            &coef_ggsw.as_polynomial_list(),
+            &mut self.fourier,
+            fft,
+            stack,
+        );
     }
 }
 
 #[allow(unused)]
-pub type PseudoFourierGgswCiphertextOwned = PseudoFourierGgswCiphertext<ABox<[c64]>>;
+pub type FourierPseudoGgswCiphertextOwned = FourierPseudoGgswCiphertext<ABox<[c64]>>;
 
-impl PseudoFourierGgswCiphertext<ABox<[c64]>> {
+impl FourierPseudoGgswCiphertext<ABox<[c64]>> {
     pub fn new(
         glwe_size_in: GlweSize,
         glwe_size_out: GlweSize,
