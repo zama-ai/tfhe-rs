@@ -26,6 +26,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -39,6 +40,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -52,6 +54,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -65,6 +68,7 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -78,6 +82,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -91,6 +96,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -104,6 +110,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -117,6 +124,7 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -130,6 +138,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -143,6 +152,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -156,6 +166,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -169,6 +180,7 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -182,6 +194,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -195,6 +208,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -208,6 +222,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -221,6 +236,7 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -234,6 +250,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -247,6 +264,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -260,6 +278,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -273,6 +292,7 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -286,6 +306,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -301,6 +322,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaPa
         ),
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -314,6 +336,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -327,6 +350,7 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -340,6 +364,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -353,6 +378,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -366,6 +392,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -379,6 +406,7 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -392,6 +420,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -405,6 +434,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -418,6 +448,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -431,6 +462,7 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -444,6 +476,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -459,6 +492,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaP
         ),
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -472,6 +506,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -485,6 +520,7 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_GAUSSIAN_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -498,6 +534,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -511,6 +548,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -524,6 +562,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -537,6 +576,7 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -550,6 +590,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -563,6 +604,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -576,6 +618,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -589,6 +632,7 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -602,6 +646,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -615,6 +660,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -628,6 +674,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -641,6 +688,7 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M40: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -654,6 +702,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -667,6 +716,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -680,6 +730,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -693,6 +744,7 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -706,6 +758,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -719,6 +772,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -732,6 +786,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -745,6 +800,7 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -758,6 +814,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -773,6 +830,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaPa
         ),
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -786,6 +844,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -799,6 +858,7 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M64: MetaPa
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -812,6 +872,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -825,6 +886,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -838,6 +900,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -851,6 +914,7 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_2_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -864,6 +928,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -877,6 +942,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -890,6 +956,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -903,6 +970,7 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_3_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -916,6 +984,7 @@ pub const V1_4_META_PARAM_GPU_1_1_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -944,6 +1013,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIF
         rerand_configuration: Some(
             ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch
         ),
+        transciphering_parameters: None,
     }.validate();
 
 pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128: MetaParameters =
@@ -970,6 +1040,7 @@ pub const V1_4_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUN
         rerand_configuration: Some(
             ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch
         ),
+        transciphering_parameters: None,
     }.validate();
 
 pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaParameters =
@@ -982,6 +1053,7 @@ pub const V1_4_META_PARAM_GPU_3_3_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
 
@@ -995,5 +1067,6 @@ pub const V1_4_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaP
         compression_parameters: None,
         noise_squashing_parameters: None,
         rerand_configuration: None,
+        transciphering_parameters: None,
     }
     .validate();
