@@ -64,11 +64,30 @@ where
 /// using the currently set server key.
 /// Even operations that do not require FHE operations will require
 /// a server key to be set in order to set the tag
+///
+/// The store itself also carries a [`Tag`] (defaulted on creation),
+/// accessible via the [`Tagged`](crate::prelude::Tagged) trait; the
+/// experimental circuit API stamps it with the executing server key's tag
+/// when a store is retrieved from a circuit's outputs.
 pub struct KVStore<Key, T>
 where
     T: FheIntegerType,
 {
     inner: InnerKVStore<Key, T>,
+    tag: Tag,
+}
+
+impl<Key, T> crate::prelude::Tagged for KVStore<Key, T>
+where
+    T: FheIntegerType,
+{
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
+    }
 }
 
 impl<Key, T> Clone for KVStore<Key, T>
@@ -80,6 +99,43 @@ where
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
+            tag: self.tag.clone(),
+        }
+    }
+}
+
+// Only used by the experimental circuit API (KVStore circuit inputs/outputs).
+#[cfg(feature = "experimental")]
+impl<Key, T> KVStore<Key, T>
+where
+    T: FheIntegerType,
+{
+    /// Extract the inner store as a CPU-resident one. A GPU-resident store
+    /// is copied back to the CPU using the streams of the currently set
+    /// cuda server key (like other KVStore operations, this requires a
+    /// server key to be set and panics otherwise).
+    pub(in crate::high_level_api) fn into_cpu_inner(
+        self,
+    ) -> IntegerCpuKVStore<Key, <T::Id as IntegerId>::InnerCpu>
+    where
+        Key: Clone + Ord,
+    {
+        match self.inner {
+            InnerKVStore::Cpu(inner) => inner,
+            #[cfg(feature = "gpu")]
+            InnerKVStore::Cuda(inner) => {
+                with_cuda_internal_keys(|key| inner.to_kv_store(&key.streams))
+            }
+        }
+    }
+
+    /// Build a `KVStore` from a CPU-resident inner store.
+    pub(in crate::high_level_api) fn from_cpu_inner(
+        inner: IntegerCpuKVStore<Key, <T::Id as IntegerId>::InnerCpu>,
+    ) -> Self {
+        Self {
+            inner: InnerKVStore::Cpu(inner),
+            tag: Tag::default(),
         }
     }
 }
@@ -93,6 +149,7 @@ where
     /// Defaults to the CPU variant when no server key is set.
     pub fn new() -> Self {
         Self {
+            tag: Tag::default(),
             inner: global_state::try_with_internal_keys(|server_key| match server_key {
                 #[cfg(feature = "gpu")]
                 Some(InternalServerKey::Cuda(_)) => InnerKVStore::Cuda(IntegerGpuKVStore::new()),
@@ -849,6 +906,7 @@ where
 
                 Ok(KVStore {
                     inner: InnerKVStore::Cpu(inner_kv_store),
+                    tag: Tag::default(),
                 })
             }
             #[cfg(feature = "gpu")]
@@ -873,6 +931,7 @@ where
 
                 Ok(KVStore {
                     inner: InnerKVStore::Cuda(inner_kv_store),
+                    tag: Tag::default(),
                 })
             }
             #[cfg(feature = "hpu")]
