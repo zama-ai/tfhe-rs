@@ -699,6 +699,11 @@ clippy_benchmark_parser: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-benchmark-parser -- --no-deps -D warnings
 
+.PHONY: clippy_data_extractor # Run clippy lints on tfhe-data-extractor
+clippy_data_extractor: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p tfhe-data-extractor -- --no-deps -D warnings
+
 .PHONY: clippy_fuzz # Run clippy lints on fuzzing crates
 clippy_fuzz: install_rs_check_toolchain
 	@find utils/fuzz -name Cargo.toml -not -path '*/target/*' | while read crate; do \
@@ -797,7 +802,7 @@ clippy_test_vectors: install_rs_check_toolchain
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
 clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_zk_pok_wasm clippy_trivium \
 clippy_versionable clippy_safe_serialize clippy_tfhe_lints clippy_ws_tests clippy_bench clippy_param_dedup \
-clippy_benchmark_spec clippy_benchmark_parser clippy_test_vectors clippy_backward_compat_data clippy_wasm_par_mq \
+clippy_benchmark_spec clippy_benchmark_parser clippy_data_extractor clippy_test_vectors clippy_backward_compat_data clippy_wasm_par_mq \
 clippy_fuzz
 
 .PHONY: clippy_fast # Run main clippy targets
@@ -2707,6 +2712,7 @@ pcc_batch_6:
 	$(call run_recipe_with_details,clippy_param_dedup)
 	$(call run_recipe_with_details,clippy_benchmark_spec)
 	$(call run_recipe_with_details,clippy_benchmark_parser)
+	$(call run_recipe_with_details,clippy_data_extractor)
 	$(call run_recipe_with_details,docs)
 
 .PHONY: pcc_batch_7 # duration: 7'50'' (currently PCC execution bottleneck)
