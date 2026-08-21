@@ -16,13 +16,18 @@ use clap_num::maybe_hex;
 
 use std::fs::{File, OpenOptions};
 
+mod mhdma;
+
 #[derive(Clone, Debug, Parser)]
 #[command(name = "hpu-mgmt-cli")]
 #[command(about = "A CLI for Hpu management", long_about = None)]
 struct CliArgs {
     // Fpga configuration -----------------------------------------------------
-    #[arg(short, long, default_value_t = 0)]
-    fpga_id: u8,
+    /// Board to drive on the main thread (register/memory/pkt-trace target).
+    /// Defaults to the first node in the config;
+    /// Multi-board `mhdma` tests run over every node regardless.
+    #[arg(short, long)]
+    fpga_id: Option<u8>,
     #[arg(
         short,
         long,
@@ -67,6 +72,139 @@ pub enum Commands {
         size_mib: Option<usize>,
         #[arg(default_value = "trace_dump.json")]
         file: String,
+    },
+
+    /// MHDMA packet-trace (network debug) ring operations
+    #[command(about = "MHDMA packet-trace debug-ring operations (status/arm/dump/wait)")]
+    PktTrace {
+        #[command(subcommand)]
+        action: PktTraceAction,
+    },
+
+    /// Issue MHDMA notify request(s) to a node (host-driven traffic, e.g. to populate the trace
+    /// ring)
+    #[command(about = "Issue MHDMA notify request(s) to a destination node")]
+    Notify {
+        /// Destination node id
+        #[arg(value_parser = clap::value_parser!(u8).range(0..8))]
+        node: u8,
+        /// Number of notifies to send
+        #[arg(short, long, default_value_t = 1, value_parser = clap::value_parser!(u32).range(1..))]
+        count: u32,
+        /// Base 16-bit address embedded in the notify header (incremented per notify)
+        #[arg(short, long, default_value_t = 0)]
+        addr: u16,
+    },
+
+    /// MHDMA multi-board setup and self-tests (drives every node in the config)
+    #[command(about = "MHDMA multi-board setup / self-tests")]
+    Mhdma {
+        #[command(subcommand)]
+        action: MhdmaAction,
+    },
+}
+
+/// Action for the MHDMA multi-board command
+#[derive(Clone, Debug, Subcommand)]
+pub enum MhdmaAction {
+    /// Configure MAC table, timeouts and HBM addresses on every board
+    Setup,
+    /// Notify traffic test across the config nodes
+    NotifyTest {
+        /// Traffic pattern
+        #[arg(value_enum)]
+        pattern: mhdma::NotifyPattern,
+        /// Notifies sent per hop
+        #[arg(short, long, default_value_t = 10, value_parser = mhdma::count_fifo)]
+        count: u32,
+    },
+    /// Read-request + data-coherency test (ring or fan-in) across the config nodes
+    ReadreqTest {
+        /// Topology
+        #[arg(value_enum, default_value = "ring")]
+        pattern: mhdma::ReadPattern,
+        /// Ciphertext slots exercised per board
+        #[arg(short, long, default_value_t = 4, value_parser = mhdma::count_fifo)]
+        count: u32,
+        /// Per-request completion timeout, in seconds
+        #[arg(short, long, default_value_t = 10)]
+        timeout_s: u64,
+    },
+    /// Intense randomized read-request stress (many rounds, fresh data each round)
+    ReadreqStress {
+        /// Ciphertext slots per board per round
+        #[arg(short, long, default_value_t = 16, value_parser = mhdma::count_fifo)]
+        count: u32,
+        /// Number of rounds
+        #[arg(short, long, default_value_t = 50, value_parser = clap::value_parser!(u32).range(1..))]
+        rounds: u32,
+        /// Per-request completion timeout, in seconds
+        #[arg(short, long, default_value_t = 10)]
+        timeout_s: u64,
+    },
+    /// Full suite: setup + pkt-trace + notify + read-request
+    Selftest {
+        /// Notifies/CTs per hop
+        #[arg(short, long, default_value_t = 8, value_parser = mhdma::count_fifo)]
+        count: u32,
+        /// Freeze/completion timeout, in seconds
+        #[arg(short, long, default_value_t = 10)]
+        timeout_s: u64,
+    },
+}
+
+/// Action for the MHDMA packet-trace command
+#[derive(Clone, Debug, Subcommand)]
+pub enum PktTraceAction {
+    /// Ring status, trigger mask + the errors register (which this read CLEARS)
+    Status,
+    /// Flush + re-arm circular capture
+    Arm,
+    /// SW-freeze the ring if not already frozen, then read + decode it oldest->newest
+    Dump,
+    /// Poll until the ring freezes (bounded), then dump it
+    Wait {
+        /// Bound on the poll, in seconds
+        #[arg(default_value_t = 10)]
+        timeout_s: u64,
+    },
+    /// Self-contained ring self-test: notify around the config nodes, force an error, dump the
+    /// frozen trace, then restore (needs >= 2 boards in the config)
+    Selftest {
+        /// Notifies sent per ring hop
+        #[arg(short, long, default_value_t = 8, value_parser = mhdma::count_fifo)]
+        count: u32,
+        /// Freeze-wait timeout, in seconds
+        #[arg(short, long, default_value_t = 10)]
+        timeout_s: u64,
+        /// Inject the fault at a random point mid-drive (captures marked entries), then wipe all
+        /// registers to recover. Off by default (clean quiesce-then-break path).
+        #[arg(long)]
+        random_err: bool,
+    },
+    /// Set the trace-trigger mask (error_mask.mask): 1 = that errors bit arms the trace
+    Mask {
+        /// Mask value, aligned to mhdma_system::errors[11:0] (default: any error arms the trace)
+        #[arg(default_value_t = 0x7FFF_FFFF, value_parser=maybe_hex::<u32>)]
+        mask: u32,
+    },
+    /// Inject a software error (error_mask.inject_err): triggers the trace with no real fault
+    Inject,
+    /// Self-test of the trigger mask + software inject path (single board, no traffic)
+    InjectSelftest {
+        /// Freeze-wait timeout, in seconds
+        #[arg(short, long, default_value_t = 10)]
+        timeout_s: u64,
+    },
+    /// Trigger a real error midway through a notify stream, then assert the frozen ring holds
+    /// entries captured with the error live (needs >= 2 boards in the config)
+    ErrorMidstream {
+        /// Cap on the post-fault notifies each peer sends; omitted, it spans the ring
+        #[arg(short, long, value_parser = mhdma::count_fifo)]
+        count: Option<u32>,
+        /// Freeze-wait timeout, in seconds
+        #[arg(short, long, default_value_t = 10)]
+        timeout_s: u64,
     },
 }
 
@@ -119,7 +257,6 @@ pub enum Section {
     PeAlu,
     Isc,
     Arch,
-    MhDma,
 }
 
 /// Action for the Memory command
@@ -183,7 +320,10 @@ fn main() {
     // Register tracing subscriber that use env-filter
     // Select verbosity with env_var: e.g. `RUST_LOG=Alu=trace`
     tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("hputil=info")),
+        )
         .compact()
         // Display source code file paths
         .with_file(false)
@@ -196,9 +336,14 @@ fn main() {
     // Load fpga configuration from file
     let config = HpuConfig::from_toml(&args.config.expand());
 
+    // Select FPGA board if -f is given
+    let fpga_id = args
+        .fpga_id
+        .unwrap_or_else(|| *config.fpga.node_id.first().unwrap_or(&0));
+
     // Instantiate bare-minimum abstraction around HpuHw -----------------------
     let mut hpu_hw = ffi::HpuHw::open_hpu_hw(
-        args.fpga_id,
+        fpga_id,
         &config.fpga.ffi,
         std::time::Duration::from_micros(config.fpga.polling_us),
     );
@@ -285,6 +430,109 @@ fn main() {
 
             trace_dump(&mut hpu_hw, &regmap, size_b, file)
         }
+        Commands::PktTrace { action } => match action {
+            PktTraceAction::Status => mhdma::pkt_trace_status(&mut hpu_hw, &regmap),
+            PktTraceAction::Arm => {
+                if !mhdma::pkt_trace_arm(&mut hpu_hw, &regmap) {
+                    std::process::exit(1);
+                }
+            }
+            PktTraceAction::Dump => {
+                if mhdma::pkt_trace_dump(&mut hpu_hw, &regmap).is_none() {
+                    std::process::exit(1);
+                }
+            }
+            PktTraceAction::Wait { timeout_s } => {
+                let _ = mhdma::pkt_trace_wait(&mut hpu_hw, &regmap, *timeout_s);
+            }
+            PktTraceAction::Selftest {
+                count,
+                timeout_s,
+                random_err,
+            } => {
+                if !mhdma::pkt_trace_selftest(
+                    &mut hpu_hw,
+                    &config,
+                    &regmap,
+                    fpga_id,
+                    *count,
+                    *timeout_s,
+                    *random_err,
+                ) {
+                    std::process::exit(1);
+                }
+            }
+            PktTraceAction::Mask { mask } => mhdma::pkt_trace_set_mask(&mut hpu_hw, &regmap, *mask),
+            PktTraceAction::Inject => mhdma::pkt_trace_inject(&mut hpu_hw, &regmap),
+            PktTraceAction::InjectSelftest { timeout_s } => {
+                if !mhdma::pkt_trace_inject_selftest(&mut hpu_hw, &regmap, *timeout_s) {
+                    std::process::exit(1);
+                }
+            }
+            PktTraceAction::ErrorMidstream { count, timeout_s } => {
+                if !mhdma::pkt_trace_error_midstream_selftest(
+                    &mut hpu_hw,
+                    &config,
+                    &regmap,
+                    fpga_id,
+                    *count,
+                    *timeout_s,
+                ) {
+                    std::process::exit(1);
+                }
+            }
+        },
+        Commands::Notify { node, count, addr } => {
+            for i in 0..*count {
+                let a = addr.wrapping_add(i as u16);
+                mhdma::mhdma_notify(&mut hpu_hw, &regmap, *node, a, a, 0);
+            }
+            tracing::info!("issued {count} notify(ies) to node {node}");
+        }
+        Commands::Mhdma { action } => {
+            // tests return pass/fail; propagate a failure to the process exit code for scripting/CI
+            let pass = match action {
+                MhdmaAction::Setup => {
+                    mhdma::mhdma_setup(&mut hpu_hw, &config, &regmap, fpga_id);
+                    true
+                }
+                MhdmaAction::NotifyTest { pattern, count } => {
+                    mhdma::notify_test(&mut hpu_hw, &config, &regmap, fpga_id, *pattern, *count)
+                }
+                MhdmaAction::ReadreqTest {
+                    pattern,
+                    count,
+                    timeout_s,
+                } => mhdma::readreq_test(
+                    &mut hpu_hw,
+                    &config,
+                    &regmap,
+                    fpga_id,
+                    *pattern,
+                    *count,
+                    *timeout_s,
+                ),
+                MhdmaAction::ReadreqStress {
+                    count,
+                    rounds,
+                    timeout_s,
+                } => mhdma::readreq_stress(
+                    &mut hpu_hw,
+                    &config,
+                    &regmap,
+                    fpga_id,
+                    *count,
+                    *rounds,
+                    *timeout_s,
+                ),
+                MhdmaAction::Selftest { count, timeout_s } => {
+                    mhdma::selftest_all(&mut hpu_hw, &config, &regmap, fpga_id, *count, *timeout_s)
+                }
+            };
+            if !pass {
+                std::process::exit(1);
+            }
+        }
     }
 }
 
@@ -346,10 +594,6 @@ fn read_register_by_section(hw: &mut ffi::HpuHw, regmap: &FlatRegmap, section: &
                 rtl::runtime::InfoIsc::from_rtl(hw, regmap)
             ),
             Section::Arch => println!("{sec} registers {:?}", HpuParameters::from_rtl(hw, regmap)),
-            Section::MhDma => println!(
-                "{sec} registers {:?}",
-                rtl::runtime::InfoMhDma::from_rtl(hw, regmap)
-            ),
         }
     }
 }
