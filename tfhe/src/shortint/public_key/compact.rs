@@ -155,6 +155,8 @@ fn to_plaintext_iterator(
 
     let full_modulus = message_modulus * carry_modulus;
 
+    assert!(encryption_modulus != 0, "Encryption modulus cannot be zero");
+
     assert!(
         encryption_modulus <= full_modulus,
         "Encryption modulus cannot exceed the plaintext modulus"
@@ -326,7 +328,8 @@ impl CompactPublicKey {
     ///
     /// # Panic
     ///
-    /// - This will panic is encryption modulus is greater that message_modulus * carry_modulus
+    /// - This will panic if encryption modulus is zero, or greater than message_modulus *
+    ///   carry_modulus
     pub fn encrypt_iter_with_modulus(
         &self,
         messages: impl Iterator<Item = u64>,
