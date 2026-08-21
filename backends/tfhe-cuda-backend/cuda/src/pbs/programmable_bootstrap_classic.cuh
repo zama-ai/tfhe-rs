@@ -24,6 +24,7 @@
 #include "pbs/pbs_utilities.h"
 #include "pbs/programmable_bootstrap.cuh"
 #include "pbs/programmable_bootstrap.h"
+#include "polynomial/functions.cuh"
 #include "polynomial/parameters.cuh"
 #include "polynomial/polynomial_math.cuh"
 #include "types/complex/operations.cuh"
@@ -855,11 +856,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         false);
 
     // Persist
-    int tid = threadIdx.x;
-    for (int i = 0; i < params::opt; i++) {
-      global_slice[tid] = accumulator[tid];
-      tid += params::degree / params::opt;
-    }
+    copy_polynomial<Torus, params::opt, params::degree / params::opt>(
+        accumulator, global_slice);
   }
 
   // Put "a" in [0, 2N[
@@ -894,11 +892,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   // Switch to the FFT space
   NSMFFT_direct<HalfDegree<params>>(accumulator_fft);
 
-  int tid = threadIdx.x;
-  for (int i = 0; i < params::opt / 2; i++) {
-    global_fft_slice[tid] = accumulator_fft[tid];
-    tid += params::degree / params::opt;
-  }
+  copy_polynomial<double2, params::opt / 2, params::degree / params::opt>(
+      accumulator_fft, global_fft_slice);
 }
 
 template <typename Torus, class params, sharedMemDegree SMD, bool last_iter>
@@ -964,11 +959,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
       (blockIdx.y + blockIdx.x * (glwe_dimension + 1)) * params::degree;
 
   // Load the persisted accumulator
-  int tid = threadIdx.x;
-  for (int i = 0; i < params::opt; i++) {
-    accumulator[tid] = global_slice[tid];
-    tid += params::degree / params::opt;
-  }
+  copy_polynomial<Torus, params::opt, params::degree / params::opt>(
+      global_slice, accumulator);
 
   // Perform the inverse FFT on the result of the GGSW x GLWE and add to the
   // accumulator
@@ -1023,12 +1015,11 @@ __global__ void __launch_bounds__(params::degree / params::opt)
       }
     }
   } else {
-    // Persist the updated accumulator
-    tid = threadIdx.x;
-    for (int i = 0; i < params::opt; i++) {
-      global_slice[tid] = accumulator[tid];
-      tid += params::degree / params::opt;
-    }
+    // Persist the updated accumulator. No __syncthreads() here: this copy
+    // reads `accumulator` at exactly the same per-thread indices that
+    // `add_to_torus` used to write it.
+    copy_polynomial<Torus, params::opt, params::degree / params::opt>(
+        accumulator, global_slice);
   }
 }
 
