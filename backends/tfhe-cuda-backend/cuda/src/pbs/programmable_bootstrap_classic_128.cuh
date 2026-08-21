@@ -19,10 +19,10 @@
 #include "types/complex/operations.cuh"
 #include <algorithm>
 
-// Launch bounds for the register-based step one specialized on the 2_2 noise
-// squashing parameters (512 threads = degree/opt for N=2048, min 2 blocks per
-// SM). Guarded because debug builds use more registers and would otherwise
-// break the (512, 2) occupancy constraint.
+// Launch bounds for the step one specialized on the 2_2 noise squashing
+// parameters (512 threads = degree/opt for N=2048, min 2 blocks per SM).
+// Guarded because debug builds use more registers and would otherwise break the
+// (512, 2) occupancy constraint.
 #ifdef __CUDACC_DEBUG__
 #define SPECIALIZED_STEP_ONE_128_2_2_PARAMS_LAUNCH_BOUNDS
 #else
@@ -197,28 +197,46 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 }
 
 /*
- * Register-based variant of step one, specialized for the noise-squashing 2_2
- * parameters (polynomial_size = 2048, base_log = 24, level_count = 3).
+ * Step one of the classical 128-bit programmable bootstrap, specialized for the
+ * noise-squashing 2_2 parameters, with the decomposition level collapsed into
+ * the block.
  *
- * It reuses the same register-centric helpers as
- * device_programmable_bootstrap_tbc_128 so that the rotation, decomposition and
- * forward FFT keep their intermediate state in registers instead of shared
- * memory:
- *   - multiply_by_monomial_negacyclic_and_sub_polynomial_in_regs
- *   - init_decomposer_state_inplace_2_2_params
- *   - decompose_and_compress_level_128_tbc
- *   - negacyclic_forward_fft_f128_tbc
+ * It replaces a variant that carried the decomposition level on a grid axis.
+ * That shape made the level_count blocks of each (sample, GLWE column) pair
+ * each load the same persisted accumulator, each perform the same monomial
+ * rotation, and each perform the same decomposition rounding, before extracting
+ * one digit apiece. It also cost more peels than there are digits: the
+ * multi-peel helper decompose_and_compress_level_128_tbc recomputes from the
+ * start of the state on every call, so producing level l takes level_count - l
+ * peels and the three blocks pay 3 + 2 + 1 = 6 between them rather than 3.
  *
- * Only the source accumulator is kept in shared memory (it needs random access
- * during the monomial rotation); everything else lives in registers. The
- * persisted-accumulator / global-join-buffer contract with step two is
- * identical to device_programmable_bootstrap_step_one_128, so step two is
- * unchanged.
+ * This kernel loads once, rotates once, rounds once, and then peels the digits
+ * one at a time with decompose_and_compress_next_level_128, running a forward
+ * transform and a join-buffer write after each. Per (sample, GLWE column) pair
+ * that is one accumulator load, one rotation, one rounding, and three peels.
+ * The grid is (glwe_dimension + 1) x samples rather than level_count x
+ * (glwe_dimension + 1) x samples, with the sample still on the slowest axis for
+ * the reason given on max_samples_per_128_step_launch.
+ *
+ * The saving is arithmetic and dependency work rather than bytes moved, which
+ * is where this kernel's stalls were measured to be.
+ *
+ * Bit-exact against the variant it replaces. The peel recurrence is
+ * deterministic, so peeling once per level in sequence yields exactly the
+ * digits the multi-peel helper produces for levels level_count-1 down to 0, and
+ * every transform sees the same input it would have seen. Nothing is
+ * reassociated and no register state has to be copied, because the peel
+ * consumes the rotated accumulator in precisely the order needed.
+ *
+ * The transform scratch is reused across levels: each level's output is written
+ * to its own join-buffer slice, and a barrier separates that write from the
+ * next level's decomposition, so shared memory stays at the size a single level
+ * needs.
  */
 template <typename InputTorus, class params, sharedMemDegree SMD,
           bool first_iter, uint32_t base_log, uint32_t level_count>
 __global__ SPECIALIZED_STEP_ONE_128_2_2_PARAMS_LAUNCH_BOUNDS void
-device_programmable_bootstrap_step_one_128_regs(
+device_programmable_bootstrap_step_one_128_all_levels(
     const __uint128_t *__restrict__ lut_vector,
     const InputTorus *__restrict__ lwe_array_in,
     const double *__restrict__ bootstrapping_key,
@@ -229,13 +247,13 @@ device_programmable_bootstrap_step_one_128_regs(
 
   extern __shared__ int8_t sharedmem[];
   int8_t *selected_memory;
-  uint32_t glwe_dimension = gridDim.y - 1;
+  // The level axis is gone, so the GLWE column is x and the sample is y.
+  const uint32_t glwe_dimension = gridDim.x - 1;
 
   if constexpr (SMD == FULLSM) {
     selected_memory = sharedmem;
   } else {
-    int block_index = blockIdx.x + blockIdx.y * gridDim.x +
-                      blockIdx.z * gridDim.x * gridDim.y;
+    int block_index = blockIdx.x + blockIdx.y * gridDim.x;
     selected_memory = &device_mem[block_index * device_memory_size_per_block];
   }
 
@@ -250,18 +268,12 @@ device_programmable_bootstrap_step_one_128_regs(
     accumulator_fft = (double *)sharedmem;
 
   const InputTorus *block_lwe_array_in =
-      &lwe_array_in[blockIdx.z * (lwe_dimension + 1)];
-
+      &lwe_array_in[blockIdx.y * (lwe_dimension + 1)];
   const __uint128_t *block_lut_vector = lut_vector;
 
   __uint128_t *global_slice =
       global_accumulator +
-      (blockIdx.y + blockIdx.z * (glwe_dimension + 1)) * params::degree;
-
-  double *global_fft_slice =
-      global_join_buffer + (blockIdx.y + blockIdx.x * (glwe_dimension + 1) +
-                            blockIdx.z * level_count * (glwe_dimension + 1)) *
-                               (polynomial_size / 2) * 4;
+      (blockIdx.x + blockIdx.y * (glwe_dimension + 1)) * params::degree;
 
   constexpr auto log_modulus = params::log2_degree + 1;
   if constexpr (first_iter) {
@@ -277,7 +289,7 @@ device_programmable_bootstrap_step_one_128_regs(
 
     divide_by_monomial_negacyclic_inplace<__uint128_t, params::opt,
                                           params::degree / params::opt>(
-        accumulator, &block_lut_vector[blockIdx.y * params::degree], b_hat,
+        accumulator, &block_lut_vector[blockIdx.x * params::degree], b_hat,
         false);
 
     // Persist so step two (and the next step-one iteration) can read it back.
@@ -287,7 +299,7 @@ device_programmable_bootstrap_step_one_128_regs(
       tid += params::degree / params::opt;
     }
   } else {
-    // Load the persisted accumulator into the (shared) source buffer so the
+    // Load the persisted accumulator into the source buffer so the
     // register-based rotation below can read it with random access.
     int tid = threadIdx.x;
     for (int i = 0; i < params::opt; i++) {
@@ -303,44 +315,57 @@ device_programmable_bootstrap_step_one_128_regs(
 
   __syncthreads();
 
-  // Perform ACC * (X^ä - 1), keeping the rotated polynomial in registers.
+  // Neither the monomial rotation nor the decomposition rounding depends on the
+  // level, so both are done once here and their result is shared by every digit
+  // peeled below. That is the whole point of collapsing the level axis.
   __uint128_t reg_acc_rotated[params::opt];
   multiply_by_monomial_negacyclic_and_sub_polynomial_in_regs<
       __uint128_t, params::opt, params::degree / params::opt>(
       accumulator, reg_acc_rotated, a_hat);
 
-  // Rounding to increase the accuracy of the bootstrapped ciphertext.
   init_decomposer_state_inplace_2_2_params<__uint128_t, params::opt,
                                            params::degree / params::opt,
                                            base_log, level_count>(
       reg_acc_rotated);
 
-  // Decompose the accumulator; this block handles level = blockIdx.x.
-  decompose_and_compress_level_128_tbc<__uint128_t, params, base_log,
-                                       level_count>(
-      accumulator_fft, reg_acc_rotated, blockIdx.x);
-
-  // Switch to the FFT space (register-based / warp-shuffle variant).
   auto acc_fft_re_hi = accumulator_fft + 0 * params::degree / 2;
   auto acc_fft_re_lo = accumulator_fft + 1 * params::degree / 2;
   auto acc_fft_im_hi = accumulator_fft + 2 * params::degree / 2;
   auto acc_fft_im_lo = accumulator_fft + 3 * params::degree / 2;
 
-  negacyclic_forward_fft_f128_tbc<HalfDegree<params>, true>(
-      acc_fft_re_hi, acc_fft_re_lo, acc_fft_im_hi, acc_fft_im_lo);
+  // Peeling yields the digits for levels level_count-1 down to 0, in that
+  // order.
+  for (int level = level_count - 1; level >= 0; --level) {
+    decompose_and_compress_next_level_128<__uint128_t, params, base_log>(
+        accumulator_fft, reg_acc_rotated);
 
-  auto global_fft_re_hi = global_fft_slice + 0 * params::degree / 2;
-  auto global_fft_re_lo = global_fft_slice + 1 * params::degree / 2;
-  auto global_fft_im_hi = global_fft_slice + 2 * params::degree / 2;
-  auto global_fft_im_lo = global_fft_slice + 3 * params::degree / 2;
+    negacyclic_forward_fft_f128_tbc<HalfDegree<params>, true>(
+        acc_fft_re_hi, acc_fft_re_lo, acc_fft_im_hi, acc_fft_im_lo);
 
-  int tid = threadIdx.x;
-  for (int i = 0; i < params::opt / 2; i++) {
-    global_fft_re_hi[tid] = acc_fft_re_hi[tid];
-    global_fft_re_lo[tid] = acc_fft_re_lo[tid];
-    global_fft_im_hi[tid] = acc_fft_im_hi[tid];
-    global_fft_im_lo[tid] = acc_fft_im_lo[tid];
-    tid += params::degree / params::opt;
+    double *global_fft_slice =
+        global_join_buffer + (blockIdx.x + level * (glwe_dimension + 1) +
+                              blockIdx.y * level_count * (glwe_dimension + 1)) *
+                                 (polynomial_size / 2) * 4;
+
+    auto global_fft_re_hi = global_fft_slice + 0 * params::degree / 2;
+    auto global_fft_re_lo = global_fft_slice + 1 * params::degree / 2;
+    auto global_fft_im_hi = global_fft_slice + 2 * params::degree / 2;
+    auto global_fft_im_lo = global_fft_slice + 3 * params::degree / 2;
+
+    int tid = threadIdx.x;
+    for (int i = 0; i < params::opt / 2; i++) {
+      global_fft_re_hi[tid] = acc_fft_re_hi[tid];
+      global_fft_re_lo[tid] = acc_fft_re_lo[tid];
+      global_fft_im_hi[tid] = acc_fft_im_hi[tid];
+      global_fft_im_lo[tid] = acc_fft_im_lo[tid];
+      tid += params::degree / params::opt;
+    }
+    // The next level's decomposition overwrites the transform scratch, so no
+    // thread may start it while another is still copying this level out. The
+    // read side needs the barrier too: the transform stores to interleaved
+    // indices, so the thread that copies out an element is not the one that
+    // wrote it.
+    __syncthreads();
   }
 }
 
@@ -839,47 +864,52 @@ __host__ uint64_t scratch_programmable_bootstrap_128(
     check_cuda_error(cudaGetLastError());
   }
 
-  // Configure the register-based step one used for the noise-squashing 2_2
-  // parameters (degree 2048, level_count 3). It uses the same shared-memory
-  // budget as the generic step one, so we mirror the sizing decision above.
-  // Configuring the func attributes is harmless even if the kernel ends up not
-  // being launched (base_log != 24 at runtime).
+  // Configure the level-collapsed step one. Its shared-memory budget is the
+  // same as the generic step one's, because the transform scratch is reused
+  // across levels rather than sized per level, so the sizing decision above is
+  // mirrored here. The opt-in still has to be requested for this kernel
+  // specifically: 64 KiB is above the 48 KiB a kernel gets by default, and
+  // without the opt-in the launch fails with "invalid argument" rather than
+  // falling back. Every instantiation the launcher can reach is configured;
+  // NOSM needs no opt-in because it takes no dynamic shared memory. Configuring
+  // is harmless if the kernel is never launched, which is why base_log is not
+  // tested here.
   if constexpr (params::degree == 2048) {
     if (level_count == 3) {
       if (max_shared_memory >= partial_sm &&
           max_shared_memory < full_sm_step_one) {
         check_cuda_error(cudaFuncSetAttribute(
-            device_programmable_bootstrap_step_one_128_regs<
+            device_programmable_bootstrap_step_one_128_all_levels<
                 InputTorus, params, PARTIALSM, true, 24, 3>,
             cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
         check_cuda_error(cudaFuncSetCacheConfig(
-            device_programmable_bootstrap_step_one_128_regs<
+            device_programmable_bootstrap_step_one_128_all_levels<
                 InputTorus, params, PARTIALSM, true, 24, 3>,
             cudaFuncCachePreferShared));
         check_cuda_error(cudaFuncSetAttribute(
-            device_programmable_bootstrap_step_one_128_regs<
+            device_programmable_bootstrap_step_one_128_all_levels<
                 InputTorus, params, PARTIALSM, false, 24, 3>,
             cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
         check_cuda_error(cudaFuncSetCacheConfig(
-            device_programmable_bootstrap_step_one_128_regs<
+            device_programmable_bootstrap_step_one_128_all_levels<
                 InputTorus, params, PARTIALSM, false, 24, 3>,
             cudaFuncCachePreferShared));
         check_cuda_error(cudaGetLastError());
       } else if (max_shared_memory >= partial_sm) {
         check_cuda_error(cudaFuncSetAttribute(
-            device_programmable_bootstrap_step_one_128_regs<
+            device_programmable_bootstrap_step_one_128_all_levels<
                 InputTorus, params, FULLSM, true, 24, 3>,
             cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_one));
         check_cuda_error(cudaFuncSetCacheConfig(
-            device_programmable_bootstrap_step_one_128_regs<
+            device_programmable_bootstrap_step_one_128_all_levels<
                 InputTorus, params, FULLSM, true, 24, 3>,
             cudaFuncCachePreferShared));
         check_cuda_error(cudaFuncSetAttribute(
-            device_programmable_bootstrap_step_one_128_regs<
+            device_programmable_bootstrap_step_one_128_all_levels<
                 InputTorus, params, FULLSM, false, 24, 3>,
             cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_one));
         check_cuda_error(cudaFuncSetCacheConfig(
-            device_programmable_bootstrap_step_one_128_regs<
+            device_programmable_bootstrap_step_one_128_all_levels<
                 InputTorus, params, FULLSM, false, 24, 3>,
             cudaFuncCachePreferShared));
         check_cuda_error(cudaGetLastError());
@@ -1244,12 +1274,15 @@ __host__ void execute_step_one_128(
   }
 }
 
-// Launcher for the register-based step one, specialized on compile-time
-// base_log / level_count. Shares the same shared-memory sizing as
-// execute_step_one_128, so the caller passes the identical SM parameters.
+// Launcher for the level-collapsed step one, specialized on compile-time
+// base_log / level_count. Same shared-memory sizing as execute_step_one_128 --
+// the transform scratch is reused across levels, so the budget is unchanged --
+// but the grid has no level axis: it is (glwe_dimension + 1) x samples, with
+// the sample still on the slowest axis and the sample range chunked for the
+// reasons given on max_samples_per_128_step_launch.
 template <typename InputTorus, class params, bool first_iter, uint32_t base_log,
           uint32_t level_count>
-__host__ void execute_step_one_128_regs(
+__host__ void execute_step_one_128_all_levels(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, double const *bootstrapping_key,
     __uint128_t *global_accumulator, double *global_join_buffer,
@@ -1261,16 +1294,15 @@ __host__ void execute_step_one_128_regs(
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
-  // The step one kernels read their twiddles from the interleaved table, so the
-  // table has to exist on this GPU before the first launch.
+  // The kernel reads its twiddles from the interleaved table, so the table has
+  // to exist on this GPU before the first launch.
   host_build_neg_twiddles_aos(stream, gpu_index);
   int thds = polynomial_size / params::opt;
 
-  // Same grid ordering and sample chunking as execute_step_one_128.
   for (uint32_t sample_offset = 0; sample_offset < input_lwe_ciphertext_count;
        sample_offset += max_samples_per_128_step_launch) {
     dim3 grid(
-        level_count, glwe_dimension + 1,
+        glwe_dimension + 1,
         samples_in_128_step_launch(input_lwe_ciphertext_count, sample_offset));
 
     auto lwe_array_in_chunk =
@@ -1285,7 +1317,7 @@ __host__ void execute_step_one_128_regs(
                                   polynomial_size, level_count);
 
     if (max_shared_memory < partial_sm) {
-      device_programmable_bootstrap_step_one_128_regs<
+      device_programmable_bootstrap_step_one_128_all_levels<
           InputTorus, params, NOSM, first_iter, base_log, level_count>
           <<<grid, thds, 0, stream>>>(
               lut_vector, lwe_array_in_chunk, bootstrapping_key,
@@ -1293,7 +1325,7 @@ __host__ void execute_step_one_128_regs(
               lwe_dimension, polynomial_size, d_mem, full_dm,
               noise_reduction_type);
     } else if (max_shared_memory < full_sm) {
-      device_programmable_bootstrap_step_one_128_regs<
+      device_programmable_bootstrap_step_one_128_all_levels<
           InputTorus, params, PARTIALSM, first_iter, base_log, level_count>
           <<<grid, thds, partial_sm, stream>>>(
               lut_vector, lwe_array_in_chunk, bootstrapping_key,
@@ -1301,7 +1333,7 @@ __host__ void execute_step_one_128_regs(
               lwe_dimension, polynomial_size, d_mem, partial_dm,
               noise_reduction_type);
     } else {
-      device_programmable_bootstrap_step_one_128_regs<
+      device_programmable_bootstrap_step_one_128_all_levels<
           InputTorus, params, FULLSM, first_iter, base_log, level_count>
           <<<grid, thds, full_sm, stream>>>(
               lut_vector, lwe_array_in_chunk, bootstrapping_key,
@@ -1413,24 +1445,35 @@ __host__ void host_programmable_bootstrap_128(
   int8_t *d_mem = pbs_buffer->d_mem;
   auto noise_reduction_type = pbs_buffer->noise_reduction_type;
 
-  // Use the register-based step one for the noise-squashing 2_2 parameters
-  // (polynomial_size = 2048, base_log = 24, level_count = 3). Any other
-  // configuration falls back to the generic shared-memory step one.
-  bool use_regs_step_one = false;
-  if constexpr (params::degree == 2048) {
-    use_regs_step_one = (base_log == 24 && level_count == 3);
-  }
-
+  // The level-collapsed step one is specialized on the noise-squashing 2_2
+  // parameters (polynomial_size = 2048, base_log = 24, level_count = 3), which
+  // it takes as compile-time constants. Any other configuration falls back to
+  // the generic shared-memory step one.
+  //
+  // The polynomial size is tested with `if constexpr` on the outside and the
+  // remaining parameters with a runtime `if` on the inside, so that every
+  // branch ends in a step-one launch. The other nesting -- a runtime test
+  // wrapping an `if constexpr (params::degree == 2048)` with no `else` --
+  // compiles happily and skips step one entirely for every other polynomial
+  // size.
   for (int i = 0; i < lwe_dimension; i++) {
     if (i == 0) {
-      if (use_regs_step_one) {
-        if constexpr (params::degree == 2048)
-          execute_step_one_128_regs<InputTorus, params, true, 24, 3>(
+      if constexpr (params::degree == 2048) {
+        if (base_log == 24 && level_count == 3) {
+          execute_step_one_128_all_levels<InputTorus, params, true, 24, 3>(
               stream, gpu_index, lut_vector, lwe_array_in, bootstrapping_key,
               global_accumulator, global_join_buffer, noise_reduction_type,
               input_lwe_ciphertext_count, lwe_dimension, glwe_dimension,
               polynomial_size, d_mem, i, partial_sm, partial_dm_step_one,
               full_sm_step_one, full_dm_step_one);
+        } else {
+          execute_step_one_128<InputTorus, params, true>(
+              stream, gpu_index, lut_vector, lwe_array_in, bootstrapping_key,
+              global_accumulator, global_join_buffer, noise_reduction_type,
+              input_lwe_ciphertext_count, lwe_dimension, glwe_dimension,
+              polynomial_size, base_log, level_count, d_mem, i, partial_sm,
+              partial_dm_step_one, full_sm_step_one, full_dm_step_one);
+        }
       } else {
         execute_step_one_128<InputTorus, params, true>(
             stream, gpu_index, lut_vector, lwe_array_in, bootstrapping_key,
@@ -1440,14 +1483,22 @@ __host__ void host_programmable_bootstrap_128(
             partial_dm_step_one, full_sm_step_one, full_dm_step_one);
       }
     } else {
-      if (use_regs_step_one) {
-        if constexpr (params::degree == 2048)
-          execute_step_one_128_regs<InputTorus, params, false, 24, 3>(
+      if constexpr (params::degree == 2048) {
+        if (base_log == 24 && level_count == 3) {
+          execute_step_one_128_all_levels<InputTorus, params, false, 24, 3>(
               stream, gpu_index, lut_vector, lwe_array_in, bootstrapping_key,
               global_accumulator, global_join_buffer, noise_reduction_type,
               input_lwe_ciphertext_count, lwe_dimension, glwe_dimension,
               polynomial_size, d_mem, i, partial_sm, partial_dm_step_one,
               full_sm_step_one, full_dm_step_one);
+        } else {
+          execute_step_one_128<InputTorus, params, false>(
+              stream, gpu_index, lut_vector, lwe_array_in, bootstrapping_key,
+              global_accumulator, global_join_buffer, noise_reduction_type,
+              input_lwe_ciphertext_count, lwe_dimension, glwe_dimension,
+              polynomial_size, base_log, level_count, d_mem, i, partial_sm,
+              partial_dm_step_one, full_sm_step_one, full_dm_step_one);
+        }
       } else {
         execute_step_one_128<InputTorus, params, false>(
             stream, gpu_index, lut_vector, lwe_array_in, bootstrapping_key,
