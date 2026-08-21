@@ -1,4 +1,4 @@
-use benchmark::high_level_api::type_display::TypeDisplayer;
+use benchmark::high_level_api::type_display::type_tag;
 use benchmark::utilities::{write_to_json, BitSizesSet, EnvConfig, OperatorType};
 use benchmark_spec::tfhe::hlapi::vector_find::VectorFindOp;
 use benchmark_spec::tfhe::hlapi::HlapiBench;
@@ -82,7 +82,7 @@ fn bench_contains_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_elem
         HlapiBench::VectorFind(VectorFindOp::Contains),
         &params_name,
         OperandType::CipherText,
-        Some(&TypeDisplayer::<FheUint64>::default()),
+        Some(type_tag::<FheUint64>()),
         get_bench_type(),
         Some(num_elements),
     );
@@ -109,7 +109,7 @@ fn bench_contains_fhe_uint8(c: &mut Criterion, client_key: &ClientKey, num_eleme
         HlapiBench::VectorFind(VectorFindOp::Contains),
         &params_name,
         OperandType::CipherText,
-        Some(&TypeDisplayer::<FheUint8>::default()),
+        Some(type_tag::<FheUint8>()),
         get_bench_type(),
         Some(num_elements),
     );
@@ -136,7 +136,7 @@ fn bench_match_value_fhe_uint64(c: &mut Criterion, client_key: &ClientKey, num_e
         HlapiBench::VectorFind(VectorFindOp::MatchValue),
         &params_name,
         OperandType::CipherText,
-        Some(&TypeDisplayer::<FheUint64>::default()),
+        Some(type_tag::<FheUint64>()),
         get_bench_type(),
         Some(num_elements),
     );
@@ -162,7 +162,7 @@ fn bench_match_value_fhe_uint8(c: &mut Criterion, client_key: &ClientKey, num_el
         HlapiBench::VectorFind(VectorFindOp::MatchValue),
         &params_name,
         OperandType::CipherText,
-        Some(&TypeDisplayer::<FheUint8>::default()),
+        Some(type_tag::<FheUint8>()),
         get_bench_type(),
         Some(num_elements),
     );
