@@ -102,11 +102,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         false);
 
     // Persist
-    int tid = threadIdx.x;
-    for (int i = 0; i < params::opt; i++) {
-      global_slice[tid] = accumulator[tid];
-      tid += params::degree / params::opt;
-    }
+    copy_polynomial<__uint128_t, params::opt, params::degree / params::opt>(
+        accumulator, global_slice);
   }
 
   // Put "a" in [0, 2N[
@@ -142,22 +139,11 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   auto acc_fft_im_hi = accumulator_fft + 2 * params::degree / 2;
   auto acc_fft_im_lo = accumulator_fft + 3 * params::degree / 2;
 
-  auto global_fft_re_hi = global_fft_slice + 0 * params::degree / 2;
-  auto global_fft_re_lo = global_fft_slice + 1 * params::degree / 2;
-  auto global_fft_im_hi = global_fft_slice + 2 * params::degree / 2;
-  auto global_fft_im_lo = global_fft_slice + 3 * params::degree / 2;
-
   negacyclic_forward_fft_f128<HalfDegree<params>>(acc_fft_re_hi, acc_fft_re_lo,
                                                   acc_fft_im_hi, acc_fft_im_lo);
 
-  int tid = threadIdx.x;
-  for (int i = 0; i < params::opt / 2; i++) {
-    global_fft_re_hi[tid] = acc_fft_re_hi[tid];
-    global_fft_re_lo[tid] = acc_fft_re_lo[tid];
-    global_fft_im_hi[tid] = acc_fft_im_hi[tid];
-    global_fft_im_lo[tid] = acc_fft_im_lo[tid];
-    tid += params::degree / params::opt;
-  }
+  copy_polynomial<double, 2 * params::opt, params::degree / params::opt>(
+      accumulator_fft, global_fft_slice);
 }
 
 /*
@@ -245,19 +231,13 @@ device_programmable_bootstrap_step_one_128_regs(
         false);
 
     // Persist so step two (and the next step-one iteration) can read it back.
-    int tid = threadIdx.x;
-    for (int i = 0; i < params::opt; i++) {
-      global_slice[tid] = accumulator[tid];
-      tid += params::degree / params::opt;
-    }
+    copy_polynomial<__uint128_t, params::opt, params::degree / params::opt>(
+        accumulator, global_slice);
   } else {
     // Load the persisted accumulator into the (shared) source buffer so the
     // register-based rotation below can read it with random access.
-    int tid = threadIdx.x;
-    for (int i = 0; i < params::opt; i++) {
-      accumulator[tid] = global_slice[tid];
-      tid += params::degree / params::opt;
-    }
+    copy_polynomial<__uint128_t, params::opt, params::degree / params::opt>(
+        global_slice, accumulator);
   }
 
   // Put "a" in [0, 2N[
@@ -293,19 +273,8 @@ device_programmable_bootstrap_step_one_128_regs(
   negacyclic_forward_fft_f128_tbc<HalfDegree<params>>(
       acc_fft_re_hi, acc_fft_re_lo, acc_fft_im_hi, acc_fft_im_lo);
 
-  auto global_fft_re_hi = global_fft_slice + 0 * params::degree / 2;
-  auto global_fft_re_lo = global_fft_slice + 1 * params::degree / 2;
-  auto global_fft_im_hi = global_fft_slice + 2 * params::degree / 2;
-  auto global_fft_im_lo = global_fft_slice + 3 * params::degree / 2;
-
-  int tid = threadIdx.x;
-  for (int i = 0; i < params::opt / 2; i++) {
-    global_fft_re_hi[tid] = acc_fft_re_hi[tid];
-    global_fft_re_lo[tid] = acc_fft_re_lo[tid];
-    global_fft_im_hi[tid] = acc_fft_im_hi[tid];
-    global_fft_im_lo[tid] = acc_fft_im_lo[tid];
-    tid += params::degree / params::opt;
-  }
+  copy_polynomial<double, 2 * params::opt, params::degree / params::opt>(
+      accumulator_fft, global_fft_slice);
 }
 
 template <typename Torus, class params, sharedMemDegree SMD, bool last_iter>
@@ -368,11 +337,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
       (blockIdx.y + blockIdx.x * (glwe_dimension + 1)) * params::degree;
 
   // Load the persisted accumulator
-  int tid = threadIdx.x;
-  for (int i = 0; i < params::opt; i++) {
-    accumulator[tid] = global_slice[tid];
-    tid += params::degree / params::opt;
-  }
+  copy_polynomial<Torus, params::opt, params::degree / params::opt>(
+      global_slice, accumulator);
 
   // Perform the inverse FFT on the result of the GGSW x GLWE and add to the
   // accumulator
@@ -403,14 +369,10 @@ __global__ void __launch_bounds__(params::degree / params::opt)
       sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
     }
   } else {
-    // We don't sync here because we use same indexes to read from `accumulator`
-    // as it was used in `add_to_torus_128` to write inside it Persist the
-    // updated accumulator
-    tid = threadIdx.x;
-    for (int i = 0; i < params::opt; i++) {
-      global_slice[tid] = accumulator[tid];
-      tid += params::degree / params::opt;
-    }
+    // No __syncthreads() here: this copy reads `accumulator` at exactly the
+    // same per-thread indices that `add_to_torus_128` used to write it.
+    copy_polynomial<Torus, params::opt, params::degree / params::opt>(
+        accumulator, global_slice);
   }
 }
 
