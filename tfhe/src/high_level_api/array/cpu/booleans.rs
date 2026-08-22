@@ -5,9 +5,10 @@ use super::super::traits::{BitwiseArrayBackend, ClearBitwiseArrayBackend};
 use crate::array::traits::TensorSlice;
 use crate::high_level_api::array::{ArrayBackend, BackendDataContainer, BackendDataContainerMut};
 use crate::high_level_api::global_state;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::integer::BooleanBlock;
 use crate::prelude::{FheDecrypt, FheTryEncrypt};
-use crate::{ClientKey, FheId};
+use crate::{ClientKey, FheBool, FheId, Tag};
 use rayon::prelude::*;
 use std::ops::RangeBounds;
 
@@ -34,6 +35,34 @@ impl ArrayBackend for CpuFheBoolArrayBackend {
     where
         Self: 'a;
     type Owned = Vec<BooleanBlock>;
+}
+
+impl From<Vec<FheBool>> for CpuFheBoolArray {
+    fn from(value: Vec<FheBool>) -> Self {
+        let vec = value
+            .into_iter()
+            .map(|b| BooleanBlock::new_unchecked(b.into_raw_parts()))
+            .collect::<Vec<_>>();
+
+        let shape = vec![vec.len()];
+        Self::new(vec, shape)
+    }
+}
+
+impl From<CpuFheBoolArray> for Vec<FheBool> {
+    fn from(value: CpuFheBoolArray) -> Self {
+        value
+            .into_container()
+            .into_iter()
+            .map(|boolean_block| {
+                FheBool::new(
+                    boolean_block,
+                    Tag::default(),
+                    ReRandomizationMetadata::default(),
+                )
+            })
+            .collect()
+    }
 }
 
 impl BackendDataContainer for &[BooleanBlock] {
