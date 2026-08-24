@@ -11692,6 +11692,15 @@ pub(crate) unsafe fn cuda_backend_prince<T: UnsignedInteger, B: Numeric>(
     update_noise_degree(output, &cuda_ffi_output);
 }
 
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+///
+/// The key material must come from a key prep in the same direction as
+/// is_decrypt.
 pub(crate) fn cuda_backend_get_prince_key_prep_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
@@ -11723,6 +11732,14 @@ pub(crate) fn cuda_backend_get_prince_key_prep_size_on_gpu(
 }
 
 #[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+///
+/// The key material must come from a key prep in the same direction as
+/// is_decrypt.
 pub(crate) fn cuda_backend_get_prince_size_on_gpu(
     streams: &CudaStreams,
     num_prince_inputs: u32,

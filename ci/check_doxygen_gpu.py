@@ -10,6 +10,8 @@ Scoped to:
   backends/tfhe-cuda-backend/cuda/src/integer/       (*.cuh, *.cu)
   backends/tfhe-cuda-backend/cuda/include/prince/    (*.h)
   backends/tfhe-cuda-backend/cuda/src/prince/        (*.cuh, *.cu)
+  backends/tfhe-cuda-backend/cuda/include/aes/       (*.h)
+  backends/tfhe-cuda-backend/cuda/src/aes/           (*.cuh, *.cu)
 """
 
 import os
@@ -26,6 +28,8 @@ SCOPED_DIRS = [
     "backends/tfhe-cuda-backend/cuda/src/integer",
     "backends/tfhe-cuda-backend/cuda/include/prince",
     "backends/tfhe-cuda-backend/cuda/src/prince",
+    "backends/tfhe-cuda-backend/cuda/include/aes",
+    "backends/tfhe-cuda-backend/cuda/src/aes",
 ]
 EXTENSIONS = {".h", ".cuh", ".cu"}
 

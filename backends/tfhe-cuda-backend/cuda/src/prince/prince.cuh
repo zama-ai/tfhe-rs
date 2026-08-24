@@ -319,8 +319,10 @@ __host__ uint64_t scratch_cuda_integer_prince(
     int_radix_params params, bool allocate_gpu_memory, uint32_t num_inputs,
     bool is_decrypt) {
   uint64_t size_tracker = 0;
+
   *mem_ptr = new int_prince_buffer<Torus>(streams, params, allocate_gpu_memory,
                                           num_inputs, is_decrypt, size_tracker);
+
   return size_tracker;
 }
 
