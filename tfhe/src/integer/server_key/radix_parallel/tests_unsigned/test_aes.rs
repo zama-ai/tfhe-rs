@@ -132,10 +132,19 @@ fn plain_aes_encrypt_block(block_bytes: &mut [u8; 16], expanded_keys: &[u128]) {
     add_round_key(block_bytes, expanded_keys[10]);
 }
 fn plain_aes_ctr(num_aes_inputs: usize, iv: u128, key: u128) -> Vec<u128> {
+    plain_aes_ctr_from(num_aes_inputs, iv, 0, key)
+}
+
+fn plain_aes_ctr_from(
+    num_aes_inputs: usize,
+    iv: u128,
+    start_counter: u128,
+    key: u128,
+) -> Vec<u128> {
     let expanded_keys = plain_key_expansion(key);
     let mut results = Vec::with_capacity(num_aes_inputs);
     for i in 0..num_aes_inputs {
-        let counter_value = iv.wrapping_add(i as u128);
+        let counter_value = iv.wrapping_add(start_counter).wrapping_add(i as u128);
         let mut block = counter_value.to_be_bytes();
         plain_aes_encrypt_block(&mut block, &expanded_keys);
         results.push(u128::from_be_bytes(block));
@@ -220,5 +229,65 @@ where
         let encrypted_result = executor.execute((&ctxt_key, &ctxt_iv, 0, num_aes_inputs));
         let fhe_results = cks.decrypt_u128_from_aes_ctr(&encrypted_result, num_aes_inputs);
         assert_eq!(fhe_results, plain_results);
+    }
+}
+
+/// The counter addition resolves its carries through a Sklansky prefix scan,
+/// and the IV and the counter alone decide how far they travel:
+///
+///   iv       1 1 1 1
+///   counter  0 0 0 1
+///   symbol   1 1 1 2    kill 0, propagate 1, generate 2, so this carry has
+///                       to cross the whole width
+pub fn aes_sklansky_counter_carry_test<P, E>(param: P, mut executor: E)
+where
+    P: Into<TestParameters>,
+    E: for<'a> FunctionExecutor<
+        (&'a RadixCiphertext, &'a RadixCiphertext, u128, usize),
+        RadixCiphertext,
+    >,
+{
+    let param = param.into();
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, 1));
+    let sks = Arc::new(sks);
+    executor.setup(&cks, sks);
+
+    let key: u128 = 0x2b7e151628aed2a6abf7158809cf4f3c;
+    let ctxt_key = cks.encrypt_u128_for_aes_ctr(key);
+
+    let all_ones = u128::MAX;
+    let alternating = 0xaaaa_aaaa_aaaa_aaaa_aaaa_aaaa_aaaa_aaaau128;
+
+    // (iv, start_counter, num_aes_inputs, what it does to the carries)
+    let cases = [
+        // Nothing to propagate, the sum is the IV.
+        (all_ones, 0, 1, "no carry at all"),
+        // A generate at the bottom under 127 propagates, the longest chain the
+        // state can hold, and the carry leaves the top and is dropped.
+        (all_ones, 1, 1, "carry crosses the whole width"),
+        // Same chain, one position shorter, and this one stops inside.
+        (all_ones >> 1, 1, 1, "carry crosses 127 positions"),
+        // Every position propagates and none generates, so no carry moves.
+        (alternating, !alternating, 1, "every position propagates"),
+        // Every position generates, and none of those carries survives its
+        // neighbour.
+        (all_ones, all_ones, 1, "generate everywhere"),
+        // Kill everywhere, the one case where nothing happens at all.
+        (0, 0, 1, "0 + 0"),
+        // Consecutive counters over a boundary, which is what CTR does for
+        // real: each input carries one position further than the last.
+        (all_ones - 3, 1, 8, "counters rolling over"),
+    ];
+
+    for (iv, start_counter, num_aes_inputs, what) in cases {
+        let ctxt_iv = cks.encrypt_u128_for_aes_ctr(iv);
+        let plain_results = plain_aes_ctr_from(num_aes_inputs, iv, start_counter, key);
+
+        let encrypted_result =
+            executor.execute((&ctxt_key, &ctxt_iv, start_counter, num_aes_inputs));
+        let fhe_results = cks.decrypt_u128_from_aes_ctr(&encrypted_result, num_aes_inputs);
+
+        assert_eq!(fhe_results, plain_results, "counter carries: {what}");
     }
 }

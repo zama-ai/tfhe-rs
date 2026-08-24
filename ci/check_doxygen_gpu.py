@@ -10,6 +10,8 @@ Scoped to:
   backends/tfhe-cuda-backend/cuda/src/integer/       (*.cuh, *.cu)
   backends/tfhe-cuda-backend/cuda/include/prince/    (*.h)
   backends/tfhe-cuda-backend/cuda/src/prince/        (*.cuh, *.cu)
+  backends/tfhe-cuda-backend/cuda/include/aes/       (*.h)
+  backends/tfhe-cuda-backend/cuda/src/aes/           (*.cuh, *.cu)
 """
 
 import os
@@ -26,6 +28,8 @@ SCOPED_DIRS = [
     "backends/tfhe-cuda-backend/cuda/src/integer",
     "backends/tfhe-cuda-backend/cuda/include/prince",
     "backends/tfhe-cuda-backend/cuda/src/prince",
+    "backends/tfhe-cuda-backend/cuda/include/aes",
+    "backends/tfhe-cuda-backend/cuda/src/aes",
 ]
 EXTENSIONS = {".h", ".cuh", ".cu"}
 
@@ -143,6 +147,15 @@ def skip_member(type_str, name):
     return any(t in type_str and name == n for t, n in SKIP_MEMBERS)
 
 
+def tparam_name(tp):
+    """Name of a template parameter. A type parameter ("typename Torus") has
+    it in the type; a non-type one ("uint32_t TOTAL_WORDS") in declname."""
+    declname = tp.findtext("declname", "").strip()
+    if declname:
+        return declname
+    return tp.findtext("type", "").replace("typename", "").replace("class", "").strip()
+
+
 def check_entity(name, kind, memberdef, param_elems):
     """Return list of documentation issues for a function/struct member."""
     issues = []
@@ -178,8 +191,7 @@ def check_entity(name, kind, memberdef, param_elems):
     if tpl is not None:
         declared_tparams = []
         for tp in tpl.findall("param"):
-            # type is e.g. "typename Torus" or "class KSTorus"
-            tname = tp.findtext("type", "").replace("typename", "").replace("class", "").strip()
+            tname = tparam_name(tp)
             if tname and tname not in SKIP_TPARAMS:
                 declared_tparams.append(tname)
 
@@ -241,7 +253,7 @@ def parse_xml_issues(xml_dir, added, root):
             if tpl is not None:
                 declared_tparams = []
                 for tp in tpl.findall("param"):
-                    tname = tp.findtext("type", "").replace("typename", "").replace("class", "").strip()
+                    tname = tparam_name(tp)
                     if tname and tname not in SKIP_TPARAMS:
                         declared_tparams.append(tname)
                 documented_tparams = set()
