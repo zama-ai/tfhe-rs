@@ -206,6 +206,12 @@ harness = false
 required-features = ["integer", "internal-keycache"]
 
 [[bench]]
+name = "integer-prince"
+path = "benches/integer/prince.rs"
+harness = false
+required-features = ["integer", "internal-keycache"]
+
+[[bench]]
 name = "core_crypto-ks"
 path = "benches/core_crypto/ks_bench.rs"
 harness = false
