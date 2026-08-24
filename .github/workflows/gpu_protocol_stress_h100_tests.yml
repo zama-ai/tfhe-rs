@@ -1,5 +1,6 @@
-# Compile and test tfhe-cuda-backend on an H100 VM on hyperstack
-name: gpu_full_h100_tests
+# Run the protocol workflow stress test on an H100, long enough to soak the concurrent paths.
+# The pull request jobs already run a shorter version of it, see gpu_hlapi_h100_tests.
+name: gpu_protocol_stress_h100_tests
 
 env:
   CARGO_TERM_COLOR: always
@@ -11,18 +12,24 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
+  # Transactions to run. Calibrated on an H100 80GB at ~0.076 s per transaction, so this is
+  # about 2 hours.
+  PROTOCOL_STRESS_TRANSACTIONS: 90000
 
 on:
+  # Manual only: the run takes about 2 hours, the pull request jobs already cover a shorter
+  # version of this test.
   workflow_dispatch:
 
-
-permissions: {}
+permissions:
+  contents: read
 
 # zizmor: ignore[concurrency-limits] concurrency is managed after instance setup to ensure safe provisioning
 
 jobs:
   setup-instance:
-    name: gpu_full_h100_tests/setup-instance
+    name: gpu_protocol_stress_h100_tests/setup-instance
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
@@ -36,15 +43,15 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: terraform
-          profile: scaleway-2-h100-sxm5-tests
+          backend: hyperstack
+          profile: single-h100-protocol-stress
 
-  cuda-tests-linux:
-    name: gpu_full_h100_tests/cuda-tests-linux
+  cuda-tests:
+    name: gpu_protocol_stress_h100_tests/cuda-tests
     needs: [ setup-instance ]
     concurrency:
-      group: ${{ github.workflow_ref }}
-      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+      group: ${{ github.workflow_ref }}_${{github.event_name}}
+      cancel-in-progress: true
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
       fail-fast: false
@@ -53,13 +60,14 @@ jobs:
         include:
           - os: ubuntu-22.04
             cuda: "12.8 12.2"
-            gcc: 12 
+            gcc: 12
+    timeout-minutes: 300 # 5 hours, the run itself is around 2
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: 'false'
-          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Setup cloud GPU machine dependencies
         uses: ./.github/actions/gpu_setup
@@ -72,46 +80,32 @@ jobs:
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
           toolchain: stable
+
       - name: Enable nvidia multi-process service
         run: |
           nvidia-cuda-mps-control -d
-      - name: Run core crypto, integer and internal CUDA backend tests
-        run: |
-          make test_gpu
-
-      - name: Run user docs tests
-        run: |
-          make test_user_doc_gpu
-
-      - name: Test C API
-        run: |
-          make test_c_api_gpu
-
-      - name: Run High Level API Tests
-        run: |
-          make test_high_level_api_gpu
 
       - name: Run protocol workflow stress test
         run: |
-          make test_protocol_stress_gpu
+          BIG_TESTS_INSTANCE=TRUE make test_protocol_stress_gpu
 
   slack-notify:
-    name: gpu_full_h100_tests/slack-notify
-    needs: [ setup-instance, cuda-tests-linux ]
+    name: gpu_protocol_stress_h100_tests/slack-notify
+    needs: [ setup-instance, cuda-tests ]
     runs-on: ubuntu-latest
-    if: ${{ failure() }}
+    if: ${{ always() && needs.cuda-tests.result != 'skipped' && failure() }}
     continue-on-error: true
     steps:
       - name: Send message
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
-          SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
-          SLACK_MESSAGE: "Full H100 tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_COLOR: ${{ needs.cuda-tests.result }}
+          SLACK_MESSAGE: "Protocol workflow stress test on H100 finished with status: ${{ needs.cuda-tests.result }}. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
-    name: gpu_full_h100_tests/teardown-instance
+    name: gpu_protocol_stress_h100_tests/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
-    needs: [ setup-instance, cuda-tests-linux ]
+    needs: [ setup-instance, cuda-tests ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
@@ -129,4 +123,4 @@ jobs:
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cuda-h100-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (gpu-protocol-stress-h100-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
