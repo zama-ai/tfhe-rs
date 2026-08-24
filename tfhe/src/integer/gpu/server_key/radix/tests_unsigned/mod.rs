@@ -12,6 +12,7 @@ mod test_kv_store;
 pub(crate) mod test_mul;
 pub(crate) mod test_neg;
 pub(crate) mod test_oprf;
+pub(crate) mod test_prince;
 pub(crate) mod test_rotate;
 pub(crate) mod test_scalar_add;
 pub(crate) mod test_scalar_bitwise_op;
@@ -294,6 +295,64 @@ where
 }
 
 /// For default/unchecked binary functions
+impl<'a, F>
+    FunctionExecutor<
+        (
+            &'a RadixCiphertext,
+            &'a RadixCiphertext,
+            &'a RadixCiphertext,
+            usize,
+        ),
+        RadixCiphertext,
+    > for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaUnsignedRadixCiphertext,
+        &CudaUnsignedRadixCiphertext,
+        &CudaUnsignedRadixCiphertext,
+        usize,
+        &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(
+        &mut self,
+        input: (
+            &'a RadixCiphertext,
+            &'a RadixCiphertext,
+            &'a RadixCiphertext,
+            usize,
+        ),
+    ) -> RadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt_1 =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.0, &context.streams);
+        let d_ctxt_2 =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.1, &context.streams);
+        let d_ctxt_3 =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.2, &context.streams);
+
+        let gpu_result = (self.func)(
+            &context.sks,
+            &d_ctxt_1,
+            &d_ctxt_2,
+            &d_ctxt_3,
+            input.3,
+            &context.streams,
+        );
+
+        gpu_result.to_radix_ciphertext(&context.streams)
+    }
+}
+
 impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>
     for GpuFunctionExecutor<F>
 where
