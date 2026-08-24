@@ -13,4 +13,5 @@ pub mod kv_store;
 #[cfg(feature = "strings")]
 pub mod strings;
 pub mod tag;
+pub mod transciphering;
 pub mod xof_key_set;
