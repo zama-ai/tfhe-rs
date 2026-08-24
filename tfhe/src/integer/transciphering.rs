@@ -3,12 +3,14 @@ use std::num::NonZeroUsize;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::Numeric;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::{BooleanBlock, DataKind};
 use crate::integer::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::transciphering::{
-    InsufficientKeystream, StreamCipher, StreamCiphertext, TranscipherError, Transcipherer,
+    InsufficientKeystream, StreamCipher, StreamCipherKind, StreamCiphertext,
+    StreamCiphertextConformanceParams, TranscipherError, Transcipherer,
 };
 
 use super::backward_compatibility::transciphering::{
@@ -50,6 +52,27 @@ impl IntegerStreamCiphertextKind {
                 DataKind::Boolean
             }
         })
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct IntegerStreamCiphertextConformanceParams {
+    pub cipher_kind: StreamCipherKind,
+    pub kind: IntegerStreamCiphertextKind,
+    pub n_bits: usize,
+}
+
+impl ParameterSetConformant for IntegerStreamCiphertext {
+    type ParameterSet = IntegerStreamCiphertextConformanceParams;
+
+    fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
+        self.kind == params.kind
+            && self
+                .inner
+                .is_conformant(&StreamCiphertextConformanceParams {
+                    kind: params.cipher_kind,
+                    n_bits: params.n_bits,
+                })
     }
 }
 
