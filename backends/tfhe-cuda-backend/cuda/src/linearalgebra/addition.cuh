@@ -11,6 +11,7 @@
 #include "integer/integer_utilities.h"
 #include "polynomial/parameters.cuh"
 #include "utils/helper.cuh"
+#include <cstdint>
 #include <stdio.h>
 
 template <typename T>
@@ -358,6 +359,115 @@ __host__ void host_lwe_flat_array_2d_accumulate_rows(
                         num_columns};
   host_reduce_rows_meta<true>(output, meta, row_count, row_count, 1,
                               num_columns, message_modulus, carry_modulus);
+}
+
+// Coefficients a thread block covers: a ciphertext is split across blocks
+// rather than looped over inside one, so a narrow layer still fills the GPU.
+static constexpr uint32_t RADIX_GATHER_THREADS = 256;
+
+// out[row, lane] = sum_{t < num_terms} in[indexes[row * num_terms + t], lane]
+template <typename Torus>
+__global__ void
+device_radix_gather_sum(Torus *out, const Torus *in, const uint32_t *indexes,
+                        uint32_t num_terms, uint32_t num_lanes,
+                        uint32_t num_source_lanes, uint32_t chunks_per_block,
+                        uint32_t lwe_size) {
+  uint32_t chunk = blockIdx.x % chunks_per_block;
+  uint32_t out_block = blockIdx.x / chunks_per_block;
+  uint32_t coeff = chunk * blockDim.x + threadIdx.x;
+  if (coeff >= lwe_size)
+    return;
+
+  uint32_t lane = out_block % num_lanes;
+  uint32_t row = out_block / num_lanes;
+  uint32_t source_lane = (num_source_lanes == 1) ? 0 : lane;
+
+  Torus acc = 0;
+  for (uint32_t t = 0; t < num_terms; ++t) {
+    uint32_t source = indexes[row * num_terms + t];
+    if (source != RADIX_INDEX_NO_TERM)
+      acc += in[((size_t)source * num_source_lanes + source_lane) * lwe_size +
+                coeff];
+  }
+  out[(size_t)out_block * lwe_size + coeff] = acc;
+}
+
+// Sums the blocks an index table points at. Each row names the num_terms
+// inputs of one output row, in any order and with repeats, so one launch
+// expresses a permutation, a duplication or a recombination. Stays levelled,
+// so degrees and noise add up. out must not alias in.
+//
+//     map (num_terms = 2)      in           out
+//
+//       row 0 >   0  1         in0          in0 + in1
+//       row 1 >   2  3         in1          in2 + in3
+//       row 2 >   0  3         in2          in0 + in3
+//                              in3
+template <typename Torus>
+__host__ void host_radix_gather_sum(CudaStreams streams,
+                                    const int_radix_params &params,
+                                    CudaRadixCiphertextFFI *out,
+                                    CudaRadixCiphertextFFI const *in,
+                                    const radix_index_table<uint32_t> &map) {
+  uint32_t num_out_blocks = map.num_out_blocks();
+  uint32_t num_source_blocks = map.num_source_blocks();
+
+  PANIC_IF_FALSE(out->ptr != nullptr && in->ptr != nullptr,
+                 "radix gather sum: cannot run on unallocated (dry run) radix "
+                 "ciphertexts");
+  PANIC_IF_FALSE(out->lwe_dimension == in->lwe_dimension,
+                 "radix gather sum: input and output radix ciphertexts "
+                 "should have the same lwe dimension");
+  PANIC_IF_FALSE(out->num_radix_blocks >= num_out_blocks,
+                 "radix gather sum: output has fewer radix blocks than the "
+                 "map describes");
+  PANIC_IF_FALSE(in->num_radix_blocks >= num_source_blocks,
+                 "radix gather sum: input has too few radix blocks for the "
+                 "indexes the map holds");
+
+  // Outputs are written while sources are still being read, and either side
+  // can be a slice, so comparing base pointers would miss the overlap.
+  const size_t lwe_bytes = ((size_t)out->lwe_dimension + 1) * sizeof(Torus);
+  const uintptr_t out_start = (uintptr_t)out->ptr;
+  const uintptr_t out_end = out_start + num_out_blocks * lwe_bytes;
+  const uintptr_t in_start = (uintptr_t)in->ptr;
+  const uintptr_t in_end = in_start + num_source_blocks * lwe_bytes;
+  PANIC_IF_FALSE(out_end <= in_start || in_end <= out_start,
+                 "radix gather sum: the input and output ranges overlap, it "
+                 "does not support in place operation");
+
+  cuda_set_device(streams.gpu_index(0));
+  uint32_t lwe_size = out->lwe_dimension + 1;
+  uint32_t chunks_per_block = CEIL_DIV(lwe_size, RADIX_GATHER_THREADS);
+  uint64_t num_cuda_blocks = (uint64_t)num_out_blocks * chunks_per_block;
+  PANIC_IF_FALSE(num_cuda_blocks <= (uint64_t)INT32_MAX,
+                 "radix gather sum: batch too large for a single launch");
+  device_radix_gather_sum<Torus>
+      <<<(uint32_t)num_cuda_blocks, RADIX_GATHER_THREADS, 0,
+         streams.stream(0)>>>(static_cast<Torus *>(out->ptr),
+                              static_cast<const Torus *>(in->ptr), map.d_table,
+                              map.num_terms, map.num_lanes,
+                              map.num_source_lanes, chunks_per_block, lwe_size);
+  check_cuda_error(cudaGetLastError());
+
+  for (uint32_t row = 0; row < map.num_rows; ++row)
+    for (uint32_t lane = 0; lane < map.num_lanes; ++lane) {
+      uint32_t source_lane = (map.num_source_lanes == 1) ? 0 : lane;
+      uint64_t degree = 0, noise = 0;
+      for (uint32_t t = 0; t < map.num_terms; ++t) {
+        uint32_t source = map.h_table[row * map.num_terms + t];
+        if (source == RADIX_INDEX_NO_TERM)
+          continue;
+        uint32_t src_block = source * map.num_source_lanes + source_lane;
+        degree += in->degrees[src_block];
+        noise += in->noise_levels[src_block];
+      }
+      uint32_t o = row * map.num_lanes + lane;
+      out->degrees[o] = degree;
+      out->noise_levels[o] = noise;
+      CHECK_NOISE_LEVEL(out->noise_levels[o], params.message_modulus,
+                        params.carry_modulus);
+    }
 }
 
 #endif // CUDA_ADD_H
