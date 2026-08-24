@@ -2026,6 +2026,13 @@ bench_integer_aes256_gpu: install_rs_check_toolchain
 	--bench integer-aes256 \
 	--features=integer,internal-keycache,gpu -p tfhe-benchmark --profile release_lto_off --
 
+.PHONY: bench_integer_prince_gpu # Run benchmarks for PRINCEv2 on GPU backend
+bench_integer_prince_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-prince \
+	--features=integer,internal-keycache,gpu -p tfhe-benchmark --profile release_lto_off --
+
 .PHONY: bench_integer_trivium_gpu # Run benchmarks for trivium on GPU backend
 bench_integer_trivium_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \

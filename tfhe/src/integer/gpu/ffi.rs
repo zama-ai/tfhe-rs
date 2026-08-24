@@ -10906,3 +10906,256 @@ pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger, B: Nu
         update_noise_degree(v, ffi);
     }
 }
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_prince_key_prep<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    key_bits_first: &mut CudaRadixCiphertext,
+    key_bits_second: &mut CudaRadixCiphertext,
+    kap_bw_first: &mut CudaRadixCiphertext,
+    kap_bw_second: &mut CudaRadixCiphertext,
+    kap_mid_first: &mut CudaRadixCiphertext,
+    k0: &CudaRadixCiphertext,
+    k1: &CudaRadixCiphertext,
+    is_decrypt: bool,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    bsk: &impl CudaBskParams,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    let bsk_params = bsk.params_ffi();
+    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
+
+    let mut outs = [
+        key_bits_first,
+        key_bits_second,
+        kap_bw_first,
+        kap_bw_second,
+        kap_mid_first,
+    ];
+    let mut out_degrees: Vec<Vec<u64>> = outs
+        .iter()
+        .map(|o| o.info.blocks.iter().map(|b| b.degree.0).collect())
+        .collect();
+    let mut out_noise_levels: Vec<Vec<u64>> = outs
+        .iter()
+        .map(|o| o.info.blocks.iter().map(|b| b.noise_level.0).collect())
+        .collect();
+    let mut out_ffi: Vec<CudaRadixCiphertextFFI> = outs
+        .iter()
+        .zip(out_degrees.iter_mut())
+        .zip(out_noise_levels.iter_mut())
+        .map(|((o, d), n)| prepare_cuda_radix_ffi(o, d, n))
+        .collect();
+
+    let mut k0_degrees = k0.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut k0_noise_levels = k0.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_k0 = prepare_cuda_radix_ffi(k0, &mut k0_degrees, &mut k0_noise_levels);
+
+    let mut k1_degrees = k1.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut k1_noise_levels = k1.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_k1 = prepare_cuda_radix_ffi(k1, &mut k1_degrees, &mut k1_noise_levels);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_prince_key_prep_64_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        bsk_params,
+        ksk_params,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        true,
+        noise_reduction_type as u32,
+    );
+
+    let [f0, f1, f2, f3, f4] = out_ffi.as_mut_slice() else {
+        unreachable!()
+    };
+    cuda_integer_prince_key_prep_64_async(
+        streams.ffi(),
+        &raw mut *f0,
+        &raw mut *f1,
+        &raw mut *f2,
+        &raw mut *f3,
+        &raw mut *f4,
+        &raw const cuda_ffi_k0,
+        &raw const cuda_ffi_k1,
+        is_decrypt,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_integer_prince_key_prep_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    for (o, ffi) in outs.iter_mut().zip(out_ffi.iter()) {
+        update_noise_degree(o, ffi);
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_prince<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    output: &mut CudaRadixCiphertext,
+    input: &CudaRadixCiphertext,
+    k0: &CudaRadixCiphertext,
+    k1: &CudaRadixCiphertext,
+    key_bits_first: &CudaRadixCiphertext,
+    key_bits_second: &CudaRadixCiphertext,
+    kap_bw_first: &CudaRadixCiphertext,
+    kap_bw_second: &CudaRadixCiphertext,
+    kap_mid_first: &CudaRadixCiphertext,
+    num_prince_inputs: u32,
+    is_decrypt: bool,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    bsk: &impl CudaBskParams,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    let bsk_params = bsk.params_ffi();
+    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
+
+    let mut output_degrees = output.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut output_noise_levels = output.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let mut cuda_ffi_output =
+        prepare_cuda_radix_ffi(output, &mut output_degrees, &mut output_noise_levels);
+
+    let ins = [
+        input,
+        k0,
+        k1,
+        key_bits_first,
+        key_bits_second,
+        kap_bw_first,
+        kap_bw_second,
+        kap_mid_first,
+    ];
+    let mut in_degrees: Vec<Vec<u64>> = ins
+        .iter()
+        .map(|i| i.info.blocks.iter().map(|b| b.degree.0).collect())
+        .collect();
+    let mut in_noise_levels: Vec<Vec<u64>> = ins
+        .iter()
+        .map(|i| i.info.blocks.iter().map(|b| b.noise_level.0).collect())
+        .collect();
+    let in_ffi: Vec<CudaRadixCiphertextFFI> = ins
+        .iter()
+        .zip(in_degrees.iter_mut())
+        .zip(in_noise_levels.iter_mut())
+        .map(|((i, d), n)| prepare_cuda_radix_ffi(i, d, n))
+        .collect();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_prince_64_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        bsk_params,
+        ksk_params,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        true,
+        noise_reduction_type as u32,
+        num_prince_inputs,
+        is_decrypt,
+    );
+
+    cuda_integer_prince_64_async(
+        streams.ffi(),
+        &raw mut cuda_ffi_output,
+        &raw const in_ffi[0],
+        &raw const in_ffi[1],
+        &raw const in_ffi[2],
+        &raw const in_ffi[3],
+        &raw const in_ffi[4],
+        &raw const in_ffi[5],
+        &raw const in_ffi[6],
+        &raw const in_ffi[7],
+        num_prince_inputs,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_integer_prince_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(output, &cuda_ffi_output);
+}
+
+pub(crate) fn cuda_backend_get_prince_key_prep_size_on_gpu(
+    streams: &CudaStreams,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    bsk: &impl CudaBskParams,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) -> u64 {
+    let bsk_params = bsk.params_ffi();
+    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size = unsafe {
+        scratch_cuda_integer_prince_key_prep_64_async(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            bsk_params,
+            ksk_params,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            false,
+            noise_reduction_type as u32,
+        )
+    };
+    unsafe {
+        cleanup_cuda_integer_prince_key_prep_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr))
+    };
+    size
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn cuda_backend_get_prince_size_on_gpu(
+    streams: &CudaStreams,
+    num_prince_inputs: u32,
+    is_decrypt: bool,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    bsk: &impl CudaBskParams,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) -> u64 {
+    let bsk_params = bsk.params_ffi();
+    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size = unsafe {
+        scratch_cuda_integer_prince_64_async(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            bsk_params,
+            ksk_params,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            false,
+            noise_reduction_type as u32,
+            num_prince_inputs,
+            is_decrypt,
+        )
+    };
+    unsafe { cleanup_cuda_integer_prince_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr)) };
+    size
+}
