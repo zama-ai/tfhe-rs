@@ -1,6 +1,9 @@
 use benchmark::params_aliases::*;
-use benchmark::utilities::{throughput_num_threads, write_to_json_unchecked, OperatorType};
-use benchmark_spec::{get_bench_type, BenchmarkType, CsvResultWriter};
+use benchmark::utilities::{throughput_num_threads, write_to_json, OperatorType};
+use benchmark_spec::{
+    get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, ComputeLoad, CsvResultWriter,
+    IntegerBench, ZkPkeBench, ZkPkeConfig, ZkScheme,
+};
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -59,6 +62,60 @@ fn compute_load_config() -> Vec<ZkComputeLoad> {
     conf
 }
 
+fn zk_scheme(param_pke: CompactPublicKeyEncryptionParameters) -> ZkScheme {
+    match param_pke.zk_scheme {
+        SupportedCompactPkeZkScheme::V1 => ZkScheme::V1,
+        SupportedCompactPkeZkScheme::V2 => ZkScheme::V2,
+        SupportedCompactPkeZkScheme::ZkNotSupported => {
+            panic!("these benches need parameters supporting a zk scheme")
+        }
+    }
+}
+
+/// The tag of anything measured on a proven list: all four axes are relevant.
+fn proven_list_tag(
+    bits: usize,
+    crs_size: usize,
+    compute_load: ZkComputeLoad,
+    scheme: ZkScheme,
+) -> ZkPkeConfig {
+    ZkPkeConfig {
+        bits_packed: Some(bits as u32),
+        crs_bits: crs_size as u32,
+        compute_load: Some(match compute_load {
+            ZkComputeLoad::Proof => ComputeLoad::Proof,
+            ZkComputeLoad::Verify => ComputeLoad::Verify,
+        }),
+        scheme,
+    }
+}
+
+/// A CRS is built before anything is packed into a proof or a load is picked,
+/// and its size depends on neither.
+fn crs_tag(crs_size: usize, scheme: ZkScheme) -> ZkPkeConfig {
+    ZkPkeConfig {
+        bits_packed: None,
+        crs_bits: crs_size as u32,
+        compute_load: None,
+        scheme,
+    }
+}
+
+fn zk_spec(
+    bench: ZkPkeBench,
+    param_name: &str,
+    config: ZkPkeConfig,
+    metric: impl Into<BenchmarkMetric>,
+) -> BenchmarkSpec {
+    BenchmarkSpec::new_integer(
+        IntegerBench::Zk(bench),
+        param_name,
+        Some(config.into()),
+        metric,
+        None,
+    )
+}
+
 fn zk_throughput_num_elements() -> u64 {
     // Zk verify uses pools of 32 threads for a single verification
     let pool_size = 32;
@@ -80,7 +137,7 @@ fn zk_throughput_num_elements() -> u64 {
 }
 
 fn cpu_pke_zk_proof(c: &mut Criterion) {
-    let bench_name = "integer::zk::pke_zk_proof";
+    let bench_name = "tfhe::integer::zk::proof";
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
@@ -106,7 +163,7 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
         let mut rng = rand::thread_rng();
         metadata.fill_with(|| rng.gen());
 
-        let zk_vers = param_pke.zk_scheme;
+        let scheme = zk_scheme(param_pke);
 
         for proof_config in default_proof_config().iter() {
             let msg_bits =
@@ -127,18 +184,16 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
                 let fhe_uint_count = bits / 64;
 
                 for compute_load in compute_load_config() {
-                    let zk_load = match compute_load {
-                        ZkComputeLoad::Proof => "compute_load_proof",
-                        ZkComputeLoad::Verify => "compute_load_verify",
-                    };
-
-                    let bench_id;
+                    let spec = zk_spec(
+                        ZkPkeBench::Proof,
+                        param_name,
+                        proven_list_tag(*bits, crs_size, compute_load, scheme),
+                        get_bench_type(),
+                    );
+                    let bench_id = spec.to_string();
 
                     match get_bench_type() {
                         BenchmarkType::Latency => {
-                            bench_id = format!(
-                                "{bench_name}::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
-                            );
                             bench_group.bench_function(&bench_id, |b| {
                                 let input_msg = rng.gen::<u64>();
                                 let messages = vec![input_msg; fhe_uint_count];
@@ -158,9 +213,6 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
                             let elements = (rayon::current_num_threads() / num_block).max(1) + 1;
                             bench_group.throughput(Throughput::Elements(elements as u64));
 
-                            bench_id = format!(
-                                "{bench_name}::throughput::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
-                            );
                             bench_group.bench_function(&bench_id, |b| {
                                 let messages = (0..elements)
                                     .map(|_| {
@@ -183,9 +235,8 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
 
                     let shortint_params: PBSParameters = param_fhe.into();
 
-                    write_to_json_unchecked(
-                        &bench_id,
-                        param_name,
+                    write_to_json(
+                        &spec,
                         "pke_zk_proof",
                         &OperatorType::Atomic,
                         shortint_params.message_modulus().0 as u32,
@@ -202,7 +253,7 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
 criterion_group!(zk_proof, cpu_pke_zk_proof);
 
 fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
-    let bench_name = "integer::zk::pke_zk_verify";
+    let bench_name = "tfhe::integer::zk::verify";
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
@@ -229,7 +280,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
         let mut rng = rand::thread_rng();
         metadata.fill_with(|| rng.gen());
 
-        let zk_vers = param_pke.zk_scheme;
+        let scheme = zk_scheme(param_pke);
 
         for proof_config in default_proof_config().iter() {
             let msg_bits =
@@ -242,6 +293,21 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
             )
             .unwrap();
 
+            let crs_data = bincode::serialize(&crs).unwrap();
+
+            println!("CRS size: {}", crs_data.len());
+
+            let crs_spec = zk_spec(
+                ZkPkeBench::Crs,
+                param_name,
+                crs_tag(crs_size, scheme),
+                BenchmarkMetric::KeySize,
+            );
+
+            benchmark_test_result.write_result(&crs_spec.to_string(), crs_data.len());
+
+            write_to_json(&crs_spec, "pke_zk_crs", &OperatorType::Atomic, 0, vec![]);
+
             for bits in proof_config.bits_to_prove.iter() {
                 assert_eq!(bits % 64, 0);
                 // Packing, so we take the message and carry modulus to compute our block count
@@ -251,46 +317,25 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
 
                 let shortint_params: PBSParameters = param_fhe.into();
 
-                let crs_data = bincode::serialize(&crs).unwrap();
-
-                println!("CRS size: {}", crs_data.len());
-
-                let test_name =
-                    format!("zk::crs_sizes::{param_name}::{bits}_bits_packed_ZK{zk_vers:?}");
-
-                benchmark_test_result.write_result(&test_name, crs_data.len());
-
-                write_to_json_unchecked(
-                    &test_name,
-                    param_name,
-                    "pke_zk_crs",
-                    &OperatorType::Atomic,
-                    0,
-                    vec![],
-                );
-
                 for compute_load in compute_load_config() {
-                    let zk_load = match compute_load {
-                        ZkComputeLoad::Proof => "compute_load_proof",
-                        ZkComputeLoad::Verify => "compute_load_verify",
-                    };
-
-                    let bench_id_verify;
-                    let bench_id_verify_and_expand;
+                    let config = proven_list_tag(*bits, crs_size, compute_load, scheme);
+                    let spec_verify =
+                        zk_spec(ZkPkeBench::Verify, param_name, config, get_bench_type());
+                    let spec_verify_and_expand = zk_spec(
+                        ZkPkeBench::VerifyAndExpand,
+                        param_name,
+                        config,
+                        get_bench_type(),
+                    );
+                    let bench_id_verify = spec_verify.to_string();
+                    let bench_id_verify_and_expand = spec_verify_and_expand.to_string();
 
                     match get_bench_type() {
                         BenchmarkType::Latency => {
-                            bench_id_verify = format!(
-                            "{bench_name}::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
-                        );
-                            bench_id_verify_and_expand = format!(
-                            "{bench_name}_and_expand::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
-                        );
-
                             let input_msg = rng.gen::<u64>();
                             let messages = vec![input_msg; fhe_uint_count];
 
-                            println!("Generating proven ciphertext ({zk_load})... ");
+                            println!("Generating proven ciphertext ({compute_load:?})... ");
                             let ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
                                 .extend(messages.iter().copied())
                                 .build_with_proof_packed(&crs, &metadata, compute_load)
@@ -304,16 +349,20 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                                 proven_ciphertext_list_serialized.len()
                             );
 
-                            let test_name = format!(
-                            "zk::proven_list_size::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
-                        );
-
-                            benchmark_test_result
-                                .write_result(&test_name, proven_ciphertext_list_serialized.len());
-
-                            write_to_json_unchecked(
-                                &test_name,
+                            let proven_list_spec = zk_spec(
+                                ZkPkeBench::ProvenList,
                                 param_name,
+                                config,
+                                BenchmarkMetric::KeySize,
+                            );
+
+                            benchmark_test_result.write_result(
+                                &proven_list_spec.to_string(),
+                                proven_ciphertext_list_serialized.len(),
+                            );
+
+                            write_to_json(
+                                &proven_list_spec,
                                 "pke_zk_proof",
                                 &OperatorType::Atomic,
                                 0,
@@ -323,14 +372,17 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                             let proof_size = ct1.proof_size();
                             println!("proof size: {}", ct1.proof_size());
 
-                            let test_name =
-                            format!("zk::proof_sizes::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}");
-
-                            benchmark_test_result.write_result(&test_name, proof_size);
-
-                            write_to_json_unchecked(
-                                &test_name,
+                            let proof_spec = zk_spec(
+                                ZkPkeBench::Proof,
                                 param_name,
+                                config,
+                                BenchmarkMetric::KeySize,
+                            );
+
+                            benchmark_test_result.write_result(&proof_spec.to_string(), proof_size);
+
+                            write_to_json(
+                                &proof_spec,
                                 "pke_zk_proof",
                                 &OperatorType::Atomic,
                                 0,
@@ -361,14 +413,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                         BenchmarkType::Throughput => {
                             // In throughput mode object sizes are not recorded.
 
-                            bench_id_verify = format!(
-                            "{bench_name}::throughput::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
-                        );
-                            bench_id_verify_and_expand = format!(
-                            "{bench_name}_and_expand::throughput::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
-                        );
-
-                            println!("Generating proven ciphertexts list ({zk_load})... ");
+                            println!("Generating proven ciphertexts list ({compute_load:?})... ");
 
                             let verify_elements = zk_throughput_num_elements();
                             let messages = (0..verify_elements)
@@ -430,18 +475,16 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                         }
                     }
 
-                    write_to_json_unchecked(
-                        &bench_id_verify,
-                        param_name,
+                    write_to_json(
+                        &spec_verify,
                         "pke_zk_verify",
                         &OperatorType::Atomic,
                         shortint_params.message_modulus().0 as u32,
                         vec![shortint_params.message_modulus().0.ilog2(); num_block],
                     );
 
-                    write_to_json_unchecked(
-                        &bench_id_verify_and_expand,
-                        param_name,
+                    write_to_json(
+                        &spec_verify_and_expand,
                         "pke_zk_verify_and_expand",
                         &OperatorType::Atomic,
                         shortint_params.message_modulus().0 as u32,
@@ -498,7 +541,7 @@ mod cuda {
     }
 
     fn gpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
-        let bench_name = "integer::cuda::zk::pke_zk_verify";
+        let bench_name = "tfhe::integer::zk::verify::cuda";
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
             .sample_size(15)
@@ -538,7 +581,7 @@ mod cuda {
         let mut rng = rand::thread_rng();
         metadata.fill_with(|| rng.gen());
 
-        let zk_vers = param_pke.zk_scheme;
+        let scheme = zk_scheme(param_pke);
 
         for proof_config in default_proof_config().iter() {
             let msg_bits =
@@ -554,6 +597,20 @@ mod cuda {
             use rand::Rng;
             let mut rng = rand::thread_rng();
 
+            let crs_data = bincode::serialize(&crs).unwrap();
+
+            println!("CRS size: {}", crs_data.len());
+
+            let crs_spec = zk_spec(
+                ZkPkeBench::Crs,
+                param_name,
+                crs_tag(crs_size, scheme),
+                BenchmarkMetric::KeySize,
+            );
+
+            benchmark_test_result.write_result(&crs_spec.to_string(), crs_data.len());
+            write_to_json(&crs_spec, "pke_zk_crs", &OperatorType::Atomic, 0, vec![]);
+
             for bits in proof_config.bits_to_prove.iter() {
                 assert_eq!(bits % 64, 0);
                 // Packing, so we take the message and carry modulus to compute our block count
@@ -561,32 +618,21 @@ mod cuda {
 
                 let fhe_uint_count = bits / 64;
 
-                let crs_data = bincode::serialize(&crs).unwrap();
-
-                println!("CRS size: {}", crs_data.len());
-
-                let test_name =
-                    format!("zk::crs_sizes::{param_name}::{bits}_bits_packed_ZK{zk_vers:?}");
-
-                benchmark_test_result.write_result(&test_name, crs_data.len());
-                write_to_json_unchecked(
-                    &test_name,
-                    param_name,
-                    "pke_zk_crs",
-                    &OperatorType::Atomic,
-                    0,
-                    vec![],
-                );
-
                 for compute_load in compute_load_config() {
-                    let zk_load = match compute_load {
-                        ZkComputeLoad::Proof => "compute_load_proof",
-                        ZkComputeLoad::Verify => "compute_load_verify",
-                    };
-
-                    let bench_id_verify;
-                    let bench_id_verify_and_expand;
-                    let bench_id_expand_without_verify;
+                    let config = proven_list_tag(*bits, crs_size, compute_load, scheme);
+                    let spec_verify =
+                        zk_spec(ZkPkeBench::Verify, param_name, config, get_bench_type());
+                    let spec_verify_and_expand = zk_spec(
+                        ZkPkeBench::VerifyAndExpand,
+                        param_name,
+                        config,
+                        get_bench_type(),
+                    );
+                    let spec_expand_without_verify =
+                        zk_spec(ZkPkeBench::OnlyExpand, param_name, config, get_bench_type());
+                    let bench_id_verify = spec_verify.to_string();
+                    let bench_id_verify_and_expand = spec_verify_and_expand.to_string();
+                    let bench_id_expand_without_verify = spec_expand_without_verify.to_string();
 
                     match get_bench_type() {
                         BenchmarkType::Latency => {
@@ -602,20 +648,10 @@ mod cuda {
                                 &gpu_sks,
                             );
 
-                            bench_id_verify = format!(
-                                    "{bench_name}::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
-                                );
-                            bench_id_verify_and_expand = format!(
-                                    "{bench_name}_and_expand::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
-                                );
-                            bench_id_expand_without_verify = format!(
-                                    "{bench_name}_only_expand::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
-                                );
-
                             let input_msg = rng.gen::<u64>();
                             let messages = vec![input_msg; fhe_uint_count];
 
-                            println!("Generating proven ciphertext ({zk_load})... ");
+                            println!("Generating proven ciphertext ({compute_load:?})... ");
                             let ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
                                 .extend(messages.iter().copied())
                                 .build_with_proof_packed(&crs, &metadata, compute_load)
@@ -633,15 +669,19 @@ mod cuda {
                                 proven_ciphertext_list_serialized.len()
                             );
 
-                            let test_name = format!(
-                                    "zk::proven_list_size::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
-                                );
-
-                            benchmark_test_result
-                                .write_result(&test_name, proven_ciphertext_list_serialized.len());
-                            write_to_json_unchecked(
-                                &test_name,
+                            let proven_list_spec = zk_spec(
+                                ZkPkeBench::ProvenList,
                                 param_name,
+                                config,
+                                BenchmarkMetric::KeySize,
+                            );
+
+                            benchmark_test_result.write_result(
+                                &proven_list_spec.to_string(),
+                                proven_ciphertext_list_serialized.len(),
+                            );
+                            write_to_json(
+                                &proven_list_spec,
                                 "pke_zk_proof",
                                 &OperatorType::Atomic,
                                 0,
@@ -651,13 +691,16 @@ mod cuda {
                             let proof_size = ct1.proof_size();
                             println!("proof size: {}", ct1.proof_size());
 
-                            let test_name =
-                                    format!("zk::proof_sizes::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}");
-
-                            benchmark_test_result.write_result(&test_name, proof_size);
-                            write_to_json_unchecked(
-                                &test_name,
+                            let proof_spec = zk_spec(
+                                ZkPkeBench::Proof,
                                 param_name,
+                                config,
+                                BenchmarkMetric::KeySize,
+                            );
+
+                            benchmark_test_result.write_result(&proof_spec.to_string(), proof_size);
+                            write_to_json(
+                                &proof_spec,
                                 "pke_zk_proof",
                                 &OperatorType::Atomic,
                                 0,
@@ -691,16 +734,7 @@ mod cuda {
                                 * get_number_of_gpus() as u64;
                             bench_group.throughput(Throughput::Elements(elements));
 
-                            bench_id_verify = format!(
-                                    "{bench_name}::throughput::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
-                                );
-                            bench_id_verify_and_expand = format!(
-                                    "{bench_name}_and_expand::throughput::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
-                                );
-                            bench_id_expand_without_verify = format!(
-                                    "{bench_name}_only_expand::throughput::{param_name}::{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
-                                );
-                            println!("Generating proven ciphertexts list ({zk_load})... ");
+                            println!("Generating proven ciphertexts list ({compute_load:?})... ");
                             let cts = (0..elements)
                                 .map(|_| {
                                     let input_msg = rng.gen::<u64>();
@@ -813,14 +847,13 @@ mod cuda {
                         }
                     }
 
-                    for (bench_id, display_name) in [
-                        (bench_id_verify, "pke_zk_verify"),
-                        (bench_id_expand_without_verify, "pke_zk_verify_only_expand"),
-                        (bench_id_verify_and_expand, "pke_zk_verify_and_expand"),
+                    for (spec, display_name) in [
+                        (&spec_verify, "pke_zk_verify"),
+                        (&spec_expand_without_verify, "pke_zk_verify_only_expand"),
+                        (&spec_verify_and_expand, "pke_zk_verify_and_expand"),
                     ] {
-                        write_to_json_unchecked(
-                            &bench_id,
-                            param_name,
+                        write_to_json(
+                            spec,
                             display_name,
                             &OperatorType::Atomic,
                             param_fhe.message_modulus().0 as u32,
@@ -835,7 +868,7 @@ mod cuda {
     }
 
     fn gpu_pke_zk_proof(c: &mut Criterion) {
-        let bench_name = "zk::cuda::pke_zk_proof";
+        let bench_name = "tfhe::integer::zk::proof::cuda";
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
             .sample_size(15)
@@ -869,7 +902,7 @@ mod cuda {
             let mut rng = rand::thread_rng();
             metadata.fill_with(|| rng.gen());
 
-            let zk_vers = param_pke.zk_scheme;
+            let scheme = zk_scheme(*param_pke);
 
             for proof_config in default_proof_config().iter() {
                 let msg_bits =
@@ -890,18 +923,16 @@ mod cuda {
                     let fhe_uint_count = bits / 64;
 
                     for compute_load in compute_load_config() {
-                        let zk_load = match compute_load {
-                            ZkComputeLoad::Proof => "compute_load_proof",
-                            ZkComputeLoad::Verify => "compute_load_verify",
-                        };
-
-                        let bench_id;
+                        let spec = zk_spec(
+                            ZkPkeBench::Proof,
+                            param_name,
+                            proven_list_tag(*bits, crs_size, compute_load, scheme),
+                            get_bench_type(),
+                        );
+                        let bench_id = spec.to_string();
 
                         match get_bench_type() {
                             BenchmarkType::Latency => {
-                                bench_id = format!(
-                                    "{bench_name}::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
-                                );
                                 bench_group.bench_function(&bench_id, |b| {
                                     let input_msg = rng.gen::<u64>();
                                     let messages = vec![input_msg; fhe_uint_count];
@@ -925,9 +956,6 @@ mod cuda {
                                     * get_number_of_gpus() as u64;
                                 bench_group.throughput(Throughput::Elements(elements));
 
-                                bench_id = format!(
-                                    "{bench_name}::throughput::{param_name}_{bits}_bits_packed_{crs_size}_bits_crs_{zk_load}_ZK{zk_vers:?}"
-                                );
                                 bench_group.bench_function(&bench_id, |b| {
                                     let messages = (0..elements)
                                         .map(|_| {
@@ -952,9 +980,8 @@ mod cuda {
 
                         let shortint_params: PBSParameters = *param_fhe;
 
-                        write_to_json_unchecked(
-                            &bench_id,
-                            param_name,
+                        write_to_json(
+                            &spec,
                             "pke_zk_proof",
                             &OperatorType::Atomic,
                             shortint_params.message_modulus().0 as u32,

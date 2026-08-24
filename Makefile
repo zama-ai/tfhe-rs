@@ -2510,7 +2510,7 @@ endif
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-zk-pke \
 	--features=integer,internal-keycache,zk-pok,pbs-stats \
-	-p tfhe-benchmark -- '::pke_zk_proof'
+	-p tfhe-benchmark -- 'tfhe::integer::zk::proof'
 	# Verify is done on GPUs
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=fast_default __TFHE_RS_BENCH_BIT_SIZES_SET=fast \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
