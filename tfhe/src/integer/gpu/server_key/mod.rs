@@ -30,7 +30,7 @@ pub use radix::kv_store::CudaKVStore;
 pub(crate) use radix::CudaKreyviumState;
 pub use radix::{
     AttackerAdvantage, BitonicShuffleKeySize, CollisionProbability, CudaOprfServerKey,
-    CudaOprfServerKeyView, GenericCudaOprfServerKey,
+    CudaOprfServerKeyView, CudaPrinceKeys, GenericCudaOprfServerKey,
 };
 use std::ffi::c_void;
 use tfhe_cuda_backend::bindings::CudaLweBootstrapKeyParamsFFI;
