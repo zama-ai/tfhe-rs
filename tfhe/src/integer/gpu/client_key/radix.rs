@@ -10,11 +10,11 @@ use crate::integer::gpu::list_compression::server_keys::{
     CudaCompressionKey, CudaDecompressionKey,
 };
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
-use crate::integer::RadixClientKey;
+use crate::integer::{RadixCiphertext, RadixClientKey};
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::PBSParameters;
-use crate::shortint::EncryptionKeyChoice;
+use crate::shortint::{Ciphertext, EncryptionKeyChoice};
 
 impl RadixClientKey {
     pub fn new_cuda_compression_decompression_keys(
@@ -137,5 +137,58 @@ impl RadixClientKey {
         };
 
         (cuda_compression_key, cuda_decompression_key)
+    }
+
+    /// Plaintext layout shared by the bit-sliced ciphers (AES, PRINCE): the
+    /// word is split into `num_blocks` chunks of `bits_per_block` bits, most
+    /// significant chunk first, each chunk in its own shortint block. Bits
+    /// above `num_blocks * bits_per_block` are ignored.
+    pub(crate) fn encrypt_word_msb_first(
+        &self,
+        data: u128,
+        bits_per_block: usize,
+        num_blocks: usize,
+    ) -> RadixCiphertext {
+        let chunk_mask = (1u128 << bits_per_block) - 1;
+        let blocks: Vec<Ciphertext> = (0..num_blocks)
+            .map(|i| {
+                let shift = (num_blocks - 1 - i) * bits_per_block;
+                let chunk = ((data >> shift) & chunk_mask) as u64;
+                self.encrypt_one_block(chunk)
+            })
+            .collect();
+        RadixCiphertext::from(blocks)
+    }
+
+    /// Inverse of [Self::encrypt_word_msb_first] for `num_words` consecutive
+    /// words of `num_blocks` blocks each.
+    ///
+    /// # Panics
+    ///
+    /// If `encrypted_result` holds fewer than `num_words * num_blocks` blocks.
+    pub(crate) fn decrypt_words_msb_first(
+        &self,
+        encrypted_result: &RadixCiphertext,
+        num_words: usize,
+        bits_per_block: usize,
+        num_blocks: usize,
+    ) -> Vec<u128> {
+        let expected_blocks = num_words * num_blocks;
+        assert!(
+            encrypted_result.blocks.len() >= expected_blocks,
+            "decrypting {num_words} words of {num_blocks} blocks needs at least \
+             {expected_blocks} blocks, but the ciphertext contains {}",
+            encrypted_result.blocks.len()
+        );
+        let chunk_mask = (1u64 << bits_per_block) - 1;
+        encrypted_result.blocks[..expected_blocks]
+            .chunks_exact(num_blocks)
+            .map(|word_blocks| {
+                word_blocks.iter().fold(0u128, |acc, block| {
+                    let chunk = self.decrypt_one_block(block) & chunk_mask;
+                    (acc << bits_per_block) | u128::from(chunk)
+                })
+            })
+            .collect()
     }
 }
