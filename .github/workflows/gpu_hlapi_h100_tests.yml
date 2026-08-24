@@ -152,6 +152,10 @@ jobs:
         run: |
           BIG_TESTS_INSTANCE=TRUE make test_high_level_api_gpu
 
+      - name: Run protocol workflow stress test
+        run: |
+          BIG_TESTS_INSTANCE=TRUE make test_protocol_stress_gpu
+
   slack-notify:
     name: gpu_hlapi_h100_tests/slack-notify
     needs: [ setup-instance, cuda-tests-linux ]

@@ -1,6 +1,8 @@
 mod cpk_re_randomization;
 #[cfg(feature = "gpu")]
 mod gpu;
+#[cfg(feature = "gpu")]
+mod gpu_protocol_long_run;
 mod noise_distribution;
 mod noise_squashing;
 mod tags_on_entities;
