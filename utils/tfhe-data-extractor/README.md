@@ -29,11 +29,16 @@ a result (layer, operation, parameter set, precision, metric) lives inside its
 
 Which table gets built depends on the layer and the subset:
 
-| Layer     | Subset     | Tables                                               |
-| --------- | ---------- | ---------------------------------------------------- |
-| `integer` | `all`      | `-ciphertext` and `-plaintext`                       |
-| `hlapi`   | `erc7984`  | `-ciphertext`                                        |
-| `hlapi`   | `kv_store` | `-ciphertext<op>`, one per key/value store operation |
+| Layer     | Subset     | Tables                                                |
+| --------- | ---------- | ----------------------------------------------------- |
+| `integer` | `all`      | `-ciphertext` and `-plaintext`                        |
+| `integer` | `zk`       | `-ciphertext<load>`, one per compute load             |
+| `hlapi`   | `erc7984`  | `-ciphertext`                                         |
+| `hlapi`   | `kv_store` | `-ciphertext<op>`, one per key/value store operation  |
+
+A subset also narrows the query: `--bench-subset zk` looks for
+`tfhe::integer::zk::%` rather than fetching the whole layer and filtering
+afterwards.
 
 Profiles come from `ci/regression.toml`, selected with `--regression-profiles`
 plus `--regression-selected-profile` (the two go together). Their entries are

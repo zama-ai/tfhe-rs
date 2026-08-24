@@ -21,7 +21,7 @@ pub use hl_integer_op::HlIntegerOp;
 pub use hlapi::{CiphertextKind, HlapiBench};
 pub use integer::ops::IntegerOp;
 pub use integer::{
-    IntegerBench, IntegerOpBySign, IntegerOprf, IntegerPackingOp, IntegerRerandMode,
+    IntegerBench, IntegerOpBySign, IntegerOprf, IntegerPackingOp, IntegerRerandMode, ZkPkeBench,
 };
 pub use key_size::KeyKind;
 pub use shortint::ops::ShortintOp;

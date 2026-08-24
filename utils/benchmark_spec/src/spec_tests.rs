@@ -350,7 +350,7 @@ fn hlapi_ciphertext_size() {
 #[test]
 fn hlapi_bitonic_shuffle() {
     let spec = BenchmarkSpec::new(
-        BenchCrate::Tfhe(TfheLayer::Hlapi(HlapiBench::BitonicShuffle)),
+        BenchPath::Tfhe(TfheLayer::Hlapi(HlapiBench::BitonicShuffle)),
         Backend::Cuda,
         "PARAM_MESSAGE_2_CARRY_2",
         OperandType::CipherText,
@@ -367,6 +367,61 @@ fn hlapi_bitonic_shuffle() {
     assert_eq!(
         spec.to_string(),
         "tfhe::hlapi::bitonic_shuffle::cuda::PARAM_MESSAGE_2_CARRY_2::64_bits::key_16_bits::16_elements"
+    );
+}
+
+/// The proven list benches live under `integer`, not under the `zk` crate: they
+/// exercise `tfhe` and carry a parameter set.
+#[test]
+fn integer_zk_pke_verify() {
+    let spec = BenchmarkSpec::new(
+        BenchPath::Tfhe(TfheLayer::Integer(IntegerBench::Zk(
+            ZkPkeBench::VerifyAndExpand,
+        ))),
+        Backend::Cuda,
+        "PARAM_MESSAGE_2_CARRY_2",
+        OperandType::CipherText,
+        Some(
+            ZkPkeConfig {
+                bits_packed: Some(256),
+                crs_bits: 2048,
+                compute_load: Some(ComputeLoad::Verify),
+                scheme: ZkScheme::V2,
+            }
+            .into(),
+        ),
+        BenchmarkMetric::Latency,
+        None,
+    );
+    assert_eq!(
+        spec.to_string(),
+        "tfhe::integer::zk::verify_and_expand::cuda::PARAM_MESSAGE_2_CARRY_2\
+         ::256_bits_packed::2048_bits_crs::compute_load_verify::zk_v2"
+    );
+}
+
+/// A CRS size depends on the CRS and the scheme, on nothing that is proven with
+/// it, so its tag carries two segments where the operations carry four.
+#[test]
+fn integer_zk_pke_crs_size() {
+    let spec = BenchmarkSpec::new_integer(
+        IntegerBench::Zk(ZkPkeBench::Crs),
+        "PARAM_MESSAGE_2_CARRY_2",
+        Some(
+            ZkPkeConfig {
+                bits_packed: None,
+                crs_bits: 4096,
+                compute_load: None,
+                scheme: ZkScheme::V2,
+            }
+            .into(),
+        ),
+        BenchmarkMetric::KeySize,
+        None,
+    );
+    assert_eq!(
+        spec.to_string(),
+        "tfhe::integer::zk::crs::key_size::PARAM_MESSAGE_2_CARRY_2::4096_bits_crs::zk_v2"
     );
 }
 
@@ -393,6 +448,12 @@ fn trailing_segments_round_trip_in_every_combination() {
         Some(TypeTag::Shuffle(ShuffleConfig {
             value_bits: 64,
             key_bits: 16,
+        })),
+        Some(TypeTag::ZkPke(ZkPkeConfig {
+            bits_packed: Some(2048),
+            crs_bits: 4096,
+            compute_load: Some(ComputeLoad::Proof),
+            scheme: ZkScheme::V2,
         })),
     ];
 

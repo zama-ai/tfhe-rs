@@ -24,8 +24,12 @@ pub use tfhe::{
     BooleanBench, CiphertextKind, CoreCryptoBench, HlIntegerOp, IntegerBench, IntegerOp,
     IntegerOpBySign, IntegerOprf, IntegerPackingOp, IntegerRerandMode, KeyKind, ShortintBench,
     ShortintCastingOp, ShortintOp, ShortintPackingOp, TfheLayer, TranscipheringBench, VectorFindOp,
+    ZkPkeBench,
 };
-pub use type_tag::{CudaKeyswitchConfig, FheType, PrecisionTag, ShuffleConfig, TypeTag};
+pub use type_tag::{
+    ComputeLoad, CudaKeyswitchConfig, FheType, PrecisionTag, ShuffleConfig, TypeTag, ZkPkeConfig,
+    ZkScheme,
+};
 
 use crate::zk::ZkLayer;
 use crate::zk::msm::MsmBench;
