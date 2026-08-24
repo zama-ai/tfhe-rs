@@ -92,6 +92,19 @@ image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-H100x1"
 user = "ubuntu"
 
+# Primary target of gpu_protocol_stress_h100_tests: one H100 PCIe, falling back to a single
+# Scaleway H100 and then to a 2 GPU Scaleway instance. The fallbacks deliberately name the
+# profiles that carry no fallbacks of their own, so the chain stays exactly these three.
+[backend.hyperstack.single-h100-protocol-stress]
+environment_name = "canada"
+image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
+flavor_name = "n3-H100x1"
+user = "ubuntu"
+fallbacks = [
+    "terraform.scaleway-single-h100",
+    "terraform.scaleway-2-h100-sxm5",
+]
+
 [backend.hyperstack.2-h100]
 environment_name = "canada"
 image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"

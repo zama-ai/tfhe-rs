@@ -151,14 +151,16 @@ jobs:
             local rc=0
             CUDA_VISIBLE_DEVICES=0 BIG_TESTS_INSTANCE=TRUE make test_core_crypto_gpu &&
             CUDA_VISIBLE_DEVICES=0 BIG_TESTS_INSTANCE=TRUE make test_integer_compression_gpu &&
-            CUDA_VISIBLE_DEVICES=0 BIG_TESTS_INSTANCE=TRUE make test_cuda_backend || rc=$?
+            CUDA_VISIBLE_DEVICES=0 BIG_TESTS_INSTANCE=TRUE make test_cuda_backend &&
+            CUDA_VISIBLE_DEVICES=0 BIG_TESTS_INSTANCE=TRUE PROTOCOL_STRESS_TRANSACTIONS=1500 make test_protocol_stress_gpu || rc=$?
             echo "${rc}" > /tmp/core.rc
           }
           run_hlapi() {
             local rc=0
             CUDA_VISIBLE_DEVICES=1 BIG_TESTS_INSTANCE=TRUE make test_user_doc_gpu &&
             CUDA_VISIBLE_DEVICES=1 BIG_TESTS_INSTANCE=TRUE make test_c_api_gpu &&
-            CUDA_VISIBLE_DEVICES=1 BIG_TESTS_INSTANCE=TRUE make test_high_level_api_gpu || rc=$?
+            CUDA_VISIBLE_DEVICES=1 BIG_TESTS_INSTANCE=TRUE make test_high_level_api_gpu &&
+            CUDA_VISIBLE_DEVICES=1 BIG_TESTS_INSTANCE=TRUE PROTOCOL_STRESS_TRANSACTIONS=1500 make test_protocol_stress_gpu || rc=$?
             echo "${rc}" > /tmp/hlapi.rc
           }
           run_core 2>&1 | sed -u 's/^/[core]  /' &
