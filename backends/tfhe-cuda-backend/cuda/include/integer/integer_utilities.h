@@ -324,6 +324,152 @@ struct radix_columns {
   }
 };
 
+/// @brief Pads a row naming fewer sources than the table is wide, so a layer
+/// whose outputs are uneven sums still fits one rectangular table.
+static constexpr uint32_t RADIX_INDEX_NO_TERM = 0xFFFFFFFFu;
+
+/**
+ * @brief A levelled linear layer written down as a table, mirrored on host and
+ * device: the device copy feeds the kernels, the host copy the degree and
+ * noise bookkeeping.
+ *
+ * Most of what a bitsliced cipher does between two bootstrap layers is sums:
+ * a permutation, a repacking, a column mix. Wire by wire that is one launch
+ * each; named by a table it is one launch for the whole layer.
+ *
+ * Row `r` of the `num_rows x num_terms` grid lists the sources summed into
+ * output row `r`, so consecutive pairs over 8 sources read
+ *
+ *     out row | term 0 | term 1
+ *     --------+--------+--------
+ *        0    |   0    |   1
+ *        1    |   2    |   3       stored as {0, 1, 2, 3, 4, 5, 6, 7},
+ *        2    |   4    |   5       with num_sources == 8
+ *        3    |   6    |   7
+ *
+ * A row is `num_lanes` blocks, one per instance of the batch, or a single
+ * block for a layer that moves blocks between instances. The layer being the
+ * same for every instance, the table is written once in row space and does
+ * not grow with the batch; `num_source_lanes` drops to 1 for what the batch
+ * shares, a key or an IV with no instance of its own.
+ */
+template <typename T> struct radix_index_table {
+  /// @brief Host copy of the table.
+  T *h_table = nullptr;
+  /// @brief Device copy of the table, read by the kernel.
+  T *d_table = nullptr;
+  /// @brief Sources summed into each output row, the grid's width.
+  uint32_t num_terms = 0;
+  /// @brief Output rows the table describes.
+  uint32_t num_rows = 0;
+  /// @brief Blocks per output row, the batch the layer is replicated over.
+  uint32_t num_lanes = 1;
+  /// @brief Blocks per source row, `num_lanes` or 1 for a shared source.
+  uint32_t num_source_lanes = 1;
+  /// @brief One past the largest source, so consumers can check that their
+  /// input is long enough.
+  uint32_t num_sources = 0;
+
+  /// @brief Blocks the layer writes, what its output must hold.
+  uint32_t num_out_blocks() const { return num_rows * num_lanes; }
+  /// @brief Blocks the layer addresses, what its input must hold.
+  uint32_t num_source_blocks() const { return num_sources * num_source_lanes; }
+};
+
+/**
+ * @brief The index tables of one scratch buffer, allocated and freed together.
+ *
+ * Lifetime of the 4 x 2 table above:
+ *
+ *     create(..., table, num_rows = 4, num_terms = 2, ..., row_source)
+ *        |
+ *        |   fills h_table {0,1, 2,3, 4,5, 6,7}, copies it to d_table
+ *        |   and registers the table here
+ *        v
+ *     d_table -> kernels   out = in0+in1, in2+in3, in4+in5, in6+in7
+ *     h_table -> host      degrees and noise summed over the same rows
+ *        |
+ *        v
+ *     release()            drops every d_table, synchronizes,
+ *                          then frees every h_table
+ *
+ * So a table cannot be built without being released, and the drop /
+ * synchronize / free sequence lives here instead of at every call site.
+ * Tables are tracked by address: this must not outlive them, nor be copied.
+ */
+template <typename T> struct radix_index_tables {
+  /// @brief Tables built here, in creation order, freed together by release().
+  std::vector<radix_index_table<T> *> tables;
+
+  radix_index_tables() = default;
+  radix_index_tables(const radix_index_tables &) = delete;
+  /// @brief Not assignable, the tracked tables are owned by a single instance.
+  radix_index_tables &operator=(const radix_index_tables &) = delete;
+
+  /// @brief Fills a table, uploads it to the device and starts tracking it.
+  ///
+  /// @param table Table to fill, its fields are overwritten.
+  /// @param num_rows Output rows, the layer's width in rows.
+  /// @param num_terms Sources summed into each row, the widest row's length.
+  /// @param num_lanes Blocks per output row, the batch to replicate over.
+  /// @param num_source_lanes Same for the sources, or 1 if the batch shares
+  /// them.
+  /// @param row_source Maps (output row, term) to its source row, or to
+  /// RADIX_INDEX_NO_TERM to leave that term out of the sum.
+  void create(CudaStreams streams, bool allocate_gpu_memory,
+              uint64_t &size_tracker, radix_index_table<T> &table,
+              uint32_t num_rows, uint32_t num_terms, uint32_t num_lanes,
+              uint32_t num_source_lanes,
+              const std::function<T(uint32_t, uint32_t)> &row_source) {
+    PANIC_IF_FALSE(num_rows > 0 && num_terms > 0 && num_lanes > 0,
+                   "radix index table: a table needs rows, terms and lanes");
+    PANIC_IF_FALSE(num_source_lanes == num_lanes || num_source_lanes == 1,
+                   "radix index table: sources are either laned like the "
+                   "output or shared by every lane");
+    table.num_terms = num_terms;
+    table.num_rows = num_rows;
+    table.num_lanes = num_lanes;
+    table.num_source_lanes = num_source_lanes;
+    table.num_sources = 0;
+    uint64_t table_bytes =
+        safe_mul_sizeof<T>((size_t)num_rows, (size_t)num_terms);
+    table.h_table = (T *)malloc(table_bytes);
+    PANIC_IF_FALSE(table.h_table != nullptr,
+                   "radix index table: host allocation failed");
+    for (uint32_t r = 0; r < num_rows; ++r)
+      for (uint32_t t = 0; t < num_terms; ++t) {
+        T source = row_source(r, t);
+        table.h_table[r * num_terms + t] = source;
+        if (source == (T)RADIX_INDEX_NO_TERM)
+          continue;
+        if ((uint32_t)source + 1 > table.num_sources)
+          table.num_sources = (uint32_t)source + 1;
+      }
+    table.d_table = (T *)cuda_malloc_with_size_tracking_async(
+        table_bytes, streams.stream(0), streams.gpu_index(0), size_tracker,
+        allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        table.d_table, table.h_table, table_bytes, streams.stream(0),
+        streams.gpu_index(0), allocate_gpu_memory);
+    tables.push_back(&table);
+  }
+
+  /// @brief Frees every tracked table, device copies first.
+  void release(CudaStreams streams, bool allocate_gpu_memory) {
+    if (allocate_gpu_memory)
+      for (auto *table : tables)
+        if (table->d_table != nullptr)
+          cuda_drop_async(table->d_table, streams.stream(0),
+                          streams.gpu_index(0));
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+    for (auto *table : tables) {
+      free(table->h_table);
+      *table = {};
+    }
+    tables.clear();
+  }
+};
+
 inline void calculate_final_degrees(uint64_t *const out_degrees,
                                     const uint64_t *const input_degrees,
                                     uint32_t num_blocks,
