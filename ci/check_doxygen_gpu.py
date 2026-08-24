@@ -8,6 +8,8 @@ Each new struct, member, and function must have a comment block with @brief and
 Scoped to:
   backends/tfhe-cuda-backend/cuda/include/integer/   (*.h)
   backends/tfhe-cuda-backend/cuda/src/integer/       (*.cuh, *.cu)
+  backends/tfhe-cuda-backend/cuda/include/prince/    (*.h)
+  backends/tfhe-cuda-backend/cuda/src/prince/        (*.cuh, *.cu)
 """
 
 import os
@@ -22,6 +24,8 @@ from pathlib import Path
 SCOPED_DIRS = [
     "backends/tfhe-cuda-backend/cuda/include/integer",
     "backends/tfhe-cuda-backend/cuda/src/integer",
+    "backends/tfhe-cuda-backend/cuda/include/prince",
+    "backends/tfhe-cuda-backend/cuda/src/prince",
 ]
 EXTENSIONS = {".h", ".cuh", ".cu"}
 
