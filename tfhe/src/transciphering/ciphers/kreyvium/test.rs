@@ -328,3 +328,41 @@ fn kreyvium_exhaustion_at_counter_range_end() {
     assert!(fhe_stream.next_keystream_bits(&server_key, n_bits).is_ok());
     assert_eq!(fhe_stream.current_counter(), u64::MAX);
 }
+
+/// `KreyviumFheKey::decrypt` must be the exact inverse of
+/// `KreyviumPlainKey::encrypt`, including the bit order they agree on.
+#[test]
+fn kreyvium_fhe_key_encrypt_decrypt_round_trip() {
+    let (cks, _sks) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+
+    let iv = [0x5Au8; 16];
+
+    // All-zeros and all-ones catch a dropped key, the asymmetric pattern
+    // catches a reversed bit or byte order.
+    for bytes in [
+        [0x00u8; 16],
+        [0xFFu8; 16],
+        [
+            0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54,
+            0x32, 0x10,
+        ],
+    ] {
+        let plain = KreyviumPlainKey::from(bytes);
+        let recovered = plain.encrypt(&cks).decrypt(&cks);
+
+        // `KreyviumPlainKey::expand` is not public here, so equality is checked
+        // through the keystream: two keys that drive the same state, under the same
+        // IV, produce the same ciphertext.
+        let value = [0u8; 8];
+        let from_plain = KreyviumPlainState::new(plain, iv).encrypt(&value).unwrap();
+        let from_recovered = KreyviumPlainState::new(recovered, iv)
+            .encrypt(&value)
+            .unwrap();
+
+        assert_eq!(
+            from_recovered.bytes(),
+            from_plain.bytes(),
+            "Kreyvium key did not survive the encrypt/decrypt round trip for {bytes:02x?}"
+        );
+    }
+}
