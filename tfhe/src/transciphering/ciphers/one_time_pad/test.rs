@@ -547,3 +547,45 @@ fn one_time_pad_fhe_next_bits_beyond_remaining_errors() {
         Err(InsufficientKeystream)
     ));
 }
+
+/// `OneTimePadFheSecretMask::decrypt` must be the exact inverse of
+/// `OneTimePadPlainSecretMask::encrypt`, including the bit order they agree on.
+#[test]
+fn one_time_pad_fhe_mask_encrypt_decrypt_round_trip() {
+    let (cks, _sks) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+
+    // Byte-aligned and not, since the mask carries an explicit bit count.
+    for bit_count in [64usize, 12] {
+        let byte_count = bit_count.div_ceil(8);
+
+        // All-zeros and all-ones catch a dropped mask, the asymmetric pattern
+        // catches a reversed bit or byte order.
+        for bytes in [
+            vec![0x00u8; byte_count],
+            vec![0xFFu8; byte_count],
+            (0..byte_count)
+                .map(|i| 0x1Fu8.wrapping_mul(i as u8 + 1))
+                .collect(),
+        ] {
+            let plain = OneTimePadPlainSecretMask::new(bytes.clone(), bit_count);
+            let recovered = plain.encrypt(&cks).decrypt(&cks);
+
+            // The mask has no accessor for its bytes, so equality is checked through the
+            // keystream: two masks that drive the same state produce the same ciphertext.
+            let value = vec![0u8; byte_count];
+            let from_plain = OneTimePadPlainState::new(plain)
+                .encrypt_bits(&value, bit_count)
+                .unwrap();
+            let from_recovered = OneTimePadPlainState::new(recovered)
+                .encrypt_bits(&value, bit_count)
+                .unwrap();
+
+            assert_eq!(
+                from_recovered.bytes(),
+                from_plain.bytes(),
+                "OTP mask did not survive the encrypt/decrypt round trip \
+                 for {bit_count} bits of {bytes:02x?}"
+            );
+        }
+    }
+}

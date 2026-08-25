@@ -1,9 +1,10 @@
 use tfhe_versionable::VersionsDispatch;
 
 use crate::transciphering::{
-    AesIv, CompressedTranscipheringServerKey, KreyviumIV, OneTimePadFheSecretMask,
-    OneTimePadPlainSecretMask, SerializableAesFheKey, SerializableKreyviumFheKey, StreamCipherKind,
-    StreamCiphertext, TranscipheringPrivateKey, TranscipheringServerKey,
+    AesIv, AesPlainKey, CompressedTranscipheringServerKey, KreyviumIV, KreyviumPlainKey,
+    OneTimePadFheSecretMask, OneTimePadPlainSecretMask, SerializableAesFheKey,
+    SerializableKreyviumFheKey, StreamCipherKind, StreamCiphertext, TranscipheringPrivateKey,
+    TranscipheringServerKey,
 };
 
 #[derive(VersionsDispatch)]
@@ -27,6 +28,11 @@ pub enum KreyviumIVVersions {
 }
 
 #[derive(VersionsDispatch)]
+pub enum KreyviumPlainKeyVersions {
+    V0(KreyviumPlainKey),
+}
+
+#[derive(VersionsDispatch)]
 pub enum SerializableAesFheKeyVersions {
     V0(SerializableAesFheKey),
 }
@@ -34,6 +40,11 @@ pub enum SerializableAesFheKeyVersions {
 #[derive(VersionsDispatch)]
 pub enum AesIvVersions {
     V0(AesIv),
+}
+
+#[derive(VersionsDispatch)]
+pub enum AesPlainKeyVersions {
+    V0(AesPlainKey),
 }
 
 #[derive(VersionsDispatch)]

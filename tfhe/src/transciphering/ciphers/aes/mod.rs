@@ -15,7 +15,9 @@ pub use plain::AesPlainState;
 use crate::named::Named;
 use crate::shortint::oprf::OprfSeed;
 use crate::shortint::{Ciphertext, ClientKey, ServerKey};
-use crate::transciphering::backward_compatibility::{AesIvVersions, SerializableAesFheKeyVersions};
+use crate::transciphering::backward_compatibility::{
+    AesIvVersions, AesPlainKeyVersions, SerializableAesFheKeyVersions,
+};
 use crate::transciphering::ciphers::*;
 use crate::transciphering::TranscipheringServerKey;
 use serde::{Deserialize, Serialize};
@@ -38,8 +40,13 @@ use tfhe_versionable::Versionize;
 ///   byte  = b7 b6 b5 b4 b3 b2 b1 b0     (binary, MSB .. LSB)
 ///   bool[] = [ b0 b1 b2 b3 b4 b5 b6 b7 ]  (increasing array index)
 /// ```
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize, Versionize)]
+#[versionize(AesPlainKeyVersions)]
 pub struct AesPlainKey([u8; 16]);
+
+impl Named for AesPlainKey {
+    const NAME: &'static str = "transciphering::AesPlainKey";
+}
 
 impl AesPlainKey {
     pub fn expand(self) -> [bool; 128] {

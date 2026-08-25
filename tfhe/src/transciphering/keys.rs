@@ -1,4 +1,5 @@
 use crate::conformance::ParameterSetConformant;
+use crate::named::Named;
 use crate::shortint::oprf::{
     CompressedOprfServerKey, ExpandedOprfServerKey, OprfPrivateKey, OprfServerKey,
 };
@@ -147,4 +148,16 @@ impl ExpandedTranscipheringServerKey {
     pub fn into_raw_parts(self) -> ExpandedOprfServerKey {
         self.oprf_key
     }
+}
+
+impl Named for TranscipheringPrivateKey {
+    const NAME: &'static str = "transciphering::TranscipheringPrivateKey";
+}
+
+impl Named for TranscipheringServerKey {
+    const NAME: &'static str = "transciphering::TranscipheringServerKey";
+}
+
+impl Named for CompressedTranscipheringServerKey {
+    const NAME: &'static str = "transciphering::CompressedTranscipheringServerKey";
 }
