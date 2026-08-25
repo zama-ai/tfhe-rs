@@ -18,6 +18,7 @@ use clap::{ArgGroup, Parser, ValueEnum};
 
 mod db;
 mod format;
+mod params;
 mod profile;
 
 use db::PbsKind;
@@ -106,6 +107,12 @@ impl BenchType {
 fn parse_backend(s: &str) -> Result<benchmark_spec::Backend, String> {
     s.parse().map_err(|e| format!("invalid backend: {e}"))
 }
+
+/// Exit code for a selection that matched nothing. Writing the `N/A` grid anyway
+/// would let a broken selection reach the documentation through a green job, so
+/// an empty report is a failure. Distinct from the 1 any other error exits with,
+/// so a caller can tell a bad filter from a broken run.
+const EXIT_NO_RESULTS: i32 = 2;
 
 /// The timestamp format `--bench-date` accepts and the query sends back out.
 const BENCH_DATE_FORMAT: &str = "%Y-%m-%dT%H:%M:%S";
@@ -483,6 +490,7 @@ async fn main() -> anyhow::Result<()> {
 
     if rows.is_empty() {
         report_no_rows(&args, &backend, &selection);
+        std::process::exit(EXIT_NO_RESULTS);
     }
 
     let outputs = OutputFormat::from_args(&args);
@@ -498,21 +506,29 @@ async fn main() -> anyhow::Result<()> {
             (Layer::Integer, BenchSubset::All) => vec![
                 (
                     "-ciphertext".to_string(),
-                    format::integer::table(&measured, OperandType::CipherText),
+                    format::integer::table(&measured, args.backend, OperandType::CipherText),
                 ),
                 (
                     "-plaintext".to_string(),
-                    format::integer::table(&measured, OperandType::PlainText),
+                    format::integer::table(&measured, args.backend, OperandType::PlainText),
                 ),
             ],
             (Layer::HlApi, BenchSubset::Erc7984) => {
-                vec![("-ciphertext".to_string(), format::erc7984::table(&measured))]
+                vec![(
+                    "-ciphertext".to_string(),
+                    format::erc7984::table(&measured, args.backend),
+                )]
             }
             // One table per compute load, all ciphertext.
             (Layer::Integer, BenchSubset::Zk) => format::zk::tables(&measured)
                 .into_iter()
                 .map(|(suffix, table)| (format!("-ciphertext{suffix}"), table))
                 .collect(),
+            // One table per parameter set family, and no operand type in the
+            // name: core_crypto has no scalar operation.
+            (Layer::CoreCrypto, BenchSubset::All) => {
+                format::core_crypto::tables(&measured, args.grouping_factor.map(u32::from))
+            }
             // One table per operation, all ciphertext.
             (Layer::HlApi, BenchSubset::KvStore) => format::kv_store::tables(&measured)
                 .into_iter()

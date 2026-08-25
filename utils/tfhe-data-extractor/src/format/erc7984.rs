@@ -1,7 +1,7 @@
 //! The `transfer implementation × metric` table of the ERC7984 benchmarks.
 
 use benchmark_spec::tfhe::hlapi::erc7984::{Erc7984, TransferFlavor};
-use benchmark_spec::{BenchPath, BenchmarkMetric, HlapiBench, TfheLayer};
+use benchmark_spec::{Backend, BenchPath, BenchmarkMetric, HlapiBench, TfheLayer};
 
 use super::{Cells, GridSpec, Measured, Table, build_grid, readable_value};
 
@@ -13,8 +13,7 @@ const COLUMNS: &[(&str, BenchmarkMetric)] = &[
     ("Throughput", BenchmarkMetric::Throughput),
 ];
 
-/// Rows in publication order. HPU publishes a different set (`hpu_optim`,
-/// `hpu_simd`) that is not covered here.
+/// Rows in publication order.
 const ROWS: &[TransferFlavor] = &[
     TransferFlavor::Whitepaper,
     TransferFlavor::NoCmux,
@@ -22,12 +21,23 @@ const ROWS: &[TransferFlavor] = &[
     TransferFlavor::Safe,
 ];
 
+/// The HPU publishes its own two flavours instead of the portable ones.
+const HPU_ROWS: &[TransferFlavor] = &[
+    TransferFlavor::Whitepaper,
+    TransferFlavor::HpuOptim,
+    TransferFlavor::HpuSimd,
+];
+
 /// Builds the ERC7984 transfer table.
 ///
 /// A flavour with no result at all is still printed, as two `N/A` cells: the
 /// table exists to compare the three against each other, so a missing one is
 /// the finding.
-pub fn table(measured: &[Measured]) -> Table {
+pub fn table(measured: &[Measured], backend: Backend) -> Table {
+    let rows = match backend {
+        Backend::Hpu => HPU_ROWS,
+        Backend::Cpu | Backend::Cuda => ROWS,
+    };
     let mut cells: Cells<(TransferFlavor, BenchmarkMetric)> = Cells::new();
 
     for m in measured {
@@ -47,7 +57,7 @@ pub fn table(measured: &[Measured]) -> Table {
     let (grid, empty_rows) = build_grid(
         GridSpec {
             row_header: ROW_HEADER,
-            rows: ROWS
+            rows: rows
                 .iter()
                 .map(|flavor| (flavor.to_string(), *flavor))
                 .collect(),
