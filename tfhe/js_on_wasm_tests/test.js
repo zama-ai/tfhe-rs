@@ -233,7 +233,7 @@ test("shortint_public_encrypt_decrypt", (t) => {
 
 test("shortint_compressed_public_encrypt_decrypt", (t) => {
   let params_name =
-    ShortintParametersName.V1_7_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128;
+    ShortintParametersName.V1_8_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128;
   let params = new ShortintParameters(params_name);
   let cks = Shortint.new_client_key(params);
   let pk = Shortint.new_compressed_public_key(cks);

@@ -36,7 +36,7 @@ To serialize a `KVStore`, it must first be compressed.
 # Cargo.toml
 
 [dependencies]
-tfhe = { version = "~1.7.0", features = ["integer"] }
+tfhe = { version = "~1.8.0", features = ["integer"] }
 ```
 
 ```rust
