@@ -17,6 +17,64 @@ using Index = unsigned;
       f128(__ldg(&neg_twiddles_re_hi[(i)]), __ldg(&neg_twiddles_re_lo[(i)])),  \
       f128(__ldg(&neg_twiddles_im_hi[(i)]), __ldg(&neg_twiddles_im_lo[(i)])))
 
+// Same value as NEG_TWID(i), read from the interleaved table with two 16-byte
+// loads sharing a single base address instead of four 8-byte loads from four
+// base addresses.
+__device__ __forceinline__ f128x2 neg_twid_from_aos(Index i) {
+  const double2 re = __ldg(&neg_twiddles_aos[2 * i]);
+  const double2 im = __ldg(&neg_twiddles_aos[2 * i + 1]);
+  return f128x2(f128(re.x, re.y), f128(im.x, im.y));
+}
+
+// USE_AOS_TWIDDLES is only set by the classical 128-bit PBS step kernels: every
+// other transform caller may run without the host_build_neg_twiddles_aos hook
+// having been executed, so it keeps reading the plane arrays.
+template <bool USE_AOS_TWIDDLES>
+__device__ __forceinline__ f128x2 get_neg_twid(Index i) {
+  if constexpr (USE_AOS_TWIDDLES) {
+    return neg_twid_from_aos(i);
+  } else {
+    return NEG_TWID(i);
+  }
+}
+
+// neg_twiddles[1] = exp(i*pi/4) = (1 + i) / sqrt(2): the only twiddle of the
+// forward transform's first level, and of the backward transform's last level.
+constexpr Index EXP_I_PI_OVER_4_TWIDDLE_INDEX = 1;
+
+// Butterflies for the levels driven by EXP_I_PI_OVER_4_TWIDDLE_INDEX alone.
+//
+// That twiddle is t * (1 + i) with t = sqrt(2)/2, so its real and imaginary
+// parts are equal bit for bit in both f128 limbs. Substituting im = re = t in
+// the general complex product collapses four f128 multiplies into two:
+//
+//   forward:  t * (1 + i) * (x + i*y) = t * (x - y) + i * t * (x + y)
+//   backward: (x + i*y) * t * (1 - i) = t * (x + y) + i * t * (y - x)
+//
+// The backward form uses the conjugate t * (1 - i) because the inverse
+// transform multiplies by the conjugated twiddle.
+//
+// Both helpers take the twiddle's shared real part (a plain f128) rather than
+// the f128x2 twiddle, and rewrite the (u, v) register pair in place.
+__device__ __forceinline__ void
+device_fft128_forward_level1_butterfly(const f128 &twiddle, f128x2 &u,
+                                       f128x2 &v) {
+  f128x2 w;
+  w.re = f128::mul(twiddle, f128::sub_estimate(v.re, v.im));
+  w.im = f128::mul(twiddle, f128::add_estimate(v.re, v.im));
+  f128::cplx_f128_sub_assign(v.re, v.im, u.re, u.im, w.re, w.im);
+  f128::cplx_f128_add_assign(u.re, u.im, u.re, u.im, w.re, w.im);
+}
+
+__device__ __forceinline__ void
+device_fft128_backward_last_level_butterfly(const f128 &twiddle, f128x2 &u,
+                                            f128x2 &v) {
+  const f128x2 w = u - v;
+  u = u + v;
+  v.re = f128::mul(twiddle, f128::add_estimate(w.re, w.im));
+  v.im = f128::mul(twiddle, f128::sub_estimate(w.im, w.re));
+}
+
 #define F64x4_TO_F128x2(f128x2_reg, ind)                                       \
   f128x2_reg.re.hi = dt_re_hi[ind];                                            \
   f128x2_reg.re.lo = dt_re_lo[ind];                                            \
@@ -57,7 +115,7 @@ using Index = unsigned;
     hi_reg.im.lo = t_im_lo.y;                                                  \
   }
 
-template <class params>
+template <class params, bool USE_AOS_TWIDDLES = false>
 __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
                                             double *dt_im_hi,
                                             double *dt_im_lo) {
@@ -81,16 +139,11 @@ __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
   }
 
   // level 1
-  // we don't make actual complex multiplication on level1 since we have only
-  // one twiddle, it's real and image parts are equal, so we can multiply
-  // it with simpler operations
+  const f128 level1_twid =
+      get_neg_twid<USE_AOS_TWIDDLES>(EXP_I_PI_OVER_4_TWIDDLE_INDEX).re;
 #pragma unroll
   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
-    auto ww = NEG_TWID(1);
-    f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, NEG_TWID(1).re,
-                               NEG_TWID(1).im);
-    f128::cplx_f128_sub_assign(v[i].re, v[i].im, u[i].re, u[i].im, w.re, w.im);
-    f128::cplx_f128_add_assign(u[i].re, u[i].im, u[i].re, u[i].im, w.re, w.im);
+    device_fft128_forward_level1_butterfly(level1_twid, u[i], v[i]);
   }
 
   Index twiddle_shift = 1;
@@ -125,7 +178,7 @@ __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
       } else {
         u[i] = w;
       }
-      w = NEG_TWID(tid / lane_mask + twiddle_shift);
+      w = get_neg_twid<USE_AOS_TWIDDLES>(tid / lane_mask + twiddle_shift);
       f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, w.re, w.im);
       f128::cplx_f128_sub_assign(v[i].re, v[i].im, u[i].re, u[i].im, w.re,
                                  w.im);
@@ -147,7 +200,7 @@ __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
   __syncthreads();
 }
 
-template <class params>
+template <class params, bool USE_AOS_TWIDDLES = false>
 __device__ void negacyclic_backward_fft_f128(double *dt_re_hi, double *dt_re_lo,
                                              double *dt_im_hi,
                                              double *dt_im_lo) {
@@ -183,7 +236,9 @@ __device__ void negacyclic_backward_fft_f128(double *dt_re_hi, double *dt_re_lo,
     for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
       w = (u[i] - v[i]);
       u[i] += v[i];
-      v[i] = w * NEG_TWID(tid / lane_mask + twiddle_shift).conjugate();
+      v[i] = w * get_neg_twid<USE_AOS_TWIDDLES>(
+                     static_cast<Index>(tid / lane_mask + twiddle_shift))
+                     .conjugate();
 
       // keep one of the register for next iteration and store another one in sm
       Index rank = tid & thread_mask;
@@ -217,10 +272,11 @@ __device__ void negacyclic_backward_fft_f128(double *dt_re_hi, double *dt_re_lo,
   }
 
   // last iteration
+  const f128 last_twid =
+      get_neg_twid<USE_AOS_TWIDDLES>(EXP_I_PI_OVER_4_TWIDDLE_INDEX).re;
+#pragma unroll
   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
-    w = (u[i] - v[i]);
-    u[i] = u[i] + v[i];
-    v[i] = w * NEG_TWID(1).conjugate();
+    device_fft128_backward_last_level_butterfly(last_twid, u[i], v[i]);
   }
   __syncthreads();
   // store registers in SM
@@ -238,7 +294,7 @@ __device__ void negacyclic_backward_fft_f128(double *dt_re_hi, double *dt_re_lo,
 // Specialized version of fft-128 for tbc that applies same improvements than in
 // 64-bit one. In theory it can be applied to other flavors, but we want to test
 // it first on tbc
-template <class params>
+template <class params, bool USE_AOS_TWIDDLES = false>
 __device__ void
 negacyclic_forward_fft_f128_tbc(double *dt_re_hi, double *dt_re_lo,
                                 double *dt_im_hi, double *dt_im_lo) {
@@ -262,16 +318,11 @@ negacyclic_forward_fft_f128_tbc(double *dt_re_hi, double *dt_re_lo,
   }
 
   // level 1
-  // we don't make actual complex multiplication on level1 since we have only
-  // one twiddle, it's real and image parts are equal, so we can multiply
-  // it with simpler operations
+  const f128 level1_twid =
+      get_neg_twid<USE_AOS_TWIDDLES>(EXP_I_PI_OVER_4_TWIDDLE_INDEX).re;
 #pragma unroll
   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
-    auto ww = NEG_TWID(1);
-    f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, NEG_TWID(1).re,
-                               NEG_TWID(1).im);
-    f128::cplx_f128_sub_assign(v[i].re, v[i].im, u[i].re, u[i].im, w.re, w.im);
-    f128::cplx_f128_add_assign(u[i].re, u[i].im, u[i].re, u[i].im, w.re, w.im);
+    device_fft128_forward_level1_butterfly(level1_twid, u[i], v[i]);
   }
 
   Index twiddle_shift = 1;
@@ -308,7 +359,7 @@ negacyclic_forward_fft_f128_tbc(double *dt_re_hi, double *dt_re_lo,
       } else {
         u[i] = w;
       }
-      w = NEG_TWID(tid / lane_mask + twiddle_shift);
+      w = get_neg_twid<USE_AOS_TWIDDLES>(tid / lane_mask + twiddle_shift);
       f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, w.re, w.im);
       f128::cplx_f128_sub_assign(v[i].re, v[i].im, u[i].re, u[i].im, w.re,
                                  w.im);
@@ -351,7 +402,7 @@ negacyclic_forward_fft_f128_tbc(double *dt_re_hi, double *dt_re_lo,
       } else {
         u[i] = w;
       }
-      w = NEG_TWID(tid / lane_mask + twiddle_shift);
+      w = get_neg_twid<USE_AOS_TWIDDLES>(tid / lane_mask + twiddle_shift);
       f128::cplx_f128_mul_assign(w.re, w.im, v[i].re, v[i].im, w.re, w.im);
       f128::cplx_f128_sub_assign(v[i].re, v[i].im, u[i].re, u[i].im, w.re,
                                  w.im);
@@ -360,6 +411,16 @@ negacyclic_forward_fft_f128_tbc(double *dt_re_hi, double *dt_re_lo,
       tid = tid + STRIDE;
     }
   }
+
+  // Write-after-read hazard. The levels above are ordered by __syncwarp()
+  // only, which gives no ordering between warps. The last shared-memory level
+  // (l == 5) reads dt[tid ^ 16] for tid over [0, HALF_DEGREE), while the store
+  // loop below writes dt[2 * tid] and dt[2 * tid + 1], covering [0, DEGREE).
+  // The written range contains the read range, and the writing thread is not
+  // the reading one, so a warp reaching the store first would clobber values
+  // another warp has not consumed yet. Only a block-wide barrier orders the
+  // two.
+  __syncthreads();
 
   //   store registers in SM
   tid = threadIdx.x;
@@ -375,7 +436,7 @@ negacyclic_forward_fft_f128_tbc(double *dt_re_hi, double *dt_re_lo,
 // Specialized version of ifft-128 for tbc that applies same improvements than
 // in 64-bit one. In theory it can be applied to other flavors, but we want to
 // test it first on tbc
-template <class params>
+template <class params, bool USE_AOS_TWIDDLES = false>
 __device__ void
 negacyclic_backward_fft_f128_tbc(double *dt_re_hi, double *dt_re_lo,
                                  double *dt_im_hi, double *dt_im_lo) {
@@ -413,7 +474,9 @@ negacyclic_backward_fft_f128_tbc(double *dt_re_hi, double *dt_re_lo,
     for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
       w = (u[i] - v[i]);
       u[i] += v[i];
-      v[i] = w * NEG_TWID(tid / lane_mask + twiddle_shift).conjugate();
+      v[i] = w * get_neg_twid<USE_AOS_TWIDDLES>(
+                     static_cast<Index>(tid / lane_mask + twiddle_shift))
+                     .conjugate();
 
       // keep one of the register for next iteration and store another one in
       // register
@@ -461,7 +524,9 @@ negacyclic_backward_fft_f128_tbc(double *dt_re_hi, double *dt_re_lo,
     for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
       w = (u[i] - v[i]);
       u[i] += v[i];
-      v[i] = w * NEG_TWID(tid / lane_mask + twiddle_shift).conjugate();
+      v[i] = w * get_neg_twid<USE_AOS_TWIDDLES>(
+                     static_cast<Index>(tid / lane_mask + twiddle_shift))
+                     .conjugate();
 
       // keep one of the register for next iteration and store another one in sm
       Index rank = tid & thread_mask;
@@ -495,10 +560,11 @@ negacyclic_backward_fft_f128_tbc(double *dt_re_hi, double *dt_re_lo,
   }
 
   // last iteration
+  const f128 last_twid =
+      get_neg_twid<USE_AOS_TWIDDLES>(EXP_I_PI_OVER_4_TWIDDLE_INDEX).re;
+#pragma unroll
   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
-    w = (u[i] - v[i]);
-    u[i] = u[i] + v[i];
-    v[i] = w * NEG_TWID(1).conjugate();
+    device_fft128_backward_last_level_butterfly(last_twid, u[i], v[i]);
   }
   __syncthreads();
   // store registers in SM
