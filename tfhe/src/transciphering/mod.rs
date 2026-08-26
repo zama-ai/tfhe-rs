@@ -14,13 +14,13 @@
 //! ```
 //! use rand::Rng;
 //! use tfhe::shortint::prelude::*;
-//! use tfhe::shortint::parameters::current_params::V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+//! use tfhe::shortint::parameters::current_params::V1_8_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 //! use tfhe::transciphering::{
 //!     KreyviumFheState, KreyviumPlainKey, KreyviumPlainState, StreamCipher, Transcipherer,
 //! };
 //!
 //! let (client_key, server_key) =
-//!     gen_keys(V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+//!     gen_keys(V1_8_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 //!
 //! // Client: pick a symmetric key + IV and encrypt a u64 with plain Kreyvium.
 //! let mut rng = rand::thread_rng();

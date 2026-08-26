@@ -363,16 +363,3 @@ pub const V1_7_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128: MetaP
         rerand_configuration: None,
     }
     .validate();
-
-pub const V1_7_META_PARAM_GPU_2_1_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128: MetaParameters =
-    MetaParameters {
-        backend: Backend::CudaGpu,
-        compute_parameters: AtomicPatternParameters::Standard(PBSParameters::MultiBitPBS(
-            V1_7_PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128,
-        )),
-        dedicated_compact_public_key_parameters: None,
-        compression_parameters: None,
-        noise_squashing_parameters: None,
-        rerand_configuration: None,
-    }
-    .validate();

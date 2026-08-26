@@ -9,7 +9,7 @@ To be secure under that model, **TFHE-rs** provides a re-randomization primitive
 
 ```rust
 use tfhe::prelude::*;
-use tfhe::shortint::parameters::v1_7::meta::cpu::V1_7_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+use tfhe::shortint::parameters::v1_8::meta::cpu::V1_8_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
 use tfhe::{
     generate_keys, set_server_key, CompressedCiphertextListBuilder, FheUint64,
     ReRandomizationContext, ReRandomizationMode
@@ -17,7 +17,7 @@ use tfhe::{
 
 pub fn main() {
     // The chosen parameters have re-rand enabled and don't require an extra CompactPublicKey
-    let (cks, sks) = generate_keys(V1_7_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
+    let (cks, sks) = generate_keys(V1_8_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
 
     let compact_public_encryption_domain_separator = *b"TFHE_Enc";
     let rerand_domain_separator = *b"TFHE_Rrd";
@@ -78,11 +78,11 @@ Note that if ciphertexts require auxiliary metadata to perform the re-randomizat
 
 ```rust
 use tfhe::prelude::*;
-use tfhe::shortint::parameters::v1_7::meta::cpu::V1_7_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+use tfhe::shortint::parameters::v1_8::meta::cpu::V1_8_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
 use tfhe::{ClientKey, FheUint64};
 
 pub fn main() {
-    let cks = ClientKey::generate(V1_7_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
+    let cks = ClientKey::generate(V1_8_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
 
     let clear_a = rand::random::<u64>();
     let mut a = FheUint64::encrypt(clear_a, &cks);
@@ -102,7 +102,7 @@ Here is how to do it:
 
 ```rust
 use tfhe::prelude::*;
-use tfhe::shortint::parameters::v1_7::meta::cpu::V1_7_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+use tfhe::shortint::parameters::v1_8::meta::cpu::V1_8_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 use tfhe::{
     CompactPublicKey, Config, FheBool, FheInt8, FheUint64, ProvenCompactCiphertextList,
@@ -110,7 +110,7 @@ use tfhe::{
 };
 
 pub fn main() {
-    let config = Config::from(V1_7_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
+    let config = Config::from(V1_8_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
     let (cks, sks) = generate_keys(config);
     let cpk = CompactPublicKey::new(&cks);
 
@@ -172,7 +172,7 @@ Here is an example of how to call the re-randomized PRF in the same setting:
 ```rust
 use std::num::NonZeroU64;
 use tfhe::prelude::{FheDecrypt, FheTryEncrypt};
-use tfhe::shortint::parameters::v1_7::meta::cpu::V1_7_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+use tfhe::shortint::parameters::v1_8::meta::cpu::V1_8_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
 use tfhe::{
     generate_keys, re_randomized_keys_bitonic_shuffle, set_server_key, BitonicShuffleKeySize,
     FheInt8, FheUint8, PrfReRandomizationContext, RangeForRandom, ReRandomizationMode, Seed,
@@ -181,7 +181,7 @@ use tfhe::{
 pub fn main() {
     // The chosen parameters have re-rand enabled and don't require an extra CompactPublicKey
     let (client_key, server_key) =
-        generate_keys(V1_7_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
+        generate_keys(V1_8_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
 
     set_server_key(server_key);
 
@@ -298,7 +298,7 @@ Because of an API change in version 1.6 you may find yourself needing to manage 
 ```rust
 use tfhe::prelude::*;
 use tfhe::shortint::parameters::v1_5::meta::cpu::V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
-use tfhe::shortint::parameters::v1_7::meta::cpu::V1_7_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+use tfhe::shortint::parameters::v1_8::meta::cpu::V1_8_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
 use tfhe::shortint::parameters::ReRandomizationConfiguration;
 use tfhe::{
     generate_keys, set_server_key, ClientKey, CompactPublicKey, CompressedCiphertextListBuilder,
@@ -376,7 +376,7 @@ pub fn main() {
     for params in [
         // 1.5 did not have the new style more efficient API and is used as the legacy case
         V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
-        V1_7_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        V1_8_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     ] {
         let needs_rerand_cpk = matches!(
             params.rerand_configuration,

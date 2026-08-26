@@ -33,7 +33,7 @@ use crate::shortint::parameters::{
 };
 
 /// All [`ClassicPBSParameters`] in this module.
-pub const VEC_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 11] = [
+pub const VEC_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 10] = [
     (
         &V1_7_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
         "V1_7_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128",
@@ -74,14 +74,10 @@ pub const VEC_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 11] = 
         &V1_7_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
         "V1_7_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128",
     ),
-    (
-        &V1_7_PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128,
-        "V1_7_PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128",
-    ),
 ];
 
 /// All [`MultiBitPBSParameters`] in this module.
-pub const VEC_ALL_MULTI_BIT_PBS_PARAMETERS: [(&MultiBitPBSParameters, &str); 49] = [
+pub const VEC_ALL_MULTI_BIT_PBS_PARAMETERS: [(&MultiBitPBSParameters, &str); 48] = [
     (
         &V1_7_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
         "V1_7_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128",
@@ -274,10 +270,6 @@ pub const VEC_ALL_MULTI_BIT_PBS_PARAMETERS: [(&MultiBitPBSParameters, &str); 49]
         &V1_7_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
         "V1_7_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128",
     ),
-    (
-        &V1_7_PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128,
-        "V1_7_PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128",
-    ),
 ];
 
 /// All [`KeySwitch32PBSParameters`] in this module.
@@ -433,7 +425,7 @@ pub const VEC_ALL_HPU_PARAMETERS: [(&KeySwitch32PBSParameters, &str); 3] = [
 ];
 
 /// All [`MetaParameters`] in this module.
-pub const VEC_ALL_META_PARAMETERS: [(&MetaParameters, &str); 64] = [
+pub const VEC_ALL_META_PARAMETERS: [(&MetaParameters, &str); 63] = [
     (
         &V1_7_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M128,
         "V1_7_META_PARAM_CPU_1_1_KS_PBS_GAUSSIAN_2M128",
@@ -685,9 +677,5 @@ pub const VEC_ALL_META_PARAMETERS: [(&MetaParameters, &str); 64] = [
     (
         &V1_7_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128,
         "V1_7_META_PARAM_GPU_4_4_MULTI_BIT_GROUP_4_KS_PBS_TUNIFORM_2M128",
-    ),
-    (
-        &V1_7_META_PARAM_GPU_2_1_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128,
-        "V1_7_META_PARAM_GPU_2_1_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128",
     ),
 ];
