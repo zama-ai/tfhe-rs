@@ -28,7 +28,7 @@ use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder}
 pub use radix::kv_store::CudaKVStore;
 pub use radix::{
     BitonicShuffleKeySize, CollisionProbability, CudaOprfServerKey, CudaOprfServerKeyView,
-    GenericCudaOprfServerKey,
+    CudaPrinceKeys, GenericCudaOprfServerKey,
 };
 
 pub(crate) mod radix;

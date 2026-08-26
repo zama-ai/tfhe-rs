@@ -2677,6 +2677,75 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_integer_prince_key_prep_64_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
+        message_modulus: u32,
+        carry_modulus: u32,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_integer_prince_key_prep_64_async(
+        streams: CudaStreamsFFI,
+        key_bits_first: *mut CudaRadixCiphertextFFI,
+        key_bits_second: *mut CudaRadixCiphertextFFI,
+        kap_bw_first: *mut CudaRadixCiphertextFFI,
+        kap_bw_second: *mut CudaRadixCiphertextFFI,
+        kap_mid_first: *mut CudaRadixCiphertextFFI,
+        k0: *const CudaRadixCiphertextFFI,
+        k1: *const CudaRadixCiphertextFFI,
+        is_decrypt: bool,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_integer_prince_key_prep_64(
+        streams: CudaStreamsFFI,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_integer_prince_64_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
+        message_modulus: u32,
+        carry_modulus: u32,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+        num_prince_inputs: u32,
+        is_decrypt: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_integer_prince_64_async(
+        streams: CudaStreamsFFI,
+        output: *mut CudaRadixCiphertextFFI,
+        input: *const CudaRadixCiphertextFFI,
+        k0: *const CudaRadixCiphertextFFI,
+        k1: *const CudaRadixCiphertextFFI,
+        key_bits_first: *const CudaRadixCiphertextFFI,
+        key_bits_second: *const CudaRadixCiphertextFFI,
+        kap_bw_first: *const CudaRadixCiphertextFFI,
+        kap_bw_second: *const CudaRadixCiphertextFFI,
+        kap_mid_first: *const CudaRadixCiphertextFFI,
+        num_prince_inputs: u32,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_integer_prince_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
     pub fn scratch_cuda_trivium_init_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,

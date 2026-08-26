@@ -61,6 +61,8 @@ mod aes;
 mod aes256;
 mod kreyvium;
 pub(crate) mod kv_store;
+mod prince;
+pub use prince::CudaPrinceKeys;
 #[cfg(test)]
 mod tests_long_run;
 #[cfg(test)]

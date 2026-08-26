@@ -88,6 +88,7 @@ fn main() {
             "cuda/include/integer/integer.h",
             "cuda/include/integer/rerand.h",
             "cuda/include/aes/aes.h",
+            "cuda/include/prince/prince.h",
             "cuda/include/trivium/trivium.h",
             "cuda/include/kreyvium/kreyvium.h",
             "cuda/include/zk/zk.h",
