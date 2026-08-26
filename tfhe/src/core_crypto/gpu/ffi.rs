@@ -958,37 +958,6 @@ pub fn cuda_modulus_switch_multi_bit_ciphertext_u128<T: UnsignedInteger>(
     streams.synchronize();
 }
 
-/// forward fourier transform for complex f128 as integer
-///
-/// # Safety
-///
-/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
-/// required
-#[allow(clippy::too_many_arguments)]
-pub unsafe fn fourier_transform_forward_as_integer_f128_async<T: UnsignedInteger>(
-    streams: &CudaStreams,
-    re0: &mut [f64],
-    re1: &mut [f64],
-    im0: &mut [f64],
-    im1: &mut [f64],
-    standard: &[T],
-    fft_size: u32,
-    number_of_samples: u32,
-) {
-    assert_eq!(TypeId::of::<T>(), TypeId::of::<u128>());
-    cuda_fourier_transform_forward_as_integer_f128_async(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        re0.as_mut_ptr().cast::<c_void>(),
-        re1.as_mut_ptr().cast::<c_void>(),
-        im0.as_mut_ptr().cast::<c_void>(),
-        im1.as_mut_ptr().cast::<c_void>(),
-        standard.as_ptr().cast::<c_void>(),
-        fft_size,
-        number_of_samples,
-    );
-}
-
 /// forward fourier transform for complex f128 as torus
 ///
 /// # Safety

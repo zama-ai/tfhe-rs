@@ -164,7 +164,9 @@ void cuda_convert_lwe_programmable_bootstrap_key(
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
-  double2 *buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
+  // global scratch is only allocated on the NOSM paths below; cuda_drop_async
+  // accepts the nullptr left by the FULLSM paths
+  double2 *buffer = nullptr;
   switch (polynomial_size) {
   case 256:
     if (shared_memory_size <= max_shared_memory) {
@@ -358,18 +360,22 @@ void convert_u128_to_f128_and_forward_fft_128(cudaStream_t stream,
                                               uint32_t number_of_samples) {
 
   cuda_set_device(gpu_index);
-  size_t required_shared_memory_size =
-      safe_mul_sizeof<double>((size_t)(params::degree / 2), (size_t)4);
+  size_t required_shared_memory_size = safe_mul_sizeof<double>(
+      static_cast<size_t>(params::degree / 2), static_cast<size_t>(4));
   int grid_size = number_of_samples;
   int block_size = params::degree / params::opt;
   bool full_sm =
       (required_shared_memory_size <= cuda_get_max_shared_memory(gpu_index));
-  size_t buffer_size = full_sm
-                           ? 0
-                           : safe_mul((size_t)number_of_samples,
-                                      (size_t)(params::degree / 2), (size_t)4);
   size_t shared_memory_size = full_sm ? required_shared_memory_size : 0;
-  double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index);
+  // global scratch is only needed by the NOSM kernel variant, when the FFT
+  // working set does not fit in shared memory; each block uses one
+  // shared-memory-sized slice of it
+  double *buffer = full_sm
+                       ? nullptr
+                       : static_cast<double *>(cuda_malloc_async(
+                             safe_mul(static_cast<size_t>(number_of_samples),
+                                      required_shared_memory_size),
+                             stream, gpu_index));
 
   // configure shared memory for batch fft kernel
   if (full_sm) {
