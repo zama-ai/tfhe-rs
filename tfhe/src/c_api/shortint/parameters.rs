@@ -11,6 +11,7 @@ use crate::shortint::parameters::v1_4::*;
 use crate::shortint::parameters::v1_5::*;
 use crate::shortint::parameters::v1_6::*;
 use crate::shortint::parameters::v1_7::*;
+use crate::shortint::parameters::v1_8::*;
 pub use crate::shortint::parameters::*;
 use crate::shortint::parameters::{
     ModulusSwitchNoiseReductionParams as RustModulusSwitchNoiseReductionParams,
@@ -500,6 +501,10 @@ expose_as_shortint_compact_public_key_parameters!(
         PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
     ),
     (
+        V1_8_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_8_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    ),
+    (
         V1_7_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         V1_7_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
     ),
@@ -704,7 +709,7 @@ expose_as_shortint_pbs_parameters!(
     PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS_GAUSSIAN_2
     ],
     [
-    (V1_7, M128) @
+    (V1_7, M128), (V1_8, M128) @
     PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2,
     PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2,
@@ -737,6 +742,9 @@ macro_rules! expose_as_shortint_compression_parameters(
 
 expose_as_shortint_compression_parameters!(
     COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    // v1.8
+    V1_8_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    V1_8_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     // v1.7
     V1_7_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     V1_7_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,

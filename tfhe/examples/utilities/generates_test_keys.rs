@@ -31,9 +31,9 @@ const KSK_PARAMS: [(
     ClassicPBSParameters,
     ShortintKeySwitchingParameters,
 ); 1] = [(
-    V1_7_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-    V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-    V1_7_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+    V1_8_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    V1_8_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    V1_8_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
 )];
 
 fn client_server_keys() {
@@ -96,7 +96,7 @@ fn client_server_keys() {
         #[cfg(feature = "experimental")]
         {
             const WOPBS_PARAMS: [(ClassicPBSParameters, WopbsParameters); 1] = [(
-                V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+                V1_8_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
                 LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
             )];
             generate_wopbs_keys(&WOPBS_PARAMS);
@@ -121,10 +121,10 @@ fn client_server_keys() {
             v1_6::V1_6_PARAM_MESSAGE_3_CARRY_1_KS_PBS_GAUSSIAN_2M128,
             v1_6::V1_6_PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M128,
             // X_X params
-            V1_7_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-            V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-            V1_7_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-            V1_7_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
+            V1_8_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            V1_8_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            V1_8_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            V1_8_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
             // 2M64 as backup as 2M128 is too slow
             v1_6::V1_6_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
         ];

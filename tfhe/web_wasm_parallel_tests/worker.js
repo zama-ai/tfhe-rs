@@ -188,7 +188,7 @@ async function compactPublicKeyBench32Bit(params_name) {
 
 async function compactPublicKeyBench32BitBig() {
   return await compactPublicKeyBench32Bit(
-    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    ShortintParametersName.V1_8_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
   );
 }
 
@@ -465,7 +465,7 @@ async function compactPublicKeyZeroKnowledgeTest() {
 
 async function compressedCompactPublicKeyTest256BitBig() {
   await compressedCompactPublicKeyTest256BitOnConfig(
-    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    ShortintParametersName.V1_8_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
   );
 }
 
@@ -553,7 +553,7 @@ async function compactPublicKeyBench256Bit(params_name) {
 
 async function compactPublicKeyBench256BitBig() {
   return await compactPublicKeyBench256Bit(
-    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    ShortintParametersName.V1_8_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
   );
 }
 
@@ -604,13 +604,13 @@ async function compressedServerKeyBench(params_name) {
 
 async function compressedServerKeyBenchMessage1Carry1() {
   return await compressedServerKeyBench(
-    ShortintParametersName.V1_7_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    ShortintParametersName.V1_8_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
   );
 }
 
 async function compressedServerKeyBenchMessage2Carry2() {
   return await compressedServerKeyBench(
-    ShortintParametersName.V1_7_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    ShortintParametersName.V1_8_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
   );
 }
 

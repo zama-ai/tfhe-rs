@@ -839,12 +839,11 @@ impl ParameterSetConformant for CompressedServerKey {
 mod test {
     use crate::high_level_api::keys::inner::IntegerServerKeyConformanceParams;
     use crate::prelude::ParameterSetConformant;
+    use crate::shortint::parameters::test_params::TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
     use crate::shortint::parameters::{
         TranscipheringParameters, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        PARAM_KEYSWITCH_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
@@ -917,36 +916,12 @@ mod test {
         }
         // Full blockchain configuration
         {
-            let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+            let meta_params = TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
 
-            let cpk_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-            let casting_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-            let comp_params = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-            let noise_squashing_params =
-                NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-            let noise_squashing_compression_params =
-                NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-            let cpk_re_randomization_ksk_params =
-                PARAM_KEYSWITCH_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-            let config = ConfigBuilder::with_custom_parameters(params)
-                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params))
-                .enable_compression(comp_params)
-                .enable_noise_squashing(noise_squashing_params)
-                .enable_noise_squashing_compression(noise_squashing_compression_params)
-                .enable_ciphertext_re_randomization(cpk_re_randomization_ksk_params)
-                .enable_transciphering(TranscipheringParameters::SameAsCompute)
-                .build();
-
-            let ck = ClientKey::generate(config);
+            let ck = ClientKey::generate(meta_params);
             let sk = ServerKey::new(&ck);
 
-            let conformance_params = config.into();
+            let conformance_params = meta_params.into();
 
             assert!(sk.is_conformant(&conformance_params));
         }
@@ -1121,36 +1096,12 @@ mod test {
         }
         // Full blockchain configuration
         {
-            let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+            let meta_params = TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
 
-            let cpk_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-            let casting_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-            let comp_params = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-            let noise_squashing_params =
-                NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-            let noise_squashing_compression_params =
-                NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-            let cpk_re_randomization_ksk_params =
-                PARAM_KEYSWITCH_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-            let config = ConfigBuilder::with_custom_parameters(params)
-                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params))
-                .enable_compression(comp_params)
-                .enable_noise_squashing(noise_squashing_params)
-                .enable_noise_squashing_compression(noise_squashing_compression_params)
-                .enable_ciphertext_re_randomization(cpk_re_randomization_ksk_params)
-                .enable_transciphering(TranscipheringParameters::SameAsCompute)
-                .build();
-
-            let ck = ClientKey::generate(config);
+            let ck = ClientKey::generate(meta_params);
             let sk = CompressedServerKey::new(&ck);
 
-            let conformance_params = config.into();
+            let conformance_params = meta_params.into();
 
             assert!(sk.is_conformant(&conformance_params));
         }

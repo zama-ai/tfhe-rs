@@ -21,7 +21,7 @@ Starting from TFHE-rs version 1.7.0, the HPU backend now supports execution of o
 To use the **TFHE-rs** HPU backend in your project, add the following dependency in your `Cargo.toml`.
 
 ```toml
-tfhe = { version = "~1.7.0", features = ["integer", "hpu-v80"] }
+tfhe = { version = "~1.8.0", features = ["integer", "hpu-v80"] }
 ```
 
 {% hint style="success" %}
