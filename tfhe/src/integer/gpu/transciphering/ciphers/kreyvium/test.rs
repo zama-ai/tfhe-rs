@@ -9,37 +9,37 @@ use crate::integer::gpu::{gen_keys_radix_gpu, CudaServerKey};
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_kreyvium::{
     kreyvium_comparison_test, kreyvium_stateful_comparison_test, kreyvium_test_vector_1_test,
 };
-use crate::shortint::parameters::{
-    TestParameters, PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128,
-    PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128,
+use crate::shortint::parameters::test_params::{
+    TestParameters, TEST_PARAM_GPU_KREYVIUM_MESSAGE_1_CARRY_0_TUNIFORM_2M128,
+    TEST_PARAM_GPU_KREYVIUM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_0_TUNIFORM_2M128,
 };
 
 // FastKreyvium evaluates the standard Kreyvium cipher, so the known-answer vector and the CPU
 // reference comparison are shared with the original Kreyvium harness; only the parameter set and
 // the entry-point methods differ.
 create_gpu_parameterized_test!(integer_fast_kreyvium_test_vector_1 {
-    PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128,
-    PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128
+    TEST_PARAM_GPU_KREYVIUM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_0_TUNIFORM_2M128,
+    TEST_PARAM_GPU_KREYVIUM_MESSAGE_1_CARRY_0_TUNIFORM_2M128
 });
 
 create_gpu_parameterized_test!(integer_fast_kreyvium_comparison {
-    PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128,
-    PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128
+    TEST_PARAM_GPU_KREYVIUM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_0_TUNIFORM_2M128,
+    TEST_PARAM_GPU_KREYVIUM_MESSAGE_1_CARRY_0_TUNIFORM_2M128
 });
 
 create_gpu_parameterized_test!(integer_fast_kreyvium_stateful_comparison {
-    PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128,
-    PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128
+    TEST_PARAM_GPU_KREYVIUM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_0_TUNIFORM_2M128,
+    TEST_PARAM_GPU_KREYVIUM_MESSAGE_1_CARRY_0_TUNIFORM_2M128
 });
 
 create_gpu_parameterized_test!(integer_fast_kreyvium_non_multiple_batch_size {
-    PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128,
-    PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128
+    TEST_PARAM_GPU_KREYVIUM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_0_TUNIFORM_2M128,
+    TEST_PARAM_GPU_KREYVIUM_MESSAGE_1_CARRY_0_TUNIFORM_2M128
 });
 
 create_gpu_parameterized_test!(integer_fast_kreyvium_batched_matches_single {
-    PARAM_GPU_MULT_BIT_GROUP_4_KREYVIUM_1_0_TUNIFORM_2M128,
-    PARAM_GPU_KREYVIUM_1_0_TUNIFORM_2M128
+    TEST_PARAM_GPU_KREYVIUM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_0_TUNIFORM_2M128,
+    TEST_PARAM_GPU_KREYVIUM_MESSAGE_1_CARRY_0_TUNIFORM_2M128
 });
 
 fn integer_fast_kreyvium_test_vector_1<P>(param: P)

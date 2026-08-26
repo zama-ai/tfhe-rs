@@ -13,16 +13,16 @@ The following example shows how to use parallelized bootstrapping by choosing mu
 ```rust
 use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint32};
-use tfhe::shortint::parameters::current_params::V1_7_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+use tfhe::shortint::parameters::current_params::V1_8_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(V1_7_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128)
+        .use_custom_parameters(V1_8_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128)
         .build();
-        
+
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
-    
+
     let clear_a = 673u32;
     let clear_b = 6u32;
     let a = FheUint32::try_encrypt(clear_a, &keys)?;
@@ -45,18 +45,18 @@ Here's an example:
 ```rust
 use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint32};
-use tfhe::shortint::parameters::current_params::V1_7_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+use tfhe::shortint::parameters::current_params::V1_8_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ConfigBuilder::default()
         .use_custom_parameters(
-           V1_7_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128.with_deterministic_execution(),
+           V1_8_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128.with_deterministic_execution(),
         )
         .build();
-        
+
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
-    
+
     let clear_a = 673u32;
     let clear_b = 6u32;
     let a = FheUint32::try_encrypt(clear_a, &keys)?;
