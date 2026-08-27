@@ -42,7 +42,7 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                 params.polynomial_size,
                 &mut secret_generator,
             );
-        let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
+        let output_lwe_secret_key = output_glwe_secret_key.as_lwe_secret_key();
 
         let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
             &output_lwe_secret_key,
@@ -54,14 +54,24 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
             &mut encryption_generator,
         );
 
-        // Create the empty bootstrapping key in the Fourier domain
-        let fourier_bsk = FourierLweBootstrapKey::new(
+        // Create the bootstrapping key in the Fourier domain
+        let std_bsk = par_allocate_and_generate_new_lwe_bootstrap_key(
+            &input_lwe_secret_key,
+            &output_glwe_secret_key,
+            params.pbs_base_log,
+            params.pbs_level,
+            params.glwe_noise_distribution,
+            params.ciphertext_modulus,
+            &mut encryption_generator,
+        );
+        let mut fourier_bsk = FourierLweBootstrapKey::new(
             params.lwe_dimension,
             params.glwe_dimension.to_glwe_size(),
             params.polynomial_size,
             params.pbs_base_log,
             params.pbs_level,
         );
+        par_convert_standard_lwe_bootstrap_key_to_fourier(&std_bsk, &mut fourier_bsk);
 
         let benchmark_spec = BenchmarkSpec::new_core_crypto(cc_bench, name, bench_type);
         let bench_id = benchmark_spec.to_string();
@@ -316,7 +326,7 @@ fn multi_bit_ks_pbs<
                 params.polynomial_size,
                 &mut secret_generator,
             );
-        let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
+        let output_lwe_secret_key = output_glwe_secret_key.as_lwe_secret_key();
 
         let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
             &output_lwe_secret_key,
@@ -328,13 +338,27 @@ fn multi_bit_ks_pbs<
             &mut encryption_generator,
         );
 
-        let multi_bit_bsk = FourierLweMultiBitBootstrapKey::new(
+        let std_multi_bit_bsk = par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key(
+            &input_lwe_secret_key,
+            &output_glwe_secret_key,
+            params.pbs_base_log,
+            params.pbs_level,
+            *grouping_factor,
+            params.glwe_noise_distribution,
+            params.ciphertext_modulus,
+            &mut encryption_generator,
+        );
+        let mut multi_bit_bsk = FourierLweMultiBitBootstrapKey::new(
             params.lwe_dimension,
             params.glwe_dimension.to_glwe_size(),
             params.polynomial_size,
             params.pbs_base_log,
             params.pbs_level,
             *grouping_factor,
+        );
+        par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(
+            &std_multi_bit_bsk,
+            &mut multi_bit_bsk,
         );
 
         let thread_count = multi_bit_num_threads(
