@@ -802,9 +802,16 @@ __host__ void host_compute_reduced_pgns_and_carries_for_comparison(
     CudaRadixCiphertextFFI shifted_resolved_carries;
     as_radix_ciphertext_slice<Torus>(&shifted_resolved_carries,
                                      resolved_carries, 1, num_groups);
-    host_compute_prefix_sum_hillis_steele<Torus>(
-        streams, &shifted_resolved_carries, grouping_pgns,
-        luts_carry_propagation_sum, bsks, ksks, num_groups - 1);
+    if (use_sklansky_prefix_network(num_groups - 1)) {
+      host_compute_prefix_sum_sklansky<Torus>(
+          streams, &shifted_resolved_carries, grouping_pgns,
+          mem->hs_group_prop_mem->sk_lhs, mem->hs_group_prop_mem->sk_rhs,
+          luts_carry_propagation_sum, bsks, ksks, num_groups - 1);
+    } else {
+      host_compute_prefix_sum_hillis_steele<Torus>(
+          streams, &shifted_resolved_carries, grouping_pgns,
+          luts_carry_propagation_sum, bsks, ksks, num_groups - 1);
+    }
   }
 }
 

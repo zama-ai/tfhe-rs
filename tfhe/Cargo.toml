@@ -220,6 +220,11 @@ path = "examples/manual_fft.rs"
 required-features = ["integer"]
 
 [[example]]
+name = "sklansky_bench"
+path = "examples/sklansky_bench.rs"
+required-features = ["integer", "gpu"]
+
+[[example]]
 name = "dark_market"
 required-features = ["integer", "internal-keycache"]
 

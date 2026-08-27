@@ -11,6 +11,9 @@ template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
   BitValue bit_value;
 
   CudaRadixCiphertextFFI *tmp_ct;
+  // Staging for the Sklansky prefix network's gathered operands.
+  CudaRadixCiphertextFFI *sk_lhs;
+  CudaRadixCiphertextFFI *sk_rhs;
 
   int_prepare_count_of_consecutive_bits_buffer(
       CudaStreams streams, const int_radix_params params,
@@ -72,6 +75,15 @@ template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_ct, num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    this->sk_lhs = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), sk_lhs, num_radix_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    this->sk_rhs = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), sk_rhs, num_radix_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
   }
 
   void release(CudaStreams streams) {
@@ -84,6 +96,12 @@ template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    tmp_ct, allocate_gpu_memory);
     delete tmp_ct;
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   sk_lhs, allocate_gpu_memory);
+    delete sk_lhs;
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   sk_rhs, allocate_gpu_memory);
+    delete sk_rhs;
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };

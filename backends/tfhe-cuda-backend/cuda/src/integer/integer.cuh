@@ -2,6 +2,8 @@
 #define CUDA_INTEGER_CUH
 
 #include "checked_arithmetic.h"
+#include <algorithm>
+#include <cstdlib>
 #include "crypto/keyswitch.cuh"
 #include "device.h"
 #include "helper_multi_gpu.h"
@@ -1782,6 +1784,212 @@ void host_resolve_group_carries_sequentially(
   }
 }
 
+// Sklansky prefix network.
+//
+// Same depth as Hillis-Steele (log2(n) levels) but n/2 combinations per level
+// instead of n - 2^k, because every element of a block's upper half absorbs a
+// single already-final value: the last element of its lower half. In hardware
+// that broadcast is a fan-out of n/2 and is why Hillis-Steele/Kogge-Stone win;
+// here reading a ciphertext is a memcpy, so the cheaper network is free.
+//
+// Positions are p = 0..num_positions-1 and the batch dimension is the fast one,
+// so the block holding (p, b) sits at p * batch_size + b. That covers both the
+// plain scans (batch_size == 1) and the AES counter, which runs num_aes_inputs
+// independent 128-bit scans interleaved.
+//
+// `forward` says which way the operator accumulates: forward means position p
+// absorbs p - 1 (prefix in increasing p), backward means it absorbs p + 1. The
+// kernels work in q-space, where the scan is always a prefix, and map back.
+//
+// At level `half` = 2^k the targets are the q whose run index (q / half) is
+// odd. Those form runs of `half` consecutive positions starting at
+// (2r+1)*half, and only the last run can be truncated, so
+// t -> (run = t / half, off = t % half) maps the t-th target to
+// q = (2r+1)*half + off with source (2r+1)*half - 1. No index tables needed.
+__device__ __forceinline__ void
+sklansky_positions(uint32_t t, uint32_t half, uint32_t num_positions,
+                   bool forward, uint32_t &p_target, uint32_t &p_source) {
+  uint32_t run = t / half;
+  uint32_t base = (2 * run + 1) * half;
+  uint32_t q_target = base + (t - run * half);
+  uint32_t q_source = base - 1;
+  p_target = forward ? q_target : num_positions - 1 - q_target;
+  p_source = forward ? q_source : num_positions - 1 - q_source;
+}
+
+template <typename Torus>
+__global__ void device_sklansky_gather_level(
+    Torus *lhs_out, Torus *rhs_out, Torus const *scan, uint32_t lwe_size,
+    uint32_t half, uint32_t count, uint32_t batch_size,
+    uint32_t num_positions, bool forward) {
+  size_t tid = (size_t)threadIdx.x + (size_t)blockIdx.x * blockDim.x;
+  if (tid >= (size_t)count * batch_size * lwe_size)
+    return;
+  size_t slot = tid / lwe_size;
+  uint32_t c = (uint32_t)(tid % lwe_size);
+  uint32_t b = (uint32_t)(slot % batch_size);
+  uint32_t t = (uint32_t)(slot / batch_size);
+
+  uint32_t p_target, p_source;
+  sklansky_positions(t, half, num_positions, forward, p_target, p_source);
+
+  lhs_out[slot * lwe_size + c] =
+      scan[((size_t)p_target * batch_size + b) * lwe_size + c];
+  rhs_out[slot * lwe_size + c] =
+      scan[((size_t)p_source * batch_size + b) * lwe_size + c];
+}
+
+template <typename Torus>
+__global__ void device_sklansky_scatter_level(Torus *scan, Torus const *src,
+                                              uint32_t lwe_size, uint32_t half,
+                                              uint32_t count,
+                                              uint32_t batch_size,
+                                              uint32_t num_positions,
+                                              bool forward) {
+  size_t tid = (size_t)threadIdx.x + (size_t)blockIdx.x * blockDim.x;
+  if (tid >= (size_t)count * batch_size * lwe_size)
+    return;
+  size_t slot = tid / lwe_size;
+  uint32_t c = (uint32_t)(tid % lwe_size);
+  uint32_t b = (uint32_t)(slot % batch_size);
+  uint32_t t = (uint32_t)(slot / batch_size);
+
+  uint32_t p_target, p_source;
+  sklansky_positions(t, half, num_positions, forward, p_target, p_source);
+
+  scan[((size_t)p_target * batch_size + b) * lwe_size + c] =
+      src[slot * lwe_size + c];
+}
+
+// Number of targets at a level: every run contributes `half` positions except
+// possibly the last one.
+__host__ inline uint32_t sklansky_level_count(uint32_t num_positions,
+                                              uint32_t half) {
+  uint32_t count = 0;
+  for (uint32_t s = half; s < num_positions; s += 2 * half)
+    count += std::min(half, num_positions - s);
+  return count;
+}
+
+// Scans `scan` in place. `sk_lhs` / `sk_rhs` stage the gathered operands and
+// must hold at least ceil(num_positions / 2) * batch_size blocks.
+template <typename Torus, typename KSTorus>
+void host_prefix_scan_sklansky_inplace(
+    CudaStreams streams, CudaRadixCiphertextFFI *scan,
+    CudaRadixCiphertextFFI *sk_lhs, CudaRadixCiphertextFFI *sk_rhs,
+    int_radix_lut<Torus> *luts, void *const *bsks, KSTorus *const *ksks,
+    uint32_t num_positions, uint32_t batch_size = 1, bool forward = true) {
+
+  if (num_positions < 2)
+    return;
+
+  auto stream = streams.stream(0);
+  auto gpu_index = streams.gpu_index(0);
+  uint32_t lwe_size = scan->lwe_dimension + 1;
+
+  for (uint32_t half = 1; half < num_positions; half <<= 1) {
+    uint32_t count = sklansky_level_count(num_positions, half);
+    if (count == 0)
+      continue;
+    uint32_t num_slots = count * batch_size;
+    if (num_slots > sk_lhs->num_radix_blocks ||
+        num_slots > sk_rhs->num_radix_blocks)
+      PANIC("Cuda error: Sklansky staging buffers are too small")
+
+    int num_blocks = 0, num_threads = 0;
+    getNumBlocksAndThreads(num_slots * lwe_size, 512, num_blocks, num_threads);
+    cuda_set_device(gpu_index);
+    device_sklansky_gather_level<Torus><<<num_blocks, num_threads, 0, stream>>>(
+        (Torus *)sk_lhs->ptr, (Torus *)sk_rhs->ptr, (Torus *)scan->ptr,
+        lwe_size, half, count, batch_size, num_positions, forward);
+    check_cuda_error(cudaGetLastError());
+
+    for (uint32_t slot = 0; slot < num_slots; slot++) {
+      uint32_t b = slot % batch_size;
+      uint32_t t = slot / batch_size;
+      uint32_t run = t / half;
+      uint32_t base = (2 * run + 1) * half;
+      uint32_t q_t = base + (t - run * half);
+      uint32_t p_t = forward ? q_t : num_positions - 1 - q_t;
+      uint32_t p_s = forward ? base - 1 : num_positions - base;
+      sk_lhs->degrees[slot] = scan->degrees[p_t * batch_size + b];
+      sk_lhs->noise_levels[slot] = scan->noise_levels[p_t * batch_size + b];
+      sk_rhs->degrees[slot] = scan->degrees[p_s * batch_size + b];
+      sk_rhs->noise_levels[slot] = scan->noise_levels[p_s * batch_size + b];
+    }
+
+    integer_radix_apply_bivariate_lookup_table<Torus>(
+        streams, sk_lhs, sk_lhs, sk_rhs, bsks, ksks, luts, num_slots,
+        luts->params.message_modulus);
+
+    device_sklansky_scatter_level<Torus>
+        <<<num_blocks, num_threads, 0, stream>>>(
+            (Torus *)scan->ptr, (Torus *)sk_lhs->ptr, lwe_size, half, count,
+            batch_size, num_positions, forward);
+    check_cuda_error(cudaGetLastError());
+
+    for (uint32_t slot = 0; slot < num_slots; slot++) {
+      uint32_t b = slot % batch_size;
+      uint32_t t = slot / batch_size;
+      uint32_t run = t / half;
+      uint32_t base = (2 * run + 1) * half;
+      uint32_t q_t = base + (t - run * half);
+      uint32_t p_t = forward ? q_t : num_positions - 1 - q_t;
+      scan->degrees[p_t * batch_size + b] = sk_lhs->degrees[slot];
+      scan->noise_levels[p_t * batch_size + b] = sk_lhs->noise_levels[slot];
+    }
+  }
+}
+
+// Drop-in replacement for host_compute_prefix_sum_hillis_steele.
+template <typename Torus, typename KSTorus>
+void host_compute_prefix_sum_sklansky(
+    CudaStreams streams, CudaRadixCiphertextFFI *step_output,
+    CudaRadixCiphertextFFI *generates_or_propagates,
+    CudaRadixCiphertextFFI *sk_lhs, CudaRadixCiphertextFFI *sk_rhs,
+    int_radix_lut<Torus> *luts, void *const *bsks, KSTorus *const *ksks,
+    uint32_t num_radix_blocks) {
+
+  if (step_output->lwe_dimension != generates_or_propagates->lwe_dimension)
+    PANIC("Cuda error: input lwe dimensions must be the same")
+
+  auto stream = streams.stream(0);
+  auto gpu_index = streams.gpu_index(0);
+
+  copy_radix_ciphertext_slice_async<Torus>(stream, gpu_index, step_output, 0,
+                                           num_radix_blocks,
+                                           generates_or_propagates, 0,
+                                           num_radix_blocks);
+  if (num_radix_blocks < 2)
+    return;
+
+  host_prefix_scan_sklansky_inplace<Torus>(streams, step_output, sk_lhs, sk_rhs,
+                                           luts, bsks, ksks, num_radix_blocks);
+
+  // Hillis-Steele leaves both arrays holding the scan; keep that postcondition.
+  copy_radix_ciphertext_slice_async<Torus>(stream, gpu_index,
+                                           generates_or_propagates, 0,
+                                           num_radix_blocks, step_output, 0,
+                                           num_radix_blocks);
+}
+
+static constexpr uint32_t SKLANSKY_MIN_POSITIONS = 12;
+
+// Reads the A/B switch once. TFHE_SKLANSKY=1 swaps the prefix scans over to
+// the Sklansky network.
+__host__ inline bool use_sklansky_prefix_network(uint32_t num_positions) {
+  static const bool enabled = [] {
+    const char *e = std::getenv("TFHE_SKLANSKY");
+    return e != nullptr && e[0] == '1';
+  }();
+  static const uint32_t threshold = [] {
+    const char *e = std::getenv("TFHE_SKLANSKY_MIN");
+    return e != nullptr ? (uint32_t)std::strtoul(e, nullptr, 10)
+                        : SKLANSKY_MIN_POSITIONS;
+  }();
+  return enabled && num_positions >= threshold;
+}
+
 template <typename Torus, typename KSTorus>
 void host_compute_prefix_sum_hillis_steele(
     CudaStreams streams, CudaRadixCiphertextFFI *step_output,
@@ -1875,9 +2083,16 @@ void host_compute_propagation_simulators_and_group_carries(
     CudaRadixCiphertextFFI shifted_resolved_carries;
     as_radix_ciphertext_slice<Torus>(&shifted_resolved_carries,
                                      resolved_carries, 1, num_groups);
-    host_compute_prefix_sum_hillis_steele<Torus>(
-        streams, &shifted_resolved_carries, grouping_pgns,
-        luts_carry_propagation_sum, bsks, ksks, num_groups - 1);
+    if (use_sklansky_prefix_network(num_groups - 1)) {
+      host_compute_prefix_sum_sklansky<Torus>(
+          streams, &shifted_resolved_carries, grouping_pgns,
+          mem->hs_group_prop_mem->sk_lhs, mem->hs_group_prop_mem->sk_rhs,
+          luts_carry_propagation_sum, bsks, ksks, num_groups - 1);
+    } else {
+      host_compute_prefix_sum_hillis_steele<Torus>(
+          streams, &shifted_resolved_carries, grouping_pgns,
+          luts_carry_propagation_sum, bsks, ksks, num_groups - 1);
+    }
   }
 }
 

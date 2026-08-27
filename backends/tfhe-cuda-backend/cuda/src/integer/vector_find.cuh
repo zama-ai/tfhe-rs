@@ -1045,20 +1045,26 @@ __host__ void host_unchecked_first_index_of_clear(
       streams, mem_ptr->unpacked_selectors, inputs, &mem_ptr->tmp_clear_val,
       num_inputs, num_blocks, mem_ptr->eq_selectors_buf, bsks, ksks);
 
-  for (uint32_t offset = 1; offset < num_inputs; offset <<= 1) {
-    uint32_t count = num_inputs - offset;
+  if (use_sklansky_prefix_network(num_inputs)) {
+    host_prefix_scan_sklansky_inplace<Torus>(
+        streams, &mem_ptr->packed_selectors, &mem_ptr->sk_lhs,
+        &mem_ptr->sk_rhs, mem_ptr->prefix_sum_lut, bsks, ksks, num_inputs);
+  } else {
+    for (uint32_t offset = 1; offset < num_inputs; offset <<= 1) {
+      uint32_t count = num_inputs - offset;
 
-    CudaRadixCiphertextFFI current_slice;
-    as_radix_ciphertext_slice<Torus>(&current_slice, &mem_ptr->packed_selectors,
-                                     offset, num_inputs);
+      CudaRadixCiphertextFFI current_slice;
+      as_radix_ciphertext_slice<Torus>(
+          &current_slice, &mem_ptr->packed_selectors, offset, num_inputs);
 
-    CudaRadixCiphertextFFI prev_slice;
-    as_radix_ciphertext_slice<Torus>(&prev_slice, &mem_ptr->packed_selectors, 0,
-                                     count);
+      CudaRadixCiphertextFFI prev_slice;
+      as_radix_ciphertext_slice<Torus>(&prev_slice,
+                                       &mem_ptr->packed_selectors, 0, count);
 
-    integer_radix_apply_bivariate_lookup_table<Torus>(
-        streams, &current_slice, &current_slice, &prev_slice, bsks, ksks,
-        mem_ptr->prefix_sum_lut, count, mem_ptr->params.message_modulus);
+      integer_radix_apply_bivariate_lookup_table<Torus>(
+          streams, &current_slice, &current_slice, &prev_slice, bsks, ksks,
+          mem_ptr->prefix_sum_lut, count, mem_ptr->params.message_modulus);
+    }
   }
 
   integer_radix_apply_univariate_lookup_table<Torus>(
@@ -1112,20 +1118,26 @@ __host__ void host_unchecked_first_index_of(
       streams, mem_ptr->unpacked_selectors, inputs, value, num_inputs,
       num_blocks, mem_ptr->eq_selectors_buf, bsks, ksks);
 
-  for (uint32_t offset = 1; offset < num_inputs; offset <<= 1) {
-    uint32_t count = num_inputs - offset;
+  if (use_sklansky_prefix_network(num_inputs)) {
+    host_prefix_scan_sklansky_inplace<Torus>(
+        streams, &mem_ptr->packed_selectors, &mem_ptr->sk_lhs,
+        &mem_ptr->sk_rhs, mem_ptr->prefix_sum_lut, bsks, ksks, num_inputs);
+  } else {
+    for (uint32_t offset = 1; offset < num_inputs; offset <<= 1) {
+      uint32_t count = num_inputs - offset;
 
-    CudaRadixCiphertextFFI current_slice;
-    as_radix_ciphertext_slice<Torus>(&current_slice, &mem_ptr->packed_selectors,
-                                     offset, num_inputs);
+      CudaRadixCiphertextFFI current_slice;
+      as_radix_ciphertext_slice<Torus>(
+          &current_slice, &mem_ptr->packed_selectors, offset, num_inputs);
 
-    CudaRadixCiphertextFFI prev_slice;
-    as_radix_ciphertext_slice<Torus>(&prev_slice, &mem_ptr->packed_selectors, 0,
-                                     count);
+      CudaRadixCiphertextFFI prev_slice;
+      as_radix_ciphertext_slice<Torus>(&prev_slice,
+                                       &mem_ptr->packed_selectors, 0, count);
 
-    integer_radix_apply_bivariate_lookup_table<Torus>(
-        streams, &current_slice, &current_slice, &prev_slice, bsks, ksks,
-        mem_ptr->prefix_sum_lut, count, mem_ptr->params.message_modulus);
+      integer_radix_apply_bivariate_lookup_table<Torus>(
+          streams, &current_slice, &current_slice, &prev_slice, bsks, ksks,
+          mem_ptr->prefix_sum_lut, count, mem_ptr->params.message_modulus);
+    }
   }
 
   integer_radix_apply_univariate_lookup_table<Torus>(

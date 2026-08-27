@@ -21,9 +21,16 @@ __host__ void host_integer_prepare_count_of_consecutive_bits(
     host_radix_blocks_reverse_inplace<Torus>(streams, tmp);
   }
 
-  host_compute_prefix_sum_hillis_steele<uint64_t>(
-      streams, ciphertext, tmp, mem_ptr->biv_lut_mem, bsks, ksks,
-      ciphertext->num_radix_blocks);
+  if (use_sklansky_prefix_network(ciphertext->num_radix_blocks)) {
+    host_compute_prefix_sum_sklansky<uint64_t>(
+        streams, ciphertext, tmp, mem_ptr->sk_lhs, mem_ptr->sk_rhs,
+        mem_ptr->biv_lut_mem, bsks, ksks, ciphertext->num_radix_blocks);
+  } else {
+    host_compute_prefix_sum_hillis_steele<uint64_t>(
+        streams, ciphertext, tmp, mem_ptr->biv_lut_mem, bsks, ksks,
+        ciphertext->num_radix_blocks);
+  }
+
 }
 
 template <typename Torus>

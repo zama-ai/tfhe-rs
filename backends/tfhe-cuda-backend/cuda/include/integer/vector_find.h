@@ -1237,6 +1237,9 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
 
   /// The one-hot mask, later trimmed to keep only the first match.
   CudaRadixCiphertextFFI packed_selectors;
+  /// Staging for the Sklansky network's gathered operands.
+  CudaRadixCiphertextFFI sk_lhs;
+  CudaRadixCiphertextFFI sk_rhs;
   /// Per-element single-block views into the packed mask.
   std::vector<CudaRadixCiphertextFFI> unpacked_selectors;
   /// One materialized index per element, masked, before the aggregation.
@@ -1283,6 +1286,13 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
         streams.stream(0), streams.gpu_index(0), &this->packed_selectors,
         num_inputs, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
+
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), &this->sk_lhs, num_inputs,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), &this->sk_rhs, num_inputs,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
     this->unpacked_selectors.resize(num_inputs);
     for (uint32_t i = 0; i < num_inputs; i++) {
@@ -1375,6 +1385,11 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
                                    &this->packed_selectors,
                                    this->allocate_gpu_memory);
 
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   &this->sk_lhs, this->allocate_gpu_memory);
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   &this->sk_rhs, this->allocate_gpu_memory);
+
     for (uint32_t i = 0; i < num_inputs; i++) {
       release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                      &this->possible_results_ct_list[i],
@@ -1412,6 +1427,9 @@ template <typename Torus> struct int_unchecked_first_index_of_buffer {
 
   /// The one-hot mask, later trimmed to keep only the first match.
   CudaRadixCiphertextFFI packed_selectors;
+  /// Staging for the Sklansky network's gathered operands.
+  CudaRadixCiphertextFFI sk_lhs;
+  CudaRadixCiphertextFFI sk_rhs;
   /// Per-element single-block views into the packed mask.
   std::vector<CudaRadixCiphertextFFI> unpacked_selectors;
   /// One materialized index per element, masked, before the aggregation.
@@ -1456,6 +1474,13 @@ template <typename Torus> struct int_unchecked_first_index_of_buffer {
         streams.stream(0), streams.gpu_index(0), &this->packed_selectors,
         num_inputs, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
+
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), &this->sk_lhs, num_inputs,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), &this->sk_rhs, num_inputs,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
     this->unpacked_selectors.resize(num_inputs);
     for (uint32_t i = 0; i < num_inputs; i++) {
@@ -1538,6 +1563,11 @@ template <typename Torus> struct int_unchecked_first_index_of_buffer {
     release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                    &this->packed_selectors,
                                    this->allocate_gpu_memory);
+
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   &this->sk_lhs, this->allocate_gpu_memory);
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   &this->sk_rhs, this->allocate_gpu_memory);
 
     for (uint32_t i = 0; i < num_inputs; i++) {
       release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),

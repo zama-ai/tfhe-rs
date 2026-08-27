@@ -1774,6 +1774,9 @@ template <typename Torus> struct int_seq_group_prop_memory {
 template <typename Torus> struct int_hs_group_prop_memory {
 
   int_radix_lut<Torus> *lut_hillis_steele;
+  // Staging for the Sklansky network's gathered operands.
+  CudaRadixCiphertextFFI *sk_lhs;
+  CudaRadixCiphertextFFI *sk_rhs;
   bool gpu_memory_allocated;
 
   int_hs_group_prop_memory(CudaStreams streams, int_radix_params params,
@@ -1803,11 +1806,26 @@ template <typename Torus> struct int_hs_group_prop_memory {
         streams.active_gpu_subset(num_groups, params.pbs_type);
     lut_hillis_steele->generate_and_broadcast_bivariate_lut(
         active_streams, {0}, {f_lut_hillis_steele}, LUT_0_FOR_ALL_BLOCKS);
+
+    sk_lhs = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), sk_lhs, num_groups,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    sk_rhs = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), sk_rhs, num_groups,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
   }
   void release(CudaStreams streams) {
 
     lut_hillis_steele->release(streams);
     delete lut_hillis_steele;
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   sk_lhs, gpu_memory_allocated);
+    delete sk_lhs;
+    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                   sk_rhs, gpu_memory_allocated);
+    delete sk_rhs;
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
