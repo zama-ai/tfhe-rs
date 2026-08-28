@@ -18,6 +18,19 @@ __device__ void copy_polynomial(const T *__restrict__ source, T *dst) {
     tid = tid + block_size;
   }
 }
+// copy_polynomial with the unroll capped. A full unroll inflates the live
+// range,
+// which costs in kernels that are already spilling; measured 1.4% latency and
+// 2.9% throughput on the single-iteration TBC 128-bit PBS.
+template <typename T, int elems_per_thread, int block_size>
+__device__ void copy_polynomial_rolled(const T *__restrict__ source, T *dst) {
+  int tid = threadIdx.x;
+#pragma unroll 2
+  for (int i = 0; i < elems_per_thread; i++) {
+    dst[tid] = source[tid];
+    tid = tid + block_size;
+  }
+}
 template <typename T, int elems_per_thread, int block_size>
 __device__ void copy_polynomial_in_regs(const T *__restrict__ source, T *dst) {
 #pragma unroll
