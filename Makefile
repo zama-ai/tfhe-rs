@@ -1041,6 +1041,18 @@ test_gpu_racecheck: install_cargo_nextest
 	SANITIZER_GTEST_EXE="$(CURDIR)/$(TFHECUDA_BUILD)/tests_and_benchmarks/tests/test_tfhe_cuda_backend" \
 		scripts/check_memory_errors.sh --racecheck
 
+# The relaxed flavor is opted into process-wide, and the 128-bit PBS panics on any
+# shape other than the noise-squashing one, so the filter is narrowed to the single
+# classical PBS128 test instead of the default racecheck set. Needs an sm_90 GPU.
+.PHONY: test_gpu_racecheck_relaxed_pbs128 # Run compute-sanitizer racecheck on the 128-bit PBS with the relaxed (host-driven TBC) flavor
+test_gpu_racecheck_relaxed_pbs128: install_cargo_nextest
+	export RUSTFLAGS="-C target-cpu=x86-64" && \
+	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
+	export TFHE_RS_GPU_PBS128_RELAXED=1 && \
+	export SANITIZER_TEST_FILTER_GPU_RACECHECK='test_bootstrap_u128_with_squashing' && \
+	export SANITIZER_TEST_EXCLUDES_GPU_RACECHECK='' && \
+		scripts/check_memory_errors.sh --racecheck
+
 .PHONY: test_zk_pok_gpu_sanitizer # Run compute-sanitizer memcheck on Rust zk-pok GPU tests
 test_zk_pok_gpu_sanitizer: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
@@ -1408,6 +1420,12 @@ test_high_level_api_gpu: install_cargo_nextest # Run all the GPU tests for high_
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
 		-E "test(/high_level_api::.*gpu.*/) and not test(/long_run/)"
+
+.PHONY: test_high_level_api_noise_squash_relaxed_pbs128_gpu # Run the GPU noise squashing tests of high_level_api with the experimental relaxed 128-bit PBS
+test_high_level_api_noise_squash_relaxed_pbs128_gpu: install_cargo_nextest
+	TFHE_RS_GPU_PBS128_RELAXED=1 RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
+		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
+		-E "test(/high_level_api::tests::noise_squashing::.*gpu.*/)"
 
 .PHONY: test_high_level_api_fake_multi_gpu
 test_high_level_api_fake_multi_gpu: install_cargo_nextest

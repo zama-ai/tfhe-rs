@@ -427,6 +427,18 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>
           global_join_buffer_size, stream, gpu_index, size_tracker,
           allocate_gpu_memory);
     } break;
+    case PBS_VARIANT::TBC_HOST_DRIVEN: {
+      // One blind-rotation iteration per launch, all levels in shared memory:
+      // no device scratch and no join buffer. release() skips null pointers.
+      d_mem = nullptr;
+      global_join_buffer = nullptr;
+
+      global_accumulator = (__uint128_t *)cuda_malloc_with_size_tracking_async(
+          safe_mul_sizeof<__uint128_t>((size_t)(glwe_dimension + 1),
+                                       (size_t)input_lwe_ciphertext_count,
+                                       (size_t)polynomial_size),
+          stream, gpu_index, size_tracker, allocate_gpu_memory);
+    } break;
 #endif
     default:
       PANIC("Cuda error (PBS): unsupported implementation variant.")
@@ -439,7 +451,7 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>
     cuda_drop_with_size_tracking_async(global_join_buffer, stream, gpu_index,
                                        gpu_memory_allocated);
 
-    if (pbs_variant == DEFAULT)
+    if (pbs_variant == DEFAULT || pbs_variant == TBC_HOST_DRIVEN)
       cuda_drop_with_size_tracking_async(global_accumulator, stream, gpu_index,
                                          gpu_memory_allocated);
     cuda_synchronize_stream(stream, gpu_index);

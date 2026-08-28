@@ -165,6 +165,7 @@ jobs:
           run_racecheck() {
             local rc=0
             CUDA_VISIBLE_DEVICES=1 make test_gpu_racecheck || rc=$?
+            CUDA_VISIBLE_DEVICES=1 make test_gpu_racecheck_relaxed_pbs128 || rc=$?
             echo "${rc}" > /tmp/racecheck.rc
           }
           run_memcheck 2>&1 | sed -u 's/^/[memcheck]  /' &
