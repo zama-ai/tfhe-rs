@@ -29,6 +29,34 @@ using Index = unsigned;
   dt_im_hi[ind] = f128x2_reg.im.hi;                                            \
   dt_im_lo[ind] = f128x2_reg.im.lo
 
+// The relaxed transforms enter and leave in the paired layout, where thread t
+// owns the adjacent coefficients 2t and 2t + 1. Writing that as eight 8-byte
+// accesses
+// puts thread t at byte 16t, which is a 4-way shared-memory bank conflict; the
+// two coefficients are adjacent, so each plane becomes one 16-byte access
+// instead. Same bytes, same values, half the instructions, conflict free.
+#define F128x2_PAIR_TO_F64x4(lo_reg, hi_reg, pair_ind)                         \
+  *(double2 *)&dt_re_hi[pair_ind] = make_double2(lo_reg.re.hi, hi_reg.re.hi);  \
+  *(double2 *)&dt_re_lo[pair_ind] = make_double2(lo_reg.re.lo, hi_reg.re.lo);  \
+  *(double2 *)&dt_im_hi[pair_ind] = make_double2(lo_reg.im.hi, hi_reg.im.hi);  \
+  *(double2 *)&dt_im_lo[pair_ind] = make_double2(lo_reg.im.lo, hi_reg.im.lo)
+
+#define F64x4_TO_F128x2_PAIR(lo_reg, hi_reg, pair_ind)                         \
+  {                                                                            \
+    double2 t_re_hi = *(const double2 *)&dt_re_hi[pair_ind];                   \
+    double2 t_re_lo = *(const double2 *)&dt_re_lo[pair_ind];                   \
+    double2 t_im_hi = *(const double2 *)&dt_im_hi[pair_ind];                   \
+    double2 t_im_lo = *(const double2 *)&dt_im_lo[pair_ind];                   \
+    lo_reg.re.hi = t_re_hi.x;                                                  \
+    hi_reg.re.hi = t_re_hi.y;                                                  \
+    lo_reg.re.lo = t_re_lo.x;                                                  \
+    hi_reg.re.lo = t_re_lo.y;                                                  \
+    lo_reg.im.hi = t_im_hi.x;                                                  \
+    hi_reg.im.hi = t_im_hi.y;                                                  \
+    lo_reg.im.lo = t_im_lo.x;                                                  \
+    hi_reg.im.lo = t_im_lo.y;                                                  \
+  }
+
 template <class params>
 __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
                                             double *dt_im_hi,
@@ -988,6 +1016,323 @@ __host__ void host_fourier_transform_backward_as_torus_f128(
   cuda_drop_async(d_re1, stream, gpu_index);
   cuda_drop_async(d_im0, stream, gpu_index);
   cuda_drop_async(d_im1, stream, gpu_index);
+}
+
+// ----------------------------------------------------------------------------
+// The transforms the single-iteration TBC flavor uses.
+//
+// Same radix-2 structure and the same 5/6 shuffle/shared split as
+// negacyclic_{forward,backward}_fft_f128_tbc, with two differences:
+//   * the butterfly is fused (f128::cplx_f128_relaxed_{i,}butterfly_assign)
+//     instead of a
+//     multiply followed by an add and a sub, and it leaves its four outputs
+//     un-normalized -- 64 operations against 82;
+//   * entry and exit use the paired 16-byte accesses above.
+// Both change results bit-for-bit, which is why these are separate functions
+// rather than a switch inside the existing ones.
+// ----------------------------------------------------------------------------
+
+// Carries no entry or exit barrier: callers transform several independent
+// buffers back to back, so bracketing the whole run once is enough. The caller
+// must sync between filling these buffers and the first call, and between the
+// last call and any cross-thread read of the results.
+template <class params>
+__device__ void
+negacyclic_forward_fft_f128_relaxed(double *dt_re_hi, double *dt_re_lo,
+                                    double *dt_im_hi, double *dt_im_lo) {
+  constexpr Index BUTTERFLY_DEPTH = params::opt >> 1;
+  constexpr Index LOG2_DEGREE = params::log2_degree;
+  constexpr Index HALF_DEGREE = params::degree >> 1;
+  constexpr Index STRIDE = params::degree / params::opt;
+
+  f128x2 u[BUTTERFLY_DEPTH], v[BUTTERFLY_DEPTH], w;
+
+  Index tid = threadIdx.x;
+
+  // load into registers
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    F64x4_TO_F128x2(u[i], tid);
+    F64x4_TO_F128x2(v[i], tid + HALF_DEGREE);
+    tid += STRIDE;
+  }
+
+  // level 1
+  // we don't make actual complex multiplication on level1 since we have only
+  // one twiddle, it's real and image parts are equal, so we can multiply
+  // it with simpler operations
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    w = NEG_TWID(1);
+    f128::cplx_f128_relaxed_butterfly_assign(u[i].re, u[i].im, v[i].re, v[i].im,
+                                             w.re, w.im);
+  }
+
+  Index twiddle_shift = 1;
+  // Part 1: Levels LOG2_DEGREE-1 down to 5 using shared memory and
+  // __syncthreads()
+  // The shared-memory exchange is only needed once a level's partner leaves the
+  // warp. lane_mask is 1 << (l - 1), so level 5 pairs tid with tid ^ 16, still
+  // inside the same 32 lanes - and (tid ^ 16) % 32 == (tid % 32) ^ 16, so a
+  // shuffle reaches exactly the same partner without shared memory or a
+  // block-wide barrier. Level 6's mask of 32 does cross warps, so 5/6 is the
+  // right split rather than 4/5. This converts one level per transform, four
+  // per blind-rotation iteration in the single-iteration TBC kernel. Barrier
+  // stalls are 17.7% of issue cycles at saturation, second only to the FP64
+  // pipe.
+  for (Index l = LOG2_DEGREE - 1; l >= 6; --l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    twiddle_shift <<= 1;
+
+    tid = threadIdx.x;
+    __syncthreads();
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      if (u_stays_in_register) {
+        F128x2_TO_F64x4(v[i], tid);
+      } else {
+        F128x2_TO_F64x4(u[i], tid);
+      }
+      tid = tid + STRIDE;
+    }
+    __syncthreads();
+
+    tid = threadIdx.x;
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      F64x4_TO_F128x2(w, tid ^ lane_mask);
+      if (u_stays_in_register) {
+        v[i] = w;
+      } else {
+        u[i] = w;
+      }
+      w = NEG_TWID(tid / lane_mask + twiddle_shift);
+      f128::cplx_f128_relaxed_butterfly_assign(u[i].re, u[i].im, v[i].re,
+                                               v[i].im, w.re, w.im);
+      tid = tid + STRIDE;
+    }
+  }
+
+  // Part 2: Levels 4 down to 1 using warp shuffles and __syncwarp()
+  for (Index l = 5; l >= 1; --l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    twiddle_shift <<= 1;
+
+    tid = threadIdx.x;
+    __syncwarp();
+    f128x2 reg_A[BUTTERFLY_DEPTH];
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      if (u_stays_in_register) {
+        reg_A[i] = v[i];
+      } else {
+        reg_A[i] = u[i];
+      }
+      tid = tid + STRIDE;
+    }
+    __syncwarp();
+
+    tid = threadIdx.x;
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      w = shfl_xor_f128x2(reg_A[i], 1 << (l - 1), 0xFFFFFFFF);
+      if (u_stays_in_register) {
+        v[i] = w;
+      } else {
+        u[i] = w;
+      }
+      w = NEG_TWID(tid / lane_mask + twiddle_shift);
+      f128::cplx_f128_relaxed_butterfly_assign(u[i].re, u[i].im, v[i].re,
+                                               v[i].im, w.re, w.im);
+      tid = tid + STRIDE;
+    }
+  }
+
+  //   store registers in SM
+  tid = threadIdx.x;
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+    F128x2_PAIR_TO_F64x4(u[i], v[i], tid * 2);
+    tid = tid + STRIDE;
+  }
+}
+
+// Takes its input in registers rather than from the buffer: the caller's
+// accumulator already holds the pair this thread would have read back, so the
+// store-and-reload and the entry barrier both disappear.
+//
+// Levels 1..5 touch no shared memory, so the cluster barrier that frees the
+// buffers is taken in the MIDDLE of the transform, once those levels are done
+// and just before the shared stages overwrite them. The peers' reads overlap
+// the register levels instead of stalling ahead of them.
+//
+// The caller must not write any level before this returns -- the barrier that
+// makes them free to overwrite lives inside.
+template <typename G, class params>
+__device__ void negacyclic_backward_fft_f128_relaxed(
+    double *dt_re_hi, double *dt_re_lo, double *dt_im_hi, double *dt_im_lo,
+    double2 acc_re_hi, double2 acc_re_lo, double2 acc_im_hi, double2 acc_im_lo,
+    G &group) {
+  constexpr Index BUTTERFLY_DEPTH = params::opt >> 1;
+  constexpr Index LOG2_DEGREE = params::log2_degree;
+  constexpr Index DEGREE = params::degree;
+  constexpr Index HALF_DEGREE = params::degree >> 1;
+  constexpr Index STRIDE = params::degree / params::opt;
+  static_assert(params::opt == 2,
+                "one complex pair per thread: the accumulator holds exactly "
+                "u[0] and v[0]");
+
+  size_t tid = threadIdx.x;
+  f128x2 u[BUTTERFLY_DEPTH], v[BUTTERFLY_DEPTH], w;
+
+  // The pair at 2*threadIdx.x, straight from the caller's accumulator.
+  u[0].re.hi = acc_re_hi.x;
+  v[0].re.hi = acc_re_hi.y;
+  u[0].re.lo = acc_re_lo.x;
+  v[0].re.lo = acc_re_lo.y;
+  u[0].im.hi = acc_im_hi.x;
+  v[0].im.hi = acc_im_hi.y;
+  u[0].im.lo = acc_im_lo.x;
+  v[0].im.lo = acc_im_lo.y;
+
+  Index twiddle_shift = DEGREE;
+  // Part 1: Levels 1 to 4 using warp shuffles and __syncwarp()
+  // The shared-memory exchange is only needed once a level's partner leaves the
+  // warp. lane_mask is 1 << (l - 1), so level 5 pairs tid with tid ^ 16, still
+  // inside the same 32 lanes - and (tid ^ 16) % 32 == (tid % 32) ^ 16, so a
+  // shuffle reaches exactly the same partner without shared memory or a
+  // block-wide barrier. Level 6's mask of 32 does cross warps, so 5/6 is the
+  // right split rather than 4/5. This converts one level per transform, four
+  // per blind-rotation iteration in the single-iteration TBC kernel. Barrier
+  // stalls are 17.7% of issue cycles at saturation, second only to the FP64
+  // pipe.
+  for (Index l = 1; l <= 5; ++l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    tid = threadIdx.x;
+    twiddle_shift >>= 1;
+
+    // at this point registers are ready for the butterfly
+    tid = threadIdx.x;
+    __syncwarp();
+    f128x2 reg_A[BUTTERFLY_DEPTH];
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      w = NEG_TWID(tid / lane_mask + twiddle_shift).conjugate();
+      f128::cplx_f128_relaxed_ibutterfly_assign(u[i].re, u[i].im, v[i].re,
+                                                v[i].im, w.re, w.im);
+
+      // keep one of the register for next iteration and store another one in
+      // register
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      if (u_stays_in_register) {
+        reg_A[i] = v[i];
+      } else {
+        reg_A[i] = u[i];
+      }
+
+      tid = tid + STRIDE;
+    }
+    __syncwarp();
+
+    // prepare registers for next butterfly iteration
+    tid = threadIdx.x;
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      w = shfl_xor_f128x2(reg_A[i], 1 << (l - 1), 0xFFFFFFFF);
+
+      if (u_stays_in_register) {
+        v[i] = w;
+      } else {
+        u[i] = w;
+      }
+
+      tid = tid + STRIDE;
+    }
+  }
+
+  // Every peer has finished reading the published levels; the buffers are free
+  // to overwrite from here on. Taken now rather than before the transform so
+  // the register levels above run while the peers are still reading.
+  group.sync();
+
+  // Part 2: Levels 5 to LOG2_DEGREE-1 using shared memory and __syncthreads()
+  for (Index l = 6; l <= LOG2_DEGREE - 1; ++l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    tid = threadIdx.x;
+    twiddle_shift >>= 1;
+
+    // at this point registers are ready for the  butterfly
+    tid = threadIdx.x;
+    __syncthreads();
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      w = NEG_TWID(tid / lane_mask + twiddle_shift).conjugate();
+      f128::cplx_f128_relaxed_ibutterfly_assign(u[i].re, u[i].im, v[i].re,
+                                                v[i].im, w.re, w.im);
+
+      // keep one of the register for next iteration and store another one in sm
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      if (u_stays_in_register) {
+        F128x2_TO_F64x4(v[i], tid);
+      } else {
+        F128x2_TO_F64x4(u[i], tid);
+      }
+
+      tid = tid + STRIDE;
+    }
+    __syncthreads();
+
+    // prepare registers for next butterfly iteration
+    tid = threadIdx.x;
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      F64x4_TO_F128x2(w, tid ^ lane_mask);
+
+      if (u_stays_in_register) {
+        v[i] = w;
+      } else {
+        u[i] = w;
+      }
+
+      tid = tid + STRIDE;
+    }
+  }
+
+  // last iteration
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    w = NEG_TWID(1).conjugate();
+    f128::cplx_f128_relaxed_ibutterfly_assign(u[i].re, u[i].im, v[i].re,
+                                              v[i].im, w.re, w.im);
+  }
+  __syncthreads();
+  // store registers in SM
+  tid = threadIdx.x;
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+    F128x2_TO_F64x4(u[i], tid);
+    F128x2_TO_F64x4(v[i], tid + HALF_DEGREE);
+
+    tid = tid + STRIDE;
+  }
+  __syncthreads();
 }
 
 #undef NEG_TWID

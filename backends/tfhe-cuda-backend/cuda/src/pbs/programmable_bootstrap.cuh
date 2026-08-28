@@ -208,6 +208,103 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_128_tbc(
   __syncthreads();
 }
 
+// Counterpart of mul_ggsw_glwe_in_fourier_domain_128_tbc for the
+// single-iteration TBC flavor, where every block owns all level_count levels
+// instead of one.
+//
+// Each block published its levels to shared memory, so the products are read
+// straight from the peers' buffers and no join buffer is needed. The running
+// sum stays in registers and is written back to level 0 only once every peer
+// has finished reading.
+//
+// The products are split around the cluster barrier: the ones reading this
+// block's own levels do not need it, so they run first and their global
+// bootstrapping-key loads overlap the wait for the peers.
+//
+// MEASURED: feeding those own-block products straight from the transform's
+// output registers, to skip re-reading shared memory, costs more than it saves.
+// It keeps the accumulator live across the transforms, and at the REG:64
+// ceiling this kernel runs under that puts 32 B/thread of spill on the hot
+// instantiation where there was none -- +1.0% latency.
+//
+// `fft` points at level 0.
+template <typename G, class params, uint32_t level_count,
+          uint32_t glwe_dimension>
+__device__ void mul_ggsw_glwe_in_fourier_domain_128_single_iteration_tbc(
+    double2 &acc_re_hi, double2 &acc_re_lo, double2 &acc_im_hi,
+    double2 &acc_im_lo, double *fft,
+    const double *__restrict__ bootstrapping_key, int iteration, G &group,
+    int this_block_rank) {
+  constexpr int half_degree = params::degree / 2;
+  constexpr int fourier_poly_size = half_degree * 4;
+
+  acc_re_hi = make_double2(0.0, 0.0);
+  acc_re_lo = make_double2(0.0, 0.0);
+  acc_im_hi = make_double2(0.0, 0.0);
+  acc_im_lo = make_double2(0.0, 0.0);
+
+  // Phase 1 -- the products that read this block's OWN levels. j == 0 maps to
+  // idx == this_block_rank at every level, so these depend only on the block's
+  // own levels being published, which is the caller's __syncthreads(), not the
+  // cluster barrier. Running them first puts their bootstrapping-key loads in
+  // flight while the peers are still finishing their transforms.
+  //
+  // The first opens the accumulator lanes: with dst_hi == dst_lo == 0 the
+  // running-sum TwoSum provably computes zero, so the opening form is 4
+  // operations instead of 13, bit-for-bit identically.
+  {
+    auto bsk_slice = get_ith_mask_kth_block_128(
+        bootstrapping_key, iteration, this_block_rank, 0, params::degree,
+        glwe_dimension, level_count);
+    auto bsk_poly = bsk_slice + (ptrdiff_t)this_block_rank * fourier_poly_size;
+    polynomial_product_accumulate_in_fourier_domain_128_pairs_relaxed<
+        params, /*opening=*/true, /*first_is_shared=*/true>(
+        acc_re_hi, acc_re_lo, acc_im_hi, acc_im_lo, fft, bsk_poly);
+  }
+  // Rolled: with the register accumulator live, unrolling costs more in
+  // register pressure than it returns.
+#pragma unroll 1
+  for (uint32_t l = 1; l < level_count; l++) {
+    auto bsk_slice = get_ith_mask_kth_block_128(
+        bootstrapping_key, iteration, this_block_rank, l, params::degree,
+        glwe_dimension, level_count);
+    auto bsk_poly = bsk_slice + (ptrdiff_t)this_block_rank * fourier_poly_size;
+    polynomial_product_accumulate_in_fourier_domain_128_pairs_relaxed<
+        params, /*opening=*/false, /*first_is_shared=*/true>(
+        acc_re_hi, acc_re_lo, acc_im_hi, acc_im_lo,
+        fft + (ptrdiff_t)l * fourier_poly_size, bsk_poly);
+  }
+
+  // Every block has published all its levels; the peers' buffers are readable.
+  group.sync();
+
+  // Phase 2 -- the remaining products, reading the peers' shared memory.
+#pragma unroll 1
+  for (uint32_t l = 0; l < level_count; l++) {
+#pragma unroll 1
+    for (uint32_t j = 1; j < glwe_dimension + 1; j++) {
+      // Start from the row after our own so the blocks do not all hit the same
+      // peer at once.
+      const uint32_t idx = (j + this_block_rank) % (glwe_dimension + 1);
+      const double *peer =
+          group.map_shared_rank(fft + (ptrdiff_t)l * fourier_poly_size, idx);
+      auto bsk_slice = get_ith_mask_kth_block_128(bootstrapping_key, iteration,
+                                                  idx, l, params::degree,
+                                                  glwe_dimension, level_count);
+      auto bsk_poly =
+          bsk_slice + (ptrdiff_t)this_block_rank * fourier_poly_size;
+      polynomial_product_accumulate_in_fourier_domain_128_pairs_relaxed<
+          params, /*opening=*/false, /*first_is_shared=*/true>(
+          acc_re_hi, acc_re_lo, acc_im_hi, acc_im_lo, peer, bsk_poly);
+    }
+  }
+  finalize_relaxed_fp128_pair(acc_re_hi, acc_re_lo);
+  finalize_relaxed_fp128_pair(acc_im_hi, acc_im_lo);
+
+  // The result stays in the caller's registers: the inverse transform consumes
+  // it directly, and takes the barrier that frees the buffers itself.
+}
+
 /** Perform the matrix multiplication between the GGSW and the GLWE,
  * each block operating on a single level for mask and body.
  * Both operands should be at fourier domain

@@ -166,6 +166,32 @@ void executor_cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_128(
           "Supported N for tbc is only 2048.")
   }
 }
+
+// The single-iteration TBC flavor is specialized for the noise-squashing shape
+// only.
+template <typename InputTorus>
+void executor_cuda_programmable_bootstrap_single_iteration_tbc_lwe_ciphertext_vector_128(
+    void *stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
+    __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
+    double const *bootstrapping_key,
+    pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> *buffer,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
+
+  switch (polynomial_size) {
+  case 2048:
+    host_programmable_bootstrap_single_iteration_tbc_128<InputTorus,
+                                                         Degree<2048>>(
+        static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
+        lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
+        polynomial_size, base_log, level_count, num_samples);
+    break;
+  default:
+    PANIC("Cuda error (classical PBS128 single-iteration TBC): unsupported "
+          "polynomial "
+          "size. Supported N for the single-iteration TBC flavor is only 2048.")
+  }
+}
 #endif
 template <typename InputTorus>
 void host_programmable_bootstrap_lwe_ciphertext_vector_128(
@@ -197,6 +223,14 @@ void host_programmable_bootstrap_lwe_ciphertext_vector_128(
 #if CUDA_ARCH >= 900
   case TBC:
     executor_cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_128<
+        InputTorus>(
+        stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
+        lut_vector, static_cast<InputTorus const *>(lwe_array_in),
+        static_cast<const double *>(bootstrapping_key), buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, base_log, level_count, num_samples);
+    break;
+  case TBC_SINGLE_ITERATION:
+    executor_cuda_programmable_bootstrap_single_iteration_tbc_lwe_ciphertext_vector_128<
         InputTorus>(
         stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
         lut_vector, static_cast<InputTorus const *>(lwe_array_in),

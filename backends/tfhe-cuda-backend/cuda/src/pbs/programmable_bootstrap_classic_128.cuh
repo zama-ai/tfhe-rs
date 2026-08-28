@@ -930,6 +930,315 @@ supports_thread_block_clusters_on_classic_programmable_bootstrap_128(
 #endif
 }
 
+#if CUDA_ARCH >= 900
+// Single-iteration TBC flavor. Differs from
+// device_programmable_bootstrap_tbc_128
+// in three ways:
+//   * the blind-rotation loop runs on the host, one launch per iteration, so
+//     concurrent squashes interleave instead of each pinning a slice of the GPU
+//     for a whole rotation;
+//   * a cluster is (glwe_dimension + 1) blocks with no level dimension: every
+//     block decomposes all level_count levels and publishes them, so the GGSW
+//     terms come from the peers' shared memory and two cluster barriers
+//     suffice;
+//   * the accumulator stays in registers, which is what lets the three
+//     published buffers fit in 96 KB at two blocks per SM.
+
+template <typename InputTorus, class params, bool first_iter, bool last_iter,
+          uint32_t base_log, uint32_t level_count, uint32_t glwe_dimension>
+__global__ void __launch_bounds__(params::degree / params::opt, 2)
+    device_programmable_bootstrap_single_iteration_tbc_128(
+        __uint128_t *lwe_array_out, const __uint128_t *__restrict__ lut_vector,
+        const InputTorus *__restrict__ lwe_array_in,
+        const double *__restrict__ bootstrapping_key,
+        __uint128_t *global_accumulator, uint32_t lwe_iteration,
+        uint32_t lwe_dimension, PBS_MS_REDUCTION_T noise_reduction_type) {
+  constexpr int half_degree = params::degree / 2;
+  constexpr int fourier_poly_size = half_degree * 4;
+  constexpr int stride = params::degree / params::opt;
+  constexpr auto log_modulus = params::log2_degree + 1;
+
+  cluster_group cluster = this_cluster();
+  const int this_block_rank = cluster.block_index().y;
+
+  // level_count Fourier buffers followed by the modulus-switch scratch. Level 0
+  // doubles as the torus accumulator: the rotation reads it before any level
+  // overwrites it.
+  extern __shared__ int8_t sharedmem[];
+  double *accumulator_fft = (double *)sharedmem;
+  __uint128_t *accumulator = (__uint128_t *)sharedmem;
+  InputTorus *ms_scratch =
+      (InputTorus *)(sharedmem + (ptrdiff_t)level_count * fourier_poly_size *
+                                     sizeof(double));
+
+  const InputTorus *block_lwe_array_in =
+      &lwe_array_in[blockIdx.x * (lwe_dimension + 1)];
+  __uint128_t *global_slice =
+      global_accumulator +
+      (blockIdx.y + blockIdx.x * (glwe_dimension + 1)) * params::degree;
+
+  // Put "a" in [0, 2N[
+  InputTorus a_hat = 0;
+  modulus_switch<InputTorus>(block_lwe_array_in[lwe_iteration], a_hat,
+                             log_modulus);
+
+  if (first_iter) {
+    // Put "b" in [0, 2N[ and rotate the LUT into the accumulator.
+    InputTorus b_hat = 0;
+    InputTorus correction = 0;
+    if (noise_reduction_type == PBS_MS_REDUCTION_T::CENTERED) {
+      correction =
+          centered_binary_modulus_switch_body_correction_to_add_cooperative<
+              InputTorus, stride / 32>(block_lwe_array_in, lwe_dimension,
+                                       log_modulus, ms_scratch);
+    }
+    modulus_switch(block_lwe_array_in[lwe_dimension] + correction, b_hat,
+                   log_modulus);
+    divide_by_monomial_negacyclic_inplace<__uint128_t, params::opt, stride>(
+        accumulator, &lut_vector[blockIdx.y * params::degree], b_hat, false);
+    // The decompositions overwrite this buffer; the next launch reads it back.
+    copy_polynomial_rolled<__uint128_t, params::opt, stride>(accumulator,
+                                                             global_slice);
+  } else {
+    copy_polynomial_rolled<__uint128_t, params::opt, stride>(global_slice,
+                                                             accumulator);
+  }
+  __syncthreads();
+
+  // Perform ACC * (X^a_hat - 1), round, and decompose every level.
+  rotate_and_decompose_all_levels_128<__uint128_t, params, base_log,
+                                      level_count>(accumulator_fft, accumulator,
+                                                   (uint32_t)a_hat);
+
+  // The relaxed fft version doesn't sync at enter nor exit to allow some
+  // overlapping between the levels.
+  __syncthreads();
+#pragma unroll 1
+  for (uint32_t l = 0; l < level_count; l++) {
+    double *level = get_current_fft_level<params>(accumulator_fft, l);
+    negacyclic_forward_fft_f128_relaxed<HalfDegree<params>>(
+        level + 0 * half_degree, level + 1 * half_degree,
+        level + 2 * half_degree, level + 3 * half_degree);
+  }
+  __syncthreads();
+
+  // Perform G^-1(ACC) * GGSW -> GLWE, reading the peers' published levels. The
+  // result comes back in registers.
+  double2 acc_re_hi, acc_re_lo, acc_im_hi, acc_im_lo;
+  mul_ggsw_glwe_in_fourier_domain_128_single_iteration_tbc<
+      cluster_group, params, level_count, glwe_dimension>(
+      acc_re_hi, acc_re_lo, acc_im_hi, acc_im_lo, accumulator_fft,
+      bootstrapping_key, lwe_iteration, cluster, this_block_rank);
+
+  // Consumes the accumulator straight from registers and takes the barrier that
+  // frees the published levels partway through, once its register-only levels
+  // are done.
+  // The relaxed ifft does a cluster sync before using the shared mem.
+  negacyclic_backward_fft_f128_relaxed<cluster_group, HalfDegree<params>>(
+      accumulator_fft + 0 * half_degree, accumulator_fft + 1 * half_degree,
+      accumulator_fft + 2 * half_degree, accumulator_fft + 3 * half_degree,
+      acc_re_hi, acc_re_lo, acc_im_hi, acc_im_lo, cluster);
+
+  // Level 1 is only free after that barrier, so the torus accumulator is loaded
+  // here rather than alongside the transform.
+  __uint128_t *torus =
+      (__uint128_t *)get_current_fft_level<params>(accumulator_fft, 1);
+  // No barrier needed: the copy and add_to_torus_128 touch the same four
+  // positions in the same thread.
+  copy_polynomial_rolled<__uint128_t, params::opt, stride>(global_slice, torus);
+  add_to_torus_128<__uint128_t, params>(
+      accumulator_fft + 0 * half_degree, accumulator_fft + 1 * half_degree,
+      accumulator_fft + 2 * half_degree, accumulator_fft + 3 * half_degree,
+      torus);
+
+  if (last_iter) {
+    auto block_lwe_array_out =
+        &lwe_array_out[blockIdx.x * (glwe_dimension * params::degree + 1) +
+                       blockIdx.y * params::degree];
+    // Perform a sample extract
+    if (blockIdx.y < glwe_dimension) {
+      sample_extract_mask<__uint128_t, params>(block_lwe_array_out, torus);
+    } else if (blockIdx.y == glwe_dimension) {
+      __syncthreads();
+      sample_extract_body<__uint128_t, params>(block_lwe_array_out, torus, 0);
+    }
+  } else {
+    copy_polynomial<__uint128_t, params::opt, stride>(torus, global_slice);
+  }
+}
+
+template <class params, typename InputTorus>
+constexpr uint64_t get_buffer_size_single_iteration_tbc_128() {
+  // Three Fourier polynomials (the three published decomposition levels) plus
+  // two words per warp of scratch for the block-cooperative centered
+  // correction.
+  // 96 KB at the noise-squashing shape, which holds two blocks per SM AND stays
+  // under the ~99.3 KB shared-carveout cliff: the carveout is quantized, and
+  // crossing it drops L1 below the twiddle table's footprint, measured as a 20%
+  // throughput loss with occupancy unchanged.
+  return 3ul * (uint64_t)(params::degree / 2 * 4) * sizeof(double) +
+         2ul * (params::degree / params::opt / 32) * sizeof(InputTorus);
+}
+
+// Raises the shared-memory limit on one (first_iter, last_iter) instantiation.
+template <typename InputTorus, class params, bool first_iter, bool last_iter,
+          uint32_t base_log, uint32_t level_count, uint32_t glwe_dimension>
+__host__ void configure_one_single_iteration_tbc_128() {
+  check_cuda_error(cudaFuncSetAttribute(
+      device_programmable_bootstrap_single_iteration_tbc_128<
+          InputTorus, params, first_iter, last_iter, base_log, level_count,
+          glwe_dimension>,
+      cudaFuncAttributeMaxDynamicSharedMemorySize,
+      get_buffer_size_single_iteration_tbc_128<params, InputTorus>()));
+}
+
+template <typename InputTorus, class params, uint32_t base_log,
+          uint32_t level_count, uint32_t glwe_dimension>
+__host__ void configure_single_iteration_tbc_128() {
+  configure_one_single_iteration_tbc_128<
+      InputTorus, params, true, false, base_log, level_count, glwe_dimension>();
+  configure_one_single_iteration_tbc_128<InputTorus, params, false, false,
+                                         base_log, level_count,
+                                         glwe_dimension>();
+  configure_one_single_iteration_tbc_128<
+      InputTorus, params, false, true, base_log, level_count, glwe_dimension>();
+  configure_one_single_iteration_tbc_128<
+      InputTorus, params, true, true, base_log, level_count, glwe_dimension>();
+}
+
+template <typename InputTorus, class params, bool first_iter, bool last_iter,
+          uint32_t base_log, uint32_t level_count, uint32_t glwe_dimension>
+__host__ void execute_single_iteration_tbc_128(
+    cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
+    __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
+    double const *bootstrapping_key, __uint128_t *global_accumulator,
+    uint32_t input_lwe_ciphertext_count, uint32_t lwe_dimension,
+    uint32_t lwe_iteration, PBS_MS_REDUCTION_T noise_reduction_type) {
+
+  auto kernel = device_programmable_bootstrap_single_iteration_tbc_128<
+      InputTorus, params, first_iter, last_iter, base_log, level_count,
+      glwe_dimension>;
+  constexpr uint64_t full_sm =
+      get_buffer_size_single_iteration_tbc_128<params, InputTorus>();
+
+  cudaLaunchConfig_t config = {0};
+  config.gridDim = dim3(input_lwe_ciphertext_count, glwe_dimension + 1, 1);
+  config.blockDim = params::degree / params::opt;
+  config.stream = stream;
+  config.dynamicSmemBytes = full_sm;
+
+  cudaLaunchAttribute attribute[2];
+  attribute[0].id = cudaLaunchAttributeClusterDimension;
+  attribute[0].val.clusterDim.x = 1;
+  attribute[0].val.clusterDim.y = glwe_dimension + 1;
+  attribute[0].val.clusterDim.z = 1;
+  attribute[1].id = cudaLaunchAttributeClusterSchedulingPolicyPreference;
+  attribute[1].val.clusterSchedulingPolicyPreference =
+      cudaClusterSchedulingPolicyLoadBalancing;
+  config.attrs = attribute;
+  config.numAttrs = 2;
+
+  check_cuda_error(
+      cudaLaunchKernelEx(&config, kernel, lwe_array_out, lut_vector,
+                         lwe_array_in, bootstrapping_key, global_accumulator,
+                         lwe_iteration, lwe_dimension, noise_reduction_type));
+}
+
+// One launch per blind-rotation iteration. Short launches let the concurrent
+// squashes of a throughput workload interleave freely instead of each pinning a
+// fixed slice of the GPU for the whole rotation; a single whole-rotation kernel
+// measured 1.4% better on latency and 4.0% worse on throughput.
+// Allocates the single-iteration TBC flavor's buffer and raises the
+// shared-memory limit on
+// all four (first_iter, last_iter) instantiations. Mirrors
+// scratch_programmable_bootstrap_tbc_128.
+template <typename InputTorus, typename params>
+__host__ uint64_t scratch_programmable_bootstrap_single_iteration_tbc_128(
+    cudaStream_t stream, uint32_t gpu_index,
+    pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> **buffer,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+
+  cuda_set_device(gpu_index);
+  configure_single_iteration_tbc_128<InputTorus, params, 24, 3, 2>();
+
+  uint64_t size_tracker = 0;
+  *buffer = new pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>(
+      stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
+      level_count, input_lwe_ciphertext_count,
+      PBS_VARIANT::TBC_SINGLE_ITERATION, allocate_gpu_memory,
+      noise_reduction_type, size_tracker);
+  return size_tracker;
+}
+
+template <typename InputTorus, class params>
+__host__ void host_programmable_bootstrap_single_iteration_tbc_128(
+    cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
+    __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
+    double const *bootstrapping_key,
+    pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> *buffer,
+    uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
+    uint32_t base_log_rt, uint32_t level_count_rt,
+    uint32_t input_lwe_ciphertext_count) {
+
+  // The flavor is compiled for exactly the noise-squashing shape: the GGSW
+  // product, the decomposition and the cluster geometry are all compile-time
+  // constants, and the three published Fourier buffers only fit in 96 KB at
+  // N = 2048.
+  constexpr uint32_t base_log = 24;
+  constexpr uint32_t level_count = 3;
+  constexpr uint32_t glwe_dimension_ct = 2;
+  PANIC_IF_FALSE(polynomial_size == 2048 && base_log_rt == base_log &&
+                     level_count_rt == level_count &&
+                     glwe_dimension == glwe_dimension_ct &&
+                     cuda_check_support_thread_block_clusters(),
+                 "Cuda error: the single-iteration TBC implementation of the "
+                 "128-bit "
+                 "programmable bootstrap only supports the noise-squashing "
+                 "parameters (N=2048, k=2, l=3, Bg=2^24) on a GPU with "
+                 "distributed shared memory.");
+
+  cuda_set_device(gpu_index);
+  auto noise_reduction_type = buffer->noise_reduction_type;
+  auto *global_accumulator = buffer->global_accumulator;
+  configure_single_iteration_tbc_128<InputTorus, params, base_log, level_count,
+                                     glwe_dimension_ct>();
+
+  for (uint32_t i = 0; i < lwe_dimension; i++) {
+    const bool is_first = (i == 0);
+    const bool is_last = (i == lwe_dimension - 1);
+    if (is_first && is_last)
+      execute_single_iteration_tbc_128<InputTorus, params, true, true, base_log,
+                                       level_count, glwe_dimension_ct>(
+          stream, gpu_index, lwe_array_out, lut_vector, lwe_array_in,
+          bootstrapping_key, global_accumulator, input_lwe_ciphertext_count,
+          lwe_dimension, i, noise_reduction_type);
+    else if (is_first)
+      execute_single_iteration_tbc_128<InputTorus, params, true, false,
+                                       base_log, level_count,
+                                       glwe_dimension_ct>(
+          stream, gpu_index, lwe_array_out, lut_vector, lwe_array_in,
+          bootstrapping_key, global_accumulator, input_lwe_ciphertext_count,
+          lwe_dimension, i, noise_reduction_type);
+    else if (is_last)
+      execute_single_iteration_tbc_128<InputTorus, params, false, true,
+                                       base_log, level_count,
+                                       glwe_dimension_ct>(
+          stream, gpu_index, lwe_array_out, lut_vector, lwe_array_in,
+          bootstrapping_key, global_accumulator, input_lwe_ciphertext_count,
+          lwe_dimension, i, noise_reduction_type);
+    else
+      execute_single_iteration_tbc_128<InputTorus, params, false, false,
+                                       base_log, level_count,
+                                       glwe_dimension_ct>(
+          stream, gpu_index, lwe_array_out, lut_vector, lwe_array_in,
+          bootstrapping_key, global_accumulator, input_lwe_ciphertext_count,
+          lwe_dimension, i, noise_reduction_type);
+  }
+}
+#endif
+
 template <typename InputTorus, typename params>
 __host__ uint64_t scratch_programmable_bootstrap_tbc_128(
     cudaStream_t stream, uint32_t gpu_index,
@@ -974,6 +1283,38 @@ __host__ uint64_t scratch_programmable_bootstrap_tbc_128(
  * the PBS on 128 bits inputs, into `buffer`. It also configures SM options on
  * the GPU in case FULLSM or PARTIALSM mode is going to be used.
  */
+// The single-iteration TBC flavor is compiled for exactly the noise-squashing
+// shape, and its three published Fourier buffers only fit two blocks per SM at
+// N = 2048. The cluster is (glwe_dimension + 1) = 3 blocks, inside the portable
+// limit of 8, so
+// unlike the tbc flavor it needs no non-portable cluster-size opt-in.
+#if CUDA_ARCH >= 900
+template <typename InputTorus, class params>
+__host__ bool
+has_support_to_cuda_programmable_bootstrap_single_iteration_tbc_128(
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t max_shared_memory) {
+  if (polynomial_size != 2048 || glwe_dimension != 2 || level_count != 3)
+    return false;
+  if (!cuda_check_support_thread_block_clusters())
+    return false;
+  return max_shared_memory >=
+         get_buffer_size_single_iteration_tbc_128<params, InputTorus>();
+}
+#else
+// Distributed shared memory is an sm_90 feature; without it the
+// single-iteration TBC flavor
+// is not compiled and can never be selected.
+template <typename InputTorus, class params>
+__host__ bool
+has_support_to_cuda_programmable_bootstrap_single_iteration_tbc_128(uint32_t,
+                                                                    uint32_t,
+                                                                    uint32_t,
+                                                                    uint32_t) {
+  return false;
+}
+#endif
+
 template <typename InputTorus>
 uint64_t scratch_cuda_programmable_bootstrap_128_vector(
     void *stream, uint32_t gpu_index,
@@ -985,10 +1326,24 @@ uint64_t scratch_cuda_programmable_bootstrap_128_vector(
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   auto buffer = (pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> **)pbs_buffer;
 
-  // The 128-bit classical PBS is the bootstrap used by noise squashing with
-  // classical parameters. Force the DEFAULT (step-one / step-two) variant here
-  // so that the noise squash always runs the step1/step2 implementation,
-  // bypassing the TBC and CG specializations.
+  // The single-iteration TBC flavor is the fastest path for the noise-squashing
+  // shape, so it is selected first where the hardware supports it. Everything
+  // below is the
+  // pre-existing fallback chain.
+#if CUDA_ARCH >= 900
+  if (has_support_to_cuda_programmable_bootstrap_single_iteration_tbc_128<
+          InputTorus, Degree<2048>>(glwe_dimension, polynomial_size,
+                                    level_count, max_shared_memory)) {
+    return scratch_programmable_bootstrap_single_iteration_tbc_128<
+        InputTorus, Degree<2048>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, level_count,
+        input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+  }
+#endif
+
+  // Otherwise the 128-bit classical PBS falls back to the DEFAULT (step-one /
+  // step-two) variant, bypassing the TBC and CG specializations.
   constexpr bool force_step_one_step_two = true;
 
   // TBC version is a specialized one, so we only care about 2048 polynomial
@@ -1462,6 +1817,7 @@ __host__ void host_programmable_bootstrap_tbc_128(
 
   check_cuda_error(cudaGetLastError());
 }
+
 #endif
 
 // Verify if the grid size satisfies the cooperative group constraints
