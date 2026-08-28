@@ -160,7 +160,8 @@ jobs:
             CUDA_VISIBLE_DEVICES=1 BIG_TESTS_INSTANCE=TRUE make test_user_doc_gpu &&
             CUDA_VISIBLE_DEVICES=1 BIG_TESTS_INSTANCE=TRUE make test_c_api_gpu &&
             CUDA_VISIBLE_DEVICES=1 BIG_TESTS_INSTANCE=TRUE make test_high_level_api_gpu &&
-            CUDA_VISIBLE_DEVICES=1 BIG_TESTS_INSTANCE=TRUE PROTOCOL_STRESS_TRANSACTIONS=1500 make test_protocol_stress_gpu || rc=$?
+            CUDA_VISIBLE_DEVICES=1 BIG_TESTS_INSTANCE=TRUE PROTOCOL_STRESS_TRANSACTIONS=1500 make test_protocol_stress_gpu &&
+            CUDA_VISIBLE_DEVICES=1 BIG_TESTS_INSTANCE=TRUE make test_high_level_api_noise_squash_relaxed_pbs128_gpu || rc=$?
             echo "${rc}" > /tmp/hlapi.rc
           }
           run_core 2>&1 | sed -u 's/^/[core]  /' &
