@@ -21,7 +21,6 @@ env:
 on:
   workflow_dispatch:
   pull_request:
-    types: [ labeled ]
 
 permissions:
   contents: read
