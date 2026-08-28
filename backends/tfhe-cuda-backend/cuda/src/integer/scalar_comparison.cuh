@@ -75,7 +75,7 @@ __host__ void scalar_compare_radix_blocks(
   // Add one
   // Here Lhs can have the following values: (-1) % (message modulus * carry
   // modulus), 0, 1 So the output values after the addition will be: 0, 1, 2
-  CudaRadixCiphertextFFI lwe_array_out_view;
+  CudaRadixCiphertext lwe_array_out_view;
   as_radix_ciphertext_slice<Torus>(&lwe_array_out_view, lwe_array_out, 0,
                                    num_radix_blocks);
   host_add_scalar_one_inplace<Torus>(streams, &lwe_array_out_view,

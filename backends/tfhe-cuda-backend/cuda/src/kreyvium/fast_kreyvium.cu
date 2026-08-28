@@ -1,29 +1,48 @@
 #include "../../include/kreyvium/fast_kreyvium.h"
 #include "fast_kreyvium.cuh"
 
-void cuda_fast_kreyvium_init_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *a_reg,
-    CudaRadixCiphertextFFI *b_reg, CudaRadixCiphertextFFI *c_reg,
-    CudaRadixCiphertextFFI *k_reg, CudaRadixCiphertextFFI *iv_reg,
-    uint32_t *k_offset, uint32_t *iv_offset, const CudaRadixCiphertextFFI *key,
-    const CudaRadixCiphertextFFI *iv_in, uint32_t num_inputs, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks) {
+void cuda_fast_kreyvium_init_async(CudaStreamsFFI streams,
+                                   CudaRadixCiphertextFFI const *a_reg_ffi,
+                                   CudaRadixCiphertextFFI const *b_reg_ffi,
+                                   CudaRadixCiphertextFFI const *c_reg_ffi,
+                                   CudaRadixCiphertextFFI const *k_reg_ffi,
+                                   CudaRadixCiphertextFFI const *iv_reg_ffi,
+                                   uint32_t *k_offset, uint32_t *iv_offset,
+                                   CudaRadixCiphertextFFI const *key_ffi,
+                                   CudaRadixCiphertextFFI const *iv_in_ffi,
+                                   uint32_t num_inputs, int8_t *mem_ptr,
+                                   void *const *bsks, void *const *ksks) {
+  CudaRadixCiphertext a_reg(*a_reg_ffi);
+  CudaRadixCiphertext b_reg(*b_reg_ffi);
+  CudaRadixCiphertext c_reg(*c_reg_ffi);
+  CudaRadixCiphertext k_reg(*k_reg_ffi);
+  CudaRadixCiphertext iv_reg(*iv_reg_ffi);
+  const CudaRadixCiphertext key(*key_ffi);
+  const CudaRadixCiphertext iv_in(*iv_in_ffi);
   auto buffer = (int_fast_kreyvium_buffer<uint64_t> *)mem_ptr;
-  host_fast_kreyvium_init<uint64_t>(CudaStreams(streams), buffer, a_reg, b_reg,
-                                    c_reg, k_reg, iv_reg, k_offset, iv_offset,
-                                    key, iv_in, bsks, (uint64_t *const *)ksks);
+  host_fast_kreyvium_init<uint64_t>(
+      CudaStreams(streams), buffer, &a_reg, &b_reg, &c_reg, &k_reg, &iv_reg,
+      k_offset, iv_offset, &key, &iv_in, bsks, (uint64_t *const *)ksks);
 }
 
 void cuda_fast_kreyvium_step_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *keystream_output,
-    CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
-    CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *k_reg,
-    CudaRadixCiphertextFFI *iv_reg, uint32_t *k_offset, uint32_t *iv_offset,
-    uint32_t num_inputs, uint32_t num_steps, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks) {
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *keystream_output_ffi,
+    CudaRadixCiphertextFFI const *a_reg_ffi,
+    CudaRadixCiphertextFFI const *b_reg_ffi,
+    CudaRadixCiphertextFFI const *c_reg_ffi,
+    CudaRadixCiphertextFFI const *k_reg_ffi,
+    CudaRadixCiphertextFFI const *iv_reg_ffi, uint32_t *k_offset,
+    uint32_t *iv_offset, uint32_t num_inputs, uint32_t num_steps,
+    int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
   auto buffer = (int_fast_kreyvium_buffer<uint64_t> *)mem_ptr;
-  host_fast_kreyvium_step<uint64_t>(CudaStreams(streams), keystream_output,
-                                    a_reg, b_reg, c_reg, k_reg, iv_reg,
+  CudaRadixCiphertext keystream_output(*keystream_output_ffi);
+  CudaRadixCiphertext a_reg(*a_reg_ffi);
+  CudaRadixCiphertext b_reg(*b_reg_ffi);
+  CudaRadixCiphertext c_reg(*c_reg_ffi);
+  CudaRadixCiphertext k_reg(*k_reg_ffi);
+  CudaRadixCiphertext iv_reg(*iv_reg_ffi);
+  host_fast_kreyvium_step<uint64_t>(CudaStreams(streams), &keystream_output,
+                                    &a_reg, &b_reg, &c_reg, &k_reg, &iv_reg,
                                     k_offset, iv_offset, num_inputs, num_steps,
                                     buffer, bsks, (uint64_t *const *)ksks);
 }
