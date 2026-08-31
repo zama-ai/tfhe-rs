@@ -1,5 +1,5 @@
 use super::shortint::load_params;
-use crate::{load_and_unversionize, TestedModule};
+use crate::{load_and_unversionize, load_client_key, TestedModule};
 use std::path::Path;
 #[cfg(feature = "zk-pok")]
 use tfhe::integer::parameters::DynamicDistribution;
@@ -11,6 +11,10 @@ use tfhe::shortint::parameters::{
 #[cfg(feature = "zk-pok")]
 use tfhe::shortint::prelude::LweDimension;
 use tfhe::shortint::{CarryModulus, CiphertextModulus, MessageModulus};
+use tfhe::transciphering::{
+    AesPlainKey, AesPlainState, KreyviumPlainKey, KreyviumPlainState, OneTimePadPlainSecretMask,
+    OneTimePadPlainState,
+};
 use tfhe::xof_key_set::CompressedXofKeySet;
 #[cfg(feature = "zk-pok")]
 use tfhe::zk::new_compact_pke_crs_conformance_params;
@@ -19,25 +23,28 @@ use tfhe::zk::CompactPkeCrs;
 #[cfg(feature = "zk-pok")]
 use tfhe::ProvenCompactCiphertextList;
 use tfhe::{
-    set_server_key, ClientKey, CompactCiphertextList, CompactCiphertextListBuilder,
+    set_server_key, AesFheKey, ClientKey, CompactCiphertextList, CompactCiphertextListBuilder,
     CompactPublicKey, CompressedCiphertextList, CompressedCiphertextListBuilder,
     CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
     CompressedKVStore, CompressedPublicKey, CompressedServerKey,
     CompressedSquashedNoiseCiphertextList, CompressedSquashedNoiseCiphertextListBuilder, FheBool,
-    FheInt8, FheUint32, FheUint64, FheUint8, ReRandomizationContext, ReRandomizationMode,
-    ReRandomizationSupport, Seed, ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt,
-    SquashedNoiseFheUint,
+    FheInt8, FheUint32, FheUint64, FheUint8, HlStreamCipher, HlTranscipherer, KreyviumFheKey,
+    OneTimePadFheSecretMask, ReRandomizationContext, ReRandomizationMode, ReRandomizationSupport,
+    Seed, ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint,
+    StreamCiphertext, TranscipherSession,
 };
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
 };
 use tfhe_backward_compat_data::{
-    DataKind, HlBoolCiphertextTest, HlCiphertextTest, HlClientKeyTest, HlCompressedKVStoreTest,
-    HlCompressedSquashedNoiseCiphertextListTest, HlCompressedXofKeySetTest,
-    HlHeterogeneousCiphertextListTest, HlPublicKeyTest, HlSeededCompactCiphertextListTest,
+    DataKind, HlAesFheKeyTest, HlBoolCiphertextTest, HlCiphertextTest, HlClientKeyTest,
+    HlCompressedKVStoreTest, HlCompressedSquashedNoiseCiphertextListTest,
+    HlCompressedXofKeySetTest, HlHeterogeneousCiphertextListTest, HlKreyviumFheKeyTest,
+    HlOneTimePadFheSecretMaskTest, HlPublicKeyTest, HlSeededCompactCiphertextListTest,
     HlServerKeyTest, HlSignedCiphertextTest, HlSquashedNoiseBoolCiphertextTest,
-    HlSquashedNoiseSignedCiphertextTest, HlSquashedNoiseUnsignedCiphertextTest, TestMetadata,
-    TestType, Testcase, ZkPkePublicParamsTest, ZkProofAuxiliaryInfo,
+    HlSquashedNoiseSignedCiphertextTest, HlSquashedNoiseUnsignedCiphertextTest,
+    HlStreamCiphertextTest, TestMetadata, TestType, TestWithClientKey, Testcase,
+    ZkPkePublicParamsTest, ZkProofAuxiliaryInfo,
 };
 use tfhe_versionable::Unversionize;
 
@@ -48,11 +55,7 @@ pub fn test_hl_ciphertext(
     test: &HlCiphertextTest,
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
-    let key_file = dir.join(&*test.key_filename);
-    let key = ClientKey::unversionize(
-        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(e, format))?;
+    let key: ClientKey = load_client_key(dir, test, format)?;
 
     let server_key = key.generate_server_key();
     set_server_key(server_key);
@@ -86,11 +89,7 @@ pub fn test_hl_signed_ciphertext(
     test: &HlSignedCiphertextTest,
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
-    let key_file = dir.join(&*test.key_filename);
-    let key = ClientKey::unversionize(
-        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(e, format))?;
+    let key: ClientKey = load_client_key(dir, test, format)?;
 
     let server_key = key.generate_server_key();
     set_server_key(server_key);
@@ -124,11 +123,7 @@ pub fn test_hl_bool_ciphertext(
     test: &HlBoolCiphertextTest,
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
-    let key_file = dir.join(&*test.key_filename);
-    let key = ClientKey::unversionize(
-        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(e, format))?;
+    let key: ClientKey = load_client_key(dir, test, format)?;
 
     let server_key = key.generate_server_key();
     set_server_key(server_key);
@@ -196,11 +191,7 @@ pub fn test_hl_heterogeneous_ciphertext_list(
     test: &HlHeterogeneousCiphertextListTest,
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
-    let key_file = dir.join(&*test.key_filename);
-    let key = ClientKey::unversionize(
-        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(e, format))?;
+    let key: ClientKey = load_client_key(dir, test, format)?;
 
     let server_key = key.generate_server_key();
     set_server_key(server_key);
@@ -330,11 +321,10 @@ where
 /// Shared core for seeded compact ciphertext list backward compat tests.
 /// When `zk_proof_info` is `Some`, operates in ZK (proven) mode; otherwise plain mode.
 #[allow(clippy::too_many_arguments)]
-fn test_hl_seeded_compact_list_core<T: TestType>(
+fn test_hl_seeded_compact_list_core<T: TestWithClientKey>(
     dir: &Path,
     test: &T,
     format: DataFormat,
-    key_filename: &str,
     public_key_filename: &str,
     clear_values: &[i64],
     data_kinds: &[DataKind],
@@ -346,11 +336,7 @@ fn test_hl_seeded_compact_list_core<T: TestType>(
         return Ok(test.success(format));
     }
 
-    let key_file = dir.join(key_filename);
-    let key = ClientKey::unversionize(
-        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(e, format))?;
+    let key: ClientKey = load_client_key(dir, test, format)?;
 
     let server_key = key.generate_server_key();
     set_server_key(server_key);
@@ -443,7 +429,6 @@ pub fn test_hl_seeded_compact_ciphertext_list(
         dir,
         test,
         format,
-        &test.key_filename,
         &test.public_key_filename,
         &test.clear_values,
         &test.data_kinds,
@@ -484,11 +469,7 @@ pub fn test_hl_pubkey(
     test: &HlPublicKeyTest,
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
-    let client_key_file = dir.join(&*test.client_key_filename);
-    let client_key = ClientKey::unversionize(
-        load_versioned_auxiliary(client_key_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(e, format))?;
+    let client_key: ClientKey = load_client_key(dir, test, format)?;
 
     let value = 113u8;
 
@@ -764,6 +745,47 @@ fn test_hl_key_features(
         let _: i8 = rand_int.decrypt(client_key);
     }
 
+    // Transciphering: turn a stream ciphertext produced by the plain cipher into an FheUint,
+    // using an FHE-encrypted copy of the symmetric key.
+    if server_key.has_transciphering_key() {
+        const N_BITS: usize = u64::BITS as usize;
+        let pad_bytes = [0xA5u8; N_BITS / 8];
+        let clear_transciphered = 0x0123_4567_89AB_CDEFu64;
+
+        let pad = OneTimePadPlainSecretMask::new(pad_bytes.to_vec(), N_BITS);
+        let stream_ct = OneTimePadPlainState::new(pad.clone())
+            .try_encrypt(clear_transciphered)
+            .map_err(|e| {
+                test.failure(
+                    format!("Failed to encrypt with the plain one-time pad: {e}"),
+                    format,
+                )
+            })?;
+
+        let fhe_mask = OneTimePadFheSecretMask::try_encrypt(pad, client_key).map_err(|e| {
+            test.failure(format!("Failed to encrypt the one-time pad: {e}"), format)
+        })?;
+
+        let mut session = TranscipherSession::one_time_pad(fhe_mask).map_err(|e| {
+            test.failure(
+                format!("Failed to open a one-time pad transcipher session: {e}"),
+                format,
+            )
+        })?;
+
+        let transciphered: FheUint64 = session
+            .transcipher(&stream_ct)
+            .map_err(|e| test.failure(format!("Failed to transcipher: {e}"), format))?;
+
+        let dec: u64 = transciphered.decrypt(client_key);
+        if dec != clear_transciphered {
+            return Err(test.failure(
+                format!("Invalid transciphered value: expected {clear_transciphered}, got {dec}"),
+                format,
+            ));
+        }
+    }
+
     Ok(())
 }
 
@@ -775,11 +797,7 @@ pub fn test_hl_serverkey(
     format: DataFormat,
     test_version: &str,
 ) -> Result<TestSuccess, TestFailure> {
-    let client_key_file = dir.join(&*test.client_key_filename);
-    let client_key = ClientKey::unversionize(
-        load_versioned_auxiliary(client_key_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(e, format))?;
+    let client_key: ClientKey = load_client_key(dir, test, format)?;
 
     let key = if test.compressed {
         let compressed: CompressedServerKey = load_and_unversionize(dir, test, format)?;
@@ -848,11 +866,7 @@ pub fn test_hl_squashed_noise_unsigned_ciphertext(
     test: &HlSquashedNoiseUnsignedCiphertextTest,
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
-    let key_file = dir.join(&*test.key_filename);
-    let key = ClientKey::unversionize(
-        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(e, format))?;
+    let key: ClientKey = load_client_key(dir, test, format)?;
 
     let ct: SquashedNoiseFheUint = load_and_unversionize(dir, test, format)?;
 
@@ -878,11 +892,7 @@ pub fn test_hl_squashed_noise_signed_ciphertext(
     test: &HlSquashedNoiseSignedCiphertextTest,
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
-    let key_file = dir.join(&*test.key_filename);
-    let key = ClientKey::unversionize(
-        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(e, format))?;
+    let key: ClientKey = load_client_key(dir, test, format)?;
 
     let ct: SquashedNoiseFheInt = load_and_unversionize(dir, test, format)?;
 
@@ -908,11 +918,7 @@ pub fn test_hl_squashed_noise_bool_ciphertext(
     test: &HlSquashedNoiseBoolCiphertextTest,
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
-    let key_file = dir.join(&*test.key_filename);
-    let key = ClientKey::unversionize(
-        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(e, format))?;
+    let key: ClientKey = load_client_key(dir, test, format)?;
 
     let ct: SquashedNoiseFheBool = load_and_unversionize(dir, test, format)?;
 
@@ -939,11 +945,7 @@ pub fn test_hl_compressed_squashed_noise_ciphertext_list(
     test: &HlCompressedSquashedNoiseCiphertextListTest,
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
-    let key_file = dir.join(&*test.key_filename);
-    let key = ClientKey::unversionize(
-        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(format!("Failed to load key file: {e}"), format))?;
+    let key: ClientKey = load_client_key(dir, test, format)?;
 
     let list: CompressedSquashedNoiseCiphertextList = load_and_unversionize(dir, test, format)
         .map_err(|e| test.failure(format!("Failed to load list file: {e}"), format))?;
@@ -996,11 +998,7 @@ fn test_hl_compressed_kv_store_test(
     test: &HlCompressedKVStoreTest,
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
-    let client_key_file = dir.join(&*test.client_key_file_name);
-    let client_key = ClientKey::unversionize(
-        load_versioned_auxiliary(client_key_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(format!("Failed to load client key file: {e}"), format))?;
+    let client_key: ClientKey = load_client_key(dir, test, format)?;
 
     let server_key_file = dir.join(&*test.server_key_file_name);
     let server_key = ServerKey::unversionize(
@@ -1044,11 +1042,7 @@ fn test_hl_compressed_xof_key_set_test(
     test: &HlCompressedXofKeySetTest,
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
-    let client_key_file = dir.join(&*test.client_key_file_name);
-    let client_key = ClientKey::unversionize(
-        load_versioned_auxiliary(client_key_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(format!("Failed to load client key file: {e}"), format))?;
+    let client_key: ClientKey = load_client_key(dir, test, format)?;
 
     let compressed_xof_key_set_file = dir.join(&*test.compressed_xof_key_set_file_name);
     let compressed_xof_key_set = CompressedXofKeySet::unversionize(
@@ -1076,6 +1070,180 @@ fn test_hl_compressed_xof_key_set_test(
 
     Ok(test.success(format))
 }
+
+const RECOVERED_KEY_CHECK_VALUE: u64 = 0x0123_4567_89AB_CDEF;
+const RECOVERED_KEY_CHECK_IV: [u8; 16] = [16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+
+/// Checks that a symmetric key matches the one in the metadata.
+/// The comparison is done by encrypting a value with one key and decrypting it with the other one.
+fn check_recovered_key<C: HlStreamCipher, T: TestType>(
+    expected: &mut C,
+    recovered: &mut C,
+    test: &T,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let ct = expected
+        .try_encrypt(RECOVERED_KEY_CHECK_VALUE)
+        .map_err(|e| test.failure(e, format))?;
+    let clear: u64 = recovered
+        .try_decrypt(&ct)
+        .map_err(|e| test.failure(e, format))?;
+
+    if clear != RECOVERED_KEY_CHECK_VALUE {
+        Err(test.failure(
+            format!(
+                "Invalid {format} recovered key:\n Expected :\n{RECOVERED_KEY_CHECK_VALUE:?}\nGot:\n{clear:?}"
+            ),
+            format,
+        ))
+    } else {
+        Ok(test.success(format))
+    }
+}
+
+/// Test HL Kreyvium key: loads the key and checks that it matches the one in the metadata.
+fn test_hl_kreyvium_fhe_key(
+    dir: &Path,
+    test: &HlKreyviumFheKeyTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let client_key: ClientKey = load_client_key(dir, test, format)?;
+
+    let fhe_key: KreyviumFheKey = load_and_unversionize(dir, test, format)?;
+
+    if fhe_key.tag() != client_key.tag() {
+        return Err(test.failure(
+            format!(
+                "Invalid {} tag:\n Expected :\n{:?}\nGot:\n{:?}",
+                format,
+                client_key.tag(),
+                fhe_key.tag()
+            ),
+            format,
+        ));
+    }
+
+    let plain_key = KreyviumPlainKey::from(
+        <[u8; 16]>::try_from(&*test.plain_key).map_err(|e| test.failure(e, format))?,
+    );
+
+    check_recovered_key(
+        &mut KreyviumPlainState::new(plain_key, RECOVERED_KEY_CHECK_IV),
+        &mut KreyviumPlainState::new(fhe_key.decrypt(&client_key), RECOVERED_KEY_CHECK_IV),
+        test,
+        format,
+    )
+}
+
+/// Test HL AES key: loads the key and checks that it matches the one in the metadata.
+fn test_hl_aes_fhe_key(
+    dir: &Path,
+    test: &HlAesFheKeyTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let client_key: ClientKey = load_client_key(dir, test, format)?;
+
+    let fhe_key: AesFheKey = load_and_unversionize(dir, test, format)?;
+
+    if fhe_key.tag() != client_key.tag() {
+        return Err(test.failure(
+            format!(
+                "Invalid {} tag:\n Expected :\n{:?}\nGot:\n{:?}",
+                format,
+                client_key.tag(),
+                fhe_key.tag()
+            ),
+            format,
+        ));
+    }
+
+    let plain_key = AesPlainKey::from(
+        <[u8; 16]>::try_from(&*test.plain_key).map_err(|e| test.failure(e, format))?,
+    );
+
+    check_recovered_key(
+        &mut AesPlainState::new(plain_key, RECOVERED_KEY_CHECK_IV),
+        &mut AesPlainState::new(fhe_key.decrypt(&client_key), RECOVERED_KEY_CHECK_IV),
+        test,
+        format,
+    )
+}
+
+/// Test HL one time pad: loads the mask and checks that it matches the one in the metadata.
+fn test_hl_one_time_pad_fhe_secret_mask(
+    dir: &Path,
+    test: &HlOneTimePadFheSecretMaskTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let client_key: ClientKey = load_client_key(dir, test, format)?;
+
+    let fhe_mask: OneTimePadFheSecretMask = load_and_unversionize(dir, test, format)?;
+
+    if fhe_mask.tag() != client_key.tag() {
+        return Err(test.failure(
+            format!(
+                "Invalid {} tag:\n Expected :\n{:?}\nGot:\n{:?}",
+                format,
+                client_key.tag(),
+                fhe_mask.tag()
+            ),
+            format,
+        ));
+    }
+
+    let pad = OneTimePadPlainSecretMask::new(test.pad.to_vec(), test.n_bits as usize);
+
+    check_recovered_key(
+        &mut OneTimePadPlainState::new(pad),
+        &mut OneTimePadPlainState::new(fhe_mask.decrypt(&client_key)),
+        test,
+        format,
+    )
+}
+
+/// Test HL stream ciphertext: loads the ciphertext and compare the decrypted value to the one in
+/// the metadata. This type holds no FHE data, so the plain cipher is replayed from the metadata.
+fn test_hl_stream_ciphertext(
+    dir: &Path,
+    test: &HlStreamCiphertextTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let ct: StreamCiphertext = load_and_unversionize(dir, test, format)?;
+
+    if ct.n_bits() as u64 != test.n_bits {
+        return Err(test.failure(
+            format!(
+                "Invalid {} bit count:\n Expected :\n{:?}\nGot:\n{:?}",
+                format,
+                test.n_bits,
+                ct.n_bits()
+            ),
+            format,
+        ));
+    }
+
+    let iv = <[u8; 16]>::try_from(&*test.iv).map_err(|e| test.failure(e, format))?;
+    let plain_key = KreyviumPlainKey::from(
+        <[u8; 16]>::try_from(&*test.plain_key).map_err(|e| test.failure(e, format))?,
+    );
+
+    let clear: u64 = KreyviumPlainState::new(plain_key, iv)
+        .try_decrypt(&ct)
+        .map_err(|e| test.failure(e, format))?;
+
+    if clear != test.clear_value {
+        Err(test.failure(
+            format!(
+                "Invalid {} decrypted cleartext:\n Expected :\n{:?}\nGot:\n{:?}",
+                format, clear, test.clear_value
+            ),
+            format,
+        ))
+    } else {
+        Ok(test.success(format))
+    }
+}
+
 pub struct Hl;
 
 impl TestedModule for Hl {
@@ -1134,6 +1302,18 @@ impl TestedModule for Hl {
             }
             TestMetadata::HlSeededCompactCiphertextList(test) => {
                 test_hl_seeded_compact_ciphertext_list(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::HlKreyviumFheKey(test) => {
+                test_hl_kreyvium_fhe_key(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::HlAesFheKey(test) => {
+                test_hl_aes_fhe_key(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::HlOneTimePadFheSecretMask(test) => {
+                test_hl_one_time_pad_fhe_secret_mask(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::HlStreamCiphertext(test) => {
+                test_hl_stream_ciphertext(test_dir.as_ref(), test, format).into()
             }
             _ => {
                 println!("WARNING: missing test: {:?}", testcase.metadata);

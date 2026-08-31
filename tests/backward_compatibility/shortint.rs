@@ -7,9 +7,7 @@ use tfhe::shortint::parameters::{
     CiphertextModulus32, KeySwitch32PBSParameters, LweBskGroupingFactor,
     ModulusSwitchNoiseReductionParams, ModulusSwitchType,
 };
-use tfhe_backward_compat_data::load::{
-    load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
-};
+use tfhe_backward_compat_data::load::{DataFormat, TestFailure, TestResult, TestSuccess};
 use tfhe_backward_compat_data::{
     ShortintCiphertextTest, ShortintClientKeyTest, TestClassicParameterSet, TestDistribution,
     TestKS32ParameterSet, TestMetadata, TestModulusSwitchNoiseReductionParams,
@@ -25,9 +23,8 @@ use tfhe::shortint::{
     ClientKey, EncryptionKeyChoice, MaxNoiseLevel, MessageModulus, MultiBitPBSParameters,
     ShortintParameterSet,
 };
-use tfhe_versionable::Unversionize;
 
-use crate::{load_and_unversionize, TestedModule};
+use crate::{load_and_unversionize, load_client_key, TestedModule};
 
 /// Converts test parameters metadata that are independent of any tfhe-rs version and use only
 /// built-in types into parameters suitable for the currently tested version.
@@ -216,11 +213,7 @@ pub fn test_shortint_ciphertext(
     test: &ShortintCiphertextTest,
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
-    let key_file = dir.join(&*test.key_filename);
-    let key = ClientKey::unversionize(
-        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(e, format))?;
+    let key: ClientKey = load_client_key(dir, test, format)?;
 
     let ct: Ciphertext = load_and_unversionize(dir, test, format)?;
 
