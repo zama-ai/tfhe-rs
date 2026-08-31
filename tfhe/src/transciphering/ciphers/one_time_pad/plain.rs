@@ -9,7 +9,7 @@ use crate::transciphering::ciphers::one_time_pad::fhe::OneTimePadFheSecretMask;
 use crate::transciphering::ciphers::unpack_bits_lsb_first;
 use crate::transciphering::{InsufficientKeystream, StreamCipher, StreamCipherKind};
 
-#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[derive(Clone, Serialize, Eq, PartialEq, Deserialize, Versionize)]
 #[versionize(OneTimePadPlainSecretMaskVersions)]
 pub struct OneTimePadPlainSecretMask {
     /// Collection of random u8, from which one can pull secret bits to hide sensitive values by

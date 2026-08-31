@@ -20,7 +20,7 @@ fn unpack_key_bits(bytes: &[u8; 16]) -> [bool; 128] {
     out
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize, Versionize)]
+#[derive(Clone, Copy, Eq, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(KreyviumPlainKeyVersions)]
 pub struct KreyviumPlainKey {
     bits: [u8; 16],

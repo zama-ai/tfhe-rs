@@ -40,7 +40,7 @@ use tfhe_versionable::Versionize;
 ///   byte  = b7 b6 b5 b4 b3 b2 b1 b0     (binary, MSB .. LSB)
 ///   bool[] = [ b0 b1 b2 b3 b4 b5 b6 b7 ]  (increasing array index)
 /// ```
-#[derive(Clone, Copy, Serialize, Deserialize, Versionize)]
+#[derive(Clone, Copy, Eq, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(AesPlainKeyVersions)]
 pub struct AesPlainKey([u8; 16]);
 
