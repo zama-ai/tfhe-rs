@@ -12,8 +12,10 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use cargo_toml::Manifest;
-use tfhe_backward_compat_data::load::{load_tests_metadata, DataFormat, TestFailure, TestResult};
-use tfhe_backward_compat_data::{dir_for_version, TestType, Testcase};
+use tfhe_backward_compat_data::load::{
+    load_tests_metadata, load_versioned_auxiliary, DataFormat, TestFailure, TestResult,
+};
+use tfhe_backward_compat_data::{dir_for_version, TestType, TestWithClientKey, Testcase};
 use tfhe_versionable::Unversionize;
 
 fn test_data_dir() -> PathBuf {
@@ -53,6 +55,18 @@ fn load_and_unversionize<Data: Unversionize, P: AsRef<Path>, T: TestType>(
     let versioned = format.load_versioned_test(dir, test)?;
 
     Data::unversionize(versioned).map_err(|e| test.failure(e, format))
+}
+
+/// Loads the client key that was used to generate the data of a test.
+fn load_client_key<Key: Unversionize, P: AsRef<Path>, T: TestWithClientKey>(
+    dir: P,
+    test: &T,
+    format: DataFormat,
+) -> Result<Key, TestFailure> {
+    let key_file = dir.as_ref().join(test.client_key_filename());
+    let versioned = load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?;
+
+    Key::unversionize(versioned).map_err(|e| test.failure(e, format))
 }
 
 trait TestedModule {
