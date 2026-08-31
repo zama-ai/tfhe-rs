@@ -1,8 +1,8 @@
 # Run signed and unsigned GPU integer tests with the gpu-debug-noise-check
 # feature so that the CHECK_NOISE_LEVEL assertions in the CUDA backend are
 # active, without the multi-GPU emulation that requires a multi-GPU host.
-# Runs on a single L40 Hyperstack instance, triggered automatically on every PR
-# that touches GPU code, alongside gpu_fast_tests.
+# Runs on a single L40S Scaleway instance (Hyperstack fallback), triggered
+# automatically on every PR that touches GPU code, alongside gpu_fast_tests.
 name: gpu_noise_level_checks
 
 env:
@@ -69,6 +69,8 @@ jobs:
               - tfhe/src/shortint/parameters/**
               - .github/workflows/gpu_noise_level_checks.yml
               - scripts/integer-tests.sh
+              - '.github/actions/gpu_setup/action.yml'
+              - ci/slab.toml
 
   setup-instance:
     name: gpu_noise_level_checks/setup-instance
@@ -89,8 +91,8 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: hyperstack
-          profile: l40-tests
+          backend: terraform
+          profile: scaleway-small-gpu-noise-check
 
       # This instance will be spawned especially for pull-request from forked repository
       - name: Start GitHub instance
@@ -118,8 +120,8 @@ jobs:
       matrix:
         include:
           - os: ubuntu-22.04
-            cuda: "12.8"
-            gcc: 11
+            cuda: "12.8 12.2"
+            gcc: 12
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -127,7 +129,7 @@ jobs:
           persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
 
-      - name: Setup Hyperstack dependencies
+      - name: Setup cloud GPU machine dependencies
         uses: ./.github/actions/gpu_setup
         with:
           cuda-version: ${{ matrix.cuda }}
@@ -171,7 +173,7 @@ jobs:
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
           SLACK_COLOR: ${{ needs.cuda-noise-check-tests.result }}
-          SLACK_MESSAGE: "GPU L40 noise check tests finished with status: ${{ needs.cuda-noise-check-tests.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
+          SLACK_MESSAGE: "GPU noise check tests finished with status: ${{ needs.cuda-noise-check-tests.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
     name: gpu_noise_level_checks/teardown-instance
@@ -195,4 +197,4 @@ jobs:
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (gpu-l40-noise-check) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (gpu-noise-check) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

@@ -1,4 +1,5 @@
-# Compile and test tfhe-cuda-backend on an AWS instance
+# Compile and test tfhe-cuda-backend on a multi-GPU Scaleway instance,
+# falling back to smaller Scaleway flavors then to Hyperstack when unavailable.
 name: gpu_full_multi_gpu_tests
 
 env:
@@ -89,8 +90,8 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: aws
-          profile: 4-l40
+          backend: terraform
+          profile: scaleway-4-l40-tests
 
       # This instance will be spawned especially for pull-request from forked repository
       - name: Start GitHub instance
