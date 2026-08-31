@@ -11,6 +11,10 @@ use tfhe::shortint::parameters::{
 #[cfg(feature = "zk-pok")]
 use tfhe::shortint::prelude::LweDimension;
 use tfhe::shortint::{CarryModulus, CiphertextModulus, MessageModulus};
+use tfhe::transciphering::{
+    AesPlainKey, AesPlainState, KreyviumPlainKey, KreyviumPlainState, OneTimePadPlainSecretMask,
+    OneTimePadPlainState,
+};
 use tfhe::xof_key_set::CompressedXofKeySet;
 #[cfg(feature = "zk-pok")]
 use tfhe::zk::new_compact_pke_crs_conformance_params;
@@ -19,25 +23,28 @@ use tfhe::zk::CompactPkeCrs;
 #[cfg(feature = "zk-pok")]
 use tfhe::ProvenCompactCiphertextList;
 use tfhe::{
-    set_server_key, ClientKey, CompactCiphertextList, CompactCiphertextListBuilder,
+    set_server_key, AesFheKey, ClientKey, CompactCiphertextList, CompactCiphertextListBuilder,
     CompactPublicKey, CompressedCiphertextList, CompressedCiphertextListBuilder,
     CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
     CompressedKVStore, CompressedPublicKey, CompressedServerKey,
     CompressedSquashedNoiseCiphertextList, CompressedSquashedNoiseCiphertextListBuilder, FheBool,
-    FheInt8, FheUint32, FheUint64, FheUint8, ReRandomizationContext, ReRandomizationMode,
-    ReRandomizationSupport, Seed, ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt,
-    SquashedNoiseFheUint,
+    FheInt8, FheUint32, FheUint64, FheUint8, HlStreamCipher, KreyviumFheKey,
+    OneTimePadFheSecretMask, ReRandomizationContext, ReRandomizationMode, ReRandomizationSupport,
+    Seed, ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint,
+    StreamCiphertext,
 };
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
 };
 use tfhe_backward_compat_data::{
-    DataKind, HlBoolCiphertextTest, HlCiphertextTest, HlClientKeyTest, HlCompressedKVStoreTest,
-    HlCompressedSquashedNoiseCiphertextListTest, HlCompressedXofKeySetTest,
-    HlHeterogeneousCiphertextListTest, HlPublicKeyTest, HlSeededCompactCiphertextListTest,
+    DataKind, HlAesFheKeyTest, HlBoolCiphertextTest, HlCiphertextTest, HlClientKeyTest,
+    HlCompressedKVStoreTest, HlCompressedSquashedNoiseCiphertextListTest,
+    HlCompressedXofKeySetTest, HlHeterogeneousCiphertextListTest, HlKreyviumFheKeyTest,
+    HlOneTimePadFheSecretMaskTest, HlPublicKeyTest, HlSeededCompactCiphertextListTest,
     HlServerKeyTest, HlSignedCiphertextTest, HlSquashedNoiseBoolCiphertextTest,
-    HlSquashedNoiseSignedCiphertextTest, HlSquashedNoiseUnsignedCiphertextTest, TestMetadata,
-    TestType, Testcase, ZkPkePublicParamsTest, ZkProofAuxiliaryInfo,
+    HlSquashedNoiseSignedCiphertextTest, HlSquashedNoiseUnsignedCiphertextTest,
+    HlStreamCiphertextTest, TestMetadata, TestType, Testcase, ZkPkePublicParamsTest,
+    ZkProofAuxiliaryInfo,
 };
 use tfhe_versionable::Unversionize;
 
@@ -1076,6 +1083,196 @@ fn test_hl_compressed_xof_key_set_test(
 
     Ok(test.success(format))
 }
+
+/// Checks that a symmetric key matches the one in the metadata.
+/// The comparison is done by encrypting a value with one key and decrypting it with the other one.
+fn check_recovered_key<C: HlStreamCipher, T: TestType>(
+    expected: &mut C,
+    recovered: &mut C,
+    test: &T,
+    clear_value: u64,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let ct = expected
+        .try_encrypt(clear_value)
+        .map_err(|e| test.failure(e, format))?;
+    let clear: u64 = recovered
+        .try_decrypt(&ct)
+        .map_err(|e| test.failure(e, format))?;
+
+    if clear != clear_value {
+        Err(test.failure(
+            format!(
+                "Invalid {} recovered key:\n Expected :\n{:?}\nGot:\n{:?}",
+                format, clear_value, clear
+            ),
+            format,
+        ))
+    } else {
+        Ok(test.success(format))
+    }
+}
+
+/// Test HL Kreyvium key: loads the key and checks that it decrypts to the one in the metadata.
+fn test_hl_kreyvium_fhe_key(
+    dir: &Path,
+    test: &HlKreyviumFheKeyTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let key_file = dir.join(&*test.key_filename);
+    let key = ClientKey::unversionize(
+        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
+    )
+    .map_err(|e| test.failure(e, format))?;
+
+    let fhe_key: KreyviumFheKey = load_and_unversionize(dir, test, format)?;
+
+    if fhe_key.tag() != key.tag() {
+        return Err(test.failure(
+            format!(
+                "Invalid {} tag:\n Expected :\n{:?}\nGot:\n{:?}",
+                format,
+                key.tag(),
+                fhe_key.tag()
+            ),
+            format,
+        ));
+    }
+
+    let iv = <[u8; 16]>::try_from(&*test.iv).map_err(|e| test.failure(e, format))?;
+    let plain_key = KreyviumPlainKey::from(
+        <[u8; 16]>::try_from(&*test.plain_key).map_err(|e| test.failure(e, format))?,
+    );
+
+    check_recovered_key(
+        &mut KreyviumPlainState::new(plain_key, iv),
+        &mut KreyviumPlainState::new(fhe_key.decrypt(&key), iv),
+        test,
+        test.clear_value,
+        format,
+    )
+}
+
+/// Test HL AES key: loads the key and checks that it decrypts to the one in the metadata.
+fn test_hl_aes_fhe_key(
+    dir: &Path,
+    test: &HlAesFheKeyTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let key_file = dir.join(&*test.key_filename);
+    let key = ClientKey::unversionize(
+        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
+    )
+    .map_err(|e| test.failure(e, format))?;
+
+    let fhe_key: AesFheKey = load_and_unversionize(dir, test, format)?;
+
+    if fhe_key.tag() != key.tag() {
+        return Err(test.failure(
+            format!(
+                "Invalid {} tag:\n Expected :\n{:?}\nGot:\n{:?}",
+                format,
+                key.tag(),
+                fhe_key.tag()
+            ),
+            format,
+        ));
+    }
+
+    let iv = <[u8; 16]>::try_from(&*test.iv).map_err(|e| test.failure(e, format))?;
+    let plain_key = AesPlainKey::from(
+        <[u8; 16]>::try_from(&*test.plain_key).map_err(|e| test.failure(e, format))?,
+    );
+
+    check_recovered_key(
+        &mut AesPlainState::new(plain_key, iv),
+        &mut AesPlainState::new(fhe_key.decrypt(&key), iv),
+        test,
+        test.clear_value,
+        format,
+    )
+}
+
+/// Test HL one time pad: loads the mask and checks that it decrypts to the one in the metadata.
+fn test_hl_one_time_pad_fhe_secret_mask(
+    dir: &Path,
+    test: &HlOneTimePadFheSecretMaskTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let key_file = dir.join(&*test.key_filename);
+    let key = ClientKey::unversionize(
+        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
+    )
+    .map_err(|e| test.failure(e, format))?;
+
+    let fhe_mask: OneTimePadFheSecretMask = load_and_unversionize(dir, test, format)?;
+
+    if fhe_mask.tag() != key.tag() {
+        return Err(test.failure(
+            format!(
+                "Invalid {} tag:\n Expected :\n{:?}\nGot:\n{:?}",
+                format,
+                key.tag(),
+                fhe_mask.tag()
+            ),
+            format,
+        ));
+    }
+
+    let pad = OneTimePadPlainSecretMask::new(test.pad.to_vec(), test.n_bits as usize);
+
+    check_recovered_key(
+        &mut OneTimePadPlainState::new(pad),
+        &mut OneTimePadPlainState::new(fhe_mask.decrypt(&key)),
+        test,
+        test.clear_value,
+        format,
+    )
+}
+
+/// Test HL stream ciphertext: loads the ciphertext and compare the decrypted value to the one in
+/// the metadata. This type holds no FHE data, so the plain cipher is replayed from the metadata.
+fn test_hl_stream_ciphertext(
+    dir: &Path,
+    test: &HlStreamCiphertextTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let ct: StreamCiphertext = load_and_unversionize(dir, test, format)?;
+
+    if ct.n_bits() as u64 != test.n_bits {
+        return Err(test.failure(
+            format!(
+                "Invalid {} bit count:\n Expected :\n{:?}\nGot:\n{:?}",
+                format,
+                test.n_bits,
+                ct.n_bits()
+            ),
+            format,
+        ));
+    }
+
+    let iv = <[u8; 16]>::try_from(&*test.iv).map_err(|e| test.failure(e, format))?;
+    let plain_key = KreyviumPlainKey::from(
+        <[u8; 16]>::try_from(&*test.plain_key).map_err(|e| test.failure(e, format))?,
+    );
+
+    let clear: u64 = KreyviumPlainState::new(plain_key, iv)
+        .try_decrypt(&ct)
+        .map_err(|e| test.failure(e, format))?;
+
+    if clear != test.clear_value {
+        Err(test.failure(
+            format!(
+                "Invalid {} decrypted cleartext:\n Expected :\n{:?}\nGot:\n{:?}",
+                format, clear, test.clear_value
+            ),
+            format,
+        ))
+    } else {
+        Ok(test.success(format))
+    }
+}
+
 pub struct Hl;
 
 impl TestedModule for Hl {
@@ -1134,6 +1331,18 @@ impl TestedModule for Hl {
             }
             TestMetadata::HlSeededCompactCiphertextList(test) => {
                 test_hl_seeded_compact_ciphertext_list(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::HlKreyviumFheKey(test) => {
+                test_hl_kreyvium_fhe_key(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::HlAesFheKey(test) => {
+                test_hl_aes_fhe_key(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::HlOneTimePadFheSecretMask(test) => {
+                test_hl_one_time_pad_fhe_secret_mask(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::HlStreamCiphertext(test) => {
+                test_hl_stream_ciphertext(test_dir.as_ref(), test, format).into()
             }
             _ => {
                 println!("WARNING: missing test: {:?}", testcase.metadata);
