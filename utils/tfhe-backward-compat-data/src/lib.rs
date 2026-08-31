@@ -200,12 +200,18 @@ pub enum TestReRandomizationConfiguration {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum TestTranscipheringParameters {
+    SameAsCompute,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TestMetaParameters {
     pub compute_parameters: TestParameterSet,
     pub dedicated_compact_public_key_parameters: Option<TestDedicatedCompactPublicKeyParameters>,
     pub compression_parameters: Option<TestCompressionParameterSet>,
     pub noise_squashing_parameters: Option<TestMetaNoiseSquashingParameters>,
     pub rerand_configuration: Option<TestReRandomizationConfiguration>,
+    pub transciphering_parameters: Option<TestTranscipheringParameters>,
 }
 
 pub fn dir_for_version<P: AsRef<Path>>(data_dir: P, version: &str) -> PathBuf {
@@ -746,6 +752,98 @@ impl TestType for HlCompressedXofKeySetTest {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HlKreyviumFheKeyTest {
+    pub test_filename: Cow<'static, str>,
+    pub key_filename: Cow<'static, str>,
+    pub plain_key: Cow<'static, [u8]>,
+    pub iv: Cow<'static, [u8]>,
+    pub clear_value: u64,
+}
+
+impl TestType for HlKreyviumFheKeyTest {
+    fn module(&self) -> String {
+        HL_MODULE_NAME.to_string()
+    }
+
+    fn target_type(&self) -> String {
+        "KreyviumFheKey".to_string()
+    }
+
+    fn test_filename(&self) -> String {
+        self.test_filename.to_string()
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HlAesFheKeyTest {
+    pub test_filename: Cow<'static, str>,
+    pub key_filename: Cow<'static, str>,
+    pub plain_key: Cow<'static, [u8]>,
+    pub iv: Cow<'static, [u8]>,
+    pub clear_value: u64,
+}
+
+impl TestType for HlAesFheKeyTest {
+    fn module(&self) -> String {
+        HL_MODULE_NAME.to_string()
+    }
+
+    fn target_type(&self) -> String {
+        "AesFheKey".to_string()
+    }
+
+    fn test_filename(&self) -> String {
+        self.test_filename.to_string()
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HlOneTimePadFheSecretMaskTest {
+    pub test_filename: Cow<'static, str>,
+    pub key_filename: Cow<'static, str>,
+    pub pad: Cow<'static, [u8]>,
+    pub n_bits: u64,
+    pub clear_value: u64,
+}
+
+impl TestType for HlOneTimePadFheSecretMaskTest {
+    fn module(&self) -> String {
+        HL_MODULE_NAME.to_string()
+    }
+
+    fn target_type(&self) -> String {
+        "OneTimePadFheSecretMask".to_string()
+    }
+
+    fn test_filename(&self) -> String {
+        self.test_filename.to_string()
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HlStreamCiphertextTest {
+    pub test_filename: Cow<'static, str>,
+    pub plain_key: Cow<'static, [u8]>,
+    pub iv: Cow<'static, [u8]>,
+    pub clear_value: u64,
+    pub n_bits: u64,
+}
+
+impl TestType for HlStreamCiphertextTest {
+    fn module(&self) -> String {
+        HL_MODULE_NAME.to_string()
+    }
+
+    fn target_type(&self) -> String {
+        "StreamCiphertext".to_string()
+    }
+
+    fn test_filename(&self) -> String {
+        self.test_filename.to_string()
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Display)]
 pub enum TestMetadata {
     // Shortint
@@ -769,6 +867,10 @@ pub enum TestMetadata {
     HlCompressedKVStoreTest(HlCompressedKVStoreTest),
     HlCompressedXofKeySet(HlCompressedXofKeySetTest),
     HlSeededCompactCiphertextList(HlSeededCompactCiphertextListTest),
+    HlKreyviumFheKey(HlKreyviumFheKeyTest),
+    HlAesFheKey(HlAesFheKeyTest),
+    HlOneTimePadFheSecretMask(HlOneTimePadFheSecretMaskTest),
+    HlStreamCiphertext(HlStreamCiphertextTest),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
