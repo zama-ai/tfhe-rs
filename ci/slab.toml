@@ -146,13 +146,6 @@ image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-RTX-A6000x1"
 user = "ubuntu"
 
-[backend.hyperstack.l40-tests]
-environment_name = "canada"
-image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
-flavor_name = "n3-L40x1"
-user = "ubuntu"
-fallbacks = [ "hyperstack.rtx-a6000", "terraform.scaleway-small-gpu" ]
-
 # Fallback target only.
 [backend.hyperstack.rtx-a6000]
 environment_name = "canada"
@@ -229,6 +222,32 @@ instance_type = "L40S-4-48G"
 user = "ubuntu"
 fallbacks = [ "hyperstack.4-l40", "aws.4-l40" ]
 
+[backend.terraform.scaleway-4-l40-tests]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "L40S-4-48G"
+user = "ubuntu"
+fallbacks = [
+    "terraform.scaleway-2-l40",
+    "terraform.scaleway-4-l4",
+    "terraform.scaleway-2-l4",
+    "hyperstack.4-l40",
+]
+
+[backend.terraform.scaleway-2-l40]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "L40S-2-48G"
+user = "ubuntu"
+
+[backend.terraform.scaleway-1-l4]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "L4-1-24G"
+user = "ubuntu"
+
+[backend.terraform.scaleway-4-l4]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "L4-4-24G"
+user = "ubuntu"
+
 [backend.terraform.scaleway-2-l4]
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
 instance_type = "L4-2-24G"
@@ -239,6 +258,22 @@ script_path = "ci/terraform_scripts/scaleway/terraform.tf"
 instance_type = "L40S-1-48G"
 user = "ubuntu"
 fallbacks = [ "hyperstack.gpu-test", "terraform.scaleway-2-l4" ]
+
+[backend.terraform.scaleway-small-gpu-noise-check]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "L40S-1-48G"
+user = "ubuntu"
+fallbacks = [ "hyperstack.gpu-test", "hyperstack.rtx-a6000" ]
+
+[backend.terraform.scaleway-small-gpu-classic-tests]
+script_path = "ci/terraform_scripts/scaleway/terraform.tf"
+instance_type = "L40S-1-48G"
+user = "ubuntu"
+fallbacks = [
+    "terraform.scaleway-1-l4",
+    "terraform.scaleway-2-l40",
+    "hyperstack.gpu-test",
+]
 
 [backend.terraform.scaleway-small-gpu-sanitizer]
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
