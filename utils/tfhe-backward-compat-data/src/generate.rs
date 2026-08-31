@@ -386,6 +386,7 @@ pub const INSECURE_TEST_NO_KS_RERAND_META_PARAMS: TestMetaParameters = TestMetaP
     rerand_configuration: Some(
         TestReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch,
     ),
+    transciphering_parameters: None,
 };
 
 pub const INSECURE_TEST_META_PARAMS: TestMetaParameters = TestMetaParameters {
@@ -403,6 +404,16 @@ pub const INSECURE_TEST_META_PARAMS: TestMetaParameters = TestMetaParameters {
     rerand_configuration: Some(
         TestReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch,
     ),
+    transciphering_parameters: None,
+};
+
+pub const INSECURE_TEST_TRANSCIPHERING_META_PARAMS: TestMetaParameters = TestMetaParameters {
+    compute_parameters: INSECURE_SMALL_TEST_PARAMS_MS_MEAN_COMPENSATION_LWE_DIM_64,
+    dedicated_compact_public_key_parameters: None,
+    compression_parameters: None,
+    noise_squashing_parameters: None,
+    rerand_configuration: None,
+    transciphering_parameters: Some(TestTranscipheringParameters::SameAsCompute),
 };
 
 pub fn save_cbor<Data: Serialize, P: AsRef<Path>>(msg: &Data, path: P) {
