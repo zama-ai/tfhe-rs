@@ -4,21 +4,21 @@ use proc_macro2::{Literal, Span, TokenStream};
 use quote::{format_ident, quote};
 use syn::spanned::Spanned;
 use syn::{
-    parse_quote, Data, DataEnum, DataStruct, DataUnion, DeriveInput, Field, Fields, FieldsNamed,
-    FieldsUnnamed, Generics, Ident, Item, ItemEnum, ItemImpl, ItemStruct, ItemUnion, Lifetime,
-    Path, Type, Variant,
+    Data, DataEnum, DataStruct, DataUnion, DeriveInput, Field, Fields, FieldsNamed, FieldsUnnamed,
+    Generics, Ident, Item, ItemEnum, ItemImpl, ItemStruct, ItemUnion, Lifetime, Path, Type,
+    Variant, parse_quote,
 };
 
 use crate::associated::{
-    generate_from_trait_impl, generate_try_from_trait_impl, AssociatedType, AssociatedTypeKind,
-    ConversionDirection,
+    AssociatedType, AssociatedTypeKind, ConversionDirection, generate_from_trait_impl,
+    generate_try_from_trait_impl,
 };
 use crate::versionize_attribute::{is_skipped, is_transparent, replace_versionize_skip_with_serde};
 use crate::{
-    add_trait_where_clause, parse_const_str, parse_trait_bound, punctuated_from_iter_result,
     DEFAULT_TRAIT_NAME, INTO_TRAIT_NAME, LIFETIME_NAME, TRY_INTO_TRAIT_NAME,
-    UNVERSIONIZE_ERROR_NAME, UNVERSIONIZE_TRAIT_NAME, VERSIONIZE_OWNED_TRAIT_NAME,
-    VERSIONIZE_TRAIT_NAME, VERSION_TRAIT_NAME,
+    UNVERSIONIZE_ERROR_NAME, UNVERSIONIZE_TRAIT_NAME, VERSION_TRAIT_NAME,
+    VERSIONIZE_OWNED_TRAIT_NAME, VERSIONIZE_TRAIT_NAME, add_trait_where_clause, parse_const_str,
+    parse_trait_bound, punctuated_from_iter_result,
 };
 
 /// The types generated for a specific version of a given exposed type. These types are identical to
@@ -221,24 +221,23 @@ impl AssociatedType for VersionType {
     fn conversion_generics(&self, direction: ConversionDirection) -> syn::Result<Generics> {
         let mut generics = self.type_generics()?;
 
-        if !self.is_transparent {
-            if let ConversionDirection::AssociatedToOrig = direction {
-                if let AssociatedTypeKind::Owned = &self.kind {
-                    add_trait_where_clause(
-                        &mut generics,
-                        self.inner_types()?,
-                        &[UNVERSIONIZE_TRAIT_NAME],
-                    )?;
+        if !self.is_transparent
+            && let ConversionDirection::AssociatedToOrig = direction
+            && let AssociatedTypeKind::Owned = &self.kind
+        {
+            add_trait_where_clause(
+                &mut generics,
+                self.inner_types()?,
+                &[UNVERSIONIZE_TRAIT_NAME],
+            )?;
 
-                    // "skipped" types are not present in the Version types so we add a Default
-                    // bound to be able to reconstruct them.
-                    add_trait_where_clause(
-                        &mut generics,
-                        self.skipped_inner_types()?,
-                        &[DEFAULT_TRAIT_NAME],
-                    )?;
-                }
-            }
+            // "skipped" types are not present in the Version types so we add a Default
+            // bound to be able to reconstruct them.
+            add_trait_where_clause(
+                &mut generics,
+                self.skipped_inner_types()?,
+                &[DEFAULT_TRAIT_NAME],
+            )?;
         }
 
         Ok(generics)
@@ -831,18 +830,21 @@ impl VersionType {
 
                         quote! {
                             #versionize_trait::versionize(#param)
-                        }},
+                        }
+                    }
                     AssociatedTypeKind::Owned => quote! {
                         #versionize_owned_trait::versionize_owned(#field_param)
                     },
                 }
             }
             ConversionDirection::AssociatedToOrig => match self.kind {
-                AssociatedTypeKind::Ref(_) =>
-panic!("No conversion should be generated between associated ref type to original type"),
+                AssociatedTypeKind::Ref(_) => panic!(
+                    "No conversion should be generated between associated ref type to original type"
+                ),
                 AssociatedTypeKind::Owned => {
                     if is_skipped {
-                        // If the field is skipped, we try to construct it from a Default impl (this is what serde does)
+                        // If the field is skipped, we try to construct it from a Default impl (this
+                        // is what serde does)
                         quote! {
                             <#ty as #default_trait>::default()
                         }
@@ -851,7 +853,7 @@ panic!("No conversion should be generated between associated ref type to origina
                             <#ty as #unversionize_trait>::unversionize(#field_param)?
                         }
                     }
-                },
+                }
             },
         };
         Ok(Some(field_constructor))
@@ -880,7 +882,9 @@ panic!("No conversion should be generated between associated ref type to origina
             },
             ConversionDirection::AssociatedToOrig => match self.kind {
                 AssociatedTypeKind::Ref(_) => {
-                    panic!("No conversion should be generated between associated ref type to original type");
+                    panic!(
+                        "No conversion should be generated between associated ref type to original type"
+                    );
                 }
                 AssociatedTypeKind::Owned => {
                     quote! {

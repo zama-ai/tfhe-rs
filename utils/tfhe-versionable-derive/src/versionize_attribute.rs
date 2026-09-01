@@ -5,7 +5,7 @@ use proc_macro2::Span;
 use quote::ToTokens;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::{parse_quote, Attribute, Expr, Lit, Meta, Path, Token};
+use syn::{Attribute, Expr, Lit, Meta, Path, Token, parse_quote};
 
 /// Name of the attribute used to give arguments to the `Versionize` macro
 pub(crate) const VERSIONIZE_ATTR_NAME: &str = "versionize";
@@ -92,7 +92,7 @@ impl VersionizeAttributeBuilder {
                 return Err(syn::Error::new(
                     try_from.span(),
                     "'try_from' and 'from' attributes are mutually exclusive",
-                ))
+                ));
             }
             (None, Some(try_from)) => Some(try_from),
             (Some(from), None) => Some(from),
@@ -105,7 +105,7 @@ impl VersionizeAttributeBuilder {
                 return Err(syn::Error::new(
                     try_convert.span(),
                     "'try_convert' and 'convert' attributes are mutually exclusive",
-                ))
+                ));
             }
             (None, Some(try_convert)) => Some(try_convert),
             (Some(convert), None) => Some(convert),
@@ -113,33 +113,34 @@ impl VersionizeAttributeBuilder {
 
         // from/into are here for similarity with serde, but we don't actually support having
         // different target inside. So we check this to warn the user
-        let from_target =
-            match (from_target, self.into) {
-                (None, None) => None,
-                (None, Some(into)) => return Err(syn::Error::new(
+        let from_target = match (from_target, self.into) {
+            (None, None) => None,
+            (None, Some(into)) => {
+                return Err(syn::Error::new(
                     into.span(),
                     "unidirectional conversions are not handled, please add a 'from'/'try_from' \
 attribute or use the 'convert'/'try_convert' attribute instead",
-                )),
-                (Some(from), None) => return Err(syn::Error::new(
+                ));
+            }
+            (Some(from), None) => {
+                return Err(syn::Error::new(
                     from.span(),
                     "unidirectional conversions are not handled, please add a 'into' attribute or \
 use the 'convert'/'try_convert' attribute instead",
-                )),
-                (Some(from), Some(into)) => {
-                    if format!("{}", from.to_token_stream())
-                        != format!("{}", into.to_token_stream())
-                    {
-                        return Err(syn::Error::new(
+                ));
+            }
+            (Some(from), Some(into)) => {
+                if format!("{}", from.to_token_stream()) != format!("{}", into.to_token_stream()) {
+                    return Err(syn::Error::new(
                         from.span(),
                         "unidirectional conversions are not handled, 'from' and 'into' parameters \
 should have the same value",
                     ));
-                    } else {
-                        Some(from)
-                    }
+                } else {
+                    Some(from)
                 }
-            };
+            }
+        };
 
         // Finally, checks that the user doesn't use both from/into and convert
         let conversion_target = match (from_target, convert_target) {
@@ -148,7 +149,7 @@ should have the same value",
                 return Err(syn::Error::new(
                     convert.span(),
                     "'convert' and 'from'/'into' attributes are mutually exclusive",
-                ))
+                ));
             }
             (None, Some(convert)) => Some(convert),
             (Some(from), None) => Some(from),
@@ -324,10 +325,10 @@ pub(crate) fn is_transparent(attributes: &[Attribute]) -> syn::Result<bool> {
         let nested = attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
 
         for meta in nested.iter() {
-            if let Meta::Path(path) = meta {
-                if path.is_ident("transparent") {
-                    return Ok(true);
-                }
+            if let Meta::Path(path) = meta
+                && path.is_ident("transparent")
+            {
+                return Ok(true);
             }
         }
     }
@@ -344,10 +345,10 @@ pub(crate) fn is_skipped(attributes: &[Attribute]) -> syn::Result<bool> {
         let nested = attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
 
         for meta in nested.iter() {
-            if let Meta::Path(path) = meta {
-                if path.is_ident("skip") {
-                    return Ok(true);
-                }
+            if let Meta::Path(path) = meta
+                && path.is_ident("skip")
+            {
+                return Ok(true);
             }
         }
     }
@@ -372,10 +373,10 @@ pub(crate) fn replace_versionize_skip_with_serde(
                     };
 
                 for meta in nested.iter() {
-                    if let Meta::Path(path) = meta {
-                        if path.is_ident("skip") {
-                            return Some(Ok(parse_quote! { #[serde(skip)] }));
-                        }
+                    if let Meta::Path(path) = meta
+                        && path.is_ident("skip")
+                    {
+                        return Some(Ok(parse_quote! { #[serde(skip)] }));
                     }
                 }
             }
