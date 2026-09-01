@@ -1660,6 +1660,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b4baf93f58d4425749ca49a51c50ebab072c5df6994d08fed93541c331481dc"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3017,7 +3026,7 @@ dependencies = [
  "fs2",
  "getrandom 0.2.17",
  "hex",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "js-sys",
  "log",
  "num-bigint",
@@ -3082,7 +3091,7 @@ dependencies = [
  "criterion",
  "dyn-stack",
  "gag",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "libc",
  "num_cpus",
  "paste",
@@ -3182,7 +3191,7 @@ dependencies = [
  "dot2",
  "enum_dispatch",
  "hw_regmap",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "lazy_static",
  "libc",
  "lru",
@@ -3275,7 +3284,7 @@ dependencies = [
  "bincode",
  "criterion",
  "getrandom 0.2.17",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "num-bigint",
  "rand 0.8.6",
  "rayon",
