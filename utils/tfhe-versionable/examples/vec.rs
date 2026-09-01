@@ -16,7 +16,7 @@ struct MyStructInnerV0 {
 #[versionize(MyStructInnerVersions)]
 struct MyStructInner<T> {
     val: u64,
-    gen: T,
+    r#gen: T,
 }
 
 impl<T: Default> Upgrade<MyStructInner<T>> for MyStructInnerV0 {
@@ -25,7 +25,7 @@ impl<T: Default> Upgrade<MyStructInner<T>> for MyStructInnerV0 {
     fn upgrade(self) -> Result<MyStructInner<T>, Self::Error> {
         Ok(MyStructInner {
             val: self.val,
-            gen: T::default(),
+            r#gen: T::default(),
         })
     }
 }

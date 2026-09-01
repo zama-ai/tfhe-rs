@@ -4,16 +4,16 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
 use syn::{
-    parse_quote, Data, DeriveInput, Field, Fields, Generics, ItemEnum, ItemImpl, Lifetime, Path,
-    Type, Variant,
+    Data, DeriveInput, Field, Fields, Generics, ItemEnum, ItemImpl, Lifetime, Path, Type, Variant,
+    parse_quote,
 };
 
 use crate::associated::{
-    generate_from_trait_impl, generate_try_from_trait_impl, AssociatedType, AssociatedTypeKind,
-    ConversionDirection,
+    AssociatedType, AssociatedTypeKind, ConversionDirection, generate_from_trait_impl,
+    generate_try_from_trait_impl,
 };
 use crate::{
-    parse_const_str, LIFETIME_NAME, UNVERSIONIZE_ERROR_NAME, UPGRADE_TRAIT_NAME, VERSION_TRAIT_NAME,
+    LIFETIME_NAME, UNVERSIONIZE_ERROR_NAME, UPGRADE_TRAIT_NAME, VERSION_TRAIT_NAME, parse_const_str,
 };
 
 /// This is the enum that holds all the versions of a specific type. Each variant of the enum is
@@ -98,14 +98,13 @@ impl AssociatedType for DispatchType {
             })
             .collect();
 
-        Ok(ItemEnum {
+        Ok(syn::Item::Enum(ItemEnum {
             ident: self.ident(),
             generics: self.type_generics()?,
             attrs: vec![parse_quote! { #[automatically_derived] }],
             variants: variants?,
             ..self.orig_type.clone()
-        }
-        .into())
+        }))
     }
 
     fn kind(&self) -> &AssociatedTypeKind {
@@ -126,14 +125,14 @@ impl AssociatedType for DispatchType {
 
         let upgrade_trait: Path = parse_const_str(UPGRADE_TRAIT_NAME);
 
-        if let ConversionDirection::AssociatedToOrig = direction {
-            if let AssociatedTypeKind::Owned = &self.kind {
-                // Add a bound for each version to be upgradable into the next one
-                for src_idx in 0..(self.versions_count() - 1) {
-                    let src_ty = self.version_type_at(src_idx)?;
-                    let next_ty = self.version_type_at(src_idx + 1)?;
-                    preds.push(parse_quote! { #src_ty: #upgrade_trait<#next_ty> })
-                }
+        if let ConversionDirection::AssociatedToOrig = direction
+            && let AssociatedTypeKind::Owned = &self.kind
+        {
+            // Add a bound for each version to be upgradable into the next one
+            for src_idx in 0..(self.versions_count() - 1) {
+                let src_ty = self.version_type_at(src_idx)?;
+                let next_ty = self.version_type_at(src_idx + 1)?;
+                preds.push(parse_quote! { #src_ty: #upgrade_trait<#next_ty> })
             }
         }
 

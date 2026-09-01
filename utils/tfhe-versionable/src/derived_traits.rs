@@ -1,8 +1,8 @@
 //! These traits are not meant to be manually implemented, they are just used in the derive macro
 //! for easier access to generated types
 
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 use crate::UnversionizeError;
 
