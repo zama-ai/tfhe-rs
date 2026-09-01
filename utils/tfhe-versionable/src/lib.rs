@@ -24,8 +24,8 @@ use std::sync::Arc;
 pub use derived_traits::{Version, VersionsDispatch};
 pub use upgrade::Upgrade;
 
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 pub use tfhe_versionable_derive::{NotVersioned, Version, Versionize, VersionsDispatch};
 
 /// This trait means that the type can be converted into a versioned equivalent
@@ -123,7 +123,8 @@ impl Display for UnversionizeError {
                 )
             }
             Self::DeprecatedVersion(deprecation_error) => deprecation_error.fmt(f),
-            Self::SkippedVariant { variant_name } => write!(f,
+            Self::SkippedVariant { variant_name } => write!(
+                f,
                 "Enum variant {variant_name} is marked with the `skip` attribute and cannot be unversioned"
             ),
         }

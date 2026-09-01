@@ -1,9 +1,9 @@
 use proc_macro2::Span;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::spanned::Spanned;
 use syn::{
-    parse_quote, Data, GenericArgument, GenericParam, Generics, Ident, Lifetime, Path,
-    PathArguments, Token, TraitBound, Type, TypeParam, TypePath, WhereClause,
+    Data, GenericArgument, GenericParam, Generics, Ident, Lifetime, Path, PathArguments, Token,
+    TraitBound, Type, TypeParam, TypePath, WhereClause, parse_quote,
 };
 
 use crate::transparent::{TransparentStruct, TransparentStructKind};
@@ -11,11 +11,11 @@ use crate::versionize_attribute::{
     ClassicVersionizeAttribute, ConversionType, ConvertVersionizeAttribute, VersionizeAttribute,
 };
 use crate::{
+    DISPATCH_TRAIT_NAME, ERROR_TRAIT_NAME, FROM_TRAIT_NAME, INTO_TRAIT_NAME, SEND_TRAIT_NAME,
+    STATIC_LIFETIME_NAME, SYNC_TRAIT_NAME, TRY_INTO_TRAIT_NAME, UNVERSIONIZE_ERROR_NAME,
+    UNVERSIONIZE_TRAIT_NAME, VERSIONIZE_OWNED_TRAIT_NAME, VERSIONIZE_TRAIT_NAME,
     add_lifetime_where_clause, add_trait_where_clause, add_where_lifetime_bound_to_generics,
-    parse_const_str, DISPATCH_TRAIT_NAME, ERROR_TRAIT_NAME, FROM_TRAIT_NAME, INTO_TRAIT_NAME,
-    SEND_TRAIT_NAME, STATIC_LIFETIME_NAME, SYNC_TRAIT_NAME, TRY_INTO_TRAIT_NAME,
-    UNVERSIONIZE_ERROR_NAME, UNVERSIONIZE_TRAIT_NAME, VERSIONIZE_OWNED_TRAIT_NAME,
-    VERSIONIZE_TRAIT_NAME,
+    parse_const_str,
 };
 
 pub(crate) enum VersionizeImplementor {
@@ -382,8 +382,8 @@ impl VersionizeImplementor {
             Self::Transparent(transparent) => {
                 let inner = match &transparent.inner_type {
                     Type::Path(path) => Type::Path(TypePath {
-                        qself: path.qself.clone(),
                         path: with_turbofish(&path.path),
+                        ..path.clone()
                     }),
                     inner => inner.clone(),
                 };
@@ -423,15 +423,15 @@ fn with_turbofish(path: &Path) -> Path {
 fn extract_generics(path: &Path) -> Generics {
     let mut generics = Generics::default();
 
-    if let Some(last_segment) = path.segments.last() {
-        if let PathArguments::AngleBracketed(args) = &last_segment.arguments {
-            for arg in &args.args {
-                if let GenericArgument::Type(Type::Path(type_path)) = arg {
-                    if let Some(ident) = type_path.path.get_ident() {
-                        let param = TypeParam::from(ident.clone());
-                        generics.params.push(GenericParam::Type(param));
-                    }
-                }
+    if let Some(last_segment) = path.segments.last()
+        && let PathArguments::AngleBracketed(args) = &last_segment.arguments
+    {
+        for arg in &args.args {
+            if let GenericArgument::Type(Type::Path(type_path)) = arg
+                && let Some(ident) = type_path.path.get_ident()
+            {
+                let param = TypeParam::from(ident.clone());
+                generics.params.push(GenericParam::Type(param));
             }
         }
     }

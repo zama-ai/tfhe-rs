@@ -22,8 +22,8 @@ mod v3 {
     }
 
     mod backward_compat {
-        use tfhe_versionable::deprecation::{Deprecable, Deprecated};
         use tfhe_versionable::VersionsDispatch;
+        use tfhe_versionable::deprecation::{Deprecable, Deprecated};
 
         use super::MyStruct;
 
