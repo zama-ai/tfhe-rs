@@ -27,7 +27,7 @@ rand_distr = "0.4.3"
 criterion = { workspace = true }
 doc-comment = "0.3.3"
 serde_json = { workspace = true }
-num-bigint = "0.4.6"
+num-bigint = "0.5.1"
 # clap has to be pinned as its minimum supported rust version
 # changes often between minor releases, which breaks our CI
 clap = { version = "=4.6.4", features = ["derive"] }
