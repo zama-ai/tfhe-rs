@@ -1489,11 +1489,11 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   uint64_t *d_degrees;
 
   // lookup table for extracting message and carry
-  int_radix_lut<Torus> *luts_message_carry;
+  int_radix_lut<Torus> *luts_message_carry = nullptr;
 
-  bool allocated_luts_message_carry;
+  bool mem_reuse = false;
 
-  bool owns_memory() const { return current_blocks->_owns_gpu_memory; }
+  bool owns_memory() const { return !mem_reuse; }
 
   void setup_index_buffers(CudaStreams streams, uint64_t &size_tracker) {
 
@@ -1557,7 +1557,6 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       if (total_ciphertexts > 0 ||
           reduce_degrees_for_single_carry_propagation) {
         uint64_t size_tracker = 0;
-        allocated_luts_message_carry = true;
         luts_message_carry = new int_radix_lut<Torus>(
             streams, params, 2, pbs_count, true, size_tracker);
 
@@ -1577,7 +1576,9 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       }
     }
 
-    if (allocated_luts_message_carry) {
+    // luts_message_carry is non-null: (1) in the memory reuse case when it
+    // needs to be regenerated, (2) the own-memory case
+    if (luts_message_carry != nullptr) {
       // define functions for each accumulator
       auto lut_f_message = [message_modulus](Torus x) -> Torus {
         return x % message_modulus;
@@ -1604,7 +1605,6 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     this->max_num_radix_in_vec = max_num_radix_in_vec;
     this->gpu_memory_allocated = allocate_gpu_memory;
     this->chunk_size = params.max_degree();
-    this->allocated_luts_message_carry = false;
     this->reduce_degrees_for_single_carry_propagation =
         reduce_degrees_for_single_carry_propagation;
 
@@ -1643,12 +1643,12 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       bool reduce_degrees_for_single_carry_propagation,
       bool allocate_gpu_memory, uint64_t &size_tracker) {
     this->params = params;
+    this->mem_reuse = true;
     this->max_total_blocks_in_vec = num_blocks_in_radix * max_num_radix_in_vec;
     this->num_blocks_in_radix = num_blocks_in_radix;
     this->max_num_radix_in_vec = max_num_radix_in_vec;
     this->gpu_memory_allocated = allocate_gpu_memory;
     this->chunk_size = params.max_degree();
-    this->allocated_luts_message_carry = false;
     this->reduce_degrees_for_single_carry_propagation =
         reduce_degrees_for_single_carry_propagation;
 
@@ -1703,7 +1703,9 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
                                      small_lwe_vector, gpu_memory_allocated);
     delete small_lwe_vector;
 
-    if (allocated_luts_message_carry) {
+    // luts_message_carry is created and owned only if this struct owns_memory
+    // (current_blocks / small_lwe_vector)
+    if (owns_memory() && luts_message_carry != nullptr) {
       luts_message_carry->release(streams);
       delete luts_message_carry;
     }

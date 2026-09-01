@@ -342,9 +342,12 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
     return;
   }
 
-  if (current_blocks != terms) {
+  if (mem_ptr->owns_memory()) {
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                        current_blocks, terms);
+  } else {
+    GPU_ASSERT(current_blocks->is_view_of(terms),
+               "current_blocks must be a view of terms in mem_reuse mode");
   }
 
   cuda_memcpy_async_to_gpu(d_degrees, current_blocks->degrees,

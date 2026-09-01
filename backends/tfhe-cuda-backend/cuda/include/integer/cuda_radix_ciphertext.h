@@ -45,6 +45,10 @@ struct CudaRadixCiphertext {
     return *this;
   }
 
+  bool is_view_of(const CudaRadixCiphertext *other) const {
+    return ptr == other->ptr;
+  }
+
   ~CudaRadixCiphertext();
 };
 
