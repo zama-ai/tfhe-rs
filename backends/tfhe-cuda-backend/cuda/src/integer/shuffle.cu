@@ -1,4 +1,5 @@
 #include "integer/shuffle.cuh"
+#include <vector>
 
 uint64_t scratch_cuda_integer_bitonic_shuffle_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
@@ -31,15 +32,29 @@ uint64_t scratch_cuda_integer_bitonic_shuffle_64_async(
  * int_bitonic_shuffle_buffer<uint64_t>.
  */
 void cuda_integer_bitonic_shuffle_64_async(CudaStreamsFFI streams,
-                                           CudaRadixCiphertextFFI **keys,
-                                           CudaRadixCiphertextFFI **values,
+                                           CudaRadixCiphertextFFI **keys_ffi,
+                                           CudaRadixCiphertextFFI **values_ffi,
                                            uint32_t num_values, int8_t *mem_ptr,
                                            void *const *bsks,
                                            void *const *ksks) {
 
   PUSH_RANGE("bitonic shuffle")
+  std::vector<CudaRadixCiphertext> keys_storage;
+  std::vector<CudaRadixCiphertext> values_storage;
+  keys_storage.reserve(num_values);
+  values_storage.reserve(num_values);
+  for (uint32_t i = 0; i < num_values; i++) {
+    keys_storage.emplace_back(*keys_ffi[i]);
+    values_storage.emplace_back(*values_ffi[i]);
+  }
+  std::vector<const CudaRadixCiphertext *> keys(num_values);
+  std::vector<const CudaRadixCiphertext *> values(num_values);
+  for (uint32_t i = 0; i < num_values; i++) {
+    keys[i] = &keys_storage[i];
+    values[i] = &values_storage[i];
+  }
   host_bitonic_shuffle<uint64_t>(
-      CudaStreams(streams), keys, values, num_values,
+      CudaStreams(streams), keys.data(), values.data(), num_values,
       (int_bitonic_shuffle_buffer<uint64_t> *)mem_ptr, bsks, (uint64_t **)ksks);
   POP_RANGE()
 }
@@ -98,15 +113,24 @@ uint64_t scratch_cuda_integer_oprf_bitonic_shuffle_64_async(
  * GPU.
  */
 void cuda_integer_oprf_bitonic_shuffle_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI **values,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI **values_ffi,
     uint32_t num_values, const void *seeded_lwe_input, int8_t *mem_ptr,
     void *const *oprf_bsks, void *const *bsks, void *const *ksks,
     const void *lwe_flattened_encryptions_of_zero_compact_array_in,
     void *const *rerand_ksks) {
 
   PUSH_RANGE("oprf bitonic shuffle")
+  std::vector<CudaRadixCiphertext> values_storage;
+  values_storage.reserve(num_values);
+  for (uint32_t i = 0; i < num_values; i++) {
+    values_storage.emplace_back(*values_ffi[i]);
+  }
+  std::vector<const CudaRadixCiphertext *> values(num_values);
+  for (uint32_t i = 0; i < num_values; i++) {
+    values[i] = &values_storage[i];
+  }
   host_oprf_bitonic_shuffle<uint64_t>(
-      CudaStreams(streams), values, num_values,
+      CudaStreams(streams), values.data(), num_values,
       static_cast<const uint64_t *>(seeded_lwe_input),
       static_cast<const uint64_t *>(
           lwe_flattened_encryptions_of_zero_compact_array_in),

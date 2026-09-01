@@ -32,11 +32,16 @@ std::pair<bool, bool> get_invert_flags(COMPARISON_TYPE compare) {
 }
 
 void cuda_integer_scalar_comparison_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_in, void const *scalar_blocks,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lwe_array_out_ffi,
+    CudaRadixCiphertextFFI const *lwe_array_in_ffi, void const *scalar_blocks,
     void const *h_scalar_blocks, int8_t *mem_ptr, void *const *bsks,
     void *const *ksks, uint32_t num_scalar_blocks) {
-  PANIC_IF_FALSE(lwe_array_out != lwe_array_in,
+  CudaRadixCiphertext lwe_array_out_local(*lwe_array_out_ffi);
+  const CudaRadixCiphertext *lwe_array_out = &lwe_array_out_local;
+  const CudaRadixCiphertext lwe_array_in_local(*lwe_array_in_ffi);
+  const CudaRadixCiphertext *lwe_array_in = &lwe_array_in_local;
+
+  PANIC_IF_FALSE(lwe_array_out_ffi != lwe_array_in_ffi,
                  "Output and input pointers must be different for out-of-place "
                  "operations");
 

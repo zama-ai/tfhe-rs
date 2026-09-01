@@ -87,8 +87,8 @@ __global__ void pack_bivariate_adjacent_blocks_kernel(
 template <typename Torus>
 __host__ void host_pack_bivariate_adjacent_blocks(
     cudaStream_t stream, uint32_t gpu_index,
-    CudaRadixCiphertextFFI *lwe_array_out,
-    CudaRadixCiphertextFFI const *lwe_array_in, uint32_t num_rows,
+    const CudaRadixCiphertext *lwe_array_out,
+    CudaRadixCiphertext const *lwe_array_in, uint32_t num_rows,
     uint32_t n_blocks_per_row, uint32_t factor, uint32_t orphan_factor,
     uint32_t orphan_clear_value, uint32_t message_modulus,
     uint32_t carry_modulus) {
@@ -191,12 +191,10 @@ __global__ void tile_pair_signs_across_blocks_kernel(
  * @param blocks_per_pair   Number of output blocks filled per pair.
  */
 template <typename Torus>
-__host__ void
-tile_pair_signs_across_blocks(cudaStream_t stream,
-                              CudaRadixCiphertextFFI *batch_condition,
-                              uint32_t chunk_start_block,
-                              const CudaRadixCiphertextFFI *comparison_results,
-                              uint32_t num_pairs, uint32_t blocks_per_pair) {
+__host__ void tile_pair_signs_across_blocks(
+    cudaStream_t stream, const CudaRadixCiphertext *batch_condition,
+    uint32_t chunk_start_block, const CudaRadixCiphertext *comparison_results,
+    uint32_t num_pairs, uint32_t blocks_per_pair) {
   if (blocks_per_pair == 0 || num_pairs == 0)
     return;
   if (batch_condition->lwe_dimension != comparison_results->lwe_dimension)
@@ -251,7 +249,7 @@ tile_pair_signs_across_blocks(cudaStream_t stream,
  */
 template <typename Torus, typename KSTorus>
 __host__ void bitonic_sort_compare_phase_batched(
-    CudaStreams streams, CudaRadixCiphertextFFI **keys, uint32_t num_values,
+    CudaStreams streams, const CudaRadixCiphertext **keys, uint32_t num_values,
     uint32_t bitonic_subsequence_stride,
     int_batched_compare_buffer<Torus> *batched_buf, void *const *bsks,
     KSTorus *const *ksks) {
@@ -294,7 +292,7 @@ __host__ void bitonic_sort_compare_phase_batched(
 
   // Pair-pack each key's blocks_per_key blocks into packed_blocks_per_key =
   // ceil(blocks_per_key/2) blocks: lsb + message_modulus * msb.
-  CudaRadixCiphertextFFI lhs_packed_view, rhs_packed_view;
+  CudaRadixCiphertext lhs_packed_view, rhs_packed_view;
   as_radix_ciphertext_slice<Torus>(&lhs_packed_view, batched_buf->tmp_packed, 0,
                                    num_pairs * packed_blocks_per_key);
   as_radix_ciphertext_slice<Torus>(&rhs_packed_view, batched_buf->tmp_packed,
@@ -312,7 +310,7 @@ __host__ void bitonic_sort_compare_phase_batched(
       params.carry_modulus);
 
   // Refresh noise on all packed blocks via identity PBS before subtraction.
-  CudaRadixCiphertextFFI tmp_packed_view;
+  CudaRadixCiphertext tmp_packed_view;
   as_radix_ciphertext_slice<Torus>(&tmp_packed_view, batched_buf->tmp_packed, 0,
                                    2 * num_pairs * packed_blocks_per_key);
   integer_radix_apply_univariate_lookup_table<Torus>(
@@ -326,7 +324,7 @@ __host__ void bitonic_sort_compare_phase_batched(
                           &rhs_packed_view, num_pairs * packed_blocks_per_key,
                           params.message_modulus, params.carry_modulus);
 
-  CudaRadixCiphertextFFI comparisons_view;
+  CudaRadixCiphertext comparisons_view;
   as_radix_ciphertext_slice<Torus>(&comparisons_view, batched_buf->comparisons,
                                    0, num_pairs * packed_blocks_per_key);
   // Map each diff block to 0 (equal) or 1 (different) via is_non_zero PBS.
@@ -353,7 +351,7 @@ __host__ void bitonic_sort_compare_phase_batched(
   uint32_t remaining_packed_blocks = packed_blocks_per_key;
   while (remaining_packed_blocks > 2) {
     uint32_t next_remaining_packed_blocks = (remaining_packed_blocks + 1u) / 2u;
-    CudaRadixCiphertextFFI tx_view, ty_view;
+    CudaRadixCiphertext tx_view, ty_view;
     as_radix_ciphertext_slice<Torus>(&tx_view, batched_buf->tree_x, 0,
                                      num_pairs * remaining_packed_blocks);
     as_radix_ciphertext_slice<Torus>(&ty_view, batched_buf->tree_y, 0,
@@ -365,7 +363,7 @@ __host__ void bitonic_sort_compare_phase_batched(
         remaining_packed_blocks, message_modulus,
         /*orphan_factor=*/message_modulus, /*orphan_clear_value=*/IS_EQUAL,
         params.message_modulus, params.carry_modulus);
-    CudaRadixCiphertextFFI tx_next_view;
+    CudaRadixCiphertext tx_next_view;
     as_radix_ciphertext_slice<Torus>(&tx_next_view, batched_buf->tree_x, 0,
                                      num_pairs * next_remaining_packed_blocks);
     // PBS: propagate IS_SUPERIOR or IS_INFERIOR if any block in the pair was
@@ -381,7 +379,7 @@ __host__ void bitonic_sort_compare_phase_batched(
   // a univariate PBS equivalent to is_any_not_equal_lut operating on the
   // pre-packed value — to produce one final EQ or IS_SUPERIOR verdict per pair,
   // written to comparison_results.
-  CudaRadixCiphertextFFI tx_final, ty_final;
+  CudaRadixCiphertext tx_final, ty_final;
   as_radix_ciphertext_slice<Torus>(&tx_final, batched_buf->tree_x, 0,
                                    num_pairs * 2);
   as_radix_ciphertext_slice<Torus>(&ty_final, batched_buf->tree_y, 0,
@@ -420,13 +418,12 @@ __host__ void bitonic_sort_compare_phase_batched(
  *                                     in batch_condition.
  */
 template <typename Torus>
-__host__ void
-gather_cmux_inputs_batched(CudaStreams streams, CudaRadixCiphertextFFI **keys,
-                           CudaRadixCiphertextFFI **values, uint32_t num_values,
-                           uint32_t bitonic_subsequence_length_k,
-                           uint32_t bitonic_subsequence_stride,
-                           int_batched_compare_buffer<Torus> *batched_buf,
-                           int_fused_cmux_buffer<Torus> *fused_buf) {
+__host__ void gather_cmux_inputs_batched(
+    CudaStreams streams, const CudaRadixCiphertext **keys,
+    const CudaRadixCiphertext **values, uint32_t num_values,
+    uint32_t bitonic_subsequence_length_k, uint32_t bitonic_subsequence_stride,
+    int_batched_compare_buffer<Torus> *batched_buf,
+    int_fused_cmux_buffer<Torus> *fused_buf) {
 
   uint32_t num_pairs = num_values / 2;
   uint32_t blocks_per_key = fused_buf->key_num_blocks;
@@ -451,15 +448,17 @@ gather_cmux_inputs_batched(CudaStreams streams, CudaRadixCiphertextFFI **keys,
     bool ascending =
         (i % (2 * bitonic_subsequence_length_k)) < bitonic_subsequence_length_k;
 
-    CudaRadixCiphertextFFI *sup_key_at_i = ascending ? keys[l] : keys[i];
-    CudaRadixCiphertextFFI *sup_key_at_l = ascending ? keys[i] : keys[l];
-    CudaRadixCiphertextFFI *eq_key_at_i = ascending ? keys[i] : keys[l];
-    CudaRadixCiphertextFFI *eq_key_at_l = ascending ? keys[l] : keys[i];
+    const CudaRadixCiphertext *sup_key_at_i = ascending ? keys[l] : keys[i];
+    const CudaRadixCiphertext *sup_key_at_l = ascending ? keys[i] : keys[l];
+    const CudaRadixCiphertext *eq_key_at_i = ascending ? keys[i] : keys[l];
+    const CudaRadixCiphertext *eq_key_at_l = ascending ? keys[l] : keys[i];
 
-    CudaRadixCiphertextFFI *sup_data_at_i = ascending ? values[l] : values[i];
-    CudaRadixCiphertextFFI *sup_data_at_l = ascending ? values[i] : values[l];
-    CudaRadixCiphertextFFI *eq_data_at_i = ascending ? values[i] : values[l];
-    CudaRadixCiphertextFFI *eq_data_at_l = ascending ? values[l] : values[i];
+    const CudaRadixCiphertext *sup_data_at_i =
+        ascending ? values[l] : values[i];
+    const CudaRadixCiphertext *sup_data_at_l =
+        ascending ? values[i] : values[l];
+    const CudaRadixCiphertext *eq_data_at_i = ascending ? values[i] : values[l];
+    const CudaRadixCiphertext *eq_data_at_l = ascending ? values[l] : values[i];
 
     uint32_t key_sup_pair_start =
         keys_sup_branch_start + pair_idx * 2 * blocks_per_key;
@@ -554,8 +553,8 @@ gather_cmux_inputs_batched(CudaStreams streams, CudaRadixCiphertextFFI **keys,
  */
 template <typename Torus, typename KSTorus>
 __host__ void
-apply_cmux_batched(CudaStreams streams, CudaRadixCiphertextFFI **keys,
-                   CudaRadixCiphertextFFI **values, uint32_t num_values,
+apply_cmux_batched(CudaStreams streams, const CudaRadixCiphertext **keys,
+                   const CudaRadixCiphertext **values, uint32_t num_values,
                    uint32_t bitonic_subsequence_stride,
                    int_fused_cmux_buffer<Torus> *fused_buf, void *const *bsks,
                    KSTorus *const *ksks) {
@@ -578,7 +577,7 @@ apply_cmux_batched(CudaStreams streams, CudaRadixCiphertextFFI **keys,
 
   // Add the two halves: exactly one is non-zero per block, so the sum is the
   // result.
-  CudaRadixCiphertextFFI is_superior_half, is_equal_half;
+  CudaRadixCiphertext is_superior_half, is_equal_half;
   as_radix_ciphertext_slice<Torus>(
       &is_superior_half, fused_buf->batch_buffer_out, 0, blocks_per_branch);
   as_radix_ciphertext_slice<Torus>(&is_equal_half, fused_buf->batch_buffer_out,
@@ -593,7 +592,7 @@ apply_cmux_batched(CudaStreams streams, CudaRadixCiphertextFFI **keys,
   // PBS can refresh it, so the addition noise must be cleaned here to stay
   // within budget. For the final substep, this ensures the outputs are clean
   // for the caller.
-  CudaRadixCiphertextFFI extract_out;
+  CudaRadixCiphertext extract_out;
   as_radix_ciphertext_slice<Torus>(&extract_out, fused_buf->batch_buffer_out, 0,
                                    blocks_per_branch);
   integer_radix_apply_univariate_lookup_table<Torus>(
@@ -666,8 +665,8 @@ __host__ uint64_t scratch_cuda_integer_bitonic_shuffle_async(
  */
 template <typename Torus, typename KSTorus>
 __host__ void
-bitonic_shuffle_substep(CudaStreams streams, CudaRadixCiphertextFFI **keys,
-                        CudaRadixCiphertextFFI **values, uint32_t num_values,
+bitonic_shuffle_substep(CudaStreams streams, const CudaRadixCiphertext **keys,
+                        const CudaRadixCiphertext **values, uint32_t num_values,
                         uint32_t bitonic_subsequence_length_k,
                         uint32_t bitonic_subsequence_stride,
                         int_bitonic_shuffle_buffer<Torus> *mem_ptr,
@@ -704,11 +703,11 @@ bitonic_shuffle_substep(CudaStreams streams, CudaRadixCiphertextFFI **keys,
  */
 template <typename Torus>
 __host__ void bitonic_shuffle_setup_padded(
-    CudaStreams streams, CudaRadixCiphertextFFI **keys,
-    CudaRadixCiphertextFFI **values, uint32_t num_values,
+    CudaStreams streams, const CudaRadixCiphertext **keys,
+    const CudaRadixCiphertext **values, uint32_t num_values,
     int_bitonic_shuffle_buffer<Torus> *mem_ptr,
-    CudaRadixCiphertextFFI ***eff_keys, CudaRadixCiphertextFFI ***eff_values,
-    uint32_t *eff_num_values) {
+    const CudaRadixCiphertext ***eff_keys,
+    const CudaRadixCiphertext ***eff_values, uint32_t *eff_num_values) {
 
   if (!mem_ptr->needs_pad) {
     *eff_keys = keys;
@@ -767,13 +766,13 @@ __host__ void bitonic_shuffle_setup_padded(
  */
 template <typename Torus, typename KSTorus>
 __host__ void
-host_bitonic_shuffle(CudaStreams streams, CudaRadixCiphertextFFI **keys,
-                     CudaRadixCiphertextFFI **values, uint32_t num_values,
+host_bitonic_shuffle(CudaStreams streams, const CudaRadixCiphertext **keys,
+                     const CudaRadixCiphertext **values, uint32_t num_values,
                      int_bitonic_shuffle_buffer<Torus> *mem_ptr,
                      void *const *bsks, KSTorus *const *ksks) {
 
-  CudaRadixCiphertextFFI **eff_keys;
-  CudaRadixCiphertextFFI **eff_values;
+  const CudaRadixCiphertext **eff_keys;
+  const CudaRadixCiphertext **eff_values;
   uint32_t eff_n;
   bitonic_shuffle_setup_padded<Torus>(streams, keys, values, num_values,
                                       mem_ptr, &eff_keys, &eff_values, &eff_n);
@@ -821,8 +820,8 @@ __host__ uint64_t scratch_cuda_integer_oprf_bitonic_shuffle_async(
  */
 template <typename Torus, typename KSTorus>
 __host__ void host_oprf_bitonic_shuffle(
-    CudaStreams streams, CudaRadixCiphertextFFI **values, uint32_t num_values,
-    const Torus *seeded_lwe_input,
+    CudaStreams streams, const CudaRadixCiphertext **values,
+    uint32_t num_values, const Torus *seeded_lwe_input,
     const Torus *lwe_flattened_encryptions_of_zero_compact_array_in,
     Torus *const *rerand_ksks, int_oprf_bitonic_shuffle_buffer<Torus> *mem_ptr,
     void *const *oprf_bsks, void *const *bsks, KSTorus *const *ksks) {

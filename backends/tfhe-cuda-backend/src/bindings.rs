@@ -373,6 +373,23 @@ const _: () = {
 };
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct VecCudaRadixCiphertextFFI {
+    pub ptr: *mut CudaRadixCiphertextFFI,
+    pub num_ciphertexts: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of VecCudaRadixCiphertextFFI"]
+        [::std::mem::size_of::<VecCudaRadixCiphertextFFI>() - 16usize];
+    ["Alignment of VecCudaRadixCiphertextFFI"]
+        [::std::mem::align_of::<VecCudaRadixCiphertextFFI>() - 8usize];
+    ["Offset of field: VecCudaRadixCiphertextFFI::ptr"]
+        [::std::mem::offset_of!(VecCudaRadixCiphertextFFI, ptr) - 0usize];
+    ["Offset of field: VecCudaRadixCiphertextFFI::num_ciphertexts"]
+        [::std::mem::offset_of!(VecCudaRadixCiphertextFFI, num_ciphertexts) - 8usize];
+};
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct CudaScalarDivisorFFI {
     pub chosen_multiplier_has_at_least_one_set: *const u64,
     pub decomposed_chosen_multiplier: *const u64,
@@ -570,7 +587,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_apply_univariate_lut_64_async(
         streams: CudaStreamsFFI,
-        output_radix_lwe: *mut CudaRadixCiphertextFFI,
+        output_radix_lwe: *const CudaRadixCiphertextFFI,
         input_radix_lwe: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
@@ -592,7 +609,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_apply_many_univariate_lut_64_async(
         streams: CudaStreamsFFI,
-        output_radix_lwe: *mut CudaRadixCiphertextFFI,
+        output_radix_lwe: *const CudaRadixCiphertextFFI,
         input_radix_lwe: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
@@ -616,7 +633,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_full_propagation_64_inplace_async(
         streams: CudaStreamsFFI,
-        input_blocks: *mut CudaRadixCiphertextFFI,
+        input_blocks: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
         bsks: *const *mut ffi::c_void,
@@ -632,7 +649,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_mult_inplace_64_async(
         streams: CudaStreamsFFI,
-        radix_lwe_inout: *mut CudaRadixCiphertextFFI,
+        radix_lwe_inout: *const CudaRadixCiphertextFFI,
         is_bool_left: bool,
         radix_lwe_right: *const CudaRadixCiphertextFFI,
         is_bool_right: bool,
@@ -667,7 +684,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_negate_ciphertext_64(
         streams: CudaStreamsFFI,
-        lwe_array_out: *mut CudaRadixCiphertextFFI,
+        lwe_array_out: *const CudaRadixCiphertextFFI,
         lwe_array_in: *const CudaRadixCiphertextFFI,
         message_modulus: u32,
         carry_modulus: u32,
@@ -677,7 +694,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_scalar_addition_ciphertext_64_inplace(
         streams: CudaStreamsFFI,
-        lwe_array: *mut CudaRadixCiphertextFFI,
+        lwe_array: *const CudaRadixCiphertextFFI,
         scalar_input: *const ffi::c_void,
         h_scalar_input: *const ffi::c_void,
         num_scalars: u32,
@@ -702,7 +719,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_logical_scalar_shift_64_inplace_async(
         streams: CudaStreamsFFI,
-        lwe_array: *mut CudaRadixCiphertextFFI,
+        lwe_array: *const CudaRadixCiphertextFFI,
         shift: u32,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -726,7 +743,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_arithmetic_scalar_shift_64_inplace_async(
         streams: CudaStreamsFFI,
-        lwe_array: *mut CudaRadixCiphertextFFI,
+        lwe_array: *const CudaRadixCiphertextFFI,
         shift: u32,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -763,7 +780,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_shift_and_rotate_64_inplace_async(
         streams: CudaStreamsFFI,
-        lwe_array: *mut CudaRadixCiphertextFFI,
+        lwe_array: *const CudaRadixCiphertextFFI,
         lwe_shift: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -809,7 +826,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_comparison_64_async(
         streams: CudaStreamsFFI,
-        lwe_array_out: *mut CudaRadixCiphertextFFI,
+        lwe_array_out: *const CudaRadixCiphertextFFI,
         lwe_array_1: *const CudaRadixCiphertextFFI,
         lwe_array_2: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
@@ -820,7 +837,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_scalar_comparison_64_async(
         streams: CudaStreamsFFI,
-        lwe_array_out: *mut CudaRadixCiphertextFFI,
+        lwe_array_out: *const CudaRadixCiphertextFFI,
         lwe_array_in: *const CudaRadixCiphertextFFI,
         scalar_blocks: *const ffi::c_void,
         h_scalar_blocks: *const ffi::c_void,
@@ -842,7 +859,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_boolean_bitop_inplace_64_async(
         streams: CudaStreamsFFI,
-        lwe_array_inout: *mut CudaRadixCiphertextFFI,
+        lwe_array_inout: *const CudaRadixCiphertextFFI,
         lwe_array_2: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -887,7 +904,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_boolean_bitnot_64_async(
         streams: CudaStreamsFFI,
-        lwe_array: *mut CudaRadixCiphertextFFI,
+        lwe_array: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
@@ -899,7 +916,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_bitnot_ciphertext_64(
         streams: CudaStreamsFFI,
-        radix_ciphertext: *mut CudaRadixCiphertextFFI,
+        radix_ciphertext: *const CudaRadixCiphertextFFI,
         ct_message_modulus: u32,
         param_message_modulus: u32,
         param_carry_modulus: u32,
@@ -936,7 +953,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_bitop_inplace_64_async(
         streams: CudaStreamsFFI,
-        lwe_array_inout: *mut CudaRadixCiphertextFFI,
+        lwe_array_inout: *const CudaRadixCiphertextFFI,
         lwe_array_2: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -946,7 +963,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_scalar_bitop_inplace_64_async(
         streams: CudaStreamsFFI,
-        lwe_array_inout: *mut CudaRadixCiphertextFFI,
+        lwe_array_inout: *const CudaRadixCiphertextFFI,
         clear_blocks: *const ffi::c_void,
         h_clear_blocks: *const ffi::c_void,
         num_clear_blocks: u32,
@@ -983,7 +1000,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_cmux_64_async(
         streams: CudaStreamsFFI,
-        lwe_array_out: *mut CudaRadixCiphertextFFI,
+        lwe_array_out: *const CudaRadixCiphertextFFI,
         lwe_condition: *const CudaRadixCiphertextFFI,
         lwe_array_true: *const CudaRadixCiphertextFFI,
         lwe_array_false: *const CudaRadixCiphertextFFI,
@@ -1012,7 +1029,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_scalar_rotate_64_inplace_async(
         streams: CudaStreamsFFI,
-        lwe_array: *mut CudaRadixCiphertextFFI,
+        lwe_array: *const CudaRadixCiphertextFFI,
         n: u32,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -1056,8 +1073,8 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_propagate_single_carry_64_inplace_async(
         streams: CudaStreamsFFI,
-        lwe_array: *mut CudaRadixCiphertextFFI,
-        carry_out: *mut CudaRadixCiphertextFFI,
+        lwe_array: *const CudaRadixCiphertextFFI,
+        carry_out: *const CudaRadixCiphertextFFI,
         carry_in: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -1069,9 +1086,9 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_add_and_propagate_single_carry_64_inplace_async(
         streams: CudaStreamsFFI,
-        lhs_array: *mut CudaRadixCiphertextFFI,
+        lhs_array: *const CudaRadixCiphertextFFI,
         rhs_array: *const CudaRadixCiphertextFFI,
-        carry_out: *mut CudaRadixCiphertextFFI,
+        carry_out: *const CudaRadixCiphertextFFI,
         carry_in: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -1109,9 +1126,9 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_overflowing_sub_64_inplace_async(
         streams: CudaStreamsFFI,
-        lhs_array: *mut CudaRadixCiphertextFFI,
+        lhs_array: *const CudaRadixCiphertextFFI,
         rhs_array: *const CudaRadixCiphertextFFI,
-        overflow_block: *mut CudaRadixCiphertextFFI,
+        overflow_block: *const CudaRadixCiphertextFFI,
         input_borrow: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -1144,8 +1161,8 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_partial_sum_ciphertexts_vec_64_async(
         streams: CudaStreamsFFI,
-        radix_lwe_out: *mut CudaRadixCiphertextFFI,
-        radix_lwe_vec: *mut CudaRadixCiphertextFFI,
+        radix_lwe_out: *const CudaRadixCiphertextFFI,
+        radix_lwe_vec: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
@@ -1174,7 +1191,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_scalar_mul_64_async(
         streams: CudaStreamsFFI,
-        lwe_array: *mut CudaRadixCiphertextFFI,
+        lwe_array: *const CudaRadixCiphertextFFI,
         decomposed_scalar: *const u64,
         has_at_least_one_set: *const u64,
         mem_ptr: *mut i8,
@@ -1205,8 +1222,8 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_div_rem_64_async(
         streams: CudaStreamsFFI,
-        quotient: *mut CudaRadixCiphertextFFI,
-        remainder: *mut CudaRadixCiphertextFFI,
+        quotient: *const CudaRadixCiphertextFFI,
+        remainder: *const CudaRadixCiphertextFFI,
         numerator: *const CudaRadixCiphertextFFI,
         divisor: *const CudaRadixCiphertextFFI,
         is_signed: bool,
@@ -1221,7 +1238,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_reverse_blocks_64_inplace_async(
         streams: CudaStreamsFFI,
-        lwe_array: *mut CudaRadixCiphertextFFI,
+        lwe_array: *const CudaRadixCiphertextFFI,
     );
 }
 unsafe extern "C" {
@@ -1241,7 +1258,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_abs_inplace_64_async(
         streams: CudaStreamsFFI,
-        ct: *mut CudaRadixCiphertextFFI,
+        ct: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         is_signed: bool,
         bsks: *const *mut ffi::c_void,
@@ -1267,7 +1284,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_are_all_comparisons_block_true_64_async(
         streams: CudaStreamsFFI,
-        lwe_array_out: *mut CudaRadixCiphertextFFI,
+        lwe_array_out: *const CudaRadixCiphertextFFI,
         lwe_array_in: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -1297,7 +1314,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_is_at_least_one_comparisons_block_true_64_async(
         streams: CudaStreamsFFI,
-        lwe_array_out: *mut CudaRadixCiphertextFFI,
+        lwe_array_out: *const CudaRadixCiphertextFFI,
         lwe_array_in: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -1313,21 +1330,21 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn extend_radix_with_trivial_zero_blocks_msb_64(
-        output: *mut CudaRadixCiphertextFFI,
+        output: *const CudaRadixCiphertextFFI,
         input: *const CudaRadixCiphertextFFI,
         streams: CudaStreamsFFI,
     );
 }
 unsafe extern "C" {
     pub fn trim_radix_blocks_lsb_64(
-        output: *mut CudaRadixCiphertextFFI,
+        output: *const CudaRadixCiphertextFFI,
         input: *const CudaRadixCiphertextFFI,
         streams: CudaStreamsFFI,
     );
 }
 unsafe extern "C" {
     pub fn trim_radix_blocks_msb_64(
-        output: *mut CudaRadixCiphertextFFI,
+        output: *const CudaRadixCiphertextFFI,
         input: *const CudaRadixCiphertextFFI,
         streams: CudaStreamsFFI,
     );
@@ -1351,7 +1368,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_apply_noise_squashing_async(
         streams: CudaStreamsFFI,
-        output_radix_lwe: *mut CudaRadixCiphertextFFI,
+        output_radix_lwe: *const CudaRadixCiphertextFFI,
         input_radix_lwe: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
@@ -1378,9 +1395,9 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_sub_and_propagate_single_carry_64_inplace_async(
         streams: CudaStreamsFFI,
-        lhs_array: *mut CudaRadixCiphertextFFI,
+        lhs_array: *const CudaRadixCiphertextFFI,
         rhs_array: *const CudaRadixCiphertextFFI,
-        carry_out: *mut CudaRadixCiphertextFFI,
+        carry_out: *const CudaRadixCiphertextFFI,
         carry_in: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -1412,7 +1429,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_unsigned_scalar_div_radix_64_async(
         streams: CudaStreamsFFI,
-        numerator_ct: *mut CudaRadixCiphertextFFI,
+        numerator_ct: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
@@ -1442,7 +1459,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_signed_scalar_div_radix_64_async(
         streams: CudaStreamsFFI,
-        numerator_ct: *mut CudaRadixCiphertextFFI,
+        numerator_ct: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
@@ -1474,8 +1491,8 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_unsigned_scalar_div_rem_radix_64_async(
         streams: CudaStreamsFFI,
-        quotient_ct: *mut CudaRadixCiphertextFFI,
-        remainder_ct: *mut CudaRadixCiphertextFFI,
+        quotient_ct: *const CudaRadixCiphertextFFI,
+        remainder_ct: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
@@ -1512,8 +1529,8 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_signed_scalar_div_rem_radix_64_async(
         streams: CudaStreamsFFI,
-        quotient_ct: *mut CudaRadixCiphertextFFI,
-        remainder_ct: *mut CudaRadixCiphertextFFI,
+        quotient_ct: *const CudaRadixCiphertextFFI,
+        remainder_ct: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
@@ -1549,7 +1566,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_count_of_consecutive_bits_64_async(
         streams: CudaStreamsFFI,
-        output_ct: *mut CudaRadixCiphertextFFI,
+        output_ct: *const CudaRadixCiphertextFFI,
         input_ct: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -1579,7 +1596,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_grouped_oprf_64_async(
         streams: CudaStreamsFFI,
-        radix_lwe_out: *mut CudaRadixCiphertextFFI,
+        radix_lwe_out: *const CudaRadixCiphertextFFI,
         seeded_lwe_input: *const ffi::c_void,
         num_blocks_to_process: u32,
         mem: *mut i8,
@@ -1613,7 +1630,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_grouped_oprf_custom_range_64_async(
         streams: CudaStreamsFFI,
-        radix_lwe_out: *mut CudaRadixCiphertextFFI,
+        radix_lwe_out: *const CudaRadixCiphertextFFI,
         num_blocks_intermediate: u32,
         seeded_lwe_input: *const ffi::c_void,
         decomposed_scalar: *const u64,
@@ -1652,7 +1669,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_ilog2_64_async(
         streams: CudaStreamsFFI,
-        output_ct: *mut CudaRadixCiphertextFFI,
+        output_ct: *const CudaRadixCiphertextFFI,
         input_ct: *const CudaRadixCiphertextFFI,
         trivial_ct_neg_n: *const CudaRadixCiphertextFFI,
         trivial_ct_2: *const CudaRadixCiphertextFFI,
@@ -1684,8 +1701,8 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_unchecked_match_value_64_async(
         streams: CudaStreamsFFI,
-        lwe_array_out_result: *mut CudaRadixCiphertextFFI,
-        lwe_array_out_boolean: *mut CudaRadixCiphertextFFI,
+        lwe_array_out_result: *const CudaRadixCiphertextFFI,
+        lwe_array_out_boolean: *const CudaRadixCiphertextFFI,
         lwe_array_in_ct: *const CudaRadixCiphertextFFI,
         h_match_inputs: *const u64,
         h_match_outputs: *const u64,
@@ -1719,8 +1736,8 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_cast_to_unsigned_64_async(
         streams: CudaStreamsFFI,
-        output: *mut CudaRadixCiphertextFFI,
-        input: *mut CudaRadixCiphertextFFI,
+        output: *const CudaRadixCiphertextFFI,
+        input: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         target_num_blocks: u32,
         input_is_signed: bool,
@@ -1751,7 +1768,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_unchecked_match_value_or_64_async(
         streams: CudaStreamsFFI,
-        lwe_array_out: *mut CudaRadixCiphertextFFI,
+        lwe_array_out: *const CudaRadixCiphertextFFI,
         lwe_array_in_ct: *const CudaRadixCiphertextFFI,
         h_match_inputs: *const u64,
         h_match_outputs: *const u64,
@@ -1784,10 +1801,9 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_unchecked_contains_64_async(
         streams: CudaStreamsFFI,
-        output: *mut CudaRadixCiphertextFFI,
-        inputs: *const CudaRadixCiphertextFFI,
+        output: *const CudaRadixCiphertextFFI,
+        inputs: *const VecCudaRadixCiphertextFFI,
         value: *const CudaRadixCiphertextFFI,
-        num_inputs: u32,
         num_blocks: u32,
         mem: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -1814,10 +1830,9 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_unchecked_contains_clear_64_async(
         streams: CudaStreamsFFI,
-        output: *mut CudaRadixCiphertextFFI,
-        inputs: *const CudaRadixCiphertextFFI,
+        output: *const CudaRadixCiphertextFFI,
+        inputs: *const VecCudaRadixCiphertextFFI,
         h_clear_val: *const u64,
-        num_inputs: u32,
         num_blocks: u32,
         mem: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -1847,7 +1862,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_unchecked_is_in_clears_64_async(
         streams: CudaStreamsFFI,
-        output: *mut CudaRadixCiphertextFFI,
+        output: *const CudaRadixCiphertextFFI,
         input: *const CudaRadixCiphertextFFI,
         h_cleartexts: *const u64,
         num_clears: u32,
@@ -1881,8 +1896,8 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_unchecked_index_in_clears_64_async(
         streams: CudaStreamsFFI,
-        index_ct: *mut CudaRadixCiphertextFFI,
-        match_ct: *mut CudaRadixCiphertextFFI,
+        index_ct: *const CudaRadixCiphertextFFI,
+        match_ct: *const CudaRadixCiphertextFFI,
         input: *const CudaRadixCiphertextFFI,
         h_cleartexts: *const u64,
         num_clears: u32,
@@ -1917,8 +1932,8 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_unchecked_first_index_in_clears_64_async(
         streams: CudaStreamsFFI,
-        index_ct: *mut CudaRadixCiphertextFFI,
-        match_ct: *mut CudaRadixCiphertextFFI,
+        index_ct: *const CudaRadixCiphertextFFI,
+        match_ct: *const CudaRadixCiphertextFFI,
         input: *const CudaRadixCiphertextFFI,
         h_unique_values: *const u64,
         h_unique_indices: *const u64,
@@ -1933,7 +1948,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_small_scalar_multiplication_integer_64_inplace_async(
         streams: CudaStreamsFFI,
-        lwe_array: *mut CudaRadixCiphertextFFI,
+        lwe_array: *const CudaRadixCiphertextFFI,
         scalar: u64,
         message_modulus: u32,
         carry_modulus: u32,
@@ -1963,11 +1978,10 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_unchecked_first_index_of_clear_64_async(
         streams: CudaStreamsFFI,
-        index_ct: *mut CudaRadixCiphertextFFI,
-        match_ct: *mut CudaRadixCiphertextFFI,
-        inputs: *const CudaRadixCiphertextFFI,
+        index_ct: *const CudaRadixCiphertextFFI,
+        match_ct: *const CudaRadixCiphertextFFI,
+        inputs: *const VecCudaRadixCiphertextFFI,
         h_clear_val: *const u64,
-        num_inputs: u32,
         num_blocks: u32,
         num_blocks_index: u32,
         mem: *mut i8,
@@ -1999,11 +2013,10 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_unchecked_first_index_of_64_async(
         streams: CudaStreamsFFI,
-        index_ct: *mut CudaRadixCiphertextFFI,
-        match_ct: *mut CudaRadixCiphertextFFI,
-        inputs: *const CudaRadixCiphertextFFI,
+        index_ct: *const CudaRadixCiphertextFFI,
+        match_ct: *const CudaRadixCiphertextFFI,
+        inputs: *const VecCudaRadixCiphertextFFI,
         value: *const CudaRadixCiphertextFFI,
-        num_inputs: u32,
         num_blocks: u32,
         num_blocks_index: u32,
         mem: *mut i8,
@@ -2035,11 +2048,10 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_unchecked_index_of_64_async(
         streams: CudaStreamsFFI,
-        index_ct: *mut CudaRadixCiphertextFFI,
-        match_ct: *mut CudaRadixCiphertextFFI,
-        inputs: *const CudaRadixCiphertextFFI,
+        index_ct: *const CudaRadixCiphertextFFI,
+        match_ct: *const CudaRadixCiphertextFFI,
+        inputs: *const VecCudaRadixCiphertextFFI,
         value: *const CudaRadixCiphertextFFI,
-        num_inputs: u32,
         num_blocks: u32,
         num_blocks_index: u32,
         mem: *mut i8,
@@ -2068,12 +2080,11 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_unchecked_index_of_clear_64_async(
         streams: CudaStreamsFFI,
-        index_ct: *mut CudaRadixCiphertextFFI,
-        match_ct: *mut CudaRadixCiphertextFFI,
-        inputs: *const CudaRadixCiphertextFFI,
+        index_ct: *const CudaRadixCiphertextFFI,
+        match_ct: *const CudaRadixCiphertextFFI,
+        inputs: *const VecCudaRadixCiphertextFFI,
         h_clear_val: *const u64,
         is_scalar_obviously_bigger: bool,
-        num_inputs: u32,
         num_blocks: u32,
         num_blocks_index: u32,
         mem: *mut i8,
@@ -2104,7 +2115,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_unchecked_all_eq_slices_64_async(
         streams: CudaStreamsFFI,
-        match_ct: *mut CudaRadixCiphertextFFI,
+        match_ct: *const CudaRadixCiphertextFFI,
         lhs: *const CudaRadixCiphertextFFI,
         rhs: *const CudaRadixCiphertextFFI,
         num_inputs: u32,
@@ -2138,7 +2149,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_unchecked_contains_sub_slice_64_async(
         streams: CudaStreamsFFI,
-        match_ct: *mut CudaRadixCiphertextFFI,
+        match_ct: *const CudaRadixCiphertextFFI,
         lhs: *const CudaRadixCiphertextFFI,
         rhs: *const CudaRadixCiphertextFFI,
         num_rhs: u32,
@@ -2172,7 +2183,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_cast_to_signed_64_async(
         streams: CudaStreamsFFI,
-        output: *mut CudaRadixCiphertextFFI,
+        output: *const CudaRadixCiphertextFFI,
         input: *const CudaRadixCiphertextFFI,
         mem: *mut i8,
         input_is_signed: bool,
@@ -2252,6 +2263,49 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,
     );
+}
+#[repr(C)]
+#[derive(Debug)]
+pub struct CudaRadixCiphertext {
+    pub ptr: *mut ffi::c_void,
+    pub degrees: *mut u64,
+    pub noise_levels: *mut u64,
+    pub num_radix_blocks: u32,
+    pub max_num_radix_blocks: u32,
+    pub lwe_dimension: u32,
+    pub _owns_gpu_memory: bool,
+    pub _owns_degrees_and_noise_levels: bool,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaRadixCiphertext"][::std::mem::size_of::<CudaRadixCiphertext>() - 40usize];
+    ["Alignment of CudaRadixCiphertext"][::std::mem::align_of::<CudaRadixCiphertext>() - 8usize];
+    ["Offset of field: CudaRadixCiphertext::ptr"]
+        [::std::mem::offset_of!(CudaRadixCiphertext, ptr) - 0usize];
+    ["Offset of field: CudaRadixCiphertext::degrees"]
+        [::std::mem::offset_of!(CudaRadixCiphertext, degrees) - 8usize];
+    ["Offset of field: CudaRadixCiphertext::noise_levels"]
+        [::std::mem::offset_of!(CudaRadixCiphertext, noise_levels) - 16usize];
+    ["Offset of field: CudaRadixCiphertext::num_radix_blocks"]
+        [::std::mem::offset_of!(CudaRadixCiphertext, num_radix_blocks) - 24usize];
+    ["Offset of field: CudaRadixCiphertext::max_num_radix_blocks"]
+        [::std::mem::offset_of!(CudaRadixCiphertext, max_num_radix_blocks) - 28usize];
+    ["Offset of field: CudaRadixCiphertext::lwe_dimension"]
+        [::std::mem::offset_of!(CudaRadixCiphertext, lwe_dimension) - 32usize];
+    ["Offset of field: CudaRadixCiphertext::_owns_gpu_memory"]
+        [::std::mem::offset_of!(CudaRadixCiphertext, _owns_gpu_memory) - 36usize];
+    ["Offset of field: CudaRadixCiphertext::_owns_degrees_and_noise_levels"]
+        [::std::mem::offset_of!(CudaRadixCiphertext, _owns_degrees_and_noise_levels) - 37usize];
+};
+unsafe extern "C" {
+    #[link_name = "\u{1}_ZN19CudaRadixCiphertextD1Ev"]
+    pub fn CudaRadixCiphertext_CudaRadixCiphertext_destructor(this: *mut CudaRadixCiphertext);
+}
+impl CudaRadixCiphertext {
+    #[inline]
+    pub unsafe fn destruct(&mut self) {
+        CudaRadixCiphertext_CudaRadixCiphertext_destructor(self)
+    }
 }
 unsafe extern "C" {
     pub fn scratch_cuda_integer_compress_radix_ciphertext_64_async(
@@ -2413,9 +2467,9 @@ unsafe extern "C" {
     #[doc = " @brief Retrieves the encrypted value for a key from an encrypted kv_store.\n\n Compares the encrypted key against all stored clear keys and extracts\n the matching value. Does not leak which key was accessed.\n\n @param lwe_array_out_result       Output ciphertext receiving the looked-up\n value\n @param lwe_array_out_boolean      Output single-block ciphertext: 1 if key\n found, 0 otherwise\n @param lwe_array_out_selectors    Output per-entry boolean selectors (one\n block per entry; encrypts 1 if the entry corresponds to the looked-up key)\n @param lwe_array_in_encrypted_key Input encrypted key to look up\n @param lwe_array_in_values        Input flat array of all stored encrypted\n values\n @param h_decomposed_clear_keys    Host-side clear keys decomposed into radix\n blocks\n @param mem                        Scratch buffer from\n scratch_cuda_kv_store_get_64_async\n @param ksks                       Key-switching keys (one per GPU)"]
     pub fn cuda_kv_store_get_64_async(
         streams: CudaStreamsFFI,
-        lwe_array_out_result: *mut CudaRadixCiphertextFFI,
-        lwe_array_out_boolean: *mut CudaRadixCiphertextFFI,
-        lwe_array_out_selectors: *mut CudaRadixCiphertextFFI,
+        lwe_array_out_result: *const CudaRadixCiphertextFFI,
+        lwe_array_out_boolean: *const CudaRadixCiphertextFFI,
+        lwe_array_out_selectors: *const CudaRadixCiphertextFFI,
         lwe_array_in_encrypted_key: *const CudaRadixCiphertextFFI,
         lwe_array_in_values: *const CudaRadixCiphertextFFI,
         h_decomposed_clear_keys: *const u64,
@@ -2448,8 +2502,8 @@ unsafe extern "C" {
     #[doc = " @brief Updates the encrypted value for a key in an encrypted kv_store.\n\n For each entry, if the stored clear key matches the encrypted query key,\n the old value is replaced with lwe_in_new_value; otherwise kept unchanged.\n\n @param lwe_check_out_block          Output single-block ciphertext: 1 if key\n found, 0 otherwise\n @param lwe_array_out_values         Output flat array of all stored\n encrypted values (updated)\n @param lwe_array_in_encrypted_key   Input encrypted key to match\n @param lwe_array_in_values          Input flat array of current stored\n encrypted values\n @param lwe_in_new_value             Input encrypted replacement value\n @param h_decomposed_clear_keys      Host-side clear keys decomposed into\n radix blocks\n @param mem_ptr                      Scratch buffer from\n scratch_cuda_kv_store_update_64_async\n @param ksks                         Key-switching keys (one per GPU)"]
     pub fn cuda_kv_store_update_64_async(
         streams: CudaStreamsFFI,
-        lwe_check_out_block: *mut CudaRadixCiphertextFFI,
-        lwe_array_out_values: *mut CudaRadixCiphertextFFI,
+        lwe_check_out_block: *const CudaRadixCiphertextFFI,
+        lwe_array_out_values: *const CudaRadixCiphertextFFI,
         lwe_array_in_encrypted_key: *const CudaRadixCiphertextFFI,
         lwe_array_in_values: *const CudaRadixCiphertextFFI,
         lwe_in_new_value: *const CudaRadixCiphertextFFI,
@@ -2482,8 +2536,8 @@ unsafe extern "C" {
     #[doc = " @brief Applies a conditional update to all entries using pre-computed\n selectors.\n\n For each entry, if the corresponding selector is 1, the old encrypted\n value is replaced with lwe_in_new_value; otherwise the old value is kept.\n\n @param lwe_check_out_block       Output single-block ciphertext: 1 if at\n least one selector was true\n @param lwe_array_out_values      Output flat array of all stored encrypted\n values (updated)\n @param lwe_array_in_values       Input flat array of current stored\n encrypted values\n @param lwe_in_new_value          Input encrypted replacement value\n @param lwe_array_in_selectors    Input per-entry boolean selectors (1 =\n entry must be replaced, 0 = entry should be kept)\n @param mem_ptr                   Scratch buffer from\n scratch_cuda_kv_store_map_64_async\n @param ksks                      Key-switching keys (one per GPU)"]
     pub fn cuda_kv_store_map_64_async(
         streams: CudaStreamsFFI,
-        lwe_check_out_block: *mut CudaRadixCiphertextFFI,
-        lwe_array_out_values: *mut CudaRadixCiphertextFFI,
+        lwe_check_out_block: *const CudaRadixCiphertextFFI,
+        lwe_array_out_values: *const CudaRadixCiphertextFFI,
         lwe_array_in_values: *const CudaRadixCiphertextFFI,
         lwe_in_new_value: *const CudaRadixCiphertextFFI,
         lwe_array_in_selectors: *const CudaRadixCiphertextFFI,
@@ -2515,7 +2569,7 @@ unsafe extern "C" {
     #[doc = " @brief Checks whether a clear key exists in the encrypted kv_store.\n\n Compares the encrypted key against all stored clear keys and OR-reduces\n the per-entry booleans into a single key-found flag.\n\n @param lwe_array_out_boolean      Output single-block ciphertext: 1 if key\n found, 0 otherwise\n @param lwe_array_in_encrypted_key Input encrypted key to look up\n @param h_decomposed_clear_keys    Host-side clear keys decomposed into radix\n blocks\n @param mem_ptr                    Scratch buffer from\n scratch_cuda_kv_store_contains_key_64_async\n @param ksks                       Key-switching keys (one per GPU)"]
     pub fn cuda_kv_store_contains_key_64_async(
         streams: CudaStreamsFFI,
-        lwe_array_out_boolean: *mut CudaRadixCiphertextFFI,
+        lwe_array_out_boolean: *const CudaRadixCiphertextFFI,
         lwe_array_in_encrypted_key: *const CudaRadixCiphertextFFI,
         h_decomposed_clear_keys: *const u64,
         mem_ptr: *mut i8,
@@ -2585,7 +2639,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_aes_ctr_encrypt_64_async(
         streams: CudaStreamsFFI,
-        output: *mut CudaRadixCiphertextFFI,
+        output: *const CudaRadixCiphertextFFI,
         iv: *const CudaRadixCiphertextFFI,
         round_keys: *const CudaRadixCiphertextFFI,
         counter_bits_le_all_blocks: *const u64,
@@ -2622,7 +2676,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_key_expansion_64_async(
         streams: CudaStreamsFFI,
-        expanded_keys: *mut CudaRadixCiphertextFFI,
+        expanded_keys: *const CudaRadixCiphertextFFI,
         key: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -2638,7 +2692,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_aes_ctr_256_encrypt_64_async(
         streams: CudaStreamsFFI,
-        output: *mut CudaRadixCiphertextFFI,
+        output: *const CudaRadixCiphertextFFI,
         iv: *const CudaRadixCiphertextFFI,
         round_keys: *const CudaRadixCiphertextFFI,
         counter_bits_le_all_blocks: *const u64,
@@ -2663,7 +2717,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_integer_key_expansion_256_64_async(
         streams: CudaStreamsFFI,
-        expanded_keys: *mut CudaRadixCiphertextFFI,
+        expanded_keys: *const CudaRadixCiphertextFFI,
         key: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -2692,9 +2746,9 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_trivium_init_async(
         streams: CudaStreamsFFI,
-        a_reg: *mut CudaRadixCiphertextFFI,
-        b_reg: *mut CudaRadixCiphertextFFI,
-        c_reg: *mut CudaRadixCiphertextFFI,
+        a_reg: *const CudaRadixCiphertextFFI,
+        b_reg: *const CudaRadixCiphertextFFI,
+        c_reg: *const CudaRadixCiphertextFFI,
         key: *const CudaRadixCiphertextFFI,
         iv: *const CudaRadixCiphertextFFI,
         num_inputs: u32,
@@ -2722,10 +2776,10 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_trivium_step_async(
         streams: CudaStreamsFFI,
-        keystream_output: *mut CudaRadixCiphertextFFI,
-        a_reg: *mut CudaRadixCiphertextFFI,
-        b_reg: *mut CudaRadixCiphertextFFI,
-        c_reg: *mut CudaRadixCiphertextFFI,
+        keystream_output: *const CudaRadixCiphertextFFI,
+        a_reg: *const CudaRadixCiphertextFFI,
+        b_reg: *const CudaRadixCiphertextFFI,
+        c_reg: *const CudaRadixCiphertextFFI,
         num_inputs: u32,
         num_steps: u32,
         mem_ptr: *mut i8,
@@ -2771,11 +2825,11 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_kreyvium_init_async(
         streams: CudaStreamsFFI,
-        a_reg: *mut CudaRadixCiphertextFFI,
-        b_reg: *mut CudaRadixCiphertextFFI,
-        c_reg: *mut CudaRadixCiphertextFFI,
-        k_reg: *mut CudaRadixCiphertextFFI,
-        iv_reg: *mut CudaRadixCiphertextFFI,
+        a_reg: *const CudaRadixCiphertextFFI,
+        b_reg: *const CudaRadixCiphertextFFI,
+        c_reg: *const CudaRadixCiphertextFFI,
+        k_reg: *const CudaRadixCiphertextFFI,
+        iv_reg: *const CudaRadixCiphertextFFI,
         k_offset: *mut u32,
         iv_offset: *mut u32,
         key: *const CudaRadixCiphertextFFI,
@@ -2789,12 +2843,12 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_kreyvium_step_async(
         streams: CudaStreamsFFI,
-        keystream_output: *mut CudaRadixCiphertextFFI,
-        a_reg: *mut CudaRadixCiphertextFFI,
-        b_reg: *mut CudaRadixCiphertextFFI,
-        c_reg: *mut CudaRadixCiphertextFFI,
-        k_reg: *mut CudaRadixCiphertextFFI,
-        iv_reg: *mut CudaRadixCiphertextFFI,
+        keystream_output: *const CudaRadixCiphertextFFI,
+        a_reg: *const CudaRadixCiphertextFFI,
+        b_reg: *const CudaRadixCiphertextFFI,
+        c_reg: *const CudaRadixCiphertextFFI,
+        k_reg: *const CudaRadixCiphertextFFI,
+        iv_reg: *const CudaRadixCiphertextFFI,
         k_offset: *mut u32,
         iv_offset: *mut u32,
         num_inputs: u32,
@@ -2839,11 +2893,11 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_fast_kreyvium_init_async(
         streams: CudaStreamsFFI,
-        a_reg: *mut CudaRadixCiphertextFFI,
-        b_reg: *mut CudaRadixCiphertextFFI,
-        c_reg: *mut CudaRadixCiphertextFFI,
-        k_reg: *mut CudaRadixCiphertextFFI,
-        iv_reg: *mut CudaRadixCiphertextFFI,
+        a_reg: *const CudaRadixCiphertextFFI,
+        b_reg: *const CudaRadixCiphertextFFI,
+        c_reg: *const CudaRadixCiphertextFFI,
+        k_reg: *const CudaRadixCiphertextFFI,
+        iv_reg: *const CudaRadixCiphertextFFI,
         k_offset: *mut u32,
         iv_offset: *mut u32,
         key: *const CudaRadixCiphertextFFI,
@@ -2857,12 +2911,12 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn cuda_fast_kreyvium_step_async(
         streams: CudaStreamsFFI,
-        keystream_output: *mut CudaRadixCiphertextFFI,
-        a_reg: *mut CudaRadixCiphertextFFI,
-        b_reg: *mut CudaRadixCiphertextFFI,
-        c_reg: *mut CudaRadixCiphertextFFI,
-        k_reg: *mut CudaRadixCiphertextFFI,
-        iv_reg: *mut CudaRadixCiphertextFFI,
+        keystream_output: *const CudaRadixCiphertextFFI,
+        a_reg: *const CudaRadixCiphertextFFI,
+        b_reg: *const CudaRadixCiphertextFFI,
+        c_reg: *const CudaRadixCiphertextFFI,
+        k_reg: *const CudaRadixCiphertextFFI,
+        iv_reg: *const CudaRadixCiphertextFFI,
         k_offset: *mut u32,
         iv_offset: *mut u32,
         num_inputs: u32,
@@ -2961,7 +3015,7 @@ unsafe extern "C" {
     pub fn cuda_add_lwe_ciphertext_vector_inplace_64(
         stream: *mut ffi::c_void,
         gpu_index: u32,
-        lwe_array_inout: *mut CudaRadixCiphertextFFI,
+        lwe_array_inout: *const CudaRadixCiphertextFFI,
         input_2: *const CudaRadixCiphertextFFI,
     );
 }

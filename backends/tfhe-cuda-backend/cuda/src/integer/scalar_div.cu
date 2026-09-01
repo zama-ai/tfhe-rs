@@ -17,9 +17,11 @@ uint64_t scratch_cuda_integer_unsigned_scalar_div_radix_64_async(
 }
 
 void cuda_integer_unsigned_scalar_div_radix_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *numerator_ct,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *numerator_ct_ffi,
     int8_t *mem_ptr, void *const *bsks, void *const *ksks,
     const CudaScalarDivisorFFI *scalar_divisor_ffi) {
+  CudaRadixCiphertext numerator_ct_local(*numerator_ct_ffi);
+  const CudaRadixCiphertext *numerator_ct = &numerator_ct_local;
 
   host_integer_unsigned_scalar_div_radix<uint64_t>(
       CudaStreams(streams), numerator_ct,
@@ -56,9 +58,11 @@ uint64_t scratch_cuda_integer_signed_scalar_div_radix_64_async(
 }
 
 void cuda_integer_signed_scalar_div_radix_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *numerator_ct,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *numerator_ct_ffi,
     int8_t *mem_ptr, void *const *bsks, void *const *ksks,
     const CudaScalarDivisorFFI *scalar_divisor_ffi, uint32_t numerator_bits) {
+  CudaRadixCiphertext numerator_ct_local(*numerator_ct_ffi);
+  const CudaRadixCiphertext *numerator_ct = &numerator_ct_local;
 
   host_integer_signed_scalar_div_radix<uint64_t>(
       CudaStreams(streams), numerator_ct,
@@ -96,14 +100,20 @@ uint64_t scratch_cuda_integer_unsigned_scalar_div_rem_radix_64_async(
 }
 
 void cuda_integer_unsigned_scalar_div_rem_radix_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *quotient_ct,
-    CudaRadixCiphertextFFI *remainder_ct, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *quotient_ct_ffi,
+    CudaRadixCiphertextFFI const *remainder_ct_ffi, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint64_t const *divisor_has_at_least_one_set,
     uint64_t const *decomposed_divisor, uint32_t const num_scalars_divisor,
     void const *clear_blocks, void const *h_clear_blocks,
     uint32_t num_clear_blocks) {
-  PANIC_IF_FALSE(quotient_ct != remainder_ct,
+  CudaRadixCiphertext quotient_ct_local(*quotient_ct_ffi);
+  const CudaRadixCiphertext *quotient_ct = &quotient_ct_local;
+  CudaRadixCiphertext remainder_ct_local(*remainder_ct_ffi);
+  const CudaRadixCiphertext *remainder_ct = &remainder_ct_local;
+
+  PANIC_IF_FALSE(quotient_ct_ffi != remainder_ct_ffi,
                  "Quotient and remainder pointers must be different for "
                  "out-of-place operations");
 
@@ -145,13 +155,19 @@ uint64_t scratch_cuda_integer_signed_scalar_div_rem_radix_64_async(
 }
 
 void cuda_integer_signed_scalar_div_rem_radix_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *quotient_ct,
-    CudaRadixCiphertextFFI *remainder_ct, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *quotient_ct_ffi,
+    CudaRadixCiphertextFFI const *remainder_ct_ffi, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint64_t const *divisor_has_at_least_one_set,
     uint64_t const *decomposed_divisor, uint32_t const num_scalars_divisor,
     uint32_t numerator_bits) {
-  PANIC_IF_FALSE(quotient_ct != remainder_ct,
+  CudaRadixCiphertext quotient_ct_local(*quotient_ct_ffi);
+  const CudaRadixCiphertext *quotient_ct = &quotient_ct_local;
+  CudaRadixCiphertext remainder_ct_local(*remainder_ct_ffi);
+  const CudaRadixCiphertext *remainder_ct = &remainder_ct_local;
+
+  PANIC_IF_FALSE(quotient_ct_ffi != remainder_ct_ffi,
                  "Quotient and remainder pointers must be different for "
                  "out-of-place operations");
 

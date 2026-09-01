@@ -65,8 +65,8 @@ __global__ void device_accumulate_all_blocks_batched(
 /// @param carry_modulus         Carry modulus for noise-level validation
 template <typename Torus>
 __host__ void host_accumulate_all_blocks_batched(
-    cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *output,
-    CudaRadixCiphertextFFI const *input, uint32_t blocks_per_entry,
+    cudaStream_t stream, uint32_t gpu_index, const CudaRadixCiphertext *output,
+    CudaRadixCiphertext const *input, uint32_t blocks_per_entry,
     uint32_t max_value, uint32_t num_entries, uint32_t num_chunks_per_entry,
     uint32_t message_modulus, uint32_t carry_modulus) {
   cuda_set_device(gpu_index);
@@ -148,8 +148,8 @@ __host__ void host_accumulate_all_blocks_batched(
 ///                                   and tree buffers
 template <typename Torus>
 __host__ void host_kv_store_compute_eq_selectors_small_map(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_packed,
-    CudaRadixCiphertextFFI const *lwe_array_in, uint32_t num_blocks,
+    CudaStreams streams, const CudaRadixCiphertext *lwe_array_out_packed,
+    CudaRadixCiphertext const *lwe_array_in, uint32_t num_blocks,
     const uint64_t *h_decomposed_cleartexts,
     int_kv_store_eq_selectors_small_map_buffer<Torus> *mem_ptr,
     void *const *bsks, Torus *const *ksks) {
@@ -209,8 +209,7 @@ __host__ void host_kv_store_compute_eq_selectors_small_map(
   auto tree_accumulator = mem_ptr->tree_accumulator;
   auto tree_pbs_output = mem_ptr->tree_pbs_output;
 
-  CudaRadixCiphertextFFI const *current_input =
-      &mem_ptr->tmp_batched_comparisons;
+  CudaRadixCiphertext const *current_input = &mem_ptr->tmp_batched_comparisons;
   uint32_t carry_modulus = mem_ptr->params.carry_modulus;
   uint32_t blocks_per_entry = num_blocks;
   uint32_t level = 0;
@@ -240,7 +239,7 @@ __host__ void host_kv_store_compute_eq_selectors_small_map(
     level++;
   }
 
-  CudaRadixCiphertextFFI const *result_source =
+  CudaRadixCiphertext const *result_source =
       (blocks_per_entry == num_blocks) ? &mem_ptr->tmp_batched_comparisons
                                        : tree_pbs_output;
   copy_radix_ciphertext_slice_async<Torus>(
@@ -264,8 +263,8 @@ __host__ void host_kv_store_compute_eq_selectors_small_map(
 ///                                   algorithm
 template <typename Torus>
 __host__ void host_kv_store_compute_eq_selectors(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_packed,
-    CudaRadixCiphertextFFI const *lwe_array_in, uint32_t num_blocks,
+    CudaStreams streams, const CudaRadixCiphertext *lwe_array_out_packed,
+    CudaRadixCiphertext const *lwe_array_in, uint32_t num_blocks,
     const uint64_t *h_decomposed_cleartexts,
     int_kv_store_eq_selectors_wrapper_buffer<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks) {
@@ -301,11 +300,11 @@ __host__ void host_kv_store_compute_eq_selectors(
 template <typename Torus>
 __host__ void
 host_kv_store_get(CudaStreams streams,
-                  CudaRadixCiphertextFFI *lwe_array_out_result,
-                  CudaRadixCiphertextFFI *lwe_array_out_boolean,
-                  CudaRadixCiphertextFFI *lwe_array_out_selectors,
-                  CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
-                  CudaRadixCiphertextFFI const *lwe_array_in_values,
+                  const CudaRadixCiphertext *lwe_array_out_result,
+                  const CudaRadixCiphertext *lwe_array_out_boolean,
+                  const CudaRadixCiphertext *lwe_array_out_selectors,
+                  CudaRadixCiphertext const *lwe_array_in_encrypted_key,
+                  CudaRadixCiphertext const *lwe_array_in_values,
                   const uint64_t *h_decomposed_clear_keys,
                   int_kv_store_get_buffer<Torus> *mem_ptr, void *const *bsks,
                   Torus *const *ksks) {
@@ -396,11 +395,11 @@ uint64_t scratch_cuda_kv_store_get(
 template <typename Torus, typename KSTorus>
 __host__ void
 host_kv_store_update(CudaStreams streams,
-                     CudaRadixCiphertextFFI *lwe_check_out_block,
-                     CudaRadixCiphertextFFI *lwe_array_out_values,
-                     CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
-                     CudaRadixCiphertextFFI const *lwe_array_in_values,
-                     CudaRadixCiphertextFFI const *lwe_in_new_value,
+                     const CudaRadixCiphertext *lwe_check_out_block,
+                     const CudaRadixCiphertext *lwe_array_out_values,
+                     CudaRadixCiphertext const *lwe_array_in_encrypted_key,
+                     CudaRadixCiphertext const *lwe_array_in_values,
+                     CudaRadixCiphertext const *lwe_in_new_value,
                      const uint64_t *h_decomposed_clear_keys,
                      int_kv_store_update_buffer<Torus> *mem_ptr,
                      void *const *bsks, KSTorus *const *ksks) {
@@ -490,11 +489,11 @@ uint64_t scratch_cuda_kv_store_update(
 template <typename Torus, typename KSTorus>
 __host__ void
 host_kv_store_map(CudaStreams streams,
-                  CudaRadixCiphertextFFI *lwe_check_out_block,
-                  CudaRadixCiphertextFFI *lwe_array_out_values,
-                  CudaRadixCiphertextFFI const *lwe_array_in_values,
-                  CudaRadixCiphertextFFI const *lwe_in_new_value,
-                  CudaRadixCiphertextFFI const *lwe_array_in_selectors,
+                  CudaRadixCiphertext const *lwe_check_out_block,
+                  const CudaRadixCiphertext *lwe_array_out_values,
+                  CudaRadixCiphertext const *lwe_array_in_values,
+                  CudaRadixCiphertext const *lwe_in_new_value,
+                  CudaRadixCiphertext const *lwe_array_in_selectors,
                   int_kv_store_map_buffer<Torus> *mem_ptr, void *const *bsks,
                   KSTorus *const *ksks) {
 
@@ -569,8 +568,8 @@ scratch_cuda_kv_store_map(CudaStreams streams,
 ///                                   scratch_cuda_kv_store_contains_key
 template <typename Torus, typename KSTorus>
 __host__ void host_kv_store_contains_key(
-    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_boolean,
-    CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
+    CudaStreams streams, const CudaRadixCiphertext *lwe_array_out_boolean,
+    CudaRadixCiphertext const *lwe_array_in_encrypted_key,
     const uint64_t *h_decomposed_clear_keys,
     int_kv_store_contains_key_buffer<Torus> *mem_ptr, void *const *bsks,
     KSTorus *const *ksks) {

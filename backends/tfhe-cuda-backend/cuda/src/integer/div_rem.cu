@@ -17,25 +17,34 @@ uint64_t scratch_cuda_integer_div_rem_64_async(
 }
 
 void cuda_integer_div_rem_64_async(CudaStreamsFFI streams,
-                                   CudaRadixCiphertextFFI *quotient,
-                                   CudaRadixCiphertextFFI *remainder,
-                                   CudaRadixCiphertextFFI const *numerator,
-                                   CudaRadixCiphertextFFI const *divisor,
+                                   CudaRadixCiphertextFFI const *quotient_ffi,
+                                   CudaRadixCiphertextFFI const *remainder_ffi,
+                                   CudaRadixCiphertextFFI const *numerator_ffi,
+                                   CudaRadixCiphertextFFI const *divisor_ffi,
                                    bool is_signed, int8_t *mem_ptr,
                                    void *const *bsks, void *const *ksks) {
-  PANIC_IF_FALSE(quotient != numerator,
+  CudaRadixCiphertext quotient_local(*quotient_ffi);
+  const CudaRadixCiphertext *quotient = &quotient_local;
+  CudaRadixCiphertext remainder_local(*remainder_ffi);
+  const CudaRadixCiphertext *remainder = &remainder_local;
+  const CudaRadixCiphertext numerator_local(*numerator_ffi);
+  const CudaRadixCiphertext *numerator = &numerator_local;
+  const CudaRadixCiphertext divisor_local(*divisor_ffi);
+  const CudaRadixCiphertext *divisor = &divisor_local;
+
+  PANIC_IF_FALSE(quotient_ffi != numerator_ffi,
                  "Quotient and numerator pointers must be different for "
                  "out-of-place operations");
-  PANIC_IF_FALSE(quotient != divisor,
+  PANIC_IF_FALSE(quotient_ffi != divisor_ffi,
                  "Quotient and divisor pointers must be different for "
                  "out-of-place operations");
-  PANIC_IF_FALSE(remainder != numerator,
+  PANIC_IF_FALSE(remainder_ffi != numerator_ffi,
                  "Remainder and numerator pointers must be different for "
                  "out-of-place operations");
-  PANIC_IF_FALSE(remainder != divisor,
+  PANIC_IF_FALSE(remainder_ffi != divisor_ffi,
                  "Remainder and divisor pointers must be different for "
                  "out-of-place operations");
-  PANIC_IF_FALSE(quotient != remainder,
+  PANIC_IF_FALSE(quotient_ffi != remainder_ffi,
                  "Quotient and remainder pointers must be different for "
                  "out-of-place operations");
   PUSH_RANGE("div")

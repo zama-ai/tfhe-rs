@@ -92,3 +92,23 @@ rules:
           $FUNC(...);
           check_cuda_error(cudaGetLastError());
       - pattern-not-inside: $FUNC(...) == $VAL
+
+
+  - id: cuda-radix-ciphertext-non-const-param
+    message: >-
+      CudaRadixCiphertext function parameters must be const pointers
+      (const CudaRadixCiphertext *). Mutable pointers are only permitted
+      for functions that allocate or structurally modify the ciphertext
+      (e.g. create_*, reset_*, release_*). Suppress with // nosemgrep
+      for those cases.
+    severity: ERROR
+    languages: [cpp]
+    paths:
+      include:
+        - "*.cu"
+        - "*.cuh"
+        - "*.h"
+    patterns:
+      - pattern: $RET $FUNC(..., CudaRadixCiphertext *$PARAM, ...) { ... }
+      - pattern-not: $RET $FUNC(..., const CudaRadixCiphertext *$PARAM, ...) { ... }
+      - pattern-not: $RET $FUNC(..., CudaRadixCiphertext const *$PARAM, ...) { ... }

@@ -7,12 +7,12 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
   SHIFT_OR_ROTATE_TYPE shift_type;
   bool is_signed;
 
-  CudaRadixCiphertextFFI *tmp_bits;
-  CudaRadixCiphertextFFI *tmp_shift_bits;
-  CudaRadixCiphertextFFI *tmp_rotated;
-  CudaRadixCiphertextFFI *tmp_input_bits_a;
-  CudaRadixCiphertextFFI *tmp_input_bits_b;
-  CudaRadixCiphertextFFI *tmp_mux_inputs;
+  CudaRadixCiphertext *tmp_bits;
+  CudaRadixCiphertext *tmp_shift_bits;
+  CudaRadixCiphertext *tmp_rotated;
+  CudaRadixCiphertext *tmp_input_bits_a;
+  CudaRadixCiphertext *tmp_input_bits_b;
+  CudaRadixCiphertext *tmp_mux_inputs;
 
   int_bit_extract_luts_buffer<Torus> *bit_extract_luts;
   int_bit_extract_luts_buffer<Torus> *bit_extract_luts_with_offset_2;
@@ -28,10 +28,10 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
   int_comparison_buffer<Torus> *overshift_compare_mem;
   /// @brief One-block ct reused by the fixup: first the boolean predicate,
   /// then the per-block condition packed into the carry.
-  CudaRadixCiphertextFFI *tmp_overshift;
+  CudaRadixCiphertext *tmp_overshift;
   /// @brief Zero-padded copy of the shift amount, used when the block count is
   /// odd (the comparison needs an even count, or one). Null when not padding.
-  CudaRadixCiphertextFFI *tmp_padded_shift;
+  CudaRadixCiphertext *tmp_padded_shift;
   /// @brief Number of blocks the comparison runs on: the input block count
   /// rounded up to even (or 1).
   uint32_t overshift_compare_num_blocks;
@@ -94,37 +94,37 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
         new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
                                  allocate_gpu_memory, size_tracker);
 
-    tmp_bits = new CudaRadixCiphertextFFI;
+    tmp_bits = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_bits,
         bits_per_block * num_radix_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    tmp_shift_bits = new CudaRadixCiphertextFFI;
+    tmp_shift_bits = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_shift_bits,
         max_num_bits_that_tell_shift * num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    tmp_rotated = new CudaRadixCiphertextFFI;
+    tmp_rotated = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_rotated,
         bits_per_block * num_radix_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    tmp_input_bits_a = new CudaRadixCiphertextFFI;
+    tmp_input_bits_a = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_input_bits_a,
         bits_per_block * num_radix_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    tmp_input_bits_b = new CudaRadixCiphertextFFI;
+    tmp_input_bits_b = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_input_bits_b,
         bits_per_block * num_radix_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    tmp_mux_inputs = new CudaRadixCiphertextFFI;
+    tmp_mux_inputs = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp_mux_inputs,
         bits_per_block * num_radix_blocks, params.big_lwe_dimension,
@@ -200,13 +200,13 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
           streams, COMPARISON_TYPE::GE, params, overshift_compare_num_blocks,
           /*is_signed=*/false, allocate_gpu_memory, size_tracker);
 
-      tmp_overshift = new CudaRadixCiphertextFFI;
+      tmp_overshift = new CudaRadixCiphertext;
       create_zero_radix_ciphertext_async<Torus>(
           streams.stream(0), streams.gpu_index(0), tmp_overshift, 1,
           params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
       if (overshift_compare_num_blocks != num_radix_blocks) {
-        tmp_padded_shift = new CudaRadixCiphertextFFI;
+        tmp_padded_shift = new CudaRadixCiphertext;
         create_zero_radix_ciphertext_async<Torus>(
             streams.stream(0), streams.gpu_index(0), tmp_padded_shift,
             overshift_compare_num_blocks, params.big_lwe_dimension,

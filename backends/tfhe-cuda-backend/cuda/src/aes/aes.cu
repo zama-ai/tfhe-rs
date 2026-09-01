@@ -34,10 +34,17 @@ uint64_t scratch_cuda_integer_aes_ctr_256_encrypt_64_async(
 }
 
 void cuda_integer_aes_ctr_encrypt_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output,
-    CudaRadixCiphertextFFI const *iv, CudaRadixCiphertextFFI const *round_keys,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *output_ffi,
+    CudaRadixCiphertextFFI const *iv_ffi,
+    CudaRadixCiphertextFFI const *round_keys_ffi,
     const uint64_t *counter_bits_le_all_blocks, uint32_t num_aes_inputs,
     int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
+  CudaRadixCiphertext output_local(*output_ffi);
+  const CudaRadixCiphertext *output = &output_local;
+  const CudaRadixCiphertext iv_local(*iv_ffi);
+  const CudaRadixCiphertext *iv = &iv_local;
+  const CudaRadixCiphertext round_keys_local(*round_keys_ffi);
+  const CudaRadixCiphertext *round_keys = &round_keys_local;
 
   host_integer_aes_ctr_encrypt<uint64_t>(
       CudaStreams(streams), output, iv, round_keys, counter_bits_le_all_blocks,
@@ -84,11 +91,14 @@ uint64_t scratch_cuda_integer_key_expansion_64_async(
       params, allocate_gpu_memory);
 }
 
-void cuda_integer_key_expansion_64_async(CudaStreamsFFI streams,
-                                         CudaRadixCiphertextFFI *expanded_keys,
-                                         CudaRadixCiphertextFFI const *key,
-                                         int8_t *mem_ptr, void *const *bsks,
-                                         void *const *ksks) {
+void cuda_integer_key_expansion_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *expanded_keys_ffi,
+    CudaRadixCiphertextFFI const *key_ffi, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks) {
+  CudaRadixCiphertext expanded_keys_local(*expanded_keys_ffi);
+  const CudaRadixCiphertext *expanded_keys = &expanded_keys_local;
+  const CudaRadixCiphertext key_local(*key_ffi);
+  const CudaRadixCiphertext *key = &key_local;
 
   host_integer_key_expansion<uint64_t>(
       CudaStreams(streams), expanded_keys, key,

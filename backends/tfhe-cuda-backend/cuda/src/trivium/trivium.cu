@@ -2,13 +2,23 @@
 #include "trivium.cuh"
 
 void cuda_trivium_init_async(CudaStreamsFFI streams,
-                             CudaRadixCiphertextFFI *a_reg,
-                             CudaRadixCiphertextFFI *b_reg,
-                             CudaRadixCiphertextFFI *c_reg,
-                             const CudaRadixCiphertextFFI *key,
-                             const CudaRadixCiphertextFFI *iv,
+                             CudaRadixCiphertextFFI const *a_reg_ffi,
+                             CudaRadixCiphertextFFI const *b_reg_ffi,
+                             CudaRadixCiphertextFFI const *c_reg_ffi,
+                             const CudaRadixCiphertextFFI *key_ffi,
+                             const CudaRadixCiphertextFFI *iv_ffi,
                              uint32_t num_inputs, int8_t *mem_ptr,
                              void *const *bsks, void *const *ksks) {
+  CudaRadixCiphertext a_reg_local(*a_reg_ffi);
+  const CudaRadixCiphertext *a_reg = &a_reg_local;
+  CudaRadixCiphertext b_reg_local(*b_reg_ffi);
+  const CudaRadixCiphertext *b_reg = &b_reg_local;
+  CudaRadixCiphertext c_reg_local(*c_reg_ffi);
+  const CudaRadixCiphertext *c_reg = &c_reg_local;
+  const CudaRadixCiphertext key_local(*key_ffi);
+  const CudaRadixCiphertext *key = &key_local;
+  const CudaRadixCiphertext iv_local(*iv_ffi);
+  const CudaRadixCiphertext *iv = &iv_local;
 
   auto buffer = (int_trivium_buffer<uint64_t> *)mem_ptr;
   host_trivium_init<uint64_t>(CudaStreams(streams), buffer, a_reg, b_reg, c_reg,
@@ -16,12 +26,21 @@ void cuda_trivium_init_async(CudaStreamsFFI streams,
 }
 
 void cuda_trivium_step_async(CudaStreamsFFI streams,
-                             CudaRadixCiphertextFFI *keystream_output,
-                             CudaRadixCiphertextFFI *a_reg,
-                             CudaRadixCiphertextFFI *b_reg,
-                             CudaRadixCiphertextFFI *c_reg, uint32_t num_inputs,
-                             uint32_t num_steps, int8_t *mem_ptr,
-                             void *const *bsks, void *const *ksks) {
+                             CudaRadixCiphertextFFI const *keystream_output_ffi,
+                             CudaRadixCiphertextFFI const *a_reg_ffi,
+                             CudaRadixCiphertextFFI const *b_reg_ffi,
+                             CudaRadixCiphertextFFI const *c_reg_ffi,
+                             uint32_t num_inputs, uint32_t num_steps,
+                             int8_t *mem_ptr, void *const *bsks,
+                             void *const *ksks) {
+  CudaRadixCiphertext keystream_output_local(*keystream_output_ffi);
+  const CudaRadixCiphertext *keystream_output = &keystream_output_local;
+  CudaRadixCiphertext a_reg_local(*a_reg_ffi);
+  const CudaRadixCiphertext *a_reg = &a_reg_local;
+  CudaRadixCiphertext b_reg_local(*b_reg_ffi);
+  const CudaRadixCiphertext *b_reg = &b_reg_local;
+  CudaRadixCiphertext c_reg_local(*c_reg_ffi);
+  const CudaRadixCiphertext *c_reg = &c_reg_local;
 
   auto buffer = (int_trivium_buffer<uint64_t> *)mem_ptr;
   host_trivium_step<uint64_t>(CudaStreams(streams), keystream_output, a_reg,

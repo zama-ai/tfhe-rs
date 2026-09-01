@@ -6,8 +6,8 @@
 // Creates a view (slice) of specific bits in a register.
 // Used to access specific taps like a[65], k[127], etc.
 template <typename Torus>
-__host__ void slice_reg_batch_impl(CudaRadixCiphertextFFI *slice,
-                                   const CudaRadixCiphertextFFI *reg,
+__host__ void slice_reg_batch_impl(CudaRadixCiphertext *slice,
+                                   const CudaRadixCiphertext *reg,
                                    uint32_t start_bit_idx, uint32_t num_bits,
                                    uint32_t num_inputs) {
   as_radix_ciphertext_slice<Torus>(slice, reg, start_bit_idx * num_inputs,
@@ -18,8 +18,8 @@ __host__ void slice_reg_batch_impl(CudaRadixCiphertextFFI *slice,
 // Shifts the register and inserts new bits at the start.
 template <typename Torus>
 __host__ void shift_and_insert_batch_impl(
-    CudaStreams streams, CudaRadixCiphertextFFI *shift_workspace,
-    CudaRadixCiphertextFFI *reg, CudaRadixCiphertextFFI *new_bits,
+    CudaStreams streams, CudaRadixCiphertext const *shift_workspace,
+    CudaRadixCiphertext const *reg, CudaRadixCiphertext const *new_bits,
     uint32_t reg_size, uint32_t num_inputs, uint32_t batch_size) {
   uint32_t num_blocks_to_keep = (reg_size - batch_size) * num_inputs;
   copy_radix_ciphertext_slice_async<Torus>(
@@ -38,8 +38,8 @@ __host__ void shift_and_insert_batch_impl(
 // Essential for aligning Key/IV bit ordering.
 template <typename Torus>
 void reverse_bitsliced_radix_inplace_impl(
-    CudaStreams streams, CudaRadixCiphertextFFI *shift_workspace,
-    CudaRadixCiphertextFFI *radix, uint32_t num_bits_in_reg,
+    CudaStreams streams, CudaRadixCiphertext const *shift_workspace,
+    CudaRadixCiphertext const *radix, uint32_t num_bits_in_reg,
     uint32_t num_inputs) {
   for (uint32_t i = 0; i < num_bits_in_reg; i++) {
     uint32_t src_start = i * num_inputs;

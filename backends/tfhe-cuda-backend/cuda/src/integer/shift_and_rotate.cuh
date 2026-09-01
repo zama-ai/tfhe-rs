@@ -35,15 +35,15 @@ __host__ uint64_t scratch_cuda_shift_and_rotate(
 template <typename Torus, typename KSTorus>
 __host__ void
 host_compute_overshift_condition(CudaStreams streams,
-                                 CudaRadixCiphertextFFI const *lwe_shift,
-                                 CudaRadixCiphertextFFI const *last_bit,
+                                 CudaRadixCiphertext const *lwe_shift,
+                                 CudaRadixCiphertext const *last_bit,
                                  int_shift_and_rotate_buffer<Torus> *mem,
                                  void *const *bsks, KSTorus *const *ksks) {
   auto message_modulus = mem->params.message_modulus;
   auto carry_modulus = mem->params.carry_modulus;
 
   auto num_radix_blocks = lwe_shift->num_radix_blocks;
-  CudaRadixCiphertextFFI const *compare_in;
+  CudaRadixCiphertext const *compare_in;
   if (mem->tmp_padded_shift != nullptr) {
     // Pad the shift amount to an even number of blocks (high block is 0).
     set_zero_radix_ciphertext_slice_async<Torus>(
@@ -89,7 +89,7 @@ host_compute_overshift_condition(CudaStreams streams,
 template <typename Torus, typename KSTorus>
 __host__ void
 host_apply_overshift_cleanup(CudaStreams streams,
-                             CudaRadixCiphertextFFI *shifted_ct,
+                             const CudaRadixCiphertext *shifted_ct,
                              int_shift_and_rotate_buffer<Torus> *mem,
                              void *const *bsks, KSTorus *const *ksks) {
   auto num_radix_blocks = shifted_ct->num_radix_blocks;
@@ -105,8 +105,8 @@ host_apply_overshift_cleanup(CudaStreams streams,
 template <typename Torus, typename KSTorus>
 __host__ void
 host_shift_and_rotate_inplace(CudaStreams streams,
-                              CudaRadixCiphertextFFI *lwe_array,
-                              CudaRadixCiphertextFFI const *lwe_shift,
+                              const CudaRadixCiphertext *lwe_array,
+                              CudaRadixCiphertext const *lwe_shift,
                               int_shift_and_rotate_buffer<Torus> *mem,
                               void *const *bsks, KSTorus *const *ksks) {
   cuda_set_device(streams.gpu_index(0));
@@ -166,7 +166,7 @@ host_shift_and_rotate_inplace(CudaStreams streams,
                         mem->bit_extract_luts_with_offset_2);
 
   // If signed, do an "arithmetic shift" by padding with the sign bit
-  CudaRadixCiphertextFFI last_bit;
+  CudaRadixCiphertext last_bit;
   as_radix_ciphertext_slice<Torus>(&last_bit, bits, (total_nb_bits - 1),
                                    total_nb_bits);
 
@@ -180,7 +180,7 @@ host_shift_and_rotate_inplace(CudaStreams streams,
   copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                      input_bits_a, bits);
   for (int d = 0; d < max_num_bits_that_tell_shift; d++) {
-    CudaRadixCiphertextFFI shift_bit;
+    CudaRadixCiphertext shift_bit;
     as_radix_ciphertext_slice<Torus>(&shift_bit, shift_bits, d, d + 1);
 
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
@@ -271,8 +271,8 @@ host_shift_and_rotate_inplace(CudaStreams streams,
                                                mem->params.message_modulus,
                                                mem->params.carry_modulus);
     for (int j = 0; j < num_radix_blocks; j++) {
-      CudaRadixCiphertextFFI block;
-      CudaRadixCiphertextFFI bit_to_add;
+      CudaRadixCiphertext block;
+      CudaRadixCiphertext bit_to_add;
       as_radix_ciphertext_slice<Torus>(&block, lwe_array, j, j + 1);
       as_radix_ciphertext_slice<Torus>(&bit_to_add, input_bits_a,
                                        i + j * bits_per_block,

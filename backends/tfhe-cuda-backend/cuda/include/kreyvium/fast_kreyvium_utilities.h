@@ -125,11 +125,11 @@ template <typename Torus> struct int_fast_kreyvium_lut_buffers {
 /// @tparam Torus  Unsigned integer type representing a ciphertext torus element
 template <typename Torus> struct int_fast_kreyvium_workspaces {
   /// Scratch used by shift-and-insert and by Key/IV bit reversal
-  CudaRadixCiphertextFFI *shift_workspace;
+  CudaRadixCiphertext *shift_workspace;
   /// Packed accumulator input to the bit-extraction PBS (4 paths)
-  CudaRadixCiphertextFFI *packed_acc;
+  CudaRadixCiphertext *packed_acc;
   /// Packed bit-extraction PBS output (4 paths)
-  CudaRadixCiphertextFFI *packed_out;
+  CudaRadixCiphertext *packed_out;
 
   /// @brief Allocates the scratch buffers for the ZZ_4 FastKreyvium loop.
   ///
@@ -139,17 +139,17 @@ template <typename Torus> struct int_fast_kreyvium_workspaces {
                                bool allocate_gpu_memory, uint32_t num_inputs,
                                uint64_t &size_tracker) {
     uint32_t batch_blocks = FAST_KREYVIUM_BATCH_SIZE * num_inputs;
-    this->shift_workspace = new CudaRadixCiphertextFFI;
+    this->shift_workspace = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->shift_workspace,
         FAST_KREYVIUM_KEY_BITS * num_inputs, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
-    this->packed_acc = new CudaRadixCiphertextFFI;
+    this->packed_acc = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_acc,
         FAST_KREYVIUM_NUM_OUTPUT_PATHS * batch_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
-    this->packed_out = new CudaRadixCiphertextFFI;
+    this->packed_out = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->packed_out,
         FAST_KREYVIUM_NUM_OUTPUT_PATHS * batch_blocks, params.big_lwe_dimension,

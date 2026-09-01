@@ -8,7 +8,7 @@
 
 template <typename Torus>
 __host__ void host_extend_radix_with_trivial_zero_blocks_msb(
-    CudaRadixCiphertextFFI *output, CudaRadixCiphertextFFI const *input,
+    CudaRadixCiphertext const *output, CudaRadixCiphertext const *input,
     CudaStreams streams) {
   PUSH_RANGE("extend only")
   copy_radix_ciphertext_slice_async<Torus>(
@@ -18,8 +18,8 @@ __host__ void host_extend_radix_with_trivial_zero_blocks_msb(
 }
 
 template <typename Torus>
-__host__ void host_trim_radix_blocks_lsb(CudaRadixCiphertextFFI *output,
-                                         CudaRadixCiphertextFFI const *input,
+__host__ void host_trim_radix_blocks_lsb(CudaRadixCiphertext const *output,
+                                         CudaRadixCiphertext const *input,
                                          CudaStreams streams) {
 
   const uint32_t input_start_lwe_index =
@@ -38,8 +38,8 @@ __host__ void host_trim_radix_blocks_lsb(CudaRadixCiphertextFFI *output,
 
 template <typename Torus>
 __host__ void
-host_trim_radix_blocks_msb(CudaRadixCiphertextFFI *output_radix,
-                           const CudaRadixCiphertextFFI *input_radix,
+host_trim_radix_blocks_msb(CudaRadixCiphertext const *output_radix,
+                           const CudaRadixCiphertext *input_radix,
                            CudaStreams streams) {
 
   PANIC_IF_FALSE(input_radix->num_radix_blocks >=
@@ -70,8 +70,8 @@ __host__ uint64_t scratch_extend_radix_with_sign_msb(
 
 template <typename Torus, typename KSTorus>
 __host__ void host_extend_radix_with_sign_msb(
-    CudaStreams streams, CudaRadixCiphertextFFI *output,
-    CudaRadixCiphertextFFI const *input,
+    CudaStreams streams, const CudaRadixCiphertext *output,
+    CudaRadixCiphertext const *input,
     int_extend_radix_with_sign_msb_buffer<Torus> *mem_ptr,
     uint32_t num_additional_blocks, void *const *bsks, KSTorus *const *ksks) {
 
@@ -125,8 +125,8 @@ uint64_t scratch_cuda_cast_to_unsigned(
 
 template <typename Torus>
 __host__ void
-host_cast_to_unsigned(CudaStreams streams, CudaRadixCiphertextFFI *output,
-                      CudaRadixCiphertextFFI *input,
+host_cast_to_unsigned(CudaStreams streams, CudaRadixCiphertext const *output,
+                      const CudaRadixCiphertext *input,
                       int_cast_to_unsigned_buffer<Torus> *mem_ptr,
                       uint32_t target_num_blocks, bool input_is_signed,
                       void *const *bsks, Torus *const *ksks) {
@@ -178,8 +178,8 @@ scratch_cuda_cast_to_signed(CudaStreams streams,
 
 template <typename Torus>
 __host__ void
-host_cast_to_signed(CudaStreams streams, CudaRadixCiphertextFFI *output,
-                    CudaRadixCiphertextFFI const *input,
+host_cast_to_signed(CudaStreams streams, CudaRadixCiphertext const *output,
+                    CudaRadixCiphertext const *input,
                     int_cast_to_signed_buffer<Torus> *mem_ptr,
                     bool input_is_signed, void *const *bsks, Torus **ksks) {
 

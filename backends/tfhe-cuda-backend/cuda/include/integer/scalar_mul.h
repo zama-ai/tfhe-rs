@@ -6,8 +6,8 @@ template <typename Torus> struct int_scalar_mul_buffer {
   int_radix_params params;
   int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_buffer;
   int_sum_ciphertexts_vec_memory<Torus> *sum_ciphertexts_vec_mem;
-  CudaRadixCiphertextFFI *preshifted_buffer;
-  CudaRadixCiphertextFFI *all_shifted_buffer;
+  CudaRadixCiphertext *preshifted_buffer;
+  CudaRadixCiphertext *all_shifted_buffer;
   int_sc_prop_memory<Torus> *sc_prop_mem;
   bool anticipated_buffers_drop;
   bool gpu_memory_allocated;
@@ -27,14 +27,14 @@ template <typename Torus> struct int_scalar_mul_buffer {
     //// Contains all shifted values of lhs for shift in range (0..msg_bits)
     //// The idea is that with these we can create all other shift that are
     /// in / range (0..total_bits) for free (block rotation)
-    preshifted_buffer = new CudaRadixCiphertextFFI;
     uint64_t anticipated_drop_mem = 0;
+    preshifted_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), preshifted_buffer,
         msg_bits * num_radix_blocks, params.big_lwe_dimension,
         anticipated_drop_mem, allocate_gpu_memory);
 
-    all_shifted_buffer = new CudaRadixCiphertextFFI;
+    all_shifted_buffer = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), all_shifted_buffer,
         num_ciphertext_bits * num_radix_blocks, params.big_lwe_dimension,
@@ -109,7 +109,7 @@ template <typename Torus> struct int_scalar_mul_high_buffer {
   int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem;
   int_scalar_mul_buffer<Torus> *scalar_mul_mem;
 
-  CudaRadixCiphertextFFI *tmp;
+  CudaRadixCiphertext *tmp;
 
   int_scalar_mul_high_buffer(CudaStreams streams, const int_radix_params params,
                              uint32_t num_radix_blocks,
@@ -128,7 +128,7 @@ template <typename Torus> struct int_scalar_mul_high_buffer {
         streams, params, 2 * num_radix_blocks, num_scalar_bits,
         allocate_gpu_memory, true, size_tracker);
 
-    this->tmp = new CudaRadixCiphertextFFI;
+    this->tmp = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp, 2 * num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
@@ -158,7 +158,7 @@ template <typename Torus> struct int_signed_scalar_mul_high_buffer {
   int_scalar_mul_buffer<Torus> *scalar_mul_mem;
   int_extend_radix_with_sign_msb_buffer<Torus> *extend_radix_mem;
 
-  CudaRadixCiphertextFFI *tmp;
+  CudaRadixCiphertext *tmp;
 
   int_signed_scalar_mul_high_buffer(CudaStreams streams,
                                     const int_radix_params params,
@@ -178,7 +178,7 @@ template <typename Torus> struct int_signed_scalar_mul_high_buffer {
         streams, params, 2 * num_radix_blocks, num_scalar_bits,
         allocate_gpu_memory, true, size_tracker);
 
-    this->tmp = new CudaRadixCiphertextFFI;
+    this->tmp = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tmp, 2 * num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);

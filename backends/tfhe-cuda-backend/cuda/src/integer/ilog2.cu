@@ -22,10 +22,15 @@ uint64_t scratch_cuda_integer_count_of_consecutive_bits_64_async(
 // stored in the output ciphertext.
 //
 void cuda_integer_count_of_consecutive_bits_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_ct,
-    CudaRadixCiphertextFFI const *input_ct, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks) {
-  PANIC_IF_FALSE(output_ct != input_ct,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *output_ct_ffi,
+    CudaRadixCiphertextFFI const *input_ct_ffi, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks) {
+  CudaRadixCiphertext output_ct_local(*output_ct_ffi);
+  const CudaRadixCiphertext *output_ct = &output_ct_local;
+  const CudaRadixCiphertext input_ct_local(*input_ct_ffi);
+  const CudaRadixCiphertext *input_ct = &input_ct_local;
+
+  PANIC_IF_FALSE(output_ct_ffi != input_ct_ffi,
                  "Output and input pointers must be different for out-of-place "
                  "operations");
 
@@ -68,13 +73,26 @@ uint64_t scratch_cuda_integer_ilog2_64_async(
 // The result is stored in the output ciphertext.
 //
 void cuda_integer_ilog2_64_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_ct,
-    CudaRadixCiphertextFFI const *input_ct,
-    CudaRadixCiphertextFFI const *trivial_ct_neg_n,
-    CudaRadixCiphertextFFI const *trivial_ct_2,
-    CudaRadixCiphertextFFI const *trivial_ct_m_minus_1_block, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks) {
-  PANIC_IF_FALSE(output_ct != input_ct,
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *output_ct_ffi,
+    CudaRadixCiphertextFFI const *input_ct_ffi,
+    CudaRadixCiphertextFFI const *trivial_ct_neg_n_ffi,
+    CudaRadixCiphertextFFI const *trivial_ct_2_ffi,
+    CudaRadixCiphertextFFI const *trivial_ct_m_minus_1_block_ffi,
+    int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
+  CudaRadixCiphertext output_ct_local(*output_ct_ffi);
+  const CudaRadixCiphertext *output_ct = &output_ct_local;
+  const CudaRadixCiphertext input_ct_local(*input_ct_ffi);
+  const CudaRadixCiphertext *input_ct = &input_ct_local;
+  const CudaRadixCiphertext trivial_ct_neg_n_local(*trivial_ct_neg_n_ffi);
+  const CudaRadixCiphertext *trivial_ct_neg_n = &trivial_ct_neg_n_local;
+  const CudaRadixCiphertext trivial_ct_2_local(*trivial_ct_2_ffi);
+  const CudaRadixCiphertext *trivial_ct_2 = &trivial_ct_2_local;
+  const CudaRadixCiphertext trivial_ct_m_minus_1_block_local(
+      *trivial_ct_m_minus_1_block_ffi);
+  const CudaRadixCiphertext *trivial_ct_m_minus_1_block =
+      &trivial_ct_m_minus_1_block_local;
+
+  PANIC_IF_FALSE(output_ct_ffi != input_ct_ffi,
                  "Output and input pointers must be different for out-of-place "
                  "operations");
 

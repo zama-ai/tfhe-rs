@@ -21,8 +21,10 @@ uint64_t scratch_cuda_logical_scalar_shift_64_inplace_async(
 /// the application of a PBS onto the rotated blocks up to num_blocks -
 /// rotations - 1 The remaining blocks are padded with zeros
 void cuda_logical_scalar_shift_64_inplace_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
-    int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lwe_array_ffi,
+    uint32_t shift, int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
+  CudaRadixCiphertext lwe_array_local(*lwe_array_ffi);
+  const CudaRadixCiphertext *lwe_array = &lwe_array_local;
 
   host_logical_scalar_shift_inplace<uint64_t>(
       CudaStreams(streams), lwe_array, shift,
@@ -54,8 +56,10 @@ uint64_t scratch_cuda_arithmetic_scalar_shift_64_inplace_async(
 /// block, which is copied onto all remaining blocks instead of padding with
 /// zeros as would be done in the logical shift.
 void cuda_arithmetic_scalar_shift_64_inplace_async(
-    CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
-    int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI const *lwe_array_ffi,
+    uint32_t shift, int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
+  CudaRadixCiphertext lwe_array_local(*lwe_array_ffi);
+  const CudaRadixCiphertext *lwe_array = &lwe_array_local;
 
   host_arithmetic_scalar_shift_inplace<uint64_t>(
       CudaStreams(streams), lwe_array, shift,

@@ -23,21 +23,30 @@ uint64_t scratch_cuda_cmux_64_async(CudaStreamsFFI streams, int8_t **mem_ptr,
 }
 
 void cuda_cmux_64_async(CudaStreamsFFI streams,
-                        CudaRadixCiphertextFFI *lwe_array_out,
-                        CudaRadixCiphertextFFI const *lwe_condition,
-                        CudaRadixCiphertextFFI const *lwe_array_true,
-                        CudaRadixCiphertextFFI const *lwe_array_false,
+                        CudaRadixCiphertextFFI const *lwe_array_out_ffi,
+                        CudaRadixCiphertextFFI const *lwe_condition_ffi,
+                        CudaRadixCiphertextFFI const *lwe_array_true_ffi,
+                        CudaRadixCiphertextFFI const *lwe_array_false_ffi,
                         int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
+  CudaRadixCiphertext lwe_array_out_local(*lwe_array_out_ffi);
+  const CudaRadixCiphertext *lwe_array_out = &lwe_array_out_local;
+  const CudaRadixCiphertext lwe_condition_local(*lwe_condition_ffi);
+  const CudaRadixCiphertext *lwe_condition = &lwe_condition_local;
+  const CudaRadixCiphertext lwe_array_true_local(*lwe_array_true_ffi);
+  const CudaRadixCiphertext *lwe_array_true = &lwe_array_true_local;
+  const CudaRadixCiphertext lwe_array_false_local(*lwe_array_false_ffi);
+  const CudaRadixCiphertext *lwe_array_false = &lwe_array_false_local;
+
   PANIC_IF_FALSE(
-      lwe_array_out != lwe_condition,
+      lwe_array_out_ffi != lwe_condition_ffi,
       "Output and condition pointers must be different for out-of-place "
       "operations");
   PANIC_IF_FALSE(
-      lwe_array_out != lwe_array_true,
+      lwe_array_out_ffi != lwe_array_true_ffi,
       "Output and true-branch pointers must be different for out-of-place "
       "operations");
   PANIC_IF_FALSE(
-      lwe_array_out != lwe_array_false,
+      lwe_array_out_ffi != lwe_array_false_ffi,
       "Output and false-branch pointers must be different for out-of-place "
       "operations");
   PUSH_RANGE("cmux")

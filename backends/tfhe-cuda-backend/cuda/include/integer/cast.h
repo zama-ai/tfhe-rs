@@ -8,8 +8,8 @@ template <typename Torus> struct int_extend_radix_with_sign_msb_buffer {
 
   int_radix_lut<Torus> *lut = nullptr;
 
-  CudaRadixCiphertextFFI *last_block = nullptr;
-  CudaRadixCiphertextFFI *padding_block = nullptr;
+  CudaRadixCiphertext *last_block = nullptr;
+  CudaRadixCiphertext *padding_block = nullptr;
 
   int_extend_radix_with_sign_msb_buffer(CudaStreams streams,
                                         const int_radix_params params,
@@ -39,13 +39,13 @@ template <typename Torus> struct int_extend_radix_with_sign_msb_buffer {
           }},
           LUT_0_FOR_ALL_BLOCKS);
 
-      this->last_block = new CudaRadixCiphertextFFI;
+      this->last_block = new CudaRadixCiphertext;
 
       create_zero_radix_ciphertext_async<Torus>(
           streams.stream(0), streams.gpu_index(0), last_block, 1,
           params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-      this->padding_block = new CudaRadixCiphertextFFI;
+      this->padding_block = new CudaRadixCiphertext;
 
       create_zero_radix_ciphertext_async<Torus>(
           streams.stream(0), streams.gpu_index(0), padding_block, 1,

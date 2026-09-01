@@ -23,7 +23,8 @@ void cuda_glwe_wrapping_polynomial_mul_one_to_many_64_async(
     int8_t *circulant, void const *poly_rhs, uint32_t polynomial_size,
     uint32_t glwe_dimension, uint32_t n_rhs);
 void cuda_add_lwe_ciphertext_vector_inplace_64(
-    void *stream, uint32_t gpu_index, CudaRadixCiphertextFFI *lwe_array_inout,
+    void *stream, uint32_t gpu_index,
+    CudaRadixCiphertextFFI const *lwe_array_inout,
     CudaRadixCiphertextFFI const *input_2);
 }
 

@@ -29,10 +29,10 @@ template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
   /// Per-digit equality LUTs (one per message_modulus value)
   int_radix_lut<Torus> *comparison_luts;
   /// Grid PBS output: message_modulus x num_blocks equality indicators
-  CudaRadixCiphertextFFI tmp_many_luts_output;
+  CudaRadixCiphertext tmp_many_luts_output;
 
   /// Gathered per-candidate comparison blocks
-  CudaRadixCiphertextFFI tmp_batched_comparisons;
+  CudaRadixCiphertext tmp_batched_comparisons;
   /// Device gather-index buffer for align_with_indexes
   Torus *d_map;
   /// Host gather-index buffer, copied to d_map before each use
@@ -40,9 +40,9 @@ template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
 
   // Tree reduction
   /// Accumulator for tree-level block sums (null for single-block keys)
-  CudaRadixCiphertextFFI *tree_accumulator;
+  CudaRadixCiphertext *tree_accumulator;
   /// PBS output at each tree level (null for single-block keys)
-  CudaRadixCiphertextFFI *tree_pbs_output;
+  CudaRadixCiphertext *tree_pbs_output;
   /// LUTs for the is-max-value check at each tree level
   int_radix_lut<Torus> *is_max_value_lut;
   /// Maximum sum before a PBS round: (msg*carry - 1) / (msg - 1)
@@ -131,13 +131,13 @@ template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
       uint32_t acc_blocks = num_possible_values * this->max_chunks;
       uint32_t max_value = this->max_value;
 
-      this->tree_accumulator = new CudaRadixCiphertextFFI;
+      this->tree_accumulator = new CudaRadixCiphertext;
       create_zero_radix_ciphertext_async<Torus>(
           streams.stream(0), streams.gpu_index(0), this->tree_accumulator,
           acc_blocks, params.big_lwe_dimension, size_tracker,
           allocate_gpu_memory);
 
-      this->tree_pbs_output = new CudaRadixCiphertextFFI;
+      this->tree_pbs_output = new CudaRadixCiphertext;
       create_zero_radix_ciphertext_async<Torus>(
           streams.stream(0), streams.gpu_index(0), this->tree_pbs_output,
           acc_blocks, params.big_lwe_dimension, size_tracker,
@@ -336,7 +336,7 @@ template <typename Torus> struct int_kv_store_get_buffer {
   /// Bivariate LUT: keep block if selector is nonzero, else zero
   int_radix_lut<Torus> *one_hot_vector_predicate;
   /// Scratch ciphertext for the one-hot vector
-  CudaRadixCiphertextFFI *tmp_cmux_array;
+  CudaRadixCiphertext *tmp_cmux_array;
   /// Identity LUT for carry propagation during the sum step
   int_radix_lut<Torus> *identity_lut;
 
@@ -388,7 +388,7 @@ template <typename Torus> struct int_kv_store_get_buffer {
     this->one_hot_vector_predicate->generate_and_broadcast_bivariate_lut(
         active_streams, {0}, {zero_out_predicate_lut_f}, LUT_0_FOR_ALL_BLOCKS);
 
-    this->tmp_cmux_array = new CudaRadixCiphertextFFI;
+    this->tmp_cmux_array = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->tmp_cmux_array,
         total_value_blocks, params.big_lwe_dimension, size_tracker,
@@ -471,7 +471,7 @@ template <typename Torus> struct int_kv_store_update_buffer {
   int_kv_store_eq_selectors_wrapper_buffer<Torus> *mem_eq_selectors_buffer;
 
   /// Contiguous buffer for selectors, one boolean per entry
-  CudaRadixCiphertextFFI *selectors_contiguous;
+  CudaRadixCiphertext *selectors_contiguous;
 
   /// OR-reduction scratch producing the key-found boolean
   int_comparison_buffer<Torus> *at_least_one_true_buffer;
@@ -498,7 +498,7 @@ template <typename Torus> struct int_kv_store_update_buffer {
             streams, params, num_entries, num_key_blocks, allocate_gpu_memory,
             size_tracker);
 
-    this->selectors_contiguous = new CudaRadixCiphertextFFI;
+    this->selectors_contiguous = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->selectors_contiguous,
         num_entries, params.big_lwe_dimension, size_tracker,
@@ -625,7 +625,7 @@ template <typename Torus> struct int_kv_store_contains_key_buffer {
   int_kv_store_eq_selectors_wrapper_buffer<Torus> *mem_eq_selectors_buffer;
 
   /// Contiguous buffer for selectors, one boolean per entry
-  CudaRadixCiphertextFFI *selectors_contiguous;
+  CudaRadixCiphertext *selectors_contiguous;
 
   /// OR-reduction scratch producing the key-found boolean
   int_comparison_buffer<Torus> *at_least_one_true_buffer;
@@ -651,7 +651,7 @@ template <typename Torus> struct int_kv_store_contains_key_buffer {
             streams, params, num_entries, num_key_blocks, allocate_gpu_memory,
             size_tracker);
 
-    this->selectors_contiguous = new CudaRadixCiphertextFFI;
+    this->selectors_contiguous = new CudaRadixCiphertext;
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), this->selectors_contiguous,
         num_entries, params.big_lwe_dimension, size_tracker,
