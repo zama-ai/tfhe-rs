@@ -12,7 +12,7 @@ readme = "README.md"
 keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography"]
 
 [dependencies]
-tfhe-cuda-common = { version = "0.1.0", path = "../tfhe-cuda-common" }
+tfhe-cuda-common = { version = "0.1.1", path = "../tfhe-cuda-common" }
 
 [build-dependencies]
 cmake.workspace = true
