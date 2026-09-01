@@ -1,0 +1,28 @@
+# Check that CUDA backend crates have their version bumped when modified
+name: check_cuda_version_bump
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow (via manual approval for PR from forks)
+
+jobs:
+  check-version-bump:
+    name: check_cuda_version_bump/check-version-bump (bpr)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: "false"
+          fetch-depth: 0
+
+      - name: Check CUDA backend version bumps
+        run: ./scripts/check_cuda_version_bump.sh
