@@ -11,7 +11,7 @@ use crate::integer::gpu::{
     cuda_backend_oprf_bitonic_shuffle, cuda_backend_unchecked_bitonic_shuffle, CudaServerKey,
 };
 pub use crate::integer::server_key::radix_parallel::bitonic_shuffle::{
-    BitonicShuffleKeySize, CollisionProbability,
+    AttackerAdvantage, BitonicShuffleKeySize, CollisionProbability,
 };
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::oprf::{create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe};
