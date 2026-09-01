@@ -557,13 +557,11 @@ impl ToAsm for PeUcoreInsn {
                 Arg::UcoreFlag(self.flag),
                 Arg::Mem(self.slot),
             ]
+        } else if self.hid == VirtId(0) {
+            // No Data
+            vec![Arg::UcoreFlag(self.flag)]
         } else {
-            if self.hid == VirtId(0) {
-                // No Data
-                vec![Arg::UcoreFlag(self.flag)]
-            } else {
-                vec![Arg::UcoreFlag(self.flag), Arg::Mem(self.slot)]
-            }
+            vec![Arg::UcoreFlag(self.flag), Arg::Mem(self.slot)]
         }
     }
     fn opcode(&self) -> Opcode {
