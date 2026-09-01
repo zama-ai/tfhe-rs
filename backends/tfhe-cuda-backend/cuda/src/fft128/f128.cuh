@@ -2,6 +2,7 @@
 #ifndef CUDA_FFT128_F128_CUH
 #define CUDA_FFT128_F128_CUH
 
+#include <cmath>
 #include <cstdint>
 
 struct alignas(16) f128 {
@@ -45,7 +46,7 @@ struct alignas(16) f128 {
     double p2 = __fma_rn(a, b, -p);
 #else
     double p = a * b;
-    double p2 = fma(a, b, -p);
+    double p2 = std::fma(a, b, -p);
 #endif
     return f128(p, p2);
   }
@@ -122,12 +123,18 @@ struct alignas(16) f128 {
   // Multiplication
   __host__ __device__ static f128 mul(const f128 &a, const f128 &b) {
     auto p = two_prod(a.hi, b.hi);
+    // The two cross products are accumulated with fused multiply-adds: this
+    // removes the roundings of the two intermediate products, so the result is
+    // at least as accurate as computing and adding them separately, for half
+    // the instructions.
+    // Both branches name the operation explicitly (__fma_rn on device,
+    // std::fma on host) rather than letting each compiler decide whether to
+    // contract `a * b + c`. Without that, the host and device paths would not
+    // evaluate the same expression.
 #ifdef __CUDA_ARCH__
-    double a_0_x_b_1 = __dmul_rn(a.hi, b.lo);
-    double a_1_x_b_0 = __dmul_rn(a.lo, b.hi);
-    p.lo = __dadd_rn(p.lo, __dadd_rn(a_0_x_b_1, a_1_x_b_0));
+    p.lo = __fma_rn(a.hi, b.lo, __fma_rn(a.lo, b.hi, p.lo));
 #else
-    p.lo += (a.hi * b.lo + a.lo * b.hi);
+    p.lo = std::fma(a.hi, b.lo, std::fma(a.lo, b.hi, p.lo));
 #endif
     p = quick_two_sum(p.hi, p.lo);
     return p;
@@ -308,19 +315,22 @@ struct f128x2 {
     return f128x2(re, f128(-im.hi, -im.lo));
   }
 
-  __host__ __device__ f128 norm_squared() const {
-    return f128::add(f128::mul(re, re), f128::mul(im, im));
-  }
-
   __host__ __device__ void zero() {
     re = f128(0.0, 0.0);
     im = f128(0.0, 0.0);
   }
 
+  // The arithmetic operators below are the backward FFT's butterflies. They use
+  // the *_estimate forms, which is the precision the forward FFT (through
+  // cplx_f128_add_assign / cplx_f128_sub_assign) and the tfhe-fft CPU reference
+  // already work at: the exact add/sub would only give the backward direction
+  // an accuracy surplus the noise budget was never calibrated on.
+
   // Addition
   __host__ __device__ friend f128x2 operator+(const f128x2 &a,
                                               const f128x2 &b) {
-    return f128x2(f128::add(a.re, b.re), f128::add(a.im, b.im));
+    return f128x2(f128::add_estimate(a.re, b.re),
+                  f128::add_estimate(a.im, b.im));
   }
 
   // Subtraction
@@ -333,17 +343,17 @@ struct f128x2 {
   // Multiplication (complex multiplication)
   __host__ __device__ friend f128x2 operator*(const f128x2 &a,
                                               const f128x2 &b) {
-    const f128 a_im_b_im = f128::mul(a.im, b.im);
     f128 real_part =
-        f128::add(f128::mul(a.re, b.re), f128(-a_im_b_im.hi, -a_im_b_im.lo));
-    f128 imag_part = f128::add(f128::mul(a.re, b.im), f128::mul(a.im, b.re));
+        f128::sub_estimate(f128::mul(a.re, b.re), f128::mul(a.im, b.im));
+    f128 imag_part =
+        f128::add_estimate(f128::mul(a.im, b.re), f128::mul(a.re, b.im));
     return f128x2(real_part, imag_part);
   }
 
   // Addition-assignment operator
   __host__ __device__ f128x2 &operator+=(const f128x2 &other) {
-    re = f128::add(re, other.re);
-    im = f128::add(im, other.im);
+    re = f128::add_estimate(re, other.re);
+    im = f128::add_estimate(im, other.im);
     return *this;
   }
 
@@ -351,17 +361,6 @@ struct f128x2 {
   __host__ __device__ f128x2 &operator-=(const f128x2 &other) {
     re = f128::sub_estimate(re, other.re);
     im = f128::sub_estimate(im, other.im);
-    return *this;
-  }
-
-  // Multiplication-assignment operator
-  __host__ __device__ f128x2 &operator*=(const f128x2 &other) {
-    f128 new_re =
-        f128::add(f128::mul(re, other.re), f128(-f128::mul(im, other.im).hi,
-                                                -f128::mul(im, other.im).lo));
-    f128 new_im = f128::add(f128::mul(re, other.im), f128::mul(im, other.re));
-    re = new_re;
-    im = new_im;
     return *this;
   }
 };

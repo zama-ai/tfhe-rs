@@ -273,6 +273,7 @@ rotate_and_decompose_first_level_128(double *result, uint64_t *state,
 
     const auto out_re = small_signed_to_f128((__uint128_t)res_re);
     const auto out_im = small_signed_to_f128((__uint128_t)res_im);
+
     out_re_hi[tid] = out_re.hi;
     out_re_lo[tid] = out_re.lo;
     out_im_hi[tid] = out_im.hi;
@@ -280,6 +281,82 @@ rotate_and_decompose_first_level_128(double *result, uint64_t *state,
 
     tid += params::degree / params::opt;
   }
+}
+
+/*
+ * Single-digit variant of decompose_and_compress_level_128_tbc below.
+ *
+ * That function recomputes the decomposition from the start of `state` on every
+ * call: to produce level `l` it extracts `level_count - l` digits and discards
+ * the intermediates. A caller that needs every digit therefore does 3 + 2 + 1
+ * digit extractions for level_count = 3 rather than 3, and has to launch one
+ * block per level so each can start from an untouched state, which also means
+ * each of those blocks repeats the monomial rotation and the decomposition
+ * rounding.
+ *
+ * This variant extracts exactly one digit and leaves `state` advanced, so
+ * calling it level_count times in a row produces the digits for levels
+ * level_count-1, level_count-2, ..., 0 in that order.
+ *
+ * Those digits are bit-identical to what the multi-digit function produces for
+ * each of those levels: the digit-extraction recurrence is deterministic, and
+ * the multi-digit version simply replays the same steps from the same starting
+ * state.
+ */
+template <typename T, class params, uint32_t base_log>
+__device__ void decompose_and_compress_next_level_128(double *result,
+                                                      T *state) {
+  // The balanced digit produced below lies in [-2^(base_log-1),
+  // 2^(base_log-1)], and it is narrowed to an int32_t before the conversion to
+  // double. That narrowing is silent, so the bound it needs is enforced here:
+  // the largest digit magnitude, 2^(base_log-1), is representable as an int32_t
+  // only up to base_log = 31.
+  static_assert(base_log <= 31,
+                "the int32_t digit narrowing below loses the largest digit for "
+                "base_log > 31");
+
+  constexpr T mask_mod_b = (1ll << base_log) - 1ll;
+
+  uint32_t tid = threadIdx.x;
+  for (int i = 0; i < params::opt / 2; i++) {
+    auto input1 = state[i];
+    auto input2 = state[i + params::opt / 2];
+    T res_re = input1 & mask_mod_b;
+    T res_im = input2 & mask_mod_b;
+
+    input1 = signed_shift_right<T>(input1, base_log); // Update state
+    input2 = signed_shift_right<T>(input2, base_log); // Update state
+
+    T carry_re = ((res_re - 1ll) | input1) & res_re;
+    T carry_im = ((res_im - 1ll) | input2) & res_im;
+    carry_re >>= (base_log - 1);
+    carry_im >>= (base_log - 1);
+
+    state[i] = input1 + carry_re;                   // Update state
+    state[i + params::opt / 2] = input2 + carry_im; // Update state
+
+    res_re -= carry_re << base_log;
+    res_im -= carry_im << base_log;
+    // After the balanced digit extraction a negative digit is a wrapped
+    // __uint128_t, but its low 32 bits are the digit as an int32_t (|x| <=
+    // 2^(base_log-1), which the static_assert above keeps within int32_t), so
+    // one cvt.rn.f64.s32 is bit-identical to u128_to_signed_to_f128.
+    f128 out_re(__int2double_rn(static_cast<int32_t>(res_re)), 0.0);
+    f128 out_im(__int2double_rn(static_cast<int32_t>(res_im)), 0.0);
+
+    auto out_re_hi = result + 0 * params::degree / 2;
+    auto out_re_lo = result + 1 * params::degree / 2;
+    auto out_im_hi = result + 2 * params::degree / 2;
+    auto out_im_lo = result + 3 * params::degree / 2;
+
+    out_re_hi[tid] = out_re.hi;
+    out_re_lo[tid] = out_re.lo;
+    out_im_hi[tid] = out_im.hi;
+    out_im_lo[tid] = out_im.lo;
+
+    tid += params::degree / params::opt;
+  }
+  __syncthreads();
 }
 
 // Follows the same logic than 2_2 params decomposition but for 128-bit

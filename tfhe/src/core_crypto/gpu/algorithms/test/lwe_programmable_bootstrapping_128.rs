@@ -1,5 +1,6 @@
 use super::assert_gpu_determinism;
 pub(crate) use crate::core_crypto::algorithms::test::gen_keys_or_get_from_cache_if_enabled;
+use crate::shortint::parameters::v1_3::V1_3_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use crate::shortint::parameters::{
     DynamicDistribution, NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -18,12 +19,14 @@ use crate::core_crypto::gpu::{cuda_programmable_bootstrap_128_lwe_ciphertext, Cu
 
 use crate::core_crypto::prelude::test::NoiseSquashingTestParams;
 use crate::core_crypto::prelude::{
-    allocate_and_encrypt_new_lwe_ciphertext, decrypt_lwe_ciphertext,
-    generate_programmable_bootstrap_glwe_lut, CastFrom, CastInto, DecompositionLevelCount,
-    GlweCiphertextOwned, GlweSecretKey, LweCiphertextCount, LweCiphertextOwned, LweSecretKey,
-    Plaintext, SignedDecomposer, UnsignedTorus,
+    decrypt_lwe_ciphertext_list, generate_programmable_bootstrap_glwe_lut,
+    par_encrypt_lwe_ciphertext_list, CastFrom, CastInto, ContiguousEntityContainer,
+    DecompositionLevelCount, GlweCiphertextOwned, GlweSecretKey, LweCiphertextCount,
+    LweCiphertextList, LweSecretKey, PlaintextList, SignedDecomposer, UnsignedTorus,
 };
-use crate::shortint::parameters::{ModulusSwitchType, NoiseSquashingParameters};
+use crate::shortint::parameters::{
+    ModulusSwitchType, NoiseSquashingClassicParameters, NoiseSquashingParameters,
+};
 use crate::shortint::MultiBitPBSParameters;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -75,6 +78,7 @@ pub fn generate_keys<
 pub fn execute_bootstrap_u128(
     squash_params: NoiseSquashingParameters,
     input_params: MultiBitPBSParameters,
+    num_samples: LweCiphertextCount,
 ) {
     let NoiseSquashingParameters::Classic(squash_params) = squash_params else {
         panic!("Multi bit noise squashing PBS currently not supported on GPU");
@@ -136,8 +140,11 @@ pub fn execute_bootstrap_u128(
 
     // Our 4 bits message space
     let message_modulus: u64 = 1 << 4;
-    // Our input message
-    let input_message: u64 = 3usize.cast_into();
+    // One distinct message per sample: the LUT below is the identity, so an output that read
+    // another sample's slice of a shared buffer decrypts to that sample's message and is caught.
+    let input_messages: Vec<u64> = (0..num_samples.0)
+        .map(|i| (3 + i as u64) % message_modulus)
+        .collect();
 
     // Delta used to encode 4 bits of message + a bit of padding on Scalar
 
@@ -145,14 +152,25 @@ pub fn execute_bootstrap_u128(
     let delta_u128: u128 = (1 << (u128::BITS - 1)) / message_modulus as u128;
 
     // Apply our encoding
-    let plaintext = Plaintext(input_message * delta);
+    let input_plaintext_list = PlaintextList::from_container(
+        input_messages
+            .iter()
+            .map(|input_message| input_message * delta)
+            .collect::<Vec<_>>(),
+    );
 
-    // Allocate a new LweCiphertext and encrypt our plaintext
-    let lwe_ciphertext_in: LweCiphertextOwned<u64> = allocate_and_encrypt_new_lwe_ciphertext(
-        &input_lwe_secret_key,
-        plaintext,
-        input_params.lwe_noise_distribution,
+    let mut lwe_ciphertext_list_in = LweCiphertextList::new(
+        0u64,
+        input_params.lwe_dimension.to_lwe_size(),
+        num_samples,
         input_params.ciphertext_modulus,
+    );
+
+    par_encrypt_lwe_ciphertext_list(
+        &input_lwe_secret_key,
+        &mut lwe_ciphertext_list_in,
+        &input_plaintext_list,
+        input_params.lwe_noise_distribution,
         &mut rsc.encryption_random_generator,
     );
 
@@ -167,11 +185,11 @@ pub fn execute_bootstrap_u128(
     );
 
     let d_lwe_ciphertext_in =
-        CudaLweCiphertextList::from_lwe_ciphertext(&lwe_ciphertext_in, &stream);
+        CudaLweCiphertextList::from_lwe_ciphertext_list(&lwe_ciphertext_list_in, &stream);
 
     let mut d_out_pbs_ct = CudaLweCiphertextList::new(
         output_lwe_dimension,
-        LweCiphertextCount(1),
+        d_lwe_ciphertext_in.lwe_ciphertext_count(),
         ciphertext_modulus,
         &stream,
     );
@@ -186,12 +204,12 @@ pub fn execute_bootstrap_u128(
         &stream,
     );
 
-    let pbs_ct = d_out_pbs_ct.into_lwe_ciphertext(&stream);
+    let pbs_ct_list = d_out_pbs_ct.to_lwe_ciphertext_list(&stream);
 
     // Determinism check
     let mut d_out_pbs_ct_bis = CudaLweCiphertextList::new(
         output_lwe_dimension,
-        LweCiphertextCount(1),
+        d_lwe_ciphertext_in.lwe_ciphertext_count(),
         ciphertext_modulus,
         &stream,
     );
@@ -203,23 +221,27 @@ pub fn execute_bootstrap_u128(
         &stream,
     );
     assert_gpu_determinism(
-        pbs_ct.as_ref(),
-        d_out_pbs_ct_bis.into_lwe_ciphertext(&stream).as_ref(),
+        pbs_ct_list.as_ref(),
+        d_out_pbs_ct_bis.to_lwe_ciphertext_list(&stream).as_ref(),
         "cuda_programmable_bootstrap_128_lwe_ciphertext",
     );
 
     // Decrypt the PBS result
-    let pbs_plaintext: Plaintext<u128> = decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_ct);
+    let mut output_plaintext_list = PlaintextList::from_container(vec![0u128; num_samples.0]);
+    decrypt_lwe_ciphertext_list(&big_lwe_sk, &pbs_ct_list, &mut output_plaintext_list);
+
     // Create a SignedDecomposer to perform the rounding of the decrypted plaintext
     // We pass a DecompositionBaseLog of 5 and a DecompositionLevelCount of 1 indicating we want
     // to round the 5 MSB, 1 bit of padding plus our 4 bits of message
     let signed_decomposer =
         SignedDecomposer::new(DecompositionBaseLog(5), DecompositionLevelCount(1));
 
-    // Round and remove our encoding
-    let pbs_result: u128 = signed_decomposer.closest_representable(pbs_plaintext.0) / delta_u128;
+    for (decrypted, input_message) in output_plaintext_list.iter().zip(input_messages.iter()) {
+        // Round and remove our encoding
+        let pbs_result: u128 = signed_decomposer.closest_representable(*decrypted.0) / delta_u128;
 
-    assert_eq!(f(input_message as u128), pbs_result);
+        assert_eq!(f(*input_message as u128), pbs_result);
+    }
 }
 
 #[test]
@@ -227,5 +249,33 @@ fn test_bootstrap_u128_with_squashing() {
     execute_bootstrap_u128(
         NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        LweCiphertextCount(8),
+    );
+}
+
+// Exercises the N=4096 classic PBS128 step kernels, the instantiation where
+// pbs_128_step_min_blocks_per_sm (see programmable_bootstrap_classic_128.cuh) leaves the launch
+// bounds unpinned because its block size differs from the pinned one.
+// test_bootstrap_u128_with_squashing above covers the pinned block size.
+//
+// V1_3_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128 is the only N=4096 classic
+// parameter set available, but execute_bootstrap_u128 panics on its
+// ModulusSwitchType::DriftTechniqueNoiseReduction. That choice is unrelated to the kernel under
+// test, so this test substitutes ModulusSwitchType::Standard.
+#[test]
+fn test_bootstrap_u128_with_squashing_n4096() {
+    let NoiseSquashingParameters::Classic(n4096_squash_params) =
+        V1_3_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    else {
+        unreachable!("V1_3_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128 is a classic parameter set");
+    };
+
+    execute_bootstrap_u128(
+        NoiseSquashingParameters::Classic(NoiseSquashingClassicParameters {
+            modulus_switch_noise_reduction_params: ModulusSwitchType::Standard,
+            ..n4096_squash_params
+        }),
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        LweCiphertextCount(8),
     );
 }
