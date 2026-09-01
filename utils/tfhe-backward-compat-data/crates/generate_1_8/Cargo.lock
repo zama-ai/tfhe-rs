@@ -1459,11 +1459,11 @@ dependencies = [
 
 [[package]]
 name = "tfhe-versionable-derive"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.4",
 ]
 
 [[package]]
