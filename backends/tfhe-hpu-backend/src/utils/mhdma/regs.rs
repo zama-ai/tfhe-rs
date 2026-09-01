@@ -1,6 +1,7 @@
 //! Register access by name, MHDMA host request injection and multi-board setup.
 
 use hw_regmap::FlatRegmap;
+use std::collections::HashMap;
 use tfhe_hpu_backend::ffi;
 use tfhe_hpu_backend::prelude::*;
 use tracing::info;
@@ -25,6 +26,7 @@ pub(crate) const REQ_ID_EMISSION: u32 = 7;
 pub(crate) trait RegByName {
     fn reg_read(&self, regmap: &FlatRegmap, name: &str) -> u32;
     fn reg_write(&mut self, regmap: &FlatRegmap, name: &str, val: u32);
+    fn reg_write_fields(&mut self, regmap: &FlatRegmap, name: &str, fields: HashMap<&str, u32>);
 }
 
 impl RegByName for ffi::HpuHw {
@@ -42,6 +44,23 @@ impl RegByName for ffi::HpuHw {
             .unwrap_or_else(|| panic!("Register {name} not found in regmap"));
         self.write_reg(*reg.offset() as u64, val);
     }
+    fn reg_write_fields(&mut self, regmap: &FlatRegmap, name: &str, fields: HashMap<&str, u32>) {
+        let reg = regmap
+            .register()
+            .get(name)
+            .unwrap_or_else(|| panic!("Register {name} not found in regmap"));
+        for f in reg.field() {
+            if let Some(&val) = fields.get(f.name().as_str()) {
+                let size_b = *f.size_b();
+                assert!(
+                    size_b >= 32 || val < (1u32 << size_b),
+                    "{name}.{} overflow: value 0x{val:x} does not fit in {size_b} bits",
+                    f.name()
+                );
+            }
+        }
+        self.reg_write(regmap, name, reg.from_field(fields));
+    }
 }
 
 // =================================================================================================
@@ -50,16 +69,8 @@ impl RegByName for ffi::HpuHw {
 // The opcode in req_id selects the type; see mhdma_notify / issue_reads.
 // =================================================================================================
 
-fn build_req_id(opcode: u32, node: u8, mode: u32) -> u32 {
-    // assert, not debug_assert: release drops those, and node >= 16 bleeds into the opcode nibble.
-    assert!(
-        node < 16 && mode < 4,
-        "req_id field overflow: node={node} mode={mode}"
-    );
-    (opcode << 20) | ((node as u32) << 16) | (mode << 14)
-}
-
-/// Inject one host request: req_addr (dst[31:16] | src[15:0]) then req_id (opcode | node | mode).
+/// Inject one host request: req_addr {dst, src} then req_id {opcode, node, mode}.
+/// Field offsets/widths come from the regmap TOML; an oversized value panics (reg_write_fields).
 pub(crate) fn req_inject(
     hw: &mut ffi::HpuHw,
     regmap: &FlatRegmap,
@@ -69,15 +80,15 @@ pub(crate) fn req_inject(
     dst: u16,
     mode: u32,
 ) {
-    hw.reg_write(
+    hw.reg_write_fields(
         regmap,
         "mhdma_request::req_addr",
-        ((dst as u32) << 16) | (src as u32),
+        HashMap::from([("src", src as u32), ("dst", dst as u32)]),
     );
-    hw.reg_write(
+    hw.reg_write_fields(
         regmap,
         "mhdma_request::req_id",
-        build_req_id(opcode, node, mode),
+        HashMap::from([("req_id", opcode), ("node_id", node as u32), ("mode", mode)]),
     );
 }
 
