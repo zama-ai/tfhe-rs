@@ -1,7 +1,7 @@
 [package]
 name = "tfhe-versionable-derive"
-version = "0.8.0"
-edition = "2021"
+version = "0.8.1"
+edition = "2024"
 keywords = ["versioning", "serialization", "encoding", "proc-macro", "derive"]
 homepage = "https://zama.org/"
 documentation = "https://docs.rs/tfhe_versionable_derive"
@@ -15,6 +15,6 @@ description = "tfhe-versionable-derive: A set of proc macro for easier implement
 proc-macro = true
 
 [dependencies]
-syn = { version = "2.0", features = ["full"] }
+syn = { version = "3.0.4", features = ["full"] }
 quote = "1.0"
 proc-macro2 = "1.0"

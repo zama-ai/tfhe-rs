@@ -1,14 +1,15 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::{
-    parse_quote, DeriveInput, Generics, ImplGenerics, Item, ItemImpl, Lifetime, Path, Type,
-    WhereClause,
+    DeriveInput, Generics, ImplGenerics, Item, ItemImpl, Lifetime, Path, Type, WhereClause,
+    parse_quote,
 };
 
 use crate::{
-    add_lifetime_param, add_trait_where_clause, add_where_lifetime_bound_to_generics,
-    extend_where_clause, filter_unsized_bounds, parse_const_str, DESERIALIZE_TRAIT_NAME,
-    FROM_TRAIT_NAME, LIFETIME_NAME, RESULT_TYPE_NAME, SERIALIZE_TRAIT_NAME, TRY_FROM_TRAIT_NAME,
+    DESERIALIZE_TRAIT_NAME, FROM_TRAIT_NAME, LIFETIME_NAME, RESULT_TYPE_NAME, SERIALIZE_TRAIT_NAME,
+    TRY_FROM_TRAIT_NAME, add_lifetime_param, add_trait_where_clause,
+    add_where_lifetime_bound_to_generics, extend_where_clause, filter_unsized_bounds,
+    parse_const_str,
 };
 
 /// Generates an impl block for the From trait. This will be:
