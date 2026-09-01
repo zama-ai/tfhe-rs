@@ -8,7 +8,7 @@ use super::*;
 use crate::asm::{self, OperandKind, Pbs};
 use crate::fw::program::Program;
 use crate::fw::FwParameters;
-use itertools::{Itertools, Position};
+use itertools::Itertools;
 use tracing::{instrument, trace, warn};
 
 use crate::asm::iop::opcode::*;
@@ -917,14 +917,14 @@ fn iop_shiftrotx(
         .with_position()
         .map(|(pos, (i, ct))| match kind {
             ShiftKind::ShiftRight => {
-                if !matches!(pos, Position::Last | Position::Only) {
+                if !(pos.is_exactly_one() || pos.is_last()) {
                     &ct + &shiftrot_next[i + 1]
                 } else {
                     ct
                 }
             }
             ShiftKind::ShiftLeft => {
-                if !matches!(pos, Position::First | Position::Only) {
+                if !(pos.is_exactly_one() || pos.is_first()) {
                     &ct + &shiftrot_next[i - 1]
                 } else {
                     ct

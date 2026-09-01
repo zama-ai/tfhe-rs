@@ -58,8 +58,8 @@ impl HpuCluster {
             .values()
             .map(|n| &n.params)
             .all_equal_value()
-            .map_err(|err| match err {
-                Some((pa, pb)) => HpuInstError::InvalidParams(pa.clone(), pb.clone()),
+            .map_err(|err| match err.0 {
+                Some([pa, pb]) => HpuInstError::InvalidParams(pa.clone(), pb.clone()),
                 None => HpuInstError::EmptyDevice,
             })?
             .clone();

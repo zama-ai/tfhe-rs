@@ -24,7 +24,7 @@ bincode = { workspace = true }
 clap = { version = "=4.6.6", features = ["derive"] }
 criterion = { workspace = true }
 dyn-stack = { workspace = true, features = ["default"] }
-itertools = "0.14"
+itertools = { workspace = true }
 serde = { version = "1.0", default-features = false }
 serde_json = { workspace = true }
 paste = { workspace = true }
