@@ -3,6 +3,7 @@ pub mod erc7984;
 pub mod kv_store;
 pub mod noise_squash;
 pub mod oprf;
+pub mod protocol;
 pub mod vector_find;
 
 use dex::Dex;
@@ -10,6 +11,7 @@ use erc7984::Erc7984;
 use kv_store::KvStoreOp;
 use noise_squash::NoiseSquashingKind;
 use oprf::OprfKind;
+use protocol::ProtocolKind;
 use strum::Display;
 use vector_find::VectorFindOp;
 
@@ -33,6 +35,7 @@ pub enum HlapiBench {
     KvStore(KvStoreOp),
     NoiseSquashing(NoiseSquashingKind),
     Oprf(OprfKind),
+    Protocol(ProtocolKind),
     VectorFind(VectorFindOp),
 }
 
@@ -45,6 +48,7 @@ impl SpecNode for HlapiBench {
             HlapiBench::KvStore(op) => op,
             HlapiBench::NoiseSquashing(op) => op,
             HlapiBench::Oprf(op) => op,
+            HlapiBench::Protocol(op) => op,
             HlapiBench::VectorFind(op) => op,
         })
     }
