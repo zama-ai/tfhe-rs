@@ -57,6 +57,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
+  PROTOCOL_TABLE_CSV: protocol_results_table_${{ github.sha }}.csv
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
@@ -257,7 +258,6 @@ jobs:
       - name: Parse and merge multi_group results
         if: ${{ endsWith(inputs.command, '_multi_group') }}
         run: |
-          echo "Merging results from ${NUM_GROUPS} groups"
           group_results=()
           for i in $(seq 0 $((NUM_GROUPS - 1))); do
             group_result="parsed_benchmark_results_p${i}_${GITHUB_SHA}.json"
@@ -292,6 +292,21 @@ jobs:
         env:
           filenames: ${{ inputs.additional_file_to_parse }}
 
+      - name: Render protocol results table
+        if: ${{ contains(matrix.command, 'protocol') }}
+        run: |
+          gpus_used=1
+          if [[ "${BENCH_COMMAND}" == *_multi_group ]]; then
+            gpus_used="${NUM_GROUPS}"
+          fi
+          python3 ci/protocol_results_table.py "${RESULTS_FILENAME}" \
+          --gpu-info gpu_info.txt \
+          --hardware "${HARDWARE_NAME}" \
+          --gpus-used "${gpus_used}" \
+          --csv "${PROTOCOL_TABLE_CSV}"
+        env:
+          BENCH_COMMAND: ${{ matrix.command }}
+
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -299,6 +314,14 @@ jobs:
           path: |
             ${{ env.RESULTS_FILENAME }}
             gpu_info.txt
+
+      - name: Upload protocol results table
+        if: ${{ contains(matrix.command, 'protocol') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ github.sha }}_protocol_table_${{ matrix.command }}_${{ matrix.op_flavor }}_${{ inputs.profile }}_${{ matrix.bench_type }}_${{ matrix.params_type }}
+          path: ${{ env.PROTOCOL_TABLE_CSV }}
+          if-no-files-found: ignore
 
       - name: Checkout Slab repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1

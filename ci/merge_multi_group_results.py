@@ -7,6 +7,16 @@ import sys
 
 ACCEPTED_TEST_PREFIX = "tfhe::"
 
+LATENCY_UNITS = [("s", 1e9), ("ms", 1e6), ("us", 1e3), ("ns", 1.0)]
+
+def pick_unit(value, bench_type):
+    if bench_type == "throughput":
+        return "ops/s", 1.0, 1
+    for unit, factor in LATENCY_UNITS:
+        if abs(value) >= factor:
+            return unit, factor, 3
+    return "ns", 1.0, 1
+
 
 # Looks at the Slab JSON benchmark results and aggregates the "value" field.
 # For throughput, values are summed across groups.
@@ -14,9 +24,10 @@ ACCEPTED_TEST_PREFIX = "tfhe::"
 def merge_multi_group_results(input_files, output_file, bench_type):
     accumulated = {}
     counts = {}
+    per_group = {}
     metadata = None
 
-    for path in input_files:
+    for group_index, path in enumerate(input_files):
         with open(path) as f:
             data = json.load(f)
         if metadata is None:
@@ -46,19 +57,31 @@ def merge_multi_group_results(input_files, output_file, bench_type):
             else:
                 accumulated[test] = dict(point)
                 counts[test] = 1
+                per_group[test] = {}
+            per_group[test][group_index] = point["value"]
 
     if bench_type == "latency":
         for test in accumulated:
             accumulated[test]["value"] /= counts[test]
 
     num_groups = len(input_files)
+    aggregation = "sum" if bench_type == "throughput" else "mean"
+    print(f"Merging results from {num_groups} groups")
     for test, point in accumulated.items():
         if counts[test] != num_groups:
             print(
                 f"Warning: test '{test}' was only found in {counts[test]}/{num_groups} groups",
                 file=sys.stderr,
             )
-        print(f"{test} = {point['value']:.1f}")
+        unit, factor, digits = pick_unit(point["value"], bench_type)
+        groups_detail = ", ".join(
+            f"p{i} = {value / factor:.{digits}f} {unit}"
+            for i, value in sorted(per_group[test].items())
+        )
+        print(
+            f"{test} = {point['value'] / factor:.{digits}f} {unit} "
+            f"({aggregation} of {groups_detail})"
+        )
 
     result = dict(metadata)
     result["points"] = list(accumulated.values())
