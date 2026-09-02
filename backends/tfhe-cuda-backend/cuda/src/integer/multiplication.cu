@@ -71,7 +71,7 @@ void cuda_integer_mult_inplace_64_async(
   // needed
   PUSH_RANGE("mul_inplace")
   DISPATCH_POLY_SIZE(polynomial_size, AmortizedDegreePolicy,
-                     host_integer_mult_radix<uint64_t, Params>(
+                     host_integer_mult_radix_async<uint64_t, Params>(
                          CudaStreams(streams), radix_lwe_inout, radix_lwe_inout,
                          is_bool_left, radix_lwe_right, is_bool_right, bsks,
                          (uint64_t **)(ksks),
@@ -140,7 +140,7 @@ void cuda_partial_sum_ciphertexts_vec_64_async(
   if (radix_lwe_vec->num_radix_blocks % radix_lwe_out->num_radix_blocks != 0)
     PANIC("Cuda error: input vector length should be a multiple of the "
           "output's number of radix blocks")
-  host_integer_partial_sum_ciphertexts_vec<uint64_t>(
+  host_integer_partial_sum_ciphertexts_vec_async<uint64_t>(
       CudaStreams(streams), radix_lwe_out, radix_lwe_vec, bsks,
       (uint64_t **)(ksks), mem, radix_lwe_out->num_radix_blocks,
       radix_lwe_vec->num_radix_blocks / radix_lwe_out->num_radix_blocks);

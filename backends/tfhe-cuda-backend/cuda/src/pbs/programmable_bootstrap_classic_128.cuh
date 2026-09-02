@@ -1162,7 +1162,7 @@ __host__ void execute_step_two_128(
  * Host wrapper to the programmable bootstrap 128
  */
 template <typename InputTorus, class params>
-__host__ void host_programmable_bootstrap_128(
+__host__ void host_programmable_bootstrap_128_async(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
@@ -1258,7 +1258,7 @@ __host__ void host_programmable_bootstrap_128(
 }
 
 template <typename InputTorus, class params>
-__host__ void host_programmable_bootstrap_cg_128(
+__host__ void host_programmable_bootstrap_cg_128_async(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
@@ -1329,7 +1329,7 @@ __host__ void host_programmable_bootstrap_cg_128(
 
 #if CUDA_ARCH >= 900
 template <typename InputTorus, class params>
-__host__ void host_programmable_bootstrap_tbc_128(
+__host__ void host_programmable_bootstrap_tbc_128_async(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,

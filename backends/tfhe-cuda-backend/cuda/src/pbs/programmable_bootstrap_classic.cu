@@ -64,7 +64,7 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
     uint32_t lut_stride) {
 
   DISPATCH_POLY_SIZE(polynomial_size, ClassicPBSDegreePolicy,
-                     host_programmable_bootstrap_tbc<Torus, Params>(
+                     host_programmable_bootstrap_tbc_async<Torus, Params>(
                          static_cast<cudaStream_t>(stream), gpu_index,
                          lwe_array_out, lwe_output_indexes, lut_vector,
                          lut_vector_indexes, lwe_array_in, lwe_input_indexes,
@@ -84,14 +84,14 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_generic(
     uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
     uint32_t lut_stride) {
 
-  DISPATCH_POLY_SIZE(polynomial_size, ClassicPBSDegreePolicy,
-                     host_programmable_bootstrap_tbc_generic<Torus, Params>(
-                         static_cast<cudaStream_t>(stream), gpu_index,
-                         lwe_array_out, lwe_output_indexes, lut_vector,
-                         lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-                         bootstrapping_key, buffer, glwe_dimension,
-                         lwe_dimension, polynomial_size, base_log, level_count,
-                         num_samples, num_many_lut, lut_stride));
+  DISPATCH_POLY_SIZE(
+      polynomial_size, ClassicPBSDegreePolicy,
+      host_programmable_bootstrap_tbc_generic_async<Torus, Params>(
+          static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+          lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
+          lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
+          lwe_dimension, polynomial_size, base_log, level_count, num_samples,
+          num_many_lut, lut_stride));
 }
 #endif
 
@@ -233,7 +233,7 @@ void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector(
     uint32_t lut_stride) {
 
   DISPATCH_POLY_SIZE(polynomial_size, AmortizedDegreePolicy,
-                     host_programmable_bootstrap_cg<Torus, Params>(
+                     host_programmable_bootstrap_cg_async<Torus, Params>(
                          static_cast<cudaStream_t>(stream), gpu_index,
                          lwe_array_out, lwe_output_indexes, lut_vector,
                          lut_vector_indexes, lwe_array_in, lwe_input_indexes,
@@ -256,7 +256,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector(
   // Degree<2048> is measured to outperform AmortizedDegree<2048> for non-CG
   // classic PBS.
   DISPATCH_POLY_SIZE(polynomial_size, ClassicPBSDegreePolicy,
-                     host_programmable_bootstrap<Torus, Params>(
+                     host_programmable_bootstrap_async<Torus, Params>(
                          static_cast<cudaStream_t>(stream), gpu_index,
                          lwe_array_out, lwe_output_indexes, lut_vector,
                          lut_vector_indexes, lwe_array_in, lwe_input_indexes,
@@ -516,7 +516,7 @@ void cuda_programmable_bootstrap_tbc_64_2_2_async(
                  "Cuda error (classical PBS): expected a TBC buffer.");
 
 #if (CUDA_ARCH >= 900)
-  host_programmable_bootstrap_tbc_2_2_specialized<uint64_t, Degree<2048>>(
+  host_programmable_bootstrap_tbc_2_2_specialized_async<uint64_t, Degree<2048>>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<uint64_t *>(lwe_array_out),
       static_cast<const uint64_t *>(lwe_output_indexes),
@@ -563,7 +563,7 @@ void cuda_programmable_bootstrap_specialized_2_2_64_async(
   pbs_buffer<uint64_t, CLASSICAL> *buffer =
       (pbs_buffer<uint64_t, CLASSICAL> *)mem_ptr;
 
-  host_programmable_bootstrap_specialized_2_2<uint64_t, Degree<2048>>(
+  host_programmable_bootstrap_specialized_2_2_async<uint64_t, Degree<2048>>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<uint64_t *>(lwe_array_out),
       static_cast<const uint64_t *>(lwe_output_indexes),

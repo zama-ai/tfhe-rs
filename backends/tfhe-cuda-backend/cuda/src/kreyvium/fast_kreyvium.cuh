@@ -63,20 +63,20 @@ __host__ void fast_kreyvium_build_accumulator(
       streams.stream(0), streams.gpu_index(0), acc_slice, 0, num_blocks,
       xor_terms[0], 0, num_blocks);
   for (size_t i = 1; i < xor_terms.size(); i++)
-    host_addition<Torus>(streams.stream(0), streams.gpu_index(0), acc_slice,
-                         acc_slice, xor_terms[i], num_blocks,
-                         params.message_modulus, params.carry_modulus);
+    host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                               acc_slice, acc_slice, xor_terms[i], num_blocks,
+                               params.message_modulus, params.carry_modulus);
 
   // acc <- 2 * acc : the parity of the XOR terms moves into the padding bit.
-  host_integer_small_scalar_mul_radix<Torus>(streams, acc_slice, acc_slice, 2,
-                                             params.message_modulus,
-                                             params.carry_modulus);
+  host_integer_small_scalar_mul_radix_async<Torus>(
+      streams, acc_slice, acc_slice, 2, params.message_modulus,
+      params.carry_modulus);
 
   // acc <- acc + AND-pair operands : their sum hits 2 (padding bit) iff both 1.
   for (size_t i = 0; i < and_terms.size(); i++)
-    host_addition<Torus>(streams.stream(0), streams.gpu_index(0), acc_slice,
-                         acc_slice, and_terms[i], num_blocks,
-                         params.message_modulus, params.carry_modulus);
+    host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                               acc_slice, acc_slice, and_terms[i], num_blocks,
+                               params.message_modulus, params.carry_modulus);
 }
 
 // Core evaluation function that advances the Kreyvium state by exactly 64
@@ -226,7 +226,7 @@ __host__ void fast_kreyvium_compute_64_steps(
 // Delta = q/4), matching the loop invariant; no flush is needed afterwards.
 //
 template <typename Torus>
-__host__ void host_fast_kreyvium_init(
+__host__ void host_fast_kreyvium_init_async(
     CudaStreams streams, int_fast_kreyvium_buffer<Torus> *mem,
     CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
     CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *k_reg,
@@ -329,7 +329,7 @@ __host__ void host_fast_kreyvium_init(
 // existing state and updates the internal registers in place.
 //
 template <typename Torus>
-__host__ void host_fast_kreyvium_step(
+__host__ void host_fast_kreyvium_step_async(
     CudaStreams streams, CudaRadixCiphertextFFI *keystream_output,
     CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
     CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *k_reg,

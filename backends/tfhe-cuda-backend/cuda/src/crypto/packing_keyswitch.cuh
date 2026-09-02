@@ -131,7 +131,7 @@ launch_packing_gemm_1d(cudaStream_t stream, uint32_t num_lwes, uint32_t gemm_n,
 }
 
 template <typename Torus>
-__host__ void host_packing_keyswitch_lwe_list_to_glwe(
+__host__ void host_packing_keyswitch_lwe_list_to_glwe_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *glwe_out,
     Torus const *lwe_array_in, Torus const *fp_ksk_array, int8_t *fp_ks_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,

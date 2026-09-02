@@ -23,7 +23,7 @@ __host__ uint64_t scratch_cuda_logical_scalar_shift(
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void host_logical_scalar_shift_inplace(
+__host__ void host_logical_scalar_shift_inplace_async(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
     int_logical_scalar_shift_buffer<Torus> *mem, void *const *bsks,
     KSTorus *const *ksks, uint32_t num_blocks) {
@@ -58,8 +58,8 @@ __host__ void host_logical_scalar_shift_inplace(
 
   if (mem->shift_type == LEFT_SHIFT) {
     // rotate right as the blocks are from LSB to MSB
-    host_radix_blocks_rotate_right<Torus>(streams, &rotated_buffer, lwe_array,
-                                          rotations, num_blocks);
+    host_radix_blocks_rotate_right_async<Torus>(
+        streams, &rotated_buffer, lwe_array, rotations, num_blocks);
 
     // create trivial assign for value = 0
     set_zero_radix_ciphertext_slice_async<Torus>(
@@ -90,8 +90,8 @@ __host__ void host_logical_scalar_shift_inplace(
 
   } else {
     // right shift
-    host_radix_blocks_rotate_left<Torus>(streams, &rotated_buffer, lwe_array,
-                                         rotations, num_blocks);
+    host_radix_blocks_rotate_left_async<Torus>(
+        streams, &rotated_buffer, lwe_array, rotations, num_blocks);
 
     // rotate left as the blocks are from LSB to MSB
     // create trivial assign for value = 0
@@ -145,7 +145,7 @@ __host__ uint64_t scratch_cuda_arithmetic_scalar_shift(
  * PBS).
  */
 template <typename Torus, typename KSTorus>
-__host__ void host_arithmetic_scalar_shift_overshift(
+__host__ void host_arithmetic_scalar_shift_overshift_async(
     CudaStreams streams, CudaRadixCiphertextFFI *shifted_ct,
     int_arithmetic_scalar_shift_buffer<Torus> *mem, void *const *bsks,
     KSTorus *const *ksks, size_t num_bits_in_block) {
@@ -178,7 +178,7 @@ __host__ void host_arithmetic_scalar_shift_overshift(
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void host_arithmetic_scalar_shift_inplace(
+__host__ void host_arithmetic_scalar_shift_inplace_async(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
     int_arithmetic_scalar_shift_buffer<Torus> *mem, void *const *bsks,
     KSTorus *const *ksks) {
@@ -200,7 +200,7 @@ __host__ void host_arithmetic_scalar_shift_inplace(
   }
 
   if (shift >= total_num_bits) {
-    host_arithmetic_scalar_shift_overshift<Torus, KSTorus>(
+    host_arithmetic_scalar_shift_overshift_async<Torus, KSTorus>(
         streams, lwe_array, mem, bsks, ksks, num_bits_in_block);
     return;
   }
@@ -216,8 +216,8 @@ __host__ void host_arithmetic_scalar_shift_inplace(
                                    num_blocks + 2, num_blocks + 3);
 
   if (mem->shift_type == RIGHT_SHIFT) {
-    host_radix_blocks_rotate_left<Torus>(streams, mem->tmp_rotated, lwe_array,
-                                         rotations, num_blocks);
+    host_radix_blocks_rotate_left_async<Torus>(
+        streams, mem->tmp_rotated, lwe_array, rotations, num_blocks);
     copy_radix_ciphertext_slice_async<Torus>(
         streams.stream(0), streams.gpu_index(0), lwe_array, 0, num_blocks,
         mem->tmp_rotated, 0, num_blocks);

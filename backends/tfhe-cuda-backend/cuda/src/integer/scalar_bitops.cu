@@ -6,7 +6,7 @@ void cuda_integer_scalar_bitop_inplace_64_async(
     uint32_t num_clear_blocks, int8_t *mem_ptr, void *const *bsks,
     void *const *ksks) {
   // In-place variant: lwe_array_inout op= scalar, no aliasing check needed
-  host_scalar_bitop<uint64_t>(
+  host_scalar_bitop_async<uint64_t>(
       CudaStreams(streams), lwe_array_inout, lwe_array_inout,
       static_cast<const uint64_t *>(clear_blocks),
       static_cast<const uint64_t *>(h_clear_blocks), num_clear_blocks,

@@ -96,9 +96,9 @@ void cuda_integer_comparison_64_async(CudaStreamsFFI streams,
   switch (buffer->op) {
   case EQ:
   case NE:
-    host_equality_check<uint64_t>(CudaStreams(streams), lwe_array_out,
-                                  lwe_array_1, lwe_array_2, buffer, bsks,
-                                  (uint64_t **)(ksks), num_radix_blocks);
+    host_equality_check_async<uint64_t>(CudaStreams(streams), lwe_array_out,
+                                        lwe_array_1, lwe_array_2, buffer, bsks,
+                                        (uint64_t **)(ksks), num_radix_blocks);
     break;
   case GT:
   case GE:
@@ -115,23 +115,23 @@ void cuda_integer_comparison_64_async(CudaStreamsFFI streams,
       bool swap_operands = (buffer->op == GT || buffer->op == LE);
       auto const *lhs = swap_operands ? lwe_array_2 : lwe_array_1;
       auto const *rhs = swap_operands ? lwe_array_1 : lwe_array_2;
-      host_difference_check_via_borrow<uint64_t>(
+      host_difference_check_via_borrow_async<uint64_t>(
           CudaStreams(streams), lwe_array_out, lhs, rhs, buffer, bsks,
           (uint64_t **)(ksks), num_radix_blocks);
     } else {
-      host_difference_check<uint64_t>(CudaStreams(streams), lwe_array_out,
-                                      lwe_array_1, lwe_array_2, buffer,
-                                      buffer->diff_buffer->operator_f, bsks,
-                                      (uint64_t **)(ksks), num_radix_blocks);
+      host_difference_check_async<uint64_t>(
+          CudaStreams(streams), lwe_array_out, lwe_array_1, lwe_array_2, buffer,
+          buffer->diff_buffer->operator_f, bsks, (uint64_t **)(ksks),
+          num_radix_blocks);
     }
     break;
   case MAX:
   case MIN:
     if (num_radix_blocks % 2 != 0)
       PANIC("Cuda error (max/min): the number of radix blocks has to be even.")
-    host_maxmin<uint64_t>(CudaStreams(streams), lwe_array_out, lwe_array_1,
-                          lwe_array_2, buffer, bsks, (uint64_t **)(ksks),
-                          num_radix_blocks);
+    host_maxmin_async<uint64_t>(CudaStreams(streams), lwe_array_out,
+                                lwe_array_1, lwe_array_2, buffer, bsks,
+                                (uint64_t **)(ksks), num_radix_blocks);
     break;
   default:
     PANIC("Cuda error: integer operation not supported")
@@ -186,7 +186,7 @@ void cuda_integer_are_all_comparisons_block_true_64_async(
   int_comparison_buffer<uint64_t> *buffer =
       (int_comparison_buffer<uint64_t> *)mem_ptr;
 
-  host_integer_are_all_comparisons_block_true<uint64_t>(
+  host_integer_are_all_comparisons_block_true_async<uint64_t>(
       CudaStreams(streams), lwe_array_out, lwe_array_in, buffer, bsks,
       (uint64_t **)(ksks), num_radix_blocks);
 }
@@ -226,7 +226,7 @@ void cuda_integer_is_at_least_one_comparisons_block_true_64_async(
   int_comparison_buffer<uint64_t> *buffer =
       (int_comparison_buffer<uint64_t> *)mem_ptr;
 
-  host_integer_is_at_least_one_comparisons_block_true<uint64_t>(
+  host_integer_is_at_least_one_comparisons_block_true_async<uint64_t>(
       CudaStreams(streams), lwe_array_out, lwe_array_in, buffer, bsks,
       (uint64_t **)(ksks), num_radix_blocks);
 }

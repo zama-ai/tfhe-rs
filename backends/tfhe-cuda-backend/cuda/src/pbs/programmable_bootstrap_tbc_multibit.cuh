@@ -692,7 +692,7 @@ __host__ void execute_tbc_external_product_loop(
 }
 
 template <typename Torus, class params>
-__host__ void host_tbc_multi_bit_programmable_bootstrap(
+__host__ void host_tbc_multi_bit_programmable_bootstrap_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -742,7 +742,7 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
 }
 
 template <typename Torus, class params>
-__host__ void host_tbc_multi_bit_programmable_bootstrap(
+__host__ void host_tbc_multi_bit_programmable_bootstrap_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -751,7 +751,7 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
-  host_tbc_multi_bit_programmable_bootstrap<Torus, params>(
+  host_tbc_multi_bit_programmable_bootstrap_async<Torus, params>(
       stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
       lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
       buffer, glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
@@ -760,7 +760,7 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
 }
 
 template <typename Torus, class params>
-__host__ void host_tbc_multi_bit_programmable_bootstrap_generic(
+__host__ void host_tbc_multi_bit_programmable_bootstrap_generic_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -769,7 +769,7 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap_generic(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
-  host_tbc_multi_bit_programmable_bootstrap<Torus, params>(
+  host_tbc_multi_bit_programmable_bootstrap_async<Torus, params>(
       stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
       lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
       buffer, glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
@@ -778,7 +778,7 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap_generic(
 }
 
 template <typename Torus, class params>
-__host__ void host_tbc_multi_bit_programmable_bootstrap_2_2_specialized(
+__host__ void host_tbc_multi_bit_programmable_bootstrap_2_2_specialized_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -787,7 +787,7 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap_2_2_specialized(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
-  host_tbc_multi_bit_programmable_bootstrap<Torus, params>(
+  host_tbc_multi_bit_programmable_bootstrap_async<Torus, params>(
       stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
       lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
       buffer, glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
@@ -798,7 +798,7 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap_2_2_specialized(
 // Noise tests variant: uses NOISE_TESTS keybundle mode for the keybundle step
 // while keeping the standard AUTO accumulate behaviour for the TBC loop.
 template <typename Torus, class params>
-__host__ void host_tbc_multi_bit_programmable_bootstrap_noise_tests(
+__host__ void host_tbc_multi_bit_programmable_bootstrap_noise_tests_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,

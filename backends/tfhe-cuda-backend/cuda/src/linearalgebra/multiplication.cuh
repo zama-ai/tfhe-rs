@@ -46,7 +46,7 @@ __global__ void cleartext_multiplication(T *output, T const *lwe_input,
 }
 
 template <typename T>
-__host__ void host_cleartext_multiplication_unsafe_no_degrees(
+__host__ void host_cleartext_multiplication_unsafe_no_degrees_async(
     cudaStream_t stream, uint32_t gpu_index, T *output,
     CudaLweCiphertextListFFI const *lwe_input, T cleartext_input) {
 

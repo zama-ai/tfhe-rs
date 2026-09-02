@@ -11,8 +11,9 @@ void cuda_trivium_init_async(CudaStreamsFFI streams,
                              void *const *bsks, void *const *ksks) {
 
   auto buffer = (int_trivium_buffer<uint64_t> *)mem_ptr;
-  host_trivium_init<uint64_t>(CudaStreams(streams), buffer, a_reg, b_reg, c_reg,
-                              key, iv, bsks, (uint64_t *const *)ksks);
+  host_trivium_init_async<uint64_t>(CudaStreams(streams), buffer, a_reg, b_reg,
+                                    c_reg, key, iv, bsks,
+                                    (uint64_t *const *)ksks);
 }
 
 void cuda_trivium_step_async(
@@ -22,9 +23,9 @@ void cuda_trivium_step_async(
     int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
 
   auto buffer = (int_trivium_buffer<uint64_t> *)mem_ptr;
-  host_trivium_step<uint64_t>(CudaStreams(streams), keystream_output, a_reg,
-                              b_reg, c_reg, num_steps, buffer, bsks,
-                              (uint64_t *const *)ksks);
+  host_trivium_step_async<uint64_t>(CudaStreams(streams), keystream_output,
+                                    a_reg, b_reg, c_reg, num_steps, buffer,
+                                    bsks, (uint64_t *const *)ksks);
 }
 
 uint64_t scratch_cuda_trivium_init_async(

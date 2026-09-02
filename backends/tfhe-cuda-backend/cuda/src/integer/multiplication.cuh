@@ -283,7 +283,7 @@ __host__ uint64_t scratch_cuda_integer_partial_sum_ciphertexts_vec(
 }
 
 template <typename Torus>
-__host__ void host_integer_partial_sum_ciphertexts_vec(
+__host__ void host_integer_partial_sum_ciphertexts_vec_async(
     CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
     CudaRadixCiphertextFFI *terms, void *const *bsks, uint64_t *const *ksks,
     int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
@@ -335,10 +335,10 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
     CudaRadixCiphertextFFI terms_slice;
     as_radix_ciphertext_slice<Torus>(&terms_slice, terms, num_radix_blocks,
                                      2 * num_radix_blocks);
-    host_addition<Torus>(streams.stream(0), streams.gpu_index(0), radix_lwe_out,
-                         terms, &terms_slice, num_radix_blocks,
-                         mem_ptr->params.message_modulus,
-                         mem_ptr->params.carry_modulus);
+    host_addition_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), radix_lwe_out, terms,
+        &terms_slice, num_radix_blocks, mem_ptr->params.message_modulus,
+        mem_ptr->params.carry_modulus);
     return;
   }
 
@@ -477,15 +477,15 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
     as_radix_ciphertext_slice<Torus>(&current_blocks_slice, current_blocks,
                                      num_radix_blocks, 2 * num_radix_blocks);
 
-    host_addition<Torus>(streams.stream(0), streams.gpu_index(0), radix_lwe_out,
-                         current_blocks, &current_blocks_slice,
-                         num_radix_blocks, mem_ptr->params.message_modulus,
-                         mem_ptr->params.carry_modulus);
+    host_addition_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), radix_lwe_out, current_blocks,
+        &current_blocks_slice, num_radix_blocks,
+        mem_ptr->params.message_modulus, mem_ptr->params.carry_modulus);
   }
 }
 
 template <typename Torus, class params>
-__host__ void host_integer_mult_radix(
+__host__ void host_integer_mult_radix_async(
     CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
     CudaRadixCiphertextFFI const *radix_lwe_left, bool const is_bool_left,
     CudaRadixCiphertextFFI const *radix_lwe_right, bool const is_bool_right,
@@ -610,16 +610,16 @@ __host__ void host_integer_mult_radix(
     size_t b_id = i % num_blocks;
     terms_degree_msb[i] = (b_id > r_id) ? message_modulus - 2 : 0;
   }
-  host_integer_partial_sum_ciphertexts_vec<Torus>(
+  host_integer_partial_sum_ciphertexts_vec_async<Torus>(
       streams, radix_lwe_out, vector_result_sb, bsks, ksks,
       mem_ptr->sum_ciphertexts_mem, num_blocks, 2 * num_blocks);
 
   auto scp_mem_ptr = mem_ptr->sc_prop_mem;
   uint32_t requested_flag = outputFlag::FLAG_NONE;
   uint32_t uses_carry = 0;
-  host_propagate_single_carry<Torus>(streams, radix_lwe_out, nullptr, nullptr,
-                                     scp_mem_ptr, bsks, ksks, requested_flag,
-                                     uses_carry);
+  host_propagate_single_carry_async<Torus>(streams, radix_lwe_out, nullptr,
+                                           nullptr, scp_mem_ptr, bsks, ksks,
+                                           requested_flag, uses_carry);
 }
 
 template <typename Torus>

@@ -1009,7 +1009,7 @@ execute_step_two(cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
 }
 
 template <typename Torus, class params>
-__host__ void host_multi_bit_programmable_bootstrap(
+__host__ void host_multi_bit_programmable_bootstrap_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -1066,7 +1066,7 @@ __host__ void host_multi_bit_programmable_bootstrap(
 }
 
 template <typename Torus, class params>
-__host__ void host_multi_bit_programmable_bootstrap_noise_tests(
+__host__ void host_multi_bit_programmable_bootstrap_noise_tests_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,

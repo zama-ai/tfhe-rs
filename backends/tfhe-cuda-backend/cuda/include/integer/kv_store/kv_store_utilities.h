@@ -255,9 +255,10 @@ template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
 /// @brief Wrapper selecting the equality-selector algorithm by entry count.
 ///
 /// Holds whichever equality-selector buffer the entry count selects, so a
-/// single allocation matches the algorithm host_kv_store_compute_eq_selectors
-/// will run. Exactly one of the two pointers is non-null, decided by
-/// num_entries against KV_STORE_EQ_SELECTORS_SMALL_MAP_MAX_ENTRIES.
+/// single allocation matches the algorithm
+/// host_kv_store_compute_eq_selectors_async will run. Exactly one of the two
+/// pointers is non-null, decided by num_entries against
+/// KV_STORE_EQ_SELECTORS_SMALL_MAP_MAX_ENTRIES.
 ///
 /// @tparam Torus  Unsigned integer type representing a ciphertext torus element
 template <typename Torus> struct int_kv_store_eq_selectors_wrapper_buffer {

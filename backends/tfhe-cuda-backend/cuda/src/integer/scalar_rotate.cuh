@@ -23,10 +23,10 @@ __host__ uint64_t scratch_cuda_scalar_rotate(
 
 template <typename Torus, typename KSTorus>
 __host__ void
-host_scalar_rotate_inplace(CudaStreams streams,
-                           CudaRadixCiphertextFFI *lwe_array, uint32_t n,
-                           int_logical_scalar_shift_buffer<Torus> *mem,
-                           void *const *bsks, KSTorus *const *ksks) {
+host_scalar_rotate_inplace_async(CudaStreams streams,
+                                 CudaRadixCiphertextFFI *lwe_array, uint32_t n,
+                                 int_logical_scalar_shift_buffer<Torus> *mem,
+                                 void *const *bsks, KSTorus *const *ksks) {
 
   auto num_blocks = lwe_array->num_radix_blocks;
   auto params = mem->params;
@@ -51,8 +51,8 @@ host_scalar_rotate_inplace(CudaStreams streams,
   // one block is responsible to process single lwe ciphertext
   if (mem->shift_type == LEFT_SHIFT) {
     // rotate right as the blocks are from LSB to MSB
-    host_radix_blocks_rotate_right<Torus>(streams, rotated_buffer, lwe_array,
-                                          rotations, num_blocks);
+    host_radix_blocks_rotate_right_async<Torus>(
+        streams, rotated_buffer, lwe_array, rotations, num_blocks);
 
     copy_radix_ciphertext_slice_async<Torus>(
         streams.stream(0), streams.gpu_index(0), lwe_array, 0, num_blocks,
@@ -64,8 +64,8 @@ host_scalar_rotate_inplace(CudaStreams streams,
 
     auto receiver_blocks = lwe_array;
     auto giver_blocks = rotated_buffer;
-    host_radix_blocks_rotate_right<Torus>(streams, giver_blocks, lwe_array, 1,
-                                          num_blocks);
+    host_radix_blocks_rotate_right_async<Torus>(streams, giver_blocks,
+                                                lwe_array, 1, num_blocks);
 
     auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
 
@@ -75,8 +75,8 @@ host_scalar_rotate_inplace(CudaStreams streams,
 
   } else {
     // rotate left as the blocks are from LSB to MSB
-    host_radix_blocks_rotate_left<Torus>(streams, rotated_buffer, lwe_array,
-                                         rotations, num_blocks);
+    host_radix_blocks_rotate_left_async<Torus>(
+        streams, rotated_buffer, lwe_array, rotations, num_blocks);
 
     copy_radix_ciphertext_slice_async<Torus>(
         streams.stream(0), streams.gpu_index(0), lwe_array, 0, num_blocks,
@@ -88,8 +88,8 @@ host_scalar_rotate_inplace(CudaStreams streams,
 
     auto receiver_blocks = lwe_array;
     auto giver_blocks = rotated_buffer;
-    host_radix_blocks_rotate_left<Torus>(streams, giver_blocks, lwe_array, 1,
-                                         num_blocks);
+    host_radix_blocks_rotate_left_async<Torus>(streams, giver_blocks, lwe_array,
+                                               1, num_blocks);
 
     auto lut_bivariate = mem->lut_buffers_bivariate[shift_within_block - 1];
 

@@ -26,7 +26,7 @@ void cuda_wrapping_polynomial_mul_one_to_many_64_async(
                  "Output and right input pointers must be different for "
                  "out-of-place operations");
 
-  host_wrapping_polynomial_mul_one_to_many<uint64_t, ulonglong4>(
+  host_wrapping_polynomial_mul_one_to_many_async<uint64_t, ulonglong4>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<uint64_t *>(result), static_cast<uint64_t const *>(poly_lhs),
       circulant, static_cast<uint64_t const *>(poly_rhs), polynomial_size, 0,
@@ -44,7 +44,7 @@ void cuda_glwe_wrapping_polynomial_mul_one_to_many_64_async(
                  "Output and right input pointers must be different for "
                  "out-of-place operations");
 
-  host_glwe_wrapping_polynomial_mul_one_to_many<uint64_t, ulonglong4>(
+  host_glwe_wrapping_polynomial_mul_one_to_many_async<uint64_t, ulonglong4>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<uint64_t *>(result), static_cast<uint64_t const *>(poly_lhs),
       circulant, static_cast<uint64_t const *>(poly_rhs), polynomial_size,

@@ -22,12 +22,12 @@ uint64_t scratch_cuda_integer_grouped_oprf_async(
 }
 
 template <typename Torus>
-void host_integer_grouped_oprf(CudaStreams streams,
-                               CudaRadixCiphertextFFI *radix_lwe_out,
-                               const Torus *seeded_lwe_input,
-                               uint32_t num_blocks_to_process,
-                               int_grouped_oprf_memory<Torus> *mem_ptr,
-                               void *const *bsks) {
+void host_integer_grouped_oprf_async(CudaStreams streams,
+                                     CudaRadixCiphertextFFI *radix_lwe_out,
+                                     const Torus *seeded_lwe_input,
+                                     uint32_t num_blocks_to_process,
+                                     int_grouped_oprf_memory<Torus> *mem_ptr,
+                                     void *const *bsks) {
 
   auto active_streams = streams.active_gpu_subset(num_blocks_to_process,
                                                   mem_ptr->params.pbs_type);
@@ -85,10 +85,10 @@ void host_integer_grouped_oprf(CudaStreams streams,
     radix_lwe_out->noise_levels[i] = NoiseLevel::NOMINAL;
   }
 
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), radix_lwe_out,
-                       radix_lwe_out, mem_ptr->plaintext_corrections,
-                       num_blocks_to_process, mem_ptr->params.message_modulus,
-                       mem_ptr->params.carry_modulus);
+  host_addition_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), radix_lwe_out, radix_lwe_out,
+      mem_ptr->plaintext_corrections, num_blocks_to_process,
+      mem_ptr->params.message_modulus, mem_ptr->params.carry_modulus);
 }
 
 template <typename Torus>
@@ -138,12 +138,12 @@ void host_integer_grouped_oprf_custom_range(
       streams.stream(0), streams.gpu_index(0), computation_buffer, 0,
       num_blocks_intermediate);
 
-  host_integer_grouped_oprf<Torus>(
+  host_integer_grouped_oprf_async<Torus>(
       streams, computation_buffer, seeded_lwe_input,
       mem_ptr->num_random_input_blocks, mem_ptr->grouped_oprf_memory, bsks);
 
   if (mem_ptr->applies_rerand()) {
-    host_rerand_inplace_dispatch<Torus>(
+    host_rerand_inplace_dispatch_async<Torus>(
         streams, static_cast<Torus *>(computation_buffer->ptr),
         lwe_flattened_encryptions_of_zero_compact_array_in, rerand_ksks,
         mem_ptr->rerand_memory);
@@ -154,7 +154,7 @@ void host_integer_grouped_oprf_custom_range(
       mem_ptr->scalar_mul_buffer, compute_bsks, ksks,
       mem_ptr->params.message_modulus, num_scalars);
 
-  host_logical_scalar_shift_inplace<Torus>(
+  host_logical_scalar_shift_inplace_async<Torus>(
       streams, computation_buffer, shift, mem_ptr->logical_scalar_shift_buffer,
       compute_bsks, ksks, num_blocks_intermediate);
 

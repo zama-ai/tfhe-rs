@@ -53,7 +53,7 @@ void cuda_expand_without_verification_64_async(
 
   DISPATCH_POLY_SIZE(
       expand_buffer->casting_params.big_lwe_dimension, AmortizedDegreePolicy,
-      host_expand_without_verification<uint64_t, Params>(
+      host_expand_without_verification_async<uint64_t, Params>(
           streams, static_cast<uint64_t *>(lwe_array_out),
           static_cast<const uint64_t *>(lwe_flattened_compact_array_in),
           expand_buffer, (uint64_t **)casting_keys, bsks,

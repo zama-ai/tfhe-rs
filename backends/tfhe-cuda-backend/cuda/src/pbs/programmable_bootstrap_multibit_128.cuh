@@ -780,7 +780,7 @@ __host__ void execute_step_two_128(
  * Host wrapper to the multi-bit programmable bootstrap 128
  */
 template <typename InputTorus, class params>
-__host__ void host_multi_bit_programmable_bootstrap_128(
+__host__ void host_multi_bit_programmable_bootstrap_128_async(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
@@ -919,7 +919,7 @@ __host__ void execute_cg_external_product_loop_128(
 }
 
 template <typename InputTorus, class params>
-__host__ void host_cg_multi_bit_programmable_bootstrap_128(
+__host__ void host_cg_multi_bit_programmable_bootstrap_128_async(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
@@ -1273,10 +1273,10 @@ supports_cooperative_groups_on_multibit_programmable_bootstrap_128(
 }
 
 // Noise tests variant: identical to
-// host_cg_multi_bit_programmable_bootstrap_128 but uses the noise-test
+// host_cg_multi_bit_programmable_bootstrap_128_async but uses the noise-test
 // keybundle (runs_noise_test=true) instead of the standard one.
 template <typename InputTorus, class params>
-__host__ void host_cg_multi_bit_programmable_bootstrap_noise_tests_128(
+__host__ void host_cg_multi_bit_programmable_bootstrap_noise_tests_128_async(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
@@ -1307,7 +1307,7 @@ __host__ void host_cg_multi_bit_programmable_bootstrap_noise_tests_128(
 }
 
 template <typename InputTorus, class params>
-__host__ void host_multi_bit_programmable_bootstrap_noise_tests_128(
+__host__ void host_multi_bit_programmable_bootstrap_noise_tests_128_async(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,

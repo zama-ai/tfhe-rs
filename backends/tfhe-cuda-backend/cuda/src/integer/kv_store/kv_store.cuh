@@ -64,7 +64,7 @@ __global__ void device_accumulate_all_blocks_batched(
 /// @param message_modulus       Message modulus for noise-level validation
 /// @param carry_modulus         Carry modulus for noise-level validation
 template <typename Torus>
-__host__ void host_accumulate_all_blocks_batched(
+__host__ void host_accumulate_all_blocks_batched_async(
     cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *input, uint32_t blocks_per_entry,
     uint32_t max_value, uint32_t num_entries, uint32_t num_chunks_per_entry,
@@ -136,7 +136,7 @@ __host__ void host_accumulate_all_blocks_batched(
 ///
 /// This is the few-entries kv_store variant; see
 /// KV_STORE_EQ_SELECTORS_SMALL_MAP_MAX_ENTRIES for when it is preferred over
-/// vector_find's host_compute_eq_selectors_ct_vs_clears.
+/// vector_find's host_compute_eq_selectors_ct_vs_clears_async.
 ///
 /// @param lwe_array_out_packed       Output ciphertext: N single-block boolean
 ///                                   selectors packed contiguously
@@ -147,7 +147,7 @@ __host__ void host_accumulate_all_blocks_batched(
 /// @param mem_ptr                    Scratch buffer holding LUTs, gather maps,
 ///                                   and tree buffers
 template <typename Torus>
-__host__ void host_kv_store_compute_eq_selectors_small_map(
+__host__ void host_kv_store_compute_eq_selectors_small_map_async(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_packed,
     CudaRadixCiphertextFFI const *lwe_array_in, uint32_t num_blocks,
     const uint64_t *h_decomposed_cleartexts,
@@ -157,8 +157,9 @@ __host__ void host_kv_store_compute_eq_selectors_small_map(
   // num_blocks == 0 would yield an all-zero selector matrix instead of the
   // trivial all-match, so require at least one block (matching the vector_find
   // dispatch guard so both variants agree).
-  GPU_ASSERT(num_blocks >= 1, "num_blocks must be at least 1 in "
-                              "host_kv_store_compute_eq_selectors_small_map");
+  GPU_ASSERT(num_blocks >= 1,
+             "num_blocks must be at least 1 in "
+             "host_kv_store_compute_eq_selectors_small_map_async");
 
   uint32_t num_possible_values = mem_ptr->num_possible_values;
   uint32_t message_modulus = mem_ptr->params.message_modulus;
@@ -219,7 +220,7 @@ __host__ void host_kv_store_compute_eq_selectors_small_map(
     uint32_t num_chunks = CEIL_DIV(blocks_per_entry, max_value);
     uint32_t total_chunks = num_possible_values * num_chunks;
 
-    host_accumulate_all_blocks_batched<Torus>(
+    host_accumulate_all_blocks_batched_async<Torus>(
         streams.stream(0), streams.gpu_index(0), tree_accumulator,
         current_input, blocks_per_entry, max_value, num_possible_values,
         num_chunks, message_modulus, carry_modulus);
@@ -263,18 +264,18 @@ __host__ void host_kv_store_compute_eq_selectors_small_map(
 /// @param mem_ptr                    Wrapper buffer selecting the active
 ///                                   algorithm
 template <typename Torus>
-__host__ void host_kv_store_compute_eq_selectors(
+__host__ void host_kv_store_compute_eq_selectors_async(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_packed,
     CudaRadixCiphertextFFI const *lwe_array_in, uint32_t num_blocks,
     const uint64_t *h_decomposed_cleartexts,
     int_kv_store_eq_selectors_wrapper_buffer<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks) {
   if (mem_ptr->use_small_map) {
-    host_kv_store_compute_eq_selectors_small_map<Torus>(
+    host_kv_store_compute_eq_selectors_small_map_async<Torus>(
         streams, lwe_array_out_packed, lwe_array_in, num_blocks,
         h_decomposed_cleartexts, mem_ptr->small_map_buffer, bsks, ksks);
   } else {
-    host_compute_eq_selectors_ct_vs_clears<Torus>(
+    host_compute_eq_selectors_ct_vs_clears_async<Torus>(
         streams, lwe_array_out_packed, lwe_array_in, num_blocks,
         h_decomposed_cleartexts, mem_ptr->vector_find_buffer, bsks, ksks);
   }
@@ -299,16 +300,15 @@ __host__ void host_kv_store_compute_eq_selectors(
 /// @param mem_ptr                    Scratch buffer from
 ///                                   scratch_cuda_kv_store_get
 template <typename Torus>
-__host__ void
-host_kv_store_get(CudaStreams streams,
-                  CudaRadixCiphertextFFI *lwe_array_out_result,
-                  CudaRadixCiphertextFFI *lwe_array_out_boolean,
-                  CudaRadixCiphertextFFI *lwe_array_out_selectors,
-                  CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
-                  CudaRadixCiphertextFFI const *lwe_array_in_values,
-                  const uint64_t *h_decomposed_clear_keys,
-                  int_kv_store_get_buffer<Torus> *mem_ptr, void *const *bsks,
-                  Torus *const *ksks) {
+__host__ void host_kv_store_get_async(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_result,
+    CudaRadixCiphertextFFI *lwe_array_out_boolean,
+    CudaRadixCiphertextFFI *lwe_array_out_selectors,
+    CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
+    CudaRadixCiphertextFFI const *lwe_array_in_values,
+    const uint64_t *h_decomposed_clear_keys,
+    int_kv_store_get_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks) {
 
   auto num_key_blocks = mem_ptr->num_key_blocks;
   auto num_value_blocks = mem_ptr->num_value_blocks;
@@ -323,7 +323,7 @@ host_kv_store_get(CudaStreams streams,
 
   // Step 1: one encrypted boolean per stored key (input == key_i).
   PUSH_RANGE("get: equality selectors")
-  host_kv_store_compute_eq_selectors<Torus>(
+  host_kv_store_compute_eq_selectors_async<Torus>(
       streams, lwe_array_out_selectors, lwe_array_in_encrypted_key,
       num_key_blocks, h_decomposed_clear_keys, mem_ptr->mem_eq_selectors_buffer,
       bsks, ksks);
@@ -332,15 +332,15 @@ host_kv_store_get(CudaStreams streams,
   // Step 2: zero values whose selector is 0, keeping only the matched value.
   PUSH_RANGE("get: one-hot vector")
   auto lwe_one_hot_vector = tmp_cmux_array;
-  host_zero_out_if_batch(streams, lwe_one_hot_vector, lwe_array_in_values,
-                         lwe_array_out_selectors, mem_zero_out_batch_buffer,
-                         one_hot_vector_predicate, bsks, ksks, num_entries,
-                         num_value_blocks);
+  host_zero_out_if_batch_async(
+      streams, lwe_one_hot_vector, lwe_array_in_values, lwe_array_out_selectors,
+      mem_zero_out_batch_buffer, one_hot_vector_predicate, bsks, ksks,
+      num_entries, num_value_blocks);
   POP_RANGE()
 
   // Step 3: Sum all elements in the vector
   PUSH_RANGE("get: binary tree sum")
-  host_binary_tree_fold_sum_dispatch<Torus>(
+  host_binary_tree_fold_sum_dispatch_async<Torus>(
       streams, lwe_array_out_result, lwe_one_hot_vector, num_entries,
       num_value_blocks, message_modulus, carry_modulus, bsks, ksks,
       mem_ptr->identity_lut);
@@ -348,7 +348,7 @@ host_kv_store_get(CudaStreams streams,
 
   PUSH_RANGE("get: OR selectors")
   auto at_least_one_true_buffer = mem_ptr->at_least_one_true_buffer;
-  host_integer_is_at_least_one_comparisons_block_true<Torus>(
+  host_integer_is_at_least_one_comparisons_block_true_async<Torus>(
       streams, lwe_array_out_boolean, lwe_array_out_selectors,
       at_least_one_true_buffer, bsks, ksks, num_entries);
   POP_RANGE()
@@ -394,16 +394,15 @@ uint64_t scratch_cuda_kv_store_get(
 /// @param mem_ptr                      Scratch buffer from
 ///                                     scratch_cuda_kv_store_update
 template <typename Torus, typename KSTorus>
-__host__ void
-host_kv_store_update(CudaStreams streams,
-                     CudaRadixCiphertextFFI *lwe_check_out_block,
-                     CudaRadixCiphertextFFI *lwe_array_out_values,
-                     CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
-                     CudaRadixCiphertextFFI const *lwe_array_in_values,
-                     CudaRadixCiphertextFFI const *lwe_in_new_value,
-                     const uint64_t *h_decomposed_clear_keys,
-                     int_kv_store_update_buffer<Torus> *mem_ptr,
-                     void *const *bsks, KSTorus *const *ksks) {
+__host__ void host_kv_store_update_async(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_check_out_block,
+    CudaRadixCiphertextFFI *lwe_array_out_values,
+    CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
+    CudaRadixCiphertextFFI const *lwe_array_in_values,
+    CudaRadixCiphertextFFI const *lwe_in_new_value,
+    const uint64_t *h_decomposed_clear_keys,
+    int_kv_store_update_buffer<Torus> *mem_ptr, void *const *bsks,
+    KSTorus *const *ksks) {
 
   auto num_entries = mem_ptr->num_entries;
   auto num_key_blocks = mem_ptr->num_key_blocks;
@@ -426,7 +425,7 @@ host_kv_store_update(CudaStreams streams,
 
   // Step 1: one encrypted boolean per stored key (input == key_i).
   PUSH_RANGE("update: equality selectors")
-  host_kv_store_compute_eq_selectors<Torus>(
+  host_kv_store_compute_eq_selectors_async<Torus>(
       streams, mem_ptr->selectors_contiguous, lwe_array_in_encrypted_key,
       num_key_blocks, h_decomposed_clear_keys, mem_eq_selectors_buffer, bsks,
       ksks);
@@ -434,7 +433,7 @@ host_kv_store_update(CudaStreams streams,
 
   // Step 2: batched CMUX — replace value where selector==1, keep old otherwise.
   PUSH_RANGE("update: batched cmux")
-  host_cmux_batch<Torus, KSTorus>(
+  host_cmux_batch_async<Torus, KSTorus>(
       streams, lwe_array_out_values, lwe_in_new_value, lwe_array_in_values,
       mem_ptr->selectors_contiguous, mem_ptr->cmux_batch_buffer, bsks, ksks,
       num_entries, num_value_blocks, true);
@@ -442,7 +441,7 @@ host_kv_store_update(CudaStreams streams,
 
   // Step 3: OR all selectors to produce the key-found boolean
   PUSH_RANGE("update: OR selectors")
-  host_integer_is_at_least_one_comparisons_block_true<Torus>(
+  host_integer_is_at_least_one_comparisons_block_true_async<Torus>(
       streams, lwe_check_out_block, mem_ptr->selectors_contiguous,
       mem_ptr->at_least_one_true_buffer, bsks, ksks, num_entries);
   POP_RANGE()
@@ -489,14 +488,14 @@ uint64_t scratch_cuda_kv_store_update(
 ///                                  scratch_cuda_kv_store_map
 template <typename Torus, typename KSTorus>
 __host__ void
-host_kv_store_map(CudaStreams streams,
-                  CudaRadixCiphertextFFI *lwe_check_out_block,
-                  CudaRadixCiphertextFFI *lwe_array_out_values,
-                  CudaRadixCiphertextFFI const *lwe_array_in_values,
-                  CudaRadixCiphertextFFI const *lwe_in_new_value,
-                  CudaRadixCiphertextFFI const *lwe_array_in_selectors,
-                  int_kv_store_map_buffer<Torus> *mem_ptr, void *const *bsks,
-                  KSTorus *const *ksks) {
+host_kv_store_map_async(CudaStreams streams,
+                        CudaRadixCiphertextFFI *lwe_check_out_block,
+                        CudaRadixCiphertextFFI *lwe_array_out_values,
+                        CudaRadixCiphertextFFI const *lwe_array_in_values,
+                        CudaRadixCiphertextFFI const *lwe_in_new_value,
+                        CudaRadixCiphertextFFI const *lwe_array_in_selectors,
+                        int_kv_store_map_buffer<Torus> *mem_ptr,
+                        void *const *bsks, KSTorus *const *ksks) {
 
   auto num_entries = mem_ptr->num_entries;
   auto num_value_blocks = mem_ptr->num_value_blocks;
@@ -521,7 +520,7 @@ host_kv_store_map(CudaStreams streams,
 
   // Batched CMUX — replace value where selector==1, keep old otherwise.
   PUSH_RANGE("map: batched cmux")
-  host_cmux_batch<Torus, KSTorus>(
+  host_cmux_batch_async<Torus, KSTorus>(
       streams, lwe_array_out_values, lwe_in_new_value, lwe_array_in_values,
       lwe_array_in_selectors, mem_ptr->cmux_batch_buffer, bsks, ksks,
       num_entries, num_value_blocks, true);
@@ -529,7 +528,7 @@ host_kv_store_map(CudaStreams streams,
 
   // OR all selectors to produce the key-found boolean
   PUSH_RANGE("map: OR selectors")
-  host_integer_is_at_least_one_comparisons_block_true<Torus>(
+  host_integer_is_at_least_one_comparisons_block_true_async<Torus>(
       streams, lwe_check_out_block, lwe_array_in_selectors,
       mem_ptr->at_least_one_true_buffer, bsks, ksks, num_entries);
   POP_RANGE()
@@ -568,7 +567,7 @@ scratch_cuda_kv_store_map(CudaStreams streams,
 /// @param mem_ptr                    Scratch buffer from
 ///                                   scratch_cuda_kv_store_contains_key
 template <typename Torus, typename KSTorus>
-__host__ void host_kv_store_contains_key(
+__host__ void host_kv_store_contains_key_async(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out_boolean,
     CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
     const uint64_t *h_decomposed_clear_keys,
@@ -582,7 +581,7 @@ __host__ void host_kv_store_contains_key(
 
   // Step 1: one encrypted boolean per stored key (input == key_i).
   PUSH_RANGE("contains_key: equality selectors")
-  host_kv_store_compute_eq_selectors<Torus>(
+  host_kv_store_compute_eq_selectors_async<Torus>(
       streams, mem_ptr->selectors_contiguous, lwe_array_in_encrypted_key,
       num_key_blocks, h_decomposed_clear_keys, mem_ptr->mem_eq_selectors_buffer,
       bsks, ksks);
@@ -590,7 +589,7 @@ __host__ void host_kv_store_contains_key(
 
   // Step 2: OR all selectors to produce the key-found boolean
   PUSH_RANGE("contains_key: OR selectors")
-  host_integer_is_at_least_one_comparisons_block_true<Torus>(
+  host_integer_is_at_least_one_comparisons_block_true_async<Torus>(
       streams, lwe_array_out_boolean, mem_ptr->selectors_contiguous,
       mem_ptr->at_least_one_true_buffer, bsks, ksks, num_entries);
   POP_RANGE()

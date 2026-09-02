@@ -69,9 +69,9 @@ __host__ void host_integer_scalar_mul_radix(
       copy_radix_ciphertext_slice_async<T>(
           streams.stream(0), streams.gpu_index(0), &shift_input, 0,
           num_radix_blocks, lwe_array, 0, num_radix_blocks);
-      host_logical_scalar_shift_inplace<T>(streams, &shift_input, shift_amount,
-                                           mem->logical_scalar_shift_buffer,
-                                           bsks, ksks, num_radix_blocks);
+      host_logical_scalar_shift_inplace_async<T>(
+          streams, &shift_input, shift_amount, mem->logical_scalar_shift_buffer,
+          bsks, ksks, num_radix_blocks);
     } else {
       // create trivial assign for value = 0
       set_zero_radix_ciphertext_slice_async<T>(
@@ -96,9 +96,9 @@ __host__ void host_integer_scalar_mul_radix(
       as_radix_ciphertext_slice<T>(&block_shift_buffer, all_shifted_buffer,
                                    j * num_radix_blocks,
                                    all_shifted_buffer->num_radix_blocks);
-      host_radix_blocks_rotate_right<T>(streams, &block_shift_buffer,
-                                        &preshifted_radix_ct, i / msg_bits,
-                                        num_radix_blocks);
+      host_radix_blocks_rotate_right_async<T>(streams, &block_shift_buffer,
+                                              &preshifted_radix_ct,
+                                              i / msg_bits, num_radix_blocks);
       // create trivial assign for value = 0
       set_zero_radix_ciphertext_slice_async<T>(
           streams.stream(0), streams.gpu_index(0), &block_shift_buffer, 0,
@@ -122,22 +122,22 @@ __host__ void host_integer_scalar_mul_radix(
                "Cuda error: j=%zu exceeds sum_ciphertexts_vec_mem "
                "max_num_radix_in_vec=%u",
                j, mem->num_ciphertext_bits);
-    host_integer_partial_sum_ciphertexts_vec<T>(
+    host_integer_partial_sum_ciphertexts_vec_async<T>(
         streams, lwe_array, all_shifted_buffer, bsks, ksks,
         mem->sum_ciphertexts_vec_mem, num_radix_blocks, j);
 
     auto scp_mem_ptr = mem->sc_prop_mem;
     uint32_t requested_flag = outputFlag::FLAG_NONE;
     uint32_t uses_carry = 0;
-    host_propagate_single_carry<T>(streams, lwe_array, nullptr, nullptr,
-                                   scp_mem_ptr, bsks, ksks, requested_flag,
-                                   uses_carry);
+    host_propagate_single_carry_async<T>(streams, lwe_array, nullptr, nullptr,
+                                         scp_mem_ptr, bsks, ksks,
+                                         requested_flag, uses_carry);
   }
 }
 
 // Small scalar_mul is used in shift/rotate
 template <typename T>
-__host__ void host_integer_small_scalar_mul_radix(
+__host__ void host_integer_small_scalar_mul_radix_async(
     CudaStreams streams, CudaRadixCiphertextFFI *output_lwe_array,
     CudaRadixCiphertextFFI *input_lwe_array, T scalar,
     const uint32_t message_modulus, const uint32_t carry_modulus) {
@@ -191,14 +191,15 @@ host_scalar_mul_high(CudaStreams streams, CudaRadixCiphertextFFI *ct,
 
   CudaRadixCiphertextFFI *tmp_ffi = mem_ptr->tmp;
 
-  host_extend_radix_with_trivial_zero_blocks_msb<Torus>(tmp_ffi, ct, streams);
+  host_extend_radix_with_trivial_zero_blocks_msb_async<Torus>(tmp_ffi, ct,
+                                                              streams);
 
   if (scalar_divisor_ffi->active_bits != (uint32_t)0 &&
       !scalar_divisor_ffi->is_abs_chosen_multiplier_one &&
       tmp_ffi->num_radix_blocks != 0) {
 
     if (scalar_divisor_ffi->is_chosen_multiplier_pow2) {
-      host_logical_scalar_shift_inplace<Torus>(
+      host_logical_scalar_shift_inplace_async<Torus>(
           streams, tmp_ffi, scalar_divisor_ffi->ilog2_chosen_multiplier,
           mem_ptr->logical_scalar_shift_mem, bsks, (uint64_t **)ksks,
           tmp_ffi->num_radix_blocks);
@@ -213,7 +214,7 @@ host_scalar_mul_high(CudaStreams streams, CudaRadixCiphertextFFI *ct,
     }
   }
 
-  host_trim_radix_blocks_lsb<Torus>(ct, tmp_ffi, streams);
+  host_trim_radix_blocks_lsb_async<Torus>(ct, tmp_ffi, streams);
 }
 
 template <typename Torus, typename KSTorus>
@@ -230,7 +231,7 @@ __host__ void host_signed_scalar_mul_high(
 
   CudaRadixCiphertextFFI *tmp_ffi = mem_ptr->tmp;
 
-  host_extend_radix_with_sign_msb<Torus>(
+  host_extend_radix_with_sign_msb_async<Torus>(
       streams, tmp_ffi, ct, mem_ptr->extend_radix_mem, ct->num_radix_blocks,
       bsks, (uint64_t **)ksks);
 
@@ -239,7 +240,7 @@ __host__ void host_signed_scalar_mul_high(
       tmp_ffi->num_radix_blocks != 0) {
 
     if (scalar_divisor_ffi->is_chosen_multiplier_pow2) {
-      host_logical_scalar_shift_inplace<Torus>(
+      host_logical_scalar_shift_inplace_async<Torus>(
           streams, tmp_ffi, scalar_divisor_ffi->ilog2_chosen_multiplier,
           mem_ptr->logical_scalar_shift_mem, bsks, (uint64_t **)ksks,
           tmp_ffi->num_radix_blocks);
@@ -252,7 +253,7 @@ __host__ void host_signed_scalar_mul_high(
     }
   }
 
-  host_trim_radix_blocks_lsb<Torus>(ct, tmp_ffi, streams);
+  host_trim_radix_blocks_lsb_async<Torus>(ct, tmp_ffi, streams);
 }
 
 #endif

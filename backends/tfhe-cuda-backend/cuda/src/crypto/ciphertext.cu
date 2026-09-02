@@ -26,7 +26,7 @@ void cuda_glwe_sample_extract_64_async(
 
   DISPATCH_POLY_SIZE(
       polynomial_size, AmortizedDegreePolicy,
-      host_sample_extract<uint64_t, Params>(
+      host_sample_extract_async<uint64_t, Params>(
           static_cast<cudaStream_t>(stream), gpu_index,
           (uint64_t *)lwe_array_out, (uint64_t const *)glwe_array_in,
           (uint32_t const *)nth_array, num_nths, num_lwes_to_extract_per_glwe,
@@ -36,7 +36,7 @@ void cuda_glwe_sample_extract_64_async(
 void cuda_modulus_switch_inplace_64_async(void *stream, uint32_t gpu_index,
                                           void *lwe_array_out, uint32_t size,
                                           uint32_t log_modulus) {
-  host_modulus_switch_inplace<uint64_t>(
+  host_modulus_switch_inplace_async<uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<uint64_t *>(lwe_array_out), size, log_modulus);
 }
@@ -46,10 +46,10 @@ void cuda_modulus_switch_64_async(void *stream, uint32_t gpu_index,
                                   uint32_t size, uint32_t log_modulus) {
   PANIC_IF_FALSE(lwe_out != lwe_in, "Output and input pointers must be "
                                     "different for out-of-place operations");
-  host_modulus_switch<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index,
-                                static_cast<uint64_t *>(lwe_out),
-                                static_cast<const uint64_t *>(lwe_in), size,
-                                log_modulus);
+  host_modulus_switch_async<uint64_t>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      static_cast<uint64_t *>(lwe_out), static_cast<const uint64_t *>(lwe_in),
+      size, log_modulus);
 }
 
 void cuda_centered_modulus_switch_64_async(void *stream, uint32_t gpu_index,
@@ -58,7 +58,7 @@ void cuda_centered_modulus_switch_64_async(void *stream, uint32_t gpu_index,
                                            uint32_t log_modulus) {
   PANIC_IF_FALSE(lwe_out != lwe_in, "Output and input pointers must be "
                                     "different for out-of-place operations");
-  host_centered_modulus_switch_inplace<uint64_t>(
+  host_centered_modulus_switch_inplace_async<uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<uint64_t *>(lwe_out), static_cast<const uint64_t *>(lwe_in),
       lwe_dimension, log_modulus);
@@ -70,7 +70,7 @@ void cuda_centered_modulus_switch_cooperative_64_async(
     uint32_t block_dim_y) {
   PANIC_IF_FALSE(lwe_out != lwe_in, "Output and input pointers must be "
                                     "different for out-of-place operations");
-  host_centered_modulus_switch_cooperative<uint64_t>(
+  host_centered_modulus_switch_cooperative_async<uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<uint64_t *>(lwe_out), static_cast<const uint64_t *>(lwe_in),
       lwe_dimension, log_modulus, block_dim_x, block_dim_y);
@@ -84,7 +84,7 @@ void cuda_glwe_sample_extract_128_async(
 
   DISPATCH_POLY_SIZE(
       polynomial_size, AmortizedDegreePolicy128,
-      host_sample_extract<__uint128_t, Params>(
+      host_sample_extract_async<__uint128_t, Params>(
           static_cast<cudaStream_t>(stream), gpu_index,
           (__uint128_t *)lwe_array_out, (__uint128_t const *)glwe_array_in,
           (uint32_t const *)nth_array, num_nths, num_lwes_to_extract_per_glwe,
@@ -98,7 +98,7 @@ void cuda_modulus_switch_multi_bit_64_async(void *stream, uint32_t gpu_index,
                                             uint32_t degree,
                                             uint32_t grouping_factor) {
 
-  host_modulus_switch_multi_bit<uint64_t>(
+  host_modulus_switch_multi_bit_async<uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<uint64_t *>(lwe_array_out),
       static_cast<uint64_t *>(lwe_array_in), size, log_modulus, degree,
@@ -112,7 +112,7 @@ void cuda_modulus_switch_multi_bit_128_async(void *stream, uint32_t gpu_index,
                                              uint32_t degree,
                                              uint32_t grouping_factor) {
 
-  host_modulus_switch_multi_bit<__uint128_t>(
+  host_modulus_switch_multi_bit_async<__uint128_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<__uint128_t *>(lwe_array_out),
       static_cast<__uint128_t *>(lwe_array_in), size, log_modulus, degree,

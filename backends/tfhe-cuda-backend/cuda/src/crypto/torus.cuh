@@ -177,7 +177,7 @@ __global__ void modulus_switch_strided_inplace(Torus *array, uint32_t num_glwes,
 }
 
 template <typename Torus>
-__host__ void host_modulus_switch_strided_inplace(
+__host__ void host_modulus_switch_strided_inplace_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *array, uint32_t num_glwes,
     uint32_t in_len, uint32_t in_stride, uint32_t log_modulus) {
   cuda_set_device(gpu_index);
@@ -197,11 +197,12 @@ __host__ void host_modulus_switch_strided_inplace(
 // This makes the strided kernel degenerate to flat sequential access:
 //   offset = glwe_index(=0) * in_stride(=0) + elem_index(=tid) = tid
 template <typename Torus>
-__host__ void host_modulus_switch_inplace(cudaStream_t stream,
-                                          uint32_t gpu_index, Torus *array,
-                                          uint32_t size, uint32_t log_modulus) {
-  host_modulus_switch_strided_inplace<Torus>(stream, gpu_index, array, 1, size,
-                                             0, log_modulus);
+__host__ void host_modulus_switch_inplace_async(cudaStream_t stream,
+                                                uint32_t gpu_index,
+                                                Torus *array, uint32_t size,
+                                                uint32_t log_modulus) {
+  host_modulus_switch_strided_inplace_async<Torus>(stream, gpu_index, array, 1,
+                                                   size, 0, log_modulus);
 }
 
 template <typename Torus>
@@ -214,9 +215,9 @@ __global__ void modulus_switch(Torus *output, const Torus *input, uint32_t size,
 }
 // Applies the modulus switch on a single LWE
 template <typename Torus>
-__host__ void host_modulus_switch(cudaStream_t stream, uint32_t gpu_index,
-                                  Torus *output, const Torus *input,
-                                  uint32_t size, uint32_t log_modulus) {
+__host__ void host_modulus_switch_async(cudaStream_t stream, uint32_t gpu_index,
+                                        Torus *output, const Torus *input,
+                                        uint32_t size, uint32_t log_modulus) {
   cuda_set_device(gpu_index);
 
   int num_threads = 0, num_blocks = 0;
@@ -379,7 +380,7 @@ __global__ void centered_modulus_switch(Torus *output, const Torus *input,
 
 // Applies the centered modulus switch on a single LWE
 template <typename Torus>
-__host__ void host_centered_modulus_switch_inplace(
+__host__ void host_centered_modulus_switch_inplace_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *output, const Torus *input,
     uint32_t lwe_dimension, uint32_t log_modulus) {
   cuda_set_device(gpu_index);
@@ -435,7 +436,7 @@ __global__ void centered_modulus_switch_cooperative(Torus *output,
 // Applies the centered modulus switch on a single LWE with the cooperative body
 // correction, in a block of shape (block_dim_x, block_dim_y, 1)
 template <typename Torus>
-__host__ void host_centered_modulus_switch_cooperative(
+__host__ void host_centered_modulus_switch_cooperative_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *output, const Torus *input,
     uint32_t lwe_dimension, uint32_t log_modulus, uint32_t block_dim_x,
     uint32_t block_dim_y) {
@@ -631,7 +632,7 @@ modulus_switch_multi_bit(Torus *array_out, const Torus *array_in, int size,
 // This aims to be launched only from the noise tests.
 //  That is why we support a specific set of parameters
 template <typename Torus>
-__host__ void host_modulus_switch_multi_bit(
+__host__ void host_modulus_switch_multi_bit_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *array_out, Torus *array_in,
     int size, uint32_t log_modulus, uint32_t degree, uint32_t grouping_factor) {
   check_cuda_error(cudaSetDevice(gpu_index));

@@ -297,7 +297,7 @@ __host__ void is_at_least_one_comparisons_block_true(
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void host_compare_blocks_with_zero(
+__host__ void host_compare_blocks_with_zero_async(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
@@ -373,12 +373,12 @@ __host__ void host_compare_blocks_with_zero(
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void
-host_equality_check(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-                    CudaRadixCiphertextFFI const *lwe_array_1,
-                    CudaRadixCiphertextFFI const *lwe_array_2,
-                    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-                    KSTorus *const *ksks, uint32_t num_radix_blocks) {
+__host__ void host_equality_check_async(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_1,
+    CudaRadixCiphertextFFI const *lwe_array_2,
+    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
+    KSTorus *const *ksks, uint32_t num_radix_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_1->lwe_dimension ||
       lwe_array_out->lwe_dimension != lwe_array_2->lwe_dimension)
@@ -434,9 +434,9 @@ compare_radix_blocks(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
   GPU_ASSERT(
       big_lwe_dimension == lwe_array_out->lwe_dimension,
       "Cuda error: big_lwe_dimension must match ciphertexts' lwe_dimension");
-  host_subtraction<Torus>(streams.stream(0), streams.gpu_index(0),
-                          lwe_array_out, lwe_array_left, lwe_array_right,
-                          num_radix_blocks, message_modulus, carry_modulus);
+  host_subtraction_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), lwe_array_out, lwe_array_left,
+      lwe_array_right, num_radix_blocks, message_modulus, carry_modulus);
 
   // Apply LUT to compare to 0
   auto is_non_zero_lut = mem_ptr->eq_buffer->is_non_zero_lut;
@@ -450,8 +450,8 @@ compare_radix_blocks(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
   CudaRadixCiphertextFFI lwe_array_out_view;
   as_radix_ciphertext_slice<Torus>(&lwe_array_out_view, lwe_array_out, 0,
                                    num_radix_blocks);
-  host_add_scalar_one_inplace<Torus>(streams, &lwe_array_out_view,
-                                     message_modulus, carry_modulus);
+  host_add_scalar_one_inplace_async<Torus>(streams, &lwe_array_out_view,
+                                           message_modulus, carry_modulus);
 }
 
 // Reduces a vec containing shortint blocks that encrypts a sign
@@ -546,7 +546,7 @@ tree_sign_reduction(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void host_difference_check(
+__host__ void host_difference_check_async(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_left,
     CudaRadixCiphertextFFI const *lwe_array_right,
@@ -739,7 +739,7 @@ __host__ void host_difference_check(
 /// @param num_radix_blocks number of radix blocks in the operands
 /// @param num_groups number of block groups (the bootstrap batch width)
 template <typename Torus, typename KSTorus>
-__host__ void host_compute_reduced_pgns_and_carries_for_comparison(
+__host__ void host_compute_reduced_pgns_and_carries_for_comparison_async(
     CudaStreams streams, CudaRadixCiphertextFFI *block_states,
     int_radix_params params, int_prop_simu_group_carries_memory<Torus> *mem,
     void *const *bsks, KSTorus *const *ksks, uint32_t num_radix_blocks,
@@ -753,7 +753,7 @@ __host__ void host_compute_reduced_pgns_and_carries_for_comparison(
   auto simulators = mem->simulators;
 
   // Cumulative sum of borrow states within each group.
-  host_radix_cumulative_sum_in_groups<Torus>(
+  host_radix_cumulative_sum_in_groups_async<Torus>(
       streams.stream(0), streams.gpu_index(0), propagation_cum_sums,
       block_states, num_radix_blocks, group_size);
 
@@ -780,7 +780,7 @@ __host__ void host_compute_reduced_pgns_and_carries_for_comparison(
       mem->luts_array_second_step, num_groups);
 
   // Reduced negacyclic corrector map (installed at scratch).
-  host_scalar_addition_inplace<Torus>(
+  host_scalar_addition_inplace_async<Torus>(
       streams, grouping_pgns, mem->scalar_array_cum_sum,
       mem->h_scalar_array_cum_sum, num_groups, message_modulus, carry_modulus);
 
@@ -794,7 +794,7 @@ __host__ void host_compute_reduced_pgns_and_carries_for_comparison(
   // Group-carry resolution: reused verbatim from the full path.
   auto resolved_carries = mem->resolved_carries;
   if (mem->use_sequential_algorithm_to_resolve_group_carries) {
-    host_resolve_group_carries_sequentially(
+    host_resolve_group_carries_sequentially_async(
         streams, resolved_carries, grouping_pgns, params,
         mem->seq_group_prop_mem, bsks, ksks, num_groups);
   } else {
@@ -802,7 +802,7 @@ __host__ void host_compute_reduced_pgns_and_carries_for_comparison(
     CudaRadixCiphertextFFI shifted_resolved_carries;
     as_radix_ciphertext_slice<Torus>(&shifted_resolved_carries,
                                      resolved_carries, 1, num_groups);
-    host_compute_prefix_sum_hillis_steele<Torus>(
+    host_compute_prefix_sum_hillis_steele_async<Torus>(
         streams, &shifted_resolved_carries, grouping_pgns,
         luts_carry_propagation_sum, bsks, ksks, num_groups - 1);
   }
@@ -823,7 +823,7 @@ __host__ void host_compute_reduced_pgns_and_carries_for_comparison(
 /// LUT
 /// @param num_radix_blocks number of radix blocks in the operands
 template <typename Torus, typename KSTorus>
-__host__ void host_difference_check_via_borrow(
+__host__ void host_difference_check_via_borrow_async(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_left,
     CudaRadixCiphertextFFI const *lwe_array_right,
@@ -846,13 +846,13 @@ __host__ void host_difference_check_via_borrow(
   // matching the CPU's `unchecked_sub` so the block-state LUTs see the expected
   // encoding (block < message_modulus means the block borrows).
   auto sub_blocks = mem_ptr->tmp_block_comparisons;
-  host_unchecked_sub_with_correcting_term<Torus>(
+  host_unchecked_sub_with_correcting_term_async<Torus>(
       streams.stream(0), streams.gpu_index(0), sub_blocks, lwe_array_left,
       lwe_array_right, num_radix_blocks, message_modulus, carry_modulus);
 
   // Step 1: compute the per-block borrow states (shifted_blocks is unused
   // here).
-  host_compute_shifted_blocks_and_borrow_states<Torus>(
+  host_compute_shifted_blocks_and_borrow_states_async<Torus>(
       streams, sub_blocks, mem->shifted_blocks_borrow_state_mem, bsks, ksks,
       lut_stride, num_many_lut);
 
@@ -866,27 +866,29 @@ __host__ void host_difference_check_via_borrow(
   // version that bootstraps num_groups blocks instead of num_radix_blocks (see
   // the function header). It also writes simulators[num_radix_blocks-1], the
   // only per-block simulator the overflow combine below consumes.
-  host_compute_reduced_pgns_and_carries_for_comparison<Torus>(
+  host_compute_reduced_pgns_and_carries_for_comparison_async<Torus>(
       streams, borrow_states, params, mem->prop_simu_group_carries_mem, bsks,
       ksks, num_radix_blocks, num_groups);
 
   // Combine into the overflow (borrow-out) block, mirroring the overflow branch
-  // of host_single_borrow_propagate.
+  // of host_single_borrow_propagate_async.
   CudaRadixCiphertextFFI shifted_simulators;
   as_radix_ciphertext_slice<Torus>(&shifted_simulators,
                                    mem->prop_simu_group_carries_mem->simulators,
                                    num_radix_blocks - 1, num_radix_blocks);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0),
-                       mem->overflow_block, mem->overflow_block,
-                       &shifted_simulators, 1, message_modulus, carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                             mem->overflow_block, mem->overflow_block,
+                             &shifted_simulators, 1, message_modulus,
+                             carry_modulus);
 
   CudaRadixCiphertextFFI resolved_borrows;
   as_radix_ciphertext_slice<Torus>(
       &resolved_borrows, mem->prop_simu_group_carries_mem->resolved_carries,
       num_groups - 1, num_groups);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0),
-                       mem->overflow_block, mem->overflow_block,
-                       &resolved_borrows, 1, message_modulus, carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                             mem->overflow_block, mem->overflow_block,
+                             &resolved_borrows, 1, message_modulus,
+                             carry_modulus);
 
   // Final LUT: ((overflow_block >> 2) & 1) ^ invert, producing the boolean
   // result in a single block.
@@ -910,11 +912,11 @@ __host__ uint64_t scratch_cuda_comparison_check(
 
 template <typename Torus, typename KSTorus>
 __host__ void
-host_maxmin(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
-            CudaRadixCiphertextFFI const *lwe_array_left,
-            CudaRadixCiphertextFFI const *lwe_array_right,
-            int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-            KSTorus *const *ksks, uint32_t num_radix_blocks) {
+host_maxmin_async(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+                  CudaRadixCiphertextFFI const *lwe_array_left,
+                  CudaRadixCiphertextFFI const *lwe_array_right,
+                  int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
+                  KSTorus *const *ksks, uint32_t num_radix_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_left->lwe_dimension ||
       lwe_array_out->lwe_dimension != lwe_array_right->lwe_dimension)
@@ -926,18 +928,18 @@ host_maxmin(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
           "than the number of blocks to operate on")
 
   // Compute the sign
-  host_difference_check<Torus>(
+  host_difference_check_async<Torus>(
       streams, mem_ptr->tmp_lwe_array_out, lwe_array_left, lwe_array_right,
       mem_ptr, mem_ptr->identity_lut_f, bsks, ksks, num_radix_blocks);
 
   // Selector
-  host_cmux<Torus>(streams, lwe_array_out, mem_ptr->tmp_lwe_array_out,
-                   lwe_array_left, lwe_array_right, mem_ptr->cmux_buffer, bsks,
-                   ksks);
+  host_cmux_async<Torus>(streams, lwe_array_out, mem_ptr->tmp_lwe_array_out,
+                         lwe_array_left, lwe_array_right, mem_ptr->cmux_buffer,
+                         bsks, ksks);
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void host_integer_are_all_comparisons_block_true(
+__host__ void host_integer_are_all_comparisons_block_true_async(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
@@ -950,7 +952,7 @@ __host__ void host_integer_are_all_comparisons_block_true(
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void host_integer_is_at_least_one_comparisons_block_true(
+__host__ void host_integer_is_at_least_one_comparisons_block_true_async(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,

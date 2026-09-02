@@ -41,8 +41,9 @@ template <typename Torus> bool is_power_of_2(Torus value) {
 }
 
 template <typename Torus, class params>
-void host_lwe_expand(cudaStream_t stream, int gpu_index, Torus *lwe_array_out,
-                     const expand_job<Torus> *d_jobs, uint32_t num_lwes) {
+void host_lwe_expand_async(cudaStream_t stream, int gpu_index,
+                           Torus *lwe_array_out,
+                           const expand_job<Torus> *d_jobs, uint32_t num_lwes) {
   // Set the GPU device
   check_cuda_error(cudaSetDevice(gpu_index));
 
