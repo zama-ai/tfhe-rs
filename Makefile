@@ -27,6 +27,10 @@ BENCH_PARAMS_SET?=default
 BENCH_CUSTOM_COMMAND:=
 BENCH_TARGET?=invalid
 NODE_VERSION=24.12
+# CI=true is standard across code hosting providers like github/gitlab
+# it makes it easier to cache data for later retrieval, where home directories are unstable
+# depending on runner configuration
+export NVM_DIR?=$(shell [ "$$CI" = "true" ] && echo .nvm || echo "$$HOME/.nvm")
 BACKWARD_COMPAT_DATA_DIR=utils/tfhe-backward-compat-data
 BACKWARD_COMPAT_DATA_GEN_VERSION:=$(TFHE_VERSION)
 CORRUPTED_INPUTS_TEST=tests/corrupted_inputs_deserialization
@@ -347,7 +351,7 @@ check_actionlint_installed:
 
 .PHONY: check_nvm_installed # Check if Node Version Manager is installed
 check_nvm_installed:
-	@source ~/.nvm/nvm.sh && nvm --version > /dev/null 2>&1 || \
+	@source "$(NVM_DIR)"/nvm.sh && nvm --version > /dev/null 2>&1 || \
 	( echo "Unable to locate Node. Run 'make install_node'" && exit 1 )
 
 .PHONY: install_mlc # Install mlc (Markup Link Checker)
@@ -381,7 +385,7 @@ fmt_internal: install_rs_check_toolchain
 
 .PHONY: fmt_js # Format javascript code
 fmt_js: check_nvm_installed
-	source ~/.nvm/nvm.sh && \
+	source "$(NVM_DIR)"/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) -C tfhe/web_wasm_parallel_tests fmt && \
@@ -447,7 +451,7 @@ check_fmt_gpu: install_rs_check_toolchain
 
 .PHONY: check_fmt_js # Check javascript code format
 check_fmt_js: check_nvm_installed
-	source ~/.nvm/nvm.sh && \
+	source "$(NVM_DIR)"/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) -C tfhe/web_wasm_parallel_tests check_fmt && \
@@ -1562,7 +1566,7 @@ test_zk_cuda: test_zk_cuda_backend test_zk_pok_experimental_gpu test_integer_zk_
 
 .PHONY: test_zk_wasm_x86_compat_ci
 test_zk_wasm_x86_compat_ci: check_nvm_installed
-	source ~/.nvm/nvm.sh && \
+	source "$(NVM_DIR)"/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) test_zk_wasm_x86_compat
@@ -1575,7 +1579,7 @@ test_zk_wasm_x86_compat: build_node_js_api_client
 
 .PHONY: test_transciphering_wasm_x86_compat_ci
 test_transciphering_wasm_x86_compat_ci: check_nvm_installed
-	source ~/.nvm/nvm.sh && \
+	source "$(NVM_DIR)"/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) test_transciphering_wasm_x86_compat
@@ -1752,7 +1756,7 @@ test_nodejs_wasm_api: build_node_js_api
 
 .PHONY: test_nodejs_wasm_api_ci # Run tests for the nodejs on wasm API
 test_nodejs_wasm_api_ci: build_node_js_api
-	source ~/.nvm/nvm.sh && \
+	source "$(NVM_DIR)"/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) test_nodejs_wasm_api
@@ -1793,7 +1797,7 @@ test_web_js_api_parallel_chrome: run_web_js_api_parallel
 
 .PHONY: test_web_js_api_parallel_chrome_ci # Run tests for the web wasm api on Chrome
 test_web_js_api_parallel_chrome_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
+	source "$(NVM_DIR)"/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) test_web_js_api_parallel_chrome
@@ -1809,7 +1813,7 @@ test_web_js_api_parallel_firefox: run_web_js_api_parallel
 
 .PHONY: test_web_js_api_parallel_firefox_ci # Run tests for the web wasm api on Firefox
 test_web_js_api_parallel_firefox_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
+	source "$(NVM_DIR)"/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) test_web_js_api_parallel_firefox
@@ -1825,7 +1829,7 @@ test_web_js_api_cross_origin_chrome: run_web_js_api_cross_origin
 
 .PHONY: test_web_js_api_cross_origin_chrome_ci # Run tests for the web wasm api in cross-origin mode on Chrome
 test_web_js_api_cross_origin_chrome_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
+	source "$(NVM_DIR)"/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) test_web_js_api_cross_origin_chrome
@@ -1841,7 +1845,7 @@ test_web_js_api_cross_origin_firefox: run_web_js_api_cross_origin
 
 .PHONY: test_web_js_api_cross_origin_firefox_ci # Run tests for the web wasm api in cross-origin mode on Firefox
 test_web_js_api_cross_origin_firefox_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
+	source "$(NVM_DIR)"/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) test_web_js_api_cross_origin_firefox
@@ -1876,7 +1880,7 @@ test_wasm_par_mq_chrome: run_wasm_par_mq_tests
 
 .PHONY: test_wasm_par_mq_chrome_ci # Run wasm-par-mq tests on Chrome in CI
 test_wasm_par_mq_chrome_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
+	source "$(NVM_DIR)"/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) test_wasm_par_mq_chrome
@@ -1890,7 +1894,7 @@ test_wasm_par_mq_firefox: run_wasm_par_mq_tests
 
 .PHONY: test_wasm_par_mq_firefox_ci # Run wasm-par-mq tests on Firefox in CI
 test_wasm_par_mq_firefox_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
+	source "$(NVM_DIR)"/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) test_wasm_par_mq_firefox
@@ -2206,7 +2210,7 @@ bench_web_js_api_parallel_chrome: run_web_js_api_parallel
 
 .PHONY: bench_web_js_api_parallel_chrome_ci # Run benchmarks for the web wasm api
 bench_web_js_api_parallel_chrome_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
+	source "$(NVM_DIR)"/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) bench_web_js_api_parallel_chrome
@@ -2222,7 +2226,7 @@ bench_web_js_api_parallel_firefox: run_web_js_api_parallel
 
 .PHONY: bench_web_js_api_parallel_firefox_ci # Run benchmarks for the web wasm api
 bench_web_js_api_parallel_firefox_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
+	source "$(NVM_DIR)"/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) bench_web_js_api_parallel_firefox
@@ -2238,7 +2242,7 @@ bench_web_js_api_cross_origin_chrome: run_web_js_api_cross_origin
 
 .PHONY: bench_web_js_api_cross_origin_chrome_ci # Run benchmarks for the web wasm api without cross-origin isolation
 bench_web_js_api_cross_origin_chrome_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
+	source "$(NVM_DIR)"/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) bench_web_js_api_cross_origin_chrome
@@ -2254,7 +2258,7 @@ bench_web_js_api_cross_origin_firefox: run_web_js_api_cross_origin
 
 .PHONY: bench_web_js_api_cross_origin_firefox_ci # Run benchmarks for the web wasm api without cross-origin isolation
 bench_web_js_api_cross_origin_firefox_ci: setup_venv
-	source ~/.nvm/nvm.sh && \
+	source "$(NVM_DIR)"/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) bench_web_js_api_cross_origin_firefox
@@ -2871,7 +2875,7 @@ test_fft_node_js: install_build_wasm32_target install_wasm_bindgen_cli
 
 .PHONY: test_fft_node_js_ci
 test_fft_node_js_ci: check_nvm_installed
-	source ~/.nvm/nvm.sh && \
+	source "$(NVM_DIR)"/nvm.sh && \
 	nvm install $(NODE_VERSION) && \
 	nvm use $(NODE_VERSION) && \
 	"$(MAKE)" test_fft_node_js
