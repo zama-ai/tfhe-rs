@@ -588,6 +588,18 @@ impl<C: ContainerMut<Element = c64>> FourierPolynomialList<C> {
     }
 }
 
+impl<C: Container<Element = c64>> AsRef<[c64]> for FourierPolynomialList<C> {
+    fn as_ref(&self) -> &[c64] {
+        self.data.as_ref()
+    }
+}
+
+impl<C: ContainerMut<Element = c64>> AsMut<[c64]> for FourierPolynomialList<C> {
+    fn as_mut(&mut self) -> &mut [c64] {
+        self.data.as_mut()
+    }
+}
+
 impl<C: Container<Element = c64>> Versionize for FourierPolynomialList<C> {
     type Versioned<'vers>
         = FourierPolynomialListVersioned<'vers>
