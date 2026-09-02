@@ -498,7 +498,7 @@ template <typename Torus> struct int_oprf_bitonic_shuffle_buffer {
   CudaRadixCiphertextFFI *keys_storage;
   /// @brief Per-element views into keys_storage.
   CudaRadixCiphertextFFI *keys_views;
-  /// @brief Pointer array into keys_views passed to host_bitonic_shuffle as the
+  /// @brief Pointer array into keys_views passed to host_bitonic_shuffle_async as the
   /// key array.
   CudaRadixCiphertextFFI **keys_ptrs;
 

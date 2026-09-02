@@ -727,7 +727,7 @@ __global__ void batch_NSMFFT_strided_128(double *d_in, double *d_out,
 }
 
 template <class params>
-__host__ void host_fourier_transform_forward_as_torus_f128(
+__host__ void host_fourier_transform_forward_as_torus_f128_async(
     cudaStream_t stream, uint32_t gpu_index, double *re0, double *re1,
     double *im0, double *im1, const __uint128_t *standard, const uint32_t N,
     const uint32_t number_of_samples) {
@@ -813,7 +813,7 @@ __host__ void host_fourier_transform_forward_as_torus_f128(
 }
 
 template <class params>
-__host__ void host_fourier_transform_backward_as_torus_f128(
+__host__ void host_fourier_transform_backward_as_torus_f128_async(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *standard,
     double const *re0, double const *re1, double const *im0, double const *im1,
     const uint32_t N, const uint32_t number_of_samples) {

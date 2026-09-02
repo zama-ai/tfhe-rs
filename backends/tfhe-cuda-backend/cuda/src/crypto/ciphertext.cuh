@@ -56,7 +56,7 @@ sample_extract(Torus *lwe_array_out, Torus const *glwe_array_in,
 // num_lwes_to_extract_per_glwe LWEs will be extracted per GLWE ciphertext, thus
 // we need to have enough indexes
 template <typename Torus, class params>
-__host__ void host_sample_extract(cudaStream_t stream, uint32_t gpu_index,
+__host__ void host_sample_extract_async(cudaStream_t stream, uint32_t gpu_index,
                                   Torus *lwe_array_out,
                                   Torus const *glwe_array_in,
                                   uint32_t const *nth_array, uint32_t num_nths,

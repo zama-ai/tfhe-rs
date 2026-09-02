@@ -144,9 +144,9 @@ template <typename T> struct PtrTableRowAccessor {
 // Grid: x covers num_columns*lwe_size, y = num_chunks.
 //
 // lwe_array_2d_reduce_rows_kernel
-//   ├─ host_lwe_array_2d_sum_rows              (PtrTable, Accumulate=false)
-//   ├─ host_lwe_flat_array_2d_sum_rows         (Flat,     Accumulate=false)
-//   └─ host_lwe_flat_array_2d_accumulate_rows  (Flat,     Accumulate=true)
+//   ├─ host_lwe_array_2d_sum_rows_async              (PtrTable, Accumulate=false)
+//   ├─ host_lwe_flat_array_2d_sum_rows_async         (Flat,     Accumulate=false)
+//   └─ host_lwe_flat_array_2d_accumulate_rows_async  (Flat,     Accumulate=true)
 template <typename T, typename SrcAccessor, bool Accumulate>
 __global__ void
 lwe_array_2d_reduce_rows_kernel(T *dst, SrcAccessor src, uint32_t chunk_size,
@@ -211,7 +211,7 @@ struct PtrTableMetaAccessor {
 // the source layout (flat vs scattered), with Accumulate the result is added
 // to the existing metadata ("+="), else it overwrites ("=").
 template <bool Accumulate, typename MetaAccessor>
-void host_reduce_rows_meta(CudaRadixCiphertextFFI *out, MetaAccessor meta,
+void host_reduce_rows_meta_async(CudaRadixCiphertextFFI *out, MetaAccessor meta,
                            uint32_t chunk_size, uint32_t num_rows,
                            uint32_t num_chunks, uint32_t num_columns,
                            uint32_t message_modulus, uint32_t carry_modulus) {
@@ -241,7 +241,7 @@ void host_reduce_rows_meta(CudaRadixCiphertextFFI *out, MetaAccessor meta,
 // Column-wise sum of rows, no carry between columns
 // NON-contiguous input: rows passed as a pointer array
 template <typename T>
-__host__ void host_lwe_array_2d_sum_rows(
+__host__ void host_lwe_array_2d_sum_rows_async(
     cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *output,
     T *const *d_src_ptrs, CudaRadixCiphertextFFI const *inputs,
     uint32_t row_offset, uint32_t chunk_size, uint32_t num_rows,
@@ -277,7 +277,7 @@ __host__ void host_lwe_array_2d_sum_rows(
   check_cuda_error(cudaGetLastError());
 
   PtrTableMetaAccessor meta{inputs + row_offset};
-  host_reduce_rows_meta<false>(output, meta, chunk_size, num_rows - row_offset,
+  host_reduce_rows_meta_async<false>(output, meta, chunk_size, num_rows - row_offset,
                                num_chunks, num_columns, message_modulus,
                                carry_modulus);
 }
@@ -285,7 +285,7 @@ __host__ void host_lwe_array_2d_sum_rows(
 // Column-wise sum of rows, no carry between columns
 // CONTIGUOUS input: one flat row-major buffer of num_rows x num_columns LWEs.
 template <typename T>
-__host__ void host_lwe_flat_array_2d_sum_rows(
+__host__ void host_lwe_flat_array_2d_sum_rows_async(
     cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *dst,
     CudaRadixCiphertextFFI const *src, uint32_t chunk_size, uint32_t num_rows,
     uint32_t num_chunks, uint32_t num_columns, uint32_t message_modulus,
@@ -315,14 +315,14 @@ __host__ void host_lwe_flat_array_2d_sum_rows(
   check_cuda_error(cudaGetLastError());
 
   FlatMetaAccessor meta{src->degrees, src->noise_levels, num_columns};
-  host_reduce_rows_meta<false>(dst, meta, chunk_size, num_rows, num_chunks,
+  host_reduce_rows_meta_async<false>(dst, meta, chunk_size, num_rows, num_chunks,
                                num_columns, message_modulus, carry_modulus);
 }
 
 // Column-wise accumulate of rows "+=", no carry between columns
 // CONTIGUOUS input: one flat row-major buffer of rows x num_columns LWEs.
 template <typename T>
-__host__ void host_lwe_flat_array_2d_accumulate_rows(
+__host__ void host_lwe_flat_array_2d_accumulate_rows_async(
     cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *input, uint32_t row_offset,
     uint32_t row_count, uint32_t num_columns, const uint32_t message_modulus,
@@ -356,7 +356,7 @@ __host__ void host_lwe_flat_array_2d_accumulate_rows(
   FlatMetaAccessor meta{input->degrees + (size_t)row_offset * num_columns,
                         input->noise_levels + (size_t)row_offset * num_columns,
                         num_columns};
-  host_reduce_rows_meta<true>(output, meta, row_count, row_count, 1,
+  host_reduce_rows_meta_async<true>(output, meta, row_count, row_count, 1,
                               num_columns, message_modulus, carry_modulus);
 }
 

@@ -92,7 +92,7 @@ aes_xor(CudaStreams streams, int_aes_encrypt_buffer<Torus> *mem,
         CudaRadixCiphertextFFI *out, const CudaRadixCiphertextFFI *lhs,
         const CudaRadixCiphertextFFI *rhs) {
 
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), out, lhs, rhs,
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0), out, lhs, rhs,
                        out->num_radix_blocks, mem->params.message_modulus,
                        mem->params.carry_modulus);
 }
@@ -128,7 +128,7 @@ aes_scalar_add_one_flush_inplace(CudaStreams streams,
                                  int_aes_encrypt_buffer<Torus> *mem,
                                  void *const *bsks, KSTorus *const *ksks) {
 
-  host_add_scalar_one_inplace<Torus>(streams, data, mem->params.message_modulus,
+  host_add_scalar_one_inplace_async<Torus>(streams, data, mem->params.message_modulus,
                                      mem->params.carry_modulus);
 
   aes_flush_inplace(streams, data, mem, bsks, ksks);
@@ -360,7 +360,7 @@ __host__ void vectorized_sbox_n_bytes(CudaStreams streams,
 
 #define ADD_ONE(target)                                                        \
   do {                                                                         \
-    host_add_scalar_one_inplace<Torus>(streams, target,                        \
+    host_add_scalar_one_inplace_async<Torus>(streams, target,                        \
                                        mem->params.message_modulus,            \
                                        mem->params.carry_modulus);             \
   } while (0)
@@ -1096,7 +1096,7 @@ __host__ void vectorized_aes_full_adder_inplace(
  *
  */
 template <typename Torus, typename KSTorus>
-__host__ void host_integer_aes_ctr_encrypt(
+__host__ void host_integer_aes_ctr_encrypt_async(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *iv, CudaRadixCiphertextFFI const *round_keys,
     const Torus *counter_bits_le_all_blocks, uint32_t num_aes_inputs,
@@ -1154,7 +1154,7 @@ uint64_t scratch_cuda_integer_key_expansion(
  * - If (i % 4 != 0): w_i = w_{i-4} + w_{i-1}
  */
 template <typename Torus, typename KSTorus>
-__host__ void host_integer_key_expansion(CudaStreams streams,
+__host__ void host_integer_key_expansion_async(CudaStreams streams,
                                          CudaRadixCiphertextFFI *expanded_keys,
                                          CudaRadixCiphertextFFI const *key,
                                          int_key_expansion_buffer<Torus> *mem,
@@ -1226,7 +1226,7 @@ __host__ void host_integer_key_expansion(CudaStreams streams,
           CudaRadixCiphertextFFI first_byte_bit_slice;
           as_radix_ciphertext_slice<Torus>(&first_byte_bit_slice,
                                            &rotated_word_buffer, bit, bit + 1);
-          host_add_scalar_one_inplace<Torus>(streams, &first_byte_bit_slice,
+          host_add_scalar_one_inplace_async<Torus>(streams, &first_byte_bit_slice,
                                              mem->params.message_modulus,
                                              mem->params.carry_modulus);
         }

@@ -7,21 +7,21 @@
 #include "multiplication.cuh"
 
 template <typename Torus, typename KSTorus>
-__host__ void host_integer_prepare_count_of_consecutive_bits(
+__host__ void host_integer_prepare_count_of_consecutive_bits_async(
     CudaStreams streams, CudaRadixCiphertextFFI *ciphertext,
     int_prepare_count_of_consecutive_bits_buffer<Torus> *mem_ptr,
     void *const *bsks, KSTorus *const *ksks) {
 
   auto tmp = mem_ptr->tmp_ct;
 
-  host_apply_univariate_lut<Torus>(streams, tmp, ciphertext,
+  host_apply_univariate_lut_async<Torus>(streams, tmp, ciphertext,
                                    mem_ptr->univ_lut_mem, ksks, bsks);
 
   if (mem_ptr->direction == Leading) {
-    host_radix_blocks_reverse_inplace<Torus>(streams, tmp);
+    host_radix_blocks_reverse_inplace_async<Torus>(streams, tmp);
   }
 
-  host_compute_prefix_sum_hillis_steele<uint64_t>(
+  host_compute_prefix_sum_hillis_steele_async<uint64_t>(
       streams, ciphertext, tmp, mem_ptr->biv_lut_mem, bsks, ksks,
       ciphertext->num_radix_blocks);
 }
@@ -43,7 +43,7 @@ __host__ uint64_t scratch_integer_count_of_consecutive_bits(
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void host_integer_count_of_consecutive_bits(
+__host__ void host_integer_count_of_consecutive_bits_async(
     CudaStreams streams, CudaRadixCiphertextFFI *output_ct,
     CudaRadixCiphertextFFI const *input_ct,
     int_count_of_consecutive_bits_buffer<Torus> *mem_ptr, void *const *bsks,
@@ -58,7 +58,7 @@ __host__ void host_integer_count_of_consecutive_bits(
 
   // Prepare count of consecutive bits
   //
-  host_integer_prepare_count_of_consecutive_bits(
+  host_integer_prepare_count_of_consecutive_bits_async(
       streams, ct_prepared, mem_ptr->prepare_mem, bsks, ksks);
 
   // Perform addition and propagation of prepared cts
@@ -72,11 +72,11 @@ __host__ void host_integer_count_of_consecutive_bits(
         output_start_index + 1, ct_prepared, i, i + 1);
   }
 
-  host_integer_partial_sum_ciphertexts_vec<Torus>(
+  host_integer_partial_sum_ciphertexts_vec_async<Torus>(
       streams, output_ct, cts, bsks, ksks, mem_ptr->sum_mem, counter_num_blocks,
       ct_prepared->num_radix_blocks);
 
-  host_propagate_single_carry<Torus>(streams, output_ct, nullptr, nullptr,
+  host_propagate_single_carry_async<Torus>(streams, output_ct, nullptr, nullptr,
                                      mem_ptr->propagate_mem, bsks, ksks, 0, 0);
 }
 
@@ -100,7 +100,7 @@ __host__ uint64_t scratch_integer_ilog2(CudaStreams streams,
 
 template <typename Torus, typename KSTorus>
 __host__ void
-host_integer_ilog2(CudaStreams streams, CudaRadixCiphertextFFI *output_ct,
+host_integer_ilog2_async(CudaStreams streams, CudaRadixCiphertextFFI *output_ct,
                    CudaRadixCiphertextFFI const *input_ct,
                    CudaRadixCiphertextFFI const *trivial_ct_neg_n,
                    CudaRadixCiphertextFFI const *trivial_ct_2,
@@ -113,7 +113,7 @@ host_integer_ilog2(CudaStreams streams, CudaRadixCiphertextFFI *output_ct,
   //
   copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                      mem_ptr->ct_in_buffer, input_ct);
-  host_integer_prepare_count_of_consecutive_bits<Torus>(
+  host_integer_prepare_count_of_consecutive_bits_async<Torus>(
       streams, mem_ptr->ct_in_buffer, mem_ptr->prepare_mem, bsks, ksks);
 
   // Build the input for the sum by taking each block's leading zero count
@@ -141,17 +141,17 @@ host_integer_ilog2(CudaStreams streams, CudaRadixCiphertextFFI *output_ct,
 
   // Perform a partial sum of all the elements without carry propagation.
   //
-  host_integer_partial_sum_ciphertexts_vec<Torus>(
+  host_integer_partial_sum_ciphertexts_vec_async<Torus>(
       streams, mem_ptr->sum_output_not_propagated, mem_ptr->sum_input_cts, bsks,
       ksks, mem_ptr->sum_mem, mem_ptr->counter_num_blocks,
       mem_ptr->input_num_blocks + 1);
 
   // Apply luts to the partial sum.
   //
-  host_apply_univariate_lut<Torus>(streams, mem_ptr->message_blocks_not,
+  host_apply_univariate_lut_async<Torus>(streams, mem_ptr->message_blocks_not,
                                    mem_ptr->sum_output_not_propagated,
                                    mem_ptr->lut_message_not, ksks, bsks);
-  host_apply_univariate_lut<Torus>(streams, mem_ptr->carry_blocks_not,
+  host_apply_univariate_lut_async<Torus>(streams, mem_ptr->carry_blocks_not,
                                    mem_ptr->sum_output_not_propagated,
                                    mem_ptr->lut_carry_not, ksks, bsks);
 
@@ -190,11 +190,11 @@ host_integer_ilog2(CudaStreams streams, CudaRadixCiphertextFFI *output_ct,
       2 * mem_ptr->counter_num_blocks, 3 * mem_ptr->counter_num_blocks,
       trivial_ct_2, 0, mem_ptr->counter_num_blocks);
 
-  host_integer_partial_sum_ciphertexts_vec<Torus>(
+  host_integer_partial_sum_ciphertexts_vec_async<Torus>(
       streams, output_ct, mem_ptr->sum_input_cts, bsks, ksks, mem_ptr->sum_mem,
       mem_ptr->counter_num_blocks, 3);
 
-  host_full_propagate_inplace<Torus>(streams, output_ct,
+  host_full_propagate_inplace_async<Torus>(streams, output_ct,
                                      mem_ptr->final_propagate_mem, ksks, bsks,
                                      mem_ptr->counter_num_blocks);
 }

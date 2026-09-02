@@ -37,7 +37,7 @@ bool has_support_to_cuda_programmable_bootstrap_tbc_multi_bit(
 }
 
 template <typename Torus>
-void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
+void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -49,7 +49,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
 
   DISPATCH_POLY_SIZE(
       polynomial_size, AmortizedDegreePolicy,
-      host_cg_multi_bit_programmable_bootstrap<Torus, Params>(
+      host_cg_multi_bit_programmable_bootstrap_async<Torus, Params>(
           static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
           lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
           lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
@@ -58,7 +58,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
 }
 
 template <typename Torus>
-void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
+void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -70,7 +70,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
 
   DISPATCH_POLY_SIZE(
       polynomial_size, AmortizedDegreePolicy,
-      host_multi_bit_programmable_bootstrap<Torus, Params>(
+      host_multi_bit_programmable_bootstrap_async<Torus, Params>(
           static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
           lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
           lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
@@ -79,7 +79,7 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
 }
 
 template <typename Torus>
-void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_generic(
+void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_generic_async(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -108,7 +108,7 @@ void cuda_multi_bit_programmable_bootstrap_64_async(
   switch (pbs_buf->pbs_variant) {
   case PBS_VARIANT::TBC:
 #if CUDA_ARCH >= 900
-    cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
+    cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async<uint64_t>(
         stream, gpu_index, static_cast<uint64_t *>(lwe_array_out),
         static_cast<const uint64_t *>(lwe_output_indexes),
         static_cast<const uint64_t *>(lut_vector),
@@ -123,7 +123,7 @@ void cuda_multi_bit_programmable_bootstrap_64_async(
     PANIC("Cuda error (multi-bit PBS): TBC pbs is not supported.")
 #endif
   case PBS_VARIANT::CG:
-    cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
+    cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async<uint64_t>(
         stream, gpu_index, static_cast<uint64_t *>(lwe_array_out),
         static_cast<const uint64_t *>(lwe_output_indexes),
         static_cast<const uint64_t *>(lut_vector),
@@ -135,7 +135,7 @@ void cuda_multi_bit_programmable_bootstrap_64_async(
         base_log, level_count, num_samples, num_many_lut, lut_stride);
     break;
   case PBS_VARIANT::DEFAULT:
-    cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
+    cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async<uint64_t>(
         stream, gpu_index, static_cast<uint64_t *>(lwe_array_out),
         static_cast<const uint64_t *>(lwe_output_indexes),
         static_cast<const uint64_t *>(lut_vector),
@@ -169,7 +169,7 @@ void cuda_multi_bit_programmable_bootstrap_64_generic_async(
                  "Cuda error (multi-bit PBS): expected a TBC buffer.");
 
 #if CUDA_ARCH >= 900
-  cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_generic<
+  cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_generic_async<
       uint64_t>(stream, gpu_index, static_cast<uint64_t *>(lwe_array_out),
                 static_cast<const uint64_t *>(lwe_output_indexes),
                 static_cast<const uint64_t *>(lut_vector),
@@ -221,7 +221,7 @@ void cuda_multi_bit_programmable_bootstrap_tbc_64_2_2_async(
                  "Cuda error (multi-bit PBS): expected a TBC buffer.");
 
 #if CUDA_ARCH >= 900
-  host_tbc_multi_bit_programmable_bootstrap_2_2_specialized<uint64_t,
+  host_tbc_multi_bit_programmable_bootstrap_2_2_specialized_async<uint64_t,
                                                             Degree<2048>>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<uint64_t *>(lwe_array_out),
@@ -269,7 +269,7 @@ void cuda_multi_bit_programmable_bootstrap_tbc_64_generic_async(
                  "Cuda error (multi-bit PBS): expected a TBC buffer.");
 
 #if CUDA_ARCH >= 900
-  cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_generic<
+  cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_generic_async<
       uint64_t>(stream, gpu_index, static_cast<uint64_t *>(lwe_array_out),
                 static_cast<const uint64_t *>(lwe_output_indexes),
                 static_cast<const uint64_t *>(lut_vector),
@@ -461,7 +461,7 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
   case PBS_VARIANT::TBC:
 #if CUDA_ARCH >= 900
   {
-    host_tbc_multi_bit_programmable_bootstrap_noise_tests<uint64_t,
+    host_tbc_multi_bit_programmable_bootstrap_noise_tests_async<uint64_t,
                                                           Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index,
         static_cast<uint64_t *>(lwe_array_out),
@@ -478,7 +478,7 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
     PANIC("Cuda error (multi-bit PBS): TBC pbs is not supported.")
 #endif
   case PBS_VARIANT::CG:
-    host_cg_multi_bit_programmable_bootstrap_noise_tests<uint64_t,
+    host_cg_multi_bit_programmable_bootstrap_noise_tests_async<uint64_t,
                                                          Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index,
         static_cast<uint64_t *>(lwe_array_out),
@@ -492,7 +492,7 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
         base_log, level_count, num_samples, num_many_lut, lut_stride);
     break;
   case PBS_VARIANT::DEFAULT:
-    host_multi_bit_programmable_bootstrap_noise_tests<uint64_t, Degree<2048>>(
+    host_multi_bit_programmable_bootstrap_noise_tests_async<uint64_t, Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index,
         static_cast<uint64_t *>(lwe_array_out),
         static_cast<const uint64_t *>(lwe_output_indexes),
@@ -609,7 +609,7 @@ template uint64_t scratch_cuda_multi_bit_programmable_bootstrap<uint64_t>(
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
 
 template void
-cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
+cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async<uint64_t>(
     void *stream, uint32_t gpu_index, uint64_t *lwe_array_out,
     uint64_t const *lwe_output_indexes, uint64_t const *lut_vector,
     uint64_t const *lut_vector_indexes, uint64_t const *lwe_array_in,
@@ -626,7 +626,7 @@ template uint64_t scratch_cuda_cg_multi_bit_programmable_bootstrap<uint64_t>(
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
 
 template void
-cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
+cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async<uint64_t>(
     void *stream, uint32_t gpu_index, uint64_t *lwe_array_out,
     uint64_t const *lwe_output_indexes, uint64_t const *lut_vector,
     uint64_t const *lut_vector_indexes, uint64_t const *lwe_array_in,
@@ -656,7 +656,7 @@ uint64_t scratch_cuda_tbc_multi_bit_programmable_bootstrap(
           allocate_gpu_memory));
 }
 template <typename Torus>
-void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
+void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -681,14 +681,14 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
         &num_sms, cudaDevAttrMultiProcessorCount, gpu_index));
 
     if (4 * num_sms < num_samples * level_count * (glwe_dimension + 1))
-      host_tbc_multi_bit_programmable_bootstrap<Torus, AmortizedDegree<2048>>(
+      host_tbc_multi_bit_programmable_bootstrap_async<Torus, AmortizedDegree<2048>>(
           static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
           lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
           lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, grouping_factor, base_log,
           level_count, num_samples, num_many_lut, lut_stride);
     else
-      host_tbc_multi_bit_programmable_bootstrap<Torus, Degree<2048>>(
+      host_tbc_multi_bit_programmable_bootstrap_async<Torus, Degree<2048>>(
           static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
           lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
           lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
@@ -697,7 +697,7 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
   } else {
     DISPATCH_POLY_SIZE(
         polynomial_size, AmortizedDegreePolicy,
-        host_tbc_multi_bit_programmable_bootstrap<Torus, Params>(
+        host_tbc_multi_bit_programmable_bootstrap_async<Torus, Params>(
             static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
             lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
             lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
@@ -707,7 +707,7 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
 }
 
 template <typename Torus>
-void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_generic(
+void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_generic_async(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -732,7 +732,7 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_generic(
         &num_sms, cudaDevAttrMultiProcessorCount, gpu_index));
 
     if (4 * num_sms < num_samples * level_count * (glwe_dimension + 1))
-      host_tbc_multi_bit_programmable_bootstrap_generic<Torus,
+      host_tbc_multi_bit_programmable_bootstrap_generic_async<Torus,
                                                         AmortizedDegree<2048>>(
           static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
           lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
@@ -740,7 +740,7 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_generic(
           lwe_dimension, polynomial_size, grouping_factor, base_log,
           level_count, num_samples, num_many_lut, lut_stride);
     else
-      host_tbc_multi_bit_programmable_bootstrap_generic<Torus, Degree<2048>>(
+      host_tbc_multi_bit_programmable_bootstrap_generic_async<Torus, Degree<2048>>(
           static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
           lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
           lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
@@ -749,7 +749,7 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_generic(
   } else {
     DISPATCH_POLY_SIZE(
         polynomial_size, AmortizedDegreePolicy,
-        host_tbc_multi_bit_programmable_bootstrap_generic<Torus, Params>(
+        host_tbc_multi_bit_programmable_bootstrap_generic_async<Torus, Params>(
             static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
             lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
             lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
@@ -764,7 +764,7 @@ template uint64_t scratch_cuda_tbc_multi_bit_programmable_bootstrap<uint64_t>(
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
 
 template void
-cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
+cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async<uint64_t>(
     void *stream, uint32_t gpu_index, uint64_t *lwe_array_out,
     uint64_t const *lwe_output_indexes, uint64_t const *lut_vector,
     uint64_t const *lut_vector_indexes, uint64_t const *lwe_array_in,

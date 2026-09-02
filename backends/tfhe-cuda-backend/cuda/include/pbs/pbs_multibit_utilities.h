@@ -21,7 +21,7 @@ uint64_t scratch_cuda_tbc_multi_bit_programmable_bootstrap(
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
 
 template <typename Torus>
-void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
+void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -39,7 +39,7 @@ uint64_t scratch_cuda_cg_multi_bit_programmable_bootstrap(
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
 
 template <typename Torus>
-void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
+void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -56,7 +56,7 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap(
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
 
 template <typename Torus>
-void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
+void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,

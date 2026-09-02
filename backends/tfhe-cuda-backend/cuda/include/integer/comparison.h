@@ -548,7 +548,7 @@ template <typename Torus> struct int_comparison_buffer {
     // single-block LUT that extracts the borrow flag and applies the per-op
     // boolean inversion (lut_borrow_flag_cmp below).
     if (use_borrow_fast_path) {
-      // FLAG_NONE: host_difference_check_via_borrow does the overflow-block
+      // FLAG_NONE: host_difference_check_via_borrow_async does the overflow-block
       // combination itself, so int_borrow_prop_memory's own borrow-flag LUT is
       // never used and we avoid allocating it.
       diff_borrow_mem = new int_borrow_prop_memory<Torus>(

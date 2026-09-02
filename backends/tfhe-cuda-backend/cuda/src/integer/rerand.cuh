@@ -11,7 +11,7 @@
 #include "zk/zk_utilities.h"
 
 template <typename Torus, class params>
-void host_rerand_inplace(
+void host_rerand_inplace_async(
     CudaStreams const streams, Torus *lwe_array,
     const Torus *lwe_flattened_encryptions_of_zero_compact_array_in,
     Torus *const *ksk, int_rerand_mem<Torus> *mem_ptr) {
@@ -52,7 +52,7 @@ void host_rerand_inplace(
       safe_mul_sizeof<expand_job<Torus>>(compact_lwe_lists.total_num_lwes),
       streams.stream(0), streams.gpu_index(0), true);
 
-  host_lwe_expand<Torus, params>(streams.stream(0), streams.gpu_index(0),
+  host_lwe_expand_async<Torus, params>(streams.stream(0), streams.gpu_index(0),
                                  expanded_zero_lwes, d_expand_jobs, num_lwes);
 
   auto lwes_to_be_added = expanded_zero_lwes;
@@ -77,7 +77,7 @@ void host_rerand_inplace(
   CudaRadixCiphertextFFI ksed_zero_lwes_ffi;
   into_radix_ciphertext(&ksed_zero_lwes_ffi, lwes_to_be_added, num_lwes,
                         output_dimension);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &lwes_ffi,
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0), &lwes_ffi,
                        &lwes_ffi, &ksed_zero_lwes_ffi, num_lwes,
                        message_modulus, carry_modulus);
   release_cpu_radix_ciphertext_async(&lwes_ffi);
@@ -94,12 +94,12 @@ void host_rerand_inplace(
 /// @param ksk                     Keyswitch key pointers (one per GPU)
 /// @param mem_ptr                 Pre-allocated re-randomization scratch buffer
 template <typename Torus>
-void host_rerand_inplace_dispatch(
+void host_rerand_inplace_dispatch_async(
     CudaStreams const streams, Torus *lwe_array,
     const Torus *lwe_flattened_encryptions_of_zero_compact_array_in,
     Torus *const *ksk, int_rerand_mem<Torus> *mem_ptr) {
   DISPATCH_POLY_SIZE(mem_ptr->params.big_lwe_dimension, AmortizedDegreePolicy,
-                     host_rerand_inplace<Torus, Params>(
+                     host_rerand_inplace_async<Torus, Params>(
                          streams, lwe_array,
                          lwe_flattened_encryptions_of_zero_compact_array_in,
                          ksk, mem_ptr));

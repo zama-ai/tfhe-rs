@@ -19,7 +19,7 @@ uint64_t scratch_cuda_unchecked_all_eq_slices(
 }
 
 template <typename Torus>
-__host__ void host_unchecked_all_eq_slices(
+__host__ void host_unchecked_all_eq_slices_async(
     CudaStreams streams, CudaRadixCiphertextFFI *match_ct,
     CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
     uint32_t num_inputs, uint32_t num_blocks,
@@ -52,7 +52,7 @@ __host__ void host_unchecked_all_eq_slices(
     as_radix_ciphertext_slice<Torus>(&current_result_dest,
                                      mem_ptr->packed_results, i, i + 1);
 
-    host_equality_check<Torus>(current_stream, &current_result_dest, input_lhs,
+    host_equality_check_async<Torus>(current_stream, &current_result_dest, input_lhs,
                                input_rhs, mem_ptr->eq_buffers[stream_idx], bsks,
                                ksks, num_blocks);
   }
@@ -77,7 +77,7 @@ __host__ void host_unchecked_all_eq_slices(
     }
   }
 
-  host_integer_are_all_comparisons_block_true<Torus>(
+  host_integer_are_all_comparisons_block_true_async<Torus>(
       streams, match_ct, mem_ptr->packed_results, mem_ptr->reduction_buffer,
       bsks, ksks, num_inputs);
 }
@@ -98,7 +98,7 @@ uint64_t scratch_cuda_unchecked_contains_sub_slice(
 }
 
 template <typename Torus>
-__host__ void host_unchecked_contains_sub_slice(
+__host__ void host_unchecked_contains_sub_slice_async(
     CudaStreams streams, CudaRadixCiphertextFFI *match_ct,
     CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
     uint32_t num_rhs, uint32_t num_blocks,
@@ -114,12 +114,12 @@ __host__ void host_unchecked_contains_sub_slice(
     as_radix_ciphertext_slice<Torus>(&current_result_dest,
                                      mem_ptr->packed_results, w, w + 1);
 
-    host_unchecked_all_eq_slices<Torus>(streams, &current_result_dest,
+    host_unchecked_all_eq_slices_async<Torus>(streams, &current_result_dest,
                                         lhs_window, rhs, num_rhs, num_blocks,
                                         mem_ptr->all_eq_buffer, bsks, ksks);
   }
 
-  host_integer_is_at_least_one_comparisons_block_true<Torus>(
+  host_integer_is_at_least_one_comparisons_block_true_async<Torus>(
       streams, match_ct, mem_ptr->packed_results,
       mem_ptr->final_reduction_buffer, bsks, ksks, num_windows);
 }

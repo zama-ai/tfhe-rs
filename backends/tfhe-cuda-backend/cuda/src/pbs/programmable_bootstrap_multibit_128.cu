@@ -74,7 +74,7 @@ void cuda_multi_bit_programmable_bootstrap_128_async(
   // AmortizedDegree for 4096 avoids register exhaustion in 128-bit multibit PBS
   DISPATCH_POLY_SIZE(
       polynomial_size, Multibit128DegreePolicy,
-      host_multi_bit_programmable_bootstrap_128<InputTorus, Params>(
+      host_multi_bit_programmable_bootstrap_128_async<InputTorus, Params>(
           static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
           lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
           bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
@@ -83,7 +83,7 @@ void cuda_multi_bit_programmable_bootstrap_128_async(
 }
 
 template <typename InputTorus>
-void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
+void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128_async(
     void *stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
@@ -96,7 +96,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
   // AmortizedDegree for 4096 avoids register exhaustion in 128-bit multibit PBS
   DISPATCH_POLY_SIZE(
       polynomial_size, Multibit128DegreePolicy,
-      host_cg_multi_bit_programmable_bootstrap_128<InputTorus, Params>(
+      host_cg_multi_bit_programmable_bootstrap_128_async<InputTorus, Params>(
           static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
           lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
           bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
@@ -120,7 +120,7 @@ void cuda_multi_bit_programmable_bootstrap_128_async(
       reinterpret_cast<pbs_buffer_128<uint64_t, MULTI_BIT> *>(mem_ptr);
   switch (buffer->pbs_variant) {
   case PBS_VARIANT::CG:
-    cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128<
+    cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128_async<
         uint64_t>(stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
                   static_cast<const uint64_t *>(lwe_output_indexes),
                   static_cast<const __uint128_t *>(lut_vector),
@@ -202,7 +202,7 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
       reinterpret_cast<pbs_buffer_128<uint64_t, MULTI_BIT> *>(buffer);
   switch (pbs_buf->pbs_variant) {
   case PBS_VARIANT::CG:
-    host_cg_multi_bit_programmable_bootstrap_noise_tests_128<uint64_t,
+    host_cg_multi_bit_programmable_bootstrap_noise_tests_128_async<uint64_t,
                                                              Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index,
         static_cast<__uint128_t *>(lwe_array_out),
@@ -215,7 +215,7 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
         base_log, level_count, num_samples, num_many_lut, lut_stride);
     break;
   case PBS_VARIANT::DEFAULT:
-    host_multi_bit_programmable_bootstrap_noise_tests_128<uint64_t,
+    host_multi_bit_programmable_bootstrap_noise_tests_128_async<uint64_t,
                                                           Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index,
         static_cast<__uint128_t *>(lwe_array_out),

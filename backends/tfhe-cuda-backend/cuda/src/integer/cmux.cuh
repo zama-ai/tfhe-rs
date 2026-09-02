@@ -35,7 +35,7 @@ __host__ void zero_out_if(CudaStreams streams,
   // We can't use integer_radix_apply_bivariate_lookup_table since the
   // second operand is not an array
   auto tmp_lwe_array_input = mem_ptr->tmp;
-  host_pack_bivariate_blocks_with_single_block<Torus>(
+  host_pack_bivariate_blocks_with_single_block_async<Torus>(
       streams, tmp_lwe_array_input, predicate->lwe_indexes_in, lwe_array_input,
       lwe_condition, predicate->lwe_indexes_in, params.message_modulus,
       num_radix_blocks);
@@ -62,7 +62,7 @@ __host__ void zero_out_if(CudaStreams streams,
 /// @param num_entries        Number of ciphertexts to process
 /// @param num_blocks_per_ct  Number of radix blocks per ciphertext
 template <typename Torus, typename KSTorus>
-__host__ void host_zero_out_if_batch(
+__host__ void host_zero_out_if_batch_async(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_input,
     CudaRadixCiphertextFFI const *lwe_conditions,
@@ -93,7 +93,7 @@ __host__ void host_zero_out_if_batch(
   auto params = mem_ptr->params;
 
   auto tmp_lwe_array_input = mem_ptr->tmp;
-  host_pack_bivariate_blocks_with_per_ct_single_block<Torus>(
+  host_pack_bivariate_blocks_with_per_ct_single_block_async<Torus>(
       streams, tmp_lwe_array_input, lwe_array_input, lwe_conditions,
       params.message_modulus, num_entries, num_blocks_per_ct);
 
@@ -108,7 +108,7 @@ __host__ void host_zero_out_if_batch(
 /// @param num_entries        Number of ciphertexts in the batch
 /// @param num_blocks_per_ct  Number of radix blocks per ciphertext
 template <typename Torus>
-__host__ uint64_t scratch_cuda_zero_out_if_batch(
+__host__ uint64_t scratch_cuda_zero_out_if_batch_async(
     CudaStreams streams, int_zero_out_if_batch_buffer<Torus> **mem_ptr,
     uint32_t num_entries, uint32_t num_blocks_per_ct, int_radix_params params,
     bool allocate_gpu_memory) {
@@ -120,7 +120,7 @@ __host__ uint64_t scratch_cuda_zero_out_if_batch(
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void host_cmux(CudaStreams streams,
+__host__ void host_cmux_async(CudaStreams streams,
                         CudaRadixCiphertextFFI *lwe_array_out,
                         CudaRadixCiphertextFFI const *lwe_condition,
                         CudaRadixCiphertextFFI const *lwe_array_true,
@@ -163,7 +163,7 @@ __host__ void host_cmux(CudaStreams streams,
   as_radix_ciphertext_slice<Torus>(&mem_false, mem_ptr->buffer_out,
                                    num_radix_blocks, 2 * num_radix_blocks);
 
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &mem_true,
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0), &mem_true,
                        &mem_true, &mem_false, num_radix_blocks,
                        params.message_modulus, params.carry_modulus);
 
@@ -207,7 +207,7 @@ __host__ uint64_t scratch_cuda_cmux(CudaStreams streams,
 /// all entries
 template <typename Torus, typename KSTorus>
 __host__ void
-host_cmux_batch(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+host_cmux_batch_async(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
                 CudaRadixCiphertextFFI const *lwe_array_true,
                 CudaRadixCiphertextFFI const *lwe_array_false,
                 CudaRadixCiphertextFFI const *lwe_conditions,
@@ -223,7 +223,7 @@ host_cmux_batch(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
   cuda_set_device(streams.gpu_index(0));
 
   // Step 1: pack bivariate CMUX inputs (true and false branches).
-  host_pack_bivariate_blocks_cmux_two_regions<Torus>(
+  host_pack_bivariate_blocks_cmux_two_regions_async<Torus>(
       streams, mem_ptr->tmp_packed, lwe_array_true, lwe_array_false,
       lwe_conditions, params.message_modulus, num_entries, num_blocks_per_ct,
       replicate_true);
@@ -240,7 +240,7 @@ host_cmux_batch(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
   as_radix_ciphertext_slice<Torus>(&false_out, mem_ptr->buffer_out,
                                    total_num_blocks, 2 * total_num_blocks);
 
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &true_out,
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0), &true_out,
                        &true_out, &false_out, total_num_blocks,
                        params.message_modulus, params.carry_modulus);
 

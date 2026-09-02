@@ -35,7 +35,7 @@ void cuda_rerand_64_async(
   PUSH_RANGE("rerand")
   auto rerand_buffer = reinterpret_cast<int_rerand_mem<uint64_t> *>(mem_ptr);
 
-  host_rerand_inplace_dispatch<uint64_t>(
+  host_rerand_inplace_dispatch_async<uint64_t>(
       streams, static_cast<uint64_t *>(lwe_array),
       static_cast<const uint64_t *>(
           lwe_flattened_encryptions_of_zero_compact_array_in),

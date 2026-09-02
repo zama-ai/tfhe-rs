@@ -242,7 +242,7 @@ __host__ uint64_t scratch_programmable_bootstrap_cg(
  * Host wrapper
  */
 template <typename Torus, class params>
-__host__ void host_programmable_bootstrap_cg(
+__host__ void host_programmable_bootstrap_cg_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,

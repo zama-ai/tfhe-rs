@@ -62,7 +62,7 @@ __host__ void scalar_compare_radix_blocks(
                                      subtracted_blocks, lwe_array_in);
   // Subtract
   // Here we need the true lwe sub, not the one that comes from shortint.
-  host_scalar_subtraction_inplace<Torus>(
+  host_scalar_subtraction_inplace_async<Torus>(
       streams, subtracted_blocks, scalar_blocks, big_lwe_dimension,
       num_radix_blocks, message_modulus, carry_modulus);
 
@@ -78,7 +78,7 @@ __host__ void scalar_compare_radix_blocks(
   CudaRadixCiphertextFFI lwe_array_out_view;
   as_radix_ciphertext_slice<Torus>(&lwe_array_out_view, lwe_array_out, 0,
                                    num_radix_blocks);
-  host_add_scalar_one_inplace<Torus>(streams, &lwe_array_out_view,
+  host_add_scalar_one_inplace_async<Torus>(streams, &lwe_array_out_view,
                                      message_modulus, carry_modulus);
 }
 
@@ -127,7 +127,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check(
   if (num_scalar_blocks == 0) {
     // We only have to compare blocks with zero
     // means scalar is zero
-    host_compare_blocks_with_zero<Torus>(
+    host_compare_blocks_with_zero_async<Torus>(
         streams, mem_ptr->tmp_lwe_array_out, lwe_array_in, mem_ptr, bsks, ksks,
         num_radix_blocks, mem_ptr->is_zero_lut);
     are_all_comparisons_block_true<Torus>(
@@ -212,7 +212,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check(
                                num_lsb_radix_blocks);
     //////////////
     // msb
-    host_compare_blocks_with_zero<Torus>(
+    host_compare_blocks_with_zero_async<Torus>(
         msb_streams, &lwe_array_msb_out, &msb, mem_ptr, bsks, ksks,
         num_msb_radix_blocks, mem_ptr->is_zero_lut);
     are_all_comparisons_block_true<Torus>(
@@ -360,7 +360,7 @@ __host__ void integer_radix_signed_scalar_difference_check(
     // We only have to compare blocks with zero
     // means scalar is zero
     auto are_all_msb_zeros = mem_ptr->tmp_lwe_array_out;
-    host_compare_blocks_with_zero<Torus>(
+    host_compare_blocks_with_zero_async<Torus>(
         streams, are_all_msb_zeros, lwe_array_in, mem_ptr, bsks, ksks,
         num_radix_blocks, mem_ptr->is_zero_lut);
     are_all_comparisons_block_true<Torus>(
@@ -475,7 +475,7 @@ __host__ void integer_radix_signed_scalar_difference_check(
     // msb
     // We remove the last block (which is the sign)
     auto are_all_msb_zeros = lwe_array_msb_out;
-    host_compare_blocks_with_zero<Torus>(
+    host_compare_blocks_with_zero_async<Torus>(
         msb_streams, &are_all_msb_zeros, &msb, mem_ptr, bsks, ksks,
         num_msb_radix_blocks, mem_ptr->is_zero_lut);
     are_all_comparisons_block_true<Torus>(
@@ -625,7 +625,7 @@ __host__ void integer_radix_signed_scalar_difference_check(
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void host_scalar_difference_check(
+__host__ void host_scalar_difference_check_async(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
     Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
@@ -661,7 +661,7 @@ __host__ void host_scalar_difference_check(
 
 template <typename Torus, typename KSTorus>
 __host__ void
-host_scalar_maxmin(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+host_scalar_maxmin_async(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
                    CudaRadixCiphertextFFI const *lwe_array_in,
                    Torus const *scalar_blocks, Torus const *h_scalar_blocks,
                    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
@@ -682,7 +682,7 @@ host_scalar_maxmin(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
   // - 1 if lhs == rhs
   // - 2 if lhs > rhs
   auto sign = mem_ptr->tmp_lwe_array_out;
-  host_scalar_difference_check<Torus>(
+  host_scalar_difference_check_async<Torus>(
       streams, sign, lwe_array_in, scalar_blocks, h_scalar_blocks, mem_ptr,
       mem_ptr->identity_lut_f, bsks, ksks, num_radix_blocks, num_scalar_blocks);
 
@@ -698,13 +698,13 @@ host_scalar_maxmin(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
 
   // Selector
   // CMUX for Max or Min
-  host_cmux<Torus>(streams, lwe_array_out, mem_ptr->tmp_lwe_array_out,
+  host_cmux_async<Torus>(streams, lwe_array_out, mem_ptr->tmp_lwe_array_out,
                    lwe_array_left, lwe_array_right, mem_ptr->cmux_buffer, bsks,
                    ksks);
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void host_scalar_equality_check(
+__host__ void host_scalar_equality_check_async(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
@@ -795,7 +795,7 @@ __host__ void host_scalar_equality_check(
       PANIC("Cuda error: integer operation not supported")
     }
 
-    host_compare_blocks_with_zero<Torus>(msb_streams, &msb_out, &msb_in,
+    host_compare_blocks_with_zero_async<Torus>(msb_streams, &msb_out, &msb_in,
                                          mem_ptr, bsks, ksks,
                                          num_msb_radix_blocks, msb_lut);
     are_all_comparisons_block_true<Torus>(msb_streams, &msb_out, &msb_out,

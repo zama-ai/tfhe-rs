@@ -43,7 +43,7 @@ void cuda_kv_store_get_64_async(
                  "Result and boolean output pointers must be different for "
                  "out-of-place operations");
 
-  host_kv_store_get<uint64_t>(
+  host_kv_store_get_async<uint64_t>(
       CudaStreams(streams), lwe_array_out_result, lwe_array_out_boolean,
       lwe_array_out_selectors, lwe_array_in_encrypted_key, lwe_array_in_values,
       h_decomposed_clear_keys, (int_kv_store_get_buffer<uint64_t> *)mem, bsks,
@@ -107,7 +107,7 @@ void cuda_kv_store_update_64_async(
                  "Output and new value pointers must be different for "
                  "out-of-place operations");
 
-  host_kv_store_update<uint64_t>(
+  host_kv_store_update_async<uint64_t>(
       CudaStreams(streams), lwe_check_out_block, lwe_array_out_values,
       lwe_array_in_encrypted_key, lwe_array_in_values, lwe_in_new_value,
       h_decomposed_clear_keys, (int_kv_store_update_buffer<uint64_t> *)mem_ptr,
@@ -173,7 +173,7 @@ void cuda_kv_store_map_64_async(
                  "Check output and selectors pointers must be different for "
                  "out-of-place operations");
 
-  host_kv_store_map<uint64_t>(CudaStreams(streams), lwe_check_out_block,
+  host_kv_store_map_async<uint64_t>(CudaStreams(streams), lwe_check_out_block,
                               lwe_array_out_values, lwe_array_in_values,
                               lwe_in_new_value, lwe_array_in_selectors,
                               (int_kv_store_map_buffer<uint64_t> *)mem_ptr,
@@ -230,7 +230,7 @@ void cuda_kv_store_contains_key_64_async(
                  "Output boolean and encrypted key pointers must be different "
                  "for out-of-place operations");
 
-  host_kv_store_contains_key<uint64_t>(
+  host_kv_store_contains_key_async<uint64_t>(
       CudaStreams(streams), lwe_array_out_boolean, lwe_array_in_encrypted_key,
       h_decomposed_clear_keys,
       (int_kv_store_contains_key_buffer<uint64_t> *)mem_ptr, bsks,

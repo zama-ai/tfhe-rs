@@ -180,7 +180,7 @@ __host__ void vectorized_aes_256_encrypt_inplace(
  *
  */
 template <typename Torus>
-__host__ void host_integer_aes_ctr_256_encrypt(
+__host__ void host_integer_aes_ctr_256_encrypt_async(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *iv, CudaRadixCiphertextFFI const *round_keys,
     const Torus *counter_bits_le_all_blocks, uint32_t num_aes_inputs,
@@ -239,7 +239,7 @@ uint64_t scratch_cuda_integer_key_expansion_256(
  * - Otherwise:       w_i = w_{i-8} + w_{i-1}
  */
 template <typename Torus>
-__host__ void host_integer_key_expansion_256(
+__host__ void host_integer_key_expansion_256_async(
     CudaStreams streams, CudaRadixCiphertextFFI *expanded_keys,
     CudaRadixCiphertextFFI const *key, int_key_expansion_256_buffer<Torus> *mem,
     void *const *bsks, Torus *const *ksks) {
@@ -309,7 +309,7 @@ __host__ void host_integer_key_expansion_256(
           CudaRadixCiphertextFFI first_byte_bit_slice;
           as_radix_ciphertext_slice<Torus>(&first_byte_bit_slice,
                                            &rotated_word_buffer, bit, bit + 1);
-          host_add_scalar_one_inplace<Torus>(streams, &first_byte_bit_slice,
+          host_add_scalar_one_inplace_async<Torus>(streams, &first_byte_bit_slice,
                                              mem->params.message_modulus,
                                              mem->params.carry_modulus);
         }

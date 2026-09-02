@@ -30,25 +30,25 @@ uint64_t scratch_cuda_sub_and_propagate_single_carry(
 }
 
 template <typename Torus, typename KSTorus>
-void host_sub_and_propagate_single_carry(
+void host_sub_and_propagate_single_carry_async(
     CudaStreams streams, CudaRadixCiphertextFFI *lhs_array,
     const CudaRadixCiphertextFFI *rhs_array, CudaRadixCiphertextFFI *carry_out,
     const CudaRadixCiphertextFFI *input_carries,
     int_sub_and_propagate<Torus> *mem, void *const *bsks, KSTorus *const *ksks,
     uint32_t requested_flag, uint32_t uses_carry) {
 
-  host_negation_with_correcting_term<Torus>(
+  host_negation_with_correcting_term_async<Torus>(
       streams, mem->neg_rhs_array, rhs_array, mem->params.message_modulus,
       mem->params.carry_modulus, mem->neg_rhs_array->num_radix_blocks);
 
-  host_add_and_propagate_single_carry<Torus>(
+  host_add_and_propagate_single_carry_async<Torus>(
       streams, lhs_array, mem->neg_rhs_array, carry_out, input_carries,
       mem->sc_prop_mem, bsks, ksks, requested_flag, uses_carry);
 }
 
 /** @brief Subtracts lwe_array_in_2 (rhs) from lwe_array_in_1 (lhs) over
  * num_radix_blocks blocks by negating rhs with a correcting term (via
- * host_negation_with_correcting_term) then adding lhs. This is a fully
+ * host_negation_with_correcting_term_async) then adding lhs. This is a fully
  * levelled subtraction and no PBS is performed.
  * @param lwe_array_out destination radix-ciphertext
  * @param lwe_array_in_1 lhs radix-ciphertext
@@ -56,7 +56,7 @@ void host_sub_and_propagate_single_carry(
  * @param num_radix_blocks number of blocks to subtract
  */
 template <typename Torus>
-__host__ void host_subtraction_with_correcting_term(
+__host__ void host_subtraction_with_correcting_term_async(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in_1,
     CudaRadixCiphertextFFI const *lwe_array_in_2, uint32_t message_modulus,
@@ -74,10 +74,10 @@ __host__ void host_subtraction_with_correcting_term(
     PANIC("Cuda error: lwe_array_in and lwe_array_out lwe_dimension must be "
           "the same")
 
-  host_negation_with_correcting_term<Torus>(streams, lwe_array_out,
+  host_negation_with_correcting_term_async<Torus>(streams, lwe_array_out,
                                             lwe_array_in_2, message_modulus,
                                             carry_modulus, num_radix_blocks);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), lwe_array_out,
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0), lwe_array_out,
                        lwe_array_out, lwe_array_in_1, num_radix_blocks,
                        message_modulus, carry_modulus);
 }
@@ -98,7 +98,7 @@ __host__ uint64_t scratch_cuda_integer_overflowing_sub(
 }
 
 template <typename Torus>
-__host__ void host_integer_overflowing_sub(
+__host__ void host_integer_overflowing_sub_async(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI *input_left,
     const CudaRadixCiphertextFFI *input_right,
@@ -128,11 +128,11 @@ __host__ void host_integer_overflowing_sub(
   uint32_t grouping_size = num_bits_in_block;
   uint32_t num_groups = CEIL_DIV(num_blocks, grouping_size);
 
-  host_unchecked_sub_with_correcting_term<Torus>(
+  host_unchecked_sub_with_correcting_term_async<Torus>(
       streams.stream(0), streams.gpu_index(0), output, input_left, input_right,
       num_blocks, radix_params.message_modulus, radix_params.carry_modulus);
 
-  host_single_borrow_propagate<Torus>(
+  host_single_borrow_propagate_async<Torus>(
       streams, output, overflow_block, input_borrow,
       (int_borrow_prop_memory<Torus> *)mem_ptr, bsks, (Torus **)(ksks),
       num_groups, compute_overflow, uses_input_borrow);

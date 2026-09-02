@@ -85,7 +85,7 @@ __global__ void pack_bivariate_adjacent_blocks_kernel(
  *                            body coefficient (0 = no sentinel).
  */
 template <typename Torus>
-__host__ void host_pack_bivariate_adjacent_blocks(
+__host__ void host_pack_bivariate_adjacent_blocks_async(
     cudaStream_t stream, uint32_t gpu_index,
     CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, uint32_t num_rows,
@@ -95,14 +95,14 @@ __host__ void host_pack_bivariate_adjacent_blocks(
   if (num_rows == 0 || n_blocks_per_row == 0)
     return;
   if (lwe_array_in->lwe_dimension != lwe_array_out->lwe_dimension)
-    PANIC("Cuda error: host_pack_bivariate_adjacent_blocks requires matching "
+    PANIC("Cuda error: host_pack_bivariate_adjacent_blocks_async requires matching "
           "lwe_dimension on input and output")
   uint32_t out_n = (n_blocks_per_row + 1u) / 2u;
   if (lwe_array_in->num_radix_blocks < num_rows * n_blocks_per_row)
-    PANIC("Cuda error: host_pack_bivariate_adjacent_blocks input does not "
+    PANIC("Cuda error: host_pack_bivariate_adjacent_blocks_async input does not "
           "have enough blocks")
   if (lwe_array_out->num_radix_blocks < num_rows * out_n)
-    PANIC("Cuda error: host_pack_bivariate_adjacent_blocks output does not "
+    PANIC("Cuda error: host_pack_bivariate_adjacent_blocks_async output does not "
           "have enough blocks")
   uint64_t delta = ((uint64_t)1 << (sizeof(Torus) * 8 - 1)) /
                    ((uint64_t)message_modulus * carry_modulus);
@@ -300,12 +300,12 @@ __host__ void bitonic_sort_compare_phase_batched(
   as_radix_ciphertext_slice<Torus>(&rhs_packed_view, batched_buf->tmp_packed,
                                    num_pairs * packed_blocks_per_key,
                                    2 * num_pairs * packed_blocks_per_key);
-  host_pack_bivariate_adjacent_blocks<Torus>(
+  host_pack_bivariate_adjacent_blocks_async<Torus>(
       streams.stream(0), streams.gpu_index(0), &lhs_packed_view,
       batched_buf->lhs_data, num_pairs, blocks_per_key, message_modulus,
       /*orphan_factor=*/1, /*orphan_clear_value=*/0, params.message_modulus,
       params.carry_modulus);
-  host_pack_bivariate_adjacent_blocks<Torus>(
+  host_pack_bivariate_adjacent_blocks_async<Torus>(
       streams.stream(0), streams.gpu_index(0), &rhs_packed_view,
       batched_buf->rhs_data, num_pairs, blocks_per_key, message_modulus,
       /*orphan_factor=*/1, /*orphan_clear_value=*/0, params.message_modulus,
@@ -321,7 +321,7 @@ __host__ void bitonic_sort_compare_phase_batched(
 
   // Subtract lhs - rhs block-wise in the LWE domain; result is 0 iff blocks are
   // equal. This subtraction is levelled and may overflow into the padding bit.
-  host_subtraction<Torus>(streams.stream(0), streams.gpu_index(0),
+  host_subtraction_async<Torus>(streams.stream(0), streams.gpu_index(0),
                           batched_buf->comparisons, &lhs_packed_view,
                           &rhs_packed_view, num_pairs * packed_blocks_per_key,
                           params.message_modulus, params.carry_modulus);
@@ -339,7 +339,7 @@ __host__ void bitonic_sort_compare_phase_batched(
   // Shift {-1=lhs_is_inferior, 0=equal, 1=lhs_is_superior} to {0, 1, 2} as
   // expected by the tree reduction and CMUX LUTs, where EQ=1 is the
   // pass-through value.
-  host_add_scalar_one_inplace<Torus>(
+  host_add_scalar_one_inplace_async<Torus>(
       streams, &comparisons_view, params.message_modulus, params.carry_modulus);
 
   // Initialize the tree reduction with the per-block verdicts.
@@ -360,7 +360,7 @@ __host__ void bitonic_sort_compare_phase_batched(
                                      num_pairs * next_remaining_packed_blocks);
     // Pack adjacent verdict pairs into one block per pair, injecting an EQ
     // sentinel into any orphan slot.
-    host_pack_bivariate_adjacent_blocks<Torus>(
+    host_pack_bivariate_adjacent_blocks_async<Torus>(
         streams.stream(0), streams.gpu_index(0), &ty_view, &tx_view, num_pairs,
         remaining_packed_blocks, message_modulus,
         /*orphan_factor=*/message_modulus, /*orphan_clear_value=*/IS_EQUAL,
@@ -386,7 +386,7 @@ __host__ void bitonic_sort_compare_phase_batched(
                                    num_pairs * 2);
   as_radix_ciphertext_slice<Torus>(&ty_final, batched_buf->tree_y, 0,
                                    num_pairs);
-  host_pack_bivariate_adjacent_blocks<Torus>(
+  host_pack_bivariate_adjacent_blocks_async<Torus>(
       streams.stream(0), streams.gpu_index(0), &ty_final, &tx_final, num_pairs,
       2, message_modulus, /*orphan_factor=*/1, /*orphan_clear_value=*/0,
       params.message_modulus, params.carry_modulus);
@@ -583,7 +583,7 @@ apply_cmux_batched(CudaStreams streams, CudaRadixCiphertextFFI **keys,
       &is_superior_half, fused_buf->batch_buffer_out, 0, blocks_per_branch);
   as_radix_ciphertext_slice<Torus>(&is_equal_half, fused_buf->batch_buffer_out,
                                    blocks_per_branch, total_bivariate);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0),
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
                        &is_superior_half, &is_superior_half, &is_equal_half,
                        blocks_per_branch, params.message_modulus,
                        params.carry_modulus);
@@ -767,7 +767,7 @@ __host__ void bitonic_shuffle_setup_padded(
  */
 template <typename Torus, typename KSTorus>
 __host__ void
-host_bitonic_shuffle(CudaStreams streams, CudaRadixCiphertextFFI **keys,
+host_bitonic_shuffle_async(CudaStreams streams, CudaRadixCiphertextFFI **keys,
                      CudaRadixCiphertextFFI **values, uint32_t num_values,
                      int_bitonic_shuffle_buffer<Torus> *mem_ptr,
                      void *const *bsks, KSTorus *const *ksks) {
@@ -820,7 +820,7 @@ __host__ uint64_t scratch_cuda_integer_oprf_bitonic_shuffle_async(
  * GPU.
  */
 template <typename Torus, typename KSTorus>
-__host__ void host_oprf_bitonic_shuffle(
+__host__ void host_oprf_bitonic_shuffle_async(
     CudaStreams streams, CudaRadixCiphertextFFI **values, uint32_t num_values,
     const Torus *seeded_lwe_input,
     const Torus *lwe_flattened_encryptions_of_zero_compact_array_in,
@@ -829,7 +829,7 @@ __host__ void host_oprf_bitonic_shuffle(
 
   uint32_t key_num_blocks = mem_ptr->key_num_blocks;
 
-  host_integer_grouped_oprf<Torus>(
+  host_integer_grouped_oprf_async<Torus>(
       streams, mem_ptr->keys_storage, seeded_lwe_input,
       num_values * key_num_blocks, mem_ptr->oprf_memory, oprf_bsks);
 
@@ -837,12 +837,12 @@ __host__ void host_oprf_bitonic_shuffle(
     auto *rerand_mem = mem_ptr->rerand_memory;
     auto *keys_ptr = static_cast<Torus *>(mem_ptr->keys_storage->ptr);
 
-    host_rerand_inplace_dispatch<Torus>(
+    host_rerand_inplace_dispatch_async<Torus>(
         streams, keys_ptr, lwe_flattened_encryptions_of_zero_compact_array_in,
         rerand_ksks, rerand_mem);
   }
 
-  host_bitonic_shuffle<Torus>(streams, mem_ptr->keys_ptrs, values, num_values,
+  host_bitonic_shuffle_async<Torus>(streams, mem_ptr->keys_ptrs, values, num_values,
                               mem_ptr->shuffle_buffer, bsks, ksks);
 }
 

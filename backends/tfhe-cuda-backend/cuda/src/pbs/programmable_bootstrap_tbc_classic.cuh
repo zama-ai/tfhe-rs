@@ -470,7 +470,7 @@ __host__ uint64_t scratch_programmable_bootstrap_tbc(
  * Host wrapper
  */
 template <typename Torus, class params>
-__host__ void host_programmable_bootstrap_tbc_with_mode(
+__host__ void host_programmable_bootstrap_tbc_with_mode_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -683,7 +683,7 @@ __host__ void host_programmable_bootstrap_tbc_with_mode(
 }
 
 template <typename Torus, class params>
-__host__ void host_programmable_bootstrap_tbc(
+__host__ void host_programmable_bootstrap_tbc_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -692,7 +692,7 @@ __host__ void host_programmable_bootstrap_tbc(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     uint32_t num_many_lut, uint32_t lut_stride) {
-  host_programmable_bootstrap_tbc_with_mode<Torus, params>(
+  host_programmable_bootstrap_tbc_with_mode_async<Torus, params>(
       stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
       lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
       buffer, glwe_dimension, lwe_dimension, polynomial_size, base_log,
@@ -701,7 +701,7 @@ __host__ void host_programmable_bootstrap_tbc(
 }
 
 template <typename Torus, class params>
-__host__ void host_programmable_bootstrap_tbc_generic(
+__host__ void host_programmable_bootstrap_tbc_generic_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -710,7 +710,7 @@ __host__ void host_programmable_bootstrap_tbc_generic(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     uint32_t num_many_lut, uint32_t lut_stride) {
-  host_programmable_bootstrap_tbc_with_mode<Torus, params>(
+  host_programmable_bootstrap_tbc_with_mode_async<Torus, params>(
       stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
       lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
       buffer, glwe_dimension, lwe_dimension, polynomial_size, base_log,
@@ -719,7 +719,7 @@ __host__ void host_programmable_bootstrap_tbc_generic(
 }
 
 template <typename Torus, class params>
-__host__ void host_programmable_bootstrap_tbc_2_2_specialized(
+__host__ void host_programmable_bootstrap_tbc_2_2_specialized_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -728,7 +728,7 @@ __host__ void host_programmable_bootstrap_tbc_2_2_specialized(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     uint32_t num_many_lut, uint32_t lut_stride) {
-  host_programmable_bootstrap_tbc_with_mode<Torus, params>(
+  host_programmable_bootstrap_tbc_with_mode_async<Torus, params>(
       stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
       lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
       buffer, glwe_dimension, lwe_dimension, polynomial_size, base_log,

@@ -48,7 +48,7 @@ void cuda_integer_scalar_comparison_64_async(
   switch (buffer->op) {
   case EQ:
   case NE:
-    host_scalar_equality_check<uint64_t>(
+    host_scalar_equality_check_async<uint64_t>(
         CudaStreams(streams), lwe_array_out, lwe_array_in,
         static_cast<const uint64_t *>(scalar_blocks), buffer, bsks,
         (uint64_t **)(ksks), num_radix_blocks, num_scalar_blocks);
@@ -60,7 +60,7 @@ void cuda_integer_scalar_comparison_64_async(
     if (num_radix_blocks % 2 != 0 && num_radix_blocks != 1)
       PANIC("Cuda error (scalar comparisons): the number of radix blocks has "
             "to be even or equal to 1.")
-    host_scalar_difference_check<uint64_t>(
+    host_scalar_difference_check_async<uint64_t>(
         CudaStreams(streams), lwe_array_out, lwe_array_in,
         static_cast<const uint64_t *>(scalar_blocks),
         static_cast<const uint64_t *>(h_scalar_blocks), buffer,
@@ -72,7 +72,7 @@ void cuda_integer_scalar_comparison_64_async(
     if (lwe_array_in->num_radix_blocks % 2 != 0)
       PANIC("Cuda error (scalar max/min): the number of radix blocks has to be "
             "even.")
-    host_scalar_maxmin<uint64_t>(
+    host_scalar_maxmin_async<uint64_t>(
         CudaStreams(streams), lwe_array_out, lwe_array_in,
         static_cast<const uint64_t *>(scalar_blocks),
         static_cast<const uint64_t *>(h_scalar_blocks), buffer, bsks,

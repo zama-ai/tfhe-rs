@@ -25,7 +25,7 @@ device_scalar_addition_inplace(Torus *lwe_array, Torus const *scalar_input,
 }
 
 template <typename Torus>
-__host__ void host_scalar_addition_inplace(
+__host__ void host_scalar_addition_inplace_async(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array,
     Torus const *scalar_input, Torus const *h_scalar_input,
     uint32_t num_scalars, uint32_t message_modulus, uint32_t carry_modulus) {
@@ -68,7 +68,7 @@ device_add_scalar_one_inplace(Torus *lwe_array, int32_t num_blocks,
 }
 
 template <typename Torus>
-__host__ void host_add_scalar_one_inplace(CudaStreams streams,
+__host__ void host_add_scalar_one_inplace_async(CudaStreams streams,
                                           CudaRadixCiphertextFFI *lwe_array,
                                           uint32_t message_modulus,
                                           uint32_t carry_modulus) {
@@ -111,7 +111,7 @@ device_scalar_subtraction_inplace(Torus *lwe_array, Torus *scalar_input,
 }
 
 template <typename Torus>
-__host__ void host_scalar_subtraction_inplace(
+__host__ void host_scalar_subtraction_inplace_async(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, Torus *scalar_input,
     uint32_t lwe_dimension, uint32_t input_lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus) {

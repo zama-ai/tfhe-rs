@@ -66,7 +66,7 @@ __global__ void closest_representable(const T *input, T *output,
 
 template <typename T>
 __host__ void
-host_cuda_closest_representable(cudaStream_t stream, uint32_t gpu_index,
+host_cuda_closest_representable_async(cudaStream_t stream, uint32_t gpu_index,
                                 const T *input, T *output, uint32_t base_log,
                                 uint32_t level_count) {
   dim3 grid(1, 1, 1);
@@ -297,7 +297,7 @@ keyswitch(KSTorus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void host_keyswitch_lwe_ciphertext_vector(
+__host__ void host_keyswitch_lwe_ciphertext_vector_async(
     cudaStream_t stream, uint32_t gpu_index, KSTorus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lwe_array_in,
     Torus const *lwe_input_indexes, KSTorus const *ksk,
@@ -442,7 +442,7 @@ __host__ void dispatch_gemm_keyswitch_split_k(
 
 // The GEMM keyswitch is computed as: -(-b + sum(a_i A_KSK))
 template <typename Torus, typename KSTorus>
-__host__ void host_gemm_keyswitch_lwe_ciphertext_vector(
+__host__ void host_gemm_keyswitch_lwe_ciphertext_vector_async(
     cudaStream_t stream, uint32_t gpu_index, KSTorus *lwe_array_out,
     Torus const *lwe_output_indices, Torus const *lwe_array_in,
     Torus const *lwe_input_indices, KSTorus const *ksk,
@@ -585,7 +585,7 @@ void execute_keyswitch_async(CudaStreams streams,
 
     if (supports_gemm_ks) {
       // Compute Keyswitch via fused GEMM path
-      host_gemm_keyswitch_lwe_ciphertext_vector<Torus, KSTorus>(
+      host_gemm_keyswitch_lwe_ciphertext_vector_async<Torus, KSTorus>(
           streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
           current_lwe_output_indexes, current_lwe_array_in,
           current_lwe_input_indexes, ksks[i], lwe_dimension_in,
@@ -593,7 +593,7 @@ void execute_keyswitch_async(CudaStreams streams,
           uses_trivial_indices);
     } else {
       // Compute Keyswitch
-      host_keyswitch_lwe_ciphertext_vector<Torus, KSTorus>(
+      host_keyswitch_lwe_ciphertext_vector_async<Torus, KSTorus>(
           streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
           current_lwe_output_indexes, current_lwe_array_in,
           current_lwe_input_indexes, ksks[i], lwe_dimension_in,
@@ -614,7 +614,7 @@ __host__ uint64_t scratch_packing_keyswitch_lwe_list_to_glwe(
   // One GLWE per input LWE for each of the two halves of the buffer: the
   // keyswitched GLWEs and the rotated ones. The fused decompose + GEMM keeps
   // the decomposition in registers, so no extra room is needed for it.
-  // Keep in sync with host_packing_keyswitch_lwe_list_to_glwe.
+  // Keep in sync with host_packing_keyswitch_lwe_list_to_glwe_async.
   uint64_t memory_unit = glwe_accumulator_size;
 
   uint64_t size_tracker = 0;
