@@ -149,12 +149,12 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 #v6.1.0
         with:
           path: |
-            ~/.nvm
-            ~/.npm
+            .nvm
+            .npm
           key: node-${{ env.NODE_VERSION }}
 
       - name: Install Node
-        if: inputs.run-pcc-cpu-batch == 'pcc_batch_2'
+        if: inputs.run-pcc-cpu-batch == 'pcc_batch_2' && steps.node-cache.outputs.cache-hit != 'true'
         run: |
           make install_node
 
@@ -163,8 +163,8 @@ jobs:
         if: inputs.run-pcc-cpu-batch == 'pcc_batch_2' && steps.node-cache.outputs.cache-hit != 'true'
         with:
           path: |
-            ~/.nvm
-            ~/.npm
+            .nvm
+            .npm
           key: node-${{ env.NODE_VERSION }}
 
       - name: Run pcc checks batch

@@ -50,6 +50,9 @@ ci/lattice_estimator.sage.py
 
 # Node
 safe_chain_install.sh
+# when setup on CI
+.nvm
+.npm
 
 # Hpu simulation model
 hpu_sim*.log
