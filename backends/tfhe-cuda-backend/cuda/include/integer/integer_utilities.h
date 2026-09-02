@@ -173,14 +173,6 @@ template <typename Torus>
 __global__ void radix_blocks_rotate_right(Torus *dst, Torus *src,
                                           uint32_t value, uint32_t blocks_count,
                                           uint32_t lwe_size);
-void generate_ids_update_degrees(uint64_t *terms_degree, size_t *h_lwe_idx_in,
-                                 size_t *h_lwe_idx_out,
-                                 int32_t *h_smart_copy_in,
-                                 int32_t *h_smart_copy_out, size_t ch_amount,
-                                 uint32_t /*num_radix*/, uint32_t num_blocks,
-                                 size_t chunk_size, size_t message_max,
-                                 size_t &total_count, size_t &message_count,
-                                 size_t &carry_count, size_t &sm_copy_count);
 /*
  *  generate bivariate accumulator (lut) for device pointer
  *    stream - cuda stream
