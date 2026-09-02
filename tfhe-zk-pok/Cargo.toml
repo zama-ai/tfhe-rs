@@ -30,7 +30,7 @@ tfhe-cuda-common = { version = "0.1.1", path = "../backends/tfhe-cuda-common", o
 itertools.workspace = true
 [target.'cfg(target_family = "wasm")'.dependencies]
 getrandom = { workspace = true, features = ["js"] }
-wasm-par-mq = { version = "0.1.0", path = "../utils/wasm-par-mq", features = [
+wasm-par-mq = { version = "0.1.1", path = "../utils/wasm-par-mq", features = [
     "sync-api",
 ], optional = true }
 
