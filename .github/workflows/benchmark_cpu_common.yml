@@ -56,6 +56,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
+  PROTOCOL_TABLE_CSV: protocol_results_table_${{ github.sha }}.csv
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
@@ -234,11 +235,22 @@ jobs:
           filenames: ${{ inputs.additional_file_to_parse }}
           results_type: ${{ inputs.additional_results_type }}
 
+      - name: Render protocol results table
+        if: ${{ contains(matrix.command, 'protocol') }}
+        run: |
+          python3 ci/protocol_results_table.py "${RESULTS_FILENAME}" \
+          --hardware "${HARDWARE_NAME}" \
+          --csv "${PROTOCOL_TABLE_CSV}"
+        env:
+          HARDWARE_NAME: ${{ inputs.hardware_name }}
+
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ github.sha }}_${{ matrix.command }}_${{ matrix.op_flavor }}_${{ matrix.bench_type }}_${{ matrix.params_type }}
-          path: ${{ env.RESULTS_FILENAME }}
+          path: |
+            ${{ env.RESULTS_FILENAME }}
+            ${{ env.PROTOCOL_TABLE_CSV }}
 
       - name: Checkout Slab repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -264,6 +276,44 @@ jobs:
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "CPU benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+
+  protocol-table:
+    name: benchmark_cpu_common/protocol-table
+    needs: [ integer-benchmarks ]
+    if: ${{ !cancelled() && contains(inputs.command, 'protocol') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tfhe-rs repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Download the results of every matrix job
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: ${{ github.sha }}_*
+          path: protocol-artifacts
+
+      - name: Render protocol results table
+        run: |
+          mapfile -t results < <(find protocol-artifacts -name 'parsed_benchmark_results_*.json' | sort)
+          if [ "${#results[@]}" -eq 0 ]; then
+            echo "No parsed results in this run, nothing to tabulate." >&2
+            exit 0
+          fi
+          python3 ci/protocol_results_table.py "${results[@]}" \
+          --hardware "${HARDWARE_NAME}" \
+          --csv "${PROTOCOL_TABLE_CSV}"
+        env:
+          HARDWARE_NAME: ${{ inputs.hardware_name }}
+
+      - name: Upload protocol results table
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ github.sha }}_protocol_results_table_cpu
+          path: ${{ env.PROTOCOL_TABLE_CSV }}
+          if-no-files-found: ignore
 
   teardown-instance:
     name: benchmark_cpu_common/teardown-instance
