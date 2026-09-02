@@ -28,6 +28,7 @@ on:
           - hlapi_unsigned
           - hlapi_signed
           - hlapi_erc7984
+          - hlapi_protocol
           - hlapi_dex
           - hlapi_noise_squash
           - hlapi_kvstore
