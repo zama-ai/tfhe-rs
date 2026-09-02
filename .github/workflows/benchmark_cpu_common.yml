@@ -56,6 +56,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
+  PROTOCOL_TABLE_CSV: protocol_results_table_${{ github.sha }}.csv
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
@@ -234,11 +235,38 @@ jobs:
           filenames: ${{ inputs.additional_file_to_parse }}
           results_type: ${{ inputs.additional_results_type }}
 
+      - name: Download protocol results table of the other bench type
+        if: ${{ contains(matrix.command, 'protocol') }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: ${{ github.sha }}_protocol_table_${{ matrix.command }}_${{ matrix.op_flavor }}_${{ matrix.params_type }}
+          merge-multiple: true
+          path: previous_protocol_table
+
+      - name: Render protocol results table
+        if: ${{ contains(matrix.command, 'protocol') }}
+        run: |
+          python3 ci/protocol_results_table.py "${RESULTS_FILENAME}" \
+          --hardware "${HARDWARE_NAME}" \
+          --csv "${PROTOCOL_TABLE_CSV}" \
+          --merge "previous_protocol_table/${PROTOCOL_TABLE_CSV}"
+        env:
+          HARDWARE_NAME: ${{ inputs.hardware_name }}
+
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: ${{ github.sha }}_${{ matrix.command }}_${{ matrix.op_flavor }}_${{ matrix.bench_type }}_${{ matrix.params_type }}
           path: ${{ env.RESULTS_FILENAME }}
+
+      - name: Upload protocol results table
+        if: ${{ contains(matrix.command, 'protocol') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ github.sha }}_protocol_table_${{ matrix.command }}_${{ matrix.op_flavor }}_${{ matrix.params_type }}
+          path: ${{ env.PROTOCOL_TABLE_CSV }}
+          if-no-files-found: ignore
+          overwrite: true
 
       - name: Checkout Slab repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
