@@ -2390,6 +2390,28 @@ bench_hlapi_noise_squash_gpu: install_rs_check_toolchain
 	--bench hlapi-noise-squash \
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
 
+# Defaults match the ERC7984 GPU throughput benchmark. Lower the count for every shape at once if a
+# run runs out of memory, since throughputs measured at different batch sizes do not compose.
+PROTOCOL_BENCH_TRANSACTIONS?=800
+PROTOCOL_BENCH_STREAMS?=16
+
+.PHONY: bench_hlapi_protocol_gpu # Run the full protocol transaction benchmarks on a single GPU
+bench_hlapi_protocol_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) \
+	TFHE_RS_BENCH_PROTOCOL_TRANSACTIONS=$(PROTOCOL_BENCH_TRANSACTIONS) \
+	TFHE_RS_BENCH_PROTOCOL_STREAMS=$(PROTOCOL_BENCH_STREAMS) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-protocol \
+	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off --
+
+.PHONY: bench_hlapi_protocol # Run the full protocol transaction benchmarks on CPU
+bench_hlapi_protocol: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	TFHE_RS_BENCH_PROTOCOL_TRANSACTIONS=$(PROTOCOL_BENCH_TRANSACTIONS) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-protocol \
+	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
+
 .PHONY: bench_hlapi_kvstore # Run benchmarks for Key-Value Store operations
 bench_hlapi_kvstore: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
