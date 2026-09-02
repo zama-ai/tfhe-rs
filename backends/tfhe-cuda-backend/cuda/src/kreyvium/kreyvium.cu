@@ -6,8 +6,8 @@ void cuda_kreyvium_init_async(
     CudaRadixCiphertextFFI *b_reg, CudaRadixCiphertextFFI *c_reg,
     CudaRadixCiphertextFFI *k_reg, CudaRadixCiphertextFFI *iv_reg,
     uint32_t *k_offset, uint32_t *iv_offset, const CudaRadixCiphertextFFI *key,
-    const CudaRadixCiphertextFFI *iv_in, uint32_t /*num_inputs*/,
-    int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
+    const CudaRadixCiphertextFFI *iv_in, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks) {
   auto buffer = (int_kreyvium_buffer<uint64_t> *)mem_ptr;
   host_kreyvium_init<uint64_t>(CudaStreams(streams), buffer, a_reg, b_reg,
                                c_reg, k_reg, iv_reg, k_offset, iv_offset, key,

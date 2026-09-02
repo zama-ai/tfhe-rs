@@ -457,7 +457,7 @@ void cuda_integer_scalar_mul_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array,
     uint64_t const *decomposed_scalar, uint64_t const *has_at_least_one_set,
     int8_t *mem_ptr, void *const *bsks, void *const *ksks,
-    uint32_t polynomial_size, uint32_t message_modulus, uint32_t num_scalars);
+    uint32_t message_modulus, uint32_t num_scalars);
 
 void cleanup_cuda_integer_scalar_mul_64(CudaStreamsFFI streams,
                                         int8_t **mem_ptr_void);
