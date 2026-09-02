@@ -257,7 +257,6 @@ jobs:
       - name: Parse and merge multi_group results
         if: ${{ endsWith(inputs.command, '_multi_group') }}
         run: |
-          echo "Merging results from ${NUM_GROUPS} groups"
           group_results=()
           for i in $(seq 0 $((NUM_GROUPS - 1))); do
             group_result="parsed_benchmark_results_p${i}_${GITHUB_SHA}.json"

@@ -3,6 +3,7 @@ pub mod erc7984;
 pub mod kv_store;
 pub mod noise_squash;
 pub mod oprf;
+pub mod protocol;
 
 use std::str::FromStr;
 
@@ -11,6 +12,7 @@ use erc7984::Erc7984;
 use kv_store::KvStoreOp;
 use noise_squash::NoiseSquashingKind;
 use oprf::OprfKind;
+use protocol::ProtocolKind;
 use strum::{Display, EnumDiscriminants, EnumString};
 
 use crate::error::SpecParseError;
@@ -40,6 +42,7 @@ pub enum HlapiBench {
     KvStore(KvStoreOp),
     NoiseSquashing(NoiseSquashingKind),
     Oprf(OprfKind),
+    Protocol(ProtocolKind),
     VectorFind(VectorFindOp),
 }
 
@@ -52,6 +55,7 @@ impl SpecNode for HlapiBench {
             HlapiBench::KvStore(op) => op,
             HlapiBench::NoiseSquashing(op) => op,
             HlapiBench::Oprf(op) => op,
+            HlapiBench::Protocol(op) => op,
             HlapiBench::VectorFind(op) => op,
         })
     }
@@ -71,6 +75,7 @@ impl FromStr for HlapiBench {
             HlapiBenchKind::KvStore => Ok(Self::KvStore(rest.parse()?)),
             HlapiBenchKind::NoiseSquashing => Ok(Self::NoiseSquashing(rest.parse()?)),
             HlapiBenchKind::Oprf => Ok(Self::Oprf(rest.parse()?)),
+            HlapiBenchKind::Protocol => Ok(Self::Protocol(rest.parse()?)),
             HlapiBenchKind::VectorFind => Ok(Self::VectorFind(rest.parse()?)),
         }
     }
