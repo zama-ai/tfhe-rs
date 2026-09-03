@@ -163,6 +163,21 @@ impl ServerKey {
         )
     }
 
+    // Only used by the experimental circuit API (Compress / Decompress ops).
+    #[cfg(feature = "experimental")]
+    pub(in crate::high_level_api) fn compression_key(
+        &self,
+    ) -> Option<&crate::integer::compression_keys::CompressionKey> {
+        self.key.compression_key.as_ref()
+    }
+
+    #[cfg(feature = "experimental")]
+    pub(in crate::high_level_api) fn decompression_key(
+        &self,
+    ) -> Option<&crate::integer::compression_keys::DecompressionKey> {
+        self.key.decompression_key.as_ref()
+    }
+
     #[cfg(feature = "strings")]
     pub(in crate::high_level_api) fn string_key(&self) -> crate::strings::ServerKeyRef<'_> {
         crate::strings::ServerKeyRef::new(self.key.pbs_key())

@@ -77,7 +77,7 @@ impl ServerKey {
     /// let end_bit = (end_block as u64) * blocksize;
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct_res);
+    /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((msg % (1 << end_bit)) >> start_bit, clear);
     /// ```
     pub fn scalar_blockslice<B, R>(
@@ -121,7 +121,7 @@ impl ServerKey {
     /// let end_bit = (end_block as u64) * blocksize;
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct);
+    /// let clear: u64 = cks.decrypt(&ct);
     /// assert_eq!((msg % (1 << end_bit)) >> start_bit, clear);
     /// ```
     pub fn scalar_blockslice_assign(
@@ -264,7 +264,7 @@ impl ServerKey {
     ///     .unwrap();
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct_res);
+    /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((msg % (1 << end_bit)) >> start_bit, clear);
     /// ```
     pub fn unchecked_scalar_bitslice<B, R>(
@@ -353,7 +353,7 @@ impl ServerKey {
     ///     .unwrap();
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct);
+    /// let clear: u64 = cks.decrypt(&ct);
     /// assert_eq!((msg % (1 << end_bit)) >> start_bit, clear);
     /// ```
     pub fn unchecked_scalar_bitslice_assign<B, R>(
@@ -395,7 +395,7 @@ impl ServerKey {
     /// let ct_res = sks.scalar_bitslice(&ct, start_bit..end_bit).unwrap();
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct_res);
+    /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((msg % (1 << end_bit)) >> start_bit, clear);
     /// ```
     pub fn scalar_bitslice<B, R>(
@@ -442,7 +442,7 @@ impl ServerKey {
     /// let ct_res = sks.scalar_bitslice(&ct, start_bit..end_bit).unwrap();
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct_res);
+    /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((msg % (1 << end_bit)) >> start_bit, clear);
     /// ```
     pub fn scalar_bitslice_assign<B, R>(
@@ -489,7 +489,7 @@ impl ServerKey {
     ///     .unwrap();
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct_res);
+    /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((msg % (1 << end_bit)) >> start_bit, clear);
     /// ```
     pub fn smart_scalar_bitslice<B, R>(
@@ -535,7 +535,7 @@ impl ServerKey {
     ///     .unwrap();
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct);
+    /// let clear: u64 = cks.decrypt(&ct);
     /// assert_eq!((msg % (1 << end_bit)) >> start_bit, clear);
     /// ```
     pub fn smart_scalar_bitslice_assign<B, R>(

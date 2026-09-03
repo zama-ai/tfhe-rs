@@ -150,6 +150,16 @@ impl<Key, Ct> KVStore<Key, Ct> {
     }
 }
 
+impl<Key, Ct> IntoIterator for KVStore<Key, Ct> {
+    type Item = (Key, Ct);
+    type IntoIter = std::collections::btree_map::IntoIter<Key, Ct>;
+
+    /// Consumes the store, yielding its key-value pairs in key order.
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.into_iter()
+    }
+}
+
 impl<Key, Ct> Default for KVStore<Key, Ct>
 where
     Self: Sized,

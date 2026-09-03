@@ -1386,10 +1386,16 @@ test_integer_cov: install_tarpaulin
 		--features=integer,internal-keycache \
 		-p tfhe -- -Z unstable-options --report-time integer::
 
-.PHONY: test_high_level_api # Run all the tests for high_level_api
-test_high_level_api:
+.PHONY: test_circuit_api # Run all the tests for the experimental Circuit API
+test_circuit_api:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings -p tfhe \
+		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,experimental -p tfhe \
+		-- high_level_api::circuit:: --test-threads=20
+
+.PHONY: test_high_level_api # Run all the tests for high_level_api, including the Circuit API
+test_high_level_api: test_circuit_api
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,experimental -p tfhe \
 		-- high_level_api:: --skip test_noise_check
 
 test_high_level_api_gpu_fast: install_cargo_nextest # Run all the GPU tests for high_level_api except test_uniformity for oprf which is too long
@@ -1424,7 +1430,7 @@ build_one_hl_api_test_fake_multi_gpu:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --no-run \
 		--features=integer,gpu-debug-fake-multi-gpu -vv -p tfhe -- "$${TEST}" --test-threads=1 --nocapture
 
-test_high_level_api_hpu: install_cargo_nextest install_hpu_sim 
+test_high_level_api_hpu: install_cargo_nextest install_hpu_sim
 ifeq ($(HPU_CONFIG), v80)
 	source ./setup_hpu.sh --config $(HPU_CONFIG); \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \

@@ -20,7 +20,7 @@ use std::ops::Range;
 /// Outputs are not required to be unique
 /// Input values are not required to span all possible values that
 /// ` ct` could hold.
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct MatchValues<Clear>(Vec<(Clear, Clear)>);
 
 impl<Clear> MatchValues<Clear> {
