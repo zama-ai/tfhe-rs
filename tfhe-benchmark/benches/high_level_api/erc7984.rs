@@ -424,7 +424,7 @@ fn bench_transfer_latency_simd<FheType, F>(
         &params_name,
         OperandType::CipherText,
         Some(type_name),
-        BenchmarkMetric::Throughput,
+        BenchmarkMetric::Latency,
         None,
     );
     c.bench_function(bench_spec.to_string(), |b| {
