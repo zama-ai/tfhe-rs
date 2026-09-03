@@ -83,7 +83,7 @@ void cuda_multi_bit_programmable_bootstrap_128_async(
 }
 
 template <typename InputTorus>
-void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
+void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128_async(
     void *stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
@@ -120,7 +120,7 @@ void cuda_multi_bit_programmable_bootstrap_128_async(
       reinterpret_cast<pbs_buffer_128<uint64_t, MULTI_BIT> *>(mem_ptr);
   switch (buffer->pbs_variant) {
   case PBS_VARIANT::CG:
-    cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128<
+    cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128_async<
         uint64_t>(stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
                   static_cast<const uint64_t *>(lwe_output_indexes),
                   static_cast<const __uint128_t *>(lut_vector),

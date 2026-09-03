@@ -481,7 +481,7 @@ bool has_support_to_cuda_programmable_bootstrap_cg(uint32_t glwe_dimension,
                                                    uint32_t max_shared_memory);
 
 template <typename Torus>
-void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector(
+void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_async(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -492,7 +492,7 @@ void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector(
     uint32_t lut_stride);
 
 template <typename Torus>
-void cuda_programmable_bootstrap_lwe_ciphertext_vector(
+void cuda_programmable_bootstrap_lwe_ciphertext_vector_async(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -504,7 +504,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector(
 
 #if (CUDA_ARCH >= 900)
 template <typename Torus>
-void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
+void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_async(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,

@@ -182,12 +182,13 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64, multi_bit_default) {
       [&](uint64_t *d_lwe_ct_in, uint64_t *d_bsk, int8_t *buffer) {
         auto *typed =
             reinterpret_cast<::pbs_buffer<uint64_t, MULTI_BIT> *>(buffer);
-        cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
-            stream, gpu_index, d_lwe_ct_out_array, d_lwe_output_indexes,
-            d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in,
-            d_lwe_input_indexes, d_bsk, typed, lwe_dimension, glwe_dimension,
-            polynomial_size, grouping_factor, pbs_base_log, pbs_level,
-            number_of_inputs, num_many_lut, lut_stride);
+        cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async<
+            uint64_t>(stream, gpu_index, d_lwe_ct_out_array,
+                      d_lwe_output_indexes, d_lut_pbs_identity,
+                      d_lut_pbs_indexes, d_lwe_ct_in, d_lwe_input_indexes,
+                      d_bsk, typed, lwe_dimension, glwe_dimension,
+                      polynomial_size, grouping_factor, pbs_base_log, pbs_level,
+                      number_of_inputs, num_many_lut, lut_stride);
       },
       pbs_buffer);
 
@@ -212,7 +213,7 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64, multi_bit_cg) {
       [&](uint64_t *d_lwe_ct_in, uint64_t *d_bsk, int8_t *buffer) {
         auto *typed =
             reinterpret_cast<::pbs_buffer<uint64_t, MULTI_BIT> *>(buffer);
-        cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<
+        cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async<
             uint64_t>(stream, gpu_index, d_lwe_ct_out_array,
                       d_lwe_output_indexes, d_lut_pbs_identity,
                       d_lut_pbs_indexes, d_lwe_ct_in, d_lwe_input_indexes,

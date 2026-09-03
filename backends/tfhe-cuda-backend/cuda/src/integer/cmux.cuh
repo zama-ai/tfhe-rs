@@ -108,7 +108,7 @@ __host__ void host_zero_out_if_batch(
 /// @param num_entries        Number of ciphertexts in the batch
 /// @param num_blocks_per_ct  Number of radix blocks per ciphertext
 template <typename Torus>
-__host__ uint64_t scratch_cuda_zero_out_if_batch(
+__host__ uint64_t scratch_cuda_zero_out_if_batch_async(
     CudaStreams streams, int_zero_out_if_batch_buffer<Torus> **mem_ptr,
     uint32_t num_entries, uint32_t num_blocks_per_ct, int_radix_params params,
     bool allocate_gpu_memory) {

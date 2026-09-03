@@ -213,7 +213,7 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, classical_cg) {
       [&](uint64_t *d_lwe_ct_in, double *d_fourier_bsk, int8_t *buffer) {
         auto *typed =
             reinterpret_cast<::pbs_buffer<uint64_t, CLASSICAL> *>(buffer);
-        cuda_programmable_bootstrap_cg_lwe_ciphertext_vector<uint64_t>(
+        cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_async<uint64_t>(
             stream, gpu_index, d_lwe_ct_out_array, d_lwe_output_indexes,
             d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in,
             d_lwe_input_indexes,
