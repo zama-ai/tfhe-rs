@@ -116,6 +116,9 @@ template <typename Torus> struct zk_expand_mem {
   uint32_t *num_lwes_per_compact_list;
   expand_job<Torus> *d_expand_jobs;
   expand_job<Torus> *h_expand_jobs;
+  // Host staging area for the LUT indexes uploaded in the constructor. The
+  // upload is asynchronous, so the buffer is freed in release().
+  Torus *h_lut_indexes_staging = nullptr;
 
   EXPAND_KIND expand_kind;
 
@@ -277,7 +280,7 @@ template <typename Torus> struct zk_expand_mem {
           return sanitize_bool_f(carry_extract_lut_f(x));
         };
 
-        auto h_lut_indexes = static_cast<Torus *>(
+        h_lut_indexes_staging = static_cast<Torus *>(
             malloc(safe_mul_sizeof<Torus>(num_packed_msgs, num_lwes)));
 
         auto index_gen = [num_compact_lists,
@@ -304,12 +307,11 @@ template <typename Torus> struct zk_expand_mem {
             {message_extract_lut_f, carry_extract_lut_f,
              message_extract_and_sanitize_bool_lut_f,
              carry_extract_and_sanitize_bool_lut_f},
-            index_gen, true, {}, h_lut_indexes);
+            index_gen, true, {}, h_lut_indexes_staging);
         message_and_carry_extract_luts
             ->allocate_lwe_vector_for_non_trivial_indexes(
                 active_streams, 2 * num_lwes, size_tracker,
                 allocate_gpu_memory);
-        free(h_lut_indexes);
 
         // SANITY_CHECK panics on SMALL_TO_BIG, so this buffer is only needed
         // on the full casting path.
@@ -328,11 +330,12 @@ template <typename Torus> struct zk_expand_mem {
           streams.stream(0), streams.gpu_index(0), size_tracker,
           allocate_gpu_memory);
 
+      // set_lwe_indexes copies both arrays into the LUT's own persistent host
+      // buffers and uploads from those, so these temporaries have no in-flight
+      // reader and can be freed without synchronizing.
       free(h_indexes_in);
       free(h_indexes_out);
     }
-
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 
   void release(CudaStreams streams) {
@@ -358,6 +361,8 @@ template <typename Torus> struct zk_expand_mem {
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     free(num_lwes_per_compact_list);
     free(h_expand_jobs);
+    free(h_lut_indexes_staging);
+    h_lut_indexes_staging = nullptr;
   }
 };
 

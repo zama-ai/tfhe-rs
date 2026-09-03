@@ -88,6 +88,16 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
   Torus **second_indexes_for_overflow_sub_gpu_2;
   Torus **scalars_for_overflow_sub_gpu_2;
 
+  /// Host staging areas for the three index and scalar tables built by
+  /// create_indexes_for_overflow_sub. Iteration nb uploads its nb entries
+  /// asynchronously, so each iteration needs its own slot: the slots are packed
+  /// triangularly, iteration nb starting at offset nb * (nb - 1) / 2, which
+  /// mirrors the layout of the matching device allocations. Freed in release()
+  /// after the stream synchronization.
+  Torus *h_first_indexes_staging = nullptr;
+  Torus *h_second_indexes_staging = nullptr;
+  Torus *h_scalars_staging = nullptr;
+
   cudaEvent_t create_indexes_done;
 
   uint32_t max_indexes_to_erase;
@@ -480,11 +490,24 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     scalars_for_overflow_sub_gpu_0 =
         (Torus **)malloc(safe_mul_sizeof<Torus *>(num_blocks));
 
-    Torus *h_lut_indexes = (Torus *)malloc(safe_mul_sizeof<Torus>(num_blocks));
-    Torus *h_scalar = (Torus *)malloc(safe_mul_sizeof<Torus>(num_blocks));
+    size_t staging_entries = (size_t)num_blocks * (num_blocks + 1) / 2;
+    h_first_indexes_staging =
+        static_cast<Torus *>(malloc(safe_mul_sizeof<Torus>(staging_entries)));
+    PANIC_IF_FALSE(h_first_indexes_staging != nullptr,
+                   "host allocation failed for h_first_indexes_staging");
+    h_second_indexes_staging =
+        static_cast<Torus *>(malloc(safe_mul_sizeof<Torus>(staging_entries)));
+    PANIC_IF_FALSE(h_second_indexes_staging != nullptr,
+                   "host allocation failed for h_second_indexes_staging");
+    h_scalars_staging =
+        static_cast<Torus *>(malloc(safe_mul_sizeof<Torus>(staging_entries)));
+    PANIC_IF_FALSE(h_scalars_staging != nullptr,
+                   "host allocation failed for h_scalars_staging");
 
     // Extra indexes for the luts in first step
     for (int nb = 1; nb <= num_blocks; nb++) {
+      size_t staging_offset = (size_t)nb * (size_t)(nb - 1) / 2;
+      Torus *h_lut_indexes = &h_first_indexes_staging[staging_offset];
       first_indexes_for_overflow_sub_gpu_0[nb - 1] =
           (Torus *)cuda_malloc_with_size_tracking_async(
               safe_mul_sizeof<Torus>(nb), streams.stream(0),
@@ -519,6 +542,9 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     uint32_t num_extra_luts = use_seq ? (group_size - 1) : 1;
     uint32_t num_luts_second_step = 2 * group_size + num_extra_luts;
     for (int nb = 1; nb <= num_blocks; nb++) {
+      size_t staging_offset = (size_t)nb * (size_t)(nb - 1) / 2;
+      Torus *h_lut_indexes = &h_second_indexes_staging[staging_offset];
+      Torus *h_scalar = &h_scalars_staging[staging_offset];
       second_indexes_for_overflow_sub_gpu_0[nb - 1] =
           (Torus *)cuda_malloc_with_size_tracking_async(
               safe_mul_sizeof<Torus>(nb), streams.stream(0),
@@ -577,9 +603,6 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
           safe_mul_sizeof<Torus>(nb), streams.stream(0), streams.gpu_index(0),
           allocate_gpu_memory);
     }
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-    free(h_lut_indexes);
-    free(h_scalar);
   };
 
   void release(CudaStreams streams) {
@@ -845,6 +868,13 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     free(second_indexes_for_overflow_sub_gpu_2);
     free(scalars_for_overflow_sub_gpu_2);
 
+    free(h_first_indexes_staging);
+    h_first_indexes_staging = nullptr;
+    free(h_second_indexes_staging);
+    h_second_indexes_staging = nullptr;
+    free(h_scalars_staging);
+    h_scalars_staging = nullptr;
+
     check_cuda_error(cudaEventDestroy(create_indexes_done));
 
     // release sub streams
@@ -899,6 +929,13 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
   Torus **first_indexes_for_overflow_sub;
   Torus **second_indexes_for_overflow_sub;
   Torus **scalars_for_overflow_sub;
+  /// Host staging areas for the three index and scalar tables built by
+  /// create_indexes_for_overflow_sub, packed triangularly with iteration nb
+  /// starting at offset nb * (nb - 1) / 2. See the same members in
+  /// unsigned_int_div_rem_2_2_memory.
+  Torus *h_first_indexes_staging = nullptr;
+  Torus *h_second_indexes_staging = nullptr;
+  Torus *h_scalars_staging = nullptr;
   uint32_t max_indexes_to_erase;
   bool gpu_memory_allocated;
 
@@ -1173,11 +1210,24 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     scalars_for_overflow_sub =
         (Torus **)malloc(safe_mul_sizeof<Torus *>(num_blocks));
 
-    Torus *h_lut_indexes = (Torus *)malloc(safe_mul_sizeof<Torus>(num_blocks));
-    Torus *h_scalar = (Torus *)malloc(safe_mul_sizeof<Torus>(num_blocks));
+    size_t staging_entries = (size_t)num_blocks * (num_blocks + 1) / 2;
+    h_first_indexes_staging =
+        static_cast<Torus *>(malloc(safe_mul_sizeof<Torus>(staging_entries)));
+    PANIC_IF_FALSE(h_first_indexes_staging != nullptr,
+                   "host allocation failed for h_first_indexes_staging");
+    h_second_indexes_staging =
+        static_cast<Torus *>(malloc(safe_mul_sizeof<Torus>(staging_entries)));
+    PANIC_IF_FALSE(h_second_indexes_staging != nullptr,
+                   "host allocation failed for h_second_indexes_staging");
+    h_scalars_staging =
+        static_cast<Torus *>(malloc(safe_mul_sizeof<Torus>(staging_entries)));
+    PANIC_IF_FALSE(h_scalars_staging != nullptr,
+                   "host allocation failed for h_scalars_staging");
 
     // Extra indexes for the luts in first step
     for (int nb = 1; nb <= num_blocks; nb++) {
+      size_t staging_offset = (size_t)nb * (size_t)(nb - 1) / 2;
+      Torus *h_lut_indexes = &h_first_indexes_staging[staging_offset];
       first_indexes_for_overflow_sub[nb - 1] =
           (Torus *)cuda_malloc_with_size_tracking_async(
               safe_mul_sizeof<Torus>(nb), streams.stream(0),
@@ -1211,6 +1261,9 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     uint32_t num_extra_luts = use_seq ? (group_size - 1) : 1;
     uint32_t num_luts_second_step = 2 * group_size + num_extra_luts;
     for (int nb = 1; nb <= num_blocks; nb++) {
+      size_t staging_offset = (size_t)nb * (size_t)(nb - 1) / 2;
+      Torus *h_lut_indexes = &h_second_indexes_staging[staging_offset];
+      Torus *h_scalar = &h_scalars_staging[staging_offset];
       second_indexes_for_overflow_sub[nb - 1] =
           (Torus *)cuda_malloc_with_size_tracking_async(
               safe_mul_sizeof<Torus>(nb), streams.stream(0),
@@ -1268,8 +1321,6 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
           safe_mul_sizeof<Torus>(nb), streams.stream(0), streams.gpu_index(0),
           allocate_gpu_memory);
     }
-    free(h_lut_indexes);
-    free(h_scalar);
   };
 
   void release(CudaStreams streams) {
@@ -1419,6 +1470,13 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     free(first_indexes_for_overflow_sub);
     free(second_indexes_for_overflow_sub);
     free(scalars_for_overflow_sub);
+
+    free(h_first_indexes_staging);
+    h_first_indexes_staging = nullptr;
+    free(h_second_indexes_staging);
+    h_second_indexes_staging = nullptr;
+    free(h_scalars_staging);
+    h_scalars_staging = nullptr;
   }
 };
 template <typename Torus> struct int_div_rem_memory {
