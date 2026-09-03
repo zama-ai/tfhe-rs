@@ -29,7 +29,7 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 serde = { version = "1", features = ["derive"] }
 toml = { version = "0.8", features = [] }
 paste = { workspace = true }
-thiserror = "2.0.18"
+thiserror = { workspace = true }
 bytemuck = { workspace = true }
 anyhow = "1.0.82"
 lazy_static = "1.4.0"
