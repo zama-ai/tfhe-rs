@@ -157,6 +157,25 @@ struct alignas(16) f128 {
     return p;
   }
 
+  // The same product for a left operand whose low limb is exactly zero: the
+  // a.lo * b.hi cross term is dropped. With a.lo == 0.0 the omitted term is
+  // fma(0.0, b.hi, p.lo), an exact zero product added to p.lo, which returns
+  // p.lo itself. That holds bit for bit including the sign of a zero, because
+  // two_prod never returns a negative zero low limb: its low limb is either
+  // non-zero or the exactly cancelling difference a * b - a * b, and a
+  // cancelling difference rounds to +0.0 under round-to-nearest. 3 operations
+  // against mul_raw's 4.
+  __host__ __device__ __forceinline__ static f128
+  mul_raw_zero_lo(const f128 &a, const f128 &b) {
+    auto p = two_prod(a.hi, b.hi);
+#ifdef __CUDA_ARCH__
+    p.lo = __fma_rn(a.hi, b.lo, p.lo);
+#else
+    p.lo = fma(a.hi, b.lo, p.lo);
+#endif
+    return p;
+  }
+
   __host__ __device__ static f128 add_f64_f64(const double a, const double b) {
     return two_sum(a, b);
   }
@@ -238,6 +257,76 @@ struct alignas(16) f128 {
     const f128 nv_re(am.hi, am.lo + (u_re.lo - p_re_lo));
     const f128 nu_im(bp.hi, bp.lo + (u_im.lo + p_im_lo));
     const f128 nv_im(bm.hi, bm.lo + (u_im.lo - p_im_lo));
+#endif
+    u_re = nu_re;
+    u_im = nu_im;
+    v_re = nv_re;
+    v_im = nv_im;
+  }
+
+  // cplx_f128_relaxed_butterfly_assign specialized for level 1 of the forward
+  // transform, where two facts hold that the compiler cannot see. Both are
+  // read out of the code rather than assumed.
+  //
+  // Fact 1: the only twiddle of that level is neg_twiddles[1] = exp(i*pi/4) =
+  // (1 + i) * sqrt(2)/2, whose real and imaginary parts are equal bit for bit
+  // in both limbs. The general butterfly loads them as two separate values, so
+  // the compiler cannot relate them. Taking the shared limb pair t once makes
+  // the equality explicit and collapses the four raw products into two:
+  // rr = ri = P = mul_raw(v_re, t) and ii = ir = Q = mul_raw(v_im, t).
+  //
+  // Fact 2: the level-1 inputs are gadget decomposition digits converted to
+  // f128 with an exactly zero low limb -- small_signed_to_f128 for the
+  // single-iteration TBC kernel, the int32 conversion in
+  // decompose_and_compress_next_level_128 for the DEFAULT step one. So u_re.lo,
+  // u_im.lo, v_re.lo and v_im.lo are all exactly zero, which lets each product
+  // drop one cross term (mul_raw_zero_lo above) and lets the four output low
+  // limbs drop their u.lo addend: 0.0 + x == x and 0.0 - x == -x, and IEEE 754
+  // defines a - b as a + (-b), so the general butterfly's
+  // am.lo + (u_re.lo - p_re_lo) becomes am.lo - p_re_lo.
+  //
+  // 50 operations against the general butterfly's 64. Everything the identities
+  // do not remove is left exactly as the general butterfly writes it -- the
+  // operand order of every two_sum and two_diff, the grouping of every low-limb
+  // sum -- so the two agree bit for bit. The only conceivable difference is the
+  // sign of a low limb that is an exact zero, and the digest harness is the
+  // check for that.
+  //
+  // PRECONDITION: all four input low limbs are exactly zero, and t is the
+  // shared limb pair of a twiddle whose real and imaginary parts are equal.
+  //
+  // As in the general butterfly, all four outputs are computed before any of
+  // them is assigned, and t is only read, so callers may alias it with their
+  // twiddle temporary.
+  __host__ __device__ __forceinline__ static void
+  cplx_f128_relaxed_butterfly_level1_assign(f128 &u_re, f128 &u_im, f128 &v_re,
+                                            f128 &v_im, const f128 &t) {
+    const f128 P = mul_raw_zero_lo(v_re, t);
+    const f128 Q = mul_raw_zero_lo(v_im, t);
+    const f128 s_re = two_diff(P.hi, Q.hi);
+    const f128 s_im = two_sum(Q.hi, P.hi);
+#ifdef __CUDA_ARCH__
+    const double p_re_lo = __dadd_rn(s_re.lo, __dsub_rn(P.lo, Q.lo));
+    const double p_im_lo = __dadd_rn(s_im.lo, __dadd_rn(Q.lo, P.lo));
+    const f128 ap = two_sum(u_re.hi, s_re.hi);
+    const f128 am = two_diff(u_re.hi, s_re.hi);
+    const f128 bp = two_sum(u_im.hi, s_im.hi);
+    const f128 bm = two_diff(u_im.hi, s_im.hi);
+    const f128 nu_re(ap.hi, __dadd_rn(ap.lo, p_re_lo));
+    const f128 nv_re(am.hi, __dsub_rn(am.lo, p_re_lo));
+    const f128 nu_im(bp.hi, __dadd_rn(bp.lo, p_im_lo));
+    const f128 nv_im(bm.hi, __dsub_rn(bm.lo, p_im_lo));
+#else
+    const double p_re_lo = s_re.lo + (P.lo - Q.lo);
+    const double p_im_lo = s_im.lo + (Q.lo + P.lo);
+    const f128 ap = two_sum(u_re.hi, s_re.hi);
+    const f128 am = two_diff(u_re.hi, s_re.hi);
+    const f128 bp = two_sum(u_im.hi, s_im.hi);
+    const f128 bm = two_diff(u_im.hi, s_im.hi);
+    const f128 nu_re(ap.hi, ap.lo + p_re_lo);
+    const f128 nv_re(am.hi, am.lo - p_re_lo);
+    const f128 nu_im(bp.hi, bp.lo + p_im_lo);
+    const f128 nv_im(bm.hi, bm.lo - p_im_lo);
 #endif
     u_re = nu_re;
     u_im = nu_im;
