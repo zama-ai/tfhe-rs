@@ -1,6 +1,8 @@
-use tfhe_versionable::VersionsDispatch;
+use std::convert::Infallible;
 
-use crate::seeders::{Seed, SeedKind, XofSeed};
+use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
+
+use crate::seeders::{AesVariant, Seed, SeedKind, XofSeed};
 
 #[derive(VersionsDispatch)]
 pub enum XofSeedVersions {
@@ -13,6 +15,30 @@ pub enum SeedVersions {
 }
 
 #[derive(VersionsDispatch)]
+pub enum AesVariantVersions {
+    V0(AesVariant),
+}
+
+#[derive(Version)]
+pub enum SeedKindV0 {
+    Ctr(Seed),
+    Xof(XofSeed),
+}
+
+impl Upgrade<SeedKind> for SeedKindV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<SeedKind, Self::Error> {
+        Ok(match self {
+            Self::Ctr(seed) => SeedKind::Ctr(seed),
+            // Everything serialized with a SeedKindV0 was using aes128
+            Self::Xof(seed) => SeedKind::xof_aes128(seed),
+        })
+    }
+}
+
+#[derive(VersionsDispatch)]
 pub enum SeedKindVersions {
-    V0(SeedKind),
+    V0(SeedKindV0),
+    V1(SeedKind),
 }
