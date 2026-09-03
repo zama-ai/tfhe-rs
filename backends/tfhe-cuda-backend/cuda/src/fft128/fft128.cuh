@@ -1105,6 +1105,13 @@ __host__ void host_fourier_transform_backward_as_torus_f128(
 // back, so bracketing the whole run once is enough. The caller must sync
 // between filling these buffers and the first call, and between the last call
 // and any cross-thread read of the results.
+//
+// PRECONDITION: every input coefficient must have an exactly zero low limb in
+// both its real and its imaginary part. Level 1 uses a butterfly specialized
+// for that case, which is bit-identical to the general one only under it. Both
+// callers feed this transform freshly converted gadget decomposition digits,
+// which satisfy it; a caller with general f128 input must use
+// negacyclic_forward_fft_f128_tbc instead.
 template <class params, bool USE_AOS_TWIDDLES = false>
 __device__ void
 negacyclic_forward_fft_f128_relaxed(double *dt_re_hi, double *dt_re_lo,
@@ -1127,14 +1134,19 @@ negacyclic_forward_fft_f128_relaxed(double *dt_re_hi, double *dt_re_lo,
   }
 
   // level 1
-  // we don't make actual complex multiplication on level1 since we have only
-  // one twiddle, it's real and image parts are equal, so we can multiply
-  // it with simpler operations
+  // We don't make an actual complex multiplication on level 1: this level has
+  // only one twiddle, and its real and imaginary parts are equal bit for bit,
+  // so the twiddle is loaded once outside the loop and the butterfly takes the
+  // shared limb pair instead of two components. That butterfly also uses the
+  // precondition stated on this function -- the level-1 inputs are
+  // decomposition digits whose low limbs are exactly zero -- and is
+  // bit-identical to the general butterfly under those two facts, which is why
+  // it must not be reached with general input.
+  w = get_neg_twid<USE_AOS_TWIDDLES>(1);
 #pragma unroll
   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
-    w = get_neg_twid<USE_AOS_TWIDDLES>(1);
-    f128::cplx_f128_relaxed_butterfly_assign(u[i].re, u[i].im, v[i].re, v[i].im,
-                                             w.re, w.im);
+    f128::cplx_f128_relaxed_butterfly_level1_assign(u[i].re, u[i].im, v[i].re,
+                                                    v[i].im, w.re);
   }
 
   Index twiddle_shift = 1;
