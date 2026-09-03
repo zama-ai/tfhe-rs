@@ -1513,6 +1513,7 @@ void generate_device_accumulator_bivariate_with_factor(
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
 }
+
 /*
  *  generate bivariate accumulator for device pointer
  *  using preallocated host lut to avoid blocking the cpu thread

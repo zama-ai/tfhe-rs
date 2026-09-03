@@ -16,18 +16,29 @@ Checks performed:
      their own name, call .synchronize(), or call a cleanup_ binding.
   6. Rust functions calling cleanup_ bindings must NOT have _async in
      their own name (cleanup synchronizes, so the caller is synchronous).
+  7. No scratch_cuda_* function reaches a host synchronization, directly
+     or through any function, constructor, member-initializer list or
+     method call below it, unless the entry point is listed in
+     CHECK7_SYNC_WHITELIST below.  (Implemented in check_scratch_sync.py.)
 """
 
 import os
 import re
 import subprocess
 import sys
+from collections import defaultdict
 
 import tree_sitter as ts
 import tree_sitter_rust as tsrust
 
 RUST_LANG = ts.Language(tsrust.language())
 RUST_PARSER = ts.Parser(RUST_LANG)
+
+from check_scratch_sync import (
+    SYNC_WALK_CPP_DIRS,
+    check_7_scratch_reaches_no_sync,
+    find_cpp_function_body,
+)
 
 BINDINGS_RS = "backends/tfhe-cuda-backend/src/bindings.rs"
 
@@ -78,6 +89,105 @@ EXPECTED_CHECK5_ASYNC_CALLERS = 133
 # Check 6: Rust cleanup-caller scanning
 EXPECTED_CHECK6_CLEANUP_CALLERS = 120
 
+# Check 7: transitive walk from scratch entry points to a host sync
+# Scratch entry points from bindings.rs that have a C++ definition
+EXPECTED_CHECK7_SCRATCH_ENTRY_POINTS = 80
+
+# Check 7 walks the C++ call graph downwards from each scratch_cuda_* entry
+# point and fails when the walk meets a host synchronization
+# (SYNC_SITE_NAMES in check_scratch_sync.py: cuda_synchronize_stream,
+# cudaMemcpy, cudaMalloc, ...).
+#
+# The whitelist below names the top-level scratch entry points that are known
+# to synchronize.  Their chains are still walked, but not counted as
+# violations, and an entry that does not reach a synchronization is reported
+# so it gets removed.  The whitelist deliberately holds entry points
+# and never the subfunction that synchronizes: skipping a subfunction would
+# hide the synchronization and let every scratch function above it pass as
+# asynchronous.
+#
+# Every entry below synchronizes for the same reason.  The buffer it builds
+# generates at least one LUT through the generate_device_accumulator*
+# primitives, which allocate a host buffer, upload it, synchronize, then free
+# it.  That synchronization cannot be removed yet: some host_* functions
+# regenerate a LUT into the same int_radix_lut on every call
+# (are_all_comparisons_block_true, tree_sign_reduction,
+# integer_radix_unsigned_scalar_difference_check,
+# integer_radix_signed_scalar_difference_check, reduce_signs, and
+# setup_lookup_tables called from host_integer_partial_sum_ciphertexts_vec),
+# and an asynchronous upload from a reused host buffer would race with the
+# next regeneration.  The fix, tracked in tfhe-rs-internal#1557, is to
+# generate every LUT variant in scratch and select among them in the host
+# function; each entry point leaves this list once its LUT generation no
+# longer synchronizes.
+CHECK7_SYNC_WHITELIST = frozenset({
+    "scratch_cuda_add_and_propagate_single_carry_64_inplace_async",
+    "scratch_cuda_apply_noise_squashing_async",
+    "scratch_cuda_arithmetic_scalar_shift_64_inplace_async",
+    "scratch_cuda_boolean_bitnot_64_async",
+    "scratch_cuda_boolean_bitop_inplace_64_async",
+    "scratch_cuda_cast_to_signed_64_async",
+    "scratch_cuda_cast_to_unsigned_64_async",
+    "scratch_cuda_cmux_64_async",
+    "scratch_cuda_expand_without_verification_64_async",
+    "scratch_cuda_fast_kreyvium_init_async",
+    "scratch_cuda_fast_kreyvium_step_async",
+    "scratch_cuda_full_propagation_64_inplace_async",
+    "scratch_cuda_integer_abs_inplace_64_async",
+    "scratch_cuda_integer_aes_ctr_256_encrypt_64_async",
+    "scratch_cuda_integer_aes_ctr_encrypt_64_async",
+    "scratch_cuda_integer_are_all_comparisons_block_true_64_async",
+    "scratch_cuda_integer_bitonic_shuffle_64_async",
+    "scratch_cuda_integer_bitop_inplace_64_async",
+    "scratch_cuda_integer_comparison_64_async",
+    "scratch_cuda_integer_count_of_consecutive_bits_64_async",
+    "scratch_cuda_integer_decompress_radix_ciphertext_128_async",
+    "scratch_cuda_integer_decompress_radix_ciphertext_64_async",
+    "scratch_cuda_integer_div_rem_64_async",
+    "scratch_cuda_integer_grouped_oprf_64_async",
+    "scratch_cuda_integer_grouped_oprf_custom_range_64_async",
+    "scratch_cuda_integer_ilog2_64_async",
+    "scratch_cuda_integer_is_at_least_one_comparisons_block_true_64_async",
+    "scratch_cuda_integer_key_expansion_256_64_async",
+    "scratch_cuda_integer_key_expansion_64_async",
+    "scratch_cuda_integer_mult_inplace_64_async",
+    "scratch_cuda_integer_oprf_bitonic_shuffle_64_async",
+    "scratch_cuda_integer_overflowing_sub_64_inplace_async",
+    "scratch_cuda_integer_scalar_bitop_inplace_64_async",
+    "scratch_cuda_integer_scalar_comparison_64_async",
+    "scratch_cuda_integer_scalar_mul_64_async",
+    "scratch_cuda_integer_signed_scalar_div_radix_64_async",
+    "scratch_cuda_integer_signed_scalar_div_rem_radix_64_async",
+    "scratch_cuda_integer_unsigned_scalar_div_radix_64_async",
+    "scratch_cuda_integer_unsigned_scalar_div_rem_radix_64_async",
+    "scratch_cuda_kreyvium_init_async",
+    "scratch_cuda_kreyvium_step_async",
+    "scratch_cuda_kv_store_contains_key_64_async",
+    "scratch_cuda_kv_store_get_64_async",
+    "scratch_cuda_kv_store_map_64_async",
+    "scratch_cuda_kv_store_update_64_async",
+    "scratch_cuda_logical_scalar_shift_64_inplace_async",
+    "scratch_cuda_propagate_single_carry_64_inplace_async",
+    "scratch_cuda_scalar_rotate_64_inplace_async",
+    "scratch_cuda_shift_and_rotate_64_inplace_async",
+    "scratch_cuda_sub_and_propagate_single_carry_64_inplace_async",
+    "scratch_cuda_trivium_init_async",
+    "scratch_cuda_trivium_step_async",
+    "scratch_cuda_unchecked_all_eq_slices_64_async",
+    "scratch_cuda_unchecked_contains_64_async",
+    "scratch_cuda_unchecked_contains_clear_64_async",
+    "scratch_cuda_unchecked_contains_sub_slice_64_async",
+    "scratch_cuda_unchecked_first_index_in_clears_64_async",
+    "scratch_cuda_unchecked_first_index_of_64_async",
+    "scratch_cuda_unchecked_first_index_of_clear_64_async",
+    "scratch_cuda_unchecked_index_in_clears_64_async",
+    "scratch_cuda_unchecked_index_of_64_async",
+    "scratch_cuda_unchecked_index_of_clear_64_async",
+    "scratch_cuda_unchecked_is_in_clears_64_async",
+    "scratch_cuda_unchecked_match_value_64_async",
+    "scratch_cuda_unchecked_match_value_or_64_async",
+})
+
 
 def check_paths_exist():
     """Verify that all input files and directories exist.
@@ -93,13 +203,13 @@ def check_paths_exist():
                 f"corresponding path\n"
                 f"    at the top of {os.path.basename(__file__)}."
             )
-    for d in CPP_DIRS:
+    for d in SYNC_WALK_CPP_DIRS:
         if not os.path.isdir(d):
             errors.append(
                 f"  Directory not found: {d}\n"
                 f"    If this directory was renamed or moved, update "
-                f"CPP_DIRS\n"
-                f"    at the top of {os.path.basename(__file__)}."
+                f"CPP_DIRS in {os.path.basename(__file__)} or "
+                f"SYNC_WALK_CPP_DIRS in check_scratch_sync.py."
             )
     return errors
 
@@ -507,72 +617,6 @@ def collect_cpp_files(dirs):
     return sorted(files)
 
 
-def find_cpp_function_body(func_name, content):
-    """Find a C++ function definition body in content.
-
-    Returns the body text (between { and }) if a definition is found,
-    None if only declarations/calls are found.
-    """
-    pos = 0
-    while pos < len(content):
-        idx = content.find(func_name, pos)
-        if idx == -1:
-            return None
-
-        # Verify whole-word match
-        if idx > 0 and (content[idx - 1].isalnum() or content[idx - 1] == "_"):
-            pos = idx + 1
-            continue
-        end_name = idx + len(func_name)
-        if end_name < len(content) and (
-            content[end_name].isalnum() or content[end_name] == "_"
-        ):
-            pos = idx + 1
-            continue
-
-        # Must be followed by '('
-        after = content[end_name:].lstrip()
-        if not after.startswith("("):
-            pos = idx + 1
-            continue
-
-        # Find matching ')'
-        paren_start = content.index("(", end_name)
-        paren_depth = 0
-        j = paren_start
-        while j < len(content):
-            if content[j] == "(":
-                paren_depth += 1
-            elif content[j] == ")":
-                paren_depth -= 1
-                if paren_depth == 0:
-                    break
-            j += 1
-
-        # After ')', check for '{' (definition) vs ';' (declaration/call)
-        rest = content[j + 1 : j + 100].lstrip()
-        if not rest.startswith("{"):
-            pos = j + 1
-            continue
-
-        # Extract body using brace counting
-        brace_start = content.index("{", j + 1)
-        brace_depth = 0
-        k = brace_start
-        while k < len(content):
-            if content[k] == "{":
-                brace_depth += 1
-            elif content[k] == "}":
-                brace_depth -= 1
-                if brace_depth == 0:
-                    return content[brace_start : k + 1]
-            k += 1
-
-        pos = idx + 1
-
-    return None
-
-
 def strip_comments(text):
     """Remove C/C++/Rust comments from text.
 
@@ -873,6 +917,45 @@ def main():
                 "cleanup callers", "EXPECTED_CHECK6_CLEANUP_CALLERS",
                 EXPECTED_CHECK6_CLEANUP_CALLERS, n_checked6,
             )
+        )
+
+    # Check 7
+    print(
+        "\nCheck 7: scratch functions do not reach a host "
+        "synchronization..."
+    )
+    v, n_entry7, n_reaching7, n_whitelisted7, n_defs7, sync_sites = (
+        check_7_scratch_reaches_no_sync(scratch_set, CHECK7_SYNC_WHITELIST)
+    )
+    all_violations.extend(v)
+    print(
+        f"  Walked {n_entry7} scratch entry points over "
+        f"{n_defs7} C++ definitions"
+    )
+    if n_reaching7:
+        print(
+            f"  {n_reaching7} of {n_entry7} reach a host synchronization, "
+            f"{n_whitelisted7} of them whitelisted"
+        )
+        # Only the nearest synchronization is reported as a chain per entry
+        # point, so list every reachable site: removing one uncovers the next.
+        print(f"  {len(sync_sites)} synchronization site(s) to remove:")
+        for count, sync_name, path, line in sync_sites:
+            print(f"    {count:3d} entry point(s)  {sync_name}  {path}:{line}")
+    print(f"  {'PASS' if not v else f'{len(v)} violation(s)'}")
+
+    # Validate Check 7 entry-point count
+    if n_entry7 != EXPECTED_CHECK7_SCRATCH_ENTRY_POINTS:
+        all_violations.append(
+            f"\n  *** SCRATCH ENTRY POINT COUNT CHANGED ***\n"
+            f"  Expected {EXPECTED_CHECK7_SCRATCH_ENTRY_POINTS} scratch "
+            f"entry points with a C++ definition, walked {n_entry7}.\n"
+            f"  Either a scratch binding was added or removed, or a C++\n"
+            f"  definition moved out of "
+            f"{', '.join(SYNC_WALK_CPP_DIRS)}.\n"
+            f"  If this is not a mistake, update "
+            f"EXPECTED_CHECK7_SCRATCH_ENTRY_POINTS to {n_entry7}\n"
+            f"  in {os.path.basename(__file__)}."
         )
 
     if all_violations:

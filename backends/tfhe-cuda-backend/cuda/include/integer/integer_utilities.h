@@ -621,8 +621,14 @@ struct int_radix_lut_custom_input_output {
     multi_gpu_alloc_array_async(active_streams, lwe_trivial_indexes_vec,
                                 num_radix_blocks, size_tracker,
                                 allocate_gpu_memory);
-    cuda_synchronize_stream(active_streams.stream(0),
-                            active_streams.gpu_index(0));
+
+    // lwe_trivial_indexes was filled from the host on stream 0 by
+    // setup_lwe_trivial_indices, while the copies below run on the worker
+    // streams, so those must wait for stream 0. On a single GPU the only copy
+    // runs on stream 0 itself and needs no ordering.
+    if (allocate_gpu_memory && active_streams.count() > 1)
+      multi_gpu_broadcast_barrier.local_streams_wait_for_stream_0(
+          active_streams);
 
     // This call will not copy if allocate_gpu_memory is false
     // thus it's safe to call it on a null source pointer
@@ -674,14 +680,17 @@ struct int_radix_lut_custom_input_output {
 
   void setup_multi_gpu(int_radix_params params, uint32_t num_radix_blocks,
                        bool allocate_gpu_memory, uint64_t &size_tracker) {
-    alloc_and_init_multi_gpu_buffers(params, num_radix_blocks,
-                                     allocate_gpu_memory, size_tracker);
-
+    // The barriers are created first because
+    // alloc_and_init_multi_gpu_buffers orders its peer copies with
+    // multi_gpu_broadcast_barrier.
     if (active_streams.count() > 1) {
       multi_gpu_gather_barrier.create_on(active_streams);
       multi_gpu_broadcast_barrier.create_on(active_streams);
       multi_gpu_scatter_barrier.create_on(active_streams);
     }
+
+    alloc_and_init_multi_gpu_buffers(params, num_radix_blocks,
+                                     allocate_gpu_memory, size_tracker);
   }
 
   int_radix_lut_custom_input_output(CudaStreams streams,
@@ -955,10 +964,10 @@ public:
     multi_gpu_broadcast_barrier.local_streams_wait_for_stream_0(
         new_active_streams);
 
-    // The LUT and its indexes reside on GPU 0
-    // these were filled by calls to generate_device_accumulator
-    // due to the previous synchronization, we're sure these buffers have
-    // finished copying to GPU 0 from CPU
+    // The LUT and its indexes reside on GPU 0, filled by calls to
+    // generate_device_accumulator on stream 0. The event barrier above was
+    // recorded on that same stream, so the worker streams below only start
+    // reading once those host to device copies have completed.
     auto src_lut = lut_vec[0];
     auto src_lut_indexes = lut_indexes_vec[0];
 
@@ -1148,6 +1157,10 @@ public:
       std::vector<OutputTorus *> cpu_prealloc_buffers = {},
       std::optional<int> factor = std::nullopt) {
     // streams should be a subset of active_streams
+    GPU_ASSERT(
+        cpu_prealloc_buffers.empty() || gpu_memory_allocated,
+        "LUT Generation with pre-allocated CPU buffer expects "
+        "gpu_memory_allocated==True ");
 
     if constexpr (!std::is_same_v<IndexGenerator, std::nullptr_t>) {
       set_lut_indexes(streams, index_generator, num_blocks);
@@ -1211,8 +1224,12 @@ public:
         active_streams.gpu_index(0), gpu_memory_allocated);
     lwe_trivial_indexes = nullptr;
 
-    cuda_synchronize_stream(active_streams.stream(0),
-                            active_streams.gpu_index(0));
+    // Nothing was ever enqueued when gpu_memory_allocated is false: this
+    // object is then only used to measure the memory it would take, so there
+    // is no in-flight copy the host frees below could race with.
+    if (gpu_memory_allocated)
+      cuda_synchronize_stream(active_streams.stream(0),
+                              active_streams.gpu_index(0));
     lut_vec.clear();
     lut_indexes_vec.clear();
     free(h_lwe_indexes_in);
@@ -1221,7 +1238,8 @@ public:
     h_lwe_indexes_out = nullptr;
 
     if (active_streams.count() > 1) {
-      active_streams.synchronize();
+      if (gpu_memory_allocated)
+        active_streams.synchronize();
       event_pool.release();
       multi_gpu_gather_barrier.release();
       multi_gpu_broadcast_barrier.release();
@@ -1379,7 +1397,9 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
         active_streams, num_radix_blocks * bits_per_block, size_tracker,
         allocate_gpu_memory);
 
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+    // set_lwe_indexes copies both arrays into the LUT's own persistent host
+    // buffers and uploads from those, so these temporaries have no in-flight
+    // reader and can be freed without synchronizing.
     free(h_lwe_indexes_in);
     free(h_lwe_indexes_out);
   }
@@ -1490,6 +1510,17 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
 
   // lookup table for extracting message and carry
   int_radix_lut<Torus> *luts_message_carry;
+  /// @brief Dry-run LUT used to report the memory luts_message_carry will need.
+  ///
+  /// Built with allocate_gpu_memory == false. Owns host memory only.
+  int_radix_lut<Torus> *luts_message_carry_size_probe = nullptr;
+
+  /// @brief Host staging area for device pointer tables uploaded by
+  /// setup_index_buffers.
+  ///
+  /// One contiguous slot of num_blocks_in_radix entries per table. Kept alive
+  /// until release() because the uploads are asynchronous.
+  uint32_t **h_columns_staging = nullptr;
 
   bool mem_reuse = false;
   bool allocated_luts_message_carry;
@@ -1502,10 +1533,11 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
 
     auto num_blocks_in_radix = this->num_blocks_in_radix;
     auto max_num_radix_in_vec = this->max_num_radix_in_vec;
+    h_columns_staging = new uint32_t *[2 * num_blocks_in_radix];
     auto setup_columns = [num_blocks_in_radix, max_num_radix_in_vec, streams](
                              uint32_t **&columns, uint32_t *&columns_data,
                              uint32_t *&columns_counter, uint64_t &size_tracker,
-                             bool gpu_memory_allocated) {
+                             bool gpu_memory_allocated, uint32_t **h_columns) {
       columns_data = (uint32_t *)cuda_malloc_with_size_tracking_async(
           safe_mul_sizeof<uint32_t>((size_t)num_blocks_in_radix,
                                     (size_t)max_num_radix_in_vec),
@@ -1517,7 +1549,6 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       cuda_memset_with_size_tracking_async(
           columns_counter, 0, safe_mul_sizeof<uint32_t>(num_blocks_in_radix),
           streams.stream(0), streams.gpu_index(0), gpu_memory_allocated);
-      uint32_t **h_columns = new uint32_t *[num_blocks_in_radix];
       for (int i = 0; i < num_blocks_in_radix; ++i) {
         h_columns[i] = columns_data + i * max_num_radix_in_vec;
       }
@@ -1530,14 +1561,13 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
             safe_mul_sizeof<uint32_t *>(num_blocks_in_radix), streams.stream(0),
             streams.gpu_index(0));
       }
-      cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-      delete[] h_columns;
     };
 
     setup_columns(d_columns, d_columns_data, d_columns_counter, size_tracker,
-                  gpu_memory_allocated);
+                  gpu_memory_allocated, h_columns_staging);
     setup_columns(d_new_columns, d_new_columns_data, d_new_columns_counter,
-                  size_tracker, gpu_memory_allocated);
+                  size_tracker, gpu_memory_allocated,
+                  h_columns_staging + num_blocks_in_radix);
   }
 
   void setup_lookup_tables(CudaStreams streams, uint32_t num_radix_in_vec,
@@ -1555,24 +1585,42 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     if (!mem_reuse) {
       if (total_ciphertexts > 0 ||
           reduce_degrees_for_single_carry_propagation) {
-        uint64_t size_tracker = 0;
-        allocated_luts_message_carry = true;
-        luts_message_carry = new int_radix_lut<Torus>(
-            streams, params, 2, pbs_count, true, size_tracker);
+        // This method runs once per operation, and pbs_count depends on the
+        // input degrees. An instance built for at least pbs_count blocks is
+        // reused as is, since the callers index it with the actual ciphertext
+        // count (see the assertion in
+        // host_integer_partial_sum_ciphertexts_vec_async). Only a larger
+        // request rebuilds it, and the previous instance is released first so
+        // that repeated operations do not leak it.
+        if (allocated_luts_message_carry &&
+            luts_message_carry->num_blocks < pbs_count) {
+          luts_message_carry->release(streams);
+          delete luts_message_carry;
+          luts_message_carry = nullptr;
+          allocated_luts_message_carry = false;
+        }
 
-        uint64_t message_modulus_bits =
-            (uint64_t)std::log2(params.message_modulus);
-        uint64_t carry_modulus_bits = (uint64_t)std::log2(params.carry_modulus);
-        uint64_t total_bits_per_block =
-            message_modulus_bits + carry_modulus_bits;
-        uint64_t denominator =
-            (uint64_t)std::ceil((pow(2, total_bits_per_block) - 1) /
-                                (pow(2, message_modulus_bits) - 1));
+        if (!allocated_luts_message_carry) {
+          uint64_t size_tracker = 0;
+          allocated_luts_message_carry = true;
+          luts_message_carry = new int_radix_lut<Torus>(
+              streams, params, 2, pbs_count, true, size_tracker);
 
-        uint64_t upper_bound_num_blocks =
-            max_total_blocks_in_vec * 2 / denominator;
-        luts_message_carry->allocate_lwe_vector_for_non_trivial_indexes(
-            streams, upper_bound_num_blocks, size_tracker, true);
+          uint64_t message_modulus_bits =
+              (uint64_t)std::log2(params.message_modulus);
+          uint64_t carry_modulus_bits =
+              (uint64_t)std::log2(params.carry_modulus);
+          uint64_t total_bits_per_block =
+              message_modulus_bits + carry_modulus_bits;
+          uint64_t denominator =
+              (uint64_t)std::ceil((pow(2, total_bits_per_block) - 1) /
+                                  (pow(2, message_modulus_bits) - 1));
+
+          uint64_t upper_bound_num_blocks =
+              max_total_blocks_in_vec * 2 / denominator;
+          luts_message_carry->allocate_lwe_vector_for_non_trivial_indexes(
+              streams, upper_bound_num_blocks, size_tracker, true);
+        }
       }
     }
 
@@ -1614,11 +1662,14 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     uint32_t max_pbs_count = std::max(
         2 * (max_total_blocks_in_vec / chunk_size), 2 * num_blocks_in_radix);
     if (max_pbs_count > 0) {
-      int_radix_lut<Torus> *luts_message_carry_dry_run =
-          new int_radix_lut<Torus>(streams, params, 2, max_pbs_count, false,
-                                   size_tracker);
-      luts_message_carry_dry_run->release(streams);
-      delete luts_message_carry_dry_run;
+      // This probe allocates no device memory, it only reports through
+      // size_tracker what luts_message_carry will take when
+      // setup_lookup_tables builds it at operation time. It is released from
+      // release() and not here: int_radix_lut::release() waits for the
+      // asynchronous uploads of a real LUT, and calling it from a constructor
+      // would make every scratch function reaching this code synchronize.
+      luts_message_carry_size_probe = new int_radix_lut<Torus>(
+          streams, params, 2, max_pbs_count, false, size_tracker);
     }
 
     // create and allocate intermediate buffers
@@ -1706,7 +1757,14 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       delete current_blocks;
       delete small_lwe_vector;
     }
+    if (luts_message_carry_size_probe != nullptr) {
+      luts_message_carry_size_probe->release(streams);
+      delete luts_message_carry_size_probe;
+      luts_message_carry_size_probe = nullptr;
+    }
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+    delete[] h_columns_staging;
+    h_columns_staging = nullptr;
   }
 };
 
@@ -1717,6 +1775,10 @@ template <typename Torus> struct int_seq_group_prop_memory {
   int_radix_lut<Torus> *lut_sequential_algorithm;
   uint32_t grouping_size;
   bool gpu_memory_allocated;
+  /// @brief Host staging area for the LUT indexes uploaded in the constructor.
+  ///
+  /// The upload is asynchronous, so the buffer is freed in release().
+  Torus *h_seq_lut_indexes = nullptr;
 
   int_seq_group_prop_memory(CudaStreams streams, int_radix_params params,
                             uint32_t group_size, uint32_t big_lwe_size_bytes,
@@ -1735,8 +1797,7 @@ template <typename Torus> struct int_seq_group_prop_memory {
                                  allocate_gpu_memory, size_tracker);
     std::vector<std::function<Torus(Torus)>> lut_funcs;
     std::vector<uint32_t> lut_indices;
-    Torus *h_seq_lut_indexes =
-        (Torus *)malloc(safe_mul_sizeof<Torus>(num_seq_luts));
+    h_seq_lut_indexes = (Torus *)malloc(safe_mul_sizeof<Torus>(num_seq_luts));
 
     for (int index = 0; index < num_seq_luts; index++) {
       auto f_lut_sequential = [index](Torus propa_cum_sum_block) {
@@ -1754,9 +1815,6 @@ template <typename Torus> struct int_seq_group_prop_memory {
     lut_sequential_algorithm->generate_and_broadcast_lut(
         active_streams, lut_indices, lut_funcs, lut_index_generator, true, {},
         h_seq_lut_indexes);
-
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-    free(h_seq_lut_indexes);
   }
 
   void release(CudaStreams streams) {
@@ -1767,6 +1825,8 @@ template <typename Torus> struct int_seq_group_prop_memory {
     delete group_resolved_carries;
     delete lut_sequential_algorithm;
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+    free(h_seq_lut_indexes);
+    h_seq_lut_indexes = nullptr;
   };
 };
 
@@ -1985,6 +2045,11 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
 
   Torus *scalar_array_cum_sum;
   Torus *h_scalar_array_cum_sum;
+  /// @brief Host staging area for the second step LUT indexes uploaded in the
+  /// constructor.
+  ///
+  /// The upload is asynchronous, so the buffer is freed in release().
+  Torus *h_second_lut_indexes = nullptr;
 
   int_radix_lut<Torus> *luts_array_second_step;
 
@@ -2201,7 +2266,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
       lut_ids.push_back(lut_id);
     }
 
-    Torus *h_second_lut_indexes = (Torus *)malloc(lut_indexes_size);
+    h_second_lut_indexes = (Torus *)malloc(lut_indexes_size);
 
     luts_array_second_step->generate_and_broadcast_lut(
         active_streams, lut_ids, lut_funcs, second_step_lut_index_generator,
@@ -2218,9 +2283,6 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
           streams, params, num_groups, big_lwe_size_bytes, allocate_gpu_memory,
           size_tracker);
     }
-
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-    free(h_second_lut_indexes);
   };
 
   // needed for the division to update the lut indexes
@@ -2271,8 +2333,13 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
     delete prepared_blocks;
     delete resolved_carries;
     delete luts_array_second_step;
-    delete[] h_scalar_array_cum_sum;
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+    // Both host buffers were uploaded asynchronously, so they are freed only
+    // after the synchronization above.
+    delete[] h_scalar_array_cum_sum;
+    h_scalar_array_cum_sum = nullptr;
+    free(h_second_lut_indexes);
+    h_second_lut_indexes = nullptr;
   };
 };
 
