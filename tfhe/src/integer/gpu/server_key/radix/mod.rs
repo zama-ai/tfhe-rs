@@ -29,7 +29,7 @@ use crate::shortint::server_key::{
 };
 use crate::shortint::{PBSOrder, PaddingBit, ShortintEncoding};
 pub use oprf::{CudaOprfServerKey, CudaOprfServerKeyView, GenericCudaOprfServerKey};
-pub use shuffle::{BitonicShuffleKeySize, CollisionProbability};
+pub use shuffle::{AttackerAdvantage, BitonicShuffleKeySize, CollisionProbability};
 
 mod abs;
 mod add;

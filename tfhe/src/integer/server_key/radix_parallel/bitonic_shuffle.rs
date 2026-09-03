@@ -9,6 +9,7 @@ use crate::integer::prelude::ServerKeyDefaultCMux;
 use crate::integer::{IntegerRadixCiphertext, RadixCiphertext, ServerKey};
 use crate::shortint::{Ciphertext, MessageModulus};
 use crate::OprfSeed;
+use core::num::NonZeroU32;
 use rayon::prelude::*;
 use tfhe_fft::c64;
 
@@ -51,6 +52,11 @@ pub(crate) fn bitonic_network(n: usize) -> Vec<Vec<(usize, usize, bool)>> {
     stages
 }
 
+/// Upper bound on the probability that the shuffle is not perfectly uniform,
+/// i.e. that at least two of the random sort keys collide.
+///
+/// When no collision occurs, the shuffle is provably perfectly uniform.
+/// On a collision, the tie-breaking of the sorting network may bias the result.
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct CollisionProbability(f64);
 
@@ -66,21 +72,111 @@ impl CollisionProbability {
     pub fn new(proba: f64) -> Self {
         Self::try_new(proba).expect("Invalid probability, it must be in ]0, 1.0[")
     }
+
+    fn num_bits_of_keys(self, num_elements: usize) -> u32 {
+        let n_squared = (num_elements * num_elements) as f64;
+        (n_squared / (2.0 * self.0)).log2().ceil() as u32
+    }
+}
+
+/// Bounds how much more often an attacker can correctly guess where elements
+/// landed in the shuffle, compared to guessing against a perfectly uniform
+/// shuffle.
+///
+/// An advantage of `0.01` means any guess that succeeds with probability `p`
+/// against a perfect shuffle, succeeds with probability at most `(1 + 0.01) * p`
+/// against this one.
+///
+/// `num_revealed` is the number of shuffled positions the attack involves,
+/// i.e. the positions the attacker observes plus the positions they try to
+/// predict:
+/// * `None` places no restriction, covering even an attacker predicting the entire permutation, at
+///   the cost of larger keys
+/// * `Some(t)` covers any attack whose observation and guess together touch at most `t` positions,
+///   allowing smaller keys
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct AttackerAdvantage {
+    advantage: f64,
+    num_revealed: Option<NonZeroU32>,
+}
+
+impl AttackerAdvantage {
+    pub fn try_new(advantage: f64, num_revealed: Option<NonZeroU32>) -> Option<Self> {
+        if advantage > 0.0 && advantage.is_finite() {
+            Some(Self {
+                advantage,
+                num_revealed,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn new(advantage: f64, num_revealed: Option<NonZeroU32>) -> Self {
+        Self::try_new(advantage, num_revealed)
+            .expect("Invalid advantage, it must be a finite value > 0.0")
+    }
+
+    fn num_bits_of_keys(self, num_elements: usize) -> u32 {
+        let n_squared = (num_elements * num_elements) as f64;
+
+        // Below 2^k >= 128 * n^2 the bounds used here are no longer valid
+        // (notably for advantages close to or above 1.0), so this is the
+        // minimum key size we ever return
+        let min_n_bits = (128.0 * n_squared).log2().ceil();
+
+        // In the worst case, the advantage is bounded by n^2 / 2^k, so
+        // requesting 2^k >= n^2 / advantage caps it at the requested value
+        let worst_case_n_bits = (n_squared / self.advantage).log2().ceil();
+
+        // The finer estimation has some preconditions
+        let n_bits = self
+            .num_revealed
+            .filter(|&t| t.get() <= (num_elements / 4) as u32 && num_elements >= 8)
+            .map_or(worst_case_n_bits, |num_revealed| {
+                // The advantage is bounded by 7.3 * t * n / 2^k
+                let finer_n_bits = ((7.3 * num_revealed.get() as f64 * num_elements as f64)
+                    / self.advantage)
+                    .log2()
+                    .ceil();
+
+                // when n <= 7.3 * t, the worst case bound is actually tighter
+                finer_n_bits.min(worst_case_n_bits)
+            });
+
+        n_bits.max(min_n_bits) as u32
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum BitonicShuffleKeySize {
     CollisionProbability(CollisionProbability),
+    AttackerAdvantage(AttackerAdvantage),
     NumBits(u32),
 }
 
 impl BitonicShuffleKeySize {
+    /// See [`CollisionProbability`]
     pub fn try_collision_probability(proba: f64) -> Option<Self> {
         CollisionProbability::try_new(proba).map(Self::CollisionProbability)
     }
 
+    /// See [`CollisionProbability`]
     pub fn collision_probability(proba: f64) -> Self {
         Self::CollisionProbability(CollisionProbability::new(proba))
+    }
+
+    /// See [`AttackerAdvantage`]
+    pub fn try_attacker_advantage(
+        advantage: f64,
+        num_revealed: Option<NonZeroU32>,
+    ) -> Option<Self> {
+        AttackerAdvantage::try_new(advantage, num_revealed).map(Self::AttackerAdvantage)
+    }
+
+    /// See [`AttackerAdvantage`]
+    pub fn attacker_advantage(advantage: f64, num_revealed: Option<NonZeroU32>) -> Self {
+        Self::AttackerAdvantage(AttackerAdvantage::new(advantage, num_revealed))
     }
 
     pub fn num_bits(num_bits: u32) -> Self {
@@ -89,10 +185,8 @@ impl BitonicShuffleKeySize {
 
     pub(crate) fn num_blocks_of_keys(&self, num_elements: usize, msg_mod: MessageModulus) -> u32 {
         let bits = match self {
-            Self::CollisionProbability(CollisionProbability(proba)) => {
-                let n_squared = (num_elements * num_elements) as f64;
-                (n_squared / (2.0 * proba)).log2().ceil() as u32
-            }
+            Self::CollisionProbability(proba) => proba.num_bits_of_keys(num_elements),
+            Self::AttackerAdvantage(advantage) => advantage.num_bits_of_keys(num_elements),
             Self::NumBits(n) => *n,
         };
         bits.div_ceil(msg_mod.0.ilog2())
@@ -103,8 +197,12 @@ impl ServerKey {
     /// Shuffles `data` into a uniformly random permutation using a bitonic sorting network
     /// with random sort keys.
     ///
-    /// `key_size` controls the bit-width of the random sort keys used internally, either
-    /// by specifying a target collision probability or by passing a raw bit count.
+    /// `key_size` controls the bit-width of the random sort keys used internally.
+    /// Prefer the security-driven options — a target [`CollisionProbability`] or a
+    /// target [`AttackerAdvantage`] — which are safer as they derive the key size
+    /// from the guarantee you want; a raw bit count
+    /// ([`BitonicShuffleKeySize::NumBits`]) offers no such guarantee and should
+    /// only be used if you have done the analysis yourself.
     /// The bit count is rounded up to a multiple of `log2(message_modulus)` so each
     /// OPRF-generated random block is fully consumed. Larger keys reduce collision
     /// probability — and thus improve shuffle uniformity — at the cost of more
@@ -372,7 +470,67 @@ impl ServerKey {
 
 #[cfg(test)]
 mod tests {
-    use super::bitonic_network;
+    use super::{bitonic_network, AttackerAdvantage, CollisionProbability};
+    use core::num::NonZeroU32;
+
+    /// Golden values from the technical note on shuffle uniformity
+    #[test]
+    fn key_size_golden_values_from_technical_note() {
+        // Section 5: for n = 52, the bounds require 2^k >= 128 * n^2 = 346112,
+        // i.e. a minimum key size of 19 bits, so a large requested advantage
+        // is floored to that minimum
+        assert_eq!(AttackerAdvantage::new(1.0, None).num_bits_of_keys(52), 19);
+
+        // Section 5 (numerical applications, 32-bit keys): next-item
+        // prediction after observing 5 outcomes (t = 5 + 1 = 6). Requesting
+        // exactly the advantage the note derives for 32-bit keys must give
+        // back 32 bits
+        let t = NonZeroU32::new(6);
+        let advantage_52 = 7.3 * 6.0 * 52.0 / 2f64.powi(32); // ~5.30e-7
+        assert_eq!(
+            AttackerAdvantage::new(advantage_52, t).num_bits_of_keys(52),
+            32
+        );
+        let advantage_512 = 7.3 * 6.0 * 512.0 / 2f64.powi(32); // ~5.22e-6
+        assert_eq!(
+            AttackerAdvantage::new(advantage_512, t).num_bits_of_keys(512),
+            32
+        );
+
+        // Section 2 (casino benchmark): a 52-card deck with a collision
+        // probability below 0.16 (the bias of 8 physical riffle shuffles)
+        assert_eq!(CollisionProbability::new(0.16).num_bits_of_keys(52), 14);
+    }
+
+    #[test]
+    fn attacker_advantage_key_size() {
+        const NUM_ELEMENTS: usize = 1000;
+
+        let advantage = 2f64.powi(-40);
+
+        // Worst case: k = ceil(log2(n^2 / advantage))
+        let worst_case = AttackerAdvantage::new(advantage, None);
+        assert_eq!(worst_case.num_bits_of_keys(NUM_ELEMENTS), 60);
+
+        // Finer bound: k = ceil(log2(7.3 * t * n / advantage))
+        assert!(10 <= NUM_ELEMENTS / 4 && 7.3 * 10.0 < NUM_ELEMENTS as f64);
+        let finer = AttackerAdvantage::new(advantage, NonZeroU32::new(10));
+        assert_eq!(finer.num_bits_of_keys(NUM_ELEMENTS), 57);
+
+        // t > n / 4: preconditions not met, falls back to the worst case
+        const {
+            assert!(300 > NUM_ELEMENTS / 4);
+        }
+        let too_many_revealed = AttackerAdvantage::new(advantage, NonZeroU32::new(300));
+        assert_eq!(too_many_revealed.num_bits_of_keys(NUM_ELEMENTS), 60);
+
+        // n <= 7.3 * t: the worst case bound is tighter than the finer one
+        const {
+            assert!(200 <= NUM_ELEMENTS / 4 && NUM_ELEMENTS as f64 <= 7.3 * 200.0);
+        }
+        let worst_tighter = AttackerAdvantage::new(advantage, NonZeroU32::new(200));
+        assert_eq!(worst_tighter.num_bits_of_keys(NUM_ELEMENTS), 60);
+    }
 
     #[test]
     fn bitonic_network_builds_expected_pairs_for_n8() {
