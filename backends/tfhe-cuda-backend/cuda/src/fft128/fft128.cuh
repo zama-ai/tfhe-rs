@@ -1099,10 +1099,12 @@ __host__ void host_fourier_transform_backward_as_torus_f128(
 // rather than a switch inside the existing ones.
 // ----------------------------------------------------------------------------
 
-// Carries no entry or exit barrier: callers transform several independent
-// buffers back to back, so bracketing the whole run once is enough. The caller
-// must sync between filling these buffers and the first call, and between the
-// last call and any cross-thread read of the results.
+// Carries no entry barrier and no exit barrier, but one internal barrier just
+// before its final store (the write-after-read hazard is explained where the
+// barrier is taken): callers transform several independent buffers back to
+// back, so bracketing the whole run once is enough. The caller must sync
+// between filling these buffers and the first call, and between the last call
+// and any cross-thread read of the results.
 template <class params, bool USE_AOS_TWIDDLES = false>
 __device__ void
 negacyclic_forward_fft_f128_relaxed(double *dt_re_hi, double *dt_re_lo,
@@ -1224,6 +1226,16 @@ negacyclic_forward_fft_f128_relaxed(double *dt_re_hi, double *dt_re_lo,
       tid = tid + STRIDE;
     }
   }
+
+  // Write-after-read hazard. The levels above are ordered by __syncwarp()
+  // only, which gives no ordering between warps. The last shared-memory level
+  // (l == 6) reads dt[tid ^ 32] for tid over [0, HALF_DEGREE), while the store
+  // loop below writes dt[2 * tid] and dt[2 * tid + 1], covering [0, DEGREE).
+  // The written range contains the read range, and the writing thread is not
+  // the reading one, so a warp reaching the store first would clobber values
+  // another warp has not consumed yet. Only a block-wide barrier orders the
+  // two. negacyclic_forward_fft_f128_tbc already carries the same barrier.
+  __syncthreads();
 
   //   store registers in SM
   tid = threadIdx.x;
