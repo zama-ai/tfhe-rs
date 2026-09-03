@@ -2116,9 +2116,8 @@ unsafe extern "C" {
     pub fn cuda_unchecked_all_eq_slices_64_async(
         streams: CudaStreamsFFI,
         match_ct: *const CudaRadixCiphertextFFI,
-        lhs: *const CudaRadixCiphertextFFI,
-        rhs: *const CudaRadixCiphertextFFI,
-        num_inputs: u32,
+        lhs: *const VecCudaRadixCiphertextFFI,
+        rhs: *const VecCudaRadixCiphertextFFI,
         num_blocks: u32,
         mem: *mut i8,
         bsks: *const *mut ffi::c_void,
@@ -2150,9 +2149,8 @@ unsafe extern "C" {
     pub fn cuda_unchecked_contains_sub_slice_64_async(
         streams: CudaStreamsFFI,
         match_ct: *const CudaRadixCiphertextFFI,
-        lhs: *const CudaRadixCiphertextFFI,
-        rhs: *const CudaRadixCiphertextFFI,
-        num_rhs: u32,
+        lhs: *const VecCudaRadixCiphertextFFI,
+        rhs: *const VecCudaRadixCiphertextFFI,
         num_blocks: u32,
         mem: *mut i8,
         bsks: *const *mut ffi::c_void,

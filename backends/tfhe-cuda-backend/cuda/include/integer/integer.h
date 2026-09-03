@@ -960,9 +960,8 @@ uint64_t scratch_cuda_unchecked_all_eq_slices_64_async(
 
 void cuda_unchecked_all_eq_slices_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI const *match_ct,
-    CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
-    uint32_t num_inputs, uint32_t num_blocks, int8_t *mem, void *const *bsks,
-    void *const *ksks);
+    VecCudaRadixCiphertextFFI const *lhs, VecCudaRadixCiphertextFFI const *rhs,
+    uint32_t num_blocks, int8_t *mem, void *const *bsks, void *const *ksks);
 
 void cleanup_cuda_unchecked_all_eq_slices_64(CudaStreamsFFI streams,
                                              int8_t **mem_ptr_void);
@@ -976,9 +975,8 @@ uint64_t scratch_cuda_unchecked_contains_sub_slice_64_async(
 
 void cuda_unchecked_contains_sub_slice_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI const *match_ct,
-    CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
-    uint32_t num_rhs, uint32_t num_blocks, int8_t *mem, void *const *bsks,
-    void *const *ksks);
+    VecCudaRadixCiphertextFFI const *lhs, VecCudaRadixCiphertextFFI const *rhs,
+    uint32_t num_blocks, int8_t *mem, void *const *bsks, void *const *ksks);
 
 void cleanup_cuda_unchecked_contains_sub_slice_64(CudaStreamsFFI streams,
                                                   int8_t **mem_ptr_void);

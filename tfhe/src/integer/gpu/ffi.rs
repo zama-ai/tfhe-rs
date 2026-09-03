@@ -9811,12 +9811,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_all_eq_slices<
         noise_reduction_type as u32,
     );
 
+    let ffi_lhs_vec = VecCudaRadixCiphertextFFI::from_ciphertexts(&ffi_lhs);
+    let ffi_rhs_vec = VecCudaRadixCiphertextFFI::from_ciphertexts(&ffi_rhs);
     cuda_unchecked_all_eq_slices_64_async(
         streams.ffi(),
         &raw mut ffi_match,
-        ffi_lhs.as_ptr(),
-        ffi_rhs.as_ptr(),
-        num_inputs,
+        &raw const ffi_lhs_vec,
+        &raw const ffi_rhs_vec,
         num_blocks,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
@@ -9946,12 +9947,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_sub_slice<
         noise_reduction_type as u32,
     );
 
+    let ffi_lhs_vec = VecCudaRadixCiphertextFFI::from_ciphertexts(&ffi_lhs);
+    let ffi_rhs_vec = VecCudaRadixCiphertextFFI::from_ciphertexts(&ffi_rhs);
     cuda_unchecked_contains_sub_slice_64_async(
         streams.ffi(),
         &raw mut ffi_match,
-        ffi_lhs.as_ptr(),
-        ffi_rhs.as_ptr(),
-        num_inputs_rhs,
+        &raw const ffi_lhs_vec,
+        &raw const ffi_rhs_vec,
         num_blocks,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
