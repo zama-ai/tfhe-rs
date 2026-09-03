@@ -53,7 +53,7 @@ uint64_t scratch_cuda_programmable_bootstrap_tbc(
 }
 
 template <typename Torus>
-void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
+void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_async(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -74,7 +74,7 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
 }
 
 template <typename Torus>
-void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_generic(
+void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_generic_async(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -222,7 +222,7 @@ uint64_t scratch_cuda_programmable_bootstrap_specialized_2_2_64_async(
 }
 
 template <typename Torus>
-void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector(
+void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_async(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -243,7 +243,7 @@ void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector(
 }
 
 template <typename Torus>
-void cuda_programmable_bootstrap_lwe_ciphertext_vector(
+void cuda_programmable_bootstrap_lwe_ciphertext_vector_async(
     void *stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -284,7 +284,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_32_async(
   switch (pbs_buf->pbs_variant) {
   case TBC:
 #if CUDA_ARCH >= 900
-    cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector<uint32_t>(
+    cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_async<uint32_t>(
         stream, gpu_index, static_cast<uint32_t *>(lwe_array_out),
         static_cast<const uint32_t *>(lwe_output_indexes),
         static_cast<const uint32_t *>(lut_vector),
@@ -299,7 +299,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_32_async(
     PANIC("Cuda error (PBS): TBC pbs is not supported.")
 #endif
   case CG:
-    cuda_programmable_bootstrap_cg_lwe_ciphertext_vector<uint32_t>(
+    cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_async<uint32_t>(
         stream, gpu_index, static_cast<uint32_t *>(lwe_array_out),
         static_cast<const uint32_t *>(lwe_output_indexes),
         static_cast<const uint32_t *>(lut_vector),
@@ -311,7 +311,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_32_async(
         num_many_lut, lut_stride);
     break;
   case DEFAULT:
-    cuda_programmable_bootstrap_lwe_ciphertext_vector<uint32_t>(
+    cuda_programmable_bootstrap_lwe_ciphertext_vector_async<uint32_t>(
         stream, gpu_index, static_cast<uint32_t *>(lwe_array_out),
         static_cast<const uint32_t *>(lwe_output_indexes),
         static_cast<const uint32_t *>(lut_vector),
@@ -406,7 +406,7 @@ void cuda_programmable_bootstrap_64_async(
   switch (pbs_buf->pbs_variant) {
   case PBS_VARIANT::TBC:
 #if (CUDA_ARCH >= 900)
-    cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector<uint64_t>(
+    cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_async<uint64_t>(
         stream, gpu_index, static_cast<uint64_t *>(lwe_array_out),
         static_cast<const uint64_t *>(lwe_output_indexes),
         static_cast<const uint64_t *>(lut_vector),
@@ -421,7 +421,7 @@ void cuda_programmable_bootstrap_64_async(
     PANIC("Cuda error (PBS): TBC pbs is not supported.")
 #endif
   case PBS_VARIANT::CG:
-    cuda_programmable_bootstrap_cg_lwe_ciphertext_vector<uint64_t>(
+    cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_async<uint64_t>(
         stream, gpu_index, static_cast<uint64_t *>(lwe_array_out),
         static_cast<const uint64_t *>(lwe_output_indexes),
         static_cast<const uint64_t *>(lut_vector),
@@ -433,7 +433,7 @@ void cuda_programmable_bootstrap_64_async(
         num_many_lut, lut_stride);
     break;
   case PBS_VARIANT::DEFAULT:
-    cuda_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
+    cuda_programmable_bootstrap_lwe_ciphertext_vector_async<uint64_t>(
         stream, gpu_index, static_cast<uint64_t *>(lwe_array_out),
         static_cast<const uint64_t *>(lwe_output_indexes),
         static_cast<const uint64_t *>(lut_vector),
@@ -466,7 +466,7 @@ void cuda_programmable_bootstrap_tbc_64_generic_async(
                  "Cuda error (classical PBS): expected a TBC buffer.");
 
 #if (CUDA_ARCH >= 900)
-  cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_generic<uint64_t>(
+  cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_generic_async<uint64_t>(
       stream, gpu_index, static_cast<uint64_t *>(lwe_array_out),
       static_cast<const uint64_t *>(lwe_output_indexes),
       static_cast<const uint64_t *>(lut_vector),
@@ -596,7 +596,8 @@ template bool specialized_2_2_params_checker<uint64_t>(
     uint32_t polynomial_size, uint32_t glwe_dimension, uint32_t level_count,
     uint32_t max_shared_memory);
 
-template void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector<uint64_t>(
+template void
+cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_async<uint64_t>(
     void *stream, uint32_t gpu_index, uint64_t *lwe_array_out,
     uint64_t const *lwe_output_indexes, uint64_t const *lut_vector,
     uint64_t const *lut_vector_indexes, uint64_t const *lwe_array_in,
@@ -606,7 +607,7 @@ template void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector<uint64_t>(
     uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
     uint32_t lut_stride);
 
-template void cuda_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
+template void cuda_programmable_bootstrap_lwe_ciphertext_vector_async<uint64_t>(
     void *stream, uint32_t gpu_index, uint64_t *lwe_array_out,
     uint64_t const *lwe_output_indexes, uint64_t const *lut_vector,
     uint64_t const *lut_vector_indexes, uint64_t const *lwe_array_in,
@@ -629,7 +630,8 @@ template uint64_t scratch_cuda_programmable_bootstrap<uint64_t>(
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
-template void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector<uint32_t>(
+template void
+cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_async<uint32_t>(
     void *stream, uint32_t gpu_index, uint32_t *lwe_array_out,
     uint32_t const *lwe_output_indexes, uint32_t const *lut_vector,
     uint32_t const *lut_vector_indexes, uint32_t const *lwe_array_in,
@@ -639,7 +641,7 @@ template void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector<uint32_t>(
     uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
     uint32_t lut_stride);
 
-template void cuda_programmable_bootstrap_lwe_ciphertext_vector<uint32_t>(
+template void cuda_programmable_bootstrap_lwe_ciphertext_vector_async<uint32_t>(
     void *stream, uint32_t gpu_index, uint32_t *lwe_array_out,
     uint32_t const *lwe_output_indexes, uint32_t const *lut_vector,
     uint32_t const *lut_vector_indexes, uint32_t const *lwe_array_in,
@@ -670,7 +672,8 @@ template bool has_support_to_cuda_programmable_bootstrap_tbc<uint64_t>(
     uint32_t level_count, uint32_t max_shared_memory);
 
 #if CUDA_ARCH >= 900
-template void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector<uint32_t>(
+template void
+cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_async<uint32_t>(
     void *stream, uint32_t gpu_index, uint32_t *lwe_array_out,
     uint32_t const *lwe_output_indexes, uint32_t const *lut_vector,
     uint32_t const *lut_vector_indexes, uint32_t const *lwe_array_in,
@@ -679,7 +682,8 @@ template void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector<uint32_t>(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
     uint32_t lut_stride);
-template void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector<uint64_t>(
+template void
+cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_async<uint64_t>(
     void *stream, uint32_t gpu_index, uint64_t *lwe_array_out,
     uint64_t const *lwe_output_indexes, uint64_t const *lut_vector,
     uint64_t const *lut_vector_indexes, uint64_t const *lwe_array_in,

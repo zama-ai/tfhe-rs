@@ -383,7 +383,7 @@ bool cuda_fft16x4x16_is_supported_async(uint32_t gpu_index) {
   return err == cudaSuccess && prop.major >= 9;
 }
 
-void cuda_convert_lwe_programmable_bootstrap_key_u128(
+void cuda_convert_lwe_programmable_bootstrap_key_u128_async(
     cudaStream_t stream, uint32_t gpu_index, double *dest,
     __uint128_t const *src, uint32_t polynomial_size,
     uint32_t total_polynomials) {
@@ -415,7 +415,7 @@ void cuda_convert_lwe_programmable_bootstrap_key_128_async(
   size_t total_polynomials =
       safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
                (size_t)(glwe_dim + 1), (size_t)level_count);
-  cuda_convert_lwe_programmable_bootstrap_key_u128(
+  cuda_convert_lwe_programmable_bootstrap_key_u128_async(
       static_cast<cudaStream_t>(stream), gpu_index, (double *)dest,
       (const __uint128_t *)src, polynomial_size, total_polynomials);
 }
