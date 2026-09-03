@@ -2,6 +2,7 @@ name: aws_tfhe_wasm_tests
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUSTFLAGS: "-C target-cpu=native"
   RUST_BACKTRACE: "full"
@@ -80,6 +81,15 @@ jobs:
         with:
           persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
+
+      # GitHub has been causing issues with unauthenticated HTTPS traffic breaking several software
+      - name: Authenticate all github.com git traffic
+        run: |
+          # single quotes expected to avoid replacing the token inline to not have it saved on disk
+          # shellcheck disable=SC2016
+          git config --global credential."https://github.com".helper '!f() { [ "$1" = get ] && printf "username=x-access-token\npassword=%s\n" "$CHECKOUT_TOKEN"; }; f'
+          git config --global --add url."https://github.com/".insteadOf "ssh://git@github.com/"
+          git config --global --add url."https://github.com/".insteadOf "git@github.com:"
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # zizmor: ignore[stale-action-refs] this action doesn't create releases
