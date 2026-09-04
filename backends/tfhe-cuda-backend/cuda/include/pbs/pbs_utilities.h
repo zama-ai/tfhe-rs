@@ -427,6 +427,25 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>
           global_join_buffer_size, stream, gpu_index, size_tracker,
           allocate_gpu_memory);
     } break;
+    case PBS_VARIANT::TBC_SINGLE_ITERATION: {
+      // The step1 and step2 are fusioned using tbc but only performs a single
+      // iteration. This gives better throughput cause short kernels are better
+      // to spread on the SMs.
+      //
+      // d_mem and global_join_buffer are still allocated at size zero:
+      // release() frees them unconditionally, so leaving them unassigned makes
+      // the drop path free an uninitialized pointer.
+      d_mem = (int8_t *)cuda_malloc_with_size_tracking_async(
+          0, stream, gpu_index, size_tracker, allocate_gpu_memory);
+      global_join_buffer = (double *)cuda_malloc_with_size_tracking_async(
+          0, stream, gpu_index, size_tracker, allocate_gpu_memory);
+
+      global_accumulator = (__uint128_t *)cuda_malloc_with_size_tracking_async(
+          safe_mul_sizeof<__uint128_t>((size_t)(glwe_dimension + 1),
+                                       (size_t)input_lwe_ciphertext_count,
+                                       (size_t)polynomial_size),
+          stream, gpu_index, size_tracker, allocate_gpu_memory);
+    } break;
 #endif
     default:
       PANIC("Cuda error (PBS): unsupported implementation variant.")
@@ -439,7 +458,7 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>
     cuda_drop_with_size_tracking_async(global_join_buffer, stream, gpu_index,
                                        gpu_memory_allocated);
 
-    if (pbs_variant == DEFAULT)
+    if (pbs_variant == DEFAULT || pbs_variant == TBC_SINGLE_ITERATION)
       cuda_drop_with_size_tracking_async(global_accumulator, stream, gpu_index,
                                          gpu_memory_allocated);
     cuda_synchronize_stream(stream, gpu_index);
