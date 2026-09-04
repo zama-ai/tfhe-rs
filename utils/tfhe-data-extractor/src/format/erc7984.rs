@@ -51,7 +51,10 @@ pub fn table(measured: &[Measured]) -> Table {
                 .iter()
                 .map(|flavor| (flavor.to_string(), *flavor))
                 .collect(),
-            columns: COLUMNS,
+            columns: COLUMNS
+                .iter()
+                .map(|(name, key)| (name.to_string(), *key))
+                .collect(),
             drop_empty_rows: false,
         },
         |flavor, metric| cells.get(&(*flavor, *metric)).cloned(),

@@ -47,7 +47,7 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Signed(integer_op),
             &param_name,
-            Some(&bits),
+            Some(bits.into()),
             get_bench_type(),
             None,
         );
@@ -159,7 +159,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Signed(integer_op),
             &param_name,
-            Some(&bits),
+            Some(bits.into()),
             get_bench_type(),
             None,
         );
@@ -265,7 +265,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Signed(integer_op),
             &param_name,
-            Some(&bits),
+            Some(bits.into()),
             get_bench_type(),
             None,
         );
@@ -348,7 +348,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Signed(integer_op),
             &param_name,
-            Some(&bits),
+            Some(bits.into()),
             get_bench_type(),
             None,
         );
@@ -896,7 +896,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Signed(integer_op),
             &param_name,
-            Some(&bits),
+            Some(bits.into()),
             get_bench_type(),
             None,
         );
@@ -1074,7 +1074,7 @@ fn signed_flip_parallelized(c: &mut Criterion) {
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
             IntegerOpBySign::Signed(integer_op),
             &param_name,
-            Some(&bits),
+            Some(bits.into()),
             get_bench_type(),
             None,
         );
@@ -1503,7 +1503,7 @@ fn bench_server_key_signed_cast_function<F>(
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Signed(integer_op),
                 &param_name,
-                Some(&conversion),
+                Some(conversion.into()),
                 BenchmarkMetric::Latency,
                 None,
             );
@@ -1601,7 +1601,7 @@ mod cuda {
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Signed(integer_op),
                 &param_name,
-                Some(&bits),
+                Some(bits.into()),
                 get_bench_type(),
                 None,
             );
@@ -1776,7 +1776,7 @@ mod cuda {
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Signed(integer_op),
                 &param_name,
-                Some(&bits),
+                Some(bits.into()),
                 get_bench_type(),
                 None,
             );
@@ -1923,7 +1923,7 @@ mod cuda {
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Signed(integer_op),
                 &param_name,
-                Some(&bits),
+                Some(bits.into()),
                 get_bench_type(),
                 None,
             );
@@ -2088,7 +2088,7 @@ mod cuda {
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Signed(integer_op),
                 &param_name,
-                Some(&bits),
+                Some(bits.into()),
                 get_bench_type(),
                 None,
             );
@@ -2257,7 +2257,7 @@ mod cuda {
             let benchmark_spec = BenchmarkSpec::new_integer_ops(
                 IntegerOpBySign::Signed(integer_op),
                 &param_name,
-                Some(&bits),
+                Some(bits.into()),
                 get_bench_type(),
                 None,
             );
@@ -3138,7 +3138,7 @@ mod cuda {
                 let benchmark_spec = BenchmarkSpec::new_integer_ops(
                     IntegerOpBySign::Signed(integer_op),
                     &param_name,
-                    Some(&conversion),
+                    Some(conversion.into()),
                     BenchmarkMetric::Latency,
                     None,
                 );
