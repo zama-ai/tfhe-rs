@@ -15,13 +15,13 @@ mod versionize_impl;
 use dispatch_type::DispatchType;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::parse::Parse;
 use syn::punctuated::Punctuated;
 use syn::token::Plus;
 use syn::{
-    parse_macro_input, parse_quote, DeriveInput, GenericParam, Generics, Ident, Lifetime,
-    LifetimeParam, Path, TraitBound, TraitBoundModifier, Type, TypeParamBound, WhereClause,
+    DeriveInput, GenericParam, Generics, Ident, Lifetime, LifetimeParam, Path, TraitBound, Type,
+    TypeParamBound, WhereClause, parse_macro_input, parse_quote,
 };
 
 /// Adds the full path of the current crate name to avoid name clashes in generated code.
@@ -535,12 +535,11 @@ fn remove_unsized_bound(
         .iter()
         .filter(|bound| match bound {
             TypeParamBound::Trait(trait_bound) => {
-                if !matches!(trait_bound.modifier, TraitBoundModifier::None) {
-                    if let Some(segment) = trait_bound.path.segments.iter().next_back() {
-                        if segment.ident == "Sized" {
-                            return false;
-                        }
-                    }
+                if trait_bound.maybe.is_some()
+                    && let Some(segment) = trait_bound.path.segments.iter().next_back()
+                    && segment.ident == "Sized"
+                {
+                    return false;
                 }
                 true
             }

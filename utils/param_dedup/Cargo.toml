@@ -5,10 +5,10 @@ edition = "2021"
 publish = false
 
 [dependencies]
-syn = { version = "2.0.101", features = ["parsing", "full", "extra-traits"] }
+syn = { version = "3.0.4", features = ["parsing", "full", "extra-traits"] }
 semver = "1.0.26"
 cargo_toml = "1.0"
 walkdir = "2.5.0"
 clap = { version = "=4.6.6", features = ["derive"] }
-prettyplease = "0.2.32"
+prettyplease = "0.3.0"
 rayon = "1"
