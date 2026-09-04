@@ -63,7 +63,9 @@ pub fn cpu_kreyvium_transciphering(c: &mut Criterion) {
     let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Kreyvium(KreyviumFlavor::Warmup),
         &param_name,
+        None,
         BenchmarkMetric::Latency,
+        None,
     );
     bench_and_record(
         &mut group,
@@ -92,7 +94,9 @@ pub fn cpu_kreyvium_transciphering(c: &mut Criterion) {
     let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Kreyvium(KreyviumFlavor::Keystream64Bits),
         &param_name,
+        None,
         BenchmarkMetric::Latency,
+        None,
     );
     bench_and_record(
         &mut group,
@@ -124,7 +128,9 @@ pub fn cpu_kreyvium_transciphering(c: &mut Criterion) {
     let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Kreyvium(KreyviumFlavor::Transcipher64Bits),
         &param_name,
+        None,
         BenchmarkMetric::Latency,
+        None,
     );
     bench_and_record(
         &mut group,

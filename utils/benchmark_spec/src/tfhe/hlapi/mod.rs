@@ -1,3 +1,4 @@
+pub mod ct_size;
 pub mod dex;
 pub mod erc7984;
 pub mod kv_store;
@@ -17,12 +18,15 @@ use crate::error::SpecParseError;
 use crate::traits::SpecNode;
 
 pub use super::hl_integer_op::HlIntegerOp;
+pub use super::key_size::KeyKind;
 pub use super::vector_find::VectorFindOp;
+pub use ct_size::CiphertextKind;
 
 /// Benchmark categories within the HLAPI layer.
 ///
 /// Each variant represents a category of benchmarks (ops, erc7984, dex, etc.)
-/// and carries its own op enum. Adding a new category requires:
+/// and carries its own op enum, unless the category holds a single benchmark.
+/// Adding a new category requires:
 /// 1. Add the variant here (strum handles the name)
 /// 2. Add a match arm in `child()` returning the inner op as `&dyn SpecNode` (a leaf op enum just
 ///    needs `impl SpecNode for X {}`).
@@ -41,19 +45,26 @@ pub enum HlapiBench {
     NoiseSquashing(NoiseSquashingKind),
     Oprf(OprfKind),
     VectorFind(VectorFindOp),
+    Keys(KeyKind),
+    Ciphertexts(CiphertextKind),
+    // A single benchmark, so no op enum to carry.
+    BitonicShuffle,
 }
 
 impl SpecNode for HlapiBench {
     fn child(&self) -> Option<&dyn SpecNode> {
-        Some(match self {
-            HlapiBench::Ops(op) => op,
-            HlapiBench::Erc7984(op) => op,
-            HlapiBench::Dex(op) => op,
-            HlapiBench::KvStore(op) => op,
-            HlapiBench::NoiseSquashing(op) => op,
-            HlapiBench::Oprf(op) => op,
-            HlapiBench::VectorFind(op) => op,
-        })
+        match self {
+            HlapiBench::Ops(op) => Some(op),
+            HlapiBench::Erc7984(op) => Some(op),
+            HlapiBench::Dex(op) => Some(op),
+            HlapiBench::KvStore(op) => Some(op),
+            HlapiBench::NoiseSquashing(op) => Some(op),
+            HlapiBench::Oprf(op) => Some(op),
+            HlapiBench::VectorFind(op) => Some(op),
+            HlapiBench::Keys(key) => Some(key),
+            HlapiBench::Ciphertexts(ct) => Some(ct),
+            HlapiBench::BitonicShuffle => None,
+        }
     }
 }
 
@@ -72,6 +83,14 @@ impl FromStr for HlapiBench {
             HlapiBenchKind::NoiseSquashing => Ok(Self::NoiseSquashing(rest.parse()?)),
             HlapiBenchKind::Oprf => Ok(Self::Oprf(rest.parse()?)),
             HlapiBenchKind::VectorFind => Ok(Self::VectorFind(rest.parse()?)),
+            HlapiBenchKind::Keys => Ok(Self::Keys(rest.parse()?)),
+            HlapiBenchKind::Ciphertexts => Ok(Self::Ciphertexts(rest.parse()?)),
+            // Leaf variants close the bench path: what follows belongs to the
+            // trailing part of the id, not to this node.
+            _ if !rest.is_empty() => Err(SpecParseError::Unknown(format!(
+                "unexpected {rest:?} after hlapi bench {head}"
+            ))),
+            HlapiBenchKind::BitonicShuffle => Ok(Self::BitonicShuffle),
         }
     }
 }
