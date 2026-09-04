@@ -39,9 +39,9 @@ void cuda_backward_fft16x4x16_async(void *stream, uint32_t gpu_index,
                                     uint32_t total_polynomials);
 
 // Returns true iff the given GPU can run the FFT16x4x16 core, i.e. it has
-// compute capability 9.x (Hopper) or newer, whose named-barrier / mbarrier
-// primitives the core relies on. Lets callers (e.g. tests) gate the specialized
-// path at runtime instead of failing on older architectures.
+// compute capability 9.x (Hopper) or newer, the only architectures the core
+// is validated on. Lets callers (e.g. tests) gate the specialized path at
+// runtime instead of failing on older architectures.
 bool cuda_fft16x4x16_is_supported_async(uint32_t gpu_index);
 
 void cuda_convert_lwe_programmable_bootstrap_key_32_async(
