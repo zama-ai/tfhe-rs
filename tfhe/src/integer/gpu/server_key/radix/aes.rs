@@ -165,6 +165,14 @@ impl CudaServerKey {
         num_aes_inputs: usize,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
+        assert!(
+            self.message_modulus.0 == 4 && self.carry_modulus.0 == 4,
+            "AES requires 2_2 parameters (message_modulus == 4, \
+             carry_modulus == 4), got {} and {}",
+            self.message_modulus.0,
+            self.carry_modulus.0
+        );
+
         let gpu_index = streams.gpu_indexes[0];
 
         let key_expansion_size = self.get_key_expansion_size_on_gpu(streams);
@@ -217,6 +225,14 @@ impl CudaServerKey {
             "Invalid S-Box parallelism: must be one of [1, 2, 4, 8, 16], got {sbox_parallelism}"
         );
 
+        assert!(
+            self.message_modulus.0 == 4 && self.carry_modulus.0 == 4,
+            "AES requires 2_2 parameters (message_modulus == 4, \
+             carry_modulus == 4), got {} and {}",
+            self.message_modulus.0,
+            self.carry_modulus.0
+        );
+
         let gpu_index = streams.gpu_indexes[0];
 
         let key_expansion_size = self.get_key_expansion_size_on_gpu(streams);
@@ -246,6 +262,18 @@ impl CudaServerKey {
         sbox_parallelism: usize,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
+        assert!(
+            self.message_modulus.0 == 4 && self.carry_modulus.0 == 4,
+            "AES requires 2_2 parameters (message_modulus == 4, \
+             carry_modulus == 4), got {} and {}",
+            self.message_modulus.0,
+            self.carry_modulus.0
+        );
+        assert!(
+            [1, 2, 4, 8, 16].contains(&sbox_parallelism),
+            "Invalid S-Box parallelism: must be one of [1, 2, 4, 8, 16], got {sbox_parallelism}"
+        );
+
         let mut result: CudaUnsignedRadixCiphertext =
             self.create_trivial_zero_radix(num_aes_inputs * 128, streams);
 
@@ -324,6 +352,14 @@ impl CudaServerKey {
         sbox_parallelism: usize,
         streams: &CudaStreams,
     ) -> u64 {
+        assert!(
+            self.message_modulus.0 == 4 && self.carry_modulus.0 == 4,
+            "AES requires 2_2 parameters (message_modulus == 4, \
+             carry_modulus == 4), got {} and {}",
+            self.message_modulus.0,
+            self.carry_modulus.0
+        );
+
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
@@ -359,6 +395,14 @@ impl CudaServerKey {
         key: &CudaUnsignedRadixCiphertext,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
+        assert!(
+            self.message_modulus.0 == 4 && self.carry_modulus.0 == 4,
+            "AES requires 2_2 parameters (message_modulus == 4, \
+             carry_modulus == 4), got {} and {}",
+            self.message_modulus.0,
+            self.carry_modulus.0
+        );
+
         let num_round_keys = 11;
         let num_key_bits = 128;
         let mut expanded_keys: CudaUnsignedRadixCiphertext =
@@ -412,6 +456,14 @@ impl CudaServerKey {
     }
 
     pub fn get_key_expansion_size_on_gpu(&self, streams: &CudaStreams) -> u64 {
+        assert!(
+            self.message_modulus.0 == 4 && self.carry_modulus.0 == 4,
+            "AES requires 2_2 parameters (message_modulus == 4, \
+             carry_modulus == 4), got {} and {}",
+            self.message_modulus.0,
+            self.carry_modulus.0
+        );
+
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
