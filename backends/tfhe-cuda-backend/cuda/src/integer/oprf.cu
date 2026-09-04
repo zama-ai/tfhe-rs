@@ -20,7 +20,7 @@ void cuda_integer_grouped_oprf_64_async(CudaStreamsFFI streams,
                                         uint32_t num_blocks_to_process,
                                         int8_t *mem, void *const *bsks) {
 
-  host_integer_grouped_oprf<uint64_t>(
+  host_integer_grouped_oprf_async<uint64_t>(
       CudaStreams(streams), radix_lwe_out, (const uint64_t *)seeded_lwe_input,
       num_blocks_to_process, (int_grouped_oprf_memory<uint64_t> *)mem, bsks);
 }

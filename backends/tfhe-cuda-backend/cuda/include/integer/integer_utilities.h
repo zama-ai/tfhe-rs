@@ -26,7 +26,7 @@
 constexpr std::nullptr_t LUT_0_FOR_ALL_BLOCKS = nullptr;
 
 /// @brief Computes the survivor count after one reserve-tail-and-absorb PBS
-/// round of the kv_store one-hot sum (host_binary_tree_fold_sum).
+/// round of the kv_store one-hot sum (host_binary_tree_fold_sum_async).
 ///
 /// Shared by scratch allocation and the host loop so the two cannot drift.
 ///

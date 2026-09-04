@@ -27,7 +27,7 @@ void cuda_unchecked_all_eq_slices_64_async(
                  "Output and second input pointers must be different for "
                  "out-of-place operations");
 
-  host_unchecked_all_eq_slices<uint64_t>(
+  host_unchecked_all_eq_slices_async<uint64_t>(
       CudaStreams(streams), match_ct, lhs, rhs, num_inputs, num_blocks,
       (int_unchecked_all_eq_slices_buffer<uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
@@ -71,7 +71,7 @@ void cuda_unchecked_contains_sub_slice_64_async(
                  "Output and second input pointers must be different for "
                  "out-of-place operations");
 
-  host_unchecked_contains_sub_slice<uint64_t>(
+  host_unchecked_contains_sub_slice_async<uint64_t>(
       CudaStreams(streams), match_ct, lhs, rhs, num_rhs, num_blocks,
       (int_unchecked_contains_sub_slice_buffer<uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);

@@ -41,7 +41,7 @@ void cuda_integer_bitonic_shuffle_64_async(CudaStreamsFFI streams,
                                            void *const *ksks) {
 
   PUSH_RANGE("bitonic shuffle")
-  host_bitonic_shuffle<uint64_t>(
+  host_bitonic_shuffle_async<uint64_t>(
       CudaStreams(streams), keys, values, num_values,
       (int_bitonic_shuffle_buffer<uint64_t> *)mem_ptr, bsks, (uint64_t **)ksks);
   POP_RANGE()
@@ -115,7 +115,7 @@ void cuda_integer_oprf_bitonic_shuffle_64_async(
     void *const *rerand_ksks) {
 
   PUSH_RANGE("oprf bitonic shuffle")
-  host_oprf_bitonic_shuffle<uint64_t>(
+  host_oprf_bitonic_shuffle_async<uint64_t>(
       CudaStreams(streams), values, num_values,
       static_cast<const uint64_t *>(seeded_lwe_input),
       static_cast<const uint64_t *>(

@@ -21,8 +21,8 @@ void cuda_integer_abs_inplace_64_async(CudaStreamsFFI streams,
 
   auto mem = (int_abs_buffer<uint64_t> *)mem_ptr;
 
-  host_integer_abs<uint64_t>(CudaStreams(streams), ct, bsks,
-                             (uint64_t **)(ksks), mem, is_signed);
+  host_integer_abs_async<uint64_t>(CudaStreams(streams), ct, bsks,
+                                   (uint64_t **)(ksks), mem, is_signed);
 }
 
 void cleanup_cuda_integer_abs_inplace_64(CudaStreamsFFI streams,

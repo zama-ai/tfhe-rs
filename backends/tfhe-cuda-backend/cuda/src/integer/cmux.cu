@@ -41,10 +41,10 @@ void cuda_cmux_64_async(CudaStreamsFFI streams,
       "Output and false-branch pointers must be different for out-of-place "
       "operations");
   PUSH_RANGE("cmux")
-  host_cmux<uint64_t>(CudaStreams(streams), lwe_array_out, lwe_condition,
-                      lwe_array_true, lwe_array_false,
-                      (int_cmux_buffer<uint64_t> *)mem_ptr, bsks,
-                      (uint64_t **)(ksks));
+  host_cmux_async<uint64_t>(CudaStreams(streams), lwe_array_out, lwe_condition,
+                            lwe_array_true, lwe_array_false,
+                            (int_cmux_buffer<uint64_t> *)mem_ptr, bsks,
+                            (uint64_t **)(ksks));
   POP_RANGE()
 }
 

@@ -33,7 +33,7 @@ void cuda_unchecked_match_value_64_async(
                  "Result and boolean output pointers must be different for "
                  "out-of-place operations");
 
-  host_unchecked_match_value<uint64_t>(
+  host_unchecked_match_value_async<uint64_t>(
       CudaStreams(streams), lwe_array_out_result, lwe_array_out_boolean,
       lwe_array_in_ct, h_match_inputs, h_match_outputs,
       (int_unchecked_match_buffer<uint64_t> *)mem, bsks,
@@ -79,7 +79,7 @@ void cuda_unchecked_match_value_or_64_async(
                  "Output and input pointers must be different for out-of-place "
                  "operations");
 
-  host_unchecked_match_value_or<uint64_t>(
+  host_unchecked_match_value_or_async<uint64_t>(
       CudaStreams(streams), lwe_array_out, lwe_array_in_ct, h_match_inputs,
       h_match_outputs, h_or_value,
       (int_unchecked_match_value_or_buffer<uint64_t> *)mem, bsks,
@@ -125,7 +125,7 @@ void cuda_unchecked_contains_64_async(CudaStreamsFFI streams,
                  "Output and second input pointers must be different for "
                  "out-of-place operations");
 
-  host_unchecked_contains<uint64_t>(
+  host_unchecked_contains_async<uint64_t>(
       CudaStreams(streams), output, inputs, value, num_inputs, num_blocks,
       (int_unchecked_contains_buffer<uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
@@ -165,7 +165,7 @@ void cuda_unchecked_contains_clear_64_async(
   PANIC_IF_FALSE(output != inputs, "Output and input pointers must be "
                                    "different for out-of-place operations");
 
-  host_unchecked_contains_clear<uint64_t>(
+  host_unchecked_contains_clear_async<uint64_t>(
       CudaStreams(streams), output, inputs, h_clear_val, num_inputs, num_blocks,
       (int_unchecked_contains_clear_buffer<uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
@@ -205,7 +205,7 @@ void cuda_unchecked_is_in_clears_64_async(
   PANIC_IF_FALSE(output != input, "Output and input pointers must be different "
                                   "for out-of-place operations");
 
-  host_unchecked_is_in_clears<uint64_t>(
+  host_unchecked_is_in_clears_async<uint64_t>(
       CudaStreams(streams), output, input, h_cleartexts, num_clears, num_blocks,
       (int_unchecked_is_in_clears_buffer<uint64_t> *)mem, bsks,
       (uint64_t *const *)ksks);
@@ -252,7 +252,7 @@ void cuda_unchecked_index_in_clears_64_async(
                  "Index and match output pointers must be different for "
                  "out-of-place operations");
 
-  host_unchecked_index_in_clears<uint64_t>(
+  host_unchecked_index_in_clears_async<uint64_t>(
       CudaStreams(streams), index_ct, match_ct, input, h_cleartexts, num_clears,
       num_blocks, num_blocks_index,
       (int_unchecked_index_in_clears_buffer<uint64_t> *)mem, bsks,
@@ -300,7 +300,7 @@ void cuda_unchecked_first_index_in_clears_64_async(
                  "Index and match output pointers must be different for "
                  "out-of-place operations");
 
-  host_unchecked_first_index_in_clears<uint64_t>(
+  host_unchecked_first_index_in_clears_async<uint64_t>(
       CudaStreams(streams), index_ct, match_ct, input, h_unique_values,
       h_unique_indices, num_unique, num_blocks, num_blocks_index,
       (int_unchecked_first_index_in_clears_buffer<uint64_t> *)mem, bsks,
@@ -348,7 +348,7 @@ void cuda_unchecked_first_index_of_clear_64_async(
                  "Index and match output pointers must be different for "
                  "out-of-place operations");
 
-  host_unchecked_first_index_of_clear<uint64_t>(
+  host_unchecked_first_index_of_clear_async<uint64_t>(
       CudaStreams(streams), index_ct, match_ct, inputs, h_clear_val, num_inputs,
       num_blocks, num_blocks_index,
       (int_unchecked_first_index_of_clear_buffer<uint64_t> *)mem, bsks,
@@ -396,7 +396,7 @@ void cuda_unchecked_first_index_of_64_async(
                  "Index and match output pointers must be different for "
                  "out-of-place operations");
 
-  host_unchecked_first_index_of<uint64_t>(
+  host_unchecked_first_index_of_async<uint64_t>(
       CudaStreams(streams), index_ct, match_ct, inputs, value, num_inputs,
       num_blocks, num_blocks_index,
       (int_unchecked_first_index_of_buffer<uint64_t> *)mem, bsks,
@@ -445,7 +445,7 @@ void cuda_unchecked_index_of_64_async(CudaStreamsFFI streams,
                  "Index and match output pointers must be different for "
                  "out-of-place operations");
 
-  host_unchecked_index_of<uint64_t>(
+  host_unchecked_index_of_async<uint64_t>(
       CudaStreams(streams), index_ct, match_ct, inputs, value, num_inputs,
       num_blocks, num_blocks_index,
       (int_unchecked_index_of_buffer<uint64_t> *)mem, bsks,
@@ -493,7 +493,7 @@ void cuda_unchecked_index_of_clear_64_async(
                  "Index and match output pointers must be different for "
                  "out-of-place operations");
 
-  host_unchecked_index_of_clear<uint64_t>(
+  host_unchecked_index_of_clear_async<uint64_t>(
       CudaStreams(streams), index_ct, match_ct, inputs, h_clear_val,
       is_scalar_obviously_bigger, num_inputs, num_blocks, num_blocks_index,
       (int_unchecked_index_of_clear_buffer<uint64_t> *)mem, bsks,

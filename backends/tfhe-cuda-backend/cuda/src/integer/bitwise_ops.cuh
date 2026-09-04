@@ -23,12 +23,13 @@ __host__ uint64_t scratch_cuda_boolean_bitop(
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void host_boolean_bitop(CudaStreams streams,
-                                 CudaRadixCiphertextFFI *lwe_array_out,
-                                 CudaRadixCiphertextFFI const *lwe_array_1,
-                                 CudaRadixCiphertextFFI const *lwe_array_2,
-                                 boolean_bitop_buffer<Torus> *mem_ptr,
-                                 void *const *bsks, KSTorus *const *ksks) {
+__host__ void
+host_boolean_bitop_async(CudaStreams streams,
+                         CudaRadixCiphertextFFI *lwe_array_out,
+                         CudaRadixCiphertextFFI const *lwe_array_1,
+                         CudaRadixCiphertextFFI const *lwe_array_2,
+                         boolean_bitop_buffer<Torus> *mem_ptr,
+                         void *const *bsks, KSTorus *const *ksks) {
 
   PANIC_IF_FALSE(
       lwe_array_out->num_radix_blocks == lwe_array_1->num_radix_blocks &&
@@ -164,9 +165,9 @@ __host__ void host_boolean_bitop(CudaStreams streams,
 // updates degrees based on `ct_message_modulus`
 template <typename Torus>
 __host__ void
-host_bitnot(CudaStreams streams, CudaRadixCiphertextFFI *radix_ciphertext,
-            uint32_t ct_message_modulus, uint32_t param_message_modulus,
-            uint32_t param_carry_modulus) {
+host_bitnot_async(CudaStreams streams, CudaRadixCiphertextFFI *radix_ciphertext,
+                  uint32_t ct_message_modulus, uint32_t param_message_modulus,
+                  uint32_t param_carry_modulus) {
 
   constexpr Torus TORUS_ONE = (sizeof(Torus) == 4) ? 1U : 1ULL;
   const Torus encoded_scalar =
@@ -175,12 +176,12 @@ host_bitnot(CudaStreams streams, CudaRadixCiphertextFFI *radix_ciphertext,
                                    param_carry_modulus))) *
       (ct_message_modulus - 1);
 
-  host_negation<Torus>(streams.stream(0), streams.gpu_index(0),
-                       radix_ciphertext, radix_ciphertext,
-                       radix_ciphertext->num_radix_blocks,
-                       param_message_modulus, param_carry_modulus);
+  host_negation_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                             radix_ciphertext, radix_ciphertext,
+                             radix_ciphertext->num_radix_blocks,
+                             param_message_modulus, param_carry_modulus);
 
-  host_addition_plaintext_scalar<Torus>(
+  host_addition_plaintext_scalar_async<Torus>(
       streams.stream(0), streams.gpu_index(0), radix_ciphertext,
       radix_ciphertext, encoded_scalar, (uint64_t)(ct_message_modulus - 1),
       radix_ciphertext->lwe_dimension, radix_ciphertext->num_radix_blocks,
@@ -205,10 +206,11 @@ __host__ uint64_t scratch_cuda_boolean_bitnot(
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void host_boolean_bitnot(CudaStreams streams,
-                                  CudaRadixCiphertextFFI *lwe_array,
-                                  boolean_bitnot_buffer<Torus> *mem_ptr,
-                                  void *const *bsks, KSTorus *const *ksks) {
+__host__ void host_boolean_bitnot_async(CudaStreams streams,
+                                        CudaRadixCiphertextFFI *lwe_array,
+                                        boolean_bitnot_buffer<Torus> *mem_ptr,
+                                        void *const *bsks,
+                                        KSTorus *const *ksks) {
   bool carries_empty = true;
   for (size_t i = 0; i < lwe_array->num_radix_blocks; ++i) {
     if (lwe_array->degrees[i] >= mem_ptr->params.message_modulus) {
@@ -222,20 +224,21 @@ __host__ void host_boolean_bitnot(CudaStreams streams,
         lwe_array->num_radix_blocks);
   }
 
-  host_bitnot<Torus>(streams, lwe_array, 2, mem_ptr->params.message_modulus,
-                     mem_ptr->params.carry_modulus);
-  // we don't need to update degrees, because `host_bitnot` updates degrees
-  // based on ct_message_modulus and not param_message_modulus
-  // this function calls `host_bitnot` with `ct_message_modulus = 2`
+  host_bitnot_async<Torus>(streams, lwe_array, 2,
+                           mem_ptr->params.message_modulus,
+                           mem_ptr->params.carry_modulus);
+  // we don't need to update degrees, because `host_bitnot_async` updates
+  // degrees based on ct_message_modulus and not param_message_modulus this
+  // function calls `host_bitnot_async` with `ct_message_modulus = 2`
 }
 
 template <typename Torus, typename KSTorus>
-__host__ void host_bitop(CudaStreams streams,
-                         CudaRadixCiphertextFFI *lwe_array_out,
-                         CudaRadixCiphertextFFI const *lwe_array_1,
-                         CudaRadixCiphertextFFI const *lwe_array_2,
-                         int_bitop_buffer<Torus> *mem_ptr, void *const *bsks,
-                         KSTorus *const *ksks) {
+__host__ void host_bitop_async(CudaStreams streams,
+                               CudaRadixCiphertextFFI *lwe_array_out,
+                               CudaRadixCiphertextFFI const *lwe_array_1,
+                               CudaRadixCiphertextFFI const *lwe_array_2,
+                               int_bitop_buffer<Torus> *mem_ptr,
+                               void *const *bsks, KSTorus *const *ksks) {
 
   PANIC_IF_FALSE(
       lwe_array_out->num_radix_blocks == lwe_array_1->num_radix_blocks &&

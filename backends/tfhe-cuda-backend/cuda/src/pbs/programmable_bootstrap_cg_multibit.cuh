@@ -389,7 +389,7 @@ __host__ void execute_cg_external_product_loop(
 }
 
 template <typename Torus, class params>
-__host__ void host_cg_multi_bit_programmable_bootstrap(
+__host__ void host_cg_multi_bit_programmable_bootstrap_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -421,10 +421,11 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
   }
 }
 
-// Noise tests variant: identical to host_cg_multi_bit_programmable_bootstrap
-// but uses NOISE_TESTS keybundle mode.
+// Noise tests variant: identical to
+// host_cg_multi_bit_programmable_bootstrap_async but uses NOISE_TESTS keybundle
+// mode.
 template <typename Torus, class params>
-__host__ void host_cg_multi_bit_programmable_bootstrap_noise_tests(
+__host__ void host_cg_multi_bit_programmable_bootstrap_noise_tests_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,

@@ -105,7 +105,7 @@
  * and then sample-extracts the requested LWE from the GLWE.
  *
  * -----------------------------------------------------------------------------
- * EXTRACT OUTPUT LAYOUT (glwe_array_out in host_extract)
+ * EXTRACT OUTPUT LAYOUT (glwe_array_out in host_extract_async)
  * -----------------------------------------------------------------------------
  *
  *  +-------------------------------------------------------------------------+
@@ -173,10 +173,10 @@ __global__ void pack(Torus *array_out, Torus const *array_in,
 ///            For strided layout (packing keyswitch output), in_stride ==
 ///            (k+1)*N.
 template <typename Torus>
-__host__ void host_pack(cudaStream_t stream, uint32_t gpu_index,
-                        Torus *packed_out, Torus const *array_in,
-                        uint32_t log_modulus, uint32_t num_glwes,
-                        uint32_t in_len, uint32_t in_stride) {
+__host__ void host_pack_async(cudaStream_t stream, uint32_t gpu_index,
+                              Torus *packed_out, Torus const *array_in,
+                              uint32_t log_modulus, uint32_t num_glwes,
+                              uint32_t in_len, uint32_t in_stride) {
   if (array_in == packed_out)
     PANIC("Cuda error: Input and output must be different");
 
@@ -197,11 +197,10 @@ __host__ void host_pack(cudaStream_t stream, uint32_t gpu_index,
 }
 
 template <typename Torus>
-__host__ void
-host_integer_compress(CudaStreams streams,
-                      CudaPackedGlweCiphertextListFFI *glwe_array_out,
-                      CudaLweCiphertextListFFI const *lwe_array_in,
-                      Torus *const *fp_ksk, int_compression<Torus> *mem_ptr) {
+__host__ void host_integer_compress_async(
+    CudaStreams streams, CudaPackedGlweCiphertextListFFI *glwe_array_out,
+    CudaLweCiphertextListFFI const *lwe_array_in, Torus *const *fp_ksk,
+    int_compression<Torus> *mem_ptr) {
 
   static_assert(std::is_same_v<Torus, uint64_t> ||
                     std::is_same_v<Torus, __uint128_t>,
@@ -214,7 +213,7 @@ host_integer_compress(CudaStreams streams,
 
   if constexpr (std::is_same_v<Torus, uint64_t>) {
     lwe_pksk_input = mem_ptr->tmp_lwe;
-    host_cleartext_multiplication_unsafe_no_degrees<Torus>(
+    host_cleartext_multiplication_unsafe_no_degrees_async<Torus>(
         streams.stream(0), streams.gpu_index(0), lwe_pksk_input, lwe_array_in,
         (uint64_t)compression_params.message_modulus);
   }
@@ -258,7 +257,7 @@ host_integer_compress(CudaStreams streams,
   while (rem_lwes > 0) {
     auto chunk_size = min(rem_lwes, glwe_array_out->num_lwes_stored_per_glwe);
 
-    host_packing_keyswitch_lwe_list_to_glwe<Torus>(
+    host_packing_keyswitch_lwe_list_to_glwe_async<Torus>(
         streams.stream(0), streams.gpu_index(0), glwe_out, lwe_pksk_input,
         fp_ksk[0], fp_ks_buffer, compression_params.small_lwe_dimension,
         compression_params.glwe_dimension, compression_params.polynomial_size,
@@ -278,16 +277,16 @@ host_integer_compress(CudaStreams streams,
   // Strided modswitch: process only the meaningful elements of each GLWE,
   // skipping garbage body positions [num_lwes_stored_per_glwe,
   // polynomial_size).
-  host_modulus_switch_strided_inplace<Torus>(
+  host_modulus_switch_strided_inplace_async<Torus>(
       streams.stream(0), streams.gpu_index(0), tmp_glwe_array_out, num_glwes,
       per_glwe_in_len, glwe_out_size, glwe_array_out->storage_log_modulus);
 
   // Pack per-GLWE: read per_glwe_in_len elements from each GLWE in the
   // strided buffer (stride = glwe_out_size), pack into per-GLWE chunks.
-  host_pack<Torus>(streams.stream(0), streams.gpu_index(0),
-                   (Torus *)glwe_array_out->ptr, tmp_glwe_array_out,
-                   glwe_array_out->storage_log_modulus, num_glwes,
-                   per_glwe_in_len, glwe_out_size);
+  host_pack_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                         (Torus *)glwe_array_out->ptr, tmp_glwe_array_out,
+                         glwe_array_out->storage_log_modulus, num_glwes,
+                         per_glwe_in_len, glwe_out_size);
 }
 
 template <typename Torus>
@@ -326,10 +325,9 @@ __global__ void extract(Torus *glwe_array_out, Torus const *array_in,
 /// Extracts the glwe_index-nth GLWE ciphertext
 /// This function follows the naming used in the CPU implementation
 template <typename Torus>
-__host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
-                           Torus *glwe_array_out,
-                           CudaPackedGlweCiphertextListFFI const *array_in,
-                           uint32_t glwe_index) {
+__host__ void host_extract_async(
+    cudaStream_t stream, uint32_t gpu_index, Torus *glwe_array_out,
+    CudaPackedGlweCiphertextListFFI const *array_in, uint32_t glwe_index) {
   if ((Torus *)array_in->ptr == glwe_array_out)
     PANIC("Cuda error: Input and output must be different");
 
@@ -396,12 +394,11 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
 }
 
 template <typename Torus>
-__host__ void
-host_integer_decompress(CudaStreams streams,
-                        CudaLweCiphertextListFFI *d_lwe_array_out,
-                        CudaPackedGlweCiphertextListFFI const *d_packed_glwe_in,
-                        uint32_t const *h_indexes_array, void *const *d_bsks,
-                        int_decompression<Torus> *h_mem_ptr) {
+__host__ void host_integer_decompress_async(
+    CudaStreams streams, CudaLweCiphertextListFFI *d_lwe_array_out,
+    CudaPackedGlweCiphertextListFFI const *d_packed_glwe_in,
+    uint32_t const *h_indexes_array, void *const *d_bsks,
+    int_decompression<Torus> *h_mem_ptr) {
 
   static_assert(std::is_same_v<Torus, uint64_t> ||
                     std::is_same_v<Torus, __uint128_t>,
@@ -425,8 +422,9 @@ host_integer_decompress(CudaStreams streams,
 
   auto current_glwe_index = h_indexes_array[0] / num_lwes_stored_per_glwe;
   auto extracted_glwe = h_mem_ptr->tmp_extracted_glwe;
-  host_extract<Torus>(streams.stream(0), streams.gpu_index(0), extracted_glwe,
-                      d_packed_glwe_in, current_glwe_index);
+  host_extract_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                            extracted_glwe, d_packed_glwe_in,
+                            current_glwe_index);
   glwe_vec.push_back(std::make_pair(1, extracted_glwe));
   for (int i = 1; i < num_blocks_to_decompress; i++) {
     auto glwe_index = h_indexes_array[i] / num_lwes_stored_per_glwe;
@@ -434,8 +432,8 @@ host_integer_decompress(CudaStreams streams,
       extracted_glwe += glwe_accumulator_size;
       current_glwe_index = glwe_index;
       // Extracts a new GLWE
-      host_extract<Torus>(streams.stream(0), streams.gpu_index(0),
-                          extracted_glwe, d_packed_glwe_in, glwe_index);
+      host_extract_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                                extracted_glwe, d_packed_glwe_in, glwe_index);
       glwe_vec.push_back(std::make_pair(1, extracted_glwe));
     } else {
       // Updates the quantity

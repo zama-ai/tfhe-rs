@@ -109,19 +109,22 @@ __host__ void trivium_compute_64_steps(
 
   // Compute linear feedback terms
   // t1 <- a66 + a93
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), ws->temp_t1,
-                       &a65_slice, &a92_slice, ws->temp_t1->num_radix_blocks,
-                       params.message_modulus, params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                             ws->temp_t1, &a65_slice, &a92_slice,
+                             ws->temp_t1->num_radix_blocks,
+                             params.message_modulus, params.carry_modulus);
 
   // t2 <- b69 + b84
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), ws->temp_t2,
-                       &b68_slice, &b83_slice, ws->temp_t2->num_radix_blocks,
-                       params.message_modulus, params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                             ws->temp_t2, &b68_slice, &b83_slice,
+                             ws->temp_t2->num_radix_blocks,
+                             params.message_modulus, params.carry_modulus);
 
   // t3 <- c66 + c111
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), ws->temp_t3,
-                       &c65_slice, &c110_slice, ws->temp_t3->num_radix_blocks,
-                       params.message_modulus, params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                             ws->temp_t3, &c65_slice, &c110_slice,
+                             ws->temp_t3->num_radix_blocks,
+                             params.message_modulus, params.carry_modulus);
 
   // Flush t3 (extract message bits and reset noise) so it can be reused below
   integer_radix_apply_univariate_lookup_table<Torus>(
@@ -175,39 +178,42 @@ __host__ void trivium_compute_64_steps(
                                    3 * batch_size_blocks);
 
   // new_a <- t3 + a69 + and_res_a
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), ws->new_a,
-                       ws->temp_t3, &a68_slice, ws->new_a->num_radix_blocks,
-                       params.message_modulus, params.carry_modulus);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), ws->new_a,
-                       ws->new_a, &and_res_a, ws->new_a->num_radix_blocks,
-                       params.message_modulus, params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0), ws->new_a,
+                             ws->temp_t3, &a68_slice,
+                             ws->new_a->num_radix_blocks,
+                             params.message_modulus, params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0), ws->new_a,
+                             ws->new_a, &and_res_a, ws->new_a->num_radix_blocks,
+                             params.message_modulus, params.carry_modulus);
 
   // new_b <- t1 + b78 + and_res_b
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), ws->new_b,
-                       ws->temp_t1, &b77_slice, ws->new_b->num_radix_blocks,
-                       params.message_modulus, params.carry_modulus);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), ws->new_b,
-                       ws->new_b, &and_res_b, ws->new_b->num_radix_blocks,
-                       params.message_modulus, params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0), ws->new_b,
+                             ws->temp_t1, &b77_slice,
+                             ws->new_b->num_radix_blocks,
+                             params.message_modulus, params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0), ws->new_b,
+                             ws->new_b, &and_res_b, ws->new_b->num_radix_blocks,
+                             params.message_modulus, params.carry_modulus);
 
   // new_c <- t2 + c87 + and_res_c
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), ws->new_c,
-                       ws->temp_t2, &c86_slice, ws->new_c->num_radix_blocks,
-                       params.message_modulus, params.carry_modulus);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), ws->new_c,
-                       ws->new_c, &and_res_c, ws->new_c->num_radix_blocks,
-                       params.message_modulus, params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0), ws->new_c,
+                             ws->temp_t2, &c86_slice,
+                             ws->new_c->num_radix_blocks,
+                             params.message_modulus, params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0), ws->new_c,
+                             ws->new_c, &and_res_c, ws->new_c->num_radix_blocks,
+                             params.message_modulus, params.carry_modulus);
 
   if (output_dest != nullptr) {
     // z <- t1 + t2 + t3
-    host_addition<Torus>(streams.stream(0), streams.gpu_index(0), output_dest,
-                         ws->temp_t1, ws->temp_t2,
-                         output_dest->num_radix_blocks, params.message_modulus,
-                         params.carry_modulus);
-    host_addition<Torus>(streams.stream(0), streams.gpu_index(0), output_dest,
-                         output_dest, ws->temp_t3,
-                         output_dest->num_radix_blocks, params.message_modulus,
-                         params.carry_modulus);
+    host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                               output_dest, ws->temp_t1, ws->temp_t2,
+                               output_dest->num_radix_blocks,
+                               params.message_modulus, params.carry_modulus);
+    host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                               output_dest, output_dest, ws->temp_t3,
+                               output_dest->num_radix_blocks,
+                               params.message_modulus, params.carry_modulus);
   }
 
   // Pack new_a, new_b, new_c (and z when an output is requested) into a single
@@ -278,13 +284,12 @@ __host__ void trivium_compute_64_steps(
 // Sets up the initial state: loads Key and IV, fixes constants,
 // and runs the warm-up phase (1152 steps).
 template <typename Torus>
-__host__ void
-host_trivium_init(CudaStreams streams, int_trivium_buffer<Torus> *buffer,
-                  CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
-                  CudaRadixCiphertextFFI *c_reg,
-                  const CudaRadixCiphertextFFI *key_bitsliced,
-                  const CudaRadixCiphertextFFI *iv_bitsliced, void *const *bsks,
-                  uint64_t *const *ksks) {
+__host__ void host_trivium_init_async(
+    CudaStreams streams, int_trivium_buffer<Torus> *buffer,
+    CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
+    CudaRadixCiphertextFFI *c_reg, const CudaRadixCiphertextFFI *key_bitsliced,
+    const CudaRadixCiphertextFFI *iv_bitsliced, void *const *bsks,
+    uint64_t *const *ksks) {
 
   uint32_t N = buffer->num_inputs;
   auto ws = buffer->ws;
@@ -318,7 +323,7 @@ host_trivium_init(CudaStreams streams, int_trivium_buffer<Torus> *buffer,
   slice_reg_batch<Torus>(&dest_c_ones, c_reg, TRIVIUM_REGISTER_C_BITS - 3, 3,
                          N);
 
-  host_add_scalar_one_inplace<Torus>(
+  host_add_scalar_one_inplace_async<Torus>(
       streams, &dest_c_ones, params.message_modulus, params.carry_modulus);
   integer_radix_apply_univariate_lookup_table<Torus>(
       streams, &dest_c_ones, &dest_c_ones, bsks, ksks, buffer->luts->flush_lut,
@@ -331,12 +336,12 @@ host_trivium_init(CudaStreams streams, int_trivium_buffer<Torus> *buffer,
 }
 
 template <typename Torus>
-__host__ void
-host_trivium_step(CudaStreams streams, CudaRadixCiphertextFFI *keystream_output,
-                  CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
-                  CudaRadixCiphertextFFI *c_reg, uint32_t num_steps,
-                  int_trivium_buffer<Torus> *buffer, void *const *bsks,
-                  uint64_t *const *ksks) {
+__host__ void host_trivium_step_async(
+    CudaStreams streams, CudaRadixCiphertextFFI *keystream_output,
+    CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
+    CudaRadixCiphertextFFI *c_reg, uint32_t num_steps,
+    int_trivium_buffer<Torus> *buffer, void *const *bsks,
+    uint64_t *const *ksks) {
 
   PANIC_IF_FALSE(
       num_steps % TRIVIUM_BATCH_SIZE == 0,

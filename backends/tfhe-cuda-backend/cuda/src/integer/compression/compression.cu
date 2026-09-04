@@ -52,18 +52,18 @@ void cuda_integer_compress_radix_ciphertext_64_async(
     CudaLweCiphertextListFFI const *lwe_array_in, void *const *fp_ksk,
     int8_t *mem_ptr) {
 
-  host_integer_compress<uint64_t>(CudaStreams(streams), glwe_array_out,
-                                  lwe_array_in, (uint64_t *const *)(fp_ksk),
-                                  (int_compression<uint64_t> *)mem_ptr);
+  host_integer_compress_async<uint64_t>(
+      CudaStreams(streams), glwe_array_out, lwe_array_in,
+      (uint64_t *const *)(fp_ksk), (int_compression<uint64_t> *)mem_ptr);
 }
 void cuda_integer_decompress_radix_ciphertext_64_async(
     CudaStreamsFFI streams, CudaLweCiphertextListFFI *lwe_array_out,
     CudaPackedGlweCiphertextListFFI const *glwe_in,
     uint32_t const *indexes_array, void *const *bsks, int8_t *mem_ptr) {
 
-  host_integer_decompress<uint64_t>(CudaStreams(streams), lwe_array_out,
-                                    glwe_in, indexes_array, bsks,
-                                    (int_decompression<uint64_t> *)mem_ptr);
+  host_integer_decompress_async<uint64_t>(
+      CudaStreams(streams), lwe_array_out, glwe_in, indexes_array, bsks,
+      (int_decompression<uint64_t> *)mem_ptr);
 }
 void cleanup_cuda_integer_compress_radix_ciphertext_64(CudaStreamsFFI streams,
                                                        int8_t **mem_ptr_void) {
@@ -127,7 +127,7 @@ void cuda_integer_compress_radix_ciphertext_128_async(
     CudaLweCiphertextListFFI const *lwe_array_in, void *const *fp_ksk,
     int8_t *mem_ptr) {
 
-  host_integer_compress<__uint128_t>(
+  host_integer_compress_async<__uint128_t>(
       CudaStreams(streams), glwe_array_out, lwe_array_in,
       (__uint128_t *const *)(fp_ksk), (int_compression<__uint128_t> *)mem_ptr);
 }
@@ -136,7 +136,7 @@ void cuda_integer_decompress_radix_ciphertext_128_async(
     CudaPackedGlweCiphertextListFFI const *glwe_in,
     uint32_t const *indexes_array, int8_t *mem_ptr) {
 
-  host_integer_decompress<__uint128_t>(
+  host_integer_decompress_async<__uint128_t>(
       CudaStreams(streams), lwe_array_out, glwe_in, indexes_array, nullptr,
       (int_decompression<__uint128_t> *)mem_ptr);
 }
@@ -168,9 +168,9 @@ void cuda_integer_extract_glwe_128_async(
     uint32_t const glwe_index) {
 
   CudaStreams _streams = CudaStreams(streams);
-  host_extract<__uint128_t>(_streams.stream(0), _streams.gpu_index(0),
-                            (__uint128_t *)glwe_array_out, glwe_list,
-                            glwe_index);
+  host_extract_async<__uint128_t>(_streams.stream(0), _streams.gpu_index(0),
+                                  (__uint128_t *)glwe_array_out, glwe_list,
+                                  glwe_index);
 }
 
 void cuda_integer_extract_glwe_64_async(
@@ -179,6 +179,7 @@ void cuda_integer_extract_glwe_64_async(
     uint32_t const glwe_index) {
 
   CudaStreams _streams = CudaStreams(streams);
-  host_extract<__uint64_t>(_streams.stream(0), _streams.gpu_index(0),
-                           (__uint64_t *)glwe_array_out, glwe_list, glwe_index);
+  host_extract_async<__uint64_t>(_streams.stream(0), _streams.gpu_index(0),
+                                 (__uint64_t *)glwe_array_out, glwe_list,
+                                 glwe_index);
 }

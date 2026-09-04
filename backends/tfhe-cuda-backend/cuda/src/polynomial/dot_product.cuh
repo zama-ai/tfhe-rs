@@ -62,7 +62,7 @@ cleanup_wrapping_polynomial_mul_one_to_many(void *stream, uint32_t gpu_index,
 // from the lhs and uses matrix multiplication to
 // compute the polynomial multiplication
 template <typename Torus, typename TorusVec>
-__host__ void host_wrapping_polynomial_mul_one_to_many(
+__host__ void host_wrapping_polynomial_mul_one_to_many_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *result,
     const Torus *poly_lhs, int8_t *circulant, const Torus *poly_rhs,
     uint32_t polynomial_size, uint32_t glwe_dimension, uint32_t n_rhs) {
@@ -97,13 +97,13 @@ __host__ void host_wrapping_polynomial_mul_one_to_many(
 }
 
 template <typename Torus, typename TorusVec>
-__host__ void host_glwe_wrapping_polynomial_mul_one_to_many(
+__host__ void host_glwe_wrapping_polynomial_mul_one_to_many_async(
     cudaStream_t stream, uint32_t gpu_index, Torus *result,
     const Torus *glwe_lhs, int8_t *circulant, const Torus *poly_rhs,
     uint32_t polynomial_size, uint32_t glwe_dimension, uint32_t n_rhs) {
 
   for (unsigned i = 0; i < glwe_dimension + 1; ++i) {
-    host_wrapping_polynomial_mul_one_to_many<uint64_t, ulonglong4>(
+    host_wrapping_polynomial_mul_one_to_many_async<uint64_t, ulonglong4>(
         stream, gpu_index, result + i * polynomial_size,
         glwe_lhs + i * polynomial_size, circulant, poly_rhs, polynomial_size,
         glwe_dimension, n_rhs);

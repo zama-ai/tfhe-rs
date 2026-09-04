@@ -39,7 +39,7 @@ void cuda_integer_aes_ctr_encrypt_64_async(
     const uint64_t *counter_bits_le_all_blocks, uint32_t num_aes_inputs,
     int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
 
-  host_integer_aes_ctr_encrypt<uint64_t>(
+  host_integer_aes_ctr_encrypt_async<uint64_t>(
       CudaStreams(streams), output, iv, round_keys, counter_bits_le_all_blocks,
       num_aes_inputs, (int_aes_encrypt_buffer<uint64_t> *)mem_ptr, bsks,
       (uint64_t **)ksks);
@@ -90,7 +90,7 @@ void cuda_integer_key_expansion_64_async(CudaStreamsFFI streams,
                                          int8_t *mem_ptr, void *const *bsks,
                                          void *const *ksks) {
 
-  host_integer_key_expansion<uint64_t>(
+  host_integer_key_expansion_async<uint64_t>(
       CudaStreams(streams), expanded_keys, key,
       (int_key_expansion_buffer<uint64_t> *)mem_ptr, bsks, (uint64_t **)ksks);
 }

@@ -42,7 +42,7 @@ void cuda_small_scalar_multiplication_integer_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array, uint64_t scalar,
     const uint32_t message_modulus, const uint32_t carry_modulus) {
 
-  host_integer_small_scalar_mul_radix<uint64_t>(CudaStreams(streams), lwe_array,
-                                                lwe_array, scalar,
-                                                message_modulus, carry_modulus);
+  host_integer_small_scalar_mul_radix_async<uint64_t>(
+      CudaStreams(streams), lwe_array, lwe_array, scalar, message_modulus,
+      carry_modulus);
 }

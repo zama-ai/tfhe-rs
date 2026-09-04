@@ -60,20 +60,24 @@ __host__ void kreyvium_compute_64_steps(
 
   // Compute linear feedback terms
   // temp_a <- a65 + a92
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), ws->temp_a,
-                       &a65, &a92, ws->temp_a->num_radix_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
+  host_addition_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), ws->temp_a, &a65, &a92,
+      ws->temp_a->num_radix_blocks, mem->params.message_modulus,
+      mem->params.carry_modulus);
   // temp_b <- b68 + b83
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), ws->temp_b,
-                       &b68, &b83, ws->temp_b->num_radix_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
+  host_addition_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), ws->temp_b, &b68, &b83,
+      ws->temp_b->num_radix_blocks, mem->params.message_modulus,
+      mem->params.carry_modulus);
   // temp_c <- c65 + c110 + k127
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), ws->temp_c,
-                       &c65, &c110, ws->temp_c->num_radix_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), ws->temp_c,
-                       ws->temp_c, &k127, ws->temp_c->num_radix_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
+  host_addition_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), ws->temp_c, &c65, &c110,
+      ws->temp_c->num_radix_blocks, mem->params.message_modulus,
+      mem->params.carry_modulus);
+  host_addition_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), ws->temp_c, ws->temp_c, &k127,
+      ws->temp_c->num_radix_blocks, mem->params.message_modulus,
+      mem->params.carry_modulus);
 
   // Flush temp_c (extract message bits and reset noise) so it can be reused
   // below
@@ -121,39 +125,48 @@ __host__ void kreyvium_compute_64_steps(
                                      (i + 1) * batch_size_blocks);
 
   // new_a <- (c109 & c108) + a68 + temp_c
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_new_a,
-                       &and_c109_c108, &a68, batch_size_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_new_a,
-                       &flush_new_a, ws->temp_c, batch_size_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                             &flush_new_a, &and_c109_c108, &a68,
+                             batch_size_blocks, mem->params.message_modulus,
+                             mem->params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                             &flush_new_a, &flush_new_a, ws->temp_c,
+                             batch_size_blocks, mem->params.message_modulus,
+                             mem->params.carry_modulus);
 
   // new_b <- (a91 & a90) + b77 + temp_a + iv127
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_new_b,
-                       &and_a91_a90, &b77, batch_size_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_new_b,
-                       &flush_new_b, ws->temp_a, batch_size_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_new_b,
-                       &flush_new_b, &iv127, batch_size_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                             &flush_new_b, &and_a91_a90, &b77,
+                             batch_size_blocks, mem->params.message_modulus,
+                             mem->params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                             &flush_new_b, &flush_new_b, ws->temp_a,
+                             batch_size_blocks, mem->params.message_modulus,
+                             mem->params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                             &flush_new_b, &flush_new_b, &iv127,
+                             batch_size_blocks, mem->params.message_modulus,
+                             mem->params.carry_modulus);
 
   // new_c <- (b82 & b81) + c86 + temp_b
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_new_c,
-                       &and_b82_b81, &c86, batch_size_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_new_c,
-                       &flush_new_c, ws->temp_b, batch_size_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                             &flush_new_c, &and_b82_b81, &c86,
+                             batch_size_blocks, mem->params.message_modulus,
+                             mem->params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                             &flush_new_c, &flush_new_c, ws->temp_b,
+                             batch_size_blocks, mem->params.message_modulus,
+                             mem->params.carry_modulus);
 
   // out <- temp_a + temp_b + temp_c
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_out,
-                       ws->temp_a, ws->temp_b, batch_size_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
-  host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &flush_out,
-                       &flush_out, ws->temp_c, batch_size_blocks,
-                       mem->params.message_modulus, mem->params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                             &flush_out, ws->temp_a, ws->temp_b,
+                             batch_size_blocks, mem->params.message_modulus,
+                             mem->params.carry_modulus);
+  host_addition_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                             &flush_out, &flush_out, ws->temp_c,
+                             batch_size_blocks, mem->params.message_modulus,
+                             mem->params.carry_modulus);
 
   // Flush PBS: extract message bits and reset noise on new_a, new_b, new_c, out
   integer_radix_apply_univariate_lookup_table<Torus>(
@@ -192,15 +205,14 @@ __host__ void kreyvium_compute_64_steps(
 // and executing the standard 1152-cycle warmup phase.
 //
 template <typename Torus>
-__host__ void
-host_kreyvium_init(CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
-                   CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
-                   CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *k_reg,
-                   CudaRadixCiphertextFFI *iv_reg, uint32_t *k_offset,
-                   uint32_t *iv_offset,
-                   CudaRadixCiphertextFFI const *key_bitsliced,
-                   CudaRadixCiphertextFFI const *iv_bitsliced,
-                   void *const *bsks, uint64_t *const *ksks) {
+__host__ void host_kreyvium_init_async(
+    CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
+    CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
+    CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *k_reg,
+    CudaRadixCiphertextFFI *iv_reg, uint32_t *k_offset, uint32_t *iv_offset,
+    CudaRadixCiphertextFFI const *key_bitsliced,
+    CudaRadixCiphertextFFI const *iv_bitsliced, void *const *bsks,
+    uint64_t *const *ksks) {
 
   uint32_t N = mem->num_inputs;
   *k_offset = 0;
@@ -272,9 +284,9 @@ host_kreyvium_init(CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
   CudaRadixCiphertextFFI dest_c_ones;
   slice_reg_batch_impl<Torus>(&dest_c_ones, c_reg, KREYVIUM_C_ONES_OFFSET,
                               KREYVIUM_C_ONES_COUNT, N);
-  host_add_scalar_one_inplace<Torus>(streams, &dest_c_ones,
-                                     mem->params.message_modulus,
-                                     mem->params.carry_modulus);
+  host_add_scalar_one_inplace_async<Torus>(streams, &dest_c_ones,
+                                           mem->params.message_modulus,
+                                           mem->params.carry_modulus);
   integer_radix_apply_univariate_lookup_table<Torus>(
       streams, &dest_c_ones, &dest_c_ones, bsks, ksks, mem->luts->flush_lut,
       dest_c_ones.num_radix_blocks);
@@ -290,7 +302,7 @@ host_kreyvium_init(CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
 // existing state and updates the internal registers in place.
 //
 template <typename Torus>
-__host__ void host_kreyvium_step(
+__host__ void host_kreyvium_step_async(
     CudaStreams streams, CudaRadixCiphertextFFI *keystream_output,
     CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
     CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *k_reg,

@@ -5,7 +5,7 @@ void cuda_boolean_bitop_inplace_64_async(
     CudaRadixCiphertextFFI const *lwe_array_2, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks) {
   // In-place variant: lwe_array_inout op= lwe_array_2, no aliasing check needed
-  host_boolean_bitop<uint64_t>(
+  host_boolean_bitop_async<uint64_t>(
       CudaStreams(streams), lwe_array_inout, lwe_array_inout, lwe_array_2,
       (boolean_bitop_buffer<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks));
 }
@@ -53,9 +53,9 @@ void cuda_boolean_bitnot_64_async(CudaStreamsFFI streams,
                                   CudaRadixCiphertextFFI *lwe_array,
                                   int8_t *mem_ptr, void *const *bsks,
                                   void *const *ksks) {
-  host_boolean_bitnot<uint64_t>(CudaStreams(streams), lwe_array,
-                                (boolean_bitnot_buffer<uint64_t> *)mem_ptr,
-                                bsks, (uint64_t **)(ksks));
+  host_boolean_bitnot_async<uint64_t>(
+      CudaStreams(streams), lwe_array,
+      (boolean_bitnot_buffer<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks));
 }
 
 void cleanup_cuda_boolean_bitnot_64(CudaStreamsFFI streams,
@@ -102,8 +102,9 @@ void cuda_bitnot_ciphertext_64(CudaStreamsFFI streams,
                                uint32_t param_message_modulus,
                                uint32_t param_carry_modulus) {
   auto cuda_streams = CudaStreams(streams);
-  host_bitnot<uint64_t>(cuda_streams, radix_ciphertext, ct_message_modulus,
-                        param_message_modulus, param_carry_modulus);
+  host_bitnot_async<uint64_t>(cuda_streams, radix_ciphertext,
+                              ct_message_modulus, param_message_modulus,
+                              param_carry_modulus);
   cuda_synchronize_stream(cuda_streams.stream(0), cuda_streams.gpu_index(0));
 }
 
@@ -112,9 +113,9 @@ void cuda_integer_bitop_inplace_64_async(
     CudaRadixCiphertextFFI const *lwe_array_2, int8_t *mem_ptr,
     void *const *bsks, void *const *ksks) {
   // In-place variant: lwe_array_inout op= lwe_array_2, no aliasing check needed
-  host_bitop<uint64_t>(CudaStreams(streams), lwe_array_inout, lwe_array_inout,
-                       lwe_array_2, (int_bitop_buffer<uint64_t> *)mem_ptr, bsks,
-                       (uint64_t **)(ksks));
+  host_bitop_async<uint64_t>(
+      CudaStreams(streams), lwe_array_inout, lwe_array_inout, lwe_array_2,
+      (int_bitop_buffer<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks));
 }
 
 void cleanup_cuda_integer_bitop_inplace_64(CudaStreamsFFI streams,

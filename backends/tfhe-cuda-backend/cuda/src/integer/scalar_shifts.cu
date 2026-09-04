@@ -24,7 +24,7 @@ void cuda_logical_scalar_shift_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
     int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
 
-  host_logical_scalar_shift_inplace<uint64_t>(
+  host_logical_scalar_shift_inplace_async<uint64_t>(
       CudaStreams(streams), lwe_array, shift,
       (int_logical_scalar_shift_buffer<uint64_t> *)mem_ptr, bsks,
       (uint64_t **)(ksks), lwe_array->num_radix_blocks);
@@ -57,7 +57,7 @@ void cuda_arithmetic_scalar_shift_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
     int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
 
-  host_arithmetic_scalar_shift_inplace<uint64_t>(
+  host_arithmetic_scalar_shift_inplace_async<uint64_t>(
       CudaStreams(streams), lwe_array, shift,
       (int_arithmetic_scalar_shift_buffer<uint64_t> *)mem_ptr, bsks,
       (uint64_t **)(ksks));

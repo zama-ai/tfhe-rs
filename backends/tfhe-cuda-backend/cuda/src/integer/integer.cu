@@ -14,9 +14,9 @@ void cuda_add_lwe_ciphertext_vector_inplace_64(
     CudaRadixCiphertextFFI const *input_2) {
   if (lwe_array_inout->num_radix_blocks != input_2->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be the same")
-  host_addition<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index,
-                          lwe_array_inout, lwe_array_inout, input_2,
-                          lwe_array_inout->num_radix_blocks, 0, 0);
+  host_addition_async<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index,
+                                lwe_array_inout, lwe_array_inout, input_2,
+                                lwe_array_inout->num_radix_blocks, 0, 0);
   cuda_synchronize_stream(static_cast<cudaStream_t>(stream), gpu_index);
 }
 
@@ -28,9 +28,9 @@ void cuda_full_propagation_64_inplace_async(
   int_fullprop_buffer<uint64_t> *buffer =
       (int_fullprop_buffer<uint64_t> *)mem_ptr;
 
-  host_full_propagate_inplace<uint64_t>(CudaStreams(streams), input_blocks,
-                                        buffer, (uint64_t **)(ksks), bsks,
-                                        num_blocks);
+  host_full_propagate_inplace_async<uint64_t>(
+      CudaStreams(streams), input_blocks, buffer, (uint64_t **)(ksks), bsks,
+      num_blocks);
 }
 
 uint64_t scratch_cuda_full_propagation_64_inplace_async(
@@ -106,7 +106,7 @@ void cuda_propagate_single_carry_64_inplace_async(
     int8_t *mem_ptr, void *const *bsks, void *const *ksks,
     uint32_t requested_flag, uint32_t uses_carry) {
 
-  host_propagate_single_carry<uint64_t>(
+  host_propagate_single_carry_async<uint64_t>(
       CudaStreams(streams), lwe_array, carry_out, carry_in,
       (int_sc_prop_memory<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
       requested_flag, uses_carry);
@@ -118,7 +118,7 @@ void cuda_add_and_propagate_single_carry_64_inplace_async(
     const CudaRadixCiphertextFFI *carry_in, int8_t *mem_ptr, void *const *bsks,
     void *const *ksks, uint32_t requested_flag, uint32_t uses_carry) {
 
-  host_add_and_propagate_single_carry<uint64_t>(
+  host_add_and_propagate_single_carry_async<uint64_t>(
       CudaStreams(streams), lhs_array, rhs_array, carry_out, carry_in,
       (int_sc_prop_memory<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
       requested_flag, uses_carry);
@@ -132,7 +132,7 @@ void cuda_integer_overflowing_sub_64_inplace_async(
     void *const *bsks, void *const *ksks, uint32_t compute_overflow,
     uint32_t uses_input_borrow) {
   PUSH_RANGE("overflow sub")
-  host_integer_overflowing_sub<uint64_t>(
+  host_integer_overflowing_sub_async<uint64_t>(
       CudaStreams(streams), lhs_array, lhs_array, rhs_array, overflow_block,
       input_borrow, (int_borrow_prop_memory<uint64_t> *)mem_ptr, bsks,
       (uint64_t **)ksks, compute_overflow, uses_input_borrow);
@@ -211,7 +211,7 @@ void cuda_apply_univariate_lut_64_async(
                  "Output and input pointers must be different for out-of-place "
                  "operations");
 
-  host_apply_univariate_lut<uint64_t>(
+  host_apply_univariate_lut_async<uint64_t>(
       CudaStreams(streams), output_radix_lwe, input_radix_lwe,
       (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks), bsks);
 }
@@ -245,7 +245,7 @@ void cuda_apply_many_univariate_lut_64_async(
                  "Output and input pointers must be different for out-of-place "
                  "operations");
 
-  host_apply_many_univariate_lut<uint64_t>(
+  host_apply_many_univariate_lut_async<uint64_t>(
       CudaStreams(streams), output_radix_lwe, input_radix_lwe,
       (int_radix_lut<uint64_t> *)mem_ptr, (uint64_t **)(ksks), bsks, num_luts,
       lut_stride);
@@ -254,7 +254,8 @@ void cuda_apply_many_univariate_lut_64_async(
 void cuda_integer_reverse_blocks_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array) {
 
-  host_radix_blocks_reverse_inplace<uint64_t>(CudaStreams(streams), lwe_array);
+  host_radix_blocks_reverse_inplace_async<uint64_t>(CudaStreams(streams),
+                                                    lwe_array);
 }
 
 void reverseArray(uint64_t arr[], size_t n) {

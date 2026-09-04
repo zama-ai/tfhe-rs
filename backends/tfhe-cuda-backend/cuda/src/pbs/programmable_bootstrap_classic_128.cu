@@ -60,7 +60,7 @@ void executor_cuda_programmable_bootstrap_128(
   // AmortizedDegree for 4096 avoids register exhaustion in 128-bit classic PBS
   DISPATCH_POLY_SIZE(
       polynomial_size, Multibit128DegreePolicy,
-      host_programmable_bootstrap_128<InputTorus, Params>(
+      host_programmable_bootstrap_128_async<InputTorus, Params>(
           static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
           lut_vector, lwe_array_in, bootstrapping_key, buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples));
@@ -78,7 +78,7 @@ void executor_cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_128(
   // AmortizedDegree for 4096 avoids register exhaustion in 128-bit classic PBS
   DISPATCH_POLY_SIZE(
       polynomial_size, Multibit128DegreePolicy,
-      host_programmable_bootstrap_cg_128<InputTorus, Params>(
+      host_programmable_bootstrap_cg_128_async<InputTorus, Params>(
           static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
           lut_vector, lwe_array_in, bootstrapping_key, buffer, glwe_dimension,
           lwe_dimension, polynomial_size, base_log, level_count, num_samples));
@@ -97,7 +97,7 @@ void executor_cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_128(
 
   switch (polynomial_size) {
   case 2048:
-    host_programmable_bootstrap_tbc_128<InputTorus, Degree<2048>>(
+    host_programmable_bootstrap_tbc_128_async<InputTorus, Degree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
         lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
         polynomial_size, base_log, level_count, num_samples);

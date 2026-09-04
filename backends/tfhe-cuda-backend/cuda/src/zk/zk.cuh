@@ -80,7 +80,7 @@
  */
 
 template <typename Torus, class params>
-__host__ void host_expand_without_verification(
+__host__ void host_expand_without_verification_async(
     CudaStreams streams, Torus *lwe_array_out,
     const Torus *lwe_flattened_compact_array_in, zk_expand_mem<Torus> *mem_ptr,
     Torus *const *casting_keys, void *const *bsks, Torus *const *compute_ksks) {
@@ -121,13 +121,15 @@ __host__ void host_expand_without_verification(
   if (mem_ptr->expand_kind == EXPAND_KIND::NO_CASTING) {
     // This path is added to mimic the CPU fallback behaviour for the no_casting
     // expand, which is needed for the noise sanity checks.
-    host_lwe_expand<Torus, params>(streams.stream(0), streams.gpu_index(0),
-                                   lwe_array_out, d_expand_jobs, num_lwes);
+    host_lwe_expand_async<Torus, params>(streams.stream(0),
+                                         streams.gpu_index(0), lwe_array_out,
+                                         d_expand_jobs, num_lwes);
 
   } else {
     // This is our default path for the expand with casting if needed.
-    host_lwe_expand<Torus, params>(streams.stream(0), streams.gpu_index(0),
-                                   expanded_lwes, d_expand_jobs, num_lwes);
+    host_lwe_expand_async<Torus, params>(streams.stream(0),
+                                         streams.gpu_index(0), expanded_lwes,
+                                         d_expand_jobs, num_lwes);
 
     auto lwe_array_input = expanded_lwes;
     auto ksks = casting_keys;

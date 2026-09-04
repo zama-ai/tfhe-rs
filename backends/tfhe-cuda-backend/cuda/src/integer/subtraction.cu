@@ -20,7 +20,7 @@ void cuda_sub_and_propagate_single_carry_64_inplace_async(
     const CudaRadixCiphertextFFI *carry_in, int8_t *mem_ptr, void *const *bsks,
     void *const *ksks, uint32_t requested_flag, uint32_t uses_carry) {
   PUSH_RANGE("sub")
-  host_sub_and_propagate_single_carry<uint64_t>(
+  host_sub_and_propagate_single_carry_async<uint64_t>(
       CudaStreams(streams), lhs_array, rhs_array, carry_out, carry_in,
       (int_sub_and_propagate<uint64_t> *)mem_ptr, bsks, (uint64_t **)(ksks),
       requested_flag, uses_carry);
