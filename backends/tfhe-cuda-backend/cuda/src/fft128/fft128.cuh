@@ -332,7 +332,7 @@ negacyclic_forward_fft_f128_tbc(double *dt_re_hi, double *dt_re_lo,
       tid = tid + STRIDE;
     }
   }
-
+  __syncthreads();
   //   store registers in SM
   tid = threadIdx.x;
 #pragma unroll
