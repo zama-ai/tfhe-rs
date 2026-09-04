@@ -1395,19 +1395,43 @@ test_high_level_api:
 test_high_level_api_gpu_fast: install_cargo_nextest # Run all the GPU tests for high_level_api except test_uniformity for oprf which is too long
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
-		-E "test(/high_level_api::.*gpu.*/) and not test(/uniformity/)"
+		-E "test(/high_level_api::.*gpu.*/) and not test(/uniformity/) and not test(/long_run/)"
 
 
 test_high_level_api_gpu: install_cargo_nextest # Run all the GPU tests for high_level_api
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
-		-E "test(/high_level_api::.*gpu.*/)"
+		-E "test(/high_level_api::.*gpu.*/) and not test(/long_run/)"
 
 .PHONY: test_high_level_api_fake_multi_gpu
 test_high_level_api_fake_multi_gpu: install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--test-threads=4 --features=integer,internal-keycache,gpu-debug-fake-multi-gpu,zk-pok -p tfhe \
-		-E "test(/high_level_api::.*gpu.*/)"
+		-E "test(/high_level_api::.*gpu.*/) and not test(/long_run/)"
+
+.PHONY: test_protocol_long_run_gpu # Run the long run protocol workflow test on the gpu backend
+test_protocol_long_run_gpu:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=integer,gpu -p tfhe -- \
+		high_level_api::tests::gpu_protocol_long_run --test-threads=1 --nocapture
+
+.PHONY: test_protocol_short_run_gpu # Run the protocol workflow test on the gpu backend, fewer iterations
+test_protocol_short_run_gpu:
+	TFHE_RS_TEST_LONG_TESTS_MINIMAL=TRUE \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=integer,gpu -p tfhe -- \
+		high_level_api::tests::gpu_protocol_long_run --test-threads=1 --nocapture
+
+# Transaction count of the protocol stress run, tuned for about 30 minutes on an H100
+PROTOCOL_STRESS_TRANSACTIONS?=10000
+
+.PHONY: test_protocol_stress_gpu # Stress the gpu with concurrent protocol transactions, classical params
+test_protocol_stress_gpu:
+	TFHE_RS_PROTOCOL_TRANSACTIONS=$(PROTOCOL_STRESS_TRANSACTIONS) \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=integer,gpu -p tfhe -- \
+		high_level_api::tests::gpu_protocol_long_run::test_gpu_protocol_erc7984_concurrent_transfer_workflow_classical \
+		--test-threads=1 --nocapture
 
 test_list_gpu: install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest list --cargo-profile $(CARGO_PROFILE) \
