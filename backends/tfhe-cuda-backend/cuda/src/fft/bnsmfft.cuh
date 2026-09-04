@@ -606,7 +606,6 @@ __global__ void batch_NSMFFT_classical_specialized(double2 *d_input,
 //   [0 .. TW_SMEM_DOUBLES-1]                   tw_1024 twiddle table (1920)
 //   [FFT16x4x16_DUAL_COMPACT_TW_OFFSET .. +101] compact_twiddles (102)
 //   [FFT16x4x16_DUAL_XPOSE0_OFFSET .. +2207]   xpose scratch (2208)
-//   [KB_BARRIER_OFFSET]                         mbarrier (1 storage double)
 //   [KB_TWIST_OFFSET .. +1025]                  negacyclic twist half-table
 template <class params>
 __global__ void batch_FFT16x4x16_classical_specialized(double2 *d_input,
@@ -618,12 +617,6 @@ __global__ void batch_FFT16x4x16_classical_specialized(double2 *d_input,
   const double *compact_twiddles = smem + FFT16x4x16_DUAL_COMPACT_TW_OFFSET;
   double *smem_xpose = smem + FFT16x4x16_DUAL_XPOSE0_OFFSET;
   double2 *smem_twist = reinterpret_cast<double2 *>(smem + KB_TWIST_OFFSET);
-  FFT16x4x16MBarrierStorage *barrier =
-      reinterpret_cast<FFT16x4x16MBarrierStorage *>(smem + KB_BARRIER_OFFSET);
-
-  // 64 threads / 32 lanes = 2 warps participate in each per-FFT barrier.
-  if (threadIdx.x == 0)
-    fft16x4x16_mbarrier_init_raw(barrier, 2u);
 
   // Load FFT twiddle table cooperatively (64 threads × 15 iters = 960 d2's).
   double2 *tw_shared_w = reinterpret_cast<double2 *>(smem);
@@ -668,9 +661,8 @@ __global__ void batch_FFT16x4x16_classical_specialized(double2 *d_input,
   }
 
   // Standard 1024-point FFT; output is in bit-reversed register order.
-  FFT16x4x16_fwd_core_mbarrier_explicit(a, tw_shared, smem_xpose,
-                                        compact_twiddles, barrier);
-  fft16x4x16_mbarrier_sync(barrier);
+  FFT16x4x16_fwd_core_named_barrier(a, tw_shared, smem_xpose, compact_twiddles);
+  sync_coupled_warps();
 
   // Persist a[j] at physical index tid + j*64 — see layout comment at the top.
   //
@@ -686,7 +678,7 @@ __global__ void batch_FFT16x4x16_classical_specialized(double2 *d_input,
 
 // Shared-memory footprint of batch_FFT16x4x16_classical_specialized.
 //   KB_TWIST_OFFSET doubles + 513 double2 entries
-//   = 4232 * 8 + 513 * 16 = 33856 + 8208 = 42064 bytes  (≈41 KB)
+//   = 4230 * 8 + 513 * 16 = 33840 + 8208 = 42048 bytes  (≈41 KB)
 static constexpr size_t BATCH_FFT16X4X16_BSK_SMEM_BYTES =
     static_cast<size_t>(KB_TWIST_OFFSET) * sizeof(double) +
     513 * sizeof(double2);
@@ -771,7 +763,7 @@ __global__ void batch_polynomial_mul(double2 *d_input1, double2 *d_input2,
 // PBS (FFT16x4x16_fwd/inv_optimized_for_pbs). Hardcoded to N = 2048
 // (N/2 = 1024 = 16×64) and to a single 64-thread FFT group per block.
 //
-// REQUIRES sm_90 (H100): the optimized cores rely on named-barrier / mbarrier
+// REQUIRES sm_90 (H100): the optimized cores rely on named-barrier
 // primitives only available there.
 //
 // Data flow (mirrors the production PBS exactly):
@@ -893,7 +885,7 @@ batch_polynomial_mul_fft16x4x16(const double2 *__restrict__ d_input1,
 // specialized 2_2_params PBS). Hardcoded to N = 2048 (N/2 = 1024 = 16×64), one
 // 64-thread FFT group per block.
 //
-// REQUIRES sm_90 (H100): the optimized core relies on named-barrier / mbarrier
+// REQUIRES sm_90 (H100): the optimized core relies on named-barrier
 // primitives only available there.
 //
 // Output layout: the spectrum is written in NATURAL frequency order. The
@@ -983,7 +975,7 @@ __global__ void batch_forward_fft16x4x16(const double2 *__restrict__ d_input,
 // by the specialized 2_2_params PBS). Hardcoded to N = 2048 (N/2 = 1024 =
 // 16×64), one 64-thread FFT group per block.
 //
-// REQUIRES sm_90 (H100): the optimized core relies on named-barrier / mbarrier
+// REQUIRES sm_90 (H100): the optimized core relies on named-barrier
 // primitives only available there.
 //
 // This is the clean inverse of batch_forward_fft16x4x16 and uses the SAME

@@ -54,8 +54,7 @@ uint64_t get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params(
 //   [FFT16x4x16_DUAL_COMPACT_TW_OFFSET ..]          compact_twiddles (102)
 //   [FFT16x4x16_DUAL_XPOSE0_OFFSET ..]              xpose0 / comm0 / final_acc0
 //   [FFT16x4x16_DUAL_XPOSE1_OFFSET ..]              xpose1 / comm1 / final_acc1
-//   [FFT16x4x16_DUAL_BARRIER0_OFFSET ..]            barrier0 / barrier1 /
-//   startup [FFT16x4x16_DUAL_TWIST_OFFSET ..]               twist half-table
+//   [FFT16x4x16_DUAL_TWIST_OFFSET ..]               twist half-table
 //   (1026) [SMEM_ACC_OFFSET_DOUBLES ..]                    Torus (uint64)
 //   running acc
 //                                                    storage (2 × 2048 u64 →
@@ -67,7 +66,7 @@ uint64_t get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params(
 //      (other_fft_ptr in the GGSW helper);
 //   3. final uint64 accumulator on the last loop iteration, read by
 //      sample_extract_mask / sample_extract_body.
-// All three uses are sequenced by __syncthreads / mbarrier syncs in the
+// All three uses are sequenced by __syncthreads / sync_coupled_warps in the
 // kernel; they never overlap in time.
 // ─────────────────────────────────────────────────────────────────────────────
 static constexpr int
@@ -409,7 +408,7 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
   const double *compact_twiddles = smem + FFT16x4x16_DUAL_COMPACT_TW_OFFSET;
   double *smem_xpose = smem + (fft_id == 0 ? FFT16x4x16_DUAL_XPOSE0_OFFSET
                                            : FFT16x4x16_DUAL_XPOSE1_OFFSET);
-  // PONG buffer for the fwd-FFT ping-pong path (eliminates 2 mbarrier_syncs per
+  // PONG buffer for the fwd-FFT ping-pong path (eliminates 2 group syncs per
   // fwd call). PING is `smem_xpose` above; PONG is the symmetric extra slot.
   double *smem_xpose_pong =
       smem + (fft_id == 0 ? FFT16x4x16_DUAL_XPOSE0_PONG_OFFSET
@@ -468,7 +467,7 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
   // Cooperative twiddle / compact_twiddles load (128-thread loader).
   fft16x4x16_load_shared_twiddles_128t(smem);
   // Block-wide startup sync (all 4 warps). Per-group FFT syncs use named ids
-  // 1/2 (see sync_coupled_warps), so no mbarrier init is needed.
+  // 1/2 (see sync_coupled_warps), which need no initialization.
   __syncthreads();
 
   // Preload the 3 compact 4×4 twiddles into per-thread registers (one-time
