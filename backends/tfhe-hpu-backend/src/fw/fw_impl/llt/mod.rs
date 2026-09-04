@@ -13,7 +13,7 @@ use crate::fw::metavar::MetaVarCell;
 use crate::fw::program::Program;
 use crate::pbs_by_name;
 use fw_impl::ilp::{CondPos, ShiftKind};
-use itertools::{EitherOrBoth, Itertools, Position};
+use itertools::{EitherOrBoth, Itertools};
 use std::collections::HashMap;
 use tracing::{instrument, trace};
 
@@ -1004,14 +1004,14 @@ fn iop_shiftrotx(
         .with_position()
         .map(|(pos, (i, ct))| match kind {
             ShiftKind::ShiftRight => {
-                if !matches!(pos, Position::Last | Position::Only) {
+                if !(pos.is_exactly_one() || pos.is_last()) {
                     &ct + &shiftrot_next[i + 1]
                 } else {
                     ct
                 }
             }
             ShiftKind::ShiftLeft => {
-                if !matches!(pos, Position::First | Position::Only) {
+                if !(pos.is_exactly_one() || pos.is_first()) {
                     &ct + &shiftrot_next[i - 1]
                 } else {
                     ct
