@@ -2,8 +2,10 @@
 mod cuda {
     use benchmark::params_aliases::*;
     use benchmark::utilities::cuda_integer_utils::cuda_local_streams;
-    use benchmark::utilities::{cuda_local_keys, write_to_json_unchecked, OperatorType};
-    use benchmark_spec::{get_bench_type, BenchmarkType};
+    use benchmark::utilities::{cuda_local_keys, write_to_json, OperatorType};
+    use benchmark_spec::{
+        get_bench_type, BenchmarkSpec, BenchmarkType, FheType, IntegerBench, IntegerPackingOp,
+    };
     use criterion::{criterion_group, Criterion, Throughput};
     use rayon::prelude::*;
     use std::hint::black_box;
@@ -63,7 +65,20 @@ mod cuda {
         assert_eq!(bit_size % log_message_modulus, 0);
         let num_blocks = bit_size / log_message_modulus;
 
-        let bench_id_pack;
+        let pack_spec = BenchmarkSpec::new_integer(
+            IntegerBench::NoiseSquashingCompression(IntegerPackingOp::Pack),
+            &noise_squashing_compression_parameters.name(),
+            Some(
+                FheType::Clear {
+                    signed: false,
+                    bits: bit_size as u32,
+                }
+                .into(),
+            ),
+            get_bench_type(),
+            None,
+        );
+        let bench_id_pack = pack_spec.to_string();
 
         match get_bench_type() {
             BenchmarkType::Latency => {
@@ -88,7 +103,6 @@ mod cuda {
 
                 builder.push(d_ns_ct, &stream);
 
-                bench_id_pack = format!("{bench_name}::pack_u{bit_size}");
                 bench_group.bench_function(&bench_id_pack, |b| {
                     b.iter(|| {
                         let compressed =
@@ -156,7 +170,6 @@ mod cuda {
                     })
                     .collect::<Vec<_>>();
 
-                bench_id_pack = format!("{bench_name}::throughput::pack_u{bit_size}");
                 bench_group.bench_function(&bench_id_pack, |b| {
                     b.iter(|| {
                         builders.par_iter().for_each(
@@ -169,9 +182,8 @@ mod cuda {
             }
         }
 
-        write_to_json_unchecked(
-            &bench_id_pack,
-            noise_squashing_compression_parameters.name(),
+        write_to_json(
+            &pack_spec,
             "pack",
             &OperatorType::Atomic,
             bit_size as u64,
@@ -204,7 +216,20 @@ mod cuda {
         assert_eq!(bit_size % log_message_modulus, 0);
         let num_blocks = bit_size / log_message_modulus;
 
-        let bench_id_unpack;
+        let unpack_spec = BenchmarkSpec::new_integer(
+            IntegerBench::NoiseSquashingCompression(IntegerPackingOp::Unpack),
+            &noise_squashing_compression_parameters.name(),
+            Some(
+                FheType::Clear {
+                    signed: false,
+                    bits: bit_size as u32,
+                }
+                .into(),
+            ),
+            get_bench_type(),
+            None,
+        );
+        let bench_id_unpack = unpack_spec.to_string();
 
         match get_bench_type() {
             BenchmarkType::Latency => {
@@ -231,7 +256,6 @@ mod cuda {
 
                 let compressed = builder.build(&cuda_noise_squashing_compression_key, &stream);
 
-                bench_id_unpack = format!("{bench_name}::unpack_u{bit_size}");
                 bench_group.bench_function(&bench_id_unpack, |b| {
                     b.iter(|| {
                         let unpacked: CudaSquashedNoiseRadixCiphertext =
@@ -308,7 +332,6 @@ mod cuda {
                     )
                     .collect::<Vec<_>>();
 
-                bench_id_unpack = format!("{bench_name}::throughput::unpack_u{bit_size}");
                 bench_group.bench_function(&bench_id_unpack, |b| {
                     b.iter(|| {
                         compressed.par_iter().enumerate().for_each(|(i, comp)| {
@@ -323,9 +346,8 @@ mod cuda {
             }
         }
 
-        write_to_json_unchecked(
-            &bench_id_unpack,
-            noise_squashing_compression_parameters.name(),
+        write_to_json(
+            &unpack_spec,
             "unpack",
             &OperatorType::Atomic,
             bit_size as u64,
