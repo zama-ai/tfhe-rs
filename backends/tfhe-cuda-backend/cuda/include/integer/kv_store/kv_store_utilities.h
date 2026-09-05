@@ -55,6 +55,10 @@ template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
   uint32_t num_tree_levels;
   /// Device LUT-index arrays, one per tree level
   Torus **d_level_lut_indexes;
+  /// Host staging area for the per-level LUT-index arrays, one slot of
+  /// acc_blocks entries per tree level. Each level needs its own slot because
+  /// the uploads are asynchronous. Freed in release() after synchronization.
+  Torus *h_level_lut_indexes = nullptr;
 
   /// @brief Allocates GPU buffers for the small-map equality-selector
   /// algorithm.
@@ -184,11 +188,12 @@ template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
       // each entry uses the level-specific slot when its length differs from
       // max_value; all other blocks use slot 0.
       this->d_level_lut_indexes = new Torus *[this->num_tree_levels];
-      Torus *h_level_indexes = new Torus[acc_blocks];
+      this->h_level_lut_indexes = new Torus[this->num_tree_levels * acc_blocks];
       for (uint32_t L = 0; L < this->num_tree_levels; L++) {
         uint32_t num_chunks = level_num_chunks[L];
         uint32_t total_chunks = num_possible_values * num_chunks;
         bool special = (level_last_chunk_length[L] != max_value);
+        Torus *h_level_indexes = &this->h_level_lut_indexes[L * acc_blocks];
         for (uint32_t idx = 0; idx < acc_blocks; idx++) {
           if (special && idx < total_chunks &&
               (idx % num_chunks) == num_chunks - 1) {
@@ -208,8 +213,6 @@ template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
                                    streams.stream(0), streams.gpu_index(0));
         }
       }
-      cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-      delete[] h_level_indexes;
     }
   }
 
@@ -247,6 +250,8 @@ template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
     if (this->tree_accumulator != nullptr) {
       delete this->tree_accumulator;
       delete this->tree_pbs_output;
+      delete[] this->h_level_lut_indexes;
+      this->h_level_lut_indexes = nullptr;
     }
     delete[] this->h_map;
   }

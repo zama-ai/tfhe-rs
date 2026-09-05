@@ -15,6 +15,10 @@ template <typename Torus> struct int_grouped_oprf_memory {
   int_radix_lut<Torus> *luts;
   CudaRadixCiphertextFFI *plaintext_corrections;
   Torus *h_lut_indexes;
+  /// Host staging area for the plaintext corrections uploaded in the
+  /// constructor. The upload is asynchronous, so the buffer is freed in
+  /// release().
+  Torus *h_corrections = nullptr;
 
   int_grouped_oprf_memory(CudaStreams streams, int_radix_params params,
                           uint32_t num_blocks_to_process,
@@ -87,7 +91,7 @@ template <typename Torus> struct int_grouped_oprf_memory {
     // (handling both bounded and unbounded cases), which pre-computed LUT to
     // use, and the final plaintext correction to add.
     //
-    Torus *h_corrections = (Torus *)calloc(
+    this->h_corrections = (Torus *)calloc(
         1, safe_mul_sizeof<Torus>(num_blocks_to_process, lwe_size));
     this->h_lut_indexes =
         (Torus *)calloc(1, safe_mul_sizeof<Torus>(num_blocks_to_process));
@@ -151,9 +155,6 @@ template <typename Torus> struct int_grouped_oprf_memory {
     for (uint32_t i = 0; i < lut_degrees.size(); ++i) {
       *luts->get_degree(i) = lut_degrees[i];
     }
-
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-    free(h_corrections);
   }
 
   void release(CudaStreams streams) {
@@ -170,6 +171,8 @@ template <typename Torus> struct int_grouped_oprf_memory {
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     free(this->h_lut_indexes);
     this->h_lut_indexes = nullptr;
+    free(this->h_corrections);
+    this->h_corrections = nullptr;
   }
 };
 

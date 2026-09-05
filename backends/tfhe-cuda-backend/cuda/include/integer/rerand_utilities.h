@@ -20,6 +20,10 @@ template <typename Torus> struct int_rerand_mem {
 
   expand_job<Torus> *d_expand_jobs = nullptr;
   expand_job<Torus> *h_expand_jobs = nullptr;
+  /// Host staging area for the trivial indexes uploaded in the constructor on
+  /// the RERAND_WITH_KS path. The upload is asynchronous, so the buffer is
+  /// freed in release().
+  Torus *h_lwe_trivial_indexes = nullptr;
 
   int_rerand_mem(CudaStreams streams, int_radix_params params,
                  const uint32_t num_lwes, const RERAND_MODE rerand_mode,
@@ -50,7 +54,7 @@ template <typename Torus> struct int_rerand_mem {
               streams.stream(0), streams.gpu_index(0), size_tracker,
               allocate_gpu_memory));
 
-      auto h_lwe_trivial_indexes =
+      h_lwe_trivial_indexes =
           static_cast<Torus *>(malloc(safe_mul_sizeof<Torus>(num_lwes)));
       PANIC_IF_FALSE(h_lwe_trivial_indexes != nullptr,
                      "host allocation failed for h_lwe_trivial_indexes");
@@ -65,10 +69,6 @@ template <typename Torus> struct int_rerand_mem {
           lwe_trivial_indexes, h_lwe_trivial_indexes,
           safe_mul_sizeof<Torus>(num_lwes), streams.stream(0),
           streams.gpu_index(0), allocate_gpu_memory);
-      cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-      free(h_lwe_trivial_indexes);
-    } else {
-      cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     }
   }
 
@@ -96,5 +96,7 @@ template <typename Torus> struct int_rerand_mem {
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
     free(h_expand_jobs);
     h_expand_jobs = nullptr;
+    free(h_lwe_trivial_indexes);
+    h_lwe_trivial_indexes = nullptr;
   }
 };

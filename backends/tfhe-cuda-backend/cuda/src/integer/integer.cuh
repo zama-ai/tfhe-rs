@@ -1406,6 +1406,23 @@ void generate_device_accumulator_no_encoding(
 }
 
 template <typename Torus>
+void generate_device_accumulator_no_encoding_with_cpu_prealloc(
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t *degree,
+    uint32_t message_modulus, uint32_t carry_modulus, uint32_t glwe_dimension,
+    uint32_t polynomial_size, std::function<Torus(Torus)> f,
+    bool gpu_memory_allocated, Torus *h_lut) {
+
+  generate_lookup_table_no_encoding<Torus>(h_lut, glwe_dimension,
+                                           polynomial_size, f);
+
+  *degree = (uint64_t)message_modulus * (uint64_t)carry_modulus * 2;
+
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      acc, h_lut, safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size),
+      stream, gpu_index, gpu_memory_allocated);
+}
+
+template <typename Torus>
 uint64_t generate_lookup_table_bivariate(Torus *acc, uint32_t glwe_dimension,
                                          uint32_t polynomial_size,
                                          uint32_t message_modulus,
@@ -1513,6 +1530,26 @@ void generate_device_accumulator_bivariate_with_factor(
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
 }
+
+template <typename Torus>
+void generate_device_accumulator_bivariate_with_factor_with_cpu_prealloc(
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc_bivariate,
+    uint64_t *degree, uint64_t *max_degree, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
+    std::function<Torus(Torus, Torus)> f, int factor, bool gpu_memory_allocated,
+    Torus *h_lut) {
+
+  *max_degree = message_modulus * carry_modulus - 1;
+  *degree = generate_lookup_table_bivariate_with_factor<Torus>(
+      h_lut, glwe_dimension, polynomial_size, message_modulus, carry_modulus, f,
+      factor);
+
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      acc_bivariate, h_lut,
+      safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size), stream,
+      gpu_index, gpu_memory_allocated);
+}
+
 /*
  *  generate bivariate accumulator for device pointer
  *  using preallocated host lut to avoid blocking the cpu thread
@@ -1678,6 +1715,25 @@ void generate_many_lut_device_accumulator(
 
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
+  POP_RANGE()
+}
+
+template <typename Torus>
+void generate_many_lut_device_accumulator_with_cpu_prealloc(
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t *degrees,
+    uint64_t *max_degree, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    std::vector<std::function<Torus(Torus)>> &functions,
+    bool gpu_memory_allocated, Torus *h_lut) {
+
+  PUSH_RANGE("gen many lut acc")
+  *max_degree = generate_many_lookup_table<Torus>(
+      h_lut, degrees, glwe_dimension, polynomial_size, message_modulus,
+      carry_modulus, functions);
+
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      acc, h_lut, safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size),
+      stream, gpu_index, gpu_memory_allocated);
   POP_RANGE()
 }
 
