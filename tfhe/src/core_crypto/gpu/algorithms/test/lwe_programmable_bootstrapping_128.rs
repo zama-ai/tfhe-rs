@@ -1,4 +1,4 @@
-use super::assert_gpu_determinism;
+use super::{assert_gpu_determinism, is_sanitizer_run};
 pub(crate) use crate::core_crypto::algorithms::test::gen_keys_or_get_from_cache_if_enabled;
 use crate::shortint::parameters::{
     DynamicDistribution, NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -188,25 +188,27 @@ pub fn execute_bootstrap_u128(
 
     let pbs_ct = d_out_pbs_ct.into_lwe_ciphertext(&stream);
 
-    // Determinism check
-    let mut d_out_pbs_ct_bis = CudaLweCiphertextList::new(
-        output_lwe_dimension,
-        LweCiphertextCount(1),
-        ciphertext_modulus,
-        &stream,
-    );
-    cuda_programmable_bootstrap_128_lwe_ciphertext(
-        &d_lwe_ciphertext_in,
-        &mut d_out_pbs_ct_bis,
-        &d_accumulator,
-        &d_bsk,
-        &stream,
-    );
-    assert_gpu_determinism(
-        pbs_ct.as_ref(),
-        d_out_pbs_ct_bis.into_lwe_ciphertext(&stream).as_ref(),
-        "cuda_programmable_bootstrap_128_lwe_ciphertext",
-    );
+    // Determinism check (skipped under sanitizer to keep the test to a single kernel call)
+    if !is_sanitizer_run() {
+        let mut d_out_pbs_ct_bis = CudaLweCiphertextList::new(
+            output_lwe_dimension,
+            LweCiphertextCount(1),
+            ciphertext_modulus,
+            &stream,
+        );
+        cuda_programmable_bootstrap_128_lwe_ciphertext(
+            &d_lwe_ciphertext_in,
+            &mut d_out_pbs_ct_bis,
+            &d_accumulator,
+            &d_bsk,
+            &stream,
+        );
+        assert_gpu_determinism(
+            pbs_ct.as_ref(),
+            d_out_pbs_ct_bis.into_lwe_ciphertext(&stream).as_ref(),
+            "cuda_programmable_bootstrap_128_lwe_ciphertext",
+        );
+    }
 
     // Decrypt the PBS result
     let pbs_plaintext: Plaintext<u128> = decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_ct);

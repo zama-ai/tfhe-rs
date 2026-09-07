@@ -33,6 +33,7 @@ WORKFLOWS = [
     "gpu_code_validation_tests",
     "gpu_memory_sanitizer",
     "gpu_memory_sanitizer_h100",
+    "gpu_memory_sanitizer_h100_2gpu_par",
     "gpu_noise_level_checks",
     "gpu_zk_tests",
     "gpu_zk_long_run_tests",
@@ -173,6 +174,10 @@ TEST_TARGETS = [
     "test_signed_integer_multi_bit_gpu_ci",
     "test_unsigned_integer_gpu_ci",
     "test_unsigned_integer_multi_bit_gpu_ci",
+    "test_high_level_api_gpu_valgrind",
+    "test_high_level_api_gpu_sanitizer",
+    "test_high_level_api_gpu_memcheck",
+    "test_gpu_racecheck",
     "test_user_doc_gpu",
     "test_c_api_gpu",
     "test_integer_zk_experimental_gpu",
@@ -186,9 +191,6 @@ TEST_TARGETS = [
     "test_zk_pok_gpu_valgrind",
     "test_high_level_api_fake_multi_gpu",
     "test_signed_integer_fake_multi_gpu",
-    "test_cuda_backend_race_check",
-    "test_high_level_api_gpu_valgrind",
-    "test_high_level_api_gpu_sanitizer",
 ]
 
 

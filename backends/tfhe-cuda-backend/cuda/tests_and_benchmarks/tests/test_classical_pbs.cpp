@@ -63,6 +63,8 @@ protected:
       int8_t *pbs_buffer) {
     int bsk_size = (glwe_dimension + 1) * (glwe_dimension + 1) * pbs_level *
                    polynomial_size * (lwe_dimension + 1);
+    const int eff_inputs =
+        is_sanitizer_run() ? std::min(number_of_inputs, 2) : number_of_inputs;
 
     for (int r = 0; r < repetitions; r++) {
       double *d_fourier_bsk = d_fourier_bsk_array + (ptrdiff_t)(bsk_size * r);
@@ -78,11 +80,11 @@ protected:
 
         cuda_memcpy_async_to_cpu(lwe_ct_out_array, d_lwe_ct_out_array,
                                  (glwe_dimension * polynomial_size + 1) *
-                                     number_of_inputs * sizeof(uint64_t),
+                                     eff_inputs * sizeof(uint64_t),
                                  stream, gpu_index);
         cuda_synchronize_stream(stream, gpu_index);
 
-        for (int j = 0; j < number_of_inputs; j++) {
+        for (int j = 0; j < eff_inputs; j++) {
           uint64_t *result =
               lwe_ct_out_array +
               (ptrdiff_t)(j * (glwe_dimension * polynomial_size + 1));

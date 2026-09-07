@@ -961,15 +961,6 @@ test_cuda_backend:
 		"$(MAKE)" -j "$(CPU_COUNT)" && \
 		"$(MAKE)" test
 
-.PHONY: test_cuda_backend_race_check # Build and run selected CUDA backend tests with Compute Sanitizer racecheck
-test_cuda_backend_race_check:
-	mkdir -p "$(TFHECUDA_BUILD)" && \
-		cd "$(TFHECUDA_BUILD)" && \
-		cmake .. -DCMAKE_BUILD_TYPE=Release -DTFHE_CUDA_BACKEND_BUILD_TESTS=ON && \
-		"$(MAKE)" -j "$(CPU_COUNT)" test_tfhe_cuda_backend && \
-		compute-sanitizer --tool racecheck --target-processes all ./tests_and_benchmarks/tests/test_tfhe_cuda_backend \
-			--gtest_filter="*ClassicalProgrammableBootstrap*:*MultiBitProgrammableBootstrap*"
-
 .PHONY: test_zk_cuda_backend # Run the internal tests of the CUDA ZK backend
 test_zk_cuda_backend:
 	mkdir -p "$(ZKCUDA_BUILD)" && \
@@ -1034,10 +1025,21 @@ test_high_level_api_gpu_valgrind: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" &&	scripts/check_memory_errors.sh --cpu
 
-.PHONY: test_high_level_api_gpu_sanitizer # Run the tests of the integer module with Debug flags for CUDA
-test_high_level_api_gpu_sanitizer: install_cargo_nextest
+.PHONY: test_high_level_api_gpu_memcheck # Run compute-sanitizer memcheck on high-level API GPU tests
+test_high_level_api_gpu_memcheck: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
-	export CARGO_PROFILE="$(CARGO_PROFILE)" &&	scripts/check_memory_errors.sh --gpu
+	export CARGO_PROFILE="$(CARGO_PROFILE)" && scripts/check_memory_errors.sh --memcheck
+
+.PHONY: test_gpu_racecheck # Run compute-sanitizer racecheck on GPU tests (Rust u128 PBS + CUDA backend GTest PBS/KS)
+test_gpu_racecheck: install_cargo_nextest
+	mkdir -p "$(TFHECUDA_BUILD)" && \
+		cd "$(TFHECUDA_BUILD)" && \
+		cmake .. -DCMAKE_BUILD_TYPE=Release -DTFHE_CUDA_BACKEND_BUILD_TESTS=ON && \
+		"$(MAKE)" -j "$(CPU_COUNT)" test_tfhe_cuda_backend
+	export RUSTFLAGS="-C target-cpu=x86-64" && \
+	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
+	SANITIZER_GTEST_EXE="$(CURDIR)/$(TFHECUDA_BUILD)/tests_and_benchmarks/tests/test_tfhe_cuda_backend" \
+		scripts/check_memory_errors.sh --racecheck
 
 .PHONY: test_zk_pok_gpu_sanitizer # Run compute-sanitizer memcheck on Rust zk-pok GPU tests
 test_zk_pok_gpu_sanitizer: install_cargo_nextest
