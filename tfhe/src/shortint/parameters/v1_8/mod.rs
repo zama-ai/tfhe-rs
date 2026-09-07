@@ -417,20 +417,10 @@ pub mod hpu;
 pub use hpu::*;
 
 #[cfg(feature = "hpu")]
-pub const VEC_ALL_HPU_PARAMETERS: [(&KeySwitch32PBSParameters, &str); 3] = [
-    (
-        &V1_8_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64,
-        "V1_8_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64",
-    ),
-    (
-        &V1_8_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M64,
-        "V1_8_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M64",
-    ),
-    (
-        &V1_8_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
-        "V1_8_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128",
-    ),
-];
+pub const VEC_ALL_HPU_PARAMETERS: [(&KeySwitch32PBSParameters, &str); 1] = [(
+    &V1_8_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    "V1_8_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128",
+)];
 
 /// All [`MetaParameters`] in this module.
 pub const VEC_ALL_META_PARAMETERS: [(&MetaParameters, &str); 63] = [
