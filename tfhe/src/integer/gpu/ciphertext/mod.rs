@@ -12,6 +12,7 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{LweCiphertextList, LweCiphertextOwned};
 use crate::integer::parameters::LweDimension;
 use crate::integer::{IntegerCiphertext, RadixCiphertext, SignedRadixCiphertext};
+use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::{Ciphertext, EncryptionKeyChoice};
 use crate::GpuIndex;
 
@@ -55,6 +56,14 @@ pub trait CudaIntegerRadixCiphertext: Sized + Send {
             .blocks
             .iter()
             .all(CudaBlockInfo::carry_is_empty)
+    }
+
+    fn is_clean(&self) -> bool {
+        self.as_ref()
+            .info
+            .blocks
+            .iter()
+            .all(|block| block.carry_is_empty() && block.noise_level <= NoiseLevel::NOMINAL)
     }
 
     fn holds_boolean_value(&self) -> bool {
