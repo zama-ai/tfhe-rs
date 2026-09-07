@@ -54,6 +54,11 @@ pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_
 };
 #[cfg(feature = "gpu")]
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_neg::default_neg_test;
+#[cfg(feature = "gpu")]
+pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_prince::{
+    prince_decrypt_kat_test, prince_encrypt_decrypt_random_test, prince_encrypt_kat_test,
+};
+
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_neg::unchecked_neg_test;
 #[cfg(feature = "gpu")]
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::default_sub_test;

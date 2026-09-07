@@ -29,7 +29,7 @@ pub use radix::kv_store::CudaKVStore;
 pub(crate) use radix::CudaKreyviumState;
 pub use radix::{
     BitonicShuffleKeySize, CollisionProbability, CudaOprfServerKey, CudaOprfServerKeyView,
-    GenericCudaOprfServerKey,
+    CudaPrinceKeys, GenericCudaOprfServerKey,
 };
 
 #[cfg(test)]
