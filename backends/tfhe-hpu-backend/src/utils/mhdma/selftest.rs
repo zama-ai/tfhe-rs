@@ -429,7 +429,7 @@ pub fn selftest_all(
     mhdma_setup(hw, config, regmap, fpga_id);
 
     // setup must leave the ring fault-free; a fault here means the config is broken, so abort the
-    // whole suite rather than run every test against a mis-configured ring.
+    // whole suite rather than run every test against a misconfigured ring.
     if !errors_report(hw, config, regmap, fpga_id) {
         println!("[FAILURE] MHDMA self-test suite: errors present right after setup; aborting");
         return false;

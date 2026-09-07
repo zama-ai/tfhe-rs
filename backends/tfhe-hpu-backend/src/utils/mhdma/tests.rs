@@ -33,7 +33,7 @@ fn rq_dst(pos: usize, l: u32, n: usize) -> u64 {
 }
 
 /// Distinct pseudo-random bytes per (run, board, ct, pc). The per-run salt makes stale data from a
-/// previous run fail the compare; the per-byte mixing makes any mis-routed read mismatch.
+/// previous run fail the compare; the per-byte mixing makes any misrouted read mismatch.
 fn make_pattern(run_id: u32, node: u8, l: u32, pc: u8, size: usize) -> Vec<u8> {
     let key = run_id
         ^ (node as u32).wrapping_mul(0x9E37_79B1)
@@ -173,12 +173,12 @@ pub fn notify_test(
         NotifyPattern::Flood => {
             let tgt_notify = stats
                 .iter()
-                .find(|(nd, _)| *nd == target)
+                .find(|(node, _)| *node == target)
                 .map(|(_, (nfy, _, _))| *nfy)
                 .unwrap();
             let sum_nack: u32 = stats
                 .iter()
-                .filter(|(nd, _)| *nd != target)
+                .filter(|(node, _)| *node != target)
                 .map(|(_, (_, nk, _))| *nk)
                 .sum();
             println!(
@@ -201,7 +201,7 @@ pub fn notify_test(
         }
     }
 
-    let errs: Vec<(u8, u32)> = stats.iter().map(|(nd, (_, _, e))| (*nd, *e)).collect();
+    let errs: Vec<(u8, u32)> = stats.iter().map(|(node, (_, _, e))| (*node, *e)).collect();
     pass &= report_errors(&errs);
     println!(
         "[{}] notify {pattern:?} test",
@@ -480,7 +480,7 @@ pub fn readreq_test(
             pass = false;
         }
     }
-    let errs: Vec<(u8, u32)> = stats.iter().map(|(nd, (_, e))| (*nd, *e)).collect();
+    let errs: Vec<(u8, u32)> = stats.iter().map(|(node, (_, e))| (*node, *e)).collect();
     pass &= report_errors(&errs);
     println!(
         "[{}] read-request {pattern:?} test",
@@ -600,7 +600,7 @@ pub fn readreq_stress(
             pass = false;
         }
     }
-    let errs: Vec<(u8, u32)> = stats.iter().map(|(nd, (_, _, e))| (*nd, *e)).collect();
+    let errs: Vec<(u8, u32)> = stats.iter().map(|(node, (_, _, e))| (*node, *e)).collect();
     pass &= report_errors(&errs);
     println!(
         "[{}] read-request stress ({total_ct} CT(s) verified)",
