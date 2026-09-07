@@ -78,6 +78,10 @@ pub(crate) fn should_check_determinism(message_modulus_log: MessageModulusLog) -
     message_modulus_log == MessageModulusLog(4)
 }
 
+pub(crate) fn is_sanitizer_run() -> bool {
+    std::env::var("TFHE_RS_COMPUTE_SANITIZER").is_ok_and(|v| v == "1")
+}
+
 /// Counterpart of [`MULTI_BIT_2_2_2_PARAMS`] and [`MULTI_BIT_2_2_3_PARAMS`] for a grouping factor
 /// of 4, which only the GPU backend implements: the parameters actually used with it.
 pub const MULTI_BIT_2_2_4_PARAMS: MultiBitTestParams<u64> =

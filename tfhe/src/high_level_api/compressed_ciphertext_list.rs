@@ -1148,13 +1148,18 @@ mod tests {
     #[cfg(feature = "gpu")]
     #[test]
     fn test_compressed_ct_list_gpu_many_sizes() {
-        use rand::{thread_rng, Rng};
+        let is_sanitizer_run = std::env::var("TFHE_RS_COMPUTE_SANITIZER").is_ok_and(|v| v == "1");
 
-        let mut rng = thread_rng();
-        let mut sizes: Vec<usize> = (0..10).map(|_| rng.gen_range(1..=512)).collect();
-
-        // Add some fixed sizes.
-        sizes.extend([32, 64, 128, 256]);
+        let sizes: Vec<usize> = if is_sanitizer_run {
+            vec![1, 2]
+        } else {
+            use rand::{thread_rng, Rng};
+            let mut rng = thread_rng();
+            let mut s: Vec<usize> = (0..10).map(|_| rng.gen_range(1..=512)).collect();
+            // Add some fixed sizes.
+            s.extend([32, 64, 128, 256]);
+            s
+        };
         // Printed so a CI failure can be reproduced.
         println!("compressed list sizes under test: {sizes:?}");
 

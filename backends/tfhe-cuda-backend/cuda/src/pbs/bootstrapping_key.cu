@@ -378,8 +378,8 @@ void cuda_backward_fft16x4x16_async(void *stream, uint32_t gpu_index,
 bool cuda_fft16x4x16_is_supported_async(uint32_t gpu_index) {
   cudaDeviceProp prop{};
   cudaError_t err = cudaGetDeviceProperties(&prop, gpu_index);
-  // sm_90 (Hopper) or newer: the FFT16x4x16 core needs the named-barrier /
-  // mbarrier primitives introduced with compute capability 9.x.
+  // sm_90 (Hopper) or newer: the FFT16x4x16 core is only validated on
+  // compute capability 9.x and above.
   return err == cudaSuccess && prop.major >= 9;
 }
 

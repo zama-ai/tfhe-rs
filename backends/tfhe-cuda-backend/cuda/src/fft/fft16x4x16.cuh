@@ -382,8 +382,9 @@ static inline __device__ void mul_itwiddles_4x4_regs(double2 *a, double2 w1,
 //
 //  Dual-FFT variant (128-thread block, threadIdx.y=0/1 selects FFT group):
 //    Shared twiddle table (row 0) + compact_twiddles (1 copy, shared by both
-//    groups) Each group gets its own xpose scratch area and mbarrier storage.
-//    A startup mbarrier gates the twiddle-load phase.
+//    groups) Each group gets its own xpose scratch area; cross-warp syncs use
+//    named barriers, so no per-group barrier storage is reserved in smem.
+//    A __syncthreads() gates the twiddle-load phase.
 // ============================================================================
 static constexpr int TW_SMEM_DOUBLES =
     2 * 15 * 64; // 1920 doubles = 15360 bytes
@@ -400,44 +401,25 @@ static constexpr int TWIST_HALF_SMEM_OFFSET =
 // (N/2 + 1) for the 1024-point (16×4×16) FFT, i.e. 1024/2 + 1 = 513.
 static constexpr int FFT16x4x16_TWIST_HALF_TABLE_SIZE = 513;
 
-struct alignas(8) FFT16x4x16MBarrierStorage {
-  unsigned long long barrier;
-};
-
-static_assert(sizeof(FFT16x4x16MBarrierStorage) % sizeof(double) == 0,
-              "FFT16x4x16MBarrierStorage must stay double-aligned");
-
-static constexpr int FFT16x4x16_MBARRIER_STORAGE_DOUBLES =
-    sizeof(FFT16x4x16MBarrierStorage) / sizeof(double);
-
 // Dual smem offsets: one shared twiddle table then two independent xpose areas
-// + two per-group PONG xpose areas (ping-pong for fwd FFT barrier elimination)
-// + two per-group mbarriers + one startup mbarrier.
+// + two per-group PONG xpose areas (ping-pong for fwd FFT barrier elimination).
 //
-// PONG insertion is between XPOSE1 and BARRIER0 so KB_* (single-FFT keybundle
-// layout, built from XPOSE0 only) is unaffected.
+// Cross-warp synchronisation uses named barriers (see sync_coupled_warps),
+// which are hardware CTA barriers and need no shared-memory storage.
 static constexpr int FFT16x4x16_DUAL_COMPACT_TW_OFFSET = TW_SMEM_DOUBLES;
 static constexpr int FFT16x4x16_DUAL_XPOSE0_OFFSET =
     FFT16x4x16_DUAL_COMPACT_TW_OFFSET + COMPACT_TW_SMEM_DOUBLES;
 static constexpr int FFT16x4x16_DUAL_XPOSE1_OFFSET =
     FFT16x4x16_DUAL_XPOSE0_OFFSET + XPOSE_SMEM_DOUBLES;
 // PONG xpose buffers for ping-pong fwd FFT (1 per y-group, same size as ping).
-// Used to eliminate the explicit mbarrier between mul_twiddles_4x4_regs and
-// permute_4x4 and the post-FFT mbarrier before smem_comm publish.
+// Used to eliminate the explicit sync between mul_twiddles_4x4_regs and
+// permute_4x4 and the post-FFT sync before smem_comm publish.
 static constexpr int FFT16x4x16_DUAL_XPOSE0_PONG_OFFSET =
     FFT16x4x16_DUAL_XPOSE1_OFFSET + XPOSE_SMEM_DOUBLES;
 static constexpr int FFT16x4x16_DUAL_XPOSE1_PONG_OFFSET =
     FFT16x4x16_DUAL_XPOSE0_PONG_OFFSET + XPOSE_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_DUAL_BARRIER0_OFFSET =
-    FFT16x4x16_DUAL_XPOSE1_PONG_OFFSET + XPOSE_SMEM_DOUBLES;
-static constexpr int FFT16x4x16_DUAL_BARRIER1_OFFSET =
-    FFT16x4x16_DUAL_BARRIER0_OFFSET + FFT16x4x16_MBARRIER_STORAGE_DOUBLES;
-static constexpr int FFT16x4x16_DUAL_STARTUP_BARRIER_OFFSET =
-    FFT16x4x16_DUAL_BARRIER1_OFFSET + FFT16x4x16_MBARRIER_STORAGE_DOUBLES;
-// Padding double so the negacyclic twist table (double2) is 16-byte aligned.
 static constexpr int FFT16x4x16_DUAL_TWIST_OFFSET =
-    FFT16x4x16_DUAL_STARTUP_BARRIER_OFFSET +
-    FFT16x4x16_MBARRIER_STORAGE_DOUBLES + 1;
+    FFT16x4x16_DUAL_XPOSE1_PONG_OFFSET + XPOSE_SMEM_DOUBLES;
 static_assert((FFT16x4x16_DUAL_TWIST_OFFSET * sizeof(double)) %
                       sizeof(double2) ==
                   0,
@@ -452,27 +434,9 @@ static_assert(FFT16x4x16_DUAL_SMEM_BYTES <= 114u * 1024u,
               "dual FFT16x4x16 smem layout exceeds the per-block budget");
 
 // ============================================================================
-//  mbarrier helpers — SM90+ uses hardware mbarrier for intra-warp-group sync;
-//  older architectures fall back to __syncthreads().
+//  Cross-warp synchronisation — a partial (named) barrier over the 64 threads
+//  of one FFT y-group, so the sibling y-group is never stalled.
 // ============================================================================
-// expected_count must equal the number of warps that sync on this barrier:
-// fft16x4x16_mbarrier_sync arrives once per warp (lane 0 only).
-static __device__ __forceinline__ void
-fft16x4x16_mbarrier_init_raw(FFT16x4x16MBarrierStorage *storage,
-                             unsigned expected_count) {
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 900
-  asm volatile(
-      "mbarrier.init.shared.b64 [%0], %1;"
-      :
-      : "r"(static_cast<unsigned>(__cvta_generic_to_shared(&storage->barrier))),
-        "r"(expected_count)
-      : "memory");
-#else
-  (void)storage;
-  (void)expected_count;
-#endif
-}
-
 static __device__ __forceinline__ void
 fft16x4x16_named_barrier_sync(unsigned barrier_id, unsigned thread_count) {
 #if defined(__CUDA_ARCH__)
@@ -483,9 +447,11 @@ fft16x4x16_named_barrier_sync(unsigned barrier_id, unsigned thread_count) {
 #endif
 }
 
-// Partial named-barrier sync over one 64-thread FFT y-group (2 warps). Drop-in
-// replacement for the mbarrier arrive/test_wait spin used by the production
-// ping-pong cores. y-group g (= threadIdx.y) uses named barrier id (g+1):
+// Partial named-barrier sync over one 64-thread FFT y-group (2 warps).
+// Named barriers are hardware CTA barriers: the participant count is an
+// operand of every bar.sync and the barrier self-resets, so unlike an mbarrier
+// there is nothing to allocate in shared memory and nothing to initialise.
+// y-group g (= threadIdx.y) uses named barrier id (g+1):
 // groups use ids 1 and 2 — id 0 is reserved for __syncthreads() (== bar.sync
 // 0). 64 = 2 warps; bar.sync carries the CTA-scope shared-memory fence the
 // transpose store -> sibling-warp-load relies on.
@@ -493,107 +459,14 @@ static __device__ __forceinline__ void sync_coupled_warps() {
   fft16x4x16_named_barrier_sync(threadIdx.y + 1u, 64u);
 }
 
-// Barrier synchronization between two warps of the same 64-thread FFT group.
-// On SM90+ uses the mbarrier arrive/wait protocol to avoid full __syncthreads()
-// (which would stall all 128 threads in the block).
-static __device__ __forceinline__ void
-fft16x4x16_mbarrier_sync(FFT16x4x16MBarrierStorage *storage) {
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 900
-  constexpr unsigned warp_mask = 0xffffffffu;
-  const int lane = threadIdx.x & 31;
-  const unsigned barrier_addr =
-      static_cast<unsigned>(__cvta_generic_to_shared(&storage->barrier));
-
-  __syncwarp(warp_mask);
-
-  unsigned long long token = 0;
-  if (lane == 0) {
-    asm volatile("mbarrier.arrive.release.cta.shared::cta.b64 %0, [%1];"
-                 : "=l"(token)
-                 : "r"(barrier_addr)
-                 : "memory");
-  }
-
-  int ready = 0;
-  do {
-    if (lane == 0) {
-      asm volatile(
-          "{\n\t"
-          ".reg .pred p;\n\t"
-          "mbarrier.test_wait.acquire.cta.shared::cta.b64 p, [%1], %2;\n\t"
-          "selp.b32 %0, 1, 0, p;\n\t"
-          "}"
-          : "=r"(ready)
-          : "r"(barrier_addr), "l"(token)
-          : "memory");
-    }
-    ready = __shfl_sync(warp_mask, ready, 0);
-  } while (!ready);
-
-  __syncwarp(warp_mask);
-#else
-  (void)storage;
-  __syncthreads();
-#endif
-}
-
 // ============================================================================
 //  Transpose helpers (shared-memory shuffles between FFT stages)
 //
-//  permute_16x64_mbarrier: 16×64 matrix transpose after the first FFT16 pass.
-//    Store pitch 65, stride 4 → smem[lo4*65 + hi4 + i*4]; read indirect.
-//  permute_4x4_mbarrier: 4×4 block transpose after the FFT4x4 pass.
-//    Store pitch 69; read stride 1.
-//  Both variants use fft16x4x16_mbarrier_sync (per-group) instead of
-//  __syncthreads.
+//  permute_16x64_optimized: 16×64 matrix transpose after the first FFT16 pass.
+//  permute_4x4_optimized:   4×4 block transpose after the FFT4x4 pass.
+//  Both hand data between the two warps of a y-group and therefore close with
+//  sync_coupled_warps() rather than __syncthreads().
 // ============================================================================
-static inline __device__ void
-permute_16x64_mbarrier(double2 *a, double *smem,
-                       FFT16x4x16MBarrierStorage *barrier) {
-  double *smem_re = smem, *smem_im = smem + 69 * 16;
-  int lo4 = threadIdx.x & 15;
-  int hi4 = threadIdx.x >> 4;
-  int sb = lo4 * 65 + hi4;
-  int lb = lo4 * 65 + (hi4 << 2);
-
-#pragma unroll
-  for (int i = 0; i < 16; i++) {
-    int ri = ((i & 1) << 3) | ((i & 2) << 1) | ((i & 4) >> 1) | ((i & 8) >> 3);
-    smem_re[sb + (i << 2)] = a[ri].x;
-    smem_im[sb + (i << 2)] = a[ri].y;
-  }
-  fft16x4x16_mbarrier_sync(barrier);
-#pragma unroll
-  for (int i = 0; i < 16; i++) {
-    int li = lb + (i >> 2) * 16 + (i & 3);
-    a[i].x = smem_re[li];
-    a[i].y = smem_im[li];
-  }
-}
-
-static inline __device__ void
-permute_4x4_mbarrier(double2 *a, double *smem,
-                     FFT16x4x16MBarrierStorage *barrier) {
-  double *smem_re = smem, *smem_im = smem + 69 * 16;
-  int lo2 = threadIdx.x & 3;
-  int mi2 = (threadIdx.x >> 2) & 3;
-  int hi2 = threadIdx.x >> 4;
-  int sb = hi2 * 17 + (mi2 << 2) + lo2;
-  int lb = mi2 * 276 + hi2 * 69 + lo2 * 17;
-
-#pragma unroll
-  for (int i = 0; i < 16; i++) {
-    int ri = (i & 12) | ((i & 1) << 1) | ((i & 2) >> 1);
-    smem_re[sb + i * 69] = a[ri].x;
-    smem_im[sb + i * 69] = a[ri].y;
-  }
-  fft16x4x16_mbarrier_sync(barrier);
-#pragma unroll
-  for (int i = 0; i < 16; i++) {
-    a[i].x = smem_re[lb + i];
-    a[i].y = smem_im[lb + i];
-  }
-}
 // Performs the data permutation using specialized barriers
 static inline __device__ void permute_16x64_optimized(double2 *a,
                                                       double *smem) {
@@ -620,8 +493,7 @@ static inline __device__ void permute_16x64_optimized(double2 *a,
 // Permutation for the 4xfft-4 using specialized barriers.
 //
 // Transposes the 4x4 blocks between the FFT4x4 and the final FFT16 pass, in
-// smem, using the same double2 grid as its mbarrier twin
-// (permute_4x4_mbarrier).
+// smem, using a double2 grid.
 //
 // The 64-lane group id splits into three radix-4 digits:
 //   tid = hi2*16 + mi2*4 + lo2   (lo2,mi2,hi2 each in 0..3)
@@ -657,7 +529,7 @@ static inline __device__ void permute_4x4_optimized(double2 *a, double *smem) {
 
 // ============================================================================
 //  FFT16x4x16 core — operates on 16 registers per thread; smem pointers must
-//  be the per-group xpose area and barrier, not the full smem base.
+//  be the per-group xpose area, not the full smem base.
 //
 //  Forward: FFT16 → inter-stage twiddles → 16x64 transpose → FFT4x4 →
 //           compact twiddles → sync → 4x4 transpose → FFT16.
@@ -666,17 +538,22 @@ static inline __device__ void permute_4x4_optimized(double2 *a, double *smem) {
 //  NOTE: output registers are in bit-reversed order d_rev<16>(j).  Callers
 //  that do not reorder on output get results in "scrambled" order.
 // ============================================================================
-static __device__ void FFT16x4x16_fwd_core_mbarrier_explicit(
-    double2 *a, const double2 *tw, double *smem_xpose,
-    const double *compact_twiddles, FFT16x4x16MBarrierStorage *barrier) {
+// Single-buffer forward core: the full stage sequence over one xpose scratch,
+// with every cross-warp handoff going through sync_coupled_warps() (bar.sync
+// over the 64-thread group). Used by the keybundle FFT, which runs one FFT per
+// block and has no second buffer to ping-pong against.
+static __device__ void
+FFT16x4x16_fwd_core_named_barrier(double2 *a, const double2 *tw,
+                                  double *smem_xpose,
+                                  const double *compact_twiddles) {
   int tid = threadIdx.x;
   FFT16(a);
   mul_twiddles_16(a, tid, tw);
-  permute_16x64_mbarrier(a, smem_xpose, barrier);
+  permute_16x64_optimized(a, smem_xpose);
   FFT4x4(a);
   mul_twiddles_4x4(a, compact_twiddles);
-  fft16x4x16_mbarrier_sync(barrier);
-  permute_4x4_mbarrier(a, smem_xpose, barrier);
+  sync_coupled_warps();
+  permute_4x4_optimized(a, smem_xpose);
   FFT16(a);
 }
 
@@ -709,7 +586,7 @@ apply_negacyclic_pre_twist_16x64_stage_fused(double2 *a,
 // unchanged and the inverse path keeps its smem_twist-based untwist with no
 // modification. Ping-pong is preserved: PING (smem_xpose_ping) holds the
 // permute_16x64 transpose, PONG (smem_xpose_pong) the permute_4x4 transpose,
-// and the mid-FFT explicit mbarrier stays dropped (permute_4x4 writes PONG → no
+// and the mid-FFT explicit sync stays dropped (permute_4x4 writes PONG → no
 // WAR on PING).
 static __device__ void FFT16x4x16_fwd_optimized_for_pbs(
     double2 *a, const double2 *tw, const double2 *smem_twist,
@@ -724,7 +601,7 @@ static __device__ void FFT16x4x16_fwd_optimized_for_pbs(
       a, smem_xpose_ping); // STS→PING, LDS←PING (named bar.sync)
   FFT4x4(a);
   mul_twiddles_4x4_regs(a, compact_w1, compact_w2, compact_w3);
-  // [explicit mbarrier dropped — permute_4x4 below writes to PONG, no WAR on
+  // [explicit sync dropped — permute_4x4 below writes to PONG, no WAR on
   // PING]
   permute_4x4_optimized(a,
                         smem_xpose_pong); // STS→PONG, LDS←PONG (named bar.sync)
@@ -769,8 +646,8 @@ apply_negacyclic_post_twist_16x64_stage_fused(double2 *a,
 // bit-reversed time-domain registers at the end, replacing the kernel's
 // separate twist_lookup loop. Mathematically identical, still reads smem_twist;
 // ping-pong (PING for permute_16x64, PONG for permute_4x4) and the dropped
-// mid-FFT mbarrier unchanged. The post-twist is register-only besides the
-// read-only smem_twist loads, so the dropped post-IFFT mbarrier reasoning still
+// mid-FFT sync unchanged. The post-twist is register-only besides the
+// read-only smem_twist loads, so the dropped post-IFFT sync reasoning still
 // holds.
 static __device__ void FFT16x4x16_inv_optimized_for_pbs(
     double2 *a, const double2 *tw, const double2 *smem_twist,
@@ -784,7 +661,7 @@ static __device__ void FFT16x4x16_inv_optimized_for_pbs(
       a, smem_xpose_ping); // STS→PING, LDS←PING (named bar.sync)
   IFFT4x4(a);
   mul_itwiddles_4x4_regs(a, compact_w1, compact_w2, compact_w3);
-  // [explicit mbarrier dropped — permute_4x4 below writes to PONG, no WAR on
+  // [explicit sync dropped — permute_4x4 below writes to PONG, no WAR on
   // PING]
   permute_4x4_optimized(a,
                         smem_xpose_pong); // STS→PONG, LDS←PONG (named bar.sync)
@@ -796,8 +673,8 @@ static __device__ void FFT16x4x16_inv_optimized_for_pbs(
 //  Dual-block twiddle loader (128-thread block: threadIdx.y=0/1 selects group)
 //
 //  Loads tw_1024[15][64] and compact_twiddles into the shared region that
-//  both FFT groups (y=0 and y=1) share.  Callers must synchronize (via the
-//  startup mbarrier) before calling the core functions.
+//  both FFT groups (y=0 and y=1) share.  Callers must synchronize (with
+//  __syncthreads()) before calling the core functions.
 // ============================================================================
 static __device__ __forceinline__ void
 fft16x4x16_load_shared_twiddles_128t(double *smem) {
@@ -836,10 +713,8 @@ static inline __device__ double2 twist_lookup(const double2 *smem_twist,
   return make_double2(-t.y, -t.x);
 }
 
-// Total shared memory before the barriers
-static constexpr int KB_BARRIER_OFFSET =
-    FFT16x4x16_DUAL_XPOSE0_OFFSET + XPOSE_SMEM_DOUBLES; // 4230
-
 // Total shared memory before the twisting layer
 static constexpr int KB_TWIST_OFFSET =
-    KB_BARRIER_OFFSET + FFT16x4x16_MBARRIER_STORAGE_DOUBLES + 1; // 4232
+    FFT16x4x16_DUAL_XPOSE0_OFFSET + XPOSE_SMEM_DOUBLES; // 4230
+static_assert((KB_TWIST_OFFSET * sizeof(double)) % sizeof(double2) == 0,
+              "keybundle twist table must be 16-byte aligned");

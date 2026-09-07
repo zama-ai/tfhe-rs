@@ -93,7 +93,7 @@ jobs:
 
       - name: Run protocol workflow stress test
         run: |
-          make test_protocol_stress_gpu
+          make test_protocol_long_run_gpu
 
   slack-notify:
     name: gpu_full_h100_tests/slack-notify
