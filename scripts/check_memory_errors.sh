@@ -76,9 +76,12 @@ if [[ "${RUN_VALGRIND}" == "1" ]]; then
   # Find the test executable -> last one to have been modified
   EXECUTABLE=target/release/deps/$(find target/release/deps/ -type f -executable -name "${SANITIZER_TEST_EXE_GLOB}" -printf "%T@ %f\n" |sort -nr|sed 's/^.* //; q;')
 
+  TOTAL=$(grep -cE '\S' <<< "$TESTS_TO_RUN" || true)
+  IDX=0
   while read -r t; do
         [ -z "$t" ] && continue
-        echo "Running valgrind on: $t"
+        IDX=$((IDX + 1))
+        echo "Running valgrind on [${IDX}/${TOTAL}] $(date '+%Y-%m-%d %H:%M:%S'): $t"
 
         VALGRIND_EXIT=0
         valgrind --leak-check=full \
@@ -121,12 +124,15 @@ run_compute_sanitizer_tool() {
   # Find the test executable -> last one to have been modified
   EXECUTABLE=target/release/deps/$(find target/release/deps/ -type f -executable -name "${SANITIZER_TEST_EXE_GLOB}" -printf "%T@ %f\n" |sort -nr|sed 's/^.* //; q;')
 
+  TOTAL=$(grep -cE '\S' <<< "$TESTS_TO_RUN" || true)
   echo "========================================"
-  echo "compute-sanitizer --tool ${CS_TOOL}"
+  echo "compute-sanitizer --tool ${CS_TOOL} (${TOTAL} tests)"
   echo "========================================"
+  IDX=0
   while read -r t; do
         [ -z "$t" ] && continue
-        echo "Running compute-sanitizer (${CS_TOOL}) on: $t"
+        IDX=$((IDX + 1))
+        echo "Running compute-sanitizer (${CS_TOOL}) on [${IDX}/${TOTAL}] $(date '+%Y-%m-%d %H:%M:%S'): $t"
         CS_EXIT=0
         WEDGED=0
 
