@@ -1,5 +1,5 @@
-# Compile and test tfhe-cuda-backend on an AWS instance
-name: gpu_memory_sanitizer_h100
+# Run compute-sanitizer memcheck and racecheck in parallel on a 2xH100 machine
+name: gpu_memory_sanitizer_h100_2gpu_par
 
 env:
   CARGO_TERM_COLOR: always
@@ -12,15 +12,15 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
   SLACKIFY_MARKDOWN: true
-  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
   PULL_REQUEST_MD_LINK: ""
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
-  # Secrets will be available only to zama-ai organization members
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
   EXTERNAL_CONTRIBUTION_RUNNER: "gpu_ubuntu-22.04"
 
 on:
-  # Allows you to run this workflow manually from the Actions tab as an alternative.
+  schedule:
+    # Every Friday at 04:00 UTC
+    - cron: '0 4 * * 5'
   workflow_dispatch:
 
 permissions:
@@ -29,45 +29,9 @@ permissions:
 # zizmor: ignore[concurrency-limits] concurrency is managed after instance setup to ensure safe provisioning
 
 jobs:
-  should-run:
-    name: gpu_memory_sanitizer_h100/should-run
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read  # Needed to check for file change
-    outputs:
-      gpu_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.gpu_any_changed }}
-    steps:
-      - name: Checkout tfhe-rs
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: 0
-          persist-credentials: 'false'
-          token: ${{ env.CHECKOUT_TOKEN }}
-
-      - name: Check for file changes
-        id: changed-files
-        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
-        with:
-          files_yaml: |
-            gpu:
-              - Cargo.toml
-              - tfhe/Cargo.toml
-              - tfhe/build.rs
-              - backends/tfhe-cuda-backend/**
-              - tfhe/src/core_crypto/gpu/**
-              - tfhe/src/integer/gpu/**
-              - tfhe/src/shortint/parameters/**
-              - tfhe/src/high_level_api/**
-              - '.github/workflows/gpu_memory_sanitizer_h100.yml'
-              - '.github/actions/gpu_setup/action.yml'
-              - ci/slab.toml
-
   setup-instance:
-    name: gpu_memory_sanitizer/setup-instance
-    needs: should-run
+    name: gpu_memory_sanitizer_h100_2gpu_par/setup-instance
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' ||
-      (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true')
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
       cloud-provider: ${{ steps.start-remote-instance.outputs.cloud-provider || steps.start-github-instance.outputs.cloud-provider }}
@@ -84,7 +48,6 @@ jobs:
           backend: terraform
           profile: scaleway-2-h100-sxm5-tests
 
-      # This instance will be spawned especially for pull-request from forked repository
       - name: Start GitHub instance
         id: start-github-instance
         if: env.SECRETS_AVAILABLE == 'false'
@@ -95,23 +58,20 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   cuda-tests-linux:
-    name: gpu_memory_sanitizer/cuda-tests-linux
+    name: gpu_memory_sanitizer_h100_2gpu_par/cuda-tests-linux
     needs: [ setup-instance ]
-    if: github.event_name != 'pull_request' ||
-      (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
     concurrency:
       group: ${{ github.workflow_ref }}
-      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+      cancel-in-progress: false
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
-    timeout-minutes: 300
+    timeout-minutes: 600
     strategy:
       fail-fast: false
-      # explicit include-based build matrix, of known valid options
       matrix:
         include:
           - os: ubuntu-22.04
             cuda: "12.8 12.2"
-            gcc: 12 
+            gcc: 12
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -144,34 +104,67 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Run memory sanitizer
+      - name: Check GPU count
         run: |
-          make test_high_level_api_gpu_memcheck
+          GPU_COUNT=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
+          echo "Found ${GPU_COUNT} GPU(s)"
+          [ "${GPU_COUNT}" -ge 2 ] || { echo "Error: at least 2 GPUs required"; exit 1; }
+
+      - name: Enable nvidia multi-process service
+        run: |
+          nvidia-cuda-mps-control -d
+
+      - name: Install cargo-nextest
+        run: make install_cargo_nextest
+
+      - name: Run memcheck and racecheck in parallel
+        run: |
+          run_memcheck() {
+            local rc=0
+            CUDA_VISIBLE_DEVICES=0 make test_high_level_api_gpu_memcheck || rc=$?
+            echo "${rc}" > /tmp/memcheck.rc
+          }
+          run_racecheck() {
+            local rc=0
+            CUDA_VISIBLE_DEVICES=1 make test_high_level_api_gpu_racecheck || rc=$?
+            echo "${rc}" > /tmp/racecheck.rc
+          }
+          run_memcheck 2>&1 | sed -u 's/^/[memcheck]  /' &
+          PID0=$!
+          run_racecheck 2>&1 | sed -u 's/^/[racecheck] /' &
+          PID1=$!
+          wait "${PID0}" || true
+          wait "${PID1}" || true
+
+          STATUS=0
+          for lane in memcheck racecheck; do
+            rc="$(cat "/tmp/${lane}.rc" 2>/dev/null || true)"
+            rc="${rc:-1}"
+            if [ "${rc}" -eq 0 ]; then
+              echo "${lane} passed"
+            else
+              echo "::error title=${lane}::exited with code ${rc}, see the lines prefixed with [${lane}] above"
+              STATUS=1
+            fi
+          done
+          exit "${STATUS}"
 
   slack-notify:
-    name: gpu_memory_sanitizer/slack-notify
+    name: gpu_memory_sanitizer_h100_2gpu_par/slack-notify
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
     if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' && failure() }}
     continue-on-error: true
     steps:
-      - name: Set pull-request URL
-        if: env.SECRETS_AVAILABLE == 'true' && github.event_name == 'pull_request'
-        run: |
-          echo "PULL_REQUEST_MD_LINK=[pull-request](${PR_BASE_URL}${PR_NUMBER}), "  >> "${GITHUB_ENV}"
-        env:
-          PR_BASE_URL: ${{ vars.PR_BASE_URL }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-
       - name: Send message
         if: env.SECRETS_AVAILABLE == 'true'
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
           SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
-          SLACK_MESSAGE: "GPU Memory Checks tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
+          SLACK_MESSAGE: "GPU Memory Sanitizer (memcheck + racecheck parallel) finished with status: ${{ needs.cuda-tests-linux.result }}. ([action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: gpu_memory_sanitizer/teardown-instance
+    name: gpu_memory_sanitizer_h100_2gpu_par/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
@@ -192,4 +185,4 @@ jobs:
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (gpu-memory-sanitizer-h100) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (gpu_memory_sanitizer_h100_2gpu_par) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

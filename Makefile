@@ -1030,10 +1030,15 @@ test_high_level_api_gpu_valgrind: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" &&	scripts/check_memory_errors.sh --cpu
 
-.PHONY: test_high_level_api_gpu_sanitizer # Run the tests of the integer module with Debug flags for CUDA
-test_high_level_api_gpu_sanitizer: install_cargo_nextest
+.PHONY: test_high_level_api_gpu_memcheck # Run compute-sanitizer memcheck on high-level API GPU tests
+test_high_level_api_gpu_memcheck: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
-	export CARGO_PROFILE="$(CARGO_PROFILE)" &&	scripts/check_memory_errors.sh --gpu
+	export CARGO_PROFILE="$(CARGO_PROFILE)" && scripts/check_memory_errors.sh --memcheck
+
+.PHONY: test_high_level_api_gpu_racecheck # Run compute-sanitizer racecheck on high-level API GPU tests
+test_high_level_api_gpu_racecheck: install_cargo_nextest
+	export RUSTFLAGS="-C target-cpu=x86-64" && \
+	export CARGO_PROFILE="$(CARGO_PROFILE)" && scripts/check_memory_errors.sh --racecheck
 
 .PHONY: test_zk_pok_gpu_sanitizer # Run compute-sanitizer memcheck on Rust zk-pok GPU tests
 test_zk_pok_gpu_sanitizer: install_cargo_nextest

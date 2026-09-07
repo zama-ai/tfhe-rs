@@ -3,7 +3,8 @@ set -x
 set -euo pipefail
 
 RUN_VALGRIND=0
-RUN_COMPUTE_SANITIZER=0
+RUN_MEMCHECK=0
+RUN_RACECHECK=0
 
 while [ -n "${1:-}" ]; do
    case "$1" in
@@ -12,7 +13,16 @@ while [ -n "${1:-}" ]; do
             ;;
 
         "--gpu" )
-            RUN_COMPUTE_SANITIZER=1
+            RUN_MEMCHECK=1
+            RUN_RACECHECK=1
+            ;;
+
+        "--memcheck" )
+            RUN_MEMCHECK=1
+            ;;
+
+        "--racecheck" )
+            RUN_RACECHECK=1
             ;;
 
         *)
@@ -23,8 +33,8 @@ while [ -n "${1:-}" ]; do
    shift
 done
 
-if [[ "${RUN_VALGRIND}" == "0" && "${RUN_COMPUTE_SANITIZER}" == "0" ]]; then
-  echo "Usage: check_memory_errors.sh [--gpu] [--cpu]"
+if [[ "${RUN_VALGRIND}" == "0" && "${RUN_MEMCHECK}" == "0" && "${RUN_RACECHECK}" == "0" ]]; then
+  echo "Usage: check_memory_errors.sh [--gpu] [--memcheck] [--racecheck] [--cpu]"
   exit 1
 fi
 
@@ -43,6 +53,7 @@ SANITIZER_LAUNCH_TIMEOUT="${SANITIZER_LAUNCH_TIMEOUT:-600}"
 
 # Array to collect error messages for final summary
 ERROR_MESSAGES=()
+RESULT=0
 
 if [[ "${RUN_VALGRIND}" == "1" ]]; then
   # List the tests into a temporary file using the GPU debug feature set
@@ -65,7 +76,6 @@ if [[ "${RUN_VALGRIND}" == "1" ]]; then
   # Find the test executable -> last one to have been modified
   EXECUTABLE=target/release/deps/$(find target/release/deps/ -type f -executable -name "${SANITIZER_TEST_EXE_GLOB}" -printf "%T@ %f\n" |sort -nr|sed 's/^.* //; q;')
 
-  RESULT=0
   while read -r t; do
         [ -z "$t" ] && continue
         echo "Running valgrind on: $t"
@@ -92,7 +102,8 @@ if [[ "${RUN_VALGRIND}" == "1" ]]; then
   done <<< "$TESTS_TO_RUN"
 fi
 
-if [[ "${RUN_COMPUTE_SANITIZER}" == "1" ]]; then
+run_compute_sanitizer_tool() {
+  local CS_TOOL="$1"
   export TFHE_RS_COMPUTE_SANITIZER=1
 
   # List the tests into a temporary file using the GPU feature set
@@ -110,43 +121,48 @@ if [[ "${RUN_COMPUTE_SANITIZER}" == "1" ]]; then
   # Find the test executable -> last one to have been modified
   EXECUTABLE=target/release/deps/$(find target/release/deps/ -type f -executable -name "${SANITIZER_TEST_EXE_GLOB}" -printf "%T@ %f\n" |sort -nr|sed 's/^.* //; q;')
 
-  RESULT=0
-  for CS_TOOL in memcheck racecheck; do
-    echo "========================================"
-    echo "compute-sanitizer --tool ${CS_TOOL}"
-    echo "========================================"
-    while read -r t; do
-          [ -z "$t" ] && continue
-          echo "Running compute-sanitizer (${CS_TOOL}) on: $t"
-          CS_EXIT=0
-          WEDGED=0
+  echo "========================================"
+  echo "compute-sanitizer --tool ${CS_TOOL}"
+  echo "========================================"
+  while read -r t; do
+        [ -z "$t" ] && continue
+        echo "Running compute-sanitizer (${CS_TOOL}) on: $t"
+        CS_EXIT=0
+        WEDGED=0
 
-          # memcheck supports --leak-check; racecheck does not
-          CS_EXTRA_ARGS=""
-          if [[ "${CS_TOOL}" == "memcheck" ]]; then
-            CS_EXTRA_ARGS="--leak-check=full"
-          fi
+        # memcheck supports --leak-check; racecheck does not
+        CS_EXTRA_ARGS=""
+        if [[ "${CS_TOOL}" == "memcheck" ]]; then
+          CS_EXTRA_ARGS="--leak-check=full"
+        fi
 
-          # shellcheck disable=SC2086
-          timeout -k 30 "${SANITIZER_TEST_TIMEOUT}" \
-              compute-sanitizer --tool "${CS_TOOL}" ${CS_EXTRA_ARGS} \
-              --error-exitcode=1 --launch-timeout "${SANITIZER_LAUNCH_TIMEOUT}" \
-              --target-processes=all \
-              "$EXECUTABLE" --exact "$t" > /tmp/sanitizer_output.log 2>&1 || CS_EXIT=$?
-          cat /tmp/sanitizer_output.log
-          if [[ $CS_EXIT -eq 124 || $CS_EXIT -eq 137 ]] \
-              || grep -q "No attachable process found" /tmp/sanitizer_output.log; then
-              WEDGED=1
-          fi
-          if [[ $WEDGED -ne 0 ]]; then
-              ERROR_MESSAGES+=("Compute-sanitizer (${CS_TOOL}) timed out or lost attach on test: $t")
-              RESULT=1
-          elif [[ $CS_EXIT -ne 0 ]]; then
-              ERROR_MESSAGES+=("Compute-sanitizer (${CS_TOOL}) detected error for test: $t")
-              RESULT=1
-          fi
-      done <<< "$TESTS_TO_RUN"
-  done
+        # shellcheck disable=SC2086
+        timeout -k 30 "${SANITIZER_TEST_TIMEOUT}" \
+            compute-sanitizer --tool "${CS_TOOL}" ${CS_EXTRA_ARGS} \
+            --error-exitcode=1 --launch-timeout "${SANITIZER_LAUNCH_TIMEOUT}" \
+            --target-processes=all \
+            "$EXECUTABLE" --exact "$t" > /tmp/sanitizer_output.log 2>&1 || CS_EXIT=$?
+        cat /tmp/sanitizer_output.log
+        if [[ $CS_EXIT -eq 124 || $CS_EXIT -eq 137 ]] \
+            || grep -q "No attachable process found" /tmp/sanitizer_output.log; then
+            WEDGED=1
+        fi
+        if [[ $WEDGED -ne 0 ]]; then
+            ERROR_MESSAGES+=("Compute-sanitizer (${CS_TOOL}) timed out or lost attach on test: $t")
+            RESULT=1
+        elif [[ $CS_EXIT -ne 0 ]]; then
+            ERROR_MESSAGES+=("Compute-sanitizer (${CS_TOOL}) detected error for test: $t")
+            RESULT=1
+        fi
+    done <<< "$TESTS_TO_RUN"
+}
+
+if [[ "${RUN_MEMCHECK}" == "1" ]]; then
+  run_compute_sanitizer_tool memcheck
+fi
+
+if [[ "${RUN_RACECHECK}" == "1" ]]; then
+  run_compute_sanitizer_tool racecheck
 fi
 
 # Print summary of errors if any were encountered

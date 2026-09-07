@@ -148,7 +148,7 @@ jobs:
 
       - name: Run memory sanitizer
         run: |
-          make test_high_level_api_gpu_sanitizer
+          make test_high_level_api_gpu_memcheck
 
   slack-notify:
     name: gpu_memory_sanitizer/slack-notify
