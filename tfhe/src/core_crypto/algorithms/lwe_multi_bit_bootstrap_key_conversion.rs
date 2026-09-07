@@ -3,6 +3,7 @@
 //! representations/numerical domains like the Fourier domain.
 
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
+use crate::core_crypto::commons::math::ntt::ntt64::Ntt64;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
@@ -144,4 +145,143 @@ pub fn par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_128<
                 );
             },
         );
+}
+
+/// Check the inputs of the modulus switch of an [`LweMultiBitBootstrapKey`] to the modulus of a 64
+/// bits NTT and return the corresponding [`Ntt64`] along with the width of the (power of two) input
+/// modulus.
+fn modulus_switch_lwe_multi_bit_bootstrap_key_to_ntt64_modulus_setup<InputCont, OutputCont>(
+    input_bsk: &LweMultiBitBootstrapKey<InputCont>,
+    output_bsk: &LweMultiBitBootstrapKey<OutputCont>,
+) -> (Ntt64, u32)
+where
+    InputCont: Container<Element = u64>,
+    OutputCont: Container<Element = u64>,
+{
+    assert_eq!(
+        input_bsk.polynomial_size(),
+        output_bsk.polynomial_size(),
+        "Mismatched PolynomialSize between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.polynomial_size(),
+        output_bsk.polynomial_size(),
+    );
+
+    assert_eq!(
+        input_bsk.glwe_size(),
+        output_bsk.glwe_size(),
+        "Mismatched GlweSize between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.glwe_size(),
+        output_bsk.glwe_size(),
+    );
+
+    assert_eq!(
+        input_bsk.decomposition_base_log(),
+        output_bsk.decomposition_base_log(),
+        "Mismatched DecompositionBaseLog between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.decomposition_base_log(),
+        output_bsk.decomposition_base_log(),
+    );
+
+    assert_eq!(
+        input_bsk.decomposition_level_count(),
+        output_bsk.decomposition_level_count(),
+        "Mismatched DecompositionLevelCount between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.decomposition_level_count(),
+        output_bsk.decomposition_level_count(),
+    );
+
+    assert_eq!(
+        input_bsk.input_lwe_dimension(),
+        output_bsk.input_lwe_dimension(),
+        "Mismatched input LweDimension between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.input_lwe_dimension(),
+        output_bsk.input_lwe_dimension(),
+    );
+
+    assert_eq!(
+        input_bsk.grouping_factor(),
+        output_bsk.grouping_factor(),
+        "Mismatched LweBskGroupingFactor between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.grouping_factor(),
+        output_bsk.grouping_factor(),
+    );
+
+    assert!(
+        input_bsk
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "The input_bsk is required to have a power of two CiphertextModulus, got {:?}",
+        input_bsk.ciphertext_modulus(),
+    );
+
+    assert!(
+        !output_bsk
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "The output_bsk is required to have a non power of two (NTT prime) CiphertextModulus, \
+        got {:?}",
+        output_bsk.ciphertext_modulus(),
+    );
+
+    // Also checks that the output modulus is usable with a 64 bits NTT of the given size
+    let ntt = Ntt64::new(
+        output_bsk.ciphertext_modulus(),
+        output_bsk.polynomial_size(),
+    );
+
+    let input_modulus_width = ntt
+        .as_view()
+        .modswitch_requirement(input_bsk.ciphertext_modulus())
+        .unwrap();
+
+    (ntt, input_modulus_width)
+}
+
+/// Switch the modulus of an [`LWE multi_bit bootstrap key`](`LweMultiBitBootstrapKey`) having a
+/// power of two [`CiphertextModulus`](`crate::core_crypto::commons::parameters::CiphertextModulus`)
+/// to the (prime) modulus of the `output_bsk`, which is required to be usable with a 64 bits NTT
+/// for the [`PolynomialSize`](`crate::core_crypto::commons::parameters::PolynomialSize`) of the
+/// key.
+///
+/// The output key stays in the standard (coefficient) domain, this is the key format expected by
+/// the 64 bits NTT "back and forth" multi-bit programmable bootstrapping.
+///
+/// See [`multi_bit_programmable_bootstrap_ntt64_bnf_lwe_ciphertext`](`crate::core_crypto::algorithms::multi_bit_programmable_bootstrap_ntt64_bnf_lwe_ciphertext`) for usage.
+pub fn modulus_switch_lwe_multi_bit_bootstrap_key_to_ntt64_modulus<InputCont, OutputCont>(
+    input_bsk: &LweMultiBitBootstrapKey<InputCont>,
+    output_bsk: &mut LweMultiBitBootstrapKey<OutputCont>,
+) where
+    InputCont: Container<Element = u64>,
+    OutputCont: ContainerMut<Element = u64>,
+{
+    let (ntt, input_modulus_width) =
+        modulus_switch_lwe_multi_bit_bootstrap_key_to_ntt64_modulus_setup(input_bsk, output_bsk);
+    let ntt = ntt.as_view();
+
+    output_bsk.as_mut().copy_from_slice(input_bsk.as_ref());
+    ntt.modswitch_from_power_of_two_to_ntt_prime(input_modulus_width, output_bsk.as_mut());
+}
+
+/// Parallel variant of [`modulus_switch_lwe_multi_bit_bootstrap_key_to_ntt64_modulus`].
+pub fn par_modulus_switch_lwe_multi_bit_bootstrap_key_to_ntt64_modulus<InputCont, OutputCont>(
+    input_bsk: &LweMultiBitBootstrapKey<InputCont>,
+    output_bsk: &mut LweMultiBitBootstrapKey<OutputCont>,
+) where
+    InputCont: Container<Element = u64> + Sync,
+    OutputCont: ContainerMut<Element = u64>,
+{
+    let (ntt, input_modulus_width) =
+        modulus_switch_lwe_multi_bit_bootstrap_key_to_ntt64_modulus_setup(input_bsk, output_bsk);
+    let ntt = ntt.as_view();
+
+    let polynomial_size = input_bsk.polynomial_size();
+
+    output_bsk
+        .as_mut()
+        .par_chunks_mut(polynomial_size.0)
+        .zip(input_bsk.as_ref().par_chunks(polynomial_size.0))
+        .for_each(|(output_poly, input_poly)| {
+            output_poly.copy_from_slice(input_poly);
+            ntt.modswitch_from_power_of_two_to_ntt_prime(input_modulus_width, output_poly);
+        });
 }
