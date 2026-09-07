@@ -336,7 +336,7 @@ where
     let max_noise_level = sks.key.max_noise_level;
     let modulus = unsigned_modulus(message_modulus, NB_CTXT as u32);
 
-    // Trivials are used as their degrees is thigher than true encrypted
+    // We are using trivials as their degrees is thigher than true encrypted values.
     // i.e their degrees is the exact value stored
     for clear in [1u64, 2, message_modulus.0 - 1, modulus - 1] {
         let ctxt = sks.create_trivial_radix(clear, NB_CTXT);

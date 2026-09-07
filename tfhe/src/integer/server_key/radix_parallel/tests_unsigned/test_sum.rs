@@ -4,7 +4,10 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_smaller_for_params, overflowing_sum_slice_under_modulus, CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::{
+    IntegerCiphertext, IntegerKeyKind, IntegerRadixCiphertext, RadixCiphertext, RadixClientKey,
+    ServerKey,
+};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -161,7 +164,7 @@ where
         .0
         .pow(crate::integer::server_key::radix_parallel::tests_unsigned::NB_CTXT as u32);
 
-    executor.setup(&cks, sks);
+    executor.setup(&cks, sks.clone());
 
     for len in [1, 2, 15, 16, 17, 64, 65] {
         for _ in 0..nb_tests_smaller {
@@ -169,15 +172,40 @@ where
                 .map(|_| rng.gen::<u64>() % modulus)
                 .collect::<Vec<_>>();
 
-            let ctxts = clears
+            let mut ctxts = clears
                 .iter()
                 .copied()
                 .map(|clear| cks.encrypt(clear))
                 .collect::<Vec<_>>();
 
+            // One of the inputs has non empty carries, to exercise the path where the
+            // implementation has to propagate an input before summing. The other inputs
+            // are left clean, so both paths are covered.
+            let extra_clear = rng.gen::<u64>() % modulus;
+            let extra_ctxt = cks.encrypt(extra_clear);
+            let dirty_index = rng.gen_range(0..ctxts.len());
+            sks.unchecked_add_assign(&mut ctxts[dirty_index], &extra_ctxt);
+            assert!(!ctxts[dirty_index].block_carries_are_empty());
+
+            // Another input has empty carries but a noise level above nominal, so the noise
+            // half of the cleanliness check is exercised too. No cheap operation raises the
+            // noise without also filling the carries, so the metadata is set directly. The
+            // real noise being lower than advertised does not matter for what is tested here.
+            if ctxts.len() >= 2 {
+                let noisy_index = (dirty_index + 1) % ctxts.len();
+                for block in ctxts[noisy_index].blocks_mut() {
+                    block.set_noise_level(
+                        NoiseLevel::NOMINAL + NoiseLevel::NOMINAL,
+                        sks.key.max_noise_level,
+                    );
+                }
+                assert!(ctxts[noisy_index].block_carries_are_empty());
+                assert!(!ctxts[noisy_index].is_clean());
+            }
+
             let ct_res = executor.execute(&ctxts).unwrap();
             let res: u64 = cks.decrypt(&ct_res);
-            let clear = clears.iter().sum::<u64>() % modulus;
+            let clear = (clears.iter().sum::<u64>() + extra_clear) % modulus;
 
             assert_eq!(res, clear);
 
