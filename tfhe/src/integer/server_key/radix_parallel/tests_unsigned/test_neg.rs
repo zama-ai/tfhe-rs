@@ -9,6 +9,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::shortint::ciphertext::MaxDegree;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -19,6 +20,7 @@ use std::sync::Arc;
 create_parameterized_test!(integer_smart_neg);
 create_parameterized_test!(integer_default_neg);
 create_parameterized_test!(integer_default_overflowing_neg);
+create_parameterized_test!(integer_is_neg_possible);
 
 fn integer_smart_neg<P>(param: P)
 where
@@ -312,4 +314,161 @@ where
                 num_blocks: {num_blocks}, modulus: {modulus}"
         );
     }
+}
+
+//=============================================================================
+// is_neg_possible
+//=============================================================================
+
+fn integer_is_neg_possible<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let message_modulus = cks.parameters().message_modulus();
+    let carry_modulus = cks.parameters().carry_modulus();
+    // The degree a block can hold without touching the padding bit.
+    let max_degree = MaxDegree::from_msg_carry_modulus(message_modulus, carry_modulus);
+    let max_noise_level = sks.key.max_noise_level;
+    let modulus = unsigned_modulus(message_modulus, NB_CTXT as u32);
+
+    // Trivials are used as their degrees is thigher than true encrypted
+    // i.e their degrees is the exact value stored
+    for clear in [1u64, 2, message_modulus.0 - 1, modulus - 1] {
+        let ctxt = sks.create_trivial_radix(clear, NB_CTXT);
+        sks.is_neg_possible(&ctxt)
+            .expect("negating a trivially encrypted value is always possible");
+
+        let encrypted_result = sks.unchecked_neg(&ctxt);
+        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+        assert_eq!(decrypted_result, clear.wrapping_neg() % modulus);
+    }
+
+    // An input the negation cannot handle
+    {
+        let degrees = [1, message_modulus.0, max_degree.get()];
+        let ctxt = trivial_radix_with_degrees(&sks, &degrees, degrees.len());
+        sks.is_neg_possible(&ctxt).expect_err(&format!(
+            "negating blocks with degrees {degrees:?} overflows, it must not be accepted"
+        ));
+    }
+
+    // Whenever the negation is accepted, doing it must leave every block within what
+    // it can hold.
+    let mut rng = rand::thread_rng();
+    let notable_degrees = [
+        0,
+        1,
+        message_modulus.0 - 1,
+        message_modulus.0,
+        max_degree.get(),
+    ];
+    for _ in 0..nb_tests {
+        let degrees = (0..NB_CTXT)
+            .map(|_| {
+                if rng.gen_bool(0.5) {
+                    notable_degrees[rng.gen_range(0..notable_degrees.len())]
+                } else {
+                    rng.gen_range(0..=max_degree.get())
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let ctxt = trivial_radix_with_degrees(&sks, &degrees, NB_CTXT);
+        if sks.is_neg_possible(&ctxt).is_err() {
+            continue;
+        }
+
+        let encrypted_result = sks.unchecked_neg(&ctxt);
+        panic_if_any_block_info_exceeds_max_degree_or_noise(
+            &encrypted_result,
+            max_degree,
+            max_noise_level,
+        );
+        panic_if_any_block_values_exceeds_its_degree(&encrypted_result, &cks);
+    }
+
+    // `neg_parallelized` uses `is_neg_possible` to avoid pre-cleaning if possible,
+    // which mean is_neg_possible must be correct.
+    //
+    // neg_parallelized should not return an output that has its padding bit set
+    {
+        let degrees = [
+            message_modulus.0 - 1,
+            message_modulus.0,
+            max_degree.get(),
+            message_modulus.0 - 1,
+        ];
+        let values = [1, 1, 0, 1];
+        let ctxt = radix_with_degrees_and_values(&cks, &degrees, &values);
+        assert!(
+            !ctxt.block_carries_are_empty(),
+            "the input must have carries, else neg_parallelized does not consult is_neg_possible"
+        );
+
+        assert!(
+            sks.is_neg_possible(&ctxt).is_err(),
+            "negating blocks with degrees {degrees:?} overflows, it must not be accepted"
+        );
+
+        let cks: &crate::integer::ClientKey = cks.as_ref();
+        let modulus = unsigned_modulus(message_modulus, degrees.len() as u32);
+        let clear: u64 = cks.decrypt_radix(&ctxt);
+
+        let encrypted_result = sks.neg_parallelized(&ctxt);
+        let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
+        assert_eq!(
+            decrypted_result,
+            clear.wrapping_neg() % modulus,
+            "neg_parallelized returned a wrong value for a ciphertext with degrees {degrees:?}"
+        );
+    }
+}
+
+/// Builds a radix whose block at index `i` encrypts `values[i]` but carries a degree of
+/// `degrees[i]`.
+fn radix_with_degrees_and_values(
+    cks: &RadixClientKey,
+    degrees: &[u64],
+    values: &[u64],
+) -> RadixCiphertext {
+    let blocks = degrees
+        .iter()
+        .zip(values)
+        .map(|(&degree, &value)| {
+            assert!(
+                value <= degree,
+                "a block cannot hold a value above its degree"
+            );
+            let mut block = cks.as_ref().key.encrypt(value);
+            block.degree = Degree::new(degree);
+            block
+        })
+        .collect::<Vec<_>>();
+    RadixCiphertext::from(blocks)
+}
+
+/// Builds a radix of `num_blocks` trivial blocks, where the block at index `i` has a value, and
+/// so a degree, of `degrees[i]`. Blocks past `degrees` are trivial zeros.
+fn trivial_radix_with_degrees(
+    sks: &ServerKey,
+    degrees: &[u64],
+    num_blocks: usize,
+) -> RadixCiphertext {
+    let blocks = (0..num_blocks)
+        .map(|i| {
+            let mut block = sks.key.create_trivial(0);
+            if let Some(&degree) = degrees.get(i) {
+                sks.key
+                    .unchecked_scalar_add_assign(&mut block, u8::try_from(degree).unwrap());
+            }
+            assert_eq!(block.degree.get(), degrees.get(i).copied().unwrap_or(0));
+            block
+        })
+        .collect::<Vec<_>>();
+    RadixCiphertext::from(blocks)
 }
