@@ -138,29 +138,19 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         let mut preceding_block_carry = Degree::new(0);
-        let mut preceding_scaled_z = 0;
-        for block in ctxt.blocks().iter() {
+        let negated_degrees =
+            NegatedDegreeIter::new(ctxt.blocks().iter().map(|b| (b.degree, b.message_modulus)));
+
+        for (block, block_degree_after_negation) in ctxt.blocks().iter().zip(negated_degrees) {
             let msg_mod = block.message_modulus.0;
             let max_degree =
                 MaxDegree::from_msg_carry_modulus(block.message_modulus, block.carry_modulus);
 
-            // z = ceil( degree / 2^p ) x 2^p
-            let mut z = block.degree.get().div_ceil(msg_mod);
-            z = z.wrapping_mul(msg_mod);
-            // In the actual operation, preceding_scaled_z is added to the ciphertext
-            // before doing lwe_ciphertext_opposite:
-            // i.e the code does -(ciphertext + preceding_scaled_z) + z
-            // here we do -ciphertext -preceding_scaled_z + z
-            // which is easier to express degree
-            let block_degree_after_negation = Degree::new(z - preceding_scaled_z);
-
             // We want to be able to add together the negated block and the carry
             // from preceding negated block to make sure carry propagation would be correct.
-
             max_degree.validate(block_degree_after_negation + preceding_block_carry)?;
 
             preceding_block_carry = Degree::new(block_degree_after_negation.get() / msg_mod);
-            preceding_scaled_z = z / msg_mod;
         }
         Ok(())
     }
