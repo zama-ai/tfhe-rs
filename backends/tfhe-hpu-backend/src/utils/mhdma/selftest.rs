@@ -80,7 +80,8 @@ fn log_forced_fault(broke: &Option<(usize, u32)>, issued: u32, total: u32) {
 // ------------------------------------------------------------------------------------------------
 
 /// Self-contained pkt-trace ring self-test (needs >= 2 boards).
-/// Arms the board-under-test, filling trace, forces a one-hot violation to freeze, dumps it, then restores.
+/// Arms the board-under-test, filling trace, forces a one-hot violation to freeze, dumps it, then
+/// restores.
 pub fn pkt_trace_selftest(
     hw: &mut ffi::HpuHw,
     config: &HpuConfig,
@@ -292,7 +293,7 @@ pub fn pkt_trace_error_midstream_selftest(
         if let Some((entries, n_valid, first)) = pkt_trace_snapshot(hw, regmap) {
             pkt_trace_print_ring(&entries, n_valid, first);
             valid = n_valid;
-            // pkt_trace_window only yields the full depth when trace_ctrl.wrapped is set
+            // pkt_trace_window only yields the full depth when trace_status.wrapped is set
             wrapped = n_valid == PKT_TRACE_DEPTH;
             // bit 0 only: another bit marks every later entry without exercising trace_aux.
             marked = (0..n_valid)
@@ -366,7 +367,8 @@ pub fn pkt_trace_inject_selftest(hw: &mut ffi::HpuHw, regmap: &FlatRegmap, timeo
     println!("  errors register = 0x{errbits:08x}");
     pkt_trace_print_errors(errbits, "    ");
 
-    // inject_err is still parked at 1 with no fresh edge, so the re-arm must stick
+    // the errors read above cleared inject_err_q (clear-on-read), so the re-arm must stick and
+    // nothing may re-freeze. A held inject (clear-on-read broken) would re-trigger the freeze.
     let rearmed = pkt_trace_arm(hw, regmap);
     std::thread::sleep(std::time::Duration::from_millis(100));
     let no_reinject = !trace_frozen(hw, regmap);
@@ -392,7 +394,10 @@ pub fn pkt_trace_inject_selftest(hw: &mut ffi::HpuHw, regmap: &FlatRegmap, timeo
             println!("       froze but errors[31] clear -> inject_err_q / errors MSB path suspect");
         }
         if !no_reinject {
-            println!("       re-froze with inject_err held at 1 -> edge detect is not working");
+            println!(
+                "       re-froze after the errors clear-on-read -> inject_err_q did not clear \
+                 (clear-on-read path broken)"
+            );
         }
     }
     pass

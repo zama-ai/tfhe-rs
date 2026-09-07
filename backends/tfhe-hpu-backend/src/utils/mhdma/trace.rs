@@ -26,7 +26,15 @@ const PKT_TRACE_TS_PERIOD: u32 = 1 << PKT_TRACE_TS_W;
 
 pub(crate) const PKT_TRACE_MASK_NONE: u32 = 0x0000_0000; // no real error arms the trace
 pub(crate) const PKT_TRACE_MASK_ALL: u32 = 0x7FFF_FFFF;
-pub(crate) const PKT_TRACE_INJECT_BIT: u32 = 1 << 31;
+pub(crate) const PKT_TRACE_INJECT_BIT: u32 = 1 << 31; // errors register MSB (reporting only)
+
+// trace_cmd one-hot write-1-to-act strobes
+const PKT_TRACE_CMD_FREEZE: u32 = 1 << 0;
+const PKT_TRACE_CMD_REARM: u32 = 1 << 1;
+const PKT_TRACE_CMD_INJECT: u32 = 1 << 2;
+
+// trace_status fields: frozen[0], frozen_by_err[1], frozen_by_sw[2], wrapped[3], wptr[9:4],
+// rd_ptr[23:16]
 
 const PKT_TRACE_ERR_LABEL: [&str; 14] = [
     "hpu_onehot_id_violation",  // 0
@@ -153,28 +161,31 @@ pub(crate) fn pkt_trace_print_errors(errbits: u32, prefix: &str) {
     }
 }
 
-/// Set the trace-trigger mask and also clears inject_err, so a later inject sees a fresh 0->1 edge.
+/// Set the trace-trigger mask.
 pub fn pkt_trace_set_mask(hw: &mut ffi::HpuHw, regmap: &FlatRegmap, mask: u32) {
     let val = mask & PKT_TRACE_MASK_ALL;
     hw.reg_write(regmap, "mhdma_system::error_mask", val);
-    info!("trace trigger mask = 0x{val:08x} (inject_err cleared)");
+    info!("trace trigger mask = 0x{val:08x}");
 }
 
-/// Inject a synthetic error
+/// Inject a synthetic error (trace_cmd.inject_err command strobe, one inject per write).
 pub fn pkt_trace_inject(hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
-    let mask = hw.reg_read(regmap, "mhdma_system::error_mask") & PKT_TRACE_MASK_ALL;
-    hw.reg_write(regmap, "mhdma_system::error_mask", mask);
-    hw.reg_write(
-        regmap,
-        "mhdma_system::error_mask",
-        mask | PKT_TRACE_INJECT_BIT,
-    );
-    info!("injected a software error (error_mask.inject_err 0->1)");
+    hw.reg_write(regmap, "mhdma_system::trace_cmd", PKT_TRACE_CMD_INJECT);
+    info!("injected a software error (trace_cmd.inject_err)");
 }
 
 /// Pop + decode the whole ring (the HW read pointer auto-increments per trace_data read), indexed
 /// by absolute entry. Only meaningful while frozen: earlier reads return 0 without advancing.
-fn pkt_trace_read_ring(hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Vec<PktTraceEntry> {
+///
+/// Each read advances trace_status.rd_ptr, which wraps after the whole ring and is only cleared by
+/// a re-arm. `rd_ptr0` is where the window sits at entry (0 = aligned): a prior partial/hand read
+/// may have left it mid-ring, so realign every word read back to its absolute ring slot. Reading
+/// the full ring (rd_ptr0 + TOTAL) wraps the pointer back to rd_ptr0, so a dump is idempotent.
+fn pkt_trace_read_ring(
+    hw: &mut ffi::HpuHw,
+    regmap: &FlatRegmap,
+    rd_ptr0: usize,
+) -> Vec<PktTraceEntry> {
     let data_off = {
         let reg = regmap
             .register()
@@ -184,11 +195,13 @@ fn pkt_trace_read_ring(hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Vec<PktTrace
             });
         *reg.offset() as u64
     };
-    let words: Vec<u32> = (0..PKT_TRACE_DEPTH * PKT_TRACE_WORDS_PER_ENTRY)
-        .map(|_| hw.read_reg(data_off))
-        .collect();
+    const TOTAL: usize = PKT_TRACE_DEPTH * PKT_TRACE_WORDS_PER_ENTRY;
+    let mut aligned = vec![0u32; TOTAL];
+    for k in 0..TOTAL {
+        aligned[(rd_ptr0 + k) % TOTAL] = hw.read_reg(data_off);
+    }
 
-    words
+    aligned
         .chunks(PKT_TRACE_WORDS_PER_ENTRY)
         .map(PktTraceEntry::decode)
         .collect()
@@ -205,31 +218,40 @@ fn pkt_trace_window(wptr: usize, wrapped: bool) -> (usize, usize) {
     }
 }
 
-/// READ and decode trace_ctrl, the trigger mask and the errors register.
+/// READ and decode trace_status, the trigger mask and the errors register.
 ///
 /// Note the errors read is ReadNotify: it consumes the sticky bits and so re-enables the trigger.
 pub fn pkt_trace_status(hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
-    let ctrl = hw.reg_read(regmap, "mhdma_system::trace_ctrl");
-    let frozen = bitfield(ctrl, 0, 1);
-    let wptr = bitfield(ctrl, 1, 6);
-    let wrapped = bitfield(ctrl, 7, 1);
+    let status = hw.reg_read(regmap, "mhdma_system::trace_status");
+    let frozen = bitfield(status, 0, 1);
+    let by_err = bitfield(status, 1, 1);
+    let by_sw = bitfield(status, 2, 1);
+    let wrapped = bitfield(status, 3, 1);
+    let wptr = bitfield(status, 4, 6);
+    let rd_ptr = bitfield(status, 16, 8);
     let mask = hw.reg_read(regmap, "mhdma_system::error_mask");
     let errbits = hw.reg_read(regmap, "mhdma_system::errors");
 
     println!("=== MHDMA packet-trace status ===");
-    println!("  trace_ctrl = 0x{ctrl:08x}");
+    println!("  trace_status = 0x{status:08x}");
     let frozen_txt = if frozen == 1 {
         "(buffer FROZEN, ready to read)"
     } else {
         "(armed / capturing)"
     };
     println!("  frozen     = {frozen} {frozen_txt}");
-    // The RTL only samples wptr/wrapped into the cfg domain while frozen, so they are leftovers
-    // from the previous freeze until the next one.
+    let cause_txt = match (by_err, by_sw) {
+        (1, 0) => "an mhdma error (masked-in or injected)",
+        (0, 1) => "a SW freeze command",
+        (0, 0) => "(none: not frozen since the last re-arm)",
+        _ => "BOTH?! (unexpected)",
+    };
+    println!("  cause      = {cause_txt}");
+    // wptr/wrapped/cause are sampled at freeze and cleared by a re-arm.
     let (wptr_txt, wrapped_txt) = if frozen == 0 {
         (
-            "(stale: only sampled at freeze)",
-            "(stale: only sampled at freeze)",
+            "(only sampled at freeze; a re-arm clears it)",
+            "(only sampled at freeze; a re-arm clears it)",
         )
     } else if wrapped == 1 {
         (
@@ -245,32 +267,37 @@ pub fn pkt_trace_status(hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
     println!("  wptr       = {wptr} {wptr_txt}");
     println!("  wrapped    = {wrapped} {wrapped_txt}");
     println!(
+        "  rd_ptr     = {rd_ptr} (trace_data window position, in words: entry {}, word {})",
+        rd_ptr / PKT_TRACE_WORDS_PER_ENTRY as u32,
+        rd_ptr % PKT_TRACE_WORDS_PER_ENTRY as u32
+    );
+    println!(
         "  trig mask  = 0x{:08x} (1 = that errors bit arms the trace; only [11:0] are wired)",
         mask & PKT_TRACE_MASK_ALL
     );
-    println!("  inject_err = {}", (mask >> 31) & 1);
     println!("  errors     = 0x{errbits:04x}");
     pkt_trace_print_errors(errbits, "    ");
     println!("  NOTE: that errors read CLEARED the sticky bits and re-enabled the trace trigger.");
 }
 
 /// Flush + re-arm circular capture:
-/// -> Clears the sticky errors, writes trace_ctrl with frozen=0 (bit0), then confirm frozen is cleared.
-///  The clear is mandatory: the mhdma-domain error bits stay registered until mhdma_system::errors is read,
-/// and the trigger is built from them, so arming on top of one re-freezes the ring at once.
+/// -> Clears the sticky errors, writes trace_cmd.rearm, then confirm frozen is cleared.
+///  The clear is mandatory: the mhdma-domain error bits stay registered until mhdma_system::errors
+/// is read, and the trigger is built from them, so arming on top of one re-freezes the ring at
+/// once.
 pub fn pkt_trace_arm(hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> bool {
     info!("Arming packet-trace buffer ...");
 
     error_reset(hw, regmap);
-    hw.reg_write(regmap, "mhdma_system::trace_ctrl", 0x0);
+    hw.reg_write(regmap, "mhdma_system::trace_cmd", PKT_TRACE_CMD_REARM);
 
-    // The arm strobe crosses a 4-stage CDC into clk_mhdma and must flush the stale frozen bit.
+    // The arm strobe crosses a CDC into clk_mhdma and must flush the stale frozen bit.
     std::thread::sleep(std::time::Duration::from_millis(100));
 
-    let ctrl = hw.reg_read(regmap, "mhdma_system::trace_ctrl");
-    let frozen = bitfield(ctrl, 0, 1);
+    let status = hw.reg_read(regmap, "mhdma_system::trace_status");
+    let frozen = bitfield(status, 0, 1);
 
-    // No wptr check: republished only while frozen (mhdma_pkt_trace.sv:369), so here it is stale.
+    // No wptr check: the re-arm clears the published wptr/wrapped/cause fields.
     if frozen != 0 {
         // println! too: RUST_LOG without a matching directive suppresses warn!.
         println!("[FAIL] pkt-trace arm: frozen={frozen} after arm (expected 0)");
@@ -284,9 +311,9 @@ pub fn pkt_trace_arm(hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> bool {
     true
 }
 
-/// trace_ctrl.frozen
+/// trace_status.frozen
 pub(crate) fn trace_frozen(hw: &ffi::HpuHw, regmap: &FlatRegmap) -> bool {
-    bitfield(hw.reg_read(regmap, "mhdma_system::trace_ctrl"), 0, 1) == 1
+    bitfield(hw.reg_read(regmap, "mhdma_system::trace_status"), 0, 1) == 1
 }
 
 /// Bounded poll of the frozen bit. Does not dump, so the caller keeps control of the single
@@ -309,9 +336,9 @@ pub(crate) fn pkt_trace_poll_frozen(
 }
 
 /// SW-freeze the trace now:
-/// -> Write trace_ctrl frozen=1 (bit0), then poll until frozen (bounded).
+/// -> Write trace_cmd.freeze, then poll until frozen (bounded).
 fn pkt_trace_freeze(hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> bool {
-    hw.reg_write(regmap, "mhdma_system::trace_ctrl", 0x1); // frozen=1 => SW freeze
+    hw.reg_write(regmap, "mhdma_system::trace_cmd", PKT_TRACE_CMD_FREEZE);
     pkt_trace_poll_frozen(hw, regmap, 2)
 }
 
@@ -320,20 +347,35 @@ pub(crate) fn pkt_trace_snapshot(
     hw: &mut ffi::HpuHw,
     regmap: &FlatRegmap,
 ) -> Option<(Vec<PktTraceEntry>, usize, usize)> {
-    let ctrl = hw.reg_read(regmap, "mhdma_system::trace_ctrl");
-    if bitfield(ctrl, 0, 1) != 1 {
+    let status = hw.reg_read(regmap, "mhdma_system::trace_status");
+    if bitfield(status, 0, 1) != 1 {
         return None;
     }
-    let wptr = bitfield(ctrl, 1, 6) as usize;
-    let wrapped = bitfield(ctrl, 7, 1) == 1;
+    let wptr = bitfield(status, 4, 6) as usize;
+    let wrapped = bitfield(status, 3, 1) == 1;
+    // where the trace_data window sits now (word index, 0 = aligned). A re-arm clears it, but a
+    // prior partial / hand read of trace_data leaves it mid-ring.
+    let rd_ptr = bitfield(status, 16, 8) as usize;
 
     if wrapped {
         info!("ring FULL, {PKT_TRACE_DEPTH} entries (wptr={wptr} -> oldest)");
     } else {
         info!("ring PARTIAL, {wptr} valid entries (rest stale, not shown)");
     }
+    let (entry, word) = (
+        rd_ptr / PKT_TRACE_WORDS_PER_ENTRY,
+        rd_ptr % PKT_TRACE_WORDS_PER_ENTRY,
+    );
+    if rd_ptr == 0 {
+        println!("  trace_data read pointer at word 0 (entry 0, word 0) - readback aligned");
+    } else {
+        println!(
+            "  trace_data read pointer at word {rd_ptr} (entry {entry}, word {word}) - a prior \
+             read left the window mid-ring; realigning this dump"
+        );
+    }
     let (n_valid, first) = pkt_trace_window(wptr, wrapped);
-    Some((pkt_trace_read_ring(hw, regmap), n_valid, first))
+    Some((pkt_trace_read_ring(hw, regmap, rd_ptr), n_valid, first))
 }
 
 /// SW-freeze if needed, then read + print the ring oldest->newest.
@@ -419,7 +461,7 @@ pub(crate) fn pkt_trace_print_ring(entries: &[PktTraceEntry], n_valid: usize, fi
     println!();
 }
 
-/// Poll trace_ctrl until frozen (bounded by `timeout_s`), then dump.
+/// Poll trace_status until frozen (bounded by `timeout_s`), then dump.
 /// Returns the dump's (errors word, valid entry count), or None if it never froze.
 pub fn pkt_trace_wait(
     hw: &mut ffi::HpuHw,

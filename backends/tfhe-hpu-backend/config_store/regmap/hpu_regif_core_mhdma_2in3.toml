@@ -50,7 +50,7 @@ offset= 0x0
   default={Cst=0x0}
 
 [section.mhdma_system.register.errors]
-  description="Sticky error flags, cleared by reading this register: [31] software-injected error (see error_mask.inject_err), [13] master read-request cmd queue overflow, [12] master notify cmd queue overflow, [11] formatter master cmd discard, [10] formatter slave cmd discard, [9] formatter payload gap, [8] decoder rx FIFO overflow, [7] slave read-request cmd queue overflow, [6] AXI4 HBM read response error, [5] master max retry read-request hit, [4] master max retry notify hit, [3] ciphertext sequence number mismatch, [2:1] per-PC AXI4 HBM write error, [0] multi-HPU one-hot ID violation"
+  description="Sticky error flags, cleared by reading this register: [31] software-injected error (see trace_cmd.inject_err), [13] master read-request cmd queue overflow, [12] master notify cmd queue overflow, [11] formatter master cmd discard, [10] formatter slave cmd discard, [9] formatter payload gap, [8] decoder rx FIFO overflow, [7] slave read-request cmd queue overflow, [6] AXI4 HBM read response error, [5] master max retry read-request hit, [4] master max retry notify hit, [3] ciphertext sequence number mismatch, [2:1] per-PC AXI4 HBM write error, [0] multi-HPU one-hot ID violation"
   owner="Kernel"
   read_access="ReadNotify"
   write_access="None"
@@ -64,29 +64,40 @@ offset= 0x0
   default={Cst=0x0}
   duplicate=["_0", "_1", "_2", "_3", "_4", "_5", "_6", "_7"]
 
-[section.mhdma_system.register.trace_ctrl]
-  description="Packet-trace control and status: write frozen=1 to freeze capture now, or frozen=0 to flush and re-arm."
+[section.mhdma_system.register.trace_cmd]
+  description="Packet-trace commands: one-hot write-1-to-act strobes. Reads return zero."
   owner="Kernel"
   read_access="Read"
   write_access="WriteNotify"
-  field.frozen  = {size_b=1, offset_b=0, default={Cst=0x0}, description="An error stopped capture; the buffer is frozen and ready to read"}
-  field.wptr    = {size_b=6, offset_b=1, default={Cst=0x0}, description="Write pointer captured at freeze (= oldest entry index; rotate the ring by this to order oldest->newest when wrapped=1)"}
-  field.wrapped = {size_b=1, offset_b=7, default={Cst=0x0}, description="Ring wrapped since last re-arm: 1 = all TRACE_DEPTH entries valid (rotate by wptr); 0 = only entries [0 .. wptr-1] valid (partial fill, no rotation). Re-arm does not clear the RAM, so slots beyond a partial fill hold stale prior-session data"}
+  field.freeze     = {size_b=1, offset_b=0, default={Cst=0x0}, description="Write 1 to freeze the capture now (sets trace_status.frozen_by_sw)"}
+  field.rearm      = {size_b=1, offset_b=1, default={Cst=0x0}, description="Write 1 to flush and re-arm the capture: clears frozen, wptr, wrapped, rd_ptr and the freeze causes. The RAM is not cleared"}
+  field.inject_err = {size_b=1, offset_b=2, default={Cst=0x0}, description="Write 1 to inject a synthetic error: triggers the trace and sets mhdma_system.errors[31]. Sticky, cleared by reading mhdma_system.errors"}
+
+[section.mhdma_system.register.trace_status]
+  description="Packet-trace status. All fields except rd_ptr are static while frozen=1."
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  field.frozen        = {size_b=1, offset_b=0,  default={Cst=0x0}, description="Capture is frozen; the buffer is ready to read"}
+  field.frozen_by_err = {size_b=1, offset_b=1,  default={Cst=0x0}, description="The freeze cause is a masked or injected mhdma error"}
+  field.frozen_by_sw  = {size_b=1, offset_b=2,  default={Cst=0x0}, description="The freeze cause is a trace_cmd.freeze command"}
+  field.wrapped       = {size_b=1, offset_b=3,  default={Cst=0x0}, description="Ring wrapped since last re-arm: 1 = all TRACE_DEPTH entries valid (rotate by wptr); 0 = only entries [0 .. wptr-1] valid (partial fill, no rotation). Re-arm does not clear the RAM, so slots beyond a partial fill hold stale prior-session data"}
+  field.wptr          = {size_b=6, offset_b=4,  default={Cst=0x0}, description="Write pointer captured at freeze (= oldest entry index; rotate the ring by this to order oldest->newest when wrapped=1)"}
+  field.rd_ptr        = {size_b=8, offset_b=16, default={Cst=0x0}, description="Read pointer of the trace_data window, in 32-bit words: entry = rd_ptr[7:2], word = rd_ptr[1:0]. Cleared by trace_cmd.rearm. The read has no side effect"}
 
 [section.mhdma_system.register.trace_data]
-  description="Packet-trace read window: each read returns the next 32-bit word of the frozen trace and advances the read pointer."
+  description="Packet-trace read window: each read returns the next 32-bit word of the frozen trace and advances trace_status.rd_ptr."
   owner="Kernel"
   read_access="ReadNotify"
   write_access="None"
   default={Cst=0x0}
 
 [section.mhdma_system.register.error_mask]
-  description="Packet-trace trigger mask + software error inject."
+  description="Packet-trace trigger mask."
   owner="User"
   read_access="Read"
   write_access="Write"
   field.mask       = {size_b=31, offset_b=0,  default={Cst=0x7FFFFFFF}, description="Per-error trace-trigger enable, aligned to mhdma_system.errors[11:0]; bits above the mhdma error width are ignored"}
-  field.inject_err = {size_b=1,  offset_b=31, default={Cst=0x0}, description="Write 0->1 to inject a synthetic error: triggers the trace and sets mhdma_system.errors[31]. Sticky, cleared by reading mhdma_system.errors"}
 
 # =====================================================================================================================
 [section.mhdma_reset]
