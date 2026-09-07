@@ -150,8 +150,10 @@ impl ServerKey {
     ///
     /// - Returns None if ciphertexts is empty
     ///
-    /// - Expects all ciphertexts to have empty carries
+    /// - Expects all ciphertexts to be clean (see [`is_clean`])
     /// - Expects all ciphertexts to have the same size
+    ///
+    /// [`is_clean`]: IntegerRadixCiphertext::is_clean
     pub fn unchecked_sum_ciphertexts_vec_parallelized<T>(&self, ciphertexts: Vec<T>) -> Option<T>
     where
         T: IntegerRadixCiphertext,
@@ -160,7 +162,7 @@ impl ServerKey {
             self.unchecked_partial_sum_ciphertexts_vec_parallelized(ciphertexts, None)?;
 
         self.full_propagate_parallelized(&mut result);
-        assert!(result.block_carries_are_empty());
+        assert!(result.is_clean());
 
         Some(result)
     }
@@ -191,12 +193,8 @@ impl ServerKey {
             .collect::<Vec<T>>();
         ciphertexts
             .par_iter_mut()
-            .filter(|ct| ct.block_carries_are_empty())
-            .for_each(|ct| {
-                if !ct.block_carries_are_empty() {
-                    self.full_propagate_parallelized(&mut *ct);
-                }
-            });
+            .filter(|ct| !ct.is_clean())
+            .for_each(|ct| self.full_propagate_parallelized(&mut *ct));
 
         self.unchecked_sum_ciphertexts_vec_parallelized(ciphertexts)
     }

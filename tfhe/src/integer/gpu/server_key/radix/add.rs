@@ -413,7 +413,7 @@ impl CudaServerKey {
 
         ciphertexts
             .iter_mut()
-            .filter(|ct| !ct.block_carries_are_empty())
+            .filter(|ct| !ct.is_clean())
             .for_each(|ct| {
                 self.full_propagate_assign(&mut *ct, streams);
             });
