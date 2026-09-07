@@ -938,3 +938,202 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_f128_decrypt_custom_mod(
 pub fn test_lwe_encrypt_multi_bit_deterministic_pbs_f128_decrypt_factor_3_thread_12_native_mod() {
     lwe_encrypt_multi_bit_deterministic_pbs_f128_decrypt_custom_mod(MULTI_BIT_2_2_3_PARAMS_U128);
 }
+
+// The 64 bits NTT "back and forth" multi-bit PBS works with ciphertexts on a power of two modulus
+// and a bootstrap key modulus switched to the NTT (prime) modulus, we use the Goldilocks prime
+// (2^64 - 2^32 + 1) for it
+const MULTI_BIT_NTT64_BNF_NTT_MODULUS: CiphertextModulus<u64> =
+    CiphertextModulus::new((1 << 64) - (1 << 32) + 1);
+
+fn lwe_encrypt_multi_bit_pbs_ntt64_bnf_decrypt(
+    params: MultiBitTestParams<u64>,
+    deterministic_execution: bool,
+) {
+    let lwe_noise_distribution = params.lwe_noise_distribution;
+    let ciphertext_modulus = params.ciphertext_modulus;
+    let message_modulus_log = params.message_modulus_log;
+    let msg_modulus = 1u64 << message_modulus_log.0;
+    let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
+    let glwe_dimension = params.glwe_dimension;
+    let polynomial_size = params.polynomial_size;
+    let thread_count = params.thread_count;
+
+    // The determinism check runs the PBS twice, use fewer iterations in that case
+    let nb_tests = if deterministic_execution {
+        NB_TESTS_LIGHT
+    } else {
+        NB_TESTS
+    };
+
+    let mut rsc = TestResources::new();
+
+    let f = |x: u64| x;
+
+    let delta: u64 = encoding_with_padding / msg_modulus;
+    let mut msg = msg_modulus;
+
+    let accumulator = generate_programmable_bootstrap_glwe_lut(
+        polynomial_size,
+        glwe_dimension.to_glwe_size(),
+        msg_modulus.cast_into(),
+        ciphertext_modulus,
+        delta,
+        f,
+    );
+
+    assert!(check_encrypted_content_respects_mod(
+        &accumulator,
+        ciphertext_modulus
+    ));
+
+    let mut keys_gen = |params| generate_keys(params, &mut rsc);
+
+    let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+    let (input_lwe_secret_key, output_lwe_secret_key, bsk) =
+        (keys.small_lwe_sk, keys.big_lwe_sk, keys.bsk);
+    // The Fourier key is not used by this test
+    drop(keys.fbsk);
+
+    assert!(check_encrypted_content_respects_mod(
+        &*bsk,
+        ciphertext_modulus
+    ));
+
+    // The key is generated on the power of two ciphertext modulus and then modulus switched to the
+    // NTT modulus, it stays in the standard domain
+    let mut ntt_modulus_bsk = LweMultiBitBootstrapKey::new(
+        0u64,
+        bsk.glwe_size(),
+        bsk.polynomial_size(),
+        bsk.decomposition_base_log(),
+        bsk.decomposition_level_count(),
+        bsk.input_lwe_dimension(),
+        bsk.grouping_factor(),
+        MULTI_BIT_NTT64_BNF_NTT_MODULUS,
+    );
+
+    par_modulus_switch_lwe_multi_bit_bootstrap_key_to_ntt64_modulus(&bsk, &mut ntt_modulus_bsk);
+
+    drop(bsk);
+
+    assert!(check_encrypted_content_respects_mod(
+        &*ntt_modulus_bsk,
+        MULTI_BIT_NTT64_BNF_NTT_MODULUS
+    ));
+
+    while msg != 0 {
+        msg = msg.wrapping_sub(1);
+        for _ in 0..nb_tests {
+            let plaintext = Plaintext(msg * delta);
+
+            let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
+                &input_lwe_secret_key,
+                plaintext,
+                lwe_noise_distribution,
+                ciphertext_modulus,
+                &mut rsc.encryption_random_generator,
+            );
+
+            assert!(check_encrypted_content_respects_mod(
+                &lwe_ciphertext_in,
+                ciphertext_modulus
+            ));
+
+            let mut out_pbs_ct = LweCiphertext::new(
+                0u64,
+                output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                ciphertext_modulus,
+            );
+
+            multi_bit_programmable_bootstrap_ntt64_bnf_lwe_ciphertext(
+                &lwe_ciphertext_in,
+                &mut out_pbs_ct,
+                &accumulator,
+                &ntt_modulus_bsk,
+                thread_count,
+                deterministic_execution,
+            );
+
+            assert!(check_encrypted_content_respects_mod(
+                &out_pbs_ct,
+                ciphertext_modulus
+            ));
+
+            let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &out_pbs_ct);
+
+            let decoded = round_decode(decrypted.0, delta) % msg_modulus;
+
+            assert_eq!(decoded, f(msg));
+
+            if deterministic_execution {
+                let mut out_pbs_ct_other = LweCiphertext::new(
+                    0u64,
+                    output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                    ciphertext_modulus,
+                );
+
+                multi_bit_programmable_bootstrap_ntt64_bnf_lwe_ciphertext(
+                    &lwe_ciphertext_in,
+                    &mut out_pbs_ct_other,
+                    &accumulator,
+                    &ntt_modulus_bsk,
+                    thread_count,
+                    deterministic_execution,
+                );
+
+                assert_eq!(out_pbs_ct_other, out_pbs_ct);
+            }
+        }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(tarpaulin)]
+        break;
+    }
+}
+
+#[test]
+pub fn test_lwe_encrypt_multi_bit_pbs_ntt64_bnf_decrypt_factor_2_thread_5_native_mod() {
+    lwe_encrypt_multi_bit_pbs_ntt64_bnf_decrypt(MULTI_BIT_2_2_2_PARAMS, false);
+    lwe_encrypt_multi_bit_pbs_ntt64_bnf_decrypt(MULTI_BIT_3_3_2_PARAMS, false);
+}
+
+#[test]
+pub fn test_lwe_encrypt_multi_bit_pbs_ntt64_bnf_decrypt_factor_3_thread_12_native_mod() {
+    lwe_encrypt_multi_bit_pbs_ntt64_bnf_decrypt(MULTI_BIT_2_2_3_PARAMS, false);
+    lwe_encrypt_multi_bit_pbs_ntt64_bnf_decrypt(MULTI_BIT_3_3_3_PARAMS, false);
+}
+
+#[test]
+pub fn test_lwe_encrypt_multi_bit_pbs_ntt64_bnf_decrypt_factor_2_thread_5_custom_mod() {
+    lwe_encrypt_multi_bit_pbs_ntt64_bnf_decrypt(MULTI_BIT_2_2_2_CUSTOM_MOD_PARAMS, false);
+}
+
+#[test]
+pub fn test_lwe_encrypt_multi_bit_pbs_ntt64_bnf_decrypt_factor_3_thread_12_custom_mod() {
+    lwe_encrypt_multi_bit_pbs_ntt64_bnf_decrypt(MULTI_BIT_2_2_3_CUSTOM_MOD_PARAMS, false);
+}
+
+#[test]
+pub fn test_lwe_encrypt_multi_bit_deterministic_pbs_ntt64_bnf_decrypt_factor_2_thread_5_native_mod()
+{
+    lwe_encrypt_multi_bit_pbs_ntt64_bnf_decrypt(MULTI_BIT_2_2_2_PARAMS, true);
+}
+
+#[test]
+pub fn test_lwe_encrypt_multi_bit_deterministic_pbs_ntt64_bnf_decrypt_factor_3_thread_12_native_mod(
+) {
+    lwe_encrypt_multi_bit_pbs_ntt64_bnf_decrypt(MULTI_BIT_2_2_3_PARAMS, true);
+}
+
+#[test]
+pub fn test_lwe_encrypt_multi_bit_deterministic_pbs_ntt64_bnf_decrypt_factor_2_thread_5_custom_mod()
+{
+    lwe_encrypt_multi_bit_pbs_ntt64_bnf_decrypt(MULTI_BIT_2_2_2_CUSTOM_MOD_PARAMS, true);
+}
+
+#[test]
+pub fn test_lwe_encrypt_multi_bit_deterministic_pbs_ntt64_bnf_decrypt_factor_3_thread_12_custom_mod(
+) {
+    lwe_encrypt_multi_bit_pbs_ntt64_bnf_decrypt(MULTI_BIT_2_2_3_CUSTOM_MOD_PARAMS, true);
+}

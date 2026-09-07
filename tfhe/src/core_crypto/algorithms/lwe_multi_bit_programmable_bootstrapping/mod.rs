@@ -1,3 +1,7 @@
+pub mod ntt64_bnf_multi_bit_pbs;
+
+pub use ntt64_bnf_multi_bit_pbs::*;
+
 use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::slice_algorithms::*;

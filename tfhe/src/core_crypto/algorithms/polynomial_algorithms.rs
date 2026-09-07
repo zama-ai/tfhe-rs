@@ -726,6 +726,97 @@ pub(crate) fn polynomial_wrapping_monic_monomial_mul_and_subtract<Scalar, Output
     }
 }
 
+/// Multiply (mod $(X^{N}+1)$), the input polynomial with a monic monomial of a given degree i.e.
+/// $X^{degree}$, then subtract the input from the result and assign to the output.
+///
+/// output = input * X^degree - input
+///
+/// Computations are done modulo the given custom `modulus`, the coefficients of `input` are
+/// expected to be in $[0, modulus)$.
+///
+/// # Panics
+///
+/// This function will panic if `output` and `input` do not have the same polynomial size.
+pub(crate) fn polynomial_wrapping_monic_monomial_mul_and_subtract_custom_mod<
+    Scalar,
+    OutputCont,
+    InputCont,
+>(
+    output: &mut Polynomial<OutputCont>,
+    input: &Polynomial<InputCont>,
+    monomial_degree: MonomialDegree,
+    modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+{
+    /// performs the operation: dst = -src - src_orig, modulo `modulus`
+    fn copy_with_neg_and_subtract_custom_mod<Scalar: UnsignedInteger>(
+        dst: &mut [Scalar],
+        src: &[Scalar],
+        src_orig: &[Scalar],
+        modulus: Scalar,
+    ) {
+        for ((dst, src), src_orig) in dst.iter_mut().zip(src).zip(src_orig) {
+            *dst = src
+                .wrapping_neg_custom_mod(modulus)
+                .wrapping_sub_custom_mod(*src_orig, modulus);
+        }
+    }
+
+    /// performs the operation: dst = src - src_orig, modulo `modulus`
+    fn copy_without_neg_and_subtract_custom_mod<Scalar: UnsignedInteger>(
+        dst: &mut [Scalar],
+        src: &[Scalar],
+        src_orig: &[Scalar],
+        modulus: Scalar,
+    ) {
+        for ((dst, src), src_orig) in dst.iter_mut().zip(src).zip(src_orig) {
+            *dst = src.wrapping_sub_custom_mod(*src_orig, modulus);
+        }
+    }
+
+    assert!(
+        output.polynomial_size() == input.polynomial_size(),
+        "Output polynomial size {:?} is not the same as input polynomial size {:?}.",
+        output.polynomial_size(),
+        input.polynomial_size(),
+    );
+
+    let polynomial_size = output.polynomial_size().0;
+    let remaining_degree = monomial_degree.0 % polynomial_size;
+
+    let full_cycles_count = monomial_degree.0 / polynomial_size;
+    if full_cycles_count.is_multiple_of(2) {
+        copy_with_neg_and_subtract_custom_mod(
+            &mut output[..remaining_degree],
+            &input[polynomial_size - remaining_degree..],
+            &input[..remaining_degree],
+            modulus,
+        );
+        copy_without_neg_and_subtract_custom_mod(
+            &mut output[remaining_degree..],
+            &input[..polynomial_size - remaining_degree],
+            &input[remaining_degree..],
+            modulus,
+        );
+    } else {
+        copy_without_neg_and_subtract_custom_mod(
+            &mut output[..remaining_degree],
+            &input[polynomial_size - remaining_degree..],
+            &input[..remaining_degree],
+            modulus,
+        );
+        copy_with_neg_and_subtract_custom_mod(
+            &mut output[remaining_degree..],
+            &input[..polynomial_size - remaining_degree],
+            &input[remaining_degree..],
+            modulus,
+        );
+    }
+}
+
 /// Subtract the sum of the element-wise product between two lists of polynomials, to the output
 /// polynomial.
 ///
@@ -1567,5 +1658,58 @@ mod test {
     #[test]
     pub fn test_sub_mul_u64() {
         test_sub_mul::<u64>();
+    }
+
+    /// test that the fused monic monomial multiplication and subtraction with a custom modulus
+    /// matches the two step computation
+    fn test_monic_monomial_mul_and_subtract_custom_mod<T: UnsignedTorus>(modulus: T) {
+        let mut rng = rand::thread_rng();
+        let mut generator = new_random_generator();
+
+        for _ in 0..50 {
+            let polynomial_size = random_polynomial_size(2048);
+
+            // generate a random polynomial with coefficients in [0, modulus)
+            let mut input = Polynomial::new(T::ZERO, polynomial_size);
+            generator.fill_slice_with_random_uniform(input.as_mut());
+            input
+                .as_mut()
+                .iter_mut()
+                .for_each(|x| *x = x.wrapping_rem(modulus));
+
+            // random degree, potentially bigger than the polynomial size to exercise the wrap
+            // around
+            let degree = MonomialDegree(rng.gen::<usize>() % (4 * polynomial_size.0));
+
+            let mut expected = input.clone();
+            polynomial_wrapping_monic_monomial_mul_assign_custom_mod(
+                &mut expected,
+                degree,
+                modulus,
+            );
+            slice_wrapping_sub_assign_custom_mod(expected.as_mut(), input.as_ref(), modulus);
+
+            let mut output = Polynomial::new(T::ZERO, polynomial_size);
+            polynomial_wrapping_monic_monomial_mul_and_subtract_custom_mod(
+                &mut output,
+                &input,
+                degree,
+                modulus,
+            );
+
+            assert_eq!(&output, &expected);
+        }
+    }
+
+    #[test]
+    pub fn test_monic_monomial_mul_and_subtract_custom_mod_u32() {
+        // 2^32 - 5
+        test_monic_monomial_mul_and_subtract_custom_mod::<u32>(4294967291);
+    }
+
+    #[test]
+    pub fn test_monic_monomial_mul_and_subtract_custom_mod_u64() {
+        // Goldilocks prime 2^64 - 2^32 + 1
+        test_monic_monomial_mul_and_subtract_custom_mod::<u64>(u64::MAX - (1 << 32) + 2);
     }
 }
