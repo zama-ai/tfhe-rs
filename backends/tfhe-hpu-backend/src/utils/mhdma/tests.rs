@@ -490,8 +490,8 @@ pub fn readreq_test(
 }
 
 /// Intense read-request stress:
-/// `rounds` of concurrent ring reads at randomized base slots, each with fresh data, to shake the module under
-/// sustained load + address variety.
+/// `rounds` of concurrent ring reads at randomized base slots, each with fresh data, to shake the
+/// module under sustained load + address variety.
 /// Verifies the payload every round and asserts no errors or read-request retries accumulate.
 /// Stops at the first bad round.
 pub fn readreq_stress(
