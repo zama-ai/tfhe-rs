@@ -1,6 +1,7 @@
 #include "checked_arithmetic.h"
 #include "device.h"
 #include "helper_multi_gpu.h"
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <gtest/gtest.h>
@@ -84,14 +85,18 @@ public:
 };
 
 TEST_P(KeyswitchTestPrimitives_u64, keyswitch) {
+  const uint eff_reps = is_sanitizer_run() ? 1u : REPETITIONS;
+  const uint eff_samples = is_sanitizer_run() ? 1u : SAMPLES;
+  const int eff_inputs =
+      is_sanitizer_run() ? std::min(number_of_inputs, 2) : number_of_inputs;
   uint64_t *lwe_out_ct = (uint64_t *)malloc(safe_mul_sizeof<uint64_t>(
-      (size_t)(output_lwe_dimension + 1), (size_t)number_of_inputs));
-  for (uint r = 0; r < REPETITIONS; r++) {
+      (size_t)(output_lwe_dimension + 1), (size_t)eff_inputs));
+  for (uint r = 0; r < eff_reps; r++) {
     uint64_t *lwe_out_sk =
         lwe_sk_out_array + (ptrdiff_t)(r * output_lwe_dimension);
     int ksk_size = ksk_level * (output_lwe_dimension + 1) * input_lwe_dimension;
     uint64_t *d_ksk = d_ksk_array + (ptrdiff_t)(ksk_size * r);
-    for (uint s = 0; s < SAMPLES; s++) {
+    for (uint s = 0; s < eff_samples; s++) {
       uint64_t *d_lwe_ct_in =
           d_lwe_ct_in_array +
           (ptrdiff_t)((r * SAMPLES * number_of_inputs + s * number_of_inputs) *
@@ -101,16 +106,15 @@ TEST_P(KeyswitchTestPrimitives_u64, keyswitch) {
           stream, gpu_index, (void *)d_lwe_ct_out_array,
           (void *)lwe_output_indexes, (void *)d_lwe_ct_in,
           (void *)lwe_input_indexes, (void *)d_ksk, input_lwe_dimension,
-          output_lwe_dimension, ksk_base_log, ksk_level, number_of_inputs,
-          false);
+          output_lwe_dimension, ksk_base_log, ksk_level, eff_inputs, false);
 
       // Copy result back
       cuda_memcpy_async_to_cpu(
           lwe_out_ct, d_lwe_ct_out_array,
-          safe_mul_sizeof<uint64_t>((size_t)number_of_inputs,
+          safe_mul_sizeof<uint64_t>((size_t)eff_inputs,
                                     (size_t)(output_lwe_dimension + 1)),
           stream, gpu_index);
-      for (int i = 0; i < number_of_inputs; i++) {
+      for (int i = 0; i < eff_inputs; i++) {
         uint64_t plaintext = plaintexts[r * SAMPLES * number_of_inputs +
                                         s * number_of_inputs + i];
         uint64_t decrypted = 0;

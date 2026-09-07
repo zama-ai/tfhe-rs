@@ -21,6 +21,7 @@ env:
 on:
   workflow_dispatch:
   pull_request:
+    types: [ labeled ]
 
 permissions:
   contents: read
@@ -69,7 +70,8 @@ jobs:
     name: gpu_integer_classic_tests_h100_2gpu_par/setup-instance
     needs: should-run
     if: github.event_name != 'pull_request' ||
-      (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true')
+      (github.event.action == 'labeled' && (github.event.label.name == 'gpu_int_classic' ||
+      (github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true')))
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}

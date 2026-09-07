@@ -20,9 +20,6 @@ env:
   EXTERNAL_CONTRIBUTION_RUNNER: "gpu_ubuntu-22.04"
 
 on:
-  # Allows you to run this workflow manually from the Actions tab as an alternative.
-  pull_request:
-    types: [ labeled ]
   workflow_dispatch:
 
 permissions:
@@ -128,13 +125,18 @@ jobs:
           gcc-version: ${{ matrix.gcc }}
           cloud-provider: ${{ needs.setup-instance.outputs.cloud-provider }}
 
-      - name: Find tools
+      - name: Ensure compute-sanitizer 12.8 is installed
         run: |
-          # Find compute-sanitizer
-          find /usr -executable -name "compute-sanitizer" 2>&1 | grep -v "Permission denied"
-          echo "compute-sanitizer was found, checking if it's in the path..."
-          # Check that compute sanitizer is in the path
+          if command -v compute-sanitizer > /dev/null 2>&1 \
+              && compute-sanitizer --version 2>&1 | grep -q "2025"; then
+            echo "compute-sanitizer 12.8 already installed"
+          else
+            echo "Installing compute-sanitizer 12.8 via apt..."
+            sudo apt-get install -y cuda-sanitizer-12-8
+            echo "/usr/local/cuda-12.8/bin" >> "${GITHUB_PATH}"
+          fi
           which compute-sanitizer
+          compute-sanitizer --version
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # zizmor: ignore[stale-action-refs] this action doesn't create releases
@@ -143,7 +145,7 @@ jobs:
 
       - name: Run memory sanitizer
         run: |
-          make test_high_level_api_gpu_sanitizer
+          make test_high_level_api_gpu_memcheck
 
   slack-notify:
     name: gpu_memory_sanitizer/slack-notify

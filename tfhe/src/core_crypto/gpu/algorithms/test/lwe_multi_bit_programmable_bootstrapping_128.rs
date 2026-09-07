@@ -36,8 +36,13 @@ fn execute_multibit_bootstrap_u128(
 
     let delta = encoding_with_padding / msg_modulus.0 as u128;
     let delta_64 = encoding_with_padding_64 / msg_modulus.0 as u64;
-    const NB_TESTS: usize = 10;
-    for number_of_messages in [1_usize, 2_usize, 100_usize] {
+    let nb_tests = if is_sanitizer_run() { 2 } else { 10 };
+    let messages_counts: &[usize] = if is_sanitizer_run() {
+        &[1]
+    } else {
+        &[1, 2, 100]
+    };
+    for &number_of_messages in messages_counts {
         let mut msg = msg_modulus.0 as u64;
 
         let accumulator = generate_programmable_bootstrap_glwe_lut(
@@ -105,7 +110,7 @@ fn execute_multibit_bootstrap_u128(
 
         while msg != 0 {
             msg -= 1;
-            for _ in 0..NB_TESTS {
+            for _ in 0..nb_tests {
                 let input_plaintext_list =
                     PlaintextList::from_container(vec![msg * delta_64; number_of_messages]);
 

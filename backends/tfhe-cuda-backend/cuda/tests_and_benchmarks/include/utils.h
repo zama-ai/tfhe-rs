@@ -2,8 +2,16 @@
 #define UTILS_H
 
 #include "tfhe.h"
+#include <algorithm>
+#include <cstdlib>
+#include <cstring>
 #include <device.h>
 #include <functional>
+
+inline bool is_sanitizer_run() {
+  const char *v = std::getenv("TFHE_RS_COMPUTE_SANITIZER");
+  return v != nullptr && std::strcmp(v, "1") == 0;
+}
 
 typedef struct Seed {
   uint64_t lo;

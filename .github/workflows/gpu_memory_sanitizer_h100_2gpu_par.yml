@@ -1,5 +1,5 @@
-# Compile and test tfhe-cuda-backend unsigned integer on an AWS instance
-name: gpu_unsigned_integer_tests
+# Run compute-sanitizer memcheck and racecheck in parallel on a 2xH100 machine
+name: gpu_memory_sanitizer_h100_2gpu_par
 
 env:
   CARGO_TERM_COLOR: always
@@ -12,19 +12,16 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
   SLACKIFY_MARKDOWN: true
-  FAST_TESTS: TRUE
-  NIGHTLY_TESTS: FALSE
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
   PULL_REQUEST_MD_LINK: ""
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
-  # Secrets will be available only to zama-ai organization members
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
   EXTERNAL_CONTRIBUTION_RUNNER: "gpu_ubuntu-22.04"
 
 on:
-  # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   pull_request:
+    types: [ labeled ]
 
 permissions:
   contents: read
@@ -33,7 +30,7 @@ permissions:
 
 jobs:
   should-run:
-    name: gpu_unsigned_integer_tests/should-run
+    name: gpu_memory_sanitizer_h100_2gpu_par/should-run
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read  # Needed to check for file change
@@ -53,28 +50,24 @@ jobs:
         with:
           files_yaml: |
             gpu:
+              - Cargo.toml
               - tfhe/Cargo.toml
               - tfhe/build.rs
               - backends/tfhe-cuda-backend/**
               - tfhe/src/core_crypto/gpu/**
-              - tfhe/src/integer/server_key/radix_parallel/tests_unsigned/**
-              - tfhe/src/integer/server_key/radix_parallel/tests_signed/**
-              - tfhe/src/integer/server_key/radix_parallel/tests_cases_unsigned.rs
               - tfhe/src/integer/gpu/**
               - tfhe/src/shortint/parameters/**
               - tfhe/src/high_level_api/**
-              - tfhe/src/c_api/**
-              - '.github/workflows/gpu_unsigned_integer_tests.yml'
-              - scripts/integer-tests.sh
+              - '.github/workflows/gpu_memory_sanitizer_h100_2gpu_par.yml'
               - '.github/actions/gpu_setup/action.yml'
               - ci/slab.toml
 
   setup-instance:
-    name: gpu_unsigned_integer_tests/setup-instance
-    runs-on: ubuntu-latest
+    name: gpu_memory_sanitizer_h100_2gpu_par/setup-instance
     needs: should-run
+    runs-on: ubuntu-latest
     if: github.event_name != 'pull_request' ||
-      needs.should-run.outputs.gpu_test == 'true'
+      (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true')
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
       cloud-provider: ${{ steps.start-remote-instance.outputs.cloud-provider || steps.start-github-instance.outputs.cloud-provider }}
@@ -89,9 +82,8 @@ jobs:
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: terraform
-          profile: scaleway-small-gpu
+          profile: scaleway-2-h100-sxm5-tests
 
-      # This instance will be spawned especially for pull-request from forked repository
       - name: Start GitHub instance
         id: start-github-instance
         if: env.SECRETS_AVAILABLE == 'false'
@@ -101,18 +93,18 @@ jobs:
             echo "cloud-provider=github";
           } >> "$GITHUB_OUTPUT"
 
-  cuda-unsigned-integer-tests:
-    name: gpu_unsigned_integer_tests/cuda-unsigned-integer-tests
+  cuda-tests-linux:
+    name: gpu_memory_sanitizer_h100_2gpu_par/cuda-tests-linux
     needs: [ should-run, setup-instance ]
     if: github.event_name != 'pull_request' ||
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
     concurrency:
       group: ${{ github.workflow_ref }}
-      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+      cancel-in-progress: false
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    timeout-minutes: 600
     strategy:
       fail-fast: false
-      # explicit include-based build matrix, of known valid options
       matrix:
         include:
           - os: ubuntu-22.04
@@ -132,30 +124,74 @@ jobs:
           gcc-version: ${{ matrix.gcc }}
           cloud-provider: ${{ needs.setup-instance.outputs.cloud-provider }}
 
+      - name: Ensure compute-sanitizer 12.8 is installed
+        run: |
+          if command -v compute-sanitizer > /dev/null 2>&1 \
+              && compute-sanitizer --version 2>&1 | grep -q "2025"; then
+            echo "compute-sanitizer 12.8 already installed"
+          else
+            echo "Installing compute-sanitizer 12.8 via apt..."
+            sudo apt-get install -y cuda-sanitizer-12-8
+            echo "/usr/local/cuda-12.8/bin" >> "${GITHUB_PATH}"
+          fi
+          which compute-sanitizer
+          compute-sanitizer --version
+
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
           toolchain: stable
+
+      - name: Check GPU count
+        run: |
+          GPU_COUNT=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
+          echo "Found ${GPU_COUNT} GPU(s)"
+          [ "${GPU_COUNT}" -ge 2 ] || { echo "Error: at least 2 GPUs required"; exit 1; }
+
       - name: Enable nvidia multi-process service
         run: |
           nvidia-cuda-mps-control -d
-      - name: Should run nightly tests
-        if: github.event_name == 'schedule'
-        run: |
-          {
-            echo "FAST_TESTS=FALSE";
-            echo "NIGHTLY_TESTS=TRUE";
-          } >> "${GITHUB_ENV}"
 
-      - name: Run unsigned integer multi-bit tests
+      - name: Install cargo-nextest
+        run: make install_cargo_nextest
+
+      - name: Run memcheck and racecheck in parallel
         run: |
-          make test_unsigned_integer_multi_bit_gpu_ci
+          run_memcheck() {
+            local rc=0
+            CUDA_VISIBLE_DEVICES=0 make test_high_level_api_gpu_memcheck || rc=$?
+            echo "${rc}" > /tmp/memcheck.rc
+          }
+          run_racecheck() {
+            local rc=0
+            CUDA_VISIBLE_DEVICES=1 make test_gpu_racecheck || rc=$?
+            echo "${rc}" > /tmp/racecheck.rc
+          }
+          run_memcheck 2>&1 | sed -u 's/^/[memcheck]  /' &
+          PID0=$!
+          run_racecheck 2>&1 | sed -u 's/^/[racecheck] /' &
+          PID1=$!
+          wait "${PID0}" || true
+          wait "${PID1}" || true
+
+          STATUS=0
+          for lane in memcheck racecheck; do
+            rc="$(cat "/tmp/${lane}.rc" 2>/dev/null || true)"
+            rc="${rc:-1}"
+            if [ "${rc}" -eq 0 ]; then
+              echo "${lane} passed"
+            else
+              echo "::error title=${lane}::exited with code ${rc}, see the lines prefixed with [${lane}] above"
+              STATUS=1
+            fi
+          done
+          exit "${STATUS}"
 
   slack-notify:
-    name: gpu_unsigned_integer_tests/slack-notify
-    needs: [ setup-instance, cuda-unsigned-integer-tests ]
+    name: gpu_memory_sanitizer_h100_2gpu_par/slack-notify
+    needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
-    if: ${{ always() && needs.cuda-unsigned-integer-tests.result != 'skipped' && failure() }}
+    if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' && failure() }}
     continue-on-error: true
     steps:
       - name: Set pull-request URL
@@ -170,16 +206,16 @@ jobs:
         if: env.SECRETS_AVAILABLE == 'true'
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
-          SLACK_COLOR: ${{ needs.cuda-unsigned-integer-tests.result }}
-          SLACK_MESSAGE: "Unsigned integer GPU tests finished with status: ${{ needs.cuda-unsigned-integer-tests.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
+          SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
+          SLACK_MESSAGE: "GPU Memory Sanitizer (memcheck + racecheck parallel) finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
-    name: gpu_unsigned_integer_tests/teardown-instance
+    name: gpu_memory_sanitizer_h100_2gpu_par/teardown-instance
     if: ${{ always() && needs.setup-instance.result == 'success' }}
-    needs: [ setup-instance, cuda-unsigned-integer-tests ]
+    needs: [ setup-instance, cuda-tests-linux ]
     runs-on: ubuntu-latest
     steps:
-      - name: Stop instance
+      - name: Stop remote instance
         id: stop-instance
         if: env.SECRETS_AVAILABLE == 'true'
         uses: zama-ai/slab-github-runner@d4a5bb6e2a4b8aa19a10f596d7f142006a7e2c21 # v1.6.3
@@ -195,4 +231,4 @@ jobs:
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cuda-unsigned-integer-tests) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (gpu_memory_sanitizer_h100_2gpu_par) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

@@ -70,7 +70,8 @@ jobs:
     name: gpu_integer_multibit_tests_h100_2gpu_par/setup-instance
     needs: should-run
     if: github.event_name != 'pull_request' ||
-      (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true')
+      (github.event.action == 'labeled' && (github.event.label.name == 'gpu_int_mb' ||
+      (github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true')))
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}

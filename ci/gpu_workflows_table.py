@@ -33,11 +33,13 @@ WORKFLOWS = [
     "gpu_code_validation_tests",
     "gpu_memory_sanitizer",
     "gpu_memory_sanitizer_h100",
+    "gpu_memory_sanitizer_h100_2gpu_par",
     "gpu_noise_level_checks",
     "gpu_zk_tests",
     "gpu_zk_long_run_tests",
     "gpu_zk_code_validation_tests",
     "gpu_zk_memory_sanitizer",
+    "gpu_protocol_stress_h100_tests",
 ]
 
 
@@ -150,8 +152,7 @@ def parse_workflow(path: Path, slab: dict) -> dict:
         "PR on approved": "yes" if pr_approved else "",
         "Cron": cron,
         "Manual only": "yes" if manual_only else "",
-        "Profile (instance)": f"{profile} ({instance_type})" if profile else "",
-        "Fallbacks": " | ".join(fallbacks),
+        "Profile (instance)": instance_type if profile else "",
         "_test_targets": extract_test_targets(text),
     }
 
@@ -173,6 +174,12 @@ TEST_TARGETS = [
     "test_signed_integer_multi_bit_gpu_ci",
     "test_unsigned_integer_gpu_ci",
     "test_unsigned_integer_multi_bit_gpu_ci",
+    "test_protocol_stress_gpu",
+    "test_protocol_long_run_gpu",
+    "test_high_level_api_gpu_valgrind",
+    "test_high_level_api_gpu_sanitizer",
+    "test_high_level_api_gpu_memcheck",
+    "test_gpu_racecheck",
     "test_user_doc_gpu",
     "test_c_api_gpu",
     "test_integer_zk_experimental_gpu",
@@ -186,9 +193,6 @@ TEST_TARGETS = [
     "test_zk_pok_gpu_valgrind",
     "test_high_level_api_fake_multi_gpu",
     "test_signed_integer_fake_multi_gpu",
-    "test_cuda_backend_race_check",
-    "test_high_level_api_gpu_valgrind",
-    "test_high_level_api_gpu_sanitizer",
 ]
 
 
@@ -241,7 +245,19 @@ def main():
     for w in warnings:
         print(w, file=sys.stderr)
 
-    base_fields = ["Workflow", "PR", "PR on approved", "Cron", "Manual only", "Profile (instance)", "Fallbacks"]
+    def sort_key(row):
+        name = row["Workflow"]
+        if row["PR"] == "yes":
+            return (0, name)
+        if row["PR on approved"] == "yes":
+            return (1, name)
+        if row["Manual only"] == "yes":
+            return (3, name)
+        return (2, name)
+
+    rows.sort(key=sort_key)
+
+    base_fields = ["Workflow", "PR", "PR on approved", "Manual only", "Cron", "Profile (instance)"]
     writer = csv.DictWriter(sys.stdout, fieldnames=base_fields + TEST_TARGETS)
     writer.writeheader()
     for row in rows:
