@@ -314,16 +314,12 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if ct
-            .blocks()
-            .iter()
-            .any(|block| !block.carry_is_empty() || block.noise_level() != NoiseLevel::NOMINAL)
-        {
+        if ct.is_clean() {
+            Cow::Borrowed(ct)
+        } else {
             let mut cloned = ct.clone();
             self.full_propagate_parallelized(&mut cloned);
             Cow::Owned(cloned)
-        } else {
-            Cow::Borrowed(ct)
         }
     }
 
@@ -332,11 +328,7 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if ct
-            .blocks()
-            .iter()
-            .any(|block| !block.carry_is_empty() || block.noise_level() != NoiseLevel::NOMINAL)
-        {
+        if !ct.is_clean() {
             self.full_propagate_parallelized(ct);
         }
     }

@@ -1,4 +1,5 @@
 use super::{CrtCiphertext, RadixCiphertext, SignedRadixCiphertext};
+use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::Ciphertext;
 
 pub trait IntegerCiphertext: Clone {
@@ -17,6 +18,21 @@ pub trait IntegerRadixCiphertext: IntegerCiphertext + Sync + Send + From<Vec<Cip
 
     fn block_carries_are_empty(&self) -> bool {
         self.blocks().iter().all(Ciphertext::carry_is_empty)
+    }
+
+    /// Returns whether the ciphertext is ready to be used as the input of an
+    /// operation that expects clean inputs (i.e. the "default" ops).
+    ///
+    /// Being clean means that, for each block, the carries are empty **and** the noise is
+    /// at most nominal.
+    ///
+    /// To clean a ciphertext, use [`full_propagate_parallelized`]
+    ///
+    /// [`full_propagate_parallelized`]: crate::integer::ServerKey::full_propagate_parallelized
+    fn is_clean(&self) -> bool {
+        self.blocks()
+            .iter()
+            .all(|block| block.carry_is_empty() && block.noise_level() <= NoiseLevel::NOMINAL)
     }
 
     /// Returns whether the ciphertext _seems_ like it holds/encrypts
